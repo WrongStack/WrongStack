@@ -88,7 +88,9 @@ export function MemoryEditor({
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold">
-              {mode === 'create' ? t('activity:memoryManager.captureMemory') : t('activity:memoryManager.editMemory')}
+              {mode === 'create'
+                ? t('activity:memoryManager.captureMemory')
+                : t('activity:memoryManager.editMemory')}
             </p>
             <p className="text-[10px] text-muted-foreground">
               {mode === 'create'
@@ -109,7 +111,11 @@ export function MemoryEditor({
             ) : (
               <Save className="size-3.5" />
             )}
-            {busy ? t('common:action.saving') : mode === 'create' ? t('activity:memoryManager.createMemory') : t('activity:memoryManager.saveChanges')}
+            {busy
+              ? t('common:action.saving')
+              : mode === 'create'
+                ? t('activity:memoryManager.createMemory')
+                : t('activity:memoryManager.saveChanges')}
           </Button>
         </div>
       </div>
@@ -129,7 +135,9 @@ export function MemoryEditor({
           <section className="border border-border/75 bg-card/45 p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-[0.14em]">{t('activity:memoryManager.editorKnowledge')}</h3>
+                <h3 className="text-xs font-bold uppercase tracking-[0.14em]">
+                  {t('activity:memoryManager.editorKnowledge')}
+                </h3>
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   {t('activity:memEditor.writeTheDurableFactOrDecision')}
                 </p>
@@ -258,7 +266,9 @@ export function MemoryEditor({
           <section className="border border-border/75 bg-card/45 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-[0.14em]">{t('activity:memoryManager.editorAnchors')}</h3>
+                <h3 className="text-xs font-bold uppercase tracking-[0.14em]">
+                  {t('activity:memoryManager.editorAnchors')}
+                </h3>
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   {t('activity:memEditor.bindKnowledgeToFilesSymbolsPackages')}
                 </p>
@@ -388,7 +398,9 @@ export function MemoryEditor({
 
           <section className="grid gap-3 border border-border/75 bg-card/45 p-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.14em]">{t('activity:memoryManager.editorRelationships')}</h3>
+              <h3 className="text-xs font-bold uppercase tracking-[0.14em]">
+                {t('activity:memoryManager.editorRelationships')}
+              </h3>
               <p className="mt-1 text-[10px] text-muted-foreground">
                 {t('activity:memoryManager.editorRelationshipsHint')}
               </p>

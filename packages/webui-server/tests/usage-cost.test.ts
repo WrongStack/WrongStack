@@ -38,7 +38,11 @@ describe('getCostRates', () => {
   });
 
   it('ignores extra fields on model that are not cost', () => {
-    const model = { name: 'gpt-4', cost: { input: 3.0, output: 15.0, cache_read: 1.5 }, extra: true };
+    const model = {
+      name: 'gpt-4',
+      cost: { input: 3.0, output: 15.0, cache_read: 1.5 },
+      extra: true,
+    };
     expect(getCostRates(model)).toEqual({ input: 3.0, output: 15.0, cacheRead: 1.5 });
   });
 });

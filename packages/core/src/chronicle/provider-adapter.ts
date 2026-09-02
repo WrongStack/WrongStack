@@ -11,32 +11,48 @@ export interface ChronicleProviderAdapterOptions {
 }
 
 /** Persist provider attempt facts without coupling the provider runner to storage. */
-export function wireProviderAttemptsToChronicle(options: ChronicleProviderAdapterOptions): () => void {
+export function wireProviderAttemptsToChronicle(
+  options: ChronicleProviderAdapterOptions,
+): () => void {
   // The tool roster rarely changes between attempts, yet its full name list
   // (100+ entries, several KB) used to be re-embedded in every
   // provider.attempt.started manifest. Persist the names once per tools
   // manifestHash; later attempts keep the hash as a back-reference.
   const seenToolManifests = new Set<string>();
   const unsubs = [
-    options.events.on('provider.attempt.started', (event) => persist(options, event, {
-      eventType: 'provider.attempt.started',
-      outcome: 'started',
-      occurredAt: event.startedAt,
-    }, seenToolManifests)),
-    options.events.on('provider.attempt.completed', (event) => persist(options, event, {
-      eventType: 'provider.attempt.completed',
-      outcome: 'success',
-      occurredAt: event.endedAt,
-      durationNs: millisecondsToNanoseconds(event.durationMs),
-    })),
-    options.events.on('provider.attempt.failed', (event) => persist(options, event, {
-      eventType: 'provider.attempt.failed',
-      outcome: 'failure',
-      occurredAt: event.endedAt,
-      durationNs: millisecondsToNanoseconds(event.durationMs),
-    })),
+    options.events.on('provider.attempt.started', (event) =>
+      persist(
+        options,
+        event,
+        {
+          eventType: 'provider.attempt.started',
+          outcome: 'started',
+          occurredAt: event.startedAt,
+        },
+        seenToolManifests,
+      ),
+    ),
+    options.events.on('provider.attempt.completed', (event) =>
+      persist(options, event, {
+        eventType: 'provider.attempt.completed',
+        outcome: 'success',
+        occurredAt: event.endedAt,
+        durationNs: millisecondsToNanoseconds(event.durationMs),
+      }),
+    ),
+    options.events.on('provider.attempt.failed', (event) =>
+      persist(options, event, {
+        eventType: 'provider.attempt.failed',
+        outcome: 'failure',
+        occurredAt: event.endedAt,
+        durationNs: millisecondsToNanoseconds(event.durationMs),
+      }),
+    ),
   ];
-  return () => unsubs.forEach((unsubscribe) => { unsubscribe(); });
+  return () =>
+    unsubs.forEach((unsubscribe) => {
+      unsubscribe();
+    });
 }
 
 type ProviderAttemptEvent =
@@ -77,9 +93,17 @@ function providerAttributes(
   event: ProviderAttemptEvent,
   seenToolManifests?: Set<string>,
 ): Record<string, unknown> {
-  const { sessionId: _sessionId, traceId: _traceId, agentId: _agentId, providerId: _providerId,
-    model: _model, logicalRequestId: _logicalRequestId, promptManifestId: _promptManifestId,
-    attemptId: _attemptId, ...rest } = event;
+  const {
+    sessionId: _sessionId,
+    traceId: _traceId,
+    agentId: _agentId,
+    providerId: _providerId,
+    model: _model,
+    logicalRequestId: _logicalRequestId,
+    promptManifestId: _promptManifestId,
+    attemptId: _attemptId,
+    ...rest
+  } = event;
   const attributes = rest as Record<string, unknown>;
   if (seenToolManifests && isManifest(attributes['promptManifest'])) {
     // Never mutate the bus payload — other subscribers observe the same object.

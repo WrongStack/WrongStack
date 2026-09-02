@@ -134,9 +134,7 @@ describe('R7 / AC-17 — Aggregate receipt privacy', () => {
 
 describe('R8 / AC-18 — Downgrade resistance', () => {
   it('expired identity credential does not fall back to legacy', () => {
-    const authorizer = (
-      authHeader?: string,
-    ): { allowed: boolean; mode?: string } => {
+    const authorizer = (authHeader?: string): { allowed: boolean; mode?: string } => {
       if (authHeader?.startsWith('Credential ')) {
         // Credential failed → UNAUTHORIZED, no fallback to bearer
         return { allowed: false, mode: 'identity-token' };

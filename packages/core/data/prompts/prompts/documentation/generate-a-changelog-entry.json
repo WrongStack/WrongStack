@@ -5,10 +5,7 @@
   "description": "Summarize a change for users in a changelog.",
   "content": "Write a changelog entry for this change:\n\n{{change}}\n\nWrite it for users, not maintainers: what changed from their perspective, why it matters, and any action they must take. Categorize it (Added/Changed/Fixed/Deprecated/Removed/Security). For breaking changes, lead with the migration step. Keep it to a couple of crisp lines.",
   "category": "documentation",
-  "tags": [
-    "changelog",
-    "release-notes"
-  ],
+  "tags": ["changelog", "release-notes"],
   "source": "builtin",
   "favorite": false,
   "checksum": "421ea8660863b8f9d1437323bd34fe60bc2e98e2d6e6ff3a455e033b839939bc",

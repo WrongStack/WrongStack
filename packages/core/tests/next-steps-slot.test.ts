@@ -224,18 +224,14 @@ describe('maybeAppendPendingNextSteps', () => {
   // its source DAG (tests can). This pins the two in lockstep through the
   // slot's observable behavior: the block is appended iff the stop reason is
   // final. If either side changes alone, this fails.
-  it.each([
-    'tool_use',
-    'tool_call',
-    'end_turn',
-    'stop',
-    'max_tokens',
-    undefined,
-  ] as const)('endsTurn matches isFinalTurnStopReason (stopReason=%s)', (stopReason) => {
-    const c = ctx();
-    writePendingNextSteps(c, [{ text: 'Run the tests' }]);
-    const out = maybeAppendPendingNextSteps(c, res('Prose.', stopReason as never));
-    const appended = textOf(out).includes('<nextsteps>');
-    expect(appended).toBe(isFinalTurnStopReason(stopReason));
-  });
+  it.each(['tool_use', 'tool_call', 'end_turn', 'stop', 'max_tokens', undefined] as const)(
+    'endsTurn matches isFinalTurnStopReason (stopReason=%s)',
+    (stopReason) => {
+      const c = ctx();
+      writePendingNextSteps(c, [{ text: 'Run the tests' }]);
+      const out = maybeAppendPendingNextSteps(c, res('Prose.', stopReason as never));
+      const appended = textOf(out).includes('<nextsteps>');
+      expect(appended).toBe(isFinalTurnStopReason(stopReason));
+    },
+  );
 });

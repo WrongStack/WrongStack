@@ -109,7 +109,8 @@ export function deriveSessionAgents(events: Iterable<SessionEvent>): SessionAgen
         // An error already recorded is the more specific outcome: a failing
         // agent is stopped too, and `agent_stopped` carries no error text.
         if (row.status !== 'failed') {
-          row.status = event.reason === 'failed' || event.reason === 'aborted' ? 'failed' : 'completed';
+          row.status =
+            event.reason === 'failed' || event.reason === 'aborted' ? 'failed' : 'completed';
         }
         if (event.usage !== undefined) row.usage = event.usage;
         break;

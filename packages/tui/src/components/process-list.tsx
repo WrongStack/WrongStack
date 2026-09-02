@@ -141,7 +141,9 @@ export function ProcessListMonitor(): React.ReactElement {
       }
       footer={
         <Box gap={2}>
-          <Text color={theme.warn} bold>{'⏸ INPUT PAUSED'}</Text>
+          <Text color={theme.warn} bold>
+            {'⏸ INPUT PAUSED'}
+          </Text>
           <KeyCap keyName="↑↓" label="select" color={theme.error} />
           <KeyCap keyName="Enter" label="stop" color={theme.warn} />
           <KeyCap keyName="Del" label="force" color={theme.error} />

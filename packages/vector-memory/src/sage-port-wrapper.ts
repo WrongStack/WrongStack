@@ -56,7 +56,12 @@ function mergeVectorRecall(
   // Caller's explicit vectorRecall wins — but we still inject the
   // provider when not set, so `searchSage(query)` and `searchSage(query,
   // { limit: 5 })` both get the augmentation for free.
-  if (options && typeof options === 'object' && 'vectorRecall' in options && options['vectorRecall']) {
+  if (
+    options &&
+    typeof options === 'object' &&
+    'vectorRecall' in options &&
+    options['vectorRecall']
+  ) {
     return options;
   }
   return {
@@ -72,9 +77,7 @@ function mergeVectorRecall(
  * Exported so the wrapper can be used directly by hosts that want a
  * custom provider without wrapping the whole port.
  */
-export function asVectorRecallProviderAdapter(
-  store: VectorMemoryStore,
-): VectorRecallProvider {
+export function asVectorRecallProviderAdapter(store: VectorMemoryStore): VectorRecallProvider {
   return {
     async search(query, opts) {
       const hits = await store.search(query, {
@@ -140,42 +143,41 @@ export function wrapMemoryPortWithVectorRecall(
     Object.getPrototypeOf(port),
     Object.getOwnPropertyDescriptors(port),
   ) as MemoryPort;
-  wrapped.getCapability = <T,>(capability: { id: string; readonly __memoryCapabilityType?: ((value: T) => T) | undefined }): T | undefined => {
-      if (capability.id === SAGE_RETRIEVAL_CAPABILITY.id) {
-        const original = port.getCapability<SageRetrievalCapability>(capability as never);
-        if (!original) return undefined;
-        return {
-          ...original,
-          searchSage: wrapSearch(original.searchSage as never),
-          // The rich-breakdown variant uses the same options-merge
-          // helper — pass the vector recall through so consumers that
-          // want the per-channel score breakdown get the same fusion
-          // behaviour as `searchSage`.
-          ...(original.searchSageWithBreakdown
-            ? {
-                searchSageWithBreakdown: wrapSearch(
-                  original.searchSageWithBreakdown as never,
-                ),
-              }
-            : {}),
-        } as unknown as T;
-      }
-      if (capability.id === SAGE_SURFACE_CAPABILITY.id) {
-        const original = port.getCapability<SageSurface>(capability as never);
-        if (!original) return undefined;
-        return {
-          ...original,
-          searchSage: wrapSearch(original.searchSage as never),
-          ...(original.searchSageWithBreakdown
-            ? {
-                searchSageWithBreakdown: wrapSearch(
-                  original.searchSageWithBreakdown as never,
-                ),
-              }
-            : {}),
-        } as unknown as T;
-      }
-      return port.getCapability<T>(capability as never);
-    };
+  wrapped.getCapability = <T>(capability: {
+    id: string;
+    readonly __memoryCapabilityType?: ((value: T) => T) | undefined;
+  }): T | undefined => {
+    if (capability.id === SAGE_RETRIEVAL_CAPABILITY.id) {
+      const original = port.getCapability<SageRetrievalCapability>(capability as never);
+      if (!original) return undefined;
+      return {
+        ...original,
+        searchSage: wrapSearch(original.searchSage as never),
+        // The rich-breakdown variant uses the same options-merge
+        // helper — pass the vector recall through so consumers that
+        // want the per-channel score breakdown get the same fusion
+        // behaviour as `searchSage`.
+        ...(original.searchSageWithBreakdown
+          ? {
+              searchSageWithBreakdown: wrapSearch(original.searchSageWithBreakdown as never),
+            }
+          : {}),
+      } as unknown as T;
+    }
+    if (capability.id === SAGE_SURFACE_CAPABILITY.id) {
+      const original = port.getCapability<SageSurface>(capability as never);
+      if (!original) return undefined;
+      return {
+        ...original,
+        searchSage: wrapSearch(original.searchSage as never),
+        ...(original.searchSageWithBreakdown
+          ? {
+              searchSageWithBreakdown: wrapSearch(original.searchSageWithBreakdown as never),
+            }
+          : {}),
+      } as unknown as T;
+    }
+    return port.getCapability<T>(capability as never);
+  };
   return wrapped;
 }

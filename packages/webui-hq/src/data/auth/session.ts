@@ -8,7 +8,12 @@
  *  - `upgradeStoredTokenToCookie()` — WS-065, minting a cookie for the token
  *    already in storage on every boot.
  */
-import { clearHqToken, normalizeHqTokenInput, readStoredToken, setHqToken } from './token-storage.js';
+import {
+  clearHqToken,
+  normalizeHqTokenInput,
+  readStoredToken,
+  setHqToken,
+} from './token-storage.js';
 
 const EXCHANGE_TIMEOUT_MS = 10_000;
 

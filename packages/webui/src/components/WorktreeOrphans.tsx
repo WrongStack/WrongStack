@@ -84,9 +84,7 @@ export function WorktreeOrphans(): React.ReactElement | null {
         </div>
       ) : null}
       {cleanResult && (
-        <div
-          className={cleanResult.ok ? 'mt-1 text-success' : 'mt-1 text-destructive'}
-        >
+        <div className={cleanResult.ok ? 'mt-1 text-success' : 'mt-1 text-destructive'}>
           {cleanResult.ok
             ? t('activity:worktree.removed', { count: cleanResult.removed })
             : `✗ ${cleanResult.reason ?? t('activity:worktree.cleanupFailed')}`}

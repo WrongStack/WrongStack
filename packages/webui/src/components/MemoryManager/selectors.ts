@@ -53,7 +53,9 @@ export function collectMemoryTags(memories: SageEntry[]): Array<[string, number]
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
-export function selectRelatedMemories(memory: SageEntry | null): Array<{ relation: string; id: string }> {
+export function selectRelatedMemories(
+  memory: SageEntry | null,
+): Array<{ relation: string; id: string }> {
   if (!memory) return [];
   const links: Array<{ relation: string; id: string }> = [];
   if (memory.supersededBy) links.push({ relation: 'Superseded by', id: memory.supersededBy });

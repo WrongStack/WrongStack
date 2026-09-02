@@ -135,9 +135,9 @@ test.describe('WebUI Settings Panel', () => {
       // The tab's content panel renders without crashing. Scope by the
       // tab's accessible name — some tabs (e.g. Integrations) host nested
       // Tabs, so a bare [role=tabpanel] selector is ambiguous.
-      await expect(
-        page.getByRole('tabpanel', { name: tabName, exact: true }),
-      ).toBeVisible({ timeout: 5000 });
+      await expect(page.getByRole('tabpanel', { name: tabName, exact: true })).toBeVisible({
+        timeout: 5000,
+      });
     }
   });
 

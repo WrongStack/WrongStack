@@ -2,14 +2,13 @@ import type { Config, ConfigStore } from '../types/config.js';
 import { ConfigError, ERROR_CODES } from '../types/errors.js';
 import { toErrorMessage } from '../utils/error.js';
 
-
 /**
  * Strip fields that originated from environment variables so they are never
  * persisted back to disk. This prevents an env-sourced secret (e.g.
  * WRONGSTACK_API_KEY) from being accidentally written to a profile config.
  */
 function stripEphemeralFields(cfg: Partial<Config>): Partial<Config> {
-  const env = (cfg as Partial<Config & { _envSource?: Set<string> | undefined}>)._envSource;
+  const env = (cfg as Partial<Config & { _envSource?: Set<string> | undefined }>)._envSource;
   if (!env?.size) return cfg;
   const out: Partial<Config> = { ...cfg };
   for (const field of env) {
@@ -81,12 +80,14 @@ export class DefaultConfigStore implements ConfigStore {
         // otherwise leave the system in a quietly-inconsistent state. We
         // still don't propagate (one bad subscriber must not break the
         // others), but we surface the error so it's discoverable.
-        console.error(JSON.stringify({
-          level: 'error',
-          event: 'config_store.watcher_threw',
-          message: toErrorMessage(err),
-          timestamp: new Date().toISOString(),
-        }));
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            event: 'config_store.watcher_threw',
+            message: toErrorMessage(err),
+            timestamp: new Date().toISOString(),
+          }),
+        );
       }
     }
     return next;

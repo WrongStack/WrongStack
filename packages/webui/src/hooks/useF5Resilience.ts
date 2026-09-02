@@ -8,11 +8,7 @@ import {
   sessionLaneIds,
   SESSION_DEFAULT_LANE_ID,
 } from '@/stores/session-lanes';
-import {
-  releaseTab,
-  restoreTabsAfterBoot,
-  useSessionTabStore,
-} from '@/stores/session-tab-store';
+import { releaseTab, restoreTabsAfterBoot, useSessionTabStore } from '@/stores/session-tab-store';
 
 /**
  * F5 / tab-close resilience.

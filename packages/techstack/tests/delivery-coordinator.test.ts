@@ -74,7 +74,9 @@ describe('DeliveryCoordinator', () => {
       store,
       isRunInProgress: () => false,
       deliverToSession: async () => true,
-      onDelivered: () => { fired = true; },
+      onDelivered: () => {
+        fired = true;
+      },
     });
     expect(fired).toBe(true);
   });
@@ -111,7 +113,10 @@ describe('DeliveryCoordinator', () => {
     store.createOutbox('del-durable', 'snap-1', 'session-1');
     store.close();
 
-    const reopened = new TechStackStore({ projectSlug: 'test', dbPath: path.join(tmpDir, 'test.db') });
+    const reopened = new TechStackStore({
+      projectSlug: 'test',
+      dbPath: path.join(tmpDir, 'test.db'),
+    });
     const pending = reopened.listOutboxByStatus('pending');
     expect(pending).toHaveLength(1);
     expect(pending[0]?.deliveryId).toBe('del-durable');
@@ -129,7 +134,10 @@ describe('DeliveryCoordinator', () => {
     const result = await attemptDelivery('del-dup', {
       store,
       isRunInProgress: () => false,
-      deliverToSession: async (sid) => { deliveries.push(sid); return true; },
+      deliverToSession: async (sid) => {
+        deliveries.push(sid);
+        return true;
+      },
     });
     expect(result.delivered).toBe(true);
     expect(deliveries).toHaveLength(1);

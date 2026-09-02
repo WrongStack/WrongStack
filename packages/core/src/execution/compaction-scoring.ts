@@ -2,18 +2,24 @@ import type { ToolResultBlock } from '../types/blocks.js';
 import { isTextBlock } from '../types/blocks.js';
 import type { Message } from '../types/messages.js';
 
-const FAILURE_PATTERN = /(error|fail|exception|timeout|enonet|eacces|eperm|enoent|abort|hata|başarısız|basarisiz)/i;
-const CORRECTION_PATTERN = /\b(wrong|no\b|stop\b|don'?t\b|actually|fix that|undo|revert|forget|ignore|skip)\b/i;
-const ERROR_LANG_PATTERN = /\b(error|exception|fatal|critical|crash|panic|abort|segfault|core dump|undefined is not|null pointer|typeerror|referenceerror|syntaxerror)\b/i;
-const SECURITY_PATTERN = /\b(security|vulnerability|injection|xss|csrf|secret|apikey|api.key|hardcoded|leak|exploit|cve)\b/i;
-const ARCHITECTURE_PATTERN = /\b(architecture|design|approach|strategy|pattern|refactor|migrate|restructure|decision|trade.?off)\b/i;
+const FAILURE_PATTERN =
+  /(error|fail|exception|timeout|enonet|eacces|eperm|enoent|abort|hata|başarısız|basarisiz)/i;
+const CORRECTION_PATTERN =
+  /\b(wrong|no\b|stop\b|don'?t\b|actually|fix that|undo|revert|forget|ignore|skip)\b/i;
+const ERROR_LANG_PATTERN =
+  /\b(error|exception|fatal|critical|crash|panic|abort|segfault|core dump|undefined is not|null pointer|typeerror|referenceerror|syntaxerror)\b/i;
+const SECURITY_PATTERN =
+  /\b(security|vulnerability|injection|xss|csrf|secret|apikey|api.key|hardcoded|leak|exploit|cve)\b/i;
+const ARCHITECTURE_PATTERN =
+  /\b(architecture|design|approach|strategy|pattern|refactor|migrate|restructure|decision|trade.?off)\b/i;
 const CORRECTION_PATTERN_TR =
   /(hayır|hayir|yanlış|yanlis|durdur|dur\b|yapma\b|geri al|düzelt|duzelt|boş ?ver|bosver|iptal|olmadı|olmadi|bozdun|yapmadın|yapmadin|değil|degil|vazgeç|vazgec)/i;
 const ERROR_LANG_PATTERN_TR =
   /(hata\b|hatası|hatasi|başarısız|basarisiz|çöktü|coktu|kritik|çakıldı|cakildi|takıldı|takildi|patladı|patladi)/i;
 const ARCHITECTURE_PATTERN_TR =
   /(mimari|tasarım|tasarim|yaklaşım|yaklasim|strateji|karar\b|yeniden yapıland|yeniden yapiland|refaktör|refaktor|göç et|goc et|geçiş|gecis)/i;
-const BOILERPLATE_PATTERN = /\b(files_with_matches|count|found \d+ match|directory tree|\.\.\. and \d+ more)\b/i;
+const BOILERPLATE_PATTERN =
+  /\b(files_with_matches|count|found \d+ match|directory tree|\.\.\. and \d+ more)\b/i;
 
 export type ContentScore = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -72,7 +78,10 @@ export function scoreMessage(
   }
   if (ERROR_LANG_PATTERN.test(text) || ERROR_LANG_PATTERN_TR.test(text)) return 5;
   if (SECURITY_PATTERN.test(text)) return 5;
-  if (m.role === 'assistant' && (ARCHITECTURE_PATTERN.test(text) || ARCHITECTURE_PATTERN_TR.test(text))) {
+  if (
+    m.role === 'assistant' &&
+    (ARCHITECTURE_PATTERN.test(text) || ARCHITECTURE_PATTERN_TR.test(text))
+  ) {
     return 5;
   }
   if (hasLargeToolResult(m)) return 1;

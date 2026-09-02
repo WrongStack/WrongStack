@@ -5,11 +5,7 @@
   "description": "Define events that stay stable as the system evolves.",
   "content": "I need to design events for: {{domain}}\n\nDefine each event: its name (past tense — something happened), the fields it carries, and what it must NOT carry. Decide between thin events (id only) and fat events (full payload) and the trade-off. Plan for evolution: how a consumer tolerates new fields, how you version a breaking change, and idempotency keys for duplicates. Flag any event that leaks producer internals consumers will couple to.",
   "category": "architecture",
-  "tags": [
-    "events",
-    "schema",
-    "messaging"
-  ],
+  "tags": ["events", "schema", "messaging"],
   "source": "builtin",
   "favorite": false,
   "checksum": "ac073c16b4d658520bf107dab6b5d9fc6fcb937de1ab92ab5f456102359f8010",

@@ -193,8 +193,7 @@ describe('installCatalogModelOutputLimits config overrides', () => {
   it('resolves a saved-config alias through its `type` catalog entry', async () => {
     await installCatalogModelOutputLimits({
       registry: registry(),
-      getConfig: () =>
-        config({ providers: { 'my-alias': { type: 'anthropic' } } }),
+      getConfig: () => config({ providers: { 'my-alias': { type: 'anthropic' } } }),
     });
     expect(resolveMaxOutputTokens({ model: 'big-output' }, ctx({}, 'my-alias'))).toBe(64_000);
   });
@@ -236,6 +235,8 @@ describe('installCatalogModelOutputLimits config overrides', () => {
     expect(messages.join('\n')).toContain('offline');
     // Config overrides still resolve; unknown models degrade to capabilities.
     expect(resolveMaxOutputTokens({ model: 'big-output' }, ctx())).toBe(3_000);
-    expect(resolveMaxOutputTokens({ model: 'small-output' }, ctx({ maxOutput: 5_000 }))).toBe(5_000);
+    expect(resolveMaxOutputTokens({ model: 'small-output' }, ctx({ maxOutput: 5_000 }))).toBe(
+      5_000,
+    );
   });
 });

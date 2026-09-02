@@ -21,7 +21,9 @@ describe('resolveContextFill', () => {
   });
 
   it('asks for a local estimate when neither loop nor provider reported', () => {
-    expect(resolveContextFill({ perRequestTokens: 0, maxContext: MAX }).needsLocalEstimate).toBe(true);
+    expect(resolveContextFill({ perRequestTokens: 0, maxContext: MAX }).needsLocalEstimate).toBe(
+      true,
+    );
     const r = resolveContextFill({ perRequestTokens: 0, localEstimate: 88_000, maxContext: MAX });
     expect(r).toEqual({ used: 88_000, needsLocalEstimate: true, source: 'local' });
   });
@@ -64,12 +66,21 @@ describe('resolveContextFill', () => {
   });
 
   it('never exceeds the ceiling from any source', () => {
-    expect(resolveContextFill({ loopReportedTokens: 2 * MAX, perRequestTokens: 0, maxContext: MAX }).used).toBe(MAX);
-    expect(resolveContextFill({ perRequestTokens: 0, localEstimate: 2 * MAX, maxContext: MAX }).used).toBe(MAX);
+    expect(
+      resolveContextFill({ loopReportedTokens: 2 * MAX, perRequestTokens: 0, maxContext: MAX })
+        .used,
+    ).toBe(MAX);
+    expect(
+      resolveContextFill({ perRequestTokens: 0, localEstimate: 2 * MAX, maxContext: MAX }).used,
+    ).toBe(MAX);
   });
 
   it('does not clamp to zero when the ceiling is unknown', () => {
-    const r = resolveContextFill({ loopReportedTokens: 50_000, perRequestTokens: 0, maxContext: 0 });
+    const r = resolveContextFill({
+      loopReportedTokens: 50_000,
+      perRequestTokens: 0,
+      maxContext: 0,
+    });
     expect(r).toEqual({ used: 50_000, needsLocalEstimate: false, source: 'loop' });
   });
 });

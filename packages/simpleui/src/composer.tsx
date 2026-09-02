@@ -190,9 +190,7 @@ export function Composer({
                 <span>{fileBasename(path)}</span>
                 <button
                   type="button"
-                  onClick={() =>
-                    setFileRefs((current) => current.filter((ref) => ref !== path))
-                  }
+                  onClick={() => setFileRefs((current) => current.filter((ref) => ref !== path))}
                   aria-label={`Remove ${path}`}
                 >
                   <X size={11} />
@@ -221,7 +219,9 @@ export function Composer({
         {/\[VIBE\]/i.test(draft) && (
           <div className="vibe-mode-pill" role="status">
             <Waves size={12} aria-hidden="true" />
-            <span><strong>VIBE Protocol:</strong> Three-Stage Verification (Spec → Coder → Auditor)</span>
+            <span>
+              <strong>VIBE Protocol:</strong> Three-Stage Verification (Spec → Coder → Auditor)
+            </span>
           </div>
         )}
         <textarea
@@ -239,9 +239,7 @@ export function Composer({
           onChange={(event) => {
             const value = event.target.value;
             setDraft(value);
-            setFileMention(
-              detectFileMention(value, event.target.selectionStart ?? value.length),
-            );
+            setFileMention(detectFileMention(value, event.target.selectionStart ?? value.length));
           }}
           onSelect={(event) => {
             const textarea = event.currentTarget;
@@ -343,10 +341,7 @@ export function Composer({
         </div>
       </form>
       <div className="composer-meta">
-        <span
-          className={notice ? `composer-notice ${notice.tone}` : undefined}
-          aria-live="polite"
-        >
+        <span className={notice ? `composer-notice ${notice.tone}` : undefined} aria-live="polite">
           {notice?.text ??
             (running
               ? '@ FILE · ENTER ADDS TO RUN · CTRL+ENTER QUEUES'

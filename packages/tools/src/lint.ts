@@ -1,4 +1,5 @@
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
@@ -66,6 +67,13 @@ export const lintTool: Tool<LintInput, LintOutput> = {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
+    const VALID_LINTERS: ReadonlySet<string> = new Set(['biome', 'eslint', 'tslint', 'auto']);
+    if (input.linter !== undefined && !VALID_LINTERS.has(input.linter)) {
+      throw new ToolValidationError({
+        message: `lint: unsupported linter "${input.linter}". Allowed linters: biome, eslint, tslint, auto`,
+        field: 'linter',
+      });
+    }
     const linter = input.linter ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -115,9 +123,9 @@ export const lintTool: Tool<LintInput, LintOutput> = {
     yield { type: 'log', text: `Running ${detected}…`, data: { linter: detected } };
 
     const files = input.files
-      ? (Array.isArray(input.files) ? input.files : input.files.split(',')).map((f) =>
-          f.trim().replace(/\\/g, '/'),
-        )
+      ? (Array.isArray(input.files) ? input.files : input.files.split(','))
+          .map((f) => f.trim().replace(/\\/g, '/'))
+          .filter(Boolean)
       : [];
 
     const args: string[] = [];
@@ -134,8 +142,22 @@ export const lintTool: Tool<LintInput, LintOutput> = {
     const result = yield* spawnStream({ cmd, args, cwd, signal, maxBytes: 100_000 });
 
     const combined = `${result.stdout}\n${result.stderr}`;
-    let errors = [...combined.matchAll(/\berror\b/gi)].length;
-    const warnings = [...combined.matchAll(/\bwarning\b/gi)].length;
+    let errors = 0;
+    let warnings = 0;
+    const biomeSummary = combined.match(/Found\s+(\d+)\s+errors?(?:\s+and\s+(\d+)\s+warnings?)?/i);
+    const eslintSummary = combined.match(
+      /(\d+)\s+problems?\s+\((\d+)\s+errors?,\s*(\d+)\s+warnings?\)/i,
+    );
+    if (biomeSummary) {
+      errors = Number.parseInt(biomeSummary[1] ?? '0', 10);
+      warnings = Number.parseInt(biomeSummary[2] ?? '0', 10);
+    } else if (eslintSummary) {
+      errors = Number.parseInt(eslintSummary[2] ?? '0', 10);
+      warnings = Number.parseInt(eslintSummary[3] ?? '0', 10);
+    } else {
+      errors = [...combined.matchAll(/\berror\b/gi)].length;
+      warnings = [...combined.matchAll(/\bwarning\b/gi)].length;
+    }
     if (errors === 0 && result.exitCode !== 0) {
       errors = 1;
     }

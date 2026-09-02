@@ -98,7 +98,10 @@ describe('git change-set handlers', () => {
     });
 
     it('never throws outside a git repo', async () => {
-      const notRepo = path.join(process.env.TEMP || '/tmp', `notgit-${randomBytes(4).toString('hex')}`);
+      const notRepo = path.join(
+        process.env.TEMP || '/tmp',
+        `notgit-${randomBytes(4).toString('hex')}`,
+      );
       fsSync.mkdirSync(notRepo, { recursive: true });
       try {
         const ws = createMockWs();

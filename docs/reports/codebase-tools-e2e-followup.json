@@ -2,9 +2,7 @@
   "impactNoFile": {
     "status": "ok",
     "totalCallSites": 1,
-    "files": [
-      "src/caller.ts"
-    ],
+    "files": ["src/caller.ts"],
     "summary": "Blast Radius for 'add': LOW RISK (1 call sites in 1 prod files, 0 test suites)."
   },
   "impactRelativeFile": {
@@ -15,9 +13,7 @@
   "impactAbsoluteFile": {
     "status": "ok",
     "totalCallSites": 1,
-    "files": [
-      "src/caller.ts"
-    ],
+    "files": ["src/caller.ts"],
     "summary": "Blast Radius for 'add': LOW RISK (1 call sites in 1 prod files, 0 test suites)."
   },
   "incomingRelative": {

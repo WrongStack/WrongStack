@@ -320,8 +320,7 @@ export class SkillInstaller {
   ): Promise<UpdateResult> {
     const result: UpdateResult = { updated: [], unchanged: [], errors: [] };
     const allEntries = await this.manifest.listAll();
-    const targetScope =
-      opts?.global !== undefined ? (opts.global ? 'user' : 'project') : undefined;
+    const targetScope = opts?.global !== undefined ? (opts.global ? 'user' : 'project') : undefined;
     const scopedEntries = targetScope
       ? allEntries.filter((e) => e.scope === targetScope)
       : allEntries;

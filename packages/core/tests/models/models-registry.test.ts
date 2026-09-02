@@ -199,9 +199,7 @@ describe('DefaultModelsRegistry', () => {
       effortLevels: [],
       preserveThinking: 'unsupported',
     });
-    expect(
-      model?.capabilities.reasoningConfig?.effortSupported,
-    ).toBeUndefined();
+    expect(model?.capabilities.reasoningConfig?.effortSupported).toBeUndefined();
   });
 
   it('marks toggle-only reasoning as effort-unsupported (documented absence)', async () => {

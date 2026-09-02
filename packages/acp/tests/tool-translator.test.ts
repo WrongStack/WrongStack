@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  ACPMessage,
-  ACPToolCallResponse,
-  ContentBlock,
-} from '../src/types/acp-messages.js';
+import type { ACPMessage, ACPToolCallResponse, ContentBlock } from '../src/types/acp-messages.js';
 import {
   ToolTranslator,
   acpToolToSchema,
@@ -35,7 +31,12 @@ describe('extractTextFromContent', () => {
       { type: 'progress', id: 'p1', messages: ['step 1', 'step 2'] },
     ];
     expect(extractTextFromContent(blocks)).toBe(
-      ['hello', '[resource: file:///a.txt]', '[image: AAAABBBBCCCCDDDDEEEE...]', 'step 1\nstep 2'].join('\n'),
+      [
+        'hello',
+        '[resource: file:///a.txt]',
+        '[image: AAAABBBBCCCCDDDDEEEE...]',
+        'step 1\nstep 2',
+      ].join('\n'),
     );
   });
 
@@ -142,10 +143,19 @@ describe('ToolTranslator', () => {
     t.attachToTransport(transport);
 
     const promise = t.callTool(transport, 'echo', { msg: 'hi' }, 'call-1');
-    expect(transport.sent[0]).toEqual({ jsonrpc: '2.0', method: 'tools/call', id: 'call-1', params: { name: 'echo', arguments: { msg: 'hi' } } });
+    expect(transport.sent[0]).toEqual({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      id: 'call-1',
+      params: { name: 'echo', arguments: { msg: 'hi' } },
+    });
 
     await flush();
-    transport.emit({ method: 'tools/call', id: 'call-1', result: { content: [{ type: 'text', text: 'pong' }] } });
+    transport.emit({
+      method: 'tools/call',
+      id: 'call-1',
+      result: { content: [{ type: 'text', text: 'pong' }] },
+    });
     const res = await promise;
     expect((res as ACPToolCallResponse).result.content[0]).toEqual({ type: 'text', text: 'pong' });
   });
@@ -210,8 +220,12 @@ describe('ToolTranslator', () => {
       t.attachToTransport(transport);
       // Two outstanding calls; attach a catch so an unexpected rejection is observable.
       let rejected = false;
-      void t.callTool(transport, 'a', {}, 'a').catch(() => { rejected = true; });
-      void t.callTool(transport, 'b', {}, 'b').catch(() => { rejected = true; });
+      void t.callTool(transport, 'a', {}, 'a').catch(() => {
+        rejected = true;
+      });
+      void t.callTool(transport, 'b', {}, 'b').catch(() => {
+        rejected = true;
+      });
       // Drain the send() microtasks so both pending entries (and their timers)
       // are registered before cancelAll runs.
       await vi.advanceTimersByTimeAsync(0);

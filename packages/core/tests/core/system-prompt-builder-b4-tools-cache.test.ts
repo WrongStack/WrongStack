@@ -95,7 +95,13 @@ describe('DefaultSystemPromptBuilder — _toolsUsageCache key completeness (B4)'
       modelCapabilities: { maxContextTokens: 200_000 } as never,
     });
     const tools = [mkTool('grep')];
-    const ctx = { cwd: tmp, projectRoot: tmp, tools, provider: 'anthropic', model: 'claude' } as never;
+    const ctx = {
+      cwd: tmp,
+      projectRoot: tmp,
+      tools,
+      provider: 'anthropic',
+      model: 'claude',
+    } as never;
 
     const blocks1 = await b.build(ctx);
     const blocks2 = await b.build(ctx);

@@ -42,19 +42,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { useMemoryForFile } from '@/hooks/useMemoryForFile';
 import { cn } from '@/lib/utils';
-import type {
-  MemoryForFileMatch,
-  MemoryForFileResponse,
-  MemoryMatchVia,
-} from '@/types';
+import type { MemoryForFileMatch, MemoryForFileResponse, MemoryMatchVia } from '@/types';
 
-import {
-  KIND_LABELS,
-  kindClasses,
-  memoryPreview,
-  relativeDate,
-  StatusBadge,
-} from './shared';
+import { KIND_LABELS, kindClasses, memoryPreview, relativeDate, StatusBadge } from './shared';
 
 export interface MemoryDrawerProps {
   /** Project-relative file path. When null the drawer renders an empty state. */
@@ -194,19 +184,23 @@ function MemoryCard({
               </span>
             )}
             {isDeleted && (
-              <span className="font-mono text-destructive">{t('activity:memoryManager.statusDeleted')}</span>
+              <span className="font-mono text-destructive">
+                {t('activity:memoryManager.statusDeleted')}
+              </span>
             )}
             {isSuperseded && !isDeleted && (
-              <span className="font-mono text-muted-foreground">{t('activity:memoryManager.statusSuperseded')}</span>
+              <span className="font-mono text-muted-foreground">
+                {t('activity:memoryManager.statusSuperseded')}
+              </span>
             )}
           </div>
-          <p className="mt-1 text-foreground/90">
-            {memoryPreview(match.memory.text, 200)}
-          </p>
+          <p className="mt-1 text-foreground/90">{memoryPreview(match.memory.text, 200)}</p>
           <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
             <StatusBadge status={match.memory.status} />
             <span>
-              {t('activity:memoryManager.updatedSuffix', { date: relativeDate(match.memory.updatedAt) })}
+              {t('activity:memoryManager.updatedSuffix', {
+                date: relativeDate(match.memory.updatedAt),
+              })}
             </span>
           </div>
         </div>
@@ -353,7 +347,10 @@ function Section({
           <MemoryCard
             key={match.memory.id}
             match={match}
-            cursorBoosted={cursorBoosted && (match.matchedVia === 'anchor_symbol' || match.matchedVia === 'scope_symbol')}
+            cursorBoosted={
+              cursorBoosted &&
+              (match.matchedVia === 'anchor_symbol' || match.matchedVia === 'scope_symbol')
+            }
             pendingAction={handlers.pendingActionById.get(match.memory.id)}
             {...handlers}
           />
@@ -463,7 +460,9 @@ export function MemoryDrawer({
             {response && response.reviewPendingCount > 0 && (
               <span className="flex items-center gap-0.5 font-mono text-warning">
                 <AlertTriangle className="size-3" />
-                {t('activity:memoryManager.pendingReviewCount', { count: response.reviewPendingCount })}
+                {t('activity:memoryManager.pendingReviewCount', {
+                  count: response.reviewPendingCount,
+                })}
               </span>
             )}
             {response && response.supersededCount > 0 && (
@@ -510,11 +509,7 @@ export function MemoryDrawer({
             disabled={!filePath}
             data-testid="memory-drawer-show-deleted"
           />
-          {showDeleted ? (
-            <Eye className="size-3" />
-          ) : (
-            <EyeOff className="size-3" />
-          )}
+          {showDeleted ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
           <span>{t('activity:memoryManager.showRecoverable')}</span>
         </label>
         {cursorBoostedBucket && (
@@ -531,7 +526,10 @@ export function MemoryDrawer({
         ) : loading && !response ? (
           <EmptyState loading message={t('activity:memoryManager.loadingMemories')} />
         ) : error ? (
-          <EmptyState tone="error" message={t('activity:memoryManager.errorPrefix', { message: error })} />
+          <EmptyState
+            tone="error"
+            message={t('activity:memoryManager.errorPrefix', { message: error })}
+          />
         ) : !response || totalCount === 0 ? (
           <EmptyState message={t('activity:memoryManager.emptyNoMemories', { file: filePath })} />
         ) : (
@@ -544,10 +542,14 @@ export function MemoryDrawer({
               matches={response.symbolMatches}
               pendingActionById={pendingActionById}
               onShowMemory={onShowMemory}
-              onAcceptDeletion={(cId, mId) => runAction(mId, pendingLabels.accepting, () => onAcceptDeletion?.(cId, mId))}
+              onAcceptDeletion={(cId, mId) =>
+                runAction(mId, pendingLabels.accepting, () => onAcceptDeletion?.(cId, mId))
+              }
               onKeep={(cId, mId) => runAction(mId, pendingLabels.keeping, () => onKeep?.(cId, mId))}
               onUpdate={(mId) => runAction(mId, pendingLabels.updating, () => onUpdate?.(mId))}
-              onMarkPermanent={(mId) => runAction(mId, pendingLabels.marking, () => onMarkPermanent?.(mId))}
+              onMarkPermanent={(mId) =>
+                runAction(mId, pendingLabels.marking, () => onMarkPermanent?.(mId))
+              }
               onRecover={(mId) => runAction(mId, pendingLabels.recovering, () => onRecover?.(mId))}
             />
             <Section
@@ -557,10 +559,14 @@ export function MemoryDrawer({
               matches={response.primaryMatches}
               pendingActionById={pendingActionById}
               onShowMemory={onShowMemory}
-              onAcceptDeletion={(cId, mId) => runAction(mId, pendingLabels.accepting, () => onAcceptDeletion?.(cId, mId))}
+              onAcceptDeletion={(cId, mId) =>
+                runAction(mId, pendingLabels.accepting, () => onAcceptDeletion?.(cId, mId))
+              }
               onKeep={(cId, mId) => runAction(mId, pendingLabels.keeping, () => onKeep?.(cId, mId))}
               onUpdate={(mId) => runAction(mId, pendingLabels.updating, () => onUpdate?.(mId))}
-              onMarkPermanent={(mId) => runAction(mId, pendingLabels.marking, () => onMarkPermanent?.(mId))}
+              onMarkPermanent={(mId) =>
+                runAction(mId, pendingLabels.marking, () => onMarkPermanent?.(mId))
+              }
               onRecover={(mId) => runAction(mId, pendingLabels.recovering, () => onRecover?.(mId))}
             />
             <Section
@@ -570,10 +576,14 @@ export function MemoryDrawer({
               matches={response.relatedMatches}
               pendingActionById={pendingActionById}
               onShowMemory={onShowMemory}
-              onAcceptDeletion={(cId, mId) => runAction(mId, pendingLabels.accepting, () => onAcceptDeletion?.(cId, mId))}
+              onAcceptDeletion={(cId, mId) =>
+                runAction(mId, pendingLabels.accepting, () => onAcceptDeletion?.(cId, mId))
+              }
               onKeep={(cId, mId) => runAction(mId, pendingLabels.keeping, () => onKeep?.(cId, mId))}
               onUpdate={(mId) => runAction(mId, pendingLabels.updating, () => onUpdate?.(mId))}
-              onMarkPermanent={(mId) => runAction(mId, pendingLabels.marking, () => onMarkPermanent?.(mId))}
+              onMarkPermanent={(mId) =>
+                runAction(mId, pendingLabels.marking, () => onMarkPermanent?.(mId))
+              }
               onRecover={(mId) => runAction(mId, pendingLabels.recovering, () => onRecover?.(mId))}
             />
           </div>

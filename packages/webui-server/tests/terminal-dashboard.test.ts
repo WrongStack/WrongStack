@@ -363,8 +363,20 @@ describe('renderSessionPanelLines', () => {
     // disk — for `--resume`, for `/rewind`, for finding the JSONL. It used to
     // print eight characters, which is not something you can resume with.
     const rows = [
-      { id: 'sess_01M0TK9K2VYES2B6CSVM0XHHNB', provider: 'anthropic', model: 'opus', isRunning: false, ...baseRow },
-      { id: 'sess_01M0SGN4R8AJZ7J2BPFQXC2JXF', provider: 'anthropic', model: 'opus', isRunning: true, ...baseRow },
+      {
+        id: 'sess_01M0TK9K2VYES2B6CSVM0XHHNB',
+        provider: 'anthropic',
+        model: 'opus',
+        isRunning: false,
+        ...baseRow,
+      },
+      {
+        id: 'sess_01M0SGN4R8AJZ7J2BPFQXC2JXF',
+        provider: 'anthropic',
+        model: 'opus',
+        isRunning: true,
+        ...baseRow,
+      },
     ];
 
     const lines = renderSessionPanelLines(rows, { title: 'WebUI', width: 200, now: 1_000 });

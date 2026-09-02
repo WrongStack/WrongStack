@@ -556,7 +556,8 @@ export function SettingsPicker({
     {
       label: 'WrongProxy / WrongTrace',
       value: boolVal(wrongProxyEnabled),
-      detail: 'Route base URLs through the local proxy (default http://localhost:3444). openai-codex is excluded.',
+      detail:
+        'Route base URLs through the local proxy (default http://localhost:3444). openai-codex is excluded.',
     },
     {
       label: 'WrongProxy URL',
@@ -774,7 +775,9 @@ export function SettingsPicker({
         <Text dimColor>↑/↓ field · ←/→ change + autosave · `/` to search · F5 to close</Text>
       )}
       {filterActive && filterHasAbove ? (
-        <Text dimColor>{`  ↑ ${filterWindowStart} match${filterWindowStart === 1 ? '' : 'es'} above`}</Text>
+        <Text
+          dimColor
+        >{`  ↑ ${filterWindowStart} match${filterWindowStart === 1 ? '' : 'es'} above`}</Text>
       ) : null}
       {!filterActive && hasAbove ? (
         <Text dimColor>{`  ↑ ${windowStart} field${windowStart === 1 ? '' : 's'} above`}</Text>
@@ -797,7 +800,9 @@ export function SettingsPicker({
         filterWindowEnd={filterWindowEnd}
       />
       {filterActive && filterHasBelow ? (
-        <Text dimColor>{`  ↓ ${filterMatchCount - filterWindowEnd} match${filterMatchCount - filterWindowEnd === 1 ? '' : 'es'} below`}</Text>
+        <Text
+          dimColor
+        >{`  ↓ ${filterMatchCount - filterWindowEnd} match${filterMatchCount - filterWindowEnd === 1 ? '' : 'es'} below`}</Text>
       ) : null}
       {!filterActive && hasBelow ? (
         <Text

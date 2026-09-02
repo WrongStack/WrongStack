@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const depGuardPlugin = (await import('../src/dep-guard/index.js')).default;
-const { parseInstallCommands, editDistance, typosquatOf } = await import('../src/dep-guard/index.js');
+const { parseInstallCommands, editDistance, typosquatOf } = await import(
+  '../src/dep-guard/index.js'
+);
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };

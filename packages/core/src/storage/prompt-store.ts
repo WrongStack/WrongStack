@@ -136,9 +136,7 @@ export class DefaultPromptStore implements PromptStore {
     } catch {
       // dir doesn't exist yet
     }
-    return entries.sort(
-      (a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0),
-    );
+    return entries.sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
   }
 
   async get(id: string): Promise<PromptEntry | null> {

@@ -96,7 +96,10 @@ export async function verifySqliteSage(
         const current = readSqliteSageRow(ctx.stmt, update.id);
         if (!current) continue;
         if (anchorsChanged(current.anchors, update.observedAnchors)) continue;
-        if (current.status !== update.observedStatus && !['active', 'stale'].includes(current.status)) {
+        if (
+          current.status !== update.observedStatus &&
+          !['active', 'stale'].includes(current.status)
+        ) {
           continue;
         }
         const nextStatus =

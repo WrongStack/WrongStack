@@ -12,12 +12,15 @@ export interface PendingCandidateTarget {
  * Drop proposals whose `memoryId` already has a pending candidate
  * with a matching `targetMemoryId`.
  */
-export function filterProposalsAgainstPendingTargets<
-  T extends { memoryId: string },
->(proposals: readonly T[], pending: readonly PendingCandidateTarget[]): T[] {
+export function filterProposalsAgainstPendingTargets<T extends { memoryId: string }>(
+  proposals: readonly T[],
+  pending: readonly PendingCandidateTarget[],
+): T[] {
   const pendingTargets = new Set(
     pending
-      .filter((c) => c.status === 'pending' && typeof c.targetMemoryId === 'string' && c.targetMemoryId)
+      .filter(
+        (c) => c.status === 'pending' && typeof c.targetMemoryId === 'string' && c.targetMemoryId,
+      )
       .map((c) => c.targetMemoryId as string),
   );
   if (pendingTargets.size === 0) return [...proposals];

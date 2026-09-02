@@ -101,9 +101,7 @@ function readConfig(raw: unknown): FeatureFlagTrackerConfig {
       ? (rawPatterns as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.patterns,
     maxFindings:
-      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
-        ? rawMax
-        : DEFAULTS.maxFindings,
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500 ? rawMax : DEFAULTS.maxFindings,
   };
 }
 
@@ -180,7 +178,12 @@ const RESERVED_FLAG_NAMES = new Set([
   'type',
 ]);
 
-function scanFile(filePath: string, content: string, patterns: RegExp[], maxFindings: number): FeatureFlagUsage[] {
+function scanFile(
+  filePath: string,
+  content: string,
+  patterns: RegExp[],
+  maxFindings: number,
+): FeatureFlagUsage[] {
   const usages: FeatureFlagUsage[] = [];
   const lines = content.split(/\r?\n/);
 
@@ -303,13 +306,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['feature-flag-tracker']);
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
       if (!cfg.enabled) return;
       if (input.toolResult?.isError) return;
 
@@ -352,7 +353,9 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- scan_feature_flags tool ---
     api.tools.register({
@@ -373,7 +376,9 @@ const plugin: Plugin = {
 
         const raw = (input ?? {}) as Record<string, unknown>;
         const rawPath =
-          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof input.path === 'string' && input.path.trim().length > 0
+            ? input.path.trim()
+            : undefined) ??
           (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
           (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
           (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??

@@ -77,16 +77,20 @@ describe('findRelatedSage graph traversal', () => {
     [10, 'well under the BFS budget'],
     [180, 'just under the BFS budget'],
     [430, 'past the BFS budget'],
-  ])('returns the graph-only relative with %i co-tagged memories (%s)', async (noise) => {
-    const { seed, graphOnly } = await seedCorpus(noise);
+  ])(
+    'returns the graph-only relative with %i co-tagged memories (%s)',
+    async (noise) => {
+      const { seed, graphOnly } = await seedCorpus(noise);
 
-    const related = await store.findRelatedSage([seed.id], { limit: 20 });
+      const related = await store.findRelatedSage([seed.id], { limit: 20 });
 
-    expect(related.map((memory) => memory.id)).toContain(graphOnly.id);
-    // Graph membership outscores tag co-occurrence, so it leads the ranking
-    // rather than merely surviving inside the cap.
-    expect(related[0]?.id).toBe(graphOnly.id);
-  }, 60_000);
+      expect(related.map((memory) => memory.id)).toContain(graphOnly.id);
+      // Graph membership outscores tag co-occurrence, so it leads the ranking
+      // rather than merely surviving inside the cap.
+      expect(related[0]?.id).toBe(graphOnly.id);
+    },
+    60_000,
+  );
 
   it('keeps a high-importance co-tagged memory when the tag source is capped', async () => {
     // The tag candidate source is bounded at the BFS budget, ordered by

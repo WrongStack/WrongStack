@@ -5,10 +5,7 @@
   "description": "Improve clarity of a function without changing its behavior.",
   "content": "Refactor this code for readability without changing its behavior:\n\n```\n{{code}}\n```\n\nFocus on: clear names, smaller functions, early returns over nesting, and removing incidental complexity. Do NOT change the public interface or observable behavior.\n\nFor each change, give a one-line reason. At the end, state how I can verify behavior is unchanged.",
   "category": "refactoring",
-  "tags": [
-    "readability",
-    "clean-code"
-  ],
+  "tags": ["readability", "clean-code"],
   "source": "builtin",
   "favorite": false,
   "checksum": "db92452a9dba48b0a33435f4e59f16005b0ad0980b644db223bfda60f85e5677",

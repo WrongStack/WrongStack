@@ -41,13 +41,22 @@ export interface HqAlertRuleConfig {
 }
 
 /** The fully-resolved config passed to rule.evaluate (no optional fields). */
-type ResolvedAlertConfig = Required<Pick<HqAlertRuleConfig, 'costThresholdUsd' | 'staleMachineSeconds' | 'maxAgents' | 'tokenExpiryWarningHours'>>;
+type ResolvedAlertConfig = Required<
+  Pick<
+    HqAlertRuleConfig,
+    'costThresholdUsd' | 'staleMachineSeconds' | 'maxAgents' | 'tokenExpiryWarningHours'
+  >
+>;
 
 /** A rule is a pure function: snapshot + config → optional firing. */
 interface HqAlertRule {
   id: string;
   severity: HqAlertSeverity;
-  evaluate: (snapshot: HqSnapshot | null, config: ResolvedAlertConfig, now: number) => string | null;
+  evaluate: (
+    snapshot: HqSnapshot | null,
+    config: ResolvedAlertConfig,
+    now: number,
+  ) => string | null;
 }
 
 const DEFAULT_CONFIG: ResolvedAlertConfig = {
@@ -167,7 +176,11 @@ export class HqAlertEngine {
    * callback) only for rules that newly transition to firing. Clears rules
    * that are no longer firing. Returns the list of newly-fired alerts.
    */
-  evaluate(snapshot: HqSnapshot | null, config?: HqAlertRuleConfig, now: number = Date.now()): HqAlert[] {
+  evaluate(
+    snapshot: HqSnapshot | null,
+    config?: HqAlertRuleConfig,
+    now: number = Date.now(),
+  ): HqAlert[] {
     const resolved = resolveConfig(config);
     const fired: HqAlert[] = [];
     const firingIds = new Set<string>();
@@ -189,7 +202,8 @@ export class HqAlertEngine {
           };
           this.active.set(rule.id, alert);
           this.history.push(alert);
-          if (this.history.length > this.maxHistory) this.history.splice(0, this.history.length - this.maxHistory);
+          if (this.history.length > this.maxHistory)
+            this.history.splice(0, this.history.length - this.maxHistory);
           fired.push(alert);
           this.onAlert(alert);
           this.onPersist?.(alert);

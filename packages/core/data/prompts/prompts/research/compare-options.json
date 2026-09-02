@@ -5,11 +5,7 @@
   "description": "Evaluate competing tools, libraries, or approaches against your needs.",
   "content": "Compare these options for my use case: {{options}}\n\nMy context and constraints: {{context}}\n\nFor each option give: what it's best at, its real weaknesses, maturity/maintenance health, and lock-in/migration cost. Then make a recommendation for MY context, and state the one factor that would flip your choice. Avoid a feature-checklist tie — take a position and defend it.",
   "category": "research",
-  "tags": [
-    "comparison",
-    "evaluation",
-    "decision"
-  ],
+  "tags": ["comparison", "evaluation", "decision"],
   "source": "builtin",
   "favorite": false,
   "checksum": "a7e434af9186602969177a5c042b8792df5c1a3ac4577ccfcab27da2ab5410ba",

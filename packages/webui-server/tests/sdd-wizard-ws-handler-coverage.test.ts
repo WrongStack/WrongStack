@@ -11,7 +11,10 @@ vi.mock('ws', () => {
 
 vi.mock('@wrongstack/sdd', () => ({}));
 
-import { SddWizardWebSocketHandler, type SddWizardDeps } from '../src/server/sdd-wizard-ws-handler.js';
+import {
+  SddWizardWebSocketHandler,
+  type SddWizardDeps,
+} from '../src/server/sdd-wizard-ws-handler.js';
 
 function mockWs(): any {
   return {
@@ -67,11 +70,13 @@ describe('SddWizardWebSocketHandler', () => {
     it('sends snapshot to reconnecting client after resume', async () => {
       const deps = makeDeps();
       // Simulate an existing session that loads
-      deps.makeDriver = vi.fn(() => makeDriverStub({
-        loadExisting: vi.fn(async () => true),
-        getLastAgentText: vi.fn(() => 'previous agent text'),
-        snapshot: vi.fn(() => ({ phase: 'questioning', spec: { title: 'Test' } })),
-      }));
+      deps.makeDriver = vi.fn(() =>
+        makeDriverStub({
+          loadExisting: vi.fn(async () => true),
+          getLastAgentText: vi.fn(() => 'previous agent text'),
+          snapshot: vi.fn(() => ({ phase: 'questioning', spec: { title: 'Test' } })),
+        }),
+      );
       const handler = new SddWizardWebSocketHandler(deps);
       const ws = mockWs();
       handler.addClient(ws);
@@ -86,12 +91,18 @@ describe('SddWizardWebSocketHandler', () => {
 
     it('sends resume error when bootstrap fails', async () => {
       const deps = makeDeps({
-        ensureReady: vi.fn(async () => { throw new Error('context fail'); }),
+        ensureReady: vi.fn(async () => {
+          throw new Error('context fail');
+        }),
       });
       // makeDriver.loadExisting throws
-      deps.makeDriver = vi.fn(() => makeDriverStub({
-        loadExisting: vi.fn(async () => { throw new Error('IPC down'); }),
-      }));
+      deps.makeDriver = vi.fn(() =>
+        makeDriverStub({
+          loadExisting: vi.fn(async () => {
+            throw new Error('IPC down');
+          }),
+        }),
+      );
       const handler = new SddWizardWebSocketHandler(deps);
       const ws = mockWs();
       handler.addClient(ws);
@@ -112,7 +123,10 @@ describe('SddWizardWebSocketHandler', () => {
       handler.addClient(ws);
       await vi.waitFor(() => expect(ws.on).toHaveBeenCalled());
 
-      await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'Build a REST API' } });
+      await handler.handleMessage({
+        type: 'sdd.spec.start',
+        payload: { goal: 'Build a REST API' },
+      });
 
       expect(deps.runInterviewTurn).toHaveBeenCalled();
     });
@@ -161,7 +175,10 @@ describe('SddWizardWebSocketHandler', () => {
       handler.addClient(ws);
       await vi.waitFor(() => expect(ws.on).toHaveBeenCalled());
 
-      await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'new', force: true } });
+      await handler.handleMessage({
+        type: 'sdd.spec.start',
+        payload: { goal: 'new', force: true },
+      });
 
       expect(driverStub.discard).toHaveBeenCalled();
       expect(deps.runInterviewTurn).toHaveBeenCalled();

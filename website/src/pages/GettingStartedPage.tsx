@@ -268,16 +268,32 @@ export function GettingStartedPage() {
         </div>
       </section>
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
-        <SectionIntro index="04" eyebrow="Quickstart" title="Platform-specific setup notes." description="WrongStack runs on macOS, Linux, and Windows. The core experience is identical — these notes cover platform-specific prerequisites." />
+        <SectionIntro
+          index="04"
+          eyebrow="Quickstart"
+          title="Platform-specific setup notes."
+          description="WrongStack runs on macOS, Linux, and Windows. The core experience is identical — these notes cover platform-specific prerequisites."
+        />
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
           {[
             {
               title: 'macOS',
               body: 'Install Node.js 22+ via Homebrew. Git is pre-installed. Use Terminal.app or iTerm2. API keys go in the active ~/.wrongstack/profiles/<name>/config.json.',
             },
-            { title: 'Linux', body: 'Node.js 22+ via nvm or package manager. Git, build-essential, and python3 for native modules. Works on any terminal emulator.' },
-            { title: 'Windows', body: 'Node.js 22+ from nodejs.org. Git for Windows. Use Windows Terminal or cmd.exe. Path handling uses forward slashes internally.' },
-          ].map(({ title, body }) => (<div key={title} className="rounded-xl border border-line bg-card p-5"><h3 className="font-black text-sm text-fg">{title}</h3><p className="mt-2 text-xs leading-5 text-muted">{body}</p></div>))}
+            {
+              title: 'Linux',
+              body: 'Node.js 22+ via nvm or package manager. Git, build-essential, and python3 for native modules. Works on any terminal emulator.',
+            },
+            {
+              title: 'Windows',
+              body: 'Node.js 22+ from nodejs.org. Git for Windows. Use Windows Terminal or cmd.exe. Path handling uses forward slashes internally.',
+            },
+          ].map(({ title, body }) => (
+            <div key={title} className="rounded-xl border border-line bg-card p-5">
+              <h3 className="font-black text-sm text-fg">{title}</h3>
+              <p className="mt-2 text-xs leading-5 text-muted">{body}</p>
+            </div>
+          ))}
         </div>
       </section>
       <PageNext

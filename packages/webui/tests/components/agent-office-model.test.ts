@@ -141,9 +141,9 @@ describe('agentVisualRole', () => {
   });
 
   it('tolerates missing role/name/task fields', () => {
-    expect(
-      agentVisualRole({ serverId: 'w1', role: undefined, name: undefined } as never),
-    ).toBe('operator');
+    expect(agentVisualRole({ serverId: 'w1', role: undefined, name: undefined } as never)).toBe(
+      'operator',
+    );
   });
 });
 
@@ -379,12 +379,26 @@ describe('clientOfficeStats', () => {
     const stats = clientOfficeStats([
       model({
         agent: agent({
-          activity: { reads: 2, writes: 1, edits: 3, linesAdded: 10, linesRemoved: 4, terminalCalls: 5 },
+          activity: {
+            reads: 2,
+            writes: 1,
+            edits: 3,
+            linesAdded: 10,
+            linesRemoved: 4,
+            terminalCalls: 5,
+          },
         }),
       }),
       model({
         agent: agent({
-          activity: { reads: 1, writes: 1, edits: 0, linesAdded: 5, linesRemoved: 1, terminalCalls: 2 },
+          activity: {
+            reads: 1,
+            writes: 1,
+            edits: 0,
+            linesAdded: 5,
+            linesRemoved: 1,
+            terminalCalls: 2,
+          },
         }),
       }),
     ]);
@@ -653,7 +667,12 @@ describe('deskWaitState', () => {
         client: client({ todos: [{ text: 'x', status: 'pending' }] }),
         history: [call({ completedAt: now - 400_000 })],
         mail: [
-          mail({ id: 'out', direction: 'outgoing', timestampMs: now - 300_000, subject: 'review?' }),
+          mail({
+            id: 'out',
+            direction: 'outgoing',
+            timestampMs: now - 300_000,
+            subject: 'review?',
+          }),
           mail({ id: 'in', direction: 'incoming', timestampMs: now - 350_000 }),
         ],
       }),

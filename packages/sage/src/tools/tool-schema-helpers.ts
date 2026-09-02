@@ -1,10 +1,5 @@
 import type { MemoryScope } from '@wrongstack/core/types';
-import type {
-  MemoryAnchor,
-  SageKind,
-  SageScope,
-  SageStatus,
-} from '../types.js';
+import type { MemoryAnchor, SageKind, SageScope, SageStatus } from '../types.js';
 
 export const KIND_VALUES: SageKind[] = [
   'fact',

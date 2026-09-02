@@ -34,7 +34,14 @@ interface RequestLimitExtensionOptions {
  *     wins; subsequent calls are no-ops.
  */
 export function requestLimitExtension(opts: RequestLimitExtensionOptions): Promise<number> {
-  const { events, sessionId, currentIterations, currentLimit, autoExtend, timeoutMs = 30_000 } = opts;
+  const {
+    events,
+    sessionId,
+    currentIterations,
+    currentLimit,
+    autoExtend,
+    timeoutMs = 30_000,
+  } = opts;
   return new Promise((resolve) => {
     let resolved = false;
     // Shared flag so setImmediate knows when timer already resolved.

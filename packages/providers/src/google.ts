@@ -64,10 +64,7 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
    */
   private readonly explicitCache = new Map<string, { name: string; expiresAt: number }>();
 
-  override async *stream(
-    req: Request,
-    opts: { signal: AbortSignal },
-  ): AsyncIterable<StreamEvent> {
+  override async *stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
     // Pre-filter tools for the maxTools limit so the explicit-cache hash
     // and toolChoice guard match the tools actually sent on the wire.
     // Uses the shared WireAdapter.applyMaxToolsFilter so Google gets the
@@ -78,7 +75,11 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
     // cached-content resource falls back to the normal inline request (where
     // Gemini's implicit caching still applies), so enabling it can never break
     // a request.
-    if (effectiveReq.cache?.geminiExplicit && effectiveReq.system && effectiveReq.system.length > 0) {
+    if (
+      effectiveReq.cache?.geminiExplicit &&
+      effectiveReq.system &&
+      effectiveReq.system.length > 0
+    ) {
       let name: string | undefined;
       try {
         name = await this.resolveCachedContent(effectiveReq, opts.signal);

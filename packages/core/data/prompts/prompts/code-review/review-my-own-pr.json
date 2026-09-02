@@ -5,10 +5,7 @@
   "description": "Self-review a change before requesting human review.",
   "content": "Act as a demanding reviewer for my own change before I send it:\n\n```\n{{diff}}\n```\n\nTell me what a sharp reviewer would push back on: unclear naming, missing tests, untested edge cases, scope creep, leftover debug code, or a simpler approach I missed. Be the critic I'd rather hear from now than in review. End with the single most important thing to fix first.",
   "category": "code-review",
-  "tags": [
-    "self-review",
-    "pr"
-  ],
+  "tags": ["self-review", "pr"],
   "source": "builtin",
   "favorite": false,
   "checksum": "57a0e9eed1da6d0e83ba3cfb6a88403a886acd117f558fe98d9ab5f4602ca31a",

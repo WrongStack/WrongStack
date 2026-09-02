@@ -181,13 +181,7 @@ describe('resolveClients merge + retention fold', () => {
       ['w1', fleetAgent({ id: 'w1', sessionId: 'session-a', status: 'running' })],
     ]);
 
-    const clients = resolveClients(
-      [SESSION],
-      fleetAgents,
-      [],
-      new Map(),
-      NOW,
-    );
+    const clients = resolveClients([SESSION], fleetAgents, [], new Map(), NOW);
 
     expect(clients).toHaveLength(1);
     const agents = clients[0]?.agents ?? [];

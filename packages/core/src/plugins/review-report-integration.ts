@@ -51,11 +51,7 @@ export async function updateReviewReportEvidence(
   evidenceStatus: import('./review-types.js').CascadeEvidenceStatus,
   evidenceChecks: import('./review-types.js').CascadeEvidenceCheckResult[],
 ): Promise<void> {
-  await new JsonlReportStore(projectDir).updateEvidence(
-    reportId,
-    evidenceStatus,
-    evidenceChecks,
-  );
+  await new JsonlReportStore(projectDir).updateEvidence(reportId, evidenceStatus, evidenceChecks);
 }
 
 export async function persistReviewReport(

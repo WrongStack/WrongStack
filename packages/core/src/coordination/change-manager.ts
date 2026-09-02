@@ -128,7 +128,7 @@ export class ChangeManager {
    * Does NOT automatically initiate voting — call `submitForReview()` for that.
    */
   async propose(input: ChangeProposal): Promise<ChangeNode> {
-    const node = await this.graph.add({
+    const node = (await this.graph.add({
       type: 'change',
       title: input.title,
       description: input.description,
@@ -144,7 +144,7 @@ export class ChangeManager {
       votes: [],
       qualityGate: { passed: false, checks: [] }, // filled after quality gate
       satisfiesGoals: input.satisfiesGoals,
-    } as Omit<ChangeNode, 'id'>) as ChangeNode;
+    } as Omit<ChangeNode, 'id'>)) as ChangeNode;
 
     // Run quality gate asynchronously. Chain the persistence into the same
     // promise and guard it with a single .catch: this is best-effort
@@ -186,10 +186,10 @@ export class ChangeManager {
     const change = this.graph.get(changeId) as ChangeNode | undefined;
     if (!change) return null;
 
-    const updated = await this.graph.update(changeId, {
+    const updated = (await this.graph.update(changeId, {
       status: 'applied',
       appliedAt,
-    }) as ChangeNode | null;
+    })) as ChangeNode | null;
 
     if (updated) {
       this.appliedChanges.set(changeId, '');
@@ -215,7 +215,10 @@ export class ChangeManager {
     const verificationResult = await verify();
 
     if (!verificationResult.passed) {
-      const rollbackResult = await this.proposeRollback(changeId, 'Quality gate failed after apply');
+      const rollbackResult = await this.proposeRollback(
+        changeId,
+        'Quality gate failed after apply',
+      );
       return {
         changeId,
         success: false,
@@ -223,7 +226,10 @@ export class ChangeManager {
         filesTouched: change.files.map((f) => f.path),
         verificationResult,
         rollbackChangeId: rollbackResult?.id,
-        error: `Quality gate failed: ${verificationResult.checks.filter((c) => !c.passed).map((c) => c.name).join(', ')}`,
+        error: `Quality gate failed: ${verificationResult.checks
+          .filter((c) => !c.passed)
+          .map((c) => c.name)
+          .join(', ')}`,
       };
     }
 
@@ -240,10 +246,7 @@ export class ChangeManager {
    * Propose a rollback for an applied change. Creates a new change that
    * reverses the original. Goes through full consensus.
    */
-  async proposeRollback(
-    appliedChangeId: string,
-    reason: string,
-  ): Promise<ChangeNode | null> {
+  async proposeRollback(appliedChangeId: string, reason: string): Promise<ChangeNode | null> {
     const original = this.graph.get(appliedChangeId) as ChangeNode | undefined;
     if (original?.type !== 'change') return null;
 
@@ -282,10 +285,10 @@ export class ChangeManager {
    * Mark a change as rolled back.
    */
   async markRolledBack(changeId: string, rolledBackAt: string): Promise<ChangeNode | null> {
-    const updated = await this.graph.update(changeId, {
+    const updated = (await this.graph.update(changeId, {
       status: 'rolled_back',
       rolledBackAt,
-    }) as ChangeNode | null;
+    })) as ChangeNode | null;
 
     if (updated) {
       this._emit('change:rolled_back', { changeId, title: updated.title });
@@ -308,9 +311,7 @@ export class ChangeManager {
   }
 
   getChangesForGoal(goalId: string): ChangeNode[] {
-    return this.graph.getChanges({}).filter((c) =>
-      c.satisfiesGoals.includes(goalId),
-    );
+    return this.graph.getChanges({}).filter((c) => c.satisfiesGoals.includes(goalId));
   }
 
   // ── Quality gate ──────────────────────────────────────────────────────

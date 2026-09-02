@@ -7,7 +7,5 @@
   "model": "stealth/ox-alpha",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\explore-companion\\archive\\learned-2026-08-21T12-29-30-301Z.md",
-  "skills": [
-    "node-modern"
-  ]
+  "skills": ["node-modern"]
 }

@@ -110,16 +110,19 @@ export class TelegramInbox {
     const denialReason = this.denialReason(userId, chatId);
 
     if (denialReason === 'user') {
-      this.deps.log.debug(`Ignoring message from user ${userId ?? 'unknown'} (not in allowedUsers)`);
+      this.deps.log.debug(
+        `Ignoring message from user ${userId ?? 'unknown'} (not in allowedUsers)`,
+      );
       // Best-effort denial notice: the reply itself can fail (bot blocked, chat
       // not found → non-retryable throw). Swallow so an unauthorized user
       // cannot spam a stream of unhandled rejections into the poll loop.
-      void this.deps.sendNotice(chatId, '⛔ You are not authorized to interact with this bot.').catch(
-        (err) =>
+      void this.deps
+        .sendNotice(chatId, '⛔ You are not authorized to interact with this bot.')
+        .catch((err) =>
           this.deps.log.debug(
             `Failed to send denial notice: ${err instanceof Error ? err.message : String(err)}`,
           ),
-      );
+        );
       return;
     }
     if (denialReason === 'chat') {

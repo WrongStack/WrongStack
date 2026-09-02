@@ -66,7 +66,9 @@ describe('handleSkillsList', () => {
 
   it('maps manifests + entry triggers and enriches sourceUrl/ref from the installer', async () => {
     const loader = {
-      list: async () => [{ name: 's1', description: 'one', version: '1.0', source: 'user', path: '/s1/SKILL.md' }],
+      list: async () => [
+        { name: 's1', description: 'one', version: '1.0', source: 'user', path: '/s1/SKILL.md' },
+      ],
       listEntries: async () => [{ name: 's1', trigger: 'use when x', scope: ['project'] }],
       readBody: async () => '',
     };
@@ -92,7 +94,9 @@ describe('handleSkillsList', () => {
 
   it('reports an error payload when the loader throws', async () => {
     const loader = {
-      list: async () => { throw new Error('boom'); },
+      list: async () => {
+        throw new Error('boom');
+      },
       listEntries: async () => [],
       readBody: async () => '',
     };
@@ -128,13 +132,13 @@ describe('handleSkillsContent', () => {
     const readFileSpy = vi
       .spyOn(nodeFs.promises, 'readFile')
       .mockResolvedValue('body of myskill' as never);
-    const readdirSpy = vi
-      .spyOn(nodeFs.promises, 'readdir')
-      .mockResolvedValue([] as never);
+    const readdirSpy = vi.spyOn(nodeFs.promises, 'readdir').mockResolvedValue([] as never);
     try {
       const loader = {
         list: async () => [],
-        listEntries: async () => [{ name: 'MySkill', path: '/skills/myskill/SKILL.md', scope: ['project'] }],
+        listEntries: async () => [
+          { name: 'MySkill', path: '/skills/myskill/SKILL.md', scope: ['project'] },
+        ],
         readBody: async (n: string) => `body of ${n}`,
       };
       const ctx = makeCtx({ skillLoader: loader as never });
@@ -171,7 +175,12 @@ describe('handleSkillsInstall', () => {
   });
 
   it('requires a ref', async () => {
-    const installer = { listInstalled: async () => [], install: async () => [], uninstall: async () => {}, update: async () => ({ updated: 0, unchanged: 0, errors: [] }) };
+    const installer = {
+      listInstalled: async () => [],
+      install: async () => [],
+      uninstall: async () => {},
+      update: async () => ({ updated: 0, unchanged: 0, errors: [] }),
+    };
     const ctx = makeCtx({ skillInstaller: installer as never });
     const { ws, messages } = openWs();
     await handleSkillsInstall(ws, ctx, { payload: { ref: '  ' } });
@@ -194,7 +203,12 @@ describe('handleSkillsInstall', () => {
 
 describe('handleSkillsUninstall', () => {
   it('requires a name', async () => {
-    const installer = { listInstalled: async () => [], install: async () => [], uninstall: async () => {}, update: async () => ({ updated: 0, unchanged: 0, errors: [] }) };
+    const installer = {
+      listInstalled: async () => [],
+      install: async () => [],
+      uninstall: async () => {},
+      update: async () => ({ updated: 0, unchanged: 0, errors: [] }),
+    };
     const ctx = makeCtx({ skillInstaller: installer as never });
     const { ws, messages } = openWs();
     await handleSkillsUninstall(ws, ctx, { payload: { name: '' } });
@@ -213,7 +227,11 @@ describe('handleSkillsUpdate', () => {
     const ctx = makeCtx({ skillInstaller: installer as never });
     const { ws, messages } = openWs();
     await handleSkillsUpdate(ws, ctx, { payload: {} });
-    expect(payloadOf(messages, 'skills.updated')).toMatchObject({ success: true, updated: 2, unchanged: 1 });
+    expect(payloadOf(messages, 'skills.updated')).toMatchObject({
+      success: true,
+      updated: 2,
+      unchanged: 1,
+    });
   });
 });
 
@@ -223,14 +241,18 @@ describe('handleSkillsCreate', () => {
   it('rejects non-kebab-case names', async () => {
     const ctx = makeCtx();
     const { ws, messages } = openWs();
-    await handleSkillsCreate(ws, ctx, { payload: { name: 'Bad Name', description: 'd', scope: 'project' } });
+    await handleSkillsCreate(ws, ctx, {
+      payload: { name: 'Bad Name', description: 'd', scope: 'project' },
+    });
     expect(payloadOf(messages, 'skills.created')?.error).toMatch(/kebab-case/);
   });
 
   it('rejects when description is empty', async () => {
     const ctx = makeCtx();
     const { ws, messages } = openWs();
-    await handleSkillsCreate(ws, ctx, { payload: { name: 'ok-name', description: '   ', scope: 'project' } });
+    await handleSkillsCreate(ws, ctx, {
+      payload: { name: 'ok-name', description: '   ', scope: 'project' },
+    });
     expect(payloadOf(messages, 'skills.created')?.error).toMatch(/Description/);
   });
 
@@ -242,7 +264,11 @@ describe('handleSkillsCreate', () => {
       const ctx = makeCtx({ projectRoot, projectSkillsDir });
       const { ws, messages } = openWs();
       await handleSkillsCreate(ws, ctx, {
-        payload: { name: 'ok-name', description: 'Use when testing project skills.', scope: 'project' },
+        payload: {
+          name: 'ok-name',
+          description: 'Use when testing project skills.',
+          scope: 'project',
+        },
       });
       const skillPath = path.join(projectSkillsDir, 'ok-name', 'SKILL.md');
       await expect(nodeFs.promises.readFile(skillPath, 'utf8')).resolves.toContain('name: ok-name');
@@ -262,10 +288,16 @@ describe('handleSkillsCreate', () => {
       const ctx = makeCtx({ globalSkillsDir });
       const { ws, messages } = openWs();
       await handleSkillsCreate(ws, ctx, {
-        payload: { name: 'global-name', description: 'Use when testing global skills.', scope: 'global' },
+        payload: {
+          name: 'global-name',
+          description: 'Use when testing global skills.',
+          scope: 'global',
+        },
       });
       const skillPath = path.join(globalSkillsDir, 'global-name', 'SKILL.md');
-      await expect(nodeFs.promises.readFile(skillPath, 'utf8')).resolves.toContain('name: global-name');
+      await expect(nodeFs.promises.readFile(skillPath, 'utf8')).resolves.toContain(
+        'name: global-name',
+      );
       expect(payloadOf(messages, 'skills.created')?.skill).toMatchObject({
         path: skillPath,
         scope: 'global',
@@ -282,7 +314,9 @@ describe('handleSkillsEdit', () => {
   it('refuses to edit bundled skills', async () => {
     const loader = {
       list: async () => [],
-      listEntries: async () => [{ name: 'bundled', path: '/b/SKILL.md', source: 'bundled', scope: ['bundled'] }],
+      listEntries: async () => [
+        { name: 'bundled', path: '/b/SKILL.md', source: 'bundled', scope: ['bundled'] },
+      ],
       readBody: async () => '',
     };
     const ctx = makeCtx({ skillLoader: loader as never });
@@ -305,7 +339,10 @@ describe('handleSkillsExport', () => {
   it('produces a base64 zip covering every readable skill', async () => {
     const loader = {
       list: async () => [],
-      listEntries: async () => [{ name: 'a', path: '/a/SKILL.md', scope: ['project'] }, { name: 'b/c', path: '/b/SKILL.md', scope: ['project'] }],
+      listEntries: async () => [
+        { name: 'a', path: '/a/SKILL.md', scope: ['project'] },
+        { name: 'b/c', path: '/b/SKILL.md', scope: ['project'] },
+      ],
       readBody: async () => '# body',
     };
     const ctx = makeCtx({ skillLoader: loader as never });
@@ -326,7 +363,13 @@ describe('handleSkillsEdit', () => {
   it('refuses to edit a foreign (read-only) skill — never writes into .claude', async () => {
     const loader = {
       listEntries: async () => [
-        { name: 'foreign-skill', source: 'claude-project', path: '/.claude/skills/foreign-skill/SKILL.md', trigger: 't', scope: [] },
+        {
+          name: 'foreign-skill',
+          source: 'claude-project',
+          path: '/.claude/skills/foreign-skill/SKILL.md',
+          trigger: 't',
+          scope: [],
+        },
       ],
       readBody: async () => '',
     };
@@ -340,7 +383,9 @@ describe('handleSkillsEdit', () => {
 
   it('refuses to edit a bundled skill', async () => {
     const loader = {
-      listEntries: async () => [{ name: 'b', source: 'bundled', path: '/b/SKILL.md', trigger: 't', scope: [] }],
+      listEntries: async () => [
+        { name: 'b', source: 'bundled', path: '/b/SKILL.md', trigger: 't', scope: [] },
+      ],
       readBody: async () => '',
     };
     const ctx = makeCtx({ skillLoader: loader as never });

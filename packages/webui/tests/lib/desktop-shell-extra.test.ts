@@ -37,8 +37,12 @@ describe('detectDesktopShell catch block', () => {
     // Temporarily break URLSearchParams to exercise the catch block
     const origURLSearchParams = globalThis.URLSearchParams;
     (globalThis as any).URLSearchParams = class Broken {
-      constructor() { throw new Error('boom'); }
-      get() { return null; }
+      constructor() {
+        throw new Error('boom');
+      }
+      get() {
+        return null;
+      }
     };
     const mod = await import('../../src/lib/desktop-shell.js');
     expect(mod.detectDesktopShell('?shell=desktop', false)).toBe(false);

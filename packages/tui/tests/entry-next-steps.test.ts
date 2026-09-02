@@ -32,7 +32,10 @@ interface RenderOpts {
 }
 
 /** Render an assistant Entry with optional suggestion writer + todo list. */
-function renderEntry(opts: RenderOpts = {}): { frame: string; setSuggestions: ReturnType<typeof vi.fn> } {
+function renderEntry(opts: RenderOpts = {}): {
+  frame: string;
+  setSuggestions: ReturnType<typeof vi.fn>;
+} {
   const setSuggestions = opts.setSuggestions ?? vi.fn();
   const { lastFrame, unmount } = render(
     React.createElement(Entry, {
@@ -86,9 +89,7 @@ describe('<Entry /> <nextsteps> todo-gate (b0970387 render-path parity)', () => 
   });
 
   it('treats an all-completed todo list as "no open todos" (panel shows)', () => {
-    const completedTodos: TodoItem[] = [
-      { id: 't1', content: 'done deal', status: 'completed' },
-    ];
+    const completedTodos: TodoItem[] = [{ id: 't1', content: 'done deal', status: 'completed' }];
     const { frame, setSuggestions } = renderEntry({ todos: completedTodos });
 
     expect(frame).toContain('NEXT STEPS');

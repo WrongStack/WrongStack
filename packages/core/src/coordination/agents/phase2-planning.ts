@@ -16,7 +16,8 @@ export const PLANNING_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'planning',
-      summary: 'Requirement analysis: turns vague requests into testable specs with acceptance criteria and open questions.',
+      summary:
+        'Requirement analysis: turns vague requests into testable specs with acceptance criteria and open questions.',
       keywords: [
         'requirements',
         'analyze requirement',
@@ -41,7 +42,8 @@ export const PLANNING_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'planning',
-      summary: 'Execution planning: decomposes a goal into ordered, dependency-aware, parallelizable steps with checkpoints.',
+      summary:
+        'Execution planning: decomposes a goal into ordered, dependency-aware, parallelizable steps with checkpoints.',
       keywords: [
         'plan',
         'execution plan',
@@ -67,7 +69,8 @@ export const PLANNING_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'planning',
-      summary: 'System architecture: designs module boundaries, interfaces, data flow, and records key decisions.',
+      summary:
+        'System architecture: designs module boundaries, interfaces, data flow, and records key decisions.',
       keywords: [
         'architecture',
         'design system',
@@ -93,7 +96,8 @@ export const PLANNING_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'planning',
-      summary: 'Adversarial review of plans/designs: finds gaps, risks, and unstated assumptions with ranked fixes.',
+      summary:
+        'Adversarial review of plans/designs: finds gaps, risks, and unstated assumptions with ranked fixes.',
       keywords: [
         'critique',
         'review plan',
@@ -119,7 +123,8 @@ export const PLANNING_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'planning',
-      summary: 'Refactoring planner: analyzes code structure, maps dependencies, produces risk-scored phased plans with rollback strategy.',
+      summary:
+        'Refactoring planner: analyzes code structure, maps dependencies, produces risk-scored phased plans with rollback strategy.',
       keywords: [
         'refactor',
         'refactoring',

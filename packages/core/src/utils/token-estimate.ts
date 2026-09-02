@@ -216,7 +216,8 @@ export function realAnchoredInputTokens(
   if (typeof anchorTokens !== 'number' || anchorTokens <= 0) return null;
   if (typeof anchorMsgCount !== 'number' || anchorMsgCount < 0) return null;
   if (messages.length < anchorMsgCount) return null;
-  const delta = anchorMsgCount === messages.length ? 0 : estimateMessageTokens(messages.slice(anchorMsgCount));
+  const delta =
+    anchorMsgCount === messages.length ? 0 : estimateMessageTokens(messages.slice(anchorMsgCount));
   return anchorTokens + delta;
 }
 

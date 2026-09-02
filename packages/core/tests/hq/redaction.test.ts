@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createHqEventEnvelope,
-} from '../../src/hq/protocol.js';
+import { createHqEventEnvelope } from '../../src/hq/protocol.js';
 import {
   redactHqEvent,
   redactHqValue,
@@ -81,13 +79,16 @@ describe('HQ redaction', () => {
   });
 
   it('redacts sensitive fields when raw content is explicitly disabled', () => {
-    const result = redactHqValue({
-      token: 'plain-token-value',
-      headers: {
-        Authorization: 'Bearer abcdefghijklmnopqrstuvwxyz',
+    const result = redactHqValue(
+      {
+        token: 'plain-token-value',
+        headers: {
+          Authorization: 'Bearer abcdefghijklmnopqrstuvwxyz',
+        },
+        rawContent: 'hidden raw text',
       },
-      rawContent: 'hidden raw text',
-    }, { policy: { rawContent: false } });
+      { policy: { rawContent: false } },
+    );
 
     expect(result.value).toEqual({
       token: '[REDACTED:hq_sensitive_field]',

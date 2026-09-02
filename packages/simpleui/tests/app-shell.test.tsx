@@ -39,14 +39,16 @@ describe('SimpleUI production composition', () => {
       roots.push(root);
       act(() => root.render(<Probe capture={capture} />));
     }
-    act(() => first?.setSession({
-      id: 'session-1',
-      provider: 'test',
-      model: 'model',
-      projectName: 'Project',
-      cwd: '/project',
-      maxContext: 1_000,
-    }));
+    act(() =>
+      first?.setSession({
+        id: 'session-1',
+        provider: 'test',
+        model: 'model',
+        projectName: 'Project',
+        cwd: '/project',
+        maxContext: 1_000,
+      }),
+    );
     expect(first?.session?.id).toBe('session-1');
     expect(second?.session).toBeNull();
   });

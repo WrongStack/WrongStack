@@ -39,10 +39,7 @@ function sameBand(a: SelectionBandSnapshot, b: SelectionBandSnapshot): boolean {
 }
 
 /** Band covering the anchor..head row span of an in-progress drag. */
-export function bandFromSelection(
-  anchor: { row: number },
-  head: { row: number },
-): SelectionBand {
+export function bandFromSelection(anchor: { row: number }, head: { row: number }): SelectionBand {
   return {
     topRow: Math.min(anchor.row, head.row),
     bottomRow: Math.max(anchor.row, head.row),

@@ -142,45 +142,79 @@ describe('tool-subject utilities', () => {
   it('subjectForToolInput coerces non-string command args (regression: WS-046 dropped them)', () => {
     // Non-string args (numbers, booleans, nested objects) must be coerced to
     // strings via String(), not silently dropped from the rendered command line.
-    expect(subjectForToolInput('exec', { command: 'node', args: [1, true] }, 'command')).toBe('node 1 true');
-    expect(subjectForToolInput('exec', { command: 'echo', args: ['hi', 42] }, 'command')).toBe('echo hi 42');
+    expect(subjectForToolInput('exec', { command: 'node', args: [1, true] }, 'command')).toBe(
+      'node 1 true',
+    );
+    expect(subjectForToolInput('exec', { command: 'echo', args: ['hi', 42] }, 'command')).toBe(
+      'echo hi 42',
+    );
     // Nested objects coerce to "[object Object]" (contains a space → quoted);
     // escapeGlobSubject then escapes the glob metacharacters ([ and ]).
-    expect(subjectForToolInput('exec', { command: 'run', args: [{ nested: true }] }, 'command')).toBe('run "\\[object Object\\]"');
+    expect(
+      subjectForToolInput('exec', { command: 'run', args: [{ nested: true }] }, 'command'),
+    ).toBe('run "\\[object Object\\]"');
   });
   it('subjectForToolInput gives dry-run patches a distinct subject (regression: dry-run/real over-grant)', () => {
     // A dry-run patch and a real patch on the same directory must NOT share a
     // subject, or trusting the preview would authorize the actual application.
-    expect(subjectForToolInput('patch', { directory: 'src', dry_run: true }, 'directory')).toBe('src:dry-run');
-    expect(subjectForToolInput('patch', { directory: 'src', dry_run: false }, 'directory')).toBe('src');
+    expect(subjectForToolInput('patch', { directory: 'src', dry_run: true }, 'directory')).toBe(
+      'src:dry-run',
+    );
+    expect(subjectForToolInput('patch', { directory: 'src', dry_run: false }, 'directory')).toBe(
+      'src',
+    );
     expect(subjectForToolInput('patch', { directory: 'src' }, 'directory')).toBe('src');
     // Glob metacharacters in the directory are still escaped before the suffix.
-    expect(subjectForToolInput('patch', { directory: 'a[b]', dry_run: true }, 'directory')).toBe('a\\[b\\]:dry-run');
+    expect(subjectForToolInput('patch', { directory: 'a[b]', dry_run: true }, 'directory')).toBe(
+      'a\\[b\\]:dry-run',
+    );
   });
   it('subjectForToolInput gives dry-run install / check-only format / dry-run replace distinct subjects (over-grant sweep)', () => {
     // install: a dry-run install must not share a subject with a real install.
-    expect(subjectForToolInput('install', { packages: 'react', dry_run: true }, 'packages')).toBe('react:dry-run');
+    expect(subjectForToolInput('install', { packages: 'react', dry_run: true }, 'packages')).toBe(
+      'react:dry-run',
+    );
     expect(subjectForToolInput('install', { packages: 'react' }, 'packages')).toBe('react');
     // format: a check-only format must not share a subject with a writing format.
     expect(subjectForToolInput('format', { files: 'src', check: true }, 'files')).toBe('src:check');
     expect(subjectForToolInput('format', { files: 'src' }, 'files')).toBe('src');
     // replace: a dry-run replace (the default) must not share a subject with a real replace.
-    expect(subjectForToolInput('replace', { files: 'src', dry_run: true }, 'files')).toBe('src:dry-run');
+    expect(subjectForToolInput('replace', { files: 'src', dry_run: true }, 'files')).toBe(
+      'src:dry-run',
+    );
     expect(subjectForToolInput('replace', { files: 'src', dry_run: false }, 'files')).toBe('src');
   });
   it('subjectForToolInput gives dry-run git commit a distinct subject (over-grant)', () => {
     // A dry-run `git commit` must not share a subject with a real commit.
-    expect(subjectForToolInput('git', { command: 'commit', dry_run: true }, 'command')).toBe('commit:dry-run');
-    expect(subjectForToolInput('git', { command: 'commit', dry_run: false }, 'command')).toBe('commit');
+    expect(subjectForToolInput('git', { command: 'commit', dry_run: true }, 'command')).toBe(
+      'commit:dry-run',
+    );
+    expect(subjectForToolInput('git', { command: 'commit', dry_run: false }, 'command')).toBe(
+      'commit',
+    );
     expect(subjectForToolInput('git', { command: 'commit' }, 'command')).toBe('commit');
     // Other git subcommands are unaffected by the dry-run special-case.
     expect(subjectForToolInput('git', { command: 'push' }, 'command')).toBe('push');
   });
   it('subjectForToolInput gives dry-run scaffold a distinct subject (over-grant)', () => {
     // A dry-run scaffold must not share a subject with a real scaffold.
-    expect(subjectForToolInput('scaffold', { template: 'npm-package', name: 'foo', dry_run: true }, 'name')).toBe('foo:dry-run');
-    expect(subjectForToolInput('scaffold', { template: 'npm-package', name: 'foo', dry_run: false }, 'name')).toBe('foo');
-    expect(subjectForToolInput('scaffold', { template: 'npm-package', name: 'foo' }, 'name')).toBe('foo');
+    expect(
+      subjectForToolInput(
+        'scaffold',
+        { template: 'npm-package', name: 'foo', dry_run: true },
+        'name',
+      ),
+    ).toBe('foo:dry-run');
+    expect(
+      subjectForToolInput(
+        'scaffold',
+        { template: 'npm-package', name: 'foo', dry_run: false },
+        'name',
+      ),
+    ).toBe('foo');
+    expect(subjectForToolInput('scaffold', { template: 'npm-package', name: 'foo' }, 'name')).toBe(
+      'foo',
+    );
   });
 });
 
@@ -246,7 +280,10 @@ describe('config-json pure functions', () => {
 
 describe('config-json file I/O', () => {
   it('round-trips write then read', async () => {
-    const tmp = path.join(os.tmpdir(), `cfg-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+    const tmp = path.join(
+      os.tmpdir(),
+      `cfg-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+    );
     await writeJsonObjectFile(tmp, { hello: 'world', num: 42 });
     const read = await readJsonObjectFile(tmp);
     expect(read).toEqual({ hello: 'world', num: 42 });
@@ -257,7 +294,10 @@ describe('config-json file I/O', () => {
     expect(read).toEqual({});
   });
   it('readJsonObjectFile returns empty for non-object JSON', async () => {
-    const tmp = path.join(os.tmpdir(), `cfg2-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+    const tmp = path.join(
+      os.tmpdir(),
+      `cfg2-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+    );
     fs.writeFileSync(tmp, '[1,2,3]');
     const read = await readJsonObjectFile(tmp);
     expect(read).toEqual({});

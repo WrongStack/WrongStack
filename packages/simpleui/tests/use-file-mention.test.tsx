@@ -20,10 +20,7 @@ function makeMention(query: string): FileMention {
   return { start: 0, end: query.length + 1, query };
 }
 
-function renderHookViaRoot(
-  captured: Captured,
-  socket: MockSocket,
-): Root {
+function renderHookViaRoot(captured: Captured, socket: MockSocket): Root {
   function Probe(): null {
     captured.current = useFileMention({ socketRef: { current: socket as never } });
     return null;

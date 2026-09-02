@@ -5,11 +5,7 @@
   "description": "Make CI faster without losing safety.",
   "content": "My CI pipeline is too slow: {{description}}\n\nFind the time sinks and cut them: cache dependencies and build artifacts, parallelize independent jobs, run only the tests affected by a change where safe, and move slow checks off the critical path. Order steps to fail fast. Keep the gate that blocks merge intact. Estimate the time saved per change and call out any speedup that trades away real safety.",
   "category": "devops",
-  "tags": [
-    "ci",
-    "performance",
-    "caching"
-  ],
+  "tags": ["ci", "performance", "caching"],
   "source": "builtin",
   "favorite": false,
   "checksum": "ff7a394b7f2219496cecf3d358aa5e66dfcb8bf80fb51c73d2dabe0eec2edf78",

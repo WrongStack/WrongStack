@@ -292,21 +292,35 @@ const plugin: Plugin = {
           const rawUsage = response?.usage as Record<string, unknown> | undefined;
           const inputTokens =
             (typeof rawUsage?.['input'] === 'number' ? rawUsage['input'] : undefined) ??
-            (typeof rawUsage?.['prompt_tokens'] === 'number' ? rawUsage['prompt_tokens'] : undefined) ??
-            (typeof rawUsage?.['input_tokens'] === 'number' ? rawUsage['input_tokens'] : undefined) ??
-            (typeof rawUsage?.['promptTokens'] === 'number' ? rawUsage['promptTokens'] : undefined) ??
+            (typeof rawUsage?.['prompt_tokens'] === 'number'
+              ? rawUsage['prompt_tokens']
+              : undefined) ??
+            (typeof rawUsage?.['input_tokens'] === 'number'
+              ? rawUsage['input_tokens']
+              : undefined) ??
+            (typeof rawUsage?.['promptTokens'] === 'number'
+              ? rawUsage['promptTokens']
+              : undefined) ??
             (typeof rawUsage?.['inputTokens'] === 'number' ? rawUsage['inputTokens'] : 0);
           const outputTokens =
             (typeof rawUsage?.['output'] === 'number' ? rawUsage['output'] : undefined) ??
-            (typeof rawUsage?.['completion_tokens'] === 'number' ? rawUsage['completion_tokens'] : undefined) ??
-            (typeof rawUsage?.['output_tokens'] === 'number' ? rawUsage['output_tokens'] : undefined) ??
-            (typeof rawUsage?.['completionTokens'] === 'number' ? rawUsage['completionTokens'] : undefined) ??
+            (typeof rawUsage?.['completion_tokens'] === 'number'
+              ? rawUsage['completion_tokens']
+              : undefined) ??
+            (typeof rawUsage?.['output_tokens'] === 'number'
+              ? rawUsage['output_tokens']
+              : undefined) ??
+            (typeof rawUsage?.['completionTokens'] === 'number'
+              ? rawUsage['completionTokens']
+              : undefined) ??
             (typeof rawUsage?.['outputTokens'] === 'number' ? rawUsage['outputTokens'] : 0);
           const totalTokens =
-            (typeof rawUsage?.['total_tokens'] === 'number' ? rawUsage['total_tokens'] : undefined) ??
+            (typeof rawUsage?.['total_tokens'] === 'number'
+              ? rawUsage['total_tokens']
+              : undefined) ??
             (typeof rawUsage?.['totalTokens'] === 'number' ? rawUsage['totalTokens'] : undefined) ??
             (typeof rawUsage?.['total'] === 'number' ? rawUsage['total'] : undefined) ??
-            (inputTokens + outputTokens);
+            inputTokens + outputTokens;
           const used = totalTokens > 0 ? totalTokens : projected;
           state.window.push({ at: Date.now(), tokens: used });
           return response;

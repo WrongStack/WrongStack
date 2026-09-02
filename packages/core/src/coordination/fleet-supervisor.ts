@@ -30,7 +30,12 @@ import { randomUUID } from 'node:crypto';
 import type { EventBus } from '../kernel/events.js';
 import type { TaskSpec } from '../types/multi-agent.js';
 import type { FleetSupervisorConfig } from '../types/config.js';
-import type { BrainArbiter, BrainDecision, BrainDecisionOption, BrainDecisionRequest } from './brain.js';
+import type {
+  BrainArbiter,
+  BrainDecision,
+  BrainDecisionOption,
+  BrainDecisionRequest,
+} from './brain.js';
 import type { FleetBus } from './fleet-bus.js';
 
 export type { FleetSupervisorConfig } from '../types/config.js';
@@ -520,7 +525,8 @@ export class FleetSupervisor {
           subagentId: fromWorkerId,
           proposedAction: 'retarget',
           outcome: decision.type === 'answer' ? 'denied' : 'escalated',
-          detail: decision.type === 'answer' ? (decision.rationale ?? decision.text) : decision.type,
+          detail:
+            decision.type === 'answer' ? (decision.rationale ?? decision.text) : decision.type,
         });
         return;
       }
@@ -543,7 +549,8 @@ export class FleetSupervisor {
         taskId: tasks[0]?.id,
         proposedAction: 'retarget',
         outcome: 'approved',
-        detail: moved.length > 0 ? `moved ${moved.join(', ')}` : 'nothing movable (already dispatched)',
+        detail:
+          moved.length > 0 ? `moved ${moved.join(', ')}` : 'nothing movable (already dispatched)',
       });
       if (moved.length > 0) {
         await this.opts.actions
@@ -575,10 +582,7 @@ export class FleetSupervisor {
     this.engaging = true;
     try {
       const pendingCount = pending.length;
-      this.emitSignal(
-        'backlog',
-        `${pendingCount} pending tasks vs ${liveWorkers} live worker(s)`,
-      );
+      this.emitSignal('backlog', `${pendingCount} pending tasks vs ${liveWorkers} live worker(s)`);
       const { choice, decision } = await this.decide(
         `The task queue is deep: ${pendingCount} pending tasks for ${liveWorkers} live worker(s). Spawn one additional helper worker to drain it?`,
         `Pending: ${pendingCount}, live workers: ${liveWorkers}, factor threshold: ${this.cfg.backlogFactor}x`,
@@ -599,7 +603,8 @@ export class FleetSupervisor {
           kind: 'backlog',
           proposedAction: 'spawn_helper',
           outcome: decision.type === 'answer' ? 'denied' : 'escalated',
-          detail: decision.type === 'answer' ? (decision.rationale ?? decision.text) : decision.type,
+          detail:
+            decision.type === 'answer' ? (decision.rationale ?? decision.text) : decision.type,
         });
         return;
       }
@@ -675,7 +680,8 @@ export class FleetSupervisor {
           subagentId: s.id,
           proposedAction: 'steer',
           outcome: decision.type === 'answer' ? 'denied' : 'escalated',
-          detail: decision.type === 'answer' ? (decision.rationale ?? decision.text) : decision.type,
+          detail:
+            decision.type === 'answer' ? (decision.rationale ?? decision.text) : decision.type,
         });
         return;
       }

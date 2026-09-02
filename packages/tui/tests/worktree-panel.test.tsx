@@ -19,7 +19,15 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'feature/x', ownerLabel: 'builder', status: 'active', insertions: 10, deletions: 2, files: 3, allocatedAt: 100 },
+          w1: {
+            branch: 'feature/x',
+            ownerLabel: 'builder',
+            status: 'active',
+            insertions: 10,
+            deletions: 2,
+            files: 3,
+            allocatedAt: 100,
+          },
         },
         nowTick: 2000,
       }),
@@ -34,7 +42,15 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'done/x', ownerLabel: 'dev', status: 'merged', insertions: 5, deletions: 0, files: 1, allocatedAt: 100 },
+          w1: {
+            branch: 'done/x',
+            ownerLabel: 'dev',
+            status: 'merged',
+            insertions: 5,
+            deletions: 0,
+            files: 1,
+            allocatedAt: 100,
+          },
         },
         nowTick: 0,
       }),
@@ -48,7 +64,15 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'fail/x', ownerLabel: 'dev', status: 'failed', insertions: 0, deletions: 0, files: 0, allocatedAt: 100 },
+          w1: {
+            branch: 'fail/x',
+            ownerLabel: 'dev',
+            status: 'failed',
+            insertions: 0,
+            deletions: 0,
+            files: 0,
+            allocatedAt: 100,
+          },
         },
         nowTick: 0,
       }),
@@ -62,7 +86,15 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'merged/x', ownerLabel: 'dev', status: 'merged', insertions: 1, deletions: 0, files: 1, allocatedAt: 100 },
+          w1: {
+            branch: 'merged/x',
+            ownerLabel: 'dev',
+            status: 'merged',
+            insertions: 1,
+            deletions: 0,
+            files: 1,
+            allocatedAt: 100,
+          },
         },
         nowTick: 0,
       }),
@@ -76,8 +108,24 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'a', ownerLabel: 'dev', status: 'active', insertions: 0, deletions: 0, files: 0, allocatedAt: 100 },
-          w2: { branch: 'b', ownerLabel: 'dev', status: 'merged', insertions: 0, deletions: 0, files: 0, allocatedAt: 100 },
+          w1: {
+            branch: 'a',
+            ownerLabel: 'dev',
+            status: 'active',
+            insertions: 0,
+            deletions: 0,
+            files: 0,
+            allocatedAt: 100,
+          },
+          w2: {
+            branch: 'b',
+            ownerLabel: 'dev',
+            status: 'merged',
+            insertions: 0,
+            deletions: 0,
+            files: 0,
+            allocatedAt: 100,
+          },
         },
         nowTick: 0,
       }),
@@ -92,7 +140,15 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'feature/y', ownerLabel: 'coder', status: 'active', insertions: 15, deletions: 3, files: 4, allocatedAt: 100 },
+          w1: {
+            branch: 'feature/y',
+            ownerLabel: 'coder',
+            status: 'active',
+            insertions: 15,
+            deletions: 3,
+            files: 4,
+            allocatedAt: 100,
+          },
         },
         nowTick: 0,
       }),
@@ -106,7 +162,16 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'conflict/x', ownerLabel: 'dev', status: 'needs-review', insertions: 5, deletions: 5, files: 3, allocatedAt: 100, conflictFiles: ['a.ts'] },
+          w1: {
+            branch: 'conflict/x',
+            ownerLabel: 'dev',
+            status: 'needs-review',
+            insertions: 5,
+            deletions: 5,
+            files: 3,
+            allocatedAt: 100,
+            conflictFiles: ['a.ts'],
+          },
         },
         nowTick: 0,
       }),
@@ -120,7 +185,15 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'active/x', ownerLabel: 'dev', status: 'active', insertions: 1, deletions: 0, files: 1, allocatedAt: 1000 },
+          w1: {
+            branch: 'active/x',
+            ownerLabel: 'dev',
+            status: 'active',
+            insertions: 1,
+            deletions: 0,
+            files: 1,
+            allocatedAt: 1000,
+          },
         },
         nowTick: 4000,
       }),
@@ -131,14 +204,39 @@ describe('WorktreePanel', () => {
   });
 
   it('renders all status types', () => {
-    const statuses = ['allocating', 'active', 'committing', 'merging', 'merged', 'needs-review', 'failed'];
-    const wt: Record<string, { branch: string; ownerLabel: string; status: string; insertions: number; deletions: number; files: number; allocatedAt: number }> = {};
+    const statuses = [
+      'allocating',
+      'active',
+      'committing',
+      'merging',
+      'merged',
+      'needs-review',
+      'failed',
+    ];
+    const wt: Record<
+      string,
+      {
+        branch: string;
+        ownerLabel: string;
+        status: string;
+        insertions: number;
+        deletions: number;
+        files: number;
+        allocatedAt: number;
+      }
+    > = {};
     statuses.forEach((s, i) => {
-      wt[`w${i}`] = { branch: `branch/${s}`, ownerLabel: 'dev', status: s, insertions: 0, deletions: 0, files: 0, allocatedAt: 100 };
+      wt[`w${i}`] = {
+        branch: `branch/${s}`,
+        ownerLabel: 'dev',
+        status: s,
+        insertions: 0,
+        deletions: 0,
+        files: 0,
+        allocatedAt: 100,
+      };
     });
-    const view = render(
-      React.createElement(WorktreePanel, { worktrees: wt, nowTick: 0 }),
-    );
+    const view = render(React.createElement(WorktreePanel, { worktrees: wt, nowTick: 0 }));
     const frame = view.lastFrame() ?? '';
     // 'needs-review' gets truncated to 'needs-revie' in the rendered output
     statuses.forEach((s) => {
@@ -155,7 +253,15 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'custom/x', ownerLabel: 'dev', status: 'custom-status', insertions: 0, deletions: 0, files: 0, allocatedAt: 100 },
+          w1: {
+            branch: 'custom/x',
+            ownerLabel: 'dev',
+            status: 'custom-status',
+            insertions: 0,
+            deletions: 0,
+            files: 0,
+            allocatedAt: 100,
+          },
         },
         nowTick: 0,
       }),
@@ -169,7 +275,15 @@ describe('WorktreePanel', () => {
     const view = render(
       React.createElement(WorktreePanel, {
         worktrees: {
-          w1: { branch: 'wstack/ap/feature/foo', ownerLabel: 'dev', status: 'active', insertions: 0, deletions: 0, files: 0, allocatedAt: 100 },
+          w1: {
+            branch: 'wstack/ap/feature/foo',
+            ownerLabel: 'dev',
+            status: 'active',
+            insertions: 0,
+            deletions: 0,
+            files: 0,
+            allocatedAt: 100,
+          },
         },
         nowTick: 0,
       }),

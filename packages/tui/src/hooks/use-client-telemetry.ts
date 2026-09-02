@@ -117,5 +117,4 @@ export function useClientTelemetry({
       restoreDebugStreamCallback?.();
     };
   }, [events, registerDebugStreamCallback, restoreDebugStreamCallback]);
-
 }

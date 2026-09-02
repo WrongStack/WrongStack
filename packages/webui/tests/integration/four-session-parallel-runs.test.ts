@@ -41,17 +41,13 @@ vi.mock('../../src/lib/desktop-shell', () => ({ isDesktopShell: () => false }));
 
 const { useFleetStore, useSessionTabStore } = await import('../../src/stores');
 const { readLane, useChatLanes } = await import('../../src/stores/chat-lanes');
-const {
-  readSessionLane,
-  sessionLane,
-  useSessionLanes,
-} = await import('../../src/stores/session-lanes');
+const { readSessionLane, sessionLane, useSessionLanes } = await import(
+  '../../src/stores/session-lanes'
+);
 const { handleSessionStart } = await import('../../src/hooks/ws-handlers/session-handlers');
-const {
-  handleIterationStarted,
-  handleTextDelta,
-  handleToolConfirmNeeded,
-} = await import('../../src/hooks/ws-handlers/chat-handlers');
+const { handleIterationStarted, handleTextDelta, handleToolConfirmNeeded } = await import(
+  '../../src/hooks/ws-handlers/chat-handlers'
+);
 const { handleSubagentEvent } = await import('../../src/hooks/ws-handlers/fleet-handlers');
 const { agentBelongsToSession } = await import('../../src/lib/agent-session');
 const { streamCoalescer } = await import('../../src/lib/stream-coalescer');
@@ -82,7 +78,12 @@ async function drain(): Promise<void> {
 function seedRunningAgent(sessionId: string): void {
   handleSubagentEvent({
     type: 'subagent.event',
-    payload: { kind: 'spawned', subagentId: `agent-${sessionId}`, sessionId, name: `W-${sessionId}` },
+    payload: {
+      kind: 'spawned',
+      subagentId: `agent-${sessionId}`,
+      sessionId,
+      name: `W-${sessionId}`,
+    },
   } as never);
   handleSubagentEvent({
     type: 'subagent.event',
@@ -172,8 +173,16 @@ describe('four sessions, four parallel runs — end-to-end leak sweep', () => {
       }
       expect(content).toContain(`MARKER-${id}`);
     }
-    expect(readLane('s2').messages.map((m) => m.content).join('\n')).toContain('LATE-s2');
-    expect(readLane('s1').messages.map((m) => m.content).join('\n')).not.toContain('LATE-s2');
+    expect(
+      readLane('s2')
+        .messages.map((m) => m.content)
+        .join('\n'),
+    ).toContain('LATE-s2');
+    expect(
+      readLane('s1')
+        .messages.map((m) => m.content)
+        .join('\n'),
+    ).not.toContain('LATE-s2');
 
     // ── Token isolation ──
     IDS.forEach((id, i) => {

@@ -335,8 +335,7 @@ export async function setupPlugins(
           {
             nameFromSpec: pluginNameFromSpec,
             isBuiltinSpec: (spec) => builtinPluginNameFromSpec(spec) !== null,
-            warnIfDeprecated: (name) =>
-              name !== '' && warnIfDeprecatedPluginName(name, log),
+            warnIfDeprecated: (name) => name !== '' && warnIfDeprecatedPluginName(name, log),
           },
         );
 

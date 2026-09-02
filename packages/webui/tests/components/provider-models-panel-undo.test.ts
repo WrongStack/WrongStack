@@ -94,9 +94,9 @@ describe('formatClearAllowlistDialogBody (dialog description text)', () => {
 describe('shouldOfferClearFromSaved (parent-level "did anything change?" check)', () => {
   it('returns true when the provider has any saved models', () => {
     expect(shouldOfferClearFromSaved({ id: 'a', models: ['x'] })).toBe(true);
-    expect(
-      shouldOfferClearFromSaved({ id: 'a', pickedModelId: 'x', models: ['x', 'y'] }),
-    ).toBe(true);
+    expect(shouldOfferClearFromSaved({ id: 'a', pickedModelId: 'x', models: ['x', 'y'] })).toBe(
+      true,
+    );
   });
 
   it('returns false when the saved provider has no allowlist', () => {

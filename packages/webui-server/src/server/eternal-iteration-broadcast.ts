@@ -19,9 +19,7 @@ import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
 import type { JournalEntry } from '@wrongstack/core/storage';
 
-export type EternalSubscribe = (
-  fn: (entry: JournalEntry) => void,
-) => () => void;
+export type EternalSubscribe = (fn: (entry: JournalEntry) => void) => () => void;
 
 // `clients` is generic so callers that use a structurally-similar
 // `ConnectedClient` (the CLI's own Map<WebSocket, { ws; sessionId }>,

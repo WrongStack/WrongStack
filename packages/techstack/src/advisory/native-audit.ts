@@ -35,23 +35,33 @@ export interface NativeAuditResult {
 /** Map npm audit severity strings */
 function npmSeverity(s: string): NativeAdvisory['severity'] {
   switch (s.toLowerCase()) {
-    case 'critical': return 'critical';
-    case 'high': return 'high';
+    case 'critical':
+      return 'critical';
+    case 'high':
+      return 'high';
     case 'moderate':
-    case 'medium': return 'medium';
-    case 'low': return 'low';
-    default: return 'info';
+    case 'medium':
+      return 'medium';
+    case 'low':
+      return 'low';
+    default:
+      return 'info';
   }
 }
 
 /** Map cargo-audit severity strings */
 function cargoSeverity(s: string): NativeAdvisory['severity'] {
   switch (s.toLowerCase()) {
-    case 'critical': return 'critical';
-    case 'high': return 'high';
-    case 'medium': return 'medium';
-    case 'low': return 'low';
-    default: return 'info';
+    case 'critical':
+      return 'critical';
+    case 'high':
+      return 'high';
+    case 'medium':
+      return 'medium';
+    case 'low':
+      return 'low';
+    default:
+      return 'info';
   }
 }
 
@@ -60,7 +70,10 @@ function cargoSeverity(s: string): NativeAdvisory['severity'] {
 /**
  * Run npm audit in the given workspace directory and parse JSON output.
  */
-export async function runNpmAudit(workspaceRoot: string, runner: AuditCommandRunner = defaultAuditCommandRunner): Promise<NativeAuditResult> {
+export async function runNpmAudit(
+  workspaceRoot: string,
+  runner: AuditCommandRunner = defaultAuditCommandRunner,
+): Promise<NativeAuditResult> {
   const result = await runner('npm', ['audit', '--json'], workspaceRoot);
   const advisories: NativeAdvisory[] = [];
   let detailLines: string[] = [];
@@ -69,7 +82,9 @@ export async function runNpmAudit(workspaceRoot: string, runner: AuditCommandRun
     // npm audit exits 0 if no vulns, 1 if vulns found, 2 if error
     try {
       const json = JSON.parse(result.stdout || '{}');
-      const vulnerabilities = json.vulnerabilities as Record<string, Record<string, unknown>> | undefined;
+      const vulnerabilities = json.vulnerabilities as
+        | Record<string, Record<string, unknown>>
+        | undefined;
 
       if (vulnerabilities) {
         for (const [pkg, info] of Object.entries(vulnerabilities)) {
@@ -84,13 +99,16 @@ export async function runNpmAudit(workspaceRoot: string, runner: AuditCommandRun
             if (typeof source === 'number') continue;
 
             advisories.push({
-              id: (advisory.cve as string) ?? (advisory.ghsa as string) ?? `npm-${pkg}-${name ?? 'unknown'}`,
+              id:
+                (advisory.cve as string) ??
+                (advisory.ghsa as string) ??
+                `npm-${pkg}-${name ?? 'unknown'}`,
               packageName: pkg,
               severity: npmSeverity((info.severity as string) ?? 'info'),
-              summary: (advisory.title as string) ?? (name ?? 'No summary'),
+              summary: (advisory.title as string) ?? name ?? 'No summary',
               fixVersion: (info.fixAvailable as string) ?? undefined,
               url: (advisory.url as string) ?? undefined,
-              aliases: (advisory.cve as string) ? [(advisory.cve as string)] : [],
+              aliases: (advisory.cve as string) ? [advisory.cve as string] : [],
             });
           }
         }
@@ -99,8 +117,8 @@ export async function runNpmAudit(workspaceRoot: string, runner: AuditCommandRun
       const metadata = json.metadata as Record<string, unknown> | undefined;
       if (metadata) {
         detailLines = [
-          `Total vulnerabilities: ${metadata.vulnerabilities as string ?? 'unknown'}`,
-          `Total dependencies: ${metadata.totalDependencies as string ?? 'unknown'}`,
+          `Total vulnerabilities: ${(metadata.vulnerabilities as string) ?? 'unknown'}`,
+          `Total dependencies: ${(metadata.totalDependencies as string) ?? 'unknown'}`,
         ];
       }
     } catch {
@@ -126,7 +144,10 @@ export async function runNpmAudit(workspaceRoot: string, runner: AuditCommandRun
  * Run pip-audit in the given workspace directory.
  * pip-audit supports --requirement, --format json flags.
  */
-export async function runPipAudit(workspaceRoot: string, runner: AuditCommandRunner = defaultAuditCommandRunner): Promise<NativeAuditResult> {
+export async function runPipAudit(
+  workspaceRoot: string,
+  runner: AuditCommandRunner = defaultAuditCommandRunner,
+): Promise<NativeAuditResult> {
   // Try common requirements files
   const reqFiles = ['requirements.txt', 'requirements-dev.txt'];
   let reqFlag = '';
@@ -161,7 +182,8 @@ function parsePipAuditOutput(result: AuditCommandResult): NativeAuditResult {
           id: (entry.id as string) ?? (entry.vulnerability_id as string) ?? 'unknown',
           packageName: (entry.name as string) ?? '',
           severity: npmSeverity((entry.severity as string) ?? 'info'),
-          summary: (entry.description as string) ?? (entry.vulnerability_id as string) ?? 'No summary',
+          summary:
+            (entry.description as string) ?? (entry.vulnerability_id as string) ?? 'No summary',
           fixVersion: (entry.fix_version as string) ?? undefined,
           url: (entry.advisory_url as string) ?? undefined,
           aliases: (entry.aliases as string[]) ?? [],
@@ -189,7 +211,10 @@ function parsePipAuditOutput(result: AuditCommandResult): NativeAuditResult {
 /**
  * Run cargo-audit in the given workspace directory.
  */
-export async function runCargoAudit(workspaceRoot: string, runner: AuditCommandRunner = defaultAuditCommandRunner): Promise<NativeAuditResult> {
+export async function runCargoAudit(
+  workspaceRoot: string,
+  runner: AuditCommandRunner = defaultAuditCommandRunner,
+): Promise<NativeAuditResult> {
   const result = await runner('cargo', ['audit', '--json'], workspaceRoot);
   return parseCargoAuditOutput(result);
 }
@@ -213,7 +238,7 @@ function parseCargoAuditOutput(result: AuditCommandResult): NativeAuditResult {
           advisories.push({
             id: (advisory.id as string) ?? 'unknown',
             packageName: (pkg?.name as string) ?? '',
-            severity: cargoSeverity((advisory.cvss as string ?? '').split('/')?.[0] ?? 'info'),
+            severity: cargoSeverity(((advisory.cvss as string) ?? '').split('/')?.[0] ?? 'info'),
             summary: (advisory.title as string) ?? (advisory.description as string) ?? 'No summary',
             fixVersion: (advisory.patched_versions as string) ?? undefined,
             url: (advisory.url as string) ?? undefined,
@@ -245,7 +270,10 @@ function parseCargoAuditOutput(result: AuditCommandResult): NativeAuditResult {
  * Output is JSON with vulnerabilities in the format:
  * { vulns: [{ id, details, osv, ... }] }
  */
-export async function runGoVulncheck(workspaceRoot: string, runner: AuditCommandRunner = defaultAuditCommandRunner): Promise<NativeAuditResult> {
+export async function runGoVulncheck(
+  workspaceRoot: string,
+  runner: AuditCommandRunner = defaultAuditCommandRunner,
+): Promise<NativeAuditResult> {
   const result = await runner('govulncheck', ['-json'], workspaceRoot);
   const advisories: NativeAdvisory[] = [];
   let detailLines: string[] = [];
@@ -295,7 +323,10 @@ export async function runGoVulncheck(workspaceRoot: string, runner: AuditCommand
 /**
  * Run composer audit in the given workspace directory.
  */
-export async function runComposerAudit(workspaceRoot: string, runner: AuditCommandRunner = defaultAuditCommandRunner): Promise<NativeAuditResult> {
+export async function runComposerAudit(
+  workspaceRoot: string,
+  runner: AuditCommandRunner = defaultAuditCommandRunner,
+): Promise<NativeAuditResult> {
   const result = await runner('composer', ['audit', '--format=json'], workspaceRoot);
   const advisories: NativeAdvisory[] = [];
   let detailLines: string[] = [];
@@ -303,7 +334,9 @@ export async function runComposerAudit(workspaceRoot: string, runner: AuditComma
   if (result.status === 0) {
     try {
       const json = JSON.parse(result.stdout || '{}');
-      const advisoriesJson = json.advisories as Record<string, Array<Record<string, unknown>>> | undefined;
+      const advisoriesJson = json.advisories as
+        | Record<string, Array<Record<string, unknown>>>
+        | undefined;
 
       if (advisoriesJson) {
         for (const [pkg, advs] of Object.entries(advisoriesJson)) {
@@ -315,7 +348,7 @@ export async function runComposerAudit(workspaceRoot: string, runner: AuditComma
               summary: (adv.title as string) ?? (adv.description as string) ?? 'No summary',
               fixVersion: adv.link ? (adv.link as string).split('/').pop() : undefined,
               url: (adv.link as string) ?? undefined,
-              aliases: (adv.cve as string) ? [(adv.cve as string)] : [],
+              aliases: (adv.cve as string) ? [adv.cve as string] : [],
             });
           }
         }
@@ -343,7 +376,10 @@ export async function runComposerAudit(workspaceRoot: string, runner: AuditComma
  * Run `dotnet package audit` in the given workspace directory.
  * .NET 8+ supports `dotnet package audit --format json`.
  */
-export async function runDotnetAudit(workspaceRoot: string, runner: AuditCommandRunner = defaultAuditCommandRunner): Promise<NativeAuditResult> {
+export async function runDotnetAudit(
+  workspaceRoot: string,
+  runner: AuditCommandRunner = defaultAuditCommandRunner,
+): Promise<NativeAuditResult> {
   // Try new --format first, fall back to default output
   const result = await runner('dotnet', ['package', 'audit', '--format', 'json'], workspaceRoot);
   const advisories: NativeAdvisory[] = [];
@@ -359,7 +395,7 @@ export async function runDotnetAudit(workspaceRoot: string, runner: AuditCommand
       if (vulnerabilities) {
         // Flat shape: { vulnerabilities: [{ packageName, severity, advisoryUrl, ... }] }
         const vulnList = Array.isArray(vulnerabilities)
-          ? vulnerabilities as Array<Record<string, unknown>>
+          ? (vulnerabilities as Array<Record<string, unknown>>)
           : [];
         for (const v of vulnList) {
           advisories.push({
@@ -381,7 +417,8 @@ export async function runDotnetAudit(workspaceRoot: string, runner: AuditCommand
               packageName: pkg,
               severity: npmSeverity((entry.severity as string) ?? 'info'),
               summary: (entry.description as string) ?? (entry.title as string) ?? 'No summary',
-              fixVersion: (entry.fixedVersion as string) ?? (entry.patchedVersion as string) ?? undefined,
+              fixVersion:
+                (entry.fixedVersion as string) ?? (entry.patchedVersion as string) ?? undefined,
               url: (entry.advisoryUrl as string) ?? (entry.url as string) ?? undefined,
               aliases: (entry.aliases as string[]) ?? [],
             });
@@ -445,9 +482,7 @@ const defaultAuditCommandRunner: AuditCommandRunner = (
       },
       (error, stdout, stderr) => {
         const exitCode = (error as (Error & { code?: string | number }) | null)?.code;
-        const status = error
-          ? typeof exitCode === 'number' ? exitCode : null
-          : 0;
+        const status = error ? (typeof exitCode === 'number' ? exitCode : null) : 0;
         resolve({
           status,
           stdout,
@@ -505,12 +540,19 @@ export async function isNativeAuditAvailable(
   runner: AuditCommandRunner = defaultAuditCommandRunner,
 ): Promise<boolean> {
   const result = await runner(
-    ecosystem === 'npm' ? 'npm' :
-    ecosystem === 'python' ? 'pip-audit' :
-    ecosystem === 'rust' ? 'cargo' :
-    ecosystem === 'go' ? 'govulncheck' :
-    ecosystem === 'php' ? 'composer' :
-    ecosystem === 'dotnet' ? 'dotnet' : '',
+    ecosystem === 'npm'
+      ? 'npm'
+      : ecosystem === 'python'
+        ? 'pip-audit'
+        : ecosystem === 'rust'
+          ? 'cargo'
+          : ecosystem === 'go'
+            ? 'govulncheck'
+            : ecosystem === 'php'
+              ? 'composer'
+              : ecosystem === 'dotnet'
+                ? 'dotnet'
+                : '',
     ['--version'],
     process.cwd(),
   );
@@ -524,16 +566,25 @@ export interface ConfiguredAuditRunner {
 }
 
 /** Build a hermetic native-audit dispatcher around an injected command strategy. */
-export function createAuditRunner(commandRunner: AuditCommandRunner = defaultAuditCommandRunner): ConfiguredAuditRunner {
+export function createAuditRunner(
+  commandRunner: AuditCommandRunner = defaultAuditCommandRunner,
+): ConfiguredAuditRunner {
   const commandFor = (ecosystem: EcosystemId): string | undefined => {
     switch (ecosystem) {
-      case 'npm': return 'npm';
-      case 'python': return 'pip-audit';
-      case 'rust': return 'cargo';
-      case 'go': return 'govulncheck';
-      case 'php': return 'composer';
-      case 'dotnet': return 'dotnet';
-      default: return undefined;
+      case 'npm':
+        return 'npm';
+      case 'python':
+        return 'pip-audit';
+      case 'rust':
+        return 'cargo';
+      case 'go':
+        return 'govulncheck';
+      case 'php':
+        return 'composer';
+      case 'dotnet':
+        return 'dotnet';
+      default:
+        return undefined;
     }
   };
   return {

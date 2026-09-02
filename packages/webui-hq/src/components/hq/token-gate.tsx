@@ -264,9 +264,7 @@ function PasswordForm(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-2.5">
-      <p className="text-xs text-muted-foreground">
-        This HQ server is protected by a password.
-      </p>
+      <p className="text-xs text-muted-foreground">This HQ server is protected by a password.</p>
       {error !== null && <GateError message={error} />}
       <Label htmlFor="hq-password-input">Password</Label>
       <PasswordInput
@@ -290,7 +288,8 @@ function PasswordForm(): React.ReactElement {
         {busy ? 'Logging in…' : 'Log in'}
       </Button>
       <p className="text-[11px] text-muted-foreground">
-        Set or change it with <code className="font-mono">wstack --hq --password &lt;secret&gt;</code>.
+        Set or change it with{' '}
+        <code className="font-mono">wstack --hq --password &lt;secret&gt;</code>.
       </p>
     </div>
   );
@@ -352,7 +351,11 @@ export function TokenGate({
   if (!showToken || !showPassword) {
     return (
       <GateShell>
-        {showPassword ? <PasswordForm /> : <TokenForm hadToken={hadToken} onAuthenticated={onAuthenticated} />}
+        {showPassword ? (
+          <PasswordForm />
+        ) : (
+          <TokenForm hadToken={hadToken} onAuthenticated={onAuthenticated} />
+        )}
       </GateShell>
     );
   }

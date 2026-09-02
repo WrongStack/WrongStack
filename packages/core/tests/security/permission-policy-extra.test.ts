@@ -9,7 +9,12 @@ import type { Tool } from '../../src/types/index.js';
 function tool(
   name: string,
   permission: 'auto' | 'confirm' | 'deny' = 'confirm',
-  opts: { riskTier?: 'safe' | 'standard' | 'destructive'; mutating?: boolean; capabilities?: readonly string[]; subjectKey?: string } = {},
+  opts: {
+    riskTier?: 'safe' | 'standard' | 'destructive';
+    mutating?: boolean;
+    capabilities?: readonly string[];
+    subjectKey?: string;
+  } = {},
 ): Tool {
   return {
     name,
@@ -20,7 +25,9 @@ function tool(
     riskTier: opts.riskTier,
     capabilities: opts.capabilities,
     subjectKey: opts.subjectKey,
-    async execute() { return 'ok'; },
+    async execute() {
+      return 'ok';
+    },
   } as Tool;
 }
 
@@ -75,7 +82,10 @@ describe('yolo + confirmDestructive', () => {
     p.setYolo(true);
 
     delegate.mockResolvedValueOnce('always');
-    expect(await p.evaluate(destructiveBash(), { command: 'rm -rf /etc' }, ctx())).toMatchObject({ permission: 'confirm', source: 'yolo_destructive' });
+    expect(await p.evaluate(destructiveBash(), { command: 'rm -rf /etc' }, ctx())).toMatchObject({
+      permission: 'confirm',
+      source: 'yolo_destructive',
+    });
     expect(delegate).not.toHaveBeenCalled();
   });
 
@@ -101,13 +111,25 @@ describe('confirm prompt delegate (step 9)', () => {
     const p = new DefaultPermissionPolicy({ trustFile, promptDelegate: delegate });
 
     delegate.mockResolvedValueOnce('always');
-    expect(await p.evaluate(tool('edit'), { path: 'a.ts' }, ctx())).toMatchObject({ permission: 'auto', source: 'user' });
+    expect(await p.evaluate(tool('edit'), { path: 'a.ts' }, ctx())).toMatchObject({
+      permission: 'auto',
+      source: 'user',
+    });
     delegate.mockResolvedValueOnce('deny');
-    expect(await p.evaluate(tool('edit'), { path: 'b.ts' }, ctx())).toMatchObject({ permission: 'deny', source: 'user' });
+    expect(await p.evaluate(tool('edit'), { path: 'b.ts' }, ctx())).toMatchObject({
+      permission: 'deny',
+      source: 'user',
+    });
     delegate.mockResolvedValueOnce('yes');
-    expect(await p.evaluate(tool('edit'), { path: 'c.ts' }, ctx())).toMatchObject({ permission: 'auto', source: 'user' });
+    expect(await p.evaluate(tool('edit'), { path: 'c.ts' }, ctx())).toMatchObject({
+      permission: 'auto',
+      source: 'user',
+    });
     delegate.mockResolvedValueOnce('no');
-    expect(await p.evaluate(tool('edit'), { path: 'd.ts' }, ctx())).toMatchObject({ permission: 'deny', source: 'user' });
+    expect(await p.evaluate(tool('edit'), { path: 'd.ts' }, ctx())).toMatchObject({
+      permission: 'deny',
+      source: 'user',
+    });
   });
 });
 
@@ -149,21 +171,33 @@ describe('subjectFor with an explicit subjectKey', () => {
     await p.reload();
     // A url-keyed tool: trust the exact url, then it auto-approves.
     p.allowOnce({ tool: 'fetch', pattern: 'https://example.com/x' });
-    const d = await p.evaluate(tool('fetch', 'confirm', { subjectKey: 'url' }), { url: 'https://example.com/x' }, ctx());
+    const d = await p.evaluate(
+      tool('fetch', 'confirm', { subjectKey: 'url' }),
+      { url: 'https://example.com/x' },
+      ctx(),
+    );
     expect(d.permission).toBe('auto');
   });
 
   it('normalizes a path-typed subjectKey for matching', async () => {
     await fs.writeFile(trustFile, JSON.stringify({ patch: { allow: ['src/x.ts'] } }));
     const p = new DefaultPermissionPolicy({ trustFile });
-    const d = await p.evaluate(tool('patch', 'confirm', { subjectKey: 'path' }), { path: 'src\\x.ts' }, ctx());
+    const d = await p.evaluate(
+      tool('patch', 'confirm', { subjectKey: 'path' }),
+      { path: 'src\\x.ts' },
+      ctx(),
+    );
     expect(d).toMatchObject({ permission: 'auto', source: 'trust' });
   });
 
   it('falls back to the legacy heuristic when the subjectKey value is not a string', async () => {
     const p = new DefaultPermissionPolicy({ trustFile });
     // subjectKey 'url' is declared but the value is a number → fall through to path.
-    const d = await p.evaluate(tool('fetch', 'confirm', { subjectKey: 'url' }), { url: 123, path: 'p.ts' }, ctx());
+    const d = await p.evaluate(
+      tool('fetch', 'confirm', { subjectKey: 'url' }),
+      { url: 123, path: 'p.ts' },
+      ctx(),
+    );
     expect(d.permission).toBe('confirm');
   });
 });
@@ -206,12 +240,20 @@ describe('destructive detection — capability and legacy paths', () => {
   };
 
   it('auto-approves a fs.write.outside-project capability under yolo', async () => {
-    const d = await yoloDestructive().evaluate(tool('deploy', 'confirm', { capabilities: ['fs.write.outside-project'] }), {}, ctx());
+    const d = await yoloDestructive().evaluate(
+      tool('deploy', 'confirm', { capabilities: ['fs.write.outside-project'] }),
+      {},
+      ctx(),
+    );
     expect(d).toMatchObject({ permission: 'auto', source: 'yolo' });
   });
 
   it('a fs.write tool with no path is not destructive', async () => {
-    const d = await yoloDestructive().evaluate(tool('write', 'confirm', { capabilities: ['fs.write'] }), {}, ctx());
+    const d = await yoloDestructive().evaluate(
+      tool('write', 'confirm', { capabilities: ['fs.write'] }),
+      {},
+      ctx(),
+    );
     expect(d).toMatchObject({ permission: 'auto', source: 'yolo' });
   });
 
@@ -226,7 +268,11 @@ describe('destructive detection — capability and legacy paths', () => {
   });
 
   it('legacy: riskTier destructive still auto-approves under yolo', async () => {
-    const d = await yoloDestructive().evaluate(tool('exec', 'confirm', { riskTier: 'destructive' }), {}, ctx());
+    const d = await yoloDestructive().evaluate(
+      tool('exec', 'confirm', { riskTier: 'destructive' }),
+      {},
+      ctx(),
+    );
     expect(d).toMatchObject({ permission: 'auto', source: 'yolo' });
   });
 });
@@ -240,7 +286,11 @@ describe('subjectFor legacy heuristics', () => {
 
   it('escapes glob metacharacters in the subject', async () => {
     const p = new DefaultPermissionPolicy({ trustFile });
-    const d = await p.evaluate(tool('bash', 'confirm', { capabilities: ['shell.arbitrary'] }), { command: 'ls *.ts' }, ctx());
+    const d = await p.evaluate(
+      tool('bash', 'confirm', { capabilities: ['shell.arbitrary'] }),
+      { command: 'ls *.ts' },
+      ctx(),
+    );
     expect(d.permission).toBeDefined();
   });
 

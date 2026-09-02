@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Mailbox, MailboxAgentStatus, MailboxMessage } from '../../src/coordination/mailbox-types.js';
+import type {
+  Mailbox,
+  MailboxAgentStatus,
+  MailboxMessage,
+} from '../../src/coordination/mailbox-types.js';
 import {
   classifyMailboxRecipient,
   createMailboxEventPayload,
@@ -69,7 +73,12 @@ const threadMsg1: MailboxMessage = {
   completed: false,
   timestamp: '2026-06-22T08:00:00.000Z',
   senderSessionId: 'session_leader_1',
-  taskContext: { taskId: 'task_null_deref', agentRole: 'bug-hunter', agentName: 'Bug Hunter', status: 'pending' },
+  taskContext: {
+    taskId: 'task_null_deref',
+    agentRole: 'bug-hunter',
+    agentName: 'Bug Hunter',
+    status: 'pending',
+  },
 };
 
 /** Duplicate: same task sent to different agent (round-robin or retry) */
@@ -79,7 +88,12 @@ const threadMsg1Duplicate: MailboxMessage = {
   from: 'leader@x',
   to: 'refactor-planner@z',
   timestamp: '2026-06-22T08:00:05.000Z', // 5 seconds later
-  taskContext: { taskId: 'task_null_deref', agentRole: 'refactor-planner', agentName: 'Refactor Planner', status: 'pending' },
+  taskContext: {
+    taskId: 'task_null_deref',
+    agentRole: 'refactor-planner',
+    agentName: 'Refactor Planner',
+    status: 'pending',
+  },
 };
 
 /** Second message: agent acknowledged */
@@ -95,7 +109,12 @@ const threadMsg2: MailboxMessage = {
   completed: false,
   timestamp: '2026-06-22T08:01:00.000Z',
   senderSessionId: 'session_bug_hunter_1',
-  taskContext: { taskId: 'task_null_deref', agentRole: 'bug-hunter', agentName: 'Bug Hunter', status: 'in_progress' },
+  taskContext: {
+    taskId: 'task_null_deref',
+    agentRole: 'bug-hunter',
+    agentName: 'Bug Hunter',
+    status: 'in_progress',
+  },
 };
 
 /** Duplicate: same acknowledgment to broadcast (notify all) */
@@ -123,7 +142,12 @@ const threadMsg3Completed: MailboxMessage = {
   outcome: 'Fixed null deref in auth.ts:42. Added guard: if (!user) throw new NotFoundError()',
   timestamp: '2026-06-22T08:14:00.000Z',
   senderSessionId: 'session_bug_hunter_1',
-  taskContext: { taskId: 'task_null_deref', agentRole: 'bug-hunter', agentName: 'Bug Hunter', status: 'completed' },
+  taskContext: {
+    taskId: 'task_null_deref',
+    agentRole: 'bug-hunter',
+    agentName: 'Bug Hunter',
+    status: 'completed',
+  },
 };
 
 /** Duplicate of completed — same outcome sent to monitoring/audit */
@@ -151,7 +175,12 @@ const variousTypeMessages: MailboxMessage[] = [
     completed: false,
     timestamp: '2026-06-22T10:00:00.000Z',
     senderSessionId: 'session_a',
-    taskContext: { taskId: 'task_security', agentRole: 'security-scanner', agentName: 'Security Scanner', status: 'pending' },
+    taskContext: {
+      taskId: 'task_security',
+      agentRole: 'security-scanner',
+      agentName: 'Security Scanner',
+      status: 'pending',
+    },
   },
   {
     id: 'msg_result',
@@ -168,7 +197,12 @@ const variousTypeMessages: MailboxMessage[] = [
     outcome: 'security-scan: 3 critical, 5 high, 2 medium findings',
     timestamp: '2026-06-22T10:29:00.000Z',
     senderSessionId: 'session_b',
-    taskContext: { taskId: 'task_security', agentRole: 'security-scanner', agentName: 'Security Scanner', status: 'completed' },
+    taskContext: {
+      taskId: 'task_security',
+      agentRole: 'security-scanner',
+      agentName: 'Security Scanner',
+      status: 'completed',
+    },
   },
   {
     id: 'msg_note',
@@ -554,7 +588,14 @@ describe('HQ mailbox mapper', () => {
   // =========================================================================
 
   it('handles duplicate message patterns (same task, multiple recipients)', () => {
-    const thread = [threadMsg1, threadMsg1Duplicate, threadMsg2, threadMsg2Broadcast, threadMsg3Completed, threadMsg3Duplicate];
+    const thread = [
+      threadMsg1,
+      threadMsg1Duplicate,
+      threadMsg2,
+      threadMsg2Broadcast,
+      threadMsg3Completed,
+      threadMsg3Duplicate,
+    ];
     const snapshot = createMailboxSnapshotPayload(thread, [], { mailboxId: 'test:duplicate' });
 
     expect(snapshot.messages).toHaveLength(6);
@@ -567,12 +608,16 @@ describe('HQ mailbox mapper', () => {
   });
 
   it('tracks duplicate messages as unread when not read by recipient', () => {
-    const snapshot = createMailboxSnapshotPayload([threadMsg1, threadMsg1Duplicate], [], { mailboxId: 'test:unread_dup' });
+    const snapshot = createMailboxSnapshotPayload([threadMsg1, threadMsg1Duplicate], [], {
+      mailboxId: 'test:unread_dup',
+    });
     expect(snapshot.totals.unread).toBe(2);
   });
 
   it('marks broadcast duplicates as read only if explicitly read', () => {
-    const snapshot = createMailboxSnapshotPayload([threadMsg2Broadcast], [], { mailboxId: 'test:broadcast_dup' });
+    const snapshot = createMailboxSnapshotPayload([threadMsg2Broadcast], [], {
+      mailboxId: 'test:broadcast_dup',
+    });
     expect(snapshot.totals.unread).toBe(1); // readBy is empty
   });
 
@@ -589,7 +634,9 @@ describe('HQ mailbox mapper', () => {
   });
 
   it('aggregates counts for various message types in snapshot', () => {
-    const snapshot = createMailboxSnapshotPayload(variousTypeMessages, [], { mailboxId: 'test:types' });
+    const snapshot = createMailboxSnapshotPayload(variousTypeMessages, [], {
+      mailboxId: 'test:types',
+    });
     expect(snapshot.messages).toHaveLength(6);
     expect(snapshot.totals.messages).toBe(6);
     // High priority: msg_assign and msg_ask
@@ -613,7 +660,9 @@ describe('HQ mailbox mapper', () => {
   });
 
   it('handles message with no readers (fully unread)', () => {
-    const snapshot = createMailboxSnapshotPayload([edgeCaseMessages[2]!], [], { mailboxId: 'test:no_readers' });
+    const snapshot = createMailboxSnapshotPayload([edgeCaseMessages[2]!], [], {
+      mailboxId: 'test:no_readers',
+    });
     expect(snapshot.totals.unread).toBe(1);
     expect(snapshot.messages[0]!.readCount).toBe(0);
   });
@@ -643,7 +692,9 @@ describe('HQ mailbox mapper', () => {
   });
 
   it('aggregates online agents count correctly', () => {
-    const snapshot = createMailboxSnapshotPayload([], liveAgents, { mailboxId: 'test:live_agents' });
+    const snapshot = createMailboxSnapshotPayload([], liveAgents, {
+      mailboxId: 'test:live_agents',
+    });
     expect(snapshot.totals.onlineAgents).toBe(liveAgents.length);
   });
 
@@ -663,9 +714,7 @@ describe('HQ mailbox mapper', () => {
   });
 
   it('tracks high iteration/toolCall agents', () => {
-    const highActivity = liveAgents.filter(
-      (a) => a.iterations > 10 || a.toolCalls > 500,
-    );
+    const highActivity = liveAgents.filter((a) => a.iterations > 10 || a.toolCalls > 500);
     expect(highActivity.length).toBeGreaterThan(0);
     const leader = liveAgents.find((a) => a.role === 'leader');
     expect(leader?.iterations).toBe(42);
@@ -674,7 +723,8 @@ describe('HQ mailbox mapper', () => {
 
   it('detects stale agent activity (lastActivity vs lastSeen gap)', () => {
     const staleAgent = liveAgents.find((a) => a.agentId === 'offline-agent@s7')!;
-    const activityGap = new Date(staleAgent.lastSeenAt).getTime() - new Date(staleAgent.lastActivityAt).getTime();
+    const activityGap =
+      new Date(staleAgent.lastSeenAt).getTime() - new Date(staleAgent.lastActivityAt).getTime();
     // 2 hours gap between lastActivity and lastSeen indicates stale but still "online"
     expect(activityGap).toBeGreaterThan(60 * 60 * 1000); // > 1 hour
   });

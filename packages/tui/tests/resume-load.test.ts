@@ -271,7 +271,9 @@ describe('todosForScreen', () => {
     // has read the journal — so without this the LEAVING session's missions sat
     // in the swarm panel underneath the incoming session's loading block.
     expect(todosForScreen(board, load())).toEqual([]);
-    expect(todosForScreen(board, load({ phase: 'replaying', replayed: 12, total: 40 }))).toEqual([]);
+    expect(todosForScreen(board, load({ phase: 'replaying', replayed: 12, total: 40 }))).toEqual(
+      [],
+    );
   });
 
   it('returns one stable empty array across the whole resume', () => {

@@ -5,10 +5,7 @@
   "description": "Produce a pragmatic high-level design for a system or feature.",
   "content": "Design a system for: {{requirements}}\n\nDeliver:\n1. The core components and how they interact (a simple diagram in text is fine).\n2. The data model and the main data flows.\n3. The key trade-offs you made and what you optimized for.\n4. How it handles scale, failure, and the top 2 risks.\n\nState your assumptions about scale, consistency, and budget. Prefer the simplest design that meets the requirements; note where you'd add complexity later if needed.",
   "category": "architecture",
-  "tags": [
-    "system-design",
-    "design"
-  ],
+  "tags": ["system-design", "design"],
   "source": "builtin",
   "favorite": false,
   "checksum": "e4c57e0ea542cd4790b890bed627fcc237d96591c9c364ae26f9d02682657f80",

@@ -108,9 +108,7 @@ function EditorTabs() {
             )}
             title={f.path}
           >
-            {f.dirty && (
-              <Circle className="h-2 w-2 fill-current text-primary shrink-0" />
-            )}
+            {f.dirty && <Circle className="h-2 w-2 fill-current text-primary shrink-0" />}
             <span className="truncate">{baseName}</span>
             <X
               className={cn(
@@ -223,9 +221,10 @@ export function CodeEditor() {
               documentation: item.documentation,
               sortText: item.sortText ?? `${String(index).padStart(3, '0')}-${item.label}`,
               range,
-              insertTextRules: item.kind === 'snippet'
-                ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                : undefined,
+              insertTextRules:
+                item.kind === 'snippet'
+                  ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                  : undefined,
             }));
           const cacheKey = buildCompletionCacheKey({
             filePath,
@@ -242,49 +241,49 @@ export function CodeEditor() {
             return { suggestions: toSuggestions(cached.items) };
           }
 
-          return await new Promise<monaco.languages.ProviderResult<monaco.languages.CompletionList>>(
-            (resolve) => {
-              let settled = false;
-              let unsubscribe: () => void = () => {};
-              let cancelDisposable: monaco.IDisposable | null = null;
-              let timer: number | undefined;
-              const finish = (suggestions: monaco.languages.CompletionItem[]) => {
-                if (settled) return;
-                settled = true;
-                unsubscribe();
-                if (timer !== undefined) window.clearTimeout(timer);
-                cancelDisposable?.dispose();
-                resolve({ suggestions });
-              };
+          return await new Promise<
+            monaco.languages.ProviderResult<monaco.languages.CompletionList>
+          >((resolve) => {
+            let settled = false;
+            let unsubscribe: () => void = () => {};
+            let cancelDisposable: monaco.IDisposable | null = null;
+            let timer: number | undefined;
+            const finish = (suggestions: monaco.languages.CompletionItem[]) => {
+              if (settled) return;
+              settled = true;
+              unsubscribe();
+              if (timer !== undefined) window.clearTimeout(timer);
+              cancelDisposable?.dispose();
+              resolve({ suggestions });
+            };
 
-              unsubscribe = client.on('completion.result', (message) => {
-                const result = message as WSCompletionResult;
-                if (result.payload.requestId !== requestId) return;
-                completionCacheRef.current.set(cacheKey, {
-                  expiresAt: Date.now() + COMPLETION_CACHE_TTL_MS,
-                  items: result.payload.items,
-                });
-                finish(toSuggestions(result.payload.items));
+            unsubscribe = client.on('completion.result', (message) => {
+              const result = message as WSCompletionResult;
+              if (result.payload.requestId !== requestId) return;
+              completionCacheRef.current.set(cacheKey, {
+                expiresAt: Date.now() + COMPLETION_CACHE_TTL_MS,
+                items: result.payload.items,
               });
+              finish(toSuggestions(result.payload.items));
+            });
 
-              timer = window.setTimeout(() => finish([]), COMPLETION_TIMEOUT_MS);
-              cancelDisposable = token.onCancellationRequested(() => finish([]));
+            timer = window.setTimeout(() => finish([]), COMPLETION_TIMEOUT_MS);
+            cancelDisposable = token.onCancellationRequested(() => finish([]));
 
-              client.requestCompletion({
-                requestId,
-                filePath,
-                language: model.getLanguageId(),
-                lineNumber: position.lineNumber,
-                column: position.column,
-                content: value.length <= COMPLETION_DOCUMENT_CHARS ? value : undefined,
-                prefix,
-                suffix,
-                triggerCharacter: context.triggerCharacter,
-                triggerKind: context.triggerKind,
-                allowLlm: shouldAllowCompletionLlm(trigger, tokenText),
-              });
-            },
-          );
+            client.requestCompletion({
+              requestId,
+              filePath,
+              language: model.getLanguageId(),
+              lineNumber: position.lineNumber,
+              column: position.column,
+              content: value.length <= COMPLETION_DOCUMENT_CHARS ? value : undefined,
+              prefix,
+              suffix,
+              triggerCharacter: context.triggerCharacter,
+              triggerKind: context.triggerKind,
+              allowLlm: shouldAllowCompletionLlm(trigger, tokenText),
+            });
+          });
         },
       }),
     );
@@ -298,9 +297,11 @@ export function CodeEditor() {
 
   /** Grab the active selection (text + line range) from Monaco, or null if
    *  nothing meaningful is selected. */
-  const captureSelection = useCallback(():
-    | { content: string; startLine: number; endLine: number }
-    | null => {
+  const captureSelection = useCallback((): {
+    content: string;
+    startLine: number;
+    endLine: number;
+  } | null => {
     const editor = editorRef.current;
     if (!editor) return null;
     const selection = editor.getSelection();
@@ -407,8 +408,7 @@ export function CodeEditor() {
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       // Only fire when the editor has focus (or its textarea)
       const inEditor =
-        tag === 'textarea' ||
-        (e.target as HTMLElement)?.closest('.monaco-editor') !== null;
+        tag === 'textarea' || (e.target as HTMLElement)?.closest('.monaco-editor') !== null;
 
       if (!mod || !inEditor) return;
 
@@ -481,10 +481,18 @@ export function CodeEditor() {
               type="button"
               onClick={hasSelection ? sendSelectionToChat : mentionWholeFile}
               className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-foreground hover:bg-accent transition-colors"
-              title={hasSelection ? t('activity:codeEditor.sendSelectedTitle') : t('activity:codeEditor.mentionFileTitle')}
+              title={
+                hasSelection
+                  ? t('activity:codeEditor.sendSelectedTitle')
+                  : t('activity:codeEditor.mentionFileTitle')
+              }
             >
               {hasSelection ? <Send className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
-              <span>{hasSelection ? t('activity:codeEditor.sendToChat') : t('activity:codeEditor.mentionFile')}</span>
+              <span>
+                {hasSelection
+                  ? t('activity:codeEditor.sendToChat')
+                  : t('activity:codeEditor.mentionFile')}
+              </span>
             </button>
           </div>
         )}
@@ -542,7 +550,9 @@ export function CodeEditor() {
             <span className="truncate max-w-[320px] text-muted-foreground">{activeFile.path}</span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span>Ln {cursorPos.line}, Col {cursorPos.col}</span>
+            <span>
+              Ln {cursorPos.line}, Col {cursorPos.col}
+            </span>
             <span>UTF-8</span>
             <span className="uppercase text-[10px] font-semibold text-primary">{language}</span>
           </div>

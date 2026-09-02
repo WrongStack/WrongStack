@@ -5,11 +5,7 @@
   "description": "Three highest-leverage performance problems, each with the smallest fix and the command that proves it.",
   "content": "# ROLE: Performance Quick Triage\n\nGive me the three highest-leverage performance problems in this code. For each:\n\n1. `file:line`\n2. What it costs, and what it scales with — name the n.\n3. The smallest fix.\n4. The single command that would prove I was right.\n\nNo preamble, no general advice, no code changes. If you are guessing rather than reading evidence, say so per item — an unmarked guess in a three-item list is worse than a shorter list.",
   "category": "performance",
-  "tags": [
-    "triage",
-    "quick",
-    "ranking"
-  ],
+  "tags": ["triage", "quick", "ranking"],
   "source": "builtin",
   "favorite": false,
   "checksum": "022f6eb49f0dbc940f039c161be93db10f8f987374040b7988807df27ace2a07",

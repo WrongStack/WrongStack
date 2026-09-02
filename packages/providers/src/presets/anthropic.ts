@@ -7,7 +7,15 @@
  * `parseAnthropicStream` in `../anthropic.ts`, just split into a stateful
  * `parseStreamEvent` call instead of an async generator loop.
  */
-import type { ContentBlock, Message, ReasoningEffort, Request, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
+import type {
+  ContentBlock,
+  Message,
+  ReasoningEffort,
+  Request,
+  StopReason,
+  StreamEvent,
+  Usage,
+} from '@wrongstack/core/types';
 import { ProviderError } from '@wrongstack/core/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
@@ -31,10 +39,12 @@ type AnthropicUsageWire = {
   output_tokens?: number | undefined;
   cache_read_input_tokens?: number | undefined;
   cache_creation_input_tokens?: number | undefined;
-  cache_creation?: {
-    ephemeral_5m_input_tokens?: number | undefined;
-    ephemeral_1h_input_tokens?: number | undefined;
-  } | undefined;
+  cache_creation?:
+    | {
+        ephemeral_5m_input_tokens?: number | undefined;
+        ephemeral_1h_input_tokens?: number | undefined;
+      }
+    | undefined;
 };
 
 /**
@@ -75,7 +85,6 @@ function mergeAnthropicUsage(state: AnthropicStreamState, u: AnthropicUsageWire 
   }
 }
 
-
 export interface AnthropicStreamState {
   model: string;
   usage: Usage;
@@ -95,7 +104,10 @@ export interface AnthropicStreamState {
   // `chunks` accumulates tool-call `input_json_delta` fragments; joined once at
   // content_block_stop. Array-of-chunks avoids O(n²) string concatenation for
   // large tool inputs delivered as many small deltas (mirrors presets/openai.ts).
-  blocks: Map<number, { kind: BlockKind; id?: string | undefined; name?: string | undefined; chunks: string[] }>;
+  blocks: Map<
+    number,
+    { kind: BlockKind; id?: string | undefined; name?: string | undefined; chunks: string[] }
+  >;
 }
 
 const DEFAULT_VERSION = '2023-06-01';
@@ -217,7 +229,9 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
       }
       case 'content_block_start': {
         const index = Number(ev['index'] ?? 0);
-        const cb = ev['content_block'] as { type?: string | undefined; id?: string | undefined; name?: string | undefined } | undefined;
+        const cb = ev['content_block'] as
+          | { type?: string | undefined; id?: string | undefined; name?: string | undefined }
+          | undefined;
         if (cb?.type === 'tool_use') {
           state.blocks.set(index, { kind: 'tool_use', id: cb.id, name: cb.name, chunks: [] });
           if (cb.id && cb.name) {
@@ -264,7 +278,9 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
         const index = Number(ev['index'] ?? 0);
         const block = state.blocks.get(index);
         if (block?.kind === 'tool_use' && block.id) {
-          const input = parseToolInput(block.chunks.length === 1 ? (block.chunks[0] ?? '') : block.chunks.join(''));
+          const input = parseToolInput(
+            block.chunks.length === 1 ? (block.chunks[0] ?? '') : block.chunks.join(''),
+          );
           out.push({ type: 'tool_use_stop', id: block.id, input });
         } else if (block?.kind === 'thinking') {
           out.push({ type: 'thinking_stop' });
@@ -289,7 +305,9 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
         out.push({ type: 'message_stop', stopReason: state.stopReason, usage: state.usage });
         break;
       case 'error': {
-        const err = ev['error'] as { message?: string | undefined; type?: string | undefined } | undefined;
+        const err = ev['error'] as
+          | { message?: string | undefined; type?: string | undefined }
+          | undefined;
         throw new ProviderError(err?.message ?? 'Anthropic stream error', 0, false, 'anthropic', {
           body: { type: err?.type, message: err?.message },
         });
@@ -365,7 +383,9 @@ function normalizeMessageContent(m: Message): unknown {
  * feeds the pinned-overflow scenario in `capAnthropicCacheBreakpoints`.
  * The cap runs *after* this step and owns the final count.
  */
-function findDeepestMarkedBlock(body: Record<string, unknown>): Record<string, unknown> | undefined {
+function findDeepestMarkedBlock(
+  body: Record<string, unknown>,
+): Record<string, unknown> | undefined {
   const messages = body['messages'];
   if (Array.isArray(messages)) {
     for (let m = messages.length - 1; m >= 0; m--) {

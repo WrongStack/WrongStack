@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMailboxHooks } from '../../src/coordination/mailbox-hooks.js';
 
-function makeMailbox(over: { unreadCount?: () => Promise<number>; heartbeat?: () => Promise<void> } = {}) {
+function makeMailbox(
+  over: { unreadCount?: () => Promise<number>; heartbeat?: () => Promise<void> } = {},
+) {
   return {
     unreadCount: vi.fn(over.unreadCount ?? (async () => 0)),
     heartbeat: vi.fn(over.heartbeat ?? (async () => undefined)),
@@ -30,13 +32,21 @@ describe('createMailboxHooks', () => {
   it('beforeTool does not emit when notifyNewMail is false', async () => {
     const mailbox = makeMailbox({ unreadCount: vi.fn(async () => 5) as never });
     const emit = vi.fn();
-    const hooks = createMailboxHooks({ mailbox: mailbox as never, agentId: 'a1', notifyNewMail: false });
+    const hooks = createMailboxHooks({
+      mailbox: mailbox as never,
+      agentId: 'a1',
+      notifyNewMail: false,
+    });
     await hooks.beforeTool({ emit });
     expect(emit).not.toHaveBeenCalled();
   });
 
   it('beforeTool swallows mailbox errors', async () => {
-    const mailbox = makeMailbox({ unreadCount: vi.fn(async () => { throw new Error('down'); }) as never });
+    const mailbox = makeMailbox({
+      unreadCount: vi.fn(async () => {
+        throw new Error('down');
+      }) as never,
+    });
     const emit = vi.fn();
     const hooks = createMailboxHooks({ mailbox: mailbox as never, agentId: 'a1' });
     await expect(hooks.beforeTool({ emit })).resolves.toBeUndefined();
@@ -114,18 +124,30 @@ describe('createMailboxHooks', () => {
     const mailbox = makeMailbox();
     const hooks = createMailboxHooks({ mailbox: mailbox as never, agentId: 'a1' });
     await hooks.afterTool('bash');
-    expect(mailbox.heartbeat).toHaveBeenCalledWith({ agentId: 'a1', status: 'running', currentTool: 'bash' });
+    expect(mailbox.heartbeat).toHaveBeenCalledWith({
+      agentId: 'a1',
+      status: 'running',
+      currentTool: 'bash',
+    });
   });
 
   it('afterTool is a no-op when heartbeat is disabled', async () => {
     const mailbox = makeMailbox();
-    const hooks = createMailboxHooks({ mailbox: mailbox as never, agentId: 'a1', heartbeat: false });
+    const hooks = createMailboxHooks({
+      mailbox: mailbox as never,
+      agentId: 'a1',
+      heartbeat: false,
+    });
     await hooks.afterTool('bash');
     expect(mailbox.heartbeat).not.toHaveBeenCalled();
   });
 
   it('afterTool swallows heartbeat errors', async () => {
-    const mailbox = makeMailbox({ heartbeat: vi.fn(async () => { throw new Error('hb fail'); }) as never });
+    const mailbox = makeMailbox({
+      heartbeat: vi.fn(async () => {
+        throw new Error('hb fail');
+      }) as never,
+    });
     const hooks = createMailboxHooks({ mailbox: mailbox as never, agentId: 'a1' });
     await expect(hooks.afterTool()).resolves.toBeUndefined();
   });

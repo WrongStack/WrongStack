@@ -118,7 +118,10 @@ export class IntelligentCompactor implements Compactor {
     setCompactionDebugLogger(this.logger);
   }
 
-  async compact(ctx: Context, opts: { aggressive?: boolean | undefined } = {}): Promise<CompactReport> {
+  async compact(
+    ctx: Context,
+    opts: { aggressive?: boolean | undefined } = {},
+  ): Promise<CompactReport> {
     const beforeTokens = estimateMessages(ctx.messages);
     const beforeFull = this.estimateFullRequest(ctx);
     const reductions: CompactReport['reductions'] = [];
@@ -223,7 +226,8 @@ export class IntelligentCompactor implements Compactor {
     const toSummarize = messages.slice(0, boundary);
     const removedTokens = estimateMessages(toSummarize);
 
-    const summaryModel = this.summarizerModel ?? (this.oneShotOrchestrator ? 'deepseek-chat' : ctx.model);
+    const summaryModel =
+      this.summarizerModel ?? (this.oneShotOrchestrator ? 'deepseek-chat' : ctx.model);
     // Cache only the LLM request/result. The context-sensitive smart digest
     // below is rebuilt from this invocation's full messages on every hit, so
     // its deterministic evidence is never inherited from another session.

@@ -51,9 +51,7 @@ export interface VectorMemorySearchResponse {
 }
 
 /** Fetch the current vector-memory status from the webui-server. */
-export async function fetchVectorMemoryStatus(
-  baseUrl = '',
-): Promise<VectorMemoryStatus> {
+export async function fetchVectorMemoryStatus(baseUrl = ''): Promise<VectorMemoryStatus> {
   const response = await fetch(`${baseUrl}/api/vector-memory/status`, {
     credentials: 'include',
   });

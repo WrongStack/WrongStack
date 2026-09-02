@@ -16,7 +16,7 @@ function fakeTokenCounter(): TokenCounter {
     currentRequestTokens: () => ({ input: 123, cacheRead: 45, cacheWrite: 6 }),
     total: () => ({ input: 1234, output: 567, cacheRead: 89, cacheWrite: 10 }),
     estimateCost: () => ({ input: 0.0123, output: 0.0456, total: 0.0579, currency: 'USD' }),
-    cacheStats: () => ({ readTokens: 89, writeTokens: 10, hitRatio: 0.0672 } as never),
+    cacheStats: () => ({ readTokens: 89, writeTokens: 10, hitRatio: 0.0672 }) as never,
     reset: () => undefined,
   };
 }

@@ -79,7 +79,9 @@ describe('tokenHasCapability', () => {
 
   it('returns true when capability is listed', () => {
     const token: HqToken = {
-      id: '1', token: 't', createdAt: new Date().toISOString(),
+      id: '1',
+      token: 't',
+      createdAt: new Date().toISOString(),
       capabilities: ['control.enqueue', 'telemetry.publish'],
     };
     expect(tokenHasCapability(token, 'control.enqueue')).toBe(true);
@@ -87,7 +89,9 @@ describe('tokenHasCapability', () => {
 
   it('returns false when capability is not listed', () => {
     const token: HqToken = {
-      id: '1', token: 't', createdAt: new Date().toISOString(),
+      id: '1',
+      token: 't',
+      createdAt: new Date().toISOString(),
       capabilities: ['control.enqueue'],
     };
     expect(tokenHasCapability(token, 'control.execute')).toBe(false);
@@ -95,7 +99,9 @@ describe('tokenHasCapability', () => {
 
   it('returns false for expired token even with capability', () => {
     const token: HqToken = {
-      id: '1', token: 't', createdAt: new Date().toISOString(),
+      id: '1',
+      token: 't',
+      createdAt: new Date().toISOString(),
       capabilities: ['control.enqueue'],
       expiresAt: new Date(Date.now() - 60_000).toISOString(),
     };

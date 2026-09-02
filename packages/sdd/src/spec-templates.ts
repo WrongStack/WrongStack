@@ -18,8 +18,20 @@ export const SPEC_TEMPLATES: SpecTemplate[] = [
       { type: 'acceptance', title: 'Acceptance Criteria', level: 2 },
     ],
     defaultRequirements: [
-      { type: 'functional', priority: 'high', acceptanceCriteria: [], blockedBy: [], implements: [] },
-      { type: 'non-functional', priority: 'medium', acceptanceCriteria: [], blockedBy: [], implements: [] },
+      {
+        type: 'functional',
+        priority: 'high',
+        acceptanceCriteria: [],
+        blockedBy: [],
+        implements: [],
+      },
+      {
+        type: 'non-functional',
+        priority: 'medium',
+        acceptanceCriteria: [],
+        blockedBy: [],
+        implements: [],
+      },
     ],
   },
   {
@@ -32,7 +44,13 @@ export const SPEC_TEMPLATES: SpecTemplate[] = [
       { type: 'acceptance', title: 'Fix Verification', level: 2 },
     ],
     defaultRequirements: [
-      { type: 'functional', priority: 'critical', acceptanceCriteria: [], blockedBy: [], implements: [] },
+      {
+        type: 'functional',
+        priority: 'critical',
+        acceptanceCriteria: [],
+        blockedBy: [],
+        implements: [],
+      },
     ],
   },
   {
@@ -46,7 +64,13 @@ export const SPEC_TEMPLATES: SpecTemplate[] = [
       { type: 'acceptance', title: 'Verification', level: 2 },
     ],
     defaultRequirements: [
-      { type: 'non-functional', priority: 'high', acceptanceCriteria: [], blockedBy: [], implements: [] },
+      {
+        type: 'non-functional',
+        priority: 'high',
+        acceptanceCriteria: [],
+        blockedBy: [],
+        implements: [],
+      },
     ],
   },
   {
@@ -61,7 +85,13 @@ export const SPEC_TEMPLATES: SpecTemplate[] = [
       { type: 'acceptance', title: 'Rollout Plan', level: 2 },
     ],
     defaultRequirements: [
-      { type: 'functional', priority: 'high', acceptanceCriteria: [], blockedBy: [], implements: [] },
+      {
+        type: 'functional',
+        priority: 'high',
+        acceptanceCriteria: [],
+        blockedBy: [],
+        implements: [],
+      },
       { type: 'security', priority: 'high', acceptanceCriteria: [], blockedBy: [], implements: [] },
     ],
   },
@@ -78,9 +108,27 @@ export const SPEC_TEMPLATES: SpecTemplate[] = [
       { type: 'acceptance', title: 'Testing Strategy', level: 2 },
     ],
     defaultRequirements: [
-      { type: 'functional', priority: 'high', acceptanceCriteria: [], blockedBy: [], implements: [] },
-      { type: 'security', priority: 'critical', acceptanceCriteria: [], blockedBy: [], implements: [] },
-      { type: 'performance', priority: 'medium', acceptanceCriteria: [], blockedBy: [], implements: [] },
+      {
+        type: 'functional',
+        priority: 'high',
+        acceptanceCriteria: [],
+        blockedBy: [],
+        implements: [],
+      },
+      {
+        type: 'security',
+        priority: 'critical',
+        acceptanceCriteria: [],
+        blockedBy: [],
+        implements: [],
+      },
+      {
+        type: 'performance',
+        priority: 'medium',
+        acceptanceCriteria: [],
+        blockedBy: [],
+        implements: [],
+      },
     ],
   },
   {
@@ -95,7 +143,13 @@ export const SPEC_TEMPLATES: SpecTemplate[] = [
     ],
     defaultRequirements: [
       { type: 'ux', priority: 'high', acceptanceCriteria: [], blockedBy: [], implements: [] },
-      { type: 'functional', priority: 'high', acceptanceCriteria: [], blockedBy: [], implements: [] },
+      {
+        type: 'functional',
+        priority: 'high',
+        acceptanceCriteria: [],
+        blockedBy: [],
+        implements: [],
+      },
     ],
   },
 ];

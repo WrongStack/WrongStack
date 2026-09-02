@@ -46,17 +46,26 @@ interface Message {
 interface Update {
   update_id: number;
   message?: Message | undefined;
-  callback_query?: { id: string; from?: { id: number; is_bot: boolean; first_name: string } | undefined } | undefined;
+  callback_query?:
+    | { id: string; from?: { id: number; is_bot: boolean; first_name: string } | undefined }
+    | undefined;
 }
 
 // ---------------------------------------------------------------------------
 // Handler types
 // ---------------------------------------------------------------------------
 
-export type MethodName = 'getMe' | 'getUpdates' | 'sendMessage' | 'sendMessageWithKeyboard' | 'answerCallbackQuery';
+export type MethodName =
+  | 'getMe'
+  | 'getUpdates'
+  | 'sendMessage'
+  | 'sendMessageWithKeyboard'
+  | 'answerCallbackQuery';
 
 /** A handler receives the parsed body and can return any response. */
-export type EndpointHandler = (body: Record<string, unknown>) =>
+export type EndpointHandler = (
+  body: Record<string, unknown>,
+) =>
   | { envelope: ApiEnvelope<unknown>; delayMs?: number }
   | { status: number; body: string; delayMs?: number }
   | { malformed: true; body: string; delayMs?: number };
@@ -65,7 +74,12 @@ export type EndpointHandler = (body: Record<string, unknown>) =>
 // Default handlers
 // ---------------------------------------------------------------------------
 
-const defaultUser: BotUser = { id: 420001, is_bot: true, first_name: 'TestBot', username: 'test_bot' };
+const defaultUser: BotUser = {
+  id: 420001,
+  is_bot: true,
+  first_name: 'TestBot',
+  username: 'test_bot',
+};
 
 const defaultHandlers: Record<MethodName, EndpointHandler> = {
   getMe: () => ({ envelope: { ok: true, result: defaultUser } }),
@@ -76,7 +90,15 @@ const defaultHandlers: Record<MethodName, EndpointHandler> = {
       envelope: {
         ok: true,
         result: [
-          { update_id: offset + 1, message: { message_id: 1, chat: { id: 99, type: 'private' }, date: Math.floor(Date.now() / 1000), text: `hello from offset ${offset}` } },
+          {
+            update_id: offset + 1,
+            message: {
+              message_id: 1,
+              chat: { id: 99, type: 'private' },
+              date: Math.floor(Date.now() / 1000),
+              text: `hello from offset ${offset}`,
+            },
+          },
         ],
       },
     };
@@ -85,14 +107,22 @@ const defaultHandlers: Record<MethodName, EndpointHandler> = {
   sendMessage: () => ({
     envelope: {
       ok: true,
-      result: { message_id: 100 + Math.floor(Math.random() * 900), chat: { id: 99, type: 'private' }, date: Math.floor(Date.now() / 1000) },
+      result: {
+        message_id: 100 + Math.floor(Math.random() * 900),
+        chat: { id: 99, type: 'private' },
+        date: Math.floor(Date.now() / 1000),
+      },
     },
   }),
 
   sendMessageWithKeyboard: () => ({
     envelope: {
       ok: true,
-      result: { message_id: 200, chat: { id: 99, type: 'private' }, date: Math.floor(Date.now() / 1000) },
+      result: {
+        message_id: 200,
+        chat: { id: 99, type: 'private' },
+        date: Math.floor(Date.now() / 1000),
+      },
     },
   }),
 
@@ -153,7 +183,11 @@ export class FakeTelegramServer {
   }
 
   /** Send an error response. */
-  static error(code: number, description: string, params?: { retry_after?: number }): ReturnType<EndpointHandler> {
+  static error(
+    code: number,
+    description: string,
+    params?: { retry_after?: number },
+  ): ReturnType<EndpointHandler> {
     return {
       envelope: {
         ok: false,
@@ -188,10 +222,7 @@ export class FakeTelegramServer {
   // Internals
   // ------------------------------------------------------------------
 
-  private dispatch(
-    req: http.IncomingMessage,
-    res: http.ServerResponse,
-  ): void {
+  private dispatch(req: http.IncomingMessage, res: http.ServerResponse): void {
     const chunks: Buffer[] = [];
     req.on('data', (c: Buffer) => chunks.push(c));
     req.on('end', () => {
@@ -204,7 +235,9 @@ export class FakeTelegramServer {
       const body: Record<string, unknown> = {};
       try {
         if (raw) Object.assign(body, JSON.parse(raw));
-      } catch { /* malformed body */ }
+      } catch {
+        /* malformed body */
+      }
       // Parse query params for GET requests
       if (req.method === 'GET') {
         for (const [k, v] of url.searchParams) body[k] = v;

@@ -129,12 +129,8 @@ export const modelsDevModelSchema = z.looseObject({
   family: z.string().optional(),
   attachment: z.boolean().optional(),
   reasoning: z.boolean().optional(),
-  reasoning_options: z
-    .union([reasoningOptionSchema, z.array(reasoningOptionSchema)])
-    .optional(),
-  interleaved: z
-    .union([z.boolean(), z.looseObject({ field: z.string().optional() })])
-    .optional(),
+  reasoning_options: z.union([reasoningOptionSchema, z.array(reasoningOptionSchema)]).optional(),
+  interleaved: z.union([z.boolean(), z.looseObject({ field: z.string().optional() })]).optional(),
   tool_call: z.boolean().optional(),
   structured_output: z.boolean().optional(),
   temperature: z.boolean().optional(),

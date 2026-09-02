@@ -215,7 +215,10 @@ describe('ConnectionsHealthSection', () => {
   it('renders a policy refusal with neutral copy, not a failure tone', () => {
     render(<ConnectionsHealthSection />);
     emit('connections.health_result', healthResult([{ id: 'kanban', status: 'error' }]));
-    emit('connections.auto_heal_status', autoHealEvent('refused', 'kanban', 'refused by policy: nope'));
+    emit(
+      'connections.auto_heal_status',
+      autoHealEvent('refused', 'kanban', 'refused by policy: nope'),
+    );
     const feedback = screen.getByText('refused by policy: nope');
     expect(feedback.className).toContain('text-muted-foreground');
     expect(feedback.className).not.toContain('text-destructive');

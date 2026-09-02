@@ -5,11 +5,7 @@
   "description": "Restructure hard-to-test code to enable unit testing.",
   "content": "This code is hard to test:\n\n```\n{{code}}\n```\n\nRefactor it to be testable: introduce seams for dependencies (I/O, time, randomness, network), separate decision logic from side effects, and make outputs observable. Don't change behavior. Then show one example test that the new structure makes possible but the old one didn't.",
   "category": "refactoring",
-  "tags": [
-    "testability",
-    "di",
-    "seams"
-  ],
+  "tags": ["testability", "di", "seams"],
   "source": "builtin",
   "favorite": false,
   "checksum": "f8a178d293081127854ac9a67d5d3f1b799664c99174ea0f198bb6633e1f5e3c",

@@ -322,9 +322,7 @@ export function visualCodebase(
           kind: 'match',
           path: file,
           lineNo: line?.toString(),
-          text: [name, callType ? `[${callType}]` : undefined, sig]
-            .filter(Boolean)
-            .join(' · '),
+          text: [name, callType ? `[${callType}]` : undefined, sig].filter(Boolean).join(' · '),
         });
       }
     }

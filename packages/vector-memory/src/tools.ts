@@ -30,7 +30,9 @@ interface RememberInput {
   metadata?: Record<string, unknown>;
 }
 
-function vectorMemoryRememberTool(store: VectorMemoryStore): Tool<RememberInput, { id: string; hasVector: boolean }> {
+function vectorMemoryRememberTool(
+  store: VectorMemoryStore,
+): Tool<RememberInput, { id: string; hasVector: boolean }> {
   return {
     name: 'vector_memory_remember',
     category: 'Memory',
@@ -117,7 +119,12 @@ function vectorMemorySearchTool(store: VectorMemoryStore): Tool<SearchInput, Sea
       type: 'object',
       properties: {
         query: { type: 'string', minLength: 1, description: 'The natural-language query.' },
-        limit: { type: 'number', minimum: 1, maximum: 100, description: 'Max results (default 10).' },
+        limit: {
+          type: 'number',
+          minimum: 1,
+          maximum: 100,
+          description: 'Max results (default 10).',
+        },
         threshold: {
           type: 'number',
           minimum: 0,
@@ -210,7 +217,11 @@ function vectorMemoryForgetTool(store: VectorMemoryStore): Tool<ForgetInput, For
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string', minLength: 1, description: 'Entry id returned by `vector_memory_remember`.' },
+        id: {
+          type: 'string',
+          minLength: 1,
+          description: 'Entry id returned by `vector_memory_remember`.',
+        },
       },
       required: ['id'],
       additionalProperties: false,
@@ -218,4 +229,3 @@ function vectorMemoryForgetTool(store: VectorMemoryStore): Tool<ForgetInput, For
     execute: async (input) => ({ removed: await store.forget(input.id) }),
   };
 }
-

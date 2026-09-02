@@ -24,9 +24,7 @@ export interface VectorMemoryPanelProps {
   baseUrl?: string;
 }
 
-export function VectorMemoryPanel({
-  baseUrl = '',
-}: VectorMemoryPanelProps = {}): ReactElement {
+export function VectorMemoryPanel({ baseUrl = '' }: VectorMemoryPanelProps = {}): ReactElement {
   const [status, setStatus] = useState<VectorMemoryStatus | undefined>();
   const [statusError, setStatusError] = useState<string | undefined>();
   const [query, setQuery] = useState('');
@@ -183,9 +181,7 @@ export function VectorMemoryPanel({
     return (
       <div className="vector-memory-panel vector-memory-panel--disabled">
         <h3>Vector Memory</h3>
-        <p>
-          Disabled — the webui-server host does not have a vector memory store wired.
-        </p>
+        <p>Disabled — the webui-server host does not have a vector memory store wired.</p>
       </div>
     );
   }
@@ -249,7 +245,9 @@ export function VectorMemoryPanel({
               min={1}
               max={50}
               value={limit}
-              onChange={(e) => setLimit(Math.max(1, Math.min(50, Number(e.currentTarget.value) || 10)))}
+              onChange={(e) =>
+                setLimit(Math.max(1, Math.min(50, Number(e.currentTarget.value) || 10)))
+              }
             />
           </label>
           <label>
@@ -361,9 +359,9 @@ export function VectorMemoryPanel({
         <div className="vector-memory-panel__heatmap" data-testid="vector-memory-heatmap">
           <h4>Result similarity</h4>
           <p className="vector-memory-panel__heatmap-hint">
-            Pairwise cosine similarity between returned hits. Darker cells = more similar.
-            A bright diagonal with mostly dark off-diagonals means results form
-            a tight cluster; a noisy grid means the search returned mixed topics.
+            Pairwise cosine similarity between returned hits. Darker cells = more similar. A bright
+            diagonal with mostly dark off-diagonals means results form a tight cluster; a noisy grid
+            means the search returned mixed topics.
           </p>
           <div
             className="vector-memory-panel__heatmap-grid"
@@ -401,13 +399,7 @@ export function VectorMemoryPanel({
 }
 
 /** One row of the similarity heatmap. The diagonal is forced to 1.0. */
-function SimilarityRow({
-  row,
-  index,
-}: {
-  row: readonly number[];
-  index: number;
-}): ReactElement {
+function SimilarityRow({ row, index }: { row: readonly number[]; index: number }): ReactElement {
   return (
     <>
       <div className="vector-memory-panel__heatmap-row-label">{index + 1}</div>

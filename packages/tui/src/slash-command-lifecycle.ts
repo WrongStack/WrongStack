@@ -60,10 +60,12 @@ export function registerSlashCommandLifecycle(
       // TUI override. Those keys are safe: they still point at the exact
       // displaced command. Skip restoration only when a genuinely different
       // command claimed one of its keys while this lifecycle was active.
-      if (keys.some((key) => {
-        const current = registry.get(key);
-        return current !== undefined && current !== registration.command;
-      })) {
+      if (
+        keys.some((key) => {
+          const current = registry.get(key);
+          return current !== undefined && current !== registration.command;
+        })
+      ) {
         continue;
       }
       registry.register(

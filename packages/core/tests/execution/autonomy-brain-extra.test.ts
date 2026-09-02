@@ -134,14 +134,27 @@ describe('llm deny kinds', () => {
 describe('createAutonomyBrain — risk gate', () => {
   it('auto-denies a request above the max risk and reports via onDecision', async () => {
     const onDecision = vi.fn();
-    const brain = createAutonomyBrain({ provider: fakeProvider('x'), model: 'm', maxAutoRisk: 'low', onDecision });
+    const brain = createAutonomyBrain({
+      provider: fakeProvider('x'),
+      model: 'm',
+      maxAutoRisk: 'low',
+      onDecision,
+    });
     const decision = await brain.decide(req({ risk: 'high', question: 'Delete prod DB?' }));
     expect(decision.type).toBe('deny');
-    expect(onDecision).toHaveBeenCalledWith(expect.stringContaining('DENIED'), decision, expect.any(Object));
+    expect(onDecision).toHaveBeenCalledWith(
+      expect.stringContaining('DENIED'),
+      decision,
+      expect.any(Object),
+    );
   });
 
   it('treats an unknown risk as high (default level 2)', async () => {
-    const brain = createAutonomyBrain({ provider: fakeProvider('x'), model: 'm', maxAutoRisk: 'low' });
+    const brain = createAutonomyBrain({
+      provider: fakeProvider('x'),
+      model: 'm',
+      maxAutoRisk: 'low',
+    });
     const decision = await brain.decide(req({ risk: 'bogus' as never, question: 'weird' }));
     expect(decision.type).toBe('deny');
   });
@@ -157,7 +170,9 @@ describe('createAutonomyBrain — heuristics (quickDecide)', () => {
 
   it('moves on when retries are exhausted', async () => {
     const brain = createAutonomyBrain({ provider: fakeProvider('x'), model: 'm' });
-    const d = await brain.decide(req({ question: 'task failed again', context: 'retries exhausted' }));
+    const d = await brain.decide(
+      req({ question: 'task failed again', context: 'retries exhausted' }),
+    );
     if (d.type === 'answer') expect(d.text).toContain('Mark as failed');
   });
 
@@ -366,7 +381,9 @@ describe('createAutonomyBrain — LLM evaluation (llmDecide)', () => {
   it('falls through to the LLM for a question matching no heuristic pattern', async () => {
     const provider = fakeProvider('Resolve it.');
     const brain = createAutonomyBrain({ provider, model: 'm' });
-    const d = await brain.decide(req({ question: 'How should we handle the merge conflict?', risk: 'medium' }));
+    const d = await brain.decide(
+      req({ question: 'How should we handle the merge conflict?', risk: 'medium' }),
+    );
     expect(provider.complete).toHaveBeenCalled(); // quickDecide returned null → LLM
     expect(d).toMatchObject({ type: 'answer' });
   });
@@ -426,7 +443,9 @@ describe('formatDecisionSummary', () => {
   });
 
   it('formats an option-id answer, a long-text answer, and a short-text answer', () => {
-    expect(formatDecisionSummary({ type: 'answer', optionId: 'x', text: 'X' }, req())).toContain('chose [x]');
+    expect(formatDecisionSummary({ type: 'answer', optionId: 'x', text: 'X' }, req())).toContain(
+      'chose [x]',
+    );
     const long = 'y'.repeat(100);
     expect(formatDecisionSummary({ type: 'answer', text: long }, req())).toContain('…');
     expect(formatDecisionSummary({ type: 'answer', text: 'short' }, req())).toContain('short');
@@ -523,9 +542,7 @@ describe('isNonAnswer / parseFreeTextDecision / extractConfidence', () => {
   });
 
   it('returns null for a declined structured envelope', () => {
-    expect(
-      parseFreeTextDecision('{"decision":"insufficient evidence","confidence":0}'),
-    ).toBeNull();
+    expect(parseFreeTextDecision('{"decision":"insufficient evidence","confidence":0}')).toBeNull();
   });
 
   it('clamps confidence into 0..1', () => {

@@ -1,9 +1,6 @@
 import type { ProviderConfig } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
-import {
-  projectSavedProviders,
-  type SavedProviderView,
-} from '@wrongstack/webui-server';
+import { projectSavedProviders, type SavedProviderView } from '@wrongstack/webui-server';
 
 /**
  * `projectSavedProviders` is the canonical projection from
@@ -67,9 +64,7 @@ describe('projectSavedProviders', () => {
   it('masks every API key', () => {
     const [view] = asView({
       ollama: cfg({
-        apiKeys: [
-          { label: 'default', apiKey: 'sk-very-long-secret-1234', createdAt: NOW },
-        ],
+        apiKeys: [{ label: 'default', apiKey: 'sk-very-long-secret-1234', createdAt: NOW }],
         activeKey: 'default',
       }),
     });

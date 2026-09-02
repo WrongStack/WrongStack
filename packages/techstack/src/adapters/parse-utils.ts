@@ -10,10 +10,16 @@ export function stripInlineComment(line: string, marker = '#'): string {
   let escaped = false;
   for (let index = 0; index < line.length; index++) {
     const character = line.charAt(index);
-    if (escaped) { escaped = false; continue; }
-    if (character === '\\' && quote === '"') { escaped = true; continue; }
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === '\\' && quote === '"') {
+      escaped = true;
+      continue;
+    }
     if (character === '"' || character === "'") {
-      quote = quote === character ? undefined : quote ?? character;
+      quote = quote === character ? undefined : (quote ?? character);
       continue;
     }
     if (!quote && line.startsWith(marker, index)) return line.slice(0, index).trimEnd();
@@ -48,5 +54,7 @@ export function parseXmlAttributes(source: string): ReadonlyMap<string, string> 
 
 export function xmlTagValue(source: string, tag: string): string | undefined {
   const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`<${escaped}(?:\\s[^>]*)?>\\s*([^<]+?)\\s*</${escaped}>`, 'i').exec(source)?.[1]?.trim();
+  return new RegExp(`<${escaped}(?:\\s[^>]*)?>\\s*([^<]+?)\\s*</${escaped}>`, 'i')
+    .exec(source)?.[1]
+    ?.trim();
 }

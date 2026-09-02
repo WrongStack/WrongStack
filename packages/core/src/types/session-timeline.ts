@@ -273,9 +273,7 @@ export function projectLastRequestTokens(
   return undefined;
 }
 
-function toolMetaIndex(
-  meta: readonly SessionToolMeta[] | undefined,
-): Map<string, SessionToolMeta> {
+function toolMetaIndex(meta: readonly SessionToolMeta[] | undefined): Map<string, SessionToolMeta> {
   const index = new Map<string, SessionToolMeta>();
   if (!meta) return index;
   // Last write wins: a tool id is unique per call, and if a journal somehow
@@ -312,9 +310,7 @@ function resultText(content: unknown): string {
  * block of one message shares its `ts`), and sorting a repeated key moves tool
  * calls away from the prose they belong to.
  */
-export function projectSessionTimeline(
-  input: ProjectSessionTimelineInput,
-): SessionTimelineEntry[] {
+export function projectSessionTimeline(input: ProjectSessionTimelineInput): SessionTimelineEntry[] {
   const {
     messages,
     events,
@@ -329,7 +325,9 @@ export function projectSessionTimeline(
     (events
       ? projectSessionMarkers(events, input.markerSources ?? SESSION_MARKER_EVENT_TYPES)
       : []);
-  const meta = toolMetaIndex(input.toolMeta ?? (events ? projectSessionToolMeta(events) : undefined));
+  const meta = toolMetaIndex(
+    input.toolMeta ?? (events ? projectSessionToolMeta(events) : undefined),
+  );
 
   // ── Conversation backbone, in message-walk order ─────────────────────────
   const backbone: SessionTimelineEntry[] = [];
@@ -463,8 +461,9 @@ export function projectSessionTimeline(
 
     if (thinkingPlacement === 'merged-after') {
       const joined = blocks
-        .filter((block): block is Extract<ContentBlock, { type: 'thinking' }> =>
-          block.type === 'thinking',
+        .filter(
+          (block): block is Extract<ContentBlock, { type: 'thinking' }> =>
+            block.type === 'thinking',
         )
         .map((block) => block.thinking)
         .join('\n\n');

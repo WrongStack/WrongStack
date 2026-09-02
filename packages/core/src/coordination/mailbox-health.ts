@@ -120,7 +120,9 @@ export class MailboxHealthWatchdog {
     // First probe immediately so the operator sees a baseline within
     // `timeoutMs` instead of waiting `intervalMs` for the first tick.
     void this.tick();
-    this.timer = setInterval(() => { void this.tick(); }, this.intervalMs);
+    this.timer = setInterval(() => {
+      void this.tick();
+    }, this.intervalMs);
     // Don't keep the event loop alive solely for this timer.
     this.timer.unref?.();
   }
@@ -150,7 +152,11 @@ export class MailboxHealthWatchdog {
   }
 
   private emit(event: MailboxHealthEvent): void {
-    try { this.onAlert?.(event); } catch { /* observer must not crash us */ }
+    try {
+      this.onAlert?.(event);
+    } catch {
+      /* observer must not crash us */
+    }
   }
 
   private async tick(): Promise<void> {
@@ -195,7 +201,9 @@ export class MailboxHealthWatchdog {
       this.consecutiveFailures = 0;
       this.alerting = false;
       this.emit({ kind: 'recovery-posted', downtimeMs });
-      void this.postRecovery(downtimeMs).catch(() => { /* post is best-effort */ });
+      void this.postRecovery(downtimeMs).catch(() => {
+        /* post is best-effort */
+      });
     } else {
       this.consecutiveFailures = 0;
       this.downSince = null;
@@ -210,7 +218,9 @@ export class MailboxHealthWatchdog {
     if (this.consecutiveFailures >= this.failureThreshold && !this.alerting) {
       this.alerting = true;
       this.emit({ kind: 'alert-posted', consecutiveFailures: this.consecutiveFailures });
-      void this.postDown().catch(() => { /* post is best-effort */ });
+      void this.postDown().catch(() => {
+        /* post is best-effort */
+      });
     }
   }
 

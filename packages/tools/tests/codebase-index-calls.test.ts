@@ -148,7 +148,10 @@ describe('codebase-incoming-calls tool', () => {
   });
 
   it('scopes by a project-relative file path', async () => {
-    await fs.writeFile(path.join(tmpDir, 'target.ts'), 'export function greet(): string { return "hi"; }');
+    await fs.writeFile(
+      path.join(tmpDir, 'target.ts'),
+      'export function greet(): string { return "hi"; }',
+    );
     await fs.writeFile(
       path.join(tmpDir, 'caller.ts'),
       `import { greet } from './target.js';\nfunction caller(): void { greet(); }`,

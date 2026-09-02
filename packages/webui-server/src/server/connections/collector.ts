@@ -1,15 +1,11 @@
-import {
-  createChronicleProjectAccess,
-} from '@wrongstack/core/chronicle';
+import { createChronicleProjectAccess } from '@wrongstack/core/chronicle';
 import {
   isMailboxProjectServerAvailable,
   MailboxProjectServerConnection,
 } from '@wrongstack/core/coordination';
 import { SessionCatalogProjectClient } from '@wrongstack/core/session-catalog';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
-import {
-  getKanbanServerConnection,
-} from '@wrongstack/kanban';
+import { getKanbanServerConnection } from '@wrongstack/kanban';
 import { readGovernanceDaemonOperatorStatus } from '@wrongstack/runtime/governance-bootstrap';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
 import {
@@ -18,10 +14,7 @@ import {
   resolveProjectIndexDaemonAvailability,
 } from '@wrongstack/tools';
 import { failureService, isOfflineConnectionError } from './helpers.js';
-import type {
-  ConnectionHealthService,
-  ConnectionsHealthReport,
-} from './types.js';
+import type { ConnectionHealthService, ConnectionsHealthReport } from './types.js';
 
 export async function collectConnectionsHealth(options: {
   projectRoot: string;

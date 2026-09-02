@@ -1,10 +1,7 @@
 import type { ChatMessage, FileEditMeta, TimelineEntry, ToolCallInfo } from '../types.js';
 
 /** Interleave messages and tool calls into a single timeline ordered by timestamp. */
-export function buildTimeline(
-  messages: ChatMessage[],
-  toolCalls: ToolCallInfo[],
-): TimelineEntry[] {
+export function buildTimeline(messages: ChatMessage[], toolCalls: ToolCallInfo[]): TimelineEntry[] {
   const entries: TimelineEntry[] = [];
 
   for (const m of messages) {
@@ -38,24 +35,11 @@ export function buildTimeline(
 /** Tool names that touch the filesystem — these appear inline in the chat
  *  timeline as file-operation entries. Non-filesystem tools (delegate, task,
  *  kanban, etc.) stay in the tool sidebar only. */
-const FILE_EDIT_TOOLS = new Set([
-  'edit',
-  'write',
-  'patch',
-  'read',
-  'replace',
-  'glob',
-  'grep',
-]);
+const FILE_EDIT_TOOLS = new Set(['edit', 'write', 'patch', 'read', 'replace', 'glob', 'grep']);
 
 /** Tools that actually mutate files — gates the "Files changed" stat badge
  *  so completed read/glob/grep calls don't leak into fileCount. */
-const MUTATING_TOOLS = new Set([
-  'edit',
-  'write',
-  'patch',
-  'replace',
-]);
+const MUTATING_TOOLS = new Set(['edit', 'write', 'patch', 'replace']);
 
 /** Returns true when a tool call should appear inline in the chat timeline
  *  (filesystem tools that edit/read/search files). */
@@ -120,10 +104,7 @@ function parseSerializedHeaderFields(header: string): Record<string, string> {
 
 /** Remove context injected after the actual tool result before parsing it. */
 function stripTrailingSageContext(output: string): string {
-  return output.replace(
-    /\r?\n\r?\n--- SAGE: [^\r\n]*\(Memory Injector\) ---[\s\S]*$/u,
-    '',
-  );
+  return output.replace(/\r?\n\r?\n--- SAGE: [^\r\n]*\(Memory Injector\) ---[\s\S]*$/u, '');
 }
 
 /** Extract file edit metadata from a tool call's output/input, if this is a
@@ -267,9 +248,7 @@ export function aggregateFileEdits(toolCalls: ToolCallInfo[]): {
       if (meta.created) existing.created = true;
       if (tc.ts) existing.ts = tc.ts;
       if (meta.diff) {
-        existing.diff = existing.diff
-          ? existing.diff.trimEnd() + '\n' + meta.diff
-          : meta.diff;
+        existing.diff = existing.diff ? existing.diff.trimEnd() + '\n' + meta.diff : meta.diff;
       }
     } else {
       byPath.set(meta.path, { ...meta });

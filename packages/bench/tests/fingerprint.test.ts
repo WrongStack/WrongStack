@@ -63,7 +63,10 @@ describe('computeHarnessFingerprint', () => {
         name: 'write',
         description: 'Write a file',
         usageHint: 'Use for file creation',
-        inputSchema: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } } },
+        inputSchema: {
+          type: 'object',
+          properties: { path: { type: 'string' }, content: { type: 'string' } },
+        },
         permission: 'auto',
         mutating: true,
       },
@@ -87,7 +90,10 @@ describe('computeHarnessFingerprint', () => {
         name: 'write',
         description: 'Write a file',
         usageHint: 'Use for file creation',
-        inputSchema: { properties: { content: { type: 'string' }, path: { type: 'string' } }, type: 'object' },
+        inputSchema: {
+          properties: { content: { type: 'string' }, path: { type: 'string' } },
+          type: 'object',
+        },
         permission: 'auto',
         mutating: true,
       },

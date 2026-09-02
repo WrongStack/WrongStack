@@ -265,7 +265,10 @@ function sourceEvidence(
 function toFinding(
   raw: Record<string, unknown>,
   cluster: ResearchCluster,
-  byName: ReadonlyMap<string, { candidate: TriageCandidate; sources: readonly ResearchSearchResult[] }>,
+  byName: ReadonlyMap<
+    string,
+    { candidate: TriageCandidate; sources: readonly ResearchSearchResult[] }
+  >,
   retrievedAt: string,
 ): Finding | null {
   const name = optionalString(raw.package);
@@ -304,7 +307,10 @@ function toFinding(
 function parseFindings(
   parsed: Record<string, unknown> | null,
   cluster: ResearchCluster,
-  byName: ReadonlyMap<string, { candidate: TriageCandidate; sources: readonly ResearchSearchResult[] }>,
+  byName: ReadonlyMap<
+    string,
+    { candidate: TriageCandidate; sources: readonly ResearchSearchResult[] }
+  >,
   retrievedAt: string,
 ): Finding[] {
   if (!parsed || !Array.isArray(parsed.findings)) return [];

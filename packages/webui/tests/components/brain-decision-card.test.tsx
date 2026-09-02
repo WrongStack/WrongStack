@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { BrainDecisionCard, parseBrainMarkdown } from '../../src/components/ChatView/BrainDecisionCard';
+import {
+  BrainDecisionCard,
+  parseBrainMarkdown,
+} from '../../src/components/ChatView/BrainDecisionCard';
 import type { BrainDecisionData, ChatMessage } from '../../src/stores/types';
 
 function createBrainMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
@@ -11,7 +14,8 @@ function createBrainMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
     decisionType: 'steer',
     question: 'Agent encountered consecutive tool execution failure loop on npm install',
     text: 'Switch package manager from npm to pnpm with frozen lockfile flag.',
-    rationale: 'The dependency resolution broke due to peer conflict; pnpm --frozen-lockfile bypasses dirty workspace state safely.',
+    rationale:
+      'The dependency resolution broke due to peer conflict; pnpm --frozen-lockfile bypasses dirty workspace state safely.',
     source: 'brain-monitor',
     risk: 'high',
     confidence: 0.94,
@@ -21,7 +25,8 @@ function createBrainMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {
     id: 'msg-brain-1',
     role: 'assistant',
-    content: '🧠 **Brain intervention** — corrective guidance was sent to the agent.\n\nAgent encountered consecutive tool execution failure loop\n\n_Switch package manager from npm to pnpm_',
+    content:
+      '🧠 **Brain intervention** — corrective guidance was sent to the agent.\n\nAgent encountered consecutive tool execution failure loop\n\n_Switch package manager from npm to pnpm_',
     timestamp: 1000,
     brainDecision,
     ...overrides,
@@ -42,7 +47,9 @@ describe('BrainDecisionCard', () => {
     expect(screen.getByText('Agent Steered')).toBeTruthy();
     expect(screen.getByText('High Risk')).toBeTruthy();
     expect(screen.getByText('brain-monitor')).toBeTruthy();
-    expect(screen.getByText(/Switch package manager from npm to pnpm with frozen lockfile flag/i)).toBeTruthy();
+    expect(
+      screen.getByText(/Switch package manager from npm to pnpm with frozen lockfile flag/i),
+    ).toBeTruthy();
     expect(screen.getByText(/The dependency resolution broke due to peer conflict/i)).toBeTruthy();
     expect(screen.getByText('94%')).toBeTruthy();
   });
@@ -97,7 +104,8 @@ describe('BrainDecisionCard', () => {
     const legacyMessage: ChatMessage = {
       id: 'legacy-brain-1',
       role: 'assistant',
-      content: '🧠 **Brain intervention** — corrective guidance was sent to the agent.\n\nRepeated timeout on test run\n\n_Increase timeout from 5000ms to 30000ms_',
+      content:
+        '🧠 **Brain intervention** — corrective guidance was sent to the agent.\n\nRepeated timeout on test run\n\n_Increase timeout from 5000ms to 30000ms_',
       timestamp: 1000,
     };
 

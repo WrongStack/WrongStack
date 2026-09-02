@@ -116,10 +116,9 @@ describe('input history reducer — historyDown', () => {
   });
 
   it('moves index 1 -> 0 and clears the buffer', () => {
-    const s = reducer(
-      historyState({ inputHistory: ['first'], historyIndex: 1, buffer: 'first' }),
-      { type: 'historyDown' },
-    );
+    const s = reducer(historyState({ inputHistory: ['first'], historyIndex: 1, buffer: 'first' }), {
+      type: 'historyDown',
+    });
     expect(s.historyIndex).toBe(0);
     expect(s.buffer).toBe('');
     expect(s.cursor).toBe(0);
@@ -225,10 +224,10 @@ describe('input history reducer — setInputHistory (persistence load)', () => {
   });
 
   it('does not touch buffer/cursor/historyIndex (only the list)', () => {
-    const s = reducer(
-      historyState({ buffer: 'typed', cursor: 5, historyIndex: 0 }),
-      { type: 'setInputHistory', entries: ['loaded'] },
-    );
+    const s = reducer(historyState({ buffer: 'typed', cursor: 5, historyIndex: 0 }), {
+      type: 'setInputHistory',
+      entries: ['loaded'],
+    });
     expect(s.buffer).toBe('typed');
     expect(s.cursor).toBe(5);
     expect(s.historyIndex).toBe(0);
@@ -265,4 +264,3 @@ describe('input history reducer — clearInputHistory', () => {
     expect(s.historyDraft).toBe('');
   });
 });
-

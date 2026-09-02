@@ -41,7 +41,10 @@ describe('parseProgressFromText', () => {
     expect(parseProgressFromText('status [PROGRESS: 45%]')).toEqual({ progress: 45 });
   });
   it('parses a percentage with a note', () => {
-    expect(parseProgressFromText('[progress: 80%] — 4/5 done')).toEqual({ progress: 80, note: '4/5 done' });
+    expect(parseProgressFromText('[progress: 80%] — 4/5 done')).toEqual({
+      progress: 80,
+      note: '4/5 done',
+    });
   });
   it('clamps out-of-range percentages', () => {
     expect(parseProgressFromText('[PROGRESS: 250%]')?.progress).toBe(100);

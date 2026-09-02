@@ -44,9 +44,18 @@ const todo = (content: string) => ({ id: 't1', content, status: 'pending' as con
 
 describe('EternalAutonomyEngine.run() loop', () => {
   it('survives an iteration error, resets on a good iteration, then stops', async () => {
-    const agent = makeAgent(async () => ({ status: 'done', iterations: 1, finalText: 'ok' }), [todo('x')]);
+    const agent = makeAgent(
+      async () => ({ status: 'done', iterations: 1, finalText: 'ok' }),
+      [todo('x')],
+    );
     const onError = vi.fn();
-    const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0, onError });
+    const engine = new EternalAutonomyEngine({
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      onError,
+    });
     const spy = vi.spyOn(engine, 'runOneIteration');
     spy.mockRejectedValueOnce(new Error('iteration boom')); // → catch: onError + appendFailure
     spy.mockResolvedValueOnce(true); // → iterationOk resets consecutiveFailures
@@ -65,7 +74,9 @@ describe('EternalAutonomyEngine.run() loop', () => {
 
 describe('EternalAutonomyEngine — agent.run throwing', () => {
   it('classifies a thrown plain error as a failure', async () => {
-    const agent = makeAgent(async () => { throw new Error('provider exploded'); }, [todo('x')]);
+    const agent = makeAgent(async () => {
+      throw new Error('provider exploded');
+    }, [todo('x')]);
     const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0 });
     const ok = await engine.runOneIteration();
     expect(ok).toBe(false);
@@ -88,11 +99,19 @@ describe('EternalAutonomyEngine — agent.run throwing', () => {
       const e = Object.assign(new Error('429 rate limited'), { recoverable: true });
       throw e;
     }, [todo('x')]);
-    const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0, transientBackoffBaseMs: 0 });
+    const engine = new EternalAutonomyEngine({
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      transientBackoffBaseMs: 0,
+    });
     const ok = await engine.runOneIteration();
     expect(ok).toBe(false);
     // base=0 → computeTransientBackoffMs returns 0 → no backoff sleep, just retry counter
-    expect((engine as never as { consecutiveTransientRetries: number }).consecutiveTransientRetries).toBe(1);
+    expect(
+      (engine as never as { consecutiveTransientRetries: number }).consecutiveTransientRetries,
+    ).toBe(1);
   });
 
   it('returns false without counting a failure when aborted after stop()', async () => {
@@ -118,7 +137,13 @@ describe('EternalAutonomyEngine — brainstorm task variations', () => {
       (engineRef as never as { stopRequested: boolean }).stopRequested = true;
       return r;
     }, []);
-    engineRef = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0, gitStatusReader: async () => '' });
+    engineRef = new EternalAutonomyEngine({
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      gitStatusReader: async () => '',
+    });
     return engineRef;
   }
 
@@ -127,21 +152,39 @@ describe('EternalAutonomyEngine — brainstorm task variations', () => {
     const agent = makeAgent(async (input) => {
       directives.push(JSON.stringify(input));
       // first call = brainstorm (returns a task line), second = execution
-      return { status: 'done', iterations: 1, finalText: directives.length === 1 ? 'Add a CHANGELOG entry\nextra' : 'executed' };
+      return {
+        status: 'done',
+        iterations: 1,
+        finalText: directives.length === 1 ? 'Add a CHANGELOG entry\nextra' : 'executed',
+      };
     }, []);
-    const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0, gitStatusReader: async () => '' });
+    const engine = new EternalAutonomyEngine({
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      gitStatusReader: async () => '',
+    });
     const ok = await engine.runOneIteration();
     expect(ok).toBe(true);
     expect(directives[1]).toContain('Add a CHANGELOG entry');
   });
 
   it('treats a non-done brainstorm result as no task', async () => {
-    const ok = await noTaskEngine(async () => ({ status: 'failed', iterations: 1, finalText: 'whatever' })).runOneIteration();
+    const ok = await noTaskEngine(async () => ({
+      status: 'failed',
+      iterations: 1,
+      finalText: 'whatever',
+    })).runOneIteration();
     expect(ok).toBe(false);
   });
 
   it('treats empty brainstorm text as no task', async () => {
-    const ok = await noTaskEngine(async () => ({ status: 'done', iterations: 1, finalText: '   ' })).runOneIteration();
+    const ok = await noTaskEngine(async () => ({
+      status: 'done',
+      iterations: 1,
+      finalText: '   ',
+    })).runOneIteration();
     expect(ok).toBe(false);
   });
 
@@ -153,7 +196,13 @@ describe('EternalAutonomyEngine — brainstorm task variations', () => {
       (engineRef as never as { stopRequested: boolean }).stopRequested = true;
       throw new Error('brainstorm down');
     }, []);
-    engineRef = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0, gitStatusReader: async () => '' });
+    engineRef = new EternalAutonomyEngine({
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      gitStatusReader: async () => '',
+    });
     const ok = await engineRef.runOneIteration();
     expect(ok).toBe(false);
   });
@@ -168,8 +217,13 @@ describe('EternalAutonomyEngine — git reader failure', () => {
       return { status: 'done', iterations: 1, finalText: calls === 1 ? 'Write docs' : 'done' };
     }, []);
     const engine = new EternalAutonomyEngine({
-      agent, projectRoot, goalPath, cycleGapMs: 0,
-      gitStatusReader: async () => { throw new Error('not a git repo'); },
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      gitStatusReader: async () => {
+        throw new Error('not a git repo');
+      },
     });
     const ok = await engine.runOneIteration();
     expect(ok).toBe(true);
@@ -180,8 +234,17 @@ describe('EternalAutonomyEngine — git reader failure', () => {
 describe('EternalAutonomyEngine — terminal markers + progress', () => {
   it('clears the goal on [GOAL_COMPLETE] and fires onEternalStop', async () => {
     const onEternalStop = vi.fn();
-    const agent = makeAgent(async () => ({ status: 'done', iterations: 1, finalText: 'all set\n[GOAL_COMPLETE]' }), [todo('x')]);
-    const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0, onEternalStop });
+    const agent = makeAgent(
+      async () => ({ status: 'done', iterations: 1, finalText: 'all set\n[GOAL_COMPLETE]' }),
+      [todo('x')],
+    );
+    const engine = new EternalAutonomyEngine({
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      onEternalStop,
+    });
     const ok = await engine.runOneIteration();
     expect(ok).toBe(true);
     expect(onEternalStop).toHaveBeenCalled();
@@ -190,14 +253,30 @@ describe('EternalAutonomyEngine — terminal markers + progress', () => {
 
   it('clears the goal on a [goal clear] marker', async () => {
     const onEternalStop = vi.fn();
-    const agent = makeAgent(async () => ({ status: 'done', iterations: 1, finalText: 'done here\n[goal clear]' }), [todo('x')]);
-    const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0, onEternalStop });
+    const agent = makeAgent(
+      async () => ({ status: 'done', iterations: 1, finalText: 'done here\n[goal clear]' }),
+      [todo('x')],
+    );
+    const engine = new EternalAutonomyEngine({
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      onEternalStop,
+    });
     await engine.runOneIteration();
     expect(onEternalStop).toHaveBeenCalled();
   });
 
   it('persists partial progress from [PROGRESS: N%]', async () => {
-    const agent = makeAgent(async () => ({ status: 'done', iterations: 1, finalText: 'halfway [PROGRESS: 50%] keep going' }), [todo('x')]);
+    const agent = makeAgent(
+      async () => ({
+        status: 'done',
+        iterations: 1,
+        finalText: 'halfway [PROGRESS: 50%] keep going',
+      }),
+      [todo('x')],
+    );
     const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0 });
     const ok = await engine.runOneIteration();
     expect(ok).toBe(true);
@@ -206,7 +285,10 @@ describe('EternalAutonomyEngine — terminal markers + progress', () => {
   });
 
   it('completes the goal when the agent reports [PROGRESS: 100%]', async () => {
-    const agent = makeAgent(async () => ({ status: 'done', iterations: 1, finalText: 'finished [PROGRESS: 100%]' }), [todo('x')]);
+    const agent = makeAgent(
+      async () => ({ status: 'done', iterations: 1, finalText: 'finished [PROGRESS: 100%]' }),
+      [todo('x')],
+    );
     const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0 });
     const ok = await engine.runOneIteration();
     expect(ok).toBe(true);
@@ -217,19 +299,33 @@ describe('EternalAutonomyEngine — terminal markers + progress', () => {
 describe('EternalAutonomyEngine — failure classification', () => {
   it('applies interruptible transient backoff on a recoverable failure', async () => {
     const agent = makeAgent(
-      async () => ({ status: 'failed', iterations: 1, error: { recoverable: true, describe: () => 'rate limited' } }),
+      async () => ({
+        status: 'failed',
+        iterations: 1,
+        error: { recoverable: true, describe: () => 'rate limited' },
+      }),
       [todo('x')],
     );
     const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0 });
-    const backoff = vi.spyOn(engine as never as { sleepInterruptible: (ms: number) => Promise<void> }, 'sleepInterruptible').mockResolvedValue();
+    const backoff = vi
+      .spyOn(
+        engine as never as { sleepInterruptible: (ms: number) => Promise<void> },
+        'sleepInterruptible',
+      )
+      .mockResolvedValue();
     const ok = await engine.runOneIteration();
     expect(ok).toBe(false);
     expect(backoff).toHaveBeenCalled();
-    expect((engine as never as { consecutiveTransientRetries: number }).consecutiveTransientRetries).toBe(1);
+    expect(
+      (engine as never as { consecutiveTransientRetries: number }).consecutiveTransientRetries,
+    ).toBe(1);
   });
 
   it('treats max_iterations as a non-transient failure', async () => {
-    const agent = makeAgent(async () => ({ status: 'max_iterations', iterations: 500 }), [todo('x')]);
+    const agent = makeAgent(
+      async () => ({ status: 'max_iterations', iterations: 500 }),
+      [todo('x')],
+    );
     const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0 });
     const ok = await engine.runOneIteration();
     expect(ok).toBe(false);
@@ -265,7 +361,9 @@ describe('EternalAutonomyEngine — git source', () => {
 });
 
 describe('EternalAutonomyEngine — brainstorm DONE + brain consultation', () => {
-  async function runBrainstormDone(opts: { brain?: { decide: (r: unknown) => Promise<unknown> } } = {}) {
+  async function runBrainstormDone(
+    opts: { brain?: { decide: (r: unknown) => Promise<unknown> } } = {},
+  ) {
     // No todos, clean tree (gitStatusReader returns '') → brainstorm; agent answers DONE.
     const agent = makeAgent(async () => ({ status: 'done', iterations: 1, finalText: 'DONE' }), []);
     const engine = new EternalAutonomyEngine({
@@ -288,8 +386,12 @@ describe('EternalAutonomyEngine — brainstorm DONE + brain consultation', () =>
   });
 
   it('keeps going when the brain denies completion', async () => {
-    const { engine } = await runBrainstormDone({ brain: { decide: async () => ({ type: 'deny', reason: 'not done' }) } });
-    expect((engine as never as { consecutiveBrainstormDone: number }).consecutiveBrainstormDone).toBe(0);
+    const { engine } = await runBrainstormDone({
+      brain: { decide: async () => ({ type: 'deny', reason: 'not done' }) },
+    });
+    expect(
+      (engine as never as { consecutiveBrainstormDone: number }).consecutiveBrainstormDone,
+    ).toBe(0);
     expect((engine as { consecutiveBrainstormDone: number }).consecutiveBrainstormDone).toBe(0);
   });
 
@@ -312,22 +414,38 @@ describe('EternalAutonomyEngine — brainstorm DONE + brain consultation', () =>
     const { engine } = await runBrainstormDone({
       brain: { decide: async () => ({ type: 'answer', text: 'Yes, the goal is complete.' }) },
     });
-    expect((engine as never as { consecutiveBrainstormDone: number }).consecutiveBrainstormDone).toBe(0);
+    expect(
+      (engine as never as { consecutiveBrainstormDone: number }).consecutiveBrainstormDone,
+    ).toBe(0);
     expect((engine as never as { stopRequested: boolean }).stopRequested).toBe(false);
   });
 
   it('stops (trusts the heuristic) when the brain asks the human, and journals prior work', async () => {
     // Seed a journal entry so consultBrainForDone's recent-work map runs.
     const g = await loadGoal(goalPath);
-    g!.journal.push({ iteration: 1, at: new Date().toISOString(), source: 'todo', task: 'earlier work', status: 'success' });
+    g!.journal.push({
+      iteration: 1,
+      at: new Date().toISOString(),
+      source: 'todo',
+      task: 'earlier work',
+      status: 'success',
+    });
     await saveGoal(goalPath, g!);
-    const { engine } = await runBrainstormDone({ brain: { decide: async () => ({ type: 'ask_human', prompt: 'unsure' }) } });
+    const { engine } = await runBrainstormDone({
+      brain: { decide: async () => ({ type: 'ask_human', prompt: 'unsure' }) },
+    });
     // ask_human is neither deny nor a complete-answer → consultBrainForDone returns true → stop.
     expect((engine as never as { stopRequested: boolean }).stopRequested).toBe(true);
   });
 
   it('trusts the heuristic when the brain decide() throws', async () => {
-    const { engine } = await runBrainstormDone({ brain: { decide: async () => { throw new Error('brain down'); } } });
+    const { engine } = await runBrainstormDone({
+      brain: {
+        decide: async () => {
+          throw new Error('brain down');
+        },
+      },
+    });
     expect((engine as never as { stopRequested: boolean }).stopRequested).toBe(true);
   });
 });
@@ -335,13 +453,16 @@ describe('EternalAutonomyEngine — brainstorm DONE + brain consultation', () =>
 describe('EternalAutonomyEngine — todo selection edges', () => {
   it('skips a non-pending todo and selects the next pending one', async () => {
     const directives: string[] = [];
-    const agent = makeAgent(async (input) => {
-      directives.push(JSON.stringify(input));
-      return { status: 'done', iterations: 1, finalText: 'ok' };
-    }, [
-      { id: 'done1', content: 'already done', status: 'completed' },
-      { id: 'p1', content: 'the real task', status: 'pending' },
-    ]);
+    const agent = makeAgent(
+      async (input) => {
+        directives.push(JSON.stringify(input));
+        return { status: 'done', iterations: 1, finalText: 'ok' };
+      },
+      [
+        { id: 'done1', content: 'already done', status: 'completed' },
+        { id: 'p1', content: 'the real task', status: 'pending' },
+      ],
+    );
     const engine = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0 });
     await engine.runOneIteration();
     expect(directives[0]).toContain('the real task');
@@ -354,7 +475,13 @@ describe('EternalAutonomyEngine — todo selection edges', () => {
       return { status: 'done', iterations: 1, finalText: 'noop' };
     }, undefined as never);
     (agent.ctx as { todos: unknown }).todos = null; // non-array → pickPendingTodo returns null
-    engineRef = new EternalAutonomyEngine({ agent, projectRoot, goalPath, cycleGapMs: 0, gitStatusReader: async () => '' });
+    engineRef = new EternalAutonomyEngine({
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      gitStatusReader: async () => '',
+    });
     const ok = await engineRef.runOneIteration();
     expect(typeof ok).toBe('boolean');
   });
@@ -366,10 +493,17 @@ describe('EternalAutonomyEngine — todo selection edges', () => {
       return { status: 'done', iterations: 1, finalText: 'DONE\nnothing left to do' };
     }, []);
     engineRef = new EternalAutonomyEngine({
-      agent, projectRoot, goalPath, cycleGapMs: 0, gitStatusReader: async () => '', brainstormDoneStopThreshold: 99,
+      agent,
+      projectRoot,
+      goalPath,
+      cycleGapMs: 0,
+      gitStatusReader: async () => '',
+      brainstormDoneStopThreshold: 99,
     });
     await engineRef.runOneIteration();
-    expect((engineRef as never as { consecutiveBrainstormDone: number }).consecutiveBrainstormDone).toBe(1);
+    expect(
+      (engineRef as never as { consecutiveBrainstormDone: number }).consecutiveBrainstormDone,
+    ).toBe(1);
   });
 });
 

@@ -233,7 +233,8 @@ async function scanPath(
 const plugin: Plugin = {
   name: 'interface-contract-guard',
   version: '0.1.0',
-  description: 'Checks TypeScript interfaces for visible implementers and warns about contract drift',
+  description:
+    'Checks TypeScript interfaces for visible implementers and warns about contract drift',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -281,13 +282,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['interface-contract-guard']);
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
       if (!cfg.enabled) return;
       if (input.toolResult?.isError) return;
 
@@ -330,7 +329,9 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- check_interface_contracts tool ---
     api.tools.register({
@@ -351,7 +352,9 @@ const plugin: Plugin = {
 
         const raw = (input ?? {}) as Record<string, unknown>;
         const rawPath =
-          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof input.path === 'string' && input.path.trim().length > 0
+            ? input.path.trim()
+            : undefined) ??
           (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
           (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
           (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??

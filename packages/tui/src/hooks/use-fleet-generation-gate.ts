@@ -85,8 +85,5 @@ export function useFleetGenerationGate(
   // Consumers use this object in effect dependency lists. Keep the container
   // stable as well as its callbacks; a fresh object here would tear down and
   // recreate the fleet bridge after every unrelated TUI render.
-  return useMemo(
-    () => ({ track, isLive, forget, sweep }),
-    [track, isLive, forget, sweep],
-  );
+  return useMemo(() => ({ track, isLive, forget, sweep }), [track, isLive, forget, sweep]);
 }

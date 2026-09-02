@@ -48,11 +48,7 @@
  */
 
 import { LINE_SEPARATOR } from './mailbox-constants.js';
-import {
-  applyAckToMessage,
-  isAckRecord,
-  parseMailboxMessage,
-} from './mailbox-message-codec.js';
+import { applyAckToMessage, isAckRecord, parseMailboxMessage } from './mailbox-message-codec.js';
 import { materializeMessage } from './mailbox-receipt-folding.js';
 import type {
   AckRecord,

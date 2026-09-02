@@ -94,7 +94,11 @@ export class ObservableBrainArbiter implements BrainArbiter {
   ) {}
 
   async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
-    this.events.emit('brain.decision_requested', { sessionId: request.sessionId, request, at: Date.now() });
+    this.events.emit('brain.decision_requested', {
+      sessionId: request.sessionId,
+      request,
+      at: Date.now(),
+    });
     const decision = await this.inner.decide(request);
     const event =
       decision.type === 'ask_human'
@@ -197,7 +201,12 @@ export class BrainDecisionQueue {
       }
       this.pending.set(request.id, entry);
     });
-    this.events.emit('brain.decision_ask_human', { sessionId: request.sessionId, request, decision: ask, at: Date.now() });
+    this.events.emit('brain.decision_ask_human', {
+      sessionId: request.sessionId,
+      request,
+      decision: ask,
+      at: Date.now(),
+    });
     return pending;
   }
 
@@ -247,9 +256,7 @@ export function terminalPolicyDecision(
   const recommended = request.options?.find((option) => option.recommended);
   const acceptRecommended =
     recommended !== undefined &&
-    (policy === 'continue-on-recommended' ||
-      request.risk === 'low' ||
-      request.risk === 'medium');
+    (policy === 'continue-on-recommended' || request.risk === 'low' || request.risk === 'medium');
   if (recommended && acceptRecommended) {
     return {
       type: 'answer',
@@ -264,8 +271,7 @@ export function terminalPolicyDecision(
     return {
       type: 'answer',
       text: 'Continue with the caller default.',
-      rationale:
-        'Headless terminal policy: request declares continue as its safe fallback.',
+      rationale: 'Headless terminal policy: request declares continue as its safe fallback.',
     };
   }
   return {

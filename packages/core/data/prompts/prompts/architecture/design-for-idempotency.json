@@ -5,10 +5,7 @@
   "description": "Make an operation safe to retry.",
   "content": "This operation may be retried or duplicated: {{operation}}\n\nDesign it to be idempotent so duplicates do no harm. Choose the idempotency key, where to store the dedup record, and how long to keep it. Handle the race where two identical requests arrive at once. Show what happens on retry-after-partial-failure. Note any step that's inherently non-idempotent and how to fence it.",
   "category": "architecture",
-  "tags": [
-    "idempotency",
-    "reliability"
-  ],
+  "tags": ["idempotency", "reliability"],
   "source": "builtin",
   "favorite": false,
   "checksum": "0f1d597a92603165a9c18aecdfa3e9d0be96fa5a5e7f0ac408e952e56ca1115f",

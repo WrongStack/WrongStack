@@ -105,9 +105,7 @@ export async function registerWebuiInstance(
         ...(p.parentShellId ? { parentShellId: p.parentShellId } : {}),
         ...(p.runtimeId ? { runtimeId: p.runtimeId } : {}),
         ...(p.attachable !== undefined ? { attachable: p.attachable } : {}),
-        ...(p.authToken
-          ? { auth: { scheme: 'registry-token' as const, tokenPresent: true } }
-          : {}),
+        ...(p.authToken ? { auth: { scheme: 'registry-token' as const, tokenPresent: true } } : {}),
         ...(p.lastReadyAt ? { lastReadyAt: p.lastReadyAt } : {}),
         ...(p.protocolVersion !== undefined ? { protocolVersion: p.protocolVersion } : {}),
         ...(p.capabilities ? { capabilities: p.capabilities } : {}),
@@ -289,7 +287,12 @@ export function createWebuiShutdown(res: WebuiShutdownResources): () => void {
       }
       if (res.disposeResources) {
         // Dispose is usually fast; still bound so a stuck dispose cannot block exit.
-        await runBounded(res.disposeResources, Math.min(childTimeout, 5_000), 'disposeResources', debug);
+        await runBounded(
+          res.disposeResources,
+          Math.min(childTimeout, 5_000),
+          'disposeResources',
+          debug,
+        );
       }
       res.closeClients();
       res.closeHttpServer();

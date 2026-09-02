@@ -36,10 +36,7 @@ export function configSlug(absolutePath: string, globalRoot: string): string {
  * config-history directory with a timestamp. Best-effort: failures are
  * silently ignored so they never block the config write itself.
  */
-export async function backupConfigFile(
-  filePath: string,
-  paths: ConfigBackupPaths,
-): Promise<void> {
+export async function backupConfigFile(filePath: string, paths: ConfigBackupPaths): Promise<void> {
   let currentContent: string;
   try {
     currentContent = await fs.readFile(filePath, 'utf8');
@@ -49,9 +46,7 @@ export async function backupConfigFile(
   }
 
   const now = new Date();
-  const ts = now.toISOString()
-    .replace(/[:.]/g, '-')
-    .replace(/Z$/, '');
+  const ts = now.toISOString().replace(/[:.]/g, '-').replace(/Z$/, '');
   const slug = configSlug(filePath, paths.globalRoot);
   const backupDir = configHistoryDir(paths.globalRoot);
   const backupFile = path.join(backupDir, `${slug}-${ts}.json`);

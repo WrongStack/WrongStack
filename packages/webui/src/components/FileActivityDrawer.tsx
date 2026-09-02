@@ -1059,4 +1059,3 @@ function SkeletonTab({ file }: { file: OpenFile }) {
     </div>
   );
 }
-

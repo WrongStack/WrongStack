@@ -13,8 +13,15 @@ import { NpmAdapter } from '../src/adapters/npm.js';
 import { workspaceId } from '../src/discovery/index.js';
 import type { Workspace } from '../src/types.js';
 
-function makeTempWorkspace(name: string, pkgJson: Record<string, unknown>, lockfile?: { filename: string; content: string }): { dir: string; workspace: Workspace } {
-  const dir = join(tmpdir(), `techstack-npm-${name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+function makeTempWorkspace(
+  name: string,
+  pkgJson: Record<string, unknown>,
+  lockfile?: { filename: string; content: string },
+): { dir: string; workspace: Workspace } {
+  const dir = join(
+    tmpdir(),
+    `techstack-npm-${name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  );
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'package.json'), JSON.stringify(pkgJson, null, 2));
   if (lockfile) {
@@ -93,17 +100,17 @@ const SAMPLE_PKG_JSON = {
   name: 'test-app',
   version: '1.0.0',
   dependencies: {
-    'react': '^19.1.0',
-    'express': '~4.21.0',
+    react: '^19.1.0',
+    express: '~4.21.0',
     '@wrongstack/core': 'workspace:*',
     'local-thing': 'file:../local-thing',
     'git-pkg': 'git+https://github.com/foo/bar.git',
   },
   devDependencies: {
-    'vitest': '^1.0.0',
+    vitest: '^1.0.0',
   },
   peerDependencies: {
-    'react': '^19.0.0',
+    react: '^19.0.0',
   },
 };
 
@@ -115,7 +122,7 @@ describe('NpmAdapter', () => {
       const deps = await adapter.inventory(workspace, {});
 
       // react appears in deps + peer (deduped → first wins)
-      const names = deps.map(d => d.name);
+      const names = deps.map((d) => d.name);
       expect(names).toContain('react');
       expect(names).toContain('express');
       expect(names).toContain('@wrongstack/core');
@@ -132,7 +139,7 @@ describe('NpmAdapter', () => {
     try {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
-      const reactEntries = deps.filter(d => d.name === 'react');
+      const reactEntries = deps.filter((d) => d.name === 'react');
       expect(reactEntries).toHaveLength(1);
       // Should be runtime scope (first occurrence in dependencies)
       expect(reactEntries[0]!.scope).toBe('runtime');
@@ -146,7 +153,7 @@ describe('NpmAdapter', () => {
     try {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
-      const wsDep = deps.find(d => d.name === '@wrongstack/core');
+      const wsDep = deps.find((d) => d.name === '@wrongstack/core');
       expect(wsDep).toBeDefined();
       expect(wsDep!.status).toBe('local_path');
       expect(wsDep!.sourceType).toBe('path');
@@ -160,7 +167,7 @@ describe('NpmAdapter', () => {
     try {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
-      const fileDep = deps.find(d => d.name === 'local-thing');
+      const fileDep = deps.find((d) => d.name === 'local-thing');
       expect(fileDep).toBeDefined();
       expect(fileDep!.status).toBe('local_path');
     } finally {
@@ -173,7 +180,7 @@ describe('NpmAdapter', () => {
     try {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
-      const gitDep = deps.find(d => d.name === 'git-pkg');
+      const gitDep = deps.find((d) => d.name === 'git-pkg');
       expect(gitDep).toBeDefined();
       expect(gitDep!.status).toBe('git_dependency');
       expect(gitDep!.sourceType).toBe('git');
@@ -191,15 +198,15 @@ describe('NpmAdapter', () => {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
 
-      const react = deps.find(d => d.name === 'react');
+      const react = deps.find((d) => d.name === 'react');
       expect(react).toBeDefined();
       expect(react!.locked).toBe('19.1.0');
 
-      const express = deps.find(d => d.name === 'express');
+      const express = deps.find((d) => d.name === 'express');
       expect(express).toBeDefined();
       expect(express!.locked).toBe('4.21.2');
 
-      const vitest = deps.find(d => d.name === 'vitest');
+      const vitest = deps.find((d) => d.name === 'vitest');
       expect(vitest).toBeDefined();
       expect(vitest!.locked).toBe('1.0.0');
     } finally {
@@ -216,7 +223,7 @@ describe('NpmAdapter', () => {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
 
-      const react = deps.find(d => d.name === 'react');
+      const react = deps.find((d) => d.name === 'react');
       expect(react).toBeDefined();
       expect(react!.purl).toBe('pkg:npm/react@19.1.0');
     } finally {
@@ -233,13 +240,13 @@ describe('NpmAdapter', () => {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
 
-      const wsDep = deps.find(d => d.name === '@wrongstack/core');
+      const wsDep = deps.find((d) => d.name === '@wrongstack/core');
       expect(wsDep!.purl).toBeUndefined();
 
-      const fileDep = deps.find(d => d.name === 'local-thing');
+      const fileDep = deps.find((d) => d.name === 'local-thing');
       expect(fileDep!.purl).toBeUndefined();
 
-      const gitDep = deps.find(d => d.name === 'git-pkg');
+      const gitDep = deps.find((d) => d.name === 'git-pkg');
       expect(gitDep!.purl).toBeUndefined();
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -253,7 +260,7 @@ describe('NpmAdapter', () => {
       const deps = await adapter.inventory(workspace, {});
 
       for (const dep of deps) {
-        const manifestEv = dep.evidence.find(e => e.kind === 'manifest');
+        const manifestEv = dep.evidence.find((e) => e.kind === 'manifest');
         expect(manifestEv).toBeDefined();
         expect(manifestEv!.source).toContain('package.json');
       }
@@ -271,8 +278,8 @@ describe('NpmAdapter', () => {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
 
-      const react = deps.find(d => d.name === 'react');
-      const lockEvs = react!.evidence.filter(e => e.kind === 'lockfile');
+      const react = deps.find((d) => d.name === 'react');
+      const lockEvs = react!.evidence.filter((e) => e.kind === 'lockfile');
       expect(lockEvs).toHaveLength(1);
       expect(lockEvs[0]!.source).toContain('pnpm-lock.yaml');
     } finally {
@@ -286,11 +293,11 @@ describe('NpmAdapter', () => {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
 
-      const vitest = deps.find(d => d.name === 'vitest');
+      const vitest = deps.find((d) => d.name === 'vitest');
       expect(vitest!.scope).toBe('development');
 
       // react deduped to runtime (first in dependencies)
-      const react = deps.find(d => d.name === 'react');
+      const react = deps.find((d) => d.name === 'react');
       expect(react!.scope).toBe('runtime');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -303,10 +310,10 @@ describe('NpmAdapter', () => {
       const adapter = new NpmAdapter();
       const deps = await adapter.inventory(workspace, {});
 
-      const react = deps.find(d => d.name === 'react');
+      const react = deps.find((d) => d.name === 'react');
       expect(react!.requested).toBe('^19.1.0');
 
-      const express = deps.find(d => d.name === 'express');
+      const express = deps.find((d) => d.name === 'express');
       expect(express!.requested).toBe('~4.21.0');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -433,7 +440,7 @@ describe('NpmAdapter', () => {
   it('assigns optional scope for optionalDependencies', async () => {
     const { dir, workspace } = makeTempWorkspace('optional-scope', {
       name: 'test',
-      optionalDependencies: { 'fsevents': '^2.3.2' },
+      optionalDependencies: { fsevents: '^2.3.2' },
     });
     try {
       const adapter = new NpmAdapter();
@@ -449,7 +456,7 @@ describe('NpmAdapter', () => {
   it('assigns peer scope for peerDependencies', async () => {
     const { dir, workspace } = makeTempWorkspace('peer-scope', {
       name: 'test',
-      peerDependencies: { 'react': '^18.0.0' },
+      peerDependencies: { react: '^18.0.0' },
     });
     try {
       const adapter = new NpmAdapter();
@@ -487,15 +494,21 @@ describe('NpmAdapter', () => {
   // ── Lockfile walk-up (monorepo) ────────────────────────────────────────
 
   it('finds lockfile in parent directory when projectRoot is provided', async () => {
-    const rootDir = join(tmpdir(), `techstack-root-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    const rootDir = join(
+      tmpdir(),
+      `techstack-root-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    );
     const pkgDir = join(rootDir, 'packages', 'my-app');
     mkdirSync(pkgDir, { recursive: true });
 
     try {
-      writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({
-        name: 'my-app',
-        dependencies: { react: '^19.1.0' },
-      }));
+      writeFileSync(
+        join(pkgDir, 'package.json'),
+        JSON.stringify({
+          name: 'my-app',
+          dependencies: { react: '^19.1.0' },
+        }),
+      );
       // A lockfile with a matching importer for the sub-package
       const SUB_LOCK = `lockfileVersion: '9.0'
 
@@ -537,17 +550,29 @@ packages:
   // ── No lockfile walk-up without projectRoot ────────────────────────────
 
   it('does not walk up without projectRoot', async () => {
-    const rootDir = join(tmpdir(), `techstack-noroot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    const rootDir = join(
+      tmpdir(),
+      `techstack-noroot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    );
     const pkgDir = join(rootDir, 'sub', 'pkg');
     mkdirSync(pkgDir, { recursive: true });
 
     try {
-      writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({
-        name: 'sub-pkg',
-        dependencies: { react: '^19.0.0' },
-      }));
-      writeFileSync(join(rootDir, 'pnpm-lock.yaml'), `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      react:\n        specifier: ^19.0.0\n        version: 19.0.0\n`);
-      writeFileSync(join(pkgDir, 'pnpm-lock.yaml'), `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      react:\n        specifier: ^19.0.0\n        version: 19.0.0\n`);
+      writeFileSync(
+        join(pkgDir, 'package.json'),
+        JSON.stringify({
+          name: 'sub-pkg',
+          dependencies: { react: '^19.0.0' },
+        }),
+      );
+      writeFileSync(
+        join(rootDir, 'pnpm-lock.yaml'),
+        `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      react:\n        specifier: ^19.0.0\n        version: 19.0.0\n`,
+      );
+      writeFileSync(
+        join(pkgDir, 'pnpm-lock.yaml'),
+        `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      react:\n        specifier: ^19.0.0\n        version: 19.0.0\n`,
+      );
 
       const workspace: Workspace = {
         id: workspaceId('', 'npm'),

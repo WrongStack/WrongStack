@@ -204,8 +204,7 @@ export function tryAuthModelPickerKeys(
               toModel: modelId,
               fromContext: previousMaxContext,
               toContext: nextMaxContext > 0 ? nextMaxContext : undefined,
-              requestTokens:
-                host.currentContextTokens > 0 ? host.currentContextTokens : undefined,
+              requestTokens: host.currentContextTokens > 0 ? host.currentContextTokens : undefined,
               runActive: state.status !== 'idle',
             },
           });

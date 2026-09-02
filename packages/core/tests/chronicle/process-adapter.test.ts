@@ -31,38 +31,44 @@ describe('Chronicle process telemetry', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', projectId: 'p' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p' },
+      'trace',
+    );
     wireProcessesToChronicle({ events, journal, context, scrubber });
 
-    await runWithProcessTelemetry({
-      events,
-      sessionId: 'session',
-      traceId: 'trace',
-      agentId: 'leader',
-      toolCallId: 'tool-7',
-      toolName: 'test',
-    }, async () => {
-      emitProcessStarted({
-        pid: 700,
-        parentPid: 1,
-        command: 'runner SECRET',
-        args: ['--token=SECRET'],
-        cwd: '/project',
-        background: false,
-        startedAt: '2026-07-18T00:00:00.000Z',
-      });
-      await Promise.resolve();
-      emitProcessOutput({ pid: 700, stream: 'stdout', chunk: 'hello' });
-      emitProcessCompleted({
-        pid: 700,
-        exitCode: 0,
-        durationMs: 25,
-        stdoutBytes: 5,
-        stderrBytes: 0,
-        timedOut: false,
-        endedAt: '2026-07-18T00:00:00.025Z',
-      });
-    });
+    await runWithProcessTelemetry(
+      {
+        events,
+        sessionId: 'session',
+        traceId: 'trace',
+        agentId: 'leader',
+        toolCallId: 'tool-7',
+        toolName: 'test',
+      },
+      async () => {
+        emitProcessStarted({
+          pid: 700,
+          parentPid: 1,
+          command: 'runner SECRET',
+          args: ['--token=SECRET'],
+          cwd: '/project',
+          background: false,
+          startedAt: '2026-07-18T00:00:00.000Z',
+        });
+        await Promise.resolve();
+        emitProcessOutput({ pid: 700, stream: 'stdout', chunk: 'hello' });
+        emitProcessCompleted({
+          pid: 700,
+          exitCode: 0,
+          durationMs: 25,
+          stdoutBytes: 5,
+          stderrBytes: 0,
+          timedOut: false,
+          endedAt: '2026-07-18T00:00:00.025Z',
+        });
+      },
+    );
 
     const recorded = await journal.readAll();
     expect(recorded.map((event) => event.eventType)).toEqual([

@@ -36,7 +36,10 @@ export async function runPathMemory(
   return { message: lines.join('\n') };
 }
 
-export async function runGatherCommand(Sage: SageSurface | null | undefined, rest: string[]): Promise<{ message: string }> {
+export async function runGatherCommand(
+  Sage: SageSurface | null | undefined,
+  rest: string[],
+): Promise<{ message: string }> {
   if (!Sage?.listSagePage) return requiresSage('gather');
   // Token-based flag parsing (avoids regex greedily consuming next flag)
   let limit = 50;
@@ -102,10 +105,7 @@ export async function runGatherCommand(Sage: SageSurface | null | undefined, res
     'archived',
     'deleted',
   ] as const;
-  if (
-    statusVal !== undefined &&
-    !(VALID_STATUSES as readonly string[]).includes(statusVal)
-  ) {
+  if (statusVal !== undefined && !(VALID_STATUSES as readonly string[]).includes(statusVal)) {
     return {
       message: `Invalid --status "${statusVal}". Valid: ${VALID_STATUSES.join(', ')}`,
     };

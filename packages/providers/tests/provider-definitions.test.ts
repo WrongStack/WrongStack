@@ -11,9 +11,7 @@ import {
 describe('canonical ProviderDefinition projections', () => {
   it('projects every local definition without metadata drift', () => {
     const projection = projectLocalProviderPresets();
-    expect(projection.map(({ id }) => id)).toEqual(
-      LOCAL_PROVIDER_DEFINITIONS.map(({ id }) => id),
-    );
+    expect(projection.map(({ id }) => id)).toEqual(LOCAL_PROVIDER_DEFINITIONS.map(({ id }) => id));
     for (const [index, definition] of LOCAL_PROVIDER_DEFINITIONS.entries()) {
       expect(projection[index]).toEqual({
         id: definition.id,

@@ -189,7 +189,11 @@ export function DesignStudioPanel({ className }: { className?: string }) {
                       : 'bg-primary text-primary-foreground hover:opacity-90',
                   )}
                 >
-                  {busyKit === kit.id ? '…' : isActive ? t('activity:design.reapply') : t('activity:design.use')}
+                  {busyKit === kit.id
+                    ? '…'
+                    : isActive
+                      ? t('activity:design.reapply')
+                      : t('activity:design.use')}
                 </button>
               </div>
 
@@ -200,7 +204,8 @@ export function DesignStudioPanel({ className }: { className?: string }) {
 
               {kit.bestFor && (
                 <p className="text-[10px] text-muted-foreground mt-2 leading-snug">
-                  <span className="font-medium">{t('activity:designStudio.bestFor')}</span> {kit.bestFor}
+                  <span className="font-medium">{t('activity:designStudio.bestFor')}</span>{' '}
+                  {kit.bestFor}
                 </p>
               )}
               <div className="flex flex-wrap gap-1 mt-1.5">

@@ -5,11 +5,7 @@
   "description": "Provision infrastructure declaratively and safely.",
   "content": "Write {{tool}} configuration to provision: {{infrastructure}}\n\nRequirements:\n- Parameterize environment-specific values; no hardcoded secrets or account IDs.\n- Apply least-privilege access.\n- Tag resources for ownership and cost tracking.\n- Make it idempotent and safe to re-apply.\n\nExplain what a `plan`/dry-run would show and what to double-check before applying to production.",
   "category": "devops",
-  "tags": [
-    "iac",
-    "terraform",
-    "provisioning"
-  ],
+  "tags": ["iac", "terraform", "provisioning"],
   "source": "builtin",
   "favorite": false,
   "checksum": "8904bd78ccf8c7a915d814b0e6fe418466167dd7e062d5960c36ed85718dabcb",

@@ -5,11 +5,7 @@
   "description": "Create a README that gets a new user productive fast.",
   "content": "Write a README for this project: {{project}}\n\nStructure: one-line description, what problem it solves, quick start (install + minimal working example), common usage, configuration, and where to get help. Lead with the example a user can copy-paste to see it work. Keep prose tight; show, don't tell. Omit sections that don't apply rather than padding them.",
   "category": "documentation",
-  "tags": [
-    "readme",
-    "docs",
-    "onboarding"
-  ],
+  "tags": ["readme", "docs", "onboarding"],
   "source": "builtin",
   "favorite": false,
   "checksum": "75c7f3de406f69deb0c4e747de66f32027475eeaa7d6f5dda5cbd6365c47f32c",

@@ -25,7 +25,6 @@ import type { WSServerMessage } from '@/types';
 
 const ELITE_BUG_HUNTER_SLUG = 'elite-bug-hunter';
 
-
 function directoryPaths(tree: TreeNode[]): string[] {
   const paths: string[] = [];
   const visit = (nodes: TreeNode[]) => {

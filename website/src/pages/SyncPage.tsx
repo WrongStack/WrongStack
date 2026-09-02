@@ -40,11 +40,36 @@ export function SyncPage() {
         />
         <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line bg-line lg:grid-cols-5">
           {[
-            { icon: Layers3, label: 'Settings', path: 'settings/', body: 'Provider configs, model routing, tool permissions, context policy, and all user preferences.' },
-            { icon: Tag, label: 'Skills', path: 'skills/', body: 'Installed skill packages with their trigger words, capability declarations, and instruction bodies.' },
-            { icon: GitBranch, label: 'Prompts', path: 'prompts/', body: 'User-layer prompt templates with variables, favorites, and metadata. Bundled prompts stay immutable.' },
-            { icon: HardDrive, label: 'Memory', path: 'memory.md', body: 'SAGE entries — facts, conventions, decisions, and anti-patterns the agent has learned.' },
-            { icon: History, label: 'History', path: 'sessions/', body: 'Session logs with timestamps, tool calls, and results. Audit trail that follows you across machines.' },
+            {
+              icon: Layers3,
+              label: 'Settings',
+              path: 'settings/',
+              body: 'Provider configs, model routing, tool permissions, context policy, and all user preferences.',
+            },
+            {
+              icon: Tag,
+              label: 'Skills',
+              path: 'skills/',
+              body: 'Installed skill packages with their trigger words, capability declarations, and instruction bodies.',
+            },
+            {
+              icon: GitBranch,
+              label: 'Prompts',
+              path: 'prompts/',
+              body: 'User-layer prompt templates with variables, favorites, and metadata. Bundled prompts stay immutable.',
+            },
+            {
+              icon: HardDrive,
+              label: 'Memory',
+              path: 'memory.md',
+              body: 'SAGE entries — facts, conventions, decisions, and anti-patterns the agent has learned.',
+            },
+            {
+              icon: History,
+              label: 'History',
+              path: 'sessions/',
+              body: 'Session logs with timestamps, tool calls, and results. Audit trail that follows you across machines.',
+            },
           ].map(({ icon: Icon, label, path, body }) => (
             <article key={label} className="bg-card p-6">
               <Icon className="size-4 text-brand" />
@@ -56,9 +81,18 @@ export function SyncPage() {
         </div>
         <div className="mt-8 grid gap-5 sm:grid-cols-3">
           {[
-            { title: 'All categories', body: '/sync enable without explicit categories syncs all five. The default covers everything you need for a complete cross-machine setup.' },
-            { title: 'Selective sync', body: 'Add or remove categories with /sync categories add|remove. Sync only prompts and skills on lightweight machines.' },
-            { title: 'Category independence', body: 'Each category syncs independently. A push failure in one category does not block the others.' },
+            {
+              title: 'All categories',
+              body: '/sync enable without explicit categories syncs all five. The default covers everything you need for a complete cross-machine setup.',
+            },
+            {
+              title: 'Selective sync',
+              body: 'Add or remove categories with /sync categories add|remove. Sync only prompts and skills on lightweight machines.',
+            },
+            {
+              title: 'Category independence',
+              body: 'Each category syncs independently. A push failure in one category does not block the others.',
+            },
           ].map(({ title, body }) => (
             <div key={title} className="rounded-xl border border-line bg-card p-5">
               <h3 className="font-black text-sm text-fg">{title}</h3>
@@ -167,10 +201,22 @@ export function SyncPage() {
               <h2 className="mt-8 text-xl font-black text-fg">Token storage</h2>
               <div className="mt-5 space-y-3">
                 {[
-                  { label: 'Encrypted at rest', body: 'When SecretVault is available, the token is encrypted before writing to disk. The field name "githubToken" matches the vault pattern for auto-decryption on load.' },
-                  { label: 'Separate config file', body: 'Token stored in `~/.wrongstack/profiles/<name>/sync.json` — separate from main config.json to prevent accidental commits to public repos.' },
-                  { label: 'Atomic write', body: 'sync.json is written via atomicWrite (tmp + rename). A crash during write never produces a half-written or corrupted credential file.' },
-                  { label: 'Owner-only permissions', body: 'Written with mode 0o600. No group or world read access. The file is invisible to other users on shared hosts.' },
+                  {
+                    label: 'Encrypted at rest',
+                    body: 'When SecretVault is available, the token is encrypted before writing to disk. The field name "githubToken" matches the vault pattern for auto-decryption on load.',
+                  },
+                  {
+                    label: 'Separate config file',
+                    body: 'Token stored in `~/.wrongstack/profiles/<name>/sync.json` — separate from main config.json to prevent accidental commits to public repos.',
+                  },
+                  {
+                    label: 'Atomic write',
+                    body: 'sync.json is written via atomicWrite (tmp + rename). A crash during write never produces a half-written or corrupted credential file.',
+                  },
+                  {
+                    label: 'Owner-only permissions',
+                    body: 'Written with mode 0o600. No group or world read access. The file is invisible to other users on shared hosts.',
+                  },
                 ].map(({ label, body }) => (
                   <div key={label} className="rounded-lg border border-line bg-bg p-4">
                     <h3 className="font-black text-sm text-fg">{label}</h3>
@@ -184,10 +230,22 @@ export function SyncPage() {
               <h2 className="mt-8 text-xl font-black text-fg">Sync state</h2>
               <div className="mt-5 space-y-3">
                 {[
-                  { label: 'sync-state.json', body: 'Tracks version (schema v1), remote SHA, lastSyncedAt timestamp, and localRev hash. Used for conflict detection and fresh/stale checks.' },
-                  { label: 'Fine-grained PAT', body: 'Uses a GitHub fine-grained personal access token. Scope it to the single sync repo with Contents: Read & Write permission only.' },
-                  { label: 'No git CLI dependency', body: 'CloudSync speaks the GitHub REST API directly. No git binary needed, no shell spawning. Works on any machine with HTTPS access to api.github.com.' },
-                  { label: 'Disable without data loss', body: '/sync disable stops syncing but keeps all local files intact. Re-enable later with the same repo and pick up where you left off.' },
+                  {
+                    label: 'sync-state.json',
+                    body: 'Tracks version (schema v1), remote SHA, lastSyncedAt timestamp, and localRev hash. Used for conflict detection and fresh/stale checks.',
+                  },
+                  {
+                    label: 'Fine-grained PAT',
+                    body: 'Uses a GitHub fine-grained personal access token. Scope it to the single sync repo with Contents: Read & Write permission only.',
+                  },
+                  {
+                    label: 'No git CLI dependency',
+                    body: 'CloudSync speaks the GitHub REST API directly. No git binary needed, no shell spawning. Works on any machine with HTTPS access to api.github.com.',
+                  },
+                  {
+                    label: 'Disable without data loss',
+                    body: '/sync disable stops syncing but keeps all local files intact. Re-enable later with the same repo and pick up where you left off.',
+                  },
                 ].map(({ label, body }) => (
                   <div key={label} className="rounded-lg border border-line bg-bg p-4">
                     <h3 className="font-black text-sm text-fg">{label}</h3>
@@ -210,12 +268,30 @@ export function SyncPage() {
         />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { cmd: '/sync status', desc: 'Show enabled/disabled state, configured repo, selected categories, and time since last sync.' },
-            { cmd: '/sync enable owner/repo TOKEN [cats]', desc: 'Enable sync. TOKEN is a fine-grained PAT with Contents R/W. Optional: list specific categories (default: all five).' },
-            { cmd: '/sync disable', desc: 'Stop syncing. All local data is preserved. Re-enable later with the same repo.' },
-            { cmd: '/sync push', desc: 'Upload selected categories. Builds a Git tree, creates a commit, and updates the branch ref. Shows a file-level diff of what changed.' },
-            { cmd: '/sync pull', desc: 'Download from the repo. Compares localRev against current files. Conflicts are reported before any file is overwritten.' },
-            { cmd: '/sync categories list|add|remove', desc: 'Manage which artifact types are synced. Add or remove categories without disabling sync.' },
+            {
+              cmd: '/sync status',
+              desc: 'Show enabled/disabled state, configured repo, selected categories, and time since last sync.',
+            },
+            {
+              cmd: '/sync enable owner/repo TOKEN [cats]',
+              desc: 'Enable sync. TOKEN is a fine-grained PAT with Contents R/W. Optional: list specific categories (default: all five).',
+            },
+            {
+              cmd: '/sync disable',
+              desc: 'Stop syncing. All local data is preserved. Re-enable later with the same repo.',
+            },
+            {
+              cmd: '/sync push',
+              desc: 'Upload selected categories. Builds a Git tree, creates a commit, and updates the branch ref. Shows a file-level diff of what changed.',
+            },
+            {
+              cmd: '/sync pull',
+              desc: 'Download from the repo. Compares localRev against current files. Conflicts are reported before any file is overwritten.',
+            },
+            {
+              cmd: '/sync categories list|add|remove',
+              desc: 'Manage which artifact types are synced. Add or remove categories without disabling sync.',
+            },
           ].map(({ cmd, desc }) => (
             <div key={cmd} className="rounded-xl border border-line bg-card p-5">
               <code className="font-mono text-sm font-black text-brand">{cmd}</code>
@@ -227,14 +303,39 @@ export function SyncPage() {
           <h2 className="text-xl font-black text-fg">Example workflow</h2>
           <div className="mt-5 space-y-3">
             {[
-              { step: '1', cmd: '/sync enable myname/wrongstack-data ghp_xxx', desc: 'Enable with a fine-grained PAT. All five categories are selected by default.' },
-              { step: '2', cmd: '/sync push', desc: 'Upload your current settings, skills, prompts, memory, and history. A commit is created on the repo.' },
-              { step: '3', cmd: 'On another machine: /sync enable myname/wrongstack-data ghp_xxx', desc: 'Enable with the same repo and token. The sync state is empty — ready for pull.' },
-              { step: '4', cmd: '/sync pull', desc: 'Download all synced data. LocalRev is recorded. Subsequent pulls only download changes.' },
-              { step: '5', cmd: '/sync categories remove history', desc: 'Stop syncing session history on this machine. Settings and skills still sync.' },
+              {
+                step: '1',
+                cmd: '/sync enable myname/wrongstack-data ghp_xxx',
+                desc: 'Enable with a fine-grained PAT. All five categories are selected by default.',
+              },
+              {
+                step: '2',
+                cmd: '/sync push',
+                desc: 'Upload your current settings, skills, prompts, memory, and history. A commit is created on the repo.',
+              },
+              {
+                step: '3',
+                cmd: 'On another machine: /sync enable myname/wrongstack-data ghp_xxx',
+                desc: 'Enable with the same repo and token. The sync state is empty — ready for pull.',
+              },
+              {
+                step: '4',
+                cmd: '/sync pull',
+                desc: 'Download all synced data. LocalRev is recorded. Subsequent pulls only download changes.',
+              },
+              {
+                step: '5',
+                cmd: '/sync categories remove history',
+                desc: 'Stop syncing session history on this machine. Settings and skills still sync.',
+              },
             ].map(({ step, cmd, desc }) => (
-              <div key={step} className="flex items-start gap-4 rounded-lg border border-line bg-bg p-4">
-                <span className="mt-0.5 shrink-0 font-mono text-xs font-black text-brand-2">{step}</span>
+              <div
+                key={step}
+                className="flex items-start gap-4 rounded-lg border border-line bg-bg p-4"
+              >
+                <span className="mt-0.5 shrink-0 font-mono text-xs font-black text-brand-2">
+                  {step}
+                </span>
                 <div>
                   <code className="font-mono text-sm font-black text-brand">{cmd}</code>
                   <p className="mt-1 text-xs leading-5 text-muted">{desc}</p>

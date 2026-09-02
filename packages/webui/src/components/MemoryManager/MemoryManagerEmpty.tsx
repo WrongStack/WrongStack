@@ -17,15 +17,21 @@ export function MemoryManagerEmpty({ onCapture }: { onCapture: () => void }) {
       <div className="mt-6 grid w-full max-w-lg gap-2 sm:grid-cols-3">
         <div className="border border-border/70 bg-card/45 p-3">
           <Check className="mx-auto size-4 text-success" />
-          <p className="mt-2 text-[10px] font-bold uppercase">{t('activity:memoryManager.emptyVerifiedAnchors')}</p>
+          <p className="mt-2 text-[10px] font-bold uppercase">
+            {t('activity:memoryManager.emptyVerifiedAnchors')}
+          </p>
         </div>
         <div className="border border-border/70 bg-card/45 p-3">
           <BrainCircuit className="mx-auto size-4 text-info" />
-          <p className="mt-2 text-[10px] font-bold uppercase">{t('activity:memoryManager.emptyTypedRelations')}</p>
+          <p className="mt-2 text-[10px] font-bold uppercase">
+            {t('activity:memoryManager.emptyTypedRelations')}
+          </p>
         </div>
         <div className="border border-border/70 bg-card/45 p-3">
           <Plus className="mx-auto size-4 text-warning" />
-          <p className="mt-2 text-[10px] font-bold uppercase">{t('activity:memoryManager.emptyAgentRecall')}</p>
+          <p className="mt-2 text-[10px] font-bold uppercase">
+            {t('activity:memoryManager.emptyAgentRecall')}
+          </p>
         </div>
       </div>
       <Button onClick={onCapture}>

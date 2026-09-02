@@ -47,7 +47,9 @@ function fakeHost(opts: RouteOpts): GoalHostDeps['multiAgentHost'] {
     },
     dispose: async () => {},
   });
-  return { makeSubagentFactory: (_cfg: unknown) => factory } as never as GoalHostDeps['multiAgentHost'];
+  return {
+    makeSubagentFactory: (_cfg: unknown) => factory,
+  } as never as GoalHostDeps['multiAgentHost'];
 }
 
 const ONE_PHASE_PLAN = [
@@ -176,7 +178,11 @@ describe('createGoalHost — start failures and task errors', () => {
     const phaseA = Array.from(graph!.phases.keys())[0] as string;
     const phaseB = Array.from(graph!.phases.keys())[1] as string;
 
-    const addedId = host.onGoalAddTask(phaseB, { title: 'extra task', type: 'test', priority: 'low' });
+    const addedId = host.onGoalAddTask(phaseB, {
+      title: 'extra task',
+      type: 'test',
+      priority: 'low',
+    });
     expect(typeof addedId).toBe('string');
     expect(addedId!.length).toBeGreaterThan(0);
     // The freshly added task is pending, so moving and requeueing it succeed.
@@ -216,7 +222,13 @@ describe('createGoalHost — start failures and task errors', () => {
           estimateHours: 1,
           parallelizable: false,
           taskTemplates: [
-            { title: 'task one', description: '', type: 'feature', priority: 'high', estimateHours: 1 },
+            {
+              title: 'task one',
+              description: '',
+              type: 'feature',
+              priority: 'high',
+              estimateHours: 1,
+            },
           ],
         },
       ],
@@ -452,9 +464,11 @@ describe('createGoalHost — worktree actions', () => {
     await fs.writeFile(path.join(projectRoot, 'b.txt'), 'b\n', 'utf8');
     await execFileAsync('git', ['add', '.'], { cwd: projectRoot });
     await execFileAsync('git', ['commit', '-q', '-m', 'feature'], { cwd: projectRoot });
-    await execFileAsync('git', ['checkout', '-q', 'master'], { cwd: projectRoot }).catch(async () => {
-      await execFileAsync('git', ['checkout', '-q', 'main'], { cwd: projectRoot });
-    });
+    await execFileAsync('git', ['checkout', '-q', 'master'], { cwd: projectRoot }).catch(
+      async () => {
+        await execFileAsync('git', ['checkout', '-q', 'main'], { cwd: projectRoot });
+      },
+    );
 
     const host = makeHost();
     const merged = await host.onWorktree('merge', 'feature');

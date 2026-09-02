@@ -52,7 +52,13 @@ export function AlertDialogHeader({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.ReactElement {
-  return <div data-slot="alert-dialog-header" className={cn('flex flex-col gap-1', className)} {...props} />;
+  return (
+    <div
+      data-slot="alert-dialog-header"
+      className={cn('flex flex-col gap-1', className)}
+      {...props}
+    />
+  );
 }
 
 export function AlertDialogFooter({

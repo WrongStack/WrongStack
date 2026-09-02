@@ -62,8 +62,20 @@ describe('research — package invention', () => {
       now: FIXED_NOW,
       llm: fakeLlm({
         findings: [
-          { package: 'real', severity: 'medium', action: 'upgrade_major', confidence: 0.8, rationale: 'ok' },
-          { package: 'totally-made-up', severity: 'critical', action: 'remove', confidence: 0.9, rationale: 'invented' },
+          {
+            package: 'real',
+            severity: 'medium',
+            action: 'upgrade_major',
+            confidence: 0.8,
+            rationale: 'ok',
+          },
+          {
+            package: 'totally-made-up',
+            severity: 'critical',
+            action: 'remove',
+            confidence: 0.9,
+            rationale: 'invented',
+          },
         ],
       }),
     });
@@ -80,7 +92,9 @@ describe('research — package invention', () => {
       search: fakeSearch(),
       now: FIXED_NOW,
       llm: fakeLlm({
-        findings: [{ package: 'real', severity: 'low', action: 'none', confidence: 0.5, rationale: 'fine' }],
+        findings: [
+          { package: 'real', severity: 'low', action: 'none', confidence: 0.5, rationale: 'fine' },
+        ],
       }),
     });
 
@@ -93,7 +107,9 @@ describe('research — package invention', () => {
 
 describe('research — version facts', () => {
   it('cannot carry version fields even when the model emits them', async () => {
-    const candidates = triageCandidates([makeDep({ name: 'react', locked: '17.0.2', latestStable: '18.2.0' })]);
+    const candidates = triageCandidates([
+      makeDep({ name: 'react', locked: '17.0.2', latestStable: '18.2.0' }),
+    ]);
     const researcher = createResearcher({
       search: fakeSearch(),
       now: FIXED_NOW,
@@ -129,7 +145,14 @@ describe('research — version facts', () => {
       now: FIXED_NOW,
       llm: fakeLlm({
         findings: [
-          { package: 'react', severity: 'high', action: 'upgrade_major', confidence: 0.9, rationale: 'x', latestStable: '99.0.0' },
+          {
+            package: 'react',
+            severity: 'high',
+            action: 'upgrade_major',
+            confidence: 0.9,
+            rationale: 'x',
+            latestStable: '99.0.0',
+          },
         ],
       }),
     });
@@ -148,7 +171,15 @@ describe('research — confidence', () => {
       search: fakeSearch(),
       now: FIXED_NOW,
       llm: fakeLlm({
-        findings: [{ package: 'pkg', severity: 'high', action: 'upgrade_major', confidence: 1.0, rationale: 'certain' }],
+        findings: [
+          {
+            package: 'pkg',
+            severity: 'high',
+            action: 'upgrade_major',
+            confidence: 1.0,
+            rationale: 'certain',
+          },
+        ],
       }),
     });
 
@@ -162,7 +193,15 @@ describe('research — confidence', () => {
       search: fakeSearch(),
       now: FIXED_NOW,
       llm: fakeLlm({
-        findings: [{ package: 'pkg', severity: 'low', action: 'none', confidence: 'very sure', rationale: 'x' }],
+        findings: [
+          {
+            package: 'pkg',
+            severity: 'low',
+            action: 'none',
+            confidence: 'very sure',
+            rationale: 'x',
+          },
+        ],
       }),
     });
 
@@ -266,7 +305,15 @@ describe('research — degradation', () => {
       search: fakeSearch([]),
       now: FIXED_NOW,
       llm: fakeLlm({
-        findings: [{ package: 'pkg', severity: 'low', action: 'investigate', confidence: 0.3, rationale: 'no sources found' }],
+        findings: [
+          {
+            package: 'pkg',
+            severity: 'low',
+            action: 'investigate',
+            confidence: 0.3,
+            rationale: 'no sources found',
+          },
+        ],
       }),
     });
 
@@ -283,7 +330,15 @@ describe('research — degradation', () => {
     const llm = vi.fn<ResearchLlm>(async (req) => {
       if (req.schemaName.includes('vulnerability')) throw new Error('cluster failed');
       return JSON.stringify({
-        findings: [{ package: 'dead-pkg', severity: 'medium', action: 'replace', confidence: 0.6, rationale: 'x' }],
+        findings: [
+          {
+            package: 'dead-pkg',
+            severity: 'medium',
+            action: 'replace',
+            confidence: 0.6,
+            rationale: 'x',
+          },
+        ],
       });
     });
     const researcher = createResearcher({ llm, search: fakeSearch(), now: FIXED_NOW });
@@ -298,7 +353,9 @@ describe('research — degradation', () => {
     const researcher = createResearcher({
       search: fakeSearch(),
       now: FIXED_NOW,
-      llm: fakeLlm({ findings: [{ package: 'pkg', severity: 'high', action: 'remove', confidence: 0.9 }] }),
+      llm: fakeLlm({
+        findings: [{ package: 'pkg', severity: 'high', action: 'remove', confidence: 0.9 }],
+      }),
     });
 
     expect(await researcher.research(candidates)).toEqual([]);
@@ -310,7 +367,9 @@ describe('research — degradation', () => {
 describe('research — batching', () => {
   it('makes one LLM call per cluster, not one per package', async () => {
     const candidates = triageCandidates(
-      Array.from({ length: 12 }, (_, i) => makeDep({ id: `d${i}`, name: `pkg-${i}`, status: 'deprecated' })),
+      Array.from({ length: 12 }, (_, i) =>
+        makeDep({ id: `d${i}`, name: `pkg-${i}`, status: 'deprecated' }),
+      ),
     );
     const llm = vi.fn<ResearchLlm>(async () => JSON.stringify({ findings: [] }));
     const researcher = createResearcher({ llm, search: fakeSearch(), now: FIXED_NOW });
@@ -343,6 +402,10 @@ describe('research — batching', () => {
     });
 
     await researcher.research(candidates, { onProgress });
-    expect(onProgress.mock.calls).toEqual([[0, 2], [1, 2], [2, 2]]);
+    expect(onProgress.mock.calls).toEqual([
+      [0, 2],
+      [1, 2],
+      [2, 2],
+    ]);
   });
 });

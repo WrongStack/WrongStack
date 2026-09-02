@@ -61,9 +61,7 @@ async function projectionOf(
   messageId: string,
 ): Promise<MailboxMessageProjection | undefined> {
   const all = await store.query({ limit: 1000, includeReceiptState: true });
-  return all.find((message) => message.id === messageId) as
-    | MailboxMessageProjection
-    | undefined;
+  return all.find((message) => message.id === messageId) as MailboxMessageProjection | undefined;
 }
 
 /**
@@ -104,29 +102,47 @@ describe('isMailboxReceiptRecordV2', () => {
   it('rejects missing required fields', () => {
     expect(isMailboxReceiptRecordV2({ __mailboxReceipt: 2 })).toBe(false);
     expect(isMailboxReceiptRecordV2({ __mailboxReceipt: 2, messageId: 'm1' })).toBe(false);
-    expect(
-      isMailboxReceiptRecordV2({ __mailboxReceipt: 2, messageId: 'm1', actorId: 'a' }),
-    ).toBe(false);
+    expect(isMailboxReceiptRecordV2({ __mailboxReceipt: 2, messageId: 'm1', actorId: 'a' })).toBe(
+      false,
+    );
   });
 
   it('rejects empty strings for required fields', () => {
     expect(
-      isMailboxReceiptRecordV2({ __mailboxReceipt: 2, messageId: '', actorId: 'a', timestamp: 't' }),
+      isMailboxReceiptRecordV2({
+        __mailboxReceipt: 2,
+        messageId: '',
+        actorId: 'a',
+        timestamp: 't',
+      }),
     ).toBe(false);
     expect(
-      isMailboxReceiptRecordV2({ __mailboxReceipt: 2, messageId: 'm', actorId: '', timestamp: 't' }),
+      isMailboxReceiptRecordV2({
+        __mailboxReceipt: 2,
+        messageId: 'm',
+        actorId: '',
+        timestamp: 't',
+      }),
     ).toBe(false);
   });
 
   it('rejects wrong-typed optional fields', () => {
     expect(
       isMailboxReceiptRecordV2({
-        __mailboxReceipt: 2, messageId: 'm', actorId: 'a', timestamp: 't', read: 'yes',
+        __mailboxReceipt: 2,
+        messageId: 'm',
+        actorId: 'a',
+        timestamp: 't',
+        read: 'yes',
       }),
     ).toBe(false);
     expect(
       isMailboxReceiptRecordV2({
-        __mailboxReceipt: 2, messageId: 'm', actorId: 'a', timestamp: 't', completed: 'true',
+        __mailboxReceipt: 2,
+        messageId: 'm',
+        actorId: 'a',
+        timestamp: 't',
+        completed: 'true',
       }),
     ).toBe(false);
   });
@@ -152,36 +168,59 @@ describe('serializeReceiptRecordV2', () => {
 describe('materializeMessages — v1 completion classification', () => {
   it('classifies completed direct message as actor-scoped (not legacy)', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: 'worker-1@sess-1', type: 'note',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: true, completedBy: 'worker-1@sess-1', completedAt: '2026-01-01T01:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: 'worker-1@sess-1',
+      type: 'note',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: true,
+      completedBy: 'worker-1@sess-1',
+      completedAt: '2026-01-01T01:00:00Z',
       timestamp: '2026-01-01T00:00:00Z',
     };
     const projections = materializeMessages([msg], []);
     expect(projections[0]!.legacyGlobalCompletion).toBeUndefined();
-    expect(projections[0]!.recipientState['worker-1@sess-1']?.completedAt).toBe('2026-01-01T01:00:00Z');
-  });
-
-  it('classifies completed process-qualified direct message as actor-scoped', () => {
-    const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: 'leader#123', type: 'ask',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: true, completedBy: 'leader#123', completedAt: '2026-01-01T01:00:00Z',
-      timestamp: '2026-01-01T00:00:00Z',
-    };
-    const projections = materializeMessages([msg], []);
-    expect(projections[0]!.legacyGlobalCompletion).toBeUndefined();
-    expect(projections[0]!.recipientState['leader#123']?.completedAt).toBe(
+    expect(projections[0]!.recipientState['worker-1@sess-1']?.completedAt).toBe(
       '2026-01-01T01:00:00Z',
     );
   });
 
+  it('classifies completed process-qualified direct message as actor-scoped', () => {
+    const msg: MailboxMessage = {
+      id: 'm1',
+      from: 'a',
+      to: 'leader#123',
+      type: 'ask',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: true,
+      completedBy: 'leader#123',
+      completedAt: '2026-01-01T01:00:00Z',
+      timestamp: '2026-01-01T00:00:00Z',
+    };
+    const projections = materializeMessages([msg], []);
+    expect(projections[0]!.legacyGlobalCompletion).toBeUndefined();
+    expect(projections[0]!.recipientState['leader#123']?.completedAt).toBe('2026-01-01T01:00:00Z');
+  });
+
   it('classifies completed broadcast as legacyGlobalCompletion', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: '*', type: 'broadcast',
-      subject: 's', body: 'b', priority: 'normal',
+      id: 'm1',
+      from: 'a',
+      to: '*',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
       readBy: { 'worker-1': '2026-01-01T00:30:00Z' },
-      completed: true, completedBy: 'worker-1', completedAt: '2026-01-01T01:00:00Z',
+      completed: true,
+      completedBy: 'worker-1',
+      completedAt: '2026-01-01T01:00:00Z',
       timestamp: '2026-01-01T00:00:00Z',
     };
     const projections = materializeMessages([msg], []);
@@ -194,9 +233,17 @@ describe('materializeMessages — v1 completion classification', () => {
 
   it('keeps completed v1 broadcast globally suppressed after a v2 read-only receipt', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: '*', type: 'broadcast',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: true, completedBy: 'worker-1', completedAt: '2026-01-01T01:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: '*',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: true,
+      completedBy: 'worker-1',
+      completedAt: '2026-01-01T01:00:00Z',
       timestamp: '2026-01-01T00:00:00Z',
     };
     const receipts = [
@@ -206,17 +253,23 @@ describe('materializeMessages — v1 completion classification', () => {
     const projections = materializeMessages([msg], receipts);
 
     expect(projections[0]!.legacyGlobalCompletion).toBe(true);
-    expect(projections[0]!.recipientState['worker-2']?.readAt).toBe(
-      '2026-01-01T02:00:00Z',
-    );
+    expect(projections[0]!.recipientState['worker-2']?.readAt).toBe('2026-01-01T02:00:00Z');
     expect(projections[0]!.recipientState['worker-2']?.completedAt).toBeUndefined();
   });
 
   it('classifies completed session broadcast as legacyGlobalCompletion', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: '@session:sess-1', type: 'broadcast',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: true, completedBy: 'a', completedAt: '2026-01-01T01:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: '@session:sess-1',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: true,
+      completedBy: 'a',
+      completedAt: '2026-01-01T01:00:00Z',
       timestamp: '2026-01-01T00:00:00Z',
     };
     const projections = materializeMessages([msg], []);
@@ -225,9 +278,16 @@ describe('materializeMessages — v1 completion classification', () => {
 
   it('classifies incomplete messages as neither legacy nor actor-scoped', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: '*', type: 'broadcast',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: '*',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     };
     const projections = materializeMessages([msg], []);
     expect(projections[0]!.legacyGlobalCompletion).toBeUndefined();
@@ -239,22 +299,34 @@ describe('materializeMessages — v1 completion classification', () => {
 describe('materializeMessages — v2 receipt folding', () => {
   it('folds a read receipt from v2 record', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: 'b', type: 'note',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     };
-    const receipts = [
-      buildReceiptRecordV2('m1', 'b', '2026-01-01T01:00:00Z', { read: true }),
-    ];
+    const receipts = [buildReceiptRecordV2('m1', 'b', '2026-01-01T01:00:00Z', { read: true })];
     const projections = materializeMessages([msg], receipts);
     expect(projections[0]!.recipientState['b']?.readAt).toBe('2026-01-01T01:00:00Z');
   });
 
   it('folds a completion from v2 record', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: 'b', type: 'ask',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     };
     const receipts = [
       buildReceiptRecordV2('m1', 'b', '2026-01-01T02:00:00Z', { completed: true, outcome: 'done' }),
@@ -266,9 +338,16 @@ describe('materializeMessages — v2 receipt folding', () => {
 
   it('read timestamp uses first-write-wins', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: '*', type: 'broadcast',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: '*',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     };
     const receipts = [
       buildReceiptRecordV2('m1', 'c', '2026-01-01T03:00:00Z', { read: true }),
@@ -281,9 +360,16 @@ describe('materializeMessages — v2 receipt folding', () => {
 
   it('completion is monotonic upward', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: '*', type: 'broadcast',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: '*',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     };
     const receipts = [
       buildReceiptRecordV2('m1', 'c', '2026-01-01T01:00:00Z', { completed: true }),
@@ -296,9 +382,16 @@ describe('materializeMessages — v2 receipt folding', () => {
 
   it('outcome uses last-write-wins', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: 'b', type: 'ask',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     };
     const receipts = [
       buildReceiptRecordV2('m1', 'b', '2026-01-01T01:00:00Z', { outcome: 'first' }),
@@ -310,23 +403,40 @@ describe('materializeMessages — v2 receipt folding', () => {
 
   it('uses persisted order to break equal-timestamp completion ties', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: 'b', type: 'ask',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     };
     const timestamp = '2026-01-01T01:00:00Z';
-    const projections = materializeMessages([msg], [
-      buildReceiptRecordV2('m1', 'b', timestamp, { completed: true }),
-      buildReceiptRecordV2('m1', 'b', timestamp, { completed: false }),
-    ]);
+    const projections = materializeMessages(
+      [msg],
+      [
+        buildReceiptRecordV2('m1', 'b', timestamp, { completed: true }),
+        buildReceiptRecordV2('m1', 'b', timestamp, { completed: false }),
+      ],
+    );
     expect(projections[0]!.recipientState['b']?.completedAt).toBeUndefined();
   });
 
   it('duplicate records (same timestamp) are idempotent', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: 'b', type: 'note',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     };
     const ts = '2026-01-01T01:00:00Z';
     const receipts = [
@@ -339,9 +449,16 @@ describe('materializeMessages — v2 receipt folding', () => {
 
   it('separate actors get separate state', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: '*', type: 'broadcast',
-      subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: '*',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     };
     const receipts = [
       buildReceiptRecordV2('m1', 'b', '2026-01-01T01:00:00Z', { read: true, completed: true }),
@@ -361,7 +478,18 @@ describe('extractV2Receipts', () => {
     const parsed = [
       { __mailboxReceipt: 2, messageId: 'm1', actorId: 'a', timestamp: 't' },
       { __ack: true, messageId: 'm2', readerId: 'b', timestamp: 't2', read: true },
-      { id: 'm1', from: 'a', to: 'b', type: 'note', subject: 's', body: 'b', priority: 'normal', readBy: {}, completed: false, timestamp: 't' },
+      {
+        id: 'm1',
+        from: 'a',
+        to: 'b',
+        type: 'note',
+        subject: 's',
+        body: 'b',
+        priority: 'normal',
+        readBy: {},
+        completed: false,
+        timestamp: 't',
+      },
       { __mailboxReceipt: 2, messageId: 'm2', actorId: 'c', timestamp: 't3' },
     ];
     const receipts = extractV2Receipts(parsed);
@@ -402,7 +530,9 @@ describe('parseMailboxFile', () => {
         timestamp: '2026-01-01T02:00:00Z',
         completed: true,
       },
-    ].map((record) => JSON.stringify(record)).join('\n');
+    ]
+      .map((record) => JSON.stringify(record))
+      .join('\n');
 
     const projections = parseMailboxFile(raw);
 
@@ -421,7 +551,11 @@ describe('parseMailboxFile', () => {
 describe('SqliteMailbox v2 receipt integration', () => {
   it('records a per-actor receipt on ack', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 'q',
+      body: '?',
     });
     await mb.ack({
       messageId: msg.id,
@@ -438,7 +572,11 @@ describe('SqliteMailbox v2 receipt integration', () => {
 
   it('keeps actor completion and outcome off the message for fan-out messages', async () => {
     const msg = await mb.send({
-      from: 'leader', to: '*', type: 'broadcast', subject: 'q', body: '?',
+      from: 'leader',
+      to: '*',
+      type: 'broadcast',
+      subject: 'q',
+      body: '?',
     });
     await mb.ack({
       messageId: msg.id,
@@ -469,7 +607,11 @@ describe('SqliteMailbox v2 receipt integration', () => {
 
   it('messages and receipts survive close and reopen', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'note', subject: 's', body: 'b',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's',
+      body: 'b',
     });
     await mb.ack({ messageId: msg.id, readerId: 'b', read: true });
     await mb.close();
@@ -477,7 +619,11 @@ describe('SqliteMailbox v2 receipt integration', () => {
     // Reopen and send another message.
     const mb2 = reopen();
     const msg2 = await mb2.send({
-      from: 'a', to: 'b', type: 'note', subject: 's2', body: 'b2',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's2',
+      body: 'b2',
     });
     await mb2.ack({ messageId: msg2.id, readerId: 'b', read: true, completed: true });
     await mb2.close();
@@ -495,13 +641,24 @@ describe('SqliteMailbox v2 receipt integration', () => {
   it('imports v1 acks and v2 receipt lines from a legacy JSONL mailbox', async () => {
     const store = await openWithLegacyLines([
       JSON.stringify({
-        id: 'legacy-1', from: 'a', to: 'legacy@sess-1', type: 'ask',
-        subject: 's', body: 'b', priority: 'normal',
-        readBy: {}, completed: false, timestamp: '2026-01-01T00:00:00Z',
+        id: 'legacy-1',
+        from: 'a',
+        to: 'legacy@sess-1',
+        type: 'ask',
+        subject: 's',
+        body: 'b',
+        priority: 'normal',
+        readBy: {},
+        completed: false,
+        timestamp: '2026-01-01T00:00:00Z',
       }),
       JSON.stringify({
-        __ack: true, messageId: 'legacy-1', readerId: 'legacy@sess-1',
-        timestamp: '2026-01-01T01:00:00Z', read: true, completed: true,
+        __ack: true,
+        messageId: 'legacy-1',
+        readerId: 'legacy@sess-1',
+        timestamp: '2026-01-01T01:00:00Z',
+        read: true,
+        completed: true,
       }),
       JSON.stringify(
         buildReceiptRecordV2('legacy-1', 'modern@sess-2', '2026-01-01T02:00:00Z', {
@@ -511,12 +668,8 @@ describe('SqliteMailbox v2 receipt integration', () => {
     ]);
 
     const projection = await projectionOf(store, 'legacy-1');
-    expect(projection?.recipientState['legacy@sess-1']?.completedAt).toBe(
-      '2026-01-01T01:00:00Z',
-    );
-    expect(projection?.recipientState['modern@sess-2']?.completedAt).toBe(
-      '2026-01-01T02:00:00Z',
-    );
+    expect(projection?.recipientState['legacy@sess-1']?.completedAt).toBe('2026-01-01T01:00:00Z');
+    expect(projection?.recipientState['modern@sess-2']?.completedAt).toBe('2026-01-01T02:00:00Z');
   });
 });
 
@@ -525,13 +678,24 @@ describe('SqliteMailbox v2 receipt integration', () => {
 describe('parseMailboxFile integration', () => {
   it('folds v1 message + v2 receipt into recipientState', () => {
     const msg = JSON.stringify({
-      id: 'm1', from: 'a', to: 'b', type: 'note',
-      subject: 's', body: 'b', priority: 'normal',
-      readBy: {}, completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     });
     const receipt = JSON.stringify({
-      __mailboxReceipt: 2, messageId: 'm1', actorId: 'b',
-      timestamp: '2026-01-01T01:00:00Z', read: true, completed: true,
+      __mailboxReceipt: 2,
+      messageId: 'm1',
+      actorId: 'b',
+      timestamp: '2026-01-01T01:00:00Z',
+      read: true,
+      completed: true,
     });
     const projections = parseMailboxFile(`${msg}\n${receipt}\n`);
     expect(projections).toHaveLength(1);
@@ -541,10 +705,18 @@ describe('parseMailboxFile integration', () => {
 
   it('classifies v1 broadcast completed as legacyGlobalCompletion', () => {
     const msg = JSON.stringify({
-      id: 'm1', from: 'a', to: '*', type: 'broadcast',
-      subject: 's', body: 'b', priority: 'normal',
-      readBy: {}, completed: true, completedBy: 'x',
-      completedAt: '2026-01-01T01:00:00Z', timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: '*',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: true,
+      completedBy: 'x',
+      completedAt: '2026-01-01T01:00:00Z',
+      timestamp: '2026-01-01T00:00:00Z',
     });
     const projections = parseMailboxFile(`${msg}\n`);
     expect(projections[0]!.legacyGlobalCompletion).toBe(true);
@@ -552,10 +724,16 @@ describe('parseMailboxFile integration', () => {
 
   it('preserves readBy seeds for v2 receipt state', () => {
     const msg = JSON.stringify({
-      id: 'm1', from: 'a', to: 'b', type: 'note',
-      subject: 's', body: 'b', priority: 'normal',
-      readBy: { 'b': '2026-01-01T00:30:00Z' },
-      completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: { b: '2026-01-01T00:30:00Z' },
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     });
     const projections = parseMailboxFile(`${msg}\n`);
     expect(projections[0]!.recipientState['b']?.readAt).toBe('2026-01-01T00:30:00Z');
@@ -563,9 +741,16 @@ describe('parseMailboxFile integration', () => {
 
   it('skips malformed lines without dropping valid messages', () => {
     const msg = JSON.stringify({
-      id: 'm1', from: 'a', to: 'b', type: 'note',
-      subject: 's', body: 'b', priority: 'normal',
-      readBy: {}, completed: false, timestamp: '2026-01-01T00:00:00Z',
+      id: 'm1',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's',
+      body: 'b',
+      priority: 'normal',
+      readBy: {},
+      completed: false,
+      timestamp: '2026-01-01T00:00:00Z',
     });
     const projections = parseMailboxFile(`${msg}\nnot-json\n{}\n`);
     expect(projections).toHaveLength(1);
@@ -578,32 +763,50 @@ describe('parseMailboxFile integration', () => {
 describe('SqliteMailbox v2 actor-scoped completion', () => {
   it('persists separate completions when two actors complete a broadcast', async () => {
     const msg = await mb.send({
-      from: 'leader', to: '*', type: 'broadcast',
-      subject: 'all-hands', body: 'meeting',
+      from: 'leader',
+      to: '*',
+      type: 'broadcast',
+      subject: 'all-hands',
+      body: 'meeting',
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'actor-a', read: true, completed: true,
+      messageId: msg.id,
+      readerId: 'actor-a',
+      read: true,
+      completed: true,
     });
 
     const forB = await mb.query({
-      to: '*', unreadBy: 'actor-b', readerRole: 'worker', incompleteOnly: true,
+      to: '*',
+      unreadBy: 'actor-b',
+      readerRole: 'worker',
+      incompleteOnly: true,
     });
     expect(forB.map((message) => message.id)).toContain(msg.id);
     expect(forB[0]).not.toHaveProperty('recipientState');
     expect(forB[0]).not.toHaveProperty('legacyGlobalCompletion');
 
     await mb.ack({
-      messageId: msg.id, readerId: 'actor-b', read: true, completed: true,
+      messageId: msg.id,
+      readerId: 'actor-b',
+      read: true,
+      completed: true,
     });
     await mb.close();
 
     const reopened = reopen();
     const forBAfterReopen = await reopened.query({
-      to: '*', unreadBy: 'actor-b', readerRole: 'worker', incompleteOnly: true,
+      to: '*',
+      unreadBy: 'actor-b',
+      readerRole: 'worker',
+      incompleteOnly: true,
     });
     expect(forBAfterReopen.map((message) => message.id)).not.toContain(msg.id);
     const forAAfterReopen = await reopened.query({
-      to: '*', unreadBy: 'actor-a', readerRole: 'worker', incompleteOnly: true,
+      to: '*',
+      unreadBy: 'actor-a',
+      readerRole: 'worker',
+      incompleteOnly: true,
     });
     expect(forAAfterReopen.map((message) => message.id)).not.toContain(msg.id);
 
@@ -614,14 +817,24 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
 
   it('direct message completion is actor-scoped', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 'q',
+      body: '?',
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'b', read: true, completed: true,
+      messageId: msg.id,
+      readerId: 'b',
+      read: true,
+      completed: true,
     });
     // B queries incompleteOnly - should NOT see it
     const forB = await mb.query({
-      to: 'b', unreadBy: 'b', readerRole: 'worker', incompleteOnly: true,
+      to: 'b',
+      unreadBy: 'b',
+      readerRole: 'worker',
+      incompleteOnly: true,
     });
     expect(forB.map((m) => m.id)).not.toContain(msg.id);
   });
@@ -644,17 +857,28 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
     // upgrade does not re-deliver it; `legacyGlobalCompletion` marks it.
     const store = await openWithLegacyLines([
       JSON.stringify({
-        id: 'legacy-fanout', from: 'a', to: '*', type: 'broadcast',
-        subject: 'q', body: '?', priority: 'normal', readBy: {},
-        completed: true, completedBy: 'legacy-worker',
-        completedAt: '2026-01-01T01:00:00Z', timestamp: '2026-01-01T00:00:00Z',
+        id: 'legacy-fanout',
+        from: 'a',
+        to: '*',
+        type: 'broadcast',
+        subject: 'q',
+        body: '?',
+        priority: 'normal',
+        readBy: {},
+        completed: true,
+        completedBy: 'legacy-worker',
+        completedAt: '2026-01-01T01:00:00Z',
+        timestamp: '2026-01-01T00:00:00Z',
       }),
     ]);
     const projection = await projectionOf(store, 'legacy-fanout');
     expect(projection?.legacyGlobalCompletion).toBe(true);
 
     await store.ack({
-      messageId: 'legacy-fanout', readerId: 'modern-worker', read: false, completed: true,
+      messageId: 'legacy-fanout',
+      readerId: 'modern-worker',
+      read: false,
+      completed: true,
     });
     const after = await projectionOf(store, 'legacy-fanout');
     expect(after?.recipientState['modern-worker']?.completedAt).toBeUndefined();
@@ -663,23 +887,34 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
 
   it('reopen via completed:false makes message incomplete for that actor', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 'q',
+      body: '?',
     });
     // Complete it
     await mb.ack({
-      messageId: msg.id, readerId: 'b', read: true, completed: true,
+      messageId: msg.id,
+      readerId: 'b',
+      read: true,
+      completed: true,
     });
     // Reopen using the canonical reopen verb: read:false + completed:false
     // (matches actionToAckInput('reopen') in mailbox-actions.ts)
     await mb.ack({
-      messageId: msg.id, readerId: 'b',
+      messageId: msg.id,
+      readerId: 'b',
       read: false,
       completed: false,
     });
     // An incomplete-work query is actor-scoped, not an unread query: the
     // reopened message remains read but must re-enter this actor's queue.
     const incomplete = await mb.query({
-      to: 'b', unreadBy: 'b', readerRole: 'worker', incompleteOnly: true,
+      to: 'b',
+      unreadBy: 'b',
+      readerRole: 'worker',
+      incompleteOnly: true,
     });
     expect(incomplete.map((message) => message.id)).toContain(msg.id);
     expect(incomplete.find((message) => message.id === msg.id)?.readBy).toHaveProperty('b');
@@ -694,18 +929,33 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
     const timestamp = '2026-01-01T01:00:00.000Z';
     const store = await openWithLegacyLines([
       JSON.stringify({
-        id: 'legacy-direct', from: 'a', to: 'b@sess-1', type: 'ask',
-        subject: 'q', body: '?', priority: 'normal', readBy: {}, completed: false,
+        id: 'legacy-direct',
+        from: 'a',
+        to: 'b@sess-1',
+        type: 'ask',
+        subject: 'q',
+        body: '?',
+        priority: 'normal',
+        readBy: {},
+        completed: false,
         timestamp: '2026-01-01T00:00:00.000Z',
       }),
       JSON.stringify({
-        __ack: true, messageId: 'legacy-direct', readerId: 'b@sess-1', timestamp,
-        read: true, completed: true, completedBy: 'b@sess-1',
+        __ack: true,
+        messageId: 'legacy-direct',
+        readerId: 'b@sess-1',
+        timestamp,
+        read: true,
+        completed: true,
+        completedBy: 'b@sess-1',
       }),
     ]);
 
     await store.ack({
-      messageId: 'legacy-direct', readerId: 'b@sess-1', read: false, completed: false,
+      messageId: 'legacy-direct',
+      readerId: 'b@sess-1',
+      read: false,
+      completed: false,
     });
 
     const projection = await projectionOf(store, 'legacy-direct');
@@ -717,16 +967,28 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
     // already-completed message must NOT reopen it. Only the explicit
     // reopen verb (read:false, completed:false) reopens.
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 'q',
+      body: '?',
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'b', read: true, completed: true,
+      messageId: msg.id,
+      readerId: 'b',
+      read: true,
+      completed: true,
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'b', read: true,
+      messageId: msg.id,
+      readerId: 'b',
+      read: true,
     });
     const incomplete = await mb.query({
-      to: 'b', unreadBy: 'b', readerRole: 'worker', incompleteOnly: true,
+      to: 'b',
+      unreadBy: 'b',
+      readerRole: 'worker',
+      incompleteOnly: true,
     });
     expect(incomplete.map((m) => m.id)).not.toContain(msg.id);
     expect((await projectionOf(mb, msg.id))?.recipientState['b']?.completedAt).toBeDefined();
@@ -736,37 +998,55 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
     // Regression: setting an outcome after completion (completed:undefined)
     // must not reopen the message.
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 'q',
+      body: '?',
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'b', read: true, completed: true,
+      messageId: msg.id,
+      readerId: 'b',
+      read: true,
+      completed: true,
     });
     // Outcome-only ack - completed is undefined, not false
     await mb.ack({
-      messageId: msg.id, readerId: 'b', outcome: 'resolved',
+      messageId: msg.id,
+      readerId: 'b',
+      outcome: 'resolved',
     });
     const projection = await projectionOf(mb, msg.id);
     expect(projection?.recipientState['b']?.completedAt).toBeDefined();
     expect(projection?.recipientState['b']?.outcome).toBe('resolved');
     const incomplete = await mb.query({
-      to: 'b', unreadBy: 'b', readerRole: 'worker', incompleteOnly: true,
+      to: 'b',
+      unreadBy: 'b',
+      readerRole: 'worker',
+      incompleteOnly: true,
     });
     expect(incomplete.map((m) => m.id)).not.toContain(msg.id);
   });
 
   it('returns the freshly folded actor receipt from ackMany', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'ask', subject: 'q', body: '?',
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 'q',
+      body: '?',
     });
 
     const [updated] = await mb.ackMany({
-      acks: [{
-        messageId: msg.id,
-        readerId: 'b',
-        read: true,
-        completed: true,
-        outcome: 'resolved',
-      }],
+      acks: [
+        {
+          messageId: msg.id,
+          readerId: 'b',
+          read: true,
+          completed: true,
+          outcome: 'resolved',
+        },
+      ],
     });
     const projection = updated as MailboxMessageProjection;
 
@@ -795,13 +1075,23 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
 
   it('records the same outcome independently for two actors', async () => {
     const msg = await mb.send({
-      from: 'leader', to: '*', type: 'broadcast', subject: 's', body: 'b',
+      from: 'leader',
+      to: '*',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'actor-a', read: true, outcome: 'acknowledged',
+      messageId: msg.id,
+      readerId: 'actor-a',
+      read: true,
+      outcome: 'acknowledged',
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'actor-b', read: true, outcome: 'acknowledged',
+      messageId: msg.id,
+      readerId: 'actor-b',
+      read: true,
+      outcome: 'acknowledged',
     });
 
     const projection = await projectionOf(mb, msg.id);
@@ -814,14 +1104,26 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
     // "wontfix" on the same broadcast. Each actor's state must be its OWN,
     // not the message-global one and not the other actor's.
     const msg = await mb.send({
-      from: 'a', to: '*', type: 'broadcast', subject: 'bug', body: 'crash on startup',
+      from: 'a',
+      to: '*',
+      type: 'broadcast',
+      subject: 'bug',
+      body: 'crash on startup',
     });
 
     await mb.ack({
-      messageId: msg.id, readerId: 'worker-a@sess-1', read: true, completed: true, outcome: 'fixed',
+      messageId: msg.id,
+      readerId: 'worker-a@sess-1',
+      read: true,
+      completed: true,
+      outcome: 'fixed',
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'worker-b@sess-2', read: true, completed: true, outcome: 'wontfix',
+      messageId: msg.id,
+      readerId: 'worker-b@sess-2',
+      read: true,
+      completed: true,
+      outcome: 'wontfix',
     });
 
     const projection = await projectionOf(mb, msg.id);
@@ -830,7 +1132,9 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
 
     // Actor A changes its outcome - actor B's is untouched.
     await mb.ack({
-      messageId: msg.id, readerId: 'worker-a@sess-1', outcome: 'needs-review',
+      messageId: msg.id,
+      readerId: 'worker-a@sess-1',
+      outcome: 'needs-review',
     });
     const final = await projectionOf(mb, msg.id);
     expect(final?.recipientState['worker-a@sess-1']?.outcome).toBe('needs-review');
@@ -839,7 +1143,11 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
 
   it('unread count respects actor-scoped completion', async () => {
     const msg = await mb.send({
-      from: 'a', to: '*', type: 'broadcast', subject: 's', body: 'b',
+      from: 'a',
+      to: '*',
+      type: 'broadcast',
+      subject: 's',
+      body: 'b',
     });
     // Actor A reads but does not complete
     await mb.ack({ messageId: msg.id, readerId: 'a', read: true });
@@ -855,16 +1163,31 @@ describe('SqliteMailbox v2 actor-scoped completion', () => {
 describe('SqliteMailbox autoCompact preserves v2 receipts', () => {
   it('retains a v2 broadcast on the incomplete TTL while a recipient is unfinished', async () => {
     await mb.registerAgent({
-      agentId: 'actor-a@s', sessionId: 's', name: 'A', role: 'worker', pid: 1,
+      agentId: 'actor-a@s',
+      sessionId: 's',
+      name: 'A',
+      role: 'worker',
+      pid: 1,
     });
     await mb.registerAgent({
-      agentId: 'actor-b@s', sessionId: 's', name: 'B', role: 'worker', pid: 2,
+      agentId: 'actor-b@s',
+      sessionId: 's',
+      name: 'B',
+      role: 'worker',
+      pid: 2,
     });
     const msg = await mb.send({
-      from: 'leader@s', to: '*', type: 'broadcast', subject: 'fan-out', body: 'b',
+      from: 'leader@s',
+      to: '*',
+      type: 'broadcast',
+      subject: 'fan-out',
+      body: 'b',
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'actor-a@s', read: true, completed: true,
+      messageId: msg.id,
+      readerId: 'actor-a@s',
+      read: true,
+      completed: true,
     });
 
     const result = await mb.autoCompact({
@@ -879,10 +1202,18 @@ describe('SqliteMailbox autoCompact preserves v2 receipts', () => {
 
   it('v2 receipts survive an autoCompact pass', async () => {
     const msg1 = await mb.send({
-      from: 'a', to: 'b', type: 'note', subject: 'm1', body: 'b',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 'm1',
+      body: 'b',
     });
     const msg2 = await mb.send({
-      from: 'a', to: 'b', type: 'note', subject: 'm2', body: 'b',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 'm2',
+      body: 'b',
     });
     await mb.ack({ messageId: msg1.id, readerId: 'b', read: true, completed: true });
     await mb.ack({ messageId: msg2.id, readerId: 'b', read: true });
@@ -902,18 +1233,36 @@ describe('SqliteMailbox autoCompact preserves v2 receipts', () => {
     // (old and already read by every online agent).
     const store = await openWithLegacyLines([
       JSON.stringify({
-        id: 'keep-me', from: 'a', to: 'ag1', type: 'note',
-        subject: 'keep', body: 'b', priority: 'normal',
-        readBy: { ag1: oldTime }, completed: false, timestamp: nowTime,
+        id: 'keep-me',
+        from: 'a',
+        to: 'ag1',
+        type: 'note',
+        subject: 'keep',
+        body: 'b',
+        priority: 'normal',
+        readBy: { ag1: oldTime },
+        completed: false,
+        timestamp: nowTime,
       }),
       JSON.stringify({
-        id: 'purge-me', from: 'a', to: 'ag1', type: 'note',
-        subject: 'purge', body: 'b', priority: 'normal',
-        readBy: { ag1: oldTime }, completed: false, timestamp: oldTime,
+        id: 'purge-me',
+        from: 'a',
+        to: 'ag1',
+        type: 'note',
+        subject: 'purge',
+        body: 'b',
+        priority: 'normal',
+        readBy: { ag1: oldTime },
+        completed: false,
+        timestamp: oldTime,
       }),
     ]);
     await store.registerAgent({
-      agentId: 'ag1', sessionId: 's', name: 'A', role: 'r', pid: 1,
+      agentId: 'ag1',
+      sessionId: 's',
+      name: 'A',
+      role: 'r',
+      pid: 1,
     });
     await store.ack({ messageId: 'keep-me', readerId: 'ag1', read: true, completed: true });
 
@@ -923,8 +1272,9 @@ describe('SqliteMailbox autoCompact preserves v2 receipts', () => {
     const ids = (await store.query({ limit: 100 })).map((message) => message.id);
     expect(ids).toContain('keep-me');
     expect(ids).not.toContain('purge-me');
-    expect((await projectionOf(store, 'keep-me'))?.recipientState['ag1']?.completedAt)
-      .toBeDefined();
+    expect(
+      (await projectionOf(store, 'keep-me'))?.recipientState['ag1']?.completedAt,
+    ).toBeDefined();
   });
 });
 
@@ -933,10 +1283,18 @@ describe('SqliteMailbox purgeStale preserves v2 receipts', () => {
     const oldTime = new Date(Date.now() - 2 * 86_400_000).toISOString();
     const store = await openWithLegacyLines([
       JSON.stringify({
-        id: 'reopened', from: 'a', to: 'b', type: 'ask',
-        subject: 'work', body: 'b', priority: 'normal',
-        readBy: { b: oldTime }, completed: true, completedBy: 'b',
-        completedAt: oldTime, timestamp: oldTime,
+        id: 'reopened',
+        from: 'a',
+        to: 'b',
+        type: 'ask',
+        subject: 'work',
+        body: 'b',
+        priority: 'normal',
+        readBy: { b: oldTime },
+        completed: true,
+        completedBy: 'b',
+        completedAt: oldTime,
+        timestamp: oldTime,
       }),
       JSON.stringify(buildReceiptRecordV2('reopened', 'b', oldTime, { completed: true })),
       JSON.stringify(buildReceiptRecordV2('reopened', 'b', oldTime, { completed: false })),
@@ -952,16 +1310,31 @@ describe('SqliteMailbox purgeStale preserves v2 receipts', () => {
 
   it('retains a v2 broadcast until every intended recipient completes it', async () => {
     await mb.registerAgent({
-      agentId: 'actor-a@s', sessionId: 's', name: 'A', role: 'worker', pid: 1,
+      agentId: 'actor-a@s',
+      sessionId: 's',
+      name: 'A',
+      role: 'worker',
+      pid: 1,
     });
     await mb.registerAgent({
-      agentId: 'actor-b@s', sessionId: 's', name: 'B', role: 'worker', pid: 2,
+      agentId: 'actor-b@s',
+      sessionId: 's',
+      name: 'B',
+      role: 'worker',
+      pid: 2,
     });
     const msg = await mb.send({
-      from: 'leader@s', to: '*', type: 'broadcast', subject: 'fan-out', body: 'b',
+      from: 'leader@s',
+      to: '*',
+      type: 'broadcast',
+      subject: 'fan-out',
+      body: 'b',
     });
     await mb.ack({
-      messageId: msg.id, readerId: 'actor-a@s', read: true, completed: true,
+      messageId: msg.id,
+      readerId: 'actor-a@s',
+      read: true,
+      completed: true,
     });
 
     const result = await mb.purgeStale({
@@ -980,15 +1353,30 @@ describe('SqliteMailbox purgeStale preserves v2 receipts', () => {
 
     const store = await openWithLegacyLines([
       JSON.stringify({
-        id: 'old-done', from: 'a', to: 'b', type: 'note',
-        subject: 'old', body: 'b', priority: 'normal',
-        readBy: {}, completed: true, completedAt: oldTime,
-        completedBy: 'b', timestamp: oldTime,
+        id: 'old-done',
+        from: 'a',
+        to: 'b',
+        type: 'note',
+        subject: 'old',
+        body: 'b',
+        priority: 'normal',
+        readBy: {},
+        completed: true,
+        completedAt: oldTime,
+        completedBy: 'b',
+        timestamp: oldTime,
       }),
       JSON.stringify({
-        id: 'keep-me', from: 'a', to: 'b', type: 'note',
-        subject: 'keep', body: 'b', priority: 'normal',
-        readBy: {}, completed: false, timestamp: recentTime,
+        id: 'keep-me',
+        from: 'a',
+        to: 'b',
+        type: 'note',
+        subject: 'keep',
+        body: 'b',
+        priority: 'normal',
+        readBy: {},
+        completed: false,
+        timestamp: recentTime,
       }),
     ]);
     await store.ack({ messageId: 'keep-me', readerId: 'b', read: true });

@@ -75,7 +75,11 @@ describe('PANEL_IDS / DEFAULT_PANEL_POSITIONS / SETTINGS_FIELD_LABELS contract',
   });
 
   it('SETTINGS_FIELD_LABELS has a label for every per-panel row', () => {
-    for (let i = PANEL_POSITION_FIELD_START; i < PANEL_POSITION_FIELD_START + PANEL_IDS.length; i++) {
+    for (
+      let i = PANEL_POSITION_FIELD_START;
+      i < PANEL_POSITION_FIELD_START + PANEL_IDS.length;
+      i++
+    ) {
       const label = SETTINGS_FIELD_LABELS[i];
       expect(typeof label).toBe('string');
       if (typeof label !== 'string') throw new Error(`missing label for field ${i}`);
@@ -84,7 +88,10 @@ describe('PANEL_IDS / DEFAULT_PANEL_POSITIONS / SETTINGS_FIELD_LABELS contract',
   });
 
   it('the per-panel label count matches PANEL_IDS.length', () => {
-    const perPanelLabels = SETTINGS_FIELD_LABELS.slice(PANEL_POSITION_FIELD_START, PANEL_POSITION_FIELD_START + PANEL_IDS.length);
+    const perPanelLabels = SETTINGS_FIELD_LABELS.slice(
+      PANEL_POSITION_FIELD_START,
+      PANEL_POSITION_FIELD_START + PANEL_IDS.length,
+    );
     expect(perPanelLabels.length).toBe(PANEL_IDS.length);
   });
 });
@@ -171,7 +178,11 @@ describe('settingsValueChange runtime reducer for fields PANEL_POSITION_FIELD_ST
   });
 
   it('every per-panel field cycles independently', () => {
-    for (let f = PANEL_POSITION_FIELD_START; f < PANEL_POSITION_FIELD_START + PANEL_IDS.length; f++) {
+    for (
+      let f = PANEL_POSITION_FIELD_START;
+      f < PANEL_POSITION_FIELD_START + PANEL_IDS.length;
+      f++
+    ) {
       const before = makePickerState();
       before.settingsPicker.field = f;
       const panelId = PANEL_IDS[f - PANEL_POSITION_FIELD_START]!;
@@ -248,8 +259,7 @@ describe('SIDEBAR_PANEL_LIMIT enforcement', () => {
       (id) => allSidebar[id] === 'sidebar' && (allOpen[id] ?? false),
     );
     const visibleSidebarPanelIds = openSidebarPanelIds.slice(0, SIDEBAR_PANEL_LIMIT);
-    const sidebarSlotVisible = (id: PanelId): boolean =>
-      visibleSidebarPanelIds.includes(id);
+    const sidebarSlotVisible = (id: PanelId): boolean => visibleSidebarPanelIds.includes(id);
 
     // All 13 are open + routed to sidebar, but only 6 get slots.
     expect(openSidebarPanelIds.length).toBe(13);

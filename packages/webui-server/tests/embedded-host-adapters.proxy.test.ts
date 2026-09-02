@@ -30,9 +30,11 @@ vi.mock('ws', () => {
 });
 
 vi.mock('@wrongstack/providers', () => ({
-  makeProviderFromConfig: vi.fn(
-    (id: string, cfg: Record<string, unknown>) => ({ id, ...cfg, capabilities: { maxContext: 128000 } }),
-  ),
+  makeProviderFromConfig: vi.fn((id: string, cfg: Record<string, unknown>) => ({
+    id,
+    ...cfg,
+    capabilities: { maxContext: 128000 },
+  })),
 }));
 
 import {

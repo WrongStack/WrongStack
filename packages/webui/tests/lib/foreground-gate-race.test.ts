@@ -16,9 +16,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
  */
 
 const { isActiveSessionMessage } = await import('../../src/lib/ws-client-utils');
-const { setActiveSessionLane, useSessionLanes } = await import(
-  '../../src/stores/session-lanes'
-);
+const { setActiveSessionLane, useSessionLanes } = await import('../../src/stores/session-lanes');
 const { useChatLanes } = await import('../../src/stores/chat-lanes');
 const { useSessionStore } = await import('../../src/stores/session-store');
 
@@ -35,12 +33,8 @@ describe('foreground gate in the fresh-tab window', () => {
     setActiveSessionLane('sess_b');
     expect(useSessionStore.getState().session?.id ?? null).toBeNull();
 
-    expect(isActiveSessionMessage({ payload: { sessionId: 'sess_a' } } as never)).toBe(
-      false,
-    );
-    expect(isActiveSessionMessage({ payload: { sessionId: 'sess_b' } } as never)).toBe(
-      true,
-    );
+    expect(isActiveSessionMessage({ payload: { sessionId: 'sess_a' } } as never)).toBe(false);
+    expect(isActiveSessionMessage({ payload: { sessionId: 'sess_b' } } as never)).toBe(true);
   });
 
   it('keeps the pre-session allowance: untagged passes, empty-string never widens', () => {

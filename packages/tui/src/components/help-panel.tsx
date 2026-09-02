@@ -18,9 +18,7 @@ interface HelpPanelProps {
 
 const CATEGORY_ORDER = ['Run', 'Session', 'Inspect', 'Agent', 'Config', 'App'];
 
-type Row =
-  | { type: 'header'; category: string }
-  | { type: 'item'; entry: HelpEntry; index: number };
+type Row = { type: 'header'; category: string } | { type: 'item'; entry: HelpEntry; index: number };
 
 const CHROME_ROWS = 7;
 
@@ -70,12 +68,7 @@ function windowRows(rows: Row[], focus: number, max: number) {
   return { rows: rows.slice(start, end), start, end, contextHeader };
 }
 
-export function HelpPanel({
-  entries,
-  filter,
-  selected,
-  hint,
-}: HelpPanelProps): React.ReactElement {
+export function HelpPanel({ entries, filter, selected, hint }: HelpPanelProps): React.ReactElement {
   const { stdout } = useStdout();
   const termRows = stdout?.rows ?? 24;
   const maxVisible = Math.max(6, termRows - CHROME_ROWS);
@@ -131,14 +124,16 @@ export function HelpPanel({
             ) : null}
             {contextHeader && !hasFilter ? (
               <Text bold color="yellow" dimColor>
-                {'  '}{contextHeader}
+                {'  '}
+                {contextHeader}
               </Text>
             ) : null}
             {visible.map((row) => {
               if (row.type === 'header') {
                 return (
                   <Text key={`cat-${row.category}`} bold color="yellow" dimColor>
-                    {'  '}{row.category}
+                    {'  '}
+                    {row.category}
                   </Text>
                 );
               }

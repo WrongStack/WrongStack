@@ -77,7 +77,9 @@ describe('instance-registry', () => {
     it('returns true on EPERM (process exists, owned by other user)', () => {
       const err = new Error('EPERM') as any;
       err.code = 'EPERM';
-      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => { throw err; });
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => {
+        throw err;
+      });
       expect(isPidAlive(1)).toBe(true);
       killSpy.mockRestore();
     });
@@ -85,7 +87,9 @@ describe('instance-registry', () => {
     it('returns false on ESRCH (process not found)', () => {
       const err = new Error('ESRCH') as any;
       err.code = 'ESRCH';
-      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => { throw err; });
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => {
+        throw err;
+      });
       expect(isPidAlive(1)).toBe(false);
       killSpy.mockRestore();
     });
@@ -155,10 +159,12 @@ describe('instance-registry', () => {
 
   describe('unregisterInstance', () => {
     it('removes the instance from registry', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify({
-        version: 1,
-        instances: [sampleRecord],
-      }));
+      mockReadFile.mockResolvedValue(
+        JSON.stringify({
+          version: 1,
+          instances: [sampleRecord],
+        }),
+      );
       mockAtomicWrite.mockResolvedValue(undefined);
 
       await unregisterInstance(99999, '/tmp/base');
@@ -194,10 +200,12 @@ describe('instance-registry', () => {
     it('returns live instances list', async () => {
       const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => undefined as any);
 
-      mockReadFile.mockResolvedValue(JSON.stringify({
-        version: 1,
-        instances: [sampleRecord],
-      }));
+      mockReadFile.mockResolvedValue(
+        JSON.stringify({
+          version: 1,
+          instances: [sampleRecord],
+        }),
+      );
       mockAtomicWrite.mockResolvedValue(undefined);
 
       const instances = await listInstances('/tmp/base');
@@ -216,13 +224,17 @@ describe('instance-registry', () => {
     it('prunes dead entries and persists', async () => {
       const err = new Error('ESRCH') as any;
       err.code = 'ESRCH';
-      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => { throw err; });
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => {
+        throw err;
+      });
 
       const deadRecord = { ...sampleRecord, pid: 11111 };
-      mockReadFile.mockResolvedValue(JSON.stringify({
-        version: 1,
-        instances: [deadRecord],
-      }));
+      mockReadFile.mockResolvedValue(
+        JSON.stringify({
+          version: 1,
+          instances: [deadRecord],
+        }),
+      );
       mockAtomicWrite.mockResolvedValue(undefined);
 
       const instances = await listInstances('/tmp/base');
@@ -293,7 +305,10 @@ describe('instance-registry', () => {
     });
 
     it('reports live sessions without WebUI endpoints as degraded', () => {
-      const candidates = joinSessionRegistryWithWebUIInstances({ sessions: [session], instances: [] });
+      const candidates = joinSessionRegistryWithWebUIInstances({
+        sessions: [session],
+        instances: [],
+      });
 
       expect(candidates).toEqual([
         expect.objectContaining({

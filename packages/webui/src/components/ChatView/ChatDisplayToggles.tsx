@@ -71,9 +71,7 @@ export function ChatDisplayToggles({
                 className="flex items-center gap-1"
                 title={`${totalTokens.input.toLocaleString()} tokens in`}
               >
-                <span className="font-medium text-foreground/80">
-                  {fmtTok(totalTokens.input)}
-                </span>
+                <span className="font-medium text-foreground/80">{fmtTok(totalTokens.input)}</span>
                 <span className="text-[9px]">in</span>
               </span>
             )}
@@ -82,9 +80,7 @@ export function ChatDisplayToggles({
                 className="flex items-center gap-1"
                 title={`${totalTokens.output.toLocaleString()} tokens out`}
               >
-                <span className="font-medium text-foreground/80">
-                  {fmtTok(totalTokens.output)}
-                </span>
+                <span className="font-medium text-foreground/80">{fmtTok(totalTokens.output)}</span>
                 <span className="text-[9px]">out</span>
               </span>
             )}

@@ -116,9 +116,12 @@ const DEFAULTS: PathGuardConfig = {
 function readConfig(raw: unknown): PathGuardConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS, protect: [...DEFAULT_PROTECT] };
   const r = raw as Record<string, unknown>;
-  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
-    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
-    : undefined;
+  const rawMode =
+    typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+      ? String(r['mode'] ?? r['action'] ?? r['behavior'])
+          .trim()
+          .toLowerCase()
+      : undefined;
   const mode = rawMode === 'warn' ? 'warn' : 'block';
   const rawProtect = r['protect'] ?? r['protectedPaths'] ?? r['protected_paths'] ?? r['protected'];
   const rawAllow = r['allow'] ?? r['allowedPaths'] ?? r['allowed_paths'] ?? r['allowed'];
@@ -290,10 +293,16 @@ const plugin: Plugin = {
             };
             if (targetFullyAllowed(target, cfg.allow, allowRes)) return null;
             const protectedShellTarget =
-              (await targetIntersectsPatternsGuarded(target, cfg.protect, protectRes, { onTimeout: bumpRedos })) ||
-              (await matchesAnyGuarded(`${target.path.replace(/\/$/, '')}/.path-guard-probe`, protectRes, {
+              (await targetIntersectsPatternsGuarded(target, cfg.protect, protectRes, {
                 onTimeout: bumpRedos,
-              }));
+              })) ||
+              (await matchesAnyGuarded(
+                `${target.path.replace(/\/$/, '')}/.path-guard-probe`,
+                protectRes,
+                {
+                  onTimeout: bumpRedos,
+                },
+              ));
             return protectedShellTarget ? target : null;
           }),
         );

@@ -5,11 +5,7 @@
   "description": "Design liveness and readiness checks that tell the truth.",
   "content": "Design health checks for: {{service}}\n\nDistinguish liveness (is the process wedged and in need of a restart?) from readiness (can it serve traffic right now?). Decide what each actually checks — readiness should verify critical dependencies, liveness should NOT (or a dependency blip restarts everything). Avoid checks that are too shallow (always pass) or too deep (cascade failures). Define timeouts and thresholds, and explain what each failure makes the orchestrator do.",
   "category": "devops",
-  "tags": [
-    "healthcheck",
-    "kubernetes",
-    "reliability"
-  ],
+  "tags": ["healthcheck", "kubernetes", "reliability"],
   "source": "builtin",
   "favorite": false,
   "checksum": "142eb4bc9f3909ef6a3e190b900c1fade608a7d3cb38a7809299bb2a6fdb4ea6",

@@ -511,7 +511,8 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
       if (todoCount === 0) {
         return {
           ok: false,
-          error: 'The planner produced phases without executable tasks. Refine the goal and try again.',
+          error:
+            'The planner produced phases without executable tasks. Refine the goal and try again.',
         };
       }
       log(`📋 Plan ready: ${phases.length} phases, ${todoCount} todos.`);

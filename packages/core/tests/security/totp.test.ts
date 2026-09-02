@@ -41,7 +41,18 @@ describe('hotp (RFC 4226)', () => {
   // (HMAC-SHA1 key), counter = 0..9. These are the canonical interoperability
   // vectors every HOTP/TOTP implementation must match.
   const secret = Buffer.from('12345678901234567890', 'ascii');
-  const expected = ['755224', '287082', '359152', '969429', '338314', '254676', '287922', '162583', '399871', '520489'];
+  const expected = [
+    '755224',
+    '287082',
+    '359152',
+    '969429',
+    '338314',
+    '254676',
+    '287922',
+    '162583',
+    '399871',
+    '520489',
+  ];
 
   it('matches RFC 4226 Appendix D vectors for counters 0–9', () => {
     for (let i = 0; i < 10; i++) {

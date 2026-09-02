@@ -14,10 +14,7 @@ describe('model matrix route metadata', () => {
   it('matches the core agent catalog route order', () => {
     expect(MODEL_MATRIX_PHASE_ROUTES).toEqual(MATRIX_PHASE_KEYS);
     expect(
-      MODEL_MATRIX_ROUTE_GROUPS.map((group) => [
-        group.phase,
-        group.roles.map((role) => role.role),
-      ]),
+      MODEL_MATRIX_ROUTE_GROUPS.map((group) => [group.phase, group.roles.map((role) => role.role)]),
     ).toEqual(
       Object.entries(AGENTS_BY_PHASE).map(([phase, definitions]) => [
         phase,

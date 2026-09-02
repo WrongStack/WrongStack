@@ -27,8 +27,9 @@ export const LANG_MAP: Record<string, string> = {
   xml: 'xml',
 };
 
-export const COMPLETION_LANGUAGES = Array.from(new Set(Object.values(LANG_MAP)))
-  .filter((lang) => lang !== 'plaintext');
+export const COMPLETION_LANGUAGES = Array.from(new Set(Object.values(LANG_MAP))).filter(
+  (lang) => lang !== 'plaintext',
+);
 export const COMPLETION_PREFIX_CHARS = 12_000;
 export const COMPLETION_SUFFIX_CHARS = 4_000;
 export const COMPLETION_TIMEOUT_MS = 5_000;

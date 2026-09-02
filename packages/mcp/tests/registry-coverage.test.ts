@@ -539,9 +539,9 @@ describe('MCPRegistry coverage', () => {
       // The transport flips the slot to disconnected while connect() is in
       // flight — the post-connect guard (registry.ts:926-935) must notice and
       // clean up instead of installing the client.
-      vi.spyOn(MCPClient.prototype, 'connect').mockImplementation(async function (
-        this: { name: string },
-      ) {
+      vi.spyOn(MCPClient.prototype, 'connect').mockImplementation(async function (this: {
+        name: string;
+      }) {
         const slot = internals(registry).servers.get('race');
         if (slot) slot['state'] = 'disconnected';
         return Promise.resolve();

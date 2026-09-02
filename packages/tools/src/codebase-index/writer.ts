@@ -909,7 +909,6 @@ export class IndexStore {
     }
   }
 
-
   /**
    * P4.14: best-effort WAL checkpoint for idle-time maintenance.
    *

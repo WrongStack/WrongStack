@@ -119,9 +119,9 @@ describe('resolveChimeraConfig', () => {
 
   it('defaults fallbackModels to empty array when not configured', () => {
     expect(resolveChimeraConfig({}, 'p', 'm').fallbackModels).toEqual([]);
-    expect(
-      resolveChimeraConfig({ fallbackModels: undefined }, 'p', 'm').fallbackModels,
-    ).toEqual([]);
+    expect(resolveChimeraConfig({ fallbackModels: undefined }, 'p', 'm').fallbackModels).toEqual(
+      [],
+    );
     expect(resolveChimeraConfig({ fallbackModels: [] }, 'p', 'm').fallbackModels).toEqual([]);
   });
 

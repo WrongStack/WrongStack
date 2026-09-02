@@ -183,9 +183,9 @@ describe('task graph requirement coverage', () => {
     const tracker = new TaskTracker({ store: new DefaultTaskStore() });
     const graph = await tracker.createGraph('spec-1', 'Mismatched graph');
 
-    expect(() =>
-      assertSpecTaskGraphCoverage(graph, { ...specification(), id: 'spec-2' }),
-    ).toThrow('Task graph spec mismatch');
+    expect(() => assertSpecTaskGraphCoverage(graph, { ...specification(), id: 'spec-2' })).toThrow(
+      'Task graph spec mismatch',
+    );
   });
 
   it('treats a spec without requirements as an empty scope (:62)', async () => {

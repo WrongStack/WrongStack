@@ -46,7 +46,9 @@ export function AuditPanel({ sideEffects, onClose: _onClose }: AuditPanelProps) 
           <Text dimColor>No side effects recorded yet.</Text>
         </Box>
         <Box>
-          <Text dimColor>Bash commands, package installs, and network requests will appear here.</Text>
+          <Text dimColor>
+            Bash commands, package installs, and network requests will appear here.
+          </Text>
         </Box>
       </Box>
     );
@@ -64,7 +66,9 @@ export function AuditPanel({ sideEffects, onClose: _onClose }: AuditPanelProps) 
           return (
             <Box key={`${se.toolUseId}-${i}`} flexDirection="row" gap={1}>
               <Text dimColor>{formatTime(se.ts)}</Text>
-              <Text bold color={color as never}>{se.toolName.padEnd(8)}</Text>
+              <Text bold color={color as never}>
+                {se.toolName.padEnd(8)}
+              </Text>
               <Text color={color as never}>{se.risk.padEnd(7)}</Text>
               <Text>{formatInput(se)}</Text>
               {se.outcome ? <Text dimColor>→ {se.outcome}</Text> : null}

@@ -204,8 +204,7 @@ export const markdownComponents = {
         <div
           className="pointer-events-none absolute bottom-8 left-0 right-0 h-8 opacity-0 group-hover/codeblock:opacity-100 transition-opacity"
           style={{
-            background:
-              'linear-gradient(to top, hsl(var(--foreground) / 0.08), transparent)',
+            background: 'linear-gradient(to top, hsl(var(--foreground) / 0.08), transparent)',
           }}
         />
       </div>
@@ -231,7 +230,10 @@ export const markdownComponents = {
   thead({ className, children, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
     return (
       <thead
-        className={cn('border-b border-border/80 bg-muted/60 text-foreground font-semibold', className)}
+        className={cn(
+          'border-b border-border/80 bg-muted/60 text-foreground font-semibold',
+          className,
+        )}
         {...props}
       >
         {children}
@@ -241,10 +243,7 @@ export const markdownComponents = {
 
   tbody({ className, children, ...props }: React.ComponentPropsWithoutRef<'tbody'>) {
     return (
-      <tbody
-        className={cn('divide-y divide-border/40 text-foreground/90', className)}
-        {...props}
-      >
+      <tbody className={cn('divide-y divide-border/40 text-foreground/90', className)} {...props}>
         {children}
       </tbody>
     );
@@ -278,10 +277,7 @@ export const markdownComponents = {
   td({ className, children, ...props }: React.ComponentPropsWithoutRef<'td'>) {
     return (
       <td
-        className={cn(
-          'px-3 py-2 text-xs text-foreground/90 break-words align-top',
-          className,
-        )}
+        className={cn('px-3 py-2 text-xs text-foreground/90 break-words align-top', className)}
         {...props}
       >
         {children}

@@ -30,9 +30,7 @@ describe('KanbanRunControls runId threading', () => {
 
   it('RunControlBar omits runId when the board tag carries none', () => {
     const sendRaw = vi.fn();
-    const { container } = render(
-      <RunControlBar runLink={{ engine: 'goal' }} sendRaw={sendRaw} />,
-    );
+    const { container } = render(<RunControlBar runLink={{ engine: 'goal' }} sendRaw={sendRaw} />);
     for (const button of Array.from(container.querySelectorAll('button'))) {
       fireEvent.click(button);
     }

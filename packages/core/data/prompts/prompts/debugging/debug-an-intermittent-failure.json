@@ -5,11 +5,7 @@
   "description": "Track down a bug that only happens sometimes.",
   "content": "This fails only sometimes: {{symptom}}\n\nIntermittent means timing, ordering, state, or external dependency. Help me make it reproducible: what to vary (load, concurrency, ordering, slow network) to raise the failure rate, and what to log so a rare failure leaves enough evidence. Identify whether it smells like a race, a resource limit, a dependency flake, or uninitialized state. Tell me how to confirm which, then fix the cause rather than adding a retry.",
   "category": "debugging",
-  "tags": [
-    "intermittent",
-    "flaky",
-    "race"
-  ],
+  "tags": ["intermittent", "flaky", "race"],
   "source": "builtin",
   "favorite": false,
   "checksum": "6536da667bba13fce8d545f5d6d4a195e5a7edf9de50454f0348884920ae4ebc",

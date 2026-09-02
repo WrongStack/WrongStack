@@ -43,7 +43,7 @@ const plugins = {
   'import-organizer': () => import('../src/import-organizer'),
   'test-runner-gate': () => import('../src/test-runner-gate'),
   'diff-summary': () => import('../src/diff-summary'),
-  'checkpoint': () => import('../src/checkpoint'),
+  checkpoint: () => import('../src/checkpoint'),
   'dependency-vulnerability-gate': () => import('../src/dependency-vulnerability-gate'),
   'doc-sync-guard': () => import('../src/doc-sync-guard'),
   'feature-flag-tracker': () => import('../src/feature-flag-tracker'),
@@ -87,7 +87,7 @@ const plugins = {
   'type-gate': () => import('../src/type-gate'),
   'todo-listener': () => import('../src/todo-listener'),
   'llm-cache': () => import('../src/llm-cache'),
-  'cron': () => import('../src/cron'),
+  cron: () => import('../src/cron'),
   'template-engine': () => import('../src/template-engine'),
   'agent-handoff': () => import('../src/agent-handoff'),
 };
@@ -96,14 +96,22 @@ for (const [name, importer] of Object.entries(plugins)) {
   describe(`${name} - setup/teardown/health`, () => {
     it('setup registers something', async () => {
       const mod = await importer();
-      const plugin = mod.default as { setup: (api: unknown) => void; teardown?: (api: unknown) => void; health?: () => unknown };
+      const plugin = mod.default as {
+        setup: (api: unknown) => void;
+        teardown?: (api: unknown) => void;
+        health?: () => unknown;
+      };
       const api = makeBasicApi();
       expect(() => plugin.setup(api as never)).not.toThrow();
     });
 
     it('teardown does not throw', async () => {
       const mod = await importer();
-      const plugin = mod.default as { setup: (api: unknown) => void; teardown?: (api: unknown) => void; health?: () => unknown };
+      const plugin = mod.default as {
+        setup: (api: unknown) => void;
+        teardown?: (api: unknown) => void;
+        health?: () => unknown;
+      };
       const api = makeBasicApi();
       plugin.setup(api as never);
       if (plugin.teardown) {
@@ -113,7 +121,11 @@ for (const [name, importer] of Object.entries(plugins)) {
 
     it('teardown twice is safe', async () => {
       const mod = await importer();
-      const plugin = mod.default as { setup: (api: unknown) => void; teardown?: (api: unknown) => void; health?: () => unknown };
+      const plugin = mod.default as {
+        setup: (api: unknown) => void;
+        teardown?: (api: unknown) => void;
+        health?: () => unknown;
+      };
       const api = makeBasicApi();
       plugin.setup(api as never);
       if (plugin.teardown) {
@@ -133,11 +145,15 @@ for (const [name, importer] of Object.entries(plugins)) {
 
     it('health returns an object with ok', async () => {
       const mod = await importer();
-      const plugin = mod.default as { setup: (api: unknown) => void; teardown?: (api: unknown) => void; health?: () => unknown };
+      const plugin = mod.default as {
+        setup: (api: unknown) => void;
+        teardown?: (api: unknown) => void;
+        health?: () => unknown;
+      };
       const api = makeBasicApi();
       plugin.setup(api as never);
       if (plugin.health) {
-        const h = await plugin.health() as { ok?: boolean };
+        const h = (await plugin.health()) as { ok?: boolean };
         expect(h).toBeDefined();
         expect(typeof h).toBe('object');
       }

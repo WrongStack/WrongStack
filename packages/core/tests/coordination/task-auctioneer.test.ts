@@ -50,7 +50,11 @@ function createMockGraph(): KnowledgeGraph {
       return node;
     }),
     getGoals: vi.fn(() => Array.from(nodes.values())),
-    getOpenGoals: vi.fn(() => Array.from(nodes.values()).filter(g => g.status === 'pending' || g.status === 'in_progress')),
+    getOpenGoals: vi.fn(() =>
+      Array.from(nodes.values()).filter(
+        (g) => g.status === 'pending' || g.status === 'in_progress',
+      ),
+    ),
     subscribe: vi.fn(() => () => {}),
     dispose: vi.fn(),
   } as never as KnowledgeGraph;
@@ -179,11 +183,15 @@ describe('TaskAuctioneer', () => {
 
   describe('bid', () => {
     it('rejects bid on non-existent task', async () => {
-      const accepted = await auctioneer.bid('nonexistent', {
-        agentId: 'agent-1',
-        agentName: 'Alice',
-        agentRole: 'bug-hunter',
-      }, 'Test');
+      const accepted = await auctioneer.bid(
+        'nonexistent',
+        {
+          agentId: 'agent-1',
+          agentName: 'Alice',
+          agentRole: 'bug-hunter',
+        },
+        'Test',
+      );
 
       expect(accepted).toBe(false);
     });
@@ -195,11 +203,15 @@ describe('TaskAuctioneer', () => {
         targetAgent: 'agent-other',
       });
 
-      const accepted = await auctioneer.bid('goal_1', {
-        agentId: 'agent-1',
-        agentName: 'Alice',
-        agentRole: 'bug-hunter',
-      }, 'Test');
+      const accepted = await auctioneer.bid(
+        'goal_1',
+        {
+          agentId: 'agent-1',
+          agentName: 'Alice',
+          agentRole: 'bug-hunter',
+        },
+        'Test',
+      );
 
       expect(accepted).toBe(false);
     });
@@ -269,9 +281,9 @@ describe('TaskAuctioneer', () => {
 
       await auctioneer.complete('goal_1');
 
-      expect(
-        (graph.update as unknown as { mock: { calls: unknown[] } }).mock.calls.length,
-      ).toBe(updatesAfterFirst);
+      expect((graph.update as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(
+        updatesAfterFirst,
+      );
     });
   });
 
@@ -460,8 +472,16 @@ describe('TaskAuctioneer (extended coverage)', () => {
 
     it('updates an existing bid from the same agent instead of adding a duplicate', async () => {
       const id = await auctioneer.publishTask({ title: 'T', description: 'Fix bug' });
-      await auctioneer.bid(id, { agentId: 'a1', agentName: 'Alice', agentRole: 'bug-hunter' }, 'first');
-      await auctioneer.bid(id, { agentId: 'a1', agentName: 'Alice', agentRole: 'bug-hunter' }, 'second');
+      await auctioneer.bid(
+        id,
+        { agentId: 'a1', agentName: 'Alice', agentRole: 'bug-hunter' },
+        'first',
+      );
+      await auctioneer.bid(
+        id,
+        { agentId: 'a1', agentName: 'Alice', agentRole: 'bug-hunter' },
+        'second',
+      );
       expect(auctioneer.getBidCount(id)).toBe(1);
       expect(auctioneer.getBids(id)[0]!.rationale).toBe('second');
     });
@@ -481,8 +501,13 @@ describe('TaskAuctioneer (extended coverage)', () => {
     it('awards the task to the highest-scoring bidder under capacity', async () => {
       const id = await auctioneer.publishTask({ title: 'T', description: 'Fix bug' });
       await auctioneer.bid(id, { agentId: 'a1', agentName: 'Alice', agentRole: 'bug-hunter' }, 'r');
-      await (auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> })._evaluateBids(id);
-      expect(graph.update).toHaveBeenCalledWith(id, expect.objectContaining({ status: 'in_progress' }));
+      await (
+        auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> }
+      )._evaluateBids(id);
+      expect(graph.update).toHaveBeenCalledWith(
+        id,
+        expect.objectContaining({ status: 'in_progress' }),
+      );
       expect(auctioneer.getBidCount(id)).toBe(0);
     });
 
@@ -492,22 +517,32 @@ describe('TaskAuctioneer (extended coverage)', () => {
       // Second bid from a different agent (lower confidence via dispatcher override).
       dispatchResult.value = { confidence: 0.4, role: 'bug-hunter' };
       await auctioneer.bid(id, { agentId: 'a2', agentName: 'Bob', agentRole: 'bug-hunter' }, 'r');
-      await (auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> })._evaluateBids(id);
+      await (
+        auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> }
+      )._evaluateBids(id);
       // a1 scored higher (0.8) than a2 (0.4) → a1 wins.
       expect(graph.update).toHaveBeenCalledWith(id, expect.objectContaining({ assignee: 'a1' }));
     });
 
     it('handles _evaluateBids on a task whose goal is gone (retry path, no goal)', async () => {
       await expect(
-        (auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> })._evaluateBids('no-such-task'),
+        (auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> })._evaluateBids(
+          'no-such-task',
+        ),
       ).resolves.not.toThrow();
     });
 
     it('republishes when no bids arrive and retries remain', async () => {
       const id = await auctioneer.publishTask({ title: 'T', description: 'Fix bug' });
-      const before = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0]?.type === 'task:available').length;
-      await (auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> })._evaluateBids(id);
-      const after = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0]?.type === 'task:available').length;
+      const before = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (c) => c[0]?.type === 'task:available',
+      ).length;
+      await (
+        auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> }
+      )._evaluateBids(id);
+      const after = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (c) => c[0]?.type === 'task:available',
+      ).length;
       expect(after).toBeGreaterThan(before); // re-broadcast
     });
 
@@ -533,21 +568,45 @@ describe('TaskAuctioneer (extended coverage)', () => {
       const id = await auctioneer.publishTask({ title: 'T', description: 'Fix bug' });
       await auctioneer.bid(id, { agentId: 'a1', agentName: 'Alice', agentRole: 'bug-hunter' }, 'r');
       // Push the sole bidder to capacity AFTER bidding.
-      (auctioneer as unknown as { agentTaskCount: (a: string, d: number) => void }).agentTaskCount('a1', +3);
-      const before = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0]?.type === 'task:available').length;
-      await (auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> })._evaluateBids(id);
-      const after = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0]?.type === 'task:available').length;
+      (auctioneer as unknown as { agentTaskCount: (a: string, d: number) => void }).agentTaskCount(
+        'a1',
+        +3,
+      );
+      const before = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (c) => c[0]?.type === 'task:available',
+      ).length;
+      await (
+        auctioneer as unknown as { _evaluateBids: (t: string) => Promise<void> }
+      )._evaluateBids(id);
+      const after = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (c) => c[0]?.type === 'task:available',
+      ).length;
       expect(after).toBeGreaterThan(before); // no winner → re-broadcast
-      expect(graph.update).not.toHaveBeenCalledWith(id, expect.objectContaining({ status: 'in_progress' }));
+      expect(graph.update).not.toHaveBeenCalledWith(
+        id,
+        expect.objectContaining({ status: 'in_progress' }),
+      );
     });
   });
 
   describe('findWork', () => {
     it('scores, sorts, and limits available tasks; skips blocked', async () => {
       dispatchResult.value = { confidence: 0.5, role: 'x' };
-      const tagged = await auctioneer.publishTask({ title: 'Tagged', description: 'd', tags: ['bug-hunter'] });
-      const critical = await auctioneer.publishTask({ title: 'Critical', description: 'd', priority: 'critical' });
-      const blocked = await auctioneer.publishTask({ title: 'Blocked', description: 'd', blockedBy: [tagged] });
+      const tagged = await auctioneer.publishTask({
+        title: 'Tagged',
+        description: 'd',
+        tags: ['bug-hunter'],
+      });
+      const critical = await auctioneer.publishTask({
+        title: 'Critical',
+        description: 'd',
+        priority: 'critical',
+      });
+      const blocked = await auctioneer.publishTask({
+        title: 'Blocked',
+        description: 'd',
+        blockedBy: [tagged],
+      });
       const results = await auctioneer.findWork('a1', 'bug-hunter', 5);
       const ids = results.map((r) => r.task.id);
       expect(ids).not.toContain(blocked); // blocked excluded
@@ -559,7 +618,8 @@ describe('TaskAuctioneer (extended coverage)', () => {
 
     it('respects the limit', async () => {
       dispatchResult.value = { confidence: 0.5, role: 'x' };
-      for (let i = 0; i < 6; i++) await auctioneer.publishTask({ title: `T${i}`, description: 'd' });
+      for (let i = 0; i < 6; i++)
+        await auctioneer.publishTask({ title: `T${i}`, description: 'd' });
       const results = await auctioneer.findWork('a1', '', 2);
       expect(results.length).toBe(2);
     });
@@ -568,16 +628,26 @@ describe('TaskAuctioneer (extended coverage)', () => {
   describe('complete (dependent unblocking)', () => {
     it('flips a blocked child to pending once its blocker completes', async () => {
       const blocker = await auctioneer.publishTask({ title: 'Blocker', description: 'd' });
-      const child = await auctioneer.publishTask({ title: 'Child', description: 'd', blockedBy: [blocker] });
+      const child = await auctioneer.publishTask({
+        title: 'Child',
+        description: 'd',
+        blockedBy: [blocker],
+      });
       // Blocker registered the child on its children list at publish time.
       await auctioneer.complete(blocker);
-      expect(graph.update).toHaveBeenCalledWith(child, expect.objectContaining({ status: 'pending' }));
+      expect(graph.update).toHaveBeenCalledWith(
+        child,
+        expect.objectContaining({ status: 'pending' }),
+      );
     });
 
     it('records a result when provided', async () => {
       const id = await auctioneer.publishTask({ title: 'T', description: 'd' });
       await auctioneer.complete(id, 'ship it');
-      expect(graph.update).toHaveBeenCalledWith(id, expect.objectContaining({ status: 'done', result: 'ship it' }));
+      expect(graph.update).toHaveBeenCalledWith(
+        id,
+        expect.objectContaining({ status: 'done', result: 'ship it' }),
+      );
       expect(fleet.emit).toHaveBeenCalledWith(expect.objectContaining({ type: 'task:completed' }));
     });
   });
@@ -587,7 +657,10 @@ describe('TaskAuctioneer (extended coverage)', () => {
       const blocker = await auctioneer.publishTask({ title: 'Blocker', description: 'd' });
       await auctioneer.publishTask({ title: 'Child', description: 'd', blockedBy: [blocker] });
       expect(graph.add).toHaveBeenCalledWith(expect.objectContaining({ status: 'blocked' }));
-      expect(graph.update).toHaveBeenCalledWith(blocker, expect.objectContaining({ children: expect.arrayContaining([expect.any(String)]) }));
+      expect(graph.update).toHaveBeenCalledWith(
+        blocker,
+        expect.objectContaining({ children: expect.arrayContaining([expect.any(String)]) }),
+      );
     });
 
     it('truncates a very long description in the broadcast body', async () => {
@@ -648,7 +721,10 @@ describe('TaskAuctioneer (extended coverage)', () => {
     it('updates a real parent goal children list on publish', async () => {
       const parent = await auctioneer.publishTask({ title: 'Parent', description: 'd' });
       await auctioneer.publishTask({ title: 'Child', description: 'd', parentGoal: parent });
-      expect(graph.update).toHaveBeenCalledWith(parent, expect.objectContaining({ children: expect.arrayContaining([expect.any(String)]) }));
+      expect(graph.update).toHaveBeenCalledWith(
+        parent,
+        expect.objectContaining({ children: expect.arrayContaining([expect.any(String)]) }),
+      );
     });
 
     it('fires the bid-window timer on expiry (→ _evaluateBids)', async () => {
@@ -663,9 +739,13 @@ describe('TaskAuctioneer (extended coverage)', () => {
           minConfidence: 0.3,
         });
         await a.publishTask({ title: 'T', description: 'Fix bug' });
-        const before = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0]?.type === 'task:available').length;
+        const before = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
+          (c) => c[0]?.type === 'task:available',
+        ).length;
         await vi.advanceTimersByTimeAsync(50); // timer fires → _evaluateBids (no bids → republish)
-        const after = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0]?.type === 'task:available').length;
+        const after = (fleet.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
+          (c) => c[0]?.type === 'task:available',
+        ).length;
         expect(after).toBeGreaterThan(before);
       } finally {
         vi.useRealTimers();

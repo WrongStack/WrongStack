@@ -435,10 +435,22 @@ describe('AnthropicProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, topK: 40 }, { signal: new AbortController().signal });
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, topK: 40 },
+      { signal: new AbortController().signal },
+    );
     expect(captured?.['top_k']).toBe(40);
   });
 
@@ -446,10 +458,22 @@ describe('AnthropicProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, user: 'user-abc' }, { signal: new AbortController().signal });
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, user: 'user-abc' },
+      { signal: new AbortController().signal },
+    );
     expect(captured?.['metadata']).toEqual({ user_id: 'user-abc' });
   });
 
@@ -457,10 +481,27 @@ describe('AnthropicProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 8192, reasoning: { enabled: true, effort: 'high' } }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 8192,
+        reasoning: { enabled: true, effort: 'high' },
+      },
+      { signal: new AbortController().signal },
+    );
     expect(captured?.['thinking']).toMatchObject({ type: 'enabled' });
     expect((captured!['thinking'] as { budget_tokens: number }).budget_tokens).toBeGreaterThan(0);
   });
@@ -469,18 +510,43 @@ describe('AnthropicProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
     // No `enabled` — the common case from the runtime effort dropdown. The
     // Anthropic wire has no effort enum, only budget_tokens, so effort-only
     // must map to enable + sized budget or it is a silent no-op.
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 8192, reasoning: { effort: 'high' } }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 8192,
+        reasoning: { effort: 'high' },
+      },
+      { signal: new AbortController().signal },
+    );
     expect(captured?.['thinking']).toMatchObject({ type: 'enabled' });
     const budget = (captured!['thinking'] as { budget_tokens: number }).budget_tokens;
     expect(budget).toBeGreaterThanOrEqual(1024);
     // medium ⇒ 50% of 8192, high ⇒ 65% — effort actually changes the budget.
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 8192, reasoning: { effort: 'medium' } }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 8192,
+        reasoning: { effort: 'medium' },
+      },
+      { signal: new AbortController().signal },
+    );
     const medium = (captured!['thinking'] as { budget_tokens: number }).budget_tokens;
     expect(medium).toBeLessThan(budget);
   });
@@ -489,12 +555,29 @@ describe('AnthropicProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
     // budget_tokens must be >= 1024 and < max_tokens — 100 satisfies neither.
     // Sending a fabricated budget would 400; omitting keeps the request valid.
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, reasoning: { enabled: true, effort: 'high' } }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 100,
+        reasoning: { enabled: true, effort: 'high' },
+      },
+      { signal: new AbortController().signal },
+    );
     expect(captured).not.toHaveProperty('thinking');
   });
 
@@ -502,10 +585,27 @@ describe('AnthropicProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, reasoning: { enabled: false } }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 100,
+        reasoning: { enabled: false },
+      },
+      { signal: new AbortController().signal },
+    );
     expect(captured?.['thinking']).toEqual({ type: 'disabled' });
   });
 
@@ -513,13 +613,30 @@ describe('AnthropicProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({
-      model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100,
-      frequencyPenalty: 0.5, presencePenalty: 0.5, seed: 42, logprobs: true,
-    }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 100,
+        frequencyPenalty: 0.5,
+        presencePenalty: 0.5,
+        seed: 42,
+        logprobs: true,
+      },
+      { signal: new AbortController().signal },
+    );
     expect(captured).not.toHaveProperty('frequency_penalty');
     expect(captured).not.toHaveProperty('presence_penalty');
     expect(captured).not.toHaveProperty('seed');
@@ -544,7 +661,16 @@ describe('AnthropicProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl, maxTools: 2 });
     await p.complete(
@@ -568,7 +694,16 @@ describe('AnthropicProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl, maxTools: 128 });
     await p.complete(

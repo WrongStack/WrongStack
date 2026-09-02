@@ -64,7 +64,9 @@ describe('handleShellOpen', () => {
       expect(result.success).toBe(false);
       expect(result.message).toMatch(/unsupported characters/);
       rmSync(tmp, { recursive: true, force: true });
-    } finally { cleanup(); }
+    } finally {
+      cleanup();
+    }
   });
 
   it('rejects paths that do not exist on disk', async () => {
@@ -77,7 +79,9 @@ describe('handleShellOpen', () => {
       );
       expect(result.success).toBe(false);
       expect(result.message).toMatch(/ENOENT|no such file/);
-    } finally { cleanup(); }
+    } finally {
+      cleanup();
+    }
   });
 
   it('returns a structured failure for unknown target values', async () => {
@@ -92,7 +96,9 @@ describe('handleShellOpen', () => {
       expect(result.success).toBe(false);
       expect(result.message).toMatch(/Unknown shell\.open target/);
       rmSync(tmp, { recursive: true, force: true });
-    } finally { cleanup(); }
+    } finally {
+      cleanup();
+    }
   });
 
   it('resolves .. traversal before the metacharacter check', async () => {
@@ -124,6 +130,8 @@ describe('handleShellOpen', () => {
       // fire, so the message is not "unsupported characters".
       expect(result.message).not.toMatch(/unsupported characters/);
       rmSync(tmp, { recursive: true, force: true });
-    } finally { cleanup(); }
+    } finally {
+      cleanup();
+    }
   });
 });

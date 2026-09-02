@@ -89,7 +89,11 @@ describe('selectLiveAgents', () => {
       entry({ id: 'run-new', status: 'running', startedAt: now - 1_000, lastEventAt: now }),
       entry({ id: 'run-old', status: 'running', startedAt: now - 50_000, lastEventAt: now }),
     ];
-    expect(selectLiveAgents(agents, now).map((e) => e.id)).toEqual(['leader', 'run-new', 'run-old']);
+    expect(selectLiveAgents(agents, now).map((e) => e.id)).toEqual([
+      'leader',
+      'run-new',
+      'run-old',
+    ]);
   });
 
   it('falls back to leader details when the selected agent disappears', () => {
@@ -105,11 +109,17 @@ describe('selectLiveAgents', () => {
   it('delays empty-list close and cancels it when agents return', () => {
     const emptyStartedAt = nextEmptyAgentsCloseStartedAt(0, now);
     expect(emptyStartedAt).toBe(now);
-    expect(shouldCloseEmptyAgentsMonitor(0, now + EMPTY_AGENTS_CLOSE_DELAY_MS - 1, emptyStartedAt)).toBe(false);
-    expect(shouldCloseEmptyAgentsMonitor(0, now + EMPTY_AGENTS_CLOSE_DELAY_MS, emptyStartedAt)).toBe(true);
+    expect(
+      shouldCloseEmptyAgentsMonitor(0, now + EMPTY_AGENTS_CLOSE_DELAY_MS - 1, emptyStartedAt),
+    ).toBe(false);
+    expect(
+      shouldCloseEmptyAgentsMonitor(0, now + EMPTY_AGENTS_CLOSE_DELAY_MS, emptyStartedAt),
+    ).toBe(true);
 
     expect(nextEmptyAgentsCloseStartedAt(1, now + 1_000, emptyStartedAt)).toBeUndefined();
-    expect(shouldCloseEmptyAgentsMonitor(1, now + EMPTY_AGENTS_CLOSE_DELAY_MS, emptyStartedAt)).toBe(false);
+    expect(
+      shouldCloseEmptyAgentsMonitor(1, now + EMPTY_AGENTS_CLOSE_DELAY_MS, emptyStartedAt),
+    ).toBe(false);
   });
 });
 
@@ -154,7 +164,9 @@ describe('agents-monitor formatting', () => {
   });
 
   it('falls back to id when the agent detail header has no name', () => {
-    expect(formatAgentDetailHeader(entry({ id: 'leader', name: '', status: 'running' }))).toBe('leader');
+    expect(formatAgentDetailHeader(entry({ id: 'leader', name: '', status: 'running' }))).toBe(
+      'leader',
+    );
   });
 
   it('classifies agent pressure by context, budget, and status', () => {
@@ -162,7 +174,15 @@ describe('agents-monitor formatting', () => {
     expect(agentRisk(entry({ id: 'run', status: 'running' }))).toBe('busy');
     expect(agentRisk(entry({ id: 'hot', status: 'idle', ctxPct: 0.8 }))).toBe('hot');
     expect(agentRisk(entry({ id: 'crit', status: 'idle', ctxPct: 0.95 }))).toBe('critical');
-    expect(agentRisk(entry({ id: 'warn', status: 'idle', budgetWarning: { kind: 'tokens', used: 9, limit: 10, at: 0 } }))).toBe('critical');
+    expect(
+      agentRisk(
+        entry({
+          id: 'warn',
+          status: 'idle',
+          budgetWarning: { kind: 'tokens', used: 9, limit: 10, at: 0 },
+        }),
+      ),
+    ).toBe('critical');
   });
 });
 
@@ -234,25 +254,33 @@ describe('transcript pane helpers', () => {
     it('renders time, iteration, glyph, and content snippet', () => {
       // Content already names the tool ("grep(pattern)") — the bare toolName
       // prefix is suppressed so the line doesn't read "grep grep(pattern)".
-      const line = formatTranscriptLine(tEntry({ id: 'a', kind: 'tool_use', toolName: 'grep', content: 'grep(pattern)' }));
+      const line = formatTranscriptLine(
+        tEntry({ id: 'a', kind: 'tool_use', toolName: 'grep', content: 'grep(pattern)' }),
+      );
       expect(line).toMatch(/^\d{2}:\d{2}:\d{2} L3 🔧 grep\(pattern\)/);
       expect(line).not.toContain('grep grep');
     });
 
     it('prefixes the toolName only when the content does not carry it', () => {
-      const line = formatTranscriptLine(tEntry({ id: 'a', kind: 'tool_use', toolName: 'grep', content: 'pattern-only args' }));
+      const line = formatTranscriptLine(
+        tEntry({ id: 'a', kind: 'tool_use', toolName: 'grep', content: 'pattern-only args' }),
+      );
       expect(line).toContain('🔧 grep pattern-only args');
     });
 
     it('coalesced multi-line segments show a (+N) line counter', () => {
-      const line = formatTranscriptLine(tEntry({ id: 'a', kind: 'thinking', content: 'first line\nsecond\nthird' }));
+      const line = formatTranscriptLine(
+        tEntry({ id: 'a', kind: 'thinking', content: 'first line\nsecond\nthird' }),
+      );
       expect(line).toContain('first line');
       expect(line).toContain('(+2)');
       expect(line).not.toContain('second');
     });
 
     it('marks failed tools with ✗', () => {
-      const line = formatTranscriptLine(tEntry({ id: 'a', kind: 'tool_result', toolName: 'edit', toolOk: false }));
+      const line = formatTranscriptLine(
+        tEntry({ id: 'a', kind: 'tool_result', toolName: 'edit', toolOk: false }),
+      );
       expect(line).toContain('edit ✗');
     });
 
@@ -271,7 +299,8 @@ describe('transcript pane helpers', () => {
   });
 
   describe('selectTranscriptWindow', () => {
-    const mk = (n: number) => Array.from({ length: n }, (_, i) => tEntry({ id: `e${i}`, content: `entry ${i}` }));
+    const mk = (n: number) =>
+      Array.from({ length: n }, (_, i) => tEntry({ id: `e${i}`, content: `entry ${i}` }));
 
     it('empty transcript yields an empty window', () => {
       expect(selectTranscriptWindow([], 0, 10)).toEqual({ slice: [], above: 0, below: 0 });
@@ -314,7 +343,14 @@ describe('leaderTimelineFromEntries', () => {
     const entries = [
       { id: 1, kind: 'user', text: 'do the thing' },
       { id: 2, kind: 'assistant', text: 'on it' },
-      { id: 3, kind: 'subagent', agentLabel: 'AGENT#1', agentColor: 'cyan', icon: '🔧', text: '14 tools' },
+      {
+        id: 3,
+        kind: 'subagent',
+        agentLabel: 'AGENT#1',
+        agentColor: 'cyan',
+        icon: '🔧',
+        text: '14 tools',
+      },
       { id: 4, kind: 'tool', name: 'grep', durationMs: 42, ok: true, outputLines: 7 },
       { id: 5, kind: 'error', text: 'boom' },
       { id: 6, kind: 'banner', version: '1', provider: 'p', model: 'm', cwd: '/' },
@@ -330,9 +366,9 @@ describe('leaderTimelineFromEntries', () => {
   });
 
   it('leader lines render without time/iteration placeholders', () => {
-    const [line] = leaderTimelineFromEntries([{ id: 1, kind: 'assistant', text: 'hello' }] as never).map(
-      (e) => formatTranscriptLine(e),
-    );
+    const [line] = leaderTimelineFromEntries([
+      { id: 1, kind: 'assistant', text: 'hello' },
+    ] as never).map((e) => formatTranscriptLine(e));
     expect(line).toBe('💬 hello');
   });
 });

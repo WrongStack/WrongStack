@@ -13,11 +13,7 @@
 
 import { useCallback, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
-import type {
-  DeadCodeScanOutput,
-  DeadFile,
-  DeadSymbol,
-} from '@wrongstack/tools/codebase-index';
+import type { DeadCodeScanOutput, DeadFile, DeadSymbol } from '@wrongstack/tools/codebase-index';
 
 // ─── Action plan types (server response) ─────────────────────────────────
 
@@ -69,7 +65,14 @@ async function safeJsonParse<T>(res: Response): Promise<T> {
   } catch {
     // Log the raw body (truncated) for debugging.
     const preview = raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
-    console.warn(JSON.stringify({ level: 'warn', event: 'deadcode_parse_error', preview, timestamp: new Date().toISOString() }));
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'deadcode_parse_error',
+        preview,
+        timestamp: new Date().toISOString(),
+      }),
+    );
     throw new Error(
       'The server returned a non-JSON response (possibly an HTML error page). ' +
         'Check that the backend is running and the /api/deadcode/* routes are wired.',
@@ -203,8 +206,7 @@ export function DeadCodeScanPanel() {
           padding: '8px 16px',
           fontSize: '14px',
           fontWeight: 500,
-          background:
-            scanPhase === 'scanning' ? 'hsl(var(--muted))' : 'hsl(var(--primary))',
+          background: scanPhase === 'scanning' ? 'hsl(var(--muted))' : 'hsl(var(--primary))',
           color:
             scanPhase === 'scanning'
               ? 'hsl(var(--muted-foreground))'
@@ -252,15 +254,33 @@ export function DeadCodeScanPanel() {
       {scanResult && (
         <div style={{ marginTop: '16px' }}>
           <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-            <StatCard label={t('activity:deadCode.totalSymbols')} value={scanResult.stats.totalSymbols} token="info" />
-            <StatCard label={t('activity:deadCode.alive')} value={scanResult.stats.alive} token="success" />
-            <StatCard label={t('activity:deadCode.dead')} value={scanResult.stats.dead} token="destructive" />
+            <StatCard
+              label={t('activity:deadCode.totalSymbols')}
+              value={scanResult.stats.totalSymbols}
+              token="info"
+            />
+            <StatCard
+              label={t('activity:deadCode.alive')}
+              value={scanResult.stats.alive}
+              token="success"
+            />
+            <StatCard
+              label={t('activity:deadCode.dead')}
+              value={scanResult.stats.dead}
+              token="destructive"
+            />
           </div>
 
           {scanResult.deadPackages.length > 0 && (
-            <ResultSection title={`Dead Packages (${scanResult.deadPackages.length})`} token="destructive">
+            <ResultSection
+              title={`Dead Packages (${scanResult.deadPackages.length})`}
+              token="destructive"
+            >
               {scanResult.deadPackages.map((pkg) => (
-                <ResultRow key={pkg.package} columns={[pkg.package, pkg.path, `${pkg.fileCount} file(s)`]} />
+                <ResultRow
+                  key={pkg.package}
+                  columns={[pkg.package, pkg.path, `${pkg.fileCount} file(s)`]}
+                />
               ))}
             </ResultSection>
           )}
@@ -306,8 +326,7 @@ export function DeadCodeScanPanel() {
                 padding: '8px 16px',
                 fontSize: '14px',
                 fontWeight: 500,
-                background:
-                  planPhase === 'generating' ? 'hsl(var(--muted))' : 'hsl(var(--accent))',
+                background: planPhase === 'generating' ? 'hsl(var(--muted))' : 'hsl(var(--accent))',
                 color:
                   planPhase === 'generating'
                     ? 'hsl(var(--muted-foreground))'
@@ -395,7 +414,8 @@ export function DeadCodeScanPanel() {
                 </div>
                 <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '12px' }}>
                   {file.symbolCount} symbol(s)
-                  {file.symbols.length > 0 && ` · ${file.symbols.slice(0, 2).join(', ')}${file.symbols.length > 2 ? '…' : ''}`}
+                  {file.symbols.length > 0 &&
+                    ` · ${file.symbols.slice(0, 2).join(', ')}${file.symbols.length > 2 ? '…' : ''}`}
                 </div>
               </div>
             </div>
@@ -410,8 +430,7 @@ export function DeadCodeScanPanel() {
               padding: '8px 16px',
               fontSize: '14px',
               fontWeight: 500,
-              background:
-                planPhase === 'executing' ? 'hsl(var(--muted))' : 'hsl(var(--success))',
+              background: planPhase === 'executing' ? 'hsl(var(--muted))' : 'hsl(var(--success))',
               color: 'hsl(var(--primary-foreground))',
               border: '1px solid hsl(var(--border))',
               borderRadius: '0',
@@ -438,15 +457,7 @@ const TOKEN_COLORS: Record<SemanticToken, string> = {
   primary: 'hsl(var(--primary))',
 };
 
-function StatCard({
-  label,
-  value,
-  token,
-}: {
-  label: string;
-  value: number;
-  token: SemanticToken;
-}) {
+function StatCard({ label, value, token }: { label: string; value: number; token: SemanticToken }) {
   const color = TOKEN_COLORS[token];
   return (
     <div
@@ -505,11 +516,7 @@ function ResultSection({
   );
 }
 
-function ResultRow({
-  columns,
-}: {
-  columns: string[];
-}) {
+function ResultRow({ columns }: { columns: string[] }) {
   return (
     <div
       style={{

@@ -46,12 +46,8 @@ describe('path-remap', () => {
   });
 
   it('detects memories that need remap', () => {
-    expect(memoryNeedsPathRemap({ anchors: [{ type: 'file', path: 'a.ts' }] }, 'a.ts')).toBe(
-      true,
-    );
-    expect(memoryNeedsPathRemap({ anchors: [{ type: 'file', path: 'b.ts' }] }, 'a.ts')).toBe(
-      false,
-    );
+    expect(memoryNeedsPathRemap({ anchors: [{ type: 'file', path: 'a.ts' }] }, 'a.ts')).toBe(true);
+    expect(memoryNeedsPathRemap({ anchors: [{ type: 'file', path: 'b.ts' }] }, 'a.ts')).toBe(false);
     expect(
       memoryNeedsSymbolRemap(
         { anchors: [{ type: 'symbol', path: 'a.ts', symbol: 'Foo' }] },

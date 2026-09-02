@@ -1,10 +1,6 @@
 import { ExtensionRegistry } from '@wrongstack/core/extension';
 import { EventBus } from '@wrongstack/core/kernel';
-import {
-  ProviderRegistry,
-  SlashCommandRegistry,
-  ToolRegistry,
-} from '@wrongstack/core/registry';
+import { ProviderRegistry, SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { Provider, Tool } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import {

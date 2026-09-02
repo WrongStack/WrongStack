@@ -29,9 +29,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await Promise.all(
-    tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
-  );
+  await Promise.all(tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
 async function makeDir(): Promise<string> {
@@ -48,9 +46,9 @@ describe('local manifest non-Error filesystem failures', () => {
   it('stringifies a non-Error manifest read rejection', async () => {
     controls.readFile = () => Promise.reject('plain manifest failure');
 
-    await expect(
-      createLocalManifestSuite({ suiteDir: '/suite' }).loadTasks({}),
-    ).rejects.toThrow('plain manifest failure');
+    await expect(createLocalManifestSuite({ suiteDir: '/suite' }).loadTasks({})).rejects.toThrow(
+      'plain manifest failure',
+    );
   });
 
   it('stringifies a non-Error transcript read rejection', async () => {

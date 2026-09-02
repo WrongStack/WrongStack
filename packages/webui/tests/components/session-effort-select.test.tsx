@@ -39,11 +39,7 @@ describe('SessionEffortSelect (composer effort chip)', () => {
       useSessionStore.setState({ reasoningEffortLevels: ['low', 'high'] });
     });
     render(<SessionEffortSelect />);
-    expect(Array.from(effortSelect().options).map((o) => o.value)).toEqual([
-      'auto',
-      'low',
-      'high',
-    ]);
+    expect(Array.from(effortSelect().options).map((o) => o.value)).toEqual(['auto', 'low', 'high']);
     expect(effortSelect().value).toBe('high');
   });
 

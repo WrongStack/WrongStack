@@ -138,7 +138,11 @@ const asSet = (value: string | string[] | undefined): ReadonlySet<string> | unde
   return items.length > 0 ? new Set(items) : undefined;
 };
 
-function compilePattern(source: string | undefined, label: string, ruleId: string): RegExp | undefined {
+function compilePattern(
+  source: string | undefined,
+  label: string,
+  ruleId: string,
+): RegExp | undefined {
   if (source === undefined) return undefined;
   if (source.length > BRAIN_RULE_PATTERN_MAX) {
     throw new Error(
@@ -148,7 +152,9 @@ function compilePattern(source: string | undefined, label: string, ruleId: strin
   try {
     return new RegExp(source, 'i');
   } catch (err) {
-    throw new Error(`${ruleId}: invalid ${label} pattern — ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(
+      `${ruleId}: invalid ${label} pattern — ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -331,7 +337,9 @@ export interface RuleBrainArbiterOptions {
   /** Live rule table — read per decision so config edits apply immediately. */
   getRules: () => readonly CompiledBrainRule[];
   /** Observability hook fired only when a rule actually decided. */
-  onRuleDecision?: ((ruleId: string, request: BrainDecisionRequest, decision: BrainDecision) => void) | undefined;
+  onRuleDecision?:
+    | ((ruleId: string, request: BrainDecisionRequest, decision: BrainDecision) => void)
+    | undefined;
 }
 
 /**

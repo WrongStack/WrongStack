@@ -5,11 +5,7 @@
   "description": "Find and fix the source of test flakiness.",
   "content": "This test passes sometimes and fails others:\n\n```\n{{test}}\n```\n\nIdentify the source of non-determinism: shared state, timing/sleeps, ordering dependence, real clock, randomness, network, or resource leaks. Propose a fix that makes it deterministic without weakening what it verifies. If the right fix is to make the *code* more testable, say so.",
   "category": "testing",
-  "tags": [
-    "flaky",
-    "determinism",
-    "ci"
-  ],
+  "tags": ["flaky", "determinism", "ci"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2517ed6d3a696dd4a4de55ded4793f4ba6be6874188ebd32f019373bae241785",

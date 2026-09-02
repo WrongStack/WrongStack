@@ -137,9 +137,7 @@ describe('api-compatibility-gate plugin', () => {
 
   it('detects added exports and reports them alongside removals', async () => {
     mockGitVersion('export const foo = 1;\nexport function bar() {}\n');
-    vi.mocked(readFile).mockResolvedValue(
-      'export const foo = 1;\nexport const baz = 2;\n',
-    );
+    vi.mocked(readFile).mockResolvedValue('export const foo = 1;\nexport const baz = 2;\n');
 
     const api = makeApi();
     plugin.setup(api as never);
@@ -157,9 +155,7 @@ describe('api-compatibility-gate plugin', () => {
 
   it('returns no context when exports are only added', async () => {
     mockGitVersion('export const foo = 1;\n');
-    vi.mocked(readFile).mockResolvedValue(
-      'export const foo = 1;\nexport const baz = 2;\n',
-    );
+    vi.mocked(readFile).mockResolvedValue('export const foo = 1;\nexport const baz = 2;\n');
 
     const api = makeApi();
     plugin.setup(api as never);

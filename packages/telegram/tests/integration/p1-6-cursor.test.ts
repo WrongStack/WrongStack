@@ -46,10 +46,7 @@ function okJson(body: unknown): Response {
  * Build a bot with an OffsetStore backed by a temp file. The fetch impl is
  * injected so the test can observe the exact URL/params sent to Telegram.
  */
-function makeBot(
-  fetchImpl: typeof fetch,
-  offsetStore: OffsetStore,
-): TelegramBot {
+function makeBot(fetchImpl: typeof fetch, offsetStore: OffsetStore): TelegramBot {
   return new TelegramBot({
     token: 'test:token',
     pollIntervalSec: 0,
@@ -209,11 +206,12 @@ describe('P1.6 cursor — persistence, restore, and commit-on-progress', () => {
       const store = new OffsetStore({ path: offsetPath });
       const spy = vi.spyOn(store, 'write');
 
-      globalThis.fetch = vi.fn(async () =>
-        new Response(JSON.stringify({ ok: false, error_code: 429, description: 'rate' }), {
-          status: 429,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+      globalThis.fetch = vi.fn(
+        async () =>
+          new Response(JSON.stringify({ ok: false, error_code: 429, description: 'rate' }), {
+            status: 429,
+            headers: { 'Content-Type': 'application/json' },
+          }),
       ) as never as typeof fetch;
 
       const bot = makeBot(globalThis.fetch, store);

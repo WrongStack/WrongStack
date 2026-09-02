@@ -118,7 +118,13 @@ describe('applyRewindToConversation', () => {
     await w.append({ type: 'tool_call_start', ts: ts(1), id: 'tc1', name: 'read_file', input: {} });
     await w.writeCheckpoint(1, 'second');
     // Work that the rewind will discard.
-    await w.append({ type: 'tool_call_start', ts: ts(2), id: 'tc2', name: 'write_file', input: {} });
+    await w.append({
+      type: 'tool_call_start',
+      ts: ts(2),
+      id: 'tc2',
+      name: 'write_file',
+      input: {},
+    });
     await w.append({ type: 'tool_call_start', ts: ts(3), id: 'tc3', name: 'exec', input: {} });
     await w.flush();
 
@@ -127,9 +133,10 @@ describe('applyRewindToConversation', () => {
 
     // list() reads .summary.json — it must describe the session that remains,
     // not the one that was rewound away.
-    const summary = JSON.parse(
-      await fs.readFile(path.join(tmp, 'rw-5.summary.json'), 'utf8'),
-    ) as { toolCallCount: number; toolBreakdown?: Record<string, number> };
+    const summary = JSON.parse(await fs.readFile(path.join(tmp, 'rw-5.summary.json'), 'utf8')) as {
+      toolCallCount: number;
+      toolBreakdown?: Record<string, number>;
+    };
     expect(summary.toolCallCount).toBe(1);
     expect(summary.toolBreakdown).toEqual({ read_file: 1 });
   });

@@ -69,10 +69,7 @@ export function formatToolArgs(toolName: string, input: unknown): string {
     case 'glob':
     case 'find_by_name':
     case 'find_files': {
-      const pat =
-        stringOf(obj['pattern']) ??
-        stringOf(obj['glob']) ??
-        stringOf(obj['Pattern']);
+      const pat = stringOf(obj['pattern']) ?? stringOf(obj['glob']) ?? stringOf(obj['Pattern']);
       const dir = stringOf(obj['SearchDirectory']) ?? stringOf(obj['path']);
       const head = pat ? `"${truncMid(pat, ARG_BUDGET - (dir ? 22 : 2))}"` : '';
       const tail = dir ? ` in ${shortenPath(dir, 18)}` : '';
@@ -83,10 +80,7 @@ export function formatToolArgs(toolName: string, input: unknown): string {
     case 'run_command':
     case 'install':
     case 'git': {
-      const cmd =
-        stringOf(obj['command']) ??
-        stringOf(obj['args']) ??
-        stringOf(obj['CommandLine']);
+      const cmd = stringOf(obj['command']) ?? stringOf(obj['args']) ?? stringOf(obj['CommandLine']);
       return cmd ? truncMid(cmd, ARG_BUDGET) : '';
     }
     case 'exec': {

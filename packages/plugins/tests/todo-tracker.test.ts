@@ -7,8 +7,16 @@ import todoTrackerPlugin from '../src/todo-tracker';
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   registerSystemPromptContributor: ReturnType<typeof vi.fn>;
   registerHook: ReturnType<typeof vi.fn>;
   onEvent: ReturnType<typeof vi.fn>;
@@ -41,14 +49,17 @@ function makeUnconfiguredApi(): MockApi {
   };
 }
 
-function getTool(api: MockApi, name: string): {
+function getTool(
+  api: MockApi,
+  name: string,
+): {
   execute: (input: unknown) => Promise<unknown>;
 } {
   const call = api.tools.register.mock.calls.find(
     ([t]: unknown[]) => (t as { name: string }).name === name,
   );
   if (!call) throw new Error(`tool ${name} not registered`);
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
 let tmpDir: string;
@@ -83,9 +94,7 @@ describe('todo-tracker plugin', () => {
   it('warns and no-ops when no file path is configured', async () => {
     const api = makeUnconfiguredApi();
     await todoTrackerPlugin.setup(api as never);
-    expect(api.log.warn).toHaveBeenCalledWith(
-      expect.stringContaining('no file path configured'),
-    );
+    expect(api.log.warn).toHaveBeenCalledWith(expect.stringContaining('no file path configured'));
     // When no file path is configured the plugin short-circuits:
     // no tools are registered, no file is touched. The host surfaces
     // the warning in its own log; calling setupPlugins with a
@@ -186,11 +195,17 @@ describe('complete / drop / remove', () => {
     const completeTool = getTool(api, 'todo_tracker_complete');
     const added = (await addTool.execute({ content: 'do thing' })) as { item: { id: string } };
 
-    const first = (await completeTool.execute({ id: added.item.id })) as { ok: boolean; message?: string };
+    const first = (await completeTool.execute({ id: added.item.id })) as {
+      ok: boolean;
+      message?: string;
+    };
     expect(first.ok).toBe(true);
     expect(first.message).toBeUndefined();
 
-    const second = (await completeTool.execute({ id: added.item.id })) as { ok: boolean; message?: string };
+    const second = (await completeTool.execute({ id: added.item.id })) as {
+      ok: boolean;
+      message?: string;
+    };
     expect(second.ok).toBe(true);
     expect(second.message).toMatch(/already completed/);
   });
@@ -200,7 +215,9 @@ describe('complete / drop / remove', () => {
     await todoTrackerPlugin.setup(api as never);
     const addTool = getTool(api, 'todo_tracker_add');
     const dropTool = getTool(api, 'todo_tracker_drop');
-    const added = (await addTool.execute({ content: 'obsolete thing' })) as { item: { id: string } };
+    const added = (await addTool.execute({ content: 'obsolete thing' })) as {
+      item: { id: string };
+    };
 
     await dropTool.execute({ id: added.item.id });
     const status = (await getTool(api, 'todo_tracker_status').execute({})) as {
@@ -219,7 +236,10 @@ describe('complete / drop / remove', () => {
     const removeTool = getTool(api, 'todo_tracker_remove');
     const added = (await addTool.execute({ content: 'gone tomorrow' })) as { item: { id: string } };
 
-    const result = (await removeTool.execute({ id: added.item.id })) as { ok: boolean; removed: { id: string } };
+    const result = (await removeTool.execute({ id: added.item.id })) as {
+      ok: boolean;
+      removed: { id: string };
+    };
     expect(result.ok).toBe(true);
     expect(result.removed.id).toBe(added.item.id);
 
@@ -231,7 +251,10 @@ describe('complete / drop / remove', () => {
   it('returns a clear error for an unknown id', async () => {
     const api = makeApi(filePath);
     await todoTrackerPlugin.setup(api as never);
-    const result = (await getTool(api, 'todo_tracker_complete').execute({ id: 'no-such-id' })) as { ok: boolean; error: string };
+    const result = (await getTool(api, 'todo_tracker_complete').execute({ id: 'no-such-id' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/no item with id/);
   });
@@ -306,9 +329,11 @@ describe('teardown + H1 pattern', () => {
     const addTool = getTool(api, 'todo_tracker_add');
     await addTool.execute({ content: 'a' });
     await addTool.execute({ content: 'b' });
-    expect((await todoTrackerPlugin.health!()) as { sessionCounts: { add: number } }).toMatchObject({
-      sessionCounts: { add: 2 },
-    });
+    expect((await todoTrackerPlugin.health!()) as { sessionCounts: { add: number } }).toMatchObject(
+      {
+        sessionCounts: { add: 2 },
+      },
+    );
 
     todoTrackerPlugin.teardown!(api as never);
     const h = (await todoTrackerPlugin.health!()) as {

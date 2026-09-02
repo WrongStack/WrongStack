@@ -166,6 +166,11 @@ export function __resetRgDetectionForTests(): void {
   rgAvailabilityCache = undefined;
 }
 
+/** Test-only: explicitly set rg availability to test both engines. */
+export function __setRgAvailableForTests(available: boolean | undefined): void {
+  rgAvailabilityCache = available !== undefined ? Promise.resolve(available) : undefined;
+}
+
 function detectRg(): Promise<boolean> {
   rgAvailabilityCache ??= new Promise((resolve) => {
     try {
@@ -204,7 +209,7 @@ async function* runRgStream(
     return;
   }
 
-  const args: string[] = ['--no-heading'];
+  const args: string[] = ['--no-heading', '--with-filename'];
   if (input.case_insensitive) args.push('-i');
   if (mode === 'files_with_matches') args.push('-l');
   if (mode === 'count') args.push('-c');
@@ -412,7 +417,10 @@ async function* runRgStream(
 
 function parseRgCountLine(line: string): number {
   const idx = line.lastIndexOf(':');
-  if (idx === -1) return 0;
+  if (idx === -1) {
+    const direct = Number.parseInt(line.trim(), 10);
+    return Number.isFinite(direct) ? direct : 0;
+  }
   const n = Number.parseInt(line.slice(idx + 1), 10);
   return Number.isFinite(n) ? n : 0;
 }
@@ -448,8 +456,7 @@ async function runNative(
   const isGitIgnored = await loadGitignoreMatcher(base);
   const matches: string[] = [];
   const countOnlyFirstHit = mode === 'count' && limit === 1;
-  const maxBytes =
-    mode === 'content' ? NATIVE_MAX_FILE_BYTES : Math.min(NATIVE_MAX_FILE_BYTES, 256 * 1024);
+  const maxBytes = NATIVE_MAX_FILE_BYTES;
   let total = 0;
   let stopped = false;
 
@@ -588,7 +595,8 @@ async function runNative(
 
   const baseStat = await fs.stat(base).catch(() => null);
   if (baseStat?.isFile()) {
-    await scanFile(base, path.basename(base), path.basename(base));
+    const rel = input.path ? input.path.replace(/\\/g, '/') : path.basename(base);
+    await scanFile(base, path.basename(base), rel);
   } else {
     await walk(base, '');
   }

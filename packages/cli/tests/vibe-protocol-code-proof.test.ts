@@ -79,8 +79,14 @@ describe('[VIBE] code proof — real Agent.run', () => {
     temps.push(projectRoot);
     const provider = new CaptureProvider([
       reply([{ type: 'tool_use', id: 't1', name: 'noop', input: {} }], 'tool_use'),
-      reply([{ type: 'text', text: 'Implemented cart increment for the button click.' }], 'end_turn'),
-      reply([{ type: 'text', text: '<nextsteps>\n1. Try again with [VIBE]\n</nextsteps>' }], 'end_turn'),
+      reply(
+        [{ type: 'text', text: 'Implemented cart increment for the button click.' }],
+        'end_turn',
+      ),
+      reply(
+        [{ type: 'text', text: '<nextsteps>\n1. Try again with [VIBE]\n</nextsteps>' }],
+        'end_turn',
+      ),
     ]);
 
     const events = new EventBus();
@@ -93,7 +99,11 @@ describe('[VIBE] code proof — real Agent.run', () => {
     container.bind(TOKENS.TokenCounter, () => new DefaultTokenCounter());
     container.bind(
       TOKENS.PermissionPolicy,
-      () => new DefaultPermissionPolicy({ trustFile: path.join(projectRoot, 'trust.json'), yolo: true }),
+      () =>
+        new DefaultPermissionPolicy({
+          trustFile: path.join(projectRoot, 'trust.json'),
+          yolo: true,
+        }),
     );
 
     const tool: Tool = {
@@ -106,8 +116,15 @@ describe('[VIBE] code proof — real Agent.run', () => {
     };
     const tools = new ToolRegistry();
     tools.register(tool);
-    const sessionStore = new DefaultSessionStore({ dir: path.join(projectRoot, 'sessions'), projectRoot });
-    const session = await sessionStore.create({ id: '', model: 'vibe-proof-model', provider: provider.id });
+    const sessionStore = new DefaultSessionStore({
+      dir: path.join(projectRoot, 'sessions'),
+      projectRoot,
+    });
+    const session = await sessionStore.create({
+      id: '',
+      model: 'vibe-proof-model',
+      provider: provider.id,
+    });
     const context = new Context({
       systemPrompt: [{ type: 'text', text: 'proof agent' }],
       provider,
@@ -175,7 +192,10 @@ describe('[VIBE] code proof — real Agent.run', () => {
     // eslint-disable-next-line no-console
     console.log('\n--- META AFTER VIBE ---\n', JSON.stringify(metaAfterVibe, null, 2));
     // eslint-disable-next-line no-console
-    console.log('\n--- ORDINARY FINAL (must keep [VIBE] mention, no auditor) ---\n', ordinary.finalText);
+    console.log(
+      '\n--- ORDINARY FINAL (must keep [VIBE] mention, no auditor) ---\n',
+      ordinary.finalText,
+    );
     // eslint-disable-next-line no-console
     console.log('===== END PROOF =====\n');
 
@@ -187,7 +207,11 @@ describe('[VIBE] code proof — real Agent.run', () => {
     expect(vibe.finalText).toContain('### 🌊 [VIBE Protocol: Spec-Synthesizer]');
     expect(vibe.finalText).toContain('### 🛡️ [Auditor Verdict]');
     expect(vibe.finalText).toContain('✅ PASS');
-    expect(metaAfterVibe).toMatchObject({ isVibeMode: true, stage: 'passed', audit: { verdict: 'PASS' } });
+    expect(metaAfterVibe).toMatchObject({
+      isVibeMode: true,
+      stage: 'passed',
+      audit: { verdict: 'PASS' },
+    });
     expect(ordinary.finalText).toContain('[VIBE]');
     expect(ordinary.finalText).not.toContain('Auditor Verdict');
     const lastUser = [...(provider.received[2]?.messages ?? [])]
@@ -203,9 +227,7 @@ describe('[VIBE] code proof — real Agent.run', () => {
               .join('\n')
           : '';
     expect(lastUserText.startsWith('Show the follow-up suggestion')).toBe(true);
-    expect(lastUserText).not.toMatch(
-      /^Show the follow-up suggestion\n\n\[vibe_protocol\]/,
-    );
+    expect(lastUserText).not.toMatch(/^Show the follow-up suggestion\n\n\[vibe_protocol\]/);
     expect(metaAfterOrdinary).toBeUndefined();
 
     await agent.teardown();

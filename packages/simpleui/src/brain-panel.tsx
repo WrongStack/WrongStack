@@ -44,7 +44,9 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
   useEffect(() => {
     if (!open) return;
     closeRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
@@ -86,7 +88,7 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
       if (!p) return;
       setStatus({
         maxAutoRisk: String(p.maxAutoRisk ?? 'medium'),
-        log: Array.isArray(p.log) ? p.log as BrainLogEntry[] : [],
+        log: Array.isArray(p.log) ? (p.log as BrainLogEntry[]) : [],
       });
     });
   }, [socketRef]);
@@ -108,12 +110,24 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
   };
 
   const riskColor = (level: string) =>
-    level === 'low' ? 'var(--success)' : level === 'high' || level === 'critical' ? 'var(--danger)' : 'var(--warning)';
+    level === 'low'
+      ? 'var(--success)'
+      : level === 'high' || level === 'critical'
+        ? 'var(--danger)'
+        : 'var(--warning)';
 
   if (!open) {
     return (
-      <button type="button" className="brain-panel-trigger" title="Brain status" aria-label="Open brain panel"
-        onClick={() => { setOpen(true); loadStatus(); }}>
+      <button
+        type="button"
+        className="brain-panel-trigger"
+        title="Brain status"
+        aria-label="Open brain panel"
+        onClick={() => {
+          setOpen(true);
+          loadStatus();
+        }}
+      >
         <Brain size={13} aria-hidden="true" />
       </button>
     );
@@ -121,7 +135,12 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
 
   return (
     <>
-      <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
+      <button
+        type="button"
+        className="settings-overlay"
+        tabIndex={-1}
+        onClick={() => setOpen(false)}
+      />
       <aside
         className="brain-panel"
         role="dialog"
@@ -131,27 +150,45 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
         tabIndex={-1}
       >
         <header className="brain-panel-head">
-          <span><Brain size={13} aria-hidden="true" /> BRAIN</span>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}><X size={14} /></button>
+          <span>
+            <Brain size={13} aria-hidden="true" /> BRAIN
+          </span>
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}>
+            <X size={14} />
+          </button>
         </header>
         {status && (
           <div className="brain-panel-risk">
             <Shield size={13} aria-hidden="true" />
-            <span>Auto-risk: <b style={{ color: riskColor(status.maxAutoRisk) }}>{status.maxAutoRisk}</b></span>
+            <span>
+              Auto-risk:{' '}
+              <b style={{ color: riskColor(status.maxAutoRisk) }}>{status.maxAutoRisk}</b>
+            </span>
           </div>
         )}
         <div className="brain-panel-ask">
-          <input type="text" placeholder="Ask the brain…" value={question}
+          <input
+            type="text"
+            placeholder="Ask the brain…"
+            value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') askBrain(); }} />
-          <button type="button" onClick={askBrain} disabled={!question.trim()}>Ask</button>
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') askBrain();
+            }}
+          />
+          <button type="button" onClick={askBrain} disabled={!question.trim()}>
+            Ask
+          </button>
         </div>
         {thinking && (
-          <div className="brain-panel-answer"><em>Thinking…</em></div>
+          <div className="brain-panel-answer">
+            <em>Thinking…</em>
+          </div>
         )}
         {answer && (
           <div className="brain-panel-answer">
-            <strong>Q:</strong> {answer.question}<br />
+            <strong>Q:</strong> {answer.question}
+            <br />
             <strong>A:</strong> {answer.decision}
           </div>
         )}
@@ -161,10 +198,15 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
           )}
           {status?.log.map((entry, i) => (
             <div key={i} className="brain-log-entry">
-              <AlertTriangle size={11} aria-hidden="true"
-                style={{ color: riskColor(entry.outcome) }} />
+              <AlertTriangle
+                size={11}
+                aria-hidden="true"
+                style={{ color: riskColor(entry.outcome) }}
+              />
               <span className="brain-log-kind">[{entry.kind}]</span>{' '}
-              <span>{entry.question} → {entry.outcome}</span>
+              <span>
+                {entry.question} → {entry.outcome}
+              </span>
             </div>
           ))}
         </div>

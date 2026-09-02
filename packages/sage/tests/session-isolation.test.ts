@@ -39,7 +39,9 @@ describe('Cross-session isolation (P0-1c regression tests)', () => {
       sessionId: SESSION_B,
       limit: 10,
     });
-    expect(sessionBResults.every((m) => m.scope !== 'session' || m.ownerSessionId === SESSION_B)).toBe(true);
+    expect(
+      sessionBResults.every((m) => m.scope !== 'session' || m.ownerSessionId === SESSION_B),
+    ).toBe(true);
     expect(sessionBResults.find((m) => m.text.includes('Session A scratch'))).toBeUndefined();
   });
 
@@ -99,9 +101,7 @@ describe('Cross-session isolation (P0-1c regression tests)', () => {
       sessionId: SESSION_B,
       includeAudienceScoped: false,
     });
-    expect(
-      sessionBResults.find((m) => m.text.includes('Session A file-specific')),
-    ).toBeUndefined();
+    expect(sessionBResults.find((m) => m.text.includes('Session A file-specific'))).toBeUndefined();
   });
 
   it('session-A memory IS returned by session-A retrieveForPath', async () => {
@@ -121,9 +121,7 @@ describe('Cross-session isolation (P0-1c regression tests)', () => {
       sessionId: SESSION_B,
       limit: 50,
     });
-    expect(
-      sessionBResults.find((m) => m.text.includes('Session A')),
-    ).toBeUndefined();
+    expect(sessionBResults.find((m) => m.text.includes('Session A'))).toBeUndefined();
   });
 
   it('session-scoped remember does not merge across sessions', async () => {

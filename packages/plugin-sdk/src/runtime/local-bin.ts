@@ -208,10 +208,7 @@ export function resolveNodeBin(
   const key = `${packageName}|${binName}|${cwd}`;
   const cached = binCache.get(key);
   if (cached !== undefined) {
-    if (
-      cached.value !== null ||
-      Date.now() - cached.cachedAt < NEGATIVE_BIN_CACHE_TTL_MS
-    ) {
+    if (cached.value !== null || Date.now() - cached.cachedAt < NEGATIVE_BIN_CACHE_TTL_MS) {
       return cached.value === null
         ? null
         : { ...cached.value, args: [cached.value.entry, ...extraArgs] };

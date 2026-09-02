@@ -22,11 +22,7 @@ export function toolErrorResult(
 
   // Build the user-facing message.
   const rawMessage =
-    err instanceof Error
-      ? err.message
-      : typeof err === 'string'
-        ? err
-        : 'Unknown error';
+    err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error';
 
   const userMessage = opts.scrubber ? opts.scrubber(rawMessage) : rawMessage;
 

@@ -62,7 +62,9 @@ function buildManifest() {
 if (process.argv.includes('--write')) {
   const manifest = buildManifest();
   writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
-  console.log(`Wrote ${Object.keys(manifest).length} checksums to ${path.relative(process.cwd(), MANIFEST)}`);
+  console.log(
+    `Wrote ${Object.keys(manifest).length} checksums to ${path.relative(process.cwd(), MANIFEST)}`,
+  );
   process.exit(0);
 }
 
@@ -94,4 +96,6 @@ if (problems.length > 0) {
   );
   process.exit(1);
 }
-console.log(`tree-sitter wasm integrity OK — ${Object.keys(onDisk).length} files match checksums.json`);
+console.log(
+  `tree-sitter wasm integrity OK — ${Object.keys(onDisk).length} files match checksums.json`,
+);

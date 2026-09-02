@@ -5,11 +5,7 @@
   "description": "Teach a technical concept from intuition to detail.",
   "content": "Explain this concept clearly: {{concept}}\n\nStart with an intuition or analogy, then the precise definition, then a concrete example, then the common misconceptions. Tailor the depth to: {{audience}}. Don't oversimplify to the point of being wrong; flag where the simple model breaks down. End with one question that tests whether the reader really got it.",
   "category": "documentation",
-  "tags": [
-    "explainer",
-    "teaching",
-    "concept"
-  ],
+  "tags": ["explainer", "teaching", "concept"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2708e44985b9d3b512dcb2a69d364c66288c2092035acdfdf744183343e90209",

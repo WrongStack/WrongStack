@@ -1,21 +1,9 @@
 import type * as http from 'node:http';
 import * as path from 'node:path';
-import {
-  type MailboxHttpAccessDecision,
-  resolveProjectDir,
-} from '@wrongstack/core/coordination';
-import {
-  authenticateBrowserRequest,
-  hqAuthRequired,
-  isCookieAuth,
-  isTokenAuth,
-} from '../auth.js';
+import { type MailboxHttpAccessDecision, resolveProjectDir } from '@wrongstack/core/coordination';
+import { authenticateBrowserRequest, hqAuthRequired, isCookieAuth, isTokenAuth } from '../auth.js';
 import { resolveHqProjectRoot } from '../project-root.js';
-import type {
-  HqRouterMailboxGateway,
-  HqRouterMutableAuth,
-  HqSessionEntry,
-} from '../types.js';
+import type { HqRouterMailboxGateway, HqRouterMutableAuth, HqSessionEntry } from '../types.js';
 import {
   decodePathSegment,
   readRequestBody,

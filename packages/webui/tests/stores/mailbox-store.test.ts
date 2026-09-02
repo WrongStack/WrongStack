@@ -54,20 +54,23 @@ describe('mailbox store', () => {
   });
 
   it('setAgents updates the agents array', () => {
-    const agents = [{ id: 'agent-1', name: 'Alice' }, { id: 'agent-2', name: 'Bob' }];
+    const agents = [
+      { id: 'agent-1', name: 'Alice' },
+      { id: 'agent-2', name: 'Bob' },
+    ];
     useMailboxStore.getState().setAgents(agents as any);
     expect(useMailboxStore.getState().agents).toEqual(agents);
   });
 
   it('setMessages derives scope + recipientSessionId from the recipient', () => {
-    useMailboxStore.getState().setMessages([
-      makeMessage({ id: 'm1', to: '*' }),
-      makeMessage({ id: 'm2', to: '@session:session-7' }),
-      makeMessage({ id: 'm3', to: 'leader@abcd' }),
-    ]);
-    const byId = Object.fromEntries(
-      useMailboxStore.getState().messages.map((m) => [m.id, m]),
-    );
+    useMailboxStore
+      .getState()
+      .setMessages([
+        makeMessage({ id: 'm1', to: '*' }),
+        makeMessage({ id: 'm2', to: '@session:session-7' }),
+        makeMessage({ id: 'm3', to: 'leader@abcd' }),
+      ]);
+    const byId = Object.fromEntries(useMailboxStore.getState().messages.map((m) => [m.id, m]));
     expect(byId.m1?.scope).toBe('project');
     expect(byId.m1?.recipientSessionId).toBeUndefined();
     expect(byId.m2?.scope).toBe('session');
@@ -96,9 +99,11 @@ describe('mailbox store', () => {
   });
 
   it('setMessages preserves server-provided scope when present', () => {
-    useMailboxStore.getState().setMessages([
-      makeMessage({ id: 'm1', to: '@session:s', scope: 'project', recipientSessionId: 'unused' }),
-    ]);
+    useMailboxStore
+      .getState()
+      .setMessages([
+        makeMessage({ id: 'm1', to: '@session:s', scope: 'project', recipientSessionId: 'unused' }),
+      ]);
     const msg = useMailboxStore.getState().messages[0]!;
     // Server wins — derived classification is skipped.
     expect(msg.scope).toBe('project');

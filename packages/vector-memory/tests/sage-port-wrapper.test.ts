@@ -27,10 +27,9 @@ import {
 } from '../src/index.js';
 import { FakeEmbeddingProvider } from './fake-provider.js';
 
-function makeFakePort(opts: {
-  retrieval?: SageRetrievalCapability;
-  surface?: SageSurface;
-} = {}): MemoryPort {
+function makeFakePort(
+  opts: { retrieval?: SageRetrievalCapability; surface?: SageSurface } = {},
+): MemoryPort {
   const port = {
     async initialize() {},
     async dispose() {},
@@ -87,7 +86,10 @@ describe('wrapMemoryPortWithVectorRecall', () => {
       async (_query: string, _opts?: Record<string, unknown>) => [] as Sage[],
     );
     const port = makeFakePort({
-      retrieval: { searchSage, retrieveForPath: async () => [] } as unknown as SageRetrievalCapability,
+      retrieval: {
+        searchSage,
+        retrieveForPath: async () => [],
+      } as unknown as SageRetrievalCapability,
     });
     const store = new VectorMemoryStore({
       provider: new FakeEmbeddingProvider({ dimensions: 32 }),
@@ -215,10 +217,7 @@ describe('wrapMemoryPortWithVectorRecall', () => {
       projectRoot: 'D:/tmp/wrap-test-5',
     } as VectorMemoryStoreOptions);
     try {
-      const wrapped = wrapMemoryPortWithVectorRecall(
-        port as unknown as MemoryPort,
-        { store },
-      );
+      const wrapped = wrapMemoryPortWithVectorRecall(port as unknown as MemoryPort, { store });
       // The exact call that crashed the E2E WebUI boot.
       const returned = (wrapped as unknown as ClassInstancePort).withTraceId('trace-e2e');
       // Prototype method ran: state mutated on the shared `calls` array.

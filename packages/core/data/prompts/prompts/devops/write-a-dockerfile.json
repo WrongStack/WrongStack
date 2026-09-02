@@ -5,10 +5,7 @@
   "description": "Produce a secure, small, well-layered Dockerfile.",
   "content": "Write a production Dockerfile for a {{stack}} app.\n\nRequirements:\n- Multi-stage build to keep the final image small.\n- Run as a non-root user.\n- Pin base image versions; no `latest`.\n- Order layers so dependency installs cache well.\n- Include a healthcheck and sensible default command.\n- No secrets baked into the image.\n\nExplain the key choices in a few comments.",
   "category": "devops",
-  "tags": [
-    "docker",
-    "containers"
-  ],
+  "tags": ["docker", "containers"],
   "source": "builtin",
   "favorite": false,
   "checksum": "74a561f89f5f6f21f4113919a4675e411d5c0a18696297aeec96db3a3c7fbe5c",

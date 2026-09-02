@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  FetchError,
-  WrongStackError,
-  isFetchError,
-} from '../../src/types/errors.js';
+import { FetchError, WrongStackError, isFetchError } from '../../src/types/errors.js';
 
 /**
  * P3 #18 (before-release.md): classifyToolError() detected HTTP errors via

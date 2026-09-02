@@ -83,7 +83,9 @@ export function CodeMapTreeSidebar({
     <aside className="flex w-[286px] shrink-0 flex-col border-r bg-card/70">
       <div className="border-b p-3">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">{t('activity:codeMapTree.codeTree')}</h2>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">
+            {t('activity:codeMapTree.codeTree')}
+          </h2>
           <span className="font-mono text-[9px] text-muted-foreground">
             {rootGraph.nodes.length} roots
           </span>

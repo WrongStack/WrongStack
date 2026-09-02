@@ -4,7 +4,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseGoalState, type GoalDeliverable, type GoalJournalEntry, type GoalState } from '../../src/lib/goal';
+import {
+  parseGoalState,
+  type GoalDeliverable,
+  type GoalJournalEntry,
+  type GoalState,
+} from '../../src/lib/goal';
 
 // ─── Null / invalid input ─────────────────────────────────────────────────────
 
@@ -58,7 +63,13 @@ describe('parseGoalState — minimal valid input', () => {
   });
 
   it('accepts all five valid goalState values', () => {
-    const states: GoalState['goalState'][] = ['active', 'paused', 'completed', 'failed', 'abandoned'];
+    const states: GoalState['goalState'][] = [
+      'active',
+      'paused',
+      'completed',
+      'failed',
+      'abandoned',
+    ];
     for (const gs of states) {
       const result = parseGoalState({ goal: 'Test', goalState: gs });
       expect(result!.goalState).toBe(gs);
@@ -120,7 +131,9 @@ describe('parseGoalState — progressTrend mapping', () => {
   it('returns undefined for unknown progressTrend values', () => {
     const unknown = ['fast', 'slow', '', 'UP', null, undefined];
     for (const v of unknown) {
-      expect(parseGoalState({ goal: 'T', progressTrend: v as string })!.progressTrend).toBeUndefined();
+      expect(
+        parseGoalState({ goal: 'T', progressTrend: v as string })!.progressTrend,
+      ).toBeUndefined();
     }
   });
 
@@ -268,18 +281,16 @@ describe('parseGoalState — journal', () => {
       ],
     };
     const result = parseGoalState(raw);
-    expect(result!.journal).toEqual([
-      { iteration: 5, task: 'ok', progress: 50, timestamp: 'now' },
-    ]);
+    expect(result!.journal).toEqual([{ iteration: 5, task: 'ok', progress: 50, timestamp: 'now' }]);
   });
 
   it('drops entries with wrong-typed status field (line 51)', () => {
     const raw = {
       goal: 'T',
       journal: [
-        { iteration: 1, status: 123 },      // numeric status → dropped
-        { iteration: 2, status: true },      // boolean status → dropped
-        { iteration: 3, status: 'active' },  // valid string status → kept
+        { iteration: 1, status: 123 }, // numeric status → dropped
+        { iteration: 2, status: true }, // boolean status → dropped
+        { iteration: 3, status: 'active' }, // valid string status → kept
       ],
     };
     const result = parseGoalState(raw);
@@ -292,9 +303,9 @@ describe('parseGoalState — journal', () => {
     const raw = {
       goal: 'T',
       journal: [
-        { iteration: 1, progress: Number.NaN },       // NaN → dropped
+        { iteration: 1, progress: Number.NaN }, // NaN → dropped
         { iteration: 2, progress: Number.POSITIVE_INFINITY }, // Infinity → dropped
-        { iteration: 3, progress: 50 },               // valid → kept
+        { iteration: 3, progress: 50 }, // valid → kept
       ],
     };
     const result = parseGoalState(raw);
@@ -310,13 +321,27 @@ describe('parseGoalState — journal', () => {
       goal: 'T',
       journal: [
         { iteration: 1 },
-        { iteration: 2, task: undefined, status: undefined, progress: undefined, progressNote: undefined, timestamp: undefined },
+        {
+          iteration: 2,
+          task: undefined,
+          status: undefined,
+          progress: undefined,
+          progressNote: undefined,
+          timestamp: undefined,
+        },
       ],
     };
     const result = parseGoalState(raw);
     expect(result!.journal).toEqual([
       { iteration: 1 },
-      { iteration: 2, task: undefined, status: undefined, progress: undefined, progressNote: undefined, timestamp: undefined },
+      {
+        iteration: 2,
+        task: undefined,
+        status: undefined,
+        progress: undefined,
+        progressNote: undefined,
+        timestamp: undefined,
+      },
     ]);
   });
 });
@@ -325,7 +350,9 @@ describe('parseGoalState — journal', () => {
 
 describe('parseGoalState — lastTask and lastStatus', () => {
   it('includes lastTask when a string', () => {
-    expect(parseGoalState({ goal: 'T', lastTask: 'Running tests' })!.lastTask).toBe('Running tests');
+    expect(parseGoalState({ goal: 'T', lastTask: 'Running tests' })!.lastTask).toBe(
+      'Running tests',
+    );
   });
 
   it('omits lastTask when not a string', () => {

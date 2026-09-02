@@ -5,7 +5,20 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import { cn } from '@/lib/utils';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Button } from './ui/button';
-import { AlertTriangle, Check, ClipboardCopy, Clock, Edit3, Globe, Loader2, RotateCw, Send, Sparkles, X, Zap } from 'lucide-react';
+import {
+  AlertTriangle,
+  Check,
+  ClipboardCopy,
+  Clock,
+  Edit3,
+  Globe,
+  Loader2,
+  RotateCw,
+  Send,
+  Sparkles,
+  X,
+  Zap,
+} from 'lucide-react';
 
 export type RefineDecision = 'refined' | 'english' | 'original' | 'edit' | 'cancel';
 
@@ -99,7 +112,9 @@ export function RefinePanel({
     useLocalPrefs.getState().set({ yolo: next });
     updatePrefs({ yolo: next });
   }, [yolo, updatePrefs]);
-  const [countdown, setCountdown] = useState(autoSendDelayMs > 0 ? Math.ceil(autoSendDelayMs / 1000) : null);
+  const [countdown, setCountdown] = useState(
+    autoSendDelayMs > 0 ? Math.ceil(autoSendDelayMs / 1000) : null,
+  );
   const [editText, setEditText] = useState(refined);
   const [isEditing, setIsEditing] = useState(false);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -116,7 +131,9 @@ export function RefinePanel({
   // resetting the countdown to 3.
   const onStartRefineRef = useRef(onStartRefine);
   onStartRefineRef.current = onStartRefine;
-  const [preRefineCountdown, setPreRefineCountdown] = useState(Math.max(0, Math.ceil(enhanceCountdownMs / 1000)));
+  const [preRefineCountdown, setPreRefineCountdown] = useState(
+    Math.max(0, Math.ceil(enhanceCountdownMs / 1000)),
+  );
   const preRefineTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -275,9 +292,7 @@ export function RefinePanel({
         <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">
-              {t('activity:refine.countdownHeader')}
-            </span>
+            <span className="text-sm font-medium">{t('activity:refine.countdownHeader')}</span>
             {preRefineCountdown > 0 && (
               <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/15 text-primary text-xs font-bold tabular-nums">
                 {preRefineCountdown}
@@ -301,7 +316,9 @@ export function RefinePanel({
             {original.length > 300 ? original.slice(0, 300) + '…' : original}
           </div>
           <div className="mt-3 text-xs text-muted-foreground">
-            {t('activity:refine.countdownHint', { seconds: preRefineCountdown > 0 ? preRefineCountdown : 0 })}
+            {t('activity:refine.countdownHint', {
+              seconds: preRefineCountdown > 0 ? preRefineCountdown : 0,
+            })}
           </div>
         </div>
         <div className="flex justify-end px-4 py-3 border-t bg-muted/20">
@@ -317,7 +334,12 @@ export function RefinePanel({
             <Sparkles className="h-3 w-3 mr-1" />
             {t('activity:refine.countdownStartNow')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => handleDecision('original')} className="text-xs">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDecision('original')}
+            className="text-xs"
+          >
             <Send className="h-3 w-3 mr-1" />
             {t('activity:refine.countdownSendAsIs')}
           </Button>
@@ -360,7 +382,12 @@ export function RefinePanel({
           </div>
         </div>
         <div className="flex justify-end gap-2 px-4 py-2 border-t bg-muted/20">
-          <Button variant="ghost" size="sm" onClick={() => handleDecision('original')} className="text-xs">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDecision('original')}
+            className="text-xs"
+          >
             <Send className="h-3 w-3 mr-1" />
             {t('activity:refine.cancelRefineSendOriginal')}
           </Button>
@@ -411,10 +438,20 @@ export function RefinePanel({
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t bg-muted/20">
-          <Button variant="ghost" size="sm" onClick={() => handleDecision('original')} className="text-xs">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDecision('original')}
+            className="text-xs"
+          >
             {t('activity:refine.sendAsIs')}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleDecision('edit')} className="text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDecision('edit')}
+            className="text-xs"
+          >
             <Edit3 className="h-3 w-3 mr-1" />
             {t('activity:refine.edit')}
           </Button>
@@ -470,7 +507,8 @@ export function RefinePanel({
             </span>
           )}
         </div>
-        <button type="button"
+        <button
+          type="button"
           onClick={handleClose}
           className="text-muted-foreground hover:text-foreground transition-colors"
           title={t('activity:refine.cancelTitle')}
@@ -517,11 +555,7 @@ export function RefinePanel({
               >
                 {t('common:action.cancel')}
               </Button>
-              <Button
-                size="sm"
-                onClick={handleEditSubmit}
-                disabled={!editText.trim()}
-              >
+              <Button size="sm" onClick={handleEditSubmit} disabled={!editText.trim()}>
                 <Check className="h-3 w-3 mr-1" />
                 {t('activity:refine.useEdit')}
               </Button>
@@ -553,7 +587,10 @@ export function RefinePanel({
             {/* Refined (Original Language) */}
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-xs text-warning font-medium uppercase tracking-wider">
-                {t('activity:refine.refined')} <span className="text-muted-foreground font-normal">{t('activity:refine.yourLanguage')}</span>
+                {t('activity:refine.refined')}{' '}
+                <span className="text-muted-foreground font-normal">
+                  {t('activity:refine.yourLanguage')}
+                </span>
                 {onCopyToInput && (
                   <button
                     type="button"
@@ -624,7 +661,11 @@ export function RefinePanel({
               title={t('activity:refine.languageTitle')}
             >
               <Globe className="h-3 w-3" />
-              <span>{enhanceLanguage === 'original' ? t('activity:refine.langOriginal') : t('activity:refine.langEnglish')}</span>
+              <span>
+                {enhanceLanguage === 'original'
+                  ? t('activity:refine.langOriginal')
+                  : t('activity:refine.langEnglish')}
+              </span>
             </button>
             <span className="opacity-30">|</span>
             <button
@@ -672,12 +713,7 @@ export function RefinePanel({
             </div>
             <div className="flex gap-2">
               {onRetry && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onRetry}
-                  className="text-xs"
-                >
+                <Button variant="outline" size="sm" onClick={onRetry} className="text-xs">
                   <RotateCw className="h-3 w-3 mr-1" />
                   {t('activity:refine.retryBetter')}
                 </Button>

@@ -61,7 +61,9 @@ export function CodeMapCanvasToolbar({
               : 'text-muted-foreground hover:bg-muted',
           )}
           onClick={() => onCanvasModeChange('smart')}
-          title={t('activity:codeMap.keepTheFullTreeShowTheStrongestRelationsAndSelectedNeighbourhood')}
+          title={t(
+            'activity:codeMap.keepTheFullTreeShowTheStrongestRelationsAndSelectedNeighbourhood',
+          )}
         >
           SMART {canvasNodeCount}/{graphNodeCount}
         </button>

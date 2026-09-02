@@ -230,7 +230,9 @@ function parseOutdatedOutput(
       exit_code: exitCode,
       packages: [],
       total: 0,
-      output: stderr || (exitCode === 0 ? 'All packages up to date' : 'Could not check outdated packages'),
+      output:
+        stderr ||
+        (exitCode === 0 ? 'All packages up to date' : 'Could not check outdated packages'),
       truncated: truncated,
     };
   }

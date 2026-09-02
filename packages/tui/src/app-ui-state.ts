@@ -311,8 +311,7 @@ function resolveSidebarLayout(
   // BEFORE computeSidebarWidth so a hidden sidebar can never reserve
   // columns. `undefined` defaults to visible — old callers that never
   // pass the flag keep the pre-gating behavior.
-  const sidebarWidth =
-    overlayOpen || showSidebar === false ? 0 : computeSidebarWidth(termCols);
+  const sidebarWidth = overlayOpen || showSidebar === false ? 0 : computeSidebarWidth(termCols);
   // The swarm panel is on the sidebar iff EITHER:
   //   - `panelPositions.fleet === 'sidebar'` (new per-panel position map,
   //     fed by both the picker draft and persisted config). This field

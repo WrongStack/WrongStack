@@ -6,10 +6,15 @@ export interface ResearchPhaseOptions {
   readonly researcher?: TechStackResearcher | undefined;
   readonly researchLimit?: number | undefined;
   readonly signal?: AbortSignal | undefined;
-  readonly onProgress?: ((phase: 'researching' | 'synthesizing', completed: number, total: number) => void) | undefined;
+  readonly onProgress?:
+    | ((phase: 'researching' | 'synthesizing', completed: number, total: number) => void)
+    | undefined;
 }
 
-export async function runResearchPhase(snapshot: Snapshot, options: ResearchPhaseOptions = {}): Promise<Snapshot> {
+export async function runResearchPhase(
+  snapshot: Snapshot,
+  options: ResearchPhaseOptions = {},
+): Promise<Snapshot> {
   if (!options.researcher || options.signal?.aborted) return snapshot;
   const candidates = triageCandidates(snapshot.dependencies, { limit: options.researchLimit });
   if (candidates.length === 0) return snapshot;
@@ -24,5 +29,7 @@ export async function runResearchPhase(snapshot: Snapshot, options: ResearchPhas
     return snapshot;
   }
   options.onProgress?.('synthesizing', 1, 1);
-  return findings.length ? { ...snapshot, findings: [...snapshot.findings, ...findings] } : snapshot;
+  return findings.length
+    ? { ...snapshot, findings: [...snapshot.findings, ...findings] }
+    : snapshot;
 }

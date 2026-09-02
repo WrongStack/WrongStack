@@ -396,7 +396,11 @@ describe('ProviderError.describe', () => {
   });
 
   it('scrubs an unparseable body too, via the raw fallback', () => {
-    const err = parseProviderHttpError('gw', 502, 'upstream: Bearer ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+    const err = parseProviderHttpError(
+      'gw',
+      502,
+      'upstream: Bearer ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+    );
     expect(err.body?.raw).not.toContain('ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
   });
 

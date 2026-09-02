@@ -12,7 +12,10 @@ vi.mock('@wrongstack/core/utils', () => ({
   atomicWrite: mockAtomicWrite,
 }));
 
-import { createCustomModeStore, type CustomContextMode } from '../src/server/custom-context-modes.js';
+import {
+  createCustomModeStore,
+  type CustomContextMode,
+} from '../src/server/custom-context-modes.js';
 
 // Helper to create a valid custom mode
 function makeMode(overrides: Partial<CustomContextMode> = {}): CustomContextMode {
@@ -123,7 +126,12 @@ describe('custom-context-modes', () => {
 
       it('returns error when name is missing', () => {
         const store = createCustomModeStore('/tmp/.wrongstack');
-        const result = store.create({ id: 'test-id', name: '', description: '', custom: true } as any);
+        const result = store.create({
+          id: 'test-id',
+          name: '',
+          description: '',
+          custom: true,
+        } as any);
         expect(result.ok).toBe(false);
         expect(result.error).toContain('name is required');
       });
@@ -133,7 +141,10 @@ describe('custom-context-modes', () => {
       it('updates fields on an existing mode', () => {
         const store = createCustomModeStore('/tmp/.wrongstack');
         store.create(makeMode({ id: 'my-mode' }));
-        const result = store.update('my-mode', { name: 'Updated Name', description: 'Updated desc' });
+        const result = store.update('my-mode', {
+          name: 'Updated Name',
+          description: 'Updated desc',
+        });
         expect(result.ok).toBe(true);
         expect(store.modes.get('my-mode')!.name).toBe('Updated Name');
         expect(store.modes.get('my-mode')!.description).toBe('Updated desc');
@@ -165,7 +176,12 @@ describe('custom-context-modes', () => {
       it('updates preserveK, eliseThreshold, targetLoad, aggressiveOn', () => {
         const store = createCustomModeStore('/tmp/.wrongstack');
         store.create(makeMode({ id: 'my-mode' }));
-        store.update('my-mode', { preserveK: 20, eliseThreshold: 5000, targetLoad: 0.8, aggressiveOn: 'hard' });
+        store.update('my-mode', {
+          preserveK: 20,
+          eliseThreshold: 5000,
+          targetLoad: 0.8,
+          aggressiveOn: 'hard',
+        });
         const mode = store.modes.get('my-mode')!;
         expect(mode.preserveK).toBe(20);
         expect(mode.eliseThreshold).toBe(5000);
@@ -201,7 +217,16 @@ describe('custom-context-modes', () => {
     describe('list', () => {
       it('returns built-in modes merged with custom modes', () => {
         mockListModes.mockReturnValue([
-          { id: 'balanced', name: 'Balanced', description: 'Default', thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 }, aggressiveOn: 'soft', preserveK: 10, eliseThreshold: 2000, targetLoad: 0.65 },
+          {
+            id: 'balanced',
+            name: 'Balanced',
+            description: 'Default',
+            thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 },
+            aggressiveOn: 'soft',
+            preserveK: 10,
+            eliseThreshold: 2000,
+            targetLoad: 0.65,
+          },
         ]);
         const store = createCustomModeStore('/tmp/.wrongstack');
         store.create(makeMode({ id: 'custom-mode', name: 'Custom' }));
@@ -215,7 +240,16 @@ describe('custom-context-modes', () => {
 
       it('returns only built-ins when no custom modes', () => {
         mockListModes.mockReturnValue([
-          { id: 'balanced', name: 'Balanced', description: 'Default', thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 }, aggressiveOn: 'soft', preserveK: 10, eliseThreshold: 2000, targetLoad: 0.65 },
+          {
+            id: 'balanced',
+            name: 'Balanced',
+            description: 'Default',
+            thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 },
+            aggressiveOn: 'soft',
+            preserveK: 10,
+            eliseThreshold: 2000,
+            targetLoad: 0.65,
+          },
         ]);
         const store = createCustomModeStore('/tmp/.wrongstack');
         const all = store.list();

@@ -1,6 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { ChangeManager, DEFAULT_QUALITY_CHECKS, type ChangeFile, type ChangeProposal } from '../../src/coordination/change-manager.js';
-import type { ChangeNode, KnowledgeGraph, QualityGateResult } from '../../src/coordination/knowledge-graph.js';
+import {
+  ChangeManager,
+  DEFAULT_QUALITY_CHECKS,
+  type ChangeFile,
+  type ChangeProposal,
+} from '../../src/coordination/change-manager.js';
+import type {
+  ChangeNode,
+  KnowledgeGraph,
+  QualityGateResult,
+} from '../../src/coordination/knowledge-graph.js';
 import type { ConsensusProtocol } from '../../src/coordination/consensus-protocol.js';
 import type { FleetBus } from '../../src/coordination/fleet-bus.js';
 
@@ -78,9 +87,7 @@ function sampleChangeProposal(overrides: Partial<ChangeProposal> = {}): ChangePr
   return {
     title: 'Refactor auth module',
     description: 'Clean up authentication logic',
-    files: [
-      { path: 'src/auth.ts', action: 'modify' as const, diff: '...' },
-    ],
+    files: [{ path: 'src/auth.ts', action: 'modify' as const, diff: '...' }],
     proposedBy: 'agent-1',
     satisfiesGoals: ['goal-1'],
     tags: ['refactor'],
@@ -140,7 +147,9 @@ describe('ChangeManager', () => {
       const node = await manager.propose(proposal);
 
       expect(node.files).toHaveLength(3);
-      expect(node.files[0]).toEqual(expect.objectContaining({ path: 'src/a.ts', action: 'create' }));
+      expect(node.files[0]).toEqual(
+        expect.objectContaining({ path: 'src/a.ts', action: 'create' }),
+      );
     });
 
     it('sets satisfiesGoals', async () => {
@@ -187,9 +196,7 @@ describe('ChangeManager', () => {
     });
 
     it('throws for unknown change', async () => {
-      await expect(manager.submitForReview('nonexistent')).rejects.toThrow(
-        /no change found/,
-      );
+      await expect(manager.submitForReview('nonexistent')).rejects.toThrow(/no change found/);
     });
 
     it('throws for non-proposed change', async () => {
@@ -197,9 +204,7 @@ describe('ChangeManager', () => {
       const node = await manager.propose(proposal);
       await graph.update(node.id, { status: 'approved' });
 
-      await expect(manager.submitForReview(node.id)).rejects.toThrow(
-        /not in 'proposed' state/,
-      );
+      await expect(manager.submitForReview(node.id)).rejects.toThrow(/not in 'proposed' state/);
     });
 
     it('emits change:submitted_for_review event', async () => {
@@ -276,9 +281,9 @@ describe('ChangeManager', () => {
 
     it('throws for unknown change', async () => {
       const verify = vi.fn();
-      await expect(
-        manager.markAppliedWithVerification('nonexistent', verify),
-      ).rejects.toThrow(/unknown change/);
+      await expect(manager.markAppliedWithVerification('nonexistent', verify)).rejects.toThrow(
+        /unknown change/,
+      );
     });
   });
 
@@ -404,7 +409,10 @@ describe('ChangeManager', () => {
     it('calls graph.update with quality gate patch', async () => {
       const node = await manager.propose(sampleChangeProposal());
 
-      await manager.updateQualityGate(node.id, 'tests', { passed: true, detail: 'All 42 tests passed' });
+      await manager.updateQualityGate(node.id, 'tests', {
+        passed: true,
+        detail: 'All 42 tests passed',
+      });
 
       // Verify graph.update was called
       expect(graph.update).toHaveBeenCalled();

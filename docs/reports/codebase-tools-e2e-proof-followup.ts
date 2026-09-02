@@ -95,7 +95,11 @@ async function main() {
         files: absFile.affectedProductionFiles,
         summary: absFile.summary,
       },
-      incomingRelative: { total: incomingRel.total, note: incomingRel.note, indexStatus: incomingRel.indexStatus },
+      incomingRelative: {
+        total: incomingRel.total,
+        note: incomingRel.note,
+        indexStatus: incomingRel.indexStatus,
+      },
       incomingAbsolute: { total: incomingAbs.total, note: incomingAbs.note },
       fileGraphPackageSrc: summarize(fileGraphWrong.content),
       fileGraphPackageFixture: summarize(fileGraphRight.content),

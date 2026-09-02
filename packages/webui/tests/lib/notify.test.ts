@@ -190,10 +190,14 @@ describe('notifyIfHidden', () => {
 
       constructor(_title: string, _options?: NotificationOptions) {
         captured = this;
-        this.onclick = () => { closeSpy(); };
+        this.onclick = () => {
+          closeSpy();
+        };
       }
 
-      close() { closeSpy(); }
+      close() {
+        closeSpy();
+      }
     }
 
     Object.defineProperty(document, 'hidden', {

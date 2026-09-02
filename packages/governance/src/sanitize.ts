@@ -10,4 +10,3 @@
 export function sanitizeGovernanceMessage(message: string): string {
   return message.replace(/wsg_[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*/gu, '[credential]').slice(0, 512);
 }
-

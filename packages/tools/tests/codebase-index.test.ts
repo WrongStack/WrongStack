@@ -12,7 +12,12 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetIndexStateForTesting } from '../src/codebase-index/background-indexer.js';
-import { buildBm25Index, buildIndexableText, FTS_SIGNATURE_MAX_CHARS, tokenise } from '../src/codebase-index/bm25.js';
+import {
+  buildBm25Index,
+  buildIndexableText,
+  FTS_SIGNATURE_MAX_CHARS,
+  tokenise,
+} from '../src/codebase-index/bm25.js';
 import { codebaseIndexTool } from '../src/codebase-index/codebase-index-tool.js';
 import { codebaseSearchTool } from '../src/codebase-index/codebase-search-tool.js';
 import { codebaseStatsTool } from '../src/codebase-index/codebase-stats-tool.js';

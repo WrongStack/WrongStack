@@ -276,10 +276,7 @@ const NEGATION_CUES = new Set([
  * disagreements. Shared by the remember merge path (a polarity pair must NOT
  * collapse into one memory) and the hygiene contradiction pass.
  */
-export function isPossiblyContradictory(
-  a: { text: string },
-  b: { text: string },
-): boolean {
+export function isPossiblyContradictory(a: { text: string }, b: { text: string }): boolean {
   const tokensA = tokenize(a.text);
   const tokensB = tokenize(b.text);
   if (tokensA.length < 5 || tokensB.length < 5) return false;
@@ -502,7 +499,11 @@ export function validateRememberInput(input: RememberSageInput): void {
       `Invalid SAGE persistence: expected one of ${[...VALID_PERSISTENCE].join(', ')}, got "${input.persistence}".`,
     );
   }
-  if (input.kind && STRUCTURAL_KINDS.has(input.kind) && !(input.anchors && input.anchors.length > 0)) {
+  if (
+    input.kind &&
+    STRUCTURAL_KINDS.has(input.kind) &&
+    !(input.anchors && input.anchors.length > 0)
+  ) {
     throw new Error(
       `SAGE kind "${input.kind}" requires at least one anchor (file/symbol/command binding).`,
     );

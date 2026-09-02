@@ -102,7 +102,9 @@ const LOCAL_BIN_PACKAGES: Record<string, { packageName: string; binName: string 
  * the tool is not installed locally, so the caller falls back to the
  * platform-adjusted PATH invocation.
  */
-function resolveLocalToolCommand(tokens: readonly string[]): { cmd: string; args: string[] } | null {
+function resolveLocalToolCommand(
+  tokens: readonly string[],
+): { cmd: string; args: string[] } | null {
   if (tokens.length === 0) return null;
   let i = 0;
   // Skip a leading package runner ("npx biome …", "pnpm exec biome …").
@@ -110,7 +112,10 @@ function resolveLocalToolCommand(tokens: readonly string[]): { cmd: string; args
     i++;
     // Consume any run subcommands after the runner ("pnpm exec", "npm exec",
     // "yarn dlx", "pnpm dlx run" …) until the real tool token is reached.
-    while (i < tokens.length && (tokens[i] === 'exec' || tokens[i] === 'dlx' || tokens[i] === 'run')) {
+    while (
+      i < tokens.length &&
+      (tokens[i] === 'exec' || tokens[i] === 'dlx' || tokens[i] === 'run')
+    ) {
       i++;
     }
   }
@@ -261,10 +266,7 @@ function readConfig(raw: unknown): ImportOrganizerConfig {
       typeof rawFallback === 'string' && rawFallback.length > 0
         ? rawFallback
         : DEFAULTS.fallbackCommand,
-    timeoutMs:
-      typeof rawTimeout === 'number' && rawTimeout > 0
-        ? rawTimeout
-        : DEFAULTS.timeoutMs,
+    timeoutMs: typeof rawTimeout === 'number' && rawTimeout > 0 ? rawTimeout : DEFAULTS.timeoutMs,
     notifyFormatOnSave: rawNotify !== false,
   };
 }
@@ -608,7 +610,9 @@ const plugin: Plugin = {
       return;
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook as never, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook as never, {
+      background: true,
+    });
 
     // --- import_organizer_status tool ---
     api.tools.register({

@@ -286,9 +286,9 @@ export async function spawn(
   const currentSessionId =
     typeof (host.coordinator as unknown as { sessionOf?: (id: string) => string | undefined })
       .sessionOf === 'function'
-      ? (host.coordinator as unknown as { sessionOf: (id: string) => string | undefined }).sessionOf(
-          result.subagentId,
-        )
+      ? (
+          host.coordinator as unknown as { sessionOf: (id: string) => string | undefined }
+        ).sessionOf(result.subagentId)
       : undefined;
   host.fleet.emit({
     subagentId: result.subagentId,

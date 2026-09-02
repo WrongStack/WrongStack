@@ -166,7 +166,10 @@ export interface OneShotOrchestratorOptions {
    * Build a credential-resolved Provider for a provider id+model.
    * Same contract as `FallbackModelDeps.buildProvider`.
    */
-  buildProvider: (providerId: string, modelId?: string | undefined) => import('./provider.js').Provider | Promise<import('./provider.js').Provider>;
+  buildProvider: (
+    providerId: string,
+    modelId?: string | undefined,
+  ) => import('./provider.js').Provider | Promise<import('./provider.js').Provider>;
 
   /**
    * Returns the live config (re-read each turn so model switches
@@ -199,7 +202,9 @@ export interface OneShotOrchestratorOptions {
    * records failures and successes, and skips blocked entries in the
    * fallback chain.
    */
-  statusTracker?: import('../coordination/provider-status-tracker.js').ProviderModelStatusTracker | undefined;
+  statusTracker?:
+    | import('../coordination/provider-status-tracker.js').ProviderModelStatusTracker
+    | undefined;
 
   /**
    * The host's composed `wrapProviderRunner` chain, if it has one.

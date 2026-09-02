@@ -14,7 +14,7 @@ const PROVIDER_KEY_SET_SCHEMA: JSONSchema = {
     key: {
       type: 'string',
       description:
-        'The API key value. When provided directly, it is stored as the provider\'s ' +
+        "The API key value. When provided directly, it is stored as the provider's " +
         'primary key. ⚠️ This value is visible to the LLM — for secrets, omit this field ' +
         'and use envVar instead, or provide the key through the interactive prompt.',
     },
@@ -52,7 +52,9 @@ interface ProviderKeySetOutput {
   message: string;
 }
 
-export function createProviderKeySetTool(opts: FallbackManageToolOptions): Tool<ProviderKeySetInput, ProviderKeySetOutput> {
+export function createProviderKeySetTool(
+  opts: FallbackManageToolOptions,
+): Tool<ProviderKeySetInput, ProviderKeySetOutput> {
   return {
     name: PROVIDER_KEY_SET_TOOL_NAME,
     description:
@@ -81,7 +83,8 @@ export function createProviderKeySetTool(opts: FallbackManageToolOptions): Tool<
       if (input.key && input.envVar) {
         return {
           status: 'error',
-          message: 'Provide either key (direct, visible to LLM) OR envVar (reads from environment, ' +
+          message:
+            'Provide either key (direct, visible to LLM) OR envVar (reads from environment, ' +
             'never visible to LLM), not both. Use envVar for security.',
         };
       }
@@ -119,7 +122,8 @@ export function createProviderKeySetTool(opts: FallbackManageToolOptions): Tool<
         if (!envValue) {
           return {
             status: 'error',
-            message: `Environment variable "${input.envVar}" is not set or empty. ` +
+            message:
+              `Environment variable "${input.envVar}" is not set or empty. ` +
               `Set it first or use a different envVar.`,
           };
         }

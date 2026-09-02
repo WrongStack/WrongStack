@@ -6,7 +6,14 @@ export type CoordinatorEvent =
   | { type: 'goal:added'; goalId: string; title?: string; text?: string; participants?: string[] }
   | { type: 'goal:completed'; goalId: string; text?: string; participants?: string[] }
   | { type: 'goal:failed'; goalId: string; text?: string }
-  | { type: 'task:ready'; goalId: string; taskId: string; title?: string; assignedTo?: string; text?: string }
+  | {
+      type: 'task:ready';
+      goalId: string;
+      taskId: string;
+      title?: string;
+      assignedTo?: string;
+      text?: string;
+    }
   | { type: 'task:completed'; goalId: string; taskId: string; text?: string }
   | { type: 'knowledge:added'; knowledgeId: string; title?: string; text?: string }
   | { type: 'consensus:reached'; goalId: string; text?: string; participants?: string[] }
@@ -327,7 +334,11 @@ export class AutonomousCoordinator {
           if (this.dag.hasDeadlock()) {
             const blocked = this.dag.getBlocked();
             this._busEmit('autonomous:deadlock', { blocked });
-            this._emit({ type: 'deadlock:detected', goalId: blocked[0]?.id ?? '', text: `Deadlock detected: ${blocked.map((n) => n.id).join(', ')}` });
+            this._emit({
+              type: 'deadlock:detected',
+              goalId: blocked[0]?.id ?? '',
+              text: `Deadlock detected: ${blocked.map((n) => n.id).join(', ')}`,
+            });
           }
           break;
         }
@@ -352,7 +363,11 @@ export class AutonomousCoordinator {
           const blocked = this.dag.getBlocked();
           if (blocked.length > 0 && this.dag.hasDeadlock()) {
             this._busEmit('autonomous:deadlock', { blocked });
-            this._emit({ type: 'deadlock:detected', goalId: blocked[0]?.id ?? '', text: `Deadlock detected: ${blocked.map((n) => n.id).join(', ')}` });
+            this._emit({
+              type: 'deadlock:detected',
+              goalId: blocked[0]?.id ?? '',
+              text: `Deadlock detected: ${blocked.map((n) => n.id).join(', ')}`,
+            });
             this.running = false;
           }
           break;
@@ -399,10 +414,10 @@ export class AutonomousCoordinator {
     if (!this.running) return;
     this.running = false;
     if (this.logger) {
-      this.logger.error(
-        'Stop signal received — shutting down',
-        { event: 'autonomous_coordinator.stop_signal', iteration: this.iterationCount },
-      );
+      this.logger.error('Stop signal received — shutting down', {
+        event: 'autonomous_coordinator.stop_signal',
+        iteration: this.iterationCount,
+      });
     } else {
       console.error(
         JSON.stringify({
@@ -469,9 +484,16 @@ export class AutonomousCoordinator {
       if (!dagNode) continue;
       if (goal.status === 'done' && dagNode.status !== 'done' && dagNode.status !== 'failed') {
         this.dag.complete(goal.id, goal.result ?? 'Completed by another session');
-      } else if (goal.status === 'failed' && dagNode.status !== 'failed' && dagNode.status !== 'done') {
+      } else if (
+        goal.status === 'failed' &&
+        dagNode.status !== 'failed' &&
+        dagNode.status !== 'done'
+      ) {
         this.dag.fail(goal.id, goal.result ?? 'Failed by another session');
-      } else if (goal.status === 'in_progress' && (dagNode.status === 'ready' || dagNode.status === 'pending')) {
+      } else if (
+        goal.status === 'in_progress' &&
+        (dagNode.status === 'ready' || dagNode.status === 'pending')
+      ) {
         this.dag.start(goal.id, goal.assignee ?? 'another-session');
       }
     }
@@ -517,9 +539,10 @@ export class AutonomousCoordinator {
         done: allGoals.filter((g) => g.status === 'done').length,
         pending: allGoals.filter((g) => g.status === 'pending').length,
         failed: allGoals.filter((g) => g.status === 'failed').length,
-        progress: allGoals.length > 0
-          ? allGoals.filter((g) => g.status === 'done').length / allGoals.length
-          : 0,
+        progress:
+          allGoals.length > 0
+            ? allGoals.filter((g) => g.status === 'done').length / allGoals.length
+            : 0,
       },
       dag: dagStats,
       auction: auctionStats,
@@ -549,7 +572,7 @@ export class AutonomousCoordinator {
     severity?: 'critical' | 'high' | 'medium' | 'low';
     tags?: string[];
   }): Promise<FactNode> {
-    const fact = await this.graph.add({
+    const fact = (await this.graph.add({
       type: 'fact',
       category: input.category,
       subject: input.subject,
@@ -562,7 +585,7 @@ export class AutonomousCoordinator {
       tags: input.tags ?? [],
       key: `${input.category}:${input.subject}:${input.file ?? ''}:${input.line ?? ''}`,
       related: [],
-    } as Omit<FactNode, 'id'>) as FactNode;
+    } as Omit<FactNode, 'id'>)) as FactNode;
 
     // Cross-session broadcast
     await this._mailboxBroadcast({
@@ -571,7 +594,12 @@ export class AutonomousCoordinator {
       body: `**${input.category}**${input.file ? ` in ${input.file}${input.line ? `:${input.line}` : ''}` : ''}\n${input.detail}`,
     });
 
-    this._emit({ type: 'knowledge:added', knowledgeId: fact.id, title: input.subject, text: input.detail });
+    this._emit({
+      type: 'knowledge:added',
+      knowledgeId: fact.id,
+      title: input.subject,
+      text: input.detail,
+    });
 
     return fact;
   }
@@ -603,9 +631,10 @@ export class AutonomousCoordinator {
 
     // Add to DAG
     for (const depId of input.deps ?? []) {
-      this.dag.addNode(depId, this.graph.get(depId)?.type === 'goal'
-        ? (this.graph.get(depId) as GoalNode).title
-        : depId);
+      this.dag.addNode(
+        depId,
+        this.graph.get(depId)?.type === 'goal' ? (this.graph.get(depId) as GoalNode).title : depId,
+      );
     }
     this.dag.addNode(goalId, input.description, input.deps ?? []);
 
@@ -684,12 +713,14 @@ export class AutonomousCoordinator {
     }
   }
 
-  private async _decomposeGoal(goalText: string): Promise<{
-    title: string;
-    description: string;
-    priority?: 'critical' | 'high' | 'medium' | 'low';
-    tags?: string[];
-  }[]> {
+  private async _decomposeGoal(goalText: string): Promise<
+    {
+      title: string;
+      description: string;
+      priority?: 'critical' | 'high' | 'medium' | 'low';
+      tags?: string[];
+    }[]
+  > {
     const category = this._inferCategory(goalText);
 
     const subGoals: {
@@ -700,17 +731,57 @@ export class AutonomousCoordinator {
     }[] = [];
 
     if (category === 'security') {
-      subGoals.push({ title: 'Audit for secrets', description: 'Scan codebase for hardcoded secrets and API keys', priority: 'critical', tags: ['security'] });
-      subGoals.push({ title: 'Check injection vectors', description: 'Find eval, innerHTML, SQL concat, shell injection patterns', priority: 'critical', tags: ['security', 'injection'] });
-      subGoals.push({ title: 'Dependency audit', description: 'Run npm/pnpm audit for known CVEs', priority: 'high', tags: ['security', 'deps'] });
+      subGoals.push({
+        title: 'Audit for secrets',
+        description: 'Scan codebase for hardcoded secrets and API keys',
+        priority: 'critical',
+        tags: ['security'],
+      });
+      subGoals.push({
+        title: 'Check injection vectors',
+        description: 'Find eval, innerHTML, SQL concat, shell injection patterns',
+        priority: 'critical',
+        tags: ['security', 'injection'],
+      });
+      subGoals.push({
+        title: 'Dependency audit',
+        description: 'Run npm/pnpm audit for known CVEs',
+        priority: 'high',
+        tags: ['security', 'deps'],
+      });
     } else if (category === 'bug') {
-      subGoals.push({ title: 'Find bugs', description: `Scan for bugs related to: ${goalText}`, priority: 'high', tags: ['bug'] });
-      subGoals.push({ title: 'Fix bugs', description: 'Fix discovered bugs with tests', priority: 'high', tags: ['fix'] });
+      subGoals.push({
+        title: 'Find bugs',
+        description: `Scan for bugs related to: ${goalText}`,
+        priority: 'high',
+        tags: ['bug'],
+      });
+      subGoals.push({
+        title: 'Fix bugs',
+        description: 'Fix discovered bugs with tests',
+        priority: 'high',
+        tags: ['fix'],
+      });
     } else if (category === 'refactor') {
-      subGoals.push({ title: 'Plan refactor', description: `Analyze code structure for: ${goalText}`, priority: 'medium', tags: ['refactor', 'planning'] });
-      subGoals.push({ title: 'Implement refactor', description: 'Apply the refactoring plan', priority: 'medium', tags: ['refactor', 'implementation'] });
+      subGoals.push({
+        title: 'Plan refactor',
+        description: `Analyze code structure for: ${goalText}`,
+        priority: 'medium',
+        tags: ['refactor', 'planning'],
+      });
+      subGoals.push({
+        title: 'Implement refactor',
+        description: 'Apply the refactoring plan',
+        priority: 'medium',
+        tags: ['refactor', 'implementation'],
+      });
     } else {
-      subGoals.push({ title: goalText, description: goalText, priority: 'medium', tags: [category] });
+      subGoals.push({
+        title: goalText,
+        description: goalText,
+        priority: 'medium',
+        tags: [category],
+      });
     }
 
     return subGoals;
@@ -718,9 +789,11 @@ export class AutonomousCoordinator {
 
   private _inferCategory(goal: string): FactCategory {
     const g = goal.toLowerCase();
-    if (g.includes('security') || g.includes('secret') || g.includes('injection')) return 'security';
+    if (g.includes('security') || g.includes('secret') || g.includes('injection'))
+      return 'security';
     if (g.includes('bug') || g.includes('fix') || g.includes('error')) return 'bug';
-    if (g.includes('refactor') || g.includes('debt') || g.includes('architecture')) return 'architecture';
+    if (g.includes('refactor') || g.includes('debt') || g.includes('architecture'))
+      return 'architecture';
     if (g.includes('test') || g.includes('coverage')) return 'test';
     if (g.includes('perf') || g.includes('speed') || g.includes('optimize')) return 'perf';
     if (g.includes('deps') || g.includes('package') || g.includes('update')) return 'deps';
@@ -794,8 +867,9 @@ export class AutonomousCoordinator {
     const key = `task-result:${taskId}`;
     if (this.graph.getFacts({ category: 'quality' }).some((fact) => fact.key === key)) return;
     const goal = this.graph.get(taskId) as GoalNode | undefined;
-    const subject = goal?.type === 'goal' ? `Task completed: ${goal.title}` : `Task completed: ${taskId}`;
-    const fact = await this.graph.add({
+    const subject =
+      goal?.type === 'goal' ? `Task completed: ${goal.title}` : `Task completed: ${taskId}`;
+    const fact = (await this.graph.add({
       type: 'fact',
       category: 'quality',
       subject,
@@ -805,7 +879,7 @@ export class AutonomousCoordinator {
       tags: ['task-result', 'autonomous-coordinator'],
       key,
       related: [taskId],
-    } as Omit<FactNode, 'id'>) as FactNode;
+    } as Omit<FactNode, 'id'>)) as FactNode;
     this._emit({ type: 'knowledge:added', knowledgeId: fact.id, title: subject, text: result });
   }
 
@@ -815,14 +889,20 @@ export class AutonomousCoordinator {
 
     const existing = this.graph.getGoals({});
     for (const title of followUps) {
-      if (existing.some((goal) => goal.title === title && goal.tags.includes('follow-up'))) continue;
+      if (existing.some((goal) => goal.title === title && goal.tags.includes('follow-up')))
+        continue;
       const goal = await this.createGoal({
         title,
         description: title,
         priority: 'medium',
         tags: ['follow-up', 'task-result', taskId],
       });
-      this._emit({ type: 'goal:added', goalId: goal.id, title: goal.title, text: goal.description });
+      this._emit({
+        type: 'goal:added',
+        goalId: goal.id,
+        title: goal.title,
+        text: goal.description,
+      });
     }
   }
 
@@ -850,25 +930,44 @@ export class AutonomousCoordinator {
     this._emit({ type: 'goal:failed', goalId: taskId, text: error });
   }
 
-  private async _handlePendingChange(change: { id: string; qualityGate: { passed: boolean; checks: QualityCheck[] } }): Promise<void> {
+  private async _handlePendingChange(change: {
+    id: string;
+    qualityGate: { passed: boolean; checks: QualityCheck[] };
+  }): Promise<void> {
     const result = this.consensus.getStatus(change.id);
     if (result?.outcome !== 'pending') return;
 
     // Auto-vote if we have quality gate results
     if (change.qualityGate.passed) {
-      const voteResult = await this.consensus.castVote(change.id, this.selfAgentId, 'approve',
-        `Quality gate passed: ${change.qualityGate.checks.map((c) => c.name).join(', ')}`);
+      const voteResult = await this.consensus.castVote(
+        change.id,
+        this.selfAgentId,
+        'approve',
+        `Quality gate passed: ${change.qualityGate.checks.map((c) => c.name).join(', ')}`,
+      );
       if (voteResult.outcome === 'approved') {
         await this.changes.markApplied(change.id, new Date().toISOString());
-        this._emit({ type: 'consensus:reached', goalId: change.id, text: 'Change approved and applied' });
+        this._emit({
+          type: 'consensus:reached',
+          goalId: change.id,
+          text: 'Change approved and applied',
+        });
       }
     } else {
       // Quality gate failed — reject the change outright
-      const voteResult = await this.consensus.castVote(change.id, this.selfAgentId, 'reject',
-        `Quality gate failed: ${change.qualityGate.checks.map((c) => `${c.name}=${c.passed}`).join(', ')}`);
+      const voteResult = await this.consensus.castVote(
+        change.id,
+        this.selfAgentId,
+        'reject',
+        `Quality gate failed: ${change.qualityGate.checks.map((c) => `${c.name}=${c.passed}`).join(', ')}`,
+      );
       if (voteResult.outcome === 'rejected' || voteResult.outcome === 'vetoed') {
         // Status update (rejected) is handled inside castVote via graph.update
-        this._emit({ type: 'consensus:reached', goalId: change.id, text: 'Change rejected by quality gate' });
+        this._emit({
+          type: 'consensus:reached',
+          goalId: change.id,
+          text: 'Change rejected by quality gate',
+        });
       }
     }
   }
@@ -884,7 +983,10 @@ export class AutonomousCoordinator {
       // A new task became runnable — broadcast it
       const node = this.dag.getNode(event.nodeId);
       if (node) {
-        this._busEmit('autonomous:task_ready', { taskId: event.nodeId, description: node.description });
+        this._busEmit('autonomous:task_ready', {
+          taskId: event.nodeId,
+          description: node.description,
+        });
       }
     }
     if (event.type === 'graph:done') {
@@ -896,13 +998,15 @@ export class AutonomousCoordinator {
 
   private _onSubagentTerminated(e: FleetEvent): void {
     // Handle both the old 'stopReason' format and the 'subagent.completed' format
-    const payload = e.payload as {
-      subagentId?: string;
-      stopReason?: string;
-      status?: 'ok' | 'success' | 'error' | 'timeout' | 'aborted' | 'failed' | 'stopped';
-      taskId?: string;
-      result?: unknown;
-    } | undefined;
+    const payload = e.payload as
+      | {
+          subagentId?: string;
+          stopReason?: string;
+          status?: 'ok' | 'success' | 'error' | 'timeout' | 'aborted' | 'failed' | 'stopped';
+          taskId?: string;
+          result?: unknown;
+        }
+      | undefined;
     const subagentId = payload?.subagentId ?? e.subagentId;
     // 'stopReason' is from the old format; 'status' is from 'subagent.completed'.
     // MultiAgentCoordinator emits status='success' for a clean finish; older
@@ -941,13 +1045,25 @@ export class AutonomousCoordinator {
       { agentId: this.selfAgentId, agentName: 'Coordinator', role: 'coordinator', weight: 1 },
       { agentId: 'critic', agentName: 'Critic', role: 'critic', weight: 2, veto: true },
       { agentId: 'bug-hunter', agentName: 'Bug Hunter', role: 'bug-hunter', weight: 1.5 },
-      { agentId: 'security-scanner', agentName: 'Security Scanner', role: 'security-scanner', weight: 1.5 },
+      {
+        agentId: 'security-scanner',
+        agentName: 'Security Scanner',
+        role: 'security-scanner',
+        weight: 1.5,
+      },
       { agentId: 'audit-log', agentName: 'Audit Log', role: 'audit-log', weight: 1 },
-      { agentId: 'refactor-planner', agentName: 'Refactor Planner', role: 'refactor-planner', weight: 1 },
+      {
+        agentId: 'refactor-planner',
+        agentName: 'Refactor Planner',
+        role: 'refactor-planner',
+        weight: 1,
+      },
     ];
   }
 
-  private _goalToOptions(goals: GoalNode[]): { id: string; label: string; recommended?: boolean }[] {
+  private _goalToOptions(
+    goals: GoalNode[],
+  ): { id: string; label: string; recommended?: boolean }[] {
     return goals.slice(0, 5).map((g, i) => ({
       id: g.id,
       label: `[${g.priority}] ${g.title}`,
@@ -959,8 +1075,11 @@ export class AutonomousCoordinator {
     return this.graph.get(optionId) as GoalNode | undefined;
   }
 
-
-  private async _mailboxBroadcast(msg: { type: 'note' | 'broadcast'; subject: string; body: string }): Promise<void> {
+  private async _mailboxBroadcast(msg: {
+    type: 'note' | 'broadcast';
+    subject: string;
+    body: string;
+  }): Promise<void> {
     if (!this.mailbox) return;
     try {
       await this.mailbox.send({
@@ -971,7 +1090,9 @@ export class AutonomousCoordinator {
         body: msg.body,
         priority: 'normal',
       });
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
   }
 
   /** Emit a CoordinatorEvent to the subscriber (e.g. TUI panel timeline). */

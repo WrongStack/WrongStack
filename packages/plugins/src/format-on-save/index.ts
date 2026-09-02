@@ -125,19 +125,14 @@ function readConfig(raw: unknown): FormatOnSaveConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
   const rawTimeout = r['timeoutMs'] ?? r['timeout_ms'] ?? r['timeout'];
-  const rawCovered = r['skipWhenCoveredBy'] ?? r['skip_when_covered_by'] ?? r['skipCovered'] ?? r['skip_covered'];
+  const rawCovered =
+    r['skipWhenCoveredBy'] ?? r['skip_when_covered_by'] ?? r['skipCovered'] ?? r['skip_covered'];
   const rawTtl = r['skipTtlMs'] ?? r['skip_ttl_ms'] ?? r['ttlMs'] ?? r['ttl_ms'] ?? r['ttl'];
   return {
     enabled: r['enabled'] !== false,
-    timeoutMs:
-      typeof rawTimeout === 'number' && rawTimeout > 0
-        ? rawTimeout
-        : DEFAULTS.timeoutMs,
+    timeoutMs: typeof rawTimeout === 'number' && rawTimeout > 0 ? rawTimeout : DEFAULTS.timeoutMs,
     skipWhenCoveredBy: rawCovered !== false,
-    skipTtlMs:
-      typeof rawTtl === 'number' && rawTtl >= 0
-        ? rawTtl
-        : DEFAULTS.skipTtlMs,
+    skipTtlMs: typeof rawTtl === 'number' && rawTtl >= 0 ? rawTtl : DEFAULTS.skipTtlMs,
   };
 }
 
@@ -534,7 +529,9 @@ const plugin: Plugin = {
       return;
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // Cross-plugin listener: import-organizer announces each
     // successful linter run via `import-organizer:done`. We cache the

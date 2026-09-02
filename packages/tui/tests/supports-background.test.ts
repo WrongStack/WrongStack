@@ -28,10 +28,7 @@ const rows: DiffLineRow[] = [
  * state (which would leak between tests and fight the test runner's own
  * environment).
  */
-async function detect(
-  env: Record<string, string | undefined>,
-  isTTY: boolean,
-): Promise<boolean> {
+async function detect(env: Record<string, string | undefined>, isTTY: boolean): Promise<boolean> {
   const mod = (await import('../src/theme.js')) as typeof import('../src/theme.js');
   return mod.detectSupportsBackground(env, isTTY);
 }
@@ -41,34 +38,28 @@ describe('detectSupportsBackground (env + tty gate)', () => {
     // Even with full truecolor signals, a non-TTY must downgrade — this is
     // what keeps captured sessions clean.
     expect(
-      await detect(
-        { NO_COLOR: undefined, TERM: 'xterm-256color', COLORTERM: 'truecolor' },
-        false,
-      ),
+      await detect({ NO_COLOR: undefined, TERM: 'xterm-256color', COLORTERM: 'truecolor' }, false),
     ).toBe(false);
   });
 
   it('returns false when NO_COLOR is set to any non-empty string, even on truecolor terminals', async () => {
     for (const value of ['1', 'true', 'yes', '0']) {
       expect(
-        await detect(
-          { NO_COLOR: value, TERM: 'xterm-256color', COLORTERM: 'truecolor' },
-          true,
-        ),
+        await detect({ NO_COLOR: value, TERM: 'xterm-256color', COLORTERM: 'truecolor' }, true),
       ).toBe(false);
     }
   });
 
   it('returns true when COLORTERM=truecolor on a TTY with no NO_COLOR', async () => {
-    expect(
-      await detect({ NO_COLOR: undefined, TERM: 'xterm', COLORTERM: 'truecolor' }, true),
-    ).toBe(true);
+    expect(await detect({ NO_COLOR: undefined, TERM: 'xterm', COLORTERM: 'truecolor' }, true)).toBe(
+      true,
+    );
   });
 
   it('returns true when COLORTERM=24bit on a TTY with no NO_COLOR', async () => {
-    expect(
-      await detect({ NO_COLOR: undefined, TERM: 'xterm', COLORTERM: '24bit' }, true),
-    ).toBe(true);
+    expect(await detect({ NO_COLOR: undefined, TERM: 'xterm', COLORTERM: '24bit' }, true)).toBe(
+      true,
+    );
   });
 
   it('returns true when TERM advertises 256color on a TTY with no NO_COLOR', async () => {

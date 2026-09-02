@@ -36,7 +36,11 @@ describe('createLocalManifestSuite — validation errors', () => {
 
     it('throws when manifest has no tasks array', async () => {
       const dir = await makeTmp();
-      await fs.writeFile(path.join(dir, 'bench.local.json'), JSON.stringify({ name: 'test' }), 'utf8');
+      await fs.writeFile(
+        path.join(dir, 'bench.local.json'),
+        JSON.stringify({ name: 'test' }),
+        'utf8',
+      );
       const suite = createLocalManifestSuite({ suiteDir: dir });
       await expect(suite.loadTasks({})).rejects.toThrow(/missing a "tasks" array/);
     });
@@ -71,7 +75,13 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{ prompt: 'Do it', templateDir: './fixture', assertions: [{ type: 'file_exists', path: 'x.txt' }] }],
+          tasks: [
+            {
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -87,13 +97,15 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-grader',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: 'not-an-object',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-          }],
+          tasks: [
+            {
+              id: 'bad-grader',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: 'not-an-object',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -107,12 +119,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'wrong-type',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: { type: 'not-command', command: 'test' },
-          }],
+          tasks: [
+            {
+              id: 'wrong-type',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: { type: 'not-command', command: 'test' },
+            },
+          ],
         }),
         'utf8',
       );
@@ -126,12 +140,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'no-cmd',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: { type: 'command' },
-          }],
+          tasks: [
+            {
+              id: 'no-cmd',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: { type: 'command' },
+            },
+          ],
         }),
         'utf8',
       );
@@ -147,12 +163,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-assert',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: ['string-not-object'],
-          }],
+          tasks: [
+            {
+              id: 'bad-assert',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: ['string-not-object'],
+            },
+          ],
         }),
         'utf8',
       );
@@ -166,12 +184,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-type',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'unknown_type', path: 'x.txt' }],
-          }],
+          tasks: [
+            {
+              id: 'bad-type',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'unknown_type', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -185,12 +205,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'no-path',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists' }],
-          }],
+          tasks: [
+            {
+              id: 'no-path',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -204,12 +226,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'no-text',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_contains', path: 'x.txt' }],
-          }],
+          tasks: [
+            {
+              id: 'no-text',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_contains', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -225,13 +249,15 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-te',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: 'not-an-object',
-          }],
+          tasks: [
+            {
+              id: 'bad-te',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: 'not-an-object',
+            },
+          ],
         }),
         'utf8',
       );
@@ -244,22 +270,30 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.mkdir(path.join(dir, 'fixture'), { recursive: true });
       const transcript = path.join(dir, 'corpus', 'source.jsonl');
       await fs.mkdir(path.dirname(transcript), { recursive: true });
-      await fs.writeFile(transcript, JSON.stringify({ type: 'session_start', id: 's' }) + '\n', 'utf8');
-      const _sha256 = createHash('sha256').update(JSON.stringify({ type: 'session_start', id: 's' }) + '\n').digest('hex');
+      await fs.writeFile(
+        transcript,
+        JSON.stringify({ type: 'session_start', id: 's' }) + '\n',
+        'utf8',
+      );
+      const _sha256 = createHash('sha256')
+        .update(JSON.stringify({ type: 'session_start', id: 's' }) + '\n')
+        .digest('hex');
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-source',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: 'not-an-object',
-              retrieval: [{ toolNames: ['read'], contains: 'x' }],
-              recall: { inputContains: ['a'] },
+          tasks: [
+            {
+              id: 'bad-source',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: 'not-an-object',
+                retrieval: [{ toolNames: ['read'], contains: 'x' }],
+                recall: { inputContains: ['a'] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -273,17 +307,25 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-sha',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: { sessionId: 's', transcriptPath: './corpus/t.jsonl', sha256: 'not-a-valid-sha', eventStart: 0, eventEnd: 1 },
-              retrieval: [{ toolNames: ['read'], contains: 'x' }],
-              recall: { inputContains: ['a'] },
+          tasks: [
+            {
+              id: 'bad-sha',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: {
+                  sessionId: 's',
+                  transcriptPath: './corpus/t.jsonl',
+                  sha256: 'not-a-valid-sha',
+                  eventStart: 0,
+                  eventEnd: 1,
+                },
+                retrieval: [{ toolNames: ['read'], contains: 'x' }],
+                recall: { inputContains: ['a'] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -300,17 +342,25 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'missing-transcript',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: { sessionId: 's', transcriptPath: './corpus/missing.jsonl', sha256, eventStart: 0, eventEnd: 1 },
-              retrieval: [{ toolNames: ['read'], contains: 'x' }],
-              recall: { inputContains: ['a'] },
+          tasks: [
+            {
+              id: 'missing-transcript',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: {
+                  sessionId: 's',
+                  transcriptPath: './corpus/missing.jsonl',
+                  sha256,
+                  eventStart: 0,
+                  eventEnd: 1,
+                },
+                retrieval: [{ toolNames: ['read'], contains: 'x' }],
+                recall: { inputContains: ['a'] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -331,17 +381,25 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'out-of-range',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: { sessionId: 's', transcriptPath: './corpus/short.jsonl', sha256, eventStart: 0, eventEnd: 5 },
-              retrieval: [{ toolNames: ['read'], contains: 'x' }],
-              recall: { inputContains: ['a'] },
+          tasks: [
+            {
+              id: 'out-of-range',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: {
+                  sessionId: 's',
+                  transcriptPath: './corpus/short.jsonl',
+                  sha256,
+                  eventStart: 0,
+                  eventEnd: 5,
+                },
+                retrieval: [{ toolNames: ['read'], contains: 'x' }],
+                recall: { inputContains: ['a'] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -357,12 +415,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-shell',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: { type: 'command', command: 'test', shell: 'not-boolean' },
-          }],
+          tasks: [
+            {
+              id: 'bad-shell',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: { type: 'command', command: 'test', shell: 'not-boolean' },
+            },
+          ],
         }),
         'utf8',
       );
@@ -376,12 +436,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-timeout',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: { type: 'command', command: 'test', timeoutMs: -5 },
-          }],
+          tasks: [
+            {
+              id: 'bad-timeout',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: { type: 'command', command: 'test', timeoutMs: -5 },
+            },
+          ],
         }),
         'utf8',
       );
@@ -395,12 +457,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-buffer',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: { type: 'command', command: 'test', maxBufferBytes: 0 },
-          }],
+          tasks: [
+            {
+              id: 'bad-buffer',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: { type: 'command', command: 'test', maxBufferBytes: 0 },
+            },
+          ],
         }),
         'utf8',
       );
@@ -414,13 +478,15 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-exclude',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            templateExclude: [42],
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-          }],
+          tasks: [
+            {
+              id: 'bad-exclude',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              templateExclude: [42],
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -434,12 +500,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-assertions',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: 'not-an-array',
-          }],
+          tasks: [
+            {
+              id: 'bad-assertions',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: 'not-an-array',
+            },
+          ],
         }),
         'utf8',
       );
@@ -453,17 +521,25 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'empty-retrieval',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: { sessionId: 's', transcriptPath: './t.jsonl', sha256: 'a'.repeat(64), eventStart: 0, eventEnd: 1 },
-              retrieval: [],
-              recall: { inputContains: ['a'] },
+          tasks: [
+            {
+              id: 'empty-retrieval',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: {
+                  sessionId: 's',
+                  transcriptPath: './t.jsonl',
+                  sha256: 'a'.repeat(64),
+                  eventStart: 0,
+                  eventEnd: 1,
+                },
+                retrieval: [],
+                recall: { inputContains: ['a'] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -477,12 +553,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-env',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: { type: 'command', command: 'test', env: { KEY: 42 } },
-          }],
+          tasks: [
+            {
+              id: 'bad-env',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: { type: 'command', command: 'test', env: { KEY: 42 } },
+            },
+          ],
         }),
         'utf8',
       );
@@ -497,7 +575,14 @@ describe('createLocalManifestSuite — validation errors', () => {
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
           name: 42,
-          tasks: [{ id: 't', prompt: 'Do it', templateDir: './fixture', assertions: [{ type: 'file_exists', path: 'x.txt' }] }],
+          tasks: [
+            {
+              id: 't',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -524,7 +609,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{ id: 'sym', prompt: 'Do it', templateDir: './fixture', assertions: [{ type: 'file_exists', path: 'x.txt' }] }],
+          tasks: [
+            {
+              id: 'sym',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -543,17 +635,25 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-range',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: { sessionId: 's', transcriptPath: './corpus/t.jsonl', sha256: 'a'.repeat(64), eventStart: 5, eventEnd: 3 },
-              retrieval: [{ toolNames: ['read'], contains: 'x' }],
-              recall: { inputContains: ['a'] },
+          tasks: [
+            {
+              id: 'bad-range',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: {
+                  sessionId: 's',
+                  transcriptPath: './corpus/t.jsonl',
+                  sha256: 'a'.repeat(64),
+                  eventStart: 5,
+                  eventEnd: 3,
+                },
+                retrieval: [{ toolNames: ['read'], contains: 'x' }],
+                recall: { inputContains: ['a'] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -574,17 +674,25 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'wrong-sid',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: { sessionId: 'wrong-id', transcriptPath: './corpus/test.jsonl', sha256, eventStart: 0, eventEnd: 0 },
-              retrieval: [{ toolNames: ['read'], contains: 'x' }],
-              recall: { inputContains: ['a'] },
+          tasks: [
+            {
+              id: 'wrong-sid',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: {
+                  sessionId: 'wrong-id',
+                  transcriptPath: './corpus/test.jsonl',
+                  sha256,
+                  eventStart: 0,
+                  eventEnd: 0,
+                },
+                retrieval: [{ toolNames: ['read'], contains: 'x' }],
+                recall: { inputContains: ['a'] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -600,17 +708,25 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'no-toolnames',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: { sessionId: 's', transcriptPath: './corpus/t.jsonl', sha256: 'a'.repeat(64), eventStart: 0, eventEnd: 1 },
-              retrieval: [{ contains: 'expected content' }],
-              recall: { inputContains: ['marker'] },
+          tasks: [
+            {
+              id: 'no-toolnames',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: {
+                  sessionId: 's',
+                  transcriptPath: './corpus/t.jsonl',
+                  sha256: 'a'.repeat(64),
+                  eventStart: 0,
+                  eventEnd: 1,
+                },
+                retrieval: [{ contains: 'expected content' }],
+                recall: { inputContains: ['marker'] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -628,7 +744,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{ id: 'bad-tmpl', prompt: 'Do it', templateDir: './nonexistent', assertions: [{ type: 'file_exists', path: 'x.txt' }] }],
+          tasks: [
+            {
+              id: 'bad-tmpl',
+              prompt: 'Do it',
+              templateDir: './nonexistent',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -644,17 +767,25 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'empty-string',
-            prompt: 'Test',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: { sessionId: 's', transcriptPath: './corpus/t.jsonl', sha256: 'a'.repeat(64), eventStart: 0, eventEnd: 1 },
-              retrieval: [{ contains: 'x' }],
-              recall: { inputContains: ['valid', ''] },
+          tasks: [
+            {
+              id: 'empty-string',
+              prompt: 'Test',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: {
+                  sessionId: 's',
+                  transcriptPath: './corpus/t.jsonl',
+                  sha256: 'a'.repeat(64),
+                  eventStart: 0,
+                  eventEnd: 1,
+                },
+                retrieval: [{ contains: 'x' }],
+                recall: { inputContains: ['valid', ''] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -672,13 +803,21 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'valid-env',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: { type: 'command', command: process.execPath, args: ['-e', 'undefined'], shell: false, env: { MY_VAR: 'hello' } },
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-          }],
+          tasks: [
+            {
+              id: 'valid-env',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: {
+                type: 'command',
+                command: process.execPath,
+                args: ['-e', 'undefined'],
+                shell: false,
+                env: { MY_VAR: 'hello' },
+              },
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -698,7 +837,14 @@ describe('createLocalManifestSuite — validation errors', () => {
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
           name: 'My Benchmark',
-          tasks: [{ id: 'named', prompt: 'Do it', templateDir: './fixture', assertions: [{ type: 'file_exists', path: 'x.txt' }] }],
+          tasks: [
+            {
+              id: 'named',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -717,7 +863,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{ id: 'nested', prompt: 'Do it', templateDir: './fixture', assertions: [{ type: 'file_exists', path: 'x.txt' }] }],
+          tasks: [
+            {
+              id: 'nested',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -734,12 +887,14 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-env-type',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: { type: 'command', command: 'test', env: 'not-an-object' },
-          }],
+          tasks: [
+            {
+              id: 'bad-env-type',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: { type: 'command', command: 'test', env: 'not-an-object' },
+            },
+          ],
         }),
         'utf8',
       );
@@ -755,17 +910,25 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'bad-eventstart',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-            traceEval: {
-              source: { sessionId: 's', transcriptPath: './corpus/t.jsonl', sha256: 'a'.repeat(64), eventStart: -1, eventEnd: 0 },
-              retrieval: [{ toolNames: ['read'], contains: 'x' }],
-              recall: { inputContains: ['a'] },
+          tasks: [
+            {
+              id: 'bad-eventstart',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+              traceEval: {
+                source: {
+                  sessionId: 's',
+                  transcriptPath: './corpus/t.jsonl',
+                  sha256: 'a'.repeat(64),
+                  eventStart: -1,
+                  eventEnd: 0,
+                },
+                retrieval: [{ toolNames: ['read'], contains: 'x' }],
+                recall: { inputContains: ['a'] },
+              },
             },
-          }],
+          ],
         }),
         'utf8',
       );
@@ -784,17 +947,19 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'all-assertions',
-            prompt: 'Do the task',
-            templateDir: './fixture',
-            assertions: [
-              { type: 'file_exists', path: 'exists.txt' },
-              { type: 'file_not_exists', path: 'should-not-exist.txt' },
-              { type: 'file_contains', path: 'exists.txt', text: 'hello' },
-              { type: 'file_not_contains', path: 'clean.txt', text: 'bad' },
-            ],
-          }],
+          tasks: [
+            {
+              id: 'all-assertions',
+              prompt: 'Do the task',
+              templateDir: './fixture',
+              assertions: [
+                { type: 'file_exists', path: 'exists.txt' },
+                { type: 'file_not_exists', path: 'should-not-exist.txt' },
+                { type: 'file_contains', path: 'exists.txt', text: 'hello' },
+                { type: 'file_not_contains', path: 'clean.txt', text: 'bad' },
+              ],
+            },
+          ],
         }),
         'utf8',
       );
@@ -813,13 +978,22 @@ describe('createLocalManifestSuite — validation errors', () => {
       await fs.writeFile(
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
-          tasks: [{
-            id: 'valid-numbers',
-            prompt: 'Do it',
-            templateDir: './fixture',
-            grader: { type: 'command', command: process.execPath, args: ['-e', 'undefined'], shell: false, timeoutMs: 30000, maxBufferBytes: 5000 },
-            assertions: [{ type: 'file_exists', path: 'x.txt' }],
-          }],
+          tasks: [
+            {
+              id: 'valid-numbers',
+              prompt: 'Do it',
+              templateDir: './fixture',
+              grader: {
+                type: 'command',
+                command: process.execPath,
+                args: ['-e', 'undefined'],
+                shell: false,
+                timeoutMs: 30000,
+                maxBufferBytes: 5000,
+              },
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+          ],
         }),
         'utf8',
       );
@@ -839,8 +1013,18 @@ describe('createLocalManifestSuite — validation errors', () => {
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
           tasks: [
-            { id: 'same-id', prompt: 'First', templateDir: './fixture', assertions: [{ type: 'file_exists', path: 'x.txt' }] },
-            { id: 'same-id', prompt: 'Second (duplicate)', templateDir: './fixture', assertions: [{ type: 'file_exists', path: 'x.txt' }] },
+            {
+              id: 'same-id',
+              prompt: 'First',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+            {
+              id: 'same-id',
+              prompt: 'Second (duplicate)',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
           ],
         }),
         'utf8',
@@ -860,8 +1044,18 @@ describe('createLocalManifestSuite — validation errors', () => {
         path.join(dir, 'bench.local.json'),
         JSON.stringify({
           tasks: [
-            { id: 'b-task', prompt: 'Task B', templateDir: './fixture', assertions: [{ type: 'file_exists', path: 'x.txt' }] },
-            { id: 'a-task', prompt: 'Task A', templateDir: './fixture', assertions: [{ type: 'file_exists', path: 'x.txt' }] },
+            {
+              id: 'b-task',
+              prompt: 'Task B',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
+            {
+              id: 'a-task',
+              prompt: 'Task A',
+              templateDir: './fixture',
+              assertions: [{ type: 'file_exists', path: 'x.txt' }],
+            },
           ],
         }),
         'utf8',

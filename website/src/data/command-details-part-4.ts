@@ -2,7 +2,6 @@ import { surfaceListSentence } from './command-detail-types';
 import type { CommandDetailMap } from './command-detail-types';
 
 export const commandDetailsPart4: CommandDetailMap = {
-
   '/mcp': {
     purpose:
       'Add, update, discover, restart, and inspect MCP servers — extend WrongStack with external tool providers.',
@@ -10,8 +9,7 @@ export const commandDetailsPart4: CommandDetailMap = {
       'MCP (Model Context Protocol) servers expose tools from external sources (GitHub, filesystem, databases, APIs). `/mcp list` shows connected servers. `/mcp add` registers a new server. `/mcp discover <name>` searches the MCP registry. `/mcp restart <name>` reconnects. `/mcp inspect <name>` shows registered tools.',
     before:
       'Ensure the MCP server is installed and reachable. Some servers require authentication.',
-    during:
-      'Server status shows connection state and tool count. Discovery searches the registry.',
+    during: 'Server status shows connection state and tool count. Discovery searches the registry.',
     after:
       'Verify tools are registered with `/tools`. Restart servers that show connection errors.',
   },
@@ -21,23 +19,19 @@ export const commandDetailsPart4: CommandDetailMap = {
       'Configure a Telegram bot token and default chat — enable Telegram notifications and approvals.',
     behavior:
       'The command guides you through setting up Telegram integration: creating a bot via BotFather, entering the token, and setting a default chat ID. Once configured, the agent can send notifications, request approvals, and receive commands through Telegram.',
-    before:
-      'Create a Telegram bot via @BotFather and have the token ready.',
-    during:
-      'The setup wizard prompts for token and chat ID. Validation confirms connectivity.',
+    before: 'Create a Telegram bot via @BotFather and have the token ready.',
+    during: 'The setup wizard prompts for token and chat ID. Validation confirms connectivity.',
     after:
       'Send a test message with `/telegram-settings test`. Approvals can be requested with the telegram_approve tool.',
   },
 
   '/telegram-settings': {
-    purpose:
-      'Tune Telegram notification preferences — control what events trigger messages.',
+    purpose: 'Tune Telegram notification preferences — control what events trigger messages.',
     behavior:
       'The command shows and configures notification preferences: which events trigger Telegram messages (task completion, error, approval request, milestone), notification priority thresholds, and quiet hours. `/telegram-settings test` sends a test message to verify connectivity.',
     before:
       'Decide which events warrant a notification. Too many notifications reduce their value.',
-    during:
-      'Settings print with current values. Changes apply immediately.',
+    during: 'Settings print with current values. Changes apply immediately.',
     after:
       'Send a test message to confirm delivery. Adjust preferences based on notification volume.',
   },
@@ -49,8 +43,7 @@ export const commandDetailsPart4: CommandDetailMap = {
       'WrongStack maintains a layered prompt library: bundled (shipped with WrongStack), active profile (~/.wrongstack/profiles/<name>/prompts), and project (.wrongstack/prompts). `/prompts` lists all prompts with their source layer. Prompts can be searched, favorited, and inserted into the agent context. Layers merge by slug; profile overrides project, project overrides bundled.',
     before: 'No preparation needed. Browse prompts to see what templates are available.',
     during: 'The prompt list shows slugs, titles, source layers, and favorite status.',
-    after:
-      'Insert a prompt with `/prompt <slug>`. Create new prompts with `/prompt-gen`.',
+    after: 'Insert a prompt with `/prompt <slug>`. Create new prompts with `/prompt-gen`.',
   },
 
   '/prompt': {
@@ -58,8 +51,7 @@ export const commandDetailsPart4: CommandDetailMap = {
       'Search and insert a reusable prompt — inject a pre-written steering template into the agent context.',
     behavior:
       '`/prompt search <query>` finds matching prompts by title, tag, or content. `/prompt <slug>` inserts that prompt into the next agent turn. Prompts can contain variables that are rendered at insertion time. Favorited prompts appear first in search results.',
-    before:
-      'Browse available prompts with `/prompts` or search with `/prompt search`.',
+    before: 'Browse available prompts with `/prompts` or search with `/prompt search`.',
     during:
       'Search results show relevance-ranked prompts. Insertion renders variables and adds the prompt to context.',
     after:
@@ -71,12 +63,10 @@ export const commandDetailsPart4: CommandDetailMap = {
       'Author a reusable prompt with model assistance — create high-quality steering templates.',
     behavior:
       'The command opens a prompt authoring workflow. Describe what you want the prompt to do, and the model generates a draft with proper structure, variables, and metadata. You can refine iteratively before saving. Generated prompts are stored in the user or project layer.',
-    before:
-      'Have a clear idea of the steering behavior you want to capture as a reusable prompt.',
+    before: 'Have a clear idea of the steering behavior you want to capture as a reusable prompt.',
     during:
       'The model generates a draft. You review and iterate. The final version is saved with a slug.',
-    after:
-      'Test the prompt with `/prompt <slug>`. Refine with `/prompt-gen` again if needed.',
+    after: 'Test the prompt with `/prompt <slug>`. Refine with `/prompt-gen` again if needed.',
   },
 
   '/sync': {
@@ -84,10 +74,8 @@ export const commandDetailsPart4: CommandDetailMap = {
       'Sync selected settings, skills, prompts, memory, and history through GitHub — keep machines in sync.',
     behavior:
       'WrongStack can sync configuration artifacts through a GitHub repository. `/sync` shows sync status. `/sync push` uploads local changes. `/sync pull` downloads remote changes. `/sync configure` sets the repository. Conflicts are detected and reported before overwriting.',
-    before:
-      'Create a GitHub repository for sync. Configure it with `/sync configure <repo-url>`.',
-    during:
-      'Push and pull show file-level changes. Conflicts are flagged with diff output.',
+    before: 'Create a GitHub repository for sync. Configure it with `/sync configure <repo-url>`.',
+    during: 'Push and pull show file-level changes. Conflicts are flagged with diff output.',
     after:
       'Verify synced artifacts on the other machine. Run `/sync pull` there to receive changes.',
   },
@@ -97,10 +85,8 @@ export const commandDetailsPart4: CommandDetailMap = {
       'Show a metrics snapshot when observability is enabled — track agent performance over time.',
     behavior:
       'When the observability plugin is active, `/metrics` prints a dashboard of key metrics: session count, average tokens per session, tool success rate, model latency, cost per session, and fleet utilization. Metrics are collected in the background with minimal overhead.',
-    before:
-      'Enable observability in settings. Metrics collection starts automatically.',
-    during:
-      'The dashboard prints with current values and trend indicators.',
+    before: 'Enable observability in settings. Metrics collection starts automatically.',
+    during: 'The dashboard prints with current values and trend indicators.',
     after:
       'Use metrics to identify inefficient patterns. Adjust model choices or workflow based on data.',
   },
@@ -112,8 +98,7 @@ export const commandDetailsPart4: CommandDetailMap = {
       'Health checks validate critical subsystems: database connectivity, provider reachability, plugin integrity, permissions policy coherence, and file system access. `/health` runs all checks. `/health <check-name>` runs a specific check. Failures include diagnostic information.',
     before:
       'Enable observability in settings. Health checks are lightweight and safe to run anytime.',
-    during:
-      'Checks run sequentially. Each prints a pass/fail status with timing.',
+    during: 'Checks run sequentially. Each prints a pass/fail status with timing.',
     after:
       'Investigate any failing checks. The diagnostic output usually points directly to the root cause.',
   },
@@ -123,21 +108,17 @@ export const commandDetailsPart4: CommandDetailMap = {
       'List discovered skills or load one skill body — browse and activate WrongStack extensions.',
     behavior:
       'Skills extend WrongStack with specialized knowledge and workflows. `/skill` lists all discovered skills (bundled, user-installed, project). `/skill <name>` loads and displays a skill full instruction body. Skills auto-activate when their trigger words appear in your request.',
-    before:
-      'No preparation needed. Browse skills to discover available capabilities.',
+    before: 'No preparation needed. Browse skills to discover available capabilities.',
     during:
       'The skill list shows names, sources, and trigger descriptions. Loading shows the full skill body.',
-    after:
-      'Use skill trigger words in your prompts. Install new skills with `/skill-install`.',
+    after: 'Use skill trigger words in your prompts. Install new skills with `/skill-install`.',
   },
 
   '/skill-gen': {
-    purpose:
-      'Author a new skill with model guidance — create custom WrongStack extensions.',
+    purpose: 'Author a new skill with model guidance — create custom WrongStack extensions.',
     behavior:
       'The command guides you through skill creation: define the trigger words, write the instruction body, set capability requirements, and choose the storage location. The model helps draft the skill content based on your description. Generated skills are immediately available.',
-    before:
-      'Define what the skill should do and what words should trigger it.',
+    before: 'Define what the skill should do and what words should trigger it.',
     during:
       'The authoring workflow steps through metadata, trigger configuration, and content generation.',
     after:
@@ -145,29 +126,21 @@ export const commandDetailsPart4: CommandDetailMap = {
   },
 
   '/skill-search': {
-    purpose:
-      'Search the configured skill registry — find skills by name, tag, or capability.',
+    purpose: 'Search the configured skill registry — find skills by name, tag, or capability.',
     behavior:
       '`/skill-search <query>` searches across all skill sources: the official registry, GitHub, and local installations. Results show skill name, description, tags, author, and installation status. You can filter by source or capability.',
-    before:
-      'Have a capability or task type in mind. The search supports natural language queries.',
-    during:
-      'Results appear ranked by relevance. Already-installed skills are marked.',
-    after:
-      'Install interesting skills with `/skill-install`. Verify with `/skill <name>`.',
+    before: 'Have a capability or task type in mind. The search supports natural language queries.',
+    during: 'Results appear ranked by relevance. Already-installed skills are marked.',
+    after: 'Install interesting skills with `/skill-install`. Verify with `/skill <name>`.',
   },
 
   '/skill-install': {
-    purpose:
-      'Install a skill from GitHub or the registry — add new capabilities to WrongStack.',
+    purpose: 'Install a skill from GitHub or the registry — add new capabilities to WrongStack.',
     behavior:
       '`/skill-install user/repo` installs from a GitHub repository. `/skill-install registry:<id>` installs from the official registry. The skill is downloaded, validated, and registered. Installation can be project-scoped or user-scoped. Dependencies are checked before installation.',
-    before:
-      'Verify the skill source is trustworthy. Review its description and capabilities.',
-    during:
-      'Download and validation progress prints. Registration confirms the skill is active.',
-    after:
-      'Verify installation with `/skill <name>`. Test the skill by using its trigger words.',
+    before: 'Verify the skill source is trustworthy. Review its description and capabilities.',
+    during: 'Download and validation progress prints. Registration confirms the skill is active.',
+    after: 'Verify installation with `/skill <name>`. Test the skill by using its trigger words.',
   },
 
   '/skill-import': {
@@ -175,36 +148,28 @@ export const commandDetailsPart4: CommandDetailMap = {
       'Import compatible skills from supported foreign locations — bring skills from other AI coding tools.',
     behavior:
       'The command discovers and imports skills from Claude Code, Aider, Continue, and other compatible tools. `/skill-import` scans known locations. `/skill-import <path>` imports from a specific directory. Imported skills are adapted to WrongStack conventions.',
-    before:
-      'Ensure the foreign tool skills are in their standard locations.',
-    during:
-      'Discovery lists found skills. Import adapts and registers them.',
-    after:
-      'Review imported skills — some foreign conventions may need manual adjustment.',
+    before: 'Ensure the foreign tool skills are in their standard locations.',
+    during: 'Discovery lists found skills. Import adapts and registers them.',
+    after: 'Review imported skills — some foreign conventions may need manual adjustment.',
   },
 
   '/skill-update': {
-    purpose:
-      'Update installed skills — get the latest versions with bug fixes and new features.',
+    purpose: 'Update installed skills — get the latest versions with bug fixes and new features.',
     behavior:
       '`/skill-update` checks all installed skills for updates. `/skill-update <name>` updates a specific skill. Updates preserve local modifications where possible. The changelog (if available) is shown before updating.',
-    before:
-      'Review what changed in the skill update. Some updates may change behavior.',
-    during:
-      'Update progress shows download and validation. The changelog prints if available.',
+    before: 'Review what changed in the skill update. Some updates may change behavior.',
+    during: 'Update progress shows download and validation. The changelog prints if available.',
     after:
       'Verify updated skills still work as expected. Roll back if the update breaks functionality.',
   },
 
   '/skill-uninstall': {
-    purpose:
-      'Remove an installed skill — clean up unused or problematic extensions.',
+    purpose: 'Remove an installed skill — clean up unused or problematic extensions.',
     behavior:
       '`/skill-uninstall <name>` removes a skill and its registration. User data created by the skill is preserved. The command confirms before removal. Bundled skills cannot be uninstalled — they can only be disabled.',
     before:
       'Confirm you no longer need the skill. Uninstallation is reversible only by reinstalling.',
-    during:
-      'Confirmation prompt appears. Removal is instant after confirmation.',
+    during: 'Confirmation prompt appears. Removal is instant after confirmation.',
     after:
       'Verify the skill no longer appears in `/skill list`. Reinstall with `/skill-install` if needed.',
   },
@@ -212,14 +177,11 @@ export const commandDetailsPart4: CommandDetailMap = {
   '/profile': {
     purpose:
       'Manage configuration profiles — isolate provider credentials, fallback chains and feature flags per workflow.',
-    behavior:
-      `Each profile lives at \`~/.wrongstack/profiles/<name>/config.json\`. The active profile is recorded in the bootstrap config. \`/profile list\` shows available profiles (the active one is marked with a bullet). \`/profile switch <name>\` activates a profile and broadcasts \`config.changed\` to every surface — ${surfaceListSentence} — so every client reconnects to the new config. \`/profile copy <name>\` duplicates the active profile into a new name you can edit independently. Profile names are sanitized for path safety — the characters \`/\`, \`\\\`, \`:\`, \`.\`, and \`_\` are each replaced with \`_\` (and an empty result is rejected), so a name like \`..\` collapses to a single underscore and \`my:profile\` becomes \`my_profile\`. The user-facing error names these chars for reference.`,
+    behavior: `Each profile lives at \`~/.wrongstack/profiles/<name>/config.json\`. The active profile is recorded in the bootstrap config. \`/profile list\` shows available profiles (the active one is marked with a bullet). \`/profile switch <name>\` activates a profile and broadcasts \`config.changed\` to every surface — ${surfaceListSentence} — so every client reconnects to the new config. \`/profile copy <name>\` duplicates the active profile into a new name you can edit independently. Profile names are sanitized for path safety — the characters \`/\`, \`\\\`, \`:\`, \`.\`, and \`_\` are each replaced with \`_\` (and an empty result is rejected), so a name like \`..\` collapses to a single underscore and \`my:profile\` becomes \`my_profile\`. The user-facing error names these chars for reference.`,
     before:
       'Decide whether you want multiple profiles. Most teams keep one `default` profile and add `work` or `experiment` profiles to switch between provider credentials, autonomy levels or feature flags without touching the global config.',
-    during:
-      `\`/profile switch <name>\` is the dangerous mutation — it changes the active provider, model and fallback chain for every open surface (${surfaceListSentence}). The output lists the old and new active profile plus the side-effects broadcast.`,
-    after:
-      `Confirm the active profile (the bullet in \`/profile list\`) and re-check \`/auth\` plus \`/setmodel\` so the right credentials and leader model are wired across every open surface (${surfaceListSentence}).`,
+    during: `\`/profile switch <name>\` is the dangerous mutation — it changes the active provider, model and fallback chain for every open surface (${surfaceListSentence}). The output lists the old and new active profile plus the side-effects broadcast.`,
+    after: `Confirm the active profile (the bullet in \`/profile list\`) and re-check \`/auth\` plus \`/setmodel\` so the right credentials and leader model are wired across every open surface (${surfaceListSentence}).`,
   },
 
   '/provider-status': {
@@ -244,8 +206,7 @@ export const commandDetailsPart4: CommandDetailMap = {
       'Decide whether you want review findings sent as a `note`, surfaced as an interactive `ask`, or auto-fixed. `off` keeps the report on the review report only.',
     during:
       'The command prints provider, model, max files, autoFix mode, cascadeOn and maxCascadeDepth. Setting `autoFix ask` causes Chimera to send each finding as an actionable ask so you can approve or reject fixes one at a time.',
-    after:
-      `Reports are persisted to the session JSONL and broadcast on mailbox so every open surface (${surfaceListSentence}) can render them.`,
+    after: `Reports are persisted to the session JSONL and broadcast on mailbox so every open surface (${surfaceListSentence}) can render them.`,
   },
 
   '/auto-review': {
@@ -257,8 +218,7 @@ export const commandDetailsPart4: CommandDetailMap = {
       'Pick a fallback profile and a sane threshold. Cascade at `high` is usually the right default; pick `critical` if you only want follow-ups for severe findings.',
     during:
       '`enable` and `disable` subcommands print that the change happens through `extensions.wstack-auto-review.enabled` in `config.json` — they do not flip a runtime flag.',
-    after:
-      `In-flight count, provider, model, fallback chain, debounce window, max files, max parallel, cascade policy and max depth are printed for transparency.`,
+    after: `In-flight count, provider, model, fallback chain, debounce window, max files, max parallel, cascade policy and max depth are printed for transparency.`,
   },
 
   '/semver': {

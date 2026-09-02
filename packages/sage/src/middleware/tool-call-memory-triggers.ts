@@ -210,7 +210,10 @@ export function extractResultPaths(content: string, trigger: MemoryToolTrigger):
   return result;
 }
 
-export function resolveTriggerPaths(values: string[], ctx: ToolCallPipelinePayload['ctx']): string[] {
+export function resolveTriggerPaths(
+  values: string[],
+  ctx: ToolCallPipelinePayload['ctx'],
+): string[] {
   const root = path.resolve(ctx.projectRoot);
   const base = path.resolve(ctx.workingDir ?? ctx.cwd ?? ctx.projectRoot);
   const result: string[] = [];

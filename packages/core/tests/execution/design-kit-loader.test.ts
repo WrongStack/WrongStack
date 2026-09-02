@@ -172,7 +172,9 @@ describe('DefaultDesignKitLoader', () => {
     const foundations = await loader.foundationsText();
     expect(foundations).toBeTruthy();
     // Only fenced code counts — the prose contains anti-examples (bg-blue-500).
-    const fences = [...(foundations ?? '').matchAll(/```[a-z]*\n([\s\S]*?)```/g)].map((m) => m[1] ?? '');
+    const fences = [...(foundations ?? '').matchAll(/```[a-z]*\n([\s\S]*?)```/g)].map(
+      (m) => m[1] ?? '',
+    );
     const recipeCode = fences.join('\n');
     expect(recipeCode, 'recipe fence should be present').toContain('bg-primary');
     const TYPE_SCALE = new Set(['xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl']);

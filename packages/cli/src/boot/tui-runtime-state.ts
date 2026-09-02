@@ -89,9 +89,7 @@ export interface TuiRuntimeState {
    * resume handler is then a no-op for the ref, leaving provider calls pinned
    * to the boot session — same behavior as before this field existed.
    */
-  sessionRef?:
-    | { current: import('@wrongstack/core/types').SessionWriter | undefined }
-    | undefined;
+  sessionRef?: { current: import('@wrongstack/core/types').SessionWriter | undefined } | undefined;
 
   // ── TUI-branch-scope mutables (declared inside the TUI branch) ────────
 

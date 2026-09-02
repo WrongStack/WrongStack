@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  EntryHeightCache,
-  computeWindow,
-} from '../src/height-cache.js';
+import { EntryHeightCache, computeWindow } from '../src/height-cache.js';
 
 describe('EntryHeightCache', () => {
   it('starts empty with zero total height', () => {
@@ -262,7 +259,13 @@ describe('EntryHeightCache', () => {
       const c = new EntryHeightCache();
       c.sync([1, 2, 3], 4);
       // All rows already at the estimated height (4).
-      expect(c.recordMany([[1, 4], [2, 4], [3, 4]])).toBe(false);
+      expect(
+        c.recordMany([
+          [1, 4],
+          [2, 4],
+          [3, 4],
+        ]),
+      ).toBe(false);
       expect(c.size).toBe(3);
       expect(c.totalHeight()).toBe(12);
     });
@@ -270,18 +273,25 @@ describe('EntryHeightCache', () => {
     it('returns true when at least one row changes', () => {
       const c = new EntryHeightCache();
       c.sync([1, 2], 4);
-      expect(c.recordMany([[1, 6], [2, 4]])).toBe(true);
+      expect(
+        c.recordMany([
+          [1, 6],
+          [2, 4],
+        ]),
+      ).toBe(true);
       expect(c.totalHeight()).toBe(10); // 6 + 4
     });
 
     it('clamps and filters non-finite or negative heights silently', () => {
       const c = new EntryHeightCache();
       c.sync([1, 2, 3], 4);
-      expect(c.recordMany([
-        [1, Infinity],
-        [2, NaN],
-        [3, -5],
-      ])).toBe(false);
+      expect(
+        c.recordMany([
+          [1, Infinity],
+          [2, NaN],
+          [3, -5],
+        ]),
+      ).toBe(false);
       expect(c.getHeight(1)).toBe(4); // unchanged
       expect(c.getHeight(2)).toBe(4); // unchanged
       expect(c.getHeight(3)).toBe(4); // unchanged
@@ -290,7 +300,12 @@ describe('EntryHeightCache', () => {
     it('throws RangeError for unknown ids — call sync() first', () => {
       const c = new EntryHeightCache();
       c.sync([10, 20], 3);
-      expect(() => c.recordMany([[30, 5], [40, 2]])).toThrow(RangeError);
+      expect(() =>
+        c.recordMany([
+          [30, 5],
+          [40, 2],
+        ]),
+      ).toThrow(RangeError);
     });
   });
 });

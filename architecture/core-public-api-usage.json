@@ -166,7 +166,7 @@
     "@wrongstack/core/types": {
       "files": 1028,
       "typeOnly": 951,
-      "runtimeOrMixed": 250
+      "runtimeOrMixed": 254
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -14082,7 +14082,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/bash.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14232,7 +14232,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/git.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14310,7 +14310,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/lint.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14466,7 +14466,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/tree.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

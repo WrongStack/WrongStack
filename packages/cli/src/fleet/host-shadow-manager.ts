@@ -54,9 +54,11 @@ interface HostShadowManagerContext {
       internalTask?: boolean;
       stopShadowAfterTask?: boolean;
       shadowIntervalMs?: number | undefined;
-      taskContext?: {
-        kanban?: { boardId?: string; taskId?: string; projectRoot?: string };
-      } | undefined;
+      taskContext?:
+        | {
+            kanban?: { boardId?: string; taskId?: string; projectRoot?: string };
+          }
+        | undefined;
     },
   ) => Promise<{ subagentId: string; taskId: string }>;
 }
@@ -300,10 +302,12 @@ export class HostShadowManager {
   isActiveSubagent(subagentId: string): boolean {
     const director = this.ctx.getDirector();
     if (!director) return false;
-    const coordinator = (director as never as { coordinator: { getStatus: () => { subagents: Array<{ id: string; status: string }> } } }).coordinator;
-    const status = coordinator
-      .getStatus()
-      .subagents.find((a) => a.id === subagentId)?.status;
+    const coordinator = (
+      director as never as {
+        coordinator: { getStatus: () => { subagents: Array<{ id: string; status: string }> } };
+      }
+    ).coordinator;
+    const status = coordinator.getStatus().subagents.find((a) => a.id === subagentId)?.status;
     return status === 'running' || status === 'idle';
   }
 
@@ -375,7 +379,9 @@ export class HostShadowManager {
 
   private async stopShadowAfterTask(subagentId: string, sessionId: string): Promise<void> {
     const director = this.ctx.getDirector();
-    const coordinator = director ? (director as never as { coordinator: { stop: (id: string) => Promise<void> } }).coordinator : undefined;
+    const coordinator = director
+      ? (director as never as { coordinator: { stop: (id: string) => Promise<void> } }).coordinator
+      : undefined;
     const state = this.stateFor(sessionId);
     return stopHostShadowAfterTask(
       (targetSubagentId) => coordinator?.stop(targetSubagentId) ?? Promise.resolve(),

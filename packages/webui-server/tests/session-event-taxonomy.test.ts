@@ -413,12 +413,28 @@ describe('session-history event taxonomy regression', () => {
     // intentionally produce short details — the contract is "non-empty
     // when the source event has meaningful fields".
     const events = allEventKinds().filter((e) =>
-      ['session_start', 'session_resumed', 'llm_request', 'llm_response',
-       'tool_call_end', 'compaction', 'session_end', 'error',
-       'file_event', 'file_snapshot', 'provider_retry', 'provider_error',
-       'checkpoint', 'delegate_started', 'delegate_completed',
-       'loop_detected', 'model_switched', 'side_effect',
-       'in_flight_start', 'rewound'].includes(e.type),
+      [
+        'session_start',
+        'session_resumed',
+        'llm_request',
+        'llm_response',
+        'tool_call_end',
+        'compaction',
+        'session_end',
+        'error',
+        'file_event',
+        'file_snapshot',
+        'provider_retry',
+        'provider_error',
+        'checkpoint',
+        'delegate_started',
+        'delegate_completed',
+        'loop_detected',
+        'model_switched',
+        'side_effect',
+        'in_flight_start',
+        'rewound',
+      ].includes(e.type),
     );
     const payload = buildInspectPayload(SUMMARY, events, FALLBACK);
     const emptyDetails = payload.events.filter((e) => !e.detail || e.detail.trim() === '');

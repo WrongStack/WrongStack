@@ -55,14 +55,10 @@ export function createWrongTracePromptContributor(): SystemPromptContributor {
       // arrays, which digestAtlas needs — it would always report 0 fragile
       // files. include_symbols=false keeps health data at ~10% of the full
       // payload (docs/wrongtrace.md §4).
-      const [atlas, friction] =
-        (await raceWithDeadline(
-          Promise.all([
-            wt.getAtlas({ includeSymbols: false }),
-            wt.getFrictionMatrix(50),
-          ]),
-          CONTRIBUTOR_DEADLINE_MS,
-        )) ?? [null, []];
+      const [atlas, friction] = (await raceWithDeadline(
+        Promise.all([wt.getAtlas({ includeSymbols: false }), wt.getFrictionMatrix(50)]),
+        CONTRIBUTOR_DEADLINE_MS,
+      )) ?? [null, []];
 
       const digest = digestAtlas(atlas);
       // getFrictionMatrix() normalizes to a bare row array; summarizeFriction

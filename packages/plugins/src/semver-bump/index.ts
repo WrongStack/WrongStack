@@ -59,19 +59,24 @@ interface ConventionalCommit {
 
 function runCommand(command: string, args: string[], cwd?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(command, args, {
-      encoding: 'utf-8',
-      cwd,
-      timeout: 30_000,
-      windowsHide: true,
-    }, (err, stdout, stderr) => {
-      if (!err) {
-        resolve(stdout.trim());
-        return;
-      }
-      const failure = err as Error & { code?: number | string; status?: number };
-      reject(Object.assign(failure, { stderr: stderr || undefined }));
-    });
+    execFile(
+      command,
+      args,
+      {
+        encoding: 'utf-8',
+        cwd,
+        timeout: 30_000,
+        windowsHide: true,
+      },
+      (err, stdout, stderr) => {
+        if (!err) {
+          resolve(stdout.trim());
+          return;
+        }
+        const failure = err as Error & { code?: number | string; status?: number };
+        reject(Object.assign(failure, { stderr: stderr || undefined }));
+      },
+    );
   });
 }
 
@@ -112,15 +117,26 @@ async function collectManifests(root: string): Promise<string[]> {
   try {
     await access(rootPkg);
     paths.push(rootPkg);
-  } catch { /* absent */ }
+  } catch {
+    /* absent */
+  }
   for (const group of ['packages', 'apps']) {
     const groupDir = join(root, group);
     let entries;
-    try { entries = await readdir(groupDir, { withFileTypes: true }); } catch { continue; }
+    try {
+      entries = await readdir(groupDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       const candidate = join(groupDir, entry.name, 'package.json');
-      try { await access(candidate); paths.push(candidate); } catch { /* absent */ }
+      try {
+        await access(candidate);
+        paths.push(candidate);
+      } catch {
+        /* absent */
+      }
     }
   }
   return paths;
@@ -408,7 +424,11 @@ const plugin: Plugin = {
       const bumpScript = join(root, 'scripts', 'bump-version.mjs');
       const changed: string[] = await collectManifests(root);
       let hasBumpScript = true;
-      try { await access(bumpScript); } catch { hasBumpScript = false; }
+      try {
+        await access(bumpScript);
+      } catch {
+        hasBumpScript = false;
+      }
       if (hasBumpScript) {
         try {
           await runCommand(process.execPath, [bumpScript, 'set', newVersion], root);
@@ -419,7 +439,12 @@ const plugin: Plugin = {
         }
         for (const rel of ['package.json', 'package-lock.json', 'src/lib/utils.ts', 'index.html']) {
           const p = join(root, 'website', rel);
-          try { await access(p); changed.push(p); } catch { /* absent */ }
+          try {
+            await access(p);
+            changed.push(p);
+          } catch {
+            /* absent */
+          }
         }
       } else {
         // Two-phase: parse and re-serialise EVERY manifest before writing
@@ -549,7 +574,10 @@ const plugin: Plugin = {
           input['bump'];
         const normPart = typeof rawPart === 'string' ? rawPart.trim().toLowerCase() : undefined;
         const part =
-          normPart === 'major' || normPart === 'minor' || normPart === 'patch' || normPart === 'auto'
+          normPart === 'major' ||
+          normPart === 'minor' ||
+          normPart === 'patch' ||
+          normPart === 'auto'
             ? (normPart as BumpType)
             : defaultPart;
         return performBump(part, dryRun, cwd);

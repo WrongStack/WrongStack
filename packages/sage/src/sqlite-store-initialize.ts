@@ -97,8 +97,9 @@ function migrateSchemaV2({
     if (!canonicalTextColumn) {
       db.exec("ALTER TABLE memories ADD COLUMN canonical_text TEXT NOT NULL DEFAULT ''");
     }
-    const backfillRows = stmt("SELECT id, data FROM memories WHERE canonical_text = ''").all() as
-      Array<{ id: string; data: string }>;
+    const backfillRows = stmt(
+      "SELECT id, data FROM memories WHERE canonical_text = ''",
+    ).all() as Array<{ id: string; data: string }>;
     if (backfillRows.length > 0) {
       const updateCanonical = stmt('UPDATE memories SET canonical_text = ? WHERE id = ?');
       for (const r of backfillRows) {

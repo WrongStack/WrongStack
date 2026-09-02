@@ -102,9 +102,7 @@ function FileTreeNode({
 
   const filterLower = filter.toLowerCase();
   const nameMatch = filter && node.name.toLowerCase().includes(filterLower);
-  const childMatch =
-    filter &&
-    node.children?.some((c) => nodeOrDescendantMatches(c, filterLower));
+  const childMatch = filter && node.children?.some((c) => nodeOrDescendantMatches(c, filterLower));
 
   if (filter && !nameMatch && !childMatch && depth > 0) return null;
 
@@ -121,7 +119,11 @@ function FileTreeNode({
       >
         {node.type === 'directory' ? (
           hasChildren ? (
-            expanded ? <ChevronDown size={11} aria-hidden="true" /> : <ChevronRight size={11} aria-hidden="true" />
+            expanded ? (
+              <ChevronDown size={11} aria-hidden="true" />
+            ) : (
+              <ChevronRight size={11} aria-hidden="true" />
+            )
           ) : (
             <span style={{ width: 11 }} />
           )
@@ -129,22 +131,28 @@ function FileTreeNode({
           <span style={{ width: 11 }} />
         )}
         {node.type === 'directory' ? (
-          expanded ? <FolderOpen size={12} aria-hidden="true" /> : <Folder size={12} aria-hidden="true" />
+          expanded ? (
+            <FolderOpen size={12} aria-hidden="true" />
+          ) : (
+            <Folder size={12} aria-hidden="true" />
+          )
         ) : (
           <File size={12} aria-hidden="true" />
         )}
         <span title={node.path}>{node.name}</span>
       </button>
-      {expanded && hasChildren && node.children?.map((child) => (
-        <FileTreeNode
-          key={child.path}
-          node={child}
-          depth={depth + 1}
-          onSelect={onSelect}
-          selectedPath={selectedPath}
-          filter={filter}
-        />
-      ))}
+      {expanded &&
+        hasChildren &&
+        node.children?.map((child) => (
+          <FileTreeNode
+            key={child.path}
+            node={child}
+            depth={depth + 1}
+            onSelect={onSelect}
+            selectedPath={selectedPath}
+            filter={filter}
+          />
+        ))}
     </>
   );
 }
@@ -153,7 +161,17 @@ function FileTreeNode({
 
 function ChevronDown({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <polyline points="6 9 12 15 18 9" />
     </svg>
   );
@@ -161,7 +179,17 @@ function ChevronDown({ size }: { size: number }) {
 
 function ChevronRight({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <polyline points="9 18 15 12 9 6" />
     </svg>
   );
@@ -225,10 +253,18 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     setLoading(true);
     setError(null);
     const socket = socketRef.current;
-    if (!socket) { setLoading(false); return; }
+    if (!socket) {
+      setLoading(false);
+      return;
+    }
 
     pendingTreeRef.current?.cancel();
-    const handle = socketRequest({ socket, sendType: 'files.tree', payload: {}, expectType: 'files.tree' });
+    const handle = socketRequest({
+      socket,
+      sendType: 'files.tree',
+      payload: {},
+      expectType: 'files.tree',
+    });
     pendingTreeRef.current = handle;
     void handle.promise.then((payload) => {
       if (pendingTreeRef.current !== handle) return;
@@ -243,49 +279,58 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     });
   }, [socketRef]);
 
-  const loadFileContent = useCallback((filePath: string) => {
-    setContentLoading(true);
-    setError(null);
-    setFileContent(null);
-    setEditedContent(null);
-    setIsEditing(false);
-    setSaved(false);
+  const loadFileContent = useCallback(
+    (filePath: string) => {
+      setContentLoading(true);
+      setError(null);
+      setFileContent(null);
+      setEditedContent(null);
+      setIsEditing(false);
+      setSaved(false);
 
-    const socket = socketRef.current;
-    if (!socket) { setContentLoading(false); return; }
-
-    pendingContentRef.current?.cancel();
-    const handle = socketRequest({
-      socket,
-      sendType: 'files.read',
-      payload: { filePath },
-      expectType: 'files.read',
-      accept: (frame) => {
-        const returned = frame.payload as { filePath?: unknown } | undefined;
-        return returned?.filePath === filePath;
-      },
-    });
-    pendingContentRef.current = handle;
-    void handle.promise.then((payload) => {
-      if (pendingContentRef.current !== handle) return;
-      pendingContentRef.current = null;
-      setContentLoading(false);
-      if (!payload) return; // timed out — null content renders the failure note
-      if (typeof payload['content'] === 'string') {
-        setFileContent(payload['content']);
-        setEditedContent(null);
-      } else {
-        setFileContent(null);
-        setError(payload['error'] ? String(payload['error']) : 'Failed to read file.');
+      const socket = socketRef.current;
+      if (!socket) {
+        setContentLoading(false);
+        return;
       }
-    });
-  }, [socketRef]);
 
-  const handleSelectFile = useCallback((path: string) => {
-    setSelectedPath(path);
-    persistSelectedPath(path);
-    loadFileContent(path);
-  }, [loadFileContent]);
+      pendingContentRef.current?.cancel();
+      const handle = socketRequest({
+        socket,
+        sendType: 'files.read',
+        payload: { filePath },
+        expectType: 'files.read',
+        accept: (frame) => {
+          const returned = frame.payload as { filePath?: unknown } | undefined;
+          return returned?.filePath === filePath;
+        },
+      });
+      pendingContentRef.current = handle;
+      void handle.promise.then((payload) => {
+        if (pendingContentRef.current !== handle) return;
+        pendingContentRef.current = null;
+        setContentLoading(false);
+        if (!payload) return; // timed out — null content renders the failure note
+        if (typeof payload['content'] === 'string') {
+          setFileContent(payload['content']);
+          setEditedContent(null);
+        } else {
+          setFileContent(null);
+          setError(payload['error'] ? String(payload['error']) : 'Failed to read file.');
+        }
+      });
+    },
+    [socketRef],
+  );
+
+  const handleSelectFile = useCallback(
+    (path: string) => {
+      setSelectedPath(path);
+      persistSelectedPath(path);
+      loadFileContent(path);
+    },
+    [loadFileContent],
+  );
 
   const handleSave = useCallback(() => {
     if (!selectedPath || editedContent == null) return;
@@ -294,7 +339,10 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     setSaved(false);
 
     const socket = socketRef.current;
-    if (!socket) { setSaving(false); return; }
+    if (!socket) {
+      setSaving(false);
+      return;
+    }
 
     if (savedBadgeTimerRef.current) {
       clearTimeout(savedBadgeTimerRef.current);
@@ -415,9 +463,33 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
   // React nodes so the raw file text is escaped by React itself — no HTML
   // string is ever injected into the document.
   const CODE_EXTENSIONS = new Set([
-    'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'json', 'css', 'scss',
-    'html', 'xml', 'svg', 'py', 'rs', 'go', 'rb', 'java', 'c', 'cpp',
-    'h', 'sh', 'bash', 'yml', 'yaml', 'sql', 'md', 'graphql',
+    'ts',
+    'tsx',
+    'js',
+    'jsx',
+    'mjs',
+    'cjs',
+    'json',
+    'css',
+    'scss',
+    'html',
+    'xml',
+    'svg',
+    'py',
+    'rs',
+    'go',
+    'rb',
+    'java',
+    'c',
+    'cpp',
+    'h',
+    'sh',
+    'bash',
+    'yml',
+    'yaml',
+    'sql',
+    'md',
+    'graphql',
   ]);
 
   const TOKEN_PATTERN =
@@ -456,7 +528,12 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
 
   return (
     <>
-      <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
+      <button
+        type="button"
+        className="settings-overlay"
+        tabIndex={-1}
+        onClick={() => setOpen(false)}
+      />
       <aside
         className="file-explorer file-manager"
         role="dialog"
@@ -466,7 +543,9 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
         tabIndex={-1}
       >
         <header className="file-explorer-head">
-          <span><Folder size={13} aria-hidden="true" /> FILES</span>
+          <span>
+            <Folder size={13} aria-hidden="true" /> FILES
+          </span>
           <div className="file-explorer-head-actions">
             <button
               type="button"
@@ -491,7 +570,17 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
               title="Reload file tree"
               className="file-explorer-reload"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <polyline points="23 4 23 10 17 10" />
                 <polyline points="1 20 1 14 7 14" />
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -530,8 +619,12 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
           {fileListOpen && (
             <div className="file-explorer-body">
               {loading && <p className="file-explorer-empty">Loading…</p>}
-              {!loading && !tree && !error && <p className="file-explorer-empty">Failed to load file tree.</p>}
-              {error && !selectedPath && <p className="file-explorer-empty file-explorer-error">{error}</p>}
+              {!loading && !tree && !error && (
+                <p className="file-explorer-empty">Failed to load file tree.</p>
+              )}
+              {error && !selectedPath && (
+                <p className="file-explorer-empty file-explorer-error">{error}</p>
+              )}
               {tree?.map((node) => (
                 <FileTreeNode
                   key={node.path}
@@ -545,9 +638,7 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
             </div>
           )}
           <div className="file-manager-content">
-            {selectedPath && contentLoading && (
-              <div className="file-manager-empty">Loading…</div>
-            )}
+            {selectedPath && contentLoading && <div className="file-manager-empty">Loading…</div>}
             {selectedPath && !contentLoading && fileContent === null && !error && (
               <div className="file-manager-empty">Failed to load file.</div>
             )}
@@ -607,10 +698,7 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
                 <div className="file-manager-editor-wrap">
                   {isEditing ? (
                     <div className="file-manager-editor-container">
-                      <pre
-                        className="file-manager-editor-highlight"
-                        aria-hidden="true"
-                      >
+                      <pre className="file-manager-editor-highlight" aria-hidden="true">
                         {highlightContent(content)}
                         {'\n'}
                       </pre>

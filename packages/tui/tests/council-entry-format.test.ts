@@ -19,7 +19,9 @@ describe('councilHeadline', () => {
       seats: [],
     });
 
-    expect(line).toBe('↳ Council: judge · 3/3 seats · 3 distinct targets · judge used · 1.3s · 420 tok');
+    expect(line).toBe(
+      '↳ Council: judge · 3/3 seats · 3 distinct targets · judge used · 1.3s · 420 tok',
+    );
   });
 
   it('singularizes a correlated one-target panel and omits absent cost data', () => {
@@ -62,8 +64,8 @@ describe('councilSeatLine', () => {
   });
 
   it('falls back to the status when a failed seat carries no error text', () => {
-    expect(
-      councilSeatLine({ seatId: 'voter-3', persona: 'security', status: 'cancelled' }),
-    ).toBe('   × security → cancelled');
+    expect(councilSeatLine({ seatId: 'voter-3', persona: 'security', status: 'cancelled' })).toBe(
+      '   × security → cancelled',
+    );
   });
 });

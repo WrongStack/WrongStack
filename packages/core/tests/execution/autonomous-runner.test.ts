@@ -327,9 +327,9 @@ describe('AutonomousRunner', () => {
 
   it('handles timeout error and returns failed result', async () => {
     const agent = mockAgent({
-      run: vi.fn().mockRejectedValue(
-        Object.assign(new Error('iteration timeout'), { name: 'AbortError' }),
-      ),
+      run: vi
+        .fn()
+        .mockRejectedValue(Object.assign(new Error('iteration timeout'), { name: 'AbortError' })),
     });
     const runner = new AutonomousRunner({
       agent,

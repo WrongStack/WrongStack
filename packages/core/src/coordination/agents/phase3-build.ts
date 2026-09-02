@@ -39,7 +39,8 @@ export const BUILD_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'build',
-      summary: 'Structural refactoring: extract/split/move/rename/decouple without changing observable behavior.',
+      summary:
+        'Structural refactoring: extract/split/move/rename/decouple without changing observable behavior.',
       keywords: [
         'refactor',
         'restructure',
@@ -64,7 +65,8 @@ export const BUILD_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'build',
-      summary: 'Reduces complexity: deletes dead code, collapses needless abstractions, shortens and clarifies code.',
+      summary:
+        'Reduces complexity: deletes dead code, collapses needless abstractions, shortens and clarifies code.',
       keywords: [
         'simplify',
         'dead code',
@@ -89,7 +91,8 @@ export const BUILD_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'build',
-      summary: 'Framework/language/version upgrades: applies codemods across call sites, staged and verified.',
+      summary:
+        'Framework/language/version upgrades: applies codemods across call sites, staged and verified.',
       keywords: [
         'migrate',
         'upgrade',
@@ -114,7 +117,8 @@ export const BUILD_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'build',
-      summary: 'Screenshot/mockup → UI code: infers component tree and generates matching, accessible markup.',
+      summary:
+        'Screenshot/mockup → UI code: infers component tree and generates matching, accessible markup.',
       keywords: [
         'screenshot',
         'mockup',
@@ -139,7 +143,8 @@ export const BUILD_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'build',
-      summary: 'Root-cause bug fixing: reproduces, bisects to the true cause, applies a minimal fix with a regression test.',
+      summary:
+        'Root-cause bug fixing: reproduces, bisects to the true cause, applies a minimal fix with a regression test.',
       keywords: [
         'bug',
         'fix',
@@ -166,7 +171,8 @@ export const BUILD_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'build',
-      summary: 'Runtime tracing: instruments and runs code to observe call order, values, and timing, then cleans up.',
+      summary:
+        'Runtime tracing: instruments and runs code to observe call order, values, and timing, then cleans up.',
       keywords: [
         'trace',
         'runtime',

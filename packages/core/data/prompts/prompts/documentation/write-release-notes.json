@@ -5,11 +5,7 @@
   "description": "Summarize a release for the people who use it.",
   "content": "Write release notes for version {{version}} from these changes:\n\n{{changes}}\n\nLead with what users gain and what they must do. Group by Highlights, Changes, Fixes, and Breaking. For breaking changes, give the exact migration step up front. Write for users, not maintainers: skip internal refactors with no user-visible effect. Keep it skimmable and honest about known issues.",
   "category": "documentation",
-  "tags": [
-    "release-notes",
-    "changelog",
-    "communication"
-  ],
+  "tags": ["release-notes", "changelog", "communication"],
   "source": "builtin",
   "favorite": false,
   "checksum": "3969731ecb10c6e41243e3a445c961fa4624ba1a69d344291062b7de9535566a",

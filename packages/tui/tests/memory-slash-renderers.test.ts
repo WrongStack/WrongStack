@@ -90,7 +90,12 @@ describe('computeStats', () => {
 
   it('buckets recency by week/month/older and treats unparsable dates as older', () => {
     const stats = computeStats(
-      [entry({ ts: iso(1) }), entry({ ts: iso(10) }), entry({ ts: iso(90) }), entry({ ts: 'not-a-date' })],
+      [
+        entry({ ts: iso(1) }),
+        entry({ ts: iso(10) }),
+        entry({ ts: iso(90) }),
+        entry({ ts: 'not-a-date' }),
+      ],
       NOW,
     );
     expect(stats.recency).toEqual({ week: 1, month: 1, older: 2 });
@@ -132,10 +137,11 @@ describe('renderSageStats', () => {
   });
 
   it('renders top tags sorted by count with the filter hint', () => {
-    const lines = renderSageStats(
-      sageStats({ total: 3 }),
-      [sage({ tags: ['x'] }), sage({ tags: ['y', 'x'] }), sage({ tags: ['y', 'y'] })],
-    );
+    const lines = renderSageStats(sageStats({ total: 3 }), [
+      sage({ tags: ['x'] }),
+      sage({ tags: ['y', 'x'] }),
+      sage({ tags: ['y', 'y'] }),
+    ]);
     const text = lines.join('\n');
     expect(text).toContain('### 🏷️ Top tags');
     expect(text.indexOf('`y` ×2')).toBeLessThan(text.indexOf('`x` ×2'));
@@ -160,7 +166,11 @@ describe('renderSageEntries', () => {
   it('renders the compact table with tag ellipsis and a squashed 60-char preview', () => {
     const lines = renderSageEntries(
       [
-        sage({ id: 'very-long-sage-identifier-1234', tags: ['t1', 't2', 't3', 't4'], text: '  spaced   out \n text '.repeat(6) }),
+        sage({
+          id: 'very-long-sage-identifier-1234',
+          tags: ['t1', 't2', 't3', 't4'],
+          text: '  spaced   out \n text '.repeat(6),
+        }),
       ],
       true,
       NOW,
@@ -201,11 +211,7 @@ describe('renderSageEntries', () => {
   });
 
   it('falls back to neutral icons for unknown statuses and skips absent anchors', () => {
-    const lines = renderSageEntries(
-      [sage({ status: 'mysterious' as string })],
-      false,
-      NOW,
-    );
+    const lines = renderSageEntries([sage({ status: 'mysterious' as string })], false, NOW);
     const text = lines.join('\n');
     expect(text).toContain('⚪ mysterious');
     expect(text).not.toContain('📎');
@@ -415,8 +421,12 @@ describe('parseMemoryFlags', () => {
     expect(ok.freshness).toBe(1);
 
     const bad = parseMemoryFlags(['--importance', '1.5', '--confidence', 'x', '--freshness']);
-    expect(bad.errors.join('\n')).toContain('--importance must be a number between 0 and 1 (got "1.5").');
-    expect(bad.errors.join('\n')).toContain('--confidence must be a number between 0 and 1 (got "x").');
+    expect(bad.errors.join('\n')).toContain(
+      '--importance must be a number between 0 and 1 (got "1.5").',
+    );
+    expect(bad.errors.join('\n')).toContain(
+      '--confidence must be a number between 0 and 1 (got "x").',
+    );
     expect(bad.errors.join('\n')).toContain('--freshness needs a value between 0 and 1.');
   });
 
@@ -517,11 +527,13 @@ describe('handleMemoryWrite', () => {
 
   it('remembers through the SAGE surface and echoes id, kind, and tags', async () => {
     const surface = sageSurface();
-    const out = await handleMemoryWrite(
-      storeWith(surface),
-      'remember',
-      ['uses pnpm', '--kind', 'decision', '--tag', 'build,tooling'],
-    );
+    const out = await handleMemoryWrite(storeWith(surface), 'remember', [
+      'uses pnpm',
+      '--kind',
+      'decision',
+      '--tag',
+      'build,tooling',
+    ]);
     expect(out.message).toContain('Remembered `sage-9` [decision] uses pnpm #build #tooling');
     expect(surface.rememberSage).toHaveBeenCalledWith(
       expect.objectContaining({ text: 'uses pnpm', kind: 'decision', tags: ['build', 'tooling'] }),
@@ -554,11 +566,15 @@ describe('handleMemoryWrite', () => {
 
   it('applies an update patch built from flags', async () => {
     const surface = sageSurface();
-    const out = await handleMemoryWrite(
-      storeWith(surface),
-      'edit',
-      ['sage-9', '--text', 'new text', '--status', 'stale', '--importance', '0.9'],
-    );
+    const out = await handleMemoryWrite(storeWith(surface), 'edit', [
+      'sage-9',
+      '--text',
+      'new text',
+      '--status',
+      'stale',
+      '--importance',
+      '0.9',
+    ]);
     expect(out.message).toContain('Updated `sage-9`');
     expect(surface.updateSage).toHaveBeenCalledWith(
       'sage-9',
@@ -567,7 +583,11 @@ describe('handleMemoryWrite', () => {
   });
 
   it('returns update flag errors verbatim', async () => {
-    const out = await handleMemoryWrite(storeWith(sageSurface()), 'update', ['id', '--status', 'nope']);
+    const out = await handleMemoryWrite(storeWith(sageSurface()), 'update', [
+      'id',
+      '--status',
+      'nope',
+    ]);
     expect(out.message).toContain('Cannot update:');
   });
 

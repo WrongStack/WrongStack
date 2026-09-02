@@ -132,7 +132,12 @@ export function SddTaskDrawer({
   return (
     <div className="sdd-rise flex h-full min-h-0 min-w-0 flex-col">
       {/* header */}
-      <div className={cn('flex items-center gap-2 border-b border-border/70 bg-card/70 px-3 py-2', expanded && 'px-5 py-3')}>
+      <div
+        className={cn(
+          'flex items-center gap-2 border-b border-border/70 bg-card/70 px-3 py-2',
+          expanded && 'px-5 py-3',
+        )}
+      >
         <button
           type="button"
           onClick={onClose}
@@ -148,14 +153,10 @@ export function SddTaskDrawer({
             onClick={onToggleExpanded}
             className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
             title={
-              expanded
-                ? t('activity:sddTask.collapseTitle')
-                : t('activity:sddTask.expandTitle')
+              expanded ? t('activity:sddTask.collapseTitle') : t('activity:sddTask.expandTitle')
             }
             aria-label={
-              expanded
-                ? t('activity:sddTask.collapseTitle')
-                : t('activity:sddTask.expandTitle')
+              expanded ? t('activity:sddTask.collapseTitle') : t('activity:sddTask.expandTitle')
             }
             aria-pressed={expanded}
           >
@@ -177,12 +178,15 @@ export function SddTaskDrawer({
       <div
         className={cn(
           'min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain',
-          expanded
-            ? 'grid grid-cols-2 content-start gap-4 p-5'
-            : 'space-y-3 p-3',
+          expanded ? 'grid grid-cols-2 content-start gap-4 p-5' : 'space-y-3 p-3',
         )}
       >
-        <h3 className={cn('text-sm font-semibold leading-snug text-foreground', expanded && 'col-span-2 text-lg')}>
+        <h3
+          className={cn(
+            'text-sm font-semibold leading-snug text-foreground',
+            expanded && 'col-span-2 text-lg',
+          )}
+        >
           {task.title}
         </h3>
 
@@ -215,7 +219,13 @@ export function SddTaskDrawer({
           </Meta>
           <Meta label={t('activity:sddTask.metaType')}>{task.type}</Meta>
           {elapsed && (
-            <Meta label={task.completedAt ? t('activity:sddTask.metaDuration') : t('activity:sddTask.metaElapsed')}>
+            <Meta
+              label={
+                task.completedAt
+                  ? t('activity:sddTask.metaDuration')
+                  : t('activity:sddTask.metaElapsed')
+              }
+            >
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3 text-muted-foreground" />
                 {elapsed}
@@ -257,7 +267,11 @@ export function SddTaskDrawer({
             value={task.model}
             provider={task.provider}
             candidates={modelCandidates}
-            placeholder={defaultModel ? t('activity:sddTask.runDefaultPlaceholderModel', { model: defaultModel }) : t('activity:sddTask.runDefaultPlaceholder')}
+            placeholder={
+              defaultModel
+                ? t('activity:sddTask.runDefaultPlaceholderModel', { model: defaultModel })
+                : t('activity:sddTask.runDefaultPlaceholder')
+            }
             onPick={(model, provider) => onSetModel(task.id, model, provider)}
             onReset={task.model ? () => onSetModel(task.id, undefined, undefined) : undefined}
           />
@@ -432,7 +446,9 @@ export function SddTaskDrawer({
         ) : confirm ? (
           <div className="sdd-rise flex items-center gap-2">
             <span className="flex-1 text-xs text-foreground">
-              {confirm === 'stop' ? t('activity:sddTask.confirmStop') : t('activity:sddTask.confirmDelete')}
+              {confirm === 'stop'
+                ? t('activity:sddTask.confirmStop')
+                : t('activity:sddTask.confirmDelete')}
             </span>
             <button
               type="button"
@@ -443,7 +459,8 @@ export function SddTaskDrawer({
               }}
               className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/15"
             >
-              <Check className="h-3.5 w-3.5" /> {confirm === 'stop' ? t('common:action.stop') : t('common:action.delete')}
+              <Check className="h-3.5 w-3.5" />{' '}
+              {confirm === 'stop' ? t('common:action.stop') : t('common:action.delete')}
             </button>
             <button
               type="button"
@@ -541,22 +558,19 @@ export function SddTaskDrawer({
   );
 }
 
-function TaskEventLog({
-  events,
-  expanded,
-}: {
-  events: SddBoardFeedEntry[];
-  expanded?: boolean;
-}) {
+function TaskEventLog({ events, expanded }: { events: SddBoardFeedEntry[]; expanded?: boolean }) {
   const { t } = useAppTranslation();
   // Task events are bounded (per task), show all without pagination.
   return (
-    <section className={cn('rounded-lg border border-border/70 bg-background/45', expanded && 'col-span-2')}>
+    <section
+      className={cn(
+        'rounded-lg border border-border/70 bg-background/45',
+        expanded && 'col-span-2',
+      )}
+    >
       <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
         <Activity className="h-4 w-4 text-primary" />
-        <h4 className="text-xs font-semibold text-foreground">
-          {t('activity:sddTask.eventLog')}
-        </h4>
+        <h4 className="text-xs font-semibold text-foreground">{t('activity:sddTask.eventLog')}</h4>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
           {events.length}
         </span>
@@ -570,11 +584,17 @@ function TaskEventLog({
           {t('activity:sddTask.noEvents')}
         </p>
       ) : (
-        <div className={cn('divide-y divide-border/45 overflow-auto', expanded ? 'max-h-[32rem]' : 'max-h-72')}>
+        <div
+          className={cn(
+            'divide-y divide-border/45 overflow-auto',
+            expanded ? 'max-h-[32rem]' : 'max-h-72',
+          )}
+        >
           {events.map((event, index) => {
             const isFile = event.kind === 'file';
             const isTool = event.kind === 'tool';
-            const failed = event.ok === false || event.kind === 'failed' || event.kind === 'verification_failed';
+            const failed =
+              event.ok === false || event.kind === 'failed' || event.kind === 'verification_failed';
             const Icon = isFile ? FileText : isTool ? Terminal : Activity;
             return (
               <div
@@ -598,7 +618,13 @@ function TaskEventLog({
                 <Icon
                   className={cn(
                     'mt-0.5 h-3.5 w-3.5',
-                    failed ? 'text-destructive' : isFile ? 'text-info' : isTool ? 'text-warning' : 'text-primary',
+                    failed
+                      ? 'text-destructive'
+                      : isFile
+                        ? 'text-info'
+                        : isTool
+                          ? 'text-warning'
+                          : 'text-primary',
                   )}
                 />
                 <div className="min-w-0">

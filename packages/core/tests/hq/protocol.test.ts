@@ -625,8 +625,12 @@ describe('parseHqEventPayload', () => {
       }).ok,
     ).toBe(true);
     expect(parseHqEventPayload('fleet.snapshot', { ...valid, runId: 123 }).ok).toBe(false);
-    expect(parseHqEventPayload('fleet.snapshot', { ...valid, subagents: [{ subagentId: 'x' }] }).ok).toBe(false);
-    expect(parseHqEventPayload('fleet.snapshot', { ...valid, activeSubagents: 'x' }).ok).toBe(false);
+    expect(
+      parseHqEventPayload('fleet.snapshot', { ...valid, subagents: [{ subagentId: 'x' }] }).ok,
+    ).toBe(false);
+    expect(parseHqEventPayload('fleet.snapshot', { ...valid, activeSubagents: 'x' }).ok).toBe(
+      false,
+    );
     expect(parseHqEventPayload('fleet.snapshot', { ...valid, maxSpawns: 'x' }).ok).toBe(false);
   });
 
@@ -636,7 +640,9 @@ describe('parseHqEventPayload', () => {
   });
 
   it('validates brain.event payloads', () => {
-    expect(parseHqEventPayload('brain.event', { kind: 'decision_requested', at: 1000 }).ok).toBe(true);
+    expect(parseHqEventPayload('brain.event', { kind: 'decision_requested', at: 1000 }).ok).toBe(
+      true,
+    );
     expect(parseHqEventPayload('brain.event', { kind: 'bogus', at: 1000 }).ok).toBe(false);
     expect(parseHqEventPayload('brain.event', { kind: 'intervention', at: 'x' }).ok).toBe(false);
     expect(parseHqEventPayload('brain.event', { kind: 'intervention' }).ok).toBe(false);
@@ -644,10 +650,15 @@ describe('parseHqEventPayload', () => {
 
   it('validates worktree.event payloads', () => {
     expect(
-      parseHqEventPayload('worktree.event', { kind: 'allocated', handleId: 'h1', ownerId: 'p1' }).ok,
+      parseHqEventPayload('worktree.event', { kind: 'allocated', handleId: 'h1', ownerId: 'p1' })
+        .ok,
     ).toBe(true);
-    expect(parseHqEventPayload('worktree.event', { kind: 'allocated', handleId: 'h1' }).ok).toBe(false);
-    expect(parseHqEventPayload('worktree.event', { kind: 'bogus', handleId: 'h1', ownerId: 'p1' }).ok).toBe(false);
+    expect(parseHqEventPayload('worktree.event', { kind: 'allocated', handleId: 'h1' }).ok).toBe(
+      false,
+    );
+    expect(
+      parseHqEventPayload('worktree.event', { kind: 'bogus', handleId: 'h1', ownerId: 'p1' }).ok,
+    ).toBe(false);
   });
 
   it('validates tool.started payloads', () => {
@@ -656,11 +667,19 @@ describe('parseHqEventPayload', () => {
   });
 
   it('validates tool.completed payloads', () => {
-    expect(parseHqEventPayload('tool.completed', { toolName: 'bash', status: 'success', durationMs: 100 }).ok).toBe(
-      true,
-    );
     expect(
-      parseHqEventPayload('tool.completed', { toolName: 'bash', status: 'success', durationMs: 'x' }).ok,
+      parseHqEventPayload('tool.completed', {
+        toolName: 'bash',
+        status: 'success',
+        durationMs: 100,
+      }).ok,
+    ).toBe(true);
+    expect(
+      parseHqEventPayload('tool.completed', {
+        toolName: 'bash',
+        status: 'success',
+        durationMs: 'x',
+      }).ok,
     ).toBe(false);
   });
 

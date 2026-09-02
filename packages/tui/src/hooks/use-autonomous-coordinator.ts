@@ -17,8 +17,7 @@ import type { CoordinatorEvent } from '@wrongstack/core/coordination';
 export function useAutonomousCoordinator(
   subscribeCoordinatorEvents: ((fn: (event: CoordinatorEvent) => void) => () => void) | undefined,
   dispatch: React.Dispatch<
-    | { type: 'coordinatorEvent'; event: CoordinatorEvent }
-    | { type: 'toggleCoordinatorMonitor' }
+    { type: 'coordinatorEvent'; event: CoordinatorEvent } | { type: 'toggleCoordinatorMonitor' }
   >,
 ): void {
   const dispatchRef = useRef(dispatch);

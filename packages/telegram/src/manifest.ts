@@ -11,7 +11,8 @@ export const TELEGRAM_MANIFEST = {
   tools: [
     {
       name: 'telegram_send',
-      description: 'Send a scrubbed message to the paired Telegram chat or an explicitly allowed outbound chat.',
+      description:
+        'Send a scrubbed message to the paired Telegram chat or an explicitly allowed outbound chat.',
     },
     {
       name: 'telegram_read',
@@ -19,7 +20,8 @@ export const TELEGRAM_MANIFEST = {
     },
     {
       name: 'telegram_approve',
-      description: 'Post a scrubbed yes/no prompt to the paired Telegram chat, then wait for a button press.',
+      description:
+        'Post a scrubbed yes/no prompt to the paired Telegram chat, then wait for a button press.',
     },
   ],
 

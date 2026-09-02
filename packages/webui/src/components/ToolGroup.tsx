@@ -38,7 +38,9 @@ export const ToolGroup = memo(function ToolGroup({
 
   // Single tool? Render as a normal bubble — grouping overhead is just noise.
   if (tools.length === 1) {
-    return <MessageBubble message={expectDefined(tools[0])} isFirst isContinuation={isContinuation} />;
+    return (
+      <MessageBubble message={expectDefined(tools[0])} isFirst isContinuation={isContinuation} />
+    );
   }
 
   const running = tools.filter((t) => t.toolResult === undefined).length;

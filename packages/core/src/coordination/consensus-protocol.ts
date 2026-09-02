@@ -156,9 +156,8 @@ export class ConsensusProtocol {
 
     // Update change node with new vote
     const existingIdx = change.votes.findIndex((v) => v.agentId === voterId);
-    const newVotes = existingIdx >= 0
-      ? change.votes.with(existingIdx, vote)
-      : [...change.votes, vote];
+    const newVotes =
+      existingIdx >= 0 ? change.votes.with(existingIdx, vote) : [...change.votes, vote];
 
     const result = this._resolve(changeId, newVotes, eligible);
 
@@ -213,16 +212,10 @@ export class ConsensusProtocol {
 
   private _eligibleVoters(change: ChangeNode): string[] {
     // The proposer has a conflict of interest — they cannot vote on their own proposal.
-    return Array.from(this.voters.keys()).filter(
-      (agentId) => agentId !== change.proposedBy,
-    );
+    return Array.from(this.voters.keys()).filter((agentId) => agentId !== change.proposedBy);
   }
 
-  private _resolve(
-    changeId: string,
-    votes: VoteRecord[],
-    eligible: string[],
-  ): ConsensusResult {
+  private _resolve(changeId: string, votes: VoteRecord[], eligible: string[]): ConsensusResult {
     const totalEligible = eligible.length;
 
     const approve = votes.filter((v) => v.value === 'approve');
@@ -237,10 +230,7 @@ export class ConsensusProtocol {
       (sum, v) => sum + (this.voters.get(v.agentId)?.weight ?? 1),
       0,
     );
-    const totalWeight = eligible.reduce(
-      (sum, id) => sum + (this.voters.get(id)?.weight ?? 1),
-      0,
-    );
+    const totalWeight = eligible.reduce((sum, id) => sum + (this.voters.get(id)?.weight ?? 1), 0);
 
     const castCount = votes.length;
     const quorumRequired = Math.ceil(totalEligible * this.rules.quorumFraction);
@@ -344,11 +334,16 @@ export class ConsensusProtocol {
 
   private _toChangeStatus(outcome: ConsensusResult['outcome']): ChangeNode['status'] {
     switch (outcome) {
-      case 'approved': return 'approved';
-      case 'rejected': return 'rejected';
-      case 'vetoed': return 'rejected';
-      case 'quorum_not_met': return 'proposed';
-      default: return 'proposed';
+      case 'approved':
+        return 'approved';
+      case 'rejected':
+        return 'rejected';
+      case 'vetoed':
+        return 'rejected';
+      case 'quorum_not_met':
+        return 'proposed';
+      default:
+        return 'proposed';
     }
   }
 

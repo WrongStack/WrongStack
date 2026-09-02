@@ -63,9 +63,7 @@ export function SddDestroyDialog({
             <Trash2 className="h-5 w-5 text-destructive" />
             {t('activity:sdd.destroyTitle')}
           </DialogTitle>
-          <DialogDescription>
-            {t('activity:sdd.destroyDesc')}
-          </DialogDescription>
+          <DialogDescription>{t('activity:sdd.destroyDesc')}</DialogDescription>
         </DialogHeader>
 
         <ul className="space-y-1.5 py-1 text-sm">
@@ -102,8 +100,11 @@ export function SddDestroyDialog({
               className="mt-0.5 h-4 w-4 accent-warning"
             />
             <span>
-              <span className="font-medium">{t('activity:sdd.revertMerged', { count: mergedCount })}</span>{' '}
-              on <code className="text-xs">{baseBranch ?? t('activity:sdd.baseBranchFallback')}</code>
+              <span className="font-medium">
+                {t('activity:sdd.revertMerged', { count: mergedCount })}
+              </span>{' '}
+              on{' '}
+              <code className="text-xs">{baseBranch ?? t('activity:sdd.baseBranchFallback')}</code>
               <span className="block text-xs text-muted-foreground">
                 {t('activity:sdd.revertHint')}
               </span>

@@ -63,9 +63,8 @@ export function sessionContentText(content: string | ContentBlock[]): string {
       ? content
       : Array.isArray(content)
         ? content
-            .filter(
-              (b): b is { type: 'text'; text: string } =>
-                Boolean(b && b.type === 'text' && typeof b.text === 'string'),
+            .filter((b): b is { type: 'text'; text: string } =>
+              Boolean(b && b.type === 'text' && typeof b.text === 'string'),
             )
             .map((b) => b.text)
             .join(' ')

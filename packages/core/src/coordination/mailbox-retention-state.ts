@@ -69,8 +69,7 @@ export function projectMailboxCompletion(
     state = { completed: true, completedAt: message.completedAt ?? message.timestamp };
   } else if (projection.recipientState !== undefined) {
     const completedAt = projection.recipientState[actorId]?.completedAt;
-    state =
-      completedAt === undefined ? { completed: false } : { completed: true, completedAt };
+    state = completedAt === undefined ? { completed: false } : { completed: true, completedAt };
   } else {
     state = message.completed
       ? { completed: true, completedAt: message.completedAt ?? message.timestamp }

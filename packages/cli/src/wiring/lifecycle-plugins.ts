@@ -55,7 +55,10 @@ import { registerMcpObservability } from './metrics.js';
 import { createAgent, setupCompaction } from './pipeline.js';
 import { setupPlugins } from './plugins.js';
 import { buildCouncilRegistries, createLiveModelRouter } from './provider-utility-tools.js';
-import { createPromptJournalRecorder, createPromptJournalToolCallRecorder } from './prompt-journal-recorder.js';
+import {
+  createPromptJournalRecorder,
+  createPromptJournalToolCallRecorder,
+} from './prompt-journal-recorder.js';
 import { createWrongTraceHookPair } from './wrongtrace-hooks.js';
 import { recordGateDecision } from './wrongtrace-gate-counters.js';
 
@@ -435,10 +438,7 @@ export async function setupLifecycleAndPlugins(
   const fallbackProfileManager = container.resolve(TOKENS.FallbackProfileManager);
   const statusTracker = container.resolve(TOKENS.ProviderModelStatusTracker);
   const buildUtilityProvider = (providerId: string): Provider =>
-    buildProviderForIdRuntimeFn(
-      { config: getLiveConfig(), providerRegistry, logger },
-      providerId,
-    );
+    buildProviderForIdRuntimeFn({ config: getLiveConfig(), providerRegistry, logger }, providerId);
   const pluginOneShot = new OneShotOrchestrator({
     buildProvider: buildUtilityProvider,
     getConfig: getLiveConfig,

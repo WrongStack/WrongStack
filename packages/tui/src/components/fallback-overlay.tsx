@@ -133,9 +133,7 @@ export function FallbackOverlay({
           const label = `${c.providerId}/${c.model}`;
           return (
             <Box key={`fb-${i}`} height={1}>
-              <Text color={isSel ? theme.warn : theme.textMuted}>
-                {isSel ? '▸ ' : '  '}
-              </Text>
+              <Text color={isSel ? theme.warn : theme.textMuted}>{isSel ? '▸ ' : '  '}</Text>
               <Text color={isSel ? theme.textPrimary : theme.textSecondary} bold={isSel}>
                 {label}
               </Text>

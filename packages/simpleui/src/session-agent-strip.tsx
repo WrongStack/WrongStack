@@ -37,7 +37,8 @@ export function SessionAgentStrip({
                 if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
                 event.preventDefault();
                 const direction = event.key === 'ArrowRight' ? 1 : -1;
-                const next = liveAgentTabs[(index + direction + liveAgentTabs.length) % liveAgentTabs.length];
+                const next =
+                  liveAgentTabs[(index + direction + liveAgentTabs.length) % liveAgentTabs.length];
                 if (!next) return;
                 onSelectAgent(next.id);
                 requestAnimationFrame(() =>

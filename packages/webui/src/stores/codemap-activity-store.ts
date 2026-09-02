@@ -12,13 +12,7 @@ export type ActivityType =
   | 'index'
   | 'execute';
 type ActivityStatus = 'active' | 'completed' | 'failed' | 'observed';
-type ActivitySource =
-  | 'tool'
-  | 'editor'
-  | 'deterministic'
-  | 'watcher'
-  | 'external'
-  | 'legacy';
+type ActivitySource = 'tool' | 'editor' | 'deterministic' | 'watcher' | 'external' | 'legacy';
 
 interface ActivitySymbol {
   id: string;

@@ -7,10 +7,12 @@ describe('worktree store', () => {
   });
 
   it('setSnapshot updates worktrees and baseBranch', () => {
-    useWorktreeStore.getState().setSnapshot(
-      [{ handleId: 'wt1', path: '/repo/wt1', branch: 'feat/x', kind: 'worktree' }],
-      'main',
-    );
+    useWorktreeStore
+      .getState()
+      .setSnapshot(
+        [{ handleId: 'wt1', path: '/repo/wt1', branch: 'feat/x', kind: 'worktree' }],
+        'main',
+      );
     const s = useWorktreeStore.getState();
     expect(s.worktrees).toHaveLength(1);
     expect(s.baseBranch).toBe('main');
@@ -18,7 +20,10 @@ describe('worktree store', () => {
 
   it('pushEvent appends to activity (up to 40)', () => {
     useWorktreeStore.getState().pushEvent({
-      handleId: 'wt1', kind: 'create', text: 'Created worktree', at: 1000,
+      handleId: 'wt1',
+      kind: 'create',
+      text: 'Created worktree',
+      at: 1000,
     });
     const s = useWorktreeStore.getState();
     expect(s.activity).toHaveLength(1);
@@ -29,7 +34,10 @@ describe('worktree store', () => {
     // Fill 42 entries; only last 40 should remain
     for (let i = 0; i < 42; i++) {
       useWorktreeStore.getState().pushEvent({
-        handleId: 'wt1', kind: 'event', text: `event ${i}`, at: i,
+        handleId: 'wt1',
+        kind: 'event',
+        text: `event ${i}`,
+        at: i,
       });
     }
     const s = useWorktreeStore.getState();

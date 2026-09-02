@@ -10,7 +10,9 @@ import {
 } from '../../src/chronicle/index.js';
 
 const tempDirs: string[] = [];
-afterEach(async () => Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))));
+afterEach(async () =>
+  Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))),
+);
 
 describe('ChronicleQueryEngine', () => {
   it('queries partitions by causal, runtime, resource and nested attribute fields', async () => {
@@ -18,19 +20,37 @@ describe('ChronicleQueryEngine', () => {
     tempDirs.push(dir);
     const partition = path.join(dir, 'chronicle', '2026-07-18.events.jsonl');
     const journal = new ChronicleJournal({ filePath: partition });
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' }, 'trace');
-    await journal.append({ eventType: 'tool.executed', scope: context.scope,
-      correlation: { ...context.correlation, promptManifestId: 'prompt_1', toolCallId: 'tc-1' }, runtime: { providerId: 'openai', modelId: 'gpt-x' },
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' },
+      'trace',
+    );
+    await journal.append({
+      eventType: 'tool.executed',
+      scope: context.scope,
+      correlation: { ...context.correlation, promptManifestId: 'prompt_1', toolCallId: 'tc-1' },
+      runtime: { providerId: 'openai', modelId: 'gpt-x' },
       resource: { kind: 'file', id: 'file:a', path: 'src/a.ts', lineStart: 10, lineEnd: 20 },
-      outcome: 'success', occurredAt: '2026-07-18T10:00:00.000Z', attributes: { tool: { name: 'read' } } });
-    await journal.append({ eventType: 'provider.attempt.failed', scope: context.scope,
-      correlation: { ...context.correlation, attemptId: 'a-1' }, runtime: { providerId: 'openai', modelId: 'gpt-x' },
-      outcome: 'failure', occurredAt: '2026-07-18T10:01:00.000Z' });
+      outcome: 'success',
+      occurredAt: '2026-07-18T10:00:00.000Z',
+      attributes: { tool: { name: 'read' } },
+    });
+    await journal.append({
+      eventType: 'provider.attempt.failed',
+      scope: context.scope,
+      correlation: { ...context.correlation, attemptId: 'a-1' },
+      runtime: { providerId: 'openai', modelId: 'gpt-x' },
+      outcome: 'failure',
+      occurredAt: '2026-07-18T10:01:00.000Z',
+    });
     await mkdir(path.join(dir, 'bad'), { recursive: true });
     await writeFile(path.join(dir, 'bad', '2026-07-17.events.jsonl'), '{bad}\n', 'utf8');
 
     const engine = await ChronicleQueryEngine.fromDirectory(dir);
-    const result = await engine.query({ path: 'SRC\\A.TS', line: 15, attributes: { 'tool.name': 'read' } });
+    const result = await engine.query({
+      path: 'SRC\\A.TS',
+      line: 15,
+      attributes: { 'tool.name': 'read' },
+    });
 
     expect(result.events.map((event) => event.eventType)).toEqual(['tool.executed']);
     expect(result).toMatchObject({ total: 1, scannedEvents: 2, sourceFiles: 2, invalidLines: 1 });
@@ -83,23 +103,24 @@ describe('ChronicleQueryEngine', () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-revlines-'));
     tempDirs.push(dir);
     const partition = path.join(dir, '2026-09-02.events.jsonl');
-    const lines = [1, 2, 3, 4, 5].map((index) =>
-      `${JSON.stringify({
-        schemaVersion: 1,
-        eventId: `evt_${String(index).padStart(2, '0')}_0000000000000000000`,
-        eventType: 'provider.attempt.completed',
-        occurredAt: `2026-09-02T10:0${index}:00.000Z`,
-        observedAt: `2026-09-02T10:0${index}:00.000Z`,
-        persistedAt: `2026-09-02T10:0${index}:00.000Z`,
-        sequence: index,
-        previousHash: '',
-        hash: '',
-        scope: { installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' },
-        correlation: { traceId: 't1', spanId: `sp${index}` },
-        runtime: { providerId: 'openai', modelId: 'gpt-x' },
-        outcome: 'success',
-        attributes: { usage: { cacheRead: 0, cacheWrite: 0, input: 100, output: 200 } },
-      })}\n`,
+    const lines = [1, 2, 3, 4, 5].map(
+      (index) =>
+        `${JSON.stringify({
+          schemaVersion: 1,
+          eventId: `evt_${String(index).padStart(2, '0')}_0000000000000000000`,
+          eventType: 'provider.attempt.completed',
+          occurredAt: `2026-09-02T10:0${index}:00.000Z`,
+          observedAt: `2026-09-02T10:0${index}:00.000Z`,
+          persistedAt: `2026-09-02T10:0${index}:00.000Z`,
+          sequence: index,
+          previousHash: '',
+          hash: '',
+          scope: { installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' },
+          correlation: { traceId: 't1', spanId: `sp${index}` },
+          runtime: { providerId: 'openai', modelId: 'gpt-x' },
+          outcome: 'success',
+          attributes: { usage: { cacheRead: 0, cacheWrite: 0, input: 100, output: 200 } },
+        })}\n`,
     );
     const full = lines.join('');
     await writeFile(partition, full, 'utf8');
@@ -163,8 +184,13 @@ describe('ChronicleQueryEngine', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-18.events.jsonl') });
     const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
-    for (let index = 0; index < 3; index++) await journal.append({ eventType: `e${index}`, scope: context.scope,
-      correlation: context.correlation, occurredAt: `2026-07-18T10:0${index}:00.000Z` });
+    for (let index = 0; index < 3; index++)
+      await journal.append({
+        eventType: `e${index}`,
+        scope: context.scope,
+        correlation: context.correlation,
+        occurredAt: `2026-07-18T10:0${index}:00.000Z`,
+      });
     const engine = await ChronicleQueryEngine.fromDirectory(dir);
     const first = await engine.query({ order: 'asc', limit: 2 });
     expect(first.nextCursor).toBeDefined();
@@ -178,12 +204,13 @@ describe('ChronicleQueryEngine', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-18.events.jsonl') });
     const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
-    for (let index = 0; index < 3; index++) await journal.append({
-      eventType: `e${index}`,
-      scope: context.scope,
-      correlation: context.correlation,
-      occurredAt: `2026-07-18T10:0${index}:00.000Z`,
-    });
+    for (let index = 0; index < 3; index++)
+      await journal.append({
+        eventType: `e${index}`,
+        scope: context.scope,
+        correlation: context.correlation,
+        occurredAt: `2026-07-18T10:0${index}:00.000Z`,
+      });
     const engine = await ChronicleQueryEngine.fromDirectory(dir);
     const first = await engine.query({ order: 'desc', limit: 2 });
 
@@ -205,7 +232,9 @@ describe('ChronicleQueryEngine', () => {
   it('rejects legacy deep-offset cursors instead of allocating offset-sized page state', async () => {
     const engine = await ChronicleQueryEngine.fromFiles([]);
     const deepOffset = Buffer.from(String(Number.MAX_SAFE_INTEGER), 'utf8').toString('base64url');
-    await expect(engine.query({ cursor: deepOffset, limit: 1 })).rejects.toThrow('Invalid Chronicle cursor');
+    await expect(engine.query({ cursor: deepOffset, limit: 1 })).rejects.toThrow(
+      'Invalid Chronicle cursor',
+    );
   });
 
   it('rejects cursor snapshots with duplicate or excessive partition IDs', async () => {
@@ -224,13 +253,18 @@ describe('ChronicleQueryEngine', () => {
 
     cursor.snapshot.push({ ...cursor.snapshot[0]! });
     const duplicateCursor = Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url');
-    await expect(engine.query({ order: 'asc', limit: 1, cursor: duplicateCursor }))
-      .rejects.toThrow('Invalid Chronicle cursor');
+    await expect(engine.query({ order: 'asc', limit: 1, cursor: duplicateCursor })).rejects.toThrow(
+      'Invalid Chronicle cursor',
+    );
 
-    cursor.snapshot = Array.from({ length: 10_001 }, (_, index) => ({ id: `partition-${index}`, size: 0 }));
+    cursor.snapshot = Array.from({ length: 10_001 }, (_, index) => ({
+      id: `partition-${index}`,
+      size: 0,
+    }));
     const excessiveCursor = Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url');
-    await expect(engine.query({ order: 'asc', limit: 1, cursor: excessiveCursor }))
-      .rejects.toThrow('Invalid Chronicle cursor');
+    await expect(engine.query({ order: 'asc', limit: 1, cursor: excessiveCursor })).rejects.toThrow(
+      'Invalid Chronicle cursor',
+    );
   });
 
   it('counts malformed envelopes and continues with later events in the partition', async () => {
@@ -251,12 +285,20 @@ describe('ChronicleQueryEngine', () => {
       previousHash: 'h1',
       hash: 'h2',
     };
-    await writeFile(partition, [
-      JSON.stringify({ eventId: 'malformed', eventType: 'custom.event', occurredAt }),
-      JSON.stringify({ ...validEvent, eventId: 'bad-resource', sequence: 1,
-        resource: { kind: 'file', id: 'file:bad', path: 42 } }),
-      JSON.stringify(validEvent),
-    ].join('\n') + '\n', 'utf8');
+    await writeFile(
+      partition,
+      [
+        JSON.stringify({ eventId: 'malformed', eventType: 'custom.event', occurredAt }),
+        JSON.stringify({
+          ...validEvent,
+          eventId: 'bad-resource',
+          sequence: 1,
+          resource: { kind: 'file', id: 'file:bad', path: 42 },
+        }),
+        JSON.stringify(validEvent),
+      ].join('\n') + '\n',
+      'utf8',
+    );
 
     const engine = await ChronicleQueryEngine.fromFiles([partition]);
     const result = await engine.query({ order: 'asc' });
@@ -325,12 +367,19 @@ describe('ChronicleQueryEngine', () => {
       previousHash: '',
       hash: `h${sequence}`,
     });
-    await writeFile(earlyPartition, [
-      event('middle', '2026-07-18T10:02:00.000Z', 3),
-      event('earliest', '2026-07-18T10:01:00.000Z', 2),
-    ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
-    await writeFile(latePartition,
-      `${JSON.stringify(event('latest', '2026-07-18T10:03:00.000Z', 1))}\n`);
+    await writeFile(
+      earlyPartition,
+      [
+        event('middle', '2026-07-18T10:02:00.000Z', 3),
+        event('earliest', '2026-07-18T10:01:00.000Z', 2),
+      ]
+        .map((entry) => JSON.stringify(entry))
+        .join('\n') + '\n',
+    );
+    await writeFile(
+      latePartition,
+      `${JSON.stringify(event('latest', '2026-07-18T10:03:00.000Z', 1))}\n`,
+    );
 
     const engine = await ChronicleQueryEngine.fromFiles([latePartition, earlyPartition]);
     const ascending = await engine.query({ order: 'asc', limit: 1 });
@@ -340,24 +389,86 @@ describe('ChronicleQueryEngine', () => {
   });
 
   it('derives operation metrics from all matches without double-counting retries or cumulative cost snapshots', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-summary-')); tempDirs.push(dir);
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-summary-'));
+    tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.events.jsonl') });
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' },
+      'trace',
+    );
     const base = { scope: context.scope, occurredAt: '2026-07-18T10:00:00.000Z' };
-    await journal.append({ ...base, eventType: 'provider.attempt.started', correlation: { ...context.correlation, logicalRequestId: 'r1', attemptId: 'a1' }, runtime: { providerId: 'p1', modelId: 'm1' } });
-    await journal.append({ ...base, eventType: 'provider.attempt.failed', outcome: 'failure', durationNs: '100000000', correlation: { ...context.correlation, logicalRequestId: 'r1', attemptId: 'a1' }, runtime: { providerId: 'p1', modelId: 'm1' }, attributes: { retryScheduled: true } });
-    await journal.append({ ...base, eventType: 'provider.attempt.started', correlation: { ...context.correlation, logicalRequestId: 'r1', attemptId: 'a2' }, runtime: { providerId: 'p1', modelId: 'm1' } });
-    await journal.append({ ...base, eventType: 'provider.attempt.completed', outcome: 'success', durationNs: '300000000', correlation: { ...context.correlation, logicalRequestId: 'r1', attemptId: 'a2' }, runtime: { providerId: 'p1', modelId: 'm1' }, attributes: { usage: { input: 100, output: 20, cacheRead: 50 } } });
-    await journal.append({ ...base, eventType: 'token.accounted', correlation: context.correlation, attributes: { cost: { total: 0.01 } } });
-    await journal.append({ ...base, eventType: 'token.accounted', correlation: context.correlation, occurredAt: '2026-07-18T10:01:00.000Z', attributes: { cost: { total: 0.02 } } });
-    await journal.append({ ...base, eventType: 'tool.failed', outcome: 'failure', correlation: { ...context.correlation, toolCallId: 't1' } });
-    await journal.append({ ...base, eventType: 'tool.executed', outcome: 'failure', correlation: { ...context.correlation, toolCallId: 't1' } });
+    await journal.append({
+      ...base,
+      eventType: 'provider.attempt.started',
+      correlation: { ...context.correlation, logicalRequestId: 'r1', attemptId: 'a1' },
+      runtime: { providerId: 'p1', modelId: 'm1' },
+    });
+    await journal.append({
+      ...base,
+      eventType: 'provider.attempt.failed',
+      outcome: 'failure',
+      durationNs: '100000000',
+      correlation: { ...context.correlation, logicalRequestId: 'r1', attemptId: 'a1' },
+      runtime: { providerId: 'p1', modelId: 'm1' },
+      attributes: { retryScheduled: true },
+    });
+    await journal.append({
+      ...base,
+      eventType: 'provider.attempt.started',
+      correlation: { ...context.correlation, logicalRequestId: 'r1', attemptId: 'a2' },
+      runtime: { providerId: 'p1', modelId: 'm1' },
+    });
+    await journal.append({
+      ...base,
+      eventType: 'provider.attempt.completed',
+      outcome: 'success',
+      durationNs: '300000000',
+      correlation: { ...context.correlation, logicalRequestId: 'r1', attemptId: 'a2' },
+      runtime: { providerId: 'p1', modelId: 'm1' },
+      attributes: { usage: { input: 100, output: 20, cacheRead: 50 } },
+    });
+    await journal.append({
+      ...base,
+      eventType: 'token.accounted',
+      correlation: context.correlation,
+      attributes: { cost: { total: 0.01 } },
+    });
+    await journal.append({
+      ...base,
+      eventType: 'token.accounted',
+      correlation: context.correlation,
+      occurredAt: '2026-07-18T10:01:00.000Z',
+      attributes: { cost: { total: 0.02 } },
+    });
+    await journal.append({
+      ...base,
+      eventType: 'tool.failed',
+      outcome: 'failure',
+      correlation: { ...context.correlation, toolCallId: 't1' },
+    });
+    await journal.append({
+      ...base,
+      eventType: 'tool.executed',
+      outcome: 'failure',
+      correlation: { ...context.correlation, toolCallId: 't1' },
+    });
     const result = await (await ChronicleQueryEngine.fromDirectory(dir)).query({ limit: 1 });
     expect(result.events).toHaveLength(1);
-    expect(result.summary).toMatchObject({ logicalRequests: 1, modelAttempts: 2, completedAttempts: 1,
-      failedAttempts: 1, scheduledRetries: 1, inputTokens: 100, outputTokens: 20,
-      cacheReadTokens: 50, estimatedCostUsd: 0.02, failedTools: 1, failures: 1,
-      providerAvgDurationMs: 200, providerP95DurationMs: 300 });
+    expect(result.summary).toMatchObject({
+      logicalRequests: 1,
+      modelAttempts: 2,
+      completedAttempts: 1,
+      failedAttempts: 1,
+      scheduledRetries: 1,
+      inputTokens: 100,
+      outputTokens: 20,
+      cacheReadTokens: 50,
+      estimatedCostUsd: 0.02,
+      failedTools: 1,
+      failures: 1,
+      providerAvgDurationMs: 200,
+      providerP95DurationMs: 300,
+    });
   });
 
   it('uses deterministic cost snapshot ordering and allows a later zero reset', async () => {
@@ -379,8 +490,12 @@ describe('ChronicleQueryEngine', () => {
       previousHash: '',
       hash: `h${sequence}`,
     });
-    await writeFile(partition, [costEvent('cost', 3, 1), costEvent('reset', 0, 2)]
-      .map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+    await writeFile(
+      partition,
+      [costEvent('cost', 3, 1), costEvent('reset', 0, 2)]
+        .map((entry) => JSON.stringify(entry))
+        .join('\n') + '\n',
+    );
 
     const engine = await ChronicleQueryEngine.fromFiles([partition]);
     expect((await engine.query({ order: 'asc' })).summary.estimatedCostUsd).toBe(0);
@@ -398,19 +513,21 @@ describe('ChronicleQueryEngine', () => {
         const lines: string[] = [];
         for (let offset = 0; offset < Math.min(1_000, total - index); offset++) {
           const sequence = index + offset;
-          lines.push(JSON.stringify({
-            schemaVersion: 1,
-            eventId: `e${sequence}`,
-            eventType: 'provider.attempt.started',
-            scope: { installationId: 'i', machineId: 'm' },
-            correlation: { traceId: 'trace', spanId: `span-${sequence}` },
-            occurredAt: new Date(sequence).toISOString(),
-            observedAt: new Date(sequence).toISOString(),
-            persistedAt: new Date(sequence).toISOString(),
-            sequence,
-            previousHash: '',
-            hash: `h${sequence}`,
-          }));
+          lines.push(
+            JSON.stringify({
+              schemaVersion: 1,
+              eventId: `e${sequence}`,
+              eventType: 'provider.attempt.started',
+              scope: { installationId: 'i', machineId: 'm' },
+              correlation: { traceId: 'trace', spanId: `span-${sequence}` },
+              occurredAt: new Date(sequence).toISOString(),
+              observedAt: new Date(sequence).toISOString(),
+              persistedAt: new Date(sequence).toISOString(),
+              sequence,
+              previousHash: '',
+              hash: `h${sequence}`,
+            }),
+          );
         }
         await handle.write(`${lines.join('\n')}\n`);
       }
@@ -475,24 +592,47 @@ describe('ChronicleQueryEngine', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-18.events.jsonl') });
     const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace-a');
-    await journal.append({ eventType: 'decision.requested', scope: context.scope,
+    await journal.append({
+      eventType: 'decision.requested',
+      scope: context.scope,
       correlation: { ...context.correlation, promptManifestId: 'prompt_graph' },
-      attributes: { decisionId: 'decision-1' }, occurredAt: '2026-07-18T10:00:00.000Z' });
-    await journal.append({ eventType: 'tool.executed', scope: context.scope,
-      correlation: { ...context.correlation, promptManifestId: 'prompt_graph', toolCallId: 'tool-1' }, attributes: { decisionId: 'decision-1' },
-      resource: { kind: 'file', id: 'file:a', path: 'a.ts' }, occurredAt: '2026-07-18T10:00:01.000Z' });
-    await journal.append({ eventType: 'file.edited', scope: context.scope,
-      correlation: { ...context.correlation, promptManifestId: 'prompt_graph', toolCallId: 'tool-1' }, resource: { kind: 'file', id: 'file:a', path: 'a.ts' },
-      occurredAt: '2026-07-18T10:00:02.000Z' });
+      attributes: { decisionId: 'decision-1' },
+      occurredAt: '2026-07-18T10:00:00.000Z',
+    });
+    await journal.append({
+      eventType: 'tool.executed',
+      scope: context.scope,
+      correlation: {
+        ...context.correlation,
+        promptManifestId: 'prompt_graph',
+        toolCallId: 'tool-1',
+      },
+      attributes: { decisionId: 'decision-1' },
+      resource: { kind: 'file', id: 'file:a', path: 'a.ts' },
+      occurredAt: '2026-07-18T10:00:01.000Z',
+    });
+    await journal.append({
+      eventType: 'file.edited',
+      scope: context.scope,
+      correlation: {
+        ...context.correlation,
+        promptManifestId: 'prompt_graph',
+        toolCallId: 'tool-1',
+      },
+      resource: { kind: 'file', id: 'file:a', path: 'a.ts' },
+      occurredAt: '2026-07-18T10:00:02.000Z',
+    });
     const engine = await ChronicleQueryEngine.fromDirectory(dir);
     const graph = await engine.graph({ eventTypes: ['decision.requested'] });
     expect(graph.nodes).toHaveLength(3);
-    expect(graph.edges).toEqual(expect.arrayContaining([
-      expect.objectContaining({ kind: 'decision', confidence: 'explicit' }),
-      expect.objectContaining({ kind: 'tool_call', confidence: 'explicit' }),
-      expect.objectContaining({ kind: 'prompt_manifest', confidence: 'explicit' }),
-      expect.objectContaining({ kind: 'resource_lineage', confidence: 'inferred' }),
-    ]));
+    expect(graph.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'decision', confidence: 'explicit' }),
+        expect.objectContaining({ kind: 'tool_call', confidence: 'explicit' }),
+        expect.objectContaining({ kind: 'prompt_manifest', confidence: 'explicit' }),
+        expect.objectContaining({ kind: 'resource_lineage', confidence: 'inferred' }),
+      ]),
+    );
   });
 
   it('derives resource_lineage edges from a windowed tool.resource.observed rollup', async () => {
@@ -501,25 +641,40 @@ describe('ChronicleQueryEngine', () => {
     const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-18.events.jsonl') });
     const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace-b');
     // A mutation event for a.ts (as file.mutation.observed would record it)...
-    await journal.append({ eventType: 'file.edited', scope: context.scope,
-      correlation: { ...context.correlation, toolCallId: 'tool-2' }, resource: { kind: 'file', id: 'file_shared', path: 'a.ts' },
-      occurredAt: '2026-07-18T11:00:00.000Z' });
+    await journal.append({
+      eventType: 'file.edited',
+      scope: context.scope,
+      correlation: { ...context.correlation, toolCallId: 'tool-2' },
+      resource: { kind: 'file', id: 'file_shared', path: 'a.ts' },
+      occurredAt: '2026-07-18T11:00:00.000Z',
+    });
     // ...and a windowed observation rollup (as rollup-adapter.ts now emits
     // instead of one raw tool.resource.observed event per file) that
     // references the SAME resource id plus a second, unrelated resource.
-    await journal.append({ eventType: 'metrics.rollup', scope: context.scope,
+    await journal.append({
+      eventType: 'metrics.rollup',
+      scope: context.scope,
       correlation: { ...context.correlation, toolCallId: 'tool-3' },
-      attributes: { signal: 'tool.resource.observed', resources: [
-        { id: 'file_shared', kind: 'file', path: 'a.ts' },
-        { id: 'file_other', kind: 'file', path: 'b.ts' },
-      ] },
-      occurredAt: '2026-07-18T11:00:01.000Z' });
+      attributes: {
+        signal: 'tool.resource.observed',
+        resources: [
+          { id: 'file_shared', kind: 'file', path: 'a.ts' },
+          { id: 'file_other', kind: 'file', path: 'b.ts' },
+        ],
+      },
+      occurredAt: '2026-07-18T11:00:01.000Z',
+    });
     const engine = await ChronicleQueryEngine.fromDirectory(dir);
     const graph = await engine.graph({ eventTypes: ['file.edited'] }, 1);
-    expect(graph.nodes.map((node) => node.eventType).sort()).toEqual(['file.edited', 'metrics.rollup']);
-    expect(graph.edges).toEqual(expect.arrayContaining([
-      expect.objectContaining({ kind: 'resource_lineage', confidence: 'inferred' }),
-    ]));
+    expect(graph.nodes.map((node) => node.eventType).sort()).toEqual([
+      'file.edited',
+      'metrics.rollup',
+    ]);
+    expect(graph.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'resource_lineage', confidence: 'inferred' }),
+      ]),
+    );
   });
 
   describe('partition range pruning', () => {
@@ -542,13 +697,20 @@ describe('ChronicleQueryEngine', () => {
       tempDirs.push(dir);
       // Closed file named for an old day but containing an event backdated
       // into the future — proves pruning can't rely on the filename's date.
-      await writeFile(path.join(dir, '2020-01-01.events.jsonl'), [
-        rawEvent('old-outside-window', '2020-01-01T00:00:00.000Z', 1),
-        rawEvent('future-in-old-file', '2099-06-01T00:00:00.000Z', 2),
-      ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+      await writeFile(
+        path.join(dir, '2020-01-01.events.jsonl'),
+        [
+          rawEvent('old-outside-window', '2020-01-01T00:00:00.000Z', 1),
+          rawEvent('future-in-old-file', '2099-06-01T00:00:00.000Z', 2),
+        ]
+          .map((entry) => JSON.stringify(entry))
+          .join('\n') + '\n',
+      );
       // A second closed file whose real content is entirely outside the window.
-      await writeFile(path.join(dir, '2015-01-01.events.jsonl'),
-        `${JSON.stringify(rawEvent('unrelated', '2015-01-01T00:00:00.000Z', 1))}\n`);
+      await writeFile(
+        path.join(dir, '2015-01-01.events.jsonl'),
+        `${JSON.stringify(rawEvent('unrelated', '2015-01-01T00:00:00.000Z', 1))}\n`,
+      );
       // Active (last-sorted) file — always scanned; empty so it contributes nothing.
       await writeFile(path.join(dir, '2099-06-02.events.jsonl'), '');
 
@@ -590,12 +752,16 @@ describe('ChronicleQueryEngine', () => {
       expect(result.events.map((event) => event.eventId)).toEqual(['active-event']);
     });
 
-    it('trusts a closed partition\'s cached range instead of re-reading its contents', async () => {
+    it("trusts a closed partition's cached range instead of re-reading its contents", async () => {
       const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-range-trust-'));
       tempDirs.push(dir);
       const timestamp = '2035-05-01T00:00:00.000Z';
       const closedFilePath = path.join(dir, '2020-04-01.events.jsonl');
-      await writeFile(closedFilePath, `${JSON.stringify(rawEvent('real-match', timestamp, 1))}\n`, 'utf8');
+      await writeFile(
+        closedFilePath,
+        `${JSON.stringify(rawEvent('real-match', timestamp, 1))}\n`,
+        'utf8',
+      );
       await writeFile(path.join(dir, '2099-04-02.events.jsonl'), ''); // active, empty
 
       const closedSize = (await stat(closedFilePath)).size;
@@ -630,11 +796,20 @@ describe('ChronicleQueryEngine', () => {
       tempDirs.push(dir);
       const inWindow = path.join(dir, 'in-window.events.jsonl');
       const outOfWindow = path.join(dir, 'out-of-window.events.jsonl');
-      await writeFile(inWindow, `${JSON.stringify(rawEvent('in-window', '2040-01-01T00:00:00.000Z', 1))}\n`);
-      await writeFile(outOfWindow, `${JSON.stringify(rawEvent('out-of-window', '2010-01-01T00:00:00.000Z', 1))}\n`);
+      await writeFile(
+        inWindow,
+        `${JSON.stringify(rawEvent('in-window', '2040-01-01T00:00:00.000Z', 1))}\n`,
+      );
+      await writeFile(
+        outOfWindow,
+        `${JSON.stringify(rawEvent('out-of-window', '2010-01-01T00:00:00.000Z', 1))}\n`,
+      );
 
       const engine = await ChronicleQueryEngine.fromFiles([inWindow, outOfWindow]);
-      const result = await engine.query({ from: '2039-01-01T00:00:00.000Z', to: '2041-01-01T00:00:00.000Z' });
+      const result = await engine.query({
+        from: '2039-01-01T00:00:00.000Z',
+        to: '2041-01-01T00:00:00.000Z',
+      });
 
       expect(result.events.map((event) => event.eventId)).toEqual(['in-window']);
       await expect(stat(path.join(dir, 'range-cache.json'))).rejects.toThrow();

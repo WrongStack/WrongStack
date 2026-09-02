@@ -61,10 +61,7 @@ function crashingChannel(name: string, type: string): NotificationChannel {
 }
 
 /** Create a mock channel whose `ping` resolves to an error. */
-function unhealthyChannel(
-  name: string,
-  type: string,
-): NotificationChannel {
+function unhealthyChannel(name: string, type: string): NotificationChannel {
   return {
     name,
     type,

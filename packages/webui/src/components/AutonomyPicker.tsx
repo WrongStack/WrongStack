@@ -1,12 +1,6 @@
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
-import {
-  Activity,
-  ArrowRightLeft,
-  ChevronDown,
-  Pause,
-  Play,
-} from 'lucide-react';
+import { Activity, ArrowRightLeft, ChevronDown, Pause, Play } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -147,9 +141,7 @@ export function AutonomyPicker({
               }}
               className={cn(
                 'w-full flex items-start gap-2 px-3 py-2 rounded text-left transition-colors',
-                value === opt.mode
-                  ? 'bg-accent text-accent-foreground'
-                  : 'hover:bg-accent/40',
+                value === opt.mode ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/40',
               )}
             >
               <span className="mt-0.5 text-muted-foreground">{opt.icon}</span>
@@ -157,7 +149,9 @@ export function AutonomyPicker({
                 <span className="text-sm font-medium">
                   {t(`activity:autonomy.${opt.labelKey}`)}
                 </span>
-                <p className="text-[10px] text-muted-foreground leading-snug">{t(`activity:autonomy.${opt.descKey}`)}</p>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  {t(`activity:autonomy.${opt.descKey}`)}
+                </p>
               </div>
               {value === opt.mode && (
                 <span className="h-1.5 w-1.5 rounded-full bg-primary mt-2 shrink-0" />

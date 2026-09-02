@@ -96,7 +96,11 @@ describe('EscalationRoutingBrainArbiter', () => {
   });
 
   it('uses the terminal policy when interactive mode has no queue', async () => {
-    const router = new EscalationRoutingBrainArbiter(stub(askHuman), undefined, () => 'interactive');
+    const router = new EscalationRoutingBrainArbiter(
+      stub(askHuman),
+      undefined,
+      () => 'interactive',
+    );
     const d = await router.decide(req({ risk: 'critical' }));
     expect(d.type).toBe('deny');
   });

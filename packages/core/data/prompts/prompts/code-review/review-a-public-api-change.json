@@ -5,11 +5,7 @@
   "description": "Scrutinize a change to an interface others depend on.",
   "content": "Review this change to a public API:\n\n{{diff}}\n\nThis is a contract other code depends on. Check for breaking changes (signatures, behavior, error semantics, defaults), and whether they are necessary. Assess naming, consistency with the rest of the API, and whether the change is easy to use correctly and hard to misuse. Consider versioning and a deprecation path. Flag anything that locks us into a shape we will regret exposing.",
   "category": "code-review",
-  "tags": [
-    "api",
-    "compatibility",
-    "review"
-  ],
+  "tags": ["api", "compatibility", "review"],
   "source": "builtin",
   "favorite": false,
   "checksum": "8ae71e20f203419460320634f521e53b8cfa2becdebb5411f629500466faa543",

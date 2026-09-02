@@ -53,7 +53,9 @@ describe('codebase-impact-analysis and codebase-targeted-test tools', () => {
         projectRoot: tempDir,
         meta: { codebaseIndexDir: indexDir },
       } as never;
-      await codebaseIndexTool.execute({ force: true }, ctx, { signal: new AbortController().signal });
+      await codebaseIndexTool.execute({ force: true }, ctx, {
+        signal: new AbortController().signal,
+      });
 
       const output = await codebaseImpactAnalysisTool.execute(
         { symbol: 'add', file: 'src/calc.ts', transitive: true },
@@ -66,9 +68,11 @@ describe('codebase-impact-analysis and codebase-targeted-test tools', () => {
       // outage misrouting) fails loudly instead of passing `.not.toBe(false)`.
       expect(output.symbolFound).toBe(true);
       expect(output.totalCallSites).toBeGreaterThanOrEqual(1);
-      expect(output.affectedProductionFiles.some((file) => file.replace(/\\/g, '/').includes('caller.ts'))).toBe(
-        true,
-      );
+      expect(
+        output.affectedProductionFiles.some((file) =>
+          file.replace(/\\/g, '/').includes('caller.ts'),
+        ),
+      ).toBe(true);
     } finally {
       indexStorePool.evict(tempDir, indexDir);
       resetIndexStateForTesting();

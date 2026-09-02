@@ -5,10 +5,7 @@
   "description": "Turn ad-hoc guidance into a reusable system prompt.",
   "content": "Turn these instructions into a clean system prompt:\n\n{{instructions}}\n\nSeparate the durable role and rules (system) from the per-request input (user). Resolve contradictions, order the rules by priority, and state how to handle conflicts and unknowns. Define the output contract. Remove anything that belongs in the user turn instead. Make it general enough to reuse across requests but specific enough to actually constrain behavior.",
   "category": "meta-prompting",
-  "tags": [
-    "system-prompt",
-    "reuse"
-  ],
+  "tags": ["system-prompt", "reuse"],
   "source": "builtin",
   "favorite": false,
   "checksum": "202667d608498b693d26195d1efa7408f073acf68636029a69d17ed2b86db6ef",

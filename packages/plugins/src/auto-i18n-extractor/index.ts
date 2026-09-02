@@ -103,7 +103,8 @@ function readConfig(raw: unknown): AutoI18nConfig {
 
   const rawExts = r['fileExtensions'] ?? r['file_extensions'] ?? r['extensions'];
   const rawMin = r['minLength'] ?? r['min_length'] ?? r['min'];
-  const rawMax = r['maxContextStrings'] ?? r['max_context_strings'] ?? r['maxStrings'] ?? r['limit'];
+  const rawMax =
+    r['maxContextStrings'] ?? r['max_context_strings'] ?? r['maxStrings'] ?? r['limit'];
   const rawExcl = r['excludeAttributes'] ?? r['exclude_attributes'];
 
   return {
@@ -159,7 +160,11 @@ function looksLikeUserText(value: string, minLength: number): boolean {
   // Only digits, punctuation, whitespace, underscores.
   if (/^[0-9\s\W_]+$/.test(value)) return false;
   // URL/path-like, color hex, short identifiers, import paths.
-  if (/^(https?:|ftp:|www\.|\/|\.\/|@|#[0-9a-f]{3,8}$|\.?(jsx?|tsx?|vue|css|scss|json|png|svg|jpg)$)/i.test(value)) {
+  if (
+    /^(https?:|ftp:|www\.|\/|\.\/|@|#[0-9a-f]{3,8}$|\.?(jsx?|tsx?|vue|css|scss|json|png|svg|jpg)$)/i.test(
+      value,
+    )
+  ) {
     return false;
   }
   return true;
@@ -169,7 +174,9 @@ function isExcludedContext(line: string, quoteIndex: number, excludeAttributes: 
   const before = line.slice(0, quoteIndex);
   for (const attr of excludeAttributes) {
     // Match attr=, attr={, attr={" or attr={' immediately before the string.
-    const re = new RegExp(`\\b${attr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=\\s*(?:\\{\\s*)?["']?$`);
+    const re = new RegExp(
+      `\\b${attr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=\\s*(?:\\{\\s*)?["']?$`,
+    );
     if (re.test(before)) return true;
   }
   return false;
@@ -279,13 +286,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['auto-i18n-extractor']);
 
-    const hook = (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
+    const hook = (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
       if (!cfg.enabled) return;
       if (input.toolResult?.isError) return;
 
@@ -327,7 +332,8 @@ const plugin: Plugin = {
 
       const shown = extracted.slice(0, cfg.maxContextStrings);
       const lines = shown.map((s) => `  - "${s.value}" → ${s.keySuggestion} (line ${s.line})`);
-      const more = extracted.length > shown.length ? `\n  … and ${extracted.length - shown.length} more` : '';
+      const more =
+        extracted.length > shown.length ? `\n  … and ${extracted.length - shown.length} more` : '';
       const context =
         `\n🌍 auto-i18n-extractor: found ${extracted.length} user-facing string(s) in ${sourcePath}.` +
         ` Consider extracting to i18n keys:\n${lines.join('\n')}${more}`;
@@ -335,7 +341,9 @@ const plugin: Plugin = {
       return { additionalContext: context };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- i18n_extract tool ---
     api.tools.register({
@@ -359,12 +367,24 @@ const plugin: Plugin = {
         if (!cfg.enabled) return { ok: false, error: 'auto-i18n-extractor is disabled' };
         const raw = input as Record<string, unknown>;
         const rawPath =
-          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
-          (typeof raw['TargetFile'] === 'string' && raw['TargetFile'].trim().length > 0 ? raw['TargetFile'].trim() : undefined) ??
-          (typeof raw['targetFile'] === 'string' && raw['targetFile'].trim().length > 0 ? raw['targetFile'].trim() : undefined) ??
-          (typeof raw['filePath'] === 'string' && raw['filePath'].trim().length > 0 ? raw['filePath'].trim() : undefined) ??
-          (typeof raw['file_path'] === 'string' && raw['file_path'].trim().length > 0 ? raw['file_path'].trim() : undefined) ??
-          (typeof raw['file'] === 'string' && raw['file'].trim().length > 0 ? raw['file'].trim() : undefined);
+          (typeof input.path === 'string' && input.path.trim().length > 0
+            ? input.path.trim()
+            : undefined) ??
+          (typeof raw['TargetFile'] === 'string' && raw['TargetFile'].trim().length > 0
+            ? raw['TargetFile'].trim()
+            : undefined) ??
+          (typeof raw['targetFile'] === 'string' && raw['targetFile'].trim().length > 0
+            ? raw['targetFile'].trim()
+            : undefined) ??
+          (typeof raw['filePath'] === 'string' && raw['filePath'].trim().length > 0
+            ? raw['filePath'].trim()
+            : undefined) ??
+          (typeof raw['file_path'] === 'string' && raw['file_path'].trim().length > 0
+            ? raw['file_path'].trim()
+            : undefined) ??
+          (typeof raw['file'] === 'string' && raw['file'].trim().length > 0
+            ? raw['file'].trim()
+            : undefined);
         const filePath = typeof rawPath === 'string' ? rawPath.trim() : '';
         if (!filePath) {
           return { ok: false, error: 'path is required' };

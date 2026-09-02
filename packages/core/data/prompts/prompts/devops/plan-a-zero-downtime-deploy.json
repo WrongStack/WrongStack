@@ -5,10 +5,7 @@
   "description": "Ship a change without dropping requests.",
   "content": "I need to deploy this without downtime: {{change}}\n\nChoose the strategy (rolling, blue-green, canary) for my constraints. Handle the hard parts: in-flight requests during shutdown (graceful drain), backward-compatible database changes (expand then contract), and old and new versions running at once. Define the health gate that must pass before traffic shifts and the rollback trigger. Flag any change that cannot be made zero-downtime in one step and how to split it.",
   "category": "devops",
-  "tags": [
-    "deployment",
-    "zero-downtime"
-  ],
+  "tags": ["deployment", "zero-downtime"],
   "source": "builtin",
   "favorite": false,
   "checksum": "8c1d389942d381c5ab67a2089bc759c0cfeae0cf6b8335e2cd6ba17caeaaac2e",

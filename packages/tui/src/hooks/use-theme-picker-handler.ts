@@ -1,12 +1,7 @@
 import { useCallback } from 'react';
 import type { ConfigStore } from '@wrongstack/core/types';
 import type { Action } from '../app-reducer.js';
-import {
-  getActiveThemeName,
-  setActiveTheme,
-  THEME_OPTIONS,
-  type ThemeName,
-} from '../theme.js';
+import { getActiveThemeName, setActiveTheme, THEME_OPTIONS, type ThemeName } from '../theme.js';
 
 interface UseThemePickerHandlerOptions {
   configStore?: ConfigStore | undefined;

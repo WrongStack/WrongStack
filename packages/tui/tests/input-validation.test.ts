@@ -187,14 +187,24 @@ describe('validateMouseEvent', () => {
   });
 
   it('rejects out-of-range x coordinate', () => {
-    expect(validateMouseEvent({ kind: 'press', button: 'left', x: 0, y: 10, wheel: 0 }).valid).toBe(false);
-    expect(validateMouseEvent({ kind: 'press', button: 'left', x: 5001, y: 10, wheel: 0 }).valid).toBe(false);
-    expect(validateMouseEvent({ kind: 'press', button: 'left', x: -1, y: 10, wheel: 0 }).valid).toBe(false);
+    expect(validateMouseEvent({ kind: 'press', button: 'left', x: 0, y: 10, wheel: 0 }).valid).toBe(
+      false,
+    );
+    expect(
+      validateMouseEvent({ kind: 'press', button: 'left', x: 5001, y: 10, wheel: 0 }).valid,
+    ).toBe(false);
+    expect(
+      validateMouseEvent({ kind: 'press', button: 'left', x: -1, y: 10, wheel: 0 }).valid,
+    ).toBe(false);
   });
 
   it('rejects out-of-range wheel value', () => {
-    expect(validateMouseEvent({ kind: 'wheel', button: 'none', x: 10, y: 10, wheel: 2 }).valid).toBe(false);
-    expect(validateMouseEvent({ kind: 'wheel', button: 'none', x: 10, y: 10, wheel: -2 }).valid).toBe(false);
+    expect(
+      validateMouseEvent({ kind: 'wheel', button: 'none', x: 10, y: 10, wheel: 2 }).valid,
+    ).toBe(false);
+    expect(
+      validateMouseEvent({ kind: 'wheel', button: 'none', x: 10, y: 10, wheel: -2 }).valid,
+    ).toBe(false);
   });
 });
 
@@ -294,13 +304,19 @@ describe('validateAction', () => {
   });
 
   it('validates fleetBatch action count', () => {
-    const actions = Array.from({ length: MAX_BATCHED_ACTIONS }, (_, i) => ({ type: 'fleetDelta', id: `a${i}` }));
+    const actions = Array.from({ length: MAX_BATCHED_ACTIONS }, (_, i) => ({
+      type: 'fleetDelta',
+      id: `a${i}`,
+    }));
     const result = validateAction({ type: 'fleetBatch', actions });
     expect(result.valid).toBe(true);
   });
 
   it('rejects fleetBatch with too many actions', () => {
-    const actions = Array.from({ length: MAX_BATCHED_ACTIONS + 1 }, (_, i) => ({ type: 'fleetDelta', id: `a${i}` }));
+    const actions = Array.from({ length: MAX_BATCHED_ACTIONS + 1 }, (_, i) => ({
+      type: 'fleetDelta',
+      id: `a${i}`,
+    }));
     const result = validateAction({ type: 'fleetBatch', actions });
     expect(result.valid).toBe(false);
     if (!result.valid) expect(result.error).toContain('exceeds');
@@ -330,7 +346,9 @@ describe('validateAction', () => {
   it('accepts slash-menu and picker actions used by the input router', () => {
     expect(validateAction({ type: 'statuslineOpen', hiddenItems: [] }).valid).toBe(true);
     expect(validateAction({ type: 'settingsClose' }).valid).toBe(true);
-    expect(validateAction({ type: 'modelPickerPickProvider', providerId: 'openai', models: [] }).valid).toBe(true);
+    expect(
+      validateAction({ type: 'modelPickerPickProvider', providerId: 'openai', models: [] }).valid,
+    ).toBe(true);
   });
 
   it('validates debugStreamStats', () => {
@@ -346,7 +364,12 @@ describe('validateAction', () => {
   });
 
   it('rejects debugStreamStats with negative chunkCount', () => {
-    const result = validateAction({ type: 'debugStreamStats', chunkCount: -1, lastChunkSize: 0, totalBytes: 0 });
+    const result = validateAction({
+      type: 'debugStreamStats',
+      chunkCount: -1,
+      lastChunkSize: 0,
+      totalBytes: 0,
+    });
     expect(result.valid).toBe(false);
   });
 
@@ -360,9 +383,15 @@ describe('validateAction', () => {
   });
 
   it('validates collabSessionDone verdict', () => {
-    expect(validateAction({ type: 'collabSessionDone', sessionId: 's1', verdict: 'approve' }).valid).toBe(true);
-    expect(validateAction({ type: 'collabSessionDone', sessionId: 's1', verdict: 'reject' }).valid).toBe(true);
-    expect(validateAction({ type: 'collabSessionDone', sessionId: 's1', verdict: 'maybe' }).valid).toBe(false);
+    expect(
+      validateAction({ type: 'collabSessionDone', sessionId: 's1', verdict: 'approve' }).valid,
+    ).toBe(true);
+    expect(
+      validateAction({ type: 'collabSessionDone', sessionId: 's1', verdict: 'reject' }).valid,
+    ).toBe(true);
+    expect(
+      validateAction({ type: 'collabSessionDone', sessionId: 's1', verdict: 'maybe' }).valid,
+    ).toBe(false);
   });
 
   it('validates plannerMove with delta -1/0/1 only', () => {
@@ -387,7 +416,9 @@ describe('validateAction', () => {
   it('accepts current settings editor actions', () => {
     expect(validateAction({ type: 'settingsFieldMove', delta: 1 }).valid).toBe(true);
     expect(validateAction({ type: 'settingsValueChange', delta: -1 }).valid).toBe(true);
-    expect(validateAction({ type: 'settingsThinkingEditChange', draft: 'working' }).valid).toBe(true);
+    expect(validateAction({ type: 'settingsThinkingEditChange', draft: 'working' }).valid).toBe(
+      true,
+    );
   });
 
   it('accepts current auth and help panel actions', () => {
@@ -438,7 +469,9 @@ describe('validateFleetEntry', () => {
   it('rejects non-finite cost', () => {
     expect(validateFleetEntry({ id: 'a', name: 'x', status: 'idle', cost: NaN }).valid).toBe(false);
     expect(validateFleetEntry({ id: 'a', name: 'x', status: 'idle', cost: -1 }).valid).toBe(false);
-    expect(validateFleetEntry({ id: 'a', name: 'x', status: 'idle', cost: Infinity }).valid).toBe(false);
+    expect(validateFleetEntry({ id: 'a', name: 'x', status: 'idle', cost: Infinity }).valid).toBe(
+      false,
+    );
   });
 
   it('rejects oversized streamingText', () => {
@@ -496,7 +529,9 @@ describe('validateRestoreEntry', () => {
 describe('safeDispatch', () => {
   it('dispatches valid actions', () => {
     const dispatched: Array<Record<string, unknown>> = [];
-    const dispatch = (a: Record<string, unknown>) => { dispatched.push(a); };
+    const dispatch = (a: Record<string, unknown>) => {
+      dispatched.push(a);
+    };
 
     const result = safeDispatch({ type: 'clearInput' }, dispatch);
     expect(result).toBe(true);
@@ -506,7 +541,9 @@ describe('safeDispatch', () => {
 
   it('rejects invalid actions without dispatching', () => {
     const dispatched: Array<Record<string, unknown>> = [];
-    const dispatch = (a: Record<string, unknown>) => { dispatched.push(a); };
+    const dispatch = (a: Record<string, unknown>) => {
+      dispatched.push(a);
+    };
 
     const result = safeDispatch({ type: 'unknownType' }, dispatch);
     expect(result).toBe(false);

@@ -161,7 +161,12 @@ function getWrapLineRegex(name: string): RegExp {
 }
 
 /** True if `name` at [start, end) appears as a markdown link `[name](` or inline code `` `name` `` or inside link target. */
-function isRangeWrappedAsLinkOrCode(line: string, start: number, end: number, _name: string): boolean {
+function isRangeWrappedAsLinkOrCode(
+  line: string,
+  start: number,
+  end: number,
+  _name: string,
+): boolean {
   if (start > 0 && line[start - 1] === '`' && end < line.length && line[end] === '`') {
     return true;
   }
@@ -439,7 +444,9 @@ const plugin: Plugin = {
           `${lines}${overflowNote}`,
       };
     };
-    state.postHookUnregister = api.registerHook('PostToolUse', 'write|edit', postHook as never, { background: true });
+    state.postHookUnregister = api.registerHook('PostToolUse', 'write|edit', postHook as never, {
+      background: true,
+    });
 
     // ── PreToolUse: auto-fix on `write` only ─────────────────────────
     if (cfg.autoFix) {

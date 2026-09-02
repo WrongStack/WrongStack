@@ -254,7 +254,9 @@ describe('SQLite query parity with the JSONL engine', () => {
   });
 
   it('builds the same graph as the JSONL engine', async () => {
-    const legacy = await (await ChronicleQueryEngine.fromDirectory(dir)).graph({ traceId: 'trace-a' });
+    const legacy = await (await ChronicleQueryEngine.fromDirectory(dir)).graph({
+      traceId: 'trace-a',
+    });
     const sqlite = await new ChronicleSqliteQueryEngine(db).graph({ traceId: 'trace-a' });
 
     expect(sqlite.nodes.map((node) => node.eventId)).toEqual(
@@ -298,7 +300,9 @@ describe('SQLite query parity with the JSONL engine', () => {
 
   it('walks every page to the same events as the JSONL engine', async () => {
     const collect = async (
-      next: (cursor?: string) => Promise<{ events: Array<{ eventId: string }>; nextCursor?: string }>,
+      next: (
+        cursor?: string,
+      ) => Promise<{ events: Array<{ eventId: string }>; nextCursor?: string }>,
     ): Promise<string[]> => {
       const ids: string[] = [];
       let cursor: string | undefined;

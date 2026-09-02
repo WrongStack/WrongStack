@@ -58,7 +58,15 @@ describe('createKanbanRunMirror', () => {
     const { createBoard } = await import('@wrongstack/kanban');
     mirror.onGoalState('graph-1', {
       title: 'Test Goal',
-      phases: [{ id: 'p1', name: 'Phase 1', tasks: [{ id: 't1', title: 'Task 1', status: 'pending', priority: 'high', type: 'feature' }] }],
+      phases: [
+        {
+          id: 'p1',
+          name: 'Phase 1',
+          tasks: [
+            { id: 't1', title: 'Task 1', status: 'pending', priority: 'high', type: 'feature' },
+          ],
+        },
+      ],
     });
     // Before debounce timer fires, no kanban calls yet
     expect(vi.mocked(createBoard)).not.toHaveBeenCalled();

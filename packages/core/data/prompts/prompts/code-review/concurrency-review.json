@@ -5,11 +5,7 @@
   "description": "Review code for race conditions and concurrency bugs.",
   "content": "Review this code for concurrency correctness:\n\n```\n{{code}}\n```\n\nIdentify shared mutable state and the invariants on it. Look for: data races, check-then-act races, deadlock/lock-ordering issues, missing memory visibility, and unsafe lazy initialization. For each, describe the interleaving that triggers it and the fix. If it's a single-threaded context, confirm that and stop.",
   "category": "code-review",
-  "tags": [
-    "concurrency",
-    "races",
-    "review"
-  ],
+  "tags": ["concurrency", "races", "review"],
   "source": "builtin",
   "favorite": false,
   "checksum": "0e82cc791a067ba1aada5cc23774dcb2856253fa54704daa7732e1feaaa8fac8",

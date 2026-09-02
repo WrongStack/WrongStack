@@ -57,11 +57,9 @@ describe('shell-open', () => {
       mockAccess.mockResolvedValue(undefined);
       mockSpawn.mockReturnValue({ on: vi.fn().mockReturnThis(), unref: vi.fn() });
 
-      const result = await handleShellOpen(
-        { path: testPath, target: 'terminal' },
-        logger as any,
-        { projectRoot: testPath },
-      );
+      const result = await handleShellOpen({ path: testPath, target: 'terminal' }, logger as any, {
+        projectRoot: testPath,
+      });
       expect(result.success).toBe(true);
     });
 
@@ -168,4 +166,3 @@ describe('shell-open', () => {
     });
   });
 });
-

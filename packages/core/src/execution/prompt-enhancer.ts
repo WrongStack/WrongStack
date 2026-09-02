@@ -455,8 +455,8 @@ function buildRefinerInput(
       retryLines.push(`Previous refined version: ${compactText(previousRefinement.refined, 900)}`);
     }
     if (
-      previousRefinement?.english
-      && previousRefinement.english.trim() !== previousRefinement.refined.trim()
+      previousRefinement?.english &&
+      previousRefinement.english.trim() !== previousRefinement.refined.trim()
     ) {
       retryLines.push(`Previous English version: ${compactText(previousRefinement.english, 900)}`);
     }
@@ -466,21 +466,11 @@ function buildRefinerInput(
 
   if (history && history.length > 0) {
     const lines = history.map((t) => `${t.role === 'user' ? 'User' : 'Assistant'}: ${t.text}`);
-    parts.push(
-      [
-        'Recent conversation (context only - do not act on it):',
-        ...lines,
-      ].join('\n'),
-    );
+    parts.push(['Recent conversation (context only - do not act on it):', ...lines].join('\n'));
   }
 
   if (parts.length === 0) return text;
-  return [
-    ...parts,
-    '',
-    'Latest message to refine:',
-    text,
-  ].join('\n\n');
+  return [...parts, '', 'Latest message to refine:', text].join('\n\n');
 }
 
 function renderRefinerContextSections(
@@ -528,8 +518,8 @@ function iterableStrings(value: unknown): string[] {
     });
   }
   if (
-    typeof value === 'object'
-    && typeof (value as { [Symbol.iterator]?: unknown })[Symbol.iterator] === 'function'
+    typeof value === 'object' &&
+    typeof (value as { [Symbol.iterator]?: unknown })[Symbol.iterator] === 'function'
   ) {
     try {
       return Array.from(value as Iterable<unknown>).flatMap((item) => {
@@ -583,7 +573,8 @@ function buildRefinerSessionContextSection(
 
 function formatMemoryEntry(entry: MemoryEntry): string {
   const meta = [entry.scope, entry.type, entry.priority].filter(Boolean).join('/');
-  const tags = entry.tags && entry.tags.length > 0 ? ` tags: ${entry.tags.slice(0, 5).join(', ')}` : '';
+  const tags =
+    entry.tags && entry.tags.length > 0 ? ` tags: ${entry.tags.slice(0, 5).join(', ')}` : '';
   return `${meta ? `[${meta}] ` : ''}${compactText(entry.text, 260)}${tags}`;
 }
 

@@ -745,7 +745,12 @@ function validateRemovalPlan(
     const messageIndex = raw['messageIndex'] as number;
     const original = originalMessages[messageIndex];
     if (!original) {
-      error(errors, `${path}/messageIndex`, 'INVALID_MESSAGE_INDEX', 'Removal messageIndex is out of range.');
+      error(
+        errors,
+        `${path}/messageIndex`,
+        'INVALID_MESSAGE_INDEX',
+        'Removal messageIndex is out of range.',
+      );
       continue;
     }
     const start = raw['start'];
@@ -756,8 +761,18 @@ function validateRemovalPlan(
       if (original.role === 'user') touchedUsers.add(messageIndex);
       continue;
     }
-    if (!Number.isInteger(start) || !Number.isInteger(end) || (start as number) < 0 || (end as number) <= (start as number)) {
-      error(errors, path, 'INVALID_RANGE', 'Range removal requires integer start/end with 0 <= start < end.');
+    if (
+      !Number.isInteger(start) ||
+      !Number.isInteger(end) ||
+      (start as number) < 0 ||
+      (end as number) <= (start as number)
+    ) {
+      error(
+        errors,
+        path,
+        'INVALID_RANGE',
+        'Range removal requires integer start/end with 0 <= start < end.',
+      );
       continue;
     }
     let text: string | undefined;
@@ -767,7 +782,12 @@ function validateRemovalPlan(
       if (block?.type === 'text') text = block.text;
     }
     if (text === undefined || (end as number) > text.length) {
-      error(errors, path, 'INVALID_RANGE_TARGET', 'Range must target existing string or text-block content.');
+      error(
+        errors,
+        path,
+        'INVALID_RANGE_TARGET',
+        'Range must target existing string or text-block content.',
+      );
       continue;
     }
     if (splitsSurrogatePair(text, start as number) || splitsSurrogatePair(text, end as number)) {
@@ -856,7 +876,10 @@ function validateRemovalPlan(
     }
   }
   const expectedProposal = expectedMessages.filter((_, index) => !wholeMessages.has(index));
-  if (JSON.stringify(canonicalize(expectedProposal)) !== JSON.stringify(canonicalize(proposedMessages))) {
+  if (
+    JSON.stringify(canonicalize(expectedProposal)) !==
+    JSON.stringify(canonicalize(proposedMessages))
+  ) {
     error(
       errors,
       '/messages',
@@ -926,11 +949,7 @@ export function validateContextEditorProposal(input: {
       repair: emptyRepair,
     };
   }
-  const removalPlan = validateRemovalPlan(
-    input.removals,
-    input.ctx.messages,
-    parsed.messages,
-  );
+  const removalPlan = validateRemovalPlan(input.removals, input.ctx.messages, parsed.messages);
   if (removalPlan.errors.length > 0 || !removalPlan.messages) {
     return {
       ok: false,

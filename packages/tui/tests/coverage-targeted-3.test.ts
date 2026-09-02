@@ -203,7 +203,9 @@ describe('terminal-title.ts — event wiring', () => {
     const { stop } = startTerminalTitle({
       stdout: {
         isTTY: true,
-        write: (s: string) => { writes.push(s); },
+        write: (s: string) => {
+          writes.push(s);
+        },
       } as never,
       events: {
         on: () => () => {},

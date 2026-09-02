@@ -36,9 +36,9 @@ describe('updateSage field validation (2026-08-02)', () => {
       kind: 'fact',
       importance: 0.5,
     });
-    await expect(
-      store.updateSage(memory.id, { kind: 'bogus_kind' as never }),
-    ).rejects.toThrow(/kind/);
+    await expect(store.updateSage(memory.id, { kind: 'bogus_kind' as never })).rejects.toThrow(
+      /kind/,
+    );
   });
 
   it('accepts valid persistence and kind updates', async () => {

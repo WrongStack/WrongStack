@@ -39,12 +39,31 @@ const CANONICAL_REPORT = [
 
 const EMPTY_REPORT = '## 🦂 Chimera Review — all clear ✅\nNo issues found.';
 
-function makePayload(reviewText: string, overrides: Partial<ChimeraReviewCompletePayload> = {}): ChimeraReviewCompletePayload {
+function makePayload(
+  reviewText: string,
+  overrides: Partial<ChimeraReviewCompletePayload> = {},
+): ChimeraReviewCompletePayload {
   return {
     bundle: {
-      config: { enabled: true, provider: 'test-provider', model: 'test-model', maxFiles: 15, autoFix: 'off', cascadeOn: 'off' as const, maxCascadeDepth: 2, fallbackModels: [], fallbackProfile: undefined },
+      config: {
+        enabled: true,
+        provider: 'test-provider',
+        model: 'test-model',
+        maxFiles: 15,
+        autoFix: 'off',
+        cascadeOn: 'off' as const,
+        maxCascadeDepth: 2,
+        fallbackModels: [],
+        fallbackProfile: undefined,
+      },
       cwd: process.cwd(),
-      files: [{ path: 'src/auth.ts', status: 'modified' as const, content: 'export function login(user: any) { return user.name; }' }],
+      files: [
+        {
+          path: 'src/auth.ts',
+          status: 'modified' as const,
+          content: 'export function login(user: any) { return user.name; }',
+        },
+      ],
     },
     reviewText,
     status: 'success',
@@ -65,7 +84,6 @@ afterEach(async () => {
 });
 
 describe('Chimera finding integration — FS-P0.6', () => {
-
   it('persists findings and report from a canonical review', async () => {
     const payload = makePayload(CANONICAL_REPORT);
     const reportId = 'test-report-001';
@@ -162,9 +180,9 @@ describe('Chimera finding integration — FS-P0.6', () => {
     expect(listing).toContain('3 finding(s)');
 
     // Filter by severity
-    const criticalOnly = await executeFindingCommand(
-      ['findings', '--severity', 'critical'], { projectDir: dir },
-    );
+    const criticalOnly = await executeFindingCommand(['findings', '--severity', 'critical'], {
+      projectDir: dir,
+    });
     expect(criticalOnly).toContain('Null dereference');
     expect(criticalOnly).not.toContain('Hardcoded API key');
 
@@ -192,33 +210,57 @@ describe('Chimera finding integration — FS-P0.6', () => {
     await integrateFindings(chimeraPayload, dir, 'chimera-src');
     const findingStore = new JsonlFindingStore(dir);
     const chimeraFindings = await findingStore.list({ limit: 100 });
-    expect(chimeraFindings.every(f => f.source === 'chimera')).toBe(true);
+    expect(chimeraFindings.every((f) => f.source === 'chimera')).toBe(true);
 
     // cascadeOn: 'high' but depth=0 → 'auto'
     const autoPayload = makePayload(CANONICAL_REPORT, {
       bundle: {
-        config: { enabled: true, provider: 'p', model: 'm', maxFiles: 15, autoFix: 'off', cascadeOn: 'off' as const, maxCascadeDepth: 2, fallbackModels: [], fallbackProfile: undefined },
+        config: {
+          enabled: true,
+          provider: 'p',
+          model: 'm',
+          maxFiles: 15,
+          autoFix: 'off',
+          cascadeOn: 'off' as const,
+          maxCascadeDepth: 2,
+          fallbackModels: [],
+          fallbackProfile: undefined,
+        },
         cwd: process.cwd(),
         files: [],
         cascadeOn: 'high' as const,
       },
     });
     await integrateFindings(autoPayload, dir, 'auto-src');
-    const autoFindings = (await findingStore.list({ limit: 100 })).filter(f => f.originReport.reportId === 'auto-src');
-    expect(autoFindings.every(f => f.source === 'auto')).toBe(true);
+    const autoFindings = (await findingStore.list({ limit: 100 })).filter(
+      (f) => f.originReport.reportId === 'auto-src',
+    );
+    expect(autoFindings.every((f) => f.source === 'auto')).toBe(true);
 
     // cascadeDepth=1 → 'cascade'
     const cascadePayload = makePayload(CANONICAL_REPORT, {
       bundle: {
-        config: { enabled: true, provider: 'p', model: 'm', maxFiles: 15, autoFix: 'off', cascadeOn: 'off' as const, maxCascadeDepth: 2, fallbackModels: [], fallbackProfile: undefined },
+        config: {
+          enabled: true,
+          provider: 'p',
+          model: 'm',
+          maxFiles: 15,
+          autoFix: 'off',
+          cascadeOn: 'off' as const,
+          maxCascadeDepth: 2,
+          fallbackModels: [],
+          fallbackProfile: undefined,
+        },
         cwd: process.cwd(),
         files: [],
         cascadeDepth: 1,
       },
     });
     await integrateFindings(cascadePayload, dir, 'cascade-src');
-    const cascadeFindings = (await findingStore.list({ limit: 100 })).filter(f => f.originReport.reportId === 'cascade-src');
-    expect(cascadeFindings.every(f => f.source === 'cascade')).toBe(true);
+    const cascadeFindings = (await findingStore.list({ limit: 100 })).filter(
+      (f) => f.originReport.reportId === 'cascade-src',
+    );
+    expect(cascadeFindings.every((f) => f.source === 'cascade')).toBe(true);
   });
 
   it('prefers the execution-owner parsedReport over re-parsing reviewText (P0-1/P0-2)', async () => {
@@ -246,7 +288,12 @@ describe('Chimera finding integration — FS-P0.6', () => {
               reason: 'anchor_found',
               evidence: 'export async function login(user: any) {',
             },
-            originReport: { reportId: 'pre-parsed-001', sessionId: 's1', agentId: 'a1', reviewerModel: 'm1' },
+            originReport: {
+              reportId: 'pre-parsed-001',
+              sessionId: 's1',
+              agentId: 'a1',
+              reviewerModel: 'm1',
+            },
           },
         ],
         unparseableCount: 0,
@@ -290,7 +337,12 @@ describe('Chimera finding integration — FS-P0.6', () => {
     expect(all.length).toBe(3);
 
     for (const finding of all) {
-      await store.transition(finding.id, 'resolved', { id: 'operator', kind: 'operator' }, { outcome: 'fixed' });
+      await store.transition(
+        finding.id,
+        'resolved',
+        { id: 'operator', kind: 'operator' },
+        { outcome: 'fixed' },
+      );
     }
 
     // Auto-completion should have fired (triggered via syncReportCompletion)

@@ -9,7 +9,10 @@ import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { executeFindingCommand } from '../../src/plugins/review-finding-commands.js';
-import { resolveChimeraConfig, type ChimeraReviewCompletePayload } from '../../src/plugins/chimera-plugin.js';
+import {
+  resolveChimeraConfig,
+  type ChimeraReviewCompletePayload,
+} from '../../src/plugins/chimera-plugin.js';
 import { JsonlFindingStore } from '../../src/plugins/review-finding-store.js';
 import type { ChimeraFinding } from '../../src/plugins/review-finding-types.js';
 
@@ -75,25 +78,40 @@ describe('/review findings slash commands', () => {
   });
 
   it('lists findings after upsert', async () => {
-    await store.upsert([makeFinding({ severity: 'critical', title: 'Critical bug one' })], { sessionId: 's', reportId: 'r', agentId: 'chimera-review', model: 'test-model' });
+    await store.upsert([makeFinding({ severity: 'critical', title: 'Critical bug one' })], {
+      sessionId: 's',
+      reportId: 'r',
+      agentId: 'chimera-review',
+      model: 'test-model',
+    });
     const output = await executeFindingCommand(['findings'], { projectDir: dir });
     expect(output).toContain('critical');
     expect(output).toContain('Critical bug');
   });
 
   it('filters by severity', async () => {
-    await store.upsert([
-      makeFinding({ severity: 'critical', title: 'Critical bug' }),
-      makeFinding({ severity: 'low', title: 'Low issue' }),
-    ], { sessionId: 's', reportId: 'r', agentId: 'chimera-review', model: 'test-model' });
-    const output = await executeFindingCommand(['findings', '--severity', 'critical'], { projectDir: dir });
+    await store.upsert(
+      [
+        makeFinding({ severity: 'critical', title: 'Critical bug' }),
+        makeFinding({ severity: 'low', title: 'Low issue' }),
+      ],
+      { sessionId: 's', reportId: 'r', agentId: 'chimera-review', model: 'test-model' },
+    );
+    const output = await executeFindingCommand(['findings', '--severity', 'critical'], {
+      projectDir: dir,
+    });
     expect(output).toContain('Critical bug');
     expect(output).not.toContain('Low issue');
   });
 
   it('shows a single finding by ID', async () => {
     const f = makeFinding({ title: 'Specific finding' });
-    await store.upsert([f], { sessionId: 's', reportId: 'r', agentId: 'chimera-review', model: 'test-model' });
+    await store.upsert([f], {
+      sessionId: 's',
+      reportId: 'r',
+      agentId: 'chimera-review',
+      model: 'test-model',
+    });
     const output = await executeFindingCommand(['finding', f.id], { projectDir: dir });
     expect(output).toContain('Specific finding');
     expect(output).toContain(f.location?.file ?? '');
@@ -101,7 +119,12 @@ describe('/review findings slash commands', () => {
 
   it('shows lifecycle events for a finding', async () => {
     const f = makeFinding({ title: 'Triaged bug' });
-    await store.upsert([f], { sessionId: 's', reportId: 'r', agentId: 'chimera-review', model: 'test-model' });
+    await store.upsert([f], {
+      sessionId: 's',
+      reportId: 'r',
+      agentId: 'chimera-review',
+      model: 'test-model',
+    });
     await store.transition(f.id, 'triaged', { id: 'operator-1', kind: 'operator' });
     const output = await executeFindingCommand(['finding', f.id], { projectDir: dir });
     expect(output).toContain('Lifecycle');
@@ -114,11 +137,14 @@ describe('/review findings slash commands', () => {
   });
 
   it('shows status summary', async () => {
-    await store.upsert([
-      makeFinding({ severity: 'critical', title: 'A' }),
-      makeFinding({ severity: 'high', title: 'B' }),
-      makeFinding({ severity: 'low', title: 'C' }),
-    ], { sessionId: 's', reportId: 'r', agentId: 'chimera-review', model: 'test-model' });
+    await store.upsert(
+      [
+        makeFinding({ severity: 'critical', title: 'A' }),
+        makeFinding({ severity: 'high', title: 'B' }),
+        makeFinding({ severity: 'low', title: 'C' }),
+      ],
+      { sessionId: 's', reportId: 'r', agentId: 'chimera-review', model: 'test-model' },
+    );
     const output = await executeFindingCommand(['status'], { projectDir: dir });
     expect(output).toContain('3');
     expect(output).toContain('critical');
@@ -132,7 +158,12 @@ describe('/review findings slash commands', () => {
 
   it('shows finding ID for reference', async () => {
     const f = makeFinding({ title: 'Pinned bug' });
-    await store.upsert([f], { sessionId: 's', reportId: 'r', agentId: 'chimera-review', model: 'test-model' });
+    await store.upsert([f], {
+      sessionId: 's',
+      reportId: 'r',
+      agentId: 'chimera-review',
+      model: 'test-model',
+    });
     const output = await executeFindingCommand(['finding', f.id], { projectDir: dir });
     expect(output).toContain(f.id);
   });
@@ -168,7 +199,11 @@ describe('integrateFindings', () => {
     const persisted = await store.list();
     expect(persisted).toHaveLength(3);
     expect(persisted.every((finding) => finding.source === 'chimera')).toBe(true);
-    expect(persisted.every((finding) => finding.originReport.reportId === result.reportId)).toBe(true);
-    expect(persisted.every((finding) => finding.originReport.reviewerModel === 'test-model')).toBe(true);
+    expect(persisted.every((finding) => finding.originReport.reportId === result.reportId)).toBe(
+      true,
+    );
+    expect(persisted.every((finding) => finding.originReport.reviewerModel === 'test-model')).toBe(
+      true,
+    );
   });
 });

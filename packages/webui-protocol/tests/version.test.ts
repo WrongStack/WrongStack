@@ -85,6 +85,8 @@ describe('negotiateProtocol', () => {
   });
 
   it('returns no capabilities for a peer that advertises none', () => {
-    expect(negotiateProtocol({ protocolVersion: SURFACE_PROTOCOL_VERSION }).capabilities).toEqual([]);
+    expect(negotiateProtocol({ protocolVersion: SURFACE_PROTOCOL_VERSION }).capabilities).toEqual(
+      [],
+    );
   });
 });

@@ -77,9 +77,7 @@ export function AuthAuditPanel(): React.ReactElement {
         >
           <span className="font-medium">{KIND_LABEL[entry.kind] ?? entry.kind}</span>
           <Badge tone="idle">{entry.scope}</Badge>
-          <Mono>
-            {entry.tokenId === PASSWORD_ROTATION_TOKEN ? '—' : entry.tokenId.slice(0, 8)}
-          </Mono>
+          <Mono>{entry.tokenId === PASSWORD_ROTATION_TOKEN ? '—' : entry.tokenId.slice(0, 8)}</Mono>
           {entry.actor !== undefined && <Mono>{entry.actor}</Mono>}
           <span className="tabular ml-auto text-[10px] text-muted-foreground">
             {agoLabel(entry.at)}

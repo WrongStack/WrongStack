@@ -14,7 +14,8 @@ export const KNOWLEDGE_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'knowledge',
-      summary: 'Technical documentation: READMEs, API/reference docs, guides, and verified examples grounded in code.',
+      summary:
+        'Technical documentation: READMEs, API/reference docs, guides, and verified examples grounded in code.',
       keywords: [
         'document',
         'documentation',
@@ -40,7 +41,8 @@ export const KNOWLEDGE_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'knowledge',
-      summary: 'Diagram generation from code: class/sequence/component/ER diagrams as Mermaid/PlantUML.',
+      summary:
+        'Diagram generation from code: class/sequence/component/ER diagrams as Mermaid/PlantUML.',
       keywords: [
         'uml',
         'diagram',
@@ -66,7 +68,8 @@ export const KNOWLEDGE_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'knowledge',
-      summary: 'Internationalization/localization: string extraction, catalog management, plurals/RTL/format handling.',
+      summary:
+        'Internationalization/localization: string extraction, catalog management, plurals/RTL/format handling.',
       keywords: [
         'i18n',
         'internationalization',
@@ -92,7 +95,8 @@ export const KNOWLEDGE_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'knowledge',
-      summary: 'Prompt engineering: designs/refines/evaluates LLM system prompts and agent instructions.',
+      summary:
+        'Prompt engineering: designs/refines/evaluates LLM system prompts and agent instructions.',
       keywords: [
         'prompt',
         'prompt engineering',

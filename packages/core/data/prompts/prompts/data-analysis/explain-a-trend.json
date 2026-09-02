@@ -5,10 +5,7 @@
   "description": "Turn a pattern in the data into a credible explanation.",
   "content": "I see this pattern in the data: {{pattern}}\n\nHelp me explain it without fooling myself. List the plausible causes, including the boring ones: a data or tracking change, seasonality, a composition shift (Simpson's paradox), or an external event — before reaching for an exciting story. For each, what to check to confirm or rule it out. Separate what the data can support from speculation. End with the most likely explanation and how confident I should be.",
   "category": "data-analysis",
-  "tags": [
-    "trends",
-    "interpretation"
-  ],
+  "tags": ["trends", "interpretation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "0104b4486fb723a58640ca5e161f64e6f3cab135287d17283916e7e1f7064b33",

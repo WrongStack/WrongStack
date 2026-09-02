@@ -29,7 +29,6 @@ import {
 // ============================================================================
 
 describe('State constants', () => {
-
   describe('External protocol validation', () => {
     it('should allow http protocol', () => {
       expect(OPEN_EXTERNAL_ALLOWED_PROTOCOLS.has('http:')).toBe(true);

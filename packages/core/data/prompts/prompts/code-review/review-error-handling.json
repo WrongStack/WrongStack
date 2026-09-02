@@ -5,10 +5,7 @@
   "description": "Check that failures are handled, not just the happy path.",
   "content": "Review the error handling in this change:\n\n{{diff}}\n\nCheck: are errors caught at the right level, or swallowed? Is failure surfaced with enough context to debug? Are resources cleaned up on the error path? Does a partial failure leave consistent state? Are errors that should propagate being hidden, and vice versa? Flag any empty catch, any error turned into a misleading default, and any path that fails silently. Be specific about what to change.",
   "category": "code-review",
-  "tags": [
-    "error-handling",
-    "review"
-  ],
+  "tags": ["error-handling", "review"],
   "source": "builtin",
   "favorite": false,
   "checksum": "7fd23a06c981f88b9c66b29d243b7477932b2aadf38f5252251badb86a781056",

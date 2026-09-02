@@ -2,7 +2,10 @@ import type { WebSocket } from 'ws';
 import type { WSClientMessage } from './types.js';
 
 export interface GoalRouteHandlers {
-  handleMessage: (ws: WebSocket, msg: { type: string; payload?: Record<string, unknown> }) => Promise<void>;
+  handleMessage: (
+    ws: WebSocket,
+    msg: { type: string; payload?: Record<string, unknown> },
+  ) => Promise<void>;
 }
 
 export async function handleGoalRoute(

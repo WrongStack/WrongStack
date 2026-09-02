@@ -57,14 +57,10 @@ export const ChatRowView = memo(function ChatRowView({
               ];
             }
             if (it.message.councilDecision || parseCouncilMarkdown(it.message.content)) {
-              return [
-                <CouncilDecisionCard key={it.key} message={it.message} />,
-              ];
+              return [<CouncilDecisionCard key={it.key} message={it.message} />];
             }
             if (it.message.brainDecision || parseBrainMarkdown(it.message.content)) {
-              return [
-                <BrainDecisionCard key={it.key} message={it.message} />,
-              ];
+              return [<BrainDecisionCard key={it.key} message={it.message} />];
             }
             return [
               <MessageBubble

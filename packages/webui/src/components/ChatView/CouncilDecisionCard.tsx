@@ -32,14 +32,25 @@ const OPTION_THEME_CLASSES = [
   { bg: 'bg-info', text: 'text-info', badge: 'bg-info/15 text-info border-info/30' },
   { bg: 'bg-warning', text: 'text-warning', badge: 'bg-warning/15 text-warning border-warning/30' },
   { bg: 'bg-primary', text: 'text-primary', badge: 'bg-primary/15 text-primary border-primary/30' },
-  { bg: 'bg-destructive', text: 'text-destructive', badge: 'bg-destructive/15 text-destructive border-destructive/30' },
-  { bg: 'bg-accent', text: 'text-accent-foreground', badge: 'bg-accent/40 text-accent-foreground border-border' },
+  {
+    bg: 'bg-destructive',
+    text: 'text-destructive',
+    badge: 'bg-destructive/15 text-destructive border-destructive/30',
+  },
+  {
+    bg: 'bg-accent',
+    text: 'text-accent-foreground',
+    badge: 'bg-accent/40 text-accent-foreground border-border',
+  },
 ];
 
 /** Parse legacy or replayed markdown into a structured CouncilDecisionData fallback */
 export function parseCouncilMarkdown(content: string): CouncilDecisionData | null {
   if (!content.includes('Council') && !content.includes('⚖️')) return null;
-  const isCouncil = content.startsWith('⚖️') || content.includes('Council resolved') || content.includes('Council veto');
+  const isCouncil =
+    content.startsWith('⚖️') ||
+    content.includes('Council resolved') ||
+    content.includes('Council veto');
   if (!isCouncil) return null;
 
   const lines = content.split('\n');
@@ -57,7 +68,9 @@ export function parseCouncilMarkdown(content: string): CouncilDecisionData | nul
       continue;
     }
     if (line.startsWith('- **')) {
-      const match = line.match(/^-\s*\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?\s*→\s*([^·]+)(?:\s*·\s*`([^`]+)`)?/);
+      const match = line.match(
+        /^-\s*\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?\s*→\s*([^·]+)(?:\s*·\s*`([^`]+)`)?/,
+      );
       if (match) {
         const persona = match[1] ?? 'voter';
         const vetoTag = (match[2] ?? '').includes('veto');
@@ -95,8 +108,10 @@ function getPersonaIcon(persona: string) {
   if (p.includes('executor') || p.includes('action')) return <Zap className="h-3.5 w-3.5" />;
   if (p.includes('skeptic')) return <ShieldAlert className="h-3.5 w-3.5" />;
   if (p.includes('security')) return <Shield className="h-3.5 w-3.5" />;
-  if (p.includes('auditor') || p.includes('cost') || p.includes('budget')) return <Coins className="h-3.5 w-3.5" />;
-  if (p.includes('maintainer') || p.includes('architect')) return <Wrench className="h-3.5 w-3.5" />;
+  if (p.includes('auditor') || p.includes('cost') || p.includes('budget'))
+    return <Coins className="h-3.5 w-3.5" />;
+  if (p.includes('maintainer') || p.includes('architect'))
+    return <Wrench className="h-3.5 w-3.5" />;
   if (p.includes('user') || p.includes('advocate')) return <Users className="h-3.5 w-3.5" />;
   return <Award className="h-3.5 w-3.5" />;
 }
@@ -104,7 +119,8 @@ function getPersonaIcon(persona: string) {
 function getPersonaColor(persona: string) {
   const p = persona.toLowerCase();
   if (p.includes('executor')) return 'bg-warning/20 text-warning border-warning/30';
-  if (p.includes('skeptic') || p.includes('security')) return 'bg-destructive/20 text-destructive border-destructive/30';
+  if (p.includes('skeptic') || p.includes('security'))
+    return 'bg-destructive/20 text-destructive border-destructive/30';
   if (p.includes('auditor')) return 'bg-info/20 text-info border-info/30';
   if (p.includes('maintainer')) return 'bg-success/20 text-success border-success/30';
   return 'bg-primary/20 text-primary border-primary/30';
@@ -151,7 +167,11 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
   const totalSeats = configuredSeatCount ?? seats.length;
   const validSeats = validVoteCount ?? seats.filter((s) => s.status === 'valid').length;
   const isVoting = phase === 'voting';
-  const isVetoed = resolution === 'veto' || seats.some((s) => s.veto && s.status === 'valid' && (s.optionId === 'deny' || s.optionId === 'veto'));
+  const isVetoed =
+    resolution === 'veto' ||
+    seats.some(
+      (s) => s.veto && s.status === 'valid' && (s.optionId === 'deny' || s.optionId === 'veto'),
+    );
   const isDenied = status === 'denied' || isVetoed;
   const isCorrelated = !isVoting && validSeats > 1 && (distinctTargetCount ?? 0) < validSeats;
 
@@ -214,8 +234,13 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
       question ? `Proposal: ${question}` : '',
       `Seats: ${validSeats}/${totalSeats} valid (${distinctTargetCount ?? distinctModelsList.length} models)`,
       judgeUsed ? `Judge Used (${judgeModel ?? 'Judicial Arbiter'}): ${judgeRationale ?? ''}` : '',
-      ...seats.map((s) => `• ${s.persona} (${s.model ?? 'model'}): ${s.optionId ?? s.status}${s.veto ? ' [VETO]' : ''}`),
-    ].filter(Boolean).join('\n');
+      ...seats.map(
+        (s) =>
+          `• ${s.persona} (${s.model ?? 'model'}): ${s.optionId ?? s.status}${s.veto ? ' [VETO]' : ''}`,
+      ),
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     try {
       await navigator.clipboard.writeText(summaryLines);
@@ -292,7 +317,9 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                     {isVoting ? (
                       <span className="inline-flex items-center gap-1 text-xs font-normal text-primary animate-pulse">
                         <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                        {t('activity:councilDecision.voting', { defaultValue: 'Voting in flight…' })}
+                        {t('activity:councilDecision.voting', {
+                          defaultValue: 'Voting in flight…',
+                        })}
                       </span>
                     ) : null}
                   </h3>
@@ -343,18 +370,16 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 ) : (
                   <CheckCircle2 className="h-3.5 w-3.5" />
                 )}
-                <span className="capitalize font-bold">
-                  {resolution ?? status ?? 'Resolved'}
-                </span>
-                {optionId ? (
-                  <span className="ml-0.5 opacity-90">({optionId})</span>
-                ) : null}
+                <span className="capitalize font-bold">{resolution ?? status ?? 'Resolved'}</span>
+                {optionId ? <span className="ml-0.5 opacity-90">({optionId})</span> : null}
               </span>
 
               {judgeUsed ? (
                 <span className="inline-flex items-center gap-1 rounded-full border border-info/30 bg-info/10 px-2 py-0.5 text-[11px] font-medium text-info">
                   <Gavel className="h-3 w-3" />
-                  <span>{t('activity:councilDecision.judgeUsed', { defaultValue: 'Judge Broke Tie' })}</span>
+                  <span>
+                    {t('activity:councilDecision.judgeUsed', { defaultValue: 'Judge Broke Tie' })}
+                  </span>
                 </span>
               ) : null}
 
@@ -364,7 +389,9 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                   title="All seats were served by the same underlying model"
                 >
                   <AlertTriangle className="h-3 w-3 text-warning" />
-                  <span>{t('activity:councilDecision.correlated', { defaultValue: 'Correlated Panel' })}</span>
+                  <span>
+                    {t('activity:councilDecision.correlated', { defaultValue: 'Correlated Panel' })}
+                  </span>
                 </span>
               ) : null}
             </div>
@@ -375,7 +402,11 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
             <div className="rounded-xl border border-border/70 bg-surface-1/60 p-3.5 text-xs">
               <div className="flex items-center gap-1.5 font-semibold text-muted-foreground mb-1.5">
                 <HelpCircle className="h-3.5 w-3.5 text-primary" />
-                <span>{t('activity:councilDecision.evaluatedQuestion', { defaultValue: 'Deliberated Proposal / Question:' })}</span>
+                <span>
+                  {t('activity:councilDecision.evaluatedQuestion', {
+                    defaultValue: 'Deliberated Proposal / Question:',
+                  })}
+                </span>
               </div>
               <p className="text-foreground font-medium whitespace-pre-wrap leading-relaxed">
                 {question}
@@ -390,7 +421,9 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 <Users className="h-4 w-4 shrink-0" />
               </div>
               <div className="min-w-0">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Seats Quorum</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                  Seats Quorum
+                </div>
                 <div className="font-semibold text-foreground truncate">
                   {validSeats}/{totalSeats} Valid
                 </div>
@@ -402,7 +435,9 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 <Cpu className="h-4 w-4 shrink-0" />
               </div>
               <div className="min-w-0">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Diversity</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                  Diversity
+                </div>
                 <div className="font-semibold text-foreground truncate flex items-center gap-1">
                   <span>{distinctTargetCount ?? distinctModelsList.length} Models</span>
                   {!isCorrelated && (distinctTargetCount ?? 0) > 1 ? (
@@ -418,7 +453,9 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                   <Clock className="h-4 w-4 shrink-0" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Latency</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                    Latency
+                  </div>
                   <div className="font-semibold text-foreground truncate">
                     {(durationMs / 1000).toFixed(1)}s
                   </div>
@@ -432,7 +469,9 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                   <Coins className="h-4 w-4 shrink-0" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Tokens</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                    Tokens
+                  </div>
                   <div className="font-semibold text-foreground truncate font-mono">
                     {totalTokens.toLocaleString()} tok
                   </div>
@@ -448,7 +487,9 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
                   <Layers className="h-3.5 w-3.5 text-primary" />
                   <span>
-                    {t('activity:councilDecision.votingDistribution', { defaultValue: 'Consensus Voting Distribution' })}
+                    {t('activity:councilDecision.votingDistribution', {
+                      defaultValue: 'Consensus Voting Distribution',
+                    })}
                   </span>
                 </span>
                 <span className="text-[11px] text-muted-foreground font-mono">
@@ -501,7 +542,11 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
               <div className="flex items-center justify-between text-xs text-muted-foreground px-0.5">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
                   <Award className="h-3.5 w-3.5 text-primary" />
-                  <span>{t('activity:councilDecision.voterSeats', { defaultValue: 'Deliberating Model Seats' })}</span>
+                  <span>
+                    {t('activity:councilDecision.voterSeats', {
+                      defaultValue: 'Deliberating Model Seats',
+                    })}
+                  </span>
                 </span>
                 <div className="flex items-center gap-3">
                   <span className="text-[11px]">
@@ -605,9 +650,7 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                       {/* Seat Footer */}
                       <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
                         <div className="flex items-center gap-2 font-mono">
-                          {seat.durationMs !== undefined ? (
-                            <span>{seat.durationMs}ms</span>
-                          ) : null}
+                          {seat.durationMs !== undefined ? <span>{seat.durationMs}ms</span> : null}
                           {seat.weight !== undefined && seat.weight !== 1 ? (
                             <span>wt: {seat.weight}</span>
                           ) : null}
@@ -647,7 +690,11 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
             <div className="rounded-xl border border-info/30 bg-info/[0.06] p-3.5 text-xs space-y-1.5 shadow-xs">
               <div className="flex items-center gap-1.5 font-semibold text-info">
                 <Gavel className="h-4 w-4 shrink-0" />
-                <span>{t('activity:councilDecision.judgeResolutionTitle', { defaultValue: 'Judicial Arbiter Tie-Breaker' })}</span>
+                <span>
+                  {t('activity:councilDecision.judgeResolutionTitle', {
+                    defaultValue: 'Judicial Arbiter Tie-Breaker',
+                  })}
+                </span>
                 {judgeModel ? (
                   <span className="font-mono text-[10px] bg-info/15 text-info px-2 py-0.5 rounded border border-info/20">
                     {judgeModel}
@@ -657,7 +704,8 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
               <p className="text-foreground/90 leading-relaxed">
                 {judgeRationale ||
                   t('activity:councilDecision.judgeResolutionDesc', {
-                    defaultValue: 'The voting seats were evenly divided or deadlocked; the independent judge reviewed all voter stances and rendered the binding final verdict.',
+                    defaultValue:
+                      'The voting seats were evenly divided or deadlocked; the independent judge reviewed all voter stances and rendered the binding final verdict.',
                   })}
               </p>
             </div>
@@ -668,7 +716,11 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
             <div className="space-y-1 rounded-xl border border-warning/30 bg-warning/[0.06] p-3.5 text-xs text-warning shadow-xs">
               <div className="flex items-center gap-1.5 font-semibold">
                 <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
-                <span>{t('activity:councilDecision.warningsTitle', { defaultValue: 'Council Diagnostics & Notices' })}</span>
+                <span>
+                  {t('activity:councilDecision.warningsTitle', {
+                    defaultValue: 'Council Diagnostics & Notices',
+                  })}
+                </span>
               </div>
               {warnings.map((w, wIdx) => (
                 <p key={wIdx} className="text-[11px] leading-normal pl-5">

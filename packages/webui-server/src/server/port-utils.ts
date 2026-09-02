@@ -31,7 +31,7 @@ import { ToolValidationError } from '@wrongstack/core/types';
  *   SimpleUI: 3466
  */
 export const SURFACE_DEFAULT_PORTS = {
-  webui:   { http: 3456 },
+  webui: { http: 3456 },
   simpleui: { http: 3466 },
 } as const satisfies Record<string, { http: number }>;
 

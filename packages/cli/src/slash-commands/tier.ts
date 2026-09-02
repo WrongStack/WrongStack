@@ -180,9 +180,7 @@ export function buildTierCommand(opts: SlashCommandContext): SlashCommand {
       const config = opts.configStore.get();
       const globalConfigPath = activeProfileConfigPath(opts.paths, config);
 
-      const persist = async (
-        mutate: (tiers: Record<string, unknown>) => void,
-      ): Promise<void> => {
+      const persist = async (mutate: (tiers: Record<string, unknown>) => void): Promise<void> => {
         const parsed = await patchGlobalConfig(globalConfigPath, (cfg) => {
           mutate(tiersOf(cfg));
         });

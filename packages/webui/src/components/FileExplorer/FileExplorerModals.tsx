@@ -79,7 +79,13 @@ export function BreadcrumbContextMenu({
         <span
           aria-hidden="true"
           tabIndex={-1}
-          style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, width: 1, height: 1 }}
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            width: 1,
+            height: 1,
+          }}
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -99,9 +105,7 @@ export function BreadcrumbContextMenu({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onSelect={() =>
-            handleStartCreate(crumb.relPath === '.' ? '' : crumb.relPath, 'file')
-          }
+          onSelect={() => handleStartCreate(crumb.relPath === '.' ? '' : crumb.relPath, 'file')}
         >
           <FilePlus />
           {t('activity:fileExplorer.newFile')}
@@ -311,7 +315,9 @@ export function RenamePromptModal({
     >
       <DialogContent showCloseButton={false} className="max-w-[340px] gap-3 p-4">
         <DialogHeader>
-          <DialogTitle className="text-[13px]">{t('activity:fileExplorer.renameTitle')}</DialogTitle>
+          <DialogTitle className="text-[13px]">
+            {t('activity:fileExplorer.renameTitle')}
+          </DialogTitle>
           <DialogDescription className="truncate text-[11px]">
             {renamePrompt.oldPath}
           </DialogDescription>

@@ -9,26 +9,32 @@ interface SetupCliHeapWatchdogOptions {
   };
   metricsSink?: { droppedObservations: () => number } | undefined;
   hqPublisherRef: {
-    current?: {
-      getQueueStats: () => {
-        entries: number;
-        bytes: number;
-        maxBytes: number;
-        droppedFrames: number;
-        droppedBytes: number;
-        coalescedFrames: number;
-        coalescedBytes: number;
-      };
-    } | undefined;
-    getKanbanSyncStats?: (() => {
-      localPublishActive: boolean;
-      pendingBoardIds: number;
-      fullRescanPending: boolean;
-      remoteApplyQueued: boolean;
-      pendingRemoteBoards: number;
-      localPublishRuns: number;
-      coalescedLocalRefreshes: number;
-    } | undefined) | undefined;
+    current?:
+      | {
+          getQueueStats: () => {
+            entries: number;
+            bytes: number;
+            maxBytes: number;
+            droppedFrames: number;
+            droppedBytes: number;
+            coalescedFrames: number;
+            coalescedBytes: number;
+          };
+        }
+      | undefined;
+    getKanbanSyncStats?:
+      | (() =>
+          | {
+              localPublishActive: boolean;
+              pendingBoardIds: number;
+              fullRescanPending: boolean;
+              remoteApplyQueued: boolean;
+              pendingRemoteBoards: number;
+              localPublishRuns: number;
+              coalescedLocalRefreshes: number;
+            }
+          | undefined)
+      | undefined;
   };
   brainMailbox: {
     getHqSnapshotStats: () => {

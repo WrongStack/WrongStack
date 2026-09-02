@@ -127,18 +127,14 @@ describe('extractTodos', () => {
     const input = JSON.stringify({
       todos: [{ status: 'completed', title: 'fallback-title' }],
     });
-    expect(extractTodos(input)).toEqual([
-      { status: 'completed', content: 'fallback-title' },
-    ]);
+    expect(extractTodos(input)).toEqual([{ status: 'completed', content: 'fallback-title' }]);
   });
 
   it('returns empty string for items with no known content field', () => {
     const input = JSON.stringify({
       todos: [{ status: 'pending', description: 'no content here' }],
     });
-    expect(extractTodos(input)).toEqual([
-      { status: 'pending', content: '' },
-    ]);
+    expect(extractTodos(input)).toEqual([{ status: 'pending', content: '' }]);
   });
 
   it('returns null when there is no todo array', () => {

@@ -45,16 +45,20 @@ export interface SearchQuery {
   kinds?: SageKind[] | undefined;
   scopes?: SageScope[] | undefined;
   importanceAtLeast?: number | undefined;
-  freshness?: {
-    verifiedAfter?: string | undefined;
-    createdAfter?: string | undefined;
-  } | undefined;
+  freshness?:
+    | {
+        verifiedAfter?: string | undefined;
+        createdAfter?: string | undefined;
+      }
+    | undefined;
   audience?: MemoryAudienceSelector | undefined;
   anchor?: MemoryAnchor | undefined;
-  cursor?: {
-    memoryId: string;
-    direction: 'before' | 'after';
-  } | undefined;
+  cursor?:
+    | {
+        memoryId: string;
+        direction: 'before' | 'after';
+      }
+    | undefined;
 }
 
 export interface SearchOptions {
@@ -134,7 +138,7 @@ export interface SageSurface {
        * session-scoped memories. Omitting it hides owned session records rather
        * than exposing them, so a forgetful caller under-reports instead of
        * crossing a session boundary.
-           */
+       */
       sessionId?: string | undefined;
       includeAllSessions?: boolean | undefined;
     },
@@ -246,10 +250,7 @@ export interface SageServiceLike extends MemoryStore {
   ): Promise<Sage[]>;
   graphFor(query: string, maxDepth?: number, limit?: number): Promise<MemoryGraphEdge[]>;
   verify(memoryId?: string, signal?: AbortSignal): Promise<MemoryVerificationResult[]>;
-  hygiene(
-    options?: SageHygieneOptions,
-    signal?: AbortSignal,
-  ): Promise<SageHygieneReport>;
+  hygiene(options?: SageHygieneOptions, signal?: AbortSignal): Promise<SageHygieneReport>;
   listCandidates(includeResolved?: boolean): Promise<MemoryCandidate[]>;
   createCandidate(input: CreateCandidateInput): Promise<MemoryCandidate>;
   resolveCandidate(
@@ -276,4 +277,3 @@ export interface SageServiceLike extends MemoryStore {
   /** Enumerate a bounded page of memories, with optional status/kind/query filtering. */
   listSagePage(options?: ListSagePageOptions): Promise<ListSagePageResult>;
 }
-

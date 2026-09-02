@@ -5,10 +5,7 @@
   "description": "Decode a stack trace or error message and pinpoint the fix.",
   "content": "Explain this error and how to fix it:\n\n```\n{{error}}\n```\n\nTell me:\n1. In plain language, what the error actually means.\n2. The most likely cause given the trace.\n3. The specific line/condition to look at first.\n4. The minimal fix, and how to verify it's gone.\n\nIf the trace is ambiguous, list the top 2-3 causes and how to tell them apart.",
   "category": "debugging",
-  "tags": [
-    "error",
-    "stacktrace"
-  ],
+  "tags": ["error", "stacktrace"],
   "source": "builtin",
   "favorite": false,
   "checksum": "edad090ecd2248f0862ce6ea575c607dd900376b7a3b558008f1e555af675c05",

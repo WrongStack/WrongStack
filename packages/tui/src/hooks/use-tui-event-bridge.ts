@@ -18,9 +18,7 @@ interface UseTuiEventBridgeOptions {
   stateRef: { current: State };
   setActiveMaxContext: (value: number | undefined) => void;
   getSessionId?: (() => string | undefined) | undefined;
-  subscribeGoal?:
-    | ((handler: (event: string, payload: unknown) => void) => () => void)
-    | undefined;
+  subscribeGoal?: ((handler: (event: string, payload: unknown) => void) => () => void) | undefined;
   onClearHistory?: ((dispatch: ClearHistoryDispatch) => void) | undefined;
   sessionGenerationRef?: { current: number } | undefined;
 }
@@ -45,7 +43,14 @@ export function useTuiEventBridge({
   // flip is honored without re-subscribing the event bridge; memoized so
   // it doesn't churn the subscription effect on every render.
   const getChatMode = useCallback(() => stateRef.current.fleetChat, [stateRef]);
-  useSubagentEvents(events, dispatch, setActiveMaxContext, getSessionId, getChatMode, sessionGenerationRef);
+  useSubagentEvents(
+    events,
+    dispatch,
+    setActiveMaxContext,
+    getSessionId,
+    getChatMode,
+    sessionGenerationRef,
+  );
   useSessionEvents(events, dispatch, onClearHistory, getSessionId);
   useBrainEvents(events, dispatch, getSessionId);
   useGoalEvents(subscribeGoal, dispatch, stateRef, getSessionId);
@@ -98,9 +103,7 @@ function useSessionEvents(
 }
 
 function useGoalEvents(
-  subscribeGoal:
-    | ((handler: (event: string, payload: unknown) => void) => () => void)
-    | undefined,
+  subscribeGoal: ((handler: (event: string, payload: unknown) => void) => () => void) | undefined,
   dispatch: React.Dispatch<Action>,
   stateRef: React.MutableRefObject<State>,
   getSessionId?: (() => string | undefined) | undefined,
@@ -176,7 +179,12 @@ function useGoalEvents(
           break;
         }
         case 'phase.taskStarted': {
-          const p = payload as { phaseId: string; taskId: string; taskTitle: string; agentName?: string };
+          const p = payload as {
+            phaseId: string;
+            taskId: string;
+            taskTitle: string;
+            agentName?: string;
+          };
           dispatch({
             type: 'goalRunTaskActive',
             phaseId: p.phaseId,
@@ -328,7 +336,10 @@ function useGoalEvents(
           break;
         }
         case 'countdown.tick': {
-          dispatch({ type: 'countdownTick', remainingSeconds: (payload as { remaining: number }).remaining });
+          dispatch({
+            type: 'countdownTick',
+            remainingSeconds: (payload as { remaining: number }).remaining,
+          });
           break;
         }
       }

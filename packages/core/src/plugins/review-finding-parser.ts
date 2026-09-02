@@ -137,10 +137,12 @@ function normalizeStructuredItem(raw: unknown): StructuredFindingItem | null {
   if (!SEVERITIES.has(severity as FindingSeverity)) return null;
   const title = typeof item.title === 'string' ? item.title.trim() : '';
   if (title.length === 0) return null;
-  const file = typeof item.file === 'string' && item.file.trim().length > 0 ? item.file.trim() : undefined;
-  const line = typeof item.line === 'number' && Number.isInteger(item.line) && item.line >= 1
-    ? item.line
-    : undefined;
+  const file =
+    typeof item.file === 'string' && item.file.trim().length > 0 ? item.file.trim() : undefined;
+  const line =
+    typeof item.line === 'number' && Number.isInteger(item.line) && item.line >= 1
+      ? item.line
+      : undefined;
   const categoryRaw = typeof item.category === 'string' ? item.category.toLowerCase() : '';
   const category = CATEGORIES.has(categoryRaw as FindingCategory)
     ? (categoryRaw as FindingCategory)
@@ -298,7 +300,10 @@ function parseFindingSegment(
     reportId?: string | undefined;
   },
 ): ChimeraFinding | null {
-  const lines = segment.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+  const lines = segment
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
   if (lines.length === 0) return null;
 
   // The first line should be the finding line: "N. [TAG] file:line — Description"
@@ -376,9 +381,10 @@ function parseFindingSegment(
   // Build title from description (first sentence or truncated)
   const title = cleanDesc.split(/\.\s/)[0]!.trim() || content;
   // Full description includes the description + suggestions
-  const fullDesc = suggestions.length > 0
-    ? cleanDesc + '\n' + suggestions.map((s) => '  → ' + s).join('\n')
-    : cleanDesc;
+  const fullDesc =
+    suggestions.length > 0
+      ? cleanDesc + '\n' + suggestions.map((s) => '  → ' + s).join('\n')
+      : cleanDesc;
 
   const suggestedFix = suggestions.length > 0 ? suggestions.join('\n') : undefined;
 

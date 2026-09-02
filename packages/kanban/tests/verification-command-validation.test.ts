@@ -66,7 +66,14 @@ describe('extractBaseCommand', () => {
 
 // ── validateCommand ──────────────────────────────────────────────────────────
 
-function makeConfig(overrides: Partial<{ allow: Set<string>; block: Set<string>; allowAll: boolean; allowShellOperators: boolean }> = {}) {
+function makeConfig(
+  overrides: Partial<{
+    allow: Set<string>;
+    block: Set<string>;
+    allowAll: boolean;
+    allowShellOperators: boolean;
+  }> = {},
+) {
   return {
     allow: new Set(DEFAULT_ALLOWED_COMMANDS.map(normalizeBaseCommand)),
     block: new Set(DEFAULT_BLOCKED_COMMANDS.map(normalizeBaseCommand)),

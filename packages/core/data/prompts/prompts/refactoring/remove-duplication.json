@@ -5,10 +5,7 @@
   "description": "Find and consolidate duplicated logic safely.",
   "content": "Find the duplication in this code and consolidate it:\n\n```\n{{code}}\n```\n\nBe careful: only unify code that is the same for the same *reason* (true duplication), not code that merely looks similar today but may diverge. For each consolidation, name the single concept it captures. If some near-duplicates should stay separate, say why.",
   "category": "refactoring",
-  "tags": [
-    "dry",
-    "duplication"
-  ],
+  "tags": ["dry", "duplication"],
   "source": "builtin",
   "favorite": false,
   "checksum": "63f11cf2e920bebbb8afb448d5db54d6bf53366ff66428419b96b3e9e7cb118a",

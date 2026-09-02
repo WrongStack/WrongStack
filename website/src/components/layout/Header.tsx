@@ -51,7 +51,9 @@ export function Header() {
   const [open, setOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [activeGroup, setActiveGroup] = useState<(typeof moreNavGroups)[number]['id']>(moreNavGroups[0]!.id);
+  const [activeGroup, setActiveGroup] = useState<(typeof moreNavGroups)[number]['id']>(
+    moreNavGroups[0]!.id,
+  );
   const reducedMotion = useReducedMotion();
   const moreRef = useRef<HTMLDivElement>(null);
   const hoverTimer = useRef<number | undefined>(undefined);
@@ -121,7 +123,12 @@ export function Header() {
             </Link>
           ))}
           {/* biome-ignore lint/a11y/noStaticElementInteractions: this wrapper only manages pointer hover intent; the nested button owns the menu interaction. */}
-          <div ref={moreRef} className="relative" onMouseEnter={handleMoreEnter} onMouseLeave={handleMoreLeave}>
+          <div
+            ref={moreRef}
+            className="relative"
+            onMouseEnter={handleMoreEnter}
+            onMouseLeave={handleMoreLeave}
+          >
             <button
               type="button"
               onClick={() => setMoreOpen((value) => !value)}

@@ -5,11 +5,7 @@
   "description": "Catch problems in a schema migration before it ships.",
   "content": "Review this database migration:\n\n{{migration}}\n\nCheck for: locking or downtime on large tables, irreversibility, data loss, missing indexes for new query patterns, nullability and default surprises, and whether old and new application code can both run against the intermediate schema. Flag anything that can't be rolled back and propose a safer expand-then-contract sequence if needed.",
   "category": "code-review",
-  "tags": [
-    "database",
-    "migration",
-    "review"
-  ],
+  "tags": ["database", "migration", "review"],
   "source": "builtin",
   "favorite": false,
   "checksum": "3ce7c1dbcf724566bd1f940c3ca4c8ea146c47453cd8cc250ac5629c4ed446fd",

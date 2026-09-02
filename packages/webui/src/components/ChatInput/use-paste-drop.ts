@@ -44,8 +44,8 @@ export function usePasteDrop({ input, textareaRef, setInput, errorText }: UsePas
    *  attachments while the draft text survives (same contract as
    *  draftInput). */
   const pendingImagesRef = useRef<ImageAttachment[]>(useUIStore.getState().draftImages);
-  const [pendingImages, setPendingImagesState] = useState<ImageAttachment[]>(() =>
-    useUIStore.getState().draftImages,
+  const [pendingImages, setPendingImagesState] = useState<ImageAttachment[]>(
+    () => useUIStore.getState().draftImages,
   );
   const setPendingImages = (next: ImageAttachment[]) => {
     pendingImagesRef.current = next;

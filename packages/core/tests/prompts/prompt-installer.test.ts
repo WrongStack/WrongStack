@@ -41,13 +41,14 @@ describe('PromptInstaller', () => {
     it('should use global fetch by default', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({
-          version: 1,
-          registryVersion: 1,
-          source: 'test',
-          generatedAt: '2026-01-01T00:00:00.000Z',
-          prompts: [],
-        }),
+        json: () =>
+          Promise.resolve({
+            version: 1,
+            registryVersion: 1,
+            source: 'test',
+            generatedAt: '2026-01-01T00:00:00.000Z',
+            prompts: [],
+          }),
       });
       const installer = new PromptInstaller();
       const result = await installer.pull('https://example.com/reg.json', []);
@@ -62,9 +63,7 @@ describe('PromptInstaller', () => {
         statusText: 'Not Found',
       });
       const installer = new PromptInstaller();
-      await expect(
-        installer.pull('https://example.com/missing.json', []),
-      ).rejects.toThrow();
+      await expect(installer.pull('https://example.com/missing.json', [])).rejects.toThrow();
     });
   });
 
@@ -75,7 +74,15 @@ describe('PromptInstaller', () => {
       source: 'test-registry',
       generatedAt: '2026-01-01T00:00:00.000Z',
       prompts: [
-        { id: 'test-prompt', slug: 'test-prompt', title: 'Test Prompt', description: 'A test prompt', category: 'general', tags: ['test'], checksum: 'abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abcd' },
+        {
+          id: 'test-prompt',
+          slug: 'test-prompt',
+          title: 'Test Prompt',
+          description: 'A test prompt',
+          category: 'general',
+          tags: ['test'],
+          checksum: 'abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abcd',
+        },
       ],
     };
 
@@ -83,7 +90,10 @@ describe('PromptInstaller', () => {
       const fetcher = vi.fn().mockResolvedValue(validManifest);
       const installer = new PromptInstaller({ fetcher });
       const result = await installer.pull('https://example.com/registry.json', [
-        { slug: 'test-prompt', checksum: 'abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abcd' },
+        {
+          slug: 'test-prompt',
+          checksum: 'abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abcd',
+        },
       ]);
       expect(result.manifest).toBeDefined();
       expect(result.dryRun).toBe(true);
@@ -94,7 +104,10 @@ describe('PromptInstaller', () => {
       const fetcher = vi.fn().mockResolvedValue(validManifest);
       const installer = new PromptInstaller({ fetcher });
       const result = await installer.pull('https://example.com/registry.json', [
-        { slug: 'test-prompt', checksum: '0000000000000000000000000000000000000000000000000000000000000000' },
+        {
+          slug: 'test-prompt',
+          checksum: '0000000000000000000000000000000000000000000000000000000000000000',
+        },
       ]);
       expect(result.diff).toBeDefined();
     });
@@ -102,9 +115,7 @@ describe('PromptInstaller', () => {
     it('should throw ParseError for invalid manifest', async () => {
       const fetcher = vi.fn().mockResolvedValue({ invalid: true });
       const installer = new PromptInstaller({ fetcher });
-      await expect(
-        installer.pull('https://example.com/bad.json', []),
-      ).rejects.toThrow();
+      await expect(installer.pull('https://example.com/bad.json', [])).rejects.toThrow();
     });
 
     it('should handle empty local prompts', async () => {

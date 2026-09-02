@@ -7,7 +7,16 @@ describe('WebUI session.start payload contract', () => {
   it('has all required fields for frontend status bar (no wsToken — C-2 fix)', () => {
     // C-2 fix: wsToken is delivered via HttpOnly cookie or URL query param,
     // never in the session.start payload. See ws-auth.ts and ws-client.ts.
-    const required = ['sessionId', 'model', 'provider', 'maxContext', 'projectName', 'cwd', 'mode', 'contextMode'];
+    const required = [
+      'sessionId',
+      'model',
+      'provider',
+      'maxContext',
+      'projectName',
+      'cwd',
+      'mode',
+      'contextMode',
+    ];
     const sample = {
       sessionId: 'sess-123',
       model: 'test-model',

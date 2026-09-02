@@ -49,12 +49,14 @@ export function handleProviderResponse(msg: WSServerMessage) {
   if (!chat || !meta) return;
   pipeViz(msg);
   const payload = (msg.payload && typeof msg.payload === 'object' ? msg.payload : {}) as {
-    usage?: {
-      input: number;
-      output: number;
-      cacheRead?: number | undefined;
-      cacheWrite?: number | undefined;
-    } | undefined;
+    usage?:
+      | {
+          input: number;
+          output: number;
+          cacheRead?: number | undefined;
+          cacheWrite?: number | undefined;
+        }
+      | undefined;
     provider?: string | undefined;
     stopReason: string;
     messageId: string;
@@ -70,10 +72,10 @@ export function handleProviderResponse(msg: WSServerMessage) {
     meta.updateUsage(payload.usage, payload.provider);
     const { inputCost, outputCost, cacheReadCost } = meta.data;
     const dCost =
-      (((payload.usage.input ?? 0) * inputCost) +
-        ((payload.usage.cacheWrite ?? 0) * inputCost) +
-        ((payload.usage.output ?? 0) * outputCost) +
-        ((payload.usage.cacheRead ?? 0) * cacheReadCost)) /
+      ((payload.usage.input ?? 0) * inputCost +
+        (payload.usage.cacheWrite ?? 0) * inputCost +
+        (payload.usage.output ?? 0) * outputCost +
+        (payload.usage.cacheRead ?? 0) * cacheReadCost) /
       1_000_000;
     if (dCost > 0) meta.addCost(dCost);
   }
@@ -96,7 +98,8 @@ export function handleProviderResponse(msg: WSServerMessage) {
       }
     }
     chat.finalizeMessage(id, { final });
-    if (payload.usage && (payload.usage.output ?? 0) > 0) chat.updateMessage(id, { usage: payload.usage });
+    if (payload.usage && (payload.usage.output ?? 0) > 0)
+      chat.updateMessage(id, { usage: payload.usage });
   } else if (responseText.trim()) {
     const messageId = chat.addMessage({
       role: 'assistant',

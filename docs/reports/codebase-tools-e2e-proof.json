@@ -58,11 +58,7 @@
       "ok": true,
       "evidence": {
         "total": 3,
-        "names": [
-          "add",
-          "total",
-          "runBatch"
-        ],
+        "names": ["add", "total", "runBatch"],
         "hit": {
           "id": 5,
           "lang": "ts",
@@ -84,10 +80,7 @@
       "ok": true,
       "evidence": {
         "total": 2,
-        "callerNames": [
-          "runBatch",
-          "runBatch"
-        ],
+        "callerNames": ["runBatch", "runBatch"],
         "sites": [
           {
             "name": "runBatch",
@@ -110,12 +103,7 @@
       "ok": true,
       "evidence": {
         "total": 4,
-        "calleeNames": [
-          "add",
-          "total",
-          "add",
-          "total"
-        ],
+        "calleeNames": ["add", "total", "add", "total"],
         "sites": [
           {
             "name": "add",
@@ -153,9 +141,7 @@
         "riskLevel": "low",
         "summary": "Blast Radius for 'add': LOW RISK (1 call sites in 1 prod files, 0 test suites).",
         "totalCallSites": 1,
-        "affectedProductionFiles": [
-          "src/caller.ts"
-        ],
+        "affectedProductionFiles": ["src/caller.ts"],
         "affectedTestFiles": [],
         "recommendedActionPlan": [
           "Update 1 call site(s) across 1 production file(s): src/caller.ts",
@@ -187,12 +173,7 @@
         "filesCount": 4,
         "totalFilesScanned": 4,
         "estimatedTokens": 143,
-        "rankedFiles": [
-          "package.json",
-          "src/calc.ts",
-          "src/caller.ts",
-          "tests/calc.test.ts"
-        ],
+        "rankedFiles": ["package.json", "src/calc.ts", "src/caller.ts", "tests/calc.test.ts"],
         "mapPreview": "package.json (json):\n  {\n    \"name\": \"fixture\",\n    \"type\": \"module\",\n    \"private\": true\n  }\n\nsrc/calc.ts (ts):\n  /** Add two numbers. */\n  export function add(a: number, b: number): number { /* L2-L4 */ }\n\n  export function multiply(a: number, b: number): number { /* L6-L8 */ }\n\n  export function total(xs: number[]): number { /* L10-L12 */ }\n\nsrc/caller.ts (ts):\n  // ... [1 import statements col"
       }
     },
@@ -251,9 +232,7 @@
       "ok": true,
       "evidence": {
         "status": "passed",
-        "discoveredSuites": [
-          "tests/calc.test.ts"
-        ],
+        "discoveredSuites": ["tests/calc.test.ts"],
         "testsRun": 1,
         "passed": 1,
         "failed": 0,
@@ -277,12 +256,8 @@
       "ok": true,
       "evidence": {
         "name": "codebase-reindex",
-        "aliases": [
-          "reindex"
-        ],
-        "writes": [
-          "Reindexing codebase index…\n"
-        ],
+        "aliases": ["reindex"],
+        "writes": ["Reindexing codebase index…\n"],
         "message": "✓ codebase index updated — 8 symbols · 4 files · 58ms"
       }
     },
@@ -336,10 +311,7 @@
           "totalSymbols": 8
         },
         "packageGraph": {
-          "keys": [
-            "nodes",
-            "edges"
-          ],
+          "keys": ["nodes", "edges"],
           "nodeCount": 1,
           "edgeCount": 0,
           "sampleNodes": [
@@ -354,10 +326,7 @@
           ]
         },
         "fileGraph": {
-          "keys": [
-            "nodes",
-            "edges"
-          ],
+          "keys": ["nodes", "edges"],
           "nodeCount": 2,
           "edgeCount": 1,
           "sampleNodes": [
@@ -384,10 +353,7 @@
           ]
         },
         "symbolGraph": {
-          "keys": [
-            "nodes",
-            "edges"
-          ],
+          "keys": ["nodes", "edges"],
           "nodeCount": 4,
           "edgeCount": 2,
           "sampleNodes": [

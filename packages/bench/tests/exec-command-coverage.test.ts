@@ -47,5 +47,4 @@ describe('execCommand — edge branches', () => {
     expect(res.stdout.length).toBeLessThanOrEqual(100);
     expect(res.timedOut).toBe(false);
   });
-
 });

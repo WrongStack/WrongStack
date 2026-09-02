@@ -230,9 +230,7 @@ export function setupSage(deps: SageHostWiringDeps): () => Promise<void> {
         }
 
         const pending =
-          typeof surface.listCandidates === 'function'
-            ? await surface.listCandidates(false)
-            : [];
+          typeof surface.listCandidates === 'function' ? await surface.listCandidates(false) : [];
         const pendingCount = Array.isArray(pending)
           ? pending.filter((c) => c.status === 'pending').length
           : 0;

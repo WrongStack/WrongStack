@@ -100,7 +100,9 @@ describe('yolo-risk — extra coverage', () => {
       // The old ABSOLUTE_PATH_PATTERN matched the `/v` switch as an absolute
       // path and gated this read-only command. The current gate only treats
       // high-impact command shapes as destructive.
-      expect(isClearlyDestructiveBashCommand('git status --short | findstr /v "^??"', ROOT)).toBe(false);
+      expect(isClearlyDestructiveBashCommand('git status --short | findstr /v "^??"', ROOT)).toBe(
+        false,
+      );
       expect(isClearlyDestructiveBashCommand('grep /v file.txt', ROOT)).toBe(false);
     });
   });

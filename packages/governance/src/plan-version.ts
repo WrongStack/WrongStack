@@ -238,10 +238,7 @@ function findCycle(
   return null;
 }
 
-function classifyPlanStepAutonomy(
-  contract: TaskContractV1,
-  step: PlanStepV1,
-): PlanStepAutonomy {
+function classifyPlanStepAutonomy(contract: TaskContractV1, step: PlanStepV1): PlanStepAutonomy {
   const decisions = step.operations.map((operation) =>
     decideOperationAutonomy(contract.autonomy, operation),
   );

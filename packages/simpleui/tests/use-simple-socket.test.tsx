@@ -303,7 +303,9 @@ describe('useSimpleSocket — cleanup', () => {
     const lateDisconnect = vi.fn();
     const lateConnectionChange = vi.fn();
     act(() =>
-      root.render(<Probe onDisconnect={lateDisconnect} onConnectionChange={lateConnectionChange} />),
+      root.render(
+        <Probe onDisconnect={lateDisconnect} onConnectionChange={lateConnectionChange} />,
+      ),
     );
 
     expect(instances).toHaveLength(1);

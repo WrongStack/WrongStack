@@ -78,7 +78,9 @@ describe('sortTasksForSddDisplay', () => {
     const ordered = ['in_progress', 'pending', 'review', 'blocked', 'failed', 'completed'];
     const shuffled = [...ordered].reverse();
     const sorted = sortTasksForSddDisplay(
-      shuffled.map((status, i) => node({ id: `${status}-${i}`, status: status as TaskNode['status'] })),
+      shuffled.map((status, i) =>
+        node({ id: `${status}-${i}`, status: status as TaskNode['status'] }),
+      ),
     );
     expect(sorted.map((n) => n.status)).toEqual(ordered);
   });
@@ -192,7 +194,13 @@ describe('formatCurrentSpec', () => {
     const out = formatCurrentSpec(
       spec({
         requirements: [
-          { id: 'r1', type: 'functional' as const, description: 'No criteria', priority: 'low', acceptanceCriteria: [] },
+          {
+            id: 'r1',
+            type: 'functional' as const,
+            description: 'No criteria',
+            priority: 'low',
+            acceptanceCriteria: [],
+          },
         ],
       }),
     );
@@ -218,7 +226,13 @@ describe('formatTaskListView', () => {
   });
 
   it('falls back to the raw phase string when the phase is unknown', () => {
-    const out = formatTaskListView([], progress(), 'mystery' as never, renderProgress, formatElapsed);
+    const out = formatTaskListView(
+      [],
+      progress(),
+      'mystery' as never,
+      renderProgress,
+      formatElapsed,
+    );
     expect(out).toContain('mystery');
   });
 
@@ -301,8 +315,18 @@ describe('formatTaskListView', () => {
   });
 
   it('skips holes in the node array without shifting numbering of later entries', () => {
-    const sparse = [node({ title: 'first' }), undefined as unknown as TaskNode, node({ id: 't2', title: 'third' })];
-    const out = formatTaskListView(sparse, progress({ total: 2 }), 'implementation', renderProgress, formatElapsed);
+    const sparse = [
+      node({ title: 'first' }),
+      undefined as unknown as TaskNode,
+      node({ id: 't2', title: 'third' }),
+    ];
+    const out = formatTaskListView(
+      sparse,
+      progress({ total: 2 }),
+      'implementation',
+      renderProgress,
+      formatElapsed,
+    );
     expect(out).toContain('first');
     expect(out).toContain('third');
     expect(out).not.toContain('undefined');
@@ -360,7 +384,12 @@ describe('formatNextTaskView', () => {
   });
 
   it('falls back to "none" when tags are missing or empty', () => {
-    const noTags = formatNextTaskView(node({ id: 'n1' }), progress(), trackerFor([], {}), formatElapsed);
+    const noTags = formatNextTaskView(
+      node({ id: 'n1' }),
+      progress(),
+      trackerFor([], {}),
+      formatElapsed,
+    );
     const emptyTags = formatNextTaskView(
       node({ id: 'n1', tags: [] }),
       progress(),
@@ -492,7 +521,13 @@ describe('formatSddStatusView', () => {
           overview: '',
           sections: [],
           requirements: [
-            { id: 'r1', type: 'functional' as const, description: long, priority: 'high' as const, acceptanceCriteria: [] },
+            {
+              id: 'r1',
+              type: 'functional' as const,
+              description: long,
+              priority: 'high' as const,
+              acceptanceCriteria: [],
+            },
           ],
           createdAt: NOW,
           updatedAt: NOW,
@@ -575,12 +610,28 @@ describe('formatSddStatusView', () => {
       getAllNodes: () => [node({ status: 'pending' })],
       canStart: () => false,
     };
-    const out = formatSddStatusView(baseSession, progress(), tracker, 0, 0, renderProgress, formatElapsed);
+    const out = formatSddStatusView(
+      baseSession,
+      progress(),
+      tracker,
+      0,
+      0,
+      renderProgress,
+      formatElapsed,
+    );
     expect(out).not.toContain('Up next:');
   });
 
   it('ignores a null taskTracker but still renders progress', () => {
-    const out = formatSddStatusView(baseSession, progress(), null, 0, 0, renderProgress, formatElapsed);
+    const out = formatSddStatusView(
+      baseSession,
+      progress(),
+      null,
+      0,
+      0,
+      renderProgress,
+      formatElapsed,
+    );
     expect(out).toContain('progress 0/1');
     expect(out).not.toContain('Up next:');
   });
@@ -703,7 +754,9 @@ describe('formatCriticalPathAnalysis', () => {
     const out = formatCriticalPathAnalysis(
       graphWith([]),
       analysis({
-        bottlenecks: [{ taskId: 'ghost', title: 'Ghost', blockedCount: 1, blockedHours: 2, severity: 10 }],
+        bottlenecks: [
+          { taskId: 'ghost', title: 'Ghost', blockedCount: 1, blockedHours: 2, severity: 10 },
+        ],
       }),
     );
     expect(out).not.toContain('Ghost');

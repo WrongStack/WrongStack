@@ -5,11 +5,7 @@
   "description": "Set CPU and memory requests and limits sensibly.",
   "content": "Help me set resource requests and limits for: {{workload}}\n\nExplain how to measure real usage (p50 and p99 over a representative period) before guessing. Set requests near typical usage and limits with headroom for spikes, and explain the consequence of getting each wrong (eviction, throttling, OOM kills, wasted cost). Note the difference between CPU (throttled) and memory (killed) and how that changes the limit strategy.",
   "category": "devops",
-  "tags": [
-    "resources",
-    "tuning",
-    "cost"
-  ],
+  "tags": ["resources", "tuning", "cost"],
   "source": "builtin",
   "favorite": false,
   "checksum": "523d7764dd760c6648bd1cde0470f9d9decd0ca74d025fa5362fd3ad4a7b5594",

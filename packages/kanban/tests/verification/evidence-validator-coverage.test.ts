@@ -2,10 +2,15 @@
  * Coverage for kanban/src/verification/evidence-validator.ts
  */
 import { describe, expect, it } from 'vitest';
-import { EvidenceValidator, DEFAULT_EVIDENCE_RULES } from '../../src/verification/evidence-validator.js';
+import {
+  EvidenceValidator,
+  DEFAULT_EVIDENCE_RULES,
+} from '../../src/verification/evidence-validator.js';
 import type { KanbanVerificationCheckResult } from '../../src/types.js';
 
-function makeResult(overrides: Partial<KanbanVerificationCheckResult> = {}): KanbanVerificationCheckResult {
+function makeResult(
+  overrides: Partial<KanbanVerificationCheckResult> = {},
+): KanbanVerificationCheckResult {
   return {
     checkId: 'check-1',
     description: 'test',
@@ -33,7 +38,13 @@ describe('EvidenceValidator', () => {
     const ev = new EvidenceValidator();
     const result = ev.validate(
       makeResult({
-        backingRefs: [{ kind: 'file', path: 'src/foo.ts', summary: 'Added login handler at src/routes/login.ts' }],
+        backingRefs: [
+          {
+            kind: 'file',
+            path: 'src/foo.ts',
+            summary: 'Added login handler at src/routes/login.ts',
+          },
+        ],
       }),
     );
     expect(result.valid).toBe(true);
@@ -66,7 +77,13 @@ describe('EvidenceValidator', () => {
     const ev = new EvidenceValidator();
     const result = ev.validate(
       makeResult({
-        backingRefs: [{ kind: 'test', path: 'tests/login.test.ts', summary: 'Added 15 unit tests for login flow' }],
+        backingRefs: [
+          {
+            kind: 'test',
+            path: 'tests/login.test.ts',
+            summary: 'Added 15 unit tests for login flow',
+          },
+        ],
       }),
     );
     expect(result.valid).toBe(true);

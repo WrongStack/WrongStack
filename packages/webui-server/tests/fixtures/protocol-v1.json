@@ -8,7 +8,18 @@
     { "type": "mcp.list", "payload": {} },
     { "type": "collab.join", "payload": { "sessionId": "s1", "role": "observer" } },
     { "type": "kanban.meta", "payload": {} },
-    { "type": "mailbox.send", "payload": { "requestId": "r1", "to": "leader", "type": "note", "audience": "leaders", "subject": "Private", "body": "Leader context", "priority": "normal" } },
+    {
+      "type": "mailbox.send",
+      "payload": {
+        "requestId": "r1",
+        "to": "leader",
+        "type": "note",
+        "audience": "leaders",
+        "subject": "Private",
+        "body": "Leader context",
+        "priority": "normal"
+      }
+    },
     { "type": "sdd.spec.discard", "payload": {} },
     { "type": "sdd.run.from_graph", "payload": { "graphId": "g-1", "worktrees": true } },
     { "type": "sdd.run.from_spec", "payload": { "specId": "spec-1", "planDecompose": true } }
@@ -19,10 +30,25 @@
     { "type": "files.read", "payload": { "content": "# Readme" } },
     { "type": "goal.completed", "payload": { "goalId": "g1" } },
     { "type": "mailbox.compacted", "payload": { "removed": 3 } },
-    { "type": "mailbox.sent", "payload": { "requestId": "r1", "success": true, "messageId": "m1", "to": "leader", "audience": "leaders" } },
+    {
+      "type": "mailbox.sent",
+      "payload": {
+        "requestId": "r1",
+        "success": true,
+        "messageId": "m1",
+        "to": "leader",
+        "audience": "leaders"
+      }
+    },
     { "type": "prompts.created", "payload": { "name": "review" } },
     { "type": "kanban.supervisor.status", "payload": { "running": true } },
-    { "type": "sdd.spec.snapshot", "payload": { "phase": "questioning", "resumed": true, "busy": false } },
-    { "type": "sdd.run.started", "payload": { "runId": "run-1", "graphId": "g-1", "specId": "spec-1" } }
+    {
+      "type": "sdd.spec.snapshot",
+      "payload": { "phase": "questioning", "resumed": true, "busy": false }
+    },
+    {
+      "type": "sdd.run.started",
+      "payload": { "runId": "run-1", "graphId": "g-1", "specId": "spec-1" }
+    }
   ]
 }

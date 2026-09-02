@@ -53,12 +53,7 @@ describe('agent-status helpers', () => {
   });
 
   it('compareAgentsByActivity puts running first, then oldest-started', () => {
-    const list = [
-      mk('completed', 100),
-      mk('running', 300),
-      mk('running', 200),
-      mk('failed', 50),
-    ];
+    const list = [mk('completed', 100), mk('running', 300), mk('running', 200), mk('failed', 50)];
     const sorted = [...list].sort(compareAgentsByActivity);
     expect(sorted.map((a) => `${a.status}@${a.startedAt}`)).toEqual([
       'running@200',
@@ -165,7 +160,7 @@ describe('fmtCost', () => {
     // and the regex should produce "$0.0001".
     expect(fmtCost(0.0001)).toBe('$0.0001');
     // Same value written with explicit trailing zero → same result.
-    expect(fmtCost(0.00010)).toBe('$0.0001');
+    expect(fmtCost(0.0001)).toBe('$0.0001');
     // Very small sub-cent values that round to zero at 5 decimals return $0.
     expect(fmtCost(0.000001)).toBe('$0');
     expect(fmtCost(1e-7)).toBe('$0');

@@ -16,7 +16,11 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MAX_FRAME_CHARS, onData, kanbanProjectServerEndpoint } from '../src/server/project-server.js';
+import {
+  MAX_FRAME_CHARS,
+  onData,
+  kanbanProjectServerEndpoint,
+} from '../src/server/project-server.js';
 
 // Emitted at the dist ROOT, not under dist/server/: `client.ts` is bundled
 // into dist/index.js, so its `new URL('./project-server.js', import.meta.url)`

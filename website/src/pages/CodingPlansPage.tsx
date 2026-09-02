@@ -464,9 +464,7 @@ export function CodingPlansPage() {
                     <td className="px-5 py-4 font-mono text-xs text-brand">
                       {connection.kind === 'oauth' ? 'ChatGPT OAuth' : 'Plan API key'}
                     </td>
-                    <td className="px-5 py-4 font-mono text-xs text-fg">
-                      {connection.providerId}
-                    </td>
+                    <td className="px-5 py-4 font-mono text-xs text-fg">{connection.providerId}</td>
                     <td className="px-5 py-4 text-sm text-muted">{connection.billing}</td>
                     <td className="max-w-sm px-5 py-4 text-sm leading-6 text-muted">
                       {connection.bestFor}

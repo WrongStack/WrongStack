@@ -467,10 +467,7 @@ export class ScopedEventBus extends EventBus {
    * Subscribe to all events. Alias for `onPattern('*')` — the listener is
    * tracked so that `teardown()` will remove it automatically.
    */
-  override onAny(
-    fn: (event: string, payload: unknown) => void,
-    owner?: string,
-  ): () => void {
+  override onAny(fn: (event: string, payload: unknown) => void, owner?: string): () => void {
     if (this.wildcards.length >= MAX_WILDCARDS) {
       this.logger?.error(
         `EventBus wildcard limit (${MAX_WILDCARDS}) reached — rejecting onAny()` +

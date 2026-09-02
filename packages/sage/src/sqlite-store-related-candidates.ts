@@ -7,10 +7,7 @@ import {
   MEMORY_NODE_PREFIX,
   memoryNodeId,
 } from './sqlite-store-graph-helpers.js';
-import {
-  buildSessionClause,
-  type SessionScopeFilter,
-} from './sqlite-store-search-helpers.js';
+import { buildSessionClause, type SessionScopeFilter } from './sqlite-store-search-helpers.js';
 import { sqliteCommandFamily, sqliteNormalizeCommand } from './sqlite-store-schema.js';
 import type { Sage, SageStatus } from './types.js';
 

@@ -96,8 +96,7 @@ export const proxyCmd: SubcommandHandler = async (_args, deps) => {
     if (enabled && active && cfg.url) return { glyph: '✓', label: 'live', color: color.green };
     if (enabled && !active)
       return { glyph: '●', label: 'enabled, probe not yet active', color: color.amber };
-    if (!enabled && cfg.url)
-      return { glyph: '○', label: 'url set, toggle off', color: color.dim };
+    if (!enabled && cfg.url) return { glyph: '○', label: 'url set, toggle off', color: color.dim };
     return { glyph: '·', label: 'unconfigured', color: color.dim };
   };
   const s = status();

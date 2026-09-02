@@ -98,7 +98,11 @@ describe('toolErrorResult', () => {
 
 describe('classifiedToolErrorResult', () => {
   it('creates a permission-denied result', () => {
-    const block = classifiedToolErrorResult(mockUse, ToolErrorCategory.PERMISSION, 'blocked by policy');
+    const block = classifiedToolErrorResult(
+      mockUse,
+      ToolErrorCategory.PERMISSION,
+      'blocked by policy',
+    );
 
     expect(block.content).toContain('Permission denied');
     expect(block.content).toContain('blocked by policy');
@@ -109,9 +113,14 @@ describe('classifiedToolErrorResult', () => {
   });
 
   it('creates a validation error result with detail', () => {
-    const block = classifiedToolErrorResult(mockUse, ToolErrorCategory.VALIDATION, 'missing required field', {
-      detail: 'path is required',
-    });
+    const block = classifiedToolErrorResult(
+      mockUse,
+      ToolErrorCategory.VALIDATION,
+      'missing required field',
+      {
+        detail: 'path is required',
+      },
+    );
 
     expect(block.content).toContain('Validation error');
     expect(block.content).toContain('[path is required]');
@@ -122,7 +131,11 @@ describe('classifiedToolErrorResult', () => {
   });
 
   it('infers retryable for transient', () => {
-    const block = classifiedToolErrorResult(mockUse, ToolErrorCategory.TRANSIENT, 'network timeout');
+    const block = classifiedToolErrorResult(
+      mockUse,
+      ToolErrorCategory.TRANSIENT,
+      'network timeout',
+    );
 
     const info = getToolErrorInfo(block);
     expect(info?.retryable).toBe(true);

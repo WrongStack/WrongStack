@@ -44,9 +44,9 @@ describe('codebase tool path confinement (H-5/H-6 / VF-06, VF-07)', () => {
   const outside = () => path.join(outsideDir, 'target.ts');
 
   it('codebase-skeleton refuses an out-of-root absolute path', async () => {
-    await expect(codebaseSkeletonTool.execute({ path: outside() }, ctx(), execOpts)).rejects.toThrow(
-      /outside project root/,
-    );
+    await expect(
+      codebaseSkeletonTool.execute({ path: outside() }, ctx(), execOpts),
+    ).rejects.toThrow(/outside project root/);
   });
 
   it('codebase-skeleton honors allowOutsideProjectRoot', async () => {

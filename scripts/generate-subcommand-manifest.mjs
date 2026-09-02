@@ -27,33 +27,41 @@ const indexSrc = readFileSync(indexPath, 'utf8');
 
 // Parse loader keys from the `loaders: Record<string, SubcommandLoader>` block
 const loaderMatches = [...indexSrc.matchAll(/^\s+(\w+):\s+async\s+\(\)\s*=>/gm)];
-const loaderNames = loaderMatches.map(m => m[1]);
+const loaderNames = loaderMatches.map((m) => m[1]);
 
 // Extract handler module path for each loader
 const handlerMap = {};
-for (const match of indexSrc.matchAll(/^\s+(\w+):\s+async\s+\(\)\s*=>\s*\(await\s+import\('([^']+)'\)\)\.(\w+),?/gm)) {
+for (const match of indexSrc.matchAll(
+  /^\s+(\w+):\s+async\s+\(\)\s*=>\s*\(await\s+import\('([^']+)'\)\)\.(\w+),?/gm,
+)) {
   handlerMap[match[1]] = { module: match[2], export: match[3] };
 }
 
 // ── Extract help table entries ───────────────────────────────────────
-const helpTablePath = join(root, 'packages/cli/src/subcommands/handlers/per-subcommand-help-table.ts');
+const helpTablePath = join(
+  root,
+  'packages/cli/src/subcommands/handlers/per-subcommand-help-table.ts',
+);
 const helpSrc = readFileSync(helpTablePath, 'utf8');
 
 const helpMatches = [...helpSrc.matchAll(/^\s{2}(\w+):\s*\{/gm)];
-const helpNames = helpMatches.map(m => m[1]);
+const helpNames = helpMatches.map((m) => m[1]);
 
 // ── Deep help entries ────────────────────────────────────────────────
-const deepHelpPath = join(root, 'packages/cli/src/subcommands/handlers/per-subcommand-deep-help-table.ts');
+const deepHelpPath = join(
+  root,
+  'packages/cli/src/subcommands/handlers/per-subcommand-deep-help-table.ts',
+);
 const deepSrc = readFileSync(deepHelpPath, 'utf8');
 const deepMatches = [...deepSrc.matchAll(/^\s{2}['"]([^'"]+)['"]:\s*\{/gm)];
-const deepNames = deepMatches.map(m => m[1]);
+const deepNames = deepMatches.map((m) => m[1]);
 
 // ── Parity analysis ──────────────────────────────────────────────────
 const loaderSet = new Set(loaderNames);
 const helpSet = new Set(helpNames);
 
-const loadersWithoutHelp = loaderNames.filter(n => !helpSet.has(n));
-const helpWithoutLoaders = helpNames.filter(n => !loaderSet.has(n));
+const loadersWithoutHelp = loaderNames.filter((n) => !helpSet.has(n));
+const helpWithoutLoaders = helpNames.filter((n) => !loaderSet.has(n));
 
 // ── Build manifest ───────────────────────────────────────────────────
 const manifest = {
@@ -61,11 +69,11 @@ const manifest = {
   totalLoaders: loaderNames.length,
   totalHelpEntries: helpNames.length,
   totalDeepHelpEntries: deepNames.length,
-  subcommands: loaderNames.map(name => ({
+  subcommands: loaderNames.map((name) => ({
     name,
     handler: handlerMap[name] ?? { module: '(unknown)', export: '(unknown)' },
     hasHelp: helpSet.has(name),
-    deepHelpEntries: deepNames.filter(d => d.startsWith(`${name}:`)),
+    deepHelpEntries: deepNames.filter((d) => d.startsWith(`${name}:`)),
   })),
   parity: {
     loadersWithoutHelp,

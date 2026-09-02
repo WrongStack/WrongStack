@@ -38,14 +38,24 @@ describe('resolveShowSidebarVisibility', () => {
 describe('resolveAppSidebarLayout sidebar gating', () => {
   it('collapses the sidebar to width 0 when liveSettings.showSidebar is false', () => {
     const state = createTestState();
-    const layout = resolveAppSidebarLayout(state, 120, { ...baseSettings, showSidebar: false }, false);
+    const layout = resolveAppSidebarLayout(
+      state,
+      120,
+      { ...baseSettings, showSidebar: false },
+      false,
+    );
     expect(layout.sidebarWidth).toBe(0);
     expect(layout.mainColumnWidth).toBe(120);
   });
 
   it('keeps the sidebar when liveSettings.showSidebar is true', () => {
     const state = createTestState();
-    const layout = resolveAppSidebarLayout(state, 120, { ...baseSettings, showSidebar: true }, false);
+    const layout = resolveAppSidebarLayout(
+      state,
+      120,
+      { ...baseSettings, showSidebar: true },
+      false,
+    );
     expect(layout.sidebarWidth).toBeGreaterThan(0);
   });
 
@@ -63,7 +73,12 @@ describe('resolveAppSidebarLayout sidebar gating', () => {
         showSidebar: false,
       },
     });
-    const layout = resolveAppSidebarLayout(state, 120, { ...baseSettings, showSidebar: true }, false);
+    const layout = resolveAppSidebarLayout(
+      state,
+      120,
+      { ...baseSettings, showSidebar: true },
+      false,
+    );
     expect(layout.sidebarWidth).toBe(0);
   });
 

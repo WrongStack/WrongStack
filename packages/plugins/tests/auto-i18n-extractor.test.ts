@@ -127,7 +127,10 @@ describe('auto-i18n-extractor plugin', () => {
     const api = makeApi();
     plugin.setup(api as never);
     const extract = getTool(api, 'i18n_extract');
-    const result = (await extract({ path: '../../../etc/passwd' })) as { ok: boolean; error: string };
+    const result = (await extract({ path: '../../../etc/passwd' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(result.ok).toBe(false);
     expect(result.error).toContain('inside the project');
   });
@@ -136,7 +139,11 @@ describe('auto-i18n-extractor plugin', () => {
     const api = makeApi({ extensions: { 'auto-i18n-extractor': { minLength: 3 } } });
     plugin.setup(api as never);
     const status = getTool(api, 'i18n_status');
-    const result = (await status({})) as { ok: boolean; minLength: number; counters: Record<string, number> };
+    const result = (await status({})) as {
+      ok: boolean;
+      minLength: number;
+      counters: Record<string, number>;
+    };
     expect(result.ok).toBe(true);
     expect(result.minLength).toBe(3);
     expect(result.counters['filesScanned']).toBe(0);

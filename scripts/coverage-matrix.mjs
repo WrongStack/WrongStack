@@ -122,7 +122,7 @@ export function renderMarkdown({ rows, worst, generatedAt }) {
     '',
     'Aggregated from per-area `coverage/coverage-summary.json` files by',
     '`scripts/coverage-matrix.mjs` (`pnpm coverage:matrix`). This report is a progress view for',
-    '`docs/plans/test-coverage-100-2026-08.md`; enforcement lives in each area\'s vitest config.',
+    "`docs/plans/test-coverage-100-2026-08.md`; enforcement lives in each area's vitest config.",
     '',
     '| Area | Lines | Stmts | Funcs | Branches | Uncovered stmts | Measured | Age |',
     '|---|---:|---:|---:|---:|---:|---|---:|',

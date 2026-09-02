@@ -9,7 +9,9 @@ import {
   type ToolResultRenderModeRegistryLike,
 } from '../../src/utils/tool-result-render-mode.js';
 
-function makeRegistry(): ToolResultRenderModeRegistryLike & { last: Map<string, 'simple' | 'extend'> } {
+function makeRegistry(): ToolResultRenderModeRegistryLike & {
+  last: Map<string, 'simple' | 'extend'>;
+} {
   const last = new Map<string, 'simple' | 'extend'>();
   return {
     last,

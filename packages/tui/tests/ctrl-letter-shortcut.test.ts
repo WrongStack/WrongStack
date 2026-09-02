@@ -40,9 +40,7 @@ function makeCapture() {
 describe('<Input /> Ctrl+letter shortcut (Ink 7 key delivery)', () => {
   it('forwards \\x16 (Ctrl+V) as onKey("v", { ctrl: true })', async () => {
     const { calls, onKey } = makeCapture();
-    const { stdin, unmount } = render(
-      React.createElement(Input, { value: '', cursor: 0, onKey }),
-    );
+    const { stdin, unmount } = render(React.createElement(Input, { value: '', cursor: 0, onKey }));
 
     stdin.write('\x16');
     await new Promise((resolve) => setImmediate(resolve));
@@ -55,9 +53,7 @@ describe('<Input /> Ctrl+letter shortcut (Ink 7 key delivery)', () => {
 
   it('forwards \\x01 (Ctrl+A) as onKey("a", { ctrl: true })', async () => {
     const { calls, onKey } = makeCapture();
-    const { stdin, unmount } = render(
-      React.createElement(Input, { value: '', cursor: 0, onKey }),
-    );
+    const { stdin, unmount } = render(React.createElement(Input, { value: '', cursor: 0, onKey }));
 
     stdin.write('\x01');
     await new Promise((resolve) => setImmediate(resolve));
@@ -70,9 +66,7 @@ describe('<Input /> Ctrl+letter shortcut (Ink 7 key delivery)', () => {
 
   it('forwards \\x0b (Ctrl+K) as onKey("k", { ctrl: true })', async () => {
     const { calls, onKey } = makeCapture();
-    const { stdin, unmount } = render(
-      React.createElement(Input, { value: '', cursor: 0, onKey }),
-    );
+    const { stdin, unmount } = render(React.createElement(Input, { value: '', cursor: 0, onKey }));
 
     stdin.write('\x0b');
     await new Promise((resolve) => setImmediate(resolve));
@@ -85,9 +79,7 @@ describe('<Input /> Ctrl+letter shortcut (Ink 7 key delivery)', () => {
 
   it('treats \\x08 as Backspace, not as Ctrl+H', async () => {
     const { calls, onKey } = makeCapture();
-    const { stdin, unmount } = render(
-      React.createElement(Input, { value: '', cursor: 0, onKey }),
-    );
+    const { stdin, unmount } = render(React.createElement(Input, { value: '', cursor: 0, onKey }));
 
     stdin.write('\x08');
     await new Promise((resolve) => setImmediate(resolve));

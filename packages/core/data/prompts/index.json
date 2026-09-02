@@ -86,11 +86,7 @@
       "title": "Budget an Agent's Resources",
       "description": "Cap iterations, tokens, and cost so an agent can't run away.",
       "category": "agentic-workflows",
-      "tags": [
-        "budget",
-        "limits",
-        "cost"
-      ],
+      "tags": ["budget", "limits", "cost"],
       "checksum": "ea9c7b2e4ff8b9babfe90f34574a662c6c2d8db638cb087510cfe35e6fff7055",
       "file": "prompts/agentic-workflows/budget-an-agent-s-resources.json"
     },
@@ -100,11 +96,7 @@
       "title": "Decompose a Goal into Agent Tasks",
       "description": "Break a goal into tasks an agent fleet can execute.",
       "category": "agentic-workflows",
-      "tags": [
-        "decomposition",
-        "planning",
-        "multi-agent"
-      ],
+      "tags": ["decomposition", "planning", "multi-agent"],
       "checksum": "a4f41812e226baf7ef3f2d9d20f34fcc9ba6e38874be6d6e23e8a8e0c60c2907",
       "file": "prompts/agentic-workflows/decompose-a-goal-into-agent-tasks.json"
     },
@@ -114,11 +106,7 @@
       "title": "Decompose into Subtasks",
       "description": "Break a large task into independent, parallelizable units.",
       "category": "agentic-workflows",
-      "tags": [
-        "decomposition",
-        "parallel",
-        "orchestration"
-      ],
+      "tags": ["decomposition", "parallel", "orchestration"],
       "checksum": "3f18f2da44efe06cf21df33a862abd23fda43317db3498536c6e8156fe35a9f5",
       "file": "prompts/agentic-workflows/decompose-into-subtasks.json"
     },
@@ -128,11 +116,7 @@
       "title": "Define Done and Stop",
       "description": "Set explicit completion criteria so an agent doesn't over- or under-do it.",
       "category": "agentic-workflows",
-      "tags": [
-        "completion",
-        "scope",
-        "control"
-      ],
+      "tags": ["completion", "scope", "control"],
       "checksum": "d801448a4cf522be2589d76234b6b535ed644598dbc3d34902aa582a04b5f712",
       "file": "prompts/agentic-workflows/define-done-and-stop.json"
     },
@@ -142,11 +126,7 @@
       "title": "Delegate to a Subagent",
       "description": "Write a crisp brief for handing work to another agent.",
       "category": "agentic-workflows",
-      "tags": [
-        "delegation",
-        "multi-agent",
-        "handoff"
-      ],
+      "tags": ["delegation", "multi-agent", "handoff"],
       "checksum": "0d84f3a15cba65b7cf2d96c251388f6491c37e77fa36877c52ada9ee2a9bac94",
       "file": "prompts/agentic-workflows/delegate-to-a-subagent.json"
     },
@@ -156,11 +136,7 @@
       "title": "Design a Retry and Backoff Policy",
       "description": "Decide how an agent or system retries failures.",
       "category": "agentic-workflows",
-      "tags": [
-        "retry",
-        "backoff",
-        "resilience"
-      ],
+      "tags": ["retry", "backoff", "resilience"],
       "checksum": "2336c06494e66f352f36bab8b96ecc795eb65e4dc54563eba619d5fb69cca329",
       "file": "prompts/agentic-workflows/design-a-retry-and-backoff-policy.json"
     },
@@ -170,11 +146,7 @@
       "title": "Design a Verification Loop",
       "description": "Make an agent check its own work before declaring done.",
       "category": "agentic-workflows",
-      "tags": [
-        "verification",
-        "self-check",
-        "reliability"
-      ],
+      "tags": ["verification", "self-check", "reliability"],
       "checksum": "be6079fe57632a10b3a24d21c84409f7cbe10f9212d51cbbe73b5d7e481e7174",
       "file": "prompts/agentic-workflows/design-a-verification-loop.json"
     },
@@ -184,11 +156,7 @@
       "title": "Explore Then Decide",
       "description": "Gather evidence from the codebase before proposing a change.",
       "category": "agentic-workflows",
-      "tags": [
-        "exploration",
-        "grounding",
-        "agent"
-      ],
+      "tags": ["exploration", "grounding", "agent"],
       "checksum": "6f854da335f51d113da3c1c1b511cab7279dbc1f559242052d7b05cda9b2f2af",
       "file": "prompts/agentic-workflows/explore-then-decide.json"
     },
@@ -198,11 +166,7 @@
       "title": "Plan a Multi-Agent Fan-out",
       "description": "Decide how to split work across parallel agents.",
       "category": "agentic-workflows",
-      "tags": [
-        "multi-agent",
-        "parallelism",
-        "orchestration"
-      ],
+      "tags": ["multi-agent", "parallelism", "orchestration"],
       "checksum": "ab77d213cc339e82d45bd125ea22d38ca7beadc0bcc102984d3cf85fec074e96",
       "file": "prompts/agentic-workflows/plan-a-multi-agent-fan-out.json"
     },
@@ -212,11 +176,7 @@
       "title": "Plan Before Acting",
       "description": "Force an explicit plan before an agent touches anything.",
       "category": "agentic-workflows",
-      "tags": [
-        "planning",
-        "agent",
-        "safety"
-      ],
+      "tags": ["planning", "agent", "safety"],
       "checksum": "705036b1ea65e7bd1046e3a4c1d1753140f13ff716b98d3b7372e7782cfa0c1c",
       "file": "prompts/agentic-workflows/plan-before-acting.json"
     },
@@ -226,11 +186,7 @@
       "title": "Plan Checkpointing and Resume",
       "description": "Let a long agent task survive interruption.",
       "category": "agentic-workflows",
-      "tags": [
-        "checkpoint",
-        "resume",
-        "durability"
-      ],
+      "tags": ["checkpoint", "resume", "durability"],
       "checksum": "e62e16a3991e0fe41e0140c482f4b294891d0f89414d75a1f58be06c5862d08b",
       "file": "prompts/agentic-workflows/plan-checkpointing-and-resume.json"
     },
@@ -240,11 +196,7 @@
       "title": "Recover From a Stuck State",
       "description": "Get an agent unstuck without thrashing.",
       "category": "agentic-workflows",
-      "tags": [
-        "recovery",
-        "debugging",
-        "agent"
-      ],
+      "tags": ["recovery", "debugging", "agent"],
       "checksum": "82f98e6768a180082a36e736d4f5a2d1978e46a3b63c7a959b3c515fb71358d4",
       "file": "prompts/agentic-workflows/recover-from-a-stuck-state.json"
     },
@@ -254,11 +206,7 @@
       "title": "Summarize Progress and Next Steps",
       "description": "Produce a handoff-ready status of an in-flight task.",
       "category": "agentic-workflows",
-      "tags": [
-        "status",
-        "handoff",
-        "continuity"
-      ],
+      "tags": ["status", "handoff", "continuity"],
       "checksum": "aba817a8d1094c82465d36553b1c36d5f382cdaae10866cbe0b914ae4a0a6af0",
       "file": "prompts/agentic-workflows/summarize-progress-and-next-steps.json"
     },
@@ -268,11 +216,7 @@
       "title": "Verify Your Own Work",
       "description": "Make an agent adversarially check what it just produced.",
       "category": "agentic-workflows",
-      "tags": [
-        "verification",
-        "self-check",
-        "quality"
-      ],
+      "tags": ["verification", "self-check", "quality"],
       "checksum": "3d5674a24ecf8c393d6308407ef3a8169232efbd8e675739aa1c4332e247f485",
       "file": "prompts/agentic-workflows/verify-your-own-work.json"
     },
@@ -282,11 +226,7 @@
       "title": "Write a Guardrail Policy",
       "description": "Tell an agent what it must never do, and when to stop.",
       "category": "agentic-workflows",
-      "tags": [
-        "guardrails",
-        "safety",
-        "policy"
-      ],
+      "tags": ["guardrails", "safety", "policy"],
       "checksum": "dc52837e3e900e15becfa28e8a167b21d3054ff9e78fbfd0f4a96d853345402f",
       "file": "prompts/agentic-workflows/write-a-guardrail-policy.json"
     },
@@ -296,10 +236,7 @@
       "title": "Write a Tool-Use Policy",
       "description": "Tell an agent which tool to reach for and when.",
       "category": "agentic-workflows",
-      "tags": [
-        "tool-use",
-        "policy"
-      ],
+      "tags": ["tool-use", "policy"],
       "checksum": "c5ebec562769338d5dfe5c3ef5b425546d8a497df20f1f2c380d0cf073371af6",
       "file": "prompts/agentic-workflows/write-a-tool-use-policy.json"
     },
@@ -309,10 +246,7 @@
       "title": "Choose a Consistency Model",
       "description": "Decide between strong and eventual consistency.",
       "category": "architecture",
-      "tags": [
-        "consistency",
-        "distributed"
-      ],
+      "tags": ["consistency", "distributed"],
       "checksum": "9b47650c3a173e7591c2ac37c693c5ecfe88f75d4c8bfb98930f87d63c065864",
       "file": "prompts/architecture/choose-a-consistency-model.json"
     },
@@ -322,11 +256,7 @@
       "title": "Choose Sync vs Async",
       "description": "Decide whether work should be synchronous or queued.",
       "category": "architecture",
-      "tags": [
-        "async",
-        "queue",
-        "design"
-      ],
+      "tags": ["async", "queue", "design"],
       "checksum": "c4095b84a3c3a6cbaa9a9c92c0eace8c05bfd3b2990b46f0cbe20ceb135f5bb4",
       "file": "prompts/architecture/choose-sync-vs-async.json"
     },
@@ -336,11 +266,7 @@
       "title": "Decompose into Services or Modules",
       "description": "Find good boundaries for splitting a system.",
       "category": "architecture",
-      "tags": [
-        "boundaries",
-        "modularity",
-        "decomposition"
-      ],
+      "tags": ["boundaries", "modularity", "decomposition"],
       "checksum": "bb7e477ff2f97c69c94f2ee3f2dea89ada04f2f4b8a3cba020f7dd8320050c20",
       "file": "prompts/architecture/decompose-into-services-or-modules.json"
     },
@@ -350,11 +276,7 @@
       "title": "Define Service Boundaries",
       "description": "Specify what a service owns and how others talk to it.",
       "category": "architecture",
-      "tags": [
-        "boundaries",
-        "contracts",
-        "api"
-      ],
+      "tags": ["boundaries", "contracts", "api"],
       "checksum": "8c6545f96bf1b7f1e48440ed449404261d7eb1848f2dc733e7090db1056e8ff2",
       "file": "prompts/architecture/define-service-boundaries.json"
     },
@@ -364,11 +286,7 @@
       "title": "Design a Data Model",
       "description": "Model entities, relationships, and constraints for a domain.",
       "category": "architecture",
-      "tags": [
-        "data-model",
-        "schema",
-        "domain"
-      ],
+      "tags": ["data-model", "schema", "domain"],
       "checksum": "68e85737241702dfaa4fada7f9ddf608175140a22c36de3fc71c0051c97d7a6a",
       "file": "prompts/architecture/design-a-data-model.json"
     },
@@ -378,10 +296,7 @@
       "title": "Design a Rate Limiter",
       "description": "Protect a service with the right rate-limiting strategy.",
       "category": "architecture",
-      "tags": [
-        "rate-limiting",
-        "resilience"
-      ],
+      "tags": ["rate-limiting", "resilience"],
       "checksum": "952d4188111c70c17778527ea1bb7112b9fa85f4f02cf71eede69e2df02e72a6",
       "file": "prompts/architecture/design-a-rate-limiter.json"
     },
@@ -391,10 +306,7 @@
       "title": "Design a System",
       "description": "Produce a pragmatic high-level design for a system or feature.",
       "category": "architecture",
-      "tags": [
-        "system-design",
-        "design"
-      ],
+      "tags": ["system-design", "design"],
       "checksum": "e4c57e0ea542cd4790b890bed627fcc237d96591c9c364ae26f9d02682657f80",
       "file": "prompts/architecture/design-a-system.json"
     },
@@ -404,11 +316,7 @@
       "title": "Design an Event Schema",
       "description": "Define events that stay stable as the system evolves.",
       "category": "architecture",
-      "tags": [
-        "events",
-        "schema",
-        "messaging"
-      ],
+      "tags": ["events", "schema", "messaging"],
       "checksum": "ac073c16b4d658520bf107dab6b5d9fc6fcb937de1ab92ab5f456102359f8010",
       "file": "prompts/architecture/design-an-event-schema.json"
     },
@@ -418,10 +326,7 @@
       "title": "Design for Idempotency",
       "description": "Make an operation safe to retry.",
       "category": "architecture",
-      "tags": [
-        "idempotency",
-        "reliability"
-      ],
+      "tags": ["idempotency", "reliability"],
       "checksum": "0f1d597a92603165a9c18aecdfa3e9d0be96fa5a5e7f0ac408e952e56ca1115f",
       "file": "prompts/architecture/design-for-idempotency.json"
     },
@@ -431,11 +336,7 @@
       "title": "Design for Observability",
       "description": "Decide what to log, measure, and trace before building.",
       "category": "architecture",
-      "tags": [
-        "observability",
-        "monitoring",
-        "design"
-      ],
+      "tags": ["observability", "monitoring", "design"],
       "checksum": "e6660c372dad0db6df2725bced045a89767b0c87cbeb59b960939d26ebfa06a3",
       "file": "prompts/architecture/design-for-observability.json"
     },
@@ -445,11 +346,7 @@
       "title": "Estimate Capacity and Cost",
       "description": "Sanity-check scale and cost before building.",
       "category": "architecture",
-      "tags": [
-        "capacity",
-        "scale",
-        "cost"
-      ],
+      "tags": ["capacity", "scale", "cost"],
       "checksum": "4e91e8c0a05e709fde1b5075963b9a1d46c38073e8b640a179d29e6802312252",
       "file": "prompts/architecture/estimate-capacity-and-cost.json"
     },
@@ -459,11 +356,7 @@
       "title": "Evaluate Architecture Options",
       "description": "Compare candidate approaches against your real constraints.",
       "category": "architecture",
-      "tags": [
-        "trade-offs",
-        "decision",
-        "options"
-      ],
+      "tags": ["trade-offs", "decision", "options"],
       "checksum": "d5b7606d4b1f761bc2f4ec9a65555327b815ef3f82e17c5c550c60955c70106c",
       "file": "prompts/architecture/evaluate-architecture-options.json"
     },
@@ -473,11 +366,7 @@
       "title": "Identify Failure Modes",
       "description": "Stress-test a design by enumerating how it breaks.",
       "category": "architecture",
-      "tags": [
-        "resilience",
-        "failure-modes",
-        "reliability"
-      ],
+      "tags": ["resilience", "failure-modes", "reliability"],
       "checksum": "cc3a25850edf5de46c6772227089a38d827b95b41404c1e8362030512d6a9f22",
       "file": "prompts/architecture/identify-failure-modes.json"
     },
@@ -487,11 +376,7 @@
       "title": "Plan a Migration",
       "description": "Design a safe, incremental migration path.",
       "category": "architecture",
-      "tags": [
-        "migration",
-        "incremental",
-        "rollout"
-      ],
+      "tags": ["migration", "incremental", "rollout"],
       "checksum": "0a2bcfc3f25eb03308a414ab2ea5845fb763c8eb78cfb60553cf92243d30e962",
       "file": "prompts/architecture/plan-a-migration.json"
     },
@@ -501,11 +386,7 @@
       "title": "Plan an API Contract",
       "description": "Design a clean, evolvable API surface.",
       "category": "architecture",
-      "tags": [
-        "api",
-        "contract",
-        "interface"
-      ],
+      "tags": ["api", "contract", "interface"],
       "checksum": "cfe97d46adb2484c600a3b17c2e1f50bc0fd150d3133f197a2901fcc0339f631",
       "file": "prompts/architecture/plan-an-api-contract.json"
     },
@@ -515,11 +396,7 @@
       "title": "Write an ADR",
       "description": "Capture an architecture decision in a clear, durable record.",
       "category": "architecture",
-      "tags": [
-        "adr",
-        "documentation",
-        "decision-record"
-      ],
+      "tags": ["adr", "documentation", "decision-record"],
       "checksum": "c998ccbc1c9dc383cc64407d83981f5839ff30d32cdfe348e1c98e2424a766b4",
       "file": "prompts/architecture/write-an-adr.json"
     },
@@ -529,11 +406,7 @@
       "title": "Assess Change Risk",
       "description": "Gauge how risky a change is and what to do about it.",
       "category": "code-review",
-      "tags": [
-        "risk",
-        "review",
-        "rollout"
-      ],
+      "tags": ["risk", "review", "rollout"],
       "checksum": "2446c74121af0f77177a461c5c863c07545324bdb84624281c4e752168795229",
       "file": "prompts/code-review/assess-change-risk.json"
     },
@@ -543,11 +416,7 @@
       "title": "Check Naming and API Design",
       "description": "Critique the names and public interface of a module.",
       "category": "code-review",
-      "tags": [
-        "naming",
-        "api-design",
-        "ergonomics"
-      ],
+      "tags": ["naming", "api-design", "ergonomics"],
       "checksum": "bee0e93315f04577310d69b7ac365615183743c50bfe5bc92df72de94f1f44d0",
       "file": "prompts/code-review/check-naming-and-api-design.json"
     },
@@ -557,11 +426,7 @@
       "title": "Concurrency Review",
       "description": "Review code for race conditions and concurrency bugs.",
       "category": "code-review",
-      "tags": [
-        "concurrency",
-        "races",
-        "review"
-      ],
+      "tags": ["concurrency", "races", "review"],
       "checksum": "0e82cc791a067ba1aada5cc23774dcb2856253fa54704daa7732e1feaaa8fac8",
       "file": "prompts/code-review/concurrency-review.json"
     },
@@ -571,10 +436,7 @@
       "title": "Explain Review Feedback",
       "description": "Understand and act on review comments you received.",
       "category": "code-review",
-      "tags": [
-        "feedback",
-        "mentorship"
-      ],
+      "tags": ["feedback", "mentorship"],
       "checksum": "68be151317f1848537cb782baa9969cfe449141225b522a0515f9b087212114d",
       "file": "prompts/code-review/explain-review-feedback.json"
     },
@@ -584,11 +446,7 @@
       "title": "Review a Database Migration",
       "description": "Catch problems in a schema migration before it ships.",
       "category": "code-review",
-      "tags": [
-        "database",
-        "migration",
-        "review"
-      ],
+      "tags": ["database", "migration", "review"],
       "checksum": "3ce7c1dbcf724566bd1f940c3ca4c8ea146c47453cd8cc250ac5629c4ed446fd",
       "file": "prompts/code-review/review-a-database-migration.json"
     },
@@ -598,11 +456,7 @@
       "title": "Review a Public API Change",
       "description": "Scrutinize a change to an interface others depend on.",
       "category": "code-review",
-      "tags": [
-        "api",
-        "compatibility",
-        "review"
-      ],
+      "tags": ["api", "compatibility", "review"],
       "checksum": "8ae71e20f203419460320634f521e53b8cfa2becdebb5411f629500466faa543",
       "file": "prompts/code-review/review-a-public-api-change.json"
     },
@@ -612,10 +466,7 @@
       "title": "Review Error Handling",
       "description": "Check that failures are handled, not just the happy path.",
       "category": "code-review",
-      "tags": [
-        "error-handling",
-        "review"
-      ],
+      "tags": ["error-handling", "review"],
       "checksum": "7fd23a06c981f88b9c66b29d243b7477932b2aadf38f5252251badb86a781056",
       "file": "prompts/code-review/review-error-handling.json"
     },
@@ -625,12 +476,7 @@
       "title": "Review for Accessibility",
       "description": "Check a UI change for accessibility issues.",
       "category": "code-review",
-      "tags": [
-        "accessibility",
-        "a11y",
-        "ui",
-        "review"
-      ],
+      "tags": ["accessibility", "a11y", "ui", "review"],
       "checksum": "5cd783c53b9fd5f0919bbfcae6ca1338d63feb2ee98c50f193d22ae6228426e0",
       "file": "prompts/code-review/review-for-accessibility.json"
     },
@@ -640,11 +486,7 @@
       "title": "Review for Backward Compatibility",
       "description": "Check whether a change breaks existing callers or data.",
       "category": "code-review",
-      "tags": [
-        "compatibility",
-        "breaking-change",
-        "migration"
-      ],
+      "tags": ["compatibility", "breaking-change", "migration"],
       "checksum": "80ba104ba789b092f24a4a0db42f7b65a04847d1bb0d7c939c5edcfa7ece46e0",
       "file": "prompts/code-review/review-for-backward-compatibility.json"
     },
@@ -654,10 +496,7 @@
       "title": "Review for Maintainability",
       "description": "Judge how this code will age, not just whether it works.",
       "category": "code-review",
-      "tags": [
-        "maintainability",
-        "review"
-      ],
+      "tags": ["maintainability", "review"],
       "checksum": "8d7ecc7f93c45069525301789bbdd7eb51bb831b9b7b087dd295ff0224bbd5bf",
       "file": "prompts/code-review/review-for-maintainability.json"
     },
@@ -667,10 +506,7 @@
       "title": "Review for Performance",
       "description": "Spot performance problems in a change before they ship.",
       "category": "code-review",
-      "tags": [
-        "performance",
-        "review"
-      ],
+      "tags": ["performance", "review"],
       "checksum": "c3aa610186fb689cffdc8d009839c9d3ebe455cb54f7e01144bac64a4e92273c",
       "file": "prompts/code-review/review-for-performance.json"
     },
@@ -680,10 +516,7 @@
       "title": "Review for Test Quality",
       "description": "Assess whether a change is adequately tested.",
       "category": "code-review",
-      "tags": [
-        "tests",
-        "review"
-      ],
+      "tags": ["tests", "review"],
       "checksum": "22b889f28d2bdb836f3c101d15c7e0cc343086d35769e0f869127dc9e682818e",
       "file": "prompts/code-review/review-for-test-quality.json"
     },
@@ -693,10 +526,7 @@
       "title": "Review My Own PR",
       "description": "Self-review a change before requesting human review.",
       "category": "code-review",
-      "tags": [
-        "self-review",
-        "pr"
-      ],
+      "tags": ["self-review", "pr"],
       "checksum": "57a0e9eed1da6d0e83ba3cfb6a88403a886acd117f558fe98d9ab5f4602ca31a",
       "file": "prompts/code-review/review-my-own-pr.json"
     },
@@ -706,11 +536,7 @@
       "title": "Security-Focused Review",
       "description": "Audit a change specifically for security vulnerabilities.",
       "category": "code-review",
-      "tags": [
-        "security",
-        "audit",
-        "owasp"
-      ],
+      "tags": ["security", "audit", "owasp"],
       "checksum": "561e1d50f297c5486e5bc9e8d0c966d5a74860e939686e42a8d831965d1de4e3",
       "file": "prompts/code-review/security-focused-review.json"
     },
@@ -720,10 +546,7 @@
       "title": "Spot Hidden Coupling",
       "description": "Find the implicit dependencies a change introduces.",
       "category": "code-review",
-      "tags": [
-        "coupling",
-        "review"
-      ],
+      "tags": ["coupling", "review"],
       "checksum": "cd6223fbf395c51d96f11ab9d14615538f645ea53b1f5a6ad89596e20c695639",
       "file": "prompts/code-review/spot-hidden-coupling.json"
     },
@@ -733,11 +556,7 @@
       "title": "Thorough Code Review",
       "description": "Review a diff for correctness, design, security, and maintainability.",
       "category": "code-review",
-      "tags": [
-        "review",
-        "diff",
-        "quality"
-      ],
+      "tags": ["review", "diff", "quality"],
       "checksum": "a573ff99a24222d844840754ddbefd05ed21d51a2f12e5eaf43b128c66dff4a5",
       "file": "prompts/code-review/thorough-code-review.json"
     },
@@ -747,10 +566,7 @@
       "title": "Add a Caching Layer",
       "description": "Introduce caching to a hot path correctly.",
       "category": "coding",
-      "tags": [
-        "caching",
-        "performance"
-      ],
+      "tags": ["caching", "performance"],
       "checksum": "2d9fbfc17df02b93b9c41a87b85bff4c1e1f4df98acd292d0deef054432ee3d0",
       "file": "prompts/coding/add-a-caching-layer.json"
     },
@@ -760,10 +576,7 @@
       "title": "Add Feature to Existing Code",
       "description": "Extend a codebase with a new feature while preserving existing behavior and conventions.",
       "category": "coding",
-      "tags": [
-        "feature",
-        "integration"
-      ],
+      "tags": ["feature", "integration"],
       "checksum": "f84237bae4713441add482a6c3bea0c64baa68d7dd4f5f026150ad8fb9c7d6f2",
       "file": "prompts/coding/add-feature-to-existing-code.json"
     },
@@ -773,11 +586,7 @@
       "title": "Add Robust Error Handling",
       "description": "Harden a function or module against failure with deliberate error handling.",
       "category": "coding",
-      "tags": [
-        "errors",
-        "resilience",
-        "validation"
-      ],
+      "tags": ["errors", "resilience", "validation"],
       "checksum": "9882ab3129fa94d3b821b8e417582e129de751ef7072c1c2834a1a409025291a",
       "file": "prompts/coding/add-robust-error-handling.json"
     },
@@ -787,10 +596,7 @@
       "title": "Choose a Data Structure",
       "description": "Pick the right data structure for an access pattern.",
       "category": "coding",
-      "tags": [
-        "data-structures",
-        "performance"
-      ],
+      "tags": ["data-structures", "performance"],
       "checksum": "1b3a74bcae1aec4ee46ffa3993f2b7398d902fd8d9c4fbe92eefa68ded97e4b4",
       "file": "prompts/coding/choose-a-data-structure.json"
     },
@@ -800,11 +606,7 @@
       "title": "Concurrency-Safe Implementation",
       "description": "Implement logic that is correct under concurrent access.",
       "category": "coding",
-      "tags": [
-        "concurrency",
-        "threads",
-        "async"
-      ],
+      "tags": ["concurrency", "threads", "async"],
       "checksum": "bb5209259e59f41c7d37007923582bbbdce835da71d35360db91d6dfe7ae0e30",
       "file": "prompts/coding/concurrency-safe-implementation.json"
     },
@@ -814,10 +616,7 @@
       "title": "Convert Pseudocode to Code",
       "description": "Translate an algorithm or pseudocode into working, idiomatic code.",
       "category": "coding",
-      "tags": [
-        "algorithm",
-        "translation"
-      ],
+      "tags": ["algorithm", "translation"],
       "checksum": "3bba88c1242288dd446c2fb27737723b0ab3de4c72dd79ba1ab71f5957f6ea98",
       "file": "prompts/coding/convert-pseudocode-to-code.json"
     },
@@ -827,10 +626,7 @@
       "title": "Design a Regular Expression",
       "description": "Build and explain a regex for a specific matching task.",
       "category": "coding",
-      "tags": [
-        "regex",
-        "parsing"
-      ],
+      "tags": ["regex", "parsing"],
       "checksum": "8ad68afcf850b52b609cfbdf4afa3bda68cc53f2c806fd06cb3d3b08fcf15b32",
       "file": "prompts/coding/design-a-regular-expression.json"
     },
@@ -840,11 +636,7 @@
       "title": "Explain This Code",
       "description": "Get a clear, layered explanation of an unfamiliar piece of code.",
       "category": "coding",
-      "tags": [
-        "explain",
-        "onboarding",
-        "comprehension"
-      ],
+      "tags": ["explain", "onboarding", "comprehension"],
       "checksum": "fa4261898badbe467df047ed1f8b9a857a77311e13fce02bf6c8d1fbef2e547a",
       "file": "prompts/coding/explain-this-code.json"
     },
@@ -854,10 +646,7 @@
       "title": "Implement a State Machine",
       "description": "Model a process as an explicit finite state machine.",
       "category": "coding",
-      "tags": [
-        "state-machine",
-        "modeling"
-      ],
+      "tags": ["state-machine", "modeling"],
       "checksum": "14d80a6bba316f8224ccfdfd45087de2540a20d369faacbb0d924018e8679590",
       "file": "prompts/coding/implement-a-state-machine.json"
     },
@@ -867,11 +656,7 @@
       "title": "Implement an API Client",
       "description": "Write a typed client for a REST or RPC API from its docs.",
       "category": "coding",
-      "tags": [
-        "api",
-        "http",
-        "client"
-      ],
+      "tags": ["api", "http", "client"],
       "checksum": "112e3423e866ee6837c654e535bdd801ed65ffb8dd998703480413fc6983780e",
       "file": "prompts/coding/implement-an-api-client.json"
     },
@@ -881,11 +666,7 @@
       "title": "Implement Function from Spec",
       "description": "Generate a single, well-tested function from a precise specification.",
       "category": "coding",
-      "tags": [
-        "function",
-        "implementation",
-        "tdd"
-      ],
+      "tags": ["function", "implementation", "tdd"],
       "checksum": "6e30c86626df02a52fcf837c057a8e25cf57dbc5fddf9340e82496c77b3157b6",
       "file": "prompts/coding/implement-function-from-spec.json"
     },
@@ -895,10 +676,7 @@
       "title": "Implement Pagination",
       "description": "Add correct pagination to a list endpoint or query.",
       "category": "coding",
-      "tags": [
-        "pagination",
-        "api"
-      ],
+      "tags": ["pagination", "api"],
       "checksum": "1cb927d7b630a0f9a85e0692ade89d7eae47562314e0a96bf95c3e5e3d111852",
       "file": "prompts/coding/implement-pagination.json"
     },
@@ -908,10 +686,7 @@
       "title": "Optimize a Hot Path",
       "description": "Make a performance-critical piece of code faster.",
       "category": "coding",
-      "tags": [
-        "performance",
-        "optimization"
-      ],
+      "tags": ["performance", "optimization"],
       "checksum": "6e23843574c079c55a0a20c3fb481bb909d0228c518f08b4994c70717fa940a5",
       "file": "prompts/coding/optimize-a-hot-path.json"
     },
@@ -921,10 +696,7 @@
       "title": "Validate Untrusted Input",
       "description": "Validate and sanitize input at a trust boundary.",
       "category": "coding",
-      "tags": [
-        "validation",
-        "security"
-      ],
+      "tags": ["validation", "security"],
       "checksum": "d515602c0823b7fe17e765bdc3626bb7c5af5bb85e5f7ea8f521df74b2b776cc",
       "file": "prompts/coding/validate-untrusted-input.json"
     },
@@ -934,11 +706,7 @@
       "title": "Write a CLI Command",
       "description": "Build a command-line subcommand with argument parsing and good UX.",
       "category": "coding",
-      "tags": [
-        "cli",
-        "ux",
-        "tooling"
-      ],
+      "tags": ["cli", "ux", "tooling"],
       "checksum": "f6a292e2f88ebae2c77791bdcf2fbb93a0be3994dc6f34eb620e809698172e9a",
       "file": "prompts/coding/write-a-cli-command.json"
     },
@@ -948,10 +716,7 @@
       "title": "Write a Parser",
       "description": "Parse a structured text format into a usable structure.",
       "category": "coding",
-      "tags": [
-        "parsing",
-        "format"
-      ],
+      "tags": ["parsing", "format"],
       "checksum": "b0eeb0716fe3ae2f4f39b7b30d1f122362d8358f17ca2958db6905cb97ed82f9",
       "file": "prompts/coding/write-a-parser.json"
     },
@@ -961,11 +726,7 @@
       "title": "Build a Data Pipeline",
       "description": "Design an ETL/ELT pipeline that's reliable and observable.",
       "category": "data-analysis",
-      "tags": [
-        "pipeline",
-        "etl",
-        "data-engineering"
-      ],
+      "tags": ["pipeline", "etl", "data-engineering"],
       "checksum": "ee65f3cd153d3298555cd7a9bd73c34f43f904d7ee198114326f86346a25aa70",
       "file": "prompts/data-analysis/build-a-data-pipeline.json"
     },
@@ -975,10 +736,7 @@
       "title": "Build an Analysis Plan",
       "description": "Decide how to answer a question before touching the data.",
       "category": "data-analysis",
-      "tags": [
-        "analysis",
-        "planning"
-      ],
+      "tags": ["analysis", "planning"],
       "checksum": "9b6874cc3d085c6d6d26fc541f56c609f9b28416e1276d540b023219071996af",
       "file": "prompts/data-analysis/build-an-analysis-plan.json"
     },
@@ -988,10 +746,7 @@
       "title": "Choose the Right Chart",
       "description": "Pick a visualization that fits the data and message.",
       "category": "data-analysis",
-      "tags": [
-        "visualization",
-        "charts"
-      ],
+      "tags": ["visualization", "charts"],
       "checksum": "792eca93424416acc65e3adad701039d5545368e4a7b90550855d96510cfedad",
       "file": "prompts/data-analysis/choose-the-right-chart.json"
     },
@@ -1001,10 +756,7 @@
       "title": "Clean a Messy Dataset",
       "description": "Plan the cleaning a dataset needs before analysis.",
       "category": "data-analysis",
-      "tags": [
-        "cleaning",
-        "data-quality"
-      ],
+      "tags": ["cleaning", "data-quality"],
       "checksum": "f39a46b12ef49bc9aaaf3b6af85c5c155d4a14a06455ba1cf4ec92dc4abb9e3a",
       "file": "prompts/data-analysis/clean-a-messy-dataset.json"
     },
@@ -1014,11 +766,7 @@
       "title": "Clean and Validate Data",
       "description": "Design a cleaning pipeline for messy data.",
       "category": "data-analysis",
-      "tags": [
-        "data-cleaning",
-        "validation",
-        "etl"
-      ],
+      "tags": ["data-cleaning", "validation", "etl"],
       "checksum": "9d8c65292a0f359b8a127eafe34ecbc4b0abbf6cef468ce56a42461c851498c2",
       "file": "prompts/data-analysis/clean-and-validate-data.json"
     },
@@ -1028,11 +776,7 @@
       "title": "Design a Metric",
       "description": "Define a metric that actually measures what you care about.",
       "category": "data-analysis",
-      "tags": [
-        "metrics",
-        "kpi",
-        "measurement"
-      ],
+      "tags": ["metrics", "kpi", "measurement"],
       "checksum": "6455d3431ebb6dea5c2c7899fa4e6294beef5d00d4c5288751b95ad9df7e4518",
       "file": "prompts/data-analysis/design-a-metric.json"
     },
@@ -1042,10 +786,7 @@
       "title": "Design an A/B Test",
       "description": "Set up an experiment that gives a trustworthy answer.",
       "category": "data-analysis",
-      "tags": [
-        "ab-test",
-        "experiment"
-      ],
+      "tags": ["ab-test", "experiment"],
       "checksum": "2ccc188c8a6a7c6b9c1257d38630b1be4cbeec9880f2f68f9d1d720eb15cd134",
       "file": "prompts/data-analysis/design-an-a-b-test.json"
     },
@@ -1055,10 +796,7 @@
       "title": "Detect Outliers and Anomalies",
       "description": "Find unusual points and decide what to do with them.",
       "category": "data-analysis",
-      "tags": [
-        "outliers",
-        "anomalies"
-      ],
+      "tags": ["outliers", "anomalies"],
       "checksum": "d6fc63c5cabc5fddbee891051723950f85d0e529c560018a0146f1acfe19f617",
       "file": "prompts/data-analysis/detect-outliers-and-anomalies.json"
     },
@@ -1068,10 +806,7 @@
       "title": "Explain a Dataset Column",
       "description": "Reason about what a field means and how to use it.",
       "category": "data-analysis",
-      "tags": [
-        "data-dictionary",
-        "semantics"
-      ],
+      "tags": ["data-dictionary", "semantics"],
       "checksum": "2f8f6694ee81b01f0d407531580a9ac74917618fe1e915a3abcd75531f856e53",
       "file": "prompts/data-analysis/explain-a-dataset-column.json"
     },
@@ -1081,10 +816,7 @@
       "title": "Explain a Trend",
       "description": "Turn a pattern in the data into a credible explanation.",
       "category": "data-analysis",
-      "tags": [
-        "trends",
-        "interpretation"
-      ],
+      "tags": ["trends", "interpretation"],
       "checksum": "0104b4486fb723a58640ca5e161f64e6f3cab135287d17283916e7e1f7064b33",
       "file": "prompts/data-analysis/explain-a-trend.json"
     },
@@ -1094,11 +826,7 @@
       "title": "Exploratory Data Analysis Plan",
       "description": "Plan a first pass over an unfamiliar dataset.",
       "category": "data-analysis",
-      "tags": [
-        "eda",
-        "exploration",
-        "statistics"
-      ],
+      "tags": ["eda", "exploration", "statistics"],
       "checksum": "19565de24bd927225b9a3ec1f8705efa91916b68a5f16ae269cee1b4d6cd4b65",
       "file": "prompts/data-analysis/exploratory-data-analysis-plan.json"
     },
@@ -1108,10 +836,7 @@
       "title": "Interpret a Statistical Result",
       "description": "Understand what a result does and doesn't say.",
       "category": "data-analysis",
-      "tags": [
-        "statistics",
-        "interpretation"
-      ],
+      "tags": ["statistics", "interpretation"],
       "checksum": "7d491597a833f0a80853d93e35b90512d1a1f2382e2ed5b7c78bbd13423a3f7f",
       "file": "prompts/data-analysis/interpret-a-statistical-result.json"
     },
@@ -1121,11 +846,7 @@
       "title": "Interpret Results Honestly",
       "description": "Draw careful, caveated conclusions from an analysis.",
       "category": "data-analysis",
-      "tags": [
-        "interpretation",
-        "statistics",
-        "rigor"
-      ],
+      "tags": ["interpretation", "statistics", "rigor"],
       "checksum": "87183876b91895ed8d017612157f668f19a04d46f4e9ee9ccf0e99dbe0411950",
       "file": "prompts/data-analysis/interpret-results-honestly.json"
     },
@@ -1135,11 +856,7 @@
       "title": "Optimize a Slow Query",
       "description": "Diagnose and speed up a slow SQL query.",
       "category": "data-analysis",
-      "tags": [
-        "sql",
-        "performance",
-        "indexing"
-      ],
+      "tags": ["sql", "performance", "indexing"],
       "checksum": "4684686fb0d718db2f0e7e45ebb1cfcbb64366ff8a797ba165de69ab421e3b3e",
       "file": "prompts/data-analysis/optimize-a-slow-query.json"
     },
@@ -1149,10 +866,7 @@
       "title": "Spec a Dashboard",
       "description": "Decide what a dashboard should show before building it.",
       "category": "data-analysis",
-      "tags": [
-        "dashboard",
-        "visualization"
-      ],
+      "tags": ["dashboard", "visualization"],
       "checksum": "f9d9e2cc6e13a46601fda0761ce301744a0645684dcb73cc77f787c05946953b",
       "file": "prompts/data-analysis/spec-a-dashboard.json"
     },
@@ -1162,10 +876,7 @@
       "title": "Write a SQL Query",
       "description": "Compose a correct, efficient SQL query from a question.",
       "category": "data-analysis",
-      "tags": [
-        "sql",
-        "query"
-      ],
+      "tags": ["sql", "query"],
       "checksum": "e5be37d766b12ae3ceefea4b86f304082e21a77aa9f23ee0c5a139b900117e6c",
       "file": "prompts/data-analysis/write-a-sql-query.json"
     },
@@ -1175,11 +886,7 @@
       "title": "Add Strategic Logging",
       "description": "Instrument code to capture exactly the evidence a bug requires.",
       "category": "debugging",
-      "tags": [
-        "logging",
-        "observability",
-        "diagnosis"
-      ],
+      "tags": ["logging", "observability", "diagnosis"],
       "checksum": "5de727d551f898d370f2562266ed22385c824aa4edec6f439ccd462516917919",
       "file": "prompts/debugging/add-strategic-logging.json"
     },
@@ -1189,11 +896,7 @@
       "title": "Bisect a Regression",
       "description": "Track down which change introduced a regression.",
       "category": "debugging",
-      "tags": [
-        "regression",
-        "git-bisect",
-        "history"
-      ],
+      "tags": ["regression", "git-bisect", "history"],
       "checksum": "cfff3a6dacfc44e380c915ff5b71467a7b22735ea1c3214ad5c41d026965b17c",
       "file": "prompts/debugging/bisect-a-regression.json"
     },
@@ -1203,10 +906,7 @@
       "title": "Compare Expected vs Actual",
       "description": "Systematically find where two outputs diverge.",
       "category": "debugging",
-      "tags": [
-        "diff",
-        "comparison"
-      ],
+      "tags": ["diff", "comparison"],
       "checksum": "f9004ddea178e55a9efdcfa446e5145d9169367b018f8cb9d037a07687e613ea",
       "file": "prompts/debugging/compare-expected-vs-actual.json"
     },
@@ -1216,10 +916,7 @@
       "title": "Debug a Production-Only Bug",
       "description": "Works locally, fails in production — find the difference.",
       "category": "debugging",
-      "tags": [
-        "production",
-        "environment"
-      ],
+      "tags": ["production", "environment"],
       "checksum": "be49e928a3c4de1938f30d30dc47ca51ba022e0a50af2ba2baeea2b4425b50ea",
       "file": "prompts/debugging/debug-a-production-only-bug.json"
     },
@@ -1229,11 +926,7 @@
       "title": "Debug an Intermittent Failure",
       "description": "Track down a bug that only happens sometimes.",
       "category": "debugging",
-      "tags": [
-        "intermittent",
-        "flaky",
-        "race"
-      ],
+      "tags": ["intermittent", "flaky", "race"],
       "checksum": "6536da667bba13fce8d545f5d6d4a195e5a7edf9de50454f0348884920ae4ebc",
       "file": "prompts/debugging/debug-an-intermittent-failure.json"
     },
@@ -1243,11 +936,7 @@
       "title": "Debug Failing Test",
       "description": "Figure out why a specific test fails and whether the test or the code is wrong.",
       "category": "debugging",
-      "tags": [
-        "test",
-        "ci",
-        "flaky"
-      ],
+      "tags": ["test", "ci", "flaky"],
       "checksum": "05690158a0d09815c8d694b621572b37e81b002d61a592952e87ed0c622d3a7a",
       "file": "prompts/debugging/debug-failing-test.json"
     },
@@ -1257,10 +946,7 @@
       "title": "Debug with Print Statements",
       "description": "Find a bug systematically when no debugger is handy.",
       "category": "debugging",
-      "tags": [
-        "print-debugging",
-        "logging"
-      ],
+      "tags": ["print-debugging", "logging"],
       "checksum": "25fb721a14a686bffbf0cce89711cb5989878fe76910c831f6f801650f039bbe",
       "file": "prompts/debugging/debug-with-print-statements.json"
     },
@@ -1270,10 +956,7 @@
       "title": "Diagnose a Deadlock",
       "description": "Find why concurrent code hangs.",
       "category": "debugging",
-      "tags": [
-        "deadlock",
-        "concurrency"
-      ],
+      "tags": ["deadlock", "concurrency"],
       "checksum": "bd3a54cc32fcbb175c2a4a5a17ec05d859ca70b6b4a2f7b3d4b8cde0c8cd5900",
       "file": "prompts/debugging/diagnose-a-deadlock.json"
     },
@@ -1283,11 +966,7 @@
       "title": "Diagnose a Memory Leak",
       "description": "Find what is retaining memory that should be freed.",
       "category": "debugging",
-      "tags": [
-        "memory",
-        "leak",
-        "profiling"
-      ],
+      "tags": ["memory", "leak", "profiling"],
       "checksum": "f0b235ec5027dbc41659fb0b876632adf0be4e2b90eccd47a4dafa16b0cfda66",
       "file": "prompts/debugging/diagnose-a-memory-leak.json"
     },
@@ -1297,13 +976,7 @@
       "title": "Elite Bug Hunter",
       "description": "Autonomously discover, prove, fix, and verify exactly one real bug per round.",
       "category": "debugging",
-      "tags": [
-        "autonomous",
-        "bug-hunt",
-        "proof",
-        "regression",
-        "fix"
-      ],
+      "tags": ["autonomous", "bug-hunt", "proof", "regression", "fix"],
       "checksum": "55038a1f2f04a58ec5d0e1736944dbbe2b167d3f980a32522f91a302ee93fec9",
       "file": "prompts/debugging/elite-bug-hunter.json"
     },
@@ -1313,10 +986,7 @@
       "title": "Explain This Error",
       "description": "Decode a stack trace or error message and pinpoint the fix.",
       "category": "debugging",
-      "tags": [
-        "error",
-        "stacktrace"
-      ],
+      "tags": ["error", "stacktrace"],
       "checksum": "edad090ecd2248f0862ce6ea575c607dd900376b7a3b558008f1e555af675c05",
       "file": "prompts/debugging/explain-this-error.json"
     },
@@ -1326,11 +996,7 @@
       "title": "Heisenbug Hunt",
       "description": "Approach a bug that disappears under observation or happens only sometimes.",
       "category": "debugging",
-      "tags": [
-        "intermittent",
-        "race",
-        "nondeterminism"
-      ],
+      "tags": ["intermittent", "race", "nondeterminism"],
       "checksum": "41865e27be0568af9c10b3a9aa457dcb22d25de04747a32cef029b5a4064c633",
       "file": "prompts/debugging/heisenbug-hunt.json"
     },
@@ -1340,10 +1006,7 @@
       "title": "Minimal Reproduction",
       "description": "Reduce a bug to the smallest reliable reproduction.",
       "category": "debugging",
-      "tags": [
-        "repro",
-        "isolation"
-      ],
+      "tags": ["repro", "isolation"],
       "checksum": "57cdbdf2ec05f1732ec3b7d33828ee06dad9b918a87bbb319a8824ee89672dea",
       "file": "prompts/debugging/minimal-reproduction.json"
     },
@@ -1353,10 +1016,7 @@
       "title": "Read a Stack Trace",
       "description": "Interpret a stack trace and find the real culprit.",
       "category": "debugging",
-      "tags": [
-        "stack-trace",
-        "diagnosis"
-      ],
+      "tags": ["stack-trace", "diagnosis"],
       "checksum": "a1a5b2681032eda8903b8e186ed1862871197105743a988d1a4b837b6161caab",
       "file": "prompts/debugging/read-a-stack-trace.json"
     },
@@ -1366,11 +1026,7 @@
       "title": "Root Cause Analysis",
       "description": "Systematically find the true root cause of a bug, not just a symptom.",
       "category": "debugging",
-      "tags": [
-        "rca",
-        "bug",
-        "investigation"
-      ],
+      "tags": ["rca", "bug", "investigation"],
       "checksum": "d8d1bdd62b01a4afcf7472116d2371b59e014f7af5a340b23bce9e64a0e9bb79",
       "file": "prompts/debugging/root-cause-analysis.json"
     },
@@ -1380,10 +1036,7 @@
       "title": "Validate an Assumption",
       "description": "Test a belief you are relying on while debugging.",
       "category": "debugging",
-      "tags": [
-        "assumptions",
-        "verification"
-      ],
+      "tags": ["assumptions", "verification"],
       "checksum": "519dd2178be5f4cb93ff83386563aef3b32f04f923b2772bb29871e61aab9ff6",
       "file": "prompts/debugging/validate-an-assumption.json"
     },
@@ -1393,10 +1046,7 @@
       "title": "Why Is This Slow?",
       "description": "Diagnose a performance problem before optimizing.",
       "category": "debugging",
-      "tags": [
-        "performance",
-        "profiling"
-      ],
+      "tags": ["performance", "profiling"],
       "checksum": "2c94c5cc070dd32c922f9ae9e1c010c627790a0d9c121cbd1ff0300a143ed866",
       "file": "prompts/debugging/why-is-this-slow.json"
     },
@@ -1406,11 +1056,7 @@
       "title": "Author a CI Pipeline",
       "description": "Design a CI workflow that catches problems fast and cheaply.",
       "category": "devops",
-      "tags": [
-        "ci",
-        "pipeline",
-        "automation"
-      ],
+      "tags": ["ci", "pipeline", "automation"],
       "checksum": "17c9e735e9ca8fbeebf5466e9f907a41979dc5c13cf1c2807641722952568591",
       "file": "prompts/devops/author-a-ci-pipeline.json"
     },
@@ -1420,10 +1066,7 @@
       "title": "Configure Autoscaling",
       "description": "Scale a service with load without thrashing.",
       "category": "devops",
-      "tags": [
-        "autoscaling",
-        "scaling"
-      ],
+      "tags": ["autoscaling", "scaling"],
       "checksum": "05300ab7c5bb993027f0be88454dcdc8220a144440de00e6373df8b5c5c36cc6",
       "file": "prompts/devops/configure-autoscaling.json"
     },
@@ -1433,11 +1076,7 @@
       "title": "Debug a Failing Deploy",
       "description": "Systematically diagnose a deployment that won't come up.",
       "category": "devops",
-      "tags": [
-        "deploy",
-        "incident",
-        "troubleshooting"
-      ],
+      "tags": ["deploy", "incident", "troubleshooting"],
       "checksum": "cd30d0d7aff2f466bd84174b5685177e5a35a1825629c7a248bf6a6c931dd262",
       "file": "prompts/devops/debug-a-failing-deploy.json"
     },
@@ -1447,11 +1086,7 @@
       "title": "Design a Backup and Restore Plan",
       "description": "Plan backups you can actually restore from.",
       "category": "devops",
-      "tags": [
-        "backup",
-        "restore",
-        "disaster-recovery"
-      ],
+      "tags": ["backup", "restore", "disaster-recovery"],
       "checksum": "0cb666f040fb59c11428cfc9fa3480a26f84b84c4a5628312e807e82e2f69a8b",
       "file": "prompts/devops/design-a-backup-and-restore-plan.json"
     },
@@ -1461,11 +1096,7 @@
       "title": "Harden a Shell Script",
       "description": "Make a shell script safe, portable, and predictable.",
       "category": "devops",
-      "tags": [
-        "bash",
-        "scripting",
-        "safety"
-      ],
+      "tags": ["bash", "scripting", "safety"],
       "checksum": "b66ce523100eedda2bbd2360afbb441e9ced74d0ed78f819361c8e6b95b60a35",
       "file": "prompts/devops/harden-a-shell-script.json"
     },
@@ -1475,11 +1106,7 @@
       "title": "Incident Response Walkthrough",
       "description": "Run a calm, structured response to a live incident.",
       "category": "devops",
-      "tags": [
-        "incident",
-        "sre",
-        "mitigation"
-      ],
+      "tags": ["incident", "sre", "mitigation"],
       "checksum": "c702f2dff5d83bc10d83d91c6b98f336be745564342c7387f458bb455da0f2e9",
       "file": "prompts/devops/incident-response-walkthrough.json"
     },
@@ -1489,10 +1116,7 @@
       "title": "Plan a Zero-Downtime Deploy",
       "description": "Ship a change without dropping requests.",
       "category": "devops",
-      "tags": [
-        "deployment",
-        "zero-downtime"
-      ],
+      "tags": ["deployment", "zero-downtime"],
       "checksum": "8c1d389942d381c5ab67a2089bc759c0cfeae0cf6b8335e2cd6ba17caeaaac2e",
       "file": "prompts/devops/plan-a-zero-downtime-deploy.json"
     },
@@ -1502,11 +1126,7 @@
       "title": "Right-size Resource Limits",
       "description": "Set CPU and memory requests and limits sensibly.",
       "category": "devops",
-      "tags": [
-        "resources",
-        "tuning",
-        "cost"
-      ],
+      "tags": ["resources", "tuning", "cost"],
       "checksum": "523d7764dd760c6648bd1cde0470f9d9decd0ca74d025fa5362fd3ad4a7b5594",
       "file": "prompts/devops/right-size-resource-limits.json"
     },
@@ -1516,11 +1136,7 @@
       "title": "Set Up Observability",
       "description": "Instrument a service with metrics, logs, and traces that matter.",
       "category": "devops",
-      "tags": [
-        "observability",
-        "monitoring",
-        "metrics"
-      ],
+      "tags": ["observability", "monitoring", "metrics"],
       "checksum": "61dde105b6604a58cd1632b1de84c2fc61aeaf3ae64a4bda0712f059695960e2",
       "file": "prompts/devops/set-up-observability.json"
     },
@@ -1530,10 +1146,7 @@
       "title": "Set Up Secrets Management",
       "description": "Handle credentials without leaking them.",
       "category": "devops",
-      "tags": [
-        "secrets",
-        "security"
-      ],
+      "tags": ["secrets", "security"],
       "checksum": "2e70d4a4f12b4faae58d954fdb909c5893d0da651e9aa8d524b14f1449ddd769",
       "file": "prompts/devops/set-up-secrets-management.json"
     },
@@ -1543,11 +1156,7 @@
       "title": "Speed Up a Slow CI Pipeline",
       "description": "Make CI faster without losing safety.",
       "category": "devops",
-      "tags": [
-        "ci",
-        "performance",
-        "caching"
-      ],
+      "tags": ["ci", "performance", "caching"],
       "checksum": "ff7a394b7f2219496cecf3d358aa5e66dfcb8bf80fb51c73d2dabe0eec2edf78",
       "file": "prompts/devops/speed-up-a-slow-ci-pipeline.json"
     },
@@ -1557,11 +1166,7 @@
       "title": "Write a Deployment Runbook",
       "description": "Document how to deploy and roll back a service safely.",
       "category": "devops",
-      "tags": [
-        "runbook",
-        "operations",
-        "rollback"
-      ],
+      "tags": ["runbook", "operations", "rollback"],
       "checksum": "b7bfb9a8aa463cc6187d169976d785da12b2daea2d054e41ed065e53a08329a7",
       "file": "prompts/devops/write-a-deployment-runbook.json"
     },
@@ -1571,10 +1176,7 @@
       "title": "Write a Dockerfile",
       "description": "Produce a secure, small, well-layered Dockerfile.",
       "category": "devops",
-      "tags": [
-        "docker",
-        "containers"
-      ],
+      "tags": ["docker", "containers"],
       "checksum": "74a561f89f5f6f21f4113919a4675e411d5c0a18696297aeec96db3a3c7fbe5c",
       "file": "prompts/devops/write-a-dockerfile.json"
     },
@@ -1584,11 +1186,7 @@
       "title": "Write a Health Check",
       "description": "Design liveness and readiness checks that tell the truth.",
       "category": "devops",
-      "tags": [
-        "healthcheck",
-        "kubernetes",
-        "reliability"
-      ],
+      "tags": ["healthcheck", "kubernetes", "reliability"],
       "checksum": "142eb4bc9f3909ef6a3e190b900c1fade608a7d3cb38a7809299bb2a6fdb4ea6",
       "file": "prompts/devops/write-a-health-check.json"
     },
@@ -1598,11 +1196,7 @@
       "title": "Write a Kubernetes Manifest",
       "description": "Produce a sound Kubernetes deployment for a service.",
       "category": "devops",
-      "tags": [
-        "kubernetes",
-        "k8s",
-        "deploy"
-      ],
+      "tags": ["kubernetes", "k8s", "deploy"],
       "checksum": "d2aa7d2431f271cdb611f5717ad6542bdd47f1f8b2328f562a87bb334f7e85e2",
       "file": "prompts/devops/write-a-kubernetes-manifest.json"
     },
@@ -1612,11 +1206,7 @@
       "title": "Write Infrastructure as Code",
       "description": "Provision infrastructure declaratively and safely.",
       "category": "devops",
-      "tags": [
-        "iac",
-        "terraform",
-        "provisioning"
-      ],
+      "tags": ["iac", "terraform", "provisioning"],
       "checksum": "8904bd78ccf8c7a915d814b0e6fe418466167dd7e062d5960c36ed85718dabcb",
       "file": "prompts/devops/write-infrastructure-as-code.json"
     },
@@ -1626,11 +1216,7 @@
       "title": "Document a Configuration Reference",
       "description": "Produce a complete, scannable config reference.",
       "category": "documentation",
-      "tags": [
-        "config",
-        "reference",
-        "docs"
-      ],
+      "tags": ["config", "reference", "docs"],
       "checksum": "da1728f7752a89f65a2488c2016e9c98926d1c6cde584f3ca8e09c4b60f9b528",
       "file": "prompts/documentation/document-a-configuration-reference.json"
     },
@@ -1640,10 +1226,7 @@
       "title": "Document a Function",
       "description": "Write clear API documentation for a function or method.",
       "category": "documentation",
-      "tags": [
-        "api-docs",
-        "docstring"
-      ],
+      "tags": ["api-docs", "docstring"],
       "checksum": "d0b7369c56967c6f4698177135ff636b624b09c6f19ed1c73cd639065d828bfe",
       "file": "prompts/documentation/document-a-function.json"
     },
@@ -1653,11 +1236,7 @@
       "title": "Document an API Endpoint",
       "description": "Write reference docs for one HTTP endpoint.",
       "category": "documentation",
-      "tags": [
-        "api",
-        "reference",
-        "docs"
-      ],
+      "tags": ["api", "reference", "docs"],
       "checksum": "57469dd813ad2d5d49a9db681d3556a373717b89cf740fd1b0670a0aa2d69a4c",
       "file": "prompts/documentation/document-an-api-endpoint.json"
     },
@@ -1667,11 +1246,7 @@
       "title": "Document an Architecture",
       "description": "Write an architecture overview that orients a new engineer.",
       "category": "documentation",
-      "tags": [
-        "architecture",
-        "overview",
-        "onboarding"
-      ],
+      "tags": ["architecture", "overview", "onboarding"],
       "checksum": "2377541829f4eaa3ff61c5eadbd19f8e39983572974299a3d0a12c838371ef9b",
       "file": "prompts/documentation/document-an-architecture.json"
     },
@@ -1681,11 +1256,7 @@
       "title": "Explain a Concept Clearly",
       "description": "Teach a technical concept from intuition to detail.",
       "category": "documentation",
-      "tags": [
-        "explainer",
-        "teaching",
-        "concept"
-      ],
+      "tags": ["explainer", "teaching", "concept"],
       "checksum": "2708e44985b9d3b512dcb2a69d364c66288c2092035acdfdf744183343e90209",
       "file": "prompts/documentation/explain-a-concept-clearly.json"
     },
@@ -1695,11 +1266,7 @@
       "title": "Explain a Decision for Newcomers",
       "description": "Write down why something is the way it is.",
       "category": "documentation",
-      "tags": [
-        "onboarding",
-        "rationale",
-        "docs"
-      ],
+      "tags": ["onboarding", "rationale", "docs"],
       "checksum": "db9a1a71dc3f8436ea6d0ced9356492152ddd9a9900c854e1f066ef82ac93592",
       "file": "prompts/documentation/explain-a-decision-for-newcomers.json"
     },
@@ -1709,10 +1276,7 @@
       "title": "Generate a Changelog Entry",
       "description": "Summarize a change for users in a changelog.",
       "category": "documentation",
-      "tags": [
-        "changelog",
-        "release-notes"
-      ],
+      "tags": ["changelog", "release-notes"],
       "checksum": "421ea8660863b8f9d1437323bd34fe60bc2e98e2d6e6ff3a455e033b839939bc",
       "file": "prompts/documentation/generate-a-changelog-entry.json"
     },
@@ -1722,11 +1286,7 @@
       "title": "Write a Glossary",
       "description": "Define the terms a project keeps using.",
       "category": "documentation",
-      "tags": [
-        "glossary",
-        "terminology",
-        "docs"
-      ],
+      "tags": ["glossary", "terminology", "docs"],
       "checksum": "27351d1e61956fe82c989a1603fb7cfd02ca1706bd4c9f11195b5b661b5e478d",
       "file": "prompts/documentation/write-a-glossary.json"
     },
@@ -1736,11 +1296,7 @@
       "title": "Write a How-To Guide",
       "description": "Produce a task-focused guide that walks a user to a goal.",
       "category": "documentation",
-      "tags": [
-        "how-to",
-        "tutorial",
-        "guide"
-      ],
+      "tags": ["how-to", "tutorial", "guide"],
       "checksum": "890a0817fd5d5365544d185c920f87e230881cd4014226a84f04939d14cadd62",
       "file": "prompts/documentation/write-a-how-to-guide.json"
     },
@@ -1750,11 +1306,7 @@
       "title": "Write a Migration Guide",
       "description": "Help users upgrade across a breaking change.",
       "category": "documentation",
-      "tags": [
-        "migration",
-        "upgrade",
-        "docs"
-      ],
+      "tags": ["migration", "upgrade", "docs"],
       "checksum": "fea1e6e6f5903b224082c3d58b407a3714f6e86f65483b0c686a22b676bb8ae1",
       "file": "prompts/documentation/write-a-migration-guide.json"
     },
@@ -1764,11 +1316,7 @@
       "title": "Write a Quickstart",
       "description": "Get a new user to first success in minutes.",
       "category": "documentation",
-      "tags": [
-        "quickstart",
-        "onboarding",
-        "docs"
-      ],
+      "tags": ["quickstart", "onboarding", "docs"],
       "checksum": "5fa5e407c2bfc41cb588bd748ee24b85a09d9c3dbb57858b1f04ca27cea98883",
       "file": "prompts/documentation/write-a-quickstart.json"
     },
@@ -1778,11 +1326,7 @@
       "title": "Write a README",
       "description": "Create a README that gets a new user productive fast.",
       "category": "documentation",
-      "tags": [
-        "readme",
-        "docs",
-        "onboarding"
-      ],
+      "tags": ["readme", "docs", "onboarding"],
       "checksum": "75c7f3de406f69deb0c4e747de66f32027475eeaa7d6f5dda5cbd6365c47f32c",
       "file": "prompts/documentation/write-a-readme.json"
     },
@@ -1792,11 +1336,7 @@
       "title": "Write a Troubleshooting Guide",
       "description": "Help users diagnose common failures themselves.",
       "category": "documentation",
-      "tags": [
-        "troubleshooting",
-        "docs",
-        "support"
-      ],
+      "tags": ["troubleshooting", "docs", "support"],
       "checksum": "926e942e3d737d03d1e2b6df282478fcb9b9ca1d99b169047ae042c2bd25f4e2",
       "file": "prompts/documentation/write-a-troubleshooting-guide.json"
     },
@@ -1806,10 +1346,7 @@
       "title": "Write API Reference from Code",
       "description": "Turn a module's public surface into reference docs.",
       "category": "documentation",
-      "tags": [
-        "api-reference",
-        "docs"
-      ],
+      "tags": ["api-reference", "docs"],
       "checksum": "187267975c4f934bd51ad4bbc1bc3406699a0e0f21fdf5796511c8a840823937",
       "file": "prompts/documentation/write-api-reference-from-code.json"
     },
@@ -1819,10 +1356,7 @@
       "title": "Write Inline Comments",
       "description": "Add comments that explain why, not what.",
       "category": "documentation",
-      "tags": [
-        "comments",
-        "clarity"
-      ],
+      "tags": ["comments", "clarity"],
       "checksum": "246e61771e820797482d4df921a2caf2851780f06ffea4437fd927d24f58ae88",
       "file": "prompts/documentation/write-inline-comments.json"
     },
@@ -1832,11 +1366,7 @@
       "title": "Write Release Notes",
       "description": "Summarize a release for the people who use it.",
       "category": "documentation",
-      "tags": [
-        "release-notes",
-        "changelog",
-        "communication"
-      ],
+      "tags": ["release-notes", "changelog", "communication"],
       "checksum": "3969731ecb10c6e41243e3a445c961fa4624ba1a69d344291062b7de9535566a",
       "file": "prompts/documentation/write-release-notes.json"
     },
@@ -1846,10 +1376,7 @@
       "title": "Add a Self-Critique Step",
       "description": "Have the model check its own output before finishing.",
       "category": "meta-prompting",
-      "tags": [
-        "self-critique",
-        "verification"
-      ],
+      "tags": ["self-critique", "verification"],
       "checksum": "8676b5d53555d5731e1bb88bde2713e5f3cb31358a81f7686c7f437e275ae1de",
       "file": "prompts/meta-prompting/add-a-self-critique-step.json"
     },
@@ -1859,11 +1386,7 @@
       "title": "Add Few-Shot Examples",
       "description": "Design examples that steer model output by demonstration.",
       "category": "meta-prompting",
-      "tags": [
-        "few-shot",
-        "examples",
-        "prompt-engineering"
-      ],
+      "tags": ["few-shot", "examples", "prompt-engineering"],
       "checksum": "37d814e65f35f7fd025ff0690d25f435051ecd4bd8534e9e650e427b91834300",
       "file": "prompts/meta-prompting/add-few-shot-examples.json"
     },
@@ -1873,10 +1396,7 @@
       "title": "Convert Instructions to a System Prompt",
       "description": "Turn ad-hoc guidance into a reusable system prompt.",
       "category": "meta-prompting",
-      "tags": [
-        "system-prompt",
-        "reuse"
-      ],
+      "tags": ["system-prompt", "reuse"],
       "checksum": "202667d608498b693d26195d1efa7408f073acf68636029a69d17ed2b86db6ef",
       "file": "prompts/meta-prompting/convert-instructions-to-a-system-prompt.json"
     },
@@ -1886,10 +1406,7 @@
       "title": "Critique and Improve a Prompt",
       "description": "Diagnose why a prompt underperforms and fix it.",
       "category": "meta-prompting",
-      "tags": [
-        "prompt-engineering",
-        "critique"
-      ],
+      "tags": ["prompt-engineering", "critique"],
       "checksum": "338de0cec7f82b3339e012adae2488b16ff407c2f9facbc8667416dccd7f90bc",
       "file": "prompts/meta-prompting/critique-and-improve-a-prompt.json"
     },
@@ -1899,11 +1416,7 @@
       "title": "Debug a Bad AI Response",
       "description": "Figure out why a prompt gave a poor answer and fix it.",
       "category": "meta-prompting",
-      "tags": [
-        "debugging",
-        "prompt-engineering",
-        "diagnosis"
-      ],
+      "tags": ["debugging", "prompt-engineering", "diagnosis"],
       "checksum": "007fc542a0e2f21229d0e43e8f29b4876c18b7eccd662a15abd59835d338ce95",
       "file": "prompts/meta-prompting/debug-a-bad-ai-response.json"
     },
@@ -1913,11 +1426,7 @@
       "title": "Decompose a Complex Prompt",
       "description": "Split an overloaded prompt into a reliable sequence of steps.",
       "category": "meta-prompting",
-      "tags": [
-        "chaining",
-        "decomposition",
-        "prompt-engineering"
-      ],
+      "tags": ["chaining", "decomposition", "prompt-engineering"],
       "checksum": "a05793bfb2a34b350b4c11fc4e46c6c740d27ee58a525dbee414efba8b7edb47",
       "file": "prompts/meta-prompting/decompose-a-complex-prompt.json"
     },
@@ -1927,11 +1436,7 @@
       "title": "Design a Role Prompt",
       "description": "Write an effective system/role prompt for a recurring task.",
       "category": "meta-prompting",
-      "tags": [
-        "system-prompt",
-        "role",
-        "persona"
-      ],
+      "tags": ["system-prompt", "role", "persona"],
       "checksum": "5edda97ee531e3c77318c9cf067b5e753ffcecd98508cdc995fc7f728f9e3ee1",
       "file": "prompts/meta-prompting/design-a-role-prompt.json"
     },
@@ -1941,10 +1446,7 @@
       "title": "Design an Evaluation Rubric",
       "description": "Define how to judge whether an AI output is good.",
       "category": "meta-prompting",
-      "tags": [
-        "evaluation",
-        "rubric"
-      ],
+      "tags": ["evaluation", "rubric"],
       "checksum": "29b1971db28843dbfa3fe9b3e6931fe92929f4e609e262f6b39f741f82ddeeeb",
       "file": "prompts/meta-prompting/design-an-evaluation-rubric.json"
     },
@@ -1954,10 +1456,7 @@
       "title": "Improve My Prompt",
       "description": "Critique and rewrite a prompt to get better results.",
       "category": "meta-prompting",
-      "tags": [
-        "prompt-engineering",
-        "improve"
-      ],
+      "tags": ["prompt-engineering", "improve"],
       "checksum": "a872c602d71ccd993a356a0c9ea67f6d17cab1852f6514e732e16c3c94a3bd9e",
       "file": "prompts/meta-prompting/improve-my-prompt.json"
     },
@@ -1967,10 +1466,7 @@
       "title": "Make a Prompt Robust to Edge Cases",
       "description": "Harden a prompt against the inputs that break it.",
       "category": "meta-prompting",
-      "tags": [
-        "robustness",
-        "edge-cases"
-      ],
+      "tags": ["robustness", "edge-cases"],
       "checksum": "53f1fd7c2b6e8978678caa95e008bed90bdf27852f17ec37a7e47534388a9638",
       "file": "prompts/meta-prompting/make-a-prompt-robust-to-edge-cases.json"
     },
@@ -1980,11 +1476,7 @@
       "title": "Reduce a Prompt's Token Cost",
       "description": "Cut a prompt's token footprint without losing quality.",
       "category": "meta-prompting",
-      "tags": [
-        "tokens",
-        "cost",
-        "optimization"
-      ],
+      "tags": ["tokens", "cost", "optimization"],
       "checksum": "5e9e10e2e25edf92d7d0a842b353fccad0c41465cefc623ead80bab895934700",
       "file": "prompts/meta-prompting/reduce-a-prompt-s-token-cost.json"
     },
@@ -1994,10 +1486,7 @@
       "title": "Reduce Hallucination",
       "description": "Make a prompt ground its answers and admit uncertainty.",
       "category": "meta-prompting",
-      "tags": [
-        "hallucination",
-        "grounding"
-      ],
+      "tags": ["hallucination", "grounding"],
       "checksum": "5132da66e2920d51bf60bb3949e3c74e2834f5eabe4673c5ee0b2b678c414624",
       "file": "prompts/meta-prompting/reduce-hallucination.json"
     },
@@ -2007,11 +1496,7 @@
       "title": "Specify an Output Format",
       "description": "Pin down a structured output the prompt should produce.",
       "category": "meta-prompting",
-      "tags": [
-        "output-format",
-        "structure",
-        "json"
-      ],
+      "tags": ["output-format", "structure", "json"],
       "checksum": "413d802fb43f3adcc3425df4fad5e82104d7d0ce111e7e3a932ecc4f4d126958",
       "file": "prompts/meta-prompting/specify-an-output-format.json"
     },
@@ -2021,11 +1506,7 @@
       "title": "Turn a Vague Request into a Spec",
       "description": "Convert a fuzzy ask into a precise, answerable prompt.",
       "category": "meta-prompting",
-      "tags": [
-        "specification",
-        "clarify",
-        "prompt-engineering"
-      ],
+      "tags": ["specification", "clarify", "prompt-engineering"],
       "checksum": "8fa697dd9459b0c841b2beacecdee48241d4545bf7ff83480137205e94b62c90",
       "file": "prompts/meta-prompting/turn-a-vague-request-into-a-spec.json"
     },
@@ -2035,10 +1516,7 @@
       "title": "Write a Chain-of-Thought Prompt",
       "description": "Get a model to reason step by step before answering.",
       "category": "meta-prompting",
-      "tags": [
-        "chain-of-thought",
-        "reasoning"
-      ],
+      "tags": ["chain-of-thought", "reasoning"],
       "checksum": "749755f981bd1915a1ffb4fb6147b6fab27f9546470d1bf92f2af7a9a374e9ed",
       "file": "prompts/meta-prompting/write-a-chain-of-thought-prompt.json"
     },
@@ -2048,11 +1526,7 @@
       "title": "Write Reusable Prompt Template",
       "description": "Generalize a one-off prompt into a parameterized template.",
       "category": "meta-prompting",
-      "tags": [
-        "template",
-        "reuse",
-        "variables"
-      ],
+      "tags": ["template", "reuse", "variables"],
       "checksum": "ae6ef347d819537062d3908ae95dda300791b036378120da7a276032571190b8",
       "file": "prompts/meta-prompting/write-reusable-prompt-template.json"
     },
@@ -2062,13 +1536,7 @@
       "title": "Elite Performance Ratchet",
       "description": "Run one measure-change-measure round: baseline, one hypothesis, verify, then keep it or revert it.",
       "category": "performance",
-      "tags": [
-        "autonomous",
-        "ratchet",
-        "benchmark",
-        "measurement",
-        "revert"
-      ],
+      "tags": ["autonomous", "ratchet", "benchmark", "measurement", "revert"],
       "checksum": "3a77d04bedfcccf45b56096be806dea507aa291e96ef24b2b90f12e360eae679",
       "file": "prompts/performance/elite-performance-ratchet.json"
     },
@@ -2078,13 +1546,7 @@
       "title": "Performance Baseline and Bottleneck Audit",
       "description": "Read-only audit that ranks the real cost centres and gives the command that would prove each one.",
       "category": "performance",
-      "tags": [
-        "audit",
-        "baseline",
-        "bottleneck",
-        "read-only",
-        "profiling"
-      ],
+      "tags": ["audit", "baseline", "bottleneck", "read-only", "profiling"],
       "checksum": "835bf6cab86b952490551102a824129821607f9aca58bf65db17458839604674",
       "file": "prompts/performance/performance-baseline-audit.json"
     },
@@ -2094,12 +1556,7 @@
       "title": "Performance Contract",
       "description": "The standing rules for every performance change: measure first, one variable, revert what is not measurably better.",
       "category": "performance",
-      "tags": [
-        "contract",
-        "rules",
-        "measurement",
-        "discipline"
-      ],
+      "tags": ["contract", "rules", "measurement", "discipline"],
       "checksum": "aee0b5b54028530aa290228749b9f33e5dd6a175cdac38fc91818eb56efca87d",
       "file": "prompts/performance/performance-contract.json"
     },
@@ -2109,12 +1566,7 @@
       "title": "CPU Hot Path Reduction",
       "description": "Profile-first reduction of a named hot path, cheapest wins first, micro-optimisation last.",
       "category": "performance",
-      "tags": [
-        "cpu",
-        "profiling",
-        "hot-path",
-        "allocations"
-      ],
+      "tags": ["cpu", "profiling", "hot-path", "allocations"],
       "checksum": "3177ee6ce81fb2f5c65adc88e6b9e71d236d03e9b9d4b9a4300d7c3a7808079f",
       "file": "prompts/performance/performance-cpu-hot-path.json"
     },
@@ -2124,13 +1576,7 @@
       "title": "I/O, Network and Concurrency Bottlenecks",
       "description": "Map every boundary crossing for N+1 calls, blocking work, missing timeouts, pool saturation, and serialisation points.",
       "category": "performance",
-      "tags": [
-        "io",
-        "network",
-        "concurrency",
-        "n-plus-one",
-        "latency"
-      ],
+      "tags": ["io", "network", "concurrency", "n-plus-one", "latency"],
       "checksum": "33721c12487504bd4dfd240b5e05c26b4b9b12a708b8117f2f41b495439ee905",
       "file": "prompts/performance/performance-io-concurrency.json"
     },
@@ -2140,13 +1586,7 @@
       "title": "Memory Growth and Retention Hunt",
       "description": "Find unbounded growth, lifetime mismatch, subscription and resource leaks, plus the soak test that confirms each.",
       "category": "performance",
-      "tags": [
-        "memory",
-        "leak",
-        "retention",
-        "soak-test",
-        "heap"
-      ],
+      "tags": ["memory", "leak", "retention", "soak-test", "heap"],
       "checksum": "8054f036d20528f64b46100461e236deebb85fd847d3402d587831cbec8e26ca",
       "file": "prompts/performance/performance-memory-hunt.json"
     },
@@ -2156,11 +1596,7 @@
       "title": "Performance Quick Triage",
       "description": "Three highest-leverage performance problems, each with the smallest fix and the command that proves it.",
       "category": "performance",
-      "tags": [
-        "triage",
-        "quick",
-        "ranking"
-      ],
+      "tags": ["triage", "quick", "ranking"],
       "checksum": "022f6eb49f0dbc940f039c161be93db10f8f987374040b7988807df27ace2a07",
       "file": "prompts/performance/performance-quick-triage.json"
     },
@@ -2170,13 +1606,7 @@
       "title": "Performance Regression Guard",
       "description": "Pick the metrics that matter, baseline them, and wire a check that fails on regression and ratchets on improvement.",
       "category": "performance",
-      "tags": [
-        "regression",
-        "guard",
-        "ci",
-        "baseline",
-        "ratchet"
-      ],
+      "tags": ["regression", "guard", "ci", "baseline", "ratchet"],
       "checksum": "f723665f92493b7f78704b1a3b011fd06a2aaa92da9b6ffd21a3c8c8ad257b73",
       "file": "prompts/performance/performance-regression-guard.json"
     },
@@ -2186,11 +1616,7 @@
       "title": "Critique a Feature Idea",
       "description": "Stress-test a product idea before committing to it.",
       "category": "product",
-      "tags": [
-        "critique",
-        "product-sense",
-        "validation"
-      ],
+      "tags": ["critique", "product-sense", "validation"],
       "checksum": "39f6d63a6c1eedcd19106e5e5ef463d47c7e145699420bf83e0cac02f789a9db",
       "file": "prompts/product/critique-a-feature-idea.json"
     },
@@ -2200,11 +1626,7 @@
       "title": "Decide Build vs Buy",
       "description": "Reason through building something yourself versus adopting it.",
       "category": "product",
-      "tags": [
-        "build-vs-buy",
-        "decision",
-        "tradeoffs"
-      ],
+      "tags": ["build-vs-buy", "decision", "tradeoffs"],
       "checksum": "df20ea2f6d46785980131647ffa9a439efa0d963d839934e1721bc6fd731e921",
       "file": "prompts/product/decide-build-vs-buy.json"
     },
@@ -2214,10 +1636,7 @@
       "title": "Define a Target Persona",
       "description": "Sharpen who you are building for.",
       "category": "product",
-      "tags": [
-        "persona",
-        "users"
-      ],
+      "tags": ["persona", "users"],
       "checksum": "b640ceb8599ff025bd83f24dc731799a60cb3b83bfb3b3950af25e09b1eec906",
       "file": "prompts/product/define-a-target-persona.json"
     },
@@ -2227,11 +1646,7 @@
       "title": "Define Success Metrics",
       "description": "Choose metrics that prove a feature worked.",
       "category": "product",
-      "tags": [
-        "metrics",
-        "success",
-        "north-star"
-      ],
+      "tags": ["metrics", "success", "north-star"],
       "checksum": "e5a1b0d3e6827c3b288c93df97cfbe28538c5d48bec65ae83ba0ca31bf8fcd68",
       "file": "prompts/product/define-success-metrics.json"
     },
@@ -2241,10 +1656,7 @@
       "title": "Map a User Journey",
       "description": "Trace the end-to-end experience to find friction.",
       "category": "product",
-      "tags": [
-        "user-journey",
-        "ux"
-      ],
+      "tags": ["user-journey", "ux"],
       "checksum": "1d116c9050f8f68cdaf32f052e8c228dbbf87d1c54151f01134710f11a1a7d4c",
       "file": "prompts/product/map-a-user-journey.json"
     },
@@ -2254,10 +1666,7 @@
       "title": "Plan a Product Launch",
       "description": "Sequence the work to ship and land a launch.",
       "category": "product",
-      "tags": [
-        "launch",
-        "go-to-market"
-      ],
+      "tags": ["launch", "go-to-market"],
       "checksum": "0968aba6bff814cd27c507a5267306dbb32805402ae860f07b1a9ffddb9e6282",
       "file": "prompts/product/plan-a-product-launch.json"
     },
@@ -2267,11 +1676,7 @@
       "title": "Plan an MVP",
       "description": "Scope the smallest version that tests the core bet.",
       "category": "product",
-      "tags": [
-        "mvp",
-        "scope",
-        "lean"
-      ],
+      "tags": ["mvp", "scope", "lean"],
       "checksum": "e7d08fd48f1c8a09d88201b75fe4f2756ee513a59672ef827bed9c53e7bf3fbf",
       "file": "prompts/product/plan-an-mvp.json"
     },
@@ -2281,11 +1686,7 @@
       "title": "Prioritize a Backlog",
       "description": "Rank competing work by value and cost transparently.",
       "category": "product",
-      "tags": [
-        "prioritization",
-        "backlog",
-        "roadmap"
-      ],
+      "tags": ["prioritization", "backlog", "roadmap"],
       "checksum": "7f488935f8eb734f2cfbd6a2fea413adabe09e830b1839f26b74b6af550980ce",
       "file": "prompts/product/prioritize-a-backlog.json"
     },
@@ -2295,10 +1696,7 @@
       "title": "Prioritize with RICE",
       "description": "Rank competing initiatives objectively.",
       "category": "product",
-      "tags": [
-        "prioritization",
-        "rice"
-      ],
+      "tags": ["prioritization", "rice"],
       "checksum": "da3ce2842f6f9586a75ee0b424e6a04d2a4a735a3856b1afd41b5309b69cf717",
       "file": "prompts/product/prioritize-with-rice.json"
     },
@@ -2308,11 +1706,7 @@
       "title": "Run a Pre-Mortem",
       "description": "Imagine the project failed and work backward to prevent it.",
       "category": "product",
-      "tags": [
-        "pre-mortem",
-        "risk",
-        "planning"
-      ],
+      "tags": ["pre-mortem", "risk", "planning"],
       "checksum": "c9cfa9fc2f150b3d4a175b9ec7ca24e6a05c0e19f51d3e0353aa8eeb291a5b6f",
       "file": "prompts/product/run-a-pre-mortem.json"
     },
@@ -2322,11 +1716,7 @@
       "title": "Turn Feedback into Action",
       "description": "Convert raw user feedback into prioritized product changes.",
       "category": "product",
-      "tags": [
-        "user-feedback",
-        "synthesis",
-        "action"
-      ],
+      "tags": ["user-feedback", "synthesis", "action"],
       "checksum": "5d2ef07ef0b54a61d7139448957933ad90f8f0c2705748377b303da438565d67",
       "file": "prompts/product/turn-feedback-into-action.json"
     },
@@ -2336,10 +1726,7 @@
       "title": "Write a Competitive Analysis",
       "description": "Size up alternatives honestly to find your angle.",
       "category": "product",
-      "tags": [
-        "competition",
-        "strategy"
-      ],
+      "tags": ["competition", "strategy"],
       "checksum": "dc432a62a6e4fc1c34c6e89212368b96a4396c3a25bf50aa530275a3711a40a8",
       "file": "prompts/product/write-a-competitive-analysis.json"
     },
@@ -2349,11 +1736,7 @@
       "title": "Write a PRD",
       "description": "Draft a crisp product requirements document.",
       "category": "product",
-      "tags": [
-        "prd",
-        "product",
-        "spec"
-      ],
+      "tags": ["prd", "product", "spec"],
       "checksum": "6ffa423418b7b7adeb4004b52d9294caadf9ee77290337480f1965aff6802f8d",
       "file": "prompts/product/write-a-prd.json"
     },
@@ -2363,10 +1746,7 @@
       "title": "Write a Problem Statement",
       "description": "Sharpen a vague problem before proposing solutions.",
       "category": "product",
-      "tags": [
-        "problem-framing",
-        "discovery"
-      ],
+      "tags": ["problem-framing", "discovery"],
       "checksum": "d26d94d0efa57a2afd665864f181526a41dfe7839fa17c9b0f2f86100bc5f591",
       "file": "prompts/product/write-a-problem-statement.json"
     },
@@ -2376,11 +1756,7 @@
       "title": "Write a User Story",
       "description": "Capture a requirement as a clear user story with acceptance criteria.",
       "category": "product",
-      "tags": [
-        "user-story",
-        "requirements",
-        "agile"
-      ],
+      "tags": ["user-story", "requirements", "agile"],
       "checksum": "62c737cce3412f43d3edf9f47e86002c23d2a00c84c6019747e12d271e57d65e",
       "file": "prompts/product/write-a-user-story.json"
     },
@@ -2390,10 +1766,7 @@
       "title": "Write a User Story with Acceptance Criteria",
       "description": "Turn a feature idea into a buildable, testable story.",
       "category": "product",
-      "tags": [
-        "user-story",
-        "acceptance-criteria"
-      ],
+      "tags": ["user-story", "acceptance-criteria"],
       "checksum": "3c8131bc8166dae686ccc138398373d990cb491cada71fbfaa69bbd4edb3b07b",
       "file": "prompts/product/write-a-user-story-with-acceptance-criteria.json"
     },
@@ -2403,10 +1776,7 @@
       "title": "Extract an Interface",
       "description": "Decouple a caller from a concrete implementation.",
       "category": "refactoring",
-      "tags": [
-        "interface",
-        "decoupling"
-      ],
+      "tags": ["interface", "decoupling"],
       "checksum": "33ac1e0ecdabdd82507c70f6f56e2664353132e666fdae0af7cae223ee48b116",
       "file": "prompts/refactoring/extract-an-interface.json"
     },
@@ -2416,10 +1786,7 @@
       "title": "Extract and Decompose",
       "description": "Break a large function or class into well-named, focused units.",
       "category": "refactoring",
-      "tags": [
-        "decomposition",
-        "srp"
-      ],
+      "tags": ["decomposition", "srp"],
       "checksum": "d9ad91490b5463914e48df426303cb11316b3c5ea0490d126c2863644a5e98cb",
       "file": "prompts/refactoring/extract-and-decompose.json"
     },
@@ -2429,10 +1796,7 @@
       "title": "Introduce a Design Pattern",
       "description": "Apply an appropriate design pattern to untangle code — or argue against it.",
       "category": "refactoring",
-      "tags": [
-        "patterns",
-        "design"
-      ],
+      "tags": ["patterns", "design"],
       "checksum": "428c2c0f5678020d411aba06b17fa34936b0128ea0be01c87fb944767854b2a2",
       "file": "prompts/refactoring/introduce-a-design-pattern.json"
     },
@@ -2442,10 +1806,7 @@
       "title": "Make a Function Pure",
       "description": "Remove hidden side effects and dependencies.",
       "category": "refactoring",
-      "tags": [
-        "purity",
-        "side-effects"
-      ],
+      "tags": ["purity", "side-effects"],
       "checksum": "356c43c7de3f4ef1e6c8fc3ba284f82972a303c0e06cc24ae0a8fc4d5bf63db8",
       "file": "prompts/refactoring/make-a-function-pure.json"
     },
@@ -2455,11 +1816,7 @@
       "title": "Make Code Testable",
       "description": "Restructure hard-to-test code to enable unit testing.",
       "category": "refactoring",
-      "tags": [
-        "testability",
-        "di",
-        "seams"
-      ],
+      "tags": ["testability", "di", "seams"],
       "checksum": "f8a178d293081127854ac9a67d5d3f1b799664c99174ea0f198bb6633e1f5e3c",
       "file": "prompts/refactoring/make-code-testable.json"
     },
@@ -2469,10 +1826,7 @@
       "title": "Modernize Legacy Code",
       "description": "Bring old code up to current language idioms and APIs.",
       "category": "refactoring",
-      "tags": [
-        "legacy",
-        "modernization"
-      ],
+      "tags": ["legacy", "modernization"],
       "checksum": "7499bbfb95711c96a683425299a5ab2bec7747d44b377f2983f63651b60f174a",
       "file": "prompts/refactoring/modernize-legacy-code.json"
     },
@@ -2482,10 +1836,7 @@
       "title": "Reduce Cyclomatic Complexity",
       "description": "Flatten deeply nested or branch-heavy logic.",
       "category": "refactoring",
-      "tags": [
-        "complexity",
-        "control-flow"
-      ],
+      "tags": ["complexity", "control-flow"],
       "checksum": "742729cc456aa7136562d4354c5e42cf3689d47e6a87605b57ade627044323a4",
       "file": "prompts/refactoring/reduce-cyclomatic-complexity.json"
     },
@@ -2495,10 +1846,7 @@
       "title": "Refactor for Readability",
       "description": "Improve clarity of a function without changing its behavior.",
       "category": "refactoring",
-      "tags": [
-        "readability",
-        "clean-code"
-      ],
+      "tags": ["readability", "clean-code"],
       "checksum": "db92452a9dba48b0a33435f4e59f16005b0ad0980b644db223bfda60f85e5677",
       "file": "prompts/refactoring/refactor-for-readability.json"
     },
@@ -2508,10 +1856,7 @@
       "title": "Remove Duplication",
       "description": "Find and consolidate duplicated logic safely.",
       "category": "refactoring",
-      "tags": [
-        "dry",
-        "duplication"
-      ],
+      "tags": ["dry", "duplication"],
       "checksum": "63f11cf2e920bebbb8afb448d5db54d6bf53366ff66428419b96b3e9e7cb118a",
       "file": "prompts/refactoring/remove-duplication.json"
     },
@@ -2521,10 +1866,7 @@
       "title": "Rename for Clarity",
       "description": "Propose better names for confusing identifiers.",
       "category": "refactoring",
-      "tags": [
-        "naming",
-        "readability"
-      ],
+      "tags": ["naming", "readability"],
       "checksum": "97acab4068f6faec1d4db0d630187fa1408e0e78afcf54383cf3533871f5c8d5",
       "file": "prompts/refactoring/rename-for-clarity.json"
     },
@@ -2534,10 +1876,7 @@
       "title": "Replace Conditional with Polymorphism",
       "description": "Turn a sprawling type-switch into polymorphic dispatch, or leave it.",
       "category": "refactoring",
-      "tags": [
-        "polymorphism",
-        "conditionals"
-      ],
+      "tags": ["polymorphism", "conditionals"],
       "checksum": "d8ea156d8bc7ac4192270694b77ad992b33e363e959aaacb3387099a1af81d47",
       "file": "prompts/refactoring/replace-conditional-with-polymorphism.json"
     },
@@ -2547,10 +1886,7 @@
       "title": "Replace Magic Values with Constants",
       "description": "Name unexplained literals scattered through code.",
       "category": "refactoring",
-      "tags": [
-        "constants",
-        "readability"
-      ],
+      "tags": ["constants", "readability"],
       "checksum": "f2adc67ddc5f0b9fe7d761a769612beb746d953a34fe282d6c9c10444cb61d36",
       "file": "prompts/refactoring/replace-magic-values-with-constants.json"
     },
@@ -2560,10 +1896,7 @@
       "title": "Simplify a Boolean Expression",
       "description": "Make complex conditional logic readable and correct.",
       "category": "refactoring",
-      "tags": [
-        "boolean-logic",
-        "conditionals"
-      ],
+      "tags": ["boolean-logic", "conditionals"],
       "checksum": "2e7d99a0d99ceb1f5ac1fc0add02d531163c522c68e5fd2c522b161843eff879",
       "file": "prompts/refactoring/simplify-a-boolean-expression.json"
     },
@@ -2573,10 +1906,7 @@
       "title": "Split a God Object",
       "description": "Break an overgrown class or function into focused pieces.",
       "category": "refactoring",
-      "tags": [
-        "god-object",
-        "cohesion"
-      ],
+      "tags": ["god-object", "cohesion"],
       "checksum": "dca06a8ca1e741865a580d2e8263fe5516adc6cf431ee9613020f6b64439c68e",
       "file": "prompts/refactoring/split-a-god-object.json"
     },
@@ -2586,10 +1916,7 @@
       "title": "Tidy First, Then Change",
       "description": "Separate a structural cleanup from a behavioral change in two steps.",
       "category": "refactoring",
-      "tags": [
-        "tidy-first",
-        "safe-change"
-      ],
+      "tags": ["tidy-first", "safe-change"],
       "checksum": "46c86a98a4e88a534f9e2068dbba1cfc0424d10a6a39bae05ced78d9667d2e70",
       "file": "prompts/refactoring/tidy-first-then-change.json"
     },
@@ -2599,10 +1926,7 @@
       "title": "Untangle a Circular Dependency",
       "description": "Break a cycle between modules.",
       "category": "refactoring",
-      "tags": [
-        "dependencies",
-        "modularity"
-      ],
+      "tags": ["dependencies", "modularity"],
       "checksum": "be70c8038ca107b3d558de0c2040a2795c81409a1be2cf23b7855d300aaf3e42",
       "file": "prompts/refactoring/untangle-a-circular-dependency.json"
     },
@@ -2612,10 +1936,7 @@
       "title": "Build a Reading List",
       "description": "Curate an ordered path into a topic.",
       "category": "research",
-      "tags": [
-        "reading-list",
-        "learning"
-      ],
+      "tags": ["reading-list", "learning"],
       "checksum": "850bac339a0fafde72a656473133b12eea5080d17a900c172cf488061c9d6aeb",
       "file": "prompts/research/build-a-reading-list.json"
     },
@@ -2625,11 +1946,7 @@
       "title": "Compare Options",
       "description": "Evaluate competing tools, libraries, or approaches against your needs.",
       "category": "research",
-      "tags": [
-        "comparison",
-        "evaluation",
-        "decision"
-      ],
+      "tags": ["comparison", "evaluation", "decision"],
       "checksum": "a7e434af9186602969177a5c042b8792df5c1a3ac4577ccfcab27da2ab5410ba",
       "file": "prompts/research/compare-options.json"
     },
@@ -2639,11 +1956,7 @@
       "title": "Compare Options with a Decision Matrix",
       "description": "Evaluate choices against weighted criteria.",
       "category": "research",
-      "tags": [
-        "decision",
-        "comparison",
-        "tradeoffs"
-      ],
+      "tags": ["decision", "comparison", "tradeoffs"],
       "checksum": "494d4947eb40cef5633ec4e7fa2454fb4f46ea6f35b3c59b0a82bc6a50a14a2a",
       "file": "prompts/research/compare-options-with-a-decision-matrix.json"
     },
@@ -2653,11 +1966,7 @@
       "title": "Devise Experiments to Decide",
       "description": "Turn an open question into experiments that resolve it.",
       "category": "research",
-      "tags": [
-        "experiment",
-        "hypothesis",
-        "validation"
-      ],
+      "tags": ["experiment", "hypothesis", "validation"],
       "checksum": "82a5f05b0fb2f00b3182a50b4f7cc04fd24bc60a0f9e26db5547de708a4975b0",
       "file": "prompts/research/devise-experiments-to-decide.json"
     },
@@ -2667,11 +1976,7 @@
       "title": "Evaluate a Claim's Evidence",
       "description": "Assess how well-supported a claim actually is.",
       "category": "research",
-      "tags": [
-        "evidence",
-        "skepticism",
-        "verification"
-      ],
+      "tags": ["evidence", "skepticism", "verification"],
       "checksum": "ddb9f094cb67d53f1cc96d21f0326431368b03bb862a7072befa12ab5ddd3be9",
       "file": "prompts/research/evaluate-a-claim-s-evidence.json"
     },
@@ -2681,10 +1986,7 @@
       "title": "Fact-Check a Claim",
       "description": "Assess whether a specific claim holds up.",
       "category": "research",
-      "tags": [
-        "fact-check",
-        "verification"
-      ],
+      "tags": ["fact-check", "verification"],
       "checksum": "767579294f5a74d1fb4180153878bad5ede7775fbcd63bc92d11cc0d3376174f",
       "file": "prompts/research/fact-check-a-claim.json"
     },
@@ -2694,10 +1996,7 @@
       "title": "Find the Strongest Counterargument",
       "description": "Stress-test a position by steelmanning the other side.",
       "category": "research",
-      "tags": [
-        "critical-thinking",
-        "steelman"
-      ],
+      "tags": ["critical-thinking", "steelman"],
       "checksum": "8d64d118bf2dba24b062950c14ec5c98427a0577a989083090b682173607fa14",
       "file": "prompts/research/find-the-strongest-counterargument.json"
     },
@@ -2707,10 +2006,7 @@
       "title": "Identify Knowledge Gaps",
       "description": "Find what you don't yet know about a question.",
       "category": "research",
-      "tags": [
-        "gaps",
-        "unknowns"
-      ],
+      "tags": ["gaps", "unknowns"],
       "checksum": "36540c0aa38d5cc07eca147ea7363626030176b44e41c39c266ccc0d00ff86b0",
       "file": "prompts/research/identify-knowledge-gaps.json"
     },
@@ -2720,11 +2016,7 @@
       "title": "Learn a New Topic Fast",
       "description": "Build an efficient learning path for an unfamiliar topic.",
       "category": "research",
-      "tags": [
-        "learning",
-        "onboarding",
-        "study-plan"
-      ],
+      "tags": ["learning", "onboarding", "study-plan"],
       "checksum": "2a50201e0b71a2a0aa2add92551d334631183deda2fd6d00c149298c29260dd6",
       "file": "prompts/research/learn-a-new-topic-fast.json"
     },
@@ -2734,11 +2026,7 @@
       "title": "Literature/Prior-Art Scan",
       "description": "Map what's already known or built before you start.",
       "category": "research",
-      "tags": [
-        "prior-art",
-        "survey",
-        "research"
-      ],
+      "tags": ["prior-art", "survey", "research"],
       "checksum": "000062ff4ec35e6a02f6b24cf65d18116016935091ddb5cc43fa111a043523c1",
       "file": "prompts/research/literature-prior-art-scan.json"
     },
@@ -2748,10 +2036,7 @@
       "title": "Plan a Literature Search",
       "description": "Find what's known about a topic systematically.",
       "category": "research",
-      "tags": [
-        "search",
-        "literature"
-      ],
+      "tags": ["search", "literature"],
       "checksum": "28a1a1a5feb17dddcc0cea6c7e849accd5aa2af0486cafb9edf601735d2831cd",
       "file": "prompts/research/plan-a-literature-search.json"
     },
@@ -2761,10 +2046,7 @@
       "title": "Question Decomposition",
       "description": "Break a big, fuzzy question into answerable sub-questions.",
       "category": "research",
-      "tags": [
-        "decomposition",
-        "analysis"
-      ],
+      "tags": ["decomposition", "analysis"],
       "checksum": "38bcf5c5c52a0320d556f4f334185086be09d31504d3f794007eb97fa54afe07",
       "file": "prompts/research/question-decomposition.json"
     },
@@ -2774,11 +2056,7 @@
       "title": "Steelman and Critique",
       "description": "Pressure-test an idea by arguing both sides well.",
       "category": "research",
-      "tags": [
-        "critical-thinking",
-        "steelman",
-        "debate"
-      ],
+      "tags": ["critical-thinking", "steelman", "debate"],
       "checksum": "88ee3a2c3779e1112783f14a5a5f27372932bdb8128594e89966ad5609071385",
       "file": "prompts/research/steelman-and-critique.json"
     },
@@ -2788,10 +2066,7 @@
       "title": "Summarize a Source for a Goal",
       "description": "Extract from a text only what serves your purpose.",
       "category": "research",
-      "tags": [
-        "summarizing",
-        "synthesis"
-      ],
+      "tags": ["summarizing", "synthesis"],
       "checksum": "a593bdcd017d9cedeea277a2c715587318c452bdda96b1a26279a61e1a109977",
       "file": "prompts/research/summarize-a-source-for-a-goal.json"
     },
@@ -2801,11 +2076,7 @@
       "title": "Synthesize Multiple Sources",
       "description": "Reconcile several sources into a coherent, honest picture.",
       "category": "research",
-      "tags": [
-        "synthesis",
-        "sources",
-        "reconciliation"
-      ],
+      "tags": ["synthesis", "sources", "reconciliation"],
       "checksum": "b8619d2f3bb0eecca7d3ad9def1e2f02391a9415398871f5cffd937a8c4a6d1d",
       "file": "prompts/research/synthesize-multiple-sources.json"
     },
@@ -2815,11 +2086,7 @@
       "title": "Triangulate Conflicting Sources",
       "description": "Reconcile sources that disagree.",
       "category": "research",
-      "tags": [
-        "sources",
-        "synthesis",
-        "conflict"
-      ],
+      "tags": ["sources", "synthesis", "conflict"],
       "checksum": "7cdb2932fb8a30f88f38ed211d7506a31734b7af7752bc032529ce69fce3c788",
       "file": "prompts/research/triangulate-conflicting-sources.json"
     },
@@ -2829,11 +2096,7 @@
       "title": "Diagnose a Flaky Test",
       "description": "Find and fix the source of test flakiness.",
       "category": "testing",
-      "tags": [
-        "flaky",
-        "determinism",
-        "ci"
-      ],
+      "tags": ["flaky", "determinism", "ci"],
       "checksum": "2517ed6d3a696dd4a4de55ded4793f4ba6be6874188ebd32f019373bae241785",
       "file": "prompts/testing/diagnose-a-flaky-test.json"
     },
@@ -2843,10 +2106,7 @@
       "title": "Edge Case Enumeration",
       "description": "Brainstorm the edge cases a piece of functionality must handle.",
       "category": "testing",
-      "tags": [
-        "edge-cases",
-        "boundaries"
-      ],
+      "tags": ["edge-cases", "boundaries"],
       "checksum": "dbf460f30429663d9923a30a06b5fff4b85f39d304ac8f8dee09caada4524f6b",
       "file": "prompts/testing/edge-case-enumeration.json"
     },
@@ -2856,10 +2116,7 @@
       "title": "Increase Test Coverage",
       "description": "Find untested branches and add the tests that matter.",
       "category": "testing",
-      "tags": [
-        "coverage",
-        "gaps"
-      ],
+      "tags": ["coverage", "gaps"],
       "checksum": "f6a03585aa4dc96ac57bf614edba381bde63183c0cc177caf85d1cb9ea9231cf",
       "file": "prompts/testing/increase-test-coverage.json"
     },
@@ -2869,10 +2126,7 @@
       "title": "Mock or Use the Real Thing",
       "description": "Decide what to fake in a test and what to keep real.",
       "category": "testing",
-      "tags": [
-        "mocking",
-        "test-design"
-      ],
+      "tags": ["mocking", "test-design"],
       "checksum": "43575a13e4a8de35cb3f6333bd4f8c6c8769241441a5f386e0172ec9fdfa7af9",
       "file": "prompts/testing/mock-or-use-the-real-thing.json"
     },
@@ -2882,10 +2136,7 @@
       "title": "Parameterize a Test",
       "description": "Turn repetitive tests into one table-driven test.",
       "category": "testing",
-      "tags": [
-        "table-driven",
-        "parameterized"
-      ],
+      "tags": ["table-driven", "parameterized"],
       "checksum": "f41616c444c99e6d981636d0d2d4d0573347c5ccef6539076e58160291ee5c45",
       "file": "prompts/testing/parameterize-a-test.json"
     },
@@ -2895,11 +2146,7 @@
       "title": "Property-Based Tests",
       "description": "Design property-based tests that assert invariants over generated inputs.",
       "category": "testing",
-      "tags": [
-        "property-based",
-        "invariants",
-        "fuzzing"
-      ],
+      "tags": ["property-based", "invariants", "fuzzing"],
       "checksum": "21d0c4508d7af66ca0d8d8bff4fe8e6a0a55dc3e534cfd3bded051b68f7d6811",
       "file": "prompts/testing/property-based-tests.json"
     },
@@ -2909,10 +2156,7 @@
       "title": "Review Test Quality",
       "description": "Critique a test suite for what it actually guarantees.",
       "category": "testing",
-      "tags": [
-        "test-review",
-        "assertions"
-      ],
+      "tags": ["test-review", "assertions"],
       "checksum": "b67fcd4d09432f89714a013c26ef651588b8fc2cacf15a2ca1401816b6b77854",
       "file": "prompts/testing/review-test-quality.json"
     },
@@ -2922,10 +2166,7 @@
       "title": "Set Up Test Fixtures",
       "description": "Build clean, reusable test setup and data.",
       "category": "testing",
-      "tags": [
-        "fixtures",
-        "setup"
-      ],
+      "tags": ["fixtures", "setup"],
       "checksum": "6c39501e332490340c321e24c767c0d628407206ad2712aabc86cb4ef794236d",
       "file": "prompts/testing/set-up-test-fixtures.json"
     },
@@ -2935,11 +2176,7 @@
       "title": "Snapshot vs Assertion",
       "description": "Choose the right testing technique for an output.",
       "category": "testing",
-      "tags": [
-        "snapshot",
-        "assertions",
-        "test-design"
-      ],
+      "tags": ["snapshot", "assertions", "test-design"],
       "checksum": "560a6e7fd18201d2ca8793973f14d33eedcc6f180c1c3aee492e68fc7b442523",
       "file": "prompts/testing/snapshot-vs-assertion.json"
     },
@@ -2949,10 +2186,7 @@
       "title": "Test-Driven Development",
       "description": "Drive an implementation from tests, red-green-refactor.",
       "category": "testing",
-      "tags": [
-        "tdd",
-        "red-green-refactor"
-      ],
+      "tags": ["tdd", "red-green-refactor"],
       "checksum": "04c024c8572af80740827198cd1b009069c022adc712605edf6ba85f24133621",
       "file": "prompts/testing/test-driven-development.json"
     },
@@ -2962,10 +2196,7 @@
       "title": "Test Error Paths",
       "description": "Write tests for the failure cases, not just the happy path.",
       "category": "testing",
-      "tags": [
-        "error-paths",
-        "negative-tests"
-      ],
+      "tags": ["error-paths", "negative-tests"],
       "checksum": "72a027dc8fa45048cc2f448d29ea90535744343f7161b7fcf0f5068ced1aa4e8",
       "file": "prompts/testing/test-error-paths.json"
     },
@@ -2975,10 +2206,7 @@
       "title": "Test Time-Dependent Code",
       "description": "Test logic that depends on clocks, dates, or timeouts.",
       "category": "testing",
-      "tags": [
-        "time",
-        "determinism"
-      ],
+      "tags": ["time", "determinism"],
       "checksum": "5a43b074f68d022e150a95200263e95e7ff7e49245adba9183e62ccd70346124",
       "file": "prompts/testing/test-time-dependent-code.json"
     },
@@ -2988,10 +2216,7 @@
       "title": "Write a Regression Test",
       "description": "Lock in a bug fix so it can never silently return.",
       "category": "testing",
-      "tags": [
-        "regression",
-        "bug-fix"
-      ],
+      "tags": ["regression", "bug-fix"],
       "checksum": "310e50fcc28d2df10697d841c4c3bc2d9b9741ae7a7a8bd5228a1917d81f80f0",
       "file": "prompts/testing/write-a-regression-test.json"
     },
@@ -3001,10 +2226,7 @@
       "title": "Write a Test Plan",
       "description": "Plan what to test before writing any tests.",
       "category": "testing",
-      "tags": [
-        "test-plan",
-        "strategy"
-      ],
+      "tags": ["test-plan", "strategy"],
       "checksum": "985ed19267a5c9623eafe08e3f87e2fbd8c391f9fb735622d179105b564838ce",
       "file": "prompts/testing/write-a-test-plan.json"
     },
@@ -3014,10 +2236,7 @@
       "title": "Write an Integration Test",
       "description": "Test how components work together against real-ish dependencies.",
       "category": "testing",
-      "tags": [
-        "integration",
-        "e2e"
-      ],
+      "tags": ["integration", "e2e"],
       "checksum": "7ad4d7bbd68ef1af35b827bdad1305d60b6c407b9260b9e22de26ce15868444b",
       "file": "prompts/testing/write-an-integration-test.json"
     },
@@ -3027,10 +2246,7 @@
       "title": "Write Unit Tests",
       "description": "Generate focused unit tests for a function, including edge cases.",
       "category": "testing",
-      "tags": [
-        "unit-tests",
-        "coverage"
-      ],
+      "tags": ["unit-tests", "coverage"],
       "checksum": "4f213264f5507a97239982c58c6535b731d191de2e94c37ebc02599e0ee09e5c",
       "file": "prompts/testing/write-unit-tests.json"
     },
@@ -3040,10 +2256,7 @@
       "title": "Adapt Tone for an Audience",
       "description": "Rewrite the same content for a different reader.",
       "category": "writing",
-      "tags": [
-        "tone",
-        "audience"
-      ],
+      "tags": ["tone", "audience"],
       "checksum": "d5b4214e7dd83a324b863352e4168c6813ada9db10a4073092dbeef8542b8553",
       "file": "prompts/writing/adapt-tone-for-an-audience.json"
     },
@@ -3053,11 +2266,7 @@
       "title": "Adjust Tone",
       "description": "Rewrite text to hit a specific tone and audience.",
       "category": "writing",
-      "tags": [
-        "tone",
-        "rewrite",
-        "audience"
-      ],
+      "tags": ["tone", "rewrite", "audience"],
       "checksum": "c81eddcd73c898e1b4b2ef5ab4d6f9b55066b88044bf1d6363bb38d54e03b886",
       "file": "prompts/writing/adjust-tone.json"
     },
@@ -3067,10 +2276,7 @@
       "title": "Convert Passive to Active",
       "description": "Make limp, passive prose direct and clear.",
       "category": "writing",
-      "tags": [
-        "editing",
-        "style"
-      ],
+      "tags": ["editing", "style"],
       "checksum": "0de3e1938133f6b6af064132215cc7b8c17aa9815ac3375180082b31298d6f02",
       "file": "prompts/writing/convert-passive-to-active.json"
     },
@@ -3080,10 +2286,7 @@
       "title": "Draft a Technical Email",
       "description": "Write a clear, actionable email about a technical matter.",
       "category": "writing",
-      "tags": [
-        "email",
-        "communication"
-      ],
+      "tags": ["email", "communication"],
       "checksum": "6f5b7d5496c7721fb421c563c7dd827bcf9bd30d16da66f28d7b20341da83992",
       "file": "prompts/writing/draft-a-technical-email.json"
     },
@@ -3093,11 +2296,7 @@
       "title": "Edit for Clarity and Concision",
       "description": "Tighten prose without losing meaning or voice.",
       "category": "writing",
-      "tags": [
-        "editing",
-        "clarity",
-        "concision"
-      ],
+      "tags": ["editing", "clarity", "concision"],
       "checksum": "29d273481e2e3e1143ba6344f37c5cfe7623066d2b5aa92d482386500c5a6b6e",
       "file": "prompts/writing/edit-for-clarity-and-concision.json"
     },
@@ -3107,10 +2306,7 @@
       "title": "Give Constructive Feedback",
       "description": "Phrase critique so it's heard and actionable.",
       "category": "writing",
-      "tags": [
-        "feedback",
-        "communication"
-      ],
+      "tags": ["feedback", "communication"],
       "checksum": "5c5034fdf69a5bf51ff80a78a85812c52db8b0493c0ba4f42ffc4314d028d115",
       "file": "prompts/writing/give-constructive-feedback.json"
     },
@@ -3120,11 +2316,7 @@
       "title": "Outline a Presentation",
       "description": "Structure a talk so it lands with an audience.",
       "category": "writing",
-      "tags": [
-        "presentation",
-        "outline",
-        "speaking"
-      ],
+      "tags": ["presentation", "outline", "speaking"],
       "checksum": "ecc11ac86f0e7a962c0d0689c3738227d55e8fb048c6d37780aab72ad53adddf",
       "file": "prompts/writing/outline-a-presentation.json"
     },
@@ -3134,10 +2326,7 @@
       "title": "Rewrite to Remove Jargon",
       "description": "Make specialist text accessible without dumbing it down.",
       "category": "writing",
-      "tags": [
-        "plain-language",
-        "accessibility"
-      ],
+      "tags": ["plain-language", "accessibility"],
       "checksum": "dfbce6c2486efc2be4d626c2d88e05ec757fe18820e49a79b599c8d4220c90d3",
       "file": "prompts/writing/rewrite-to-remove-jargon.json"
     },
@@ -3147,10 +2336,7 @@
       "title": "Structure a Long Document",
       "description": "Find the right outline for a sprawling piece.",
       "category": "writing",
-      "tags": [
-        "structure",
-        "outline"
-      ],
+      "tags": ["structure", "outline"],
       "checksum": "1afa1db8a8e40aa42452451d704c8106f472766723c04ac866ba1eafa9fe1201",
       "file": "prompts/writing/structure-a-long-document.json"
     },
@@ -3160,10 +2346,7 @@
       "title": "Summarize a Document",
       "description": "Produce a faithful, useful summary at the right altitude.",
       "category": "writing",
-      "tags": [
-        "summary",
-        "tldr"
-      ],
+      "tags": ["summary", "tldr"],
       "checksum": "61ac70c14f36c2a742ffc8fe513a02187a29ccd8e80d3bc4a66c1a1233532537",
       "file": "prompts/writing/summarize-a-document.json"
     },
@@ -3173,10 +2356,7 @@
       "title": "Tighten Wordy Prose",
       "description": "Cut a passage down without losing meaning.",
       "category": "writing",
-      "tags": [
-        "editing",
-        "concision"
-      ],
+      "tags": ["editing", "concision"],
       "checksum": "197626a22eeff96d77527a73acb768acd2a66c595127b46c7d55a487080fa1a6",
       "file": "prompts/writing/tighten-wordy-prose.json"
     },
@@ -3186,11 +2366,7 @@
       "title": "Write a Commit Message",
       "description": "Craft a clear, conventional commit message from a change.",
       "category": "writing",
-      "tags": [
-        "git",
-        "commit",
-        "conventions"
-      ],
+      "tags": ["git", "commit", "conventions"],
       "checksum": "884dca2bbccfc842349d84f966d0aaa8d47075199cc706e30d64339db90402e9",
       "file": "prompts/writing/write-a-commit-message.json"
     },
@@ -3200,10 +2376,7 @@
       "title": "Write a FAQ",
       "description": "Answer the questions people actually keep asking.",
       "category": "writing",
-      "tags": [
-        "faq",
-        "docs"
-      ],
+      "tags": ["faq", "docs"],
       "checksum": "978352403bcbf6566b2532979a860e3c1cb604c6974f310d88ea76d95a978322",
       "file": "prompts/writing/write-a-faq.json"
     },
@@ -3213,10 +2386,7 @@
       "title": "Write a Proposal",
       "description": "Make a persuasive, well-structured case for an idea.",
       "category": "writing",
-      "tags": [
-        "proposal",
-        "persuasion"
-      ],
+      "tags": ["proposal", "persuasion"],
       "checksum": "0de0954b480f98742c6b76ae990c6e6c1a81b9297dfb46823c070328a3c4d309",
       "file": "prompts/writing/write-a-proposal.json"
     },
@@ -3226,10 +2396,7 @@
       "title": "Write a Strong Opening",
       "description": "Draft openings that earn the reader's attention.",
       "category": "writing",
-      "tags": [
-        "openings",
-        "hooks"
-      ],
+      "tags": ["openings", "hooks"],
       "checksum": "bc8d70d9e86cf3df04cfb18fe4512a91b91807ce18480fbfbacdbda86cb131f0",
       "file": "prompts/writing/write-a-strong-opening.json"
     },
@@ -3239,10 +2406,7 @@
       "title": "Write an Executive Summary",
       "description": "Compress a long document into what a decider needs.",
       "category": "writing",
-      "tags": [
-        "executive-summary",
-        "concision"
-      ],
+      "tags": ["executive-summary", "concision"],
       "checksum": "cf09a4f4304be9fc6c6348fe149fa1e21b290880d2d7a754ad0bf5db4189f9f3",
       "file": "prompts/writing/write-an-executive-summary.json"
     }

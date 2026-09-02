@@ -5,10 +5,7 @@
   "description": "Separate a structural cleanup from a behavioral change in two steps.",
   "content": "I need to make this change: {{change}}\n\nTo the code:\n\n```\n{{code}}\n```\n\nApply 'tidy first': propose a structural-only refactor (no behavior change) that makes the upcoming change easy, then make the behavioral change as a clean second step. Present them as two separate diffs so each is independently reviewable and revertible.",
   "category": "refactoring",
-  "tags": [
-    "tidy-first",
-    "safe-change"
-  ],
+  "tags": ["tidy-first", "safe-change"],
   "source": "builtin",
   "favorite": false,
   "checksum": "46c86a98a4e88a534f9e2068dbba1cfc0424d10a6a39bae05ced78d9667d2e70",

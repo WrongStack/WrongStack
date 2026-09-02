@@ -5,10 +5,7 @@
   "description": "Diagnose why a prompt underperforms and fix it.",
   "content": "Critique and improve this prompt:\n\n{{prompt}}\n\nDiagnose its weaknesses: ambiguity, missing context, conflicting instructions, no success criteria, or an unclear output format. Rewrite it to fix the biggest problems, and explain each change so I learn the principle, not just the patch. Keep it as short as it can be while still being unambiguous. If the prompt is asking for the wrong thing entirely, say so.",
   "category": "meta-prompting",
-  "tags": [
-    "prompt-engineering",
-    "critique"
-  ],
+  "tags": ["prompt-engineering", "critique"],
   "source": "builtin",
   "favorite": false,
   "checksum": "338de0cec7f82b3339e012adae2488b16ff407c2f9facbc8667416dccd7f90bc",

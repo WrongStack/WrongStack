@@ -18,7 +18,11 @@ afterAll(async () => {
   await fs.rm(tempDir, { recursive: true, force: true });
 });
 
-async function edgeOf(from: string, to: string, relation: string): Promise<{ weight: number } | undefined> {
+async function edgeOf(
+  from: string,
+  to: string,
+  relation: string,
+): Promise<{ weight: number } | undefined> {
   const edges = await store.graphFor(from, 1, 20);
   return edges.find((e) => e.from === from && e.to === to && e.relation === relation);
 }

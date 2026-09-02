@@ -159,7 +159,17 @@ describe('quickDecide — blocked-resolved heuristic', () => {
   });
 
   it('matches all resolution markers', () => {
-    for (const marker of ['resolved', 'fixed', 'completed', 'unblocked', 'available', 'done', 'merged', 'landed', 'shipped']) {
+    for (const marker of [
+      'resolved',
+      'fixed',
+      'completed',
+      'unblocked',
+      'available',
+      'done',
+      'merged',
+      'landed',
+      'shipped',
+    ]) {
       const d = quickDecide(
         req({
           question: 'Work is blocked by upstream',
@@ -219,16 +229,12 @@ describe('quickDecide — blocked-resolved heuristic', () => {
 
 describe('quickDecide — goal complete passthrough', () => {
   it('returns null for goal-complete questions (defers to LLM)', () => {
-    const d = quickDecide(
-      req({ question: 'Is the goal complete?' }),
-    );
+    const d = quickDecide(req({ question: 'Is the goal complete?' }));
     expect(d).toBeNull();
   });
 
   it('returns null for mission-complete questions', () => {
-    const d = quickDecide(
-      req({ question: 'mission complete — verify all acceptance criteria' }),
-    );
+    const d = quickDecide(req({ question: 'mission complete — verify all acceptance criteria' }));
     expect(d).toBeNull();
   });
 });

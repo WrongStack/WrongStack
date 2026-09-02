@@ -120,8 +120,12 @@ export function buildChimeraReviewTaskDescription(p: ChimeraReviewNeededPayload)
   lines.push('---');
   lines.push('');
   lines.push('**Review Instructions:**');
-  lines.push('- Review the diffs and new file contents carefully for real bugs, broken logic, null dereferences, and security gaps.');
-  lines.push('- Stay strictly within the scoped diffs. DO NOT audit unchanged files, pre-existing debt, or stylistic preferences.');
+  lines.push(
+    '- Review the diffs and new file contents carefully for real bugs, broken logic, null dereferences, and security gaps.',
+  );
+  lines.push(
+    '- Stay strictly within the scoped diffs. DO NOT audit unchanged files, pre-existing debt, or stylistic preferences.',
+  );
   lines.push('- Use tools only when you need surrounding lines to verify a concrete issue.');
   lines.push('- Once the diff is validated, output your report (findings or all-clear) promptly.');
 

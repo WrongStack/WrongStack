@@ -87,9 +87,7 @@ describe('applySocketMessage', () => {
   });
 
   it('ignores a frame type it does not know (forward compatibility)', () => {
-    expect(() =>
-      applySocketMessage(useHqStore, { type: 'hq.heartbeat' } as never),
-    ).not.toThrow();
+    expect(() => applySocketMessage(useHqStore, { type: 'hq.heartbeat' } as never)).not.toThrow();
     expect(() =>
       applySocketMessage(useHqStore, { type: 'hq.some_future_frame' } as never),
     ).not.toThrow();

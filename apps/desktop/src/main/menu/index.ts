@@ -8,7 +8,11 @@ import type { MenuBuilderContext, ProjectMenuActions } from './types.js';
 import { buildProjectsMenu } from './projects-menu.js';
 import { buildFileMenu, buildWorkspaceMenu, buildViewMenu } from './sections.js';
 
-export { buildProjectsMenu, normalizeMenuRoot, groupProjectRuntimesForMenu } from './projects-menu.js';
+export {
+  buildProjectsMenu,
+  normalizeMenuRoot,
+  groupProjectRuntimesForMenu,
+} from './projects-menu.js';
 export * from './types.js';
 
 /**
@@ -56,7 +60,15 @@ export function configureApplicationMenu(ctx: MenuBuilderContext): void {
   };
 
   const template: import('electron').MenuItemConstructorOptions[] = [
-    buildFileMenu(ctx, actions, hasActiveRuntime, hasActiveProjectWebui, active, navigate, ctx.getActiveRuntimeId),
+    buildFileMenu(
+      ctx,
+      actions,
+      hasActiveRuntime,
+      hasActiveProjectWebui,
+      active,
+      navigate,
+      ctx.getActiveRuntimeId,
+    ),
     {
       label: ctx.t('projects'),
       submenu: buildProjectsMenu(snapshot.runtimes, actions, ctx.t),

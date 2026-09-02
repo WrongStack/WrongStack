@@ -5,10 +5,7 @@
   "description": "Make limp, passive prose direct and clear.",
   "content": "Rewrite this to be more direct:\n\n{{text}}\n\nTurn passive constructions into active where it adds clarity and names the actor — but keep passive where the actor is unknown or irrelevant, or where the object is genuinely the point. Replace nominalizations (decisions were made) with verbs (we decided). Show the rewrite and point out the one or two changes that most sharpen it. Don't mechanically kill every passive; preserve meaning and tone.",
   "category": "writing",
-  "tags": [
-    "editing",
-    "style"
-  ],
+  "tags": ["editing", "style"],
   "source": "builtin",
   "favorite": false,
   "checksum": "0de3e1938133f6b6af064132215cc7b8c17aa9815ac3375180082b31298d6f02",

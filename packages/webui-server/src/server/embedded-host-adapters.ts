@@ -414,9 +414,7 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
     ...(ctx.getAgent
       ? {
           hasSession: (id: string) =>
-            ctx.peekAgent
-              ? ctx.peekAgent(id) !== undefined || id === actx.session?.id
-              : true,
+            ctx.peekAgent ? ctx.peekAgent(id) !== undefined || id === actx.session?.id : true,
         }
       : {}),
     ...(ctx.isSessionLive ? { isSessionLive: ctx.isSessionLive } : {}),

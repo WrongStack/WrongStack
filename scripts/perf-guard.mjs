@@ -90,7 +90,8 @@ try {
 }
 
 const selected = baseline.entries.filter((entry) => (ONLY ? entry.id.startsWith(ONLY) : true));
-if (selected.length === 0) die(ONLY ? `no probe id starts with "${ONLY}"` : 'baseline has no entries');
+if (selected.length === 0)
+  die(ONLY ? `no probe id starts with "${ONLY}"` : 'baseline has no entries');
 
 /** id → measured value for this run. */
 const current = {};

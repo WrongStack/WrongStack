@@ -5,10 +5,7 @@
   "description": "Make a persuasive, well-structured case for an idea.",
   "content": "Help me write a proposal for: {{idea}}\n\nStructure: the problem and why it matters now, the proposed solution, the expected benefit (quantified if possible), the cost and risks (stated honestly), and the alternatives considered. Lead with the reader's interest, not mine. Pre-empt the strongest objection. Keep it tight enough that a busy decision-maker reads the whole thing.",
   "category": "writing",
-  "tags": [
-    "proposal",
-    "persuasion"
-  ],
+  "tags": ["proposal", "persuasion"],
   "source": "builtin",
   "favorite": false,
   "checksum": "0de0954b480f98742c6b76ae990c6e6c1a81b9297dfb46823c070328a3c4d309",

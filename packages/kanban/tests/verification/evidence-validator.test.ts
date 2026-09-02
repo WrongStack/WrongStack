@@ -78,9 +78,7 @@ describe('EvidenceValidator', () => {
       const v = new EvidenceValidator({ minRefs: 3 });
       const result = v.validate(
         makeResult({
-          backingRefs: [
-            { kind: 'file', path: 'src/test.ts', summary: 'Changed something' },
-          ],
+          backingRefs: [{ kind: 'file', path: 'src/test.ts', summary: 'Changed something' }],
         }),
       );
       expect(result.valid).toBe(false);
@@ -91,9 +89,7 @@ describe('EvidenceValidator', () => {
       const v = new EvidenceValidator();
       const result = v.validate(
         makeResult({
-          backingRefs: [
-            { kind: 'file', path: 'src/test.ts', summary: 'passed' },
-          ],
+          backingRefs: [{ kind: 'file', path: 'src/test.ts', summary: 'passed' }],
         }),
       );
       expect(result.valid).toBe(false);
@@ -106,9 +102,7 @@ describe('EvidenceValidator', () => {
       });
       const result = v.validate(
         makeResult({
-          backingRefs: [
-            { kind: 'file', path: 'src/test.ts', summary: 'Added 3 files' },
-          ],
+          backingRefs: [{ kind: 'file', path: 'src/test.ts', summary: 'Added 3 files' }],
         }),
       );
       expect(result.valid).toBe(false);

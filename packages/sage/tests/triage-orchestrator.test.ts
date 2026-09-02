@@ -47,10 +47,7 @@ describe('orchestrator — full pipeline', () => {
   });
 
   it('produces a TriageReport with all required fields', async () => {
-    const memories = [
-      makeMem('a', { importance: 0.6 }),
-      makeMem('b', { importance: 0.6 }),
-    ];
+    const memories = [makeMem('a', { importance: 0.6 }), makeMem('b', { importance: 0.6 })];
     const mockLlm: LlmCallFn = async () => '4 | useful';
     const report = await runTriage(memories, mockLlm);
 
@@ -84,10 +81,10 @@ describe('orchestrator — full pipeline', () => {
 describe('orchestrator — phase distribution', () => {
   it('counts phase 1 keep/discard/uncertain correctly', async () => {
     const memories = [
-      makeMem('keep1', { importance: 1.0 }),         // → keep
+      makeMem('keep1', { importance: 1.0 }), // → keep
       makeMem('keep2', { persistence: 'permanent' }), // → keep
       makeMem('disc1', { text: '', importance: 0.3 }), // → discard
-      makeMem('unc1', { importance: 0.6 }),           // → uncertain
+      makeMem('unc1', { importance: 0.6 }), // → uncertain
     ];
     const mockLlm: LlmCallFn = async () => '4 | useful';
     const report = await runTriage(memories, mockLlm);
@@ -100,8 +97,21 @@ describe('orchestrator — phase distribution', () => {
   it('counts phase 2 keep/gray/discard distribution', async () => {
     const memories = [
       // Uncertain → phase 2 scoring
-      makeMem('good', { importance: 0.6, anchors: [{ type: 'file', path: 'src/a.ts' }], tags: ['x', 'y'], confidence: 0.8, lastVerifiedAt: '2026-08-04T12:00:00.000Z' }),
-      makeMem('bad', { anchors: [], tags: [], confidence: 0.1, persistence: 'short_lived', lastVerifiedAt: '2025-01-01T00:00:00.000Z', text: 'short' }),
+      makeMem('good', {
+        importance: 0.6,
+        anchors: [{ type: 'file', path: 'src/a.ts' }],
+        tags: ['x', 'y'],
+        confidence: 0.8,
+        lastVerifiedAt: '2026-08-04T12:00:00.000Z',
+      }),
+      makeMem('bad', {
+        anchors: [],
+        tags: [],
+        confidence: 0.1,
+        persistence: 'short_lived',
+        lastVerifiedAt: '2025-01-01T00:00:00.000Z',
+        text: 'short',
+      }),
     ];
     const mockLlm: LlmCallFn = async () => 'NO';
     const report = await runTriage(memories, mockLlm);
@@ -110,7 +120,9 @@ describe('orchestrator — phase distribution', () => {
     expect(report.phaseStats.phase2Gray).toBeGreaterThanOrEqual(0);
     expect(report.phaseStats.phase2Discard).toBeGreaterThanOrEqual(0);
     // Total should equal uncertain count
-    expect(report.phaseStats.phase2Keep + report.phaseStats.phase2Gray + report.phaseStats.phase2Discard).toBe(report.phaseStats.phase1Uncertain);
+    expect(
+      report.phaseStats.phase2Keep + report.phaseStats.phase2Gray + report.phaseStats.phase2Discard,
+    ).toBe(report.phaseStats.phase1Uncertain);
   });
 });
 
@@ -161,7 +173,11 @@ describe('orchestrator — dispatch output', () => {
   it('produces autoApply updates for LLM=4 memories', async () => {
     const memories = [
       // importance < 0.9, so Phase 1 uncertain, Phase 2 gray, Phase 3 evaluated
-      makeMem('a', { importance: 0.6, confidence: 0.5, anchors: [{ type: 'file', path: 'src/x.ts' }] }),
+      makeMem('a', {
+        importance: 0.6,
+        confidence: 0.5,
+        anchors: [{ type: 'file', path: 'src/x.ts' }],
+      }),
     ];
 
     const mockLlm: LlmCallFn = async () => '4 | useful';
@@ -169,8 +185,8 @@ describe('orchestrator — dispatch output', () => {
 
     // LLM=4 + det ≥ 40 → keep → bump confidence to 0.8
     expect(report.dispatch.autoApply.length).toBeGreaterThan(0);
-    const confUpdate = report.dispatch.autoApply.find(
-      (a) => a.updates.some((u) => u.field === 'confidence'),
+    const confUpdate = report.dispatch.autoApply.find((a) =>
+      a.updates.some((u) => u.field === 'confidence'),
     );
     expect(confUpdate).toBeDefined();
   });
@@ -259,9 +275,7 @@ describe('orchestrator — cost reporting', () => {
 describe('orchestrator — max limits', () => {
   it('respects maxPhase3Calls', async () => {
     // Create 5 gray-zone memories
-    const memories = Array.from({ length: 5 }, (_, i) =>
-      makeMem(`m${i}`, { importance: 0.6 }),
-    );
+    const memories = Array.from({ length: 5 }, (_, i) => makeMem(`m${i}`, { importance: 0.6 }));
 
     let callCount = 0;
     const mockLlm: LlmCallFn = async () => {

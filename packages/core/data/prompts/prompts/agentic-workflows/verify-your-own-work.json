@@ -5,11 +5,7 @@
   "description": "Make an agent adversarially check what it just produced.",
   "content": "You just completed: {{work}}\n\nNow adversarially verify it before declaring done. Re-read the original requirements and check each one is actually met. Look for: edge cases you skipped, claims you didn't test, and places you assumed instead of confirming. Actually run/check rather than asserting it works. Report what you verified, what you couldn't, and any issue you found — don't just say 'looks good'.",
   "category": "agentic-workflows",
-  "tags": [
-    "verification",
-    "self-check",
-    "quality"
-  ],
+  "tags": ["verification", "self-check", "quality"],
   "source": "builtin",
   "favorite": false,
   "checksum": "3d5674a24ecf8c393d6308407ef3a8169232efbd8e675739aa1c4332e247f485",

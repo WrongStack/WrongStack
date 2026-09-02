@@ -360,13 +360,19 @@ const plugin: Plugin = {
         const rawUsage = p?.usage as Record<string, unknown> | undefined;
         const inputTokens =
           (typeof rawUsage?.['input'] === 'number' ? rawUsage['input'] : undefined) ??
-          (typeof rawUsage?.['prompt_tokens'] === 'number' ? rawUsage['prompt_tokens'] : undefined) ??
+          (typeof rawUsage?.['prompt_tokens'] === 'number'
+            ? rawUsage['prompt_tokens']
+            : undefined) ??
           (typeof rawUsage?.['input_tokens'] === 'number' ? rawUsage['input_tokens'] : undefined) ??
           (typeof rawUsage?.['promptTokens'] === 'number' ? rawUsage['promptTokens'] : 0);
         const outputTokens =
           (typeof rawUsage?.['output'] === 'number' ? rawUsage['output'] : undefined) ??
-          (typeof rawUsage?.['completion_tokens'] === 'number' ? rawUsage['completion_tokens'] : undefined) ??
-          (typeof rawUsage?.['output_tokens'] === 'number' ? rawUsage['output_tokens'] : undefined) ??
+          (typeof rawUsage?.['completion_tokens'] === 'number'
+            ? rawUsage['completion_tokens']
+            : undefined) ??
+          (typeof rawUsage?.['output_tokens'] === 'number'
+            ? rawUsage['output_tokens']
+            : undefined) ??
           (typeof rawUsage?.['completionTokens'] === 'number' ? rawUsage['completionTokens'] : 0);
         state.totalInputTokens += inputTokens;
         state.totalOutputTokens += outputTokens;
@@ -408,7 +414,9 @@ const plugin: Plugin = {
       async execute(input: { preview?: boolean | undefined } = {}) {
         if (!cfg.enabled) return { ok: false, error: 'pr-drafter is disabled' };
         const raw = (input ?? {}) as Record<string, unknown>;
-        const preview = Boolean(input?.preview ?? raw['dryRun'] ?? raw['dry_run'] ?? raw['dry'] ?? raw['previewOnly']);
+        const preview = Boolean(
+          input?.preview ?? raw['dryRun'] ?? raw['dry_run'] ?? raw['dry'] ?? raw['previewOnly'],
+        );
         const rawOutputPath =
           raw['outputPath'] ??
           raw['output_path'] ??
@@ -418,7 +426,10 @@ const plugin: Plugin = {
           raw['TargetFile'] ??
           raw['targetFile'] ??
           cfg.outputPath;
-        const outputPathStr = typeof rawOutputPath === 'string' && rawOutputPath.trim().length > 0 ? rawOutputPath.trim() : cfg.outputPath;
+        const outputPathStr =
+          typeof rawOutputPath === 'string' && rawOutputPath.trim().length > 0
+            ? rawOutputPath.trim()
+            : cfg.outputPath;
         const draft = await buildDraft(cfg, api.llm);
         if (preview) {
           return { ok: true, preview: true, title: draft.title, body: draft.body };

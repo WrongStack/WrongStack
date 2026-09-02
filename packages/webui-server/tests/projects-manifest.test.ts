@@ -101,7 +101,10 @@ describe('projects-manifest', () => {
       const configPath = path.join(tmpDir, 'sub', 'config.json');
       const manifest = { projects: [] };
       await saveManifest(manifest, configPath);
-      const exists = await fs.stat(projectsJsonPath(configPath)).then(() => true).catch(() => false);
+      const exists = await fs
+        .stat(projectsJsonPath(configPath))
+        .then(() => true)
+        .catch(() => false);
       expect(exists).toBe(true);
     });
   });

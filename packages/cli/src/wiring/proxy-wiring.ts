@@ -15,10 +15,7 @@
  * on `proxy-probe` (the WS server is intentionally provider-agnostic).
  */
 
-import {
-  applyProxyConfig,
-  type ProxyConfig,
-} from '@wrongstack/core/wiring/proxy-rewrite';
+import { applyProxyConfig, type ProxyConfig } from '@wrongstack/core/wiring/proxy-rewrite';
 import { startProxyProbe, type ProbeRunner } from './proxy-probe.js';
 
 let probeRunner: ProbeRunner | undefined;

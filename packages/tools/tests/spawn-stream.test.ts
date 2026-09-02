@@ -138,4 +138,3 @@ describe('spawnStream teardown', () => {
     expect(result?.stdout).toContain('no signal test');
   });
 });
-

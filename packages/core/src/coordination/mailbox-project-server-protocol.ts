@@ -108,7 +108,11 @@ export interface MailboxServerOperations {
   };
   credentialVerify: {
     args: { credentialId: string; secret: string };
-    result: { valid: boolean; credential?: RedactedMailboxCredential | undefined; reason?: string | undefined };
+    result: {
+      valid: boolean;
+      credential?: RedactedMailboxCredential | undefined;
+      reason?: string | undefined;
+    };
   };
   credentialRevoke: {
     args: { credentialId: string; reason?: string | undefined; by?: string | undefined };

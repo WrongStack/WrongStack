@@ -136,9 +136,8 @@ export async function ensureGitignore(projectRoot: string): Promise<void> {
     }
 
     if (!content.includes('.wrongstack') && !content.includes('.wrongstack/')) {
-      const addition = content.endsWith('\n') || content.length === 0
-        ? '.wrongstack/\n'
-        : '\n.wrongstack/\n';
+      const addition =
+        content.endsWith('\n') || content.length === 0 ? '.wrongstack/\n' : '\n.wrongstack/\n';
       await fs.writeFile(gitignorePath, content + addition, 'utf8');
     }
   } catch {
@@ -262,9 +261,13 @@ function formatEntryMarkdown(entry: PromptJournalEntry): string {
     `**Role:** \`${entry.role}\``,
     entry.metadata.model ? `**Model:** \`${entry.metadata.model}\`` : null,
     `**Tokens (est):** ~${entry.metadata.tokenEstimate}`,
-    entry.metadata.iterationIndex !== undefined ? `**Iteration:** #${entry.metadata.iterationIndex}` : null,
+    entry.metadata.iterationIndex !== undefined
+      ? `**Iteration:** #${entry.metadata.iterationIndex}`
+      : null,
     `**Session:** \`${entry.sessionId}\``,
-  ].filter(Boolean).join(' | ');
+  ]
+    .filter(Boolean)
+    .join(' | ');
 
   let md = `\n### 📝 [${entry.timestamp}] \`${entry.id}\`\n${tagList}\n\n`;
 

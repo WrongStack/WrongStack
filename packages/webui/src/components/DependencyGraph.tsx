@@ -15,21 +15,57 @@ import {
 import type React from 'react';
 
 /** FORGE-style status presentation (Completed/Running/Queued/Blocked/Pending/Failed). */
-const STATUS: Record<
-  BoardTaskStatus,
-  { icon: React.ReactNode; text: string; ring: string }
-> = {
-  completed: { icon: <CheckCircle2 className="h-3.5 w-3.5" />, text: 'text-success', ring: 'border-success/35' },
-  in_progress: { icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, text: 'text-primary', ring: 'border-primary/45' },
-  queued: { icon: <Clock className="h-3.5 w-3.5" />, text: 'text-warning', ring: 'border-warning/35' },
-  blocked: { icon: <Lock className="h-3.5 w-3.5" />, text: 'text-destructive', ring: 'border-destructive/30' },
-  pending: { icon: <Circle className="h-3.5 w-3.5" />, text: 'text-muted-foreground', ring: 'border-border/70' },
-  review: { icon: <RotateCcw className="h-3.5 w-3.5" />, text: 'text-primary', ring: 'border-primary/35' },
-  failed: { icon: <XCircle className="h-3.5 w-3.5" />, text: 'text-destructive', ring: 'border-destructive/45' },
-  cancelled: { icon: <Ban className="h-3.5 w-3.5" />, text: 'text-muted-foreground', ring: 'border-border/70' },
+const STATUS: Record<BoardTaskStatus, { icon: React.ReactNode; text: string; ring: string }> = {
+  completed: {
+    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+    text: 'text-success',
+    ring: 'border-success/35',
+  },
+  in_progress: {
+    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
+    text: 'text-primary',
+    ring: 'border-primary/45',
+  },
+  queued: {
+    icon: <Clock className="h-3.5 w-3.5" />,
+    text: 'text-warning',
+    ring: 'border-warning/35',
+  },
+  blocked: {
+    icon: <Lock className="h-3.5 w-3.5" />,
+    text: 'text-destructive',
+    ring: 'border-destructive/30',
+  },
+  pending: {
+    icon: <Circle className="h-3.5 w-3.5" />,
+    text: 'text-muted-foreground',
+    ring: 'border-border/70',
+  },
+  review: {
+    icon: <RotateCcw className="h-3.5 w-3.5" />,
+    text: 'text-primary',
+    ring: 'border-primary/35',
+  },
+  failed: {
+    icon: <XCircle className="h-3.5 w-3.5" />,
+    text: 'text-destructive',
+    ring: 'border-destructive/45',
+  },
+  cancelled: {
+    icon: <Ban className="h-3.5 w-3.5" />,
+    text: 'text-muted-foreground',
+    ring: 'border-border/70',
+  },
 };
 
-const LEGEND: BoardTaskStatus[] = ['completed', 'in_progress', 'queued', 'blocked', 'pending', 'failed'];
+const LEGEND: BoardTaskStatus[] = [
+  'completed',
+  'in_progress',
+  'queued',
+  'blocked',
+  'pending',
+  'failed',
+];
 
 const PRIORITY: Record<BoardTaskItem['priority'], { labelKey: string; cls: string }> = {
   critical: { labelKey: 'activity:depGraph.prioCrit', cls: 'bg-destructive/10 text-destructive' },
@@ -48,7 +84,10 @@ interface DependencyGraphProps {
  * phase columns (Start, Phase 1, …); each card shows its short id, priority,
  * title and dependency refs (← t01). A status legend sits above the columns.
  */
-export function DependencyGraph({ columns, onTaskClick }: DependencyGraphProps): React.ReactElement {
+export function DependencyGraph({
+  columns,
+  onTaskClick,
+}: DependencyGraphProps): React.ReactElement {
   const { t } = useAppTranslation();
   if (columns.length === 0) {
     return (
@@ -60,7 +99,9 @@ export function DependencyGraph({ columns, onTaskClick }: DependencyGraphProps):
 
   return (
     <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{t('activity:board.depGraphHeading')}</h3>
+      <h3 className="mb-3 text-sm font-semibold text-foreground">
+        {t('activity:board.depGraphHeading')}
+      </h3>
 
       {/* Legend */}
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
@@ -138,7 +179,11 @@ function TaskNodeCard({
               ? 'bg-primary/10 text-primary'
               : 'bg-muted text-muted-foreground',
           )}
-          title={task.worktreeBranch ? t('activity:board.worktreePrefix', { branch: task.worktreeBranch }) : undefined}
+          title={
+            task.worktreeBranch
+              ? t('activity:board.worktreePrefix', { branch: task.worktreeBranch })
+              : undefined
+          }
         >
           {task.displayStatus === 'in_progress' && <Loader2 className="h-3 w-3 animate-spin" />}
           <span>{task.agentName}</span>

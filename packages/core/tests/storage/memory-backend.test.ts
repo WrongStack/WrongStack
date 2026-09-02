@@ -28,7 +28,11 @@ afterEach(async () => {
 
 describe('FileMemoryBackend remember/readAll/list', () => {
   it('creates a new file with a header and serializes metadata', async () => {
-    await backend.remember(scope, entry('uses pnpm', { type: 'convention', priority: 'high', tags: ['build', 'pnpm'] }), file);
+    await backend.remember(
+      scope,
+      entry('uses pnpm', { type: 'convention', priority: 'high', tags: ['build', 'pnpm'] }),
+      file,
+    );
     const raw = await backend.readAll(scope, file);
     expect(raw).toContain('# Agent Memory');
     expect(raw).toContain('[convention|high]');
@@ -196,7 +200,9 @@ describe('FileMemoryBackend forget/clear/consolidate', () => {
 
     await backend.consolidate(scope, file);
 
-    const backups = (await fs.readdir(dir)).filter((fileName) => fileName.startsWith('memory.md.bak.'));
+    const backups = (await fs.readdir(dir)).filter((fileName) =>
+      fileName.startsWith('memory.md.bak.'),
+    );
     expect(backups).toHaveLength(5);
   });
 
@@ -237,10 +243,7 @@ describe('parseEntries / lineToEntry branches', () => {
   });
 
   it('returns newest-first order', () => {
-    const raw = [
-      '- [2026-01-01] mem_1_a first',
-      '- [2026-01-02] mem_2_b second',
-    ].join('\n');
+    const raw = ['- [2026-01-01] mem_1_a first', '- [2026-01-02] mem_2_b second'].join('\n');
     const entries = parseEntries(raw, scope);
     expect(entries.map((e) => e.text)).toEqual(['second', 'first']);
   });

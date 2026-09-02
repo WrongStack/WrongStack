@@ -5,10 +5,7 @@
   "description": "Trace the end-to-end experience to find friction.",
   "content": "Map the user journey for: {{scenario}}\n\nWalk through it stage by stage from the user's first trigger to their goal (and beyond, to retention). At each step capture what they do, what they think and feel, and where they get stuck or drop off. Find the highest-friction moment — the one that loses the most users — and the moment of delight worth amplifying. Distinguish problems worth fixing from minor annoyances. End with the single highest-leverage improvement.",
   "category": "product",
-  "tags": [
-    "user-journey",
-    "ux"
-  ],
+  "tags": ["user-journey", "ux"],
   "source": "builtin",
   "favorite": false,
   "checksum": "1d116c9050f8f68cdaf32f052e8c228dbbf87d1c54151f01134710f11a1a7d4c",

@@ -5,10 +5,7 @@
   "description": "Drive an implementation from tests, red-green-refactor.",
   "content": "Let's build {{feature}} using strict TDD.\n\nStep 1: Write the smallest failing test for the next slice of behavior — stop and show me only the test.\nStep 2: After I confirm, write the minimum code to make it pass.\nStep 3: Refactor if needed, keeping tests green.\n\nProceed one cycle at a time. Don't write implementation ahead of a test that demands it.",
   "category": "testing",
-  "tags": [
-    "tdd",
-    "red-green-refactor"
-  ],
+  "tags": ["tdd", "red-green-refactor"],
   "source": "builtin",
   "favorite": false,
   "checksum": "04c024c8572af80740827198cd1b009069c022adc712605edf6ba85f24133621",

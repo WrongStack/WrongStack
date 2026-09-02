@@ -90,12 +90,13 @@ const SYSTEM_BLOCK_SOURCES = [
  * the whole category into `NaN`. Widening the union without touching the list
  * fails here rather than silently at runtime.
  */
-type _EverySourceListed = Exclude<
-  SystemBlockSource | 'other',
-  (typeof SYSTEM_BLOCK_SOURCES)[number]
-> extends never
-  ? true
-  : ['missing from SYSTEM_BLOCK_SOURCES', Exclude<SystemBlockSource | 'other', (typeof SYSTEM_BLOCK_SOURCES)[number]>];
+type _EverySourceListed =
+  Exclude<SystemBlockSource | 'other', (typeof SYSTEM_BLOCK_SOURCES)[number]> extends never
+    ? true
+    : [
+        'missing from SYSTEM_BLOCK_SOURCES',
+        Exclude<SystemBlockSource | 'other', (typeof SYSTEM_BLOCK_SOURCES)[number]>,
+      ];
 const _everySourceListed: _EverySourceListed = true;
 void _everySourceListed;
 

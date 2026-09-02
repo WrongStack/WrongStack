@@ -5,10 +5,7 @@
   "description": "Sharpen a vague problem before proposing solutions.",
   "content": "Here's the problem I think we have: {{problem}}\n\nSharpen it into a crisp problem statement before anyone jumps to solutions. Pin down: who has the problem, when and how often it bites, what they do today, and what the cost of it is. Separate the symptom from the root problem. Flag where I've smuggled a solution into the problem framing. End with the one question whose answer would most change our approach.",
   "category": "product",
-  "tags": [
-    "problem-framing",
-    "discovery"
-  ],
+  "tags": ["problem-framing", "discovery"],
   "source": "builtin",
   "favorite": false,
   "checksum": "d26d94d0efa57a2afd665864f181526a41dfe7839fa17c9b0f2f86100bc5f591",

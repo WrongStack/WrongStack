@@ -172,8 +172,7 @@ describe('prompt-firewall plugin', () => {
   });
 
   it('lets PEM certificate and base64 padding fixtures through unchanged', async () => {
-    const pem =
-      '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAKHHHexample\n-----END CERTIFICATE-----';
+    const pem = '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAKHHHexample\n-----END CERTIFICATE-----';
     const b64 = 'SGVsbG8gV29ybGQhISE=';
     const api = setup({ enabled: true, mode: 'redact' });
     const inner = vi.fn().mockResolvedValue(resp('ok'));
@@ -216,14 +215,17 @@ describe('prompt-firewall plugin', () => {
     const cacheApi = (() => {
       const tools: Record<string, Tool> = {};
       const api: MockApi = {
-        tools: { register: (t: Tool) => { tools[t.name] = t; } },
+        tools: {
+          register: (t: Tool) => {
+            tools[t.name] = t;
+          },
+        },
         config: { extensions: { 'llm-cache': { enabled: true } } },
         log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
         metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
         extensions: {
           register: vi.fn((ext: { wrapProviderRunner?: WrapFn }) => {
-            if (ext.wrapProviderRunner)
-              (api as { _wrap?: WrapFn })._wrap = ext.wrapProviderRunner;
+            if (ext.wrapProviderRunner) (api as { _wrap?: WrapFn })._wrap = ext.wrapProviderRunner;
             return vi.fn();
           }),
         },
@@ -274,7 +276,11 @@ describe('prompt-firewall plugin', () => {
     const unregister = vi.fn();
     const tools: Record<string, Tool> = {};
     const api: MockApi = {
-      tools: { register: (t: Tool) => { tools[t.name] = t; } },
+      tools: {
+        register: (t: Tool) => {
+          tools[t.name] = t;
+        },
+      },
       config: { extensions: { 'prompt-firewall': { enabled: true } } },
       log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
@@ -287,32 +293,52 @@ describe('prompt-firewall plugin', () => {
     expect(unregister).toHaveBeenCalledTimes(1);
   });
 
-  const postgresQueryPassword =
-    ['postgresql', '://', 'db', '/app?', 'user=alice&', 'password=', 'query-secret'].join('');
-  const encodedPostgresQueryPassword =
-    ['postgresql', '://', 'db', '/app?', 'user=alice&', 'pass%77ord=', 'query-secret'].join('');
+  const postgresQueryPassword = [
+    'postgresql',
+    '://',
+    'db',
+    '/app?',
+    'user=alice&',
+    'password=',
+    'query-secret',
+  ].join('');
+  const encodedPostgresQueryPassword = [
+    'postgresql',
+    '://',
+    'db',
+    '/app?',
+    'user=alice&',
+    'pass%77ord=',
+    'query-secret',
+  ].join('');
 
   it.each([
     ['literal', postgresQueryPassword],
     ['percent-encoded', encodedPostgresQueryPassword],
-  ] as const)('block mode rejects a PostgreSQL URI with a %s password query parameter', async (_label, uri) => {
-    const api = setup({ enabled: true, mode: 'block' });
-    const inner = vi.fn().mockResolvedValue(resp('clean'));
-    await expect(api._wrap!(null, req(uri), inner)).rejects.toThrow(/postgres_uri/);
-    expect(inner).not.toHaveBeenCalled();
-  });
+  ] as const)(
+    'block mode rejects a PostgreSQL URI with a %s password query parameter',
+    async (_label, uri) => {
+      const api = setup({ enabled: true, mode: 'block' });
+      const inner = vi.fn().mockResolvedValue(resp('clean'));
+      await expect(api._wrap!(null, req(uri), inner)).rejects.toThrow(/postgres_uri/);
+      expect(inner).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ['literal', postgresQueryPassword],
     ['percent-encoded', encodedPostgresQueryPassword],
-  ] as const)('redact mode strips a PostgreSQL URI with a %s password query parameter', async (_label, uri) => {
-    const api = setup({ enabled: true, mode: 'redact' });
-    const inner = vi.fn().mockResolvedValue(resp('clean'));
-    await api._wrap!(null, req(uri), inner);
-    const sent = JSON.stringify(inner.mock.calls[0]![1]);
-    expect(sent).not.toContain('query-secret');
-    expect(sent).toContain('[REDACTED:postgres_uri]');
-  });
+  ] as const)(
+    'redact mode strips a PostgreSQL URI with a %s password query parameter',
+    async (_label, uri) => {
+      const api = setup({ enabled: true, mode: 'redact' });
+      const inner = vi.fn().mockResolvedValue(resp('clean'));
+      await api._wrap!(null, req(uri), inner);
+      const sent = JSON.stringify(inner.mock.calls[0]![1]);
+      expect(sent).not.toContain('query-secret');
+      expect(sent).toContain('[REDACTED:postgres_uri]');
+    },
+  );
 
   it('redact mode also redacts secrets echoed back in the response', async () => {
     const api = setup({ enabled: true, mode: 'redact', scanResponse: true });
@@ -446,7 +472,9 @@ describe('issue #362 residuals: guarded scan + response budget', () => {
     status = await api._tools.prompt_firewall_status!.execute({});
     expect(status.skippedPatterns).toEqual([]); // refreshed, not sticky
     expect((status.counters as { timeoutCount: number }).timeoutCount).toBe(1);
-    expect((status.counters as { requestRedactions: number }).requestRedactions).toBeGreaterThanOrEqual(1);
+    expect(
+      (status.counters as { requestRedactions: number }).requestRedactions,
+    ).toBeGreaterThanOrEqual(1);
     expect(JSON.stringify(inner.mock.calls[1]![1])).not.toContain(GH_TOKEN);
   });
 
@@ -497,7 +525,9 @@ describe('issue #362 residuals: guarded scan + response budget', () => {
     expect(out.content[0]!.text).toContain('[REDACTED:github-token]');
     const status = await api._tools.prompt_firewall_status!.execute({});
     expect(status.responseTruncated).toBe(false);
-    expect((status.counters as { responseRedactions: number }).responseRedactions).toBeGreaterThanOrEqual(1);
+    expect(
+      (status.counters as { responseRedactions: number }).responseRedactions,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it('a pattern timed out on the request side is also skipped on response redaction', async () => {

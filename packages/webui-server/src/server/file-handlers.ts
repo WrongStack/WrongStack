@@ -104,10 +104,7 @@ function splitParentAndBase(p: string): { parent: string; base: string } {
  * gitignore matcher's trailing-slash rules (e.g. `node_modules/`) prune a
  * directory by its own name and would otherwise miss a symlinked directory.
  */
-async function isEntryDirectory(
-  dir: string,
-  e: import('node:fs').Dirent,
-): Promise<boolean> {
+async function isEntryDirectory(dir: string, e: import('node:fs').Dirent): Promise<boolean> {
   if (e.isDirectory()) return true;
   if (!e.isSymbolicLink()) return false;
   try {

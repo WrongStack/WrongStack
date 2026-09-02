@@ -93,11 +93,19 @@ describe('classifyProviderError', () => {
     // billing-cycle quota exhaustion. The message text must route to quota_exhausted
     // so the tracker applies the 15-minute block instead of a 5-minute auth delay.
     expect(
-      classifyProviderError(403, undefined, 'You\'ve reached your usage limit for this billing cycle'),
+      classifyProviderError(
+        403,
+        undefined,
+        "You've reached your usage limit for this billing cycle",
+      ),
     ).toBe('quota_exhausted');
 
     expect(
-      classifyProviderError(403, undefined, 'Usage limit reached. Quota will refresh in the next cycle'),
+      classifyProviderError(
+        403,
+        undefined,
+        'Usage limit reached. Quota will refresh in the next cycle',
+      ),
     ).toBe('quota_exhausted');
 
     // Bare 403 (no quota signal in message) = permission/auth denial — not quota.
@@ -122,9 +130,9 @@ describe('classifyProviderError', () => {
     expect(
       classifyProviderError(429, { message: 'Rate limit exceeded: 10 requests per minute' }),
     ).toBe('rate_limit');
-    expect(
-      classifyProviderError(429, undefined, 'Rate limit exceeded for model gpt-4o'),
-    ).toBe('rate_limit');
+    expect(classifyProviderError(429, undefined, 'Rate limit exceeded for model gpt-4o')).toBe(
+      'rate_limit',
+    );
   });
 
   it('does not classify quota from the raw response body alone', () => {
@@ -170,14 +178,16 @@ describe('classifyProviderError', () => {
     expect(classifyProviderError(400, undefined, 'your input is too large')).toBe(
       'context_overflow',
     );
-    expect(
-      classifyProviderError(400, undefined, 'your messages resulted in 130000 tokens'),
-    ).toBe('context_overflow');
+    expect(classifyProviderError(400, undefined, 'your messages resulted in 130000 tokens')).toBe(
+      'context_overflow',
+    );
   });
 
   it('does not classify unrelated generic too-long validation errors as context overflow', () => {
     expect(classifyProviderError(400, undefined, 'tool name is too long')).toBe('invalid_request');
-    expect(classifyProviderError(400, undefined, 'metadata field too long')).toBe('invalid_request');
+    expect(classifyProviderError(400, undefined, 'metadata field too long')).toBe(
+      'invalid_request',
+    );
   });
 
   it('detects context overflow from message shapes on 4xx', () => {

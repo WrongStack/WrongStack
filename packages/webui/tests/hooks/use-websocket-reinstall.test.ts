@@ -37,7 +37,7 @@ vi.mock('@/hooks/ws-handlers', async () => {
   return {
     WS_HANDLERS: {
       'session.start': () => {},
-      'text_delta': () => {},
+      text_delta: () => {},
       'run.done': () => {},
     },
   };

@@ -159,14 +159,22 @@ describe('applyAckToMessage', () => {
     expect(msg.readBy).toEqual({ worker: '2026-07-12T02:00:00.000Z' });
 
     // A second read ack from a different reader adds a receipt...
-    applyAckToMessage(msg, { ...ackBase, readerId: 'leader', timestamp: '2026-07-12T03:00:00.000Z' });
+    applyAckToMessage(msg, {
+      ...ackBase,
+      readerId: 'leader',
+      timestamp: '2026-07-12T03:00:00.000Z',
+    });
     expect(msg.readBy).toEqual({
       worker: '2026-07-12T02:00:00.000Z',
       leader: '2026-07-12T03:00:00.000Z',
     });
 
     // ...but re-acking the same reader does not change the timestamp.
-    applyAckToMessage(msg, { ...ackBase, readerId: 'worker', timestamp: '2026-07-12T04:00:00.000Z' });
+    applyAckToMessage(msg, {
+      ...ackBase,
+      readerId: 'worker',
+      timestamp: '2026-07-12T04:00:00.000Z',
+    });
     expect(msg.readBy.worker).toBe('2026-07-12T02:00:00.000Z');
   });
 
@@ -193,7 +201,11 @@ describe('applyAckToMessage', () => {
   });
 
   it('does not re-complete an already-completed message', () => {
-    const msg = parseMailboxMessage({ ...validMessage, completed: true, completedAt: '2026-07-01T00:00:00.000Z' });
+    const msg = parseMailboxMessage({
+      ...validMessage,
+      completed: true,
+      completedAt: '2026-07-01T00:00:00.000Z',
+    });
     applyAckToMessage(msg, { ...ackBase, completed: true, completedBy: 'other' });
     expect(msg.completedAt).toBe('2026-07-01T00:00:00.000Z');
     expect(msg.completedBy).toBeUndefined();
@@ -215,7 +227,11 @@ describe('applyAckToMessage', () => {
   });
 
   it('restores a soft-deleted message when ack.deleted is false', () => {
-    const msg = parseMailboxMessage({ ...validMessage, deletedAt: '2026-07-01T00:00:00.000Z', deletedBy: 'admin' });
+    const msg = parseMailboxMessage({
+      ...validMessage,
+      deletedAt: '2026-07-01T00:00:00.000Z',
+      deletedBy: 'admin',
+    });
     applyAckToMessage(msg, { ...ackBase, deleted: false });
     expect(msg.deletedAt).toBeUndefined();
     expect(msg.deletedBy).toBeUndefined();
@@ -243,7 +259,12 @@ describe('serializeMailboxMessage', () => {
       replyTo: 'parent',
       senderSessionId: 'session-1',
       expiresAt: '2026-07-13T00:00:00.000Z',
-      taskContext: { agentRole: 'executor', agentName: 'Worker', taskId: 'task-1', status: 'completed' },
+      taskContext: {
+        agentRole: 'executor',
+        agentName: 'Worker',
+        taskId: 'task-1',
+        status: 'completed',
+      },
     });
 
     const line = serializeMailboxMessage(message);
@@ -322,11 +343,7 @@ describe('parseMailboxLines', () => {
   });
 
   it('segregates ack records even when they precede the message line', () => {
-    const body =
-      ackLine({ messageId: 'm1', read: true }) +
-      '\n' +
-      messageLine({ id: 'm1' }) +
-      '\n';
+    const body = ackLine({ messageId: 'm1', read: true }) + '\n' + messageLine({ id: 'm1' }) + '\n';
     const messages = parseMailboxLines(body);
     expect(messages).toHaveLength(1);
     expect(messages[0]!.readBy).toEqual({ worker: '2026-07-12T02:00:00.000Z' });

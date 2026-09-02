@@ -11,7 +11,15 @@ import { VList } from 'virtua';
 import { usePagination } from '@/hooks/usePagination';
 import type { TechStackDependency } from '@/stores';
 import { cn } from '@/lib/utils';
-import { Badge, coverageMeta, EcosystemIcon, ecosystemLabel, installedVersion, statusMeta, versionDrift } from './shared';
+import {
+  Badge,
+  coverageMeta,
+  EcosystemIcon,
+  ecosystemLabel,
+  installedVersion,
+  statusMeta,
+  versionDrift,
+} from './shared';
 import { Pagination } from '../ui/pagination';
 import { useAppTranslation } from '@/i18n';
 
@@ -120,7 +128,10 @@ function DependencyRow({
           <span className="truncate font-mono text-xs text-foreground">{dependency.name}</span>
         </div>
         <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-          <EcosystemIcon ecosystem={dependency.ecosystem} className="mr-0.5 inline-block size-3 align-text-bottom" />
+          <EcosystemIcon
+            ecosystem={dependency.ecosystem}
+            className="mr-0.5 inline-block size-3 align-text-bottom"
+          />
           {ecosystemLabel(dependency.ecosystem, t)}
           {' · '}
           {dependency.direct ? 'direct' : 'transitive'}

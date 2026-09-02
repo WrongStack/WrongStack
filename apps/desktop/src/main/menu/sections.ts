@@ -3,7 +3,11 @@
  * Each function builds a specific menu section.
  */
 import type { MenuItemConstructorOptions } from 'electron';
-import type { DesktopRuntimeRecord, DesktopWebuiCommand, DesktopWebuiPrefs } from '../../shared/types.js';
+import type {
+  DesktopRuntimeRecord,
+  DesktopWebuiCommand,
+  DesktopWebuiPrefs,
+} from '../../shared/types.js';
 import type { MenuBuilderContext } from './types.js';
 
 /**

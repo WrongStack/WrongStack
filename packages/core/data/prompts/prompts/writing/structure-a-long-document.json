@@ -5,10 +5,7 @@
   "description": "Find the right outline for a sprawling piece.",
   "content": "I need to structure a long piece covering: {{material}}\n\nPropose an outline that gives the reader a clear path. Decide the organizing principle (chronological, by theme, problem-then-solution, general-to-specific) and justify it for this material. Show the section flow and what each section must accomplish. Flag where a reader would get lost or lose momentum, and what to cut or move. Lead with what the reader most needs first.",
   "category": "writing",
-  "tags": [
-    "structure",
-    "outline"
-  ],
+  "tags": ["structure", "outline"],
   "source": "builtin",
   "favorite": false,
   "checksum": "1afa1db8a8e40aa42452451d704c8106f472766723c04ac866ba1eafa9fe1201",

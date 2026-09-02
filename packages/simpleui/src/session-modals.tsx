@@ -15,12 +15,7 @@ import { VectorMemoryPanel } from './vector-memory-panel.js';
 import { ServerOutageOverlay } from './server-outage-overlay.js';
 import { SessionHealthPanel } from './session-health-panel.js';
 import { SettingsPanel } from './settings-panel.js';
-import type {
-  ChatMessage,
-  ContextInfo,
-  FileEditMeta,
-  SessionInfo,
-} from './types.js';
+import type { ChatMessage, ContextInfo, FileEditMeta, SessionInfo } from './types.js';
 
 export interface SessionModalsProps {
   socketRef: { current: SimpleSocket | null };

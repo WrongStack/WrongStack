@@ -17,13 +17,16 @@ import { subjectForToolInput } from '../utils/tool-subject.js';
 import { hasCapability, ToolCapabilities } from './capabilities.js';
 import { explainPermissionTrace } from './permission-explain.js';
 import { type TrustPolicyDiagnostic, validateTrustPolicy } from './permission-policy-schema.js';
-import {
-  attachesWellKnownCredential,
-  isClearlyDestructiveBashCommand,
-} from './yolo-risk.js';
+import { attachesWellKnownCredential, isClearlyDestructiveBashCommand } from './yolo-risk.js';
 
 export { AutoApprovePermissionPolicy } from './auto-approve-policy.js';
-export { alwaysAllowUnavailableReason, inputPathLooksSensitive, matchesTrust, shellCommandLineFromInput, shellCommandReadsSensitivePath } from './permission-helpers.js';;
+export {
+  alwaysAllowUnavailableReason,
+  inputPathLooksSensitive,
+  matchesTrust,
+  shellCommandLineFromInput,
+  shellCommandReadsSensitivePath,
+} from './permission-helpers.js';
 
 import {
   alwaysAllowUnavailableReason,

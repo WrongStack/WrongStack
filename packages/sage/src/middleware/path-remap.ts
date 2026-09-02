@@ -51,9 +51,7 @@ export function createSagePathRemapMiddleware(
     owner: 'sage',
     async handler(payload, next) {
       // Capture old symbol *before* lsp_rename mutates the file.
-      let pendingSymbol:
-        | { path: string; oldSymbol: string; newSymbol: string }
-        | undefined;
+      let pendingSymbol: { path: string; oldSymbol: string; newSymbol: string } | undefined;
       try {
         if (payload.toolUse.name === 'lsp_rename') {
           const input = payload.toolUse.input as Record<string, unknown> | undefined;
@@ -135,10 +133,9 @@ export function createSagePathRemapMiddleware(
               });
               if (!changed) continue;
               // Also rewrite bare symbol occurrences in text when exact match.
-              const text =
-                memory.text.includes(pendingSymbol.oldSymbol)
-                  ? memory.text.split(pendingSymbol.oldSymbol).join(pendingSymbol.newSymbol)
-                  : memory.text;
+              const text = memory.text.includes(pendingSymbol.oldSymbol)
+                ? memory.text.split(pendingSymbol.oldSymbol).join(pendingSymbol.newSymbol)
+                : memory.text;
               await surface.updateSage(memory.id, {
                 anchors,
                 ...(text !== memory.text ? { text } : {}),

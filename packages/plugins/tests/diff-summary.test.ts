@@ -28,20 +28,22 @@ const mockExecFileSync = vi.fn((_cmd: string, args: string[], _options?: unknown
   }
   return 'diff --git a/src/test.ts b/src/test.ts\n-old code\n+new code\n';
 });
-const mockExecFile = vi.fn((
-  cmd: string,
-  args: string[],
-  options: unknown,
-  callback: (error: Error | null, stdout: string, stderr: string) => void,
-) => {
-  try {
-    callback(null, mockExecFileSync(cmd, args, options), '');
-  } catch (error) {
-    const failure = error as Error & { stdout?: string; stderr?: string };
-    callback(failure, failure.stdout ?? '', failure.stderr ?? '');
-  }
-  return {};
-});
+const mockExecFile = vi.fn(
+  (
+    cmd: string,
+    args: string[],
+    options: unknown,
+    callback: (error: Error | null, stdout: string, stderr: string) => void,
+  ) => {
+    try {
+      callback(null, mockExecFileSync(cmd, args, options), '');
+    } catch (error) {
+      const failure = error as Error & { stdout?: string; stderr?: string };
+      callback(failure, failure.stdout ?? '', failure.stderr ?? '');
+    }
+    return {};
+  },
+);
 
 vi.mock('node:child_process', () => ({
   execSync: mockExecSync,

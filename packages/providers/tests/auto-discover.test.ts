@@ -39,7 +39,9 @@ describe('mapCompatibleModel', () => {
 
   it('treats reasoning OR thinking as reasoning-capable', () => {
     expect(mapCompatibleModel({ id: 'a', capabilities: { thinking: true } })?.reasoning).toBe(true);
-    expect(mapCompatibleModel({ id: 'b', capabilities: { reasoning: true } })?.reasoning).toBe(true);
+    expect(mapCompatibleModel({ id: 'b', capabilities: { reasoning: true } })?.reasoning).toBe(
+      true,
+    );
     expect(mapCompatibleModel({ id: 'c', capabilities: { reasoning: false } })?.reasoning).toBe(
       false,
     );
@@ -194,8 +196,12 @@ describe('mapCompatibleModel', () => {
     // models; offering `whisper-1` in a model picker is worse than omitting it.
     // Live census of the Gateway: 315 models, only 208 `language`. The rest
     // are embedding/video/image/reranking/transcription/realtime/speech.
-    expect(mapCompatibleModel({ id: 'openai/whisper-1', type: 'transcription' } as never)).toBeUndefined();
-    expect(mapCompatibleModel({ id: 'alibaba/qwen3-embedding-0.6b', type: 'embedding' } as never)).toBeUndefined();
+    expect(
+      mapCompatibleModel({ id: 'openai/whisper-1', type: 'transcription' } as never),
+    ).toBeUndefined();
+    expect(
+      mapCompatibleModel({ id: 'alibaba/qwen3-embedding-0.6b', type: 'embedding' } as never),
+    ).toBeUndefined();
     expect(mapCompatibleModel({ id: 'openai/gpt-image-2', modelType: 'image' })).toBeUndefined();
     expect(mapCompatibleModel({ id: 'openai/gpt-5.6-sol', type: 'language' } as never)?.id).toBe(
       'openai/gpt-5.6-sol',

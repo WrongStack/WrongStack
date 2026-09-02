@@ -199,13 +199,17 @@ export function initializeCatalogSchema(db: DatabaseSync): void {
     CREATE INDEX IF NOT EXISTS idx_reservations_expiry ON resume_reservations(expires_at);
     CREATE INDEX IF NOT EXISTS idx_maintenance_expiry ON maintenance_leases(expires_at);
   `);
-  db.prepare('INSERT INTO catalog_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING')
-    .run('schema_version', String(SCHEMA_VERSION));
-  db.prepare('INSERT INTO catalog_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING')
-    .run('generation', '0');
-  const row = db
-    .prepare('SELECT value FROM catalog_meta WHERE key=?')
-    .get('schema_version') as { value: string };
+  db.prepare('INSERT INTO catalog_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING').run(
+    'schema_version',
+    String(SCHEMA_VERSION),
+  );
+  db.prepare('INSERT INTO catalog_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING').run(
+    'generation',
+    '0',
+  );
+  const row = db.prepare('SELECT value FROM catalog_meta WHERE key=?').get('schema_version') as {
+    value: string;
+  };
   if (Number(row.value) !== SCHEMA_VERSION)
     throw new Error(`Unsupported session catalog schema ${row.value}`);
 }

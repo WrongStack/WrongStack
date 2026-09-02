@@ -5,11 +5,7 @@
   "description": "Get a new user to first success in minutes.",
   "content": "Write a quickstart for: {{project}}\n\nGet the reader from nothing to one working result as fast as possible. Cover the minimum: prerequisites, install, the single smallest example that does something real, and how to confirm it worked. Cut everything that isn't on the critical path to that first success — link to it instead. Assume the reader is impatient and will leave if it doesn't work. End with the obvious next step.",
   "category": "documentation",
-  "tags": [
-    "quickstart",
-    "onboarding",
-    "docs"
-  ],
+  "tags": ["quickstart", "onboarding", "docs"],
   "source": "builtin",
   "favorite": false,
   "checksum": "5fa5e407c2bfc41cb588bd748ee24b85a09d9c3dbb57858b1f04ca27cea98883",

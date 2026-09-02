@@ -5,10 +5,7 @@
   "description": "Understand what a result does and doesn't say.",
   "content": "Help me interpret this result: {{result}}\n\nExplain what it actually means in plain terms, and just as importantly what it does NOT mean. Cover effect size versus statistical significance, the confidence interval, the assumptions behind the test, and whether the sample supports the claim. Flag the over-interpretation someone would naturally make. Tell me what I'd need to be more confident.",
   "category": "data-analysis",
-  "tags": [
-    "statistics",
-    "interpretation"
-  ],
+  "tags": ["statistics", "interpretation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "7d491597a833f0a80853d93e35b90512d1a1f2382e2ed5b7c78bbd13423a3f7f",

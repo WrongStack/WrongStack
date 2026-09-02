@@ -1,11 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type {
-  Config,
-  Logger,
-  ModelsDevPayload,
-  ModelsDevProvider,
-} from '@wrongstack/core/types';
+import type { Config, Logger, ModelsDevPayload, ModelsDevProvider } from '@wrongstack/core/types';
 import { discoverOpenAICompatibleModels, resolveDiscoveryTargets } from '@wrongstack/providers';
 
 interface DiscoverCacheEntry {
@@ -20,7 +15,11 @@ interface OverlayRegistry {
 }
 
 function isOverlayRegistry(value: unknown): value is OverlayRegistry {
-  return !!value && typeof value === 'object' && typeof (value as OverlayRegistry).mergeOverlay === 'function';
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as OverlayRegistry).mergeOverlay === 'function'
+  );
 }
 
 async function readCache(file: string): Promise<DiscoverCache> {

@@ -15,10 +15,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import {
-  makeMailSendTool,
-  makeMailInboxTool,
-} from '../../src/coordination/mail-tools.js';
+import { makeMailSendTool, makeMailInboxTool } from '../../src/coordination/mail-tools.js';
 import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import { mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
 import type { Context } from '../../src/core/context.js';
@@ -50,7 +47,7 @@ function mockContext(overrides: Record<string, unknown> = {}): Context {
       agentId: BASE_ID,
       sessionId: SESSION_ID,
       source: 'cli',
-      ...(overrides.meta as Record<string, unknown> ?? {}),
+      ...((overrides.meta as Record<string, unknown>) ?? {}),
     },
     session: { id: SESSION_ID },
     projectRoot: '/tmp/test-project',
@@ -119,10 +116,7 @@ describe('makeMailSendTool', () => {
   });
 
   it('normalizes "all" to "*"', async () => {
-    const result = await tool.execute(
-      { to: 'all', subject: 'hey', body: 'all' },
-      mockContext(),
-    );
+    const result = await tool.execute({ to: 'all', subject: 'hey', body: 'all' }, mockContext());
     expect(result).toMatchObject({ ok: true, to: '*' });
   });
 
@@ -147,10 +141,7 @@ describe('makeMailSendTool', () => {
   });
 
   it('uses broadcast type when to is "*" and no type given', async () => {
-    const result = await tool.execute(
-      { to: '*', subject: 's', body: 'b' },
-      mockContext(),
-    );
+    const result = await tool.execute({ to: '*', subject: 's', body: 'b' }, mockContext());
     expect(result.ok).toBe(true);
     const msgs = await mailbox.query({ to: '*' });
     expect(msgs[0]?.type).toBe('broadcast');
@@ -264,10 +255,10 @@ describe('makeMailSendTool', () => {
   });
 
   it('omits the stripped-fields suffix when the payload was clean', async () => {
-    const result = (await tool.execute(
-      { to: 'bob', subject: 's', body: 'b' },
-      mockContext(),
-    )) as { strippedFields?: string[]; summary?: string };
+    const result = (await tool.execute({ to: 'bob', subject: 's', body: 'b' }, mockContext())) as {
+      strippedFields?: string[];
+      summary?: string;
+    };
     expect(result.strippedFields).toBeUndefined();
     expect(result.summary).not.toContain('Ignored');
   });
@@ -291,10 +282,7 @@ describe('makeMailSendTool', () => {
   });
 
   it('handles null/undefined body gracefully', async () => {
-    const r = await tool.execute(
-      { to: 'x', subject: 's', body: null },
-      mockContext(),
-    );
+    const r = await tool.execute({ to: 'x', subject: 's', body: null }, mockContext());
     expect(r.ok).toBe(false);
     expect(r.error).toContain('required');
   });
@@ -412,7 +400,9 @@ describe('makeMailInboxTool', () => {
 
     const result = await inboxTool.execute({}, mockContext());
     expect(result.messages.map((m: { subject: string }) => m.subject)).toContain('current-session');
-    expect(result.messages.map((m: { subject: string }) => m.subject)).not.toContain('other-session');
+    expect(result.messages.map((m: { subject: string }) => m.subject)).not.toContain(
+      'other-session',
+    );
   });
 
   it('marks messages as read by default', async () => {
@@ -462,10 +452,7 @@ describe('makeMailInboxTool', () => {
       body: 'do it',
     });
 
-    const result = await inboxTool.execute(
-      { completed: true, outcome: 'handled' },
-      mockContext(),
-    );
+    const result = await inboxTool.execute({ completed: true, outcome: 'handled' }, mockContext());
     expect(result.count).toBe(1);
     expect(result.summary).toContain('completed');
 
@@ -543,8 +530,20 @@ describe('makeMailInboxTool', () => {
   it('handles errors from ackMany gracefully (no crash)', async () => {
     // Simulate by having the resolveMailbox return a broken mailbox
     const brokenMailbox = {
-      query: async (_q: unknown) => [{ id: 'm1', from: 'x', to: 'me', type: 'note', subject: 's', body: 'hello', timestamp: new Date().toISOString() }],
-      ackMany: async () => { throw new Error('broken'); },
+      query: async (_q: unknown) => [
+        {
+          id: 'm1',
+          from: 'x',
+          to: 'me',
+          type: 'note',
+          subject: 's',
+          body: 'hello',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      ackMany: async () => {
+        throw new Error('broken');
+      },
     } as never as Mailbox;
 
     const brokenTool = makeMailInboxTool({

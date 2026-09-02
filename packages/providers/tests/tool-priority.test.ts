@@ -193,10 +193,21 @@ describe('filterToolsByMaxCount', () => {
       ...makeTools('read', 'write', 'edit', 'bash', 'exec', 'grep', 'glob'),
       ...makeTools('diff', 'patch', 'json', 'search', 'fetch', 'git'),
       ...makeTools(
-        'codebase-stats', 'codebase-search', 'codebase-index',
-        'test', 'lint', 'typecheck', 'format',
-        'todo', 'plan', 'task', 'kanban', 'replace', 'tree',
-        'context_manager', 'dead-code-scan',
+        'codebase-stats',
+        'codebase-search',
+        'codebase-index',
+        'test',
+        'lint',
+        'typecheck',
+        'format',
+        'todo',
+        'plan',
+        'task',
+        'kanban',
+        'replace',
+        'tree',
+        'context_manager',
+        'dead-code-scan',
       ),
       // 16 browser tools
       ...Array.from({ length: 16 }, (_, i) => makeTool(`browser_${i}`)),
@@ -211,14 +222,29 @@ describe('filterToolsByMaxCount', () => {
       // memory tools
       ...makeTools('remember', 'forget', 'memory_search', 'memory_update'),
       // provider config tools
-      ...makeTools('provider_manage', 'provider_key_set', 'favorite_manage',
-        'fallback_chain_manage', 'fallback_profile_manage', 'agent_model_assign',
-        'leader_model_set', 'system_config_view'),
+      ...makeTools(
+        'provider_manage',
+        'provider_key_set',
+        'favorite_manage',
+        'fallback_chain_manage',
+        'fallback_profile_manage',
+        'agent_model_assign',
+        'leader_model_set',
+        'system_config_view',
+      ),
       // governance status tools
-      ...makeTools('lint_gate_status', 'diff_summary_status', 'todo_listener_status',
-        'loop_breaker_status', 'process_guard_status', 'dep_guard_status',
-        'config_validator_status', 'injection_shield_status', 'prompt_firewall_status',
-        'type_gate_status'),
+      ...makeTools(
+        'lint_gate_status',
+        'diff_summary_status',
+        'todo_listener_status',
+        'loop_breaker_status',
+        'process_guard_status',
+        'dep_guard_status',
+        'config_validator_status',
+        'injection_shield_status',
+        'prompt_firewall_status',
+        'type_gate_status',
+      ),
     ];
 
     expect(tools.length).toBeGreaterThan(128);

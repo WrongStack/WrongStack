@@ -57,18 +57,31 @@ const COL_W = 300;
 const ROW_H = 128;
 const NODE_W = 240;
 
-const STATUS: Record<
-  FlowStatus,
-  { ring: string; chip: string; dot: string }
-> = {
-  pending: { ring: 'border-border/70', chip: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' },
+const STATUS: Record<FlowStatus, { ring: string; chip: string; dot: string }> = {
+  pending: {
+    ring: 'border-border/70',
+    chip: 'bg-muted text-muted-foreground',
+    dot: 'bg-muted-foreground',
+  },
   queued: { ring: 'border-primary/35', chip: 'bg-primary/10 text-primary', dot: 'bg-primary' },
   in_progress: { ring: 'border-warning/45', chip: 'bg-warning/12 text-warning', dot: 'bg-warning' },
-  blocked: { ring: 'border-destructive/30', chip: 'bg-destructive/10 text-destructive', dot: 'bg-destructive' },
+  blocked: {
+    ring: 'border-destructive/30',
+    chip: 'bg-destructive/10 text-destructive',
+    dot: 'bg-destructive',
+  },
   review: { ring: 'border-primary/35', chip: 'bg-primary/10 text-primary', dot: 'bg-primary' },
-  failed: { ring: 'border-destructive/45', chip: 'bg-destructive/10 text-destructive', dot: 'bg-destructive' },
+  failed: {
+    ring: 'border-destructive/45',
+    chip: 'bg-destructive/10 text-destructive',
+    dot: 'bg-destructive',
+  },
   completed: { ring: 'border-success/35', chip: 'bg-success/12 text-success', dot: 'bg-success' },
-  cancelled: { ring: 'border-border/70', chip: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' },
+  cancelled: {
+    ring: 'border-border/70',
+    chip: 'bg-muted text-muted-foreground',
+    dot: 'bg-muted-foreground',
+  },
 };
 
 interface TaskNodeData extends Record<string, unknown> {
@@ -106,26 +119,50 @@ function TaskNode({ data }: { data: TaskNodeData }) {
       {data.onTaskClick && (
         <button
           type="button"
-          aria-label={tt('activity:sdd.openTask', { title: t.title, defaultValue: `Open task: ${t.title}` })}
+          aria-label={tt('activity:sdd.openTask', {
+            title: t.title,
+            defaultValue: `Open task: ${t.title}`,
+          })}
           className="absolute inset-0 z-10 cursor-pointer rounded-lg"
           onClick={() => data.onTaskClick?.(t.id)}
         />
       )}
       {/* Columns flow left→right (a task's deps sit in earlier/left columns),
           so edges enter on the Left and leave on the Right. */}
-      <Handle type="target" position={Position.Left} isConnectable={false} className="!h-1.5 !w-1.5 !border-0 !bg-border" />
-      <Handle type="source" position={Position.Right} isConnectable={false} className="!h-1.5 !w-1.5 !border-0 !bg-border" />
+      <Handle
+        type="target"
+        position={Position.Left}
+        isConnectable={false}
+        className="!h-1.5 !w-1.5 !border-0 !bg-border"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        isConnectable={false}
+        className="!h-1.5 !w-1.5 !border-0 !bg-border"
+      />
 
       {/* header row: status + short id + priority */}
       <div className="flex items-center gap-1.5">
         <StatusIcon
-          className={cn('h-3.5 w-3.5', running && 'animate-spin', s.chip.split(' ').find((c) => c.startsWith('text')))}
+          className={cn(
+            'h-3.5 w-3.5',
+            running && 'animate-spin',
+            s.chip.split(' ').find((c) => c.startsWith('text')),
+          )}
         />
         <span className="font-mono text-[10px] text-muted-foreground">{t.shortId}</span>
-        <span className={cn('font-mono text-[10px] font-bold uppercase', priorityStyle(t.priority).text)}>
+        <span
+          className={cn(
+            'font-mono text-[10px] font-bold uppercase',
+            priorityStyle(t.priority).text,
+          )}
+        >
           {t.priority[0]}
         </span>
-        <span className={cn('ml-auto rounded px-1.5 py-px text-[9px] font-medium', s.chip)}>{tt(`activity:sdd.status.${t.displayStatus}`)}</span>
+        <span className={cn('ml-auto rounded px-1.5 py-px text-[9px] font-medium', s.chip)}>
+          {tt(`activity:sdd.status.${t.displayStatus}`)}
+        </span>
       </div>
 
       {/* title */}
@@ -144,7 +181,9 @@ function TaskNode({ data }: { data: TaskNodeData }) {
               >
                 {agentInitials(t.agentName)}
               </span>
-              <span className="max-w-[88px] truncate text-[10px] text-muted-foreground">{t.agentName}</span>
+              <span className="max-w-[88px] truncate text-[10px] text-muted-foreground">
+                {t.agentName}
+              </span>
             </span>
           )}
           {t.retries ? (
@@ -154,7 +193,10 @@ function TaskNode({ data }: { data: TaskNodeData }) {
             </span>
           ) : null}
           {t.worktreeBranch && (
-            <span className="ml-auto flex items-center gap-0.5 text-[9px] text-muted-foreground" title={t.worktreeBranch}>
+            <span
+              className="ml-auto flex items-center gap-0.5 text-[9px] text-muted-foreground"
+              title={t.worktreeBranch}
+            >
               <GitBranch className="h-2.5 w-2.5" />
               <span className="max-w-[70px] truncate">{t.worktreeBranch.replace(/^.*\//, '')}</span>
             </span>

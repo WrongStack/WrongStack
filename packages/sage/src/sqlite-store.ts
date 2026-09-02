@@ -19,11 +19,7 @@ import type { MemoryEntry, MemoryScope, MemoryStore } from '@wrongstack/core/typ
 import { ulid } from '@wrongstack/core/utils';
 import { resolveSagePaths } from './paths.js';
 import { consolidateSqliteSession } from './sqlite-store-session-consolidation.js';
-import {
-  readSqliteAudit,
-  pruneSqliteAuditLog,
-  writeSqliteAudit,
-} from './sqlite-store-audit.js';
+import { readSqliteAudit, pruneSqliteAuditLog, writeSqliteAudit } from './sqlite-store-audit.js';
 import { retrieveSqliteSageForAudience } from './sqlite-store-audience.js';
 import {
   acceptCandidateOp,
@@ -43,13 +39,14 @@ import { upsertSqliteCandidate, upsertSqliteMemory } from './sqlite-store-upsert
 import { probeSqliteAvailable } from './sqlite-store-loader.js';
 import { graphSqliteSageFor } from './sqlite-store-graph-for.js';
 import { traverseSqliteGraph } from './sqlite-store-graph-traverse.js';
-import { findRelatedSqliteSage, type SqliteFindRelatedOptions } from './sqlite-store-find-related.js';
+import {
+  findRelatedSqliteSage,
+  type SqliteFindRelatedOptions,
+} from './sqlite-store-find-related.js';
 import { runSqliteSageHygiene } from './sqlite-store-hygiene.js';
 import { syncSqliteAnchorEdges } from './sqlite-store-anchor-sync.js';
 import { syncSqliteRelationshipEdges } from './sqlite-store-relationship-sync.js';
-import {
-  sqliteRowToMemory,
-} from './sqlite-store-codec.js';
+import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { retrieveSqliteSageForPath } from './sqlite-store-retrieve-path.js';
 import { initializeSqliteSageStore } from './sqlite-store-initialize.js';
 import { searchSqliteSage, materializeSageByIdFactory } from './sqlite-store-search-sage.js';
@@ -112,9 +109,7 @@ import type {
   SessionConsolidationResult,
   UpdateSageInput,
 } from './types.js';
-import {
-  DEFAULT_PERSISTENCE,
-} from './types.js';
+import { DEFAULT_PERSISTENCE } from './types.js';
 
 export { sqliteStoreCoverage } from './sqlite-store-coverage.js';
 
@@ -333,12 +328,7 @@ export class SqliteSageStore implements MemoryStore {
     scope: MemoryScope = 'project-memory',
     metadata?: Omit<Partial<MemoryEntry>, 'scope' | 'text' | 'ts'>,
   ): Promise<void> {
-    return rememberSqliteMemoryBridge(
-      (input) => this.rememberSage(input),
-      text,
-      scope,
-      metadata,
-    );
+    return rememberSqliteMemoryBridge((input) => this.rememberSage(input), text, scope, metadata);
   }
 
   async forget(query: string, scope: MemoryScope = 'project-memory'): Promise<number> {
@@ -557,16 +547,9 @@ export class SqliteSageStore implements MemoryStore {
       // Vector-only hits (semantically close but lexically missed) are
       // materialized by id under the SAME visibility rules as the lexical
       // channel — see materializeSageByIdFactory.
-      materializeVectorOnly: materializeSageByIdFactory(
-        { stmt: (sql) => this.stmt(sql) },
-        opts,
-      ),
-      ...(opts.vectorRecallWeight !== undefined
-        ? { vectorWeight: opts.vectorRecallWeight }
-        : {}),
-      ...(opts.vectorRecallMinScore !== undefined
-        ? { threshold: opts.vectorRecallMinScore }
-        : {}),
+      materializeVectorOnly: materializeSageByIdFactory({ stmt: (sql) => this.stmt(sql) }, opts),
+      ...(opts.vectorRecallWeight !== undefined ? { vectorWeight: opts.vectorRecallWeight } : {}),
+      ...(opts.vectorRecallMinScore !== undefined ? { threshold: opts.vectorRecallMinScore } : {}),
       ...(opts.vectorRecallThreshold !== undefined
         ? { vectorOnlyThreshold: opts.vectorRecallThreshold }
         : {}),
@@ -610,16 +593,9 @@ export class SqliteSageStore implements MemoryStore {
       vectorRecall: opts.vectorRecall,
       // Same vector-only materialization contract as searchSage —
       // visibility-respecting, fail-open on unknown ids.
-      materializeVectorOnly: materializeSageByIdFactory(
-        { stmt: (sql) => this.stmt(sql) },
-        opts,
-      ),
-      ...(opts.vectorRecallWeight !== undefined
-        ? { vectorWeight: opts.vectorRecallWeight }
-        : {}),
-      ...(opts.vectorRecallMinScore !== undefined
-        ? { threshold: opts.vectorRecallMinScore }
-        : {}),
+      materializeVectorOnly: materializeSageByIdFactory({ stmt: (sql) => this.stmt(sql) }, opts),
+      ...(opts.vectorRecallWeight !== undefined ? { vectorWeight: opts.vectorRecallWeight } : {}),
+      ...(opts.vectorRecallMinScore !== undefined ? { threshold: opts.vectorRecallMinScore } : {}),
       ...(opts.vectorRecallThreshold !== undefined
         ? { vectorOnlyThreshold: opts.vectorRecallThreshold }
         : {}),
@@ -637,10 +613,7 @@ export class SqliteSageStore implements MemoryStore {
   }
 
   /** SQLite equivalent of JSONL graph/metadata expansion. */
-  async findRelatedSage(
-    memoryIds: string[],
-    opts: SqliteFindRelatedOptions = {},
-  ): Promise<Sage[]> {
+  async findRelatedSage(memoryIds: string[], opts: SqliteFindRelatedOptions = {}): Promise<Sage[]> {
     await this.initialize();
     return findRelatedSqliteSage(
       {
@@ -955,10 +928,7 @@ export class SqliteSageStore implements MemoryStore {
 
   // ─── Alias methods matching SageStore's public API ──────────
 
-  async unifiedSearchService(
-    query: SearchQuery,
-    options?: SearchOptions,
-  ): Promise<SearchResult> {
+  async unifiedSearchService(query: SearchQuery, options?: SearchOptions): Promise<SearchResult> {
     await this.initialize();
     return executeUnifiedSearch(this.adminHost(), query, options);
   }

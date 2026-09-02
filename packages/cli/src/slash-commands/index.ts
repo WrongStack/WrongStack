@@ -1,9 +1,6 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
-import {
-  loadStatuslineConfig,
-  saveStatuslineConfig,
-} from '../services/statusline-config.js';
+import { loadStatuslineConfig, saveStatuslineConfig } from '../services/statusline-config.js';
 
 export type { ToolRegistry } from '@wrongstack/core/registry';
 export type { TokenCounter } from '@wrongstack/core/types';

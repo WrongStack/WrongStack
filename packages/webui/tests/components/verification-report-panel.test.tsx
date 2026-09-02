@@ -16,27 +16,40 @@ import type {
 } from '@wrongstack/kanban';
 
 const BASE: Omit<KanbanVerificationReport, 'verdict'> = {
-  taskId: 't1', taskTitle: 'Test', boardId: 'b1',
-  startedAt: '2026-07-23T10:00:00Z', completedAt: '2026-07-23T10:05:00Z',
-  checks: [], markdownSummary: '', attachments: [],
+  taskId: 't1',
+  taskTitle: 'Test',
+  boardId: 'b1',
+  startedAt: '2026-07-23T10:00:00Z',
+  completedAt: '2026-07-23T10:05:00Z',
+  checks: [],
+  markdownSummary: '',
+  attachments: [],
 };
 
 // ── Verdict ──────────────────────────────────────────────────────────────────
 
 test('passed verdict', () => {
-  render(<VerificationReportPanel report={{ ...BASE, verdict: 'passed', markdownSummary: 'OK.' }} />);
+  render(
+    <VerificationReportPanel report={{ ...BASE, verdict: 'passed', markdownSummary: 'OK.' }} />,
+  );
   expect(screen.getByText('Passed')).toBeTruthy();
   expect(screen.getByText('OK.')).toBeTruthy();
 });
 
 test('failed verdict', () => {
-  render(<VerificationReportPanel report={{ ...BASE, verdict: 'failed', markdownSummary: 'FAIL.' }} />);
+  render(
+    <VerificationReportPanel report={{ ...BASE, verdict: 'failed', markdownSummary: 'FAIL.' }} />,
+  );
   expect(screen.getByText('Failed')).toBeTruthy();
   expect(screen.getByText('FAIL.')).toBeTruthy();
 });
 
 test('needs_human verdict', () => {
-  render(<VerificationReportPanel report={{ ...BASE, verdict: 'needs_human', markdownSummary: 'Review.' }} />);
+  render(
+    <VerificationReportPanel
+      report={{ ...BASE, verdict: 'needs_human', markdownSummary: 'Review.' }}
+    />,
+  );
   expect(screen.getByText('Needs Review')).toBeTruthy();
   expect(screen.getByText('Review.')).toBeTruthy();
 });
@@ -49,9 +62,29 @@ test('incomplete verdict', () => {
 // ── Check results ───────────────────────────────────────────────────────────
 
 const CHECKS: KanbanVerificationCheckResult[] = [
-  { checkId: 'c1', description: 'File exists: readme.md', type: 'file_exists', status: 'passed', evidence: {} },
-  { checkId: 'c2', description: 'Tests pass', type: 'test', status: 'failed', evidence: {}, error: '2 failed' },
-  { checkId: 'c3', description: 'Exit code', type: 'command', status: 'error', evidence: {}, error: 'blocked' },
+  {
+    checkId: 'c1',
+    description: 'File exists: readme.md',
+    type: 'file_exists',
+    status: 'passed',
+    evidence: {},
+  },
+  {
+    checkId: 'c2',
+    description: 'Tests pass',
+    type: 'test',
+    status: 'failed',
+    evidence: {},
+    error: '2 failed',
+  },
+  {
+    checkId: 'c3',
+    description: 'Exit code',
+    type: 'command',
+    status: 'error',
+    evidence: {},
+    error: 'blocked',
+  },
 ];
 
 test('check descriptions and statuses visible when section open', () => {
@@ -74,10 +107,11 @@ test('type badge rendered', () => {
 
 test('mismatch indicator shown', () => {
   const fs: KanbanVerificationFileScope = {
-    expectedChanges: 2, actualChanges: 3, scopeMatches: false,
-    files: [
-      { path: 'src/debug.log', operation: 'create', expected: false, linesChanged: 100 },
-    ]};
+    expectedChanges: 2,
+    actualChanges: 3,
+    scopeMatches: false,
+    files: [{ path: 'src/debug.log', operation: 'create', expected: false, linesChanged: 100 }],
+  };
   render(<VerificationReportPanel report={{ ...BASE, verdict: 'failed', fileScope: fs }} />);
   expect(screen.getByText(/Scope mismatch/)).toBeTruthy();
   expect(screen.getByText('unexpected')).toBeTruthy();
@@ -85,7 +119,9 @@ test('mismatch indicator shown', () => {
 
 test('section header shown when collapsed', () => {
   const fs: KanbanVerificationFileScope = {
-    expectedChanges: 1, actualChanges: 1, scopeMatches: true,
+    expectedChanges: 1,
+    actualChanges: 1,
+    scopeMatches: true,
     files: [{ path: 'src/lib.ts', operation: 'modify', expected: true, linesChanged: 5 }],
   };
   render(<VerificationReportPanel report={{ ...BASE, verdict: 'passed', fileScope: fs }} />);
@@ -96,7 +132,9 @@ test('section header shown when collapsed', () => {
 
 test('sub-task section header shown', () => {
   const st: KanbanVerificationSubtasks = {
-    total: 3, completed: 2, failed: 1,
+    total: 3,
+    completed: 2,
+    failed: 1,
     children: [{ taskId: 'c1', title: 'Write tests', verdict: 'passed' }],
   };
   render(<VerificationReportPanel report={{ ...BASE, verdict: 'failed', subtasks: st }} />);
@@ -116,20 +154,28 @@ test('attachment count in section header', () => {
 // ── Edge cases ───────────────────────────────────────────────────────────────
 
 test('empty optional sections not rendered', () => {
-  render(<VerificationReportPanel report={{ ...BASE, verdict: 'passed', markdownSummary: 'Minimal' }} />);
+  render(
+    <VerificationReportPanel report={{ ...BASE, verdict: 'passed', markdownSummary: 'Minimal' }} />,
+  );
   expect(screen.getByText('Minimal')).toBeTruthy();
   expect(screen.queryByText('Check Results')).toBeNull();
 });
 
 test('all sections present with complete data', () => {
   const st: KanbanVerificationSubtasks = { total: 1, completed: 0, failed: 0, children: [] };
-  render(<VerificationReportPanel report={{
-    ...BASE, verdict: 'needs_human', markdownSummary: 'Full.',
-    checks: CHECKS,
-    fileScope: { expectedChanges: 0, actualChanges: 0, scopeMatches: true, files: [] },
-    subtasks: st,
-    attachments: [{ kind: 'command_output', label: 'Log', content: 'x' }],
-  }} />);
+  render(
+    <VerificationReportPanel
+      report={{
+        ...BASE,
+        verdict: 'needs_human',
+        markdownSummary: 'Full.',
+        checks: CHECKS,
+        fileScope: { expectedChanges: 0, actualChanges: 0, scopeMatches: true, files: [] },
+        subtasks: st,
+        attachments: [{ kind: 'command_output', label: 'Log', content: 'x' }],
+      }}
+    />,
+  );
   expect(screen.getByText('Check Results')).toBeTruthy();
   expect(screen.getByText('File Scope')).toBeTruthy();
   expect(screen.getByText('Sub-Tasks')).toBeTruthy();

@@ -424,13 +424,7 @@ export async function main(argv) {
     console.log(`\nPacking ${total} publishable package(s) into ${options.packDestination}`);
     for (const layer of layers) {
       for (const p of layer) {
-        await runPnpm([
-          '--filter',
-          p.name,
-          'pack',
-          '--pack-destination',
-          options.packDestination,
-        ]);
+        await runPnpm(['--filter', p.name, 'pack', '--pack-destination', options.packDestination]);
         resolveTarball(options.packDestination, p.name, p.version);
       }
     }

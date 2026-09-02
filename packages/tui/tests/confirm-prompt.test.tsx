@@ -1,10 +1,7 @@
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  ConfirmPrompt,
-  confirmButtonSegments,
-} from '../src/components/confirm-prompt.js';
+import { ConfirmPrompt, confirmButtonSegments } from '../src/components/confirm-prompt.js';
 
 // writeOut is called on mount but module resolution for @wrongstack/core
 // is complex due to the workspace alias; tested via keyboard interactions below.
@@ -16,7 +13,14 @@ vi.mock('../src/highlight.js', () => ({
 
 // Mock code-block to avoid complex render
 vi.mock('../src/components/history/code-block.js', () => ({
-  parseUnifiedDiff: () => ({ rows: [], hidden: 0, added: 0, removed: 0, hiddenAdded: 0, hiddenRemoved: 0 }),
+  parseUnifiedDiff: () => ({
+    rows: [],
+    hidden: 0,
+    added: 0,
+    removed: 0,
+    hiddenAdded: 0,
+    hiddenRemoved: 0,
+  }),
   DiffBlock: () => null,
 }));
 

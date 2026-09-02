@@ -2,7 +2,12 @@
 // @vitest-environment-options { "url": "http://localhost:3466/chat" }
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { __test__ as wsTestHooks, defaultWsUrl, exchangeAuthCookie, scrubPageToken } from '../src/lib/ws.js';
+import {
+  __test__ as wsTestHooks,
+  defaultWsUrl,
+  exchangeAuthCookie,
+  scrubPageToken,
+} from '../src/lib/ws.js';
 
 const TOKEN_STORAGE_KEY = 'wrongstack.simpleui.token.v1';
 

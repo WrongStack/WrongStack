@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { HqAlertEngine, toAlertMessage, type HqSnapshot } from '../../src/hq/index.js';
 
-function snapshot(overrides: Partial<HqSnapshot['totals']> = {}, machines: { lastActivityAt: string }[] = [], fleets: { failedTasks: number }[] = []): HqSnapshot {
+function snapshot(
+  overrides: Partial<HqSnapshot['totals']> = {},
+  machines: { lastActivityAt: string }[] = [],
+  fleets: { failedTasks: number }[] = [],
+): HqSnapshot {
   return {
     generatedAt: new Date().toISOString(),
     clients: [],

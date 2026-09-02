@@ -22,9 +22,7 @@ export function AgentRosterHeader({
             <Library className="h-4 w-4 text-primary" />
           </div>
           <div className="min-w-0 overflow-hidden">
-            <h1 className="text-sm font-semibold truncate">
-              {t('activity:agentRoster.heading')}
-            </h1>
+            <h1 className="text-sm font-semibold truncate">{t('activity:agentRoster.heading')}</h1>
             <p className="text-[10px] text-muted-foreground truncate">
               {t('activity:agentRoster.headerSummary', {
                 customized: customStats.filter(

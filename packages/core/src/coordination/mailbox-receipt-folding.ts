@@ -182,7 +182,10 @@ function foldRecipientState(
  *   - Direct exact-recipient message with `completed: true`
  *     → NOT legacy (it's actor-scoped, handled in foldRecipientState).
  */
-function classifyLegacyCompletion(msg: MailboxMessage, v2Receipts: readonly MailboxReceiptRecordV2[]): boolean {
+function classifyLegacyCompletion(
+  msg: MailboxMessage,
+  v2Receipts: readonly MailboxReceiptRecordV2[],
+): boolean {
   if (!msg.completed) return false;
   // Suppress legacy-global classification only when v2 data carries
   // unambiguous actor-scoped completion provenance — at least one v2

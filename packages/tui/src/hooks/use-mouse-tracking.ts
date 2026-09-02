@@ -47,8 +47,7 @@ export function useMouseTracking(input: {
 
   useEffect(
     () => () => {
-      const wasTracking =
-        mouseWrittenRef.current !== null && mouseWrittenRef.current !== MOUSE_OFF;
+      const wasTracking = mouseWrittenRef.current !== null && mouseWrittenRef.current !== MOUSE_OFF;
       mouseWrittenRef.current = null;
       if (!wasTracking) return;
       try {

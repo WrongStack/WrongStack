@@ -48,7 +48,16 @@ export interface ChronicleRuntimeIdentity {
 }
 
 export interface ChronicleResourceRef {
-  kind: 'file' | 'symbol' | 'memory' | 'task' | 'kanban' | 'process' | 'network' | 'artifact' | 'other';
+  kind:
+    | 'file'
+    | 'symbol'
+    | 'memory'
+    | 'task'
+    | 'kanban'
+    | 'process'
+    | 'network'
+    | 'artifact'
+    | 'other';
   id: string;
   path?: string | undefined;
   lineStart?: number | undefined;

@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  EntryHeightCache,
-  computeWindow,
-} from '../src/height-cache.js';
+import { EntryHeightCache, computeWindow } from '../src/height-cache.js';
 
 // ─── EntryHeightCache ─────────────────────────────────────────────────
 
@@ -93,7 +90,7 @@ describe('EntryHeightCache', () => {
     c.record(30, 2);
     // indices: 0 → id=10, 1 → id=20, 2 → id=30
     expect(c.accumulatedHeight(0)).toBe(0);
-    expect(c.accumulatedHeight(1)).toBe(4);  // entry 0
+    expect(c.accumulatedHeight(1)).toBe(4); // entry 0
     expect(c.accumulatedHeight(2)).toBe(10); // entries 0+1
     expect(c.accumulatedHeight(3)).toBe(12); // entries 0+1+2
   });
@@ -177,7 +174,13 @@ describe('EntryHeightCache', () => {
   it('records batches with one consistent prefix update', () => {
     const c = new EntryHeightCache();
     c.sync([1, 2, 3]);
-    expect(c.recordMany([[1, 5], [2, 7], [3, 2]])).toBe(true);
+    expect(
+      c.recordMany([
+        [1, 5],
+        [2, 7],
+        [3, 2],
+      ]),
+    ).toBe(true);
     expect(c.totalHeight()).toBe(14);
     expect(c.accumulatedHeight(2)).toBe(12);
   });
@@ -205,22 +208,47 @@ describe('EntryHeightCache', () => {
   it('recordMany filters invalid rows and short-circuits on no-change', () => {
     const c = new EntryHeightCache();
     c.sync([1, 2, 3]);
-    c.recordMany([[1, 5], [2, 7], [3, 2]]);
-    expect(c.recordMany([[1, 5], [2, 7]])).toBe(false); // all unchanged
-    expect(c.recordMany([[1, Number.NaN], [2, -3], [3, Number.POSITIVE_INFINITY]])).toBe(false);
+    c.recordMany([
+      [1, 5],
+      [2, 7],
+      [3, 2],
+    ]);
+    expect(
+      c.recordMany([
+        [1, 5],
+        [2, 7],
+      ]),
+    ).toBe(false); // all unchanged
+    expect(
+      c.recordMany([
+        [1, Number.NaN],
+        [2, -3],
+        [3, Number.POSITIVE_INFINITY],
+      ]),
+    ).toBe(false);
     expect(c.totalHeight()).toBe(14); // untouched
   });
 
   it('recordMany throws RangeError for unknown ids — call sync() first', () => {
     const c = new EntryHeightCache();
     c.sync([1, 2]); // ids [1,2], estimates 3+3
-    expect(() => c.recordMany([[9, 4], [1, 5]])).toThrow(RangeError);
+    expect(() =>
+      c.recordMany([
+        [9, 4],
+        [1, 5],
+      ]),
+    ).toThrow(RangeError);
   });
 
   it('recordMany duplicate ids within one batch are last-write-wins', () => {
     const c = new EntryHeightCache();
     c.sync([1]);
-    expect(c.recordMany([[1, 5], [1, 7]])).toBe(true);
+    expect(
+      c.recordMany([
+        [1, 5],
+        [1, 7],
+      ]),
+    ).toBe(true);
     expect(c.getHeight(1)).toBe(7); // rows applied in order; the second overwrites
     expect(c.totalHeight()).toBe(7);
   });

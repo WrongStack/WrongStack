@@ -104,7 +104,10 @@ export class CouncilPersonaRegistry {
   }
 
   /** Return a new registry; the current registry is never mutated. */
-  with(persona: CouncilPersona, opts: { replace?: boolean | undefined } = {}): CouncilPersonaRegistry {
+  with(
+    persona: CouncilPersona,
+    opts: { replace?: boolean | undefined } = {},
+  ): CouncilPersonaRegistry {
     const normalized = freezePersona(persona);
     if (this.has(normalized.id) && opts.replace !== true) {
       throw new Error(`CouncilPersonaRegistry: persona "${normalized.id}" already exists.`);
@@ -149,9 +152,9 @@ function freezePersona(persona: CouncilPersona): CouncilPersona {
   ) {
     throw new Error(`CouncilPersonaRegistry: persona "${id}" has an invalid default weight.`);
   }
-  const tags = Object.freeze(
-    [...new Set((persona.tags ?? []).map((tag) => tag.trim()).filter(Boolean))],
-  );
+  const tags = Object.freeze([
+    ...new Set((persona.tags ?? []).map((tag) => tag.trim()).filter(Boolean)),
+  ]);
   return Object.freeze({
     id,
     name,

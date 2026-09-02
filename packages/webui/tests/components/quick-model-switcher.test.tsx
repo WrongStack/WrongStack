@@ -611,11 +611,7 @@ describe('per-session reasoning effort', () => {
       expect(useSessionStore.getState().session?.model).toBe('gpt-5');
       // setSession's route change reset the levels; the picked model's
       // documented vocabulary must be seeded back immediately.
-      expect(useSessionStore.getState().reasoningEffortLevels).toEqual([
-        'low',
-        'high',
-        'max',
-      ]);
+      expect(useSessionStore.getState().reasoningEffortLevels).toEqual(['low', 'high', 'max']);
     });
   });
 });

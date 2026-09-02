@@ -568,7 +568,12 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         // `isProviderFailureTracked` — the provider runner is the single wire
         // funnel and already wrote this failure to the waiting room. Counting
         // it again here would halve every consecutive-failure threshold.
-        if (!alreadyTracked && firstErrIsProvider && tracker && !isProviderFailureTracked(firstErr_)) {
+        if (
+          !alreadyTracked &&
+          firstErrIsProvider &&
+          tracker &&
+          !isProviderFailureTracked(firstErr_)
+        ) {
           tracker.recordFailure(
             ctx_.provider.id,
             ctx_.model,

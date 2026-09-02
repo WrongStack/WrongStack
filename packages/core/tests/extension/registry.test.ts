@@ -113,7 +113,12 @@ describe('ExtensionRegistry — hook runners', () => {
     const reg = new ExtensionRegistry();
     const log = noopLogger();
     reg.setLogger(log as never);
-    reg.register({ name: 'bad', beforeRun: () => { throw new Error('x'); } });
+    reg.register({
+      name: 'bad',
+      beforeRun: () => {
+        throw new Error('x');
+      },
+    });
     reg.register({ name: 'good', beforeRun: vi.fn() });
     await expect(reg.runBeforeRun({} as never)).resolves.toBeUndefined();
     expect(log.error).toHaveBeenCalled();
@@ -130,7 +135,12 @@ describe('ExtensionRegistry — hook runners', () => {
   it('runAfterRun catches errors', async () => {
     const reg = new ExtensionRegistry();
     reg.setLogger(noopLogger() as never);
-    reg.register({ name: 'a', afterRun: () => { throw new Error('oops'); } });
+    reg.register({
+      name: 'a',
+      afterRun: () => {
+        throw new Error('oops');
+      },
+    });
     await expect(reg.runAfterRun({} as never, {} as never)).resolves.toBeUndefined();
   });
 
@@ -145,7 +155,12 @@ describe('ExtensionRegistry — hook runners', () => {
   it('runBeforeIteration catches errors', async () => {
     const reg = new ExtensionRegistry();
     reg.setLogger(noopLogger() as never);
-    reg.register({ name: 'i', beforeIteration: () => { throw new Error('bi'); } });
+    reg.register({
+      name: 'i',
+      beforeIteration: () => {
+        throw new Error('bi');
+      },
+    });
     await expect(reg.runBeforeIteration({} as never, 1)).resolves.toBeUndefined();
   });
 
@@ -160,7 +175,12 @@ describe('ExtensionRegistry — hook runners', () => {
   it('runAfterIteration catches errors', async () => {
     const reg = new ExtensionRegistry();
     reg.setLogger(noopLogger() as never);
-    reg.register({ name: 'ai', afterIteration: () => { throw new Error('ai'); } });
+    reg.register({
+      name: 'ai',
+      afterIteration: () => {
+        throw new Error('ai');
+      },
+    });
     await expect(reg.runAfterIteration({} as never, 1, {} as never)).resolves.toBeUndefined();
   });
 });
@@ -187,7 +207,12 @@ describe('ExtensionRegistry — onError', () => {
   it('catches errors and proceeds to the next extension', async () => {
     const reg = new ExtensionRegistry();
     reg.setLogger(noopLogger() as never);
-    reg.register({ name: 'a', onError: () => { throw new Error('bad'); } });
+    reg.register({
+      name: 'a',
+      onError: () => {
+        throw new Error('bad');
+      },
+    });
     reg.register({ name: 'b', onError: () => ({ action: 'continue' }) });
     const out = await reg.runOnError({} as never, new Error('e'));
     expect(out).toEqual({ action: 'continue' });
@@ -293,7 +318,7 @@ describe('ExtensionRegistry — tool execution hooks', () => {
     });
     reg.register({
       name: 'b',
-      beforeToolExecution: async (_ctx, uses) => uses.map((u) => ({ ...u, marked: true } as never)),
+      beforeToolExecution: async (_ctx, uses) => uses.map((u) => ({ ...u, marked: true }) as never),
     });
     const out = await reg.runBeforeToolExecution({} as never, [{ id: '0' } as never]);
     expect(out).toHaveLength(2);

@@ -64,7 +64,11 @@ describe('checkUnixSocketPath', () => {
 describe('assertUnixSocketPathWithinLimit', () => {
   it('is silent within the limit', () => {
     expect(() =>
-      assertUnixSocketPathWithinLimit(`${MACOS_TMPDIR}/wsci-v1-abc.sock`, 'codebase-index', 'darwin'),
+      assertUnixSocketPathWithinLimit(
+        `${MACOS_TMPDIR}/wsci-v1-abc.sock`,
+        'codebase-index',
+        'darwin',
+      ),
     ).not.toThrow();
   });
 

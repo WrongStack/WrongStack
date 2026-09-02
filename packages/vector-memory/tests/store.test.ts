@@ -16,7 +16,10 @@ import { FakeEmbeddingProvider } from './fake-provider.js';
 const testRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 function makeStore(opts: Partial<VectorMemoryStoreOptions> = {}): VectorMemoryStore {
-  const projectRoot = path.join(os.tmpdir(), `wrongstack-vm-${testRunId}-${Math.random().toString(36).slice(2, 8)}`);
+  const projectRoot = path.join(
+    os.tmpdir(),
+    `wrongstack-vm-${testRunId}-${Math.random().toString(36).slice(2, 8)}`,
+  );
   return new VectorMemoryStore({
     provider: new FakeEmbeddingProvider({ dimensions: 64 }),
     projectRoot,

@@ -26,7 +26,9 @@ function socketHarness() {
   const sent: Array<{ type: string; payload?: Record<string, unknown> }> = [];
   return {
     sent,
-    socket: { send: (type: string, payload?: Record<string, unknown>) => void sent.push({ type, payload }) },
+    socket: {
+      send: (type: string, payload?: Record<string, unknown>) => void sent.push({ type, payload }),
+    },
   };
 }
 
@@ -43,10 +45,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function renderModal(options: {
-  info?: FallbackPendingInfo | null;
-  onClose?: () => void;
-} = {}): { container: HTMLElement; sent: Array<{ type: string; payload?: Record<string, unknown> }>; onClose: () => void } {
+function renderModal(options: { info?: FallbackPendingInfo | null; onClose?: () => void } = {}): {
+  container: HTMLElement;
+  sent: Array<{ type: string; payload?: Record<string, unknown> }>;
+  onClose: () => void;
+} {
   const { socket, sent } = socketHarness();
   const onClose = options.onClose ?? vi.fn();
   const container = document.createElement('div');

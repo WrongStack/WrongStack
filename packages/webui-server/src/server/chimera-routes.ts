@@ -104,9 +104,7 @@ export function isPendingChimeraReport(report: {
   totalFindings: number;
 }): boolean {
   return (
-    report.totalFindings > 0 &&
-    report.lifecycle !== 'completed' &&
-    report.lifecycle !== 'skipped'
+    report.totalFindings > 0 && report.lifecycle !== 'completed' && report.lifecycle !== 'skipped'
   );
 }
 
@@ -160,9 +158,7 @@ export async function queryAllChimeraReports(
   },
 ): Promise<ChimeraReportSummary[]> {
   const store = new JsonlReportStore(projectDir);
-  const statuses = opts?.lifecycle
-    ? [opts.lifecycle as ReportLifecycleStatus]
-    : undefined;
+  const statuses = opts?.lifecycle ? [opts.lifecycle as ReportLifecycleStatus] : undefined;
   const reports = await store.list({
     ...(statuses ? { statuses } : {}),
     limit: opts?.limit ?? 200,
@@ -218,7 +214,8 @@ export function createChimeraRouteHandlers(deps: {
         limit?: unknown;
       };
       const rawSessionId = typeof payload.sessionId === 'string' ? payload.sessionId : '';
-      const isAllQuery = payload.all === true || msg.type === 'chimera.reports.query' || payload.lifecycle != null;
+      const isAllQuery =
+        payload.all === true || msg.type === 'chimera.reports.query' || payload.lifecycle != null;
       const limit = typeof payload.limit === 'number' ? payload.limit : 50;
 
       if (!rawSessionId && !isAllQuery) return; // untagged single-tab request names no tab
@@ -235,12 +232,21 @@ export function createChimeraRouteHandlers(deps: {
             payload: { sessionId: rawSessionId, reports, isQuery: true },
           });
         } else {
-          const reports = await listChimeraReportsForSession(deps.projectDir(), rawSessionId, limit);
+          const reports = await listChimeraReportsForSession(
+            deps.projectDir(),
+            rawSessionId,
+            limit,
+          );
           deps.send(ws, { type: 'chimera.reports', payload: { sessionId: rawSessionId, reports } });
         }
       } catch (err) {
-        deps.log?.(`chimera.reports.list failed: ${err instanceof Error ? err.message : String(err)}`);
-        deps.send(ws, { type: 'chimera.reports', payload: { sessionId: rawSessionId, reports: [] } });
+        deps.log?.(
+          `chimera.reports.list failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        deps.send(ws, {
+          type: 'chimera.reports',
+          payload: { sessionId: rawSessionId, reports: [] },
+        });
       }
     },
 
@@ -264,7 +270,12 @@ export function createChimeraRouteHandlers(deps: {
         if (!report) {
           deps.send(ws, {
             type: 'chimera.report.detail',
-            payload: { report: null, findings: [], events: [], error: `Report not found: ${reportId}` },
+            payload: {
+              report: null,
+              findings: [],
+              events: [],
+              error: `Report not found: ${reportId}`,
+            },
           });
           return;
         }
@@ -375,7 +386,8 @@ export function createChimeraRouteHandlers(deps: {
       };
       const findingId = typeof payload.findingId === 'string' ? payload.findingId : '';
       const to = typeof payload.to === 'string' ? (payload.to as FindingStatus) : null;
-      const outcome = typeof payload.outcome === 'string' ? (payload.outcome as ResolutionOutcome) : undefined;
+      const outcome =
+        typeof payload.outcome === 'string' ? (payload.outcome as ResolutionOutcome) : undefined;
       const reason = typeof payload.reason === 'string' ? payload.reason : undefined;
 
       if (!findingId || !to) {
@@ -413,9 +425,17 @@ export function createChimeraRouteHandlers(deps: {
         if (reportId) {
           try {
             if (to === 'resolved' || to === 'ignored') {
-              await syncReportCompletion(reportId, projectDir, { id: 'operator', kind: 'operator' });
+              await syncReportCompletion(reportId, projectDir, {
+                id: 'operator',
+                kind: 'operator',
+              });
             } else if (to === 'active') {
-              await syncReportReopen(reportId, projectDir, { id: 'operator', kind: 'operator' }, reason);
+              await syncReportReopen(
+                reportId,
+                projectDir,
+                { id: 'operator', kind: 'operator' },
+                reason,
+              );
             }
           } catch {
             // best-effort sync

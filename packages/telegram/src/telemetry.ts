@@ -216,12 +216,12 @@ export class TelegramTelemetry {
     const pollsTotal = pollsOk + pollsFail;
     log.info(
       `[telegram.metrics] polls=${pollsOk}/${pollsTotal} ` +
-      `upd_accepted=${s.updates.accepted.count} upd_rejected=${s.updates.rejected.count} ` +
-      `upd_dedup=${s.updates.deduplicated.count} retries=${s.retry.attempts.count} ` +
-      `queue_pend=${s.queue.pending.value} queue_inflight=${s.queue.inflight.value} ` +
-      `queue_drop=${s.queue.dropped.count} queue_fail=${s.queue.failures.count} ` +
-      `approvals_settled=${s.approvals.settled.count} approvals_timeout=${s.approvals.timedOut.count} ` +
-      `locks_acq=${s.locks.acquires.count} locks_lost=${s.locks.lost.count}`,
+        `upd_accepted=${s.updates.accepted.count} upd_rejected=${s.updates.rejected.count} ` +
+        `upd_dedup=${s.updates.deduplicated.count} retries=${s.retry.attempts.count} ` +
+        `queue_pend=${s.queue.pending.value} queue_inflight=${s.queue.inflight.value} ` +
+        `queue_drop=${s.queue.dropped.count} queue_fail=${s.queue.failures.count} ` +
+        `approvals_settled=${s.approvals.settled.count} approvals_timeout=${s.approvals.timedOut.count} ` +
+        `locks_acq=${s.locks.acquires.count} locks_lost=${s.locks.lost.count}`,
     );
   }
 }

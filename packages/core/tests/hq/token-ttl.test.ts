@@ -68,7 +68,9 @@ describe('mintHqToken — TTL stamping', () => {
 
   it('ignores non-finite ttlMs (NaN / Infinity)', () => {
     expect(mintHqToken({ ttlMs: Number.NaN, now: FIXED_NOW }).expiresAt).toBeUndefined();
-    expect(mintHqToken({ ttlMs: Number.POSITIVE_INFINITY, now: FIXED_NOW }).expiresAt).toBeUndefined();
+    expect(
+      mintHqToken({ ttlMs: Number.POSITIVE_INFINITY, now: FIXED_NOW }).expiresAt,
+    ).toBeUndefined();
   });
 
   it('preserves the bare-string overload (backward-compat)', () => {

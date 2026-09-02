@@ -109,12 +109,19 @@ export function ShortcutsOverlay() {
   }, [setOpen, keyboardShortcuts]);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) setOpen(false); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) setOpen(false);
+      }}
+    >
       <DialogContent className="max-w-2xl gap-0 p-0 overflow-hidden flex flex-col max-h-[80dvh]">
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div className="flex items-center gap-2">
             <Keyboard className="h-4 w-4 text-muted-foreground" />
-            <DialogTitle className="text-sm font-semibold">{t('activity:shortcuts.heading')}</DialogTitle>
+            <DialogTitle className="text-sm font-semibold">
+              {t('activity:shortcuts.heading')}
+            </DialogTitle>
           </div>
         </div>
         <DialogDescription className="sr-only">{t('activity:shortcuts.heading')}</DialogDescription>
@@ -130,7 +137,9 @@ export function ShortcutsOverlay() {
                     key={s.descKey}
                     className="flex items-center justify-between gap-3 text-sm px-2 py-1.5 rounded hover:bg-muted/40"
                   >
-                    <span className="text-foreground/80">{t(`activity:shortcuts.${s.descKey}`)}</span>
+                    <span className="text-foreground/80">
+                      {t(`activity:shortcuts.${s.descKey}`)}
+                    </span>
                     <span className="flex items-center gap-1 shrink-0">
                       {s.keys.map((k, ki) => (
                         <span key={k} className="flex items-center gap-1">

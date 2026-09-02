@@ -5,11 +5,7 @@
   "description": "Approach a bug that disappears under observation or happens only sometimes.",
   "content": "I have an intermittent bug that's hard to pin down: {{bug}}\n\nTreat it as a non-determinism problem. Help me:\n1. Enumerate sources of non-determinism (threads, I/O ordering, time, randomness, uninitialized memory, network).\n2. Pick the cheapest way to make each source observable or controllable.\n3. Design a stress harness that makes it reproduce more often.\n\nGive me a concrete next experiment, not general advice.",
   "category": "debugging",
-  "tags": [
-    "intermittent",
-    "race",
-    "nondeterminism"
-  ],
+  "tags": ["intermittent", "race", "nondeterminism"],
   "source": "builtin",
   "favorite": false,
   "checksum": "41865e27be0568af9c10b3a9aa457dcb22d25de04747a32cef029b5a4064c633",

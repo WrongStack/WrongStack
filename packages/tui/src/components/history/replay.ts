@@ -72,9 +72,7 @@ const TUI_RESUME_EXCLUDED_MARKER_SOURCES: ReadonlySet<SessionEvent['type']> = ne
 ]);
 
 const MARKER_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new Set(
-  [...SESSION_MARKER_EVENT_TYPES].filter(
-    (type) => !TUI_RESUME_EXCLUDED_MARKER_SOURCES.has(type),
-  ),
+  [...SESSION_MARKER_EVENT_TYPES].filter((type) => !TUI_RESUME_EXCLUDED_MARKER_SOURCES.has(type)),
 );
 
 type PreEntry = DistributiveOmit<HistoryEntry, 'id'>;

@@ -60,10 +60,7 @@ export function handleNextList(): true {
   return true;
 }
 
-export function handleNextSelect(
-  input: string,
-  sendMsg: (content: string) => void,
-): true {
+export function handleNextSelect(input: string, sendMsg: (content: string) => void): true {
   const steps = stepsFromLastAssistant();
   if (steps.length === 0) {
     useChatStore.getState().addMessage({
@@ -73,11 +70,11 @@ export function handleNextSelect(
     return true;
   }
   const parts = input.split(/[\s,]+/).filter(Boolean);
-  const indices = parts
-    .map((p) => Number.parseInt(p, 10))
-    .filter((n) => !Number.isNaN(n) && n > 0);
+  const indices = parts.map((p) => Number.parseInt(p, 10)).filter((n) => !Number.isNaN(n) && n > 0);
   if (indices.length === 0) {
-    useChatStore.getState().addMessage({ role: 'assistant', content: '💡 _No valid suggestion numbers._' });
+    useChatStore
+      .getState()
+      .addMessage({ role: 'assistant', content: '💡 _No valid suggestion numbers._' });
     return true;
   }
   const invalid = indices.filter((i) => i > steps.length);

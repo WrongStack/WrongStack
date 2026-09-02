@@ -132,7 +132,9 @@ export function LiveAgentsHud({
     <section className="pointer-events-auto absolute left-3 top-14 z-20 w-[304px] border bg-card/95 shadow-xl backdrop-blur">
       <div className="flex h-9 items-center gap-2 border-b px-3">
         <Radio className="h-3.5 w-3.5 animate-pulse text-success" />
-        <h2 className="text-[9px] font-black uppercase tracking-[0.18em]">{t('activity:codeMap.liveAgentOperations')}</h2>
+        <h2 className="text-[9px] font-black uppercase tracking-[0.18em]">
+          {t('activity:codeMap.liveAgentOperations')}
+        </h2>
         <span className="ml-auto bg-success px-1.5 py-0.5 font-mono text-[8px] font-bold text-success-foreground">
           {presences.length} ONLINE
         </span>

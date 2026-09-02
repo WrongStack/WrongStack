@@ -2,7 +2,10 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { applySessionIndexLines, readFileRange } from '../../src/storage/session-store/index-reader.js';
+import {
+  applySessionIndexLines,
+  readFileRange,
+} from '../../src/storage/session-store/index-reader.js';
 import type { SessionSummary } from '../../src/types/session.js';
 
 let tmp: string;
@@ -20,7 +23,14 @@ describe('applySessionIndexLines', () => {
     const byId = new Map<string, SessionSummary>();
     const deleted = new Set<string>();
 
-    const summary = { id: 'a', title: 'A', startedAt: '2026-01-01T00:00:00Z', model: 'm', provider: 'p', tokenTotal: 0 };
+    const summary = {
+      id: 'a',
+      title: 'A',
+      startedAt: '2026-01-01T00:00:00Z',
+      model: 'm',
+      provider: 'p',
+      tokenTotal: 0,
+    };
 
     const raw = [
       JSON.stringify(summary),
@@ -41,7 +51,14 @@ describe('applySessionIndexLines', () => {
     const byId = new Map<string, SessionSummary>();
     const deleted = new Set<string>();
 
-    const summary = { id: 'x', title: 'X', startedAt: '2026-01-01T00:00:00Z', model: 'm', provider: 'p', tokenTotal: 0 };
+    const summary = {
+      id: 'x',
+      title: 'X',
+      startedAt: '2026-01-01T00:00:00Z',
+      model: 'm',
+      provider: 'p',
+      tokenTotal: 0,
+    };
 
     const raw = [
       JSON.stringify(summary),
@@ -65,7 +82,14 @@ describe('readFileRange', () => {
 
   it('returns the full appended chunk when it ends on a newline', async () => {
     const file = path.join(tmp, 'range.jsonl');
-    const line = JSON.stringify({ id: 'a', title: 'A', startedAt: '2026-01-01T00:00:00Z', model: 'm', provider: 'p', tokenTotal: 0 });
+    const line = JSON.stringify({
+      id: 'a',
+      title: 'A',
+      startedAt: '2026-01-01T00:00:00Z',
+      model: 'm',
+      provider: 'p',
+      tokenTotal: 0,
+    });
     await fsp.writeFile(file, line + '\n', 'utf8');
     const result = await readFileRange(file, 0, (await fsp.stat(file)).size);
     expect(result).not.toBeNull();

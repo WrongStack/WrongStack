@@ -73,14 +73,40 @@ describe('deriveMonitorStats', () => {
         sessionId: 'a',
         clientType: 'tui',
         agents: [
-          { id: 'a1', name: 'A1', status: 'running', toolCalls: 40, costUsd: 0.12, tokensIn: 1000, tokensOut: 200 },
-          { id: 'a2', name: 'A2', status: 'idle', toolCalls: 5, costUsd: 0.03, tokensIn: 100, tokensOut: 50 },
+          {
+            id: 'a1',
+            name: 'A1',
+            status: 'running',
+            toolCalls: 40,
+            costUsd: 0.12,
+            tokensIn: 1000,
+            tokensOut: 200,
+          },
+          {
+            id: 'a2',
+            name: 'A2',
+            status: 'idle',
+            toolCalls: 5,
+            costUsd: 0.03,
+            tokensIn: 100,
+            tokensOut: 50,
+          },
         ],
       }),
       session({
         sessionId: 'b',
         clientType: 'cli',
-        agents: [{ id: 'b1', name: 'B1', status: 'running', toolCalls: 79, costUsd: 0.25, tokensIn: 2000, tokensOut: 400 }],
+        agents: [
+          {
+            id: 'b1',
+            name: 'B1',
+            status: 'running',
+            toolCalls: 79,
+            costUsd: 0.25,
+            tokensIn: 2000,
+            tokensOut: 400,
+          },
+        ],
       }),
     ];
     const agg = deriveMonitorStats(sessions).aggregate;
@@ -116,30 +142,26 @@ describe('useMonitorStore.setLiveSessions', () => {
   });
 
   it('caps live agent context percentages at 100', () => {
-    useMonitorStore
-      .getState()
-      .setLiveSessions([
-        session({
-          sessionId: 'x',
-          clientType: 'webui',
-          agents: [{ id: 'x1', name: 'X1', status: 'running', ctxPct: 145 }],
-        }),
-      ]);
+    useMonitorStore.getState().setLiveSessions([
+      session({
+        sessionId: 'x',
+        clientType: 'webui',
+        agents: [{ id: 'x1', name: 'X1', status: 'running', ctxPct: 145 }],
+      }),
+    ]);
 
     const agent = useMonitorStore.getState().liveSessions[0]?.agents[0];
     expect(agent?.ctxPct).toBe(100);
   });
 
   it('clear() resets liveSessions and counts', () => {
-    useMonitorStore
-      .getState()
-      .setLiveSessions([
-        session({
-          sessionId: 'x',
-          clientType: 'tui',
-          agents: [{ id: 'x1', name: 'X1', status: 'running' }],
-        }),
-      ]);
+    useMonitorStore.getState().setLiveSessions([
+      session({
+        sessionId: 'x',
+        clientType: 'tui',
+        agents: [{ id: 'x1', name: 'X1', status: 'running' }],
+      }),
+    ]);
     useMonitorStore.getState().clear();
 
     const state = useMonitorStore.getState();

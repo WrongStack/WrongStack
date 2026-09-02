@@ -2,11 +2,7 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  defaultHeapLogPath,
-  startHeapWatchdog,
-  takeHeapSample,
-} from '../src/heap-watchdog.js';
+import { defaultHeapLogPath, startHeapWatchdog, takeHeapSample } from '../src/heap-watchdog.js';
 
 describe('takeHeapSample', () => {
   it('returns a coherent sample with a positive heap limit', () => {

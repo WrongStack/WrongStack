@@ -5,11 +5,7 @@
   "description": "Craft a clear, conventional commit message from a change.",
   "content": "Write a commit message for this change:\n\n{{change}}\n\nFormat: a concise imperative subject line under ~70 chars, a blank line, then a body that explains WHY the change was made and any consequence a future reader needs. Use a conventional prefix (feat/fix/refactor/docs/test/chore) if the project uses them. Don't just restate the diff — explain the motivation.",
   "category": "writing",
-  "tags": [
-    "git",
-    "commit",
-    "conventions"
-  ],
+  "tags": ["git", "commit", "conventions"],
   "source": "builtin",
   "favorite": false,
   "checksum": "884dca2bbccfc842349d84f966d0aaa8d47075199cc706e30d64339db90402e9",

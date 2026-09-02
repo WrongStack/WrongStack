@@ -25,10 +25,7 @@ function assistantText(text: string): Message {
   };
 }
 
-function assistantWithToolUses(
-  text: string,
-  toolUseIds: string[],
-): Message {
+function assistantWithToolUses(text: string, toolUseIds: string[]): Message {
   const blocks = [
     { type: 'text' as const, text },
     ...toolUseIds.map((id) => ({
@@ -78,13 +75,7 @@ describe('rehydrateHistory — timeline interleaving', () => {
 
     const entries = rehydrateHistory(messages, 1, toolCalls);
 
-    expect(kinds(entries)).toEqual([
-      'user',
-      'assistant',
-      'tool',
-      'tool',
-      'assistant',
-    ]);
+    expect(kinds(entries)).toEqual(['user', 'assistant', 'tool', 'tool', 'assistant']);
     // IDs are monotonically increasing starting from `startId`.
     expect(entries.map((e) => e.id)).toEqual([1, 2, 3, 4, 5]);
   });
@@ -95,11 +86,7 @@ describe('rehydrateHistory — timeline interleaving', () => {
       assistantWithToolUses('three tools', ['tu_a', 'tu_b', 'tu_c']),
     ];
     // toolCalls are passed in the order they were appended in JSONL.
-    const toolCalls: ToolCall[] = [
-      toolCall('tu_a'),
-      toolCall('tu_b'),
-      toolCall('tu_c'),
-    ];
+    const toolCalls: ToolCall[] = [toolCall('tu_a'), toolCall('tu_b'), toolCall('tu_c')];
 
     const entries = rehydrateHistory(messages, 10, toolCalls);
 
@@ -122,14 +109,7 @@ describe('rehydrateHistory — timeline interleaving', () => {
 
     const entries = rehydrateHistory(messages, 1, toolCalls);
 
-    expect(kinds(entries)).toEqual([
-      'user',
-      'assistant',
-      'tool',
-      'assistant',
-      'assistant',
-      'tool',
-    ]);
+    expect(kinds(entries)).toEqual(['user', 'assistant', 'tool', 'assistant', 'assistant', 'tool']);
   });
 
   it('falls back to end-of-timeline ordering when a tool_call_end has no matching tool_use', () => {
@@ -137,10 +117,7 @@ describe('rehydrateHistory — timeline interleaving', () => {
     // lost (corrupt JSONL, older writer, etc.). The user must still see the
     // audit entry — appended at the end so it can't accidentally claim to
     // belong to an unrelated assistant turn.
-    const messages: Message[] = [
-      userMsg('hi'),
-      assistantWithToolUses('done', ['tu_1']),
-    ];
+    const messages: Message[] = [userMsg('hi'), assistantWithToolUses('done', ['tu_1'])];
     const toolCalls: ToolCall[] = [toolCall('tu_1'), toolCall('orphan')];
 
     const entries = rehydrateHistory(messages, 1, toolCalls);
@@ -198,11 +175,7 @@ describe('rehydrateHistory — timeline interleaving', () => {
       assistantToolOnly(['tu_2', 'tu_3']),
       assistantText('all done'),
     ];
-    const toolCalls: ToolCall[] = [
-      toolCall('tu_1'),
-      toolCall('tu_2'),
-      toolCall('tu_3'),
-    ];
+    const toolCalls: ToolCall[] = [toolCall('tu_1'), toolCall('tu_2'), toolCall('tu_3')];
 
     const entries = rehydrateHistory(messages, 1, toolCalls);
 
@@ -259,10 +232,7 @@ describe('rehydrateHistory — timeline interleaving', () => {
   it('matches identical tool_use ids to the first tool_call_end seen', () => {
     // Defensive: if two tool_call_ends share an id (shouldn't happen in
     // practice), the first wins so the timeline stays stable.
-    const messages: Message[] = [
-      userMsg('go'),
-      assistantWithToolUses('try', ['dup']),
-    ];
+    const messages: Message[] = [userMsg('go'), assistantWithToolUses('try', ['dup'])];
     const toolCalls: ToolCall[] = [
       { id: 'dup', name: 'first', durationMs: 1, ok: true },
       { id: 'dup', name: 'second', durationMs: 2, ok: true },

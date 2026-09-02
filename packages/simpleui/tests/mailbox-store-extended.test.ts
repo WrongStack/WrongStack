@@ -14,22 +14,34 @@ describe('SimpleUI mailbox store — extended coverage', () => {
 
   describe('isUnreadIncomingMailboxMessage', () => {
     it('returns true for an unread, incomplete message from a real agent', () => {
-      expect(isUnreadIncomingMailboxMessage({ completed: false, readByCount: 0, from: 'worker@x' })).toBe(true);
+      expect(
+        isUnreadIncomingMailboxMessage({ completed: false, readByCount: 0, from: 'worker@x' }),
+      ).toBe(true);
     });
     it('returns false for a completed message', () => {
-      expect(isUnreadIncomingMailboxMessage({ completed: true, readByCount: 0, from: 'worker@x' })).toBe(false);
+      expect(
+        isUnreadIncomingMailboxMessage({ completed: true, readByCount: 0, from: 'worker@x' }),
+      ).toBe(false);
     });
     it('returns false when readByCount > 0', () => {
-      expect(isUnreadIncomingMailboxMessage({ completed: false, readByCount: 1, from: 'worker@x' })).toBe(false);
+      expect(
+        isUnreadIncomingMailboxMessage({ completed: false, readByCount: 1, from: 'worker@x' }),
+      ).toBe(false);
     });
     it('returns false for empty from', () => {
-      expect(isUnreadIncomingMailboxMessage({ completed: false, readByCount: 0, from: '' })).toBe(false);
+      expect(isUnreadIncomingMailboxMessage({ completed: false, readByCount: 0, from: '' })).toBe(
+        false,
+      );
     });
     it('returns false for webui self-messages', () => {
-      expect(isUnreadIncomingMailboxMessage({ completed: false, readByCount: 0, from: 'webui' })).toBe(false);
+      expect(
+        isUnreadIncomingMailboxMessage({ completed: false, readByCount: 0, from: 'webui' }),
+      ).toBe(false);
     });
     it('returns false for simpleui self-messages', () => {
-      expect(isUnreadIncomingMailboxMessage({ completed: false, readByCount: 0, from: 'simpleui' })).toBe(false);
+      expect(
+        isUnreadIncomingMailboxMessage({ completed: false, readByCount: 0, from: 'simpleui' }),
+      ).toBe(false);
     });
   });
 
@@ -148,7 +160,9 @@ describe('SimpleUI mailbox store — extended coverage', () => {
 
     it('returns true for primary data types', () => {
       const store = createMailboxStore();
-      expect(store.applyMessage({ type: 'mailbox.messages', payload: { messages: [] } })).toBe(true);
+      expect(store.applyMessage({ type: 'mailbox.messages', payload: { messages: [] } })).toBe(
+        true,
+      );
       expect(store.applyMessage({ type: 'mailbox.agents', payload: { agents: [] } })).toBe(true);
     });
   });
@@ -240,11 +254,7 @@ describe('SimpleUI mailbox store — extended coverage', () => {
       store.applyMessage({
         type: 'mailbox.messages',
         payload: {
-          messages: [
-            { id: '', from: 'x' },
-            { from: 'y' },
-            { id: 'good', from: 'z' },
-          ],
+          messages: [{ id: '', from: 'x' }, { from: 'y' }, { id: 'good', from: 'z' }],
         },
       });
       expect(store.getSnapshot().messages).toHaveLength(1);

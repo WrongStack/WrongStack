@@ -4,8 +4,16 @@ import commitValidatorPlugin from '../src/commit-validator';
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   registerHook: ReturnType<typeof vi.fn>;
   onEvent: ReturnType<typeof vi.fn>;
   emitCustom: ReturnType<typeof vi.fn>;
@@ -25,16 +33,22 @@ function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): Mock
   };
 }
 
-function getHook(api: MockApi): (input: unknown) => Promise<{ decision?: string; reason?: string; additionalContext?: string } | void> {
+function getHook(
+  api: MockApi,
+): (
+  input: unknown,
+) => Promise<{ decision?: string; reason?: string; additionalContext?: string } | void> {
   const call = api.registerHook.mock.calls[0];
   if (!call) throw new Error('hook not registered');
   return (call as unknown[])[2] as ReturnType<typeof getHook>;
 }
 
 function getStatusTool(api: MockApi): { execute: (input: unknown) => Promise<unknown> } {
-  const call = api.tools.register.mock.calls.find(([t]: unknown[]) => (t as { name: string }).name === 'commit_validator_status');
+  const call = api.tools.register.mock.calls.find(
+    ([t]: unknown[]) => (t as { name: string }).name === 'commit_validator_status',
+  );
   if (!call) throw new Error('commit_validator_status not registered');
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -56,7 +70,10 @@ describe('valid commit messages', () => {
     const api = makeApi();
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "feat: add new feature"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "feat: add new feature"' },
+    });
     expect(result).toBeUndefined();
   });
 
@@ -64,7 +81,10 @@ describe('valid commit messages', () => {
     const api = makeApi();
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: "git commit -m 'fix(auth): correct login'" } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: "git commit -m 'fix(auth): correct login'" },
+    });
     expect(result).toBeUndefined();
   });
 
@@ -72,7 +92,10 @@ describe('valid commit messages', () => {
     const api = makeApi();
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "feat!: redesign API"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "feat!: redesign API"' },
+    });
     expect(result).toBeUndefined();
   });
 
@@ -80,7 +103,10 @@ describe('valid commit messages', () => {
     const api = makeApi();
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "refactor(core)!: rename exports"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "refactor(core)!: rename exports"' },
+    });
     expect(result).toBeUndefined();
   });
 });
@@ -90,7 +116,10 @@ describe('invalid commit messages', () => {
     const api = makeApi();
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "just a message"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "just a message"' },
+    });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('conventional-commit');
   });
@@ -99,7 +128,10 @@ describe('invalid commit messages', () => {
     const api = makeApi();
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "feat add feature"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "feat add feature"' },
+    });
     expect(result?.decision).toBe('block');
   });
 
@@ -107,7 +139,10 @@ describe('invalid commit messages', () => {
     const api = makeApi();
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "feat: add feature."' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "feat: add feature."' },
+    });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('period');
   });
@@ -117,7 +152,10 @@ describe('invalid commit messages', () => {
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
     const longSubject = 'a'.repeat(50);
-    const result = await hook({ toolName: 'bash', toolInput: { command: `git commit -m "feat: ${longSubject}"` } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: `git commit -m "feat: ${longSubject}"` },
+    });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('exceeds');
   });
@@ -126,7 +164,10 @@ describe('invalid commit messages', () => {
     const api = makeApi({ extensions: { 'commit-validator': { allowedTypes: ['feat', 'fix'] } } });
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "wip: work in progress"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "wip: work in progress"' },
+    });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('not in allowedTypes');
   });
@@ -135,7 +176,10 @@ describe('invalid commit messages', () => {
     const api = makeApi({ extensions: { 'commit-validator': { requireScope: true } } });
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "feat: add feature"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "feat: add feature"' },
+    });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('scope');
   });
@@ -146,7 +190,10 @@ describe('warn mode', () => {
     const api = makeApi({ extensions: { 'commit-validator': { mode: 'warn' } } });
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "bad message"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "bad message"' },
+    });
     expect(result?.decision).toBe('allow');
     expect(result?.additionalContext).toContain('commit-validator');
   });
@@ -185,7 +232,10 @@ describe('teardown + H1 pattern', () => {
     const api = makeApi();
     commitValidatorPlugin.setup(api as never);
     expect(() => commitValidatorPlugin.teardown!(api as never)).not.toThrow();
-    expect(api.log.info).toHaveBeenCalledWith('commit-validator: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'commit-validator: teardown complete',
+      expect.any(Object),
+    );
   });
 
   it('zeros counters on teardown', async () => {
@@ -209,26 +259,39 @@ describe('bodyRequired config', () => {
     const api = makeApi({ extensions: { 'commit-validator': { bodyRequired: true } } });
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "feat: add feature"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "feat: add feature"' },
+    });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('body is required');
   });
 
   it('passes when bodyRequired=true and body is present', async () => {
-    const api = makeApi({ extensions: { 'commit-validator': { bodyRequired: true, minBodyLength: 10 } } });
+    const api = makeApi({
+      extensions: { 'commit-validator': { bodyRequired: true, minBodyLength: 10 } },
+    });
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
     const msg = 'feat: add feature\n\nThis adds a new authentication module with OAuth2 support.';
-    const result = await hook({ toolName: 'bash', toolInput: { command: `git commit -m "${msg}"` } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: `git commit -m "${msg}"` },
+    });
     expect(result).toBeUndefined();
   });
 
   it('blocks when body is shorter than minBodyLength', async () => {
-    const api = makeApi({ extensions: { 'commit-validator': { bodyRequired: true, minBodyLength: 50 } } });
+    const api = makeApi({
+      extensions: { 'commit-validator': { bodyRequired: true, minBodyLength: 50 } },
+    });
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
     const msg = 'feat: add feature\n\nShort body';
-    const result = await hook({ toolName: 'bash', toolInput: { command: `git commit -m "${msg}"` } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: `git commit -m "${msg}"` },
+    });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('minimum');
   });
@@ -237,16 +300,24 @@ describe('bodyRequired config', () => {
     const api = makeApi();
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = await hook({ toolName: 'bash', toolInput: { command: 'git commit -m "feat: add feature"' } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'git commit -m "feat: add feature"' },
+    });
     expect(result).toBeUndefined();
   });
 
   it('handles multi-line body correctly', async () => {
-    const api = makeApi({ extensions: { 'commit-validator': { bodyRequired: true, minBodyLength: 20 } } });
+    const api = makeApi({
+      extensions: { 'commit-validator': { bodyRequired: true, minBodyLength: 20 } },
+    });
     commitValidatorPlugin.setup(api as never);
     const hook = getHook(api);
     const msg = 'feat: add feature\n\nLine 1 of body.\nLine 2 of body.';
-    const result = await hook({ toolName: 'bash', toolInput: { command: `git commit -m "${msg}"` } });
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: `git commit -m "${msg}"` },
+    });
     expect(result).toBeUndefined();
   });
 });

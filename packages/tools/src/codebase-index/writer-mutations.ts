@@ -106,9 +106,7 @@ export function commitBatchWithStatement(
       if (vectorsAvailable) {
         vectorRows.push({
           id,
-          vector: encodeVector(
-            embedText(buildIndexableText(s.name, s.signature, s.docComment)),
-          ),
+          vector: encodeVector(embedText(buildIndexableText(s.name, s.signature, s.docComment))),
         });
       }
       const inserted = { ...s, id };
@@ -222,9 +220,7 @@ export function insertSymbolsWithStatement(
     if (vectorsAvailable) {
       vectorRows.push({
         id,
-        vector: encodeVector(
-          embedText(buildIndexableText(s.name, s.signature, s.docComment)),
-        ),
+        vector: encodeVector(embedText(buildIndexableText(s.name, s.signature, s.docComment))),
       });
     }
     result.push({ ...s, id });

@@ -20,13 +20,21 @@ function Probe(props: { active: boolean }): React.JSX.Element {
   useFocusTrap(ref, props.active);
   return (
     <div>
-      <button type="button" id="outside-first">Outside first</button>
+      <button type="button" id="outside-first">
+        Outside first
+      </button>
       <div id="trap-dialog" role="dialog" aria-modal="true" tabIndex={-1} ref={ref}>
-        <button type="button" id="inside-first">Inside first</button>
+        <button type="button" id="inside-first">
+          Inside first
+        </button>
         <input id="inside-input" aria-label="Sample input" />
-        <button type="button" id="inside-last">Inside last</button>
+        <button type="button" id="inside-last">
+          Inside last
+        </button>
       </div>
-      <button type="button" id="outside-last">Outside last</button>
+      <button type="button" id="outside-last">
+        Outside last
+      </button>
     </div>
   );
 }

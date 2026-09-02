@@ -5,10 +5,7 @@
   "description": "Phrase critique so it's heard and actionable.",
   "content": "Help me give feedback on: {{situation}}\n\nDraft feedback that is specific, kind, and actionable. Anchor it to observable behavior and impact, not character. Lead with the most important point. Make the path forward concrete. Avoid the feedback sandwich and vague praise. Keep my respect for the person evident throughout. Show the message and explain the one phrasing choice that matters most.",
   "category": "writing",
-  "tags": [
-    "feedback",
-    "communication"
-  ],
+  "tags": ["feedback", "communication"],
   "source": "builtin",
   "favorite": false,
   "checksum": "5c5034fdf69a5bf51ff80a78a85812c52db8b0493c0ba4f42ffc4314d028d115",

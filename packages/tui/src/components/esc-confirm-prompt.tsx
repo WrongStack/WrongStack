@@ -53,9 +53,7 @@ export function EscConfirmPrompt({
             ? ` ${subagentCount} subagent${subagentCount === 1 ? '' : 's'} active.`
             : ''}
         </Text>
-        <Text dimColor>
-          Stop to give a new direction now, or let it finish.
-        </Text>
+        <Text dimColor>Stop to give a new direction now, or let it finish.</Text>
       </Box>
       <Text dimColor>─────────────────</Text>
       <Box flexDirection="row">

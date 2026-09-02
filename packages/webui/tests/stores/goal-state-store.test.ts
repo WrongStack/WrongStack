@@ -103,7 +103,9 @@ describe('goal state store', () => {
   it('caps the journal at 200 entries, keeping the newest', () => {
     seedGoal({ journal: [] });
     for (let i = 1; i <= 205; i++) {
-      useGoalStateStore.getState().appendJournalEntry({ iteration: i, task: `t${i}`, status: 'done' });
+      useGoalStateStore
+        .getState()
+        .appendJournalEntry({ iteration: i, task: `t${i}`, status: 'done' });
     }
     const journal = useGoalStateStore.getState().goal?.journal ?? [];
     expect(journal).toHaveLength(200);
@@ -113,7 +115,9 @@ describe('goal state store', () => {
 
   it('handles a goal that arrived without a journal array', () => {
     seedGoal({ journal: undefined });
-    useGoalStateStore.getState().appendJournalEntry({ iteration: 4, task: 'first', status: 'done' });
+    useGoalStateStore
+      .getState()
+      .appendJournalEntry({ iteration: 4, task: 'first', status: 'done' });
     expect(useGoalStateStore.getState().goal?.journal).toHaveLength(1);
   });
 

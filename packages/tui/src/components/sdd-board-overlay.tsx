@@ -60,9 +60,7 @@ function TaskCard({ task }: { task: SddBoardTask }): React.ReactElement {
         <Text color={PRIORITY[task.priority] ?? 'gray'}>{task.priority[0]?.toUpperCase()}</Text>
       </Box>
       <Text wrap="truncate-end">{clip(task.title, 24)}</Text>
-      {task.deps.length > 0 ? (
-        <Text dimColor>← {clip(task.deps.join(', '), 22)}</Text>
-      ) : null}
+      {task.deps.length > 0 ? <Text dimColor>← {clip(task.deps.join(', '), 22)}</Text> : null}
       {task.agentName ? (
         <Box flexDirection="row" gap={1}>
           <Text color={task.displayStatus === 'in_progress' ? 'yellow' : 'gray'}>●</Text>

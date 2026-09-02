@@ -5,11 +5,7 @@
   "description": "Structure a talk so it lands with an audience.",
   "content": "Help me outline a talk on {{topic}} for {{audience}} in about {{duration}}.\n\nStart from the one thing they should remember and the action you want. Build a spine: a hook that earns attention, the few points that support the message (not everything you know), and a close that lands the takeaway. Budget time per section realistically. Note where a story, demo, or visual beats a bullet list. Cut anything that doesn't serve the single message.",
   "category": "writing",
-  "tags": [
-    "presentation",
-    "outline",
-    "speaking"
-  ],
+  "tags": ["presentation", "outline", "speaking"],
   "source": "builtin",
   "favorite": false,
   "checksum": "ecc11ac86f0e7a962c0d0689c3738227d55e8fb048c6d37780aab72ad53adddf",

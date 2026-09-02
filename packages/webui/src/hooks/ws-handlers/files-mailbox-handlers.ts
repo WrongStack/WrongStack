@@ -60,7 +60,9 @@ function isHydratingFile(filePath: string, sessionId: string | null): boolean {
  */
 export function reconcileFileTabsAfterEnvChange(
   projectRoot: string,
-  sessionId: string | null = activeSessionLaneId() ?? useSessionStore.getState().session?.id ?? null,
+  sessionId: string | null = activeSessionLaneId() ??
+    useSessionStore.getState().session?.id ??
+    null,
 ): void {
   const store = useFileStore.getState();
   const fileSession =

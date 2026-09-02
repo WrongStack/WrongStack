@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  assessLicense,
-  createLicenseFinding,
-  normalizeLicenseId,
-} from '../../src/index.js';
+import { assessLicense, createLicenseFinding, normalizeLicenseId } from '../../src/index.js';
 
 describe('License Policy & Compliance', () => {
   describe('normalizeLicenseId', () => {

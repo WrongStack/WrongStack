@@ -161,7 +161,11 @@ function tierMenu(store: ConfigStore): ResourceMenuSnapshot {
         'name, then routes work to it by role or phase. While disabled, spawns resolve ' +
         'exactly as they did before tiers existed.',
       actions: [
-        { key: 't', label: enabled ? 'turn off' : 'turn on', command: `/tier ${enabled ? 'off' : 'on'}` },
+        {
+          key: 't',
+          label: enabled ? 'turn off' : 'turn on',
+          command: `/tier ${enabled ? 'off' : 'on'}`,
+        },
       ],
     },
     {
@@ -202,8 +206,15 @@ function tierMenu(store: ConfigStore): ResourceMenuSnapshot {
         details: [
           { label: 'rung', value: `${index + 1} of ${levelIds.length}` },
           { label: 'profile', value: level?.fallbackProfile ?? '(none)' },
-          { label: 'max cost', value: level?.maxCostUsd !== undefined ? `$${level.maxCostUsd}` : '(role default)' },
-          { label: 'max iterations', value: level?.maxIterations !== undefined ? String(level.maxIterations) : '(role default)' },
+          {
+            label: 'max cost',
+            value: level?.maxCostUsd !== undefined ? `$${level.maxCostUsd}` : '(role default)',
+          },
+          {
+            label: 'max iterations',
+            value:
+              level?.maxIterations !== undefined ? String(level.maxIterations) : '(role default)',
+          },
           { label: 'routed by', value: routedBy.join(', ') || '(nothing)' },
         ],
         body: [

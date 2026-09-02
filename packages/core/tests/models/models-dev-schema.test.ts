@@ -16,8 +16,7 @@ import type { ModelsDevModel } from '../../src/types/models-registry.js';
 const CLAUDE_SONNET_4_6 = {
   id: 'claude-sonnet-4-6',
   name: 'Claude Sonnet 4.6',
-  description:
-    'Claude workhorse for coding agents, careful analysis, and production cost control',
+  description: 'Claude workhorse for coding agents, careful analysis, and production cost control',
   family: 'claude-sonnet',
   attachment: true,
   reasoning: true,

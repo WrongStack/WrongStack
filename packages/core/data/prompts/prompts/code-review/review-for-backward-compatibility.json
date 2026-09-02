@@ -5,11 +5,7 @@
   "description": "Check whether a change breaks existing callers or data.",
   "content": "Assess whether this change is backward compatible:\n\n```\n{{diff}}\n```\n\nIdentify any break to: public function signatures, serialized data formats, config keys, API responses, or behavior existing callers depend on. For each break, propose either a non-breaking alternative or a migration path (deprecation window, version gate, data migration). State clearly whether this can ship without a major version bump.",
   "category": "code-review",
-  "tags": [
-    "compatibility",
-    "breaking-change",
-    "migration"
-  ],
+  "tags": ["compatibility", "breaking-change", "migration"],
   "source": "builtin",
   "favorite": false,
   "checksum": "80ba104ba789b092f24a4a0db42f7b65a04847d1bb0d7c939c5edcfa7ece46e0",

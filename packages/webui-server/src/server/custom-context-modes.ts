@@ -29,7 +29,10 @@ export interface CustomModeStore {
   load: () => Promise<void>;
   save: () => Promise<void>;
   create: (mode: CustomContextMode) => { ok: boolean; error?: string | undefined };
-  update: (id: string, patch: Partial<CustomContextMode>) => { ok: boolean; error?: string | undefined };
+  update: (
+    id: string,
+    patch: Partial<CustomContextMode>,
+  ) => { ok: boolean; error?: string | undefined };
   remove: (id: string) => { ok: boolean; error?: string | undefined };
   list: () => CustomContextMode[];
 }
@@ -68,9 +71,7 @@ export function createCustomModeStore(wrongstackDir: string): CustomModeStore {
     await atomicWrite(storePath(wrongstackDir), json);
   };
 
-  const create = (
-    mode: CustomContextMode,
-  ): { ok: boolean; error?: string | undefined } => {
+  const create = (mode: CustomContextMode): { ok: boolean; error?: string | undefined } => {
     if (!mode.id || typeof mode.id !== 'string') {
       return { ok: false, error: 'id is required' };
     }
@@ -133,9 +134,7 @@ export function createCustomModeStore(wrongstackDir: string): CustomModeStore {
     return { ok: true };
   };
 
-  const remove = (
-    id: string,
-  ): { ok: boolean; error?: string | undefined } => {
+  const remove = (id: string): { ok: boolean; error?: string | undefined } => {
     if (BUILTIN_IDS.has(id)) {
       return { ok: false, error: `Cannot delete built-in mode "${id}"` };
     }

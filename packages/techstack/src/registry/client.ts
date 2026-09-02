@@ -79,12 +79,7 @@ function trimCache(now: number): void {
   }
 }
 
-function setCache(
-  key: string,
-  data: RegistryEntry,
-  etag?: string,
-  ttlMs = DEFAULT_TTL_MS,
-): void {
+function setCache(key: string, data: RegistryEntry, etag?: string, ttlMs = DEFAULT_TTL_MS): void {
   const now = Date.now();
   registryCache.set(key, {
     data,
@@ -135,7 +130,11 @@ function releaseHostSlot(host: string): void {
 interface EcosystemFetcher {
   readonly host: string;
   readonly path: (name: string) => string;
-  readonly parser: (json: Record<string, unknown>, name: string, ecosystem: string) => RegistryEntry | undefined;
+  readonly parser: (
+    json: Record<string, unknown>,
+    name: string,
+    ecosystem: string,
+  ) => RegistryEntry | undefined;
 }
 
 // ── Per-ecosystem parsers ──────────────────────────────────────────────────
@@ -209,7 +208,8 @@ const ECOSYSTEM_FETCHERS: Readonly<Record<string, EcosystemFetcher>> = {
     parser: (json: Record<string, unknown>): RegistryEntry => {
       const crate = json.crate as Record<string, unknown> | undefined;
       return {
-        latestStable: (crate?.max_stable_version as string) ?? (crate?.max_version as string) ?? undefined,
+        latestStable:
+          (crate?.max_stable_version as string) ?? (crate?.max_version as string) ?? undefined,
         license: (crate?.license as string) ?? undefined,
         deprecated: undefined, // crates.io doesn't have deprecation
         yanked: undefined,
@@ -292,7 +292,14 @@ const ECOSYSTEM_FETCHERS: Readonly<Record<string, EcosystemFetcher>> = {
       let latestStable: string | undefined;
       for (const ver of versions) {
         const version = ver.version as string;
-        if (version && !version.includes('dev') && !version.includes('alpha') && !version.includes('beta') && !version.includes('RC') && !version.includes('rc')) {
+        if (
+          version &&
+          !version.includes('dev') &&
+          !version.includes('alpha') &&
+          !version.includes('beta') &&
+          !version.includes('RC') &&
+          !version.includes('rc')
+        ) {
           if (!latestStable || version > latestStable) {
             latestStable = version;
           }
@@ -304,7 +311,7 @@ const ECOSYSTEM_FETCHERS: Readonly<Record<string, EcosystemFetcher>> = {
 
       return {
         latestStable,
-        license: latest.license as string ?? undefined,
+        license: (latest.license as string) ?? undefined,
         deprecated: (latest.deprecated as boolean) ?? undefined,
         yanked: (latest.abandoned as boolean) ?? undefined,
         retrievedAt: new Date().toISOString(),
@@ -319,7 +326,11 @@ const ECOSYSTEM_FETCHERS: Readonly<Record<string, EcosystemFetcher>> = {
     parser: (json: Record<string, unknown>): RegistryEntry => {
       const latest = json.latest as Record<string, unknown> | undefined;
       return {
-        latestStable: (json.latestVersion as string) ?? (latest?.version as string) ?? (json.version as string) ?? undefined,
+        latestStable:
+          (json.latestVersion as string) ??
+          (latest?.version as string) ??
+          (json.version as string) ??
+          undefined,
         license: (latest?.license as string) ?? undefined,
         deprecated: (json.isDiscontinued as boolean) ?? undefined,
         yanked: (json.isRetracted as boolean) ?? undefined,
@@ -333,28 +344,40 @@ const ECOSYSTEM_FETCHERS: Readonly<Record<string, EcosystemFetcher>> = {
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export class RegistryNotFoundError extends Error {
-  constructor(readonly statusCode: number, readonly packageName: string) {
+  constructor(
+    readonly statusCode: number,
+    readonly packageName: string,
+  ) {
     super(`Registry package not found or inaccessible (${statusCode}): ${packageName}`);
     this.name = 'RegistryNotFoundError';
   }
 }
 
 export class RegistryAuthError extends Error {
-  constructor(readonly statusCode: number, readonly packageName: string) {
+  constructor(
+    readonly statusCode: number,
+    readonly packageName: string,
+  ) {
     super(`Registry authorization failed (${statusCode}): ${packageName}`);
     this.name = 'RegistryAuthError';
   }
 }
 
 export class RegistryRateLimitError extends Error {
-  constructor(readonly statusCode: number, readonly host: string) {
+  constructor(
+    readonly statusCode: number,
+    readonly host: string,
+  ) {
     super(`Registry ${host} returned ${statusCode} after 3 attempts`);
     this.name = 'RegistryRateLimitError';
   }
 }
 
 export class RegistryNetworkError extends Error {
-  constructor(message: string, override readonly cause?: Error | undefined) {
+  constructor(
+    message: string,
+    override readonly cause?: Error | undefined,
+  ) {
     super(message);
     this.name = 'RegistryNetworkError';
   }
@@ -437,16 +460,22 @@ export async function lookupRegistry(
       throw new RegistryRateLimitError(response.statusCode, fetcher.host);
     }
     if (response.statusCode >= 500) {
-      throw new RegistryNetworkError(`Registry ${fetcher.host} returned ${response.statusCode} after 3 attempts`);
+      throw new RegistryNetworkError(
+        `Registry ${fetcher.host} returned ${response.statusCode} after 3 attempts`,
+      );
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new RegistryNetworkError(`Unexpected registry response ${response.statusCode} from ${fetcher.host}`);
+      throw new RegistryNetworkError(
+        `Unexpected registry response ${response.statusCode} from ${fetcher.host}`,
+      );
     }
 
     const json = parseJsonResponse<Record<string, unknown>>(response, `${fetcher.host}${path}`);
     const parsed = fetcher.parser(json, name, ecosystem);
     if (!parsed) return undefined;
-    const responseEtag = Array.isArray(response.headers.etag) ? response.headers.etag[0] : response.headers.etag;
+    const responseEtag = Array.isArray(response.headers.etag)
+      ? response.headers.etag[0]
+      : response.headers.etag;
     setCache(cacheKey, parsed, responseEtag, DEFAULT_TTL_MS);
     return parsed;
   } finally {

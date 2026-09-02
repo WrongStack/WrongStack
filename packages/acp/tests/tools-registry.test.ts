@@ -137,7 +137,9 @@ describe('ACPToolsRegistry', () => {
 
     it('non-object inputSchema converts to an empty schema', () => {
       const reg = new ACPToolsRegistry();
-      reg.register([mkTool({ name: 'weird', inputSchema: 'not-an-object' as never as Tool['inputSchema'] })]);
+      reg.register([
+        mkTool({ name: 'weird', inputSchema: 'not-an-object' as never as Tool['inputSchema'] }),
+      ]);
       expect(reg.buildToolList().tools[0]!.inputSchema).toEqual({});
     });
   });
@@ -168,26 +170,49 @@ describe('ACPToolsRegistry', () => {
       const reg = new ACPToolsRegistry();
       reg.register([mkTool({ name: 'n', execute: async () => null })]);
       reg.register([mkTool({ name: 'u', execute: async () => undefined })]);
-      expect((await reg.execute('n', {}, {}, ABORT))?.content[0]).toEqual({ type: 'text', text: 'ok' });
-      expect((await reg.execute('u', {}, {}, ABORT))?.content[0]).toEqual({ type: 'text', text: 'ok' });
+      expect((await reg.execute('n', {}, {}, ABORT))?.content[0]).toEqual({
+        type: 'text',
+        text: 'ok',
+      });
+      expect((await reg.execute('u', {}, {}, ABORT))?.content[0]).toEqual({
+        type: 'text',
+        text: 'ok',
+      });
     });
 
     it('stringifies a primitive (number) result', async () => {
       const reg = new ACPToolsRegistry();
       reg.register([mkTool({ name: 'num', execute: async () => 42 as never as string })]);
-      expect((await reg.execute('num', {}, {}, ABORT))?.content[0]).toEqual({ type: 'text', text: '42' });
+      expect((await reg.execute('num', {}, {}, ABORT))?.content[0]).toEqual({
+        type: 'text',
+        text: '42',
+      });
     });
 
     it('captures a thrown Error as an isError result', async () => {
       const reg = new ACPToolsRegistry();
-      reg.register([mkTool({ name: 'boom', execute: async () => { throw new Error('kaboom'); } })]);
+      reg.register([
+        mkTool({
+          name: 'boom',
+          execute: async () => {
+            throw new Error('kaboom');
+          },
+        }),
+      ]);
       const res = await reg.execute('boom', {}, {}, ABORT);
       expect(res).toEqual({ content: [{ type: 'text', text: 'kaboom' }], isError: true });
     });
 
     it('captures a thrown non-Error as an isError result', async () => {
       const reg = new ACPToolsRegistry();
-      reg.register([mkTool({ name: 'boom', execute: async () => { throw 'plain string'; } })]);
+      reg.register([
+        mkTool({
+          name: 'boom',
+          execute: async () => {
+            throw 'plain string';
+          },
+        }),
+      ]);
       const res = await reg.execute('boom', {}, {}, ABORT);
       expect(res?.isError).toBe(true);
       expect(res?.content[0]).toEqual({ type: 'text', text: 'plain string' });

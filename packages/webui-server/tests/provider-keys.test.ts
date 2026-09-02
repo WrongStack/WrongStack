@@ -14,7 +14,10 @@ import {
 describe('provider-keys', () => {
   describe('normalizeKeys', () => {
     it('returns copies of existing apiKeys array', () => {
-      const cfg = { type: 'openai', apiKeys: [{ label: 'default', apiKey: 'sk-123', createdAt: '' }] };
+      const cfg = {
+        type: 'openai',
+        apiKeys: [{ label: 'default', apiKey: 'sk-123', createdAt: '' }],
+      };
       const keys = normalizeKeys(cfg);
       expect(keys).toEqual([{ label: 'default', apiKey: 'sk-123', createdAt: '' }]);
       // Should be a copy
@@ -45,7 +48,12 @@ describe('provider-keys', () => {
 
   describe('writeKeysBack', () => {
     it('clears all key fields when keys is empty', () => {
-      const cfg: any = { type: 'openai', apiKeys: [{ label: 'default', apiKey: 'sk' }], apiKey: 'sk', activeKey: 'default' };
+      const cfg: any = {
+        type: 'openai',
+        apiKeys: [{ label: 'default', apiKey: 'sk' }],
+        apiKey: 'sk',
+        activeKey: 'default',
+      };
       writeKeysBack(cfg, []);
       expect(cfg.apiKeys).toBeUndefined();
       expect(cfg.apiKey).toBeUndefined();
@@ -99,7 +107,12 @@ describe('provider-keys', () => {
     });
 
     it('replaces an existing key with same label', () => {
-      const providers: any = { openai: { type: 'openai', apiKeys: [{ label: 'default', apiKey: 'sk-old', createdAt: '' }] } };
+      const providers: any = {
+        openai: {
+          type: 'openai',
+          apiKeys: [{ label: 'default', apiKey: 'sk-old', createdAt: '' }],
+        },
+      };
       upsertKey(providers, 'openai', 'default', 'sk-new', '2024-01-01');
       expect(providers.openai.apiKeys[0].apiKey).toBe('sk-new');
       expect(providers.openai.apiKeys[0].createdAt).toBe('2024-01-01');
@@ -137,17 +150,23 @@ describe('provider-keys', () => {
 
     it('updates activeKey when deleting the active key', () => {
       const providers: any = {
-        test: { type: 'test', activeKey: 'key1', apiKeys: [
-          { label: 'key1', apiKey: 'sk-1', createdAt: '' },
-          { label: 'key2', apiKey: 'sk-2', createdAt: '' },
-        ]},
+        test: {
+          type: 'test',
+          activeKey: 'key1',
+          apiKeys: [
+            { label: 'key1', apiKey: 'sk-1', createdAt: '' },
+            { label: 'key2', apiKey: 'sk-2', createdAt: '' },
+          ],
+        },
       };
       deleteKey(providers, 'test', 'key1');
       expect(providers.test.activeKey).toBe('key2');
     });
 
     it('removes provider when last key is deleted', () => {
-      const providers: any = { test: { type: 'test', apiKeys: [{ label: 'key1', apiKey: 'sk-1', createdAt: '' }] } };
+      const providers: any = {
+        test: { type: 'test', apiKeys: [{ label: 'key1', apiKey: 'sk-1', createdAt: '' }] },
+      };
       deleteKey(providers, 'test', 'key1');
       expect(providers.test).toBeUndefined();
     });
@@ -155,7 +174,9 @@ describe('provider-keys', () => {
 
   describe('setActiveKey', () => {
     it('sets the active key on a provider', () => {
-      const providers: any = { test: { type: 'test', apiKeys: [{ label: 'k1', apiKey: 'sk', createdAt: '' }] } };
+      const providers: any = {
+        test: { type: 'test', apiKeys: [{ label: 'k1', apiKey: 'sk', createdAt: '' }] },
+      };
       const result = setActiveKey(providers, 'test', 'k1');
       expect(result.ok).toBe(true);
       expect(providers.test.activeKey).toBe('k1');
@@ -273,7 +294,11 @@ describe('provider-keys', () => {
           family: 'openai-compatible',
           models: ['m1', 'm2'],
           customModels: {
-            m1: { name: 'Model One', maxOutput: 32_768, capabilities: { tools: true, maxContext: 128_000 } },
+            m1: {
+              name: 'Model One',
+              maxOutput: 32_768,
+              capabilities: { tools: true, maxContext: 128_000 },
+            },
             m2: { name: 'Model Two', capabilities: { vision: true, reasoning: true } },
           },
         },

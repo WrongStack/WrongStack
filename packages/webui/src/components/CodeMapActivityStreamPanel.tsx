@@ -23,7 +23,9 @@ export function CodeMapActivityStreamPanel({
         <section className="border-b">
           <div className="flex h-9 items-center gap-2 border-b bg-success/5 px-3">
             <Radio className="h-3 w-3 animate-pulse text-success" />
-            <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">{t('activity:codeMap.activeNow')}</h3>
+            <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">
+              {t('activity:codeMap.activeNow')}
+            </h3>
             <span className="ml-auto font-mono text-[9px] text-success">
               {activeOperations.length}
             </span>
@@ -41,7 +43,9 @@ export function CodeMapActivityStreamPanel({
       <section>
         <div className="flex h-9 items-center gap-2 border-b px-3">
           <ActivityIcon className="h-3 w-3 text-muted-foreground" />
-          <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">{t('activity:codeMap.eventStream')}</h3>
+          <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">
+            {t('activity:codeMap.eventStream')}
+          </h3>
           <span className="ml-auto font-mono text-[8px] text-muted-foreground">
             {activityTotalCount} total
           </span>

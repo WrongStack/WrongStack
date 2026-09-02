@@ -1,4 +1,10 @@
-import type { Capabilities, Provider, Request, Response, StreamEvent } from '@wrongstack/core/types';
+import type {
+  Capabilities,
+  Provider,
+  Request,
+  Response,
+  StreamEvent,
+} from '@wrongstack/core/types';
 import { ConfigError, ParseError, ProviderError, StreamHangError } from '@wrongstack/core/types';
 import { parseProviderHttpError, type HeadersLike } from './error-parse.js';
 import type { BuildBodyContext } from './model-output-limits.js';
@@ -186,9 +192,7 @@ export abstract class WireAdapter implements Provider {
     const filteredTools = filterToolsByMaxCount(req.tools, this.maxToolsCount);
     // Log the dropped tools once per session so the user knows tools were
     // omitted — conversation history may reference them.
-    const droppedNames = req.tools
-      .filter((t) => !filteredTools.includes(t))
-      .map((t) => t.name);
+    const droppedNames = req.tools.filter((t) => !filteredTools.includes(t)).map((t) => t.name);
     if (droppedNames.length > 0) {
       this.logMaxToolsWarning(droppedNames);
     }
@@ -246,7 +250,10 @@ export abstract class WireAdapter implements Provider {
     // via `resolveMaxOutputTokens`. `providerId` is what lets that lookup hit
     // the catalog for `req.model` — `capabilities` alone is provider-scoped
     // and goes stale the moment the session switches model.
-    const body = this.buildBody(effectiveReq, { capabilities: this.capabilities, providerId: this.id });
+    const body = this.buildBody(effectiveReq, {
+      capabilities: this.capabilities,
+      providerId: this.id,
+    });
 
     // Linked abort: forward the caller's signal to a controller we ALSO trip
     // if response headers never arrive. `streamHangTimeoutMs` only guards the
@@ -396,9 +403,7 @@ export abstract class WireAdapter implements Provider {
     );
   }
 
-  private wrapDebugWebStream(
-    body: ReadableStream<Uint8Array>,
-  ): ReadableStream<Uint8Array> {
+  private wrapDebugWebStream(body: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
     let lastChunkTime = Date.now();
     let chunkIndex = 0;
     const self = this;
@@ -439,17 +444,16 @@ export abstract class WireAdapter implements Provider {
     return this.wrapHangWebStream(body as ReadableStream<Uint8Array>, model);
   }
 
-  private wrapHangNodeStream(
-    body: NodeJS.ReadableStream,
-    model: string,
-  ): NodeJS.ReadableStream {
+  private wrapHangNodeStream(body: NodeJS.ReadableStream, model: string): NodeJS.ReadableStream {
     // Node Readable → Web ReadableStream, then use the race-based
     // web wrapper that properly detects hangs even when no chunks arrive.
     // The for-await approach only checks BETWEEN chunks — a stalled stream
     // that never yields another chunk would freeze indefinitely.
     const webStream = Readable.toWeb(body as Readable);
     const wrappedWeb = this.wrapHangWebStream(webStream as ReadableStream<Uint8Array>, model);
-    return Readable.fromWeb(wrappedWeb as never as ReadableStream) as never as NodeJS.ReadableStream;
+    return Readable.fromWeb(
+      wrappedWeb as never as ReadableStream,
+    ) as never as NodeJS.ReadableStream;
   }
 
   private wrapHangWebStream(
@@ -481,7 +485,11 @@ export abstract class WireAdapter implements Provider {
         if ('timedOut' in result && result.timedOut) {
           // The read is still pending — this is a hang.
           // Cancel the reader and throw.
-          reader.cancel('stream hang detected').catch((err) => console.debug(`[wire-adapter] cancel after stream hang failed: ${err}`));
+          reader
+            .cancel('stream hang detected')
+            .catch((err) =>
+              console.debug(`[wire-adapter] cancel after stream hang failed: ${err}`),
+            );
           const elapsedMs = Date.now() - startTime;
           throw new StreamHangError({
             providerId,

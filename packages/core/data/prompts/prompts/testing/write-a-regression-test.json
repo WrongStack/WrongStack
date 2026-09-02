@@ -5,10 +5,7 @@
   "description": "Lock in a bug fix so it can never silently return.",
   "content": "I just fixed this bug: {{bug}}\n\nWrite a regression test that FAILS on the old buggy behavior and PASSES on the fix — so it actually guards the fix. Reproduce the exact condition that triggered the bug, at the lowest level that still captures it. Name the test so a future reader knows what it protects. Confirm it would have caught the original bug, and note any related case worth covering while we are here.",
   "category": "testing",
-  "tags": [
-    "regression",
-    "bug-fix"
-  ],
+  "tags": ["regression", "bug-fix"],
   "source": "builtin",
   "favorite": false,
   "checksum": "310e50fcc28d2df10697d841c4c3bc2d9b9741ae7a7a8bd5228a1917d81f80f0",

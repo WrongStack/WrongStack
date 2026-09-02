@@ -136,7 +136,9 @@ export async function migrateSqliteLegacyJsonl(input: {
       migratedEdges++;
     }
 
-    const insertAudit = stmt('INSERT INTO audit_log (event, at, trace_id, data) VALUES (?, ?, ?, ?)');
+    const insertAudit = stmt(
+      'INSERT INTO audit_log (event, at, trace_id, data) VALUES (?, ?, ?, ?)',
+    );
     for (const audit of audits) {
       insertAudit.run(audit.event, audit.at, audit.traceId ?? null, JSON.stringify(audit));
     }

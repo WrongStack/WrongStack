@@ -429,4 +429,8 @@ edit('packages/cli/src/fleet/host.ts', 'this.recordLearningRole(subagentId, suba
   ],
 ]);
 
-console.log(changed === 0 ? '\nNothing to do — all patches already applied.' : `\nApplied ${changed} file(s).`);
+console.log(
+  changed === 0
+    ? '\nNothing to do — all patches already applied.'
+    : `\nApplied ${changed} file(s).`,
+);

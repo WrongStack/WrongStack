@@ -12,7 +12,8 @@ export function createConnectionsSlashCommand(deps: ConnectionsSlashDeps): Slash
   return {
     name: 'connections',
     aliases: ['conn', 'conns'],
-    description: 'Show service connection health — Chronicle, Codebase Index, SAGE Memory, Kanban IPC, Mailbox IPC.',
+    description:
+      'Show service connection health — Chronicle, Codebase Index, SAGE Memory, Kanban IPC, Mailbox IPC.',
     argsHint: '[open]',
     category: 'Inspect',
     help:

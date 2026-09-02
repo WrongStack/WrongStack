@@ -20,7 +20,11 @@ export interface DeliveryCoordinatorOptions {
   /** Check whether an agent run is currently in progress. */
   readonly isRunInProgress: () => boolean;
   /** Deliver the report summary to the chat session (append to journal). */
-  readonly deliverToSession: (sessionId: string, reportId: string, summary: string) => Promise<boolean>;
+  readonly deliverToSession: (
+    sessionId: string,
+    reportId: string,
+    summary: string,
+  ) => Promise<boolean>;
   /** Called when a delivery completes (for WS event broadcasting). */
   readonly onDelivered?: ((deliveryId: string, sessionId: string) => void) | undefined;
   /** Poll interval in ms. Default: 2000. */
@@ -68,7 +72,9 @@ export async function attemptDelivery(
 
   // Generate a summary from the snapshot
   const snapshot = store.getSnapshotById(entry.reportId);
-  const summary = snapshot ? buildSummary(snapshot) : `TechStack report ${entry.reportId} is ready.`;
+  const summary = snapshot
+    ? buildSummary(snapshot)
+    : `TechStack report ${entry.reportId} is ready.`;
 
   // Deliver to session
   const success = await deliverToSession(entry.sessionId, entry.reportId, summary);

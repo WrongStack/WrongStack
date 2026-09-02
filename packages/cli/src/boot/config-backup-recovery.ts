@@ -106,7 +106,7 @@ export async function findLatestProviderBackup(
   return undefined;
 }
 
- async function restoreDefaultProfileBackup(opts: {
+async function restoreDefaultProfileBackup(opts: {
   backup: ProviderConfigBackup;
   globalRoot: string;
   profilePath: string;

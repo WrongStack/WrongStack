@@ -132,7 +132,10 @@ describe('first-boot sage sync', () => {
         markerFile(),
         JSON.stringify({ phase: 'complete', completedAt: new Date().toISOString() }),
       );
-      expect(decideWhetherToSync(store, 600_000)).toEqual({ run: false, reason: 'already-complete' });
+      expect(decideWhetherToSync(store, 600_000)).toEqual({
+        run: false,
+        reason: 'already-complete',
+      });
     });
 
     it('own pid → take over (second call in-process)', () => {
@@ -190,7 +193,10 @@ describe('first-boot sage sync', () => {
         markerFile(),
         JSON.stringify({ phase: 'running', startedAt: new Date().toISOString() }),
       );
-      expect(decideWhetherToSync(store, 600_000)).toEqual({ run: false, reason: 'running-unknown-pid' });
+      expect(decideWhetherToSync(store, 600_000)).toEqual({
+        run: false,
+        reason: 'running-unknown-pid',
+      });
       fs.writeFileSync(
         markerFile(),
         JSON.stringify({
@@ -198,7 +204,10 @@ describe('first-boot sage sync', () => {
           startedAt: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
         }),
       );
-      expect(decideWhetherToSync(store, 600_000)).toEqual({ run: true, reason: 'running-marker-stale' });
+      expect(decideWhetherToSync(store, 600_000)).toEqual({
+        run: true,
+        reason: 'running-marker-stale',
+      });
     });
   });
 
@@ -253,9 +262,9 @@ describe('first-boot sage sync', () => {
       });
       expect(result.synced).toBe(false);
       expect(result.reason).toBe('provider-unavailable');
-      expect(
-        fs.existsSync(path.join(probeFailsStore.directory, SAGE_SYNC_MARKER_FILENAME)),
-      ).toBe(false);
+      expect(fs.existsSync(path.join(probeFailsStore.directory, SAGE_SYNC_MARKER_FILENAME))).toBe(
+        false,
+      );
       expect(probeFailsStore.stats().entries).toBe(0);
     } finally {
       probeFailsStore.close();
@@ -354,9 +363,9 @@ describe('first-boot sage sync', () => {
       });
       expect(result.synced).toBe(false);
       expect(result.reason).toBe('provider-unavailable');
-      expect(
-        fs.existsSync(path.join(unavailableStore.directory, SAGE_SYNC_MARKER_FILENAME)),
-      ).toBe(false);
+      expect(fs.existsSync(path.join(unavailableStore.directory, SAGE_SYNC_MARKER_FILENAME))).toBe(
+        false,
+      );
       expect(unavailableStore.stats().entries).toBe(0);
     } finally {
       unavailableStore.close();

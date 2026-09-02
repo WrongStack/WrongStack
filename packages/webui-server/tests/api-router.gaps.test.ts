@@ -149,7 +149,11 @@ describe('handleApiRoutes — session and fleet routes', () => {
     expect(ok.handled).toBe(true);
     expect(ok.res.statusCode).toBe(204);
 
-    const throwing = await route('POST', '/api/fleet/ping', { onFleetPing: () => { throw new Error('boom'); } });
+    const throwing = await route('POST', '/api/fleet/ping', {
+      onFleetPing: () => {
+        throw new Error('boom');
+      },
+    });
     expect(throwing.res.statusCode).toBe(204);
   });
 
@@ -158,10 +162,18 @@ describe('handleApiRoutes — session and fleet routes', () => {
     expect(api['handleApiSessions']).toHaveBeenCalledWith(expect.anything(), '/global');
 
     await route('GET', '/api/sessions/my-session/agents');
-    expect(api['handleApiSessionAgents']).toHaveBeenCalledWith(expect.anything(), '/global', 'my-session');
+    expect(api['handleApiSessionAgents']).toHaveBeenCalledWith(
+      expect.anything(),
+      '/global',
+      'my-session',
+    );
 
     await route('GET', '/api/sessions/encoded%2Fid/mailbox');
-    expect(api['handleApiSessionMailbox']).toHaveBeenCalledWith(expect.anything(), '/global', 'encoded/id');
+    expect(api['handleApiSessionMailbox']).toHaveBeenCalledWith(
+      expect.anything(),
+      '/global',
+      'encoded/id',
+    );
 
     await route('POST', '/api/sessions/s1/message');
     expect(api['handleApiSessionMessage']).toHaveBeenCalledWith(
@@ -175,21 +187,45 @@ describe('handleApiRoutes — session and fleet routes', () => {
     expect(api['handleApiSessionInterrupt']).toHaveBeenCalled();
 
     await route('POST', '/api/fleet/broadcast');
-    expect(api['handleApiFleetBroadcast']).toHaveBeenCalledWith(expect.anything(), expect.anything(), '/global');
+    expect(api['handleApiFleetBroadcast']).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      '/global',
+    );
   });
 
   it('clamps the events limit query into [1, 500]', async () => {
     await route('GET', '/api/sessions/s1/events', {}, { search: '?limit=9999' });
-    expect(api['handleApiSessionEvents']).toHaveBeenLastCalledWith(expect.anything(), '/global', 's1', 500);
+    expect(api['handleApiSessionEvents']).toHaveBeenLastCalledWith(
+      expect.anything(),
+      '/global',
+      's1',
+      500,
+    );
 
     await route('GET', '/api/sessions/s1/events', {}, { search: '?limit=0' });
-    expect(api['handleApiSessionEvents']).toHaveBeenLastCalledWith(expect.anything(), '/global', 's1', 1);
+    expect(api['handleApiSessionEvents']).toHaveBeenLastCalledWith(
+      expect.anything(),
+      '/global',
+      's1',
+      1,
+    );
 
     await route('GET', '/api/sessions/s1/events', {}, { search: '?limit=abc' });
-    expect(api['handleApiSessionEvents']).toHaveBeenLastCalledWith(expect.anything(), '/global', 's1', 200);
+    expect(api['handleApiSessionEvents']).toHaveBeenLastCalledWith(
+      expect.anything(),
+      '/global',
+      's1',
+      200,
+    );
 
     await route('GET', '/api/sessions/s1/events');
-    expect(api['handleApiSessionEvents']).toHaveBeenLastCalledWith(expect.anything(), '/global', 's1', 200);
+    expect(api['handleApiSessionEvents']).toHaveBeenLastCalledWith(
+      expect.anything(),
+      '/global',
+      's1',
+      200,
+    );
   });
 
   it('rejects protected routes with 401 when the access token is missing', async () => {
@@ -257,7 +293,11 @@ describe('handleApiRoutes — requirement intake routes', () => {
 
   it('gets and updates a single intake', async () => {
     await route('GET', '/api/requirement-intakes/intake-1');
-    expect(intake['handleRequirementIntakeGet']).toHaveBeenCalledWith(expect.anything(), undefined, 'intake-1');
+    expect(intake['handleRequirementIntakeGet']).toHaveBeenCalledWith(
+      expect.anything(),
+      undefined,
+      'intake-1',
+    );
 
     await route('PATCH', '/api/requirement-intakes/intake-1');
     expect(intake['handleRequirementIntakeUpdate']).toHaveBeenCalledWith(
@@ -290,7 +330,6 @@ describe('handleApiRoutes — requirement intake routes', () => {
       expect(intake[handlerName]).toHaveBeenCalledWith(expect.anything(), undefined, 'intake-1');
     },
   );
-
 });
 
 describe('handleApiRoutes — codemap routes', () => {
@@ -376,17 +415,40 @@ describe('handleApiRoutes — techstack routes', () => {
 
   it('dispatches job, report, and dependency-research routes with decoded params', async () => {
     await route('POST', '/api/techstack/jobs/job%201/cancel');
-    expect(tech['handleTechStackCancel']).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'job 1');
+    expect(tech['handleTechStackCancel']).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'job 1',
+    );
 
     await route('GET', '/api/techstack/jobs/job-2');
-    expect(tech['handleTechStackJobStatus']).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'job-2');
+    expect(tech['handleTechStackJobStatus']).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'job-2',
+    );
 
-    const report = await route('GET', '/api/techstackreports'.replace('techstackreports', 'techstack/reports/r-1'), {}, { search: '?format=spdx' });
-    expect(tech['handleTechStackReport']).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'r-1', 'spdx');
+    const report = await route(
+      'GET',
+      '/api/techstackreports'.replace('techstackreports', 'techstack/reports/r-1'),
+      {},
+      { search: '?format=spdx' },
+    );
+    expect(tech['handleTechStackReport']).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'r-1',
+      'spdx',
+    );
     expect(report.handled).toBe(true);
 
     await route('GET', '/api/techstack/reports/r-2', {}, { search: '?format=bogus' });
-    expect(tech['handleTechStackReport']).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), 'r-2', 'md');
+    expect(tech['handleTechStackReport']).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'r-2',
+      'md',
+    );
 
     await route('POST', '/api/techstack/deps/pkg%20x/research');
     expect(tech['handleTechStackDependencyResearch']).toHaveBeenCalledWith(

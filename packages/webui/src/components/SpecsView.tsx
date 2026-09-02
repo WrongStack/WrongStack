@@ -116,9 +116,7 @@ export function SpecsView({
           <FileText className="h-5 w-5 text-warning" />
           <div>
             <h1 className="text-lg font-semibold">{t('activity:specs.heading')}</h1>
-            <p className="text-xs text-muted-foreground">
-              {t('activity:specs.subtitle')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('activity:specs.subtitle')}</p>
           </div>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
@@ -144,12 +142,18 @@ export function SpecsView({
                     className="flex w-full items-start gap-3 p-4 text-left"
                   >
                     <span className="mt-1 text-muted-foreground">
-                      {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      {expanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
                     </span>
                     <FileText className="mt-0.5 h-4 w-4 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-muted-foreground">{spec.displayId}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {spec.displayId}
+                        </span>
                         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] capitalize text-muted-foreground">
                           {spec.status}
                         </span>
@@ -178,52 +182,62 @@ export function SpecsView({
                           {t('activity:specs.tasks', { count: detail?.total ?? spec.total })}
                           {detail && (
                             <span className="ml-3 text-xs font-normal text-muted-foreground">
-                              <span className="text-success">{t('activity:specs.doneCount', { count: counts.done })}</span>{' '}
-                              <span className="text-primary">{t('activity:specs.runningCount', { count: counts.running })}</span>{' '}
-                              <span>{t('activity:specs.pendingCount', { count: counts.pending })}</span>
+                              <span className="text-success">
+                                {t('activity:specs.doneCount', { count: counts.done })}
+                              </span>{' '}
+                              <span className="text-primary">
+                                {t('activity:specs.runningCount', { count: counts.running })}
+                              </span>{' '}
+                              <span>
+                                {t('activity:specs.pendingCount', { count: counts.pending })}
+                              </span>
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => runSpecAsSdd(spec)}
-                          title={t('activity:specs.runAsSddTitle')}
-                          className="inline-flex items-center gap-1 rounded-md bg-success/15 px-2.5 py-1 text-xs font-medium text-success transition-colors hover:bg-success/25"
-                        >
-                          <Play className="h-3.5 w-3.5" /> {t('activity:specs.runAsSdd')}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!detail || detail.specId !== spec.id}
-                          onClick={() => runSpecAsGoal(spec)}
-                          title={t('activity:specs.runAsGoalTitle')}
-                          className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning transition-colors hover:bg-warning/25 disabled:opacity-40"
-                        >
-                          <Play className="h-3.5 w-3.5" /> {t('activity:specs.runAsGoal')}
-                        </button>
-                        <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
                           <button
                             type="button"
-                            onClick={() => setMode('list')}
-                            className={cn(
-                              'inline-flex items-center gap-1 rounded px-2 py-1 text-xs',
-                              mode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground',
-                            )}
+                            onClick={() => runSpecAsSdd(spec)}
+                            title={t('activity:specs.runAsSddTitle')}
+                            className="inline-flex items-center gap-1 rounded-md bg-success/15 px-2.5 py-1 text-xs font-medium text-success transition-colors hover:bg-success/25"
                           >
-                            <LayoutList className="h-3.5 w-3.5" /> {t('activity:specs.list')}
+                            <Play className="h-3.5 w-3.5" /> {t('activity:specs.runAsSdd')}
                           </button>
                           <button
                             type="button"
-                            onClick={() => setMode('graph')}
-                            className={cn(
-                              'inline-flex items-center gap-1 rounded px-2 py-1 text-xs',
-                              mode === 'graph' ? 'bg-primary/15 text-primary' : 'text-muted-foreground',
-                            )}
+                            disabled={!detail || detail.specId !== spec.id}
+                            onClick={() => runSpecAsGoal(spec)}
+                            title={t('activity:specs.runAsGoalTitle')}
+                            className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning transition-colors hover:bg-warning/25 disabled:opacity-40"
                           >
-                            <Network className="h-3.5 w-3.5" /> {t('activity:specs.graph')}
+                            <Play className="h-3.5 w-3.5" /> {t('activity:specs.runAsGoal')}
                           </button>
-                        </div>
+                          <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => setMode('list')}
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded px-2 py-1 text-xs',
+                                mode === 'list'
+                                  ? 'bg-primary/15 text-primary'
+                                  : 'text-muted-foreground',
+                              )}
+                            >
+                              <LayoutList className="h-3.5 w-3.5" /> {t('activity:specs.list')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMode('graph')}
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded px-2 py-1 text-xs',
+                                mode === 'graph'
+                                  ? 'bg-primary/15 text-primary'
+                                  : 'text-muted-foreground',
+                              )}
+                            >
+                              <Network className="h-3.5 w-3.5" /> {t('activity:specs.graph')}
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -240,7 +254,9 @@ export function SpecsView({
                               key={t.id}
                               className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2"
                             >
-                              <span className="font-mono text-xs text-muted-foreground">{t.shortId}</span>
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {t.shortId}
+                              </span>
                               <span className="flex-1 text-sm">{t.title}</span>
                               <span className="text-xs capitalize text-muted-foreground">
                                 {t.displayStatus.replace('_', ' ')}
@@ -257,7 +273,6 @@ export function SpecsView({
           </div>
         )}
       </div>
-
     </div>
   );
 }

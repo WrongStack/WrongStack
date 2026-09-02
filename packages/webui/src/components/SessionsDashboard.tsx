@@ -384,7 +384,10 @@ function LiveSessionsDashboard() {
   }
 
   return (
-    <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[hsl(var(--surface-2)/0.45)] p-4 sm:p-6">
+    <div
+      ref={scrollRef}
+      className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[hsl(var(--surface-2)/0.45)] p-4 sm:p-6"
+    >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
         <header className="border border-border/70 bg-card/75 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -402,17 +405,23 @@ function LiveSessionsDashboard() {
             <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[22rem]">
               <div className="border border-border/70 bg-background/60 px-3 py-2">
                 <div className="text-lg font-semibold tabular-nums">{sessions.length}</div>
-                <div className="text-[10px] uppercase text-muted-foreground">{t('activity:sessionsDash.sessions')}</div>
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  {t('activity:sessionsDash.sessions')}
+                </div>
               </div>
               <div className="border border-border/70 bg-background/60 px-3 py-2">
                 <div className="text-lg font-semibold tabular-nums text-success">
                   {activeSessions}
                 </div>
-                <div className="text-[10px] uppercase text-muted-foreground">{t('activity:sessionsDash.active')}</div>
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  {t('activity:sessionsDash.active')}
+                </div>
               </div>
               <div className="border border-border/70 bg-background/60 px-3 py-2">
                 <div className="text-lg font-semibold tabular-nums">{totalAgents}</div>
-                <div className="text-[10px] uppercase text-muted-foreground">{t('activity:sessionsDash.agents')}</div>
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  {t('activity:sessionsDash.agents')}
+                </div>
               </div>
             </div>
           </div>
@@ -467,15 +476,21 @@ function LiveSessionsDashboard() {
 
                   <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 lg:w-64">
                     <div className="border border-border/70 bg-background/50 px-2 py-1.5">
-                      <div className="text-[10px] text-muted-foreground">{t('activity:sessionsDash.agents')}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {t('activity:sessionsDash.agents')}
+                      </div>
                       <div className="font-semibold tabular-nums">{s.agentCount}</div>
                     </div>
                     <div className="border border-border/70 bg-background/50 px-2 py-1.5">
-                      <div className="text-[10px] text-muted-foreground">{t('activity:sessionsDash.status')}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {t('activity:sessionsDash.status')}
+                      </div>
                       <div className="truncate font-mono font-semibold">{s.status}</div>
                     </div>
                     <div className="border border-border/70 bg-background/50 px-2 py-1.5">
-                      <div className="text-[10px] text-muted-foreground">{t('activity:sessionsDash.runtime')}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {t('activity:sessionsDash.runtime')}
+                      </div>
                       <div className="font-mono font-semibold">{fmtDuration(s.startedAt)}</div>
                     </div>
                   </div>

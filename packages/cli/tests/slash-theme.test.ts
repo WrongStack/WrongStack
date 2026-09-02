@@ -152,4 +152,3 @@ describe('truncateDesc (narrow-terminal wrap guard)', () => {
     expect(truncateDesc('x'.repeat(50), 20, false)).toBe('…');
   });
 });
-

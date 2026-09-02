@@ -98,7 +98,21 @@ function getSecretPatterns(stack: TechStack): SecurityPattern[] {
       /AIza[0-9A-Za-z\-_]{35}/g,
       /AKIA[0-9A-Z]{16}/g,
     ],
-    fileExtensions: ['.ts', '.js', '.py', '.go', '.rs', '.java', '.cs', '.php', '.rb', '.env', '.json', '.yaml', '.yml'],
+    fileExtensions: [
+      '.ts',
+      '.js',
+      '.py',
+      '.go',
+      '.rs',
+      '.java',
+      '.cs',
+      '.php',
+      '.rb',
+      '.env',
+      '.json',
+      '.yaml',
+      '.yml',
+    ],
     falsePositiveMarkers: ['example', 'placeholder', 'dummy', 'test', 'mock', 'fake', 'sample'],
     remediation: 'Move secrets to environment variables or a secrets manager.',
     category: 'secrets',
@@ -112,7 +126,10 @@ function getSecretPatterns(stack: TechStack): SecurityPattern[] {
         name: 'Hardcoded JWT Secret',
         severity: 'high',
         description: 'Detects hardcoded secrets in JWT signing/verification',
-        patterns: [/jwt\.sign\s*\([^,]+,\s*['"][^'"]+['"]/g, /jwt\.verify\s*\([^,]+,\s*['"][^'"]+['"]/g],
+        patterns: [
+          /jwt\.sign\s*\([^,]+,\s*['"][^'"]+['"]/g,
+          /jwt\.verify\s*\([^,]+,\s*['"][^'"]+['"]/g,
+        ],
         fileExtensions: ['.ts', '.js'],
         falsePositiveMarkers: ['process.env'],
         remediation: 'Use environment variables for JWT secret keys.',
@@ -127,7 +144,8 @@ function getSecretPatterns(stack: TechStack): SecurityPattern[] {
         patterns: [/:\/\/[^/]+\/:_authToken\s*=\s*[^\s]+/g],
         fileExtensions: ['.npmrc'],
         falsePositiveMarkers: ['${', '$AUTH_TOKEN'],
-        remediation: 'Use environment variable interpolation in .npmrc: //registry.npmjs.org/:_authToken=\\${NPM_TOKEN}',
+        remediation:
+          'Use environment variable interpolation in .npmrc: //registry.npmjs.org/:_authToken=\\${NPM_TOKEN}',
         category: 'secrets',
         confidence: 'high',
       },
@@ -180,7 +198,9 @@ function getSecretPatterns(stack: TechStack): SecurityPattern[] {
         name: 'Hardcoded Secrets in Java',
         severity: 'critical',
         description: 'Detects hardcoded secret fields in Java classes',
-        patterns: [/(?:private|public|protected)\s+(?:static\s+)?(?:final\s+)?String\s+[A-Z_]*SECRET[A-Z_]*\s*=\s*["'][^"']+["']/g],
+        patterns: [
+          /(?:private|public|protected)\s+(?:static\s+)?(?:final\s+)?String\s+[A-Z_]*SECRET[A-Z_]*\s*=\s*["'][^"']+["']/g,
+        ],
         fileExtensions: ['.java'],
         falsePositiveMarkers: ['System.getenv', 'System.getProperty'],
         remediation: 'Use System.getenv() or Spring @Value("\\${...}") for secrets.',
@@ -194,7 +214,9 @@ function getSecretPatterns(stack: TechStack): SecurityPattern[] {
         name: 'Hardcoded Secrets in .NET',
         severity: 'critical',
         description: 'Detects hardcoded secret constants in C#',
-        patterns: [/(?:const|readonly)\s+string\s+[A-Za-z_]*[sS]ecret[A-Za-z_]*\s*=\s*["'][^"']+["']/g],
+        patterns: [
+          /(?:const|readonly)\s+string\s+[A-Za-z_]*[sS]ecret[A-Za-z_]*\s*=\s*["'][^"']+["']/g,
+        ],
         fileExtensions: ['.cs'],
         falsePositiveMarkers: ['Configuration[', 'Environment.GetEnvironmentVariable'],
         remediation: 'Use IConfiguration or user secrets in .NET.',
@@ -294,7 +316,8 @@ function getInjectionPatterns(stack: TechStack): SecurityPattern[] {
         patterns: [/pickle\.load\s*\(/g, /pickle\.loads\s*\(/g, /unpickle\.load\s*\(/g],
         fileExtensions: ['.py'],
         falsePositiveMarkers: [],
-        remediation: 'Never unpickle data from untrusted sources. Use JSON or custom serialization.',
+        remediation:
+          'Never unpickle data from untrusted sources. Use JSON or custom serialization.',
         category: 'injection',
         confidence: 'high',
       },
@@ -308,7 +331,8 @@ function getInjectionPatterns(stack: TechStack): SecurityPattern[] {
         patterns: [/db\.Query\s*\([^)]*\+[^)]*\)/g, /QueryContext?\s*\([^)]*\+[^)]*\)/g],
         fileExtensions: ['.go'],
         falsePositiveMarkers: ['$1', '$2', '?', 'params'],
-        remediation: 'Use parameterized queries: db.QueryContext(ctx, "SELECT * FROM users WHERE id=?", userID)',
+        remediation:
+          'Use parameterized queries: db.QueryContext(ctx, "SELECT * FROM users WHERE id=?", userID)',
         category: 'injection',
         confidence: 'high',
       },
@@ -319,7 +343,10 @@ function getInjectionPatterns(stack: TechStack): SecurityPattern[] {
         name: 'Java SQL Injection',
         severity: 'critical',
         description: 'Detects SQL with string concatenation in JDBC',
-        patterns: [/createStatement\s*\(\s*\).*\.executeQuery\s*\([^)]*\+/g, /Statement\s*\([^)]*\+/g],
+        patterns: [
+          /createStatement\s*\(\s*\).*\.executeQuery\s*\([^)]*\+/g,
+          /Statement\s*\([^)]*\+/g,
+        ],
         fileExtensions: ['.java'],
         falsePositiveMarkers: ['PreparedStatement', '?'],
         remediation: 'Use PreparedStatement with parameters.',
@@ -421,7 +448,10 @@ function getTargetFilesForStack(techStack: TechStackInfo): string[] {
   return filesByStack[techStack.stack] || filesByStack.unknown || ['**/*'];
 }
 
-function buildSkillContent(techStack: TechStackInfo, patterns: SecurityPattern[]): GeneratedSkillContent {
+function buildSkillContent(
+  techStack: TechStackInfo,
+  patterns: SecurityPattern[],
+): GeneratedSkillContent {
   const lines: string[] = [
     '---',
     `name: security-scanner-${techStack.stack}`,
@@ -450,9 +480,7 @@ function buildSkillContent(techStack: TechStackInfo, patterns: SecurityPattern[]
     '### Configuration Issues',
     patterns
       .filter((p) =>
-        p.fileExtensions.some((ext) =>
-          ['.json', '.yaml', '.yml', '.env', '.config'].includes(ext),
-        ),
+        p.fileExtensions.some((ext) => ['.json', '.yaml', '.yml', '.env', '.config'].includes(ext)),
       )
       .map((p) => `- **${p.name}** (${p.severity}): ${p.description}`)
       .join('\n'),
@@ -495,12 +523,8 @@ export async function gatherProjectInfo(
 
   for (const file of KEY_FILES) {
     try {
-      const content = await readFileHead(
-        path.join(projectRoot, file),
-        KEY_FILE_HEAD_CHARS,
-      );
-      const displayName =
-        file === 'README.md' || file === 'CONTRIBUTING.md' ? 'README' : file;
+      const content = await readFileHead(path.join(projectRoot, file), KEY_FILE_HEAD_CHARS);
+      const displayName = file === 'README.md' || file === 'CONTRIBUTING.md' ? 'README' : file;
       info.push(`\n--- ${displayName} ---\n${content}`);
     } catch {
       // File doesn't exist, skip
@@ -557,22 +581,22 @@ export async function generateSkillLLM(
 
   const request: Request = {
     model: model ?? 'unknown',
-    system: [
-      { type: 'text', text: readBundledInstructionText('security-scanner/json-system.md') },
-    ],
+    system: [{ type: 'text', text: readBundledInstructionText('security-scanner/json-system.md') }],
     messages: [{ role: 'user', content: prompt }],
     maxTokens: 4096,
   };
 
   try {
-    const completeWithRetry = deps.completeWithRetry ?? ((p, req, ac) =>
-      retryProviderComplete({
-        provider: p,
-        request: req,
-        abortController: ac,
-        retryPolicy: undefined,
-        errorHandler: undefined,
-      }));
+    const completeWithRetry =
+      deps.completeWithRetry ??
+      ((p, req, ac) =>
+        retryProviderComplete({
+          provider: p,
+          request: req,
+          abortController: ac,
+          retryPolicy: undefined,
+          errorHandler: undefined,
+        }));
     const response = await completeWithRetry(provider, request, abortController);
     const text = response.content
       .filter((b) => b.type === 'text')

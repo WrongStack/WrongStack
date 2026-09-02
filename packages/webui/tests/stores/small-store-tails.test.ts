@@ -133,9 +133,7 @@ describe('codemap index store', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-29T00:00:00Z'));
     useCodemapIndexStore.getState().notifyIndexUpdated();
-    expect(useCodemapIndexStore.getState().lastUpdatedAt).toBe(
-      Date.parse('2026-07-29T00:00:00Z'),
-    );
+    expect(useCodemapIndexStore.getState().lastUpdatedAt).toBe(Date.parse('2026-07-29T00:00:00Z'));
     vi.useRealTimers();
   });
 });

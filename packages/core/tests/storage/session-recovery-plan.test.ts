@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { extractInterruptedTools, SessionRecovery } from '../../src/storage/session-recovery.js';
 import type { SessionEvent } from '../../src/types/session.js';
 
-const ev = (
-  partial: Record<string, unknown>,
-  ts = '2026-08-21T00:00:00.000Z',
-): SessionEvent => ({ ts, ...partial }) as SessionEvent;
+const ev = (partial: Record<string, unknown>, ts = '2026-08-21T00:00:00.000Z'): SessionEvent =>
+  ({ ts, ...partial }) as SessionEvent;
 
 describe('SessionRecovery.buildRecoveryPlan', () => {
   it('flags stale when newest boundary is a dangling in_flight_start', () => {
@@ -20,10 +18,7 @@ describe('SessionRecovery.buildRecoveryPlan', () => {
 
   it('is clean when session_end closes the run', () => {
     const plan = SessionRecovery.buildRecoveryPlan(
-      [
-        ev({ type: 'user_input' }),
-        ev({ type: 'session_end', usage: { input: 0, output: 0 } }),
-      ],
+      [ev({ type: 'user_input' }), ev({ type: 'session_end', usage: { input: 0, output: 0 } })],
       'sess_a',
     );
     expect(plan.stale).toBe(false);
@@ -78,13 +73,16 @@ describe('extractInterruptedTools — id-less exclusion contract', () => {
   });
 
   it('preserves real ids so resume() can synthesize matching error results', () => {
-    const plan = SessionRecovery.buildRecoveryPlan([
-      ev({
-        type: 'llm_response',
-        content: [{ type: 'tool_use', id: 'tu-9', name: 'write_file' }],
-        usage: { input: 1, output: 1 },
-      }),
-    ], 'sess_e');
+    const plan = SessionRecovery.buildRecoveryPlan(
+      [
+        ev({
+          type: 'llm_response',
+          content: [{ type: 'tool_use', id: 'tu-9', name: 'write_file' }],
+          usage: { input: 1, output: 1 },
+        }),
+      ],
+      'sess_e',
+    );
     const tools = extractInterruptedTools(plan);
     expect(tools[0]?.id).toBe('tu-9');
   });
@@ -121,9 +119,7 @@ describe('SessionRecovery.buildRecoveryPlan — edge cases', () => {
 describe('extractInterruptedTools — edge cases', () => {
   it('uses the bare name as callId when tool_use has no id', () => {
     const plan = SessionRecovery.buildRecoveryPlan(
-      [
-        ev({ type: 'tool_call_start', name: 'bash' }),
-      ],
+      [ev({ type: 'tool_call_start', name: 'bash' })],
       'sess_1',
     );
     const tools = extractInterruptedTools(plan);
@@ -249,9 +245,7 @@ describe('extractInterruptedTools — edge cases', () => {
 
   it('does not summarize args when args is a non-object value', () => {
     const plan = SessionRecovery.buildRecoveryPlan(
-      [
-        ev({ type: 'tool_use', name: 'str_arg', id: 'c1', args: 'not an object' }),
-      ],
+      [ev({ type: 'tool_use', name: 'str_arg', id: 'c1', args: 'not an object' })],
       'sess_9',
     );
     const tools = extractInterruptedTools(plan);
@@ -279,9 +273,7 @@ describe('extractInterruptedTools — edge cases', () => {
   it('truncates very large args summaries after 80 chars', () => {
     const bigInput = { x: 'y'.repeat(200) };
     const plan = SessionRecovery.buildRecoveryPlan(
-      [
-        ev({ type: 'tool_use', name: 'big', id: 'c2', input: bigInput }),
-      ],
+      [ev({ type: 'tool_use', name: 'big', id: 'c2', input: bigInput })],
       'sess_10',
     );
     const tools = extractInterruptedTools(plan);

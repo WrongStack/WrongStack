@@ -91,9 +91,7 @@ export function createPromptsPlugin(opts?: PromptsPluginOptions): Plugin {
           () => usage,
         ),
       );
-      api.log.info(
-        '[prompts] loaded — /prompts, /prompt, /prompt-gen, /bughunt, /perf available',
-      );
+      api.log.info('[prompts] loaded — /prompts, /prompt, /prompt-gen, /bughunt, /perf available');
     },
 
     teardown(api) {

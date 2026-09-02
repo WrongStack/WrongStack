@@ -220,7 +220,8 @@ describe('ResumePicker', () => {
     const longTitleSession: ResumeSessionEntry = {
       id: 'sess_long',
       startedAt: '2026-07-19T10:00:00.000Z',
-      title: 'A very long session title that should be truncated because it exceeds seventy two characters and then some more',
+      title:
+        'A very long session title that should be truncated because it exceeds seventy two characters and then some more',
       tokenTotal: 1000,
       toolCallCount: 0,
       iterationCount: 0,

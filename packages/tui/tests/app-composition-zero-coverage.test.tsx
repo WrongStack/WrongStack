@@ -36,7 +36,9 @@ vi.mock('../src/hooks/use-client-telemetry.js', () => ({
 vi.mock('../src/hooks/use-tui-event-bridge.js', () => ({
   useTuiEventBridge: mocks.useTuiEventBridge,
 }));
-vi.mock('../src/hooks/use-tui-controllers.js', () => ({ useTuiControllers: mocks.useTuiControllers }));
+vi.mock('../src/hooks/use-tui-controllers.js', () => ({
+  useTuiControllers: mocks.useTuiControllers,
+}));
 vi.mock('../src/hooks/use-session-interrupt-controller.js', () => ({
   useSessionInterruptController: mocks.useSessionInterruptController,
 }));
@@ -46,9 +48,13 @@ vi.mock('../src/hooks/use-director-fleet-bridge.js', () => ({
 }));
 vi.mock('../src/hooks/use-prompt-picker.js', () => ({ usePromptPicker: mocks.usePromptPicker }));
 vi.mock('../src/hooks/use-mode-picker.js', () => ({ useModePicker: mocks.useModePicker }));
-vi.mock('../src/hooks/use-model-pick.js', () => ({ useModelPickRequest: mocks.useModelPickRequest }));
+vi.mock('../src/hooks/use-model-pick.js', () => ({
+  useModelPickRequest: mocks.useModelPickRequest,
+}));
 vi.mock('../src/hooks/use-brain-panel.js', () => ({ useBrainPanel: mocks.useBrainPanel }));
-vi.mock('../src/hooks/use-brain-risk-sync.js', () => ({ useBrainRiskSync: mocks.useBrainRiskSync }));
+vi.mock('../src/hooks/use-brain-risk-sync.js', () => ({
+  useBrainRiskSync: mocks.useBrainRiskSync,
+}));
 vi.mock('../src/hooks/use-shadow-panel.js', () => ({ useShadowPanel: mocks.useShadowPanel }));
 vi.mock('../src/hooks/use-help-panel.js', () => ({ useHelpPanel: mocks.useHelpPanel }));
 vi.mock('../src/hooks/use-statusline-hidden-sync.js', () => ({
@@ -120,7 +126,11 @@ describe('useAppEventBridges composition', () => {
     const { result } = renderHook(() => useAppEventBridges(params));
 
     expect(mocks.useProviderEventBridge).toHaveBeenCalledWith(
-      expect.objectContaining({ events: params.events, agent: params.agent, dispatch: params.dispatch }),
+      expect.objectContaining({
+        events: params.events,
+        agent: params.agent,
+        dispatch: params.dispatch,
+      }),
     );
     expect(mocks.useClientTelemetry).toHaveBeenCalledWith(
       expect.objectContaining({ clientId: 'client-1', tokenCounter: params.tokenCounter }),
@@ -200,7 +210,10 @@ describe('useAppPanelsState composition', () => {
     expect(mocks.useStreamChipExpiration).toHaveBeenCalledWith(
       expect.objectContaining({ visibleChips: ['brain'], dispatch }),
     );
-    expect(mocks.useAutonomousCoordinator).toHaveBeenCalledWith(subscribeCoordinatorEvents, dispatch);
+    expect(mocks.useAutonomousCoordinator).toHaveBeenCalledWith(
+      subscribeCoordinatorEvents,
+      dispatch,
+    );
     expect(result.current).toEqual({ ...controls, brainCtl });
   });
 });

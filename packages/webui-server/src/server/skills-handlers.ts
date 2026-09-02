@@ -112,12 +112,34 @@ export async function handleSkillsContent(
   msg: unknown,
 ): Promise<void> {
   if (!ctx.skillLoader) {
-    send(ws, { type: 'skills.content', payload: { name: '', body: '', path: '', source: '', relatedFiles: [], references: [], error: 'Skills not enabled' } });
+    send(ws, {
+      type: 'skills.content',
+      payload: {
+        name: '',
+        body: '',
+        path: '',
+        source: '',
+        relatedFiles: [],
+        references: [],
+        error: 'Skills not enabled',
+      },
+    });
     return;
   }
   const contentPayload = (msg as { payload: { name: string; source: string } }).payload;
   if (!contentPayload?.name) {
-    send(ws, { type: 'skills.content', payload: { name: '', body: '', path: '', source: '', relatedFiles: [], references: [], error: 'Skill name is required' } });
+    send(ws, {
+      type: 'skills.content',
+      payload: {
+        name: '',
+        body: '',
+        path: '',
+        source: '',
+        relatedFiles: [],
+        references: [],
+        error: 'Skill name is required',
+      },
+    });
     return;
   }
   try {
@@ -125,7 +147,18 @@ export async function handleSkillsContent(
     const entries = await ctx.skillLoader.listEntries();
     const entry = entries.find((e) => e.name.toLowerCase() === name.toLowerCase());
     if (!entry) {
-      send(ws, { type: 'skills.content', payload: { name, body: '', path: '', source, relatedFiles: [], references: [], error: `Skill "${name}" not found` } });
+      send(ws, {
+        type: 'skills.content',
+        payload: {
+          name,
+          body: '',
+          path: '',
+          source,
+          relatedFiles: [],
+          references: [],
+          error: `Skill "${name}" not found`,
+        },
+      });
       return;
     }
     // Read body directly from path — avoids re-running find() which re-reads all SKILL.md files
@@ -161,9 +194,23 @@ export async function handleSkillsContent(
     );
     const refs = refResults.filter(([, hasRef]) => hasRef).map(([n]) => n);
 
-    send(ws, { type: 'skills.content', payload: { name, body, path: entry.path, source, relatedFiles, references: refs } });
+    send(ws, {
+      type: 'skills.content',
+      payload: { name, body, path: entry.path, source, relatedFiles, references: refs },
+    });
   } catch (err) {
-    send(ws, { type: 'skills.content', payload: { name: contentPayload.name, body: '', path: '', source: contentPayload.source, relatedFiles: [], references: [], error: errMessage(err) } });
+    send(ws, {
+      type: 'skills.content',
+      payload: {
+        name: contentPayload.name,
+        body: '',
+        path: '',
+        source: contentPayload.source,
+        relatedFiles: [],
+        references: [],
+        error: errMessage(err),
+      },
+    });
   }
 }
 
@@ -177,16 +224,27 @@ export async function handleSkillsInstall(
   msg: unknown,
 ): Promise<void> {
   if (!ctx.skillInstaller) {
-    send(ws, { type: 'skills.installed', payload: { success: false, error: 'Skills not enabled' } });
+    send(ws, {
+      type: 'skills.installed',
+      payload: { success: false, error: 'Skills not enabled' },
+    });
     return;
   }
   const installPayload = (msg as { payload: { ref: string; global?: boolean } }).payload;
   if (!installPayload?.ref?.trim()) {
-    send(ws, { type: 'skills.installed', payload: { success: false, error: 'Skill reference is required (e.g. owner/repo or https://github.com/owner/repo)' } });
+    send(ws, {
+      type: 'skills.installed',
+      payload: {
+        success: false,
+        error: 'Skill reference is required (e.g. owner/repo or https://github.com/owner/repo)',
+      },
+    });
     return;
   }
   try {
-    const results = await ctx.skillInstaller.install(installPayload.ref.trim(), { global: installPayload.global });
+    const results = await ctx.skillInstaller.install(installPayload.ref.trim(), {
+      global: installPayload.global,
+    });
     send(ws, {
       type: 'skills.installed',
       payload: {
@@ -216,16 +274,24 @@ export async function handleSkillsUninstall(
   msg: unknown,
 ): Promise<void> {
   if (!ctx.skillInstaller) {
-    send(ws, { type: 'skills.uninstalled', payload: { success: false, error: 'Skills not enabled' } });
+    send(ws, {
+      type: 'skills.uninstalled',
+      payload: { success: false, error: 'Skills not enabled' },
+    });
     return;
   }
   const uninstallPayload = (msg as { payload: { name: string; global?: boolean } }).payload;
   if (!uninstallPayload?.name?.trim()) {
-    send(ws, { type: 'skills.uninstalled', payload: { success: false, error: 'Skill name is required' } });
+    send(ws, {
+      type: 'skills.uninstalled',
+      payload: { success: false, error: 'Skill name is required' },
+    });
     return;
   }
   try {
-    await ctx.skillInstaller.uninstall(uninstallPayload.name.trim(), { global: uninstallPayload.global });
+    await ctx.skillInstaller.uninstall(uninstallPayload.name.trim(), {
+      global: uninstallPayload.global,
+    });
     send(ws, { type: 'skills.uninstalled', payload: { success: true, error: null } });
   } catch (err) {
     send(ws, { type: 'skills.uninstalled', payload: { success: false, error: errMessage(err) } });
@@ -245,9 +311,12 @@ export async function handleSkillsUpdate(
     send(ws, { type: 'skills.updated', payload: { success: false, error: 'Skills not enabled' } });
     return;
   }
-  const updatePayload = (msg as { payload?: { name?: string; global?: boolean } | undefined }).payload;
+  const updatePayload = (msg as { payload?: { name?: string; global?: boolean } | undefined })
+    .payload;
   try {
-    const result = await ctx.skillInstaller.update(updatePayload?.name, { global: updatePayload?.global });
+    const result = await ctx.skillInstaller.update(updatePayload?.name, {
+      global: updatePayload?.global,
+    });
     send(ws, {
       type: 'skills.updated',
       payload: {
@@ -283,7 +352,8 @@ export async function handleSkillsCreate(
     const targetDir =
       createPayload.scope === 'global'
         ? path.join(
-            ctx.globalSkillsDir ?? resolveWstackPaths({ projectRoot: ctx.projectRoot }).globalSkills,
+            ctx.globalSkillsDir ??
+              resolveWstackPaths({ projectRoot: ctx.projectRoot }).globalSkills,
             createPayload.name.trim(),
           )
         : path.join(
@@ -294,7 +364,10 @@ export async function handleSkillsCreate(
     // Check if directory already exists
     try {
       await fs.access(targetDir);
-      send(ws, { type: 'skills.created', payload: { success: false, error: `Skill "${createPayload.name}" already exists` } });
+      send(ws, {
+        type: 'skills.created',
+        payload: { success: false, error: `Skill "${createPayload.name}" already exists` },
+      });
       return;
     } catch {
       // Directory does not exist — good
@@ -305,7 +378,10 @@ export async function handleSkillsCreate(
     // Parse description lines to build the skill content
     const lines = createPayload.description.trim().split('\n');
     const firstLine = (lines[0] ?? '').trim();
-    const bodyLines = lines.slice(1).map((l) => l.trim()).filter(Boolean);
+    const bodyLines = lines
+      .slice(1)
+      .map((l) => l.trim())
+      .filter(Boolean);
     const descriptionText = firstLine + (bodyLines.length > 0 ? `\n${bodyLines.join('\n')}` : '');
     const trigger = bodyLines.find((l) => l.toLowerCase().startsWith('triggers:')) ?? '';
 
@@ -317,13 +393,19 @@ export async function handleSkillsCreate(
       `version: 1.0.0`,
       '---',
       '',
-      `# ${createPayload.name.trim().split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`,
+      `# ${createPayload.name
+        .trim()
+        .split('-')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')}`,
       '',
       '## Overview',
       '',
       firstLine,
       '',
-      ...(bodyLines.length > 0 ? bodyLines.filter((l) => !l.toLowerCase().startsWith('triggers:')) : []),
+      ...(bodyLines.length > 0
+        ? bodyLines.filter((l) => !l.toLowerCase().startsWith('triggers:'))
+        : []),
       '',
       '## Rules',
       '- TODO: add your first rule',
@@ -334,7 +416,7 @@ export async function handleSkillsCreate(
       '// TODO: add a good example',
       '```',
       '',
-      '### Don\'t',
+      "### Don't",
       '```ts',
       '// TODO: add a bad example',
       '```',
@@ -362,7 +444,11 @@ export async function handleSkillsCreate(
       payload: {
         success: true,
         error: null,
-        skill: { name: createPayload.name.trim(), path: path.join(targetDir, 'SKILL.md'), scope: createPayload.scope },
+        skill: {
+          name: createPayload.name.trim(),
+          path: path.join(targetDir, 'SKILL.md'),
+          scope: createPayload.scope,
+        },
       },
     });
   } catch (err) {
@@ -393,7 +479,10 @@ export async function handleSkillsEdit(
     const entries = await ctx.skillLoader.listEntries();
     const entry = entries.find((e) => e.name.toLowerCase() === editPayload.name.toLowerCase());
     if (!entry) {
-      send(ws, { type: 'skills.edited', payload: { success: false, error: `Skill "${editPayload.name}" not found` } });
+      send(ws, {
+        type: 'skills.edited',
+        payload: { success: false, error: `Skill "${editPayload.name}" not found` },
+      });
       return;
     }
     // Only allow editing WrongStack-managed skills (project/user). Bundled and
@@ -401,7 +490,10 @@ export async function handleSkillsEdit(
     // write into another tool's directory.
     if (entry.source !== 'project' && entry.source !== 'user') {
       const label = entry.source === 'bundled' ? 'Bundled' : 'Foreign (read-only)';
-      send(ws, { type: 'skills.edited', payload: { success: false, error: `${label} skills cannot be edited` } });
+      send(ws, {
+        type: 'skills.edited',
+        payload: { success: false, error: `${label} skills cannot be edited` },
+      });
       return;
     }
     await atomicWrite(entry.path, editPayload.body);
@@ -420,7 +512,10 @@ export async function handleSkillsEdit(
  */
 export async function handleSkillsExport(ws: WebSocket, ctx: SkillsContext): Promise<void> {
   if (!ctx.skillLoader) {
-    send(ws, { type: 'skills.exported', payload: { zipBase64: '', skillCount: 0, error: 'Skills not enabled' } });
+    send(ws, {
+      type: 'skills.exported',
+      payload: { zipBase64: '', skillCount: 0, error: 'Skills not enabled' },
+    });
     return;
   }
   try {
@@ -437,8 +532,14 @@ export async function handleSkillsExport(ws: WebSocket, ctx: SkillsContext): Pro
     }
     const zipBuffer = createZipBuffer(zipEntries);
     const zipBase64 = zipBuffer.toString('base64');
-    send(ws, { type: 'skills.exported', payload: { zipBase64, skillCount: zipEntries.length, error: undefined } });
+    send(ws, {
+      type: 'skills.exported',
+      payload: { zipBase64, skillCount: zipEntries.length, error: undefined },
+    });
   } catch (err) {
-    send(ws, { type: 'skills.exported', payload: { zipBase64: '', skillCount: 0, error: errMessage(err) } });
+    send(ws, {
+      type: 'skills.exported',
+      payload: { zipBase64: '', skillCount: 0, error: errMessage(err) },
+    });
   }
 }

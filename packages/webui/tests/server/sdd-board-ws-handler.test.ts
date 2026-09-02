@@ -25,7 +25,8 @@ async function tmpDir(): Promise<string> {
 }
 
 afterEach(async () => {
-  for (const d of dirs.splice(0)) await fs.rm(d, { recursive: true, force: true }).catch(() => undefined);
+  for (const d of dirs.splice(0))
+    await fs.rm(d, { recursive: true, force: true }).catch(() => undefined);
 });
 
 function snapshot(over: Partial<SddBoardSnapshot> = {}): SddBoardSnapshot {
@@ -36,7 +37,16 @@ function snapshot(over: Partial<SddBoardSnapshot> = {}): SddBoardSnapshot {
     status: 'completed',
     startedAt: 0,
     updatedAt: 0,
-    progress: { total: 1, completed: 1, failed: 0, inProgress: 0, pending: 0, blocked: 0, review: 0, percentComplete: 100 },
+    progress: {
+      total: 1,
+      completed: 1,
+      failed: 0,
+      inProgress: 0,
+      pending: 0,
+      blocked: 0,
+      review: 0,
+      percentComplete: 100,
+    },
     wave: 0,
     tasks: [],
     columns: [],
@@ -60,15 +70,19 @@ describe('SddBoardWebSocketHandler — lifecycle', () => {
   it('applies cleanup_worktrees from disk and broadcasts a lifecycle_result', async () => {
     const root = await tmpDir();
     const boardsDir = path.join(root, 'sdd-boards');
-    const handler = new SddBoardWebSocketHandler(boardsDir, undefined, lifecyclePaths(root, boardsDir));
+    const handler = new SddBoardWebSocketHandler(
+      boardsDir,
+      undefined,
+      lifecyclePaths(root, boardsDir),
+    );
     const ws = fakeWs();
     handler.addClient(ws);
 
     await handler.handleMessage({ type: 'sdd.board.cleanup_worktrees' });
 
-    const res = (ws as unknown as { sent: Array<{ type: string; payload: { op: string; ok: boolean } }> }).sent.find(
-      (m) => m.type === 'sdd.board.lifecycle_result',
-    );
+    const res = (
+      ws as unknown as { sent: Array<{ type: string; payload: { op: string; ok: boolean } }> }
+    ).sent.find((m) => m.type === 'sdd.board.lifecycle_result');
     expect(res?.payload).toMatchObject({ op: 'cleanup_worktrees', ok: true });
     handler.dispose();
   });
@@ -77,7 +91,11 @@ describe('SddBoardWebSocketHandler — lifecycle', () => {
     const root = await tmpDir();
     const boardsDir = path.join(root, 'sdd-boards');
     await fs.mkdir(lifecyclePaths(root, boardsDir).paths.projectSpecs, { recursive: true });
-    const handler = new SddBoardWebSocketHandler(boardsDir, undefined, lifecyclePaths(root, boardsDir));
+    const handler = new SddBoardWebSocketHandler(
+      boardsDir,
+      undefined,
+      lifecyclePaths(root, boardsDir),
+    );
     const ws = fakeWs();
     handler.addClient(ws);
 
@@ -97,17 +115,26 @@ describe('SddBoardWebSocketHandler — lifecycle', () => {
     const root = await tmpDir();
     const boardsDir = path.join(root, 'sdd-boards');
     const events = new EventBus();
-    const handler = new SddBoardWebSocketHandler(boardsDir, events, lifecyclePaths(root, boardsDir));
+    const handler = new SddBoardWebSocketHandler(
+      boardsDir,
+      events,
+      lifecyclePaths(root, boardsDir),
+    );
     const ws = fakeWs();
     handler.addClient(ws);
     // Make the handler believe a run is live.
-    events.emit('sdd.board.snapshot', { runId: 'r1', snapshot: snapshot({ status: 'running' }) } as never);
+    events.emit('sdd.board.snapshot', {
+      runId: 'r1',
+      snapshot: snapshot({ status: 'running' }),
+    } as never);
 
     await handler.handleMessage({ type: 'sdd.board.rollback' });
 
-    const res = (ws as unknown as { sent: Array<{ type: string; payload: { op: string; ok: boolean; reason?: string } }> }).sent.find(
-      (m) => m.type === 'sdd.board.lifecycle_result',
-    );
+    const res = (
+      ws as unknown as {
+        sent: Array<{ type: string; payload: { op: string; ok: boolean; reason?: string } }>;
+      }
+    ).sent.find((m) => m.type === 'sdd.board.lifecycle_result');
     expect(res?.payload.ok).toBe(false);
     expect(res?.payload.reason).toMatch(/stop the run first/i);
     handler.dispose();

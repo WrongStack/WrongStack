@@ -7,7 +7,13 @@ describe('Pagination', () => {
 
   it('hides when every item fits on one page', () => {
     render(
-      <Pagination page={1} pageSize={12} totalItems={12} onPageChange={vi.fn()} itemLabel="boards" />,
+      <Pagination
+        page={1}
+        pageSize={12}
+        totalItems={12}
+        onPageChange={vi.fn()}
+        itemLabel="boards"
+      />,
     );
     expect(screen.queryByRole('navigation')).toBeNull();
   });

@@ -73,11 +73,11 @@ describe('orchestrator branch completion', () => {
       complete: vi.fn().mockRejectedValue('network string failure'),
     } as never as Provider;
     await expect(
-      (orchestrator as unknown as { completeWithRetry: (p: Provider, r: Request, c: AbortController) => Promise<Response> }).completeWithRetry(
-        failing,
-        { model: 'm', messages: [] },
-        new AbortController(),
-      ),
+      (
+        orchestrator as unknown as {
+          completeWithRetry: (p: Provider, r: Request, c: AbortController) => Promise<Response>;
+        }
+      ).completeWithRetry(failing, { model: 'm', messages: [] }, new AbortController()),
     ).rejects.toBe('network string failure');
   });
 
@@ -141,20 +141,22 @@ describe('orchestrator branch completion', () => {
   it('normalizes absolute findings and rejects invalid balanced arrays safely', async () => {
     const batchScanner = new BatchScanner();
     const absolute = path.join(root, 'source.ts');
-    const scanBatch = (batchScanner as unknown as {
-      scanFileBatchLLM(opts: {
-        provider: Provider;
-        model: string | undefined;
-        projectRoot: string;
-        files: string[];
-        skill: typeof skill;
-        techStack: TechStackInfo;
-        fileConcurrency: number;
-        abortController: AbortController;
-        retryPolicy?: undefined;
-        errorHandler?: undefined;
-      }): Promise<Array<{ file: string; category: string }>>;
-    }).scanFileBatchLLM.bind(batchScanner);
+    const scanBatch = (
+      batchScanner as unknown as {
+        scanFileBatchLLM(opts: {
+          provider: Provider;
+          model: string | undefined;
+          projectRoot: string;
+          files: string[];
+          skill: typeof skill;
+          techStack: TechStackInfo;
+          fileConcurrency: number;
+          abortController: AbortController;
+          retryPolicy?: undefined;
+          errorHandler?: undefined;
+        }): Promise<Array<{ file: string; category: string }>>;
+      }
+    ).scanFileBatchLLM.bind(batchScanner);
 
     const findings = await scanBatch({
       provider: provider(

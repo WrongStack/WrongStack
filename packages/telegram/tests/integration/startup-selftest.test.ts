@@ -122,7 +122,9 @@ describe('plugin startup self-test (C7)', () => {
   });
 
   it('fails setup when the network is unreachable', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ENOTFOUND api.telegram.org')) as never as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error('ENOTFOUND api.telegram.org')) as never as typeof fetch;
 
     const api = makeApi();
     await expect(plugin.setup(api)).rejects.toThrow(/ENOTFOUND api\.telegram\.org/);
@@ -153,9 +155,7 @@ describe('plugin startup self-test (C7)', () => {
     await expect(plugin.setup(api)).resolves.not.toThrow();
 
     // The self-test log line carries the bot username.
-    expect(api.log.info).toHaveBeenCalledWith(
-      expect.stringMatching(/self-test ok.*@test_bot/),
-    );
+    expect(api.log.info).toHaveBeenCalledWith(expect.stringMatching(/self-test ok.*@test_bot/));
 
     // The three tools are registered.
     expect(api.tools.get('telegram_send')).toBeDefined();

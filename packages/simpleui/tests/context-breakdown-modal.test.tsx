@@ -125,14 +125,23 @@ describe('parseContextDebugPayload', () => {
     expect(parsed?.total).toBe(9000);
     expect(parsed?.mode).toBe('balanced');
     expect(parsed?.tools.breakdown[0]).toEqual({ name: 'bash', tokens: 1500 });
-    expect(parsed?.messages.breakdown[1]).toEqual({ index: 1, role: 'user', tokens: 2000, preview: 'Hello there' });
+    expect(parsed?.messages.breakdown[1]).toEqual({
+      index: 1,
+      role: 'user',
+      tokens: 2000,
+      preview: 'Hello there',
+    });
   });
   it('coerces malformed entries instead of crashing', () => {
     const parsed = parseContextDebugPayload({
       total: 'bad',
       systemPrompt: null,
       tools: { total: 'x', count: 2, breakdown: [{ name: 7, tokens: 'nope' }] },
-      messages: { total: 1, count: 1, breakdown: [{ index: 'a', role: 3, tokens: [], preview: null }] },
+      messages: {
+        total: 1,
+        count: 1,
+        breakdown: [{ index: 'a', role: 3, tokens: [], preview: null }],
+      },
     });
     expect(parsed).not.toBeNull();
     expect(parsed?.total).toBe(0);

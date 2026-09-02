@@ -1,9 +1,6 @@
 import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
 import type { AppProps } from '../app-props.js';
-import type {
-  MailboxAgentEntry,
-  MailboxMessageEntry,
-} from '../components/mailbox-panel.js';
+import type { MailboxAgentEntry, MailboxMessageEntry } from '../components/mailbox-panel.js';
 import type { MailboxStatus } from '../components/status-bar.js';
 import type { TuiMailboxSnapshot } from '../mailbox-view-model-types.js';
 
@@ -165,22 +162,21 @@ export function useMailboxViewModel(events: AppProps['events']): {
           .sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0))
           .slice(0, 50)
           .map((message) => ({
-          id: message.id,
-          from: message.from,
-          to: message.to,
-          type: message.type,
-          ...(message.audience !== undefined ? { audience: message.audience } : {}),
-          subject: message.subject,
-          body: message.body,
-          priority: message.priority,
-          timestamp: message.timestamp,
-          readByCount: Object.keys(message.readBy).length,
-          readByMe:
-            snapshot.actorId !== undefined && snapshot.actorId in message.readBy,
-          completed: message.completed,
-          ...(message.completedBy !== undefined ? { completedBy: message.completedBy } : {}),
-          ...(message.outcome !== undefined ? { outcome: message.outcome } : {}),
-        })),
+            id: message.id,
+            from: message.from,
+            to: message.to,
+            type: message.type,
+            ...(message.audience !== undefined ? { audience: message.audience } : {}),
+            subject: message.subject,
+            body: message.body,
+            priority: message.priority,
+            timestamp: message.timestamp,
+            readByCount: Object.keys(message.readBy).length,
+            readByMe: snapshot.actorId !== undefined && snapshot.actorId in message.readBy,
+            completed: message.completed,
+            ...(message.completedBy !== undefined ? { completedBy: message.completedBy } : {}),
+            ...(message.outcome !== undefined ? { outcome: message.outcome } : {}),
+          })),
       );
       setMailboxAgents(
         [...snapshot.agents]
@@ -190,17 +186,17 @@ export function useMailboxViewModel(events: AppProps['events']): {
           })
           .slice(0, 30)
           .map((agent) => ({
-          agentId: agent.agentId,
-          name: agent.name,
-          ...(agent.role !== undefined ? { role: agent.role } : {}),
-          sessionId: agent.sessionId,
-          status: agent.status,
-          ...(agent.currentTool !== undefined ? { currentTool: agent.currentTool } : {}),
-          ...(agent.currentTask !== undefined ? { currentTask: agent.currentTask } : {}),
-          lastSeenAt: agent.lastSeenAt,
-          online: agent.online,
-          ...(agent.source !== undefined ? { source: agent.source } : {}),
-        })),
+            agentId: agent.agentId,
+            name: agent.name,
+            ...(agent.role !== undefined ? { role: agent.role } : {}),
+            sessionId: agent.sessionId,
+            status: agent.status,
+            ...(agent.currentTool !== undefined ? { currentTool: agent.currentTool } : {}),
+            ...(agent.currentTask !== undefined ? { currentTask: agent.currentTask } : {}),
+            lastSeenAt: agent.lastSeenAt,
+            online: agent.online,
+            ...(agent.source !== undefined ? { source: agent.source } : {}),
+          })),
       );
     });
     return () => {

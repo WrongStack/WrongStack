@@ -83,7 +83,10 @@ describe('HashingEmbeddingProvider', () => {
       const [b] = await p.embed(['dogs']);
       let allSame = true;
       for (let i = 0; i < a!.length; i++) {
-        if (a![i] !== b![i]) { allSame = false; break; }
+        if (a![i] !== b![i]) {
+          allSame = false;
+          break;
+        }
       }
       expect(allSame).toBe(false);
     });

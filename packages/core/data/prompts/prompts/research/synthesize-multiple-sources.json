@@ -5,11 +5,7 @@
   "description": "Reconcile several sources into a coherent, honest picture.",
   "content": "Synthesize these sources on {{topic}}:\n\n{{sources}}\n\nWhere do they agree, and where do they conflict? For conflicts, assess which is more credible and why. Produce a coherent summary that represents the weight of evidence, explicitly notes the disagreements rather than papering over them, and flags what none of the sources address. Keep your own additions clearly separate from what the sources say.",
   "category": "research",
-  "tags": [
-    "synthesis",
-    "sources",
-    "reconciliation"
-  ],
+  "tags": ["synthesis", "sources", "reconciliation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "b8619d2f3bb0eecca7d3ad9def1e2f02391a9415398871f5cffd937a8c4a6d1d",

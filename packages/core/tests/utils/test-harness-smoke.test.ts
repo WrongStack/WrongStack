@@ -3,7 +3,14 @@
  * produce working mocks that integrate correctly.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { createTestHarness, createMockProvider, createMockTool, createMockContext, userMessage, assistantMessage } from '../helpers/test-harness.js';
+import {
+  createTestHarness,
+  createMockProvider,
+  createMockTool,
+  createMockContext,
+  userMessage,
+  assistantMessage,
+} from '../helpers/test-harness.js';
 
 describe('test-harness', () => {
   let harness: ReturnType<typeof createTestHarness>;
@@ -34,7 +41,9 @@ describe('test-harness', () => {
     it('provider stream yields canned events', async () => {
       harness = createTestHarness();
       const events: unknown[] = [];
-      for await (const e of harness.provider.stream({} as any, { signal: new AbortController().signal })) {
+      for await (const e of harness.provider.stream({} as any, {
+        signal: new AbortController().signal,
+      })) {
         events.push(e);
       }
       expect(events.length).toBeGreaterThan(0);
@@ -42,7 +51,9 @@ describe('test-harness', () => {
 
     it('provider complete returns a response', async () => {
       harness = createTestHarness();
-      const response = await harness.provider.complete({} as any, { signal: new AbortController().signal });
+      const response = await harness.provider.complete({} as any, {
+        signal: new AbortController().signal,
+      });
       expect(response.content).toBeDefined();
       expect(response.stopReason).toBeDefined();
     });
@@ -89,7 +100,9 @@ describe('test-harness', () => {
       });
       await expect(
         (async () => {
-          for await (const _ of provider.stream({} as any, { signal: new AbortController().signal })) {
+          for await (const _ of provider.stream({} as any, {
+            signal: new AbortController().signal,
+          })) {
             // should throw before yielding
           }
         })(),

@@ -143,9 +143,7 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     await expect(store.forget('fallback scope query')).resolves.toBe(1);
     await expect(store.consolidate('project-memory')).resolves.toBeUndefined();
     const listed = await store.list('project-memory');
-    expect(listed.map((entry) => entry.text)).toEqual(
-      expect.arrayContaining(['duplicate legacy']),
-    );
+    expect(listed.map((entry) => entry.text)).toEqual(expect.arrayContaining(['duplicate legacy']));
     await expect(store.readAll()).resolves.toEqual(expect.any(String));
 
     put(
@@ -168,7 +166,9 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     await store.rememberSage({ text: 'empty status filter should not match' });
 
     await expect(store.searchSage('', { includeStatuses: [] })).resolves.toEqual([]);
-    await expect(store.searchSage('empty status filter', { includeStatuses: [] })).resolves.toEqual([]);
+    await expect(store.searchSage('empty status filter', { includeStatuses: [] })).resolves.toEqual(
+      [],
+    );
   });
 
   it('exercises path fallbacks, relationship expansion, and audience corruption guards', async () => {
@@ -312,9 +312,12 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
       freshness: 1,
     });
 
-    put(store, sage('concurrent-anchor-edit', {
-      anchors: [{ type: 'file', path: 'src/exists.ts' }],
-    }));
+    put(
+      store,
+      sage('concurrent-anchor-edit', {
+        anchors: [{ type: 'file', path: 'src/exists.ts' }],
+      }),
+    );
     state.runMutation = (async <T>(work: () => T): Promise<T> => {
       const current = await store.getSage('concurrent-anchor-edit');
       put(store, {

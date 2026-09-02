@@ -278,9 +278,7 @@ describe('runDotnetAudit', () => {
     mockResult(
       JSON.stringify({
         packages: {
-          'Serilog': [
-            { advisoryId: 'ADV-2', severity: 'medium', title: 'Info leak' },
-          ],
+          Serilog: [{ advisoryId: 'ADV-2', severity: 'medium', title: 'Info leak' }],
         },
       }),
     );

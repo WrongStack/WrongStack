@@ -143,9 +143,7 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
           const bits = [
             reasoning.effort ? `effort:${reasoning.effort}` : '',
             reasoning.mode ? `mode:${reasoning.mode}` : '',
-            reasoning.preserve !== undefined
-              ? `preserve:${reasoning.preserve ? 'on' : 'off'}`
-              : '',
+            reasoning.preserve !== undefined ? `preserve:${reasoning.preserve ? 'on' : 'off'}` : '',
           ].filter(Boolean);
           lines.push(`  ${color.amber(key.padEnd(22))} → ${bits.join(' ')}`);
         }
@@ -168,7 +166,9 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
             `  ${color.bold('effort')}  ${color.bold(current)}${ok ? '' : `  ${color.amber(`(not advertised by this model — supported: ${levels.join(', ')})`)}`}`,
           );
         } else {
-          lines.push(`  ${color.bold('effort')}  ${color.dim('(not set — auto · provider default applies)')}`);
+          lines.push(
+            `  ${color.bold('effort')}  ${color.dim('(not set — auto · provider default applies)')}`,
+          );
         }
         if (levels) {
           const rendered = REASONING_EFFORT_LEVELS.filter((l) => levels.includes(l)).map((l) =>
@@ -188,17 +188,16 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
             `  ${color.bold('levels')}  ${color.dim('(unknown — the resolver drops unsupported values with a warning)')}`,
           );
         }
-        lines.push(
-          '',
-          `  ${color.dim('/effort <level> · clear · matrix · help')}`,
-        );
+        lines.push('', `  ${color.dim('/effort <level> · clear · matrix · help')}`);
         return { message: lines.join('\n') };
       }
 
       // ---- clear ----
       if (sub === 'clear' || sub === 'off-default') {
         if (current === undefined) {
-          return { message: `${color.dim('No session effort set — provider default already applies.')}` };
+          return {
+            message: `${color.dim('No session effort set — provider default already applies.')}`,
+          };
         }
         await patchSessionEffort(undefined, opts.paths, config.activeProfile ?? 'default');
         opts.configStore.update({

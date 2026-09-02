@@ -162,7 +162,10 @@ describe('project mailbox HQ publisher wiring', () => {
     // only event that introduces a roster row, so its delta carries `agent`.
     await expect
       .poll(
-        () => publishEvent.mock.calls.find((c) => (c[0] as { action: string }).action === 'agent.registered')?.[0],
+        () =>
+          publishEvent.mock.calls.find(
+            (c) => (c[0] as { action: string }).action === 'agent.registered',
+          )?.[0],
         { timeout: 5000 },
       )
       .toMatchObject({ agent: { agentId: 'leader@1' } });
@@ -179,7 +182,9 @@ describe('project mailbox HQ publisher wiring', () => {
     await expect.poll(() => publishedActions(), { timeout: 5000 }).toContain('agent.deregistered');
 
     for (const action of ['agent.heartbeat', 'agent.deregistered']) {
-      const call = publishEvent.mock.calls.find((c) => (c[0] as { action: string }).action === action);
+      const call = publishEvent.mock.calls.find(
+        (c) => (c[0] as { action: string }).action === action,
+      );
       // `summary` still identifies the agent; the full roster entry does not.
       expect(call?.[0]).toMatchObject({ summary: 'leader@1' });
       expect(call?.[0]).not.toHaveProperty('agent');

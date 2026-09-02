@@ -544,7 +544,6 @@ export class SageDomainTermExtractor {
       return { report, mirrorPath: null };
     }
   }
-
 }
 
 // ── helpers ─────────────────────────────────────────────────────────

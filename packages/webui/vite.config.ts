@@ -113,7 +113,18 @@ export default defineConfig({
             if (id.includes('monaco-editor') || id.includes('@monaco-editor')) return 'monaco';
             if (id.includes('@xyflow')) return 'xyflow';
             if (id.includes('@xterm')) return 'xterm';
-            if (id.includes('react-markdown') || id.includes('rehype-highlight') || id.includes('remark-gfm') || id.includes('highlight.js') || id.includes('lowlight') || id.includes('mdast') || id.includes('micromark') || id.includes('unified') || id.includes('hast')) return 'markdown';
+            if (
+              id.includes('react-markdown') ||
+              id.includes('rehype-highlight') ||
+              id.includes('remark-gfm') ||
+              id.includes('highlight.js') ||
+              id.includes('lowlight') ||
+              id.includes('mdast') ||
+              id.includes('micromark') ||
+              id.includes('unified') ||
+              id.includes('hast')
+            )
+              return 'markdown';
             return 'vendor';
           }
           return undefined;

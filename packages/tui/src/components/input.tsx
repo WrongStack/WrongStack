@@ -579,7 +579,10 @@ export const Input = memo(function Input({
   outer: for (let r = 0; r < rows.length; r++) {
     const cells = rows[r] as InputCell[];
     for (const cell of cells) {
-      if (cell.cursor) { cursorRow = r; break outer; }
+      if (cell.cursor) {
+        cursorRow = r;
+        break outer;
+      }
     }
   }
   // State is lifted to the parent via onKey — we compute the scroll offset
@@ -602,17 +605,28 @@ export const Input = memo(function Input({
     else if (cursorRow >= clamped + MAX_VISIBLE_ROWS) setVScroll(cursorRow - MAX_VISIBLE_ROWS + 1);
   }, [cursorRow, needsScroll, onKey]);
   // When the content shrinks below the max, reset scroll.
-  useEffect(() => { if (!needsScroll && vScroll > 0) setVScroll(0); }, [needsScroll]);
+  useEffect(() => {
+    if (!needsScroll && vScroll > 0) setVScroll(0);
+  }, [needsScroll]);
 
   // Slice the visible rows.
-  const visibleRows = needsScroll ? rows.slice(clampedScroll, clampedScroll + MAX_VISIBLE_ROWS) : rows;
+  const visibleRows = needsScroll
+    ? rows.slice(clampedScroll, clampedScroll + MAX_VISIBLE_ROWS)
+    : rows;
 
   // Hidden mode: keep the listeners above mounted, but render only an empty
   // placeholder of the same height the visible input would occupy. The bottom
   // region stays a constant height (so Ink's log-update never bleeds the live
   // region into native scrollback) while keyboard handling stays alive.
   if (hidden) {
-    return <Box height={Math.max(3, placeholderHeight ?? (needsScroll ? MAX_VISIBLE_ROWS + 2 : rows.length + 2))} />;
+    return (
+      <Box
+        height={Math.max(
+          3,
+          placeholderHeight ?? (needsScroll ? MAX_VISIBLE_ROWS + 2 : rows.length + 2),
+        )}
+      />
+    );
   }
 
   // Right-aligned live status chip. The rail is split into `head`/`tail`
@@ -625,9 +639,7 @@ export const Input = memo(function Input({
 
   // When scrolling is active, show a scroll indicator in the bottom frame.
   const scrollIndicator =
-    needsScroll && rows.length > MAX_VISIBLE_ROWS
-      ? `  ${clampedScroll + 1}/${rows.length}`
-      : '';
+    needsScroll && rows.length > MAX_VISIBLE_ROWS ? `  ${clampedScroll + 1}/${rows.length}` : '';
 
   // ── Bottom frame with optional scroll indicator ──
   // Three-part bottom frame: colored border border, colorless hint text + scroll indicator, colored filler + corner.

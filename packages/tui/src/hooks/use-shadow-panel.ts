@@ -3,7 +3,9 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import type { Action } from '../app-reducer.js';
 
 interface ShadowPanelHost {
-  getShadowData?: (() => { activeId: string | null; running: boolean; model: string; intervalMs: number }) | undefined;
+  getShadowData?:
+    | (() => { activeId: string | null; running: boolean; model: string; intervalMs: number })
+    | undefined;
   onShadowStart?: (() => Promise<string | undefined>) | undefined;
   onShadowStop?: (() => Promise<string | undefined>) | undefined;
 }

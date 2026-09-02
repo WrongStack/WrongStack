@@ -37,11 +37,10 @@ describe('isKanbanBoardActive — the single board-active predicate', () => {
     const store = readFileSync(join(ROOT, 'src', 'stores', 'kanban-store.ts'), 'utf8');
     expect(store).toContain("from '../lib/kanban-board-active.js'");
     expect(store).not.toMatch(/presence\?\.some\(\(entry\) => entry\.active\)/);
-    const boardState = readFileSync(
-      join(ROOT, 'src', 'components', 'KanbanBoardState.ts'),
-      'utf8',
+    const boardState = readFileSync(join(ROOT, 'src', 'components', 'KanbanBoardState.ts'), 'utf8');
+    expect(boardState).toContain(
+      "export { isKanbanBoardActive } from '../lib/kanban-board-active.js'",
     );
-    expect(boardState).toContain("export { isKanbanBoardActive } from '../lib/kanban-board-active.js'");
   });
 
   it('matches the server-side twin in kanban-route-pagination.ts', () => {

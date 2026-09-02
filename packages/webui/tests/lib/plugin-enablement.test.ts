@@ -60,7 +60,9 @@ describe('resolvePluginToggleStates', () => {
   });
 
   it('lets a local override re-enable a plugin that the canonical config disabled', () => {
-    const out = resolvePluginToggleStates([{ name: 'telegram', enabled: false }], { telegram: true });
+    const out = resolvePluginToggleStates([{ name: 'telegram', enabled: false }], {
+      telegram: true,
+    });
     expect(out[0]).toEqual({
       name: 'telegram',
       configuredEnabled: false,

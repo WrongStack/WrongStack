@@ -86,7 +86,14 @@ describe('DefaultSessionStore — observability + edge coverage', () => {
     const indexFile = path.join(tmp, '_index.jsonl');
     await fs.writeFile(
       indexFile,
-      JSON.stringify({ id: 'a', title: 't', startedAt: now(), model: 'm', provider: 'p', tokenTotal: 0 }) + '\n',
+      JSON.stringify({
+        id: 'a',
+        title: 't',
+        startedAt: now(),
+        model: 'm',
+        provider: 'p',
+        tokenTotal: 0,
+      }) + '\n',
       'utf8',
     );
     // The rewrite now goes through atomicWrite (random temp suffix), so the
@@ -123,14 +130,17 @@ describe('DefaultSessionStore — observability + edge coverage', () => {
   it('emits storage.error when the summary fallback cannot persist the manifest', async () => {
     await fs.writeFile(
       path.join(tmp, 'dmg2.jsonl'),
-      JSON.stringify({ type: 'session_start', ts: now(), id: 'dmg2', model: 'm', provider: 'p' }) + '\n',
+      JSON.stringify({ type: 'session_start', ts: now(), id: 'dmg2', model: 'm', provider: 'p' }) +
+        '\n',
       'utf8',
     );
     await fs.mkdir(path.join(tmp, 'dmg2.summary.json'), { recursive: true });
     events.emit.mockClear();
     await (store as never as { summaryFor(id: string): Promise<unknown> }).summaryFor('dmg2');
     const err = events.emit.mock.calls.find(
-      (c) => c[0] === 'storage.error' && (c[1] as { operation?: string }).operation === 'summary_fallback',
+      (c) =>
+        c[0] === 'storage.error' &&
+        (c[1] as { operation?: string }).operation === 'summary_fallback',
     );
     expect(err).toBeDefined();
   });

@@ -42,11 +42,7 @@ function decodeLine(bytes: Uint8Array): string {
   return TEXT_DECODER.decode(bytes);
 }
 
-function findJsonSafeSplit(
-  payload: Uint8Array,
-  start: number,
-  maxLineBytes: number,
-): number {
+function findJsonSafeSplit(payload: Uint8Array, start: number, maxLineBytes: number): number {
   const hardEnd = Math.min(start + maxLineBytes, payload.length);
   let inString = false;
   let escaped = false;
@@ -141,8 +137,7 @@ export async function* parseSSE(
       const isCr = i > lineStart && chunk[i - 1] === 0x0d;
       const lineEnd = isCr ? i - 1 : i;
       const lineBytes = chunk.subarray(lineStart, lineEnd);
-      let completeLine =
-        pending.length === 0 ? lineBytes : concatBytes(pending, lineBytes);
+      let completeLine = pending.length === 0 ? lineBytes : concatBytes(pending, lineBytes);
       if (completeLine.length > 0 && completeLine[completeLine.length - 1] === 0x0d) {
         completeLine = completeLine.subarray(0, completeLine.length - 1);
       }
@@ -286,7 +281,8 @@ export function createSseLineFoldingTransform(
           const isCr = i > chunkStart && value[i - 1] === 0x0d;
           const lineEnd = isCr ? i - 1 : i;
           const lineTail = value.subarray(chunkStart, lineEnd);
-          let line = lineBuf.length === 0 ? Uint8Array.from(lineTail) : concatBytes(lineBuf, lineTail);
+          let line =
+            lineBuf.length === 0 ? Uint8Array.from(lineTail) : concatBytes(lineBuf, lineTail);
           if (line.length > 0 && line[line.length - 1] === 0x0d) {
             line = line.subarray(0, line.length - 1);
           }

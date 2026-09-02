@@ -42,9 +42,7 @@ async function writeRawMessages(messages: Partial<MailboxMessage>[]): Promise<vo
     completed: false,
     timestamp: new Date().toISOString(),
   };
-  const lines = messages
-    .map((m) => JSON.stringify({ ...defaults, ...m }))
-    .join('\n');
+  const lines = messages.map((m) => JSON.stringify({ ...defaults, ...m })).join('\n');
   // Dropping the database drops the agent registry with it, and several tests
   // register their online agents before seeding messages. Carry them over.
   const agents = await mb.getAgentStatuses();
@@ -73,7 +71,11 @@ describe('SqliteMailbox TTL on send', () => {
   it('sets expiresAt from ttlMs', async () => {
     const before = Date.now();
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'note', subject: 's', body: 'hi',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's',
+      body: 'hi',
       ttlMs: 60_000,
     });
     const after = Date.now();
@@ -86,14 +88,22 @@ describe('SqliteMailbox TTL on send', () => {
 
   it('omits expiresAt when ttlMs is not provided', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'note', subject: 's', body: 'hi',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's',
+      body: 'hi',
     });
     expect(msg.expiresAt).toBeUndefined();
   });
 
   it('honors ttlMs of 0 as "expires immediately"', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'note', subject: 's', body: 'hi',
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 's',
+      body: 'hi',
       ttlMs: 0,
     });
     expect(msg.expiresAt).toBeDefined();
@@ -181,9 +191,7 @@ describe('SqliteMailbox autoCompact — expiry', () => {
 
   it('respects a custom defaultTtlMs', async () => {
     const twoHrsAgo = new Date(Date.now() - 2 * 3600_000).toISOString();
-    await writeRawMessages([
-      { id: '1', subject: '2h-old', timestamp: twoHrsAgo },
-    ]);
+    await writeRawMessages([{ id: '1', subject: '2h-old', timestamp: twoHrsAgo }]);
 
     // With a 3h TTL the message survives.
     const result = await mb.autoCompact({ defaultTtlMs: 3 * 3600_000 });
@@ -193,9 +201,7 @@ describe('SqliteMailbox autoCompact — expiry', () => {
 
   it('does NOT remove a message whose expiresAt is still in the future', async () => {
     const futureExpiry = new Date(Date.now() + 3600_000).toISOString();
-    await writeRawMessages([
-      { id: '1', subject: 'future-expiry', expiresAt: futureExpiry },
-    ]);
+    await writeRawMessages([{ id: '1', subject: 'future-expiry', expiresAt: futureExpiry }]);
 
     const result = await mb.autoCompact();
     expect(result.expiredRemoved).toBe(0);
@@ -214,12 +220,14 @@ describe('SqliteMailbox autoCompact — read by all online agents', () => {
     const oldRead = new Date(Date.now() - 120_000).toISOString(); // 2 min ago
     await writeRawMessages([
       {
-        id: '1', subject: 'read-by-all-old',
+        id: '1',
+        subject: 'read-by-all-old',
         readBy: { ag1: oldRead, ag2: oldRead },
         timestamp: oldRead,
       },
       {
-        id: '2', subject: 'read-by-one',
+        id: '2',
+        subject: 'read-by-one',
         readBy: { ag1: oldRead },
         timestamp: oldRead,
       },
@@ -290,7 +298,8 @@ describe('SqliteMailbox autoCompact — read by all online agents', () => {
     const oldRead = new Date(Date.now() - 120_000).toISOString();
     await writeRawMessages([
       {
-        id: '1', subject: 'completed-and-read',
+        id: '1',
+        subject: 'completed-and-read',
         readBy: { ag1: oldRead },
         completed: true,
         completedAt: oldRead,
@@ -325,7 +334,13 @@ describe('SqliteMailbox autoCompact — stale purge integration', () => {
   it('respects custom completedMaxAgeMs and incompleteMaxAgeMs', async () => {
     const oneHrAgo = new Date(Date.now() - 3600_000).toISOString();
     await writeRawMessages([
-      { id: '1', subject: 'completed-1h', completed: true, completedAt: oneHrAgo, timestamp: oneHrAgo },
+      {
+        id: '1',
+        subject: 'completed-1h',
+        completed: true,
+        completedAt: oneHrAgo,
+        timestamp: oneHrAgo,
+      },
     ]);
 
     // 2h threshold → still fresh enough to keep.
@@ -388,9 +403,7 @@ describe('SqliteMailbox autoCompact — combined and edge cases', () => {
 
   it('only rewrites the file when messages are actually removed', async () => {
     const now = new Date().toISOString();
-    await writeRawMessages([
-      { id: '1', subject: 'fresh', timestamp: now },
-    ]);
+    await writeRawMessages([{ id: '1', subject: 'fresh', timestamp: now }]);
 
     const statBefore = await fs.stat(mb.messagePath);
     await mb.autoCompact();
@@ -422,8 +435,11 @@ describe('SqliteMailbox startAutoCompactTimer', () => {
 
   it('calling dispose stops the timer', async () => {
     const spy = vi.spyOn(mb, 'autoCompact').mockResolvedValue({
-      readByAllRemoved: 0, expiredRemoved: 0, stalePurged: 0,
-      totalRemoved: 0, remaining: 0,
+      readByAllRemoved: 0,
+      expiredRemoved: 0,
+      stalePurged: 0,
+      totalRemoved: 0,
+      remaining: 0,
     });
     const dispose = mb.startAutoCompactTimer({ intervalMs: 50 });
     // Wait one cycle.

@@ -31,8 +31,7 @@ const localPrefsState = {
   yolo: false,
 };
 vi.mock('@/stores/local-prefs', () => ({
-  useLocalPrefs: (selector: (s: typeof localPrefsState) => unknown) =>
-    selector(localPrefsState),
+  useLocalPrefs: (selector: (s: typeof localPrefsState) => unknown) => selector(localPrefsState),
 }));
 
 // useWebSocket is used by the panel for updatePrefs in the toggle handlers

@@ -10,7 +10,9 @@ vi.mock('@/hooks/useProviderModels', () => ({ useProviderModels: () => [] }));
 // Stub the heavy presentational children so the test stays focused on controls.
 vi.mock('@/components/SddFlowGraph', () => ({
   SddFlowGraph: ({ onTaskClick }: { onTaskClick: (id: string) => void }) => (
-    <button type="button" onClick={() => onTaskClick('task-1')}>Open task</button>
+    <button type="button" onClick={() => onTaskClick('task-1')}>
+      Open task
+    </button>
   ),
 }));
 vi.mock('@/components/SddKanbanView', () => ({ SddKanbanView: () => null }));

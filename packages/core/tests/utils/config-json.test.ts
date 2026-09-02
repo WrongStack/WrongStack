@@ -115,10 +115,14 @@ describe('setJsonPath', () => {
     expect(setJsonPath({ a: [] }, ['a', 0], 9)).toEqual({ a: [9] });
   });
   it('throws setting a numeric leaf on a non-array parent', () => {
-    expect(() => setJsonPath({ a: {} }, ['a', 0], 9)).toThrow(/Cannot set numeric segment 0 on non-array/);
+    expect(() => setJsonPath({ a: {} }, ['a', 0], 9)).toThrow(
+      /Cannot set numeric segment 0 on non-array/,
+    );
   });
   it('throws setting a string leaf on a non-object parent', () => {
-    expect(() => setJsonPath({ a: [] }, ['a', 'b'], 9)).toThrow(/Cannot set property b on non-object/);
+    expect(() => setJsonPath({ a: [] }, ['a', 'b'], 9)).toThrow(
+      /Cannot set property b on non-object/,
+    );
   });
   it('creates intermediate arrays for numeric next-segments', () => {
     expect(setJsonPath({}, ['a', 0, 'b'], 1)).toEqual({ a: [{ b: 1 }] });
@@ -130,10 +134,14 @@ describe('setJsonPath', () => {
     expect(setJsonPath({ a: [{}] }, ['a', 0, 'b'], 1)).toEqual({ a: [{ b: 1 }] });
   });
   it('throws traversing a numeric segment on a non-array', () => {
-    expect(() => setJsonPath({}, [0, 'b'], 1)).toThrow(/Cannot traverse numeric segment 0 on non-array/);
+    expect(() => setJsonPath({}, [0, 'b'], 1)).toThrow(
+      /Cannot traverse numeric segment 0 on non-array/,
+    );
   });
   it('throws traversing a string segment on a non-object', () => {
-    expect(() => setJsonPath([] as never, ['a', 'b'], 1)).toThrow(/Cannot traverse property a on non-object/);
+    expect(() => setJsonPath([] as never, ['a', 'b'], 1)).toThrow(
+      /Cannot traverse property a on non-object/,
+    );
   });
 });
 

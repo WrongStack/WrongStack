@@ -9,7 +9,14 @@ const TYPESCRIPT_RUNTIME: LanguageRuntime = {
   id: 'typescript',
   packageManager: 'pnpm',
   executable: 'tsc',
-  allowedFlags: new Set(['--noEmit', '--pretty', '--pretty=false', '--incremental', '--watch', '--build']),
+  allowedFlags: new Set([
+    '--noEmit',
+    '--pretty',
+    '--pretty=false',
+    '--incremental',
+    '--watch',
+    '--build',
+  ]),
   subcommands: ['exec'],
   defaultCommand: 'pnpm exec tsc --noEmit',
 };
@@ -89,7 +96,7 @@ describe('runtime helper', () => {
       'pnpm tsc --isolatedModules',
       'pnpm --filter evil tsc',
       'pnpm exec tsc --eval "evil"',
-      'node -e "require(\'child_process\').exec(\'calc.exe\')"',
+      "node -e \"require('child_process').exec('calc.exe')\"",
     ])('rejects unsafe TypeScript command %#', (command) => {
       expect(resolveRunnerCommand(TYPESCRIPT_RUNTIME, command)).toBeNull();
     });
@@ -118,12 +125,12 @@ describe('runtime helper', () => {
       expect(r?.cmd).toBe('pytest');
       expect(r?.args).toEqual(['-q']);
     });
-    it.each([
-      'pytest --inject=evil',
-      'pytest -e "import os; os.system(\'id\')"',
-    ])('rejects unsafe pytest command %#', (command) => {
-      expect(resolveRunnerCommand(PYTEST_RUNTIME, command)).toBeNull();
-    });
+    it.each(['pytest --inject=evil', 'pytest -e "import os; os.system(\'id\')"'])(
+      'rejects unsafe pytest command %#',
+      (command) => {
+        expect(resolveRunnerCommand(PYTEST_RUNTIME, command)).toBeNull();
+      },
+    );
   });
 
   describe('resolveRunnerCommand — Rust cargo test', () => {
@@ -132,9 +139,12 @@ describe('runtime helper', () => {
       expect(r?.cmd).toBe('cargo');
       expect(r?.args).toEqual(['test', '--release']);
     });
-    it.each(['cargo run --evil', 'cargo build'])('rejects non-test cargo invocations %#', (command) => {
-      expect(resolveRunnerCommand(CARGO_RUNTIME, command)).toBeNull();
-    });
+    it.each(['cargo run --evil', 'cargo build'])(
+      'rejects non-test cargo invocations %#',
+      (command) => {
+        expect(resolveRunnerCommand(CARGO_RUNTIME, command)).toBeNull();
+      },
+    );
   });
 
   describe('resolveRunnerCommand — Go test', () => {
@@ -143,9 +153,12 @@ describe('runtime helper', () => {
       expect(r?.cmd).toBe('go');
       expect(r?.args).toEqual(['test', '-v', './...']);
     });
-    it.each(['go build ./...', 'go run main.go'])('rejects non-test go invocations %#', (command) => {
-      expect(resolveRunnerCommand(GOLANG_TEST_RUNTIME, command)).toBeNull();
-    });
+    it.each(['go build ./...', 'go run main.go'])(
+      'rejects non-test go invocations %#',
+      (command) => {
+        expect(resolveRunnerCommand(GOLANG_TEST_RUNTIME, command)).toBeNull();
+      },
+    );
   });
 
   describe('shared invariants', () => {
@@ -157,7 +170,9 @@ describe('runtime helper', () => {
     });
     it('rejects absolute executable paths outside the project', () => {
       expect(
-        resolveRunnerCommand(TYPESCRIPT_RUNTIME, '/usr/bin/tsc --noEmit', { projectRoot: process.cwd() }),
+        resolveRunnerCommand(TYPESCRIPT_RUNTIME, '/usr/bin/tsc --noEmit', {
+          projectRoot: process.cwd(),
+        }),
       ).toBeNull();
     });
     it('rejects runtimes where allowedFlags is null with leading-dash tokens', () => {

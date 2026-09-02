@@ -5,11 +5,7 @@
   "description": "Decide how to split work across parallel agents.",
   "content": "I want to parallelize this work across agents: {{work}}\n\nDesign the fan-out. Decide the unit of work each agent owns, how to keep them from conflicting (isolation, partitioning, or a shared queue), and how their outputs are merged. Decide whether a barrier is needed or work can stream. Identify the step that must stay sequential and why. Flag the failure mode where one agent's bad output poisons the merge, and how to catch it.",
   "category": "agentic-workflows",
-  "tags": [
-    "multi-agent",
-    "parallelism",
-    "orchestration"
-  ],
+  "tags": ["multi-agent", "parallelism", "orchestration"],
   "source": "builtin",
   "favorite": false,
   "checksum": "ab77d213cc339e82d45bd125ea22d38ca7beadc0bcc102984d3cf85fec074e96",

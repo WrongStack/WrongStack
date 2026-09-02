@@ -73,12 +73,7 @@ describe('parseSSE', () => {
 
   it('handles CRLF line endings split across chunk boundaries (BIZ-008)', async () => {
     // \r is the last byte of chunk 1, \n is the first byte of chunk 2
-    const body = bodyFrom([
-      'event: message_stop\r',
-      '\ndata: {"stop":true}\r',
-      '\n\r',
-      '\n',
-    ]);
+    const body = bodyFrom(['event: message_stop\r', '\ndata: {"stop":true}\r', '\n\r', '\n']);
     const events = [];
     for await (const msg of parseSSE(body)) events.push(msg);
     expect(events).toEqual([{ event: 'message_stop', data: '{"stop":true}' }]);

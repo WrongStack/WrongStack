@@ -96,9 +96,7 @@ export function KanbanVerificationDashboard({
   // every render. selectVerificationSummary reads only board.tasks, which
   // revision covers exactly.
   const summary = useMemo(() => selectVerificationSummary(board), [board.id, board.revision]);
-  const verifiedPct = summary.gradedTasks
-    ? (summary.passed / summary.gradedTasks) * 100
-    : 0;
+  const verifiedPct = summary.gradedTasks ? (summary.passed / summary.gradedTasks) * 100 : 0;
 
   return (
     <div className="h-full space-y-4 overflow-y-auto p-4">
@@ -116,7 +114,11 @@ export function KanbanVerificationDashboard({
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <Stat label="verified" value={summary.passed} tone="success" />
         <Stat label="failed" value={summary.failed} tone="destructive" />
-        <Stat label={t('activity:verifyReport.verdictNeedsHuman')} value={summary.needsHuman} tone="warning" />
+        <Stat
+          label={t('activity:verifyReport.verdictNeedsHuman')}
+          value={summary.needsHuman}
+          tone="warning"
+        />
         <Stat label="incomplete" value={summary.incomplete} tone="warning" />
         <Stat label="unverified" value={summary.unverified} tone="muted" />
       </div>

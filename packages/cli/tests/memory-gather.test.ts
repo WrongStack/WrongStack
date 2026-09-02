@@ -22,7 +22,14 @@ function sage(overrides: Partial<Sage> = {}): Sage {
   } as Sage;
 }
 
-function page(memories: Sage[], extra: Partial<{ total: number; statusCounts: Record<string, number>; nextCursor: string | null }> = {}) {
+function page(
+  memories: Sage[],
+  extra: Partial<{
+    total: number;
+    statusCounts: Record<string, number>;
+    nextCursor: string | null;
+  }> = {},
+) {
   return {
     memories,
     nextCursor: null,
@@ -41,16 +48,26 @@ describe('runPathMemory', () => {
   it('reports when no memories are attached to the path', async () => {
     const retrieveForPath = vi.fn(async () => []);
     const store = {
-      getCapability: (cap: unknown) => (cap === SAGE_SURFACE_CAPABILITY ? { retrieveForPath } : undefined),
+      getCapability: (cap: unknown) =>
+        cap === SAGE_SURFACE_CAPABILITY ? { retrieveForPath } : undefined,
     } as never;
     const out = await runPathMemory(store, 'src/empty.ts', true);
     expect(out.message).toBe('No SAGE entries are attached to src/empty.ts.');
-    expect(retrieveForPath).toHaveBeenCalledWith({ path: 'src/empty.ts', limit: 20, includeAncestors: true });
+    expect(retrieveForPath).toHaveBeenCalledWith({
+      path: 'src/empty.ts',
+      limit: 20,
+      includeAncestors: true,
+    });
   });
 
   it('lists memories with tags and the first anchor that has a path, symbol, or command', async () => {
     const retrieveForPath = vi.fn(async () => [
-      sage({ id: 'm1', text: 'Uses pnpm.', tags: ['build', 'pnpm'], anchors: [{ type: 'file', path: 'src/a.ts' }] }),
+      sage({
+        id: 'm1',
+        text: 'Uses pnpm.',
+        tags: ['build', 'pnpm'],
+        anchors: [{ type: 'file', path: 'src/a.ts' }],
+      }),
       sage({
         id: 'm2',
         text: 'Uses tsx.',
@@ -59,7 +76,8 @@ describe('runPathMemory', () => {
       sage({ id: 'm3', text: 'No anchor here.', anchors: [] }),
     ]);
     const store = {
-      getCapability: (cap: unknown) => (cap === SAGE_SURFACE_CAPABILITY ? { retrieveForPath } : undefined),
+      getCapability: (cap: unknown) =>
+        cap === SAGE_SURFACE_CAPABILITY ? { retrieveForPath } : undefined,
     } as never;
     const out = await runPathMemory(store, 'src/a.ts', false);
     expect(out.message).toContain('## SAGE for src/a.ts');
@@ -71,13 +89,17 @@ describe('runPathMemory', () => {
 });
 
 describe('runGatherCommand', () => {
-  function makeSage(opts: {
-    listSagePage?: ReturnType<typeof vi.fn>;
-    graphFor?: (id: string, depth: number, limit: number) => Promise<Array<{ from: string; to: string; relation: string }>>;
-  } = {}) {
-    const listSagePage =
-      opts.listSagePage ??
-      vi.fn(async () => page([sage()]));
+  function makeSage(
+    opts: {
+      listSagePage?: ReturnType<typeof vi.fn>;
+      graphFor?: (
+        id: string,
+        depth: number,
+        limit: number,
+      ) => Promise<Array<{ from: string; to: string; relation: string }>>;
+    } = {},
+  ) {
+    const listSagePage = opts.listSagePage ?? vi.fn(async () => page([sage()]));
     const surface = {
       listSagePage,
       ...(opts.graphFor ? { graphFor: opts.graphFor } : {}),
@@ -86,7 +108,9 @@ describe('runGatherCommand', () => {
   }
 
   it('reports when the surface or its listSagePage is missing', async () => {
-    expect((await runGatherCommand(null, [])).message).toContain('`/memory gather` requires the SAGE backend');
+    expect((await runGatherCommand(null, [])).message).toContain(
+      '`/memory gather` requires the SAGE backend',
+    );
     expect((await runGatherCommand({} as SageSurface, [])).message).toContain(
       '`/memory gather` requires the SAGE backend',
     );
@@ -181,7 +205,9 @@ describe('runGatherCommand', () => {
   it('renders status counts, preview truncation, and paging hints', async () => {
     const long = sage({ id: 'm-long', text: 'x'.repeat(140) });
     const { surface } = makeSage({
-      listSagePage: vi.fn(async () => page([long], { total: 12, statusCounts: { active: 9, stale: 3 } })),
+      listSagePage: vi.fn(async () =>
+        page([long], { total: 12, statusCounts: { active: 9, stale: 3 } }),
+      ),
     });
     const out = await runGatherCommand(surface, []);
     expect(out.message).toContain('## 📋 Memory Gather — 12 matched');
@@ -199,7 +225,9 @@ describe('runGatherCommand', () => {
   it('notes when --relations is requested but the backend lacks graphFor', async () => {
     const { surface } = makeSage();
     const out = await runGatherCommand(surface, ['--relations']);
-    expect(out.message).toContain('*(Relations requested but graphFor is not available on this backend)*');
+    expect(out.message).toContain(
+      '*(Relations requested but graphFor is not available on this backend)*',
+    );
   });
 
   it('deduplicates relation edges across scanned memories', async () => {

@@ -4,14 +4,46 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FleetBus } from '../../src/coordination/fleet-bus.js';
 import { CollabSession } from '../../src/coordination/collab-debug.js';
-import type { BugFinding, CriticEvaluation, RefactorPlan, SharedFileSnapshot } from '../../src/coordination/collab-debug.js';
+import type {
+  BugFinding,
+  CriticEvaluation,
+  RefactorPlan,
+  SharedFileSnapshot,
+} from '../../src/coordination/collab-debug.js';
 
-const bug = (): BugFinding => ({ id: 'b1', type: 'sqli', severity: 'high', location: { file: 'a.ts', line: 3 }, description: 'sql injection', suggestedFix: 'parameterize' });
-const plan = (): RefactorPlan => ({ id: 'p1', basedOnBugIds: ['b1'], phases: [{ number: 1, title: 'extract', tasks: ['t'], risk: 'low' }], riskScore: 'medium', estimatedChangeCount: 4, rollbackStrategy: 'revert' });
-const evaluation = (verdict: CriticEvaluation['verdict'] = 'reject'): CriticEvaluation => ({ id: 'e1', subjectType: 'bug_finding', subjectId: 'b1', score: 4, verdict, strengths: ['s'], weaknesses: ['w'], concerns: [{ description: 'blocker', severity: 'blocking' }] });
+const bug = (): BugFinding => ({
+  id: 'b1',
+  type: 'sqli',
+  severity: 'high',
+  location: { file: 'a.ts', line: 3 },
+  description: 'sql injection',
+  suggestedFix: 'parameterize',
+});
+const plan = (): RefactorPlan => ({
+  id: 'p1',
+  basedOnBugIds: ['b1'],
+  phases: [{ number: 1, title: 'extract', tasks: ['t'], risk: 'low' }],
+  riskScore: 'medium',
+  estimatedChangeCount: 4,
+  rollbackStrategy: 'revert',
+});
+const evaluation = (verdict: CriticEvaluation['verdict'] = 'reject'): CriticEvaluation => ({
+  id: 'e1',
+  subjectType: 'bug_finding',
+  subjectId: 'b1',
+  score: 4,
+  verdict,
+  strengths: ['s'],
+  weaknesses: ['w'],
+  concerns: [{ description: 'blocker', severity: 'blocking' }],
+});
 
 const fleetEvent = (fleetBus: FleetBus, subagentId: string, type: string, payload: unknown) =>
-  (fleetBus as never as { emit: (e: { subagentId: string; ts: number; type: string; payload: unknown }) => void }).emit({ subagentId, ts: Date.now(), type, payload });
+  (
+    fleetBus as never as {
+      emit: (e: { subagentId: string; ts: number; type: string; payload: unknown }) => void;
+    }
+  ).emit({ subagentId, ts: Date.now(), type, payload });
 
 function makeMockDirector(fleetBus: FleetBus, resultFor?: (id: string) => unknown) {
   const taskOwners = new Map<string, string>();
@@ -31,7 +63,15 @@ function makeMockDirector(fleetBus: FleetBus, resultFor?: (id: string) => unknow
     async awaitTasks(ids: string[]) {
       return ids.map((id) => {
         const subagentId = taskOwners.get(id) ?? id;
-        return { taskId: id, subagentId, status: 'success' as const, result: resultFor ? resultFor(subagentId) : `done:${subagentId}`, iterations: 1, toolCalls: 0, durationMs: 1 };
+        return {
+          taskId: id,
+          subagentId,
+          status: 'success' as const,
+          result: resultFor ? resultFor(subagentId) : `done:${subagentId}`,
+          iterations: 1,
+          toolCalls: 0,
+          durationMs: 1,
+        };
       });
     },
   };
@@ -48,19 +88,32 @@ afterEach(async () => {
   tmp = [];
 });
 
-const snap = (files: SharedFileSnapshot['files'] = [{ path: 'a.ts', content: 'x' }]): SharedFileSnapshot => ({ id: 'snap', createdAt: new Date().toISOString(), files });
+const snap = (
+  files: SharedFileSnapshot['files'] = [{ path: 'a.ts', content: 'x' }],
+): SharedFileSnapshot => ({ id: 'snap', createdAt: new Date().toISOString(), files });
 
 describe('CollabSession getters + simple accessors', () => {
   it('exposes id, alerts, cancelled, subagent map, and file limit', () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+    });
     expect(s.id).toBe(s.sessionId);
     expect(s.getSessionAlerts()).toEqual([]);
     expect(s.isCancelled()).toBe(false);
     expect(s.getSubagentIds().size).toBe(0);
     expect(s.effectiveFileLimit()).toBe(30); // default
-    const s2 = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap(), maxTargetFiles: 7 });
+    const s2 = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+      maxTargetFiles: 7,
+    });
     expect(s2.effectiveFileLimit()).toBe(7);
-    const s3 = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap(), contextWindow: 200_000 });
+    const s3 = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+      contextWindow: 200_000,
+    });
     expect(s3.effectiveFileLimit()).toBe(Math.max(5, Math.floor((200_000 * 0.4) / 2000)));
   });
 
@@ -70,14 +123,20 @@ describe('CollabSession getters + simple accessors', () => {
       prebuiltSnapshot: snap(),
       budgetOverrides: { 'bug-hunter': { maxIterations: 9, maxToolCalls: 9, timeoutMs: 9 } },
     });
-    const call = (role: string) => (s as never as { budgetForRole: (r: string) => { maxIterations: number } }).budgetForRole(role);
+    const call = (role: string) =>
+      (s as never as { budgetForRole: (r: string) => { maxIterations: number } }).budgetForRole(
+        role,
+      );
     expect(call('bug-hunter').maxIterations).toBe(9); // override
     expect(call('critic').maxIterations).toBe(1000); // default
     expect(call('mystery').maxIterations).toBe(1500); // fallback
   });
 
   it('cancel is idempotent and emits cancel events', () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+    });
     const events: string[] = [];
     fleetBus.filter('director.cancel_collab', () => events.push('cancel'));
     s.cancel('first');
@@ -87,8 +146,12 @@ describe('CollabSession getters + simple accessors', () => {
   });
 
   it('roleFromSubagentId resolves via tracked map, prefix fallback, and null', () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
-    const role = (id: string) => (s as never as { roleFromSubagentId: (i: string) => string | null }).roleFromSubagentId(id);
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+    });
+    const role = (id: string) =>
+      (s as never as { roleFromSubagentId: (i: string) => string | null }).roleFromSubagentId(id);
     expect(role('critic-2')).toBe('critic'); // prefix fallback
     expect(role('unrelated-9')).toBeNull();
   });
@@ -116,7 +179,10 @@ describe('CollabSession.buildSnapshot', () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'collab-limit-'));
     tmp.push(dir);
     await fs.writeFile(path.join(dir, 'only.ts'), 'x');
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: [path.join(dir, 'only.ts')], maxTargetFiles: 0 });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: [path.join(dir, 'only.ts')],
+      maxTargetFiles: 0,
+    });
     await expect(s.buildSnapshot()).rejects.toThrow(/exceeds the/);
   });
 });
@@ -134,7 +200,11 @@ describe('CollabSession.parseAndEmit + report assembly (full start)', () => {
       { path: '/nope/missing.ts', content: '', snapshotMtimeMs: 1, snapshotSizeBytes: 1 },
       { path: 'no-meta.ts', content: '' },
     ]);
-    const s = new CollabSession(makeMockDirector(fleetBus, resultFor) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snapshot, timeoutMs: 5000 });
+    const s = new CollabSession(makeMockDirector(fleetBus, resultFor) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snapshot,
+      timeoutMs: 5000,
+    });
     const report = await s.start();
     expect(report.bugs).toHaveLength(1);
     expect(report.refactorPlans).toHaveLength(1);
@@ -148,11 +218,20 @@ describe('CollabSession.parseAndEmit + report assembly (full start)', () => {
   });
 
   it('parseAndEmit skips non-success and key-less results', async () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
-    const parse = (r: unknown) => (s as never as { parseAndEmit: (r: unknown) => Promise<void> }).parseAndEmit(r);
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+    });
+    const parse = (r: unknown) =>
+      (s as never as { parseAndEmit: (r: unknown) => Promise<void> }).parseAndEmit(r);
     await parse({ status: 'failed', result: null });
     await parse({ status: 'success', result: null });
-    await parse({ status: 'success', subagentId: 's', taskId: 't', result: 'no json {"other":1} here' }); // no finding/plan/evaluation key
+    await parse({
+      status: 'success',
+      subagentId: 's',
+      taskId: 't',
+      result: 'no json {"other":1} here',
+    }); // no finding/plan/evaluation key
     expect(s.getSessionAlerts()).toEqual([]);
   });
 });
@@ -179,7 +258,19 @@ describe('CollabSession.wireFleetBus event handlers', () => {
     const cap = { extended: null as Record<string, unknown> | null, denied: false };
     return {
       cap,
-      payload: { kind, used: 11, limit: 10, timeoutMs: 1000, extend: (e: Record<string, unknown>) => { cap.extended = e; }, deny: () => { cap.denied = true; }, ...over },
+      payload: {
+        kind,
+        used: 11,
+        limit: 10,
+        timeoutMs: 1000,
+        extend: (e: Record<string, unknown>) => {
+          cap.extended = e;
+        },
+        deny: () => {
+          cap.denied = true;
+        },
+        ...over,
+      },
     };
   };
   const tick = () => new Promise((r) => setImmediate(r));
@@ -240,13 +331,21 @@ describe('CollabSession.wireFleetBus event handlers', () => {
     expect(_s.getSessionAlerts()[0]?.elapsedMs).toBe(765_000);
     // Idle thresholds patch the idle window, not the independent wall clock.
     fleetEvent(fleetBus, 'refactor-planner-0', 'tool.executed', {});
-    const idle = budgetPayload('idle_timeout', { used: 510_000, limit: 600_000, timeoutMs: 60_000 });
+    const idle = budgetPayload('idle_timeout', {
+      used: 510_000,
+      limit: 600_000,
+      timeoutMs: 60_000,
+    });
     fleetEvent(fleetBus, 'refactor-planner-0', 'budget.threshold_reached', idle.payload);
     await tick();
     expect(idle.cap.extended?.idleTimeoutMs).toBe(1_200_000);
     expect(idle.cap.extended?.timeoutMs).toBeUndefined();
     // No new progress → second timeout denies.
-    const second = budgetPayload('timeout', { used: 1_530_000, limit: 1_800_000, timeoutMs: 60_000 });
+    const second = budgetPayload('timeout', {
+      used: 1_530_000,
+      limit: 1_800_000,
+      timeoutMs: 60_000,
+    });
     fleetEvent(fleetBus, 'bug-hunter-0', 'budget.threshold_reached', second.payload);
     await tick();
     expect(second.cap.denied).toBe(true);
@@ -254,9 +353,15 @@ describe('CollabSession.wireFleetBus event handlers', () => {
 
   it('handles a director.cancel_collab signal for this session (and ignores others)', () => {
     const s = wired();
-    fleetEvent(fleetBus, 'mock-director', 'director.cancel_collab', { sessionId: 'someone-else', reason: 'x' });
+    fleetEvent(fleetBus, 'mock-director', 'director.cancel_collab', {
+      sessionId: 'someone-else',
+      reason: 'x',
+    });
     expect(s.isCancelled()).toBe(false);
-    fleetEvent(fleetBus, 'mock-director', 'director.cancel_collab', { sessionId: s.sessionId, reason: 'stop' });
+    fleetEvent(fleetBus, 'mock-director', 'director.cancel_collab', {
+      sessionId: s.sessionId,
+      reason: 'stop',
+    });
     expect(s.isCancelled()).toBe(true);
   });
 });
@@ -265,7 +370,11 @@ describe('CollabSession edge cases', () => {
   const tick = () => new Promise((r) => setImmediate(r));
 
   it('rejects a second start() call', async () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap(), timeoutMs: 5000 });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+      timeoutMs: 5000,
+    });
     await s.start();
     await expect(s.start()).rejects.toThrow(/already settled/);
   });
@@ -273,7 +382,11 @@ describe('CollabSession edge cases', () => {
   it('times out and surfaces a session error when agents never complete', async () => {
     const hang = makeMockDirector(fleetBus);
     hang.awaitTasks = () => new Promise(() => {}) as never; // never resolves
-    const s = new CollabSession(hang as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap(), timeoutMs: 25 });
+    const s = new CollabSession(hang as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+      timeoutMs: 25,
+    });
     await expect(s.start()).rejects.toThrow(/timed out/);
     expect(s.isCancelled()).toBe(true);
   });
@@ -281,54 +394,111 @@ describe('CollabSession edge cases', () => {
   it('clears the armed timeout timer when an agent task rejects', async () => {
     const failing = makeMockDirector(fleetBus);
     failing.awaitTasks = () => Promise.reject(new Error('agent crashed'));
-    const s = new CollabSession(failing as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap(), timeoutMs: 5000 });
+    const s = new CollabSession(failing as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+      timeoutMs: 5000,
+    });
     await expect(s.start()).rejects.toThrow('agent crashed');
     expect(s.isCancelled()).toBe(false); // failed via task error, not timeout cancel
   });
 
   it('extractJsonObjects tolerates escaped quotes and backslashes', async () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+    });
     // Register subagent so parseAndEmit's ownership guard accepts the event.
     // subagentIds maps role → runtimeId (same as spawnAgent).
-    (s as never as { subagentIds: Map<string, string> }).subagentIds.set('bug-hunter', 'bug-hunter-0');
+    (s as never as { subagentIds: Map<string, string> }).subagentIds.set(
+      'bug-hunter',
+      'bug-hunter-0',
+    );
     (s as never as { wireFleetBus: () => void }).wireFleetBus();
-    const json = JSON.stringify({ finding: { id: 'b9', type: 't', severity: 'low', location: { file: 'a.ts', line: 1 }, description: 'a"b\\c' } });
-    await (s as never as { parseAndEmit: (r: unknown) => Promise<void> }).parseAndEmit({ status: 'success', subagentId: 'bug-hunter-0', taskId: 't', result: json });
+    const json = JSON.stringify({
+      finding: {
+        id: 'b9',
+        type: 't',
+        severity: 'low',
+        location: { file: 'a.ts', line: 1 },
+        description: 'a"b\\c',
+      },
+    });
+    await (s as never as { parseAndEmit: (r: unknown) => Promise<void> }).parseAndEmit({
+      status: 'success',
+      subagentId: 'bug-hunter-0',
+      taskId: 't',
+      result: json,
+    });
     const report = (s as never as { assembleReport: () => { bugs: unknown[] } }).assembleReport();
     expect(report.bugs).toHaveLength(1);
   });
 
   it('auto-extends iterations, tokens, and cost on the ignore path', async () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap(), onBudgetWarning: () => 'ignore' });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+      onBudgetWarning: () => 'ignore',
+    });
     // Register subagent so the budget handler's ownership guard accepts it.
     (s as never as { subagentIds: Map<string, string> }).subagentIds.set('critic-0', 'critic-0');
     (s as never as { wireFleetBus: () => void }).wireFleetBus();
-    for (const [kind, field] of [['iterations', 'maxIterations'], ['tokens', 'maxTokens'], ['cost', 'maxCostUsd']] as const) {
+    for (const [kind, field] of [
+      ['iterations', 'maxIterations'],
+      ['tokens', 'maxTokens'],
+      ['cost', 'maxCostUsd'],
+    ] as const) {
       const cap = { extended: null as Record<string, unknown> | null };
-      fleetEvent(fleetBus, 'critic-0', 'budget.threshold_reached', { kind, used: 11, limit: 10, extend: (e: Record<string, unknown>) => { cap.extended = e; }, deny: () => {} });
+      fleetEvent(fleetBus, 'critic-0', 'budget.threshold_reached', {
+        kind,
+        used: 11,
+        limit: 10,
+        extend: (e: Record<string, unknown>) => {
+          cap.extended = e;
+        },
+        deny: () => {},
+      });
       await tick();
       expect(cap.extended?.[field]).toBeGreaterThan(0);
     }
   });
 
   it('clears an armed timer on director.cancel_collab', () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+    });
     (s as never as { wireFleetBus: () => void }).wireFleetBus();
     (s as never as { _timeoutTimer: NodeJS.Timeout })._timeoutTimer = setTimeout(() => {}, 10_000);
-    fleetEvent(fleetBus, 'mock-director', 'director.cancel_collab', { sessionId: s.sessionId, reason: 'stop' });
+    fleetEvent(fleetBus, 'mock-director', 'director.cancel_collab', {
+      sessionId: s.sessionId,
+      reason: 'stop',
+    });
     expect(s.isCancelled()).toBe(true);
   });
 
   it('roleFromSubagentId resolves via the tracked subagent map', () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+    });
     (s as never as { subagentIds: Map<string, string> }).subagentIds.set('critic', 'sub-xyz');
-    expect((s as never as { roleFromSubagentId: (i: string) => string | null }).roleFromSubagentId('sub-xyz')).toBe('critic');
+    expect(
+      (s as never as { roleFromSubagentId: (i: string) => string | null }).roleFromSubagentId(
+        'sub-xyz',
+      ),
+    ).toBe('critic');
   });
 
   it('reports a cancelled disposition when assembling after cancel', () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+    });
     s.cancel('done');
-    const report = (s as never as { assembleReport: () => { disposition: string } }).assembleReport();
+    const report = (
+      s as never as { assembleReport: () => { disposition: string } }
+    ).assembleReport();
     expect(report.disposition).toBe('cancelled');
   });
 
@@ -341,14 +511,19 @@ describe('CollabSession edge cases', () => {
       targetPaths: [f],
       prebuiltSnapshot: snap([{ path: f, content: '', snapshotMtimeMs: 1, snapshotSizeBytes: 1 }]),
     });
-    const warnings = await (s as never as { checkSnapshotFreshness: () => Promise<string[]> }).checkSnapshotFreshness();
+    const warnings = await (
+      s as never as { checkSnapshotFreshness: () => Promise<string[]> }
+    ).checkSnapshotFreshness();
     expect(warnings.some((w) => w.includes('changed.ts'))).toBe(true);
   });
 });
 
 describe('CollabSession.assembleReport markdown sections', () => {
   it('renders alerts and snapshot warnings when present', () => {
-    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
+    const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, {
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snap(),
+    });
     // Pre-populate the private state that the markdown summary renders.
     const priv = s as never as {
       alerts: unknown[];
@@ -384,7 +559,11 @@ describe('CollabSession.assembleReport markdown sections', () => {
 // when the map is empty (startup race).
 describe('CollabSession concurrent-session isolation', () => {
   const fleetEvent = (fleetBus: FleetBus, subagentId: string, type: string, payload: unknown) =>
-    (fleetBus as never as { emit: (e: { subagentId: string; ts: number; type: string; payload: unknown }) => void }).emit({ subagentId, ts: Date.now(), type, payload });
+    (
+      fleetBus as never as {
+        emit: (e: { subagentId: string; ts: number; type: string; payload: unknown }) => void;
+      }
+    ).emit({ subagentId, ts: Date.now(), type, payload });
 
   /** Populate subagentIds as if spawnAgent had run for all three roles. */
   function seedAgents(session: CollabSession, suffix: string): void {
@@ -399,17 +578,29 @@ describe('CollabSession concurrent-session isolation', () => {
   it('does not collect another session bug.found events', () => {
     const fleetBus = new FleetBus();
     const directorA = {
-      id: 'director-A', fleet: fleetBus, sharedScratchpadPath: '/tmp',
+      id: 'director-A',
+      fleet: fleetBus,
+      sharedScratchpadPath: '/tmp',
       getLeaderBtwNotes: () => [] as string[],
-      async spawn() { return ''; }, async assign() { return ''; }, async awaitTasks() { return []; },
+      async spawn() {
+        return '';
+      },
+      async assign() {
+        return '';
+      },
+      async awaitTasks() {
+        return [];
+      },
     };
     const directorB = { ...directorA, id: 'director-B' };
 
     const sessionA = new CollabSession(directorA as never, fleetBus, {
-      targetPaths: ['a.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'a.ts', content: 'x' }] },
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'a.ts', content: 'x' }] },
     });
     const sessionB = new CollabSession(directorB as never, fleetBus, {
-      targetPaths: ['b.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'b.ts', content: 'x' }] },
+      targetPaths: ['b.ts'],
+      prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'b.ts', content: 'x' }] },
     });
     seedAgents(sessionA, 'A');
     seedAgents(sessionB, 'B');
@@ -419,15 +610,31 @@ describe('CollabSession concurrent-session isolation', () => {
 
     // Session A's bug-hunter emits a finding.
     fleetEvent(fleetBus, 'bug-hunter-A', 'bug.found', {
-      finding: { id: 'bug-A', type: 'null', severity: 'high', location: { file: 'a.ts', line: 1 }, description: 'A-only bug' },
+      finding: {
+        id: 'bug-A',
+        type: 'null',
+        severity: 'high',
+        location: { file: 'a.ts', line: 1 },
+        description: 'A-only bug',
+      },
     });
     // Session B's bug-hunter emits a different finding.
     fleetEvent(fleetBus, 'bug-hunter-B', 'bug.found', {
-      finding: { id: 'bug-B', type: 'sqli', severity: 'low', location: { file: 'b.ts', line: 2 }, description: 'B-only bug' },
+      finding: {
+        id: 'bug-B',
+        type: 'sqli',
+        severity: 'low',
+        location: { file: 'b.ts', line: 2 },
+        description: 'B-only bug',
+      },
     });
 
-    const reportA = (sessionA as never as { assembleReport: () => { bugs: { id: string }[] } }).assembleReport();
-    const reportB = (sessionB as never as { assembleReport: () => { bugs: { id: string }[] } }).assembleReport();
+    const reportA = (
+      sessionA as never as { assembleReport: () => { bugs: { id: string }[] } }
+    ).assembleReport();
+    const reportB = (
+      sessionB as never as { assembleReport: () => { bugs: { id: string }[] } }
+    ).assembleReport();
 
     // Session A sees ONLY its own bug, not session B's.
     expect(reportA.bugs.map((b) => b.id)).toEqual(['bug-A']);
@@ -438,16 +645,28 @@ describe('CollabSession concurrent-session isolation', () => {
   it('does not race on another session budget.threshold_reached events', async () => {
     const fleetBus = new FleetBus();
     const director = {
-      id: 'director', fleet: fleetBus, sharedScratchpadPath: '/tmp',
+      id: 'director',
+      fleet: fleetBus,
+      sharedScratchpadPath: '/tmp',
       getLeaderBtwNotes: () => [] as string[],
-      async spawn() { return ''; }, async assign() { return ''; }, async awaitTasks() { return []; },
+      async spawn() {
+        return '';
+      },
+      async assign() {
+        return '';
+      },
+      async awaitTasks() {
+        return [];
+      },
     };
 
     const sessionA = new CollabSession(director as never, fleetBus, {
-      targetPaths: ['a.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'a.ts', content: 'x' }] },
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'a.ts', content: 'x' }] },
     });
     const sessionB = new CollabSession(director as never, fleetBus, {
-      targetPaths: ['b.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'b.ts', content: 'x' }] },
+      targetPaths: ['b.ts'],
+      prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'b.ts', content: 'x' }] },
     });
     seedAgents(sessionA, 'A');
     seedAgents(sessionB, 'B');
@@ -456,8 +675,12 @@ describe('CollabSession concurrent-session isolation', () => {
 
     // Session B's agent trips an iterations threshold.
     fleetEvent(fleetBus, 'critic-B', 'budget.threshold_reached', {
-      kind: 'iterations', used: 11, limit: 10, timeoutMs: 1000,
-      extend: () => {}, deny: () => {},
+      kind: 'iterations',
+      used: 11,
+      limit: 10,
+      timeoutMs: 1000,
+      extend: () => {},
+      deny: () => {},
     });
 
     // Let setImmediate grants settle.
@@ -468,7 +691,8 @@ describe('CollabSession concurrent-session isolation', () => {
     // handler also processed the event (roleFromSubagentId prefix-matched
     // 'critic-B'), racing with session B's own handler on the same
     // extend/deny callbacks.
-    const progressA = (sessionA as never as { progressBySubagent: Map<string, number> }).progressBySubagent;
+    const progressA = (sessionA as never as { progressBySubagent: Map<string, number> })
+      .progressBySubagent;
     expect(progressA.has('critic-B')).toBe(false);
 
     const alertsA = sessionA.getSessionAlerts();
@@ -482,16 +706,28 @@ describe('CollabSession concurrent-session isolation', () => {
   it('does not collect another session refactor.plan or critic.evaluation events', () => {
     const fleetBus = new FleetBus();
     const director = {
-      id: 'director', fleet: fleetBus, sharedScratchpadPath: '/tmp',
+      id: 'director',
+      fleet: fleetBus,
+      sharedScratchpadPath: '/tmp',
       getLeaderBtwNotes: () => [] as string[],
-      async spawn() { return ''; }, async assign() { return ''; }, async awaitTasks() { return []; },
+      async spawn() {
+        return '';
+      },
+      async assign() {
+        return '';
+      },
+      async awaitTasks() {
+        return [];
+      },
     };
 
     const sessionA = new CollabSession(director as never, fleetBus, {
-      targetPaths: ['a.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'a.ts', content: 'x' }] },
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'a.ts', content: 'x' }] },
     });
     const sessionB = new CollabSession(director as never, fleetBus, {
-      targetPaths: ['b.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'b.ts', content: 'x' }] },
+      targetPaths: ['b.ts'],
+      prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'b.ts', content: 'x' }] },
     });
     seedAgents(sessionA, 'A');
     seedAgents(sessionB, 'B');
@@ -499,24 +735,60 @@ describe('CollabSession concurrent-session isolation', () => {
     (sessionB as never as { wireFleetBus: () => void }).wireFleetBus();
 
     fleetEvent(fleetBus, 'refactor-planner-A', 'refactor.plan', {
-      plan: { id: 'plan-A', basedOnBugIds: [], phases: [], riskScore: 'low', estimatedChangeCount: 1, rollbackStrategy: 'git' },
+      plan: {
+        id: 'plan-A',
+        basedOnBugIds: [],
+        phases: [],
+        riskScore: 'low',
+        estimatedChangeCount: 1,
+        rollbackStrategy: 'git',
+      },
     });
     fleetEvent(fleetBus, 'refactor-planner-B', 'refactor.plan', {
-      plan: { id: 'plan-B', basedOnBugIds: [], phases: [], riskScore: 'low', estimatedChangeCount: 2, rollbackStrategy: 'git' },
+      plan: {
+        id: 'plan-B',
+        basedOnBugIds: [],
+        phases: [],
+        riskScore: 'low',
+        estimatedChangeCount: 2,
+        rollbackStrategy: 'git',
+      },
     });
     fleetEvent(fleetBus, 'critic-A', 'critic.evaluation', {
-      evaluation: { id: 'eval-A', subjectType: 'bug_finding', subjectId: 'x', score: 9, verdict: 'approve', strengths: [], weaknesses: [], concerns: [] },
+      evaluation: {
+        id: 'eval-A',
+        subjectType: 'bug_finding',
+        subjectId: 'x',
+        score: 9,
+        verdict: 'approve',
+        strengths: [],
+        weaknesses: [],
+        concerns: [],
+      },
     });
     fleetEvent(fleetBus, 'critic-B', 'critic.evaluation', {
-      evaluation: { id: 'eval-B', subjectType: 'refactor_plan', subjectId: 'y', score: 3, verdict: 'reject', strengths: [], weaknesses: [], concerns: [] },
+      evaluation: {
+        id: 'eval-B',
+        subjectType: 'refactor_plan',
+        subjectId: 'y',
+        score: 3,
+        verdict: 'reject',
+        strengths: [],
+        weaknesses: [],
+        concerns: [],
+      },
     });
 
-    const reportA = (sessionA as never as {
-      assembleReport: () => { refactorPlans: { id: string }[]; evaluations: { id: string }[] };
-    }).assembleReport();
-    const reportB = (sessionB as never as {
-      assembleReport: () => { refactorPlans: { id: string }[]; evaluations: { id: string }[] };
-    }).assembleReport();
+    const reportA = (
+      sessionA as never as {
+        assembleReport: () => { refactorPlans: { id: string }[]; evaluations: { id: string }[] };
+      }
+    ).assembleReport();
+    const reportB = (
+      sessionB as never as {
+        assembleReport: () => { refactorPlans: { id: string }[]; evaluations: { id: string }[] };
+      }
+    ).assembleReport();
 
     // Each session sees only its own plans and evaluations.
     expect(reportA.refactorPlans.map((p) => p.id)).toEqual(['plan-A']);

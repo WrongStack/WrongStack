@@ -166,9 +166,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
           {cache && cache.readTokens + cache.writeTokens > 0 ? (
             <small className="context-cache">
               cache-hit {(cache.hitRatio * 100).toFixed(1)}%
-              {cache.coverageTokens > 0
-                ? ` · covers ${compactTokens(cache.coverageTokens)}`
-                : ''}
+              {cache.coverageTokens > 0 ? ` · covers ${compactTokens(cache.coverageTokens)}` : ''}
             </small>
           ) : null}
           <span className="context-details-hint">DETAILS</span>

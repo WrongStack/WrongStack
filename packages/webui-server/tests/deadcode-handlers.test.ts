@@ -15,8 +15,6 @@ const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
     headers: { ...((init.headers as Record<string, string>) ?? {}), 'x-ws-token': TEST_API_TOKEN },
   });
 
-
-
 const mockRunDeadCodeScan = vi.fn();
 
 interface ErrorResponse {
@@ -69,17 +67,11 @@ describe('Dead-Code Scan Endpoints', () => {
 
   it('POST /api/deadcode/scan runs codebase index scan', async () => {
     const dummyResult = {
-      deadSymbols: [
-        { name: 'foo', kind: 'function', line: 10, file: 'src/foo.ts' }
-      ],
-      deadFiles: [
-        { file: 'src/bar.ts', symbolCount: 5 }
-      ],
-      deadPackages: [
-        { package: 'pkg-a', fileCount: 3, path: 'packages/pkg-a' }
-      ],
+      deadSymbols: [{ name: 'foo', kind: 'function', line: 10, file: 'src/foo.ts' }],
+      deadFiles: [{ file: 'src/bar.ts', symbolCount: 5 }],
+      deadPackages: [{ package: 'pkg-a', fileCount: 3, path: 'packages/pkg-a' }],
       entryPoints: ['src/index.ts'],
-      stats: { totalSymbols: 20, alive: 14, dead: 6, durationMs: 42 }
+      stats: { totalSymbols: 20, alive: 14, dead: 6, durationMs: 42 },
     };
     mockRunDeadCodeScan.mockReturnValue(dummyResult);
 
@@ -116,17 +108,11 @@ describe('Dead-Code Scan Endpoints', () => {
 
   it('POST /api/deadcode/action-plan generates sorted plan', async () => {
     const scanOutput = {
-      deadSymbols: [
-        { name: 'funcA', kind: 'function', line: 15, file: 'src/alive.ts' }
-      ],
-      deadFiles: [
-        { file: 'src/dead-file.ts', symbolCount: 2 }
-      ],
-      deadPackages: [
-        { package: 'pkg-dead', fileCount: 4, path: 'packages/pkg-dead' }
-      ],
+      deadSymbols: [{ name: 'funcA', kind: 'function', line: 15, file: 'src/alive.ts' }],
+      deadFiles: [{ file: 'src/dead-file.ts', symbolCount: 2 }],
+      deadPackages: [{ package: 'pkg-dead', fileCount: 4, path: 'packages/pkg-dead' }],
       entryPoints: ['src/index.ts'],
-      stats: { totalSymbols: 20, alive: 13, dead: 7, durationMs: 12 }
+      stats: { totalSymbols: 20, alive: 13, dead: 7, durationMs: 12 },
     };
 
     const res = await authFetch(`${baseUrl}/api/deadcode/action-plan`, {

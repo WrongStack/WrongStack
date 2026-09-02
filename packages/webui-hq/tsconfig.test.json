@@ -1,6 +1,10 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": true, "rootDir": ".", "types": ["node", "vitest/globals", "vite/client"] },
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node", "vitest/globals", "vite/client"]
+  },
   "include": ["src/**/*", "tests/**/*"],
   "exclude": ["dist", "node_modules", "tests/fixtures/**/*"]
 }

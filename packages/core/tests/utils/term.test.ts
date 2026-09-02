@@ -100,7 +100,10 @@ describe('term helpers', () => {
     // Fake stream with the same surface area the helper needs (on/off/rows/cols).
     // We never bind it to a real TTY — onResize is allowed by signature to take
     // any object that quacks like NodeJS.WriteStream.
-    function makeFakeStream(rows = 24, cols = 80): {
+    function makeFakeStream(
+      rows = 24,
+      cols = 80,
+    ): {
       rows: number;
       columns: number;
       on: (ev: string, h: (...a: unknown[]) => void) => unknown;
@@ -185,10 +188,7 @@ describe('term helpers', () => {
   });
 
   describe('setRawMode', () => {
-    function makeInput(
-      isTTY: boolean | undefined = true,
-      hasSetRawMode = true,
-    ): NodeJS.ReadStream {
+    function makeInput(isTTY: boolean | undefined = true, hasSetRawMode = true): NodeJS.ReadStream {
       return {
         isTTY,
         setRawMode: hasSetRawMode ? vi.fn() : undefined,
@@ -198,7 +198,7 @@ describe('term helpers', () => {
     it('toggles raw mode on a TTY stream and returns true', () => {
       const input = makeInput(true);
       expect(setRawMode(input, true)).toBe(true);
-      expect((input.setRawMode as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(true);
+      expect(input.setRawMode as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(true);
     });
 
     it('returns false (no throw) when stream is null/undefined', () => {
@@ -287,9 +287,7 @@ describe('term helpers', () => {
     });
 
     it('defaults to process.stdout when no stream is supplied', () => {
-      const write = vi
-        .spyOn(process.stdout, 'write')
-        .mockImplementation(() => true);
+      const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
       try {
         expect(writeOut('hi')).toBe(true);
         expect(write).toHaveBeenCalledWith('hi');
@@ -319,9 +317,7 @@ describe('term helpers', () => {
     });
 
     it('defaults to process.stderr when no stream is supplied', () => {
-      const write = vi
-        .spyOn(process.stderr, 'write')
-        .mockImplementation(() => true);
+      const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
       try {
         expect(writeErr('boom')).toBe(true);
         expect(write).toHaveBeenCalledWith('boom');
@@ -366,11 +362,7 @@ describe('term helpers', () => {
       // Simulates a logger WARN landing while a readline prompt is live:
       // the draft row is cleared, the message prints, the prompt repaints.
       expect(writeErr('WARN telegram poll failed\n', stream)).toBe(true);
-      expect(order).toEqual([
-        'suspend',
-        'write:WARN telegram poll failed\n',
-        'resume',
-      ]);
+      expect(order).toEqual(['suspend', 'write:WARN telegram poll failed\n', 'resume']);
     });
 
     it('stops bracketing once the guard is cleared', () => {

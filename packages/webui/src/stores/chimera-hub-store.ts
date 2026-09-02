@@ -34,7 +34,15 @@ export interface FindingDetailItem {
     suggestedFix?: string | undefined;
     createdAt: string;
     status: string;
-    resolution?: { outcome: string; resolvedAt: string; resolvedBy: string; commitSha?: string | undefined; notes?: string | undefined } | undefined;
+    resolution?:
+      | {
+          outcome: string;
+          resolvedAt: string;
+          resolvedBy: string;
+          commitSha?: string | undefined;
+          notes?: string | undefined;
+        }
+      | undefined;
     originReport: { reportId: string; sessionId: string; agentId: string; reviewerModel: string };
   };
   events: Array<{
@@ -68,7 +76,15 @@ export interface ChimeraReportFullDetail {
     rawText: string;
     cascadeDepth?: number | undefined;
     evidenceStatus?: string | undefined;
-    evidenceChecks?: Array<{ name: string; command: string; ok: boolean; claimedExitCode?: number | null; actualExitCode?: number | null }> | undefined;
+    evidenceChecks?:
+      | Array<{
+          name: string;
+          command: string;
+          ok: boolean;
+          claimedExitCode?: number | null;
+          actualExitCode?: number | null;
+        }>
+      | undefined;
   } | null;
   findings: FindingDetailItem[];
   events: Array<{
@@ -113,7 +129,8 @@ export function ensureChimeraHubHandlersInstalled(): void {
   if (!client) return;
 
   client.on('chimera.reports', (msg: unknown) => {
-    const payload = (msg as { payload: { reports: ChimeraReportSummaryItem[]; isQuery?: boolean } }).payload;
+    const payload = (msg as { payload: { reports: ChimeraReportSummaryItem[]; isQuery?: boolean } })
+      .payload;
     if (payload?.isQuery || payload?.reports) {
       useChimeraHubStore.setState({
         reports: payload.reports ?? [],

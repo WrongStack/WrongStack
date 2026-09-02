@@ -3,17 +3,17 @@ import semverBumpPlugin, { determineBump, parseConventional } from '../src/semve
 
 const mockApi = {
   tools: {
-    register: vi.fn()
+    register: vi.fn(),
   },
   slashCommands: {
-    register: vi.fn()
+    register: vi.fn(),
   },
   config: { extensions: {} },
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
   events: {
-    on: vi.fn()
-  }
+    on: vi.fn(),
+  },
 };
 
 describe('semver-bump plugin', () => {
@@ -53,10 +53,12 @@ describe('semver-bump plugin', () => {
   it('semver_bump should have correct properties', () => {
     semverBumpPlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'semver_bump'
+      ([tool]: any[]) => tool.name === 'semver_bump',
     )?.[0];
 
-    expect(tool.description).toBe('Determine the next version bump from conventional commits since the last tag, or force a specific bump. Creates a git tag.');
+    expect(tool.description).toBe(
+      'Determine the next version bump from conventional commits since the last tag, or force a specific bump. Creates a git tag.',
+    );
     expect(tool.permission).toBe('confirm');
     expect(tool.mutating).toBe(true);
   });
@@ -64,10 +66,12 @@ describe('semver-bump plugin', () => {
   it('semver_current should have correct properties', () => {
     semverBumpPlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'semver_current'
+      ([tool]: any[]) => tool.name === 'semver_current',
     )?.[0];
 
-    expect(tool.description).toBe('Return the current version from package.json and the latest git tag.');
+    expect(tool.description).toBe(
+      'Return the current version from package.json and the latest git tag.',
+    );
     expect(tool.permission).toBe('auto');
     expect(tool.mutating).toBe(false);
   });
@@ -75,10 +79,12 @@ describe('semver-bump plugin', () => {
   it('semver_changelog should have correct properties', () => {
     semverBumpPlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'semver_changelog'
+      ([tool]: any[]) => tool.name === 'semver_changelog',
     )?.[0];
 
-    expect(tool.description).toBe('Generate a changelog (in markdown) between two version tags or from a tag to HEAD.');
+    expect(tool.description).toBe(
+      'Generate a changelog (in markdown) between two version tags or from a tag to HEAD.',
+    );
     expect(tool.permission).toBe('auto');
     expect(tool.mutating).toBe(false);
   });
@@ -94,7 +100,7 @@ describe('semver-bump plugin', () => {
   it('semver_bump should default to a patch bump when part is omitted (matches schema default)', async () => {
     semverBumpPlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'semver_bump'
+      ([tool]: any[]) => tool.name === 'semver_bump',
     )?.[0];
     expect(tool.inputSchema.properties.part.default).toBe('patch');
 
@@ -107,7 +113,7 @@ describe('semver-bump plugin', () => {
   it('rejects cwd outside the project directory', async () => {
     semverBumpPlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'semver_bump'
+      ([tool]: any[]) => tool.name === 'semver_bump',
     )?.[0];
     const result = await tool.execute({ cwd: '../escape', dry_run: true });
     expect(result.ok).toBe(false);
@@ -155,7 +161,13 @@ describe('parseConventional', () => {
 });
 
 describe('determineBump', () => {
-  const c = (type: string, breaking = false) => ({ hash: 'x', type, message: 'm', breaking, scope: undefined });
+  const c = (type: string, breaking = false) => ({
+    hash: 'x',
+    type,
+    message: 'm',
+    breaking,
+    scope: undefined,
+  });
 
   it('returns major only for breaking commits', () => {
     expect(determineBump([c('fix'), c('feat', true)])).toBe('major');

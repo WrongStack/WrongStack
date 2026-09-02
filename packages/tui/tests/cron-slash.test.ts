@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { renderCronList, type CronListResult } from '../src/cron-slash.js';
 
-function makeJob(overrides: Partial<CronListResult['jobs'][number]> = {}): CronListResult['jobs'][number] {
+function makeJob(
+  overrides: Partial<CronListResult['jobs'][number]> = {},
+): CronListResult['jobs'][number] {
   return {
     name: 'test-job',
     intervalMs: 30_000,
@@ -50,9 +52,7 @@ describe('renderCronList', () => {
 
   it('shows overdue state', () => {
     const past = new Date(Date.now() - 120_000).toISOString();
-    const result = snapshot([
-      makeJob({ name: 'stale-job', nextRun: past, overdue: true }),
-    ]);
+    const result = snapshot([makeJob({ name: 'stale-job', nextRun: past, overdue: true })]);
     const output = renderCronList(result);
 
     expect(output).toContain('stale-job');
@@ -61,9 +61,7 @@ describe('renderCronList', () => {
   });
 
   it('shows disabled state', () => {
-    const result = snapshot([
-      makeJob({ name: 'paused-job', enabled: false }),
-    ]);
+    const result = snapshot([makeJob({ name: 'paused-job', enabled: false })]);
     const output = renderCronList(result);
 
     expect(output).toContain('paused-job');
@@ -92,9 +90,7 @@ describe('renderCronList', () => {
   it('handles very long names and actions', () => {
     const longName = 'x'.repeat(60);
     const longAction = 'y'.repeat(80);
-    const result = snapshot([
-      makeJob({ name: longName, action: longAction }),
-    ]);
+    const result = snapshot([makeJob({ name: longName, action: longAction })]);
     const output = renderCronList(result);
 
     // Long names and actions should be truncated (≤24 chars for name, ≤50 for action)

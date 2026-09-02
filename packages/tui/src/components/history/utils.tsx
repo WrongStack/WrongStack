@@ -1,4 +1,17 @@
-export { countLines, firstNonEmpty, fmtBytes, fmtDuration, fmtTok, formatMatchHit, numOf, scanNumberedRange, shortenPath, stringOf, truncMid, tryParseJson } from './basic-format.js';
+export {
+  countLines,
+  firstNonEmpty,
+  fmtBytes,
+  fmtDuration,
+  fmtTok,
+  formatMatchHit,
+  numOf,
+  scanNumberedRange,
+  shortenPath,
+  stringOf,
+  truncMid,
+  tryParseJson,
+} from './basic-format.js';
 export {
   AssistantStreamBox,
   assistantStreamBoxHeight,
@@ -24,11 +37,7 @@ import {
   truncMid,
   tryParseJson,
 } from './basic-format.js';
-import {
-  GENERIC_BUDGET,
-  OUT_BUDGET,
-  summarizeJsonObject,
-} from './tool-output-summary.js';
+import { GENERIC_BUDGET, OUT_BUDGET, summarizeJsonObject } from './tool-output-summary.js';
 import {
   appendOutputPreview,
   bodyLines,
@@ -60,7 +69,13 @@ import { formatToolOutputSageWith } from './sage-output-format.js';
 import type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
 
 export { formatToolArgs } from './tool-arg-format.js';
-export { extractSageBlock, resolveEntrySage, type SageSplit, parseSageMemoryLine, type ParsedSageMemoryLine } from './sage-output-format.js';
+export {
+  extractSageBlock,
+  resolveEntrySage,
+  type SageSplit,
+  parseSageMemoryLine,
+  type ParsedSageMemoryLine,
+} from './sage-output-format.js';
 
 /**
  * Like `formatToolOutput` but strips SAGE-injected memory lines first.

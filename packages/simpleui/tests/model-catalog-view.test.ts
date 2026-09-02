@@ -106,12 +106,10 @@ describe('searchModelRows', () => {
   });
 
   it('matches name, id and provider label case-insensitively', () => {
-    expect(searchModelRows(groups, {}, 'opus').map((r) => r.entry.id)).toEqual([
-      'claude-opus-4.8',
-    ]);
-    expect(searchModelRows(groups, { anthropic: 'Anthropic' }, 'anthropic').map((r) => r.entry.id)).toEqual([
-      'claude-opus-4.8',
-    ]);
+    expect(searchModelRows(groups, {}, 'opus').map((r) => r.entry.id)).toEqual(['claude-opus-4.8']);
+    expect(
+      searchModelRows(groups, { anthropic: 'Anthropic' }, 'anthropic').map((r) => r.entry.id),
+    ).toEqual(['claude-opus-4.8']);
     expect(searchModelRows(groups, {}, 'GPT-5').map((r) => r.entry.id)).toEqual(['gpt-5.4']);
   });
 });

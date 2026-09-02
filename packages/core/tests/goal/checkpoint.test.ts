@@ -34,7 +34,13 @@ describe('CheckpointManager', () => {
           estimateHours: 2,
           parallelizable: false,
           taskTemplates: [
-            { title: 'Task 1', description: 'First', type: 'feature', priority: 'high', estimateHours: 1 },
+            {
+              title: 'Task 1',
+              description: 'First',
+              type: 'feature',
+              priority: 'high',
+              estimateHours: 1,
+            },
           ],
         },
       ],
@@ -58,7 +64,13 @@ describe('CheckpointManager', () => {
     const builder = new PhaseGraphBuilder({
       title: 'List Test',
       phases: [
-        { name: 'Phase A', description: 'A', priority: 'high', estimateHours: 1, parallelizable: false },
+        {
+          name: 'Phase A',
+          description: 'A',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+        },
       ],
     });
 
@@ -77,7 +89,13 @@ describe('CheckpointManager', () => {
     const builder = new PhaseGraphBuilder({
       title: 'Prune Test',
       phases: [
-        { name: 'Phase A', description: 'A', priority: 'high', estimateHours: 1, parallelizable: false },
+        {
+          name: 'Phase A',
+          description: 'A',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+        },
       ],
     });
 
@@ -85,7 +103,13 @@ describe('CheckpointManager', () => {
     const otherGraph = await new PhaseGraphBuilder({
       title: 'Other Prune Test',
       phases: [
-        { name: 'Phase B', description: 'B', priority: 'medium', estimateHours: 1, parallelizable: false },
+        {
+          name: 'Phase B',
+          description: 'B',
+          priority: 'medium',
+          estimateHours: 1,
+          parallelizable: false,
+        },
       ],
     }).build();
     await store.save(graph);
@@ -128,7 +152,13 @@ describe('CheckpointManager', () => {
     const builder = new PhaseGraphBuilder({
       title: 'Delete Test',
       phases: [
-        { name: 'Phase A', description: 'A', priority: 'high', estimateHours: 1, parallelizable: false },
+        {
+          name: 'Phase A',
+          description: 'A',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+        },
       ],
     });
 
@@ -148,7 +178,13 @@ describe('CheckpointManager', () => {
     const builder = new PhaseGraphBuilder({
       title: 'Concurrent Test',
       phases: [
-        { name: 'Phase A', description: 'A', priority: 'high', estimateHours: 1, parallelizable: false },
+        {
+          name: 'Phase A',
+          description: 'A',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+        },
       ],
     });
 

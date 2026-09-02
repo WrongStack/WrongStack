@@ -209,9 +209,7 @@ export function ModelSwitcher(props: ModelSwitcherProps): React.JSX.Element {
                   : 'No models available.'}
             </p>
           )}
-          {recentRows.length > 0 && !query.trim() && (
-            <p className="model-picker-section">RECENT</p>
-          )}
+          {recentRows.length > 0 && !query.trim() && <p className="model-picker-section">RECENT</p>}
           {visible.map((row, index) => {
             const isSelected = `${row.provider}\t${row.entry.id}` === selectedModel;
             const vision = isVisionModel(row.entry.id);

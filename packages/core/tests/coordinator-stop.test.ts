@@ -5,7 +5,9 @@ import * as os from 'node:os';
 
 describe('AutonomousCoordinator stop()', () => {
   let tempDir: string;
-  beforeEach(async () => { tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'stop-test-')); });
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'stop-test-'));
+  });
   afterEach(async () => {
     vi.restoreAllMocks();
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -56,9 +58,7 @@ describe('AutonomousCoordinator stop()', () => {
     await new Promise((r) => setTimeout(r, 10));
 
     // The stop log should be emitted (either before or after run() finishes)
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('stop signal received'),
-    );
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('stop signal received'));
 
     // Let run() finish cleanly
     await new Promise((r) => setTimeout(r, 50));

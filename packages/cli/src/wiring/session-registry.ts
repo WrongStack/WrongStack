@@ -29,9 +29,9 @@ interface SetupSessionRegistryDeps {
 
 interface SetupSessionRegistryResult {
   /** AgentStatusTracker when the dynamic import and setup succeeded, else undefined. */
-  tracker: InstanceType<
-    typeof import('@wrongstack/core/coordination').AgentStatusTracker
-  > | undefined;
+  tracker:
+    | InstanceType<typeof import('@wrongstack/core/coordination').AgentStatusTracker>
+    | undefined;
   /**
    * Atomically move this process's registry ownership to another session.
    * Used by explicit resume; unrelated sessions in other processes are untouched.

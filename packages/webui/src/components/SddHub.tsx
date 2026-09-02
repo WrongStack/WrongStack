@@ -84,7 +84,10 @@ export function SddHub(): React.ReactElement {
             >
               {t(tab.labelKey)}
               {isActive && (
-                <span aria-hidden="true" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+                />
               )}
             </button>
           );

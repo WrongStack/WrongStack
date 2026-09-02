@@ -1,7 +1,10 @@
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { RefineFailurePanel, type RefineFailureModel } from '../src/components/refine-failure-panel.js';
+import {
+  RefineFailurePanel,
+  type RefineFailureModel,
+} from '../src/components/refine-failure-panel.js';
 
 const models: RefineFailureModel[] = [
   { providerId: 'anthropic', model: 'claude-3-5-sonnet', label: 'Sonnet' },

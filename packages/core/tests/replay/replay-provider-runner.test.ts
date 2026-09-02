@@ -3,15 +3,34 @@ import { ReplayProviderRunner } from '../../src/replay/replay-provider-runner.js
 import type { ProviderRunner, RunProviderOptions } from '../../src/types/provider-runner.js';
 import type { Response } from '../../src/types/provider.js';
 
-const REQUEST = { model: 'm', messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }], maxTokens: 1 } as never;
+const REQUEST = {
+  model: 'm',
+  messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
+  maxTokens: 1,
+} as never;
 const RESPONSE = (text: string): Response =>
-  ({ content: [{ type: 'text', text }], stopReason: 'end_turn', usage: { input: 0, output: 0 }, model: 'm' }) as never;
+  ({
+    content: [{ type: 'text', text }],
+    stopReason: 'end_turn',
+    usage: { input: 0, output: 0 },
+    model: 'm',
+  }) as never;
 
-function makeRunner(opts: { mode: 'record' | 'replay' | 'auto'; cached?: Response | null; logger?: unknown }) {
+function makeRunner(opts: {
+  mode: 'record' | 'replay' | 'auto';
+  cached?: Response | null;
+  logger?: unknown;
+}) {
   const innerResponse = RESPONSE('from-inner');
   const inner: ProviderRunner = { run: vi.fn(async () => innerResponse) } as never;
   const log = {
-    lookup: vi.fn(async () => (opts.cached === undefined ? null : opts.cached ? { ts: '2026-01-01', response: opts.cached } : null)),
+    lookup: vi.fn(async () =>
+      opts.cached === undefined
+        ? null
+        : opts.cached
+          ? { ts: '2026-01-01', response: opts.cached }
+          : null,
+    ),
     record: vi.fn(async () => 'sha256:x'),
   };
   const runner = new ReplayProviderRunner(inner, {
@@ -28,7 +47,11 @@ const runOpts = (): RunProviderOptions => ({ request: REQUEST }) as never;
 describe('ReplayProviderRunner', () => {
   it('replay mode serves a cached response (with debug log)', async () => {
     const debug = vi.fn();
-    const { runner, inner } = makeRunner({ mode: 'replay', cached: RESPONSE('cached'), logger: { debug } });
+    const { runner, inner } = makeRunner({
+      mode: 'replay',
+      cached: RESPONSE('cached'),
+      logger: { debug },
+    });
     const res = await runner.run(runOpts());
     expect(res.content[0]).toMatchObject({ text: 'cached' });
     expect(inner.run).not.toHaveBeenCalled();
@@ -49,7 +72,11 @@ describe('ReplayProviderRunner', () => {
 
   it('auto mode serves a cache hit', async () => {
     const debug = vi.fn();
-    const { runner, inner } = makeRunner({ mode: 'auto', cached: RESPONSE('auto-cached'), logger: { debug } });
+    const { runner, inner } = makeRunner({
+      mode: 'auto',
+      cached: RESPONSE('auto-cached'),
+      logger: { debug },
+    });
     const res = await runner.run(runOpts());
     expect(res.content[0]).toMatchObject({ text: 'auto-cached' });
     expect(inner.run).not.toHaveBeenCalled();

@@ -16,7 +16,10 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ChronicleMetricsStore, isChronicleMetricsAvailable } from '../../src/chronicle/index.js';
 import { loadDatabaseSync } from '../../src/chronicle/metrics-schema.js';
-import { ChronicleSqliteJournal, LEGACY_JSONL_BOUNDARY_KEY } from '../../src/chronicle/sqlite-journal.js';
+import {
+  ChronicleSqliteJournal,
+  LEGACY_JSONL_BOUNDARY_KEY,
+} from '../../src/chronicle/sqlite-journal.js';
 import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 
 const dirs: string[] = [];

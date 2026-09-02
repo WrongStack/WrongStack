@@ -1,8 +1,5 @@
 import type { ResolvedProvider } from '@wrongstack/core/types';
-import {
-  handleProviderRoute,
-  type ProviderRouteHandlers,
-} from '../src/server/provider-routes.js';
+import { handleProviderRoute, type ProviderRouteHandlers } from '../src/server/provider-routes.js';
 import {
   resolveProviderCatalogForModels,
   resolveProviderModelMetadata,
@@ -233,66 +230,26 @@ describe('handleProviderRoute malformed payload characterization', () => {
       { providerId: '__proto__', modelId: 'custom/model' },
       'handleCustomModelRemove',
     ],
-    [
-      'provider.add',
-      { id: '__proto__', family: 'openai-compatible' },
-      'handleProviderAdd',
-    ],
-    [
-      'provider.add',
-      { id: 'constructor', family: 'openai-compatible' },
-      'handleProviderAdd',
-    ],
-    [
-      'provider.update',
-      { id: '__proto__', models: ['x'] },
-      'handleProviderUpdate',
-    ],
-    [
-      'provider.update',
-      { id: 'prototype' },
-      'handleProviderUpdate',
-    ],
-    [
-      'key.add',
-      { providerId: '__proto__', label: 'main', apiKey: 'sk-test' },
-      'handleKeyUpsert',
-    ],
+    ['provider.add', { id: '__proto__', family: 'openai-compatible' }, 'handleProviderAdd'],
+    ['provider.add', { id: 'constructor', family: 'openai-compatible' }, 'handleProviderAdd'],
+    ['provider.update', { id: '__proto__', models: ['x'] }, 'handleProviderUpdate'],
+    ['provider.update', { id: 'prototype' }, 'handleProviderUpdate'],
+    ['key.add', { providerId: '__proto__', label: 'main', apiKey: 'sk-test' }, 'handleKeyUpsert'],
     [
       'key.update',
       { providerId: 'constructor', label: 'main', apiKey: 'sk-test' },
       'handleKeyUpsert',
     ],
-    [
-      'key.delete',
-      { providerId: '__proto__', label: 'main' },
-      'handleKeyDelete',
-    ],
-    [
-      'key.set_active',
-      { providerId: '__proto__', label: 'main' },
-      'handleKeySetActive',
-    ],
-    [
-      'provider.remove',
-      { providerId: '__proto__' },
-      'handleProviderRemove',
-    ],
-    [
-      'provider.clear_models',
-      { providerId: 'constructor' },
-      'handleProviderClearModels',
-    ],
+    ['key.delete', { providerId: '__proto__', label: 'main' }, 'handleKeyDelete'],
+    ['key.set_active', { providerId: '__proto__', label: 'main' }, 'handleKeySetActive'],
+    ['provider.remove', { providerId: '__proto__' }, 'handleProviderRemove'],
+    ['provider.clear_models', { providerId: 'constructor' }, 'handleProviderClearModels'],
     [
       'provider.undo_clear',
       { providerId: '__proto__', previousModels: [] },
       'handleProviderUndoClear',
     ],
-    [
-      'provider.probe',
-      { providerId: '__proto__' },
-      'handleProviderProbe',
-    ],
+    ['provider.probe', { providerId: '__proto__' }, 'handleProviderProbe'],
   ])('rejects malformed %s payloads before dispatch', async (type, payload, handlerName) => {
     const ws = mockWs();
     const deps = routes();
@@ -537,7 +494,11 @@ describe('provider.audit.get — durable audit trail route', () => {
       await handleProviderRoute(ws, { type: 'provider.audit.get', payload: { count: 1 } }, deps);
 
       const frames = ws.send.mock.calls.map(
-        ([raw]) => JSON.parse(String(raw)) as { type: string; payload: { lines: Array<Record<string, unknown>> } },
+        ([raw]) =>
+          JSON.parse(String(raw)) as {
+            type: string;
+            payload: { lines: Array<Record<string, unknown>> };
+          },
       );
       const frame = frames.find((f) => f.type === 'provider.audit.history');
       expect(frame?.payload.lines).toHaveLength(1);

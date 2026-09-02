@@ -14,23 +14,46 @@ export function ToolInputView({ input }: { input: unknown }) {
   }
   const entries = Object.entries(input as Record<string, unknown>);
   if (entries.length === 0) {
-    return <span className="text-xs text-muted-foreground italic">{t('activity:toolInput.noParams')}</span>;
+    return (
+      <span className="text-xs text-muted-foreground italic">
+        {t('activity:toolInput.noParams')}
+      </span>
+    );
   }
   return (
     <div className="text-xs font-mono">
       {entries.map(([k, v]) => {
         const isPrimitive =
-          v === null || v === undefined || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+          v === null ||
+          v === undefined ||
+          typeof v === 'string' ||
+          typeof v === 'number' ||
+          typeof v === 'boolean';
         if (isPrimitive) {
-          const display = v === null ? 'null' : v === undefined ? 'undefined' : typeof v === 'string' ? v : String(v);
+          const display =
+            v === null
+              ? 'null'
+              : v === undefined
+                ? 'undefined'
+                : typeof v === 'string'
+                  ? v
+                  : String(v);
           const isLong = typeof v === 'string' && (display.length > 80 || display.includes('\n'));
           return (
-            <div key={k} className={cn('py-0.5', isLong ? 'flex flex-col gap-0.5' : 'flex items-baseline gap-2')}>
+            <div
+              key={k}
+              className={cn(
+                'py-0.5',
+                isLong ? 'flex flex-col gap-0.5' : 'flex items-baseline gap-2',
+              )}
+            >
               <span className="text-muted-foreground shrink-0">{k}:</span>
               <span
                 className={cn(
                   'text-foreground',
-                  isLong ? 'whitespace-pre-wrap break-all bg-muted/40 rounded px-1.5 py-1' : 'truncate',
+                  isLong
+                    ? 'whitespace-pre-wrap break-all bg-muted/40 rounded px-1.5 py-1'
+                    : 'truncate',
                   typeof v === 'string' ? '' : 'text-warning',
                 )}
                 title={typeof v === 'string' && !isLong ? display : undefined}

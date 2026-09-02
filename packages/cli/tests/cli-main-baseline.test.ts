@@ -99,8 +99,6 @@ describe('cli main() — baseline boot shape (PR 0 of #29)', () => {
     expect(combined).toContain('--enable');
   });
 
-
-
   it('does not write the provider-missing notice on --help short-circuit', async () => {
     // Companion to the previous baseline assertion. Pre-PR-1 the
     // `--help` path fell through to `boot()` and emitted the

@@ -4,7 +4,14 @@ interface RememberInput {
   text: string;
   scope?: MemoryScope | undefined;
   /** Memory type for categorization. */
-  type?: 'fact' | 'decision' | 'convention' | 'preference' | 'reference' | 'anti_pattern' | undefined;
+  type?:
+    | 'fact'
+    | 'decision'
+    | 'convention'
+    | 'preference'
+    | 'reference'
+    | 'anti_pattern'
+    | undefined;
   /** Hashtag-style tags for grouping and search. */
   tags?: string[] | undefined;
   /** Priority level — critical entries always injected into context. */
@@ -46,7 +53,9 @@ interface SearchMemoryOutput {
   }>;
 }
 
-export declare function searchMemoryTool(memory: MemoryStore): Tool<SearchMemoryInput, SearchMemoryOutput>;
+export declare function searchMemoryTool(
+  memory: MemoryStore,
+): Tool<SearchMemoryInput, SearchMemoryOutput>;
 
 interface RelatedMemoryInput {
   text: string;
@@ -54,4 +63,6 @@ interface RelatedMemoryInput {
   limit?: number | undefined;
 }
 
-export declare function relatedMemoryTool(memory: MemoryStore): Tool<RelatedMemoryInput, SearchMemoryOutput>;
+export declare function relatedMemoryTool(
+  memory: MemoryStore,
+): Tool<RelatedMemoryInput, SearchMemoryOutput>;

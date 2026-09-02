@@ -5,11 +5,7 @@
   "description": "Rewrite text to hit a specific tone and audience.",
   "content": "Rewrite the following to be {{tone}} for an audience of {{audience}}:\n\n{{text}}\n\nKeep the core message intact. Match the tone consistently throughout — don't drift back to the original register. Avoid clichés and over-formality. Return the rewrite and note any place where the tone shift forced a change in substance.",
   "category": "writing",
-  "tags": [
-    "tone",
-    "rewrite",
-    "audience"
-  ],
+  "tags": ["tone", "rewrite", "audience"],
   "source": "builtin",
   "favorite": false,
   "checksum": "c81eddcd73c898e1b4b2ef5ab4d6f9b55066b88044bf1d6363bb38d54e03b886",

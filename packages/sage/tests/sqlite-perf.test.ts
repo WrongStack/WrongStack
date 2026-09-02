@@ -93,7 +93,9 @@ describe('SqliteSageStore performance paths', () => {
     expect(related.some((m) => m.text.startsWith('Unrelated noise'))).toBe(false);
 
     // eslint-disable-next-line no-console
-    console.log(`[sqlite-perf] findRelatedSage N=${N + 3} → ${related.length} hits in ${ms.toFixed(1)}ms`);
+    console.log(
+      `[sqlite-perf] findRelatedSage N=${N + 3} → ${related.length} hits in ${ms.toFixed(1)}ms`,
+    );
   });
 
   it('createCandidate dedups via indexed canonical_text under a large pending queue', async () => {
@@ -167,7 +169,9 @@ describe('SqliteSageStore performance paths', () => {
     expect(hits.some((m) => m.text === 'Directory note')).toBe(true);
     expect(ms).toBeLessThan(1_000);
     // eslint-disable-next-line no-console
-    console.log(`[sqlite-perf] retrieveForPath N=${N + 2} → ${hits.length} hits in ${ms.toFixed(1)}ms`);
+    console.log(
+      `[sqlite-perf] retrieveForPath N=${N + 2} → ${hits.length} hits in ${ms.toFixed(1)}ms`,
+    );
   });
 
   it('batch remember + search stays within soft budget', async () => {

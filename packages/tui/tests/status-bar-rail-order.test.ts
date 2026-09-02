@@ -79,7 +79,10 @@ async function capture(columns: number): Promise<Captured> {
   expect(clickMap).toBeTruthy();
   const idsByLine = new Map<number, string[]>();
   for (const line of clickMap?.lines ?? []) {
-    idsByLine.set(line.line, line.spans.map((s) => s.id));
+    idsByLine.set(
+      line.line,
+      line.spans.map((s) => s.id),
+    );
   }
   const lines = view.lines();
   view.unmount();

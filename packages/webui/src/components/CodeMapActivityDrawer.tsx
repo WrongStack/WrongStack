@@ -92,7 +92,9 @@ export function CodeMapActivityDrawer({
                   <span>{activity.status ?? 'observed'}</span>
                   <span>{activity.source ?? 'legacy'}</span>
                   {activity.durationMs !== undefined && <span>{activity.durationMs}ms</span>}
-                  {activity.watcherConfirmed && <span className="text-success">{t('activity:codeMap.fsVerified')}</span>}
+                  {activity.watcherConfirmed && (
+                    <span className="text-success">{t('activity:codeMap.fsVerified')}</span>
+                  )}
                 </div>
               </div>
             </div>

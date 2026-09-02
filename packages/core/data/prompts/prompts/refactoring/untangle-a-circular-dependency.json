@@ -5,10 +5,7 @@
   "description": "Break a cycle between modules.",
   "content": "These modules depend on each other circularly: {{modules}}\n\nDiagnose the cycle and break it. Options: extract the shared piece into a third module, invert a dependency via an interface or callback, or merge them if they are really one concept. Recommend the cleanest for my case and show the new dependency direction. Explain what the cycle was hiding about the design.",
   "category": "refactoring",
-  "tags": [
-    "dependencies",
-    "modularity"
-  ],
+  "tags": ["dependencies", "modularity"],
   "source": "builtin",
   "favorite": false,
   "checksum": "be70c8038ca107b3d558de0c2040a2795c81409a1be2cf23b7855d300aaf3e42",

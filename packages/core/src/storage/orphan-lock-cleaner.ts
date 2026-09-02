@@ -58,7 +58,9 @@ export async function cleanOrphanLocks(
                 await fsp.unlink(lockPath);
                 result.cleanedWorktrees.push(wtPath);
               } catch (unlinkErr) {
-                result.errors.push(`Failed removing stale lock ${lockPath}: ${toErrorMessage(unlinkErr)}`);
+                result.errors.push(
+                  `Failed removing stale lock ${lockPath}: ${toErrorMessage(unlinkErr)}`,
+                );
               }
             }
           } else if (now - lockStat.mtimeMs > maxAgeMs) {
@@ -66,7 +68,9 @@ export async function cleanOrphanLocks(
               await fsp.unlink(lockPath);
               result.cleanedWorktrees.push(wtPath);
             } catch (unlinkErr) {
-              result.errors.push(`Failed removing expired lock ${lockPath}: ${toErrorMessage(unlinkErr)}`);
+              result.errors.push(
+                `Failed removing expired lock ${lockPath}: ${toErrorMessage(unlinkErr)}`,
+              );
             }
           }
         }

@@ -30,9 +30,17 @@ afterEach(async () => {
 
 describe('ReplayLogStore.list', () => {
   it('lists flat and date-sharded sessions, sorted, with entry counts', async () => {
-    await fs.writeFile(path.join(dir, 'flat.replay.jsonl'), ENTRY('sha256:a1') + ENTRY('sha256:a2'), 'utf8');
+    await fs.writeFile(
+      path.join(dir, 'flat.replay.jsonl'),
+      ENTRY('sha256:a1') + ENTRY('sha256:a2'),
+      'utf8',
+    );
     await fs.mkdir(path.join(dir, '2026-06-11'), { recursive: true });
-    await fs.writeFile(path.join(dir, '2026-06-11', 'base.replay.jsonl'), ENTRY('sha256:b1'), 'utf8');
+    await fs.writeFile(
+      path.join(dir, '2026-06-11', 'base.replay.jsonl'),
+      ENTRY('sha256:b1'),
+      'utf8',
+    );
     await fs.writeFile(path.join(dir, '.hidden.replay.jsonl'), ENTRY('sha256:c1'), 'utf8');
     await fs.writeFile(path.join(dir, 'notes.txt'), 'ignore me', 'utf8');
 
@@ -53,7 +61,9 @@ describe('ReplayLogStore.list', () => {
 
     const listed = await store.list();
 
-    expect(listed).toEqual([{ sessionId: 'big', entryCount: 2, path: path.join(dir, 'big.replay.jsonl') }]);
+    expect(listed).toEqual([
+      { sessionId: 'big', entryCount: 2, path: path.join(dir, 'big.replay.jsonl') },
+    ]);
     expect(parseSpy).not.toHaveBeenCalled();
   });
 
@@ -81,7 +91,12 @@ describe('ReplayLogStore — readAll envelope + error emits', () => {
           hash: 'sha256:env',
           ts: '2026-01-01T00:00:00.000Z',
           request: { model: 'm', messages: [], maxTokens: 1 },
-          response: { content: [], stopReason: 'end_turn', usage: { input: 0, output: 0 }, model: 'm' },
+          response: {
+            content: [],
+            stopReason: 'end_turn',
+            usage: { input: 0, output: 0 },
+            model: 'm',
+          },
         },
       }) + '\n';
     await fs.writeFile(path.join(dir, 'env.replay.jsonl'), envelope, 'utf8');
@@ -118,7 +133,12 @@ describe('ReplayLogStore — readAll envelope + error emits', () => {
       s.record({
         sessionId: 'bad3',
         request: { model: 'm', messages: [], maxTokens: 1 } as never,
-        response: { content: [], stopReason: 'end_turn', usage: { input: 0, output: 0 }, model: 'm' } as never,
+        response: {
+          content: [],
+          stopReason: 'end_turn',
+          usage: { input: 0, output: 0 },
+          model: 'm',
+        } as never,
       }),
     ).rejects.toBeDefined();
     expect(events.emit.mock.calls.some((c) => c[0] === 'storage.error')).toBe(true);
@@ -127,8 +147,17 @@ describe('ReplayLogStore — readAll envelope + error emits', () => {
   it('self-heals a stale byte offset after the file is compacted by another writer', async () => {
     const mk = (text: string) => ({
       sessionId: 'stale',
-      request: { model: 'm', messages: [{ role: 'user', content: [{ type: 'text', text }] }], maxTokens: 1 } as never,
-      response: { content: [{ type: 'text', text: `r-${text}` }], stopReason: 'end_turn', usage: { input: 0, output: 0 }, model: 'm' } as never,
+      request: {
+        model: 'm',
+        messages: [{ role: 'user', content: [{ type: 'text', text }] }],
+        maxTokens: 1,
+      } as never,
+      response: {
+        content: [{ type: 'text', text: `r-${text}` }],
+        stopReason: 'end_turn',
+        usage: { input: 0, output: 0 },
+        model: 'm',
+      } as never,
     });
     const s1 = new ReplayLogStore({ dir });
     const hashA = await s1.record(mk('AAA'));
@@ -157,8 +186,17 @@ describe('ReplayLogStore — readAll envelope + error emits', () => {
     for (let i = 0; i < 4; i++) {
       await s.record({
         sessionId: 'cap',
-        request: { model: 'm', messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }], maxTokens: 1 } as never,
-        response: { content: [], stopReason: 'end_turn', usage: { input: 0, output: 0 }, model: 'm' } as never,
+        request: {
+          model: 'm',
+          messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }],
+          maxTokens: 1,
+        } as never,
+        response: {
+          content: [],
+          stopReason: 'end_turn',
+          usage: { input: 0, output: 0 },
+          model: 'm',
+        } as never,
       });
     }
     const entries = await s.load('cap');

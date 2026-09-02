@@ -265,17 +265,23 @@ export async function withCatalogCapabilities(
     // Detect from the instance, not from config, so user-chosen aliases
     // ("gateway-work") resolve the same way as the canonical id.
     const isGateway = provider instanceof AiGatewayProvider;
-    const resolved = await capabilitiesFor(registry, providerId, cfg.model ?? '', cfg.customModels, {
-      // No wire family describes a gateway, so read its facts from the
-      // catalog id that does publish them and overlay onto what the transport
-      // declared about itself rather than a family default.
-      ...(isGateway
-        ? {
-            catalogProviderId: CATALOG_ALIAS_BY_PROVIDER_TYPE['ai-gateway'],
-            baseCapabilities: provider.capabilities,
-          }
-        : {}),
-    });
+    const resolved = await capabilitiesFor(
+      registry,
+      providerId,
+      cfg.model ?? '',
+      cfg.customModels,
+      {
+        // No wire family describes a gateway, so read its facts from the
+        // catalog id that does publish them and overlay onto what the transport
+        // declared about itself rather than a family default.
+        ...(isGateway
+          ? {
+              catalogProviderId: CATALOG_ALIAS_BY_PROVIDER_TYPE['ai-gateway'],
+              baseCapabilities: provider.capabilities,
+            }
+          : {}),
+      },
+    );
     // `Provider.capabilities` is `readonly`; the property descriptor was
     // set with `writable: false` at construction time. Redefine it so
     // the catalog overlay lands cleanly.

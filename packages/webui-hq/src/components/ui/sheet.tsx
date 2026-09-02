@@ -61,7 +61,13 @@ export function SheetHeader({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.ReactElement {
-  return <div data-slot="sheet-header" className={cn('flex flex-col gap-1 pr-8', className)} {...props} />;
+  return (
+    <div
+      data-slot="sheet-header"
+      className={cn('flex flex-col gap-1 pr-8', className)}
+      {...props}
+    />
+  );
 }
 
 export function SheetTitle({

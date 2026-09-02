@@ -237,9 +237,7 @@ export function applyManagedKanbanBoardToTodos(
   suppressedTodoMirrors: WeakSet<Context>,
   options: {
     /** Extracts the owning session id from board tags (`session:<id>`). */
-    sessionOwnerFromTags?:
-      | ((tags: readonly string[] | undefined) => string | null)
-      | undefined;
+    sessionOwnerFromTags?: ((tags: readonly string[] | undefined) => string | null) | undefined;
   } = {},
 ): TodoItem[] {
   const metaKanban = context.meta['kanban'];

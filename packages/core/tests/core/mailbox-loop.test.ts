@@ -206,7 +206,9 @@ describe('buildMailboxBlock', () => {
 
   it('appends the steer CTA asking the agent to adjust after the next stopping point', () => {
     const text = buildMailboxBlock([msg({ type: 'steer' })]).text;
-    expect(text).toContain('After your current operation reaches a stopping point, adjust your approach');
+    expect(text).toContain(
+      'After your current operation reaches a stopping point, adjust your approach',
+    );
   });
 
   it('appends the ask CTA telling the agent to reply', () => {
@@ -318,11 +320,8 @@ describe('buildMailboxBlock', () => {
     expect(text.slice(steerIdx)).toContain('Subject: steer-last-input');
   });
 
-  it('does not mutate the caller\'s messages array (render order is local)', () => {
-    const messages = [
-      msg({ type: 'ask', id: 'm_ask' }),
-      msg({ type: 'steer', id: 'm_steer' }),
-    ];
+  it("does not mutate the caller's messages array (render order is local)", () => {
+    const messages = [msg({ type: 'ask', id: 'm_ask' }), msg({ type: 'steer', id: 'm_steer' })];
     const beforeIds = messages.map((m) => m.id);
     buildMailboxBlock(messages);
     const afterIds = messages.map((m) => m.id);
@@ -438,7 +437,12 @@ function fakeMailbox(
     unreadCount: vi.fn(async () => 0),
     close: vi.fn(async () => {}),
     clearAll: vi.fn(async () => {}),
-    purgeStale: vi.fn(async () => ({ completedPurged: 0, incompletePurged: 0, totalPurged: 0, remaining: 0 })),
+    purgeStale: vi.fn(async () => ({
+      completedPurged: 0,
+      incompletePurged: 0,
+      totalPurged: 0,
+      remaining: 0,
+    })),
     registerClient: vi.fn(async () => {}),
     clientHeartbeat: vi.fn(async () => {}),
     getClientStatuses: vi.fn(async () => []),
@@ -545,20 +549,17 @@ describe('createMailboxChecker', () => {
     expect(result.map((m) => m.id).sort()).toEqual(['m_bcast', 'm_direct']);
     // Both queries fired (Promise.all), and the dedup collapsed the duplicate broadcast.
     expect(mb.queryMock).toHaveBeenCalledTimes(2);
-    expect(mb.queryMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ to: 'leader@a1b2' }),
-    );
-    expect(mb.queryMock).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ to: 'leader' }),
-    );
+    expect(mb.queryMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ to: 'leader@a1b2' }));
+    expect(mb.queryMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ to: 'leader' }));
   });
 
   it('skips already-injected messages across calls (injectedIds dedup)', async () => {
     const m1 = msg({ type: 'note', id: 'm_1' });
     const m2 = msg({ type: 'note', id: 'm_2' });
-    const mb = fakeMailbox([[m1, m2], [m1, m2]]);
+    const mb = fakeMailbox([
+      [m1, m2],
+      [m1, m2],
+    ]);
     const check = createMailboxChecker({ mailbox: mb, agentId: 'leader@a1b2' });
     const first = await check();
     const second = await check();
@@ -627,7 +628,9 @@ describe('createMailboxChecker', () => {
     const check = createMailboxChecker({ mailbox: mb, agentId: 'leader@a1b2' });
     await check();
     expect(mb.ackManyMock).toHaveBeenCalledTimes(1);
-    const call = mb.ackManyMock.mock.calls[0]![0] as { acks: Array<{ messageId: string; readerId: string; read: boolean }> };
+    const call = mb.ackManyMock.mock.calls[0]![0] as {
+      acks: Array<{ messageId: string; readerId: string; read: boolean }>;
+    };
     expect(call.acks.map((a) => a.messageId).sort()).toEqual(['m_a', 'm_b', 'm_c']);
     // Every ack uses the live agentId and the read flag.
     expect(call.acks.every((a) => a.readerId === 'leader@a1b2' && a.read === true)).toBe(true);
@@ -698,7 +701,7 @@ describe('createMailboxChecker', () => {
     const result = await check();
     expect(result).toEqual([]);
     // The throw must NOT have propagated an ackMany attempt either.
-    expect((mb.ackMany as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(mb.ackMany as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 });
 

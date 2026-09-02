@@ -25,7 +25,9 @@ vi.mock('@wrongstack/core/goal', () => {
   }
   class PhaseGraphBuilder {
     constructor(public readonly opts: unknown) {}
-    build = vi.fn(async () => makeGraph('graph-built', this.opts as Record<string, unknown> | undefined));
+    build = vi.fn(async () =>
+      makeGraph('graph-built', this.opts as Record<string, unknown> | undefined),
+    );
   }
   class GoalPlanner {
     constructor(public readonly opts: unknown) {}
@@ -80,7 +82,6 @@ vi.mock('../src/server/git-process.js', () => ({
 }));
 
 import { GoalWebSocketHandler } from '../src/server/goal-ws-handler.js';
-
 
 interface Sent {
   type: string;

@@ -51,8 +51,7 @@ export function retrieveSqliteSageForAudience(
     if (!m.audience) return false;
     const a = m.audience;
     if (a.roles?.length && !a.roles.some((r) => r.toLowerCase() === role)) return false;
-    if (a.taskTypes?.length && !a.taskTypes.some((t) => t.toLowerCase() === taskType))
-      return false;
+    if (a.taskTypes?.length && !a.taskTypes.some((t) => t.toLowerCase() === taskType)) return false;
     if (a.modes?.length && !a.modes.some((m) => m.toLowerCase() === mode)) return false;
     return true;
   };
@@ -106,11 +105,7 @@ export function retrieveSqliteSageForAudience(
   // exist beyond what was scanned) AND more matching rows were found than
   // the caller's limit allows. This tells the caller there are additional
   // audience-matching memories beyond what was returned.
-  if (
-    !exhausted &&
-    totalScanned > 0 &&
-    matched.length > truncated.length
-  ) {
+  if (!exhausted && totalScanned > 0 && matched.length > truncated.length) {
     ctx.onTruncated?.({ sqlRowsExamined: totalScanned, returned: truncated.length });
   }
   return truncated;

@@ -25,11 +25,7 @@ interface SpeechRecognitionInstance {
   onend: () => void;
 }
 
-export function useSpeechRecognition({
-  onTranscript,
-}: {
-  onTranscript: (text: string) => void;
-}) {
+export function useSpeechRecognition({ onTranscript }: { onTranscript: (text: string) => void }) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -37,8 +33,10 @@ export function useSpeechRecognition({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const SpeechRecognition =
-      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition ||
-      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
+      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
+        .SpeechRecognition ||
+      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
+        .webkitSpeechRecognition;
     setIsSupported(Boolean(SpeechRecognition));
   }, []);
 

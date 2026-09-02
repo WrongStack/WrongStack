@@ -250,7 +250,11 @@ export async function handlePromptsCreate(
 }
 
 /** Record that a prompt was inserted (best-effort; feeds CLI `/prompt recent`). */
-export async function handlePromptsUsed(ws: WSLike, ctx: PromptsContext, msg: unknown): Promise<void> {
+export async function handlePromptsUsed(
+  ws: WSLike,
+  ctx: PromptsContext,
+  msg: unknown,
+): Promise<void> {
   const slug = (msg as { payload?: { slug?: string } }).payload?.slug;
   if (!ctx.promptUsage || !slug) {
     send(ws, { type: 'prompts.used', payload: { success: false } });

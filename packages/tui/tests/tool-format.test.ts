@@ -1346,13 +1346,18 @@ describe('formatToolVisualOutput', () => {
   });
 
   it('todo: caps the board at 10 rows with an overflow line', () => {
-    const rows = formatToolVisualOutput('todo', JSON.stringify({ count: 12, in_progress: 0 }), true, {
-      todos: Array.from({ length: 12 }, (_, i) => ({
-        id: String(i + 1),
-        content: `Item ${i + 1}`,
-        status: 'pending',
-      })),
-    });
+    const rows = formatToolVisualOutput(
+      'todo',
+      JSON.stringify({ count: 12, in_progress: 0 }),
+      true,
+      {
+        todos: Array.from({ length: 12 }, (_, i) => ({
+          id: String(i + 1),
+          content: `Item ${i + 1}`,
+          status: 'pending',
+        })),
+      },
+    );
     expect(rows).toHaveLength(11);
     expect(rows?.[10]).toMatchObject({ kind: 'meta', text: '… 2 more' });
   });
@@ -1660,7 +1665,8 @@ describe('formatToolVisualOutput — edit-style tools', () => {
 
 describe('formatToolVisualOutput — grep & search tools', () => {
   it('correctly parses grep matches with Windows drive letters', () => {
-    const text = 'D:\\Codebox\\PROJECTS\\WrongStack\\src\\app.ts:42:const answer = 42\nC:\\Users\\test\\index.ts:10:console.log("hi")';
+    const text =
+      'D:\\Codebox\\PROJECTS\\WrongStack\\src\\app.ts:42:const answer = 42\nC:\\Users\\test\\index.ts:10:console.log("hi")';
     const out = formatToolVisualOutput('grep', text, true);
     expect(out).toHaveLength(2);
     expect(out?.[0]).toMatchObject({

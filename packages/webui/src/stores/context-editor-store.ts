@@ -189,16 +189,12 @@ function splitsSurrogatePair(text: string, offset: number): boolean {
   return previous >= 0xd800 && previous <= 0xdbff && next >= 0xdc00 && next <= 0xdfff;
 }
 
-function applyRangeRemoval(
-  messages: ContextEditorMessage[],
-  removal: ContextEditorRemoval,
-): void {
+function applyRangeRemoval(messages: ContextEditorMessage[], removal: ContextEditorRemoval): void {
   if (removal.start === undefined || removal.end === undefined) return;
   const message = messages[removal.messageIndex];
   if (!message) return;
   if (removal.blockIndex === undefined && typeof message.content === 'string') {
-    message.content =
-      message.content.slice(0, removal.start) + message.content.slice(removal.end);
+    message.content = message.content.slice(0, removal.start) + message.content.slice(removal.end);
     return;
   }
   if (!Array.isArray(message.content) || removal.blockIndex === undefined) return;
@@ -237,7 +233,8 @@ export const useContextEditorStore = create<ContextEditorStore>((set, get) => ({
 
   loadSnapshot: (payload) =>
     set((state) => {
-      const preserveAppliedSuccess = state.phase === 'applied_success' && state.appliedResult !== null;
+      const preserveAppliedSuccess =
+        state.phase === 'applied_success' && state.appliedResult !== null;
       return {
         phase: preserveAppliedSuccess ? 'applied_success' : 'clean_snapshot',
         revision: payload.revision,
@@ -314,11 +311,7 @@ export const useContextEditorStore = create<ContextEditorStore>((set, get) => ({
     }
 
     const removeRanges = normalizeRanges([...state.removeRanges, removal]);
-    const removeMessages = deriveRemoveMessages(
-      state,
-      state.explicitRemoveMessages,
-      removeRanges,
-    );
+    const removeMessages = deriveRemoveMessages(state, state.explicitRemoveMessages, removeRanges);
     set({ removeMessages, removeRanges, phase: 'dirty', validation: null });
   },
 
@@ -347,11 +340,7 @@ export const useContextEditorStore = create<ContextEditorStore>((set, get) => ({
   setValidation: (result) =>
     set({
       validation: result,
-      phase: result.conflict
-        ? 'conflicted'
-        : result.ok
-          ? 'validated'
-          : 'invalid',
+      phase: result.conflict ? 'conflicted' : result.ok ? 'validated' : 'invalid',
       errorMessage: null,
     }),
 

@@ -53,7 +53,11 @@ export class EntryErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidUpdate(prevProps: Readonly<Props>): void {
-    if (this.state.error !== null && this.props.resetKey !== undefined && this.props.resetKey !== prevProps.resetKey) {
+    if (
+      this.state.error !== null &&
+      this.props.resetKey !== undefined &&
+      this.props.resetKey !== prevProps.resetKey
+    ) {
       this.setState({ error: null });
     }
   }

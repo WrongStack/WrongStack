@@ -394,10 +394,6 @@
   "version": 1,
   "revision": 1022,
   "description": "Live session work: todos, tasks, and plan items.",
-  "tags": [
-    "session",
-    "session-work",
-    "session:2026-07-18/sess_01KXTHWMJTHVFS431P53F623V4"
-  ],
+  "tags": ["session", "session-work", "session:2026-07-18/sess_01KXTHWMJTHVFS431P53F623V4"],
   "generatedBy": "session-task:session:2026-07-18/sess_01KXTHWMJTHVFS431P53F623V4"
 }

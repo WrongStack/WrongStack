@@ -59,7 +59,11 @@ export async function loadManifest(
   }
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as ProjectsManifest).projects)) {
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !Array.isArray((parsed as ProjectsManifest).projects)
+    ) {
       throw new Error('projects must be an array');
     }
     return { projects: (parsed as ProjectsManifest).projects };

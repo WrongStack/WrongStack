@@ -37,26 +37,38 @@ describe('nextEnhanceTimeout', () => {
 
 describe('resolveConfiguredRefinerRef', () => {
   it('prefers the named refiner fallback profile', () => {
-    expect(resolveConfiguredRefinerRef(cfg({
-      autonomy: {
-        refinerProvider: 'openai',
-        refinerModel: 'gpt-4o-mini',
-        refinerFallbackProfile: 'cheap',
-      },
-      fallbackProfiles: { cheap: ['anthropic/claude-haiku-4-5'] },
-    }))).toBe('anthropic/claude-haiku-4-5');
+    expect(
+      resolveConfiguredRefinerRef(
+        cfg({
+          autonomy: {
+            refinerProvider: 'openai',
+            refinerModel: 'gpt-4o-mini',
+            refinerFallbackProfile: 'cheap',
+          },
+          fallbackProfiles: { cheap: ['anthropic/claude-haiku-4-5'] },
+        }),
+      ),
+    ).toBe('anthropic/claude-haiku-4-5');
   });
 
   it('uses the explicit refiner provider and model when no profile is set', () => {
-    expect(resolveConfiguredRefinerRef(cfg({
-      autonomy: { refinerProvider: 'deepseek', refinerModel: 'deepseek-chat' },
-    }))).toBe('deepseek/deepseek-chat');
+    expect(
+      resolveConfiguredRefinerRef(
+        cfg({
+          autonomy: { refinerProvider: 'deepseek', refinerModel: 'deepseek-chat' },
+        }),
+      ),
+    ).toBe('deepseek/deepseek-chat');
   });
 
   it('uses the active provider when only a refiner model is configured', () => {
-    expect(resolveConfiguredRefinerRef(cfg({
-      autonomy: { refinerModel: 'gpt-4o-mini' },
-    }))).toBe('openai/gpt-4o-mini');
+    expect(
+      resolveConfiguredRefinerRef(
+        cfg({
+          autonomy: { refinerModel: 'gpt-4o-mini' },
+        }),
+      ),
+    ).toBe('openai/gpt-4o-mini');
   });
 
   it('returns undefined when no dedicated refiner is configured', () => {

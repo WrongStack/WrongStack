@@ -15,7 +15,7 @@ import { WrongStackError } from '../../src/types/errors.js';
  * 401/403 auth branch, otherwise the pair never enters the waiting room.
  */
 const KIMI_QUOTA_MESSAGE =
-  "You have reached your usage limit for this billing cycle. Your quota will be refreshed in the next cycle. To continue now, purchase extra usage or upgrade your plan: https://www.kimi.com/code/#pricing";
+  'You have reached your usage limit for this billing cycle. Your quota will be refreshed in the next cycle. To continue now, purchase extra usage or upgrade your plan: https://www.kimi.com/code/#pricing';
 
 /**
  * A ProviderError built against a DIFFERENT class identity than the one

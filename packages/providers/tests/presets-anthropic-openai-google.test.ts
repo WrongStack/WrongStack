@@ -551,16 +551,18 @@ describe('Anthropic preset - cache metadata', () => {
     );
     const stop = events.find((e) => e.type === 'message_stop');
     expect(
-      (stop as {
-        usage: {
-          input: number;
-          output: number;
-          cacheRead: number;
-          cacheWrite: number;
-          cacheWrite5m: number;
-          cacheWrite1h: number;
-        };
-      }).usage,
+      (
+        stop as {
+          usage: {
+            input: number;
+            output: number;
+            cacheRead: number;
+            cacheWrite: number;
+            cacheWrite5m: number;
+            cacheWrite1h: number;
+          };
+        }
+      ).usage,
     ).toMatchObject({
       input: 120, // preserved from message_start
       output: 12, // updated by message_delta
@@ -608,8 +610,7 @@ describe('Anthropic preset - cache metadata', () => {
         ]),
         'c',
       )
-    )
-      .find((e) => e.type === 'message_stop') as StopUsage | undefined;
+    ).find((e) => e.type === 'message_stop') as StopUsage | undefined;
     expect(oneHourOnly?.usage.cacheWrite).toBe(80); // derived: (5m ?? 0) + 1h
     expect(oneHourOnly?.usage.cacheWrite1h).toBe(80);
     // The absent bucket must stay absent — never a fabricated 0. Downstream,
@@ -638,8 +639,7 @@ describe('Anthropic preset - cache metadata', () => {
         ]),
         'c',
       )
-    )
-      .find((e) => e.type === 'message_stop') as StopUsage | undefined;
+    ).find((e) => e.type === 'message_stop') as StopUsage | undefined;
     expect(fiveMinOnly?.usage.cacheWrite).toBe(60); // derived: 5m + (1h ?? 0)
     expect(fiveMinOnly?.usage.cacheWrite5m).toBe(60);
     expect(fiveMinOnly?.usage.cacheWrite1h).toBeUndefined();
@@ -666,8 +666,7 @@ describe('Anthropic preset - cache metadata', () => {
         ]),
         'c',
       )
-    )
-      .find((e) => e.type === 'message_stop') as StopUsage | undefined;
+    ).find((e) => e.type === 'message_stop') as StopUsage | undefined;
     // Explicit aggregate takes precedence over the TTL-derived sum.
     expect(aggregateWithPartialSplit?.usage.cacheWrite).toBe(200);
     expect(aggregateWithPartialSplit?.usage.cacheWrite1h).toBe(80);
@@ -706,9 +705,11 @@ describe('Anthropic preset - cache metadata', () => {
       ]),
       'c',
     );
-    const stop = events.find((e) => e.type === 'message_stop') as {
-      usage: { cacheWrite: number; cacheWrite5m: number; cacheWrite1h: number };
-    } | undefined;
+    const stop = events.find((e) => e.type === 'message_stop') as
+      | {
+          usage: { cacheWrite: number; cacheWrite5m: number; cacheWrite1h: number };
+        }
+      | undefined;
     expect(stop?.usage.cacheWrite).toBe(230); // retained 5m + new 1h
     expect(stop?.usage.cacheWrite5m).toBe(150);
     expect(stop?.usage.cacheWrite1h).toBe(80);

@@ -145,7 +145,10 @@ function keepNewest<T extends { timestamp?: string | undefined }>(
 ): T[] {
   if (items.length <= max) return [...items];
   return [...items]
-    .sort((left, right) => (Date.parse(right.timestamp ?? '') || 0) - (Date.parse(left.timestamp ?? '') || 0))
+    .sort(
+      (left, right) =>
+        (Date.parse(right.timestamp ?? '') || 0) - (Date.parse(left.timestamp ?? '') || 0),
+    )
     .slice(0, max);
 }
 

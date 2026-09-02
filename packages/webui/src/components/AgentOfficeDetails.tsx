@@ -223,7 +223,11 @@ function MailActionDetail({
           <span>{mail.direction === 'incoming' ? 'INCOMING MAIL' : 'OUTGOING MAIL'}</span>
           <h2>{mail.subject}</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label={t('activity:agentOffice.closeMailDetails')}>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('activity:agentOffice.closeMailDetails')}
+        >
           <X />
         </button>
       </div>
@@ -278,7 +282,11 @@ function TaskActionDetail({
           <span>{t('activity:agentOffice.currentTask')}</span>
           <h2>{selected.agentName}</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label={t('activity:agentOffice.closeTaskDetails')}>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('activity:agentOffice.closeTaskDetails')}
+        >
           <X />
         </button>
       </div>
@@ -315,7 +323,11 @@ function OfficeBriefingDetail({
           </span>
           <h2>{selected.officeLabel}</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label={t('activity:agentOffice.closeOfficeBriefing')}>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('activity:agentOffice.closeOfficeBriefing')}
+        >
           <X />
         </button>
       </div>

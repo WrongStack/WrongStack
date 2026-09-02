@@ -55,7 +55,8 @@ function assertNoConflictMarkers(paths) {
       continue; // absent files are skipped by their own handling
     }
     // Normalize to forward slashes so diagnostics are identical across platforms.
-    if (CONFLICT_MARKER_RE.test(text)) affected.push(relative(repoRoot, path).replaceAll('\\', '/'));
+    if (CONFLICT_MARKER_RE.test(text))
+      affected.push(relative(repoRoot, path).replaceAll('\\', '/'));
   }
   if (affected.length === 0) return;
   console.error(

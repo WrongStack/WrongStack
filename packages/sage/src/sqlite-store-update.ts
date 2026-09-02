@@ -51,13 +51,10 @@ export function updateSqliteSage(
   }
   const existing = readSqliteSageRow(ctx.stmt, id);
   if (!existing) throw new Error(`SAGE ${id} not found.`);
-  if (
-    input.status === 'deleted' &&
-    !input.force
-  ) {
+  if (input.status === 'deleted' && !input.force) {
     if (
-      ((existing.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ||
-        input.persistence === 'permanent')
+      (existing.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ||
+      input.persistence === 'permanent'
     ) {
       throw new Error(
         `SAGE "${id}" is marked 'permanent' and cannot be deleted. ` +

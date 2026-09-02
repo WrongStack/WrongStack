@@ -60,7 +60,10 @@ const ownership = {
     'project-scoped ownership and catalog subsystem',
   ],
   skills: ['product feature', 'skills implementation package or Runtime'],
-  statusline: ['host/application concern', 'CLI/TUI presentation contract; host rendering stays outside Core'],
+  statusline: [
+    'host/application concern',
+    'CLI/TUI presentation contract; host rendering stays outside Core',
+  ],
   storage: ['storage/repository implementation', 'repositories over dependency-free persistence'],
   tasking: ['agent-domain contract', 'Core tasking subpath'],
   tools: ['host/application concern', '@wrongstack/tools or product plugin'],

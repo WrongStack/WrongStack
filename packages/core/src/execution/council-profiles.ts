@@ -128,10 +128,7 @@ export class CouncilProfileRegistry {
       throw new Error(`CouncilProfileRegistry: profile "${normalized.id}" already exists.`);
     }
     return new CouncilProfileRegistry(
-      [
-        ...this.list().filter((entry) => entry.id !== normalized.id),
-        profile,
-      ],
+      [...this.list().filter((entry) => entry.id !== normalized.id), profile],
       personas,
     );
   }
@@ -269,16 +266,10 @@ function freezeTarget(target: CouncilModelTarget, label: string): CouncilModelTa
   const model = optionalText(target.model);
   const role = optionalText(target.role);
   const fallbackProfile = optionalText(target.fallbackProfile);
-  const fallbackModels = Object.freeze(
-    [...new Set((target.fallbackModels ?? []).map((ref) => ref.trim()).filter(Boolean))],
-  );
-  if (
-    !providerId &&
-    !model &&
-    !role &&
-    !fallbackProfile &&
-    fallbackModels.length === 0
-  ) {
+  const fallbackModels = Object.freeze([
+    ...new Set((target.fallbackModels ?? []).map((ref) => ref.trim()).filter(Boolean)),
+  ]);
+  if (!providerId && !model && !role && !fallbackProfile && fallbackModels.length === 0) {
     throw new Error(`CouncilProfileRegistry: ${label} target is empty.`);
   }
   return Object.freeze({

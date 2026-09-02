@@ -5,7 +5,12 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import { sleep } from '../../src/utils/sleep.js';
-import { escapeGlobSubject, normalizePathSubject, isPathSubjectKey, subjectForToolInput } from '../../src/utils/tool-subject.js';
+import {
+  escapeGlobSubject,
+  normalizePathSubject,
+  isPathSubjectKey,
+  subjectForToolInput,
+} from '../../src/utils/tool-subject.js';
 import { sessionScopedPath } from '../../src/utils/session-scoped-path.js';
 import { mergeCustomModelDefs } from '../../src/utils/merge-custom-models.js';
 
@@ -99,7 +104,9 @@ describe('subjectForToolInput', () => {
   });
 
   it('should extract url from object', () => {
-    expect(subjectForToolInput('fetch', { url: 'https://example.com' })).toBe('https://example.com');
+    expect(subjectForToolInput('fetch', { url: 'https://example.com' })).toBe(
+      'https://example.com',
+    );
   });
 
   it('should extract name from object', () => {

@@ -203,7 +203,9 @@ describe('AgentMonitorService', () => {
     await waitForEvents(100);
     const filePath = path.join(transcriptsDir, 'a1', 'transcript.jsonl');
     const lines = (await fsp.readFile(filePath, 'utf8')).trim().split('\n');
-    const thinkingLines = lines.filter((l) => (JSON.parse(l) as AgentTimelineEntry).kind === 'thinking');
+    const thinkingLines = lines.filter(
+      (l) => (JSON.parse(l) as AgentTimelineEntry).kind === 'thinking',
+    );
     expect(thinkingLines).toHaveLength(1);
     expect((JSON.parse(thinkingLines[0]) as AgentTimelineEntry).content).toBe(
       'package structure and entry point',
@@ -214,7 +216,9 @@ describe('AgentMonitorService', () => {
     monitor.start();
     monitor.trackSubagent('a1', 'Agent 1');
 
-    fleetBus.emit(makeFleetEvent('a1', 'provider.thinking_delta', { text: 'think1', iteration: 1 }));
+    fleetBus.emit(
+      makeFleetEvent('a1', 'provider.thinking_delta', { text: 'think1', iteration: 1 }),
+    );
     fleetBus.emit(makeFleetEvent('a1', 'provider.text_delta', { text: 'answer', iteration: 1 }));
     fleetBus.emit(makeFleetEvent('a1', 'provider.text_delta', { text: ' more', iteration: 1 }));
     fleetBus.emit(makeFleetEvent('a1', 'provider.text_delta', { text: 'next iter', iteration: 2 }));
@@ -612,8 +616,7 @@ describe('AgentMonitorService', () => {
           kind: 'text',
           content: 'complete line',
           iteration: 0,
-        }) +
-          '\n{"id":"partial","subagen',
+        }) + '\n{"id":"partial","subagen',
       );
 
       const sessions = await monitor.loadSessionsFromDisk();

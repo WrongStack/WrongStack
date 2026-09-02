@@ -560,7 +560,6 @@ describe('fetch prettyJson error handling', () => {
   });
 });
 
-
 // F-05: the exported guardedFetch (now used by the `search` tool) must carry
 // the same SSRF guard as the `fetch` tool — private/loopback targets rejected
 // before any socket is opened.

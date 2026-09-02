@@ -142,7 +142,11 @@ describe('idempotent remember', () => {
     await store.remember({ text: 'unique-test' });
     // Bypass the dedup check by writing a row with a different id but
     // same content_hash — the UNIQUE index must reject it.
-    const db = (store as unknown as { db: { prepare: (sql: string) => { run: (...args: unknown[]) => unknown } } }).db;
+    const db = (
+      store as unknown as {
+        db: { prepare: (sql: string) => { run: (...args: unknown[]) => unknown } };
+      }
+    ).db;
     expect(() => {
       db.prepare(
         'INSERT INTO entries (id, text, metadata, tags, scope, kind, content_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',

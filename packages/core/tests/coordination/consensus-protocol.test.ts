@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { ConsensusProtocol, type VoterConfig, } from '../../src/coordination/consensus-protocol.js';
+import { ConsensusProtocol, type VoterConfig } from '../../src/coordination/consensus-protocol.js';
 import type { ChangeNode, KnowledgeGraph } from '../../src/coordination/knowledge-graph.js';
 import type { FleetBus } from '../../src/coordination/fleet-bus.js';
 
@@ -45,7 +45,11 @@ function createMockGraph(): KnowledgeGraph {
   } as never as KnowledgeGraph;
 }
 
-function createChangeNode(graph: KnowledgeGraph, id: string, overrides: Partial<ChangeNode> = {}): ChangeNode {
+function createChangeNode(
+  graph: KnowledgeGraph,
+  id: string,
+  overrides: Partial<ChangeNode> = {},
+): ChangeNode {
   const node: ChangeNode = {
     id,
     type: 'change',
@@ -115,9 +119,7 @@ describe('ConsensusProtocol', () => {
     it('throws for unknown change', async () => {
       const protocol = new ConsensusProtocol({ voters: [], graph });
 
-      await expect(protocol.initiateVote('nonexistent')).rejects.toThrow(
-        /no change found/,
-      );
+      await expect(protocol.initiateVote('nonexistent')).rejects.toThrow(/no change found/);
     });
 
     it('emits vote_initiated via fleet bus', async () => {
@@ -293,9 +295,7 @@ describe('ConsensusProtocol', () => {
 
     it('calls graph.update with weight information', async () => {
       const protocol = new ConsensusProtocol({
-        voters: [
-          { agentId: 'voter-1', agentName: 'Alice', role: 'reviewer', weight: 2 },
-        ],
+        voters: [{ agentId: 'voter-1', agentName: 'Alice', role: 'reviewer', weight: 2 }],
         graph,
         rules: { quorumFraction: 0.5, approvalFraction: 0.5, vetoRoles: [] },
       });
@@ -345,9 +345,7 @@ describe('ConsensusProtocol', () => {
       await expect(protocol.castVote('change-closed', 'voter-1', 'reject')).rejects.toThrow(
         /ballot is closed/,
       );
-      await expect(protocol.initiateVote('change-closed')).rejects.toThrow(
-        /already resolved/,
-      );
+      await expect(protocol.initiateVote('change-closed')).rejects.toThrow(/already resolved/);
     });
   });
 
@@ -410,7 +408,12 @@ describe('ConsensusProtocol', () => {
       const protocol = new ConsensusProtocol({ voters: [], graph });
       createChangeNode(graph, 'change-1');
 
-      protocol.registerVoter({ agentId: 'new-voter', agentName: 'Dave', role: 'reviewer', weight: 1 });
+      protocol.registerVoter({
+        agentId: 'new-voter',
+        agentName: 'Dave',
+        role: 'reviewer',
+        weight: 1,
+      });
       const result = await protocol.castVote('change-1', 'new-voter', 'approve');
 
       expect(result.eligibleVoters).toContain('new-voter');

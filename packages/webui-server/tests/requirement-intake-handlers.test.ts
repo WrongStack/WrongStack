@@ -25,8 +25,6 @@ const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
     headers: { ...((init.headers as Record<string, string>) ?? {}), 'x-ws-token': TEST_API_TOKEN },
   });
 
-
-
 let distDir: string;
 let storeDir: string;
 let projectRoot: string;
@@ -231,15 +229,18 @@ describe('requirement-intake REST API', () => {
 
   it('lists the server project with its resolved id (frontend entry point)', async () => {
     // Create one record through the project-scoped endpoint first.
-    const create = await authFetch(`${baseUrl}/api/projects/${expectedProjectId}/requirement-intakes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectId: expectedProjectId,
-        originalRequest: 'Server-resolved list request',
-        requestedBy: 'user-alice',
-      }),
-    });
+    const create = await authFetch(
+      `${baseUrl}/api/projects/${expectedProjectId}/requirement-intakes`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: expectedProjectId,
+          originalRequest: 'Server-resolved list request',
+          requestedBy: 'user-alice',
+        }),
+      },
+    );
     expect(create.status).toBe(201);
 
     const res = await authFetch(`${baseUrl}/api/requirement-intakes`);

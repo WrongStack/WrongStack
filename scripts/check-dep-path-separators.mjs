@@ -26,12 +26,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
 /** Manifest fields that hold dependency specs. */
-const DEP_FIELDS = [
-  'dependencies',
-  'devDependencies',
-  'optionalDependencies',
-  'peerDependencies',
-];
+const DEP_FIELDS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
 
 /**
  * Find backslash-bearing specs in one parsed manifest.
@@ -190,7 +185,9 @@ export function collectFindings(root) {
       findings.push(`${relative || '.'}/package.json: unparseable JSON (${String(error)})`);
       continue;
     }
-    findings.push(...findBackslashSpecsInManifest(`${relative ? `${relative}/` : ''}package.json`, manifest));
+    findings.push(
+      ...findBackslashSpecsInManifest(`${relative ? `${relative}/` : ''}package.json`, manifest),
+    );
   }
   for (const override of parseOverrideSpecs(workspaceYaml)) {
     if (override.spec.includes('\\')) {

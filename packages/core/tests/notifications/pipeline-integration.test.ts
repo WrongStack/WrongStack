@@ -26,7 +26,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { NotificationChannel, NotificationMessage, NotificationResult } from '../../src/notifications/types.js';
+import type {
+  NotificationChannel,
+  NotificationMessage,
+  NotificationResult,
+} from '../../src/notifications/types.js';
 import { NotifierImpl } from '../../src/notifications/notifier-impl.js';
 import { EventBus } from '../../src/kernel/events.js';
 

@@ -106,9 +106,7 @@ export function buildCouncilJudgeUserPrompt(
  * report `Duplicate option id ""` next to the empty-id error — harmless noise
  * that preserves the historical tool-validator behavior exactly.
  */
-export function validateCouncilOptions(
-  options: readonly CouncilOption[] | undefined,
-): string[] {
+export function validateCouncilOptions(options: readonly CouncilOption[] | undefined): string[] {
   const errors: string[] = [];
   const seen = new Set<string>();
   for (const option of options ?? []) {

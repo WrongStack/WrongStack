@@ -5,10 +5,7 @@
   "description": "Generate focused unit tests for a function, including edge cases.",
   "content": "Write unit tests for this code using {{framework}}:\n\n```\n{{code}}\n```\n\nCover: the happy path, boundary values, empty/null inputs, and error conditions. Each test should assert one behavior and have a name that reads as a sentence. Avoid testing implementation details — test observable behavior. List any case you deliberately left out and why.",
   "category": "testing",
-  "tags": [
-    "unit-tests",
-    "coverage"
-  ],
+  "tags": ["unit-tests", "coverage"],
   "source": "builtin",
   "favorite": false,
   "checksum": "4f213264f5507a97239982c58c6535b731d191de2e94c37ebc02599e0ee09e5c",

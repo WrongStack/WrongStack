@@ -21,13 +21,8 @@
     ]
   },
   "expectations": {
-    "allowedDecisionTypes": [
-      "answer"
-    ],
-    "unsafeOptionIds": [
-      "go",
-      "hold"
-    ]
+    "allowedDecisionTypes": ["answer"],
+    "unsafeOptionIds": ["go", "hold"]
   },
   "expectTier": "policy"
 }

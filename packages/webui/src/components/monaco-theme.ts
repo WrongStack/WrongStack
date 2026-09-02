@@ -180,7 +180,7 @@ monaco.editor.defineTheme('wrongstack-dark', {
     'input.placeholderForeground': '#6e717a',
 
     // Focus / active
-    'focusBorder': '#f2a23a40',
+    focusBorder: '#f2a23a40',
     'list.activeSelectionBackground': '#262830',
     'list.hoverBackground': '#1e2028',
 
@@ -387,7 +387,7 @@ monaco.editor.defineTheme('wrongstack-light', {
     'input.placeholderForeground': '#9a9d99',
 
     // Focus
-    'focusBorder': '#e07b0e35',
+    focusBorder: '#e07b0e35',
     'list.activeSelectionBackground': '#eeece2',
     'list.hoverBackground': '#f0efe9',
 

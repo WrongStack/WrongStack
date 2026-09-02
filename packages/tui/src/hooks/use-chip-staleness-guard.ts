@@ -22,10 +22,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type ChipStalenessRootCause =
-  | 'animation_frozen'
-  | 'data_source_stale'
-  | 'subscription_dropped';
+type ChipStalenessRootCause = 'animation_frozen' | 'data_source_stale' | 'subscription_dropped';
 
 export interface ChipStalenessDiagnosis {
   /** Which chip category is stale. */

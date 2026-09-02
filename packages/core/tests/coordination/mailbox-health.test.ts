@@ -113,11 +113,13 @@ describe('buildRecoveryAlert', () => {
 
   it('rounds downtime to the nearest second', () => {
     // 999 ms rounds down to 1 s
-    expect(buildRecoveryAlert({ ...recoveryFixture, downtimeMs: 999 }).subject)
-      .toBe('mailbox-bridge-up: recovered after 1s');
+    expect(buildRecoveryAlert({ ...recoveryFixture, downtimeMs: 999 }).subject).toBe(
+      'mailbox-bridge-up: recovered after 1s',
+    );
     // 1500 ms rounds to 2 s (banker's rounding aside — Math.round is round-half-up)
-    expect(buildRecoveryAlert({ ...recoveryFixture, downtimeMs: 1500 }).subject)
-      .toBe('mailbox-bridge-up: recovered after 2s');
+    expect(buildRecoveryAlert({ ...recoveryFixture, downtimeMs: 1500 }).subject).toBe(
+      'mailbox-bridge-up: recovered after 2s',
+    );
   });
 });
 
@@ -127,54 +129,70 @@ describe('validateWatchdogOptions', () => {
   });
 
   it('accepts custom configs within sane bounds', () => {
-    expect(() => validateWatchdogOptions({
-      probeIntervalMs: 60_000,
-      probeTimeoutMs: 5_000,
-      failureThreshold: 3,
-    })).not.toThrow();
+    expect(() =>
+      validateWatchdogOptions({
+        probeIntervalMs: 60_000,
+        probeTimeoutMs: 5_000,
+        failureThreshold: 3,
+      }),
+    ).not.toThrow();
   });
 
   it('rejects zero or negative probeIntervalMs', () => {
-    expect(() => validateWatchdogOptions({ ...validConfig, probeIntervalMs: 0 }))
-      .toThrow(/probeIntervalMs must be a positive finite number/);
-    expect(() => validateWatchdogOptions({ ...validConfig, probeIntervalMs: -1 }))
-      .toThrow(/probeIntervalMs must be a positive finite number/);
-    expect(() => validateWatchdogOptions({ ...validConfig, probeIntervalMs: Number.NaN }))
-      .toThrow(/probeIntervalMs must be a positive finite number/);
-    expect(() => validateWatchdogOptions({ ...validConfig, probeIntervalMs: Number.POSITIVE_INFINITY }))
-      .toThrow(/probeIntervalMs must be a positive finite number/);
+    expect(() => validateWatchdogOptions({ ...validConfig, probeIntervalMs: 0 })).toThrow(
+      /probeIntervalMs must be a positive finite number/,
+    );
+    expect(() => validateWatchdogOptions({ ...validConfig, probeIntervalMs: -1 })).toThrow(
+      /probeIntervalMs must be a positive finite number/,
+    );
+    expect(() => validateWatchdogOptions({ ...validConfig, probeIntervalMs: Number.NaN })).toThrow(
+      /probeIntervalMs must be a positive finite number/,
+    );
+    expect(() =>
+      validateWatchdogOptions({ ...validConfig, probeIntervalMs: Number.POSITIVE_INFINITY }),
+    ).toThrow(/probeIntervalMs must be a positive finite number/);
   });
 
   it('rejects zero or negative probeTimeoutMs', () => {
-    expect(() => validateWatchdogOptions({ ...validConfig, probeTimeoutMs: 0 }))
-      .toThrow(/probeTimeoutMs must be a positive finite number/);
-    expect(() => validateWatchdogOptions({ ...validConfig, probeTimeoutMs: -100 }))
-      .toThrow(/probeTimeoutMs must be a positive finite number/);
+    expect(() => validateWatchdogOptions({ ...validConfig, probeTimeoutMs: 0 })).toThrow(
+      /probeTimeoutMs must be a positive finite number/,
+    );
+    expect(() => validateWatchdogOptions({ ...validConfig, probeTimeoutMs: -100 })).toThrow(
+      /probeTimeoutMs must be a positive finite number/,
+    );
   });
 
   it('rejects probeTimeoutMs >= probeIntervalMs (race condition)', () => {
-    expect(() => validateWatchdogOptions({ ...validConfig, probeTimeoutMs: 15_000 }))
-      .toThrow(/probeTimeoutMs .* must be less than probeIntervalMs/);
-    expect(() => validateWatchdogOptions({
-      probeIntervalMs: 1_000,
-      probeTimeoutMs: 1_000,
-      failureThreshold: 2,
-    })).toThrow(/must be less than probeIntervalMs/);
+    expect(() => validateWatchdogOptions({ ...validConfig, probeTimeoutMs: 15_000 })).toThrow(
+      /probeTimeoutMs .* must be less than probeIntervalMs/,
+    );
+    expect(() =>
+      validateWatchdogOptions({
+        probeIntervalMs: 1_000,
+        probeTimeoutMs: 1_000,
+        failureThreshold: 2,
+      }),
+    ).toThrow(/must be less than probeIntervalMs/);
     // 1 ms vs 1 ms — the strict `<` means equality also rejects.
-    expect(() => validateWatchdogOptions({
-      probeIntervalMs: 1,
-      probeTimeoutMs: 1,
-      failureThreshold: 2,
-    })).toThrow(/must be less than probeIntervalMs/);
+    expect(() =>
+      validateWatchdogOptions({
+        probeIntervalMs: 1,
+        probeTimeoutMs: 1,
+        failureThreshold: 2,
+      }),
+    ).toThrow(/must be less than probeIntervalMs/);
   });
 
   it('rejects non-positive failureThreshold', () => {
-    expect(() => validateWatchdogOptions({ ...validConfig, failureThreshold: 0 }))
-      .toThrow(/failureThreshold must be a positive integer/);
-    expect(() => validateWatchdogOptions({ ...validConfig, failureThreshold: -3 }))
-      .toThrow(/failureThreshold must be a positive integer/);
-    expect(() => validateWatchdogOptions({ ...validConfig, failureThreshold: 1.5 }))
-      .toThrow(/failureThreshold must be a positive integer/);
+    expect(() => validateWatchdogOptions({ ...validConfig, failureThreshold: 0 })).toThrow(
+      /failureThreshold must be a positive integer/,
+    );
+    expect(() => validateWatchdogOptions({ ...validConfig, failureThreshold: -3 })).toThrow(
+      /failureThreshold must be a positive integer/,
+    );
+    expect(() => validateWatchdogOptions({ ...validConfig, failureThreshold: 1.5 })).toThrow(
+      /failureThreshold must be a positive integer/,
+    );
   });
 });
 
@@ -227,13 +245,20 @@ describe('MailboxHealthWatchdog lifecycle', () => {
   it('applies documented defaults', () => {
     fetchMock.mockResolvedValue({ ok: true } as Response);
     const wd = new MailboxHealthWatchdog({ mailbox: makeMailbox(), url: 'http://x' });
-    expect((wd as unknown as { intervalMs: number }).intervalMs).toBe(MAILBOX_HEALTH_DEFAULT_INTERVAL_MS);
+    expect((wd as unknown as { intervalMs: number }).intervalMs).toBe(
+      MAILBOX_HEALTH_DEFAULT_INTERVAL_MS,
+    );
     expect((wd as unknown as { from: string }).from).toBe(MAILBOX_HEALTH_DEFAULT_FROM);
   });
 
   it('start is idempotent and stays stopped after stop (aborted guard)', async () => {
     fetchMock.mockResolvedValue({ ok: true } as Response);
-    const wd = new MailboxHealthWatchdog({ mailbox: makeMailbox(), url: 'http://x', probeIntervalMs: 1000, probeTimeoutMs: 100 });
+    const wd = new MailboxHealthWatchdog({
+      mailbox: makeMailbox(),
+      url: 'http://x',
+      probeIntervalMs: 1000,
+      probeTimeoutMs: 100,
+    });
     await wd.start();
     const timerBefore = (wd as unknown as { timer: NodeJS.Timeout }).timer;
     await wd.start(); // no-op (timer already set)
@@ -244,7 +269,12 @@ describe('MailboxHealthWatchdog lifecycle', () => {
   });
 
   it('stop is a no-op when not running', async () => {
-    const wd = new MailboxHealthWatchdog({ mailbox: makeMailbox(), url: 'http://x', probeIntervalMs: 1000, probeTimeoutMs: 100 });
+    const wd = new MailboxHealthWatchdog({
+      mailbox: makeMailbox(),
+      url: 'http://x',
+      probeIntervalMs: 1000,
+      probeTimeoutMs: 100,
+    });
     await wd.stop();
     expect(wd.isRunning()).toBe(false);
   });
@@ -292,7 +322,9 @@ describe('MailboxHealthWatchdog probing', () => {
     await wd.start();
     await flush();
     expect(
-      events.some((e) => e.kind === 'probe-failed' && (e as { error?: string }).error === 'network down'),
+      events.some(
+        (e) => e.kind === 'probe-failed' && (e as { error?: string }).error === 'network down',
+      ),
     ).toBe(true);
     expect(wd.currentFailureStreak).toBe(1);
     await wd.stop();

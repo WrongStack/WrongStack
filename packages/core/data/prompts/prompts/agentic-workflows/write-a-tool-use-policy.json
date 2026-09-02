@@ -5,10 +5,7 @@
   "description": "Tell an agent which tool to reach for and when.",
   "content": "My agent has these tools: {{tools}}\n\nWrite a concise policy guiding when to use each, and just as importantly when NOT to. Resolve the overlaps (which tool wins when two could work), the ordering (cheap and safe checks before expensive or destructive actions), and the actions that require confirmation. State the default when no tool clearly fits. Keep it short enough to live in a system prompt and unambiguous enough to actually follow.",
   "category": "agentic-workflows",
-  "tags": [
-    "tool-use",
-    "policy"
-  ],
+  "tags": ["tool-use", "policy"],
   "source": "builtin",
   "favorite": false,
   "checksum": "c5ebec562769338d5dfe5c3ef5b425546d8a497df20f1f2c380d0cf073371af6",

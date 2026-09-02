@@ -16,13 +16,7 @@ export interface AppExecutionPipelineArgs {
 }
 
 export function useAppExecutionPipeline(args: AppExecutionPipelineArgs) {
-  const {
-    keyHandlerParams,
-    runBlocksParams,
-    submitParams,
-    runBlocksRef,
-    submitRef,
-  } = args;
+  const { keyHandlerParams, runBlocksParams, submitParams, runBlocksRef, submitRef } = args;
 
   const handleKey = createAppKeyHandler(keyHandlerParams);
   const runBlocks = createRunBlocksController(runBlocksParams);

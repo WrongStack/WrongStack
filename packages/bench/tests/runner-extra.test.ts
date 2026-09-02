@@ -79,13 +79,17 @@ describe('parseOutputJson via runWstack', () => {
   });
 
   it('normalizes an unknown status to failed', async () => {
-    const entry = await fakeEntry('console.log(JSON.stringify({status:"weird"})); process.exit(0);');
+    const entry = await fakeEntry(
+      'console.log(JSON.stringify({status:"weird"})); process.exit(0);',
+    );
     const res = await run(entry);
     expect(res.status).toBe('failed');
   });
 
   it('passes through known statuses and defaults missing usage to zero', async () => {
-    const entry = await fakeEntry('console.log(JSON.stringify({status:"max_iterations"})); process.exit(0);');
+    const entry = await fakeEntry(
+      'console.log(JSON.stringify({status:"max_iterations"})); process.exit(0);',
+    );
     const res = await run(entry);
     expect(res.status).toBe('max_iterations');
     expect(res.iterations).toBe(0);

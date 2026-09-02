@@ -5,11 +5,7 @@
   "description": "Get an agent unstuck without thrashing.",
   "content": "I'm stuck on: {{situation}}\n\nI've already tried: {{attempts}}\n\nStop repeating approaches. Step back: restate the actual goal, question an assumption that might be wrong, and consider whether the problem is even framed correctly. Propose two genuinely different approaches, not variations of what failed. If I'm missing information that would unblock this, tell me exactly what to find.",
   "category": "agentic-workflows",
-  "tags": [
-    "recovery",
-    "debugging",
-    "agent"
-  ],
+  "tags": ["recovery", "debugging", "agent"],
   "source": "builtin",
   "favorite": false,
   "checksum": "82f98e6768a180082a36e736d4f5a2d1978e46a3b63c7a959b3c515fb71358d4",

@@ -402,7 +402,10 @@ describe('estimateRequestTokensUpperBound', () => {
 });
 
 describe('realAnchoredInputTokens', () => {
-  const msg = (t: string) => ({ role: 'user' as const, content: [{ type: 'text' as const, text: t }] });
+  const msg = (t: string) => ({
+    role: 'user' as const,
+    content: [{ type: 'text' as const, text: t }],
+  });
 
   it('returns null before any anchor exists', () => {
     expect(realAnchoredInputTokens([msg('hi')], undefined, undefined)).toBeNull();
@@ -438,7 +441,10 @@ describe('text content block without `text` (runtime contract: text is optional)
   const msg = { role: 'assistant', content: [bare] } as unknown as Message;
 
   it('computeMessageTokens counts omitted text the same as empty text', () => {
-    const withEmpty = computeMessageTokens({ role: 'assistant', content: [{ type: 'text', text: '' }] });
+    const withEmpty = computeMessageTokens({
+      role: 'assistant',
+      content: [{ type: 'text', text: '' }],
+    });
     expect(computeMessageTokens(msg)).toBe(withEmpty);
   });
 

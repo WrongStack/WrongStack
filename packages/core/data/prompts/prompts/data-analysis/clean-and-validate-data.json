@@ -5,11 +5,7 @@
   "description": "Design a cleaning pipeline for messy data.",
   "content": "Help me clean this data: {{data_description}}\n\nIdentify the cleaning steps in order: handle missing values (and justify drop vs. impute), fix types and formats, deduplicate, normalize categories, and catch outliers. For each step, state the rule and what could go wrong if applied blindly. Build in validation checks that fail loudly when the data violates expected invariants.",
   "category": "data-analysis",
-  "tags": [
-    "data-cleaning",
-    "validation",
-    "etl"
-  ],
+  "tags": ["data-cleaning", "validation", "etl"],
   "source": "builtin",
   "favorite": false,
   "checksum": "9d8c65292a0f359b8a127eafe34ecbc4b0abbf6cef468ce56a42461c851498c2",

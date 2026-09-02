@@ -32,7 +32,12 @@ describe('startFleetTelemetryBridge', () => {
     const events = new EventBus();
     const spy = vi.fn();
     const publisher = fakePublisher(spy);
-    const stop = startFleetTelemetryBridge({ events, publisher, runId: 'run-1', sessionId: 'sess-1' });
+    const stop = startFleetTelemetryBridge({
+      events,
+      publisher,
+      runId: 'run-1',
+      sessionId: 'sess-1',
+    });
     events.emit('coordinator.stats', baseStats);
     expect(spy).toHaveBeenCalledTimes(1);
     const payload = spy.mock.calls[0]![0];
@@ -96,7 +101,9 @@ describe('startFleetTelemetryBridge', () => {
     startFleetTelemetryBridge({ events, publisher, runId: 'run-1' });
     events.emit('coordinator.stats', {
       ...baseStats,
-      subagentStatuses: [{ subagentId: 'sx', taskId: 'tx', status: 'weird-unknown', assigned: true }],
+      subagentStatuses: [
+        { subagentId: 'sx', taskId: 'tx', status: 'weird-unknown', assigned: true },
+      ],
     });
     expect(spy.mock.calls[0]![0].subagents[0].status).toBe('idle');
   });

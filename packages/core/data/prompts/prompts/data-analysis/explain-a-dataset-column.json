@@ -5,10 +5,7 @@
   "description": "Reason about what a field means and how to use it.",
   "content": "Help me understand this data field: {{field}}\n\nIn the context of: {{context}}\n\nReason about: what it likely represents, its probable type and valid range, how nulls/zeros/sentinels should be interpreted, and the traps in using it (e.g. it's a snapshot vs. cumulative, timezone-dependent, or changed meaning over time). List the checks I should run to confirm my understanding before relying on it.",
   "category": "data-analysis",
-  "tags": [
-    "data-dictionary",
-    "semantics"
-  ],
+  "tags": ["data-dictionary", "semantics"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2f8f6694ee81b01f0d407531580a9ac74917618fe1e915a3abcd75531f856e53",

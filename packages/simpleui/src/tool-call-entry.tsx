@@ -1,4 +1,13 @@
-import { Brain, Check, ChevronDown, ChevronRight, Clock, FileEdit, LoaderCircle, X } from 'lucide-react';
+import {
+  Brain,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  FileEdit,
+  LoaderCircle,
+  X,
+} from 'lucide-react';
 import { memo, useState } from 'react';
 import { splitSageBlock } from './lib/sage-block.js';
 import { extractFileEditMeta } from './lib/timeline-model.js';
@@ -46,14 +55,22 @@ function formatTimestamp(ts: string | undefined): string {
 /** Human-readable label for file-operation tool names. */
 function toolLabel(name: string): string {
   switch (name) {
-    case 'read': return 'Read file';
-    case 'edit': return 'Edit file';
-    case 'write': return 'Write file';
-    case 'patch': return 'Apply patch';
-    case 'replace': return 'Replace in files';
-    case 'glob': return 'Find files';
-    case 'grep': return 'Search files';
-    default: return `Run \`${name}\``;
+    case 'read':
+      return 'Read file';
+    case 'edit':
+      return 'Edit file';
+    case 'write':
+      return 'Write file';
+    case 'patch':
+      return 'Apply patch';
+    case 'replace':
+      return 'Replace in files';
+    case 'glob':
+      return 'Find files';
+    case 'grep':
+      return 'Search files';
+    default:
+      return `Run \`${name}\``;
   }
 }
 
@@ -128,7 +145,13 @@ export const ToolCallEntry = memo(function ToolCallEntry({
           <span className="timeline-tool-meta">
             <Icon
               size={12}
-              className={toolCall.status === 'running' ? 'spin' : toolCall.status === 'done' ? 'timeline-tool-ok' : 'timeline-tool-error'}
+              className={
+                toolCall.status === 'running'
+                  ? 'spin'
+                  : toolCall.status === 'done'
+                    ? 'timeline-tool-ok'
+                    : 'timeline-tool-error'
+              }
               aria-label={STATUS_LABEL[toolCall.status]}
             />
             <span className="timeline-tool-status">

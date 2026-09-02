@@ -10,7 +10,11 @@ const knowledgeGraphPlugin = (await import('../src/knowledge-graph')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerSystemPromptContributor: ReturnType<typeof vi.fn>;
 }
@@ -31,7 +35,9 @@ function getTool(api: MockApi, name: string): (input: unknown) => Promise<unknow
   return (call[0] as { execute: (input: unknown) => Promise<unknown> }).execute;
 }
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 afterEach(async () => {
   const api = makeApi();
@@ -43,7 +49,10 @@ describe('knowledge-graph plugin - additional coverage', () => {
     const api = makeApi({ extensions: { 'knowledge-graph': { enabled: false, filePath: '' } } });
     knowledgeGraphPlugin.setup(api as never);
     const add = getTool(api, 'kg_add_fact');
-    const result = (await add({ subject: 'a', relation: 'b', object: 'c' })) as { ok: boolean; error: string };
+    const result = (await add({ subject: 'a', relation: 'b', object: 'c' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(result.ok).toBe(false);
     expect(result.error).toContain('disabled');
   });
@@ -52,7 +61,10 @@ describe('knowledge-graph plugin - additional coverage', () => {
     const api = makeApi();
     knowledgeGraphPlugin.setup(api as never);
     const add = getTool(api, 'kg_add_fact');
-    const result = (await add({ subject: '', relation: 'b', object: 'c' })) as { ok: boolean; error: string };
+    const result = (await add({ subject: '', relation: 'b', object: 'c' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(result.ok).toBe(false);
     expect(result.error).toContain('required');
   });
@@ -61,7 +73,10 @@ describe('knowledge-graph plugin - additional coverage', () => {
     const api = makeApi();
     knowledgeGraphPlugin.setup(api as never);
     const add = getTool(api, 'kg_add_fact');
-    const result = (await add({ subject: 'a', relation: '', object: 'c' })) as { ok: boolean; error: string };
+    const result = (await add({ subject: 'a', relation: '', object: 'c' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(result.ok).toBe(false);
     expect(result.error).toContain('required');
   });
@@ -70,7 +85,10 @@ describe('knowledge-graph plugin - additional coverage', () => {
     const api = makeApi();
     knowledgeGraphPlugin.setup(api as never);
     const add = getTool(api, 'kg_add_fact');
-    const result = (await add({ subject: 'a', relation: 'b', object: '' })) as { ok: boolean; error: string };
+    const result = (await add({ subject: 'a', relation: 'b', object: '' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(result.ok).toBe(false);
     expect(result.error).toContain('required');
   });
@@ -80,7 +98,10 @@ describe('knowledge-graph plugin - additional coverage', () => {
     knowledgeGraphPlugin.setup(api as never);
     const add = getTool(api, 'kg_add_fact');
     await add({ subject: 'a', relation: 'b', object: 'c' });
-    const result = (await add({ subject: 'd', relation: 'e', object: 'f' })) as { ok: boolean; error: string };
+    const result = (await add({ subject: 'd', relation: 'e', object: 'f' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(result.ok).toBe(false);
     expect(result.error).toContain('limit');
   });
@@ -107,13 +128,17 @@ describe('knowledge-graph plugin - additional coverage', () => {
   });
 
   it('system prompt contributor is registered when enabled', async () => {
-    const api = makeApi({ extensions: { 'knowledge-graph': { contributeToSystemPrompt: true, filePath: '' } } });
+    const api = makeApi({
+      extensions: { 'knowledge-graph': { contributeToSystemPrompt: true, filePath: '' } },
+    });
     knowledgeGraphPlugin.setup(api as never);
     expect(api.registerSystemPromptContributor).toHaveBeenCalled();
   });
 
   it('system prompt contributor is not registered when disabled', async () => {
-    const api = makeApi({ extensions: { 'knowledge-graph': { contributeToSystemPrompt: false, filePath: '' } } });
+    const api = makeApi({
+      extensions: { 'knowledge-graph': { contributeToSystemPrompt: false, filePath: '' } },
+    });
     knowledgeGraphPlugin.setup(api as never);
     expect(api.registerSystemPromptContributor).not.toHaveBeenCalled();
   });

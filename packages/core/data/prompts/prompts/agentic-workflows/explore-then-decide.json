@@ -5,11 +5,7 @@
   "description": "Gather evidence from the codebase before proposing a change.",
   "content": "For this task: {{task}}\n\nFirst explore and gather facts — find the relevant files, existing patterns, and constraints. Report what you found before proposing anything. Ground every recommendation in something you actually observed in the code, not in assumptions. Then propose an approach that fits the existing conventions. If the codebase contradicts my framing of the task, tell me.",
   "category": "agentic-workflows",
-  "tags": [
-    "exploration",
-    "grounding",
-    "agent"
-  ],
+  "tags": ["exploration", "grounding", "agent"],
   "source": "builtin",
   "favorite": false,
   "checksum": "6f854da335f51d113da3c1c1b511cab7279dbc1f559242052d7b05cda9b2f2af",

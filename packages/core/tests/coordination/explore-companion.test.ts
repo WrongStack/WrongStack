@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus, type TrackedAgentSnapshot } from '../../src/kernel/events.js';
-import type { Mailbox, MailboxAckInput, MailboxMessage, MailboxQuery } from '../../src/coordination/mailbox-types.js';
+import type {
+  Mailbox,
+  MailboxAckInput,
+  MailboxMessage,
+  MailboxQuery,
+} from '../../src/coordination/mailbox-types.js';
 import {
   buildProbeTaskText,
   DEFAULT_EXPLORE_COMPANION_AGENT_ID,
@@ -55,9 +60,7 @@ function makeMailbox(messages: MailboxMessage[]) {
   const mailbox = {
     query: async (q: MailboxQuery) => {
       const acked = new Set(acks.map((a) => a.messageId));
-      return messages
-        .filter((m) => !acked.has(m.id))
-        .slice(0, q.limit ?? 20);
+      return messages.filter((m) => !acked.has(m.id)).slice(0, q.limit ?? 20);
     },
     ack: async (input: MailboxAckInput) => {
       acks.push(input);
@@ -95,7 +98,14 @@ function makeHarness(
 
 function toolExecuted(
   events: EventBus,
-  overrides: Partial<{ name: string; ok: boolean; sessionId?: string; input: unknown; output: string; outputLines: number }>,
+  overrides: Partial<{
+    name: string;
+    ok: boolean;
+    sessionId?: string;
+    input: unknown;
+    output: string;
+    outputLines: number;
+  }>,
 ): void {
   events.emit('tool.executed', {
     name: 'edit',
@@ -106,10 +116,7 @@ function toolExecuted(
   } as never);
 }
 
-function agentSnapshot(
-  id: string,
-  todos: TrackedAgentSnapshot['todos'],
-): TrackedAgentSnapshot {
+function agentSnapshot(id: string, todos: TrackedAgentSnapshot['todos']): TrackedAgentSnapshot {
   return {
     id,
     name: id,
@@ -210,9 +217,7 @@ describe('ExploreCompanion trigger mapping', () => {
     h.events.emit('session.agents_updated', {
       sessionId: LEADER_SESSION,
       agents: [
-        agentSnapshot('worker-1', [
-          { id: 't2', content: 'Edit b.ts', status: 'in_progress' },
-        ]),
+        agentSnapshot('worker-1', [{ id: 't2', content: 'Edit b.ts', status: 'in_progress' }]),
       ],
     });
     await flush();
@@ -406,50 +411,41 @@ describe('ExploreCompanion mailbox-ask gating', () => {
   });
 
   it('ask from a non-leader peer → no probe, no ack', async () => {
-    const h = makeHarness(
-      {},
-      [makeMessage({ from: 'random-peer', senderSessionId: 'sess-other' })],
-    );
+    const h = makeHarness({}, [
+      makeMessage({ from: 'random-peer', senderSessionId: 'sess-other' }),
+    ]);
     await new Promise((r) => setTimeout(r, 20));
     expect(h.probes).toHaveLength(0);
     expect(h.acks).toHaveLength(0);
   });
 
   it('sender whose sessionId equals the leader session is trusted', async () => {
-    const h = makeHarness(
-      {},
-      [makeMessage({ from: 'orchestrator', senderSessionId: LEADER_SESSION })],
-    );
+    const h = makeHarness({}, [
+      makeMessage({ from: 'orchestrator', senderSessionId: LEADER_SESSION }),
+    ]);
     await new Promise((r) => setTimeout(r, 20));
     expect(h.probes).toHaveLength(1);
     expect(h.probes[0]?.source).toBe('mailbox_ask');
   });
 
   it('status mail from the leader is ignored (only ask/assign act)', async () => {
-    const h = makeHarness(
-      {},
-      [makeMessage({ type: 'status' })],
-    );
+    const h = makeHarness({}, [makeMessage({ type: 'status' })]);
     await new Promise((r) => setTimeout(r, 20));
     expect(h.probes).toHaveLength(0);
     expect(h.acks).toHaveLength(0);
   });
 
   it('leader ask addressed to ANOTHER agent → no probe, no ack', async () => {
-    const h = makeHarness(
-      {},
-      [makeMessage({ to: 'reviewer', senderSessionId: LEADER_SESSION })],
-    );
+    const h = makeHarness({}, [makeMessage({ to: 'reviewer', senderSessionId: LEADER_SESSION })]);
     await new Promise((r) => setTimeout(r, 20));
     expect(h.probes).toHaveLength(0);
     expect(h.acks).toHaveLength(0);
   });
 
   it('leader-named sender from a DIFFERENT session is rejected', async () => {
-    const h = makeHarness(
-      {},
-      [makeMessage({ from: 'leader@sess-other', senderSessionId: 'sess-other' })],
-    );
+    const h = makeHarness({}, [
+      makeMessage({ from: 'leader@sess-other', senderSessionId: 'sess-other' }),
+    ]);
     await new Promise((r) => setTimeout(r, 20));
     // `isMailboxLeader('leader@sess-other')` is true by name — the stamped
     // session id must win so one session's leader cannot steer another
@@ -459,48 +455,39 @@ describe('ExploreCompanion mailbox-ask gating', () => {
   });
 
   it('global broadcast ask from the leader → probe', async () => {
-    const h = makeHarness(
-      {},
-      [makeMessage({ to: '*', senderSessionId: LEADER_SESSION })],
-    );
+    const h = makeHarness({}, [makeMessage({ to: '*', senderSessionId: LEADER_SESSION })]);
     await new Promise((r) => setTimeout(r, 20));
     expect(h.probes).toHaveLength(1);
     expect(h.probes[0]?.source).toBe('mailbox_ask');
   });
 
   it('session-scoped broadcast ask from the leader → probe', async () => {
-    const h = makeHarness(
-      {},
-      [makeMessage({ to: `@session:${LEADER_SESSION}`, senderSessionId: LEADER_SESSION })],
-    );
+    const h = makeHarness({}, [
+      makeMessage({ to: `@session:${LEADER_SESSION}`, senderSessionId: LEADER_SESSION }),
+    ]);
     await new Promise((r) => setTimeout(r, 20));
     expect(h.probes).toHaveLength(1);
   });
 
   it('session broadcast from another session → no probe', async () => {
-    const h = makeHarness(
-      {},
-      [makeMessage({ to: '@session:sess-other', senderSessionId: 'sess-other' })],
-    );
+    const h = makeHarness({}, [
+      makeMessage({ to: '@session:sess-other', senderSessionId: 'sess-other' }),
+    ]);
     await new Promise((r) => setTimeout(r, 20));
     expect(h.probes).toHaveLength(0);
   });
 
   it('tagged companionAgentId accepts the exact tagged recipient', async () => {
     const tagged = 'explore-companion@sess-leader';
-    const h = makeHarness(
-      { companionAgentId: tagged },
-      [makeMessage({ to: tagged, senderSessionId: LEADER_SESSION })],
-    );
+    const h = makeHarness({ companionAgentId: tagged }, [
+      makeMessage({ to: tagged, senderSessionId: LEADER_SESSION }),
+    ]);
     await new Promise((r) => setTimeout(r, 20));
     expect(h.probes).toHaveLength(1);
   });
 
   it('legacy unstamped send from a bare leader name still works', async () => {
-    const h = makeHarness(
-      {},
-      [makeMessage({ from: 'leader', senderSessionId: undefined })],
-    );
+    const h = makeHarness({}, [makeMessage({ from: 'leader', senderSessionId: undefined })]);
     await new Promise((r) => setTimeout(r, 20));
     expect(h.probes).toHaveLength(1);
   });
@@ -542,7 +529,16 @@ describe('explore-companion roster integration', () => {
     ]) {
       expect(tools, `tools must not include ${banned}`).not.toContain(banned);
     }
-    for (const banned of ['write', 'edit', 'replace', 'patch', 'bash', 'exec', 'delegate', 'search']) {
+    for (const banned of [
+      'write',
+      'edit',
+      'replace',
+      'patch',
+      'bash',
+      'exec',
+      'delegate',
+      'search',
+    ]) {
       expect(cfg?.disabledTools, `disabledTools must cover ${banned}`).toContain(banned);
     }
     expect(cfg?.allowedCapabilities).toEqual([

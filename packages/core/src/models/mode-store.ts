@@ -73,10 +73,7 @@ export class DefaultModeStore implements ModeStore {
       const configPath = path.join(this.configDir, 'mode.json');
       // atomicWrite: torn write would leave mode.json malformed and the
       // next load would silently reset to "default".
-      await atomicWrite(
-        configPath,
-        JSON.stringify({ activeMode: this.activeModeId }, null, 2),
-      );
+      await atomicWrite(configPath, JSON.stringify({ activeMode: this.activeModeId }, null, 2));
     } catch {
       // ignore save errors
     }

@@ -24,7 +24,9 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   for (const key of Object.keys(actual) as Array<keyof typeof actual>) {
     const origFn = actual[key];
     if (typeof origFn === 'function') {
-      (wrapped as any)[key] = vi.fn().mockImplementation((...args: any[]) => (origFn as any)(...args));
+      (wrapped as any)[key] = vi
+        .fn()
+        .mockImplementation((...args: any[]) => (origFn as any)(...args));
     } else {
       (wrapped as any)[key] = origFn;
     }

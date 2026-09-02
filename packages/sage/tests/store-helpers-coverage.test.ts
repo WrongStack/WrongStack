@@ -58,8 +58,20 @@ describe('store helper completion coverage', () => {
     // platform (a literal 'C:\\project' root only resolves on Windows).
     const projectRoot = path.join(process.cwd(), 'project');
     const anchors = normalizeAnchors(projectRoot, [
-      { type: 'file', path: path.join(projectRoot, 'src', 'a.ts'), symbol: '  ', command: '  ', role: '  ' },
-      { type: 'file', path: path.join(projectRoot, 'src', 'a.ts'), symbol: '  ', command: '  ', role: '  ' },
+      {
+        type: 'file',
+        path: path.join(projectRoot, 'src', 'a.ts'),
+        symbol: '  ',
+        command: '  ',
+        role: '  ',
+      },
+      {
+        type: 'file',
+        path: path.join(projectRoot, 'src', 'a.ts'),
+        symbol: '  ',
+        command: '  ',
+        role: '  ',
+      },
       { type: 'command', command: ' pnpm   test ' },
       { type: 'agent', role: ' Reviewer ' },
     ]);

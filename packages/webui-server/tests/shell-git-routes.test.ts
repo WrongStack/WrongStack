@@ -10,7 +10,9 @@ function mockWs() {
 }
 
 function sentMessages(ws: ReturnType<typeof mockWs>) {
-  return ws.send.mock.calls.map(([raw]) => JSON.parse(String(raw)) as { type: string; payload: Record<string, unknown> });
+  return ws.send.mock.calls.map(
+    ([raw]) => JSON.parse(String(raw)) as { type: string; payload: Record<string, unknown> },
+  );
 }
 
 function handlers(): ShellGitRouteHandlers {
@@ -31,7 +33,9 @@ describe('handleShellGitRoute dispatcher characterization', () => {
     const ws = mockWs();
     const h = handlers();
 
-    await expect(handleShellGitRoute(ws, { type: 'modes.list', payload: {} }, h)).resolves.toBe(false);
+    await expect(handleShellGitRoute(ws, { type: 'modes.list', payload: {} }, h)).resolves.toBe(
+      false,
+    );
 
     expect(ws.send).not.toHaveBeenCalled();
   });

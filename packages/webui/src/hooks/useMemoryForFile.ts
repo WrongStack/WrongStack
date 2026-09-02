@@ -138,8 +138,7 @@ export function useMemoryForFile(options: UseMemoryForFileOptions): UseMemoryFor
       // a different file belongs to a different consumer.
       if (
         response &&
-        normalizePathForCompare(response.filePath) !==
-          normalizePathForCompare(requestedFilePath)
+        normalizePathForCompare(response.filePath) !== normalizePathForCompare(requestedFilePath)
       )
         return;
       if (message.payload.error) {

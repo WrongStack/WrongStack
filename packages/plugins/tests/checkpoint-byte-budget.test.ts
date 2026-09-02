@@ -114,7 +114,12 @@ describe('retained-bytes budget', () => {
 
   it('leaves everything in place when the budget is not reached', async () => {
     const api = makeApi({
-      checkpoint: { enabled: true, autoCapture: false, maxSnapshots: 500, maxTotalBytes: 8_388_608 },
+      checkpoint: {
+        enabled: true,
+        autoCapture: false,
+        maxSnapshots: 500,
+        maxTotalBytes: 8_388_608,
+      },
     });
     await plugin.setup(api as Any);
     await captureMany(api, 5, 4);

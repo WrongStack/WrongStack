@@ -57,10 +57,7 @@ class CountingProvider extends MockProvider {
   attemptCount = 0;
   private failuresLeft: number;
 
-  constructor(
-    failFirst: number,
-    responses: ConstructorParameters<typeof MockProvider>[0],
-  ) {
+  constructor(failFirst: number, responses: ConstructorParameters<typeof MockProvider>[0]) {
     super(responses);
     this.failuresLeft = failFirst;
   }
@@ -78,8 +75,7 @@ class CountingProvider extends MockProvider {
   }
 }
 
-const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function buildDedupAgent(provider: MockProvider): Promise<{ agent: Agent; tmp: string }> {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-input-dedup-'));

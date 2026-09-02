@@ -37,9 +37,7 @@ describe('<Input> composer top rail', () => {
     // The chip pads to a stable reserved slot, so different statuses must not
     // change the overall rail width (which would jitter the right corner).
     const idle = displayWidth(topRail({ kind: 'idle', fleetRunning: 0 }).trimEnd());
-    const working = displayWidth(
-      topRail({ kind: 'working', word: 'contemplating' }).trimEnd(),
-    );
+    const working = displayWidth(topRail({ kind: 'working', word: 'contemplating' }).trimEnd());
     expect(working).toBe(idle);
   });
 

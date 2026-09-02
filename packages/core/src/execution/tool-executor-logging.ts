@@ -80,9 +80,7 @@ export function logToolFailure(
     ...structuredError,
     taskId: ctx.currentKanbanTaskId,
     boardId: ctx.currentKanbanBoardId,
-    ...(typeof ctx.provider === 'object'
-      ? { provider: (ctx.provider as { id: string }).id }
-      : {}),
+    ...(typeof ctx.provider === 'object' ? { provider: (ctx.provider as { id: string }).id } : {}),
     ...(ctx.model ? { model: ctx.model } : {}),
   });
   opts.logger?.warn('tool execution failed', {

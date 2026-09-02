@@ -96,10 +96,9 @@ describe('fingerprinting awkward tool inputs', () => {
 
   it('keeps two DIFFERENT circular inputs distinguishable', async () => {
     // Both used to collapse to "[object Object]" and look like a repeat.
-    const out = await feed(
-      [cyclic('alpha'), cyclic('beta'), cyclic('gamma'), cyclic('delta')],
-      { repeatThreshold: 2 },
-    );
+    const out = await feed([cyclic('alpha'), cyclic('beta'), cyclic('gamma'), cyclic('delta')], {
+      repeatThreshold: 2,
+    });
     expect(out?.decision).not.toBe('block');
   });
 

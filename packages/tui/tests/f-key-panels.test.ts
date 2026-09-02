@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { F_KEY_PANEL_ENTRIES, actionForFKeyPanel, type FKeyPanelAction } from '../src/f-key-panels.js';
+import {
+  F_KEY_PANEL_ENTRIES,
+  actionForFKeyPanel,
+  type FKeyPanelAction,
+} from '../src/f-key-panels.js';
 import { helpSections } from '../src/components/help-overlay.js';
 
 const entry = (key: number) => {
@@ -51,9 +55,10 @@ describe('F_KEY_PANEL_ENTRIES structural integrity', () => {
   });
 
   it('every entry appears in the HelpOverlay Monitors section', () => {
-    const monitorKeys = helpSections()
-      .find((s) => s.title === 'Monitors')
-      ?.entries.map((e) => e.keys) ?? [];
+    const monitorKeys =
+      helpSections()
+        .find((s) => s.title === 'Monitors')
+        ?.entries.map((e) => e.keys) ?? [];
     for (const entry of F_KEY_PANEL_ENTRIES) {
       expect(monitorKeys.some((k) => k.includes(entry.helpKeys))).toBe(true);
     }

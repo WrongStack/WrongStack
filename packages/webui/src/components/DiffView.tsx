@@ -1,4 +1,9 @@
-import { type DiffRow, type ToolDiff, computeLineDiff, parseUnifiedDiff } from '@wrongstack/tools/tool-diff';
+import {
+  type DiffRow,
+  type ToolDiff,
+  computeLineDiff,
+  parseUnifiedDiff,
+} from '@wrongstack/tools/tool-diff';
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
 import { memo, useMemo } from 'react';
@@ -39,9 +44,18 @@ export const DiffView = memo(function DiffView({ oldText, newText, caption, fill
  * rendering, so edit/write and patch look consistent. Returns the same "too
  * large" guard as {@link DiffView} for oversized LCS inputs.
  */
-export const ToolDiffView = memo(function ToolDiffView({ diff, fill }: { diff: ToolDiff; fill?: boolean }) {
+export const ToolDiffView = memo(function ToolDiffView({
+  diff,
+  fill,
+}: {
+  diff: ToolDiff;
+  fill?: boolean;
+}) {
   const rows = useMemo(
-    () => (diff.mode === 'unified' ? parseUnifiedDiff(diff.patchText) : computeLineDiff(diff.oldText, diff.newText)),
+    () =>
+      diff.mode === 'unified'
+        ? parseUnifiedDiff(diff.patchText)
+        : computeLineDiff(diff.oldText, diff.newText),
     [diff],
   );
   return <DiffRows rows={rows} caption={diff.caption} fill={fill} />;
@@ -61,7 +75,9 @@ const DiffRows = memo(function DiffRows({
 
   if (rows === null) {
     return (
-      <div className="text-xs text-muted-foreground italic px-3 py-2">{t('activity:diff.tooLarge')}</div>
+      <div className="text-xs text-muted-foreground italic px-3 py-2">
+        {t('activity:diff.tooLarge')}
+      </div>
     );
   }
 
@@ -84,7 +100,12 @@ const DiffRows = memo(function DiffRows({
           </span>
         </div>
       )}
-      <div className={cn('overflow-auto font-mono leading-relaxed', fill ? 'flex-1 min-h-0' : 'max-h-96')}>
+      <div
+        className={cn(
+          'overflow-auto font-mono leading-relaxed',
+          fill ? 'flex-1 min-h-0' : 'max-h-96',
+        )}
+      >
         {rows.map((r, idx) => (
           <div
             key={idx}

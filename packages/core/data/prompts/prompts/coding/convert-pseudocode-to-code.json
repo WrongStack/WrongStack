@@ -5,10 +5,7 @@
   "description": "Translate an algorithm or pseudocode into working, idiomatic code.",
   "content": "Translate the following pseudocode/algorithm into idiomatic {{language}}:\n\n{{pseudocode}}\n\n- Preserve the algorithm's complexity; note the Big-O of the result.\n- Use clear names; don't leave single-letter variables unless conventional.\n- Add input validation where a real caller could pass bad data.\n- Include a couple of usage examples.",
   "category": "coding",
-  "tags": [
-    "algorithm",
-    "translation"
-  ],
+  "tags": ["algorithm", "translation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "3bba88c1242288dd446c2fb27737723b0ab3de4c72dd79ba1ab71f5957f6ea98",

@@ -5,11 +5,7 @@
   "description": "Design a CI workflow that catches problems fast and cheaply.",
   "content": "Write a CI pipeline for {{platform}} for a {{stack}} project.\n\nStages: install (cached), lint, typecheck, test, build. Make it fail fast, run independent steps in parallel, and cache dependencies between runs. Add the gate that should block merge. Keep it readable and explain any non-obvious step. Note what I'd add later for deployment but leave out for now.",
   "category": "devops",
-  "tags": [
-    "ci",
-    "pipeline",
-    "automation"
-  ],
+  "tags": ["ci", "pipeline", "automation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "17c9e735e9ca8fbeebf5466e9f907a41979dc5c13cf1c2807641722952568591",

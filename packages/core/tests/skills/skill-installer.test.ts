@@ -355,7 +355,6 @@ describe('SkillInstaller.update', () => {
   });
 });
 
-
 // ── importFromDir ────────────────────────────────────────────────────────────
 
 describe('SkillInstaller.importFromDir', () => {

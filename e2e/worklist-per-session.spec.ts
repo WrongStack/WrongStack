@@ -53,14 +53,24 @@ async function resolveSessionsDir(sessionId: string): Promise<string> {
     if (entry.isDirectory()) dirs.push(path.join(projectsRoot, entry.name, 'sessions'));
   }
   for (const dir of dirs) {
-    if (await fs.stat(path.join(dir, `${sessionId}.jsonl`)).then(() => true, () => false)) {
+    if (
+      await fs.stat(path.join(dir, `${sessionId}.jsonl`)).then(
+        () => true,
+        () => false,
+      )
+    ) {
       return dir;
     }
     // Date-sharded layout: `<dir>/<YYYY-MM-DD>/<sessionId>.jsonl`.
     for (const shard of await fs.readdir(dir, { withFileTypes: true }).catch(() => [])) {
       if (!shard.isDirectory()) continue;
       const sharded = path.join(dir, shard.name, `${sessionId}.jsonl`);
-      if (await fs.stat(sharded).then(() => true, () => false)) {
+      if (
+        await fs.stat(sharded).then(
+          () => true,
+          () => false,
+        )
+      ) {
         return path.join(dir, shard.name);
       }
     }

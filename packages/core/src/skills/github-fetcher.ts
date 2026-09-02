@@ -382,7 +382,6 @@ async function extractTar(buf: Buffer, destDir: string): Promise<void> {
  * desync; refusing to extract is the only safe response.
  */
 
-
 /**
  * Internal seam for the per-file coverage suite (mirrors
  * `protocolHandlerCoverage` in the ACP handler). `extractTar` and

@@ -53,9 +53,7 @@ export class DesktopWebuiController {
       risk: 'elevated',
       metadata: { operation: 'webui-navigation' },
     })
-      .then((decision) =>
-        decision.allowed ? void shell.openExternal(target) : undefined,
-      )
+      .then((decision) => (decision.allowed ? void shell.openExternal(target) : undefined))
       .catch(() => undefined);
   }
 
@@ -246,14 +244,17 @@ export class DesktopWebuiController {
     if (!entry?.url) return false;
     entry.bridgeReady = false;
     this.setEntryStatus(entry, { runtimeId: entry.runtimeId, status: 'loading' });
-    return entry.view.webContents.loadURL(entry.url).then(() => true).catch((error) => {
-      this.setEntryStatus(entry, {
-        runtimeId: entry.runtimeId,
-        status: 'error',
-        error: error instanceof Error ? error.message : String(error),
+    return entry.view.webContents
+      .loadURL(entry.url)
+      .then(() => true)
+      .catch((error) => {
+        this.setEntryStatus(entry, {
+          runtimeId: entry.runtimeId,
+          status: 'error',
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return false;
       });
-      return false;
-    });
   }
 
   private queue(entry: DesktopWebuiRuntimeView, command: DesktopWebuiCommand): void {
@@ -264,18 +265,32 @@ export class DesktopWebuiController {
     this.setEntryStatus(entry, entry.status);
   }
 
-  private dispatchNow(entry: DesktopWebuiRuntimeView, command: DesktopWebuiCommand): Promise<boolean> {
+  private dispatchNow(
+    entry: DesktopWebuiRuntimeView,
+    command: DesktopWebuiCommand,
+  ): Promise<boolean> {
     if (this.views.get(entry.runtimeId) !== entry || !entry.url) return Promise.resolve(false);
     const requestId = `${entry.runtimeId}:${Date.now()}:${++this.commandSequence}`;
     const outbound = { ...command, requestId };
     return new Promise<boolean>((resolve) => {
       const fallbackTimer = setTimeout(() => {
         if (!this.pendingAcks.has(requestId)) return;
-        if (this.views.get(entry.runtimeId) !== entry || entry.view.webContents.isDestroyed()) return;
-        void entry.view.webContents.executeJavaScript(buildWebuiCommandFallbackScript(outbound), true).catch(() => undefined);
+        if (this.views.get(entry.runtimeId) !== entry || entry.view.webContents.isDestroyed())
+          return;
+        void entry.view.webContents
+          .executeJavaScript(buildWebuiCommandFallbackScript(outbound), true)
+          .catch(() => undefined);
       }, WEBUI_COMMAND_FALLBACK_MS);
-      const timer = setTimeout(() => this.settleAck(requestId, false), WEBUI_COMMAND_ACK_TIMEOUT_MS);
-      this.pendingAcks.set(requestId, { runtimeId: entry.runtimeId, timer, fallbackTimer, resolve });
+      const timer = setTimeout(
+        () => this.settleAck(requestId, false),
+        WEBUI_COMMAND_ACK_TIMEOUT_MS,
+      );
+      this.pendingAcks.set(requestId, {
+        runtimeId: entry.runtimeId,
+        timer,
+        fallbackTimer,
+        resolve,
+      });
       try {
         entry.view.webContents.send(IPC.webuiCommand, outbound);
         if (this.activeRuntimeId === entry.runtimeId) entry.view.webContents.focus();
@@ -318,7 +333,8 @@ export class DesktopWebuiController {
     if (this.views.get(entry.runtimeId) !== entry || entry.pendingCommands.length === 0) return;
     if (!entry.bridgeReady) {
       entry.pendingFlushAttempts += 1;
-      const shouldExecuteFallback = !entry.view.webContents.isLoading() && entry.pendingFlushAttempts >= 4;
+      const shouldExecuteFallback =
+        !entry.view.webContents.isLoading() && entry.pendingFlushAttempts >= 4;
       if (!shouldExecuteFallback && entry.pendingFlushAttempts <= MAX_PENDING_FLUSH_ATTEMPTS) {
         this.scheduleFlush(entry);
         this.setEntryStatus(entry, entry.status);
@@ -326,7 +342,11 @@ export class DesktopWebuiController {
       }
       if (!shouldExecuteFallback) {
         entry.pendingCommands.length = 0;
-        this.setEntryStatus(entry, { runtimeId: entry.runtimeId, status: 'error', error: 'WebUI command bridge did not become ready.' });
+        this.setEntryStatus(entry, {
+          runtimeId: entry.runtimeId,
+          status: 'error',
+          error: 'WebUI command bridge did not become ready.',
+        });
         return;
       }
     }

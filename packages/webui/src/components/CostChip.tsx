@@ -82,9 +82,7 @@ export function CostChip() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={cn(
-          'font-medium text-success hover:underline tabular-nums',
-        )}
+        className={cn('font-medium text-success hover:underline tabular-nums')}
         title={t('activity:cost.clickTitle')}
       >
         ${cost.toFixed(4)}
@@ -122,9 +120,7 @@ export function CostChip() {
             </div>
           )}
           {turns.length === 0 ? (
-            <div className="text-xs text-muted-foreground italic">
-              {t('activity:cost.noTurns')}
-            </div>
+            <div className="text-xs text-muted-foreground italic">{t('activity:cost.noTurns')}</div>
           ) : (
             <>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-1">

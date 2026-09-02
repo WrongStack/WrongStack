@@ -30,7 +30,11 @@ interface FakeTransport {
   /** Direct call: send a response to a specific request id. */
   respond: (id: number | string, method: string, result: unknown) => void;
   /** Direct call: send an error response. */
-  respondError: (id: number | string, method: string, error: { code: number; message: string }) => void;
+  respondError: (
+    id: number | string,
+    method: string,
+    error: { code: number; message: string },
+  ) => void;
 }
 
 vi.mock('../src/agent/stdio-transport.js', () => {
@@ -55,7 +59,11 @@ vi.mock('../src/agent/stdio-transport.js', () => {
     respond(id: number | string, method: string, result: unknown): void {
       this.emit({ jsonrpc: '2.0', id, method, result } as never as ACPMessage);
     }
-    respondError(id: number | string, method: string, error: { code: number; message: string }): void {
+    respondError(
+      id: number | string,
+      method: string,
+      error: { code: number; message: string },
+    ): void {
       this.emit({ jsonrpc: '2.0', id, method, error } as never as ACPMessage);
     }
   }
@@ -191,9 +199,11 @@ describe('ACPSession', () => {
     // Regression: close() aborts the pending callback; the handler's catch
     // then tries sendErrorResponse on a transport whose send() rejects after
     // teardown. That rejection must be swallowed, not crash the process.
-    const neverSettles = vi.fn().mockImplementation(
-      () => new Promise(() => undefined) as ReturnType<typeof defaultPermissionPolicy>,
-    );
+    const neverSettles = vi
+      .fn()
+      .mockImplementation(
+        () => new Promise(() => undefined) as ReturnType<typeof defaultPermissionPolicy>,
+      );
     const session = await startSession(undefined, { permissionPolicy: neverSettles });
     const t = lastTransport();
     const unhandled = vi.fn();
@@ -292,10 +302,8 @@ describe('ACPSession', () => {
     const t = lastTransport();
 
     const events: string[] = [];
-    const promptP = session.prompt(
-      [textContent('do it')],
-      new AbortController().signal,
-      (e) => events.push(e.type),
+    const promptP = session.prompt([textContent('do it')], new AbortController().signal, (e) =>
+      events.push(e.type),
     );
 
     await new Promise((r) => setImmediate(r));
@@ -544,7 +552,10 @@ describe('ACPSession', () => {
       method: 'session/update',
       params: {
         sessionId: 'sess_resource',
-        update: { sessionUpdate: 'agent_message_chunk', content: { type: 'resource', resource: { text: 'embedded content' } } },
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'resource', resource: { text: 'embedded content' } },
+        },
       },
     } as never as ACPMessage);
     t.respond(promptMsg.id!, 'session/prompt', { stopReason: 'end_turn' });
@@ -555,7 +566,9 @@ describe('ACPSession', () => {
   });
 
   it('audioContent and imageContent helper functions', async () => {
-    const mod = await vi.importActual<typeof import('../src/client/acp-session.js')>('../src/client/acp-session.js');
+    const mod = await vi.importActual<typeof import('../src/client/acp-session.js')>(
+      '../src/client/acp-session.js',
+    );
     const audio = mod.audioContent('audio/wav', 'base64data');
     expect(audio).toEqual({ type: 'audio', mimeType: 'audio/wav', data: 'base64data' });
 
@@ -621,7 +634,12 @@ describe('ACPSession', () => {
       method: 'session/update',
       params: {
         sessionId: 'sess_abc',
-        update: { sessionUpdate: 'usage_update', used: 1200, size: 200_000, cost: { amount: 0.01, currency: 'USD' } },
+        update: {
+          sessionUpdate: 'usage_update',
+          used: 1200,
+          size: 200_000,
+          cost: { amount: 0.01, currency: 'USD' },
+        },
       },
     } as never as ACPMessage);
     // And the agent's text
@@ -691,31 +709,31 @@ describe('ACPSession', () => {
     await reply('session/resume', session.resumeSession('resumed' as never));
     await reply('session/delete', session.deleteSession('resumed' as never));
 
-    await expect(reply(
-      'session/list',
-      session.listSessions('cursor', '/cwd'),
-      { sessions: [{ sessionId: 'one', cwd: '/cwd' }], nextCursor: 'next' },
-    )).resolves.toMatchObject({ nextCursor: 'next' });
-    await expect(reply(
-      'session/fork',
-      session.forkSession('one' as never, '/fork'),
-      { sessionId: 'forked' },
-    )).resolves.toBe('forked');
+    await expect(
+      reply('session/list', session.listSessions('cursor', '/cwd'), {
+        sessions: [{ sessionId: 'one', cwd: '/cwd' }],
+        nextCursor: 'next',
+      }),
+    ).resolves.toMatchObject({ nextCursor: 'next' });
+    await expect(
+      reply('session/fork', session.forkSession('one' as never, '/fork'), { sessionId: 'forked' }),
+    ).resolves.toBe('forked');
     await reply('session/set_mode', session.setMode('one' as never, 'code'));
     await reply(
       'session/set_config_option',
       session.setConfigOption('one' as never, 'model', 'large'),
     );
-    await expect(reply(
-      'providers/list',
-      session.listProviders(),
-      { providers: ['provider'], currentProviderId: 'provider' },
-    )).resolves.toEqual({ providers: ['provider'], currentProviderId: 'provider' });
-    await expect(reply(
-      'mcp/message',
-      session.mcpMessage('connection', { jsonrpc: '2.0' }),
-      { accepted: true },
-    )).resolves.toEqual({ accepted: true });
+    await expect(
+      reply('providers/list', session.listProviders(), {
+        providers: ['provider'],
+        currentProviderId: 'provider',
+      }),
+    ).resolves.toEqual({ providers: ['provider'], currentProviderId: 'provider' });
+    await expect(
+      reply('mcp/message', session.mcpMessage('connection', { jsonrpc: '2.0' }), {
+        accepted: true,
+      }),
+    ).resolves.toEqual({ accepted: true });
     await reply('providers/set', session.setProvider('provider', { key: 'value' }));
     await reply('providers/disable', session.disableProvider());
     await session.close();

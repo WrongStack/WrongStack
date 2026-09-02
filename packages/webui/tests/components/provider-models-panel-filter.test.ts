@@ -71,7 +71,7 @@ describe('selectPickedModelId — precedence chain', () => {
     expect(selectPickedModelId(s, 'saved', ['saved-a'])).toBe('user-pick');
   });
 
-  it('falls back to the probe\'s first model id when no user pick', () => {
+  it("falls back to the probe's first model id when no user pick", () => {
     const s: RefreshState = { ...initialRefreshState(), last: okProbe(['p1', 'p2']) };
     expect(selectPickedModelId(s, 'saved', ['saved-a'])).toBe('p1');
   });
@@ -98,7 +98,7 @@ describe('selectPickedModelId — precedence chain', () => {
 });
 
 describe('selectModelList', () => {
-  it('returns the probe\'s modelIds when ok', () => {
+  it("returns the probe's modelIds when ok", () => {
     const s: RefreshState = { ...initialRefreshState(), last: okProbe(['p1', 'p2']) };
     expect(selectModelList(s, ['saved'])).toEqual(['p1', 'p2']);
   });

@@ -138,7 +138,9 @@ describe('session lifecycle end-to-end (JSONL chain)', () => {
     );
     const resumeEvent = lines2.find((l) => l['type'] === 'session_resumed');
     expect(resumeEvent?.['id']).toBe(id);
-    expect(Date.parse(String(resumeEvent?.['ts']))).toBeGreaterThanOrEqual(resumeRequestedAt - 1_000);
+    expect(Date.parse(String(resumeEvent?.['ts']))).toBeGreaterThanOrEqual(
+      resumeRequestedAt - 1_000,
+    );
     expect(resumeEvent?.['ts']).not.toBe(originalStartedAt);
     expect(lines2.at(-1)!['type']).toBe('session_end');
 
@@ -259,7 +261,8 @@ describe('session lifecycle end-to-end (JSONL chain)', () => {
     expect(data.pendingToolUseCount).toBeUndefined();
     const resumed = await store.resume(id);
     const hasNotice = resumed.data.messages.some(
-      (m) => typeof m.content === 'string' && m.content.includes('[SESSION RESUME INTERRUPTED WORK]'),
+      (m) =>
+        typeof m.content === 'string' && m.content.includes('[SESSION RESUME INTERRUPTED WORK]'),
     );
     expect(hasNotice).toBe(false);
     await resumed.writer.close();

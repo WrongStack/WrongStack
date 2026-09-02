@@ -95,7 +95,8 @@ export function MemoryManager() {
           )}
           {state.loadError && (
             <div role="alert" className="flex items-center gap-2 text-xs text-warning">
-              <AlertTriangle className="size-3.5" /> {state.loadError} Existing content remains available.
+              <AlertTriangle className="size-3.5" /> {state.loadError} Existing content remains
+              available.
             </div>
           )}
           {state.mutationError && !state.editing && !state.creating && (
@@ -166,7 +167,9 @@ export function MemoryManager() {
               )}
             >
               {t('activity:memoryManager.tabDeleted')}
-              {typeof state.statusCounts['deleted'] === 'number' ? ` (${state.statusCounts['deleted']})` : ''}
+              {typeof state.statusCounts['deleted'] === 'number'
+                ? ` (${state.statusCounts['deleted']})`
+                : ''}
             </Button>
           </div>
 
@@ -336,7 +339,9 @@ export function MemoryManager() {
                     () => state.updateSage(memoryId, { persistence: 'permanent' }),
                     (payload) => {
                       if (payload.error || !payload.memory) {
-                        state.setMutationError(payload.error ?? 'The server returned no memory record.');
+                        state.setMutationError(
+                          payload.error ?? 'The server returned no memory record.',
+                        );
                         return;
                       }
                       state.setNotice(`Memory ${memoryId.slice(0, 12)}… promoted to permanent.`);

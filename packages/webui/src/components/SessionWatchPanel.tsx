@@ -108,9 +108,7 @@ export function SessionWatchPanel({
   // — fresher than the JSONL (which only lands a line per completed step).
   const isRunning =
     targetSession?.status === 'active' ||
-    (targetSession?.agents.some(
-      (a) => a.status === 'running' || a.status === 'streaming',
-    ) ??
+    (targetSession?.agents.some((a) => a.status === 'running' || a.status === 'streaming') ??
       false);
   const nowDoing = useMemo(() => {
     if (!targetSession) return null;
@@ -225,7 +223,11 @@ export function SessionWatchPanel({
       );
       void loadThread();
     } catch (e) {
-      setSent(i18n.t('activity:sessionWatch.sentFailed', { error: e instanceof Error ? e.message : String(e) }));
+      setSent(
+        i18n.t('activity:sessionWatch.sentFailed', {
+          error: e instanceof Error ? e.message : String(e),
+        }),
+      );
     } finally {
       setSending(false);
     }
@@ -247,7 +249,11 @@ export function SessionWatchPanel({
       setSent(i18n.t('activity:sessionWatch.interruptSent'));
       void loadThread();
     } catch (e) {
-      setSent(i18n.t('activity:sessionWatch.interruptFailed', { error: e instanceof Error ? e.message : String(e) }));
+      setSent(
+        i18n.t('activity:sessionWatch.interruptFailed', {
+          error: e instanceof Error ? e.message : String(e),
+        }),
+      );
     } finally {
       setInterrupting(false);
     }
@@ -281,7 +287,9 @@ export function SessionWatchPanel({
               title={t('activity:sessionWatch.interruptTitle')}
               className="rounded border border-destructive/40 bg-destructive/15 px-1.5 py-0.5 text-[10px] text-destructive hover:bg-destructive/25 disabled:opacity-40 transition-colors"
             >
-              {interrupting ? t('activity:sessionWatch.interrupting') : t('activity:sessionWatch.interrupt')}
+              {interrupting
+                ? t('activity:sessionWatch.interrupting')
+                : t('activity:sessionWatch.interrupt')}
             </button>
           )}
         </div>
@@ -296,7 +304,9 @@ export function SessionWatchPanel({
         className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain space-y-1.5 pr-1"
       >
         {entries.length === 0 && !error && (
-          <div className="text-[11px] text-muted-foreground italic">{t('activity:sessionWatch.loading')}</div>
+          <div className="text-[11px] text-muted-foreground italic">
+            {t('activity:sessionWatch.loading')}
+          </div>
         )}
         {entries.map((e, i) => (
           <WatchMessageBubble
@@ -329,7 +339,9 @@ export function SessionWatchPanel({
           + the agent's replies. Last few only, oldest→newest. */}
       {thread.length > 0 && (
         <div className="mt-2 pt-2 border-t border-border shrink-0 max-h-28 overflow-y-auto space-y-1">
-          <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{t('activity:mailbox.messages')}</div>
+          <div className="text-[9px] uppercase tracking-wide text-muted-foreground">
+            {t('activity:mailbox.messages')}
+          </div>
           {thread.slice(-6).map((m) => {
             const status = m.completed
               ? t('activity:sessionWatch.done')
@@ -404,7 +416,9 @@ export function SessionWatchPanel({
               }
             }}
             rows={2}
-            placeholder={t('activity:sessionWatch.placeholder', { label: t(`activity:sessionWatch.msgType.${msgType}Label`) })}
+            placeholder={t('activity:sessionWatch.placeholder', {
+              label: t(`activity:sessionWatch.msgType.${msgType}Label`),
+            })}
             className="flex-1 resize-none rounded-md bg-muted border border-border px-2 py-1 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <button
@@ -417,7 +431,9 @@ export function SessionWatchPanel({
           </button>
         </div>
         {sent && <div className="mt-1 text-[10px] text-muted-foreground">{sent}</div>}
-        <div className="mt-0.5 text-[9px] text-muted-foreground">{t('activity:sessionWatch.sendHint')}</div>
+        <div className="mt-0.5 text-[9px] text-muted-foreground">
+          {t('activity:sessionWatch.sendHint')}
+        </div>
       </div>
     </div>
   );

@@ -186,11 +186,14 @@ export class AnthropicOAuthProvider extends WireFormatProvider<AnthropicStreamSt
     this.access = opts.credentials.accessToken;
     this.refresh = opts.credentials.refreshToken;
     this.refreshFn = opts.refreshFn ?? refreshAnthropicOAuthToken;
-    this.refreshCoordinator = new OAuthRefreshCoordinator<AnthropicOAuthTokens, {
-      accessToken: string;
-      refreshToken: string;
-      expiresAt: number;
-    }>({
+    this.refreshCoordinator = new OAuthRefreshCoordinator<
+      AnthropicOAuthTokens,
+      {
+        accessToken: string;
+        refreshToken: string;
+        expiresAt: number;
+      }
+    >({
       initialRefreshKey: opts.credentials.refreshToken,
       initialExpiresAt: opts.credentials.expiresAt,
       label: 'Anthropic OAuth',

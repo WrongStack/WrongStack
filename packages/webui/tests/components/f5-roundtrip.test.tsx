@@ -4,7 +4,11 @@ import { RefreshDebugView } from '../../src/components/RefreshDebugView';
 import { DEFAULT_LANE_ID, useChatLanes } from '../../src/stores/chat-lanes';
 import { useChatStore } from '../../src/stores/chat-store';
 import { useSessionStore } from '../../src/stores/session-store';
-import { readStoredTabs, restoreOpenTabsOnBoot, useSessionTabStore } from '../../src/stores/session-tab-store';
+import {
+  readStoredTabs,
+  restoreOpenTabsOnBoot,
+  useSessionTabStore,
+} from '../../src/stores/session-tab-store';
 import { useUIStore } from '../../src/stores/ui-store';
 
 /**

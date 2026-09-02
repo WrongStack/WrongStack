@@ -3,13 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  DEFAULT_PALETTE,
-  PALETTES,
-  applyPalette,
-  getPalette,
-  isPaletteId,
-} from '@/lib/palettes';
+import { DEFAULT_PALETTE, PALETTES, applyPalette, getPalette, isPaletteId } from '@/lib/palettes';
 
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const paletteCssPath = resolve(testDirectory, '../../src/index.css');

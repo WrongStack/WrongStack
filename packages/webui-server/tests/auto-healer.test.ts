@@ -151,7 +151,11 @@ describe('auto-healer', () => {
 
   it('skips non-restartable services even when they report error', async () => {
     const collect = vi.fn(async () =>
-      report([service('webui', 'error'), service('session-catalog', 'error'), service('governance', 'error')]),
+      report([
+        service('webui', 'error'),
+        service('session-catalog', 'error'),
+        service('governance', 'error'),
+      ]),
     );
     const execute = vi.fn(async () => okResult('webui'));
     const healer = createAutoHealer({
@@ -169,12 +173,14 @@ describe('auto-healer', () => {
 
   it('escalates after maxAttempts consecutive failures and re-arms on recovery', async () => {
     const collect = vi.fn(async () => report([service('kanban', 'error')]));
-    const execute = vi.fn(async (): Promise<ServiceActionResult> => ({
-      serviceId: 'kanban',
-      action: 'restart',
-      success: false,
-      message: 'verification failed',
-    }));
+    const execute = vi.fn(
+      async (): Promise<ServiceActionResult> => ({
+        serviceId: 'kanban',
+        action: 'restart',
+        success: false,
+        message: 'verification failed',
+      }),
+    );
     const healer = createAutoHealer({
       projectRoot: () => '/project',
       indexDir: () => undefined,
@@ -315,7 +321,10 @@ describe('auto-healer', () => {
 
     await healer.tick();
     expect(events.map((e) => e.phase)).toEqual(['restarting', 'restarted']);
-    expect(events[0]).toMatchObject({ serviceId: 'kanban', message: expect.stringContaining('Auto-restarting') });
+    expect(events[0]).toMatchObject({
+      serviceId: 'kanban',
+      message: expect.stringContaining('Auto-restarting'),
+    });
   });
 
   it('emits refused when policy denies, and failed + escalated on repeated failures', async () => {
@@ -332,12 +341,14 @@ describe('auto-healer', () => {
     await denied.tick();
     expect(events.map((e) => e.phase)).toEqual(['refused']);
 
-    const failing = vi.fn(async (): Promise<ServiceActionResult> => ({
-      serviceId: 'kanban',
-      action: 'restart',
-      success: false,
-      message: 'verify failed',
-    }));
+    const failing = vi.fn(
+      async (): Promise<ServiceActionResult> => ({
+        serviceId: 'kanban',
+        action: 'restart',
+        success: false,
+        message: 'verify failed',
+      }),
+    );
     const healer = createAutoHealer({
       projectRoot: () => '/project',
       indexDir: () => undefined,
@@ -351,7 +362,14 @@ describe('auto-healer', () => {
     });
     await healer.tick();
     await healer.tick();
-    expect(events.map((e) => e.phase)).toEqual(['refused', 'restarting', 'failed', 'restarting', 'failed', 'escalated']);
+    expect(events.map((e) => e.phase)).toEqual([
+      'refused',
+      'restarting',
+      'failed',
+      'restarting',
+      'failed',
+      'escalated',
+    ]);
   });
 
   it('never starts a restart when disposal begins mid-authorization', async () => {

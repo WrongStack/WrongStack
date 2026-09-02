@@ -200,10 +200,7 @@ describe('file handlers integration', () => {
       // `.gitignore` ignores a single file at the root; `!` re-includes
       // it. Confirm the negation rule wins — last match wins is the
       // gitignore semantics the indexer matcher implements.
-      fsSync.writeFileSync(
-        path.join(tempDir, '.gitignore'),
-        'scratch.txt\n!keep.txt\n',
-      );
+      fsSync.writeFileSync(path.join(tempDir, '.gitignore'), 'scratch.txt\n!keep.txt\n');
       fsSync.writeFileSync(path.join(tempDir, 'scratch.txt'), 'tmp');
       fsSync.writeFileSync(path.join(tempDir, 'keep.txt'), 'kept');
 

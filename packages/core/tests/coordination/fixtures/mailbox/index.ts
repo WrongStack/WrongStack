@@ -68,11 +68,17 @@ export function buildV1Message(overrides: FixtureMessageOverrides = {}): Mailbox
 }
 
 /** Build a message for every declared `MailboxMessageType`. */
-export function buildAllTypeMessages(
-  base: Pick<MailboxMessage, 'from' | 'to'>,
-): MailboxMessage[] {
+export function buildAllTypeMessages(base: Pick<MailboxMessage, 'from' | 'to'>): MailboxMessage[] {
   const types: MailboxMessageType[] = [
-    'note', 'ask', 'assign', 'steer', 'btw', 'broadcast', 'status', 'result', 'review',
+    'note',
+    'ask',
+    'assign',
+    'steer',
+    'btw',
+    'broadcast',
+    'status',
+    'result',
+    'review',
     // 'control' is reserved — not included; tests that need it construct manually.
   ];
   return types.map((type, i) =>
@@ -122,7 +128,10 @@ export function buildLeadersOnlyMessage(overrides: FixtureMessageOverrides = {})
 }
 
 /** Build a message with a replyTo parent. */
-export function buildReplyMessage(parentId: string, overrides: FixtureMessageOverrides = {}): MailboxMessage {
+export function buildReplyMessage(
+  parentId: string,
+  overrides: FixtureMessageOverrides = {},
+): MailboxMessage {
   return buildV1Message({
     id: 'msg-reply',
     subject: 'reply',
@@ -132,7 +141,10 @@ export function buildReplyMessage(parentId: string, overrides: FixtureMessageOve
 }
 
 /** Build a thread of parent + N replies for replyTo query testing. */
-export function buildReplyThread(parentId: string, replyCount: number): { parent: MailboxMessage; replies: MailboxMessage[] } {
+export function buildReplyThread(
+  parentId: string,
+  replyCount: number,
+): { parent: MailboxMessage; replies: MailboxMessage[] } {
   const parent = buildV1Message({ id: parentId, subject: 'parent message' });
   const replies = Array.from({ length: replyCount }, (_, i) =>
     buildReplyMessage(`${parentId}-reply-${i}`, {
@@ -147,14 +159,20 @@ export function buildReplyThread(parentId: string, replyCount: number): { parent
 // ── Read-state messages ────────────────────────────────────────────────
 
 /** Build a message already read by one or more agents. */
-export function buildReadMessage(readers: string[], overrides: FixtureMessageOverrides = {}): MailboxMessage {
+export function buildReadMessage(
+  readers: string[],
+  overrides: FixtureMessageOverrides = {},
+): MailboxMessage {
   const readBy: Record<string, string> = {};
   for (const reader of readers) readBy[reader] = FIXTURE_TIME_PLUS_1S;
   return buildV1Message({ readBy, ...overrides });
 }
 
 /** Build a completed message (legacy global completion). */
-export function buildCompletedMessage(completedBy = 'agent-a', overrides: FixtureMessageOverrides = {}): MailboxMessage {
+export function buildCompletedMessage(
+  completedBy = 'agent-a',
+  overrides: FixtureMessageOverrides = {},
+): MailboxMessage {
   return buildV1Message({
     completed: true,
     completedBy,
@@ -166,7 +184,10 @@ export function buildCompletedMessage(completedBy = 'agent-a', overrides: Fixtur
 }
 
 /** Build a soft-deleted message. */
-export function buildDeletedMessage(deletedBy = 'operator', overrides: FixtureMessageOverrides = {}): MailboxMessage {
+export function buildDeletedMessage(
+  deletedBy = 'operator',
+  overrides: FixtureMessageOverrides = {},
+): MailboxMessage {
   return buildV1Message({
     deletedAt: FIXTURE_TIME_PLUS_1S,
     deletedBy,
@@ -176,7 +197,8 @@ export function buildDeletedMessage(deletedBy = 'operator', overrides: FixtureMe
 
 // ── Ack record builders ────────────────────────────────────────────────
 
-export interface FixtureAckOverrides extends Partial<Omit<AckRecord, '__ack' | 'messageId' | 'readerId'>> {
+export interface FixtureAckOverrides
+  extends Partial<Omit<AckRecord, '__ack' | 'messageId' | 'readerId'>> {
   messageId?: string | undefined;
   readerId?: string | undefined;
 }
@@ -221,10 +243,7 @@ export function buildDeleteAck(overrides: FixtureAckOverrides = {}): AckRecord {
  * Lines are ordered: messages first, then acks — matching the append-only
  * model where acks are appended after the message they reference.
  */
-export function buildMailboxJsonl(
-  messages: MailboxMessage[],
-  acks: AckRecord[] = [],
-): string {
+export function buildMailboxJsonl(messages: MailboxMessage[], acks: AckRecord[] = []): string {
   const msgLines = messages.map((m) => JSON.stringify(m));
   const ackLines = acks.map((a) => JSON.stringify(a));
   return [...msgLines, ...ackLines].join('\n') + '\n';
@@ -240,15 +259,31 @@ export function buildMailboxJsonl(
  * - v1 broadcast completed globally → legacyGlobalCompletion on migration
  * - v1 read receipts → actor-scoped read state
  */
-export function buildMixedV1Fixture(): { messages: MailboxMessage[]; acks: AckRecord[]; jsonl: string } {
-  const directUnread = buildV1Message({ id: 'fx-direct-unread', to: 'agent-a', subject: 'direct unread' });
-  const directRead = buildReadMessage(['agent-a'], { id: 'fx-direct-read', to: 'agent-a', subject: 'direct read' });
+export function buildMixedV1Fixture(): {
+  messages: MailboxMessage[];
+  acks: AckRecord[];
+  jsonl: string;
+} {
+  const directUnread = buildV1Message({
+    id: 'fx-direct-unread',
+    to: 'agent-a',
+    subject: 'direct unread',
+  });
+  const directRead = buildReadMessage(['agent-a'], {
+    id: 'fx-direct-read',
+    to: 'agent-a',
+    subject: 'direct read',
+  });
   const directCompleted = buildCompletedMessage('agent-a', {
     id: 'fx-direct-completed',
     to: 'agent-a',
     subject: 'direct completed',
   });
-  const broadcastUnread = buildV1Message({ id: 'fx-broadcast-unread', to: '*', subject: 'broadcast unread' });
+  const broadcastUnread = buildV1Message({
+    id: 'fx-broadcast-unread',
+    to: '*',
+    subject: 'broadcast unread',
+  });
   const broadcastCompleted = buildCompletedMessage('agent-a', {
     id: 'fx-broadcast-completed',
     to: '*',
@@ -275,13 +310,25 @@ export function buildMixedV1Fixture(): { messages: MailboxMessage[]; acks: AckRe
   // Ack records (what would have been appended to the JSONL)
   const acks: AckRecord[] = [
     // Read receipt for directRead
-    buildReadAck({ messageId: 'fx-direct-read', readerId: 'agent-a', timestamp: FIXTURE_TIME_PLUS_1S }),
+    buildReadAck({
+      messageId: 'fx-direct-read',
+      readerId: 'agent-a',
+      timestamp: FIXTURE_TIME_PLUS_1S,
+    }),
     // Completion ack for directCompleted
-    buildCompletedAck({ messageId: 'fx-direct-completed', readerId: 'agent-a', timestamp: FIXTURE_TIME_PLUS_1S }),
+    buildCompletedAck({
+      messageId: 'fx-direct-completed',
+      readerId: 'agent-a',
+      timestamp: FIXTURE_TIME_PLUS_1S,
+    }),
     // Completion ack for broadcastCompleted — this is the critical one:
     // in v1 it set global `completed: true`; in v2 it must NOT become
     // actor-scoped for agent-a because the original `to` was `*`.
-    buildCompletedAck({ messageId: 'fx-broadcast-completed', readerId: 'agent-a', timestamp: FIXTURE_TIME_PLUS_1S }),
+    buildCompletedAck({
+      messageId: 'fx-broadcast-completed',
+      readerId: 'agent-a',
+      timestamp: FIXTURE_TIME_PLUS_1S,
+    }),
   ];
 
   // Build the JSONL as it would exist on disk after these operations.
@@ -298,12 +345,14 @@ export function buildMixedV1Fixture(): { messages: MailboxMessage[]; acks: AckRe
 export function buildCorruptLineFixture(): string {
   const valid = buildV1Message({ id: 'fx-valid-1', subject: 'before corrupt' });
   const valid2 = buildV1Message({ id: 'fx-valid-2', subject: 'after corrupt' });
-  return [
-    JSON.stringify(valid),
-    '{not valid json',
-    JSON.stringify({ broken: true }),
-    JSON.stringify(valid2),
-  ].join('\n') + '\n';
+  return (
+    [
+      JSON.stringify(valid),
+      '{not valid json',
+      JSON.stringify({ broken: true }),
+      JSON.stringify(valid2),
+    ].join('\n') + '\n'
+  );
 }
 
 /**
@@ -330,7 +379,17 @@ export function buildAllSendInputs(): Array<{ label: string; input: MailboxSendI
     { label: 'broadcast', to: '*' },
   ];
 
-  const types = ['note', 'ask', 'assign', 'steer', 'btw', 'broadcast', 'status', 'result', 'review'] as const;
+  const types = [
+    'note',
+    'ask',
+    'assign',
+    'steer',
+    'btw',
+    'broadcast',
+    'status',
+    'result',
+    'review',
+  ] as const;
 
   for (const recip of recipientForms) {
     for (const type of types) {
@@ -360,7 +419,11 @@ export function buildAllSendInputs(): Array<{ label: string; input: MailboxSendI
  * Build send inputs that the current contract REJECTS.
  * Each case is labeled with the expected error fragment.
  */
-export function buildInvalidSendInputs(): Array<{ label: string; input: MailboxSendInput; errorContains: string }> {
+export function buildInvalidSendInputs(): Array<{
+  label: string;
+  input: MailboxSendInput;
+  errorContains: string;
+}> {
   return [
     {
       label: 'control-type',
@@ -379,7 +442,14 @@ export function buildInvalidSendInputs(): Array<{ label: string; input: MailboxS
     },
     {
       label: 'assign-to-session',
-      input: { from: 'a', to: '@session:sess-1', type: 'assign', subject: 's', body: 'b', senderSessionId: 'sess-1' },
+      input: {
+        from: 'a',
+        to: '@session:sess-1',
+        type: 'assign',
+        subject: 's',
+        body: 'b',
+        senderSessionId: 'sess-1',
+      },
       errorContains: 'assign',
     },
   ];

@@ -116,7 +116,7 @@ describe('subagent chat tabs', () => {
   it('collapses subagents beyond the inline budget into the +N overflow trigger', () => {
     const agents = new Map<string, SubagentView>([
       ['ldr', makeAgent('ldr', { name: 'Main' })],
-      ...(['s1', 's2', 's3', 's4', 's5'].map((id) => [id, makeAgent(id)] as const)),
+      ...['s1', 's2', 's3', 's4', 's5'].map((id) => [id, makeAgent(id)] as const),
     ]);
     useFleetStore.setState({ agents, leaderId: 'ldr' });
 
@@ -171,9 +171,9 @@ describe('subagent chat tabs', () => {
   it('keeps the bar structural with a large fleet: inline budget, +9 trigger, summary pill intact', () => {
     const agents = new Map<string, SubagentView>([
       ['ldr', makeAgent('ldr', { name: 'Main' })],
-      ...(['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12'].map(
+      ...['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12'].map(
         (id) => [id, makeAgent(id)] as const,
-      )),
+      ),
     ]);
     useFleetStore.setState({ agents, leaderId: 'ldr' });
 

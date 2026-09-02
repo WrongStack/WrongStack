@@ -119,7 +119,12 @@ export function RefineFailurePanel({
         return;
       }
       // Printable ASCII → extend the search query
-      if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
+      if (
+        input &&
+        input.length === 1 &&
+        input.charCodeAt(0) >= 0x20 &&
+        input.charCodeAt(0) < 0x7f
+      ) {
         setQuery((q) => q + input);
         setCursor(0);
         return;
@@ -147,10 +152,7 @@ export function RefineFailurePanel({
 
   if (view === 'pick') {
     const total = filteredModels.length;
-    const start = Math.max(
-      0,
-      Math.min(cursor - Math.floor(PICK_WINDOW / 2), total - PICK_WINDOW),
-    );
+    const start = Math.max(0, Math.min(cursor - Math.floor(PICK_WINDOW / 2), total - PICK_WINDOW));
     const windowStart = Math.max(0, start);
     const visible = filteredModels.slice(windowStart, windowStart + PICK_WINDOW);
     return (
@@ -173,9 +175,7 @@ export function RefineFailurePanel({
           </Text>
         </Box>
         <Box height={1} marginTop={1}>
-          <Text color={theme.textMuted}>
-            {query ? `🔍 ${query} ` : '🔍 type to filter'}
-          </Text>
+          <Text color={theme.textMuted}>{query ? `🔍 ${query} ` : '🔍 type to filter'}</Text>
         </Box>
         {total === 0 ? (
           <Box height={1} marginTop={1}>

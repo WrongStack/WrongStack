@@ -52,7 +52,10 @@ describe('formatSubagentCompletionText', () => {
         iterations: 5,
         toolCalls: 40,
         durationMs: 30_000,
-        error: { kind: 'budget_tool_calls', message: 'Budget exceeded: tool_calls (limit=20, observed=21)' },
+        error: {
+          kind: 'budget_tool_calls',
+          message: 'Budget exceeded: tool_calls (limit=20, observed=21)',
+        },
       }),
     ).toBe('hit tool-call budget · 5 iter · 40 tools · 30s');
   });

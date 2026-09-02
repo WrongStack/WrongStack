@@ -14,9 +14,7 @@ describe('SAGE project server identity', () => {
     const equivalent = path.join(absolute, '..', 'project-server', '.');
 
     expect(sageProjectServerKey(absolute)).toBe(sageProjectServerKey(equivalent));
-    expect(sageProjectServerEndpoint(absolute)).toBe(
-      sageProjectServerEndpoint(equivalent),
-    );
+    expect(sageProjectServerEndpoint(absolute)).toBe(sageProjectServerEndpoint(equivalent));
   });
 
   it('includes an explicit storage directory in server identity', () => {
@@ -42,9 +40,7 @@ describe('SAGE project server identity', () => {
       await fs.writeFile(path.join(linkedGitDir, 'commondir'), '../..\n');
 
       expect(sageProjectServerEndpoint(linked)).toBe(sageProjectServerEndpoint(main));
-      expect(resolveProjectSageStorageRoot(linked)).toBe(
-        resolveProjectSageStorageRoot(main),
-      );
+      expect(resolveProjectSageStorageRoot(linked)).toBe(resolveProjectSageStorageRoot(main));
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }

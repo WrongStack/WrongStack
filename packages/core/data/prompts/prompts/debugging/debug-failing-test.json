@@ -5,11 +5,7 @@
   "description": "Figure out why a specific test fails and whether the test or the code is wrong.",
   "content": "This test is failing:\n\n```\n{{test_and_output}}\n```\n\nDetermine:\n1. Is the test asserting the right thing, or is the test itself wrong?\n2. What is the actual vs. expected value, and where they diverge.\n3. The smallest change that makes it pass for the *right* reason.\n4. Whether it might be flaky (timing, ordering, shared state) rather than a real failure.",
   "category": "debugging",
-  "tags": [
-    "test",
-    "ci",
-    "flaky"
-  ],
+  "tags": ["test", "ci", "flaky"],
   "source": "builtin",
   "favorite": false,
   "checksum": "05690158a0d09815c8d694b621572b37e81b002d61a592952e87ed0c622d3a7a",

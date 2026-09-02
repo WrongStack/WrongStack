@@ -15,10 +15,7 @@ import {
   CLIENT_COLLABORATION_MESSAGE_TYPES,
   CLIENT_CONVERSATION_MESSAGE_TYPES,
 } from '../src/client-conversation.js';
-import {
-  CLIENT_GOAL_MESSAGE_TYPES,
-  CLIENT_SDD_MESSAGE_TYPES,
-} from '../src/client-operations.js';
+import { CLIENT_GOAL_MESSAGE_TYPES, CLIENT_SDD_MESSAGE_TYPES } from '../src/client-operations.js';
 import {
   CLIENT_CONFIGURATION_MESSAGE_TYPES,
   CLIENT_WORKSPACE_MESSAGE_TYPES,

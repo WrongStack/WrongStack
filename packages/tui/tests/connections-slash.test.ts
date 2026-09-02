@@ -14,7 +14,12 @@ describe('createConnectionsSlashCommand', () => {
   it('opens panel on bare /connections and returns empty message', async () => {
     let dispatched = '';
     const cmd = createConnectionsSlashCommand({
-      onPanelOpen: { current: (action: string) => { dispatched = action; return true; } },
+      onPanelOpen: {
+        current: (action: string) => {
+          dispatched = action;
+          return true;
+        },
+      },
     });
     const message = await runMessage(cmd, '');
     expect(dispatched).toBe('toggleConnectionsPanel');
@@ -24,7 +29,12 @@ describe('createConnectionsSlashCommand', () => {
   it('opens panel on /connections open', async () => {
     let dispatched = '';
     const cmd = createConnectionsSlashCommand({
-      onPanelOpen: { current: (action: string) => { dispatched = action; return true; } },
+      onPanelOpen: {
+        current: (action: string) => {
+          dispatched = action;
+          return true;
+        },
+      },
     });
     const message = await runMessage(cmd, 'open');
     expect(dispatched).toBe('toggleConnectionsPanel');

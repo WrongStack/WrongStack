@@ -26,7 +26,9 @@ describe('chime — SSR guard (line 16)', () => {
     Object.defineProperty(globalThis, 'AudioContext', {
       configurable: true,
       value: class Throws {
-        constructor() { throw new Error('no audio'); }
+        constructor() {
+          throw new Error('no audio');
+        }
       },
     });
     const { playCompletionChime, playPermissionChime } = await import('../../src/lib/chime');

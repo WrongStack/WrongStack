@@ -8,7 +8,11 @@ const prDrafterPlugin = (await import('../src/pr-drafter')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
   onPattern: ReturnType<typeof vi.fn>;
@@ -41,7 +45,11 @@ describe('pr-drafter extra coverage', () => {
   it('health() returns active state with zero counters', async () => {
     const api = makeApi();
     prDrafterPlugin.setup(api as never);
-    const h = await prDrafterPlugin.health!() as { ok: boolean; message: string; counters: Record<string, number> };
+    const h = (await prDrafterPlugin.health!()) as {
+      ok: boolean;
+      message: string;
+      counters: Record<string, number>;
+    };
     expect(h.ok).toBe(true);
     expect(h.message).toContain('0 commit(s)');
     expect(h.counters.commits).toBe(0);
@@ -51,7 +59,7 @@ describe('pr-drafter extra coverage', () => {
     const api = makeApi({ extensions: { 'pr-drafter': null } });
     prDrafterPlugin.setup(api as never);
     const tool = getTool(api, 'pr_draft');
-    const result = await tool({ preview: true }) as { ok: boolean; body: string };
+    const result = (await tool({ preview: true })) as { ok: boolean; body: string };
     expect(result.ok).toBe(true);
     expect(result.body).toContain('# PR Draft');
   });
@@ -59,7 +67,10 @@ describe('pr-drafter extra coverage', () => {
   it('onPattern handler records git_autocommit and write/edit tool calls', async () => {
     const api = makeApi();
     prDrafterPlugin.setup(api as never);
-    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (event: string, payload: unknown) => void;
+    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (
+      event: string,
+      payload: unknown,
+    ) => void;
     expect(onPatternHandler).toBeDefined();
 
     // Simulate git_autocommit
@@ -80,7 +91,10 @@ describe('pr-drafter extra coverage', () => {
       input: { path: 'src/utils.ts' },
     });
 
-    const h = await prDrafterPlugin.health!() as { counters: Record<string, number>; message: string };
+    const h = (await prDrafterPlugin.health!()) as {
+      counters: Record<string, number>;
+      message: string;
+    };
     expect(h.counters.commits).toBe(1);
     // 3 tool.completed events: git_autocommit + write + edit
     expect(h.counters.toolCalls).toBe(3);
@@ -90,7 +104,10 @@ describe('pr-drafter extra coverage', () => {
   it('onPattern handler handles null/empty payload gracefully', async () => {
     const api = makeApi();
     prDrafterPlugin.setup(api as never);
-    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (event: string, payload: unknown) => void;
+    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (
+      event: string,
+      payload: unknown,
+    ) => void;
     expect(() => onPatternHandler('tool.completed', null)).not.toThrow();
     expect(() => onPatternHandler('tool.completed', {})).not.toThrow();
     expect(() => onPatternHandler('tool.completed', { tool: 'write' })).not.toThrow();
@@ -110,7 +127,7 @@ describe('pr-drafter extra coverage', () => {
       usage: { input: 200, output: 100 },
     });
 
-    const h = await prDrafterPlugin.health!() as { counters: Record<string, number> };
+    const h = (await prDrafterPlugin.health!()) as { counters: Record<string, number> };
     // onEvent handler doesn't increment toolCalls, but records models/tokens
     expect(h.counters.toolCalls).toBe(0); // toolCalls is only for onPattern
   });
@@ -126,13 +143,16 @@ describe('pr-drafter extra coverage', () => {
   it('onPattern handler has null payload protection for path access', async () => {
     const api = makeApi();
     prDrafterPlugin.setup(api as never);
-    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (event: string, payload: unknown) => void;
+    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (
+      event: string,
+      payload: unknown,
+    ) => void;
 
     // Payload with no input should not throw
     onPatternHandler('tool.completed', { tool: 'write' });
     onPatternHandler('tool.completed', { tool: 'edit', input: null });
 
-    const h = await prDrafterPlugin.health!() as { counters: Record<string, number> };
+    const h = (await prDrafterPlugin.health!()) as { counters: Record<string, number> };
     // The handler should have safely handled these
     expect(h.counters.toolCalls).toBe(2);
   });
@@ -158,7 +178,9 @@ describe('pr-drafter extra coverage', () => {
 
   it('teardown handles unsub throwing', async () => {
     const api = makeApi();
-    api.onPattern = vi.fn(() => { throw new Error('unsub fails'); });
+    api.onPattern = vi.fn(() => {
+      throw new Error('unsub fails');
+    });
     prDrafterPlugin.teardown!(api as never);
     expect(api.log.info).toHaveBeenCalled();
   });

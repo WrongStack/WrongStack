@@ -89,12 +89,11 @@ function readConfig(raw: unknown): ConfigValidatorConfig {
     extensions: Array.isArray(rawExts)
       ? rawExts
           .filter((e): e is string => typeof e === 'string' && e.trim().length > 0)
-          .map((e) => (e.trim().startsWith('.') ? e.trim().toLowerCase() : `.${e.trim().toLowerCase()}`))
+          .map((e) =>
+            e.trim().startsWith('.') ? e.trim().toLowerCase() : `.${e.trim().toLowerCase()}`,
+          )
       : [...DEFAULT_EXTENSIONS],
-    maxFileBytes:
-      typeof rawMax === 'number' && rawMax >= 1024
-        ? rawMax
-        : DEFAULTS.maxFileBytes,
+    maxFileBytes: typeof rawMax === 'number' && rawMax >= 1024 ? rawMax : DEFAULTS.maxFileBytes,
   };
 }
 
@@ -462,7 +461,9 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook as never, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook as never, {
+      background: true,
+    });
 
     // ── config_validator_status tool ──────────────────────────────────
     api.tools.register({

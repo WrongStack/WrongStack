@@ -472,7 +472,9 @@ const plugin: Plugin = {
 
         const raw = (input ?? {}) as Record<string, unknown>;
         const rawPath =
-          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof input.path === 'string' && input.path.trim().length > 0
+            ? input.path.trim()
+            : undefined) ??
           (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
           (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
           (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??

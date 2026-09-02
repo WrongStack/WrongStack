@@ -69,7 +69,13 @@ describe('makeFleetStatusTool', () => {
     const tool = makeFleetStatusTool({ resolveMailbox: () => mailbox });
     const ctx = mockCtx({ meta: { agentId: 'leader' } });
     const res = (await tool.execute({}, ctx as never, {} as never)) as {
-      agents: { name: string; you: boolean; status: string; currentTask?: string; toolCalls: number }[];
+      agents: {
+        name: string;
+        you: boolean;
+        status: string;
+        currentTask?: string;
+        toolCalls: number;
+      }[];
       onlineCount: number;
       summary: string;
     };
@@ -109,11 +115,28 @@ describe('makeFleetStatusTool', () => {
       resolveMailbox: () => mailbox,
       getLocalAgents: () => local,
     });
-    const res = (await tool.execute({}, mockCtx({ meta: { agentId: 'leader' } }) as never, {} as never)) as {
-      agents: { name: string; currentTool?: string; iterations: number; toolCalls: number; ctxPct?: number; costUsd?: number }[];
+    const res = (await tool.execute(
+      {},
+      mockCtx({ meta: { agentId: 'leader' } }) as never,
+      {} as never,
+    )) as {
+      agents: {
+        name: string;
+        currentTool?: string;
+        iterations: number;
+        toolCalls: number;
+        ctxPct?: number;
+        costUsd?: number;
+      }[];
     };
     const peer = res.agents.find((a) => a.name === 'Curie');
-    expect(peer).toMatchObject({ currentTool: 'grep', iterations: 9, toolCalls: 33, ctxPct: 61, costUsd: 0.42 });
+    expect(peer).toMatchObject({
+      currentTool: 'grep',
+      iterations: 9,
+      toolCalls: 33,
+      ctxPct: 61,
+      costUsd: 0.42,
+    });
   });
 
   it('is read-only metadata-wise', () => {

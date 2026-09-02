@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  parseNextSteps,
-  stripNextStepsBlock,
-} from '@wrongstack/tools/next-steps';
+import { parseNextSteps, stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 
 /**
  * Tests for the canonical `<nextsteps>` block parser that the

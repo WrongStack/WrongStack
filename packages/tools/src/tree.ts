@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool, ToolProgressEvent, ToolStreamEvent } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { DEFAULT_WALK_IGNORE_DIRS, compileGlob, expectDefined } from '@wrongstack/core/utils';
 import { safeResolveReal } from './_util.js';
 
@@ -107,13 +108,31 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<TreeOutput>> {
     const basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
-    const maxDepth = input.depth ?? 3;
+    const maxDepth =
+      typeof input.depth === 'number' && Number.isFinite(input.depth) && input.depth >= 0
+        ? Math.floor(input.depth)
+        : 3;
     const showFiles = input.show_files ?? true;
     const showDirs = input.show_dirs ?? true;
     const showHidden = input.show_hidden ?? false;
-    const exclude = new Set([...DEFAULT_IGNORE, ...(input.exclude ?? [])]);
+    const exclude = new Set([
+      ...DEFAULT_IGNORE,
+      ...(input.exclude ?? [])
+        .map((s) =>
+          s
+            .trim()
+            .replace(/[\\/]+$/, '')
+            .replace(/^\.\//, ''),
+        )
+        .filter(Boolean),
+    ]);
     const globRe = input.glob ? compileGlob(input.glob) : undefined;
-    const maxEntries = input.max_entries ?? DEFAULT_MAX_ENTRIES;
+    const maxEntries =
+      typeof input.max_entries === 'number' &&
+      Number.isFinite(input.max_entries) &&
+      input.max_entries > 0
+        ? Math.floor(input.max_entries)
+        : DEFAULT_MAX_ENTRIES;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
 
@@ -200,7 +219,12 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
 };
 
 /** Match a tree glob against the basename and a POSIX project-relative path. */
-function matchesTreeGlob(globRe: RegExp, fileName: string, absPath: string, basePath: string): boolean {
+function matchesTreeGlob(
+  globRe: RegExp,
+  fileName: string,
+  absPath: string,
+  basePath: string,
+): boolean {
   globRe.lastIndex = 0;
   if (globRe.test(fileName)) {
     globRe.lastIndex = 0;
@@ -251,6 +275,8 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
   const filtered = entries.filter((e) => {
     if (!opts.showHidden && e.name.startsWith('.')) return false;
     if (opts.exclude.has(e.name)) return false;
+    const rel = path.relative(opts.basePath, path.join(dir, e.name)).split(path.sep).join('/');
+    if (opts.exclude.has(rel)) return false;
     if (e.isFile() && opts.globRe) {
       const abs = path.join(dir, e.name);
       if (!matchesTreeGlob(opts.globRe, e.name, abs, opts.basePath)) return false;
@@ -291,8 +317,9 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
     const branch = isLast ? '└── ' : '├── ';
     const displayName = entry.name + (entry.isDirectory() ? '/' : '');
 
-    if (!opts.showDirs && entry.isDirectory()) continue;
-    if (!opts.showFiles && entry.isFile()) continue;
+    const isDir = entry.isDirectory();
+    if (!opts.showDirs && isDir) continue;
+    if (!opts.showFiles && !isDir) continue;
 
     const line = opts.prefix + branch + displayName;
     const lineBytes = Buffer.byteLength(line, 'utf8') + 1;

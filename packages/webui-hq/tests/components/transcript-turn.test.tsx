@@ -120,9 +120,9 @@ describe('tool cards', () => {
   it('marks a numbered read as no-wrap so the gutter stays aligned', () => {
     const host = render(toolEntry);
     act(() => host.querySelector<HTMLButtonElement>('[data-testid="tool-head"]')?.click());
-    expect(
-      host.querySelector('[data-testid="tool-result-pre"]')?.getAttribute('data-wrap'),
-    ).toBe('false');
+    expect(host.querySelector('[data-testid="tool-result-pre"]')?.getAttribute('data-wrap')).toBe(
+      'false',
+    );
   });
 
   it('shows ok / error status', () => {
@@ -147,7 +147,12 @@ describe('tool cards', () => {
     // The server merges a failure into the args entry with role 'error', but
     // it still carries the tool name and input.
     const host = render(
-      entry({ role: 'error', tool: 'Bash', toolInput: '{"command":"ls"}', text: 'permission denied' }),
+      entry({
+        role: 'error',
+        tool: 'Bash',
+        toolInput: '{"command":"ls"}',
+        text: 'permission denied',
+      }),
     );
     expect(role(host)).toBe('tool');
     expect(host.querySelector('[data-testid="tool-name"]')?.textContent).toBe('Bash');

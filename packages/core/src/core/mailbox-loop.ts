@@ -84,11 +84,11 @@ export interface MailboxLoopOptions {
   broadcastFloor?: string | undefined;
 }
 
-export function createMailboxChecker(
-  opts: MailboxLoopOptions,
-): () => Promise<MailboxMessage[]> {
-  const getMailbox = typeof opts.mailbox === 'function' ? opts.mailbox : () => opts.mailbox as Mailbox;
-  const currentId = typeof opts.agentId === 'function' ? opts.agentId : () => opts.agentId as string;
+export function createMailboxChecker(opts: MailboxLoopOptions): () => Promise<MailboxMessage[]> {
+  const getMailbox =
+    typeof opts.mailbox === 'function' ? opts.mailbox : () => opts.mailbox as Mailbox;
+  const currentId =
+    typeof opts.agentId === 'function' ? opts.agentId : () => opts.agentId as string;
   const currentSessionId =
     typeof opts.sessionId === 'function' ? opts.sessionId : () => opts.sessionId;
   const currentRole: () => string | undefined =
@@ -113,7 +113,9 @@ export function createMailboxChecker(
       // each query and are deduped below). Receipts always use the unique id.
       const batches = await Promise.all(
         targets.map((to) =>
-          mailbox.query({ to, unreadBy: agentId, readerRole: role, limit: 10 }).catch(() => [] as MailboxMessage[]),
+          mailbox
+            .query({ to, unreadBy: agentId, readerRole: role, limit: 10 })
+            .catch(() => [] as MailboxMessage[]),
         ),
       );
       const seen = new Set<string>();
@@ -135,9 +137,7 @@ export function createMailboxChecker(
       }
 
       // Filter out already-injected and completed messages
-      const fresh = messages.filter(
-        (m) => !injectedIds.has(m.id) && !m.completed,
-      );
+      const fresh = messages.filter((m) => !injectedIds.has(m.id) && !m.completed);
 
       // Track as injected
       for (const m of fresh) {
@@ -198,13 +198,15 @@ const TYPE_LABEL: Partial<Record<MailboxMessage['type'], string>> = {
  * guidance — no fallthrough to an empty string.
  */
 const TYPE_GUIDANCE: Record<MailboxMessageType, string> = {
-  steer: 'After your current operation reaches a stopping point, adjust your approach per the instruction above.',
+  steer:
+    'After your current operation reaches a stopping point, adjust your approach per the instruction above.',
   ask: 'This agent is waiting for your answer. Reply directly or use mailbox action=send to respond.',
   assign: 'This is a task assignment. Act on it when your current operation allows.',
   result: 'A subagent has completed its work. Factor this result into your next decision.',
   btw: 'FYI only — absorb the information and stay on your current task; no reply needed.',
   status: 'Peer status update — use it to avoid duplicate or conflicting work; no reply needed.',
-  review: 'This is a review request. Inspect the referenced code/doc/PR when convenient; an immediate reply is not required.',
+  review:
+    'This is a review request. Inspect the referenced code/doc/PR when convenient; an immediate reply is not required.',
   note: 'Read for context; no reply needed.',
   broadcast: 'Broadcast message. Read for context; no reply needed.',
   control: '', // control never reaches this rendering path — see injectPendingMailboxMessages
@@ -213,12 +215,7 @@ const TYPE_GUIDANCE: Record<MailboxMessageType, string> = {
 // Keep receive-side dispatch policy in the core layer. Importing the
 // coordination layer's runtime policy table here creates a core ↔ coordination
 // dependency cycle; the message union remains a type-only contract.
-const ACTION_FOOTER_TYPES = new Set<MailboxMessageType>([
-  'ask',
-  'assign',
-  'result',
-  'review',
-]);
+const ACTION_FOOTER_TYPES = new Set<MailboxMessageType>(['ask', 'assign', 'result', 'review']);
 const BACKGROUND_DELIVERY_TYPES = new Set<MailboxMessageType>([
   'steer',
   'ask',
@@ -228,8 +225,12 @@ const BACKGROUND_DELIVERY_TYPES = new Set<MailboxMessageType>([
 ]);
 const OUT_OF_BAND_TYPES = new Set<MailboxMessageType>(['control']);
 
-export function buildMailboxBtwAwarenessBlock(messages: MailboxMessage[]): { type: 'text'; text: string } {
-  if (messages.length === 0) throw new Error('buildMailboxBtwAwarenessBlock called with empty messages');
+export function buildMailboxBtwAwarenessBlock(messages: MailboxMessage[]): {
+  type: 'text';
+  text: string;
+} {
+  if (messages.length === 0)
+    throw new Error('buildMailboxBtwAwarenessBlock called with empty messages');
 
   const parts: string[] = [];
   parts.push('[MAILBOX BTW] Mailbox awareness update:');
@@ -249,7 +250,9 @@ export function buildMailboxBtwAwarenessBlock(messages: MailboxMessage[]): { typ
     parts.push('');
   }
 
-  parts.push('This raw awareness block is request-scoped; absorb it once without quoting or restating it.');
+  parts.push(
+    'This raw awareness block is request-scoped; absorb it once without quoting or restating it.',
+  );
   parts.push('');
   parts.push('[END MAILBOX BTW]');
   return { type: 'text', text: parts.join('\n') };
@@ -296,7 +299,9 @@ export function buildMailboxBlock(messages: MailboxMessage[]): { type: 'text'; t
   }
 
   if (hasActionable) {
-    parts.push('Action required: address the items above. When done, use `mailbox action=ack messageId=<id> completed=true` to mark them complete.');
+    parts.push(
+      'Action required: address the items above. When done, use `mailbox action=ack messageId=<id> completed=true` to mark them complete.',
+    );
     parts.push('');
   }
 
@@ -356,7 +361,9 @@ export function removeInjectedMailboxBlocks(
     next.push({ ...rest, content });
   }
 
-  return changed ? { messages: next, changed: true } : { messages: messages as Message[], changed: false };
+  return changed
+    ? { messages: next, changed: true }
+    : { messages: messages as Message[], changed: false };
 }
 
 // ── Integration hooks ────────────────────────────────────────────────────
@@ -377,7 +384,10 @@ export type MailboxDeliveryMode = 'inline' | 'background';
 export async function injectPendingMailboxMessages(
   checkMailbox: () => Promise<MailboxMessage[]>,
   foldFn: (block: { type: 'text'; text: string }) => void,
-  a: { events: { emit: (type: string, payload: unknown) => void }; logger: { debug?: (...args: unknown[]) => void } },
+  a: {
+    events: { emit: (type: string, payload: unknown) => void };
+    logger: { debug?: (...args: unknown[]) => void };
+  },
   deliveryMode: MailboxDeliveryMode = 'inline',
 ): Promise<MailboxInjectResult> {
   let messages: MailboxMessage[];
@@ -412,7 +422,9 @@ export async function injectPendingMailboxMessages(
       : content;
 
   if (deliveredContent.length > 0) {
-    try { foldFn(buildMailboxBlock(deliveredContent)); } catch (err) {
+    try {
+      foldFn(buildMailboxBlock(deliveredContent));
+    } catch (err) {
       (a.logger.debug ?? console.debug)?.(
         `mailbox: failed to fold messages: ${toErrorMessage(err)}`,
       );
@@ -421,10 +433,13 @@ export async function injectPendingMailboxMessages(
 
   // An interrupt control message (subject/body naming a stop) asks the loop to
   // halt cooperatively at the next iteration boundary.
-  const interruptMsg = outOfBand.find(
-    (m) => /\b(interrupt|stop|halt|abort|cancel)\b/i.test(`${m.subject} ${m.body}`),
+  const interruptMsg = outOfBand.find((m) =>
+    /\b(interrupt|stop|halt|abort|cancel)\b/i.test(`${m.subject} ${m.body}`),
   );
   return interruptMsg
-    ? { interrupt: true, interruptReason: interruptMsg.body || interruptMsg.subject || 'operator interrupt' }
+    ? {
+        interrupt: true,
+        interruptReason: interruptMsg.body || interruptMsg.subject || 'operator interrupt',
+      }
     : { interrupt: false };
 }

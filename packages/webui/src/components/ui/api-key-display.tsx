@@ -42,11 +42,7 @@ export function ApiKeyDisplay({ maskedKey, className }: ApiKeyDisplayProps) {
         title={copied ? 'Copied' : 'Copy key preview'}
         aria-label={t('activity:apikeydisplay.copyApiKeyToClipboard')}
       >
-        {copied ? (
-          <Check className="h-3 w-3 text-success" />
-        ) : (
-          <Copy className="h-3 w-3" />
-        )}
+        {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
       </button>
     </div>
   );

@@ -110,7 +110,9 @@ export function SessionSwitcher(props: SessionSwitcherProps): React.JSX.Element 
                       )}
                       <span className="session-menu-copy">
                         <b>{sessionDisplayName(item)}</b>
-                        {item.lastUserMessage ? <small title={item.lastUserMessage}>{item.lastUserMessage}</small> : null}
+                        {item.lastUserMessage ? (
+                          <small title={item.lastUserMessage}>{item.lastUserMessage}</small>
+                        ) : null}
                         <small>
                           {[
                             item.provider,

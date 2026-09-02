@@ -260,9 +260,10 @@ describe('topic advice session ownership', () => {
         },
       ]),
     );
-    const getAgent = vi.fn((id?: string) =>
-      (agents.get((id ?? 'sess_front') as 'sess_front' | 'sess_bg') ??
-        agents.get('sess_front')) as never,
+    const getAgent = vi.fn(
+      (id?: string) =>
+        (agents.get((id ?? 'sess_front') as 'sess_front' | 'sess_bg') ??
+          agents.get('sess_front')) as never,
     );
     const routes = createConversationOperations({
       getAgent,

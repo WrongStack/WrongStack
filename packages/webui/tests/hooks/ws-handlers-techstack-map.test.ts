@@ -110,7 +110,10 @@ describe('techstack ws-handler map', () => {
       ['non-numeric completed', { jobId: 'j1', phase: 'p', completed: '1', total: 2 }],
       ['non-numeric total', { jobId: 'j1', phase: 'p', completed: 1, total: null }],
       ['NaN completed', { jobId: 'j1', phase: 'p', completed: Number.NaN, total: 2 }],
-      ['Infinite total', { jobId: 'j1', phase: 'p', completed: 1, total: Number.POSITIVE_INFINITY }],
+      [
+        'Infinite total',
+        { jobId: 'j1', phase: 'p', completed: 1, total: Number.POSITIVE_INFINITY },
+      ],
       ['missing counters', { jobId: 'j1', phase: 'p' }],
     ])('ignores a frame with %s', (_label, payload) => {
       const spy = vi.fn();
@@ -154,9 +157,7 @@ describe('techstack ws-handler map', () => {
       const spy = vi.fn();
       useTechStackStore.setState({ setSnapshot: spy } as never);
       const snapshot = { generatedAt: 1, workspaces: [] };
-      handleTechStackSnapshotUpdated(
-        msg('techstack.snapshot.updated', { snapshot, stale: true }),
-      );
+      handleTechStackSnapshotUpdated(msg('techstack.snapshot.updated', { snapshot, stale: true }));
       expect(spy).toHaveBeenCalledWith(snapshot, true);
     });
 

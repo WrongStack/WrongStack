@@ -144,24 +144,15 @@ export function readIdentifierAt(
   }
 }
 
-export function toProjectRelative(
-  projectRoot: string,
-  cwd: string,
-  inputPath: string,
-): string {
-  const abs = path.isAbsolute(inputPath)
-    ? path.resolve(inputPath)
-    : path.resolve(cwd, inputPath);
+export function toProjectRelative(projectRoot: string, cwd: string, inputPath: string): string {
+  const abs = path.isAbsolute(inputPath) ? path.resolve(inputPath) : path.resolve(cwd, inputPath);
   const rel = path.relative(projectRoot, abs);
   if (rel.startsWith('..') || path.isAbsolute(rel)) return normalizeRelPath(inputPath);
   return normalizeRelPath(rel || '.');
 }
 
 function stripQuotes(s: string): string {
-  if (
-    (s.startsWith('"') && s.endsWith('"')) ||
-    (s.startsWith("'") && s.endsWith("'"))
-  ) {
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
     return s.slice(1, -1);
   }
   return s;

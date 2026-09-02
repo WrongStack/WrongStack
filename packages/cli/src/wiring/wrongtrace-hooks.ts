@@ -4,11 +4,11 @@
  * shared by every host process that executes tools.
  */
 
-export { createWrongTraceHookPair } from '@wrongstack/wrongtrace';;
+export { createWrongTraceHookPair } from '@wrongstack/wrongtrace';
 export type {
   WrongTraceGateDecisionEvent,
   WrongTraceHookInput,
   WrongTraceHookOptions,
   WrongTraceHookPair,
   WrongTracePreToolUseOutcome,
-} from "@wrongstack/wrongtrace";
+} from '@wrongstack/wrongtrace';

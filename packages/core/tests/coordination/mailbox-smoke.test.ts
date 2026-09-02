@@ -8,7 +8,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
-import { makeMailboxTool , mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
+import { makeMailboxTool, mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
 import { makeDependencyWatcherConfig } from '../../src/coordination/dep-watcher.js';
 
 describe('mailbox end-to-end smoke test', () => {
@@ -73,10 +73,7 @@ describe('mailbox end-to-end smoke test', () => {
       agentId: 'tech-stack',
     });
 
-    const checkResult = await techStackTool.execute(
-      { action: 'check' },
-      mockCtx as any,
-    );
+    const checkResult = await techStackTool.execute({ action: 'check' }, mockCtx as any);
 
     expect(checkResult.ok).toBe(true);
     expect(checkResult.count).toBeGreaterThanOrEqual(1);
@@ -118,7 +115,6 @@ describe('mailbox end-to-end smoke test', () => {
     const assignMsgs = await mailbox.query({ type: 'assign' });
     const completedAssign = assignMsgs.find((m) => m.completed);
     expect(completedAssign).toBeDefined();
-
   });
 
   it('mailbox status discovers agents across the fleet', async () => {
@@ -126,22 +122,33 @@ describe('mailbox end-to-end smoke test', () => {
     const tool1 = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'worker-1' });
     const tool2 = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'worker-2' });
 
-    await tool1.execute({
-      action: 'send', to: '*', type: 'status',
-      subject: 'Auditing package.json', body: '',
-    }, mockCtx as any);
+    await tool1.execute(
+      {
+        action: 'send',
+        to: '*',
+        type: 'status',
+        subject: 'Auditing package.json',
+        body: '',
+      },
+      mockCtx as any,
+    );
 
-    await tool2.execute({
-      action: 'send', to: '*', type: 'status',
-      subject: 'Scanning for bugs', body: '',
-    }, mockCtx as any);
+    await tool2.execute(
+      {
+        action: 'send',
+        to: '*',
+        type: 'status',
+        subject: 'Scanning for bugs',
+        body: '',
+      },
+      mockCtx as any,
+    );
 
     // Director checks status
     const dirTool = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'director' });
     const statusResult = await dirTool.execute({ action: 'status' }, mockCtx as any);
     expect(statusResult.ok).toBe(true);
     expect(statusResult.count).toBeGreaterThanOrEqual(2);
-
   });
 
   it('cross-session: two sessions share the same project mailbox', async () => {
@@ -153,19 +160,31 @@ describe('mailbox end-to-end smoke test', () => {
     const mbA = new SqliteMailbox(projectDir);
     extraStores.push(mbA);
     const toolA = makeMailboxTool({ resolveMailbox: () => mbA, agentId: 'leader-sessA' });
-    const ctxA = { meta: { sessionId: 'sess-A', agentId: 'leader-sessA', agentName: 'Leader A' }, session: { id: 'sess-A' } };
+    const ctxA = {
+      meta: { sessionId: 'sess-A', agentId: 'leader-sessA', agentName: 'Leader A' },
+      session: { id: 'sess-A' },
+    };
 
     // Session B — terminal 2
     const mbB = new SqliteMailbox(projectDir);
     extraStores.push(mbB);
     const toolB = makeMailboxTool({ resolveMailbox: () => mbB, agentId: 'leader-sessB' });
-    const ctxB = { meta: { sessionId: 'sess-B', agentId: 'leader-sessB', agentName: 'Leader B' }, session: { id: 'sess-B' } };
+    const ctxB = {
+      meta: { sessionId: 'sess-B', agentId: 'leader-sessB', agentName: 'Leader B' },
+      session: { id: 'sess-B' },
+    };
 
     // Session A sends a message to session B's leader
-    const sendResult = await toolA.execute({
-      action: 'send', to: 'leader-sessB', type: 'ask',
-      subject: 'Cross-session test', body: 'Can you see this from another terminal?',
-    }, ctxA as any);
+    const sendResult = await toolA.execute(
+      {
+        action: 'send',
+        to: 'leader-sessB',
+        type: 'ask',
+        subject: 'Cross-session test',
+        body: 'Can you see this from another terminal?',
+      },
+      ctxA as any,
+    );
     expect(sendResult.ok).toBe(true);
 
     // Session B checks mailbox — should see the message
@@ -179,10 +198,16 @@ describe('mailbox end-to-end smoke test', () => {
     expect(msg.readByMe).toBe(true); // auto-read on check
 
     // Session B replies
-    const replyResult = await toolB.execute({
-      action: 'send', to: 'leader-sessA', type: 'result',
-      subject: 'Re: Cross-session test', body: 'Yes, got it!',
-    }, ctxB as any);
+    const replyResult = await toolB.execute(
+      {
+        action: 'send',
+        to: 'leader-sessA',
+        type: 'result',
+        subject: 'Re: Cross-session test',
+        body: 'Yes, got it!',
+      },
+      ctxB as any,
+    );
     expect(replyResult.ok).toBe(true);
 
     // Session A checks — should see the reply
@@ -202,7 +227,6 @@ describe('mailbox end-to-end smoke test', () => {
     const unreadA = await toolA.execute({ action: 'unread' }, ctxA as any);
     expect(unreadA.ok).toBe(true);
     expect(typeof unreadA.count).toBe('number');
-
   });
 
   it('dep-watcher-bridge: file-watcher event → mailbox notification', async () => {
@@ -276,6 +300,5 @@ describe('mailbox end-to-end smoke test', () => {
     expect(allMsgs.length).toBe(1); // still just the one package.json message
 
     dispose();
-
   });
 });

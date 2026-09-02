@@ -18,7 +18,8 @@ function audio(): AudioContext | null {
   // SSR/Test guard plus older Safari (webkit prefix).
   const Cls =
     window.AudioContext ||
-    (window as never as { webkitAudioContext?: typeof AudioContext | undefined }).webkitAudioContext;
+    (window as never as { webkitAudioContext?: typeof AudioContext | undefined })
+      .webkitAudioContext;
   if (!Cls) return null;
   try {
     ctx = new Cls();

@@ -5,11 +5,7 @@
   "description": "Tighten prose without losing meaning or voice.",
   "content": "Edit the following to be clearer and more concise, preserving my meaning and voice:\n\n{{text}}\n\nCut filler, redundancy, and hedging. Prefer plain words and active voice. Don't change the substance or make it sound like generic AI prose. Return the edited version, then a short list of the most impactful changes you made.",
   "category": "writing",
-  "tags": [
-    "editing",
-    "clarity",
-    "concision"
-  ],
+  "tags": ["editing", "clarity", "concision"],
   "source": "builtin",
   "favorite": false,
   "checksum": "29d273481e2e3e1143ba6344f37c5cfe7623066d2b5aa92d482386500c5a6b6e",

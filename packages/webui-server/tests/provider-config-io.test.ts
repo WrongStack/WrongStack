@@ -58,10 +58,7 @@ describe('provider-config-io', () => {
       mockDecrypt.mockReturnValue({ openai: { type: 'openai' } });
       const result = await loadSavedProviders('/fake/config.json', vault);
       expect(result).toEqual({ openai: { type: 'openai' } });
-      expect(mockDecrypt).toHaveBeenCalledWith(
-        { openai: { type: 'openai' } },
-        vault,
-      );
+      expect(mockDecrypt).toHaveBeenCalledWith({ openai: { type: 'openai' } }, vault);
     });
   });
 
@@ -74,11 +71,9 @@ describe('provider-config-io', () => {
       await saveProviders('/fake/config.json', vault, { test: { type: 'test' } });
 
       expect(mockEncrypt).toHaveBeenCalled();
-      expect(mockAtomicWrite).toHaveBeenCalledWith(
-        '/fake/config.json',
-        expect.any(String),
-        { mode: 0o600 },
-      );
+      expect(mockAtomicWrite).toHaveBeenCalledWith('/fake/config.json', expect.any(String), {
+        mode: 0o600,
+      });
     });
 
     it('starts from empty object when file has ENOENT', async () => {
@@ -88,31 +83,28 @@ describe('provider-config-io', () => {
 
       await saveProviders('/fake/config.json', vault, { test: { type: 'test' } });
 
-      expect(mockEncrypt).toHaveBeenCalledWith(
-        { providers: { test: { type: 'test' } } },
-        vault,
-      );
+      expect(mockEncrypt).toHaveBeenCalledWith({ providers: { test: { type: 'test' } } }, vault);
     });
 
     it('throws ConfigError when read fails with non-ENOENT error', async () => {
       mockReadFile.mockRejectedValue({ code: 'EACCES', message: 'Permission denied' });
-      await expect(
-        saveProviders('/fake/config.json', vault, {})
-      ).rejects.toThrow('Refusing to mutate');
+      await expect(saveProviders('/fake/config.json', vault, {})).rejects.toThrow(
+        'Refusing to mutate',
+      );
     });
 
     it('throws ConfigError when existing config is corrupt', async () => {
       mockReadFile.mockResolvedValue('not valid json');
-      await expect(
-        saveProviders('/fake/config.json', vault, {})
-      ).rejects.toThrow('Refusing to overwrite corrupt config');
+      await expect(saveProviders('/fake/config.json', vault, {})).rejects.toThrow(
+        'Refusing to overwrite corrupt config',
+      );
     });
 
     it('handles empty string as corrupt config when file exists', async () => {
       mockReadFile.mockResolvedValue('');
-      await expect(
-        saveProviders('/fake/config.json', vault, {})
-      ).rejects.toThrow('Refusing to overwrite corrupt config');
+      await expect(saveProviders('/fake/config.json', vault, {})).rejects.toThrow(
+        'Refusing to overwrite corrupt config',
+      );
     });
   });
 });

@@ -5,10 +5,7 @@
   "description": "Test logic that depends on clocks, dates, or timeouts.",
   "content": "This code depends on the current time or dates: {{code}}\n\nMake it testable and deterministic. Show how to inject the clock (a time source) instead of calling the system clock directly, so tests can control now, advance it, and freeze it. Cover the tricky cases: timezones, daylight-saving boundaries, leap days, and timeouts. Warn me about tests that secretly depend on real wall-clock time and will flake.",
   "category": "testing",
-  "tags": [
-    "time",
-    "determinism"
-  ],
+  "tags": ["time", "determinism"],
   "source": "builtin",
   "favorite": false,
   "checksum": "5a43b074f68d022e150a95200263e95e7ff7e49245adba9183e62ccd70346124",

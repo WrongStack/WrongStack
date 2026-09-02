@@ -6,10 +6,7 @@ export function isClosedHandleError(err: unknown): boolean {
   return code === 'EBADF' || code === 'ERR_CLOSED_RESOURCE' || code === 'ERR_INVALID_HANDLE';
 }
 
-export function flushBufferSync(
-  filePath: string,
-  events: SessionEvent[],
-): void {
+export function flushBufferSync(filePath: string, events: SessionEvent[]): void {
   if (events.length === 0 || !filePath) return;
   const batch = events.map((e) => JSON.stringify(e)).join('\n') + '\n';
   let fd: number | undefined;

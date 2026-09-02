@@ -21,16 +21,18 @@ function diffLines(diff: string): { kind: 'add' | 'remove' | 'context' | 'hunk';
   const lines: { kind: 'add' | 'remove' | 'context' | 'hunk'; text: string }[] = [];
   for (const line of diff.slice(start).replace(/\r\n/g, '\n').split('\n')) {
     if (line.startsWith('@@')) lines.push({ kind: 'hunk', text: line });
-    else if (line.startsWith('+') && !line.startsWith('+++')) lines.push({ kind: 'add', text: line });
-    else if (line.startsWith('-') && !line.startsWith('---')) lines.push({ kind: 'remove', text: line });
+    else if (line.startsWith('+') && !line.startsWith('+++'))
+      lines.push({ kind: 'add', text: line });
+    else if (line.startsWith('-') && !line.startsWith('---'))
+      lines.push({ kind: 'remove', text: line });
     else lines.push({ kind: 'context', text: line });
   }
   return lines;
 }
 
 export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: FileDiffPanelProps) {
-  const [activeIndex, setActiveIndex] = useState(
-    () => (files.length === 0 ? 0 : Math.min(initialIndex, files.length - 1)),
+  const [activeIndex, setActiveIndex] = useState(() =>
+    files.length === 0 ? 0 : Math.min(initialIndex, files.length - 1),
   );
   const [loadedContent, setLoadedContent] = useState<string | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
@@ -45,34 +47,37 @@ export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: F
   const hasDiff = !!activeFile?.diff;
 
   // Load file content when the active file has no diff
-  const loadContent = useCallback((filePath: string) => {
-    if (!socketRef?.current) return;
-    // Cancel any in-flight load first: otherwise its stale 8s timeout would
-    // later fire setContentLoading(false) and clobber this request's state.
-    pendingLoadRef.current?.cancel();
-    setContentLoading(true);
-    setLoadedContent(null);
+  const loadContent = useCallback(
+    (filePath: string) => {
+      if (!socketRef?.current) return;
+      // Cancel any in-flight load first: otherwise its stale 8s timeout would
+      // later fire setContentLoading(false) and clobber this request's state.
+      pendingLoadRef.current?.cancel();
+      setContentLoading(true);
+      setLoadedContent(null);
 
-    const handle = socketRequest({
-      socket: socketRef.current,
-      sendType: 'files.read',
-      payload: { filePath },
-      expectType: 'files.read',
-      accept: (frame) => {
-        const returned = frame.payload as { filePath?: unknown } | undefined;
-        return returned?.filePath === filePath;
-      },
-    });
-    pendingLoadRef.current = handle;
-    void handle.promise.then((payload) => {
-      if (pendingLoadRef.current !== handle) return;
-      pendingLoadRef.current = null;
-      setContentLoading(false);
-      if (payload && typeof payload['content'] === 'string') {
-        setLoadedContent(payload['content']);
-      }
-    });
-  }, [socketRef]);
+      const handle = socketRequest({
+        socket: socketRef.current,
+        sendType: 'files.read',
+        payload: { filePath },
+        expectType: 'files.read',
+        accept: (frame) => {
+          const returned = frame.payload as { filePath?: unknown } | undefined;
+          return returned?.filePath === filePath;
+        },
+      });
+      pendingLoadRef.current = handle;
+      void handle.promise.then((payload) => {
+        if (pendingLoadRef.current !== handle) return;
+        pendingLoadRef.current = null;
+        setContentLoading(false);
+        if (payload && typeof payload['content'] === 'string') {
+          setLoadedContent(payload['content']);
+        }
+      });
+    },
+    [socketRef],
+  );
 
   // Sync active index when the parent passes a new initialIndex after mount.
   useEffect(() => {
@@ -174,7 +179,8 @@ export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: F
                   <pre className="diff-view-content">
                     {parsed.map((line, i) => (
                       <span key={i} className={`diff-line diff-line-${line.kind}`}>
-                        {line.text}{'\n'}
+                        {line.text}
+                        {'\n'}
                       </span>
                     ))}
                   </pre>

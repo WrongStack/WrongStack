@@ -118,7 +118,6 @@ describe('matchesExtension', () => {
   });
 });
 
-
 describe('collectSourceFiles', () => {
   it('returns an empty array when root does not exist', () => {
     const files = collectSourceFiles(join(tmpDir, 'nonexistent'), { extensions: ['.ts'] });
@@ -198,7 +197,9 @@ describe('collectSourceFilesAsync', () => {
   });
 
   it('returns an empty array when root does not exist', async () => {
-    const files = await collectSourceFilesAsync(join(tmpDir, 'nonexistent'), { extensions: ['.ts'] });
+    const files = await collectSourceFilesAsync(join(tmpDir, 'nonexistent'), {
+      extensions: ['.ts'],
+    });
     expect(files).toEqual([]);
   });
 
@@ -225,7 +226,10 @@ describe('collectSourceFilesAsync', () => {
   });
 
   it('respects excludeDirs', async () => {
-    const files = await collectSourceFilesAsync(tmpDir, { extensions: ['.ts'], excludeDirs: ['src'] });
+    const files = await collectSourceFilesAsync(tmpDir, {
+      extensions: ['.ts'],
+      excludeDirs: ['src'],
+    });
     const relFiles = files.map((f) => f.replace(tmpDir, '').replace(/\\/g, '/'));
     expect(relFiles).toContain('/only-file.ts');
     expect(relFiles).not.toContain('/src/index.ts');
@@ -336,20 +340,20 @@ describe('resolveRunnerCommand — launcher+exec with rest flags', () => {
 
 describe('runRunnerCommand — spawn error paths', () => {
   it('returns spawnError when the command does not exist (ENOENT)', async () => {
-    const result = await runRunnerCommand(
-      ['nonexistent-command-xyz-999', '--version'],
-      { cwd: process.cwd(), timeoutMs: 2000 },
-    );
+    const result = await runRunnerCommand(['nonexistent-command-xyz-999', '--version'], {
+      cwd: process.cwd(),
+      timeoutMs: 2000,
+    });
     // Should either spawnError true or code 127 (command not found)
     expect(result.spawnError || result.code !== 0).toBe(true);
   });
 
   it('handles timeout and reports timedOut', async () => {
     // Use a command that sleeps long enough to trigger timeout
-    const result = await runRunnerCommand(
-      [process.execPath, '-e', 'setTimeout(() => {}, 10000)'],
-      { cwd: process.cwd(), timeoutMs: 100 },
-    );
+    const result = await runRunnerCommand([process.execPath, '-e', 'setTimeout(() => {}, 10000)'], {
+      cwd: process.cwd(),
+      timeoutMs: 100,
+    });
     // On fast machines, might complete before timeout. But if it times out:
     if (result.timedOut) {
       expect(result.code).toBeNull();
@@ -377,11 +381,9 @@ describe('probeRunner — success path', () => {
 describe('resolveRunnerCommand — path 4 absolute with mismatched basename', () => {
   it('returns null when absolute path basename does not match launcher or executable', () => {
     const absPath = '/usr/bin/some-random-tool';
-    const result = resolveRunnerCommand(
-      TYPESCRIPT_RUNTIME,
-      `${absPath} tsc`,
-      { projectRoot: '/usr' },
-    );
+    const result = resolveRunnerCommand(TYPESCRIPT_RUNTIME, `${absPath} tsc`, {
+      projectRoot: '/usr',
+    });
     expect(result).toBeNull();
   });
 });

@@ -71,12 +71,7 @@ const VALID_TASK_TYPES: ReadonlySet<TaskType> = new Set([
   'test',
   'chore',
 ]);
-const VALID_PRIORITIES: ReadonlySet<TaskPriority> = new Set([
-  'critical',
-  'high',
-  'medium',
-  'low',
-]);
+const VALID_PRIORITIES: ReadonlySet<TaskPriority> = new Set(['critical', 'high', 'medium', 'low']);
 
 /**
  * GoalPlanner drives the model through `plan()` and produces `PhaseTemplate[]`.
@@ -98,11 +93,18 @@ export class GoalPlanner {
     if (maxTotal > 0 && totalTasks > maxTotal) {
       warnings.push(
         `Plan has ${totalTasks} total tasks, exceeding the limit of ${maxTotal}. ` +
-        `Consider narrowing the scope or increasing the limit.`,
+          `Consider narrowing the scope or increasing the limit.`,
       );
       budgetExceeded = true;
     }
-    return { phases, raw, parseFailed: phases.length === 0, warnings, estimatedCostTokens, budgetExceeded };
+    return {
+      phases,
+      raw,
+      parseFailed: phases.length === 0,
+      warnings,
+      estimatedCostTokens,
+      budgetExceeded,
+    };
   }
 
   /** Instruction prompt for the plan the model should produce. */
@@ -177,16 +179,24 @@ export class GoalPlanner {
 
     const coercedPriority = coercePriority(e.priority);
     if (typeof e.priority === 'string' && coercedPriority !== e.priority) {
-      w.push('Phase "' + name + '": invalid priority "' + String(e.priority) + '", defaulting to "' + coercedPriority + '"');
+      w.push(
+        'Phase "' +
+          name +
+          '": invalid priority "' +
+          String(e.priority) +
+          '", defaulting to "' +
+          coercedPriority +
+          '"',
+      );
     }
     return {
       phase: {
         name,
         description: typeof e.description === 'string' ? e.description : '',
         priority: coercedPriority as PhaseNode['priority'],
-      estimateHours: coerceHours(e.estimateHours, 4),
-      parallelizable: e.parallelizable === true,
-      taskTemplates,
+        estimateHours: coerceHours(e.estimateHours, 4),
+        parallelizable: e.parallelizable === true,
+        taskTemplates,
       },
       warnings: w,
     };
@@ -209,7 +219,15 @@ export class GoalPlanner {
     }
     const coercedPriority = coercePriority(o.priority);
     if (typeof o.priority === 'string' && coercedPriority !== o.priority) {
-      w.push('Task "' + title + '": invalid priority "' + String(o.priority) + '", defaulting to "' + coercedPriority + '"');
+      w.push(
+        'Task "' +
+          title +
+          '": invalid priority "' +
+          String(o.priority) +
+          '", defaulting to "' +
+          coercedPriority +
+          '"',
+      );
     }
 
     return {
@@ -218,8 +236,8 @@ export class GoalPlanner {
         description: typeof o.description === 'string' ? o.description : '',
         type,
         priority: coercedPriority,
-      estimateHours: coerceHours(o.estimateHours, 2),
-      tags: Array.isArray(o.tags) ? o.tags.map(String) : [],
+        estimateHours: coerceHours(o.estimateHours, 2),
+        tags: Array.isArray(o.tags) ? o.tags.map(String) : [],
       },
       warnings: w,
     };

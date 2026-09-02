@@ -189,7 +189,9 @@ describe('SddBoardStore', () => {
   });
 
   it('appendEvent never throws', async () => {
-    await expect(store.appendEvent('run-1', { ts: 1, type: 'sdd.task.started' })).resolves.toBeUndefined();
+    await expect(
+      store.appendEvent('run-1', { ts: 1, type: 'sdd.task.started' }),
+    ).resolves.toBeUndefined();
   });
 
   it('bounds event logs by compacting a valid JSONL tail', async () => {

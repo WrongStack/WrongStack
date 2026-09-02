@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { MailboxLiveFilterState } from '../src/domain/mailbox-filters.js';
-import { EMPTY_LIVE_FILTER_STATE, mailboxLiveFilterReducer } from '../src/domain/mailbox-filters.js';
+import {
+  EMPTY_LIVE_FILTER_STATE,
+  mailboxLiveFilterReducer,
+} from '../src/domain/mailbox-filters.js';
 
 describe('mailbox-filters reducer', () => {
   it('exhaustive default returns state unchanged for unknown action type', () => {

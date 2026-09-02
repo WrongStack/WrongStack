@@ -46,11 +46,14 @@ export function ContextModePicker() {
     return () => document.removeEventListener('mousedown', onClick);
   }, [opsOpen]);
 
-  const compact = useCallback((aggressive: boolean) => {
-    client?.compactContext?.(aggressive);
-    setOpsOpen(false);
-    setOpen(false);
-  }, [client]);
+  const compact = useCallback(
+    (aggressive: boolean) => {
+      client?.compactContext?.(aggressive);
+      setOpsOpen(false);
+      setOpen(false);
+    },
+    [client],
+  );
 
   const repair = useCallback(() => {
     client?.repairContext?.();
@@ -58,18 +61,19 @@ export function ContextModePicker() {
     setOpen(false);
   }, [client]);
 
-  const items = contextModes.length > 0
-    ? contextModes
-    : [
-        {
-          id: 'balanced',
-          name: t('activity:ctxMode.fallbackName'),
-          description: t('activity:ctxMode.fallbackDesc'),
-          thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 },
-          preserveK: 10,
-          eliseThreshold: 2000,
-        },
-      ];
+  const items =
+    contextModes.length > 0
+      ? contextModes
+      : [
+          {
+            id: 'balanced',
+            name: t('activity:ctxMode.fallbackName'),
+            description: t('activity:ctxMode.fallbackDesc'),
+            thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 },
+            preserveK: 10,
+            eliseThreshold: 2000,
+          },
+        ];
   const active = items.find((m) => m.id === contextMode) ?? expectDefined(items[0]);
 
   return (
@@ -85,7 +89,8 @@ export function ContextModePicker() {
           title={t('activity:ctxMode.triggerTitle')}
         >
           <Gauge className="h-3 w-3" />
-          {t('activity:ctxMode.ctxPrefix')} <span className="font-mono">{contextMode || active.id}</span>
+          {t('activity:ctxMode.ctxPrefix')}{' '}
+          <span className="font-mono">{contextMode || active.id}</span>
           <ChevronDown className="h-3 w-3 opacity-60" />
         </button>
 
@@ -116,7 +121,9 @@ export function ContextModePicker() {
                 <Zap className="h-3.5 w-3.5 shrink-0 text-warning" />
                 <div>
                   <div className="text-xs">{t('activity:ctxMode.compactNow')}</div>
-                  <div className="text-[10px] text-muted-foreground">{t('activity:ctxMode.compactNowDesc')}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {t('activity:ctxMode.compactNowDesc')}
+                  </div>
                 </div>
               </button>
               <button
@@ -127,7 +134,9 @@ export function ContextModePicker() {
                 <Zap className="h-3.5 w-3.5 shrink-0 text-destructive" />
                 <div>
                   <div className="text-xs">{t('activity:ctxMode.compactAggressive')}</div>
-                  <div className="text-[10px] text-muted-foreground">{t('activity:ctxMode.compactAggressiveDesc')}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {t('activity:ctxMode.compactAggressiveDesc')}
+                  </div>
                 </div>
               </button>
               <button
@@ -138,7 +147,9 @@ export function ContextModePicker() {
                 <Wrench className="h-3.5 w-3.5 shrink-0 text-info" />
                 <div>
                   <div className="text-xs">{t('activity:ctxMode.repairContext')}</div>
-                  <div className="text-[10px] text-muted-foreground">{t('activity:ctxMode.repairDesc')}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {t('activity:ctxMode.repairDesc')}
+                  </div>
                 </div>
               </button>
               <div className="border-t mt-1 pt-1 px-3 py-1.5">
@@ -156,7 +167,9 @@ export function ContextModePicker() {
                   <FileSearch className="h-3.5 w-3.5 shrink-0 text-success" />
                   <div>
                     <div className="text-xs">{t('activity:ctxMode.debugContext')}</div>
-                    <div className="text-[10px] text-muted-foreground">{t('activity:ctxMode.debugDesc')}</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {t('activity:ctxMode.debugDesc')}
+                    </div>
                   </div>
                 </button>
               </div>
@@ -204,7 +217,10 @@ export function ContextModePicker() {
                 </div>
                 {(m.preserveK || m.eliseThreshold) && (
                   <div className="mt-1 text-[10px] text-muted-foreground/80">
-                    {t('activity:ctxMode.keepElide', { k: m.preserveK ?? '-', t: m.eliseThreshold ?? '-' })}
+                    {t('activity:ctxMode.keepElide', {
+                      k: m.preserveK ?? '-',
+                      t: m.eliseThreshold ?? '-',
+                    })}
                   </div>
                 )}
               </div>

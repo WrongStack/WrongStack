@@ -107,7 +107,11 @@ export class AdaptiveConcurrencyController {
       // Check for rate limit indicators
       if (event.type === 'error' || event.type === 'provider_error') {
         const payload = event.payload as { status?: number; code?: string; kind?: string };
-        if (payload?.status === 429 || payload?.code === 'rate_limit_error' || payload?.kind === 'rate_limit') {
+        if (
+          payload?.status === 429 ||
+          payload?.code === 'rate_limit_error' ||
+          payload?.kind === 'rate_limit'
+        ) {
           this.handleRateLimit(setMaxConcurrent);
         }
       }
@@ -159,10 +163,12 @@ export class AdaptiveConcurrencyController {
   decrease(target?: number): void {
     if (!this.config.enabled) return;
 
-    const newConcurrent = target ?? Math.max(
-      this.config.minConcurrent,
-      Math.floor(this.state.current * this.config.decreaseFactor),
-    );
+    const newConcurrent =
+      target ??
+      Math.max(
+        this.config.minConcurrent,
+        Math.floor(this.state.current * this.config.decreaseFactor),
+      );
 
     if (newConcurrent < this.state.current) {
       const previousConcurrent = this.state.current;
@@ -212,7 +218,10 @@ export class AdaptiveConcurrencyController {
     }
 
     // Ensure current is within bounds
-    this.state.current = Math.max(this.config.minConcurrent, Math.min(this.state.current, this.config.maxConcurrent));
+    this.state.current = Math.max(
+      this.config.minConcurrent,
+      Math.min(this.state.current, this.config.maxConcurrent),
+    );
     this.state.enabled = this.config.enabled;
     this.state.min = this.config.minConcurrent;
     this.state.max = this.config.maxConcurrent;

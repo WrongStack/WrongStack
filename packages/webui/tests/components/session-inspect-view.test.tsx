@@ -71,8 +71,7 @@ const seams = vi.hoisted(() => {
 // the mock just resolves the selector against our shared container so
 // mutating `seams.inspectState` triggers the next render.
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (s: typeof seams.inspectState) => unknown) =>
-    selector(seams.inspectState),
+  useUIStore: (selector: (s: typeof seams.inspectState) => unknown) => selector(seams.inspectState),
 }));
 
 vi.mock('@/stores/config-store', () => ({
@@ -140,7 +139,12 @@ const PAYLOAD = {
   toolBreakdown: { read: 2, write: 3 },
   events: [
     { ts: new Date().toISOString(), type: 'user_input', label: 'User prompt', detail: '' },
-    { ts: new Date().toISOString(), type: 'tool_call_end', label: 'read tool', detail: '/tmp/a.ts' },
+    {
+      ts: new Date().toISOString(),
+      type: 'tool_call_end',
+      label: 'read tool',
+      detail: '/tmp/a.ts',
+    },
   ],
   fileEvents: [
     { operation: 'create', filePath: '/tmp/a.ts', toolName: 'write', ts: new Date().toISOString() },

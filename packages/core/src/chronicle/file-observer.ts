@@ -106,12 +106,7 @@ export interface ChronicleFileObserver {
  * day came from `.claude/worktrees`, ~95 MB of a 106 MB journal — 90% of the
  * day's telemetry describing the tool watching itself.
  */
-const DEFAULT_EXCLUDED = [
-  ...DEFAULT_WALK_IGNORE_DIRS,
-  '.wrongstack',
-  '.claude',
-  '.temp_files',
-];
+const DEFAULT_EXCLUDED = [...DEFAULT_WALK_IGNORE_DIRS, '.wrongstack', '.claude', '.temp_files'];
 const SCAN_HASH_CONCURRENCY = 32;
 // Platforms that omit the filename (common on Windows recursive watch) can
 // emit null-filename events in bursts. Each one used to trigger a full

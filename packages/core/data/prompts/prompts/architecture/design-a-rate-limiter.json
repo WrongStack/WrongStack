@@ -5,10 +5,7 @@
   "description": "Protect a service with the right rate-limiting strategy.",
   "content": "I need to rate-limit: {{target}}\n\nChoose the algorithm (token bucket, leaky bucket, fixed or sliding window) and justify it for my traffic shape. Define the limit, the key (per user, IP, API key), where state lives, and what happens on exceed (reject with 429 + Retry-After, queue, or degrade). Handle the distributed case where many instances share a limit. Flag the failure mode where the limiter itself becomes the bottleneck or a single point of failure.",
   "category": "architecture",
-  "tags": [
-    "rate-limiting",
-    "resilience"
-  ],
+  "tags": ["rate-limiting", "resilience"],
   "source": "builtin",
   "favorite": false,
   "checksum": "952d4188111c70c17778527ea1bb7112b9fa85f4f02cf71eede69e2df02e72a6",

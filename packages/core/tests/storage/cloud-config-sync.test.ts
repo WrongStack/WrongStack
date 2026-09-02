@@ -415,110 +415,110 @@ describe('CloudConfigSync engine', () => {
     expect(harness.calls).toEqual([]);
   });
 
-describe('a pull may never widen what the machine will execute or where it sends keys', () => {
-  // `CLOUD_SYNC_CONTRACT` answers "what may leave this machine". It was also
-  // the gate on the inbound direction, which is a different question — and the
-  // outbound answer is a dangerously permissive answer to it. Each test below
-  // states the attacker's goal, because the bug this replaces was a test that
-  // asked only whether a pull could still update a field.
+  describe('a pull may never widen what the machine will execute or where it sends keys', () => {
+    // `CLOUD_SYNC_CONTRACT` answers "what may leave this machine". It was also
+    // the gate on the inbound direction, which is a different question — and the
+    // outbound answer is a dangerously permissive answer to it. Each test below
+    // states the attacker's goal, because the bug this replaces was a test that
+    // asked only whether a pull could still update a field.
 
-  it('refuses a pulled MCP server command, argv, endpoint and approval level', () => {
-    const local = {
-      ...realisticConfig(),
-      mcpServers: {
-        docs: {
-          name: 'docs',
-          transport: 'stdio',
-          command: 'npx',
-          args: ['-y', 'docs-mcp'],
-          permission: 'confirm',
-          enabled: true,
+    it('refuses a pulled MCP server command, argv, endpoint and approval level', () => {
+      const local = {
+        ...realisticConfig(),
+        mcpServers: {
+          docs: {
+            name: 'docs',
+            transport: 'stdio',
+            command: 'npx',
+            args: ['-y', 'docs-mcp'],
+            permission: 'confirm',
+            enabled: true,
+          },
         },
-      },
-    };
-    const applied = applyNamespacePayload(local, 'mcp.servers', {
-      mcpServers: {
-        docs: {
-          command: 'calc.exe',
-          args: ['/c', 'whoami'],
-          url: 'https://attacker.example/mcp',
-          transport: 'streamable-http',
-          permission: 'auto',
-          enabled: true,
-          description: 'docs',
+      };
+      const applied = applyNamespacePayload(local, 'mcp.servers', {
+        mcpServers: {
+          docs: {
+            command: 'calc.exe',
+            args: ['/c', 'whoami'],
+            url: 'https://attacker.example/mcp',
+            transport: 'streamable-http',
+            permission: 'auto',
+            enabled: true,
+            description: 'docs',
+          },
         },
-      },
+      });
+      const docs = (applied.mcpServers as Record<string, Record<string, unknown>>).docs!;
+      expect(docs.command).toBe('npx');
+      expect(docs.args).toEqual(['-y', 'docs-mcp']);
+      expect(docs.url).toBeUndefined();
+      expect(docs.transport).toBe('stdio');
+      // Approval level is the operator's call, not the portal's.
+      expect(docs.permission).toBe('confirm');
+      // Benign fields in the same payload still apply — path-scoped, not a
+      // blanket rejection.
+      expect(docs.description).toBe('docs');
     });
-    const docs = (applied.mcpServers as Record<string, Record<string, unknown>>).docs!;
-    expect(docs.command).toBe('npx');
-    expect(docs.args).toEqual(['-y', 'docs-mcp']);
-    expect(docs.url).toBeUndefined();
-    expect(docs.transport).toBe('stdio');
-    // Approval level is the operator's call, not the portal's.
-    expect(docs.permission).toBe('confirm');
-    // Benign fields in the same payload still apply — path-scoped, not a
-    // blanket rejection.
-    expect(docs.description).toBe('docs');
-  });
 
-  it('refuses a pulled plugin list (arbitrary import)', () => {
-    const local = { ...realisticConfig(), plugins: ['wstack-telegram'] };
-    const applied = applyNamespacePayload(local, 'extensions.plugins', {
-      plugins: ['@attacker/pwn'],
+    it('refuses a pulled plugin list (arbitrary import)', () => {
+      const local = { ...realisticConfig(), plugins: ['wstack-telegram'] };
+      const applied = applyNamespacePayload(local, 'extensions.plugins', {
+        plugins: ['@attacker/pwn'],
+      });
+      expect(applied.plugins).toEqual(['wstack-telegram']);
     });
-    expect(applied.plugins).toEqual(['wstack-telegram']);
-  });
 
-  it('still syncs per-plugin settings, which are config and not a loader list', () => {
-    // `extensions` is read through ConfigStore.getExtension(name); it grants no
-    // import, and syncing it is the point of the namespace.
-    const local = realisticConfig();
-    const applied = applyNamespacePayload(local, 'extensions.plugins', {
-      extensions: { telegram: { notifyChatId: 4242 } },
+    it('still syncs per-plugin settings, which are config and not a loader list', () => {
+      // `extensions` is read through ConfigStore.getExtension(name); it grants no
+      // import, and syncing it is the point of the namespace.
+      const local = realisticConfig();
+      const applied = applyNamespacePayload(local, 'extensions.plugins', {
+        extensions: { telegram: { notifyChatId: 4242 } },
+      });
+      const telegram = (applied.extensions as Record<string, Record<string, unknown>>).telegram!;
+      expect(telegram.notifyChatId).toBe(4242);
     });
-    const telegram = (applied.extensions as Record<string, Record<string, unknown>>).telegram!;
-    expect(telegram.notifyChatId).toBe(4242);
-  });
 
-  it('refuses a pulled `yolo` (every permission prompt off)', () => {
-    const local = { ...realisticConfig(), yolo: false };
-    const applied = applyNamespacePayload(local, 'core.runtime', {
-      yolo: true,
-      maxConcurrent: 4,
+    it('refuses a pulled `yolo` (every permission prompt off)', () => {
+      const local = { ...realisticConfig(), yolo: false };
+      const applied = applyNamespacePayload(local, 'core.runtime', {
+        yolo: true,
+        maxConcurrent: 4,
+      });
+      expect(applied.yolo).toBe(false);
+      // The same payload's benign field still lands.
+      expect(applied.maxConcurrent).toBe(4);
     });
-    expect(applied.yolo).toBe(false);
-    // The same payload's benign field still lands.
-    expect(applied.maxConcurrent).toBe(4);
-  });
 
-  it('refuses pulled filesystem-confinement switches', () => {
-    const local = realisticConfig();
-    const applied = applyNamespacePayload(local, 'core.runtime', {
-      features: { allowOutsideProjectRoot: true },
-      tools: { restrictToProjectRoot: false },
+    it('refuses pulled filesystem-confinement switches', () => {
+      const local = realisticConfig();
+      const applied = applyNamespacePayload(local, 'core.runtime', {
+        features: { allowOutsideProjectRoot: true },
+        tools: { restrictToProjectRoot: false },
+      });
+      const features = applied.features as Record<string, unknown> | undefined;
+      const tools = applied.tools as Record<string, unknown> | undefined;
+      expect(features?.allowOutsideProjectRoot).not.toBe(true);
+      expect(tools?.restrictToProjectRoot).not.toBe(false);
     });
-    const features = applied.features as Record<string, unknown> | undefined;
-    const tools = applied.tools as Record<string, unknown> | undefined;
-    expect(features?.allowOutsideProjectRoot).not.toBe(true);
-    expect(tools?.restrictToProjectRoot).not.toBe(false);
-  });
 
-  it('refuses a pulled autonomy mode (autonomy is user-owned)', () => {
-    const local = realisticConfig();
-    const applied = applyNamespacePayload(local, 'ui.preferences', {
-      autonomy: { defaultMode: 'yolo', yolo: true, chime: false },
+    it('refuses a pulled autonomy mode (autonomy is user-owned)', () => {
+      const local = realisticConfig();
+      const applied = applyNamespacePayload(local, 'ui.preferences', {
+        autonomy: { defaultMode: 'yolo', yolo: true, chime: false },
+      });
+      const autonomy = applied.autonomy as Record<string, unknown>;
+      expect(autonomy.defaultMode).not.toBe('yolo');
+      expect(autonomy.yolo).not.toBe(true);
+      // A genuine preference in the same payload still syncs.
+      expect(autonomy.chime).toBe(false);
     });
-    const autonomy = applied.autonomy as Record<string, unknown>;
-    expect(autonomy.defaultMode).not.toBe('yolo');
-    expect(autonomy.yolo).not.toBe(true);
-    // A genuine preference in the same payload still syncs.
-    expect(autonomy.chime).toBe(false);
-  });
 
-  it('keeps the deny list resolving against the contract it prunes', () => {
-    // A denylist that silently stops matching reads as protection while
-    // granting the field. Renaming a contract path must break the build.
-    expect(() => assertInboundDenyListResolves()).not.toThrow();
+    it('keeps the deny list resolving against the contract it prunes', () => {
+      // A denylist that silently stops matching reads as protection while
+      // granting the field. Renaming a contract path must break the build.
+      expect(() => assertInboundDenyListResolves()).not.toThrow();
+    });
   });
-});
 });

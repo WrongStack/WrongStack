@@ -14,7 +14,11 @@ const TEST_OUTPUT_PATH = `${TEST_OUTPUT_DIR}/draft.md`;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
   onPattern: ReturnType<typeof vi.fn>;
@@ -22,7 +26,9 @@ interface MockApi {
   llm: undefined | { complete: ReturnType<typeof vi.fn> };
 }
 
-function makeApi(overrides: { extensions?: Record<string, unknown>; llm?: MockApi['llm'] } = {}): MockApi {
+function makeApi(
+  overrides: { extensions?: Record<string, unknown>; llm?: MockApi['llm'] } = {},
+): MockApi {
   return {
     tools: { register: vi.fn() },
     config: { extensions: overrides.extensions ?? {} },
@@ -49,11 +55,11 @@ function getStopHook(api: MockApi): (...args: unknown[]) => Promise<void> {
 
 function getHealthCounters(value: unknown): Record<string, unknown> {
   if (
-    typeof value !== 'object'
-    || value === null
-    || !('counters' in value)
-    || typeof value.counters !== 'object'
-    || value.counters === null
+    typeof value !== 'object' ||
+    value === null ||
+    !('counters' in value) ||
+    typeof value.counters !== 'object' ||
+    value.counters === null
   ) {
     throw new Error('health result did not include counters');
   }
@@ -74,7 +80,7 @@ describe('pr-drafter coverage', () => {
     const api = makeApi({ extensions: { 'pr-drafter': { enabled: false } } });
     prDrafterPlugin.setup(api as never);
     const tool = getTool(api, 'pr_draft');
-    const result = await tool({}) as { ok: boolean; error: string };
+    const result = (await tool({})) as { ok: boolean; error: string };
     expect(result.ok).toBe(false);
     expect(result.error).toContain('disabled');
   });
@@ -85,17 +91,21 @@ describe('pr-drafter coverage', () => {
     });
     prDrafterPlugin.setup(api as never);
     const tool = getTool(api, 'pr_draft');
-    const result = await tool({ preview: false }) as { ok: boolean; path: string; title: string };
+    const result = (await tool({ preview: false })) as { ok: boolean; path: string; title: string };
     expect(result.ok).toBe(true);
     expect(result.path).toBe(TEST_OUTPUT_PATH);
     expect(result.title).toBeTruthy();
   });
 
   it('pr_draft tool writing handles filesystem errors', async () => {
-    const api = makeApi({ extensions: { 'pr-drafter': { outputPath: 'Z:\\invalid\\path\\draft.md', includeDiff: false } } });
+    const api = makeApi({
+      extensions: {
+        'pr-drafter': { outputPath: 'Z:\\invalid\\path\\draft.md', includeDiff: false },
+      },
+    });
     prDrafterPlugin.setup(api as never);
     const tool = getTool(api, 'pr_draft');
-    const result = await tool({ preview: false }) as { ok: boolean; error: string };
+    const result = (await tool({ preview: false })) as { ok: boolean; error: string };
     // On Windows the path may resolve differently; either way, result should be ok: false
     // if the path is invalid, or ok: true if it happens to be writable.
     // The key is that it doesn't throw.
@@ -105,13 +115,24 @@ describe('pr-drafter coverage', () => {
   it('pr_draft tool handles preview mode correctly with session data', async () => {
     const api = makeApi();
     prDrafterPlugin.setup(api as never);
-    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (event: string, payload: unknown) => void;
+    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (
+      event: string,
+      payload: unknown,
+    ) => void;
     // Add some session data
-    onPatternHandler('tool.completed', { tool: 'git_autocommit', result: { committed: true, commitMessage: 'feat: add new feature' } });
+    onPatternHandler('tool.completed', {
+      tool: 'git_autocommit',
+      result: { committed: true, commitMessage: 'feat: add new feature' },
+    });
     onPatternHandler('tool.completed', { tool: 'write', input: { path: 'src/new.ts' } });
 
     const tool = getTool(api, 'pr_draft');
-    const result = await tool({ preview: true }) as { ok: boolean; preview: boolean; body: string; title: string };
+    const result = (await tool({ preview: true })) as {
+      ok: boolean;
+      preview: boolean;
+      body: string;
+      title: string;
+    };
     expect(result.ok).toBe(true);
     expect(result.preview).toBe(true);
     expect(result.body).toContain('# PR Draft');
@@ -153,7 +174,7 @@ describe('pr-drafter coverage', () => {
     const api = makeApi({ extensions: { 'pr-drafter': { includeDiff: true } } });
     prDrafterPlugin.setup(api as never);
     const tool = getTool(api, 'pr_draft');
-    const result = await tool({ preview: true }) as { ok: boolean; body: string };
+    const result = (await tool({ preview: true })) as { ok: boolean; body: string };
     // Diff may or may not be present depending on git state
     // but the structure should still be valid
     expect(result.body).toContain('# PR Draft');
@@ -163,25 +184,33 @@ describe('pr-drafter coverage', () => {
     const api = makeApi({ extensions: { 'pr-drafter': { aiSummary: true } }, llm: undefined });
     prDrafterPlugin.setup(api as never);
     const tool = getTool(api, 'pr_draft');
-    const result = await tool({ preview: true }) as { ok: boolean; body: string };
+    const result = (await tool({ preview: true })) as { ok: boolean; body: string };
     expect(result.ok).toBe(true);
     // Should not crash — aiSummary with llm=undefined skips the AI part
     expect(result.body).toContain('# PR Draft');
   });
 
   it('pr_draft tool with aiSummary and mocked LLM generates summary', async () => {
-    const mockComplete = vi.fn().mockResolvedValue({ text: 'TITLE: My PR Title\nSUMMARY: This is the summary.' });
+    const mockComplete = vi
+      .fn()
+      .mockResolvedValue({ text: 'TITLE: My PR Title\nSUMMARY: This is the summary.' });
     const api = makeApi({
       extensions: { 'pr-drafter': { aiSummary: true, includeDiff: false } },
       llm: { complete: mockComplete },
     });
     prDrafterPlugin.setup(api as never);
     // Add some session data so LLM has context
-    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (event: string, payload: unknown) => void;
-    onPatternHandler('tool.completed', { tool: 'git_autocommit', result: { committed: true, commitMessage: 'fix: resolve bug' } });
+    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (
+      event: string,
+      payload: unknown,
+    ) => void;
+    onPatternHandler('tool.completed', {
+      tool: 'git_autocommit',
+      result: { committed: true, commitMessage: 'fix: resolve bug' },
+    });
 
     const tool = getTool(api, 'pr_draft');
-    const result = await tool({ preview: true }) as { ok: boolean; body: string };
+    const result = (await tool({ preview: true })) as { ok: boolean; body: string };
     expect(result.ok).toBe(true);
     expect(result.body).toContain('My PR Title');
     expect(result.body).toContain('This is the summary.');
@@ -196,7 +225,7 @@ describe('pr-drafter coverage', () => {
     });
     prDrafterPlugin.setup(api as never);
     const tool = getTool(api, 'pr_draft');
-    const result = await tool({ preview: true }) as { ok: boolean; body: string };
+    const result = (await tool({ preview: true })) as { ok: boolean; body: string };
     expect(result.ok).toBe(true);
     expect(result.body).toContain('# PR Draft');
     // LLM failure is caught silently
@@ -207,13 +236,19 @@ describe('pr-drafter coverage', () => {
       extensions: { 'pr-drafter': { outputPath: TEST_OUTPUT_PATH, includeDiff: false } },
     });
     prDrafterPlugin.setup(api as never);
-    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (event: string, payload: unknown) => void;
-    onPatternHandler('tool.completed', { tool: 'git_autocommit', result: { committed: true, commitMessage: 'fix: issue' } });
+    const onPatternHandler = api.onPattern.mock.calls[0]?.[1] as (
+      event: string,
+      payload: unknown,
+    ) => void;
+    onPatternHandler('tool.completed', {
+      tool: 'git_autocommit',
+      result: { committed: true, commitMessage: 'fix: issue' },
+    });
     onPatternHandler('tool.completed', { tool: 'write', input: { path: 'src/a.ts' } });
     onPatternHandler('tool.completed', { tool: 'edit', input: { path: 'src/b.ts' } });
 
     const tool = getTool(api, 'pr_draft');
-    await tool({ preview: false }) as { ok: boolean };
+    (await tool({ preview: false })) as { ok: boolean };
 
     const counters = getHealthCounters(await prDrafterPlugin.health!());
     expect(counters.toolCalls).toBe(3);

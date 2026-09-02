@@ -5,10 +5,7 @@
   "description": "Reduce a bug to the smallest reliable reproduction.",
   "content": "Help me build a minimal reproduction of this bug: {{bug}}\n\nGuide me to strip it down:\n1. What to remove first to test whether it still reproduces.\n2. How to replace external dependencies with fakes/stubs.\n3. How to make it deterministic (seed randomness, pin time, fix ordering).\n\nThe goal is the smallest self-contained snippet that fails every time. Tell me what to try next based on what I report.",
   "category": "debugging",
-  "tags": [
-    "repro",
-    "isolation"
-  ],
+  "tags": ["repro", "isolation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "57cdbdf2ec05f1732ec3b7d33828ee06dad9b918a87bbb319a8824ee89672dea",

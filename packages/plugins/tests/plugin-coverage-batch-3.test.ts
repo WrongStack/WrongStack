@@ -31,7 +31,9 @@ function makeApi(extra: Record<string, unknown> = {}) {
 // ---------------------------------------------------------------------------
 describe('catalog.ts - module exports', () => {
   it('PLUGIN_CATALOG is a populated frozen map', async () => {
-    const { PLUGIN_CATALOG, PLUGIN_CATALOG_ENTRIES, PLUGIN_NAMES } = await import('../src/catalog.js');
+    const { PLUGIN_CATALOG, PLUGIN_CATALOG_ENTRIES, PLUGIN_NAMES } = await import(
+      '../src/catalog.js'
+    );
     expect(PLUGIN_CATALOG.size).toBeGreaterThan(0);
     expect(PLUGIN_NAMES.length).toBe(PLUGIN_CATALOG_ENTRIES.length);
   });
@@ -126,11 +128,15 @@ for (const [name, importer] of Object.entries(healthPlugins)) {
   describe(`${name} - health variations`, () => {
     it('returns ok and has message', async () => {
       const mod = await importer();
-      const plugin = mod.default as { setup: (a: unknown) => void; health?: () => unknown; teardown?: (a: unknown) => void };
+      const plugin = mod.default as {
+        setup: (a: unknown) => void;
+        health?: () => unknown;
+        teardown?: (a: unknown) => void;
+      };
       const api = makeApi();
       plugin.setup(api as never);
       if (plugin.health) {
-        const h = await plugin.health() as { ok?: boolean; message?: string };
+        const h = (await plugin.health()) as { ok?: boolean; message?: string };
         expect(h).toBeDefined();
         // health must be callable without error
       }
@@ -141,14 +147,18 @@ for (const [name, importer] of Object.entries(healthPlugins)) {
 
     it('can call health after teardown', async () => {
       const mod = await importer();
-      const plugin = mod.default as { setup: (a: unknown) => void; health?: () => unknown; teardown?: (a: unknown) => void };
+      const plugin = mod.default as {
+        setup: (a: unknown) => void;
+        health?: () => unknown;
+        teardown?: (a: unknown) => void;
+      };
       const api = makeApi();
       plugin.setup(api as never);
       if (plugin.teardown) {
         plugin.teardown(api as never);
       }
       if (plugin.health) {
-        const h = await plugin.health() as { ok?: boolean };
+        const h = (await plugin.health()) as { ok?: boolean };
         expect(h).toBeDefined();
       }
     });

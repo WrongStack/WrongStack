@@ -37,7 +37,11 @@ export function toMessage(cause: unknown): PanelMessage {
   return { tone: 'error', text: cause instanceof Error ? cause.message : String(cause) };
 }
 
-export function StatusMessage({ message }: { message: PanelMessage | null }): React.ReactElement | null {
+export function StatusMessage({
+  message,
+}: {
+  message: PanelMessage | null;
+}): React.ReactElement | null {
   if (message === null || message.text === '') return null;
   return (
     <p
@@ -81,7 +85,9 @@ export function SecurityPanel({
           <h2 className="font-display text-sm font-semibold">{title}</h2>
           <p className="max-w-prose text-[11px] text-muted-foreground">{description}</p>
         </div>
-        <Icon className={cn('size-5 shrink-0', danger ? 'text-destructive' : 'text-muted-foreground')} />
+        <Icon
+          className={cn('size-5 shrink-0', danger ? 'text-destructive' : 'text-muted-foreground')}
+        />
       </div>
       <CardContent className="space-y-3">{children}</CardContent>
     </Card>
@@ -95,7 +101,11 @@ const STRENGTH_BAR: Record<string, string> = {
   strong: 'bg-success',
 };
 
-export function PasswordStrengthMeter({ password }: { password: string }): React.ReactElement | null {
+export function PasswordStrengthMeter({
+  password,
+}: {
+  password: string;
+}): React.ReactElement | null {
   const { level, score, label } = scorePassword(password);
   if (level === 'empty') return null;
   return (

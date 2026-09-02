@@ -5,12 +5,7 @@
   "description": "Check a UI change for accessibility issues.",
   "content": "Review this UI for accessibility:\n\n{{code}}\n\nCheck: semantic markup and headings, keyboard operability and focus order, labels and names for controls, color contrast, alt text, ARIA used correctly (and not redundantly), and motion or auto-play concerns. For each issue, the impact on which users and the concrete fix. Prioritize blockers (unusable by keyboard or screen reader) over nits.",
   "category": "code-review",
-  "tags": [
-    "accessibility",
-    "a11y",
-    "ui",
-    "review"
-  ],
+  "tags": ["accessibility", "a11y", "ui", "review"],
   "source": "builtin",
   "favorite": false,
   "checksum": "5cd783c53b9fd5f0919bbfcae6ca1338d63feb2ee98c50f193d22ae6228426e0",

@@ -46,7 +46,10 @@ function buildCandidateOps(host: SqliteCandidateHost) {
   };
 }
 
-export async function addCandidateOp(host: SqliteCandidateHost, candidate: MemoryCandidate): Promise<void> {
+export async function addCandidateOp(
+  host: SqliteCandidateHost,
+  candidate: MemoryCandidate,
+): Promise<void> {
   addSqliteCandidate(buildCandidateOps(host), candidate);
 }
 

@@ -175,7 +175,7 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
 
   let agents: HqSessionAgentSummary[] = (opts.initialAgents ?? []).map(toAgentSummary);
   let lastActivityAt = agents.reduce(
-    (latest, agent) => agent.lastActivityAt > latest ? agent.lastActivityAt : latest,
+    (latest, agent) => (agent.lastActivityAt > latest ? agent.lastActivityAt : latest),
     startedAt,
   );
   let lastSnapshotHash = '';
@@ -253,8 +253,7 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
       const tooManyEntries = candidate.length > MAX_TRANSCRIPT_BATCH_ENTRIES;
       const tooLarge =
         batch.length > 0 &&
-        Buffer.byteLength(JSON.stringify(candidatePayload), 'utf8') >
-          MAX_TRANSCRIPT_BATCH_BYTES;
+        Buffer.byteLength(JSON.stringify(candidatePayload), 'utf8') > MAX_TRANSCRIPT_BATCH_BYTES;
       if (tooManyEntries || tooLarge) publishBatch();
       batch.push(entry);
     }
@@ -299,7 +298,11 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
       if (disposed) return;
       // Also invoke the previous callback if one exists — preserves the
       // call chain for any other subscriber wired at the store level.
-      try { prevOnAppend?.(event); } catch { /* best-effort */ }
+      try {
+        prevOnAppend?.(event);
+      } catch {
+        /* best-effort */
+      }
       try {
         const entries = mapSessionEventToEntries(event as unknown as Record<string, unknown>);
         if (entries.length > 0) {
@@ -475,7 +478,11 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
     // Unsubscribe the direct event callback, restoring any that was
     // captured from the writer before the bridge subscribed.
     if (opts.writer?.setOnAppend) {
-      try { opts.writer.setOnAppend(prevOnAppend); } catch { /* best-effort */ }
+      try {
+        opts.writer.setOnAppend(prevOnAppend);
+      } catch {
+        /* best-effort */
+      }
     }
     offAgents?.();
     if (watcher) {

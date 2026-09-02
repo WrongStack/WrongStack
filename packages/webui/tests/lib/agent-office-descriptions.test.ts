@@ -229,9 +229,9 @@ describe('buildAgentToolCalls — status and identity', () => {
   });
 
   it('ignores an event kind that is not a tool envelope', () => {
-    expect(buildAgentToolCalls([toolEvent({ name: 'Read' }, { kind: 'agent:spawned' })], AGENT)).toEqual(
-      [],
-    );
+    expect(
+      buildAgentToolCalls([toolEvent({ name: 'Read' }, { kind: 'agent:spawned' })], AGENT),
+    ).toEqual([]);
   });
 
   it('ignores an envelope with no resolvable tool name', () => {
@@ -278,9 +278,12 @@ describe('buildAgentToolCalls — status and identity', () => {
   });
 
   it('drops the compact twin of a richer envelope for the same tool', () => {
-    const rich = toolEvent({ name: 'Read', id: 'rich', input: { file_path: 'a.ts' } }, {
-      timestamp: 1_000,
-    });
+    const rich = toolEvent(
+      { name: 'Read', id: 'rich', input: { file_path: 'a.ts' } },
+      {
+        timestamp: 1_000,
+      },
+    );
     const compact = toolEvent({ name: 'Read', id: 'compact' }, { timestamp: 1_100 });
     const calls = buildAgentToolCalls([rich, compact], AGENT);
 
@@ -289,9 +292,12 @@ describe('buildAgentToolCalls — status and identity', () => {
   });
 
   it('keeps a bare envelope when the richer one is far apart in time', () => {
-    const rich = toolEvent({ name: 'Read', id: 'rich', input: { file_path: 'a.ts' } }, {
-      timestamp: 1_000,
-    });
+    const rich = toolEvent(
+      { name: 'Read', id: 'rich', input: { file_path: 'a.ts' } },
+      {
+        timestamp: 1_000,
+      },
+    );
     const compact = toolEvent({ name: 'Read', id: 'compact' }, { timestamp: 100_000 });
     expect(buildAgentToolCalls([rich, compact], AGENT)).toHaveLength(2);
   });

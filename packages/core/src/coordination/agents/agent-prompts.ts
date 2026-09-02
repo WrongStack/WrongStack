@@ -241,8 +241,7 @@ export function agentPrompt(id: string): string {
   const envDir = process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'] ?? '';
   const policyOn = process.env['WRONGSTACK_AGENT_POLICY'] === 'on';
   const cacheBypass =
-    (globalThis as { __WS_DISABLE_PROMPT_CACHE__?: boolean }).__WS_DISABLE_PROMPT_CACHE__ ===
-    true;
+    (globalThis as { __WS_DISABLE_PROMPT_CACHE__?: boolean }).__WS_DISABLE_PROMPT_CACHE__ === true;
   // The cached value embeds the project-contextualized overlay (identity,
   // learned instructions, knowledge checklist), so the project root is part of
   // the cached string's identity. Omitting it let a single process serve one

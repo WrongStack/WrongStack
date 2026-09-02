@@ -197,9 +197,7 @@ describe('runTui non-TTY guard edge cases', () => {
     // Capture writes to stderr (not console.error) — the guard uses
     // writeErr which calls process.stderr.write directly.
     process.stderr.write = ((chunk: string | Uint8Array) => {
-      stderrWrites.push(
-        typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'),
-      );
+      stderrWrites.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
       return true;
     }) as typeof process.stderr.write;
   });
@@ -345,10 +343,7 @@ describe('runTui non-TTY guard edge cases', () => {
       configurable: true,
     });
 
-    const [code1, code2] = await Promise.all([
-      runTui({} as never),
-      runTui({} as never),
-    ]);
+    const [code1, code2] = await Promise.all([runTui({} as never), runTui({} as never)]);
     expect(code1).toBe(2);
     expect(code2).toBe(2);
   });

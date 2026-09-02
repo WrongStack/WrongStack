@@ -21,18 +21,26 @@ function makeCoordinator(opts: {
   label?: string;
   skew?: number;
 }): {
-  coordinator: OAuthRefreshCoordinator<TestTokens, { accessToken: string; refreshToken: string; expiresAt: number }>;
+  coordinator: OAuthRefreshCoordinator<
+    TestTokens,
+    { accessToken: string; refreshToken: string; expiresAt: number }
+  >;
   applyExtraCallsRef: { value: number };
 } {
   // Pass-through: undefined stays undefined so the coordinator treats it as
   // "no refresh key available" (vs the helper's default of 'r1').
-  const refreshFn = opts.refreshFn ?? (async (key: string) => ({
-    access: `acc-${key}`,
-    refresh: `ref-${key}-rotated`,
-    expires: Date.now() + 3_600_000,
-  }));
+  const refreshFn =
+    opts.refreshFn ??
+    (async (key: string) => ({
+      access: `acc-${key}`,
+      refresh: `ref-${key}-rotated`,
+      expires: Date.now() + 3_600_000,
+    }));
   const applyExtraCallsRef = { value: 0 };
-  const coordinator = new OAuthRefreshCoordinator<TestTokens, { accessToken: string; refreshToken: string; expiresAt: number }>({
+  const coordinator = new OAuthRefreshCoordinator<
+    TestTokens,
+    { accessToken: string; refreshToken: string; expiresAt: number }
+  >({
     initialRefreshKey: opts.initialRefresh,
     initialExpiresAt: opts.initialExpiresAt,
     label: opts.label ?? 'Test OAuth',
@@ -186,9 +194,9 @@ describe('OAuthRefreshCoordinator', () => {
         initialRefresh: undefined,
         label: 'My Custom OAuth',
       });
-      await expect(
-        coordinator.runRefresh(new AbortController().signal),
-      ).rejects.toThrow(/My Custom OAuth: refresh key missing/);
+      await expect(coordinator.runRefresh(new AbortController().signal)).rejects.toThrow(
+        /My Custom OAuth: refresh key missing/,
+      );
     });
   });
 

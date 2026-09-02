@@ -42,7 +42,9 @@ function renderPickerRow(
               {seg.text}
             </Text>
           ))}
-          <Text bold dimColor>{' '.repeat(padNeeded)}</Text>
+          <Text bold dimColor>
+            {' '.repeat(padNeeded)}
+          </Text>
         </>
       ) : (
         <Text bold>{labelStr.padEnd(26)}</Text>

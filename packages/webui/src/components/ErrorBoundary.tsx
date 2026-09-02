@@ -66,7 +66,10 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="space-y-1">
             <p className="text-sm font-semibold">
               {this.props.name
-                ? i18n.t('common:error.panelTitle', { name: this.props.name, defaultValue: `${this.props.name} hit an error` })
+                ? i18n.t('common:error.panelTitle', {
+                    name: this.props.name,
+                    defaultValue: `${this.props.name} hit an error`,
+                  })
                 : i18n.t('common:error.title')}
             </p>
             <pre className="max-w-md truncate text-xs font-mono text-muted-foreground">
@@ -87,9 +90,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="flex max-w-md flex-col items-center gap-4 p-8 text-center">
           <AlertTriangle className="h-12 w-12 text-destructive" />
           <h1 className="text-lg font-semibold">{i18n.t('common:error.title')}</h1>
-          <p className="text-sm text-muted-foreground">
-            {i18n.t('common:error.body')}
-          </p>
+          <p className="text-sm text-muted-foreground">{i18n.t('common:error.body')}</p>
           <pre className="max-h-32 w-full overflow-auto rounded bg-muted/50 p-3 text-left text-xs font-mono text-muted-foreground">
             {this.state.error.message}
           </pre>

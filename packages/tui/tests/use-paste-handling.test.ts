@@ -213,7 +213,9 @@ describe('pasteClipboardImage', () => {
   });
 
   it('dispatches error when readClipboardImage throws', async () => {
-    vi.spyOn(clipboardModule, 'readClipboardImage').mockRejectedValue(new Error('permission denied'));
+    vi.spyOn(clipboardModule, 'readClipboardImage').mockRejectedValue(
+      new Error('permission denied'),
+    );
     const refs = buildHarness();
     refs.builderRef.current = makeBuilder();
     render(React.createElement(Harness, { refs }));

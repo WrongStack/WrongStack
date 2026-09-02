@@ -26,13 +26,13 @@
  *     agent-helpers already ignores them.
  */
 
-import { createWrongTraceClient, type WrongTraceClientInternal } from "./client.js";
-import { getCrossAgentRisk, type CrossAgentRisk } from "./agent-helpers.js";
+import { createWrongTraceClient, type WrongTraceClientInternal } from './client.js';
+import { getCrossAgentRisk, type CrossAgentRisk } from './agent-helpers.js';
 
 /** Outcome the caller dispatches on. `allow` is always the safe default. */
 export type PreflightVerdict =
-  | { kind: "allow"; risk: CrossAgentRisk | null }
-  | { kind: "blocked"; risk: CrossAgentRisk };
+  | { kind: 'allow'; risk: CrossAgentRisk | null }
+  | { kind: 'blocked'; risk: CrossAgentRisk };
 
 let clientPromise: Promise<WrongTraceClientInternal> | undefined;
 
@@ -74,11 +74,11 @@ export async function preflightFileEdit(
   selfOwner?: string,
 ): Promise<PreflightVerdict> {
   const wt = await getWrongTrace();
-  if (!wt.isAvailable) return { kind: "allow", risk: null };
+  if (!wt.isAvailable) return { kind: 'allow', risk: null };
 
   const risk = await getCrossAgentRisk(wt, path, 50, selfOwner);
-  if (risk.band === "locked") return { kind: "blocked", risk };
-  return { kind: "allow", risk };
+  if (risk.band === 'locked') return { kind: 'blocked', risk };
+  return { kind: 'allow', risk };
 }
 
 /**

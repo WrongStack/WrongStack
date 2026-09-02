@@ -112,7 +112,11 @@ export function parsePerfArgs(args: string): ParsedPerfArgs {
  */
 export function buildPerfRunText(
   promptContent: string,
-  parts: { target?: string | undefined; metric?: string | undefined; stackGuidance?: string | undefined },
+  parts: {
+    target?: string | undefined;
+    metric?: string | undefined;
+    stackGuidance?: string | undefined;
+  },
 ): string {
   const sections = [promptContent];
   if (parts.target) {
@@ -132,9 +136,9 @@ export function buildPerfRunText(
 }
 
 function helpText(): string {
-  const modes = PERF_MODE_IDS.map(
-    (id) => `  /perf ${id.padEnd(9)} ${PERF_MODES[id].summary}`,
-  ).join('\n');
+  const modes = PERF_MODE_IDS.map((id) => `  /perf ${id.padEnd(9)} ${PERF_MODES[id].summary}`).join(
+    '\n',
+  );
   return [
     'Run one measure-change-measure performance round, or the read-only analysis',
     'that feeds it.',
@@ -176,9 +180,11 @@ async function readLedger(projectRoot: string): Promise<string> {
   if (lines.length === 0) {
     return `${PERF_LOG_FILENAME} exists but records no rounds yet. Run \`/perf\` to add one.`;
   }
-  return [`${PERF_LOG_FILENAME} — ${lines.length} round(s):`, '', ...lines.map((l) => `  ${l}`)].join(
-    '\n',
-  );
+  return [
+    `${PERF_LOG_FILENAME} — ${lines.length} round(s):`,
+    '',
+    ...lines.map((l) => `  ${l}`),
+  ].join('\n');
 }
 
 /**
@@ -207,8 +213,7 @@ export function buildPerfCommand(
 
       if (parsed.badMetric) {
         return {
-          message:
-            `Unknown metric "${parsed.badMetric}". Expected one of: ${Object.keys(PERF_METRICS).join(', ')}.`,
+          message: `Unknown metric "${parsed.badMetric}". Expected one of: ${Object.keys(PERF_METRICS).join(', ')}.`,
         };
       }
 

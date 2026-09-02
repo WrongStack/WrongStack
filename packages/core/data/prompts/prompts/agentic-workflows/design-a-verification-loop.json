@@ -5,11 +5,7 @@
   "description": "Make an agent check its own work before declaring done.",
   "content": "My agent does this task: {{task}}\n\nDesign a verification loop so it can't declare success while wrong. Define the concrete check that proves the work (a test, a diff, a re-read, an independent recompute), what counts as pass versus fail, and what the agent does on fail (retry, narrow, escalate). Make the check independent of the thing being checked so a confident-but-wrong agent still trips it. Cap the retries and define the give-up signal.",
   "category": "agentic-workflows",
-  "tags": [
-    "verification",
-    "self-check",
-    "reliability"
-  ],
+  "tags": ["verification", "self-check", "reliability"],
   "source": "builtin",
   "favorite": false,
   "checksum": "be6079fe57632a10b3a24d21c84409f7cbe10f9212d51cbbe73b5d7e481e7174",

@@ -72,7 +72,13 @@ child.stderr.on('data', (chunk: string) => {
   process.stderr.write(`[server stderr] ${chunk}`);
 });
 
-function handleMessage(msg: { id?: unknown; result?: unknown; error?: unknown; method?: unknown; params?: unknown }): void {
+function handleMessage(msg: {
+  id?: unknown;
+  result?: unknown;
+  error?: unknown;
+  method?: unknown;
+  params?: unknown;
+}): void {
   if (msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined)) {
     const pending = inflight.get(msg.id as number);
     if (!pending) return;
@@ -113,12 +119,18 @@ async function main(): Promise<void> {
   // Step 1: initialize
   const init = (await send('initialize', { protocolVersion: 1 })) as {
     protocolVersion: number;
-    agentCapabilities: { loadSession: boolean; promptCapabilities: { image: boolean; audio: boolean; embeddedContext: boolean } };
+    agentCapabilities: {
+      loadSession: boolean;
+      promptCapabilities: { image: boolean; audio: boolean; embeddedContext: boolean };
+    };
     agentInfo: { name: string; title: string; version: string };
   };
   assert(init.protocolVersion === 1, 'protocolVersion must be 1');
   assert(init.agentCapabilities.loadSession === true, 'loadSession should be true');
-  assert(init.agentInfo.name === 'wrongstack', `agentInfo.name should be 'wrongstack', got ${init.agentInfo.name}`);
+  assert(
+    init.agentInfo.name === 'wrongstack',
+    `agentInfo.name should be 'wrongstack', got ${init.agentInfo.name}`,
+  );
   console.log('PASS: initialize', JSON.stringify(init));
 
   // Step 2: authenticate (no-op, returns unauthenticated)
@@ -129,8 +141,10 @@ async function main(): Promise<void> {
   // Step 3: session/new
   const newResp = (await send('session/new', { cwd: process.cwd() })) as { sessionId: string };
   const sessionId = newResp.sessionId;
-  assert(typeof sessionId === 'string' && sessionId.startsWith('sess_'),
-    `sessionId should be a string starting with sess_, got ${sessionId}`);
+  assert(
+    typeof sessionId === 'string' && sessionId.startsWith('sess_'),
+    `sessionId should be a string starting with sess_, got ${sessionId}`,
+  );
   console.log('PASS: session/new', sessionId);
 
   // Step 4: drain any post-session/new notifications (current_mode_update etc.)
@@ -146,10 +160,14 @@ async function main(): Promise<void> {
   })) as { stopReason: string };
   // Wait a tick for any trailing notifications.
   await new Promise((r) => setImmediate(r));
-  assert(promptResult.stopReason === 'end_turn',
-    `stopReason should be 'end_turn', got ${promptResult.stopReason}`);
+  assert(
+    promptResult.stopReason === 'end_turn',
+    `stopReason should be 'end_turn', got ${promptResult.stopReason}`,
+  );
   const newNotifications = notifications.slice(initialNotifications);
-  console.log(`PASS: session/prompt → ${promptResult.stopReason}, ${newNotifications.length} new notification(s) since session/new`);
+  console.log(
+    `PASS: session/prompt → ${promptResult.stopReason}, ${newNotifications.length} new notification(s) since session/new`,
+  );
 
   // Step 6: session/cancel (just verify the notification is accepted; no
   // session is in flight so this should be a no-op)

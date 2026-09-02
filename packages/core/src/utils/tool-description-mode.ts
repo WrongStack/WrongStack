@@ -19,9 +19,7 @@ export interface ToolDescriptionRegistryLike {
   list(): Tool[];
   wrap?(name: string, wrapper: (tool: Tool) => Tool, owner?: string): void;
   setDescriptionMode?(name: string, mode: ToolDescriptionMode): boolean;
-  applyDescriptionModes?(
-    modes?: ToolDescriptionModeConfig,
-  ): { applied: number; missing: string[] };
+  applyDescriptionModes?(modes?: ToolDescriptionModeConfig): { applied: number; missing: string[] };
   getDescriptionMode?(name: string): ToolDescriptionMode;
 }
 
@@ -75,10 +73,7 @@ export function simplifyToolDescription(
   return `${summary.slice(0, boundary > 0 ? boundary : hardLimit).trimEnd()} ...`;
 }
 
-export function applyToolDescriptionModeToTool(
-  tool: Tool,
-  mode: ToolDescriptionMode,
-): Tool {
+export function applyToolDescriptionModeToTool(tool: Tool, mode: ToolDescriptionMode): Tool {
   const existingOriginal = getOriginalDescription(tool);
   if (mode === 'extend' && !existingOriginal) return tool;
 

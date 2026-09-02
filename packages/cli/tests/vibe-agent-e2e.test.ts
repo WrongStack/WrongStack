@@ -82,14 +82,13 @@ function toolResultText(request: Request): string {
       if (typeof rawContent === 'string') return rawContent;
       if (Array.isArray(rawContent)) {
         return rawContent
-          .filter(
-            (item: unknown): item is { type: string; text?: string } =>
-              Boolean(
-                item &&
-                  typeof item === 'object' &&
-                  'type' in item &&
-                  (item as { type: string }).type === 'text',
-              ),
+          .filter((item: unknown): item is { type: string; text?: string } =>
+            Boolean(
+              item &&
+                typeof item === 'object' &&
+                'type' in item &&
+                (item as { type: string }).type === 'text',
+            ),
           )
           .map((item) => item.text ?? '')
           .join('\n');
@@ -117,7 +116,12 @@ describe('[VIBE] real Agent.run production flow', () => {
         'tool_use',
       ),
       response(
-        [{ type: 'text', text: 'Implemented the cart increment and verified the focused scenario.' }],
+        [
+          {
+            type: 'text',
+            text: 'Implemented the cart increment and verified the focused scenario.',
+          },
+        ],
         'end_turn',
       ),
       response(
@@ -231,9 +235,7 @@ describe('[VIBE] real Agent.run production flow', () => {
       .flatMap((message) =>
         typeof message.content === 'string'
           ? [message.content]
-          : message.content
-              .filter((block) => block.type === 'text')
-              .map((block) => block.text),
+          : message.content.filter((block) => block.type === 'text').map((block) => block.text),
       )
       .join('\n');
     expect(persistedText).toContain('### 🛡️ [Auditor Verdict]');

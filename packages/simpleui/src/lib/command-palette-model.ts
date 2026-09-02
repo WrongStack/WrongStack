@@ -147,11 +147,7 @@ export function filterCommandPaletteItems(
   items: CommandPaletteItem[],
   query: string,
 ): CommandPaletteItem[] {
-  const terms = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (terms.length === 0) return items;
 
   return items.filter((item) => {

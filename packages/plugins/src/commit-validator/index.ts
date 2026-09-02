@@ -90,13 +90,18 @@ const DEFAULTS: CommitValidatorConfig = {
 function readConfig(raw: unknown): CommitValidatorConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
-  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
-    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
-    : undefined;
+  const rawMode =
+    typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+      ? String(r['mode'] ?? r['action'] ?? r['behavior'])
+          .trim()
+          .toLowerCase()
+      : undefined;
   const mode = rawMode === 'warn' ? 'warn' : 'block';
   const rawTypes = r['allowedTypes'] ?? r['allowed_types'] ?? r['types'];
-  const rawMaxSubj = r['maxSubjectLength'] ?? r['max_subject_length'] ?? r['maxLength'] ?? r['max_length'];
-  const rawMinBody = r['minBodyLength'] ?? r['min_body_length'] ?? r['minLength'] ?? r['min_length'];
+  const rawMaxSubj =
+    r['maxSubjectLength'] ?? r['max_subject_length'] ?? r['maxLength'] ?? r['max_length'];
+  const rawMinBody =
+    r['minBodyLength'] ?? r['min_body_length'] ?? r['minLength'] ?? r['min_length'];
 
   return {
     mode,
@@ -105,14 +110,11 @@ function readConfig(raw: unknown): CommitValidatorConfig {
       ? (rawTypes as unknown[]).filter((x): x is string => typeof x === 'string')
       : [],
     maxSubjectLength:
-      typeof rawMaxSubj === 'number' && rawMaxSubj > 0
-        ? rawMaxSubj
-        : DEFAULTS.maxSubjectLength,
-    bodyRequired: (r['bodyRequired'] ?? r['body_required'] ?? r['requireBody'] ?? r['require_body']) === true,
+      typeof rawMaxSubj === 'number' && rawMaxSubj > 0 ? rawMaxSubj : DEFAULTS.maxSubjectLength,
+    bodyRequired:
+      (r['bodyRequired'] ?? r['body_required'] ?? r['requireBody'] ?? r['require_body']) === true,
     minBodyLength:
-      typeof rawMinBody === 'number' && rawMinBody > 0
-        ? rawMinBody
-        : DEFAULTS.minBodyLength,
+      typeof rawMinBody === 'number' && rawMinBody > 0 ? rawMinBody : DEFAULTS.minBodyLength,
     suggestFix: (r['suggestFix'] ?? r['suggest_fix']) === true,
   };
 }

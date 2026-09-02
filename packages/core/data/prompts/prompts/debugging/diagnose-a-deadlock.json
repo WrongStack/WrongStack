@@ -5,10 +5,7 @@
   "description": "Find why concurrent code hangs.",
   "content": "My program hangs here: {{symptom}}\n\nWalk me through diagnosing a deadlock: how to capture the state of all threads or tasks and see who is waiting on whom. Identify the lock-ordering or wait-cycle causing it. Propose a fix that breaks the cycle (consistent lock order, timeouts, lock-free, or removing the shared lock). Explain why your fix cannot reintroduce the deadlock.",
   "category": "debugging",
-  "tags": [
-    "deadlock",
-    "concurrency"
-  ],
+  "tags": ["deadlock", "concurrency"],
   "source": "builtin",
   "favorite": false,
   "checksum": "bd3a54cc32fcbb175c2a4a5a17ec05d859ca70b6b4a2f7b3d4b8cde0c8cd5900",

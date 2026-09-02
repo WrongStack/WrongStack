@@ -24,9 +24,7 @@ export interface SessionInterruptController {
     | ((info: { leaderActive: boolean; subagentCount: number }) => Promise<boolean>)
     | undefined;
   /** TUI-owned generic slash-command confirmation panel bridge. */
-  confirmSlash?:
-    | ((question: string, defaultYes: boolean) => Promise<boolean | null>)
-    | undefined;
+  confirmSlash?: ((question: string, defaultYes: boolean) => Promise<boolean | null>) | undefined;
   resetSession?: (() => void) | undefined;
   waitForIdle?: (() => Promise<void>) | undefined;
 }

@@ -5,10 +5,7 @@
   "description": "Decouple a caller from a concrete implementation.",
   "content": "This code is tightly coupled to a concrete implementation:\n\n{{code}}\n\nExtract an interface (or protocol/trait) so the caller depends on behavior, not a concrete type. Define the minimal interface the caller actually needs — no more. Show the refactor and how a test could now substitute a fake. Warn me if this is premature abstraction: if there is exactly one implementation and no test or seam needs it, say so and leave it.",
   "category": "refactoring",
-  "tags": [
-    "interface",
-    "decoupling"
-  ],
+  "tags": ["interface", "decoupling"],
   "source": "builtin",
   "favorite": false,
   "checksum": "33ac1e0ecdabdd82507c70f6f56e2664353132e666fdae0af7cae223ee48b116",

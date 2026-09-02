@@ -26,10 +26,7 @@ import * as path from 'node:path';
 import { chronicleEventHash, GENESIS_HASH } from './event-hash.js';
 import { collectPartitions, readRetentionCheckpoint, streamEntriesStrict } from './journal.js';
 import { PARTITION_FILE_PATTERN } from './partition-filename.js';
-import type {
-  ChronicleQuarantinedFamily,
-  ChronicleSqliteJournal,
-} from './sqlite-journal.js';
+import type { ChronicleQuarantinedFamily, ChronicleSqliteJournal } from './sqlite-journal.js';
 
 export interface ChronicleLegacyImportResult {
   /** True when the marker was already set and nothing was read. */
@@ -43,7 +40,7 @@ export interface ChronicleLegacyImportResult {
 }
 
 /** A chain break found while importing; carries enough context to act on. */
- class ChronicleImportError extends Error {
+class ChronicleImportError extends Error {
   constructor(
     message: string,
     readonly day: string,
@@ -136,8 +133,9 @@ export async function importLegacyChronicleJournal(
           // Per-file boundary: the metrics ingester folds only post-migration
           // appends beyond each partition's own import-time size. A family-wide
           // total would over-skip the active rotation after a rotation.
-          familyBoundary[path.relative(directory, partition).replaceAll('\\', '/')] =
-            (await fs.stat(partition)).size;
+          familyBoundary[path.relative(directory, partition).replaceAll('\\', '/')] = (
+            await fs.stat(partition)
+          ).size;
           for await (const event of streamEntriesStrict(partition)) {
             if (event.sequence !== expectedSequence) {
               throw new ChronicleImportError(

@@ -47,7 +47,11 @@ export interface PluginManagerHookRunner {
       capabilities?: readonly string[] | undefined;
       mutating?: boolean | undefined;
     },
-  ): Promise<{ block?: boolean | undefined; reason?: string | undefined; input?: Record<string, unknown> }>;
+  ): Promise<{
+    block?: boolean | undefined;
+    reason?: string | undefined;
+    input?: Record<string, unknown>;
+  }>;
 }
 
 export interface CreatePluginManagerToolOptions {

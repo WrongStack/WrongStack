@@ -32,17 +32,18 @@ import {
 } from '../utils/instruction-file.js';
 
 export function buildGoalPreamble(goal: string, deliverables?: string[]): string {
-  const deliverableBlock = deliverables && deliverables.length > 0
-    ? [
-        'CONCRETE DELIVERABLES (check these off as you go):',
-        ...deliverables.map((d, i) => `  ${i + 1}. ${d}`),
-        '',
-        'After EACH iteration, estimate your completion percentage (0–100)',
-        'against this deliverable list. Output it as:',
-        '  [PROGRESS: N%] — <1-sentence status>',
-        'The eternal engine reads this to update the progress bar.',
-      ].join('\n')
-    : '';
+  const deliverableBlock =
+    deliverables && deliverables.length > 0
+      ? [
+          'CONCRETE DELIVERABLES (check these off as you go):',
+          ...deliverables.map((d, i) => `  ${i + 1}. ${d}`),
+          '',
+          'After EACH iteration, estimate your completion percentage (0–100)',
+          'against this deliverable list. Output it as:',
+          '  [PROGRESS: N%] — <1-sentence status>',
+          'The eternal engine reads this to update the progress bar.',
+        ].join('\n')
+      : '';
 
   return renderInstructionTemplate(readBundledInstructionText('autonomy/goal-preamble.md'), {
     goal,

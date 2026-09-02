@@ -18,9 +18,7 @@ function mockWs(): WebSocket & { send: ReturnType<typeof vi.fn> } {
   } as never as WebSocket & { send: ReturnType<typeof vi.fn> };
 }
 
-function makeHandlers(
-  overrides: Partial<Parameters<typeof createProviderHandlers>[0]> = {},
-) {
+function makeHandlers(overrides: Partial<Parameters<typeof createProviderHandlers>[0]> = {}) {
   const clients = new Map<WebSocket, never>();
   const broadcast = vi.fn();
   const handlers = createProviderHandlers({

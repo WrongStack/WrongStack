@@ -1,8 +1,5 @@
 import * as fs from 'node:fs/promises';
-import {
-  type ConfigDefaultRepairReport,
-  repairConfigDefaults,
-} from '@wrongstack/core/storage';
+import { type ConfigDefaultRepairReport, repairConfigDefaults } from '@wrongstack/core/storage';
 import type { Config, SecretVault } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import { decryptConfigSecrets } from '@wrongstack/core/security';

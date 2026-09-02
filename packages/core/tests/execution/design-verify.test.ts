@@ -27,7 +27,9 @@ describe('verifyFiles', () => {
   });
 
   it('flags generic Tailwind palette utilities', () => {
-    const r = verifyFiles(tokens, [{ path: 'a.tsx', text: '<div className="bg-blue-500 text-gray-700" />' }]);
+    const r = verifyFiles(tokens, [
+      { path: 'a.tsx', text: '<div className="bg-blue-500 text-gray-700" />' },
+    ]);
     expect(r.violations.length).toBe(2);
     expect(r.violations.every((v) => /generic Tailwind/.test(v.reason))).toBe(true);
   });
@@ -59,7 +61,10 @@ describe('verifyFiles', () => {
 
   it('flags hardcoded border-radius but ignores var() and trivial values', () => {
     const r = verifyFiles(tokens, [
-      { path: 'a.css', text: '.a{border-radius: 7px} .b{border-radius: var(--radius-md)} .c{border-radius: 50%}' },
+      {
+        path: 'a.css',
+        text: '.a{border-radius: 7px} .b{border-radius: var(--radius-md)} .c{border-radius: 50%}',
+      },
     ]);
     expect(r.violations.length).toBe(1);
     expect(r.violations[0]?.axis).toBe('radius');

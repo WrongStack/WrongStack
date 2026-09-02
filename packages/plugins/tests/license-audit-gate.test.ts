@@ -10,7 +10,11 @@ const licenseAuditPlugin = (await import('../src/license-audit-gate')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
 }
@@ -47,7 +51,10 @@ function normalizePath(p: string): string {
 
 function mockPackage(name: string, pkg: Record<string, unknown>) {
   vi.mocked(readFileSync).mockImplementation((path: string | Buffer | URL) => {
-    if (typeof path === 'string' && normalizePath(path).endsWith(`node_modules/${name}/package.json`)) {
+    if (
+      typeof path === 'string' &&
+      normalizePath(path).endsWith(`node_modules/${name}/package.json`)
+    ) {
       return JSON.stringify(pkg);
     }
     throw new Error(`ENOENT: ${String(path)}`);
@@ -146,10 +153,16 @@ describe('license-audit-gate plugin', () => {
     vi.mocked(readFileSync).mockImplementation((path: string | Buffer | URL) => {
       const p = normalizePath(String(path));
       if (p.endsWith('node_modules/obj-pkg/package.json')) {
-        return JSON.stringify({ name: 'obj-pkg', license: { type: 'MIT', url: 'https://mit.edu' } });
+        return JSON.stringify({
+          name: 'obj-pkg',
+          license: { type: 'MIT', url: 'https://mit.edu' },
+        });
       }
       if (p.endsWith('node_modules/arr-pkg/package.json')) {
-        return JSON.stringify({ name: 'arr-pkg', licenses: [{ type: 'MIT' }, { type: 'Apache-2.0' }] });
+        return JSON.stringify({
+          name: 'arr-pkg',
+          licenses: [{ type: 'MIT' }, { type: 'Apache-2.0' }],
+        });
       }
       throw new Error(`ENOENT: ${p}`);
     });
@@ -168,7 +181,10 @@ describe('license-audit-gate plugin', () => {
     vi.mocked(readFileSync).mockImplementation((path: string | Buffer | URL) => {
       const p = normalizePath(String(path));
       if (p.endsWith('node_modules/mixed-pkg/package.json')) {
-        return JSON.stringify({ name: 'mixed-pkg', licenses: [{ type: 'MIT' }, { type: 'GPL-2.0' }] });
+        return JSON.stringify({
+          name: 'mixed-pkg',
+          licenses: [{ type: 'MIT' }, { type: 'GPL-2.0' }],
+        });
       }
       throw new Error(`ENOENT: ${p}`);
     });

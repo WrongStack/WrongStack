@@ -2,11 +2,7 @@
  * Tests for the official ACP registry fetcher + entry mapping.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  fetchAcpRegistry,
-  mapRegistryEntry,
-  resolveAcpAgentCommand,
-} from '../src/index.js';
+import { fetchAcpRegistry, mapRegistryEntry, resolveAcpAgentCommand } from '../src/index.js';
 import { currentPlatformKey } from '../src/registry/acp-registry-fetch.js';
 
 describe('currentPlatformKey', () => {
@@ -69,8 +65,11 @@ describe('mapRegistryEntry', () => {
 
   it('infers vendor from the entry text', () => {
     expect(
-      mapRegistryEntry({ id: 'claude-acp', name: 'Claude Agent', distribution: { npx: { package: 'x' } } })
-        ?.vendor,
+      mapRegistryEntry({
+        id: 'claude-acp',
+        name: 'Claude Agent',
+        distribution: { npx: { package: 'x' } },
+      })?.vendor,
     ).toBe('anthropic');
   });
 
@@ -142,14 +141,21 @@ describe('fetchAcpRegistry', () => {
       ok: true,
       json: async () => ({
         agents: [
-          { id: 'gemini', name: 'Gemini CLI', distribution: { npx: { package: '@google/gemini-cli@1', args: ['--acp'] } } },
+          {
+            id: 'gemini',
+            name: 'Gemini CLI',
+            distribution: { npx: { package: '@google/gemini-cli@1', args: ['--acp'] } },
+          },
           { id: 'binary-only', distribution: { binary: { 'other-arch': { cmd: './x' } } } },
           { id: '', distribution: { npx: { package: 'nope' } } },
         ],
       }),
     })) as never;
 
-    const res = await fetchAcpRegistry({ now: '2026-06-28T00:00:00Z', platformKey: 'darwin-aarch64' });
+    const res = await fetchAcpRegistry({
+      now: '2026-06-28T00:00:00Z',
+      platformKey: 'darwin-aarch64',
+    });
     expect(res.fetchedAt).toBe('2026-06-28T00:00:00Z');
     expect(res.agents.map((a) => a.id)).toEqual(['gemini']);
   });
@@ -174,9 +180,7 @@ describe('fetchAcpRegistry', () => {
 
     const ac = new AbortController();
     ac.abort();
-    await expect(
-      fetchAcpRegistry({ signal: ac.signal }),
-    ).rejects.toThrow();
+    await expect(fetchAcpRegistry({ signal: ac.signal })).rejects.toThrow();
     // Verify the internal abort signal was triggered because the parent signal was already aborted
     expect(capturedSignal.current?.aborted).toBe(true);
   });
@@ -204,9 +208,7 @@ describe('fetchAcpRegistry', () => {
   it('accepts a top-level array and supplies default timestamp and platform', async () => {
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
-      json: async () => [
-        { id: 'minimal', distribution: { npx: { package: 'minimal' } } },
-      ],
+      json: async () => [{ id: 'minimal', distribution: { npx: { package: 'minimal' } } }],
     })) as never;
 
     const result = await fetchAcpRegistry();
@@ -216,10 +218,12 @@ describe('fetchAcpRegistry', () => {
 
   it('aborts a fetch when its timeout elapses', async () => {
     vi.useFakeTimers();
-    globalThis.fetch = vi.fn(async (_url: string, opts: { signal: AbortSignal }) =>
-      new Promise((_resolve, reject) => {
-        opts.signal.addEventListener('abort', () => reject(new Error('timed out')));
-      })) as never;
+    globalThis.fetch = vi.fn(
+      async (_url: string, opts: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          opts.signal.addEventListener('abort', () => reject(new Error('timed out')));
+        }),
+    ) as never;
 
     const pending = fetchAcpRegistry({ timeoutMs: 25 });
     const rejection = expect(pending).rejects.toThrow('timed out');

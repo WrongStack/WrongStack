@@ -94,10 +94,19 @@ const missions = [
 const leaderStatuses = ['assign_task', 'mail_send', 'thinking…', 'waiting on lanes'] as const;
 
 const scanners = [
-  { id: '01', statuses: ['thinking…', 'read src/auth/session', 'grep token|secret', '2 findings drafted'] },
-  { id: '02', statuses: ['thinking…', 'trace attacker input', 'read http/server', '1 finding drafted'] },
+  {
+    id: '01',
+    statuses: ['thinking…', 'read src/auth/session', 'grep token|secret', '2 findings drafted'],
+  },
+  {
+    id: '02',
+    statuses: ['thinking…', 'trace attacker input', 'read http/server', '1 finding drafted'],
+  },
   { id: '03', statuses: ['thinking…', 'map fs boundary', 'read fs/guards', 'lane clean ✓'] },
-  { id: '04', statuses: ['thinking…', 'audit dep install path', 'read policy/engine', 'lane clean ✓'] },
+  {
+    id: '04',
+    statuses: ['thinking…', 'audit dep install path', 'read policy/engine', 'lane clean ✓'],
+  },
 ] as const;
 
 const LOOP_TICKS = streamLines.length + 4;
@@ -199,7 +208,9 @@ export function TuiShowcase() {
   }, [reducedMotion]);
 
   const visible = reducedMotion ? streamLines.length : Math.min(tick + 1, streamLines.length);
-  const doneCount = reducedMotion ? missions.length : Math.min(missions.length, Math.floor(tick / 2));
+  const doneCount = reducedMotion
+    ? missions.length
+    : Math.min(missions.length, Math.floor(tick / 2));
 
   return (
     <section className="border-b border-line px-4 py-16 sm:px-6 sm:py-24 lg:px-10 lg:py-28">
@@ -214,9 +225,8 @@ export function TuiShowcase() {
             </h2>
           </div>
           <p className="max-w-2xl text-base leading-7 text-muted lg:justify-self-end">
-            The TUI streams the real agent loop — reasoning, tool calls, fleet activity and
-            mission state — with zero browser chrome. Not a screenshot: the interface, rebuilt
-            in code.
+            The TUI streams the real agent loop — reasoning, tool calls, fleet activity and mission
+            state — with zero browser chrome. Not a screenshot: the interface, rebuilt in code.
           </p>
         </div>
 

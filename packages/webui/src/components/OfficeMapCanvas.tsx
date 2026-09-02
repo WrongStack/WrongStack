@@ -541,171 +541,176 @@ export function OfficeMapCanvas() {
     return { renderedAgents, serverIdToOffice, clientIds: clients.map((c) => c.id) };
   }, [clients]);
 
-  const vizEventToTargets = useCallback((event: (typeof vizEvents)[0]): {
-    nodes: string[];
-    edges: string[];
-    status: ClientStatus;
-  } => {
-    const toOfficeAgentId = (serverId: string): string =>
-      vizTargetModel.serverIdToOffice.get(serverId) ?? `agent-${serverId}`;
-    switch (event.kind) {
-      case 'mailbox:send':
-      case 'mailbox:deliver':
-        return {
-          nodes: ['mailbox'],
-          // Mail flows from the hub out to every connected client.
-          edges:
-            event.kind === 'mailbox:send'
-              ? vizTargetModel.clientIds.map((id) => `mailbox->${id}`)
-              : [],
-          status: 'active',
-        };
+  const vizEventToTargets = useCallback(
+    (
+      event: (typeof vizEvents)[0],
+    ): {
+      nodes: string[];
+      edges: string[];
+      status: ClientStatus;
+    } => {
+      const toOfficeAgentId = (serverId: string): string =>
+        vizTargetModel.serverIdToOffice.get(serverId) ?? `agent-${serverId}`;
+      switch (event.kind) {
+        case 'mailbox:send':
+        case 'mailbox:deliver':
+          return {
+            nodes: ['mailbox'],
+            // Mail flows from the hub out to every connected client.
+            edges:
+              event.kind === 'mailbox:send'
+                ? vizTargetModel.clientIds.map((id) => `mailbox->${id}`)
+                : [],
+            status: 'active',
+          };
 
-      case 'agent:spawned': {
-        const officeId = toOfficeAgentId(event.source);
-        return {
-          nodes: ['coordinator', officeId],
-          edges: [agentEdgeId(officeId)],
-          status: 'active',
-        };
-      }
+        case 'agent:spawned': {
+          const officeId = toOfficeAgentId(event.source);
+          return {
+            nodes: ['coordinator', officeId],
+            edges: [agentEdgeId(officeId)],
+            status: 'active',
+          };
+        }
 
-      case 'agent:tool':
-      case 'tool:started':
-      case 'tool:progress': {
-        const officeId = toOfficeAgentId(event.source);
-        return {
-          nodes: ['coordinator', officeId],
-          edges: [agentEdgeId(officeId)],
-          status:
-            event.kind === 'tool:progress'
-              ? 'streaming'
-              : event.kind === 'tool:started'
+        case 'agent:tool':
+        case 'tool:started':
+        case 'tool:progress': {
+          const officeId = toOfficeAgentId(event.source);
+          return {
+            nodes: ['coordinator', officeId],
+            edges: [agentEdgeId(officeId)],
+            status:
+              event.kind === 'tool:progress'
                 ? 'streaming'
-                : 'active',
-        };
-      }
+                : event.kind === 'tool:started'
+                  ? 'streaming'
+                  : 'active',
+          };
+        }
 
-      case 'tool:executed': {
-        const officeId = toOfficeAgentId(event.target ?? event.source);
-        return {
-          nodes: [officeId],
-          edges: [agentEdgeId(officeId)],
-          status: 'active',
-        };
-      }
+        case 'tool:executed': {
+          const officeId = toOfficeAgentId(event.target ?? event.source);
+          return {
+            nodes: [officeId],
+            edges: [agentEdgeId(officeId)],
+            status: 'active',
+          };
+        }
 
-      case 'provider:call':
-      case 'provider:delta':
-      case 'provider:response':
-        return {
-          nodes: ['coordinator'],
-          edges: [],
-          status: event.kind === 'provider:delta' ? 'streaming' : 'active',
-        };
+        case 'provider:call':
+        case 'provider:delta':
+        case 'provider:response':
+          return {
+            nodes: ['coordinator'],
+            edges: [],
+            status: event.kind === 'provider:delta' ? 'streaming' : 'active',
+          };
 
-      case 'iteration:start':
-      case 'iteration:end':
-        return {
-          nodes: ['coordinator'],
-          edges: vizTargetModel.renderedAgents.map((a) => agentEdgeId(a.officeId)),
-          status: event.kind === 'iteration:start' ? 'streaming' : 'active',
-        };
+        case 'iteration:start':
+        case 'iteration:end':
+          return {
+            nodes: ['coordinator'],
+            edges: vizTargetModel.renderedAgents.map((a) => agentEdgeId(a.officeId)),
+            status: event.kind === 'iteration:start' ? 'streaming' : 'active',
+          };
 
-      case 'agent:text': {
-        const officeId = toOfficeAgentId(event.source);
-        return {
-          nodes: [officeId],
-          edges: [agentEdgeId(officeId)],
-          status: 'streaming',
-        };
-      }
+        case 'agent:text': {
+          const officeId = toOfficeAgentId(event.source);
+          return {
+            nodes: [officeId],
+            edges: [agentEdgeId(officeId)],
+            status: 'streaming',
+          };
+        }
 
-      case 'agent:status': {
-        const officeId = toOfficeAgentId(event.source);
-        return {
-          nodes: ['coordinator', officeId],
-          edges: [agentEdgeId(officeId)],
-          status:
-            event.data &&
-            typeof event.data === 'object' &&
-            'status' in event.data &&
-            String((event.data as Record<string, unknown>).status) === 'failed'
-              ? 'error'
-              : 'completed',
-        };
-      }
+        case 'agent:status': {
+          const officeId = toOfficeAgentId(event.source);
+          return {
+            nodes: ['coordinator', officeId],
+            edges: [agentEdgeId(officeId)],
+            status:
+              event.data &&
+              typeof event.data === 'object' &&
+              'status' in event.data &&
+              String((event.data as Record<string, unknown>).status) === 'failed'
+                ? 'error'
+                : 'completed',
+          };
+        }
 
-      case 'agent:ctx': {
-        const officeId = toOfficeAgentId(event.source);
-        return {
-          nodes: [officeId],
-          edges: [],
-          status: 'active',
-        };
-      }
+        case 'agent:ctx': {
+          const officeId = toOfficeAgentId(event.source);
+          return {
+            nodes: [officeId],
+            edges: [],
+            status: 'active',
+          };
+        }
 
-      case 'budget:extended': {
-        const officeId = toOfficeAgentId(event.source);
-        return {
-          nodes: ['coordinator', officeId],
-          edges: [],
-          status: 'active',
-        };
-      }
+        case 'budget:extended': {
+          const officeId = toOfficeAgentId(event.source);
+          return {
+            nodes: ['coordinator', officeId],
+            edges: [],
+            status: 'active',
+          };
+        }
 
-      case 'context:compacted':
-      case 'context:repaired':
-        return {
-          nodes: ['coordinator'],
-          edges: [],
-          status: 'active',
-        };
+        case 'context:compacted':
+        case 'context:repaired':
+          return {
+            nodes: ['coordinator'],
+            edges: [],
+            status: 'active',
+          };
 
-      case 'error':
-        return {
-          nodes: event.source ? [toOfficeAgentId(event.source)] : [],
-          edges: [],
-          status: 'error',
-        };
+        case 'error':
+          return {
+            nodes: event.source ? [toOfficeAgentId(event.source)] : [],
+            edges: [],
+            status: 'error',
+          };
 
-      case 'cost:update':
-        return {
-          nodes: ['coordinator'],
-          edges: [],
-          status: 'active',
-        };
+        case 'cost:update':
+          return {
+            nodes: ['coordinator'],
+            edges: [],
+            status: 'active',
+          };
 
-      case 'fleet:snapshot': {
-        // sessions.status_update periodic broadcast — update all active agent nodes
-        const sessions =
-          (
-            event.data as {
-              sessions?:
-                | Array<{
-                    id: string;
-                    status: string;
-                    agents?: Array<{ id: string; name: string; status: string }>;
-                  }>
-                | undefined;
-            }
-          )?.sessions ?? [];
-        const nodes: string[] = ['coordinator'];
-        for (const session of sessions) {
-          if (session.agents) {
-            for (const agent of session.agents) {
-              const officeId = toOfficeAgentId(agent.id);
-              if (!nodes.includes(officeId)) nodes.push(officeId);
+        case 'fleet:snapshot': {
+          // sessions.status_update periodic broadcast — update all active agent nodes
+          const sessions =
+            (
+              event.data as {
+                sessions?:
+                  | Array<{
+                      id: string;
+                      status: string;
+                      agents?: Array<{ id: string; name: string; status: string }>;
+                    }>
+                  | undefined;
+              }
+            )?.sessions ?? [];
+          const nodes: string[] = ['coordinator'];
+          for (const session of sessions) {
+            if (session.agents) {
+              for (const agent of session.agents) {
+                const officeId = toOfficeAgentId(agent.id);
+                if (!nodes.includes(officeId)) nodes.push(officeId);
+              }
             }
           }
+          return { nodes, edges: [], status: 'active' };
         }
-        return { nodes, edges: [], status: 'active' };
-      }
 
-      default:
-        return { nodes: [], edges: [], status: 'idle' };
-    }
-  }, [vizTargetModel]);
+        default:
+          return { nodes: [], edges: [], status: 'idle' };
+      }
+    },
+    [vizTargetModel],
+  );
 
   // Handle viz events for live updates — now handles ALL event types.
   // Coalescing: the store can append several events between two renders

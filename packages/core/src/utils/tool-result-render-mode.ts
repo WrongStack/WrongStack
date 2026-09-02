@@ -1,7 +1,4 @@
-import type {
-  ToolResultRenderMode,
-  ToolResultRenderModeConfig,
-} from '../types/config.js';
+import type { ToolResultRenderMode, ToolResultRenderModeConfig } from '../types/config.js';
 import type { Tool } from '../types/tool.js';
 
 export const DEFAULT_TOOL_RESULT_RENDER_MODE: ToolResultRenderMode = 'extend';
@@ -41,9 +38,10 @@ export function resolveToolResultRenderMode(
 export interface ToolResultRenderModeRegistryLike {
   get(name: string): Tool | undefined;
   setResultRenderMode?(name: string, mode: ToolResultRenderMode): boolean;
-  applyResultRenderModes?(
-    modes?: ToolResultRenderModeConfig,
-  ): { applied: number; missing: string[] };
+  applyResultRenderModes?(modes?: ToolResultRenderModeConfig): {
+    applied: number;
+    missing: string[];
+  };
   getResultRenderMode?(name: string): ToolResultRenderMode;
 }
 

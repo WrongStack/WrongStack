@@ -55,10 +55,7 @@ const panelPickerActionTypes = [
   'shadowHint',
 ] as const satisfies readonly Action['type'][];
 
-type PanelPickerAction = Extract<
-  Action,
-  { type: (typeof panelPickerActionTypes)[number] }
->;
+type PanelPickerAction = Extract<Action, { type: (typeof panelPickerActionTypes)[number] }>;
 const panelPickerActionTypeSet = new Set<string>(panelPickerActionTypes);
 
 export function isPanelPickerAction(action: Action): action is PanelPickerAction {
@@ -246,7 +243,10 @@ export function reducePanelPickers(state: State, action: PanelPickerAction): Sta
       };
     }
     case 'toolsPickerClose':
-      return { ...state, toolsPicker: { ...state.toolsPicker, open: false, busy: false, filter: undefined } };
+      return {
+        ...state,
+        toolsPicker: { ...state.toolsPicker, open: false, busy: false, filter: undefined },
+      };
     case 'toolsPickerMove': {
       const count = state.toolsPicker.items.length;
       if (count === 0) return state;
@@ -314,7 +314,7 @@ export function reducePanelPickers(state: State, action: PanelPickerAction): Sta
     }
     case 'brainRiskChange': {
       const levels = ['off', 'low', 'medium', 'high', 'all'] as const;
-      const cur = levels.indexOf(state.brainPanel.riskLevel as typeof levels[number]);
+      const cur = levels.indexOf(state.brainPanel.riskLevel as (typeof levels)[number]);
       const next = (cur + action.delta + levels.length) % levels.length;
       return {
         ...state,
@@ -373,7 +373,13 @@ export function reducePanelPickers(state: State, action: PanelPickerAction): Sta
       return {
         ...state,
         ...closePanels(state),
-        helpPanel: { open: true, entries: action.entries, selected: 0, filter: '', hint: undefined },
+        helpPanel: {
+          open: true,
+          entries: action.entries,
+          selected: 0,
+          filter: '',
+          hint: undefined,
+        },
       };
     case 'helpClose':
       return { ...state, helpPanel: { ...state.helpPanel, open: false, filter: '' } };

@@ -64,7 +64,11 @@ export function KanbanTaskCompletionChecks({
             placeholder={t('activity:kanbanTaskCompletionChecks.addAVerifiableCompletionCheck')}
             className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs outline-none focus:border-primary"
           />
-          <button type="button" onClick={onAddCheck} className="h-8 rounded-md border px-2 hover:bg-muted">
+          <button
+            type="button"
+            onClick={onAddCheck}
+            className="h-8 rounded-md border px-2 hover:bg-muted"
+          >
             <Plus size={14} />
           </button>
         </div>

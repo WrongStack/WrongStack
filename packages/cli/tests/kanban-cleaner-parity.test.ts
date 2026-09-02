@@ -193,7 +193,9 @@ const CORPUS: Case[] = [
   },
   {
     label: 'due date stored as epoch millis',
-    board: board([task('epoch-due', { dueDate: 1_784_000_000_000 } as unknown as Partial<KanbanTask>)]),
+    board: board([
+      task('epoch-due', { dueDate: 1_784_000_000_000 } as unknown as Partial<KanbanTask>),
+    ]),
     requireDueDate: true,
   },
   {
@@ -237,12 +239,16 @@ const CORPUS: Case[] = [
   },
   {
     label: 'string success criteria on a legacy board',
-    board: board([task('string-criteria', { successCriteria: ['Ships'] } as unknown as Partial<KanbanTask>)]),
+    board: board([
+      task('string-criteria', { successCriteria: ['Ships'] } as unknown as Partial<KanbanTask>),
+    ]),
   },
   {
     label: 'string success criteria on a managed board',
     board: managed([
-      task('managed-string-criteria', { successCriteria: ['Ships'] } as unknown as Partial<KanbanTask>),
+      task('managed-string-criteria', {
+        successCriteria: ['Ships'],
+      } as unknown as Partial<KanbanTask>),
     ]),
   },
   {

@@ -280,7 +280,11 @@ function parseSeq(c: Cursor, budget: Budget, foldCase: boolean, dotAll: boolean)
       if (!m) return null;
       const min = Number.parseInt(m[1]!, 10);
       const max =
-        m[2] === undefined ? min : m[3] === '' ? Number.POSITIVE_INFINITY : Number.parseInt(m[3]!, 10);
+        m[2] === undefined
+          ? min
+          : m[3] === ''
+            ? Number.POSITIVE_INFINITY
+            : Number.parseInt(m[3]!, 10);
       if (max < min || min > MAX_COPIES || max > MAX_COPIES) return null;
       c.i = close + 1;
       atom = { k: 'rep', node: atom, min, max };
@@ -377,7 +381,7 @@ function parseClass(c: Cursor, foldCase: boolean): CharSet | null {
 function escapeWidth(s: string, i: number): number {
   const ch = s[i + 1];
   if (ch === 'x') return 4;
-  if (ch === 'u') return s[i + 2] === '{' ? (s.indexOf('}', i + 3) - i + 1) : 6;
+  if (ch === 'u') return s[i + 2] === '{' ? s.indexOf('}', i + 3) - i + 1 : 6;
   if (ch === '0') {
     // Annex B legacy octal: `\0` + up to two octal digits is ONE codepoint.
     let w = 2;
@@ -616,7 +620,12 @@ function parseAmbiguity(
         if (e2.set === null) continue;
         const both = intersect(e1.set, e2.set);
         if (both.length === 0) continue;
-        if (diverged && acceptReachable.has(e1.to) && acceptReachable.has(e2.to) && !completions.has(k)) {
+        if (
+          diverged &&
+          acceptReachable.has(e1.to) &&
+          acceptReachable.has(e2.to) &&
+          !completions.has(k)
+        ) {
           completions.set(k, String.fromCodePoint(anyMember(both)));
         }
         const from1 = nextSources(e1.to);
@@ -713,9 +722,7 @@ function decompositionAmbiguity(
   // the plain 2-char words 'ca'/'bc'). Breadth is bounded by the budget
   // alone; exhaustion under-rejects (sound), never invents violations.
   const words: string[] = [];
-  let level: Array<{ config: Set<number>; s: string }> = [
-    { config: new Set(startClosure), s: '' },
-  ];
+  let level: Array<{ config: Set<number>; s: string }> = [{ config: new Set(startClosure), s: '' }];
   for (let len = 1; len <= WORD_MAX && level.length > 0 && words.length < MAX_WORDS; len++) {
     if (!budget.spend(level.length * reps.length)) return { ambiguous: false };
     const nextLevel: Array<{ config: Set<number>; s: string }> = [];

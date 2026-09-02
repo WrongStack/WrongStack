@@ -12,4 +12,16 @@ export {
   trySaveSpecFromAIOutput,
 } from './sdd/spec-detection.js';
 export { getSessionState, SDDState, sddState } from './sdd/state.js';
-export { advanceToNextTask, formatElapsed, getCurrentExecutingContext, getTaskGraphId, getTaskListText, getTaskProgress, getTaskTrackerExport as getTaskTracker, getTaskTrackerExport, markTaskCompleted, renderTaskListWithProgress, trySaveTasksFromAIOutput } from './sdd/task-manager.js';;
+export {
+  advanceToNextTask,
+  formatElapsed,
+  getCurrentExecutingContext,
+  getTaskGraphId,
+  getTaskListText,
+  getTaskProgress,
+  getTaskTrackerExport as getTaskTracker,
+  getTaskTrackerExport,
+  markTaskCompleted,
+  renderTaskListWithProgress,
+  trySaveTasksFromAIOutput,
+} from './sdd/task-manager.js';

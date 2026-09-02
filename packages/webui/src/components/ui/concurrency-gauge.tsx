@@ -26,24 +26,13 @@ export function ConcurrencyGauge({
   const empty = Math.max(0, max - filled);
   const pct = max > 0 ? (filled / max) * 100 : 0;
 
-  const barColor =
-    pct >= 90
-      ? 'text-destructive'
-      : pct >= 70
-        ? 'text-warning'
-        : 'text-success';
+  const barColor = pct >= 90 ? 'text-destructive' : pct >= 70 ? 'text-warning' : 'text-success';
 
   return (
     <span className={className} title={`Fleet concurrency: ${current}/${max}`}>
       <span aria-hidden="true" className="font-mono text-[10px] tracking-tight">
-        [
-        <span className={barColor}>
-          {'█'.repeat(filled)}
-        </span>
-        <span className="text-[hsl(var(--muted))]">
-          {'░'.repeat(empty)}
-        </span>
-        ]
+        [<span className={barColor}>{'█'.repeat(filled)}</span>
+        <span className="text-[hsl(var(--muted))]">{'░'.repeat(empty)}</span>]
       </span>
       {showLabel && (
         <span className="ml-1.5 tabular-nums text-[10px] text-muted-foreground font-mono">

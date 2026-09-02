@@ -3,8 +3,20 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 // Mock the process registry — exercise every branch of /kill and /ps
 // against a synthetic registry state.
 const registryState = {
-  procs: [] as Array<{ pid: number; name: string; command: string; startedAt: number; killed: boolean }>,
-  breaker: { state: 'closed' as 'closed' | 'half-open' | 'open', consecutiveFailures: 0, slowCallsInWindow: 0, callsInWindow: 0, cooldownRemainingMs: null as number | null },
+  procs: [] as Array<{
+    pid: number;
+    name: string;
+    command: string;
+    startedAt: number;
+    killed: boolean;
+  }>,
+  breaker: {
+    state: 'closed' as 'closed' | 'half-open' | 'open',
+    consecutiveFailures: 0,
+    slowCallsInWindow: 0,
+    callsInWindow: 0,
+    cooldownRemainingMs: null as number | null,
+  },
 };
 
 const fakeRegistry = {
@@ -26,7 +38,13 @@ const fakeRegistry = {
     registryState.breaker.cooldownRemainingMs = 30000;
   }),
   forceBreakerReset: vi.fn(() => {
-    registryState.breaker = { state: 'closed', consecutiveFailures: 0, slowCallsInWindow: 0, callsInWindow: 0, cooldownRemainingMs: null };
+    registryState.breaker = {
+      state: 'closed',
+      consecutiveFailures: 0,
+      slowCallsInWindow: 0,
+      callsInWindow: 0,
+      cooldownRemainingMs: null,
+    };
   }),
 };
 
@@ -39,11 +57,19 @@ const { createPsSlashCommand } = await import('../src/ps-slash.js');
 
 beforeEach(() => {
   registryState.procs = [];
-  registryState.breaker = { state: 'closed', consecutiveFailures: 0, slowCallsInWindow: 0, callsInWindow: 0, cooldownRemainingMs: null };
+  registryState.breaker = {
+    state: 'closed',
+    consecutiveFailures: 0,
+    slowCallsInWindow: 0,
+    callsInWindow: 0,
+    cooldownRemainingMs: null,
+  };
   for (const fn of Object.values(fakeRegistry)) (fn as ReturnType<typeof vi.fn>).mockClear?.();
 });
 
-function messageOf(res: Awaited<ReturnType<ReturnType<typeof createKillSlashCommand>['run']>>): string {
+function messageOf(
+  res: Awaited<ReturnType<ReturnType<typeof createKillSlashCommand>['run']>>,
+): string {
   expect(res).toBeTruthy();
   expect(res && typeof res === 'object' && typeof res.message === 'string').toBe(true);
   return (res as { message: string }).message;

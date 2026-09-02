@@ -2,13 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { F_KEY_ENTRIES } from '../src/components/f-key-picker.js';
 import { helpSections } from '../src/components/help-overlay.js';
 
-const flat = () =>
-  helpSections().flatMap((s) => s.entries.map((e) => e.keys));
+const flat = () => helpSections().flatMap((s) => s.entries.map((e) => e.keys));
 
 describe('helpSections', () => {
   it('always groups the areas in order', () => {
     const titles = helpSections().map((s) => s.title);
-    expect(titles).toEqual(['Navigation', 'Monitors', 'Editing', 'Commands', 'Settings', 'Tool Colors']);
+    expect(titles).toEqual([
+      'Navigation',
+      'Monitors',
+      'Editing',
+      'Commands',
+      'Settings',
+      'Tool Colors',
+    ]);
   });
 
   it('always lists the monitor + help keys', () => {
@@ -47,7 +53,8 @@ describe('helpSections', () => {
     expect(f5).toMatchObject({ label: 'Plan panel', action: 'togglePlanPanel' });
     expect(f12).toMatchObject({ label: 'Kanban board panel', action: 'toggleKanbanPanel' });
 
-    const monitorEntries = helpSections().find((section) => section.title === 'Monitors')?.entries ?? [];
+    const monitorEntries =
+      helpSections().find((section) => section.title === 'Monitors')?.entries ?? [];
     expect(monitorEntries).toContainEqual({
       keys: 'F5 or /plan',
       desc: 'plan panel (F5 may be host refresh/run)',
@@ -83,9 +90,23 @@ describe('helpSections', () => {
       // from `?` — the overlay stays in sync with the keyboard handler.
       const descriptions = (settings()?.entries ?? []).map((e) => e.desc);
       for (const chord of [
-        'Ctrl+I', 'Ctrl+W', 'Ctrl+R', 'Ctrl+E', 'Ctrl+N', 'Ctrl+L', 'Ctrl+D',
-        'Alt+A', 'Alt+Y', 'Alt+C', 'Alt+S', 'Alt+T', 'Alt+X',
-        'Alt+Shift+L', 'Alt+Shift+A', 'Alt+Shift+B', 'Alt+Shift+G',
+        'Ctrl+I',
+        'Ctrl+W',
+        'Ctrl+R',
+        'Ctrl+E',
+        'Ctrl+N',
+        'Ctrl+L',
+        'Ctrl+D',
+        'Alt+A',
+        'Alt+Y',
+        'Alt+C',
+        'Alt+S',
+        'Alt+T',
+        'Alt+X',
+        'Alt+Shift+L',
+        'Alt+Shift+A',
+        'Alt+Shift+B',
+        'Alt+Shift+G',
       ]) {
         expect(descriptions.some((d) => d.includes(chord))).toBe(true);
       }

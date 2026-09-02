@@ -118,9 +118,9 @@ describe('WrongStackWebSocketClient session_not_ready auto-retry', () => {
     // The lane exists: the tab that sent the refused message is still open.
     ensureLane('sess_a');
 
-    expect(
-      client.armNotReadyResend('sess_a', { content: 'retry me', freshContext: true }),
-    ).toBe(true);
+    expect(client.armNotReadyResend('sess_a', { content: 'retry me', freshContext: true })).toBe(
+      true,
+    );
     expect(client.resumeSession, 'sanity: resumeSession is the action under test').toBeDefined();
     announce(ws, 'sess_a');
 

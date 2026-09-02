@@ -328,20 +328,14 @@ export function reduceFleetState(state: State, action: Action): State | null {
       const tokensChanged =
         !Object.is(nextInput, state.fleetTokens.input) ||
         !Object.is(nextOutput, state.fleetTokens.output);
-      if (
-        !fleetChanged &&
-        !tokensChanged &&
-        Object.is(fcAction.cost, state.fleetCost)
-      ) {
+      if (!fleetChanged && !tokensChanged && Object.is(fcAction.cost, state.fleetCost)) {
         return state;
       }
       return {
         ...state,
         fleet,
         fleetCost: fcAction.cost,
-        fleetTokens: tokensChanged
-          ? { input: nextInput, output: nextOutput }
-          : state.fleetTokens,
+        fleetTokens: tokensChanged ? { input: nextInput, output: nextOutput } : state.fleetTokens,
       };
     }
 

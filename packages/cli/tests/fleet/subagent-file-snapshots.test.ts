@@ -41,8 +41,9 @@ const edit = (file: string) => ({
 async function snapshotPaths(id: string): Promise<string[]> {
   const data = await store.load(id);
   return data.events
-    .filter((e: SessionEvent): e is Extract<SessionEvent, { type: 'file_snapshot' }> =>
-      e.type === 'file_snapshot',
+    .filter(
+      (e: SessionEvent): e is Extract<SessionEvent, { type: 'file_snapshot' }> =>
+        e.type === 'file_snapshot',
     )
     .flatMap((e) => e.files.map((f) => f.path));
 }

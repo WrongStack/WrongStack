@@ -9,8 +9,7 @@
  * not an attachment and must stay in the prompt sent to the refiner/agent.
  */
 /** Attachment placeholders only. Protocol tags must not be stripped as chips. */
-export const ATTACHMENT_TOKEN_SRC =
-  '\\[(?:pasted|image|file) #\\d+[^\\]]*\\]|\\[file:[^\\]]+\\]';
+export const ATTACHMENT_TOKEN_SRC = '\\[(?:pasted|image|file) #\\d+[^\\]]*\\]|\\[file:[^\\]]+\\]';
 /** Protocol trigger rendered as a chip but kept in the prompt text. */
 export const PROTOCOL_TOKEN_SRC = '\\[VIBE\\]';
 export const INLINE_TOKEN_SRC = `${ATTACHMENT_TOKEN_SRC}|${PROTOCOL_TOKEN_SRC}`;

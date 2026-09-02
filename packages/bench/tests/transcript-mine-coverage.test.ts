@@ -21,11 +21,14 @@ describe('mineTranscript — edge cases', () => {
   it('handles session_resumed event as the session id source', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_resumed', id: 'resumed-session-42', model: 'x' },
-      { type: 'tool_use', id: 'edit-1', name: 'edit', input: { path: 'main.ts' } },
-      { type: 'tool_call_end', id: 'edit-1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_resumed', id: 'resumed-session-42', model: 'x' },
+        { type: 'tool_use', id: 'edit-1', name: 'edit', input: { path: 'main.ts' } },
+        { type: 'tool_call_end', id: 'edit-1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -36,11 +39,14 @@ describe('mineTranscript — edge cases', () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
     // No user_input event before the edit
-    const raw = [
-      { type: 'session_start', id: 'no-prompt-session' },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'file.ts', newText: 'fix' } },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'no-prompt-session' },
+        { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'file.ts', newText: 'fix' } },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -54,13 +60,16 @@ describe('mineTranscript — edge cases', () => {
   it('leaves curation notes when no successful retrieval precedes an edit', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_start', id: 'no-retrieval' },
-      { type: 'user_input', content: 'Fix the bug.' },
-      // No tool_result with successful read/search/etc.
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'bug.ts', newText: 'fix' } },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'no-retrieval' },
+        { type: 'user_input', content: 'Fix the bug.' },
+        // No tool_result with successful read/search/etc.
+        { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'bug.ts', newText: 'fix' } },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -75,12 +84,15 @@ describe('mineTranscript — edge cases', () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
     // edit input with no path-like or content-like keys to extract markers from
-    const raw = [
-      { type: 'session_start', id: 'no-markers' },
-      { type: 'user_input', content: 'Fix it.' },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { flag: true, enabled: true } },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'no-markers' },
+        { type: 'user_input', content: 'Fix it.' },
+        { type: 'tool_use', id: 'e1', name: 'edit', input: { flag: true, enabled: true } },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -94,13 +106,16 @@ describe('mineTranscript — edge cases', () => {
   it('handles multiple tool_call_end events for the same id (multiple outcomes)', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_start', id: 'multi-end' },
-      { type: 'user_input', content: 'Update the code.' },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'a.ts', newText: 'v1' } },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: false }, // second outcome
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'multi-end' },
+        { type: 'user_input', content: 'Update the code.' },
+        { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'a.ts', newText: 'v1' } },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: false }, // second outcome
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -112,14 +127,17 @@ describe('mineTranscript — edge cases', () => {
   it('handles retrieval tool results that are errors', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_start', id: 'retry-retrieval' },
-      { type: 'user_input', content: 'Read and fix.' },
-      { type: 'tool_use', id: 'r1', name: 'read', input: { path: 'file.ts' } },
-      { type: 'tool_result', id: 'r1', content: 'error reading file', isError: true },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'file.ts', newText: 'fix' } },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'retry-retrieval' },
+        { type: 'user_input', content: 'Read and fix.' },
+        { type: 'tool_use', id: 'r1', name: 'read', input: { path: 'file.ts' } },
+        { type: 'tool_result', id: 'r1', content: 'error reading file', isError: true },
+        { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'file.ts', newText: 'fix' } },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -131,14 +149,17 @@ describe('mineTranscript — edge cases', () => {
   it('handles user_input with array content (multi-block)', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_start', id: 'array-input' },
-      { type: 'user_input', content: [{ text: 'First block' }, { text: 'Second block' }] },
-      { type: 'tool_use', id: 'r1', name: 'read', input: { path: 'x.ts' } },
-      { type: 'tool_result', id: 'r1', content: 'data', isError: false },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'x.ts', newText: 'fix' } },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'array-input' },
+        { type: 'user_input', content: [{ text: 'First block' }, { text: 'Second block' }] },
+        { type: 'tool_use', id: 'r1', name: 'read', input: { path: 'x.ts' } },
+        { type: 'tool_result', id: 'r1', content: 'data', isError: false },
+        { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'x.ts', newText: 'fix' } },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -150,12 +171,15 @@ describe('mineTranscript — edge cases', () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
     // Use a retrieval tool only (no edit)
-    const raw = [
-      { type: 'session_start', id: 'read-only' },
-      { type: 'user_input', content: 'Just read.' },
-      { type: 'tool_use', id: 'r1', name: 'read', input: { path: 'x.ts' } },
-      { type: 'tool_result', id: 'r1', content: 'content', isError: false },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'read-only' },
+        { type: 'user_input', content: 'Just read.' },
+        { type: 'tool_use', id: 'r1', name: 'read', input: { path: 'x.ts' } },
+        { type: 'tool_result', id: 'r1', content: 'content', isError: false },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -165,14 +189,17 @@ describe('mineTranscript — edge cases', () => {
   it('handles tool_result event without a matching tool_use', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_start', id: 'orphan-result' },
-      { type: 'user_input', content: 'Fix.' },
-      // tool_result without prior tool_use → skipped
-      { type: 'tool_result', id: 'nonexistent', content: 'data', isError: false },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'a.ts', newText: 'fix' } },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'orphan-result' },
+        { type: 'user_input', content: 'Fix.' },
+        // tool_result without prior tool_use → skipped
+        { type: 'tool_result', id: 'nonexistent', content: 'data', isError: false },
+        { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'a.ts', newText: 'fix' } },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -182,12 +209,15 @@ describe('mineTranscript — edge cases', () => {
   it('endIndexFor falls back to use index when no matching tool_call_end exists', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_start', id: 'no-end' },
-      { type: 'user_input', content: 'Update.' },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'a.ts', newText: 'fix' } },
-      // No tool_call_end for e1 — endIndexFor falls back to tool_use index
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'no-end' },
+        { type: 'user_input', content: 'Update.' },
+        { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'a.ts', newText: 'fix' } },
+        // No tool_call_end for e1 — endIndexFor falls back to tool_use index
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -199,7 +229,11 @@ describe('mineTranscript — edge cases', () => {
   it('throws with clear message for JSON that has no session id', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'no-session.jsonl');
-    await fs.writeFile(transcriptPath, JSON.stringify({ type: 'tool_use', name: 'edit', id: 'x' }), 'utf8');
+    await fs.writeFile(
+      transcriptPath,
+      JSON.stringify({ type: 'tool_use', name: 'edit', id: 'x' }),
+      'utf8',
+    );
 
     await expect(
       mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') }),
@@ -219,11 +253,14 @@ describe('mineTranscript — edge cases', () => {
     const dir = await tempDir();
     // Create the transcript file
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_start', id: 'collision-test' },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: {} },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'collision-test' },
+        { type: 'tool_use', id: 'e1', name: 'edit', input: {} },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const outDir = path.join(dir, 'evals');
@@ -235,23 +272,31 @@ describe('mineTranscript — edge cases', () => {
     const corpusPath = path.join(corpusDir, `collision-test-${sha256.slice(0, 12)}.jsonl`);
     await fs.writeFile(corpusPath, 'DIFFERENT CONTENT', 'utf8');
 
-    await expect(
-      mineTranscript({ transcriptPath, outDir }),
-    ).rejects.toThrow(/refusing to overwrite/);
+    await expect(mineTranscript({ transcriptPath, outDir })).rejects.toThrow(
+      /refusing to overwrite/,
+    );
   });
 
   it('handles edit input with array values (triggers stringLeaves array branch)', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
     // Edit input has an array value (e.g., multiple paths or a list of changes)
-    const raw = [
-      { type: 'session_start', id: 'array-input-edit' },
-      { type: 'user_input', content: 'Update multiple files.' },
-      { type: 'tool_use', id: 'r1', name: 'read', input: { path: 'a.ts' } },
-      { type: 'tool_result', id: 'r1', content: 'content a', isError: false },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { files: ['a.ts', 'b.ts'], newText: 'fix' } },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'array-input-edit' },
+        { type: 'user_input', content: 'Update multiple files.' },
+        { type: 'tool_use', id: 'r1', name: 'read', input: { path: 'a.ts' } },
+        { type: 'tool_result', id: 'r1', content: 'content a', isError: false },
+        {
+          type: 'tool_use',
+          id: 'e1',
+          name: 'edit',
+          input: { files: ['a.ts', 'b.ts'], newText: 'fix' },
+        },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const result = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') });
@@ -265,11 +310,14 @@ describe('mineTranscript — edge cases', () => {
     // on a file that was removed between readdir and stat.
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_start', id: 'race-test' },
-      { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'f.ts', newText: 'fix' } },
-      { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
-    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    const raw =
+      [
+        { type: 'session_start', id: 'race-test' },
+        { type: 'tool_use', id: 'e1', name: 'edit', input: { path: 'f.ts', newText: 'fix' } },
+        { type: 'tool_call_end', id: 'e1', name: 'edit', ok: true },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const outDir = path.join(dir, 'evals');

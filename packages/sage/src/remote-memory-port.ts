@@ -17,11 +17,7 @@ import {
 } from './project-server-client.js';
 import type { SageRequestMetadata, SageServerOperationName } from './project-server-protocol.js';
 import type { SageServerOperations } from './project-server-protocol.js';
-import type {
-  SageForPathOptions,
-  SageHygieneOptions,
-  SageStoreOptions,
-} from './types.js';
+import type { SageForPathOptions, SageHygieneOptions, SageStoreOptions } from './types.js';
 
 const SAGE_SERVICE_CAPABILITY_ID = 'wrongstack.memory.sage-service.v1';
 const SAGE_RETRIEVAL_CAPABILITY_ID = 'wrongstack.memory.retrieval.v1';
@@ -118,10 +114,7 @@ export class ProjectSageMemoryPort implements MemoryPort {
       }
     },
     findRelatedSage: (memoryIds, options) =>
-      this.call(
-        'findRelatedSage',
-        options === undefined ? { memoryIds } : { memoryIds, options },
-      ),
+      this.call('findRelatedSage', options === undefined ? { memoryIds } : { memoryIds, options }),
     recordInjection: (memoryIds, trigger, sessionId) =>
       this.call('recordInjection', { memoryIds, trigger, sessionId }),
     recordUse: (memoryIds, source, sessionId) =>
@@ -155,12 +148,10 @@ export class ProjectSageMemoryPort implements MemoryPort {
       });
     },
     acceptCandidate: (candidateId) => this.call('acceptCandidate', { candidateId }),
-    rejectCandidate: (candidateId, reason) =>
-      this.call('rejectCandidate', { candidateId, reason }),
+    rejectCandidate: (candidateId, reason) => this.call('rejectCandidate', { candidateId, reason }),
     retrieveForAudience: (context, limit, _onTruncated, sessionId, includeAllSessions) =>
       this.call('retrieveForAudience', { context, limit, sessionId, includeAllSessions }),
-    hygiene: (options) =>
-      this.call('hygiene', { options }, { timeoutMs: 5 * 60_000 }),
+    hygiene: (options) => this.call('hygiene', { options }, { timeoutMs: 5 * 60_000 }),
     listCandidates: (includeResolved) => this.call('listCandidates', { includeResolved }),
     createCandidate: (input) => this.call('createCandidate', { input }),
     graphFor: (query, maxDepth, limit) => this.call('graphFor', { query, maxDepth, limit }),
@@ -172,13 +163,11 @@ export class ProjectSageMemoryPort implements MemoryPort {
     findMemoriesForFile: (filePath, options) =>
       this.call('findMemoriesForFile', { filePath, options }),
     readAudit: (limit) => this.call('readAudit', { limit }),
-    importLegacy: (files) =>
-      this.call('importLegacyFiles', { files }, { timeoutMs: 2 * 60_000 }),
+    importLegacy: (files) => this.call('importLegacyFiles', { files }, { timeoutMs: 2 * 60_000 }),
   };
 
   private readonly serviceCapability: SageServiceLike = {
-    unifiedSearchService: (query, options) =>
-      this.call('unifiedSearch', { query, options }),
+    unifiedSearchService: (query, options) => this.call('unifiedSearch', { query, options }),
     readAll: () => this.readAll(),
     read: (scope) => this.read(scope),
     remember: (text, scope, metadata) => this.remember(text, scope, metadata),
@@ -222,8 +211,7 @@ export class ProjectSageMemoryPort implements MemoryPort {
     resolveCandidate: (candidateId, decision, reason) =>
       this.call('resolveCandidate', { candidateId, decision, reason }),
     acceptCandidate: (candidateId) => this.call('acceptCandidate', { candidateId }),
-    rejectCandidate: (candidateId, reason) =>
-      this.call('rejectCandidate', { candidateId, reason }),
+    rejectCandidate: (candidateId, reason) => this.call('rejectCandidate', { candidateId, reason }),
     rememberSage: (input) => this.call('rememberSage', { input }),
     updateSage: (id, patch) => this.call('updateSage', { id, patch }),
     deleteSage: (id, reason, options) => this.call('deleteSage', { id, reason, options }),
@@ -265,9 +253,7 @@ export class ProjectSageMemoryPort implements MemoryPort {
     return this.connection.getState();
   }
 
-  onConnectionStateChange(
-    listener: (state: SageProjectServerConnectionState) => void,
-  ): () => void {
+  onConnectionStateChange(listener: (state: SageProjectServerConnectionState) => void): () => void {
     return this.connection.onStateChange(listener);
   }
 
@@ -403,4 +389,3 @@ export class ProjectSageMemoryPort implements MemoryPort {
     });
   }
 }
-

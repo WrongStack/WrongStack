@@ -515,7 +515,9 @@ function normalizeModelsDevModel(model: ModelsDevModel): ModelsDevModel {
 
   const toggle = options.some((option) => option.type === 'toggle');
   const efforts = options
-    .filter((option): option is Extract<typeof option, { type: 'effort' }> => option.type === 'effort')
+    .filter(
+      (option): option is Extract<typeof option, { type: 'effort' }> => option.type === 'effort',
+    )
     .flatMap((option) => option.values ?? [])
     .filter((effort): effort is ReasoningEffort => REASONING_EFFORTS.has(effort));
   const effortLevels = [...new Set(efforts)];

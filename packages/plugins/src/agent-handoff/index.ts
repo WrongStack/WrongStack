@@ -93,10 +93,7 @@ function readConfig(raw: unknown): AgentHandoffConfig {
     subjectPrefix: typeof rawPrefix === 'string' ? rawPrefix : DEFAULTS.subjectPrefix,
     includeResult: (r['includeResult'] ?? r['include_result']) !== false,
     includeTodos: (r['includeTodos'] ?? r['include_todos']) !== false,
-    maxBodyChars:
-      typeof rawMax === 'number' && rawMax >= 500
-        ? rawMax
-        : DEFAULTS.maxBodyChars,
+    maxBodyChars: typeof rawMax === 'number' && rawMax >= 500 ? rawMax : DEFAULTS.maxBodyChars,
     to: typeof rawTo === 'string' ? rawTo : DEFAULTS.to,
   };
 }
@@ -192,10 +189,11 @@ async function sendHandoff(
 
   const body = buildBody(payload, cfg);
 
-  const subject = `${cfg.subjectPrefix}${payload.agentName ?? payload.agentId ?? 'subagent'} — ${payload.status ?? 'done'}`.slice(
-    0,
-    200,
-  );
+  const subject =
+    `${cfg.subjectPrefix}${payload.agentName ?? payload.agentId ?? 'subagent'} — ${payload.status ?? 'done'}`.slice(
+      0,
+      200,
+    );
 
   const sendInput: MailboxSendInput = {
     from: 'plugin:agent-handoff',

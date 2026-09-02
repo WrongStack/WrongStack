@@ -40,10 +40,17 @@ const answered = (req: BrainDecisionRequest, optionId?: string) => {
     text: optionId ?? 'ok',
     rationale: 'looks fine',
   };
-  events.emit('brain.decision_answered', { sessionId: 's1', request: req, decision, at: Date.now() });
+  events.emit('brain.decision_answered', {
+    sessionId: 's1',
+    request: req,
+    decision,
+    at: Date.now(),
+  });
 };
 
-async function makeLedger(opts: Partial<ConstructorParameters<typeof BrainDecisionLedger>[0]> = {}) {
+async function makeLedger(
+  opts: Partial<ConstructorParameters<typeof BrainDecisionLedger>[0]> = {},
+) {
   const ledger = new BrainDecisionLedger({ events, filePath: filePath(), ...opts });
   await ledger.start();
   return ledger;
@@ -118,7 +125,9 @@ describe('BrainDecisionLedger — budget outcome correlation', () => {
   it('links a budget extension decision to the subagent task result', async () => {
     const ledger = await makeLedger();
     const outcomes: Array<{ requestId: string; outcome: string }> = [];
-    events.on('brain.outcome', (e) => outcomes.push({ requestId: e.requestId, outcome: e.outcome }));
+    events.on('brain.outcome', (e) =>
+      outcomes.push({ requestId: e.requestId, outcome: e.outcome }),
+    );
 
     const req = request({ id: 'director-budget-w1-tokens' });
     answered(req, 'extend');
@@ -184,7 +193,9 @@ describe('BrainDecisionLedger — intervention re-engagement', () => {
     let now = 1_000_000;
     const ledger = await makeLedger({ now: () => now, interventionRetryWindowMs: 60_000 });
     const outcomes: Array<{ requestId: string; outcome: string }> = [];
-    events.on('brain.outcome', (e) => outcomes.push({ requestId: e.requestId, outcome: e.outcome }));
+    events.on('brain.outcome', (e) =>
+      outcomes.push({ requestId: e.requestId, outcome: e.outcome }),
+    );
 
     intervention('int-1', now);
     now += 30_000;
@@ -217,7 +228,13 @@ describe('BrainDecisionLedger — digestFor', () => {
   it('summarizes similar decisions and their outcomes', async () => {
     const ledger = await makeLedger();
     answered(request({ id: 'r1' }), 'extend');
-    answered(request({ id: 'r2', question: 'Should the director extend the tokens budget for subagent w7?' }), 'extend');
+    answered(
+      request({
+        id: 'r2',
+        question: 'Should the director extend the tokens budget for subagent w7?',
+      }),
+      'extend',
+    );
     ledger.recordOutcome('r1', 'failure');
     events.emit('brain.decision_denied', {
       request: request({ id: 'r3' }),

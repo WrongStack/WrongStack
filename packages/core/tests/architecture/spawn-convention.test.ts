@@ -418,9 +418,7 @@ export function scanChildCallLines(
       // and must itself be a buildChildEnv-derived identifier: name-tied,
       // NOT adjacency-tied, so a nearby unrelated composition cannot
       // launder a process.env-derived options object.
-      const optionsIdentifier = span
-        .trimEnd()
-        .match(/,\s*([A-Za-z_$][\w$]*)\s*\)$/)?.[1];
+      const optionsIdentifier = span.trimEnd().match(/,\s*([A-Za-z_$][\w$]*)\s*\)$/)?.[1];
       const passesIdentifierOptions =
         optionsIdentifier !== undefined && buildChildEnvIdentifiers.has(optionsIdentifier);
       const compliant =
@@ -675,7 +673,9 @@ describe('childCallSites scanner (regression fixtures)', () => {
       '};',
       'const child = spawn(shell, shellArgs, spawnOpts);',
     ];
-    expect(scanChildCallLines(compliant, buildChildEnvDerivedIdentifiers(compliant.join('\n')))).toHaveLength(1);
+    expect(
+      scanChildCallLines(compliant, buildChildEnvDerivedIdentifiers(compliant.join('\n'))),
+    ).toHaveLength(1);
     expect(
       scanChildCallLines(compliant, buildChildEnvDerivedIdentifiers(compliant.join('\n')))[0]
         ?.compliant,

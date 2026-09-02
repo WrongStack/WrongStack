@@ -120,12 +120,14 @@ export async function saveCompletedWorkCheckpoint(
       error: toErrorMessage(err),
       recoverable: false,
     });
-    console.warn(JSON.stringify({
-      level: 'warn',
-      event: 'completed_work_checkpoint.save_failed',
-      message: toErrorMessage(err),
-      timestamp: new Date().toISOString(),
-    }));
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'completed_work_checkpoint.save_failed',
+        message: toErrorMessage(err),
+        timestamp: new Date().toISOString(),
+      }),
+    );
   }
 }
 

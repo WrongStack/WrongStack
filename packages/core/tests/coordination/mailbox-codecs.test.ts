@@ -77,10 +77,7 @@ describe('parseMailboxSendInput', () => {
   });
 
   it('normalizes "all" to "*"', () => {
-    const result = parseMailboxSendInput(
-      { to: 'all', subject: 'hi', body: 'b' },
-      actor(),
-    );
+    const result = parseMailboxSendInput({ to: 'all', subject: 'hi', body: 'b' }, actor());
     expect(result.to).toBe('*');
     expect(result.type).toBe('broadcast');
   });
@@ -96,10 +93,7 @@ describe('parseMailboxSendInput', () => {
 
   it('accepts explicit type and validates assign requires specific recipient', () => {
     expect(() =>
-      parseMailboxSendInput(
-        { to: '*', type: 'assign', subject: 's', body: 'b' },
-        actor(),
-      ),
+      parseMailboxSendInput({ to: '*', type: 'assign', subject: 's', body: 'b' }, actor()),
     ).toThrow(MailboxValidationError);
 
     const result = parseMailboxSendInput(
@@ -111,10 +105,7 @@ describe('parseMailboxSendInput', () => {
 
   it('requires mail.send.directive capability for steer', () => {
     expect(() =>
-      parseMailboxSendInput(
-        { to: 'worker', type: 'steer', subject: 's', body: 'b' },
-        actor(),
-      ),
+      parseMailboxSendInput({ to: 'worker', type: 'steer', subject: 's', body: 'b' }, actor()),
     ).toThrow(MailboxValidationError);
 
     const result = parseMailboxSendInput(
@@ -135,34 +126,31 @@ describe('parseMailboxSendInput', () => {
 
   it('rejects unknown fields', () => {
     expect(() =>
-      parseMailboxSendInput(
-        { to: 'w', subject: 's', body: 'b', from: 'attacker' },
-        actor(),
-      ),
+      parseMailboxSendInput({ to: 'w', subject: 's', body: 'b', from: 'attacker' }, actor()),
     ).toThrow(MailboxValidationError);
   });
 
   it('rejects missing required fields', () => {
-    expect(() => parseMailboxSendInput({ subject: 's', body: 'b' }, actor())).toThrow(MailboxValidationError);
-    expect(() => parseMailboxSendInput({ to: 'w', body: 'b' }, actor())).toThrow(MailboxValidationError);
-    expect(() => parseMailboxSendInput({ to: 'w', subject: 's' }, actor())).toThrow(MailboxValidationError);
+    expect(() => parseMailboxSendInput({ subject: 's', body: 'b' }, actor())).toThrow(
+      MailboxValidationError,
+    );
+    expect(() => parseMailboxSendInput({ to: 'w', body: 'b' }, actor())).toThrow(
+      MailboxValidationError,
+    );
+    expect(() => parseMailboxSendInput({ to: 'w', subject: 's' }, actor())).toThrow(
+      MailboxValidationError,
+    );
   });
 
   it('rejects invalid priority', () => {
     expect(() =>
-      parseMailboxSendInput(
-        { to: 'w', subject: 's', body: 'b', priority: 'urgent' },
-        actor(),
-      ),
+      parseMailboxSendInput({ to: 'w', subject: 's', body: 'b', priority: 'urgent' }, actor()),
     ).toThrow(MailboxValidationError);
   });
 
   it('rejects invalid audience', () => {
     expect(() =>
-      parseMailboxSendInput(
-        { to: 'w', subject: 's', body: 'b', audience: 'everyone' },
-        actor(),
-      ),
+      parseMailboxSendInput({ to: 'w', subject: 's', body: 'b', audience: 'everyone' }, actor()),
     ).toThrow(MailboxValidationError);
   });
 
@@ -179,10 +167,7 @@ describe('parseMailboxSendInput', () => {
       capabilities: new Set(['mail.send.informational']),
     });
     expect(() =>
-      parseMailboxSendInput(
-        { to: 'w', type: 'ask', subject: 's', body: 'b' },
-        infoActor,
-      ),
+      parseMailboxSendInput({ to: 'w', type: 'ask', subject: 's', body: 'b' }, infoActor),
     ).toThrow(MailboxValidationError);
   });
 
@@ -367,8 +352,6 @@ describe('filterMailboxSendPayload', () => {
   });
 });
 
-
-
 describe('parseMailboxQueryInput', () => {
   it('parses an empty query', () => {
     const result = parseMailboxQueryInput({}, actor());
@@ -389,17 +372,12 @@ describe('parseMailboxQueryInput', () => {
   });
 
   it('derives readerRole from actor, not body', () => {
-    const result = parseMailboxQueryInput(
-      { readerRole: 'admin' },
-      actor({ role: 'leader' }),
-    );
+    const result = parseMailboxQueryInput({ readerRole: 'admin' }, actor({ role: 'leader' }));
     expect(result.readerRole).toBe('leader');
   });
 
   it('tolerates unknown fields (forward compatibility)', () => {
-    expect(() =>
-      parseMailboxQueryInput({ futureField: 'ok' }, actor()),
-    ).not.toThrow();
+    expect(() => parseMailboxQueryInput({ futureField: 'ok' }, actor())).not.toThrow();
   });
 
   // The store's leaders-only audience gate keys off `unreadBy`, not
@@ -409,7 +387,10 @@ describe('parseMailboxQueryInput', () => {
   // handed `audience: 'leaders'` mail, which exists to be invisible to it.
   it('refuses a body-supplied unreadBy naming another actor', () => {
     expect(() =>
-      parseMailboxQueryInput({ unreadBy: 'leader@zzzz' }, actor({ actorId: 'worker@aaaa', role: 'worker' })),
+      parseMailboxQueryInput(
+        { unreadBy: 'leader@zzzz' },
+        actor({ actorId: 'worker@aaaa', role: 'worker' }),
+      ),
     ).toThrow(MailboxValidationError);
   });
 
@@ -446,15 +427,13 @@ describe('parseMailboxQueryInput', () => {
   });
 
   it('rejects invalid type', () => {
-    expect(() =>
-      parseMailboxQueryInput({ type: 'mystery' }, actor()),
-    ).toThrow(MailboxValidationError);
+    expect(() => parseMailboxQueryInput({ type: 'mystery' }, actor())).toThrow(
+      MailboxValidationError,
+    );
   });
 
   it('rejects negative limit', () => {
-    expect(() =>
-      parseMailboxQueryInput({ limit: -1 }, actor()),
-    ).toThrow(MailboxValidationError);
+    expect(() => parseMailboxQueryInput({ limit: -1 }, actor())).toThrow(MailboxValidationError);
   });
 
   it('requires mail.read.self capability', () => {
@@ -490,10 +469,7 @@ describe('parseMailboxAckInput read default', () => {
 
 describe('parseMailboxAckInput', () => {
   it('parses a valid mark-read', () => {
-    const result = parseMailboxAckInput(
-      { messageId: 'msg-1', read: true },
-      actor(),
-    );
+    const result = parseMailboxAckInput({ messageId: 'msg-1', read: true }, actor());
     expect(result.messageId).toBe('msg-1');
     expect(result.read).toBe(true);
     expect(result.completed).toBeUndefined();
@@ -518,9 +494,9 @@ describe('parseMailboxAckInput', () => {
   });
 
   it('rejects unknown fields', () => {
-    expect(() =>
-      parseMailboxAckInput({ messageId: 'm', read: true, from: 'x' }, actor()),
-    ).toThrow(MailboxValidationError);
+    expect(() => parseMailboxAckInput({ messageId: 'm', read: true, from: 'x' }, actor())).toThrow(
+      MailboxValidationError,
+    );
   });
 
   it('rejects missing messageId', () => {
@@ -531,9 +507,9 @@ describe('parseMailboxAckInput', () => {
     const noAckActor = actor({
       capabilities: new Set(['mail.send.informational', 'mail.read.self']),
     });
-    expect(() =>
-      parseMailboxAckInput({ messageId: 'm', read: true }, noAckActor),
-    ).toThrow(MailboxValidationError);
+    expect(() => parseMailboxAckInput({ messageId: 'm', read: true }, noAckActor)).toThrow(
+      MailboxValidationError,
+    );
   });
 });
 
@@ -541,10 +517,7 @@ describe('parseMailboxAckInput', () => {
 
 describe('parseMailboxRegistrationInput', () => {
   it('parses a valid registration', () => {
-    const result = parseMailboxRegistrationInput(
-      { name: 'Leader', role: 'leader' },
-      actor(),
-    );
+    const result = parseMailboxRegistrationInput({ name: 'Leader', role: 'leader' }, actor());
     expect(result.agentId).toBe('leader@a1b2c3d4');
     expect(result.sessionId).toBe('sess-1');
     expect(result.name).toBe('Leader');
@@ -554,10 +527,7 @@ describe('parseMailboxRegistrationInput', () => {
   });
 
   it('derives agentId from actor', () => {
-    const result = parseMailboxRegistrationInput(
-      { name: 'X', agentId: 'attacker' },
-      actor(),
-    );
+    const result = parseMailboxRegistrationInput({ name: 'X', agentId: 'attacker' }, actor());
     expect(result.agentId).toBe('leader@a1b2c3d4');
   });
 
@@ -572,9 +542,9 @@ describe('parseMailboxRegistrationInput', () => {
   });
 
   it('rejects unknown fields', () => {
-    expect(() =>
-      parseMailboxRegistrationInput({ name: 'X', secret: 'y' }, actor()),
-    ).toThrow(MailboxValidationError);
+    expect(() => parseMailboxRegistrationInput({ name: 'X', secret: 'y' }, actor())).toThrow(
+      MailboxValidationError,
+    );
   });
 
   it('rejects missing name', () => {
@@ -598,17 +568,14 @@ describe('parseMailboxHeartbeatInput', () => {
   });
 
   it('derives agentId from actor', () => {
-    const result = parseMailboxHeartbeatInput(
-      { agentId: 'attacker' },
-      actor(),
-    );
+    const result = parseMailboxHeartbeatInput({ agentId: 'attacker' }, actor());
     expect(result.agentId).toBe('leader@a1b2c3d4');
   });
 
   it('rejects unknown fields', () => {
-    expect(() =>
-      parseMailboxHeartbeatInput({ projectId: 'x' }, actor()),
-    ).toThrow(MailboxValidationError);
+    expect(() => parseMailboxHeartbeatInput({ projectId: 'x' }, actor())).toThrow(
+      MailboxValidationError,
+    );
   });
 });
 
@@ -630,10 +597,7 @@ describe('MailboxValidationError shape', () => {
 
   it('FORBIDDEN code for capability violations', () => {
     try {
-      parseMailboxSendInput(
-        { to: 'w', type: 'steer', subject: 's', body: 'b' },
-        actor(),
-      );
+      parseMailboxSendInput({ to: 'w', type: 'steer', subject: 's', body: 'b' }, actor());
       expect.unreachable('should have thrown');
     } catch (e) {
       const err = e as MailboxValidationError;

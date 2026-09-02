@@ -49,7 +49,8 @@ function isGoalJournalEntry(x: unknown): x is GoalJournalEntry {
   if (typeof e.iteration !== 'number' || !Number.isFinite(e.iteration)) return false;
   if (e.task !== undefined && typeof e.task !== 'string') return false;
   if (e.status !== undefined && typeof e.status !== 'string') return false;
-  if (e.progress !== undefined && (typeof e.progress !== 'number' || !Number.isFinite(e.progress))) return false;
+  if (e.progress !== undefined && (typeof e.progress !== 'number' || !Number.isFinite(e.progress)))
+    return false;
   if (e.progressNote !== undefined && typeof e.progressNote !== 'string') return false;
   if (e.timestamp !== undefined && typeof e.timestamp !== 'string') return false;
   return true;
@@ -64,16 +65,22 @@ export function parseGoalState(raw: Record<string, unknown> | null): GoalState |
   return {
     goal: raw.goal as string,
     refinedGoal: typeof raw.refinedGoal === 'string' ? raw.refinedGoal : undefined,
-    goalState: (['active', 'paused', 'completed', 'failed', 'abandoned'].includes(raw.goalState as string)
+    goalState: (['active', 'paused', 'completed', 'failed', 'abandoned'].includes(
+      raw.goalState as string,
+    )
       ? (raw.goalState as GoalState['goalState'])
       : 'active') as GoalState['goalState'],
     iterations: typeof raw.iterations === 'number' ? raw.iterations : 0,
     progress: typeof raw.progress === 'number' ? raw.progress : 0,
     progressNote: typeof raw.progressNote === 'string' ? raw.progressNote : undefined,
-    progressTrend: raw.progressTrend === 'accelerating' ? 'up'
-      : raw.progressTrend === 'stalling' ? 'down'
-      : raw.progressTrend === 'steady' ? 'stable'
-      : undefined,
+    progressTrend:
+      raw.progressTrend === 'accelerating'
+        ? 'up'
+        : raw.progressTrend === 'stalling'
+          ? 'down'
+          : raw.progressTrend === 'steady'
+            ? 'stable'
+            : undefined,
     deliverables: Array.isArray(raw.deliverables)
       ? (raw.deliverables as unknown[]).map((d, i) =>
           typeof d === 'string'

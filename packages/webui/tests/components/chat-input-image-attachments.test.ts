@@ -242,9 +242,9 @@ describe('image attachments', () => {
       const tooBig = MAX_PROCESSED_IMAGE_BYTES + 1_000;
       installCanvas(['image/webp'], [tooBig, tooBig]);
       installBitmap(4096, 4096);
-      await expect(processImageFile(file('huge.png', 'image/png', OVER_RECOMPRESS))).rejects.toThrow(
-        /huge\.png/,
-      );
+      await expect(
+        processImageFile(file('huge.png', 'image/png', OVER_RECOMPRESS)),
+      ).rejects.toThrow(/huge\.png/);
     });
 
     it('releases the decoded bitmap', async () => {
@@ -256,9 +256,9 @@ describe('image attachments', () => {
     it('raises decode_failed when the 2d context is unavailable', async () => {
       installBitmap(100, 100);
       vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
-      await expect(
-        processImageFile(file('a.svg', 'image/svg+xml', SMALL)),
-      ).rejects.toMatchObject({ reason: 'decode_failed' });
+      await expect(processImageFile(file('a.svg', 'image/svg+xml', SMALL))).rejects.toMatchObject({
+        reason: 'decode_failed',
+      });
     });
   });
 

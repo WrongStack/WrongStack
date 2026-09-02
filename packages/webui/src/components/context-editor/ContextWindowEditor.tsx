@@ -35,7 +35,11 @@ interface MessageRowProps {
   blockCount: number | null;
   warnings: { code: string; severity: string; message: string }[];
   markedForRemoval: boolean;
-  markedRanges: Array<{ blockIndex?: number | undefined; start?: number | undefined; end?: number | undefined }>;
+  markedRanges: Array<{
+    blockIndex?: number | undefined;
+    start?: number | undefined;
+    end?: number | undefined;
+  }>;
   disabled: boolean;
   onToggle: () => void;
   onMarkRange: (blockIndex: number | undefined, start: number, end: number) => void;
@@ -93,7 +97,12 @@ function SelectableContent({
   }, [text]);
 
   return (
-    <div className={cn('rounded-md border bg-background p-3', marked && 'border-destructive/40 bg-destructive/5')}>
+    <div
+      className={cn(
+        'rounded-md border bg-background p-3',
+        marked && 'border-destructive/40 bg-destructive/5',
+      )}
+    >
       <p
         ref={contentRef}
         className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-foreground select-text"
@@ -173,7 +182,11 @@ function MessageRow({
               onClick={() => setExpanded((v) => !v)}
               className="text-muted-foreground/60 hover:text-foreground shrink-0"
             >
-              {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              {expanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
             </button>
           )}
           <span className={cn('font-mono font-medium', roleColor)}>{role}</span>
@@ -181,9 +194,7 @@ function MessageRow({
           {blockCount !== null && blockCount > 0 && (
             <span className="text-muted-foreground/50 tabular-nums">{blockCount} blk</span>
           )}
-          {hasWarnings && (
-            <AlertTriangle className="h-3 w-3 text-warning shrink-0" />
-          )}
+          {hasWarnings && <AlertTriangle className="h-3 w-3 text-warning shrink-0" />}
         </div>
         <div className="mt-3 space-y-2">
           {typeof content === 'string' ? (
@@ -262,7 +273,10 @@ function isForAskedSession(payload: unknown, askedFor: string | undefined): bool
   return !askedFor || !replyFor || replyFor === askedFor;
 }
 
-export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps): React.ReactElement | null {
+export function ContextWindowEditor({
+  open,
+  onClose,
+}: ContextWindowEditorProps): React.ReactElement | null {
   const { t } = useAppTranslation();
 
   const phase = useContextEditorStore((s) => s.phase);
@@ -301,7 +315,8 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
       return;
     }
 
-    const askedFor = ws.withSession({}).sessionId ?? activeSessionId ?? foregroundSessionId() ?? undefined;
+    const askedFor =
+      ws.withSession({}).sessionId ?? activeSessionId ?? foregroundSessionId() ?? undefined;
     const request = () => {
       ws.send({ type: 'context.editor.open', payload: ws.withSession({}) });
     };
@@ -446,11 +461,15 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
           <div className="grid grid-cols-4 gap-2 px-4 py-2 border-b bg-muted/20 text-[11px] shrink-0">
             <div className="flex flex-col">
               <span className="text-muted-foreground/60">{t('activity:ctxEditor.system')}</span>
-              <span className="font-mono font-medium">{fmtTok(readonlyContext.systemPromptTokens)}</span>
+              <span className="font-mono font-medium">
+                {fmtTok(readonlyContext.systemPromptTokens)}
+              </span>
             </div>
             <div className="flex flex-col">
               <span className="text-muted-foreground/60">Tools ({readonlyContext.toolCount})</span>
-              <span className="font-mono font-medium">{fmtTok(readonlyContext.toolSchemaTokens)}</span>
+              <span className="font-mono font-medium">
+                {fmtTok(readonlyContext.toolSchemaTokens)}
+              </span>
             </div>
             <div className="flex flex-col">
               <span className="text-muted-foreground/60">{t('activity:ctxEditor.messages')}</span>
@@ -458,7 +477,9 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
             </div>
             <div className="flex flex-col">
               <span className="text-muted-foreground/60">{t('activity:ctxEditor.total')}</span>
-              <span className="font-mono font-medium text-primary">{fmtTok(readonlyContext.totalTokens)}</span>
+              <span className="font-mono font-medium text-primary">
+                {fmtTok(readonlyContext.totalTokens)}
+              </span>
             </div>
           </div>
         )}
@@ -491,10 +512,15 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
           <div className="m-4 rounded-md bg-success/10 border border-success/20 p-3 text-sm">
             <div className="flex items-center gap-2 text-success font-medium">
               <CheckCircle2 className="h-4 w-4" />
-              Context updated: {appliedResult.before.messages} → {appliedResult.after.messages} messages
+              Context updated: {appliedResult.before.messages} → {appliedResult.after.messages}{' '}
+              messages
             </div>
             <div className="mt-1 text-muted-foreground text-xs">
-              Saved {fmtTok(appliedResult.before.fullRequestTokens - appliedResult.after.fullRequestTokens)} tokens
+              Saved{' '}
+              {fmtTok(
+                appliedResult.before.fullRequestTokens - appliedResult.after.fullRequestTokens,
+              )}{' '}
+              tokens
               {appliedResult.removed.toolUses.length > 0 &&
                 ` · ${appliedResult.removed.toolUses.length} tool calls repaired`}
             </div>

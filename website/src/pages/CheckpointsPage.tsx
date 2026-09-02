@@ -47,12 +47,36 @@ export function CheckpointsPage() {
             <div className="mt-5 space-y-2">
               {[
                 { field: 'id', type: 'string', desc: 'UUID — unique per checkpoint' },
-                { field: 'graphId', type: 'string', desc: 'Which PhaseGraph this checkpoint belongs to' },
-                { field: 'phaseId', type: 'string', desc: 'The active (or last-active) phase at snapshot time' },
-                { field: 'phaseStatus', type: 'enum', desc: 'running | paused | completed | failed — copied from PhaseNode' },
-                { field: 'taskStatuses', type: 'object[]', desc: 'Array of { taskId, status, title } — every task in the active phase' },
-                { field: 'timestamp', type: 'number', desc: 'Epoch ms — used for sorting and TTL pruning' },
-                { field: 'label', type: 'string?', desc: 'Optional human label. e.g. "Before risky refactor"' },
+                {
+                  field: 'graphId',
+                  type: 'string',
+                  desc: 'Which PhaseGraph this checkpoint belongs to',
+                },
+                {
+                  field: 'phaseId',
+                  type: 'string',
+                  desc: 'The active (or last-active) phase at snapshot time',
+                },
+                {
+                  field: 'phaseStatus',
+                  type: 'enum',
+                  desc: 'running | paused | completed | failed — copied from PhaseNode',
+                },
+                {
+                  field: 'taskStatuses',
+                  type: 'object[]',
+                  desc: 'Array of { taskId, status, title } — every task in the active phase',
+                },
+                {
+                  field: 'timestamp',
+                  type: 'number',
+                  desc: 'Epoch ms — used for sorting and TTL pruning',
+                },
+                {
+                  field: 'label',
+                  type: 'string?',
+                  desc: 'Optional human label. e.g. "Before risky refactor"',
+                },
               ].map(({ field, type, desc }) => (
                 <div key={field} className="rounded-lg border border-line bg-bg p-3">
                   <div className="flex items-center gap-2">
@@ -68,7 +92,9 @@ export function CheckpointsPage() {
             <Camera className="size-5 text-brand" />
             <h2 className="mt-8 text-xl font-black text-fg">What gets captured</h2>
             <p className="mt-3 text-sm leading-7 text-muted">
-              Before saving, the checkpoint triggers a graph save to disk. Then it extracts the active phase's task statuses — every task in the phase is recorded with its current status.
+              Before saving, the checkpoint triggers a graph save to disk. Then it extracts the
+              active phase's task statuses — every task in the phase is recorded with its current
+              status.
             </p>
             <ul className="mt-5 space-y-2">
               {[
@@ -149,19 +175,34 @@ export function CheckpointsPage() {
               icon: HardDrive,
               title: 'On-disk format',
               body: 'One JSON file per PhaseGraph: `{graphId}.json`. Contains a flat array of SerializedCheckpoint objects. Directory created lazily on first save.',
-              items: ['Atomic tmp+rename writes', 'File-locked reads and writes', 'Mode 0o600 — owner-only', 'Lazy directory creation'],
+              items: [
+                'Atomic tmp+rename writes',
+                'File-locked reads and writes',
+                'Mode 0o600 — owner-only',
+                'Lazy directory creation',
+              ],
             },
             {
               icon: FolderSync,
               title: 'Load from disk',
               body: 'On initialization, scans the `.checkpoints/` directory for `.json` files. Each file is parsed and all checkpoints are loaded into the in-memory Map.',
-              items: ['Skips invalid JSON files', 'Handles empty directories', 'loadFromDisk() called at startup', 'Also called on restore if not in memory'],
+              items: [
+                'Skips invalid JSON files',
+                'Handles empty directories',
+                'loadFromDisk() called at startup',
+                'Also called on restore if not in memory',
+              ],
             },
             {
               icon: Archive,
               title: 'Delete semantics',
               body: 'Finds the checkpoint across all graph files, filters it out, and rewrites. If it was the last checkpoint in a file, the entire file is deleted.',
-              items: ['File-locked deletion', 'Atomic rewrite on remainder', 'Empty file → unlink()', 'Missing directory → no-op'],
+              items: [
+                'File-locked deletion',
+                'Atomic rewrite on remainder',
+                'Empty file → unlink()',
+                'Missing directory → no-op',
+              ],
             },
           ].map(({ icon: Icon, title, body, items }) => (
             <article key={title} className="rounded-2xl border border-line bg-card p-7">
@@ -195,14 +236,27 @@ export function CheckpointsPage() {
               <Clock className="size-5 text-brand" />
               <h2 className="mt-8 text-xl font-black text-fg">TTL-based pruning</h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                Any checkpoint older than `maxCheckpointAgeMs` (default 7 days) is evicted. This prevents stale checkpoints from accumulating indefinitely.
+                Any checkpoint older than `maxCheckpointAgeMs` (default 7 days) is evicted. This
+                prevents stale checkpoints from accumulating indefinitely.
               </p>
               <div className="mt-5 space-y-3">
                 {[
-                  { label: 'Default', body: '7 days (7 × 24 × 60 × 60 × 1000 ms). Appropriate for most workflows.' },
-                  { label: 'Short-lived runs', body: 'Set to 1 hour for CI-style Goal runs where checkpoints are only needed during the session.' },
-                  { label: 'Long-running missions', body: 'Set to 30 days for multi-week goals where you may need to roll back days later.' },
-                  { label: 'Disabled', body: 'Set to Infinity to disable TTL pruning entirely. Combine with count-based pruning to cap storage.' },
+                  {
+                    label: 'Default',
+                    body: '7 days (7 × 24 × 60 × 60 × 1000 ms). Appropriate for most workflows.',
+                  },
+                  {
+                    label: 'Short-lived runs',
+                    body: 'Set to 1 hour for CI-style Goal runs where checkpoints are only needed during the session.',
+                  },
+                  {
+                    label: 'Long-running missions',
+                    body: 'Set to 30 days for multi-week goals where you may need to roll back days later.',
+                  },
+                  {
+                    label: 'Disabled',
+                    body: 'Set to Infinity to disable TTL pruning entirely. Combine with count-based pruning to cap storage.',
+                  },
                 ].map(({ label, body }) => (
                   <div key={label} className="rounded-lg border border-line bg-bg p-3">
                     <span className="font-black text-xs text-fg">{label}</span>
@@ -215,14 +269,27 @@ export function CheckpointsPage() {
               <GitGraph className="size-5 text-brand" />
               <h2 className="mt-8 text-xl font-black text-fg">Count-based pruning</h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                After TTL pruning, the remaining checkpoints are sorted oldest-first. Only the newest `maxCheckpoints` (default 10) are kept per graph.
+                After TTL pruning, the remaining checkpoints are sorted oldest-first. Only the
+                newest `maxCheckpoints` (default 10) are kept per graph.
               </p>
               <div className="mt-5 space-y-3">
                 {[
-                  { label: 'Default', body: '10 checkpoints per graph. Sufficient for most multi-phase workflows.' },
-                  { label: 'Pruning order', body: 'TTL first (age-based), then count (oldest-first). TTL always runs before count to avoid keeping stale entries.' },
-                  { label: 'Per-graph scope', body: 'Pruning is scoped to a single graphId. Checkpoints from different PhaseGraphs don\u2019t compete for slots.' },
-                  { label: 'FIFO discard', body: 'When over the limit, oldest checkpoints are deleted from both memory and disk. The remaining are re-sorted for the next save.' },
+                  {
+                    label: 'Default',
+                    body: '10 checkpoints per graph. Sufficient for most multi-phase workflows.',
+                  },
+                  {
+                    label: 'Pruning order',
+                    body: 'TTL first (age-based), then count (oldest-first). TTL always runs before count to avoid keeping stale entries.',
+                  },
+                  {
+                    label: 'Per-graph scope',
+                    body: 'Pruning is scoped to a single graphId. Checkpoints from different PhaseGraphs don\u2019t compete for slots.',
+                  },
+                  {
+                    label: 'FIFO discard',
+                    body: 'When over the limit, oldest checkpoints are deleted from both memory and disk. The remaining are re-sorted for the next save.',
+                  },
                 ].map(({ label, body }) => (
                   <div key={label} className="rounded-lg border border-line bg-bg p-3">
                     <span className="font-black text-xs text-fg">{label}</span>
@@ -272,10 +339,22 @@ export function CheckpointsPage() {
           <h2 className="text-xl font-black text-fg">Director checkpoint flow</h2>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { label: 'acquireLock', body: 'Before resuming, check that no other Director process holds the checkpoint lock. Returns false if another instance is alive.' },
-              { label: 'resumeFromCheckpoint', body: 'Load a prior DirectorStateSnapshot and re-attach to the fleet mid-flight. Subsequent spawn/assign calls update normally.' },
-              { label: 'setCheckpointState', body: 'Push a new snapshot into the on-disk checkpoint. Called after significant fleet state changes.' },
-              { label: 'writeManifest', body: 'Debounced atomic write of the fleet manifest. A burst of spawn/assign events collapses into one write.' },
+              {
+                label: 'acquireLock',
+                body: 'Before resuming, check that no other Director process holds the checkpoint lock. Returns false if another instance is alive.',
+              },
+              {
+                label: 'resumeFromCheckpoint',
+                body: 'Load a prior DirectorStateSnapshot and re-attach to the fleet mid-flight. Subsequent spawn/assign calls update normally.',
+              },
+              {
+                label: 'setCheckpointState',
+                body: 'Push a new snapshot into the on-disk checkpoint. Called after significant fleet state changes.',
+              },
+              {
+                label: 'writeManifest',
+                body: 'Debounced atomic write of the fleet manifest. A burst of spawn/assign events collapses into one write.',
+              },
             ].map(({ label, body }) => (
               <div key={label} className="rounded-lg border border-line bg-bg p-4">
                 <span className="font-black text-xs text-fg">{label}</span>
@@ -300,14 +379,27 @@ export function CheckpointsPage() {
               <Camera className="size-5 text-brand" />
               <h2 className="mt-8 text-xl font-black text-fg">Automatic checkpoints</h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                The agent creates checkpoints automatically before risky multi-file operations. SDD phases, Goal worktree transitions, and batch refactors all trigger a checkpoint.
+                The agent creates checkpoints automatically before risky multi-file operations. SDD
+                phases, Goal worktree transitions, and batch refactors all trigger a checkpoint.
               </p>
               <div className="mt-5 space-y-2">
                 {[
-                  { phase: 'SDD plan → implement', desc: 'After you approve the plan, a checkpoint captures the current state before the agent writes code.' },
-                  { phase: 'SDD implement → verify', desc: 'After implementation, a checkpoint captures the new code before running tests and linters.' },
-                  { phase: 'Goal per phase', desc: 'Between every phase (plan/implement/test/review), a checkpoint is written. Failed phases roll back to the last one.' },
-                  { phase: 'Batch refactors', desc: 'Before multi-file refactors, the agent snapshots affected files. If the refactor breaks, files revert to checkpoint state.' },
+                  {
+                    phase: 'SDD plan → implement',
+                    desc: 'After you approve the plan, a checkpoint captures the current state before the agent writes code.',
+                  },
+                  {
+                    phase: 'SDD implement → verify',
+                    desc: 'After implementation, a checkpoint captures the new code before running tests and linters.',
+                  },
+                  {
+                    phase: 'Goal per phase',
+                    desc: 'Between every phase (plan/implement/test/review), a checkpoint is written. Failed phases roll back to the last one.',
+                  },
+                  {
+                    phase: 'Batch refactors',
+                    desc: 'Before multi-file refactors, the agent snapshots affected files. If the refactor breaks, files revert to checkpoint state.',
+                  },
                 ].map(({ phase, desc }) => (
                   <div key={phase} className="rounded-lg border border-line bg-bg p-3">
                     <span className="font-black text-xs text-fg">{phase}</span>
@@ -320,14 +412,28 @@ export function CheckpointsPage() {
               <RotateCcw className="size-5 text-brand" />
               <h2 className="mt-8 text-xl font-black text-fg">Manual control</h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                You can trigger checkpoints manually through slash commands or the programmatic API. Useful before experimenting with alternative approaches or when you want an explicit rollback point.
+                You can trigger checkpoints manually through slash commands or the programmatic API.
+                Useful before experimenting with alternative approaches or when you want an explicit
+                rollback point.
               </p>
               <div className="mt-5 space-y-3">
                 {[
-                  { cmd: '/checkpoint save "Before trying approach B"', desc: 'Create a named checkpoint at the current state. Label helps identify it later.' },
-                  { cmd: '/checkpoint list', desc: 'List all checkpoints for the current PhaseGraph, newest first. Shows id, timestamp, label, and phase status.' },
-                  { cmd: '/checkpoint restore <id>', desc: 'Restore the phase graph to a previous checkpoint. Task statuses and phase state are reverted.' },
-                  { cmd: '/checkpoint delete <id>', desc: 'Delete a specific checkpoint. Safe to call any time — only removes that one entry.' },
+                  {
+                    cmd: '/checkpoint save "Before trying approach B"',
+                    desc: 'Create a named checkpoint at the current state. Label helps identify it later.',
+                  },
+                  {
+                    cmd: '/checkpoint list',
+                    desc: 'List all checkpoints for the current PhaseGraph, newest first. Shows id, timestamp, label, and phase status.',
+                  },
+                  {
+                    cmd: '/checkpoint restore <id>',
+                    desc: 'Restore the phase graph to a previous checkpoint. Task statuses and phase state are reverted.',
+                  },
+                  {
+                    cmd: '/checkpoint delete <id>',
+                    desc: 'Delete a specific checkpoint. Safe to call any time — only removes that one entry.',
+                  },
                 ].map(({ cmd, desc }) => (
                   <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                     <code className="font-mono text-sm font-black text-brand">{cmd}</code>

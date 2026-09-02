@@ -143,7 +143,10 @@ export const SETTINGS_CATALOG: readonly SettingsEntry[] = [
 export type SettingsEntry = SettingsEntryBase;
 
 /** Group the catalog into a render-ready ordered map. */
-export function groupCatalog(): readonly { group: SettingsGroup; entries: readonly SettingsEntry[] }[] {
+export function groupCatalog(): readonly {
+  group: SettingsGroup;
+  entries: readonly SettingsEntry[];
+}[] {
   return SETTINGS_GROUPS.map((group) => ({
     group,
     entries: SETTINGS_CATALOG.filter((entry) => entry.group === group.id),

@@ -30,10 +30,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const REPO_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../../../',
-);
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../');
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -125,18 +122,12 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   });
 
   it('core/knowledge-graph: DEFAULT_MAX_NODES = 2_000', () => {
-    const { value, file } = readConst(
-      'core',
-      'coordination/knowledge-graph.ts:DEFAULT_MAX_NODES',
-    );
+    const { value, file } = readConst('core', 'coordination/knowledge-graph.ts:DEFAULT_MAX_NODES');
     expect(value, file).toBe('2_000');
   });
 
   it('core/knowledge-graph: MAX_SUBSCRIPTIONS = 1_000', () => {
-    const { value, file } = readConst(
-      'core',
-      'coordination/knowledge-graph.ts:MAX_SUBSCRIPTIONS',
-    );
+    const { value, file } = readConst('core', 'coordination/knowledge-graph.ts:MAX_SUBSCRIPTIONS');
     expect(value, file).toBe('1_000');
   });
 
@@ -189,10 +180,7 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   });
 
   it('core/file-observer: SCAN_HASH_CONCURRENCY = 32', () => {
-    const { value, file } = readConst(
-      'core',
-      'chronicle/file-observer.ts:SCAN_HASH_CONCURRENCY',
-    );
+    const { value, file } = readConst('core', 'chronicle/file-observer.ts:SCAN_HASH_CONCURRENCY');
     expect(value, file).toBe('32');
   });
 
@@ -205,22 +193,34 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   });
 
   it('core/agent-status-tracker: RECENT_TOOL_LIMIT = 12', () => {
-    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:RECENT_TOOL_LIMIT');
+    const { value, file } = readConst(
+      'core',
+      'coordination/agent-status-tracker.ts:RECENT_TOOL_LIMIT',
+    );
     expect(value, file).toBe('12');
   });
 
   it('core/agent-status-tracker: RECENT_MAIL_LIMIT = 12', () => {
-    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:RECENT_MAIL_LIMIT');
+    const { value, file } = readConst(
+      'core',
+      'coordination/agent-status-tracker.ts:RECENT_MAIL_LIMIT',
+    );
     expect(value, file).toBe('12');
   });
 
   it('core/agent-status-tracker: SEEN_MAIL_LIMIT = 10_000', () => {
-    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:SEEN_MAIL_LIMIT');
+    const { value, file } = readConst(
+      'core',
+      'coordination/agent-status-tracker.ts:SEEN_MAIL_LIMIT',
+    );
     expect(value, file).toBe('10_000');
   });
 
   it('core/agent-status-tracker: PARTIAL_TEXT_CAP = 1200', () => {
-    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:PARTIAL_TEXT_CAP');
+    const { value, file } = readConst(
+      'core',
+      'coordination/agent-status-tracker.ts:PARTIAL_TEXT_CAP',
+    );
     expect(value, file).toBe('1200');
   });
 
@@ -230,7 +230,10 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   });
 
   it('core/agent-status-tracker: PROMPT_TEXT_CAP = 6000', () => {
-    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:PROMPT_TEXT_CAP');
+    const { value, file } = readConst(
+      'core',
+      'coordination/agent-status-tracker.ts:PROMPT_TEXT_CAP',
+    );
     expect(value, file).toBe('6000');
   });
 
@@ -248,7 +251,10 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   });
 
   it('core/agent-status-tracker: PENDING_TOOL_TTL_MS = 300_000', () => {
-    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:PENDING_TOOL_TTL_MS');
+    const { value, file } = readConst(
+      'core',
+      'coordination/agent-status-tracker.ts:PENDING_TOOL_TTL_MS',
+    );
     expect(value, file).toBe('300_000');
   });
 
@@ -307,18 +313,12 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   });
 
   it('tools/process-registry-persistent: STALE_THRESHOLD_MS = 30_000', () => {
-    const { value, file } = readConst(
-      'tools',
-      'process-registry-persistent.ts:STALE_THRESHOLD_MS',
-    );
+    const { value, file } = readConst('tools', 'process-registry-persistent.ts:STALE_THRESHOLD_MS');
     expect(value, file).toBe('30_000');
   });
 
   it('tools/process-registry-persistent: LOCK_STALE_MS = 30_000', () => {
-    const { value, file } = readConst(
-      'tools',
-      'process-registry-persistent.ts:LOCK_STALE_MS',
-    );
+    const { value, file } = readConst('tools', 'process-registry-persistent.ts:LOCK_STALE_MS');
     expect(value, file).toBe('30_000');
   });
 
@@ -333,18 +333,12 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   });
 
   it('webui/terminal-ws-handler: MAX_INPUT_BYTES = 64 KiB', () => {
-    const { value, file } = readConst(
-      'webui',
-      'server/terminal-ws-handler.ts:MAX_INPUT_BYTES',
-    );
+    const { value, file } = readConst('webui', 'server/terminal-ws-handler.ts:MAX_INPUT_BYTES');
     expect(value, file).toBe('1 << 16');
   });
 
   it('webui/worktree-ws-handler: MAX_ACTIVITY = 6', () => {
-    const { value, file } = readConst(
-      'webui',
-      'server/worktree-ws-handler.ts:MAX_ACTIVITY',
-    );
+    const { value, file } = readConst('webui', 'server/worktree-ws-handler.ts:MAX_ACTIVITY');
     expect(value, file).toBe('6');
   });
 
@@ -361,8 +355,8 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
     // The cache's `maxEntries` is a constructor parameter — the cap lives
     // at the call site, not in the class. Guard the *call* site.
     const sage = PKG_FILES['sage'];
-    const callers = [...sage.entries()].filter(
-      ([, code]) => /new\s+SqliteStatementCache\s*\(/.test(code),
+    const callers = [...sage.entries()].filter(([, code]) =>
+      /new\s+SqliteStatementCache\s*\(/.test(code),
     );
     expect(
       callers.length,
@@ -396,10 +390,7 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   });
 
   it('tui/history-retention: TUI_HISTORY_MAX_ENTRY_BYTES = 64 KiB', () => {
-    const { value, file } = readConst(
-      'tui',
-      'history-retention.ts:TUI_HISTORY_MAX_ENTRY_BYTES',
-    );
+    const { value, file } = readConst('tui', 'history-retention.ts:TUI_HISTORY_MAX_ENTRY_BYTES');
     expect(value, file).toBe('64 * 1024');
   });
 });

@@ -64,7 +64,10 @@ const STACKS: StackDefinition[] = [
     id: 'python',
     label: 'Python',
     markers: ['pyproject.toml', 'requirements.txt', 'setup.py', 'Pipfile'],
-    cpu: ['py-spy record -o profile.svg -- python <entry>', 'python -m cProfile -s cumtime <entry>'],
+    cpu: [
+      'py-spy record -o profile.svg -- python <entry>',
+      'python -m cProfile -s cumtime <entry>',
+    ],
     memory: ['memray run <entry> && memray flamegraph <out>', 'python -X tracemalloc <entry>'],
     benchmark: ['pytest --benchmark-only', 'hyperfine "python <entry>"'],
   },

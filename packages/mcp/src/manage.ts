@@ -145,11 +145,7 @@ async function persist(
  * operation screens here, at the shared choke point all surfaces delegate to.
  * (Security report H-2 / VF-04.)
  */
-const UNSAFE_SERVER_NAMES: ReadonlySet<string> = new Set([
-  '__proto__',
-  'constructor',
-  'prototype',
-]);
+const UNSAFE_SERVER_NAMES: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
 
 /** Rejection for an unsafe server name, or undefined when the name is usable. */
 function unsafeServerNameResult(name: string): McpOpResult | undefined {
@@ -308,9 +304,7 @@ export async function addMcp(input: McpServerInput, deps: McpManageDeps): Promis
   // hasOwn: presets is a plain record, so a name like 'toString' resolves
   // through Object.prototype and reads as a (truthy, function-valued) preset.
   const preset =
-    deps.presets && Object.hasOwn(deps.presets, input.name)
-      ? deps.presets[input.name]
-      : undefined;
+    deps.presets && Object.hasOwn(deps.presets, input.name) ? deps.presets[input.name] : undefined;
   const hasExplicitConfig = !!(input.transport || input.command || input.url);
   const cfg = hasExplicitConfig
     ? buildConfig(input, preset)

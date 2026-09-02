@@ -5,11 +5,7 @@
   "description": "Write a crisp brief for handing work to another agent.",
   "content": "I want to delegate this to a subagent: {{task}}\n\nWrite the brief you'd hand off: the goal, the context the subagent needs (it has none of ours), the exact deliverable and format, the constraints/guardrails, and how its output will be judged. Make it self-contained — assume the subagent can't ask follow-ups. Flag the one instruction most likely to be misinterpreted and make it unambiguous.",
   "category": "agentic-workflows",
-  "tags": [
-    "delegation",
-    "multi-agent",
-    "handoff"
-  ],
+  "tags": ["delegation", "multi-agent", "handoff"],
   "source": "builtin",
   "favorite": false,
   "checksum": "0d84f3a15cba65b7cf2d96c251388f6491c37e77fa36877c52ada9ee2a9bac94",

@@ -14,19 +14,31 @@ const meta = (over: Partial<PolyglotMeta> = {}): PolyglotMeta => ({
   testCommand: { command: 'python', args: ['-m', 'pytest'] },
   ...over,
 });
-const task = (m: PolyglotMeta): BenchTask =>
-  ({ id: 'polyglot/python/x', suite: 'polyglot', prompt: '', templateDir: '', meta: m as never as Record<string, unknown> });
+const task = (m: PolyglotMeta): BenchTask => ({
+  id: 'polyglot/python/x',
+  suite: 'polyglot',
+  prompt: '',
+  templateDir: '',
+  meta: m as never as Record<string, unknown>,
+});
 
 beforeEach(() => exec.execCommand.mockReset());
 
 describe('gradePolyglot', () => {
   it('passes when the test command exits 0', async () => {
     exec.execCommand.mockResolvedValue({ exitCode: 0, stdout: '', stderr: '', timedOut: false });
-    expect(await gradePolyglot({ workdir: '/w', task: task(meta()), timeoutMs: 1000 })).toEqual({ passed: true });
+    expect(await gradePolyglot({ workdir: '/w', task: task(meta()), timeoutMs: 1000 })).toEqual({
+      passed: true,
+    });
   });
 
   it('fails with a tail of output when the test command exits non-zero', async () => {
-    exec.execCommand.mockResolvedValue({ exitCode: 1, stdout: 'assert failed', stderr: '', timedOut: false });
+    exec.execCommand.mockResolvedValue({
+      exitCode: 1,
+      stdout: 'assert failed',
+      stderr: '',
+      timedOut: false,
+    });
     const res = await gradePolyglot({ workdir: '/w', task: task(meta()), timeoutMs: 1000 });
     expect(res.passed).toBe(false);
     expect(res.detail).toMatch(/assert failed/);
@@ -39,7 +51,12 @@ describe('gradePolyglot', () => {
   });
 
   it('runs a setup command first and fails the task if setup fails', async () => {
-    exec.execCommand.mockResolvedValueOnce({ exitCode: 1, stdout: '', stderr: 'npm err', timedOut: false });
+    exec.execCommand.mockResolvedValueOnce({
+      exitCode: 1,
+      stdout: '',
+      stderr: 'npm err',
+      timedOut: false,
+    });
     const res = await gradePolyglot({
       workdir: '/w',
       task: task(meta({ setupCommand: { command: 'npm', args: ['install'] } })),
@@ -62,7 +79,12 @@ describe('gradePolyglot', () => {
   });
 
   it('truncates very long failure output', async () => {
-    exec.execCommand.mockResolvedValue({ exitCode: 1, stdout: 'x'.repeat(2000), stderr: '', timedOut: false });
+    exec.execCommand.mockResolvedValue({
+      exitCode: 1,
+      stdout: 'x'.repeat(2000),
+      stderr: '',
+      timedOut: false,
+    });
     const res = await gradePolyglot({ workdir: '/w', task: task(meta()), timeoutMs: 1000 });
     expect((res.detail as string).startsWith('…')).toBe(true);
     expect((res.detail as string).length).toBeLessThan(520);

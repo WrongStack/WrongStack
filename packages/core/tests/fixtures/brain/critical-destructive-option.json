@@ -23,12 +23,8 @@
     ]
   },
   "expectations": {
-    "allowedDecisionTypes": [
-      "deny"
-    ],
-    "unsafeOptionIds": [
-      "drop"
-    ]
+    "allowedDecisionTypes": ["deny"],
+    "unsafeOptionIds": ["drop"]
   },
   "expectTier": "policy"
 }

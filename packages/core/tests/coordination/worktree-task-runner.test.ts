@@ -159,27 +159,25 @@ describe('worktree task runner', () => {
   });
 
   it('resolves to off when policy mode is off', () => {
-    expect(
-      resolveSubagentWorktreeDecision({ name: 'X', tools: ['write'] }, { mode: 'off' }),
-    ).toBe('off');
+    expect(resolveSubagentWorktreeDecision({ name: 'X', tools: ['write'] }, { mode: 'off' })).toBe(
+      'off',
+    );
   });
 
   it('resolves to required when config.worktree is required', () => {
-    expect(
-      resolveSubagentWorktreeDecision({ name: 'X', worktree: 'required' }),
-    ).toBe('required');
+    expect(resolveSubagentWorktreeDecision({ name: 'X', worktree: 'required' })).toBe('required');
   });
 
   it('resolves to required when config.worktree is true', () => {
-    expect(
-      resolveSubagentWorktreeDecision({ name: 'X', tools: ['read'], worktree: true }),
-    ).toBe('required');
+    expect(resolveSubagentWorktreeDecision({ name: 'X', tools: ['read'], worktree: true })).toBe(
+      'required',
+    );
   });
 
   it('resolves to off for reviewer with no side effects', () => {
-    expect(
-      resolveSubagentWorktreeDecision({ name: 'Reviewer', tools: ['read', 'diff'] }),
-    ).toBe('off');
+    expect(resolveSubagentWorktreeDecision({ name: 'Reviewer', tools: ['read', 'diff'] })).toBe(
+      'off',
+    );
   });
 
   it('WorktreeIntegrationError has the expected shape', () => {
@@ -275,7 +273,13 @@ describe('worktree task runner', () => {
       if (args[0] === 'show') return { code: 0, stdout: '2\t0\tfile.ts\n', stderr: '' };
       if (args[0] === 'config') return { code: 0, stdout: 'User\n', stderr: '' };
       if (args[0] === 'merge') {
-        return { code: 1, stdout: '', stderr: 'conflict in file.ts', conflict: true, conflictFiles: ['file.ts'] };
+        return {
+          code: 1,
+          stdout: '',
+          stderr: 'conflict in file.ts',
+          conflict: true,
+          conflictFiles: ['file.ts'],
+        };
       }
       return { code: 0, stdout: '', stderr: '' };
     });

@@ -31,7 +31,10 @@ export function groupRuntimesByProject(
     }
     groups.set(key, {
       key,
-      name: runtime.kind === 'global-settings' ? t('globalSettings') : basenameFromPath(runtime.root) || runtime.name,
+      name:
+        runtime.kind === 'global-settings'
+          ? t('globalSettings')
+          : basenameFromPath(runtime.root) || runtime.name,
       root: runtime.root,
       kind: runtime.kind,
       sessions: [runtime],
@@ -50,11 +53,15 @@ export function runtimeGroupIsOpen(
   return ctx.allRuntimeCount === group.sessions.length;
 }
 
-export function renderRuntimeGroup(group: RuntimeProjectGroup, ctx: RuntimeGroupRenderContext): string {
+export function renderRuntimeGroup(
+  group: RuntimeProjectGroup,
+  ctx: RuntimeGroupRenderContext,
+): string {
   const active = group.sessions.some((runtime) => runtime.id === ctx.activeRuntimeId);
   const firstSession = group.sessions[0];
   const open = runtimeGroupIsOpen(group, ctx);
-  const sessionLabel = group.sessions.length === 1 ? '1 session' : `${group.sessions.length} sessions`;
+  const sessionLabel =
+    group.sessions.length === 1 ? '1 session' : `${group.sessions.length} sessions`;
   return `
     <div class="runtime-project-group ${active ? 'active' : ''} ${open ? 'open' : 'collapsed'}" data-runtime-group="${escapeAttr(group.key)}">
       <div class="runtime-project-header">
@@ -100,9 +107,10 @@ function renderRuntimeSession(
 ): string {
   const isActive = runtime.id === ctx.activeRuntimeId;
   const label = runtime.kind === 'global-settings' ? ctx.t('settings') : `Session ${index}`;
-  const meta = runtime.status === 'error'
-    ? runtime.error ?? ctx.t('error')
-    : `HTTP ${runtime.httpPort} · WS ${runtime.wsPort}`;
+  const meta =
+    runtime.status === 'error'
+      ? (runtime.error ?? ctx.t('error'))
+      : `HTTP ${runtime.httpPort} · WS ${runtime.wsPort}`;
   const disabled = runtime.status === 'running' ? '' : 'disabled';
   return `
     <div class="runtime-session-row ${isActive ? 'active' : ''}">

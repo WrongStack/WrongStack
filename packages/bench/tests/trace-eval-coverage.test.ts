@@ -33,7 +33,10 @@ async function writeSession(events: unknown[]): Promise<{ homeDir: string; workd
   const homeDir = path.join(base, 'home');
   const workdir = path.join(base, 'work');
   await fs.mkdir(workdir, { recursive: true });
-  const sessionsDir = resolveWstackPaths({ projectRoot: workdir, globalRoot: homeDir }).projectSessions;
+  const sessionsDir = resolveWstackPaths({
+    projectRoot: workdir,
+    globalRoot: homeDir,
+  }).projectSessions;
   await fs.mkdir(sessionsDir, { recursive: true });
   await fs.writeFile(
     path.join(sessionsDir, 'sess_trace.jsonl'),
@@ -49,12 +52,17 @@ describe('evaluateTraceEval — edge cases', () => {
     const permissiveSpec: TranscriptEvalSpec = {
       source: spec.source,
       retrieval: [{ contains: 'expected content' }], // no toolNames
-      recall: { inputContains: ['expected path'] },   // no toolNames
+      recall: { inputContains: ['expected path'] }, // no toolNames
     };
     const dirs = await writeSession([
       { type: 'tool_use', id: 'read-1', name: 'read', input: { path: 'file.ts' } },
       { type: 'tool_result', id: 'read-1', content: 'expected content', isError: false },
-      { type: 'tool_use', id: 'edit-1', name: 'edit', input: { path: 'expected path', newText: 'fix' } },
+      {
+        type: 'tool_use',
+        id: 'edit-1',
+        name: 'edit',
+        input: { path: 'expected path', newText: 'fix' },
+      },
       { type: 'tool_call_end', id: 'edit-1', name: 'edit', ok: true },
     ]);
 
@@ -69,7 +77,12 @@ describe('evaluateTraceEval — edge cases', () => {
     const dirs = await writeSession([
       { type: 'tool_use', id: 'grep-1', name: 'grep', input: { pattern: 'test' } },
       { type: 'tool_result', id: 'grep-1', content: 'expected content', isError: false },
-      { type: 'tool_use', id: 'edit-1', name: 'replace', input: { path: 'handler.ts', newText: 'fix' } },
+      {
+        type: 'tool_use',
+        id: 'edit-1',
+        name: 'replace',
+        input: { path: 'handler.ts', newText: 'fix' },
+      },
       { type: 'tool_call_end', id: 'edit-1', name: 'edit', ok: true },
     ]);
 
@@ -100,7 +113,12 @@ describe('evaluateTraceEval — edge cases', () => {
         input: { deep: { nested: 'data' } },
       },
       { type: 'tool_result', id: 'read-1', content: { key: 'expected content' }, isError: false },
-      { type: 'tool_use', id: 'edit-1', name: 'edit', input: { path: 'expected path', newText: 'fix' } },
+      {
+        type: 'tool_use',
+        id: 'edit-1',
+        name: 'edit',
+        input: { path: 'expected path', newText: 'fix' },
+      },
       { type: 'tool_call_end', id: 'edit-1', name: 'edit', ok: true },
     ]);
 

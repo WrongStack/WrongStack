@@ -6,7 +6,9 @@ describe('setup-events status watcher filename filtering', () => {
   const projectsDir = path.join('C:', 'Users', 'dev', '.wrongstack', 'projects');
 
   it('extracts the project hash from relative status.json paths', () => {
-    expect(statusProjectHashFromWatchFilename(projectsDir, path.join('abc123', 'status.json'))).toBe('abc123');
+    expect(
+      statusProjectHashFromWatchFilename(projectsDir, path.join('abc123', 'status.json')),
+    ).toBe('abc123');
     expect(statusProjectHashFromWatchFilename(projectsDir, 'abc123\\status.json')).toBe('abc123');
   });
 
@@ -16,8 +18,12 @@ describe('setup-events status watcher filename filtering', () => {
   });
 
   it('ignores non-status files and similarly named files', () => {
-    expect(statusProjectHashFromWatchFilename(projectsDir, path.join('abc123', 'session.jsonl'))).toBeNull();
-    expect(statusProjectHashFromWatchFilename(projectsDir, path.join('abc123', 'my-status.json'))).toBeNull();
+    expect(
+      statusProjectHashFromWatchFilename(projectsDir, path.join('abc123', 'session.jsonl')),
+    ).toBeNull();
+    expect(
+      statusProjectHashFromWatchFilename(projectsDir, path.join('abc123', 'my-status.json')),
+    ).toBeNull();
     expect(statusProjectHashFromWatchFilename(projectsDir, 'status.json')).toBeNull();
   });
 });

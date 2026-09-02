@@ -16,10 +16,7 @@ interface SqliteLegacyClearContext {
   emitCleared: (scope?: MemoryScope) => void;
 }
 
-export function clearLegacySqliteMemory(
-  ctx: SqliteLegacyClearContext,
-  scope?: MemoryScope,
-): void {
+export function clearLegacySqliteMemory(ctx: SqliteLegacyClearContext, scope?: MemoryScope): void {
   const filter = scope ? legacyScopeFilterClause(scope) : undefined;
   const scopeClause = filter ? ` AND ${filter.clause}` : '';
   const params: string[] = filter ? [...filter.params] : [];

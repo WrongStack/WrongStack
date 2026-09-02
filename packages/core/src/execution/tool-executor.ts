@@ -148,10 +148,7 @@ export class ToolExecutor {
         return { result, tool, durationMs: Date.now() - start };
       }
 
-      if (
-        !areSubagentsAllowed(ctx) &&
-        hasCapability(tool, ToolCapabilities.SUBAGENT_SPAWN)
-      ) {
+      if (!areSubagentsAllowed(ctx) && hasCapability(tool, ToolCapabilities.SUBAGENT_SPAWN)) {
         const result = deniedResult(
           use,
           'Subagents are disabled for this session. This policy is locked after the session starts.',
@@ -385,12 +382,8 @@ export class ToolExecutor {
                 ? (ctx.provider as { id: string }).id
                 : String(ctx.provider),
             model: ctx.model,
-            ...(ctx.activeLogicalRequestId
-              ? { logicalRequestId: ctx.activeLogicalRequestId }
-              : {}),
-            ...(ctx.activePromptManifestId
-              ? { promptManifestId: ctx.activePromptManifestId }
-              : {}),
+            ...(ctx.activeLogicalRequestId ? { logicalRequestId: ctx.activeLogicalRequestId } : {}),
+            ...(ctx.activePromptManifestId ? { promptManifestId: ctx.activePromptManifestId } : {}),
             provenanceConfidence:
               ctx.activeLogicalRequestId && ctx.activePromptManifestId ? 'explicit' : 'unknown',
             toolName: tool.name,

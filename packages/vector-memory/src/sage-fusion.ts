@@ -198,9 +198,7 @@ export async function fuseWithVectorMemory(
  * via `startFirstBootSageSync()` (or equivalent) so vector hits carry
  * `metadata.sageId` and can be fused with the lexical list.
  */
-export function asVectorRecallProvider(
-  store: VectorMemoryStore,
-): VectorRecallProvider {
+export function asVectorRecallProvider(store: VectorMemoryStore): VectorRecallProvider {
   return {
     async search(query, opts) {
       const hits = await store.search(query, {
@@ -228,4 +226,3 @@ function clamp01(value: number): number {
 
 // Re-export so callers can `import { vectorRankScore }` for tests.
 export const __testing = { lexicalRankScore, vectorRankScore, clamp01 };
-

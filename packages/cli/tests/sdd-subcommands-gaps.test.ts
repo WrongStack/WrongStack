@@ -167,7 +167,10 @@ describe('/sdd next', () => {
   });
 
   it('previews the next executable task', async () => {
-    createMockTracker([['t1', 'First up'], ['t2', 'Later']]);
+    createMockTracker([
+      ['t1', 'First up'],
+      ['t2', 'Later'],
+    ]);
     const out = await build().run('next');
     expect(out?.message).toContain('NEXT TASK');
     expect(out?.message).toContain('First up');

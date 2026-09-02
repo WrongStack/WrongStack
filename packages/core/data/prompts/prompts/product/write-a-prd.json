@@ -5,11 +5,7 @@
   "description": "Draft a crisp product requirements document.",
   "content": "Write a PRD for: {{feature}}\n\nInclude: the problem and who has it, the goal and success metrics, what's in and explicitly out of scope, the core user flows, and the open questions. Keep it decision-oriented — every section should help someone build or prioritize. Avoid solutioning the implementation. End with the riskiest assumption that, if wrong, sinks the feature.",
   "category": "product",
-  "tags": [
-    "prd",
-    "product",
-    "spec"
-  ],
+  "tags": ["prd", "product", "spec"],
   "source": "builtin",
   "favorite": false,
   "checksum": "6ffa423418b7b7adeb4004b52d9294caadf9ee77290337480f1965aff6802f8d",

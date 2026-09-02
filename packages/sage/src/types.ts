@@ -717,7 +717,10 @@ export interface UpdateSageInput {
  * (ARCH: vector-augment ↔ types).
  */
 export interface VectorRecallProvider {
-  search(query: string, opts: { limit: number; threshold?: number }): Promise<
+  search(
+    query: string,
+    opts: { limit: number; threshold?: number },
+  ): Promise<
     Array<{
       id: string;
       score: number;

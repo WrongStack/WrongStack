@@ -12,7 +12,11 @@ export type {
   MailboxCapability,
   MailboxPrincipalKind,
 } from './mailbox-auth-types.js';
-export { expandMailboxCapabilities, hasMailboxCapability, MAILBOX_CAPABILITY_IMPLICATIONS } from './mailbox-auth-types.js';
+export {
+  expandMailboxCapabilities,
+  hasMailboxCapability,
+  MAILBOX_CAPABILITY_IMPLICATIONS,
+} from './mailbox-auth-types.js';
 export {
   isActionRequiredForActor,
   isMailboxLeader,
@@ -40,7 +44,10 @@ export type {
   MailboxTaskContext,
   ReadReceipts,
 } from './mailbox-message-types.js';
-export { acceptMailboxMessageForSession, acceptMailboxMessageForSessionSync } from './mailbox-session-sync.js';;
+export {
+  acceptMailboxMessageForSession,
+  acceptMailboxMessageForSessionSync,
+} from './mailbox-session-sync.js';
 
 export interface RegisteredAgent {
   agentId: string;

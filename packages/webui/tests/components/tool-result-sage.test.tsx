@@ -18,9 +18,7 @@ describe('<ToolResult /> — SAGE memory injection badge', () => {
   it('renders glob JSON output without the SAGE header in the result body', () => {
     const globOutput = JSON.stringify({ files: ['src/a.ts', 'src/b.tsx'] });
     const contaminated = `${globOutput}\n\n${SAGE_BLOCK}\n`;
-    const { container } = render(
-      <ToolResult toolName="glob" result={contaminated} />,
-    );
+    const { container } = render(<ToolResult toolName="glob" result={contaminated} />);
     // The glob result body still surfaces the file paths.
     expect(container.textContent).toContain('src/a.ts');
     expect(container.textContent).toContain('src/b.tsx');
@@ -40,9 +38,7 @@ describe('<ToolResult /> — SAGE memory injection badge', () => {
       entries: [{ path: 'src/a.ts', kind: 'file' }],
     });
     const contaminated = `${treeOutput}\n\n${SAGE_BLOCK}`;
-    const { container } = render(
-      <ToolResult toolName="tree" result={contaminated} />,
-    );
+    const { container } = render(<ToolResult toolName="tree" result={contaminated} />);
     // JSON shape summary is still rendered.
     expect(container.textContent).toContain('3');
     expect(container.textContent).not.toContain('--- SAGE:');
@@ -69,9 +65,7 @@ describe('<ToolResult /> — SAGE memory injection badge', () => {
   it('renders read serialized-text output with SAGE separately', () => {
     const readText = 'read (path=src/foo.ts, total_lines=2)\n  1→const x;\n  2→const y;';
     const contaminated = `${readText}\n\n${SAGE_BLOCK}`;
-    const { container } = render(
-      <ToolResult toolName="read" result={contaminated} />,
-    );
+    const { container } = render(<ToolResult toolName="read" result={contaminated} />);
     expect(container.textContent).toContain('src/foo.ts');
     expect(container.textContent).not.toContain('--- SAGE:');
     expect(screen.getByTestId('sage-memory-badge')).toBeTruthy();
@@ -123,9 +117,7 @@ describe('<ToolResult /> — SAGE memory injection badge', () => {
 
   it('does NOT render a badge when the result has no injection', () => {
     const globOutput = JSON.stringify({ files: ['src/a.ts'] });
-    const { container } = render(
-      <ToolResult toolName="glob" result={globOutput} />,
-    );
+    const { container } = render(<ToolResult toolName="glob" result={globOutput} />);
     expect(container.textContent).toContain('src/a.ts');
     expect(screen.queryByTestId('sage-memory-badge')).toBeNull();
     expect(container.textContent).not.toContain('--- SAGE:');

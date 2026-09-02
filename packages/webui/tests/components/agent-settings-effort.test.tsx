@@ -10,9 +10,7 @@ import { useSessionStore } from '../../src/stores/session-store';
 const syncPref = vi.fn();
 
 function renderTab() {
-  return render(
-    <AgentSettingsTab syncPref={syncPref} switchAutonomy={() => {}} />,
-  );
+  return render(<AgentSettingsTab syncPref={syncPref} switchAutonomy={() => {}} />);
 }
 
 /** The reasoning-effort dropdown is a native <select> rendered by

@@ -223,9 +223,7 @@ describe('useExitCommand', () => {
       const { refs } = buildHarness();
       refs.interruptController.isRunning = vi.fn(() => leaderActive);
       refs.stateRef.current = { ...refs.stateRef.current, fleet } as unknown as State;
-      const view = render(
-        React.createElement(ExitHarness, { registry, refs, exitConfirm: null }),
-      );
+      const view = render(React.createElement(ExitHarness, { registry, refs, exitConfirm: null }));
 
       const cmd = defined(registry.get(alias));
       const pending = cmd.run('', undefined);

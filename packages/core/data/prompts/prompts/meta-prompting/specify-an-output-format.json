@@ -5,11 +5,7 @@
   "description": "Pin down a structured output the prompt should produce.",
   "content": "I need this AI output in a reliable, structured format: {{what}}\n\nHelp me specify it precisely: the exact schema/shape, field types and which are required, how to handle missing or uncertain values, and what to do when the input doesn't fit. Give the format instruction to paste into my prompt, plus one filled example. Note the failure mode most likely to break downstream parsing and how to guard against it.",
   "category": "meta-prompting",
-  "tags": [
-    "output-format",
-    "structure",
-    "json"
-  ],
+  "tags": ["output-format", "structure", "json"],
   "source": "builtin",
   "favorite": false,
   "checksum": "413d802fb43f3adcc3425df4fad5e82104d7d0ce111e7e3a932ecc4f4d126958",

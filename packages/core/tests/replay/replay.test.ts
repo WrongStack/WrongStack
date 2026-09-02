@@ -20,7 +20,11 @@ vi.mock('node:fs/promises', async () => {
     appendFile: vi.fn(real.appendFile),
     writeFile: vi.fn(async (filepath: string | Buffer | URL, data: string) => {
       const k = String(filepath);
-      try { await real.writeFile(k, data, 'utf8'); } catch { /* best-effort real write */ }
+      try {
+        await real.writeFile(k, data, 'utf8');
+      } catch {
+        /* best-effort real write */
+      }
     }),
     rename: real.rename,
     access: real.access,
@@ -245,7 +249,9 @@ describe('ReplayLogStore', () => {
       Array.from({ length: N }, (_, i) =>
         store.record({
           sessionId: 's1',
-          request: makeRequest({ messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }] }),
+          request: makeRequest({
+            messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }],
+          }),
           response: makeResponse(),
         }),
       ),
@@ -255,10 +261,22 @@ describe('ReplayLogStore', () => {
   });
 
   it('lookup hydrates only the matched entry instead of reading the whole file', async () => {
-    const reqA = makeRequest({ messages: [{ role: 'user', content: [{ type: 'text', text: 'a' }] }] });
-    const reqB = makeRequest({ messages: [{ role: 'user', content: [{ type: 'text', text: 'b' }] }] });
-    const hashA = await store.record({ sessionId: 's1', request: reqA, response: makeResponse({ content: [{ type: 'text', text: 'first' }] }) });
-    await store.record({ sessionId: 's1', request: reqB, response: makeResponse({ content: [{ type: 'text', text: 'second' }] }) });
+    const reqA = makeRequest({
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'a' }] }],
+    });
+    const reqB = makeRequest({
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'b' }] }],
+    });
+    const hashA = await store.record({
+      sessionId: 's1',
+      request: reqA,
+      response: makeResponse({ content: [{ type: 'text', text: 'first' }] }),
+    });
+    await store.record({
+      sessionId: 's1',
+      request: reqB,
+      response: makeResponse({ content: [{ type: 'text', text: 'second' }] }),
+    });
 
     const readFileSpy = vi.spyOn(fs, 'readFile');
     const entry = await store.lookup('s1', hashA);
@@ -271,7 +289,9 @@ describe('ReplayLogStore', () => {
     for (let i = 0; i < 5; i++) {
       await store.record({
         sessionId: 's1',
-        request: makeRequest({ messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }] }),
+        request: makeRequest({
+          messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }],
+        }),
         response: makeResponse(),
       });
     }
@@ -283,7 +303,9 @@ describe('ReplayLogStore', () => {
     const entries = await store.load('s1');
     expect(entries).toHaveLength(5);
     for (let i = 0; i < 5; i++) {
-      expect(entries[i]!.request.messages[0]!.content).toMatchObject([{ type: 'text', text: `m${i}` }]);
+      expect(entries[i]!.request.messages[0]!.content).toMatchObject([
+        { type: 'text', text: `m${i}` },
+      ]);
     }
   });
 
@@ -292,7 +314,9 @@ describe('ReplayLogStore', () => {
     for (let i = 0; i < 8; i++) {
       await smallStore.record({
         sessionId: 's1',
-        request: makeRequest({ messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }] }),
+        request: makeRequest({
+          messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }],
+        }),
         response: makeResponse(),
       });
     }
@@ -307,7 +331,9 @@ describe('ReplayLogStore', () => {
     for (let i = 0; i < 5; i++) {
       await smallStore.record({
         sessionId: 's1',
-        request: makeRequest({ messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }] }),
+        request: makeRequest({
+          messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }],
+        }),
         response: makeResponse(),
       });
     }
@@ -327,12 +353,15 @@ describe('ReplayLogStore', () => {
     const res = makeResponse();
     const hash = await loggedStore.record({ sessionId: 's1', request: req, response: res });
     expect(hash).toMatch(/^sha256:/);
-    expect(events.emit).toHaveBeenCalledWith('storage.write', expect.objectContaining({
-      store: 'replay',
-      operation: 'record',
-      outcome: 'success',
-      sessionId: 's1',
-    }));
+    expect(events.emit).toHaveBeenCalledWith(
+      'storage.write',
+      expect.objectContaining({
+        store: 'replay',
+        operation: 'record',
+        outcome: 'success',
+        sessionId: 's1',
+      }),
+    );
   });
 
   it('emits storage.read with outcome failure when load() encounters an unreadable file', async () => {
@@ -341,21 +370,28 @@ describe('ReplayLogStore', () => {
     const realFs = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
     await realFs.writeFile(
       path.join(dir, 's1.replay.jsonl'),
-      '{"hash":"sha256:' + '0'.repeat(64) + '","ts":"2026-01-01T00:00:00Z","request":{"model":"m","messages":[],"maxTokens":1},"response":{"content":[],"stopReason":"end_turn","usage":{"input":0,"output":0},"model":"m"}}\n',
+      '{"hash":"sha256:' +
+        '0'.repeat(64) +
+        '","ts":"2026-01-01T00:00:00Z","request":{"model":"m","messages":[],"maxTokens":1},"response":{"content":[],"stopReason":"end_turn","usage":{"input":0,"output":0},"model":"m"}}\n',
       'utf8',
     );
-    const openSpy = vi.spyOn(fs, 'open').mockRejectedValueOnce(
-      Object.assign(new Error('Permission denied'), { code: 'EACCES' }) as never,
-    );
+    const openSpy = vi
+      .spyOn(fs, 'open')
+      .mockRejectedValueOnce(
+        Object.assign(new Error('Permission denied'), { code: 'EACCES' }) as never,
+      );
     try {
       await expect(loggedStore.load('s1')).rejects.toThrow('Permission denied');
-      expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'replay',
-        operation: 'load',
-        outcome: 'failure',
-        sessionId: 's1',
-        error: expect.stringContaining('EACCES'),
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'replay',
+          operation: 'load',
+          outcome: 'failure',
+          sessionId: 's1',
+          error: expect.stringContaining('EACCES'),
+        }),
+      );
     } finally {
       openSpy.mockRestore();
     }
@@ -367,15 +403,17 @@ describe('ReplayLogStore', () => {
     for (let i = 0; i < 5; i++) {
       await smallStore.record({
         sessionId: 's1',
-        request: makeRequest({ messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }] }),
+        request: makeRequest({
+          messages: [{ role: 'user', content: [{ type: 'text', text: `m${i}` }] }],
+        }),
         response: makeResponse(),
       });
     }
     const compactCalls = (events.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
       ([event, payload]) =>
-        event === 'storage.write'
-        && (payload as { operation: string }).operation === 'compact'
-        && (payload as { sessionId: string }).sessionId === 's1',
+        event === 'storage.write' &&
+        (payload as { operation: string }).operation === 'compact' &&
+        (payload as { sessionId: string }).sessionId === 's1',
     );
     expect(compactCalls.length).toBeGreaterThanOrEqual(1);
     expect(compactCalls[0]![1]).toMatchObject({
@@ -395,13 +433,16 @@ describe('ReplayLogStore', () => {
       await expect(
         loggedStore.record({ sessionId: 's1', request: makeRequest(), response: makeResponse() }),
       ).rejects.toThrow('No space left on device');
-      expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-        store: 'replay',
-        operation: 'record',
-        outcome: 'failure',
-        sessionId: 's1',
-        error: expect.stringContaining('ENOSPC'),
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          store: 'replay',
+          operation: 'record',
+          outcome: 'failure',
+          sessionId: 's1',
+          error: expect.stringContaining('ENOSPC'),
+        }),
+      );
     } finally {
       fs.appendFile.mockReset();
     }
@@ -415,12 +456,15 @@ describe('ReplayLogStore', () => {
     const hash = await loggedStore.record({ sessionId: 's1', request: req, response: res });
     events.emit = vi.fn(); // clear record() emissions
     await loggedStore.lookup('s1', hash);
-    expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-      store: 'replay',
-      operation: 'lookup',
-      outcome: 'success',
-      sessionId: 's1',
-    }));
+    expect(events.emit).toHaveBeenCalledWith(
+      'storage.read',
+      expect.objectContaining({
+        store: 'replay',
+        operation: 'lookup',
+        outcome: 'success',
+        sessionId: 's1',
+      }),
+    );
   });
 
   it('emits storage.read with outcome failure when lookup() encounters an unreadable file', async () => {
@@ -435,21 +479,31 @@ describe('ReplayLogStore', () => {
         hash,
         ts: '2026-01-01T00:00:00Z',
         request: { model: 'm', messages: [], maxTokens: 1 },
-        response: { content: [], stopReason: 'end_turn', usage: { input: 0, output: 0 }, model: 'm' },
+        response: {
+          content: [],
+          stopReason: 'end_turn',
+          usage: { input: 0, output: 0 },
+          model: 'm',
+        },
       }) + '\n',
       'utf8',
     );
-    const openSpy = vi.spyOn(fs, 'open').mockRejectedValueOnce(
-      Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' }) as never,
-    );
+    const openSpy = vi
+      .spyOn(fs, 'open')
+      .mockRejectedValueOnce(
+        Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' }) as never,
+      );
     try {
       await expect(loggedStore.lookup('s1', hash)).rejects.toThrow('EACCES');
-      expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'replay',
-        operation: 'lookup',
-        outcome: 'failure',
-        error: expect.stringContaining('EACCES'),
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'replay',
+          operation: 'lookup',
+          outcome: 'failure',
+          error: expect.stringContaining('EACCES'),
+        }),
+      );
     } finally {
       openSpy.mockRestore();
     }

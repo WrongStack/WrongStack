@@ -23,12 +23,14 @@ interface VectorMemoryStatusResponse {
   entries?: number | undefined;
   vectors?: number | undefined;
   providers?: string[] | undefined;
-  cache?: {
-    entries: number;
-    providers: number;
-    totalUseCount: number;
-    oldestLastUsedAt: string | null;
-  } | undefined;
+  cache?:
+    | {
+        entries: number;
+        providers: number;
+        totalUseCount: number;
+        oldestLastUsedAt: string | null;
+      }
+    | undefined;
 }
 
 interface VectorMemorySearchHit {
@@ -148,7 +150,12 @@ function parseSearchParams(url: URL): {
       ? Math.max(0, Math.min(1, Number.parseFloat(rawThreshold)))
       : undefined;
   const similarity = url.searchParams.get('similarity') === '1';
-  return { query, limit, threshold: Number.isFinite(threshold) ? threshold : undefined, similarity };
+  return {
+    query,
+    limit,
+    threshold: Number.isFinite(threshold) ? threshold : undefined,
+    similarity,
+  };
 }
 
 /**
@@ -287,7 +294,9 @@ export async function handleVectorMemoryStore(
     res.end(JSON.stringify({ error: 'Missing required field `text`' }));
     return;
   }
-  const tags = Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === 'string') : [];
+  const tags = Array.isArray(body.tags)
+    ? body.tags.filter((t): t is string => typeof t === 'string')
+    : [];
   try {
     const entry = await store.remember({ text, tags });
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -430,17 +439,25 @@ export async function handleMemorySearch(
       payload = {
         count: hits.length,
         channel: 'breakdown',
-        hits: hits.map((h: { memory: Sage; lexicalScore: number | null; vectorScore: number | null; finalScore: number; source: 'lexical' | 'vector' | 'both' }) => ({
-          id: h.memory.id,
-          text: h.memory.text,
-          kind: h.memory.kind,
-          status: h.memory.status,
-          tags: h.memory.tags ?? [],
-          lexicalScore: h.lexicalScore,
-          vectorScore: h.vectorScore,
-          finalScore: h.finalScore,
-          source: h.source,
-        })),
+        hits: hits.map(
+          (h: {
+            memory: Sage;
+            lexicalScore: number | null;
+            vectorScore: number | null;
+            finalScore: number;
+            source: 'lexical' | 'vector' | 'both';
+          }) => ({
+            id: h.memory.id,
+            text: h.memory.text,
+            kind: h.memory.kind,
+            status: h.memory.status,
+            tags: h.memory.tags ?? [],
+            lexicalScore: h.lexicalScore,
+            vectorScore: h.vectorScore,
+            finalScore: h.finalScore,
+            source: h.source,
+          }),
+        ),
       };
     } else {
       const rows = await Sage.searchSage(query, { limit });

@@ -6,17 +6,9 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { Plus, RotateCcw, TerminalSquare, Trash2, X } from 'lucide-react';
-import {
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useAppTranslation, i18n } from '@/i18n';
-import {
-  clampTerminalHeight,
-  TERMINAL_HEIGHT_STORAGE_KEY,
-} from '@/lib/terminal-dock';
+import { clampTerminalHeight, TERMINAL_HEIGHT_STORAGE_KEY } from '@/lib/terminal-dock';
 import { cn } from '@/lib/utils';
 
 /** A reasonable dark palette — terminals read best dark regardless of app theme. */
@@ -218,9 +210,7 @@ export function TerminalPanel({
     id: string,
     patch: Pick<TerminalTab, 'status'> & Partial<Pick<TerminalTab, 'exitCode'>>,
   ) => {
-    setTabs((current) =>
-      current.map((tab) => (tab.id === id ? { ...tab, ...patch } : tab)),
-    );
+    setTabs((current) => current.map((tab) => (tab.id === id ? { ...tab, ...patch } : tab)));
   };
 
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0] ?? null;
@@ -250,7 +240,11 @@ export function TerminalPanel({
       >
         <div className="flex min-w-0 items-center gap-2 text-xs text-foreground">
           <TerminalSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
-          <span className="font-medium">{desktopShell ? t('activity:terminal.labelSingular') : t('activity:terminal.labelPlural')}</span>
+          <span className="font-medium">
+            {desktopShell
+              ? t('activity:terminal.labelSingular')
+              : t('activity:terminal.labelPlural')}
+          </span>
           <span className="min-w-0 truncate text-muted-foreground">
             {projectName || cwd || t('activity:terminal.projectShell')}
           </span>
@@ -361,9 +355,7 @@ export function TerminalPanel({
             id={tab.id}
             active={tab.id === activeId}
             onRunning={() => updateTabStatus(tab.id, { status: 'running' })}
-            onExit={(exitCode) =>
-              updateTabStatus(tab.id, { status: 'exited', exitCode })
-            }
+            onExit={(exitCode) => updateTabStatus(tab.id, { status: 'exited', exitCode })}
           />
         ))}
       </div>
@@ -435,7 +427,9 @@ function TerminalSession({
     });
     const offExit = ws.on('terminal.exit', (msg: WSServerMessage) => {
       if (msg.type === 'terminal.exit' && msg.payload.id === id) {
-        term.write(`\r\n\x1b[2m${i18n.t('activity:terminal.processExited', { code: msg.payload.exitCode })}\x1b[0m\r\n`);
+        term.write(
+          `\r\n\x1b[2m${i18n.t('activity:terminal.processExited', { code: msg.payload.exitCode })}\x1b[0m\r\n`,
+        );
         onExitRef.current(msg.payload.exitCode);
       }
     });

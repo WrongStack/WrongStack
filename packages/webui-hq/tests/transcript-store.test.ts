@@ -138,9 +138,7 @@ describe('applyLiveBatch', () => {
       e({ role: 'tool', tool: 'bash', toolInput: '{"cmd":"ls"}', text: '', toolUseId: 'tu1' }),
     ]);
     // Merged result entry has empty text → tgt.text should be ''.
-    s = applyLiveBatch(s, 1, [
-      e({ role: 'tool', text: '', toolUseId: 'tu1', durationMs: 10 }),
-    ]);
+    s = applyLiveBatch(s, 1, [e({ role: 'tool', text: '', toolUseId: 'tu1', durationMs: 10 })]);
     expect(s.entries).toHaveLength(1);
     expect(s.entries[0]!.text).toBe('');
     expect(s.entries[0]!.durationMs).toBe(10);

@@ -17,8 +17,16 @@ interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
   extensions: { register: ReturnType<typeof vi.fn> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   events: { emit: ReturnType<typeof vi.fn>; on: ReturnType<typeof vi.fn> };
   emitCustom: ReturnType<typeof vi.fn>;
   session: { append: ReturnType<typeof vi.fn> };
@@ -51,7 +59,7 @@ function makeApi(): MockApi {
 function getTool(api: MockApi, name: string): { execute: (input: unknown) => Promise<unknown> } {
   const call = api.tools.register.mock.calls.find(([t]) => (t as { name: string }).name === name);
   if (!call) throw new Error(`tool ${name} not registered`);
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
 /**
@@ -145,7 +153,9 @@ describe('plugin teardown (H1 regression guard)', () => {
 
       // Act + assert: must not throw, must log completion
       expect(() =>
-        fileWatcherPlugin.teardown!(api as never as Parameters<typeof fileWatcherPlugin.teardown>[0]),
+        fileWatcherPlugin.teardown!(
+          api as never as Parameters<typeof fileWatcherPlugin.teardown>[0],
+        ),
       ).not.toThrow();
 
       const logCalls = (api.log.info as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
@@ -176,7 +186,9 @@ describe('plugin teardown (H1 regression guard)', () => {
       expect(before.count).toBe(2);
 
       // Act
-      templateEnginePlugin.teardown!(api as never as Parameters<typeof templateEnginePlugin.teardown>[0]);
+      templateEnginePlugin.teardown!(
+        api as never as Parameters<typeof templateEnginePlugin.teardown>[0],
+      );
 
       // After teardown, a fresh setup() must observe an empty store.
       // The plugin's `setup` is idempotent — re-init clears the Map —
@@ -193,7 +205,9 @@ describe('plugin teardown (H1 regression guard)', () => {
       templateEnginePlugin.setup(api as never as Parameters<typeof templateEnginePlugin.setup>[0]);
 
       expect(() =>
-        templateEnginePlugin.teardown!(api as never as Parameters<typeof templateEnginePlugin.teardown>[0]),
+        templateEnginePlugin.teardown!(
+          api as never as Parameters<typeof templateEnginePlugin.teardown>[0],
+        ),
       ).not.toThrow();
 
       const logCalls = (api.log.info as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
@@ -216,7 +230,9 @@ describe('plugin teardown (H1 regression guard)', () => {
       expect(before.message).toContain('2 saved template(s)');
 
       // After teardown the store is empty; health() reflects that
-      templateEnginePlugin.teardown!(api as never as Parameters<typeof templateEnginePlugin.teardown>[0]);
+      templateEnginePlugin.teardown!(
+        api as never as Parameters<typeof templateEnginePlugin.teardown>[0],
+      );
       const after = await templateEnginePlugin.health!();
       expect(after.ok).toBe(true);
       expect(after.count).toBe(0);
@@ -237,7 +253,9 @@ describe('plugin teardown (H1 regression guard)', () => {
       gitAutocommitPlugin.setup(api as never as Parameters<typeof gitAutocommitPlugin.setup>[0]);
 
       expect(() =>
-        gitAutocommitPlugin.teardown!(api as never as Parameters<typeof gitAutocommitPlugin.teardown>[0]),
+        gitAutocommitPlugin.teardown!(
+          api as never as Parameters<typeof gitAutocommitPlugin.teardown>[0],
+        ),
       ).not.toThrow();
 
       const logCalls = (api.log.info as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
@@ -256,7 +274,9 @@ describe('plugin teardown (H1 regression guard)', () => {
 
       // Teardown does not throw even with no commits recorded — the
       // counter reset path must work from the zero state too.
-      gitAutocommitPlugin.teardown!(api as never as Parameters<typeof gitAutocommitPlugin.teardown>[0]);
+      gitAutocommitPlugin.teardown!(
+        api as never as Parameters<typeof gitAutocommitPlugin.teardown>[0],
+      );
 
       const after = await gitAutocommitPlugin.health!();
       expect(after.ok).toBe(true);
@@ -311,7 +331,9 @@ describe('plugin teardown (H1 regression guard)', () => {
       costTrackerPlugin.setup(api as never as Parameters<typeof costTrackerPlugin.setup>[0]);
 
       expect(() =>
-        costTrackerPlugin.teardown!(api as never as Parameters<typeof costTrackerPlugin.teardown>[0]),
+        costTrackerPlugin.teardown!(
+          api as never as Parameters<typeof costTrackerPlugin.teardown>[0],
+        ),
       ).not.toThrow();
 
       const logCalls = (api.log.info as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);

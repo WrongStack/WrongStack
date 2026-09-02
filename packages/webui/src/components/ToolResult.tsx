@@ -104,7 +104,10 @@ function CollapsibleText({
           ) : (
             <>
               <ChevronsDown className="h-3 w-3" />
-              {t('activity:toolResult.showAllLines', { total: lines.length, more: lines.length - LONG_PEEK_LINES })}
+              {t('activity:toolResult.showAllLines', {
+                total: lines.length,
+                more: lines.length - LONG_PEEK_LINES,
+              })}
             </>
           )}
         </button>
@@ -240,12 +243,15 @@ export const ToolResult = memo(function ToolResult({
             <div
               className={cn(
                 'flex items-center gap-3 text-[11px] px-2 py-1 border-t bg-muted/30 tabular-nums',
-                shape.exitCode && shape.exitCode !== 0 ? 'text-destructive' : 'text-muted-foreground',
+                shape.exitCode && shape.exitCode !== 0
+                  ? 'text-destructive'
+                  : 'text-muted-foreground',
               )}
             >
               {shape.exitCode !== undefined && (
                 <span>
-                  {t('activity:toolResult.exitCode')} <span className="font-mono">{shape.exitCode}</span>
+                  {t('activity:toolResult.exitCode')}{' '}
+                  <span className="font-mono">{shape.exitCode}</span>
                 </span>
               )}
               {shape.duration && <span>{shape.duration}</span>}
@@ -343,9 +349,7 @@ function JsonResult({
   const lineCount = pretty.split('\n').length;
   // `simple` forces collapsed; otherwise follow the historical
   // "expand small JSON, collapse big" rule.
-  const [expanded, setExpanded] = useState(
-    defaultCollapsed ? false : lineCount < 30,
-  );
+  const [expanded, setExpanded] = useState(defaultCollapsed ? false : lineCount < 30);
   return (
     <div
       className={cn(
@@ -361,9 +365,13 @@ function JsonResult({
       >
         <span className="flex items-center gap-1">
           {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          <span className="font-mono">{t('activity:toolResult.jsonLines', { count: lineCount })}</span>
+          <span className="font-mono">
+            {t('activity:toolResult.jsonLines', { count: lineCount })}
+          </span>
         </span>
-        <span>{expanded ? t('activity:toolResult.collapse') : t('activity:toolResult.expand')}</span>
+        <span>
+          {expanded ? t('activity:toolResult.collapse') : t('activity:toolResult.expand')}
+        </span>
       </button>
       {expanded && (
         <pre

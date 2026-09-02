@@ -538,9 +538,7 @@ describe('ContextWindowEditor', () => {
 
   it('preserves granular ranges across whole-message toggle cycles', () => {
     loadSnapshot();
-    useContextEditorStore
-      .getState()
-      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
+    useContextEditorStore.getState().markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
 
     useContextEditorStore.getState().toggleRemoveMessage(0);
     expect(useContextEditorStore.getState().removeMessages.has(0)).toBe(true);
@@ -571,9 +569,7 @@ describe('ContextWindowEditor', () => {
       ],
     });
 
-    useContextEditorStore
-      .getState()
-      .markRangeForRemoval({ messageIndex: 0, start: 2, end: 3 });
+    useContextEditorStore.getState().markRangeForRemoval({ messageIndex: 0, start: 2, end: 3 });
 
     expect(useContextEditorStore.getState().removeRanges).toEqual([]);
     expect(useContextEditorStore.getState().phase).toBe('clean_snapshot');
@@ -583,9 +579,7 @@ describe('ContextWindowEditor', () => {
     loadSnapshot();
     useContextEditorStore.getState().toggleRemoveMessage(0);
 
-    useContextEditorStore
-      .getState()
-      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
+    useContextEditorStore.getState().markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
 
     expect(useContextEditorStore.getState().removeRanges).toEqual([]);
   });
@@ -607,18 +601,14 @@ describe('ContextWindowEditor', () => {
     useContextEditorStore.getState().beginValidation();
 
     useContextEditorStore.getState().toggleRemoveMessage(0);
-    useContextEditorStore
-      .getState()
-      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
+    useContextEditorStore.getState().markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
     expect(useContextEditorStore.getState().removeMessages).toEqual(new Set());
     expect(useContextEditorStore.getState().removeRanges).toEqual([]);
     expect(useContextEditorStore.getState().phase).toBe('validating');
 
     useContextEditorStore.getState().beginApply();
     useContextEditorStore.getState().toggleRemoveMessage(0);
-    useContextEditorStore
-      .getState()
-      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
+    useContextEditorStore.getState().markRangeForRemoval({ messageIndex: 0, start: 0, end: 5 });
     expect(useContextEditorStore.getState().removeMessages).toEqual(new Set());
     expect(useContextEditorStore.getState().removeRanges).toEqual([]);
     expect(useContextEditorStore.getState().phase).toBe('applying');
@@ -627,12 +617,8 @@ describe('ContextWindowEditor', () => {
   it('rejects ranges that do not target current text content', () => {
     loadSnapshot();
 
-    useContextEditorStore
-      .getState()
-      .markRangeForRemoval({ messageIndex: 0, start: 0, end: 999 });
-    useContextEditorStore
-      .getState()
-      .markRangeForRemoval({ messageIndex: 99, start: 0, end: 1 });
+    useContextEditorStore.getState().markRangeForRemoval({ messageIndex: 0, start: 0, end: 999 });
+    useContextEditorStore.getState().markRangeForRemoval({ messageIndex: 99, start: 0, end: 1 });
 
     expect(useContextEditorStore.getState().removeRanges).toEqual([]);
     expect(useContextEditorStore.getState().phase).toBe('clean_snapshot');

@@ -67,7 +67,11 @@ export function createMockProvider(opts: MockProviderOptions = {}): Provider {
   const id = opts.id ?? 'mock';
   const defaultStream: StreamEvent[] = [
     { type: 'text_delta', text: 'Hello from mock provider.' },
-    { type: 'message_stop', stopReason: 'end_turn', usage: { input: 10, output: 5 } as unknown as Usage },
+    {
+      type: 'message_stop',
+      stopReason: 'end_turn',
+      usage: { input: 10, output: 5 } as unknown as Usage,
+    },
   ];
   const streamEvents = opts.streamEvents ?? defaultStream;
 
@@ -200,11 +204,13 @@ export interface TestHarness {
  * Create a fully-wired test harness with EventBus, mock provider,
  * mock tools, and a mock Context. Call `restore()` in afterEach.
  */
-export function createTestHarness(opts: {
-  provider?: MockProviderOptions;
-  tools?: MockToolOptions[];
-  context?: MockContextOptions;
-} = {}): TestHarness {
+export function createTestHarness(
+  opts: {
+    provider?: MockProviderOptions;
+    tools?: MockToolOptions[];
+    context?: MockContextOptions;
+  } = {},
+): TestHarness {
   const { events, collect, events$ } = createMockEventBus();
   const provider = createMockProvider(opts.provider);
   const tools = createMockToolRegistry(opts.tools);

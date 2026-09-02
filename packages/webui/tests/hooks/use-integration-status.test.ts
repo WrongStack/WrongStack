@@ -73,7 +73,11 @@ describe('useWrongProxyStatus and useHqStatus hooks', () => {
       json: async () => ({ status: 'ok' }),
     } as Response);
 
-    useLocalPrefs.setState({ hqEnabled: true, hqUrl: 'http://localhost:3499', hqToken: 'test-token' });
+    useLocalPrefs.setState({
+      hqEnabled: true,
+      hqUrl: 'http://localhost:3499',
+      hqToken: 'test-token',
+    });
 
     const { result } = renderHook(() => useHqStatus());
 

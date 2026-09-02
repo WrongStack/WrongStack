@@ -34,11 +34,7 @@ const BAD_IMPORT = /from\s+['"]\.\.\/([a-zA-Z0-9_-]+)\//g;
  * Directories where this gate's premise does not apply (cross-area
  * siblings are common and intentional).
  */
-const ALLOWLIST_DIR_PREFIXES = [
-  'apps/desktop/',
-  'apps/wrongstack/',
-  'scripts/',
-];
+const ALLOWLIST_DIR_PREFIXES = ['apps/desktop/', 'apps/wrongstack/', 'scripts/'];
 
 /**
  * Allow specific known-good `../<sibling>/` imports that happen to match
@@ -50,10 +46,10 @@ const ALLOWLIST_IMPORTS = new Set([
 ]);
 
 function listTsFiles() {
-  const out = execSync(
-    'git ls-files -z --cached --others --exclude-standard',
-    { cwd: REPO_ROOT, encoding: 'buffer' },
-  );
+  const out = execSync('git ls-files -z --cached --others --exclude-standard', {
+    cwd: REPO_ROOT,
+    encoding: 'buffer',
+  });
   return out
     .toString('utf8')
     .split('\0')
@@ -113,15 +109,9 @@ function main() {
       const upToMatch = content.slice(0, m.index);
       const lineStart = upToMatch.lastIndexOf('\n') + 1;
       const lineEnd = content.indexOf('\n', m.index);
-      const line =
-        lineEnd === -1
-          ? content.slice(lineStart)
-          : content.slice(lineStart, lineEnd);
+      const line = lineEnd === -1 ? content.slice(lineStart) : content.slice(lineStart, lineEnd);
       const stripped = line.trimStart();
-      if (
-        !stripped.startsWith('import') &&
-        !stripped.startsWith('export')
-      ) {
+      if (!stripped.startsWith('import') && !stripped.startsWith('export')) {
         continue;
       }
       // Naive string-region check: count unescaped quotes before the
@@ -140,9 +130,7 @@ function main() {
   }
 
   if (offenders.length === 0) {
-    console.log(
-      `check-relative-imports: 0 offenders across ${files.length} files.`,
-    );
+    console.log(`check-relative-imports: 0 offenders across ${files.length} files.`);
     process.exit(0);
   }
 

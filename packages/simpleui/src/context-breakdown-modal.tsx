@@ -214,7 +214,12 @@ export function ContextBreakdownModal({
   const categories = [
     { key: 'system', label: 'SYSTEM', value: data?.systemPrompt ?? 0, color: 'var(--accent)' },
     { key: 'tools', label: 'TOOLS', value: data?.tools.total ?? 0, color: 'var(--warning)' },
-    { key: 'messages', label: 'MESSAGES', value: data?.messages.total ?? 0, color: 'var(--success)' },
+    {
+      key: 'messages',
+      label: 'MESSAGES',
+      value: data?.messages.total ?? 0,
+      color: 'var(--success)',
+    },
   ];
 
   return (
@@ -246,7 +251,11 @@ export function ContextBreakdownModal({
               title="Refresh"
               onClick={() => setRefreshGen((gen) => gen + 1)}
             >
-              <RefreshCw size={13} className={loading ? 'ctx-spin' : undefined} aria-hidden="true" />
+              <RefreshCw
+                size={13}
+                className={loading ? 'ctx-spin' : undefined}
+                aria-hidden="true"
+              />
             </button>
             <button
               type="button"
@@ -318,8 +327,8 @@ export function ContextBreakdownModal({
                   <div className="ctx-breakdown-section-head">
                     <span>CACHE COVERAGE</span>
                     <em>
-                      {compactTokens(context.cache.coverageTokens)} of {compactTokens(context.maxContext)}{' '}
-                      cached (
+                      {compactTokens(context.cache.coverageTokens)} of{' '}
+                      {compactTokens(context.maxContext)} cached (
                       {((context.cache.coverageTokens / context.maxContext) * 100).toFixed(1)}%)
                     </em>
                   </div>
@@ -405,7 +414,9 @@ export function ContextBreakdownModal({
                         <span className={`ctx-token ${tokenClass(tool.tokens, data.tools.total)}`}>
                           {tool.tokens.toLocaleString()}
                         </span>
-                        <span className="ctx-breakdown-pct">{sharePct(tool.tokens, data.tools.total)}</span>
+                        <span className="ctx-breakdown-pct">
+                          {sharePct(tool.tokens, data.tools.total)}
+                        </span>
                       </div>
                     ))}
                   </div>

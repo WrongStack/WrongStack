@@ -1,8 +1,5 @@
 import { TRUSTED_PROVIDER_PRESETS } from './trusted-presets.js';
-import type {
-  ProviderCatalogMetadata,
-  ProviderDefinition,
-} from './provider-definition-types.js';
+import type { ProviderCatalogMetadata, ProviderDefinition } from './provider-definition-types.js';
 
 export type {
   ProviderCatalogMetadata,
@@ -279,10 +276,7 @@ export function projectPopularProviderCatalog(): PopularProviderProjection[] {
 }
 
 /** Factory tuning for compatible providers, projected from the registry. */
-export function projectCompatibleProviderPresets(): Record<
-  string,
-  CompatibleProviderProjection
-> {
+export function projectCompatibleProviderPresets(): Record<string, CompatibleProviderProjection> {
   return Object.fromEntries(
     Object.values(PROVIDER_DEFINITIONS)
       .filter(

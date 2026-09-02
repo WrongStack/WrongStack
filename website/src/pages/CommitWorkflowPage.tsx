@@ -42,18 +42,55 @@ export function CommitWorkflowPage() {
         />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { cmd: '/commit', desc: 'Stage files, generate a conventional commit message from the diff, and commit. Review before confirming.', icon: GitCommitHorizontal, tag: 'stages + commits' },
-            { cmd: '/git status', desc: 'Check working tree state — modified, staged, untracked files. Bounded to 100 paths, 8000 chars per diff summary.', icon: FileCheck, tag: 'read-only' },
-            { cmd: '/git diff', desc: 'Review changes before committing. Supports file globs. --staged flag for pre-commit review of what will go in.', icon: GitCompare, tag: 'read-only' },
-            { cmd: '/git branch', desc: 'Current branch name and short HEAD. Concise — no branch listing, no switching.', icon: GitBranch, tag: 'read-only' },
-            { cmd: '/gitcheck', desc: 'Silent check for uncommitted changes. Exit code only. Ideal for pre-flight automation and CI hooks.', icon: Shield, tag: 'read-only' },
-            { cmd: '/push', desc: 'Push the current branch to its configured remote. Respects your git config for default push behavior.', icon: ArrowUpDown, tag: 'mutating' },
-            { cmd: '/gitid', desc: 'Inspect or set git user.name and user.email for commit attribution. Safe — only modifies the local repo config.', icon: Fingerprint, tag: 'config' },
+            {
+              cmd: '/commit',
+              desc: 'Stage files, generate a conventional commit message from the diff, and commit. Review before confirming.',
+              icon: GitCommitHorizontal,
+              tag: 'stages + commits',
+            },
+            {
+              cmd: '/git status',
+              desc: 'Check working tree state — modified, staged, untracked files. Bounded to 100 paths, 8000 chars per diff summary.',
+              icon: FileCheck,
+              tag: 'read-only',
+            },
+            {
+              cmd: '/git diff',
+              desc: 'Review changes before committing. Supports file globs. --staged flag for pre-commit review of what will go in.',
+              icon: GitCompare,
+              tag: 'read-only',
+            },
+            {
+              cmd: '/git branch',
+              desc: 'Current branch name and short HEAD. Concise — no branch listing, no switching.',
+              icon: GitBranch,
+              tag: 'read-only',
+            },
+            {
+              cmd: '/gitcheck',
+              desc: 'Silent check for uncommitted changes. Exit code only. Ideal for pre-flight automation and CI hooks.',
+              icon: Shield,
+              tag: 'read-only',
+            },
+            {
+              cmd: '/push',
+              desc: 'Push the current branch to its configured remote. Respects your git config for default push behavior.',
+              icon: ArrowUpDown,
+              tag: 'mutating',
+            },
+            {
+              cmd: '/gitid',
+              desc: 'Inspect or set git user.name and user.email for commit attribution. Safe — only modifies the local repo config.',
+              icon: Fingerprint,
+              tag: 'config',
+            },
           ].map(({ cmd, desc, icon: Icon, tag }) => (
             <div key={cmd} className="rounded-xl border border-line bg-card p-5">
               <div className="flex items-center justify-between">
                 <Icon className="size-4 text-brand" />
-                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">{tag}</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+                  {tag}
+                </span>
               </div>
               <code className="mt-4 block font-mono text-sm font-black text-brand">{cmd}</code>
               <p className="mt-2 text-xs leading-5 text-muted">{desc}</p>
@@ -80,7 +117,11 @@ export function CommitWorkflowPage() {
                   { type: 'feat', bump: 'minor', desc: 'A new feature. Bumps the minor version.' },
                   { type: 'fix', bump: 'patch', desc: 'A bug fix. Bumps the patch version.' },
                   { type: 'docs', bump: 'none', desc: 'Documentation only. No version bump.' },
-                  { type: 'refactor', bump: 'none', desc: 'Code restructuring. No behavior change.' },
+                  {
+                    type: 'refactor',
+                    bump: 'none',
+                    desc: 'Code restructuring. No behavior change.',
+                  },
                   { type: 'test', bump: 'none', desc: 'Adding or updating tests.' },
                   { type: 'chore', bump: 'none', desc: 'Build process, tooling, or maintenance.' },
                   { type: 'perf', bump: 'patch', desc: 'Performance improvement. Patch bump.' },
@@ -93,7 +134,9 @@ export function CommitWorkflowPage() {
                     <div className="flex items-center gap-2">
                       <code className="font-mono text-xs font-black text-brand">{type}</code>
                       {bump !== 'none' && (
-                        <span className={`rounded px-1 py-0.5 font-mono text-[10px] font-black ${bump === 'minor' ? 'bg-amber-400/10 text-amber-400' : 'bg-emerald-400/10 text-emerald-400'}`}>
+                        <span
+                          className={`rounded px-1 py-0.5 font-mono text-[10px] font-black ${bump === 'minor' ? 'bg-amber-400/10 text-amber-400' : 'bg-emerald-400/10 text-emerald-400'}`}
+                        >
                           {bump}
                         </span>
                       )}
@@ -105,7 +148,10 @@ export function CommitWorkflowPage() {
               <div className="mt-5 rounded-lg border border-line bg-bg p-4">
                 <h3 className="font-black text-sm text-fg">Breaking changes</h3>
                 <p className="mt-1 text-xs leading-5 text-muted">
-                  Add <code className="font-mono text-brand">BREAKING CHANGE:</code> in the commit body footer. The agent detects this and maps it to a <span className="font-black text-red-400">major</span> version bump, regardless of the commit type.
+                  Add <code className="font-mono text-brand">BREAKING CHANGE:</code> in the commit
+                  body footer. The agent detects this and maps it to a{' '}
+                  <span className="font-black text-red-400">major</span> version bump, regardless of
+                  the commit type.
                 </p>
               </div>
             </div>
@@ -120,24 +166,44 @@ export function CommitWorkflowPage() {
                 </div>
                 <div className="p-5 font-mono text-sm leading-7">
                   <div className="text-emerald-400">feat(auth):</div>
-                  <div className="text-zinc-300">add OAuth account switching with session persistence</div>
+                  <div className="text-zinc-300">
+                    add OAuth account switching with session persistence
+                  </div>
                   <div className="mt-4 text-zinc-500">
-                    Implement multi-account OAuth flow with encrypted token storage<br />
-                    and automatic session refresh. Accounts are persisted in the<br />
+                    Implement multi-account OAuth flow with encrypted token storage
+                    <br />
+                    and automatic session refresh. Accounts are persisted in the
+                    <br />
                     SecretVault and restored on next launch.
                   </div>
                   <div className="mt-4 space-y-1 text-zinc-500">
-                    <div><span className="text-zinc-600">- </span>Closes #142</div>
-                    <div><span className="text-zinc-600">- </span>Reviewed-by: @security-team</div>
+                    <div>
+                      <span className="text-zinc-600">- </span>Closes #142
+                    </div>
+                    <div>
+                      <span className="text-zinc-600">- </span>Reviewed-by: @security-team
+                    </div>
                   </div>
                 </div>
               </div>
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 {[
-                  { label: 'Type + scope', body: 'First line: `type(scope): summary`. Scope is optional but encouraged for monorepos.' },
-                  { label: 'Body', body: 'Blank line, then wrapped paragraphs explaining what and why. Not how — the diff shows how.' },
-                  { label: 'Footer', body: 'Blank line, then token-prefixed metadata. BREAKING CHANGE, Closes #N, Reviewed-by, Co-authored-by.' },
-                  { label: 'Dry run', body: '`/commit --dry-run` shows the generated message without committing. Edit inline before confirming.' },
+                  {
+                    label: 'Type + scope',
+                    body: 'First line: `type(scope): summary`. Scope is optional but encouraged for monorepos.',
+                  },
+                  {
+                    label: 'Body',
+                    body: 'Blank line, then wrapped paragraphs explaining what and why. Not how — the diff shows how.',
+                  },
+                  {
+                    label: 'Footer',
+                    body: 'Blank line, then token-prefixed metadata. BREAKING CHANGE, Closes #N, Reviewed-by, Co-authored-by.',
+                  },
+                  {
+                    label: 'Dry run',
+                    body: '`/commit --dry-run` shows the generated message without committing. Edit inline before confirming.',
+                  },
                 ].map(({ label, body }) => (
                   <div key={label} className="rounded-lg border border-line bg-bg p-3">
                     <h3 className="font-black text-xs text-fg">{label}</h3>
@@ -186,14 +252,27 @@ export function CommitWorkflowPage() {
         <div className="mt-8 rounded-2xl border border-line bg-card p-7">
           <h2 className="text-xl font-black text-fg">CommitSafetyReport</h2>
           <p className="mt-3 text-sm leading-7 text-muted">
-            `assessCommitSafety()` returns a structured report. Best-effort: any git failure yields an empty report rather than throwing — commit-safety must never break a commit.
+            `assessCommitSafety()` returns a structured report. Best-effort: any git failure yields
+            an empty report rather than throwing — commit-safety must never break a commit.
           </p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { label: 'dirtyCount', body: 'Total uncommitted files (staged + unstaged + untracked).' },
-              { label: 'foreignFiles', body: 'Dirty files whose latest author is a DIFFERENT session. Includes agent name and session ID.' },
-              { label: 'unverifiedFiles', body: 'Dirty files with no recorded author. Could be a concurrent non-WrongStack agent, build step, or human.' },
-              { label: 'otherWorktrees', body: 'Branch names of other active worktrees. Warns when sibling worktrees may conflict.' },
+              {
+                label: 'dirtyCount',
+                body: 'Total uncommitted files (staged + unstaged + untracked).',
+              },
+              {
+                label: 'foreignFiles',
+                body: 'Dirty files whose latest author is a DIFFERENT session. Includes agent name and session ID.',
+              },
+              {
+                label: 'unverifiedFiles',
+                body: 'Dirty files with no recorded author. Could be a concurrent non-WrongStack agent, build step, or human.',
+              },
+              {
+                label: 'otherWorktrees',
+                body: 'Branch names of other active worktrees. Warns when sibling worktrees may conflict.',
+              },
             ].map(({ label, body }) => (
               <div key={label} className="rounded-lg border border-line bg-bg p-4">
                 <code className="font-mono text-xs font-black text-brand">{label}</code>
@@ -202,12 +281,21 @@ export function CommitWorkflowPage() {
             ))}
           </div>
           <div className="mt-5 rounded-lg border border-line bg-ink p-4 font-mono text-xs leading-6">
-            <div className="text-amber-400">⚠ Shared-worktree warning: 3 of 12 uncommitted changes were NOT recorded as authored by this session.</div>
-            <div className="mt-2 text-zinc-500">  Authored by another agent/session:</div>
-            <div className="text-zinc-400">    - src/auth/login.ts (by bug-hunter@a3f2b1c4)</div>
-            <div className="text-zinc-400">    - src/auth/middleware.ts (by refactor-planner@b4c5d6e7)</div>
-            <div className="mt-2 text-zinc-500">  Unverified author (concurrent agent, build/format step, or human):</div>
-            <div className="text-zinc-400">    - dist/bundle.js</div>
+            <div className="text-amber-400">
+              ⚠ Shared-worktree warning: 3 of 12 uncommitted changes were NOT recorded as authored
+              by this session.
+            </div>
+            <div className="mt-2 text-zinc-500"> Authored by another agent/session:</div>
+            <div className="text-zinc-400"> - src/auth/login.ts (by bug-hunter@a3f2b1c4)</div>
+            <div className="text-zinc-400">
+              {' '}
+              - src/auth/middleware.ts (by refactor-planner@b4c5d6e7)
+            </div>
+            <div className="mt-2 text-zinc-500">
+              {' '}
+              Unverified author (concurrent agent, build/format step, or human):
+            </div>
+            <div className="text-zinc-400"> - dist/bundle.js</div>
           </div>
         </div>
       </section>
@@ -223,11 +311,31 @@ export function CommitWorkflowPage() {
           />
           <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line bg-line lg:grid-cols-5">
             {[
-              { step: '01', title: 'Safety check', body: 'Cross-reference dirty files against the file-author log. Warn if foreign or unverified files are detected.' },
-              { step: '02', title: 'Stage files', body: 'Pass an explicit file list — never blind-stage the whole tree. The agent scopes to files it authored.' },
-              { step: '03', title: 'Generate message', body: 'The model reads the staged diff and produces a conventional commit: type, scope, summary, body, footer.' },
-              { step: '04', title: 'Review', body: 'The generated message is presented. You can edit inline, add footers, or reject and rephrase.' },
-              { step: '05', title: 'Commit & push', body: 'On confirmation, the commit is created. /push sends it to the remote. Run /semver when you want to apply a release tag.' },
+              {
+                step: '01',
+                title: 'Safety check',
+                body: 'Cross-reference dirty files against the file-author log. Warn if foreign or unverified files are detected.',
+              },
+              {
+                step: '02',
+                title: 'Stage files',
+                body: 'Pass an explicit file list — never blind-stage the whole tree. The agent scopes to files it authored.',
+              },
+              {
+                step: '03',
+                title: 'Generate message',
+                body: 'The model reads the staged diff and produces a conventional commit: type, scope, summary, body, footer.',
+              },
+              {
+                step: '04',
+                title: 'Review',
+                body: 'The generated message is presented. You can edit inline, add footers, or reject and rephrase.',
+              },
+              {
+                step: '05',
+                title: 'Commit & push',
+                body: 'On confirmation, the commit is created. /push sends it to the remote. Run /semver when you want to apply a release tag.',
+              },
             ].map(({ step, title, body }) => (
               <article key={step} className="bg-card p-6">
                 <span className="font-mono text-xs font-black text-brand-2">{step}</span>
@@ -241,24 +349,46 @@ export function CommitWorkflowPage() {
               <GitMerge className="size-5 text-brand" />
               <h2 className="mt-8 text-xl font-black text-fg">Semver bump</h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                `/semver` reads conventional commits since the last tag and determines the next version. Part can be `auto` (infer from commits), or forced to `major`, `minor`, or `patch`.
+                `/semver` reads conventional commits since the last tag and determines the next
+                version. Part can be `auto` (infer from commits), or forced to `major`, `minor`, or
+                `patch`.
               </p>
               <div className="mt-5 space-y-3">
                 {(() => {
                   type Row = { kind: 'slash' | 'tool'; cmd: string; desc: string };
                   const items: ReadonlyArray<Row> = [
-                    { kind: 'slash', cmd: '/semver status', desc: 'Show the current version, the latest tag, and the suggested bump.' },
-                    { kind: 'slash', cmd: '/semver auto --dry', desc: 'Preview the auto-inferred bump from commits without creating a tag.' },
-                    { kind: 'slash', cmd: '/semver patch', desc: 'Force a patch bump regardless of commit types. Useful for hotfix releases.' },
-                    { kind: 'tool', cmd: 'semver_changelog', desc: 'Agent tool that generates a markdown changelog between two version tags, grouped by conventional-commit type.' },
+                    {
+                      kind: 'slash',
+                      cmd: '/semver status',
+                      desc: 'Show the current version, the latest tag, and the suggested bump.',
+                    },
+                    {
+                      kind: 'slash',
+                      cmd: '/semver auto --dry',
+                      desc: 'Preview the auto-inferred bump from commits without creating a tag.',
+                    },
+                    {
+                      kind: 'slash',
+                      cmd: '/semver patch',
+                      desc: 'Force a patch bump regardless of commit types. Useful for hotfix releases.',
+                    },
+                    {
+                      kind: 'tool',
+                      cmd: 'semver_changelog',
+                      desc: 'Agent tool that generates a markdown changelog between two version tags, grouped by conventional-commit type.',
+                    },
                   ];
                   const renderRow = ({ kind, cmd, desc }: Row) => (
                     <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                       <div className="flex items-center gap-2">
                         {kind === 'tool' ? (
-                          <span className="rounded-sm border border-line bg-bg-2 px-1.5 py-0.5 font-mono text-[10px] font-black uppercase tracking-wide text-brand-2">agent tool</span>
+                          <span className="rounded-sm border border-line bg-bg-2 px-1.5 py-0.5 font-mono text-[10px] font-black uppercase tracking-wide text-brand-2">
+                            agent tool
+                          </span>
                         ) : (
-                          <span className="rounded-sm border border-line bg-bg-2 px-1.5 py-0.5 font-mono text-[10px] font-black uppercase tracking-wide text-faint">slash command</span>
+                          <span className="rounded-sm border border-line bg-bg-2 px-1.5 py-0.5 font-mono text-[10px] font-black uppercase tracking-wide text-faint">
+                            slash command
+                          </span>
                         )}
                         <code className="font-mono text-sm font-black text-brand">{cmd}</code>
                       </div>
@@ -269,9 +399,13 @@ export function CommitWorkflowPage() {
                   const toolRows = items.filter((r): r is Row => r.kind === 'tool');
                   return (
                     <>
-                      <p className="text-[11px] font-black uppercase tracking-wide text-faint">Slash commands</p>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-faint">
+                        Slash commands
+                      </p>
                       {slashRows.map(renderRow)}
-                      <p className="pt-2 text-[11px] font-black uppercase tracking-wide text-faint">Agent tools</p>
+                      <p className="pt-2 text-[11px] font-black uppercase tracking-wide text-faint">
+                        Agent tools
+                      </p>
                       {toolRows.map(renderRow)}
                     </>
                   );
@@ -283,10 +417,22 @@ export function CommitWorkflowPage() {
               <h2 className="mt-8 text-xl font-black text-fg">Safety boundaries</h2>
               <div className="mt-5 space-y-3">
                 {[
-                  { label: 'Never blind-stage', body: '/commit requires an explicit file list. No `git add .` — prevents capturing another agent\'s work.' },
-                  { label: 'Warn-only', body: 'Commit safety never blocks a commit. It surfaces the risk so you can decide: proceed, narrow scope, or coordinate.' },
-                  { label: 'Read-only tools', body: '/git, /gitcheck, and /git diff are intentionally read-only. Use /commit for writes, /push for remote.' },
-                  { label: 'No rebase or reset', body: 'The git command family does not expose rebase, reset, or force-push. Those stay in the shell domain.' },
+                  {
+                    label: 'Never blind-stage',
+                    body: "/commit requires an explicit file list. No `git add .` — prevents capturing another agent's work.",
+                  },
+                  {
+                    label: 'Warn-only',
+                    body: 'Commit safety never blocks a commit. It surfaces the risk so you can decide: proceed, narrow scope, or coordinate.',
+                  },
+                  {
+                    label: 'Read-only tools',
+                    body: '/git, /gitcheck, and /git diff are intentionally read-only. Use /commit for writes, /push for remote.',
+                  },
+                  {
+                    label: 'No rebase or reset',
+                    body: 'The git command family does not expose rebase, reset, or force-push. Those stay in the shell domain.',
+                  },
                 ].map(({ label, body }) => (
                   <div key={label} className="rounded-lg border border-line bg-bg p-4">
                     <h3 className="font-black text-sm text-fg">{label}</h3>
@@ -309,10 +455,26 @@ export function CommitWorkflowPage() {
         />
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: Check, title: 'Goal', body: 'After the review phase, Goal can auto-commit the verified worktree changes. Commit message is generated from the phase plan and diff.' },
-            { icon: Shield, title: 'Quality gate', body: 'The quality_gate verifier lane can require a clean /gitcheck before passing. Uncommitted changes after verification = gate failure.' },
-            { icon: AlertTriangle, title: 'CI pre-flight', body: 'Run /gitcheck in CI scripts before deploy. Non-zero exit code means uncommitted changes — fail the pipeline.' },
-            { icon: Fingerprint, title: 'Attribution', body: '/gitid ensures commits carry the right author. Set per-project or globally. Follows git\'s own precedence rules.' },
+            {
+              icon: Check,
+              title: 'Goal',
+              body: 'After the review phase, Goal can auto-commit the verified worktree changes. Commit message is generated from the phase plan and diff.',
+            },
+            {
+              icon: Shield,
+              title: 'Quality gate',
+              body: 'The quality_gate verifier lane can require a clean /gitcheck before passing. Uncommitted changes after verification = gate failure.',
+            },
+            {
+              icon: AlertTriangle,
+              title: 'CI pre-flight',
+              body: 'Run /gitcheck in CI scripts before deploy. Non-zero exit code means uncommitted changes — fail the pipeline.',
+            },
+            {
+              icon: Fingerprint,
+              title: 'Attribution',
+              body: "/gitid ensures commits carry the right author. Set per-project or globally. Follows git's own precedence rules.",
+            },
           ].map(({ icon: Icon, title, body }) => (
             <article key={title} className="rounded-2xl border border-line bg-card p-6">
               <Icon className="size-5 text-brand" />

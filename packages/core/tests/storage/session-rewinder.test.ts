@@ -23,10 +23,18 @@ describe('DefaultSessionRewinder', () => {
   }
 
   function makeCheckpoint(promptIndex: number, preview: string) {
-    return { type: 'checkpoint' as const, ts: new Date().toISOString(), promptIndex, promptPreview: preview };
+    return {
+      type: 'checkpoint' as const,
+      ts: new Date().toISOString(),
+      promptIndex,
+      promptPreview: preview,
+    };
   }
 
-  function makeFileSnapshot(promptIndex: number, files: Array<{ path: string; action: string; before: string | null; after: string | null }>) {
+  function makeFileSnapshot(
+    promptIndex: number,
+    files: Array<{ path: string; action: string; before: string | null; after: string | null }>,
+  ) {
     return { type: 'file_snapshot' as const, ts: new Date().toISOString(), promptIndex, files };
   }
 
@@ -49,7 +57,13 @@ describe('DefaultSessionRewinder', () => {
 
     it('returns empty array when no checkpoints', async () => {
       const id = await writeSession([
-        { type: 'session_start', ts: new Date().toISOString(), id: 's1', model: 'm', provider: 'p' },
+        {
+          type: 'session_start',
+          ts: new Date().toISOString(),
+          id: 's1',
+          model: 'm',
+          provider: 'p',
+        },
       ]);
       const rewind = new DefaultSessionRewinder(tmp, tmp);
       const checkpoints = await rewind.listCheckpoints(id);
@@ -96,11 +110,17 @@ describe('DefaultSessionRewinder', () => {
       // follows its checkpoint (file-session-writer.ts:652-659, :194-199).
       const id = await writeSession([
         makeCheckpoint(0, 'first'),
-        makeFileSnapshot(0, [{ path: testFile, action: 'modified', before: 'original', after: 'changed0' }]),
+        makeFileSnapshot(0, [
+          { path: testFile, action: 'modified', before: 'original', after: 'changed0' },
+        ]),
         makeCheckpoint(1, 'second'),
-        makeFileSnapshot(1, [{ path: testFile, action: 'modified', before: 'changed0', after: 'changed1' }]),
+        makeFileSnapshot(1, [
+          { path: testFile, action: 'modified', before: 'changed0', after: 'changed1' },
+        ]),
         makeCheckpoint(2, 'third'),
-        makeFileSnapshot(2, [{ path: testFile, action: 'modified', before: 'changed1', after: 'changed2' }]),
+        makeFileSnapshot(2, [
+          { path: testFile, action: 'modified', before: 'changed1', after: 'changed2' },
+        ]),
       ]);
 
       const rewind = new DefaultSessionRewinder(tmp, tmp);
@@ -126,9 +146,13 @@ describe('DefaultSessionRewinder', () => {
 
       const id = await writeSession([
         makeCheckpoint(1, 'p1'),
-        makeFileSnapshot(1, [{ path: a, action: 'modified', before: 'a-original', after: 'a-prompt1' }]),
+        makeFileSnapshot(1, [
+          { path: a, action: 'modified', before: 'a-original', after: 'a-prompt1' },
+        ]),
         makeCheckpoint(2, 'p2'),
-        makeFileSnapshot(2, [{ path: b, action: 'modified', before: 'b-original', after: 'b-prompt2' }]),
+        makeFileSnapshot(2, [
+          { path: b, action: 'modified', before: 'b-original', after: 'b-prompt2' },
+        ]),
       ]);
 
       const rewind = new DefaultSessionRewinder(tmp, tmp);
@@ -155,7 +179,9 @@ describe('DefaultSessionRewinder', () => {
       const id = await writeSession([
         makeCheckpoint(0, 'first'),
         // file_snapshot(0) represents changes from prompt 0 - this is what we want to REVERT when going to checkpoint 1
-        makeFileSnapshot(0, [{ path: createdFile, action: 'created', before: null, after: 'content' }]),
+        makeFileSnapshot(0, [
+          { path: createdFile, action: 'created', before: null, after: 'content' },
+        ]),
         makeCheckpoint(1, 'second'),
       ]);
 
@@ -176,7 +202,9 @@ describe('DefaultSessionRewinder', () => {
 
       const id = await writeSession([
         makeCheckpoint(0, 'first'),
-        makeFileSnapshot(0, [{ path: deletedFile, action: 'deleted', before: 'original content', after: null }]),
+        makeFileSnapshot(0, [
+          { path: deletedFile, action: 'deleted', before: 'original content', after: null },
+        ]),
         makeCheckpoint(1, 'second'),
       ]);
 
@@ -195,7 +223,9 @@ describe('DefaultSessionRewinder', () => {
 
       const id = await writeSession([
         makeCheckpoint(0, 'first'),
-        makeFileSnapshot(0, [{ path: testFile, action: 'modified', before: 'modified content', after: 'new content' }]),
+        makeFileSnapshot(0, [
+          { path: testFile, action: 'modified', before: 'modified content', after: 'new content' },
+        ]),
         makeCheckpoint(1, 'second'),
       ]);
 
@@ -313,9 +343,13 @@ describe('DefaultSessionRewinder', () => {
 
       const id = await writeSession([
         makeCheckpoint(0, 'start'),
-        makeFileSnapshot(1, [{ path: testFile, action: 'modified', before: 'original', after: 'changed' }]),
+        makeFileSnapshot(1, [
+          { path: testFile, action: 'modified', before: 'original', after: 'changed' },
+        ]),
         makeCheckpoint(1, 'after change'),
-        makeFileSnapshot(2, [{ path: testFile, action: 'modified', before: 'changed', after: 'changed2' }]),
+        makeFileSnapshot(2, [
+          { path: testFile, action: 'modified', before: 'changed', after: 'changed2' },
+        ]),
         makeCheckpoint(2, 'final'),
       ]);
 
@@ -364,17 +398,35 @@ describe('DefaultSessionRewinder', () => {
 
       // promptIndex 0: user_input + llm_response + checkpoint
       await writer.append({ type: 'user_input', ts: '2024-01-01T00:00:00Z', content: 'first' });
-      await writer.append({ type: 'llm_response', ts: '2024-01-01T00:00:01Z', content: [], stopReason: 'end_turn', usage: { input: 10, output: 20 } });
+      await writer.append({
+        type: 'llm_response',
+        ts: '2024-01-01T00:00:01Z',
+        content: [],
+        stopReason: 'end_turn',
+        usage: { input: 10, output: 20 },
+      });
       await writer.writeCheckpoint(0, 'first prompt');
 
       // promptIndex 1
       await writer.append({ type: 'user_input', ts: '2024-01-01T00:00:02Z', content: 'second' });
-      await writer.append({ type: 'llm_response', ts: '2024-01-01T00:00:03Z', content: [], stopReason: 'end_turn', usage: { input: 30, output: 40 } });
+      await writer.append({
+        type: 'llm_response',
+        ts: '2024-01-01T00:00:03Z',
+        content: [],
+        stopReason: 'end_turn',
+        usage: { input: 30, output: 40 },
+      });
       await writer.writeCheckpoint(1, 'second prompt');
 
       // promptIndex 2
       await writer.append({ type: 'user_input', ts: '2024-01-01T00:00:04Z', content: 'third' });
-      await writer.append({ type: 'llm_response', ts: '2024-01-01T00:00:05Z', content: [], stopReason: 'end_turn', usage: { input: 50, output: 60 } });
+      await writer.append({
+        type: 'llm_response',
+        ts: '2024-01-01T00:00:05Z',
+        content: [],
+        stopReason: 'end_turn',
+        usage: { input: 50, output: 60 },
+      });
       await writer.writeCheckpoint(2, 'third prompt');
 
       await writer.close();

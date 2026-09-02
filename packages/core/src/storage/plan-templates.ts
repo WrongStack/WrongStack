@@ -23,7 +23,10 @@ const templates: Record<string, PlanTemplate> = {
     description: 'Standard workflow for adding a new feature',
     category: 'development',
     items: [
-      { title: 'Write specification / design doc', details: 'Define scope, acceptance criteria, edge cases' },
+      {
+        title: 'Write specification / design doc',
+        details: 'Define scope, acceptance criteria, edge cases',
+      },
       { title: 'Set up feature branch', details: 'git checkout -b feature/...' },
       { title: 'Implement core logic', details: 'TDD preferred — write tests first' },
       { title: 'Add unit tests', details: '>= 80% coverage for new code' },
@@ -47,12 +50,15 @@ const templates: Record<string, PlanTemplate> = {
       { title: 'Document in changelog', details: 'Brief description + issue link' },
     ],
   },
-  'refactor': {
+  refactor: {
     name: 'refactor',
     description: 'Safe refactoring workflow',
     category: 'maintenance',
     items: [
-      { title: 'Identify refactoring target', details: 'Code smell, performance bottleneck, or tech debt' },
+      {
+        title: 'Identify refactoring target',
+        details: 'Code smell, performance bottleneck, or tech debt',
+      },
       { title: 'Ensure test coverage', details: 'Existing tests must pass before and after' },
       { title: 'Write characterization tests', details: 'Capture current behavior if tests weak' },
       { title: 'Apply refactoring', details: 'Small steps, frequent commits' },
@@ -61,7 +67,7 @@ const templates: Record<string, PlanTemplate> = {
       { title: 'Code review', details: 'Explain the why, not just the what' },
     ],
   },
-  'release': {
+  release: {
     name: 'release',
     description: 'Preparing a new release',
     category: 'release',
@@ -90,7 +96,7 @@ const templates: Record<string, PlanTemplate> = {
       { title: 'Incident response plan', details: 'Runbooks, contacts, escalation' },
     ],
   },
-  'onboarding': {
+  onboarding: {
     name: 'onboarding',
     description: 'New developer onboarding checklist',
     category: 'infrastructure',

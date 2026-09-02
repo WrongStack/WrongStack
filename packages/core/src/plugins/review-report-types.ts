@@ -14,10 +14,7 @@
  * @module review-report-types
  */
 
-import type {
-  CascadeEvidenceCheckResult,
-  CascadeEvidenceStatus,
-} from './review-types.js';
+import type { CascadeEvidenceCheckResult, CascadeEvidenceStatus } from './review-types.js';
 import type { FindingSource } from './review-finding-types.js';
 
 // ── Lifecycle ──────────────────────────────────────────────────────
@@ -156,7 +153,10 @@ export class InvalidReportTransitionError extends Error {
 
 // ── Transition state machine ───────────────────────────────────────
 
-const REPORT_TRANSITION_MATRIX: Record<ReportLifecycleStatus, ReadonlySet<ReportLifecycleStatus>> = {
+const REPORT_TRANSITION_MATRIX: Record<
+  ReportLifecycleStatus,
+  ReadonlySet<ReportLifecycleStatus>
+> = {
   open: new Set(['actioned', 'completed', 'skipped']),
   actioned: new Set(['completed', 'skipped']),
   completed: new Set(['open']),
@@ -185,9 +185,13 @@ export function validateReportTransition(
 /** Map a target lifecycle status to its corresponding event type. */
 export function reportEventTypeFor(to: ReportLifecycleStatus): ReportEventType {
   switch (to) {
-    case 'actioned': return 'actioned';
-    case 'completed': return 'completed';
-    case 'skipped': return 'skipped';
-    default: return 'reopened';
+    case 'actioned':
+      return 'actioned';
+    case 'completed':
+      return 'completed';
+    case 'skipped':
+      return 'skipped';
+    default:
+      return 'reopened';
   }
 }

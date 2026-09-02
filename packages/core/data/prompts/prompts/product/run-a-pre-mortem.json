@@ -5,11 +5,7 @@
   "description": "Imagine the project failed and work backward to prevent it.",
   "content": "We're about to start: {{project}}\n\nRun a pre-mortem. Imagine it's six months from now and this failed badly. Brainstorm the plausible reasons why — technical, product, team, market, and execution. Rank them by likelihood and impact. For the top risks, propose a concrete action we can take NOW to reduce or detect them early. Be specific, not generic.",
   "category": "product",
-  "tags": [
-    "pre-mortem",
-    "risk",
-    "planning"
-  ],
+  "tags": ["pre-mortem", "risk", "planning"],
   "source": "builtin",
   "favorite": false,
   "checksum": "c9cfa9fc2f150b3d4a175b9ec7ca24e6a05c0e19f51d3e0353aa8eeb291a5b6f",

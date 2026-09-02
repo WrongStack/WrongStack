@@ -5,10 +5,7 @@
   "description": "Judge how this code will age, not just whether it works.",
   "content": "Review this code for maintainability:\n\n{{code}}\n\nAsk: will the next person understand it in six months? Is the intent clear, are the names honest, is the structure easy to change? Flag the parts that are clever instead of clear, the implicit assumptions, and the spots where a small future change would be painful. Distinguish real maintainability risks from style nits. Suggest the one change that most improves how this code will age.",
   "category": "code-review",
-  "tags": [
-    "maintainability",
-    "review"
-  ],
+  "tags": ["maintainability", "review"],
   "source": "builtin",
   "favorite": false,
   "checksum": "8d7ecc7f93c45069525301789bbdd7eb51bb831b9b7b087dd295ff0224bbd5bf",

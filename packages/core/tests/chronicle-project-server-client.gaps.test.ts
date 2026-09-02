@@ -238,7 +238,9 @@ describe('ChronicleRemoteJournal batching', () => {
   });
 
   it('records the last batch duration in stats', async () => {
-    const { client } = fakeClient((inputs) => inputs.map((input, i) => ({ id: `e-${i}`, ...input })));
+    const { client } = fakeClient((inputs) =>
+      inputs.map((input, i) => ({ id: `e-${i}`, ...input })),
+    );
     const journal = new ChronicleRemoteJournal(
       { projectRoot: '/p', globalRoot: '/g', projectId: 'p1', projectDir: '/d', workspaceId: 'w' },
       client,

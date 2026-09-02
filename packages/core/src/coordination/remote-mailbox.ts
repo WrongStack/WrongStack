@@ -284,7 +284,14 @@ export class RemoteMailbox implements Mailbox {
     return this.connection.call('credentialIssue', { options });
   }
 
-  credentialVerify(credentialId: string, secret: string): Promise<{ valid: boolean; credential?: RedactedMailboxCredential | undefined; reason?: string | undefined }> {
+  credentialVerify(
+    credentialId: string,
+    secret: string,
+  ): Promise<{
+    valid: boolean;
+    credential?: RedactedMailboxCredential | undefined;
+    reason?: string | undefined;
+  }> {
     return this.connection.call('credentialVerify', { credentialId, secret });
   }
 

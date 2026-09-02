@@ -10,10 +10,19 @@ const CORPUS: Record<Lang, string[]> = {
     'interface T { name: string; readonly id: number }',
     '',
   ],
-  js: ["var y = \"str\"; const z = 0xFF // hex", 'async function g() { await h() }'],
+  js: ['var y = "str"; const z = 0xFF // hex', 'async function g() { await h() }'],
   json: ['{ "name": "wrongstack", "version": 10, "ok": true, "x": null }', '  "key": [1, 2, 3],'],
-  bash: ['ls -la --color $HOME # list', `echo "\${VAR}" | grep -i foo`, 'if [ -f x ]; then cd /tmp; fi'],
-  python: ['def f(x): return x + 1  # comment', '@decorator', "s = 'hello' + str(3)", 'import os as o'],
+  bash: [
+    'ls -la --color $HOME # list',
+    `echo "\${VAR}" | grep -i foo`,
+    'if [ -f x ]; then cd /tmp; fi',
+  ],
+  python: [
+    'def f(x): return x + 1  # comment',
+    '@decorator',
+    "s = 'hello' + str(3)",
+    'import os as o',
+  ],
   diff: ['@@ -1,2 +1,3 @@', '+added line', '-removed line', ' context', '--- a/file'],
   plain: ['just some text', 'no language here', ''],
 };

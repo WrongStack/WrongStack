@@ -5,10 +5,7 @@
   "description": "Rewrite the same content for a different reader.",
   "content": "Rewrite this for a {{audience}} audience:\n\n{{text}}\n\nKeep the facts identical; change the register, vocabulary, and level of detail to fit the reader and what they care about. Adjust the framing to their priorities. Flag any claim that's fine for the original audience but would mislead or under-serve the new one. Show the rewrite and a one-line note on what you shifted and why.",
   "category": "writing",
-  "tags": [
-    "tone",
-    "audience"
-  ],
+  "tags": ["tone", "audience"],
   "source": "builtin",
   "favorite": false,
   "checksum": "d5b4214e7dd83a324b863352e4168c6813ada9db10a4073092dbeef8542b8553",

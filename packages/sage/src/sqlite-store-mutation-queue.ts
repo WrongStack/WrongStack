@@ -85,9 +85,7 @@ export class SqliteMutationQueue {
   }
 
   async drain(): Promise<void> {
-    await Promise.all(
-      [this.mutationChain, this.counterChain].map((p) => p.catch(() => undefined)),
-    );
+    await Promise.all([this.mutationChain, this.counterChain].map((p) => p.catch(() => undefined)));
   }
 }
 

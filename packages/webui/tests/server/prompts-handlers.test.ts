@@ -156,7 +156,11 @@ describe('handlePromptsUsed', () => {
     const { ws, messages } = openWs();
     const recorded: string[] = [];
     const promptUsage = { record: async (slug: string) => recorded.push(slug) } as never;
-    await handlePromptsUsed(ws, { promptLoader: fakeLoader([]), promptUsage }, { payload: { slug: 'x' } });
+    await handlePromptsUsed(
+      ws,
+      { promptLoader: fakeLoader([]), promptUsage },
+      { payload: { slug: 'x' } },
+    );
     expect(recorded).toEqual(['x']);
     expect(payloadOf(messages, 'prompts.used')).toMatchObject({ success: true, slug: 'x' });
   });

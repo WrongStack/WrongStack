@@ -5,11 +5,7 @@
   "description": "Write an architecture overview that orients a new engineer.",
   "content": "Write an architecture overview for: {{system}}\n\nCover: the big-picture purpose, the main components and their responsibilities, how data and control flow through them, the key design decisions and why, and where the bodies are buried (known limitations, tech debt, surprising constraints). Aim to get a new engineer to a useful mental model in 10 minutes of reading. Use a simple text diagram.",
   "category": "documentation",
-  "tags": [
-    "architecture",
-    "overview",
-    "onboarding"
-  ],
+  "tags": ["architecture", "overview", "onboarding"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2377541829f4eaa3ff61c5eadbd19f8e39983572974299a3d0a12c838371ef9b",

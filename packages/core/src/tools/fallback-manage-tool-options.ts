@@ -19,7 +19,9 @@ export interface FallbackManageToolOptions {
    * mirroring cli-main's switch callback. When absent, the tool persists the
    * config and reports that the live session keeps its current model.
    */
-  switchProviderAndModel?: ((providerId: string, modelId: string) => Promise<string | null>) | undefined;
+  switchProviderAndModel?:
+    | ((providerId: string, modelId: string) => Promise<string | null>)
+    | undefined;
   /** Optional logger for internal warnings. */
   logger?: Logger | undefined;
 }

@@ -127,8 +127,14 @@ describe('Hierarchical Prompt Journal & Trace Logger', () => {
       const dayDir = path.join(promptsBase, month, today);
 
       // Root index files
-      const indexJsonExists = await fs.stat(path.join(promptsBase, 'index.json')).then(() => true).catch(() => false);
-      const indexMdExists = await fs.stat(path.join(promptsBase, 'index.md')).then(() => true).catch(() => false);
+      const indexJsonExists = await fs
+        .stat(path.join(promptsBase, 'index.json'))
+        .then(() => true)
+        .catch(() => false);
+      const indexMdExists = await fs
+        .stat(path.join(promptsBase, 'index.md'))
+        .then(() => true)
+        .catch(() => false);
       expect(indexJsonExists).toBe(true);
       expect(indexMdExists).toBe(true);
 
@@ -138,15 +144,27 @@ describe('Hierarchical Prompt Journal & Trace Logger', () => {
       expect(indexMdContent).toContain('sess_billing');
 
       // Daily files
-      const sessionAJsonl = await fs.stat(path.join(dayDir, 'session-sess_auth.jsonl')).then(() => true).catch(() => false);
-      const sessionAMd = await fs.stat(path.join(dayDir, 'session-sess_auth.md')).then(() => true).catch(() => false);
-      const dailySummary = await fs.stat(path.join(dayDir, 'daily-summary.md')).then(() => true).catch(() => false);
+      const sessionAJsonl = await fs
+        .stat(path.join(dayDir, 'session-sess_auth.jsonl'))
+        .then(() => true)
+        .catch(() => false);
+      const sessionAMd = await fs
+        .stat(path.join(dayDir, 'session-sess_auth.md'))
+        .then(() => true)
+        .catch(() => false);
+      const dailySummary = await fs
+        .stat(path.join(dayDir, 'daily-summary.md'))
+        .then(() => true)
+        .catch(() => false);
 
       expect(sessionAJsonl).toBe(true);
       expect(sessionAMd).toBe(true);
       expect(dailySummary).toBe(true);
 
-      const sessionAMdContent = await fs.readFile(path.join(dayDir, 'session-sess_auth.md'), 'utf8');
+      const sessionAMdContent = await fs.readFile(
+        path.join(dayDir, 'session-sess_auth.md'),
+        'utf8',
+      );
       expect(sessionAMdContent).toContain('**Category:** `raw_user`');
       expect(sessionAMdContent).toContain('**Category:** `refined_user`');
 

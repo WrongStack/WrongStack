@@ -261,16 +261,44 @@ export function ModesPage() {
       </section>
 
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
-        <SectionIntro index="04" eyebrow="Mode stacking" title="Combine modes for layered behavior." description="Modes are not exclusive — they stack. A base mode provides the agent persona; additional modes layer on capabilities and constraints." />
+        <SectionIntro
+          index="04"
+          eyebrow="Mode stacking"
+          title="Combine modes for layered behavior."
+          description="Modes are not exclusive — they stack. A base mode provides the agent persona; additional modes layer on capabilities and constraints."
+        />
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
           {[
-            { stack: 'teach + typescript-strict', desc: 'Pedagogical explanations with zero-implicit-any enforcement. Perfect for learning TS with strict guardrails.' },
-            { stack: 'brief + bug-hunter', desc: 'Concise output while scanning for bugs. No walls of text — just findings and suggested fixes.' },
-            { stack: 'code-reviewer + security-scanner', desc: 'Review code AND scan for vulnerabilities in one pass. Combined report with both perspectives.' },
-            { stack: 'sdd + refactor-planner', desc: 'Spec-driven workflow with automatic refactor planning between phases.' },
-            { stack: 'react-modern + node-modern', desc: 'Full-stack mode: React 19+ patterns on the frontend, Node 22+ on the backend.' },
-            { stack: 'testing + chimera', desc: 'Write tests AND run post-session quality review. Catch test gaps before commit.' },
-          ].map(({ stack, desc }) => (<div key={stack} className="rounded-xl border border-line bg-card p-4"><code className="font-mono text-xs font-black text-brand">{stack}</code><p className="mt-1.5 text-[11px] leading-4 text-muted">{desc}</p></div>))}
+            {
+              stack: 'teach + typescript-strict',
+              desc: 'Pedagogical explanations with zero-implicit-any enforcement. Perfect for learning TS with strict guardrails.',
+            },
+            {
+              stack: 'brief + bug-hunter',
+              desc: 'Concise output while scanning for bugs. No walls of text — just findings and suggested fixes.',
+            },
+            {
+              stack: 'code-reviewer + security-scanner',
+              desc: 'Review code AND scan for vulnerabilities in one pass. Combined report with both perspectives.',
+            },
+            {
+              stack: 'sdd + refactor-planner',
+              desc: 'Spec-driven workflow with automatic refactor planning between phases.',
+            },
+            {
+              stack: 'react-modern + node-modern',
+              desc: 'Full-stack mode: React 19+ patterns on the frontend, Node 22+ on the backend.',
+            },
+            {
+              stack: 'testing + chimera',
+              desc: 'Write tests AND run post-session quality review. Catch test gaps before commit.',
+            },
+          ].map(({ stack, desc }) => (
+            <div key={stack} className="rounded-xl border border-line bg-card p-4">
+              <code className="font-mono text-xs font-black text-brand">{stack}</code>
+              <p className="mt-1.5 text-[11px] leading-4 text-muted">{desc}</p>
+            </div>
+          ))}
         </div>
       </section>
       <PageNext

@@ -42,7 +42,14 @@
  * @module autonomous-brain
  */
 import { randomUUID } from 'node:crypto';
-import type { BrainArbiter, BrainDecision, BrainDecisionOption, BrainDecisionRequest, BrainDecisionSource, BrainRisk } from './brain.js';
+import type {
+  BrainArbiter,
+  BrainDecision,
+  BrainDecisionOption,
+  BrainDecisionRequest,
+  BrainDecisionSource,
+  BrainRisk,
+} from './brain.js';
 import type { DecisionNode, GoalNode, FactNode, ChangeNode } from './knowledge-graph.js';
 import type { KnowledgeGraph } from './knowledge-graph.js';
 import type { FleetBus } from './fleet-bus.js';
@@ -257,7 +264,13 @@ export class AutonomousBrain implements BrainArbiter {
     // Handle consensus requirement
     if (requiresConsensus) {
       // Signal that consensus is needed — the caller must route through ConsensusProtocol
-      this._emit('brain.decision', { id, decisionType, optionId: result.optionId, rationale: result.rationale, consensusRequired: true });
+      this._emit('brain.decision', {
+        id,
+        decisionType,
+        optionId: result.optionId,
+        rationale: result.rationale,
+        consensusRequired: true,
+      });
       return {
         type: 'answer',
         optionId: result.optionId,
@@ -266,7 +279,13 @@ export class AutonomousBrain implements BrainArbiter {
       };
     }
 
-    this._emit('brain.decision', { id, decisionType, optionId: result.optionId, rationale: result.rationale, consensusRequired: false });
+    this._emit('brain.decision', {
+      id,
+      decisionType,
+      optionId: result.optionId,
+      rationale: result.rationale,
+      consensusRequired: false,
+    });
 
     return {
       type: 'answer',
@@ -296,9 +315,10 @@ export class AutonomousBrain implements BrainArbiter {
       label: `Spawn ${role} agent`,
       risk: i === 0 ? 'low' : 'medium',
       recommended: i === 0,
-      consequence: i === 0
-        ? `Spawn the most appropriate agent for: ${taskDescription.slice(0, 80)}`
-        : `Spawn an alternative agent for the same task`,
+      consequence:
+        i === 0
+          ? `Spawn the most appropriate agent for: ${taskDescription.slice(0, 80)}`
+          : `Spawn an alternative agent for the same task`,
     }));
 
     return this.decideAuto({
@@ -331,7 +351,9 @@ export class AutonomousBrain implements BrainArbiter {
       {
         id: 'approve',
         label: 'Approve change',
-        recommended: change.qualityGate.passed && relevantFacts.filter((f) => f.severity === 'critical').length === 0,
+        recommended:
+          change.qualityGate.passed &&
+          relevantFacts.filter((f) => f.severity === 'critical').length === 0,
         risk,
         consequence: `Apply changes to: ${change.files.map((f) => f.path).join(', ')}`,
       },
@@ -454,7 +476,9 @@ export class AutonomousBrain implements BrainArbiter {
       this.failurePatterns.delete(key);
     }
 
-    void this.graph.update(decisionId, { decisionType: node.decisionType } as Partial<DecisionNode>);
+    void this.graph.update(decisionId, {
+      decisionType: node.decisionType,
+    } as Partial<DecisionNode>);
   }
 
   private _getSelfImproveHints(decisionType: AutonomousDecisionType): string[] {
@@ -480,7 +504,8 @@ export class AutonomousBrain implements BrainArbiter {
       },
       options: req.options ?? [],
       risk: req.risk,
-      requiresConsensus: this.RISK_ORDER.indexOf(req.risk) >= this.RISK_ORDER.indexOf(this.consensusRiskThreshold),
+      requiresConsensus:
+        this.RISK_ORDER.indexOf(req.risk) >= this.RISK_ORDER.indexOf(this.consensusRiskThreshold),
     };
   }
 
@@ -498,17 +523,25 @@ export class AutonomousBrain implements BrainArbiter {
   private _serializeContext(ctx: AutonomousDecisionRequest['context']): string {
     const parts: string[] = [];
     if (ctx.facts?.length) {
-      parts.push(`## Relevant Facts\n${ctx.facts.map((f) => `- [${f.severity ?? 'info'}] ${f.subject}: ${f.detail}`).join('\n')}`);
+      parts.push(
+        `## Relevant Facts\n${ctx.facts.map((f) => `- [${f.severity ?? 'info'}] ${f.subject}: ${f.detail}`).join('\n')}`,
+      );
     }
     if (ctx.goals?.length) {
-      parts.push(`## Active Goals\n${ctx.goals.map((g) => `- [${g.status}] ${g.priority}: ${g.title}`).join('\n')}`);
+      parts.push(
+        `## Active Goals\n${ctx.goals.map((g) => `- [${g.status}] ${g.priority}: ${g.title}`).join('\n')}`,
+      );
     }
     if (ctx.change) {
       const c = ctx.change;
-      parts.push(`## Change Under Review\n- Title: ${c.title}\n- Status: ${c.status}\n- Files: ${c.files.map((f) => `${f.action} ${f.path}`).join(', ')}\n- Quality gate: ${c.qualityGate.passed ? 'PASSED' : 'FAILED'}\n  Checks: ${c.qualityGate.checks.map((ch) => `${ch.name}:${ch.passed ? '✅' : '❌'}`).join(', ')}`);
+      parts.push(
+        `## Change Under Review\n- Title: ${c.title}\n- Status: ${c.status}\n- Files: ${c.files.map((f) => `${f.action} ${f.path}`).join(', ')}\n- Quality gate: ${c.qualityGate.passed ? 'PASSED' : 'FAILED'}\n  Checks: ${c.qualityGate.checks.map((ch) => `${ch.name}:${ch.passed ? '✅' : '❌'}`).join(', ')}`,
+      );
     }
     if (ctx.fleetStatus) {
-      parts.push(`## Fleet Status\n- Running: ${ctx.fleetStatus.running}, Idle: ${ctx.fleetStatus.idle}, Total: ${ctx.fleetStatus.total}\n- Cost so far: $${ctx.fleetStatus.costSoFar.toFixed(4)}`);
+      parts.push(
+        `## Fleet Status\n- Running: ${ctx.fleetStatus.running}, Idle: ${ctx.fleetStatus.idle}, Total: ${ctx.fleetStatus.total}\n- Cost so far: $${ctx.fleetStatus.costSoFar.toFixed(4)}`,
+      );
     }
     if (ctx.taskDescription) {
       parts.push(`## Task\n${ctx.taskDescription}`);
@@ -535,7 +568,7 @@ export class AutonomousBrain implements BrainArbiter {
     madeBy: string;
     context?: string;
   }): Promise<DecisionNode> {
-    const node = await this.graph.add({
+    const node = (await this.graph.add({
       type: 'decision',
       decisionType: input.decisionType as DecisionNode['decisionType'],
       question: input.question,
@@ -545,23 +578,26 @@ export class AutonomousBrain implements BrainArbiter {
       madeBy: input.madeBy,
       madeAt: new Date().toISOString(),
       context: input.context,
-    } as Omit<DecisionNode, 'id'>) as DecisionNode;
+    } as Omit<DecisionNode, 'id'>)) as DecisionNode;
     return node;
   }
 
   private _inferRoles(task: string): string[] {
     const t = task.toLowerCase();
-    if (t.includes('bug') || t.includes('error') || t.includes('crash')) return ['bug-hunter', 'fixer'];
-    if (t.includes('security') || t.includes('secret') || t.includes('injection')) return ['security-scanner'];
-    if (t.includes('refactor') || t.includes('architecture') || t.includes('debt')) return ['refactor-planner', 'critic'];
+    if (t.includes('bug') || t.includes('error') || t.includes('crash'))
+      return ['bug-hunter', 'fixer'];
+    if (t.includes('security') || t.includes('secret') || t.includes('injection'))
+      return ['security-scanner'];
+    if (t.includes('refactor') || t.includes('architecture') || t.includes('debt'))
+      return ['refactor-planner', 'critic'];
     if (t.includes('audit') || t.includes('log') || t.includes('analyze')) return ['audit-log'];
     if (t.includes('test') || t.includes('coverage')) return ['tester', 'bug-hunter'];
     return ['bug-hunter', 'refactor-planner'];
   }
 
   private _changeRisk(change: ChangeNode): BrainRisk {
-    const criticalFiles = change.files.filter((f) =>
-      f.path.includes('auth') || f.path.includes('config') || f.path.includes('schema'),
+    const criticalFiles = change.files.filter(
+      (f) => f.path.includes('auth') || f.path.includes('config') || f.path.includes('schema'),
     );
     if (criticalFiles.length > 0) return 'high';
     if (change.files.length > 10) return 'medium';

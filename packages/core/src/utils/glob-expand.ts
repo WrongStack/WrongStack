@@ -88,10 +88,7 @@ function baseDir(pat: string): string {
       break;
     }
   }
-  const cut = Math.max(
-    pat.lastIndexOf(SEP, firstGlob - 1),
-    pat.lastIndexOf('/', firstGlob - 1),
-  );
+  const cut = Math.max(pat.lastIndexOf(SEP, firstGlob - 1), pat.lastIndexOf('/', firstGlob - 1));
   return cut < 0 ? '.' : pat.slice(0, cut);
 }
 

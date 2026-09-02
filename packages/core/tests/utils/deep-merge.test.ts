@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  deepMerge,
-  isPrimitiveArray,
-} from '../../src/utils/deep-merge.js';
+import { deepMerge, isPrimitiveArray } from '../../src/utils/deep-merge.js';
 
 // ---------------------------------------------------------------------------
 // isPrimitiveArray

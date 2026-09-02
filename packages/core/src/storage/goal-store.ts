@@ -144,10 +144,24 @@ export async function loadGoal(
   }
   try {
     const parsed = JSON.parse(raw) as GoalFile;
-    if (parsed?.version !== 1 || typeof parsed.goal !== 'string' || !Array.isArray(parsed.journal)) {
-      (warn ?? ((msg) => console.warn(JSON.stringify({ level: 'warn', event: 'goal_store.invalid_schema', path: filePath, message: msg, timestamp: new Date().toISOString() }))))(
-        'invalid schema — consider deleting and re-creating',
-      );
+    if (
+      parsed?.version !== 1 ||
+      typeof parsed.goal !== 'string' ||
+      !Array.isArray(parsed.journal)
+    ) {
+      (
+        warn ??
+        ((msg) =>
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              event: 'goal_store.invalid_schema',
+              path: filePath,
+              message: msg,
+              timestamp: new Date().toISOString(),
+            }),
+          ))
+      )('invalid schema — consider deleting and re-creating');
       events?.emit('storage.read', {
         sessionId: '~boot~',
         store: 'goal',
@@ -169,9 +183,19 @@ export async function loadGoal(
     });
     return parsed;
   } catch {
-    (warn ?? ((msg) => console.warn(JSON.stringify({ level: 'warn', event: 'goal_store.parse_failed', path: filePath, message: msg, timestamp: new Date().toISOString() }))))(
-      'JSON parse failed — consider deleting and re-creating',
-    );
+    (
+      warn ??
+      ((msg) =>
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'goal_store.parse_failed',
+            path: filePath,
+            message: msg,
+            timestamp: new Date().toISOString(),
+          }),
+        ))
+    )('JSON parse failed — consider deleting and re-creating');
     events?.emit('storage.read', {
       sessionId: '~boot~',
       store: 'goal',
@@ -287,11 +311,7 @@ export function emptyGoal(goal: string): GoalFile {
  * Set progress estimate on a goal. Returns a new GoalFile.
  * Clamps progress to 0-100.
  */
-export function setProgress(
-  goal: GoalFile,
-  progress: number,
-  note?: string,
-): GoalFile {
+export function setProgress(goal: GoalFile, progress: number, note?: string): GoalFile {
   const clamped = Math.min(100, Math.max(0, progress));
   return {
     ...goal,
@@ -304,14 +324,18 @@ export function setProgress(
  * Append a journal entry, bumping iteration counters and trimming the
  * ring buffer. Returns a new GoalFile — does not mutate the argument.
  */
-export function appendJournal(goal: GoalFile, entry: Omit<JournalEntry, 'iteration' | 'at'>): GoalFile {
+export function appendJournal(
+  goal: GoalFile,
+  entry: Omit<JournalEntry, 'iteration' | 'at'>,
+): GoalFile {
   const iteration = goal.iterations + 1;
   const at = new Date().toISOString();
   const full: JournalEntry = { ...entry, iteration, at };
   const journal = [...goal.journal, full];
-  const trimmed = journal.length > MAX_JOURNAL_ENTRIES
-    ? journal.slice(journal.length - MAX_JOURNAL_ENTRIES)
-    : journal;
+  const trimmed =
+    journal.length > MAX_JOURNAL_ENTRIES
+      ? journal.slice(journal.length - MAX_JOURNAL_ENTRIES)
+      : journal;
   return {
     ...goal,
     iterations: iteration,
@@ -370,9 +394,12 @@ export function formatGoal(goal: GoalFile, journalLimit = 10): string {
     }
     // Trend indicator
     if (goal.progressTrend) {
-      const trendIcon = goal.progressTrend === 'accelerating' ? '🚀'
-        : goal.progressTrend === 'stalling' ? '⚠️'
-        : '➡️';
+      const trendIcon =
+        goal.progressTrend === 'accelerating'
+          ? '🚀'
+          : goal.progressTrend === 'stalling'
+            ? '⚠️'
+            : '➡️';
       lines.push('  Trend: ' + trendIcon + ' ' + goal.progressTrend);
     }
   }
@@ -393,13 +420,23 @@ export function formatGoal(goal: GoalFile, journalLimit = 10): string {
   lines.push('Last activity: ' + goal.lastActivityAt);
   lines.push('Iterations: ' + goal.iterations);
   const stateLabel = goal.goalState ?? 'active';
-  lines.push('State: ' + stateLabel + (goal.iterations > 0 ? ' (iteration #' + goal.iterations + ')' : ''));
+  lines.push(
+    'State: ' + stateLabel + (goal.iterations > 0 ? ' (iteration #' + goal.iterations + ')' : ''),
+  );
   lines.push('Engine: ' + goal.engineState);
   const usage = summarizeUsage(goal);
   if (usage.iterationsWithUsage > 0) {
-    const spent = 'Spent: ' + DOLLAR + usage.totalCostUsd.toFixed(4)
-      + '  (in ' + usage.totalInputTokens + ' / out ' + usage.totalOutputTokens
-      + ' tokens across ' + usage.iterationsWithUsage + ' iterations)';
+    const spent =
+      'Spent: ' +
+      DOLLAR +
+      usage.totalCostUsd.toFixed(4) +
+      '  (in ' +
+      usage.totalInputTokens +
+      ' / out ' +
+      usage.totalOutputTokens +
+      ' tokens across ' +
+      usage.iterationsWithUsage +
+      ' iterations)';
     lines.push(spent);
   }
   if (goal.journal.length > 0) {
@@ -407,7 +444,14 @@ export function formatGoal(goal: GoalFile, journalLimit = 10): string {
     lines.push('Recent journal (last ' + Math.min(journalLimit, goal.journal.length) + '):');
     const tail = goal.journal.slice(-journalLimit);
     for (const e of tail) {
-      const mark = e.status === 'success' ? '✓' : e.status === 'failure' ? '✗' : e.status === 'aborted' ? '⊘' : '·';
+      const mark =
+        e.status === 'success'
+          ? '✓'
+          : e.status === 'failure'
+            ? '✗'
+            : e.status === 'aborted'
+              ? '⊘'
+              : '·';
       const note = e.note ? ' — ' + e.note : '';
       const cost = typeof e.costUsd === 'number' ? ' (' + DOLLAR + e.costUsd.toFixed(4) + ')' : '';
       lines.push('  #' + e.iteration + ' ' + mark + ' [' + e.source + '] ' + e.task + cost + note);
@@ -448,13 +492,12 @@ export function parseProgressFromText(text: string): { progress: number; note?: 
  * - progressHistory appended (last 200 entries kept)
  * - progress trend computed (accelerating/steady/stalling)
  */
-export function recordProgress(
-  goal: GoalFile,
-  progress: number,
-  note?: string,
-): GoalFile {
+export function recordProgress(goal: GoalFile, progress: number, note?: string): GoalFile {
   const clamped = Math.min(100, Math.max(0, progress));
-  const history = [...(goal.progressHistory ?? []), { at: new Date().toISOString(), progress: clamped, note }];
+  const history = [
+    ...(goal.progressHistory ?? []),
+    { at: new Date().toISOString(), progress: clamped, note },
+  ];
   // Keep last 200 snapshots
   const trimmed = history.length > 200 ? history.slice(-200) : history;
 
@@ -470,7 +513,9 @@ export function recordProgress(
 /** Max progress history entries to retain. */
 export const MAX_PROGRESS_HISTORY = 200;
 
-function computeTrend(history: ProgressSnapshot[]): 'accelerating' | 'steady' | 'stalling' | undefined {
+function computeTrend(
+  history: ProgressSnapshot[],
+): 'accelerating' | 'steady' | 'stalling' | undefined {
   if (history.length < 3) return undefined;
   const recent = history.slice(-5);
   const deltas: number[] = [];

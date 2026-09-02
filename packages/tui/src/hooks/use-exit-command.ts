@@ -162,5 +162,4 @@ export function useExitCommand({
       if (hostExitCommandRef.current) slashRegistry.register(hostExitCommandRef.current);
     };
   }, [slashRegistry, stateRef, interruptController, confirmExit]);
-
 }

@@ -1,9 +1,6 @@
 import { Activity as ActivityIcon, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  type GraphNodeData,
-  relativeFilePath,
-} from './codemap-model';
+import { type GraphNodeData, relativeFilePath } from './codemap-model';
 import { NODE_STYLE } from './CodeMapVisuals';
 import { useAppTranslation } from '@/i18n';
 
@@ -54,8 +51,16 @@ export function CodeMapSelectedNodeSummary({
         </pre>
       )}
       <div className="mt-3 grid grid-cols-3 border">
-        <Metric value={incomingCount} label={t('activity:codeMap.incoming')} className="border-r text-info" />
-        <Metric value={outgoingCount} label={t('activity:codeMap.outgoing')} className="border-r text-primary" />
+        <Metric
+          value={incomingCount}
+          label={t('activity:codeMap.incoming')}
+          className="border-r text-info"
+        />
+        <Metric
+          value={outgoingCount}
+          label={t('activity:codeMap.outgoing')}
+          className="border-r text-primary"
+        />
         <Metric
           value={node.symbolCount ?? node.fileCount ?? node.line ?? '—'}
           label={node.kind === 'package' ? 'files' : node.kind === 'file' ? 'symbols' : 'line'}
@@ -68,7 +73,8 @@ export function CodeMapSelectedNodeSummary({
             className="flex h-7 flex-1 items-center justify-center gap-1.5 border bg-foreground text-[9px] font-semibold uppercase tracking-wider text-background hover:opacity-90"
             onClick={() => onOpenNode(node)}
           >
-            <ExternalLink className="h-3 w-3" /> Open {node.kind === 'package' ? 'files' : 'symbols'}
+            <ExternalLink className="h-3 w-3" /> Open{' '}
+            {node.kind === 'package' ? 'files' : 'symbols'}
           </button>
         )}
         {node.file && (

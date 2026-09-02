@@ -37,7 +37,11 @@ const plugin = (await import('../src/test-generator')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
   llm?: { complete: ReturnType<typeof vi.fn> };
@@ -109,7 +113,9 @@ describe('test-generator plugin shape', () => {
     const api = makeApi();
     plugin.setup(api as never);
     expect(api.tools.register).toHaveBeenCalledTimes(1);
-    const names = api.tools.register.mock.calls.map(([t]: unknown[]) => (t as { name: string }).name);
+    const names = api.tools.register.mock.calls.map(
+      ([t]: unknown[]) => (t as { name: string }).name,
+    );
     expect(names).toContain('generate_unit_tests');
     expect(api.registerHook).not.toHaveBeenCalled();
   });
@@ -142,9 +148,11 @@ describe('generate_unit_tests tool', () => {
     expect(result.exports.map((e) => e.name)).toContain('PI');
     expect(result.exports.map((e) => e.name)).toContain('Calculator');
     expect(result.content).toContain("import { describe, it, expect } from 'vitest';");
-    expect(result.content).toContain("import { add, sub, PI, Calculator, addAlias } from './math';");
+    expect(result.content).toContain(
+      "import { add, sub, PI, Calculator, addAlias } from './math';",
+    );
     expect(result.content).toContain("it('add behaves as expected'");
-    expect(result.content).toContain("new Calculator()");
+    expect(result.content).toContain('new Calculator()');
   });
 
   it('generates a placeholder when no exports are found', async () => {
@@ -253,7 +261,7 @@ describe('generate_unit_tests tool', () => {
     };
 
     expect(result.llm).toEqual({ used: true, fallbackReason: null, requested: true });
-    expect(result.content).toContain("expect(add(1, 2)).toBe(3)");
+    expect(result.content).toContain('expect(add(1, 2)).toBe(3)');
     expect(result.content).not.toContain('```');
     expect(complete).toHaveBeenCalledWith(
       expect.stringContaining('<source>'),
@@ -266,7 +274,10 @@ describe('generate_unit_tests tool', () => {
     const api = makeApi({ llm: { complete: vi.fn().mockResolvedValue({ text: 'not a test' }) } });
     plugin.setup(api as never);
 
-    const result = (await getTool(api, 'generate_unit_tests')({
+    const result = (await getTool(
+      api,
+      'generate_unit_tests',
+    )({
       path: 'src/x.ts',
       use_llm: true,
     })) as { content: string; llm: { used: boolean; fallbackReason: string } };
@@ -285,7 +296,10 @@ describe('teardown + counters', () => {
     const generate = getTool(api, 'generate_unit_tests');
     await generate({ path: 'src/a.ts' });
     plugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith('test-generator: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'test-generator: teardown complete',
+      expect.any(Object),
+    );
     const health = (await plugin.health!()) as { counters: Record<string, number> };
     expect(health.counters['generated']).toBe(0);
     expect(health.counters['exports']).toBe(0);
@@ -305,7 +319,11 @@ describe('config parsing', () => {
     plugin.setup(api as never);
     setFilesystem({ '/project/src/x.ts': 'export function x() {}\n' });
     const generate = getTool(api, 'generate_unit_tests');
-    const result = (await generate({ path: 'src/x.ts' })) as { ok: boolean; testFile: string; content: string };
+    const result = (await generate({ path: 'src/x.ts' })) as {
+      ok: boolean;
+      testFile: string;
+      content: string;
+    };
     expect(result.testFile).toBe('src/x.integration.ts');
     expect(result.content).toContain("from '@jest/globals'");
   });

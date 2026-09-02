@@ -104,9 +104,7 @@ describe('sampleN', () => {
 describe('shuffleAllCards', () => {
   it('keys the result by card id and fills each with PROMPTS_PER_CARD prompts', () => {
     const out = shuffleAllCards(DEFAULT_PROMPT_CARDS);
-    expect(Object.keys(out).sort()).toEqual(
-      [...DEFAULT_PROMPT_CARDS.map((c) => c.id)].sort(),
-    );
+    expect(Object.keys(out).sort()).toEqual([...DEFAULT_PROMPT_CARDS.map((c) => c.id)].sort());
     for (const card of DEFAULT_PROMPT_CARDS) {
       expect(out[card.id]).toHaveLength(PROMPTS_PER_CARD);
     }

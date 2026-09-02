@@ -42,9 +42,7 @@ describe('SAGE_MEMORY_DETAIL regex shape', () => {
   it('disallows unescaped quotes inside the id attribute', () => {
     // Producer escapes `"` to `&quot;`, so a literal `"` inside the id
     // value must NOT match — it would indicate tampered data.
-    expect(
-      SAGE_MEMORY_DETAIL.test('- [fact] <memory id="has"quote">x</memory>'),
-    ).toBe(false);
+    expect(SAGE_MEMORY_DETAIL.test('- [fact] <memory id="has"quote">x</memory>')).toBe(false);
   });
 });
 
@@ -61,27 +59,21 @@ describe('parseSageMemoryLine — label variations', () => {
   });
 
   it('parses multiple bracketed labels', () => {
-    const parsed = parseSageMemoryLine(
-      '- [decision][high] <memory id="m">x</memory>',
-    );
+    const parsed = parseSageMemoryLine('- [decision][high] <memory id="m">x</memory>');
     expect(parsed!.labels).toEqual(['decision', 'high']);
   });
 
   it('preserves label order from the wire format', () => {
     // The producer emits labels in a fixed order; the parser must not
     // reorder them so the rendered UI matches the producer's intent.
-    const parsed = parseSageMemoryLine(
-      '- [warning][medium][stale] <memory id="m">x</memory>',
-    );
+    const parsed = parseSageMemoryLine('- [warning][medium][stale] <memory id="m">x</memory>');
     expect(parsed!.labels).toEqual(['warning', 'medium', 'stale']);
   });
 });
 
 describe('parseSageMemoryLine — anchor and meta', () => {
   it('parses anchor only, no meta', () => {
-    const parsed = parseSageMemoryLine(
-      '- [fact] <memory id="m">x</memory> (packages/tui)',
-    );
+    const parsed = parseSageMemoryLine('- [fact] <memory id="m">x</memory> (packages/tui)');
     expect(parsed!.anchor).toBe('packages/tui');
     expect(parsed!.relation).toBeUndefined();
     expect(parsed!.tags).toBeUndefined();
@@ -106,9 +98,7 @@ describe('parseSageMemoryLine — anchor and meta', () => {
   });
 
   it('parses meta with only relation, no tags', () => {
-    const parsed = parseSageMemoryLine(
-      '- [fact] <memory id="m">x</memory> [relation=about_file]',
-    );
+    const parsed = parseSageMemoryLine('- [fact] <memory id="m">x</memory> [relation=about_file]');
     expect(parsed!.relation).toBe('about_file');
     expect(parsed!.tags).toBeUndefined();
   });
@@ -130,9 +120,7 @@ describe('parseSageMemoryLine — anchor and meta', () => {
   });
 
   it('drops empty tag entries from trailing-comma input', () => {
-    const parsed = parseSageMemoryLine(
-      '- [fact] <memory id="m">x</memory> [tags=alpha,,beta,]',
-    );
+    const parsed = parseSageMemoryLine('- [fact] <memory id="m">x</memory> [tags=alpha,,beta,]');
     expect(parsed!.tags).toEqual(['alpha', 'beta']);
   });
 
@@ -149,9 +137,7 @@ describe('parseSageMemoryLine — anchor and meta', () => {
 
 describe('parseSageMemoryLine — id and body', () => {
   it('preserves ids with hyphens, underscores, and dots', () => {
-    const parsed = parseSageMemoryLine(
-      '- [fact] <memory id="mem-01_v2.legacy">x</memory>',
-    );
+    const parsed = parseSageMemoryLine('- [fact] <memory id="mem-01_v2.legacy">x</memory>');
     expect(parsed!.id).toBe('mem-01_v2.legacy');
   });
 
@@ -174,9 +160,7 @@ describe('parseSageMemoryLine — id and body', () => {
     // is indistinguishable from an escaped newline). Keeping the
     // two-char form means the bytes round-trip identically in either
     // direction.
-    const parsed = parseSageMemoryLine(
-      '- [fact] <memory id="m">line1\\nline2\\u2028end</memory>',
-    );
+    const parsed = parseSageMemoryLine('- [fact] <memory id="m">line1\\nline2\\u2028end</memory>');
     expect(parsed!.text).toBe('line1\\nline2\\u2028end');
     expect(parsed!.text).not.toContain('\n');
   });
@@ -189,9 +173,7 @@ describe('parseSageMemoryLine — id and body', () => {
     // `&amp;lt;`, and decodes back to `&lt;` (the original stored text).
     // This pins the contract: decoder is the exact inverse of the
     // single-pass encoder.
-    const parsed = parseSageMemoryLine(
-      '- [fact] <memory id="m">A &amp;lt;B&amp;gt;</memory>',
-    );
+    const parsed = parseSageMemoryLine('- [fact] <memory id="m">A &amp;lt;B&amp;gt;</memory>');
     expect(parsed!.text).toBe('A &lt;B&gt;');
   });
 });
@@ -206,7 +188,10 @@ describe('parseSageMemoryLine — malformed input returns null', () => {
     ['missing closing memory tag', '- [fact] <memory id="m">x'],
     ['mismatched closing tag', '- [fact] <memory id="m">x</memo>'],
     ['embedded newline (single-line contract)', '- [fact] <memory id="m">x\n</memory>'],
-    ['extra trailing suffix outside the suffix grammar', '- [fact] <memory id="m">x</memory> trailing-junk'],
+    [
+      'extra trailing suffix outside the suffix grammar',
+      '- [fact] <memory id="m">x</memory> trailing-junk',
+    ],
   ])('returns null for %s', (_label, line) => {
     expect(parseSageMemoryLine(line)).toBeNull();
   });

@@ -65,7 +65,10 @@ export type OnErrorHook = (
   | { action: 'continue' }
   | void
   | Promise<
-      { action: 'retry'; model?: string | undefined } | { action: 'fail' } | { action: 'continue' } | void
+      | { action: 'retry'; model?: string | undefined }
+      | { action: 'fail' }
+      | { action: 'continue' }
+      | void
     >;
 
 // ── Provider runner extension ───────────────────────────────────────

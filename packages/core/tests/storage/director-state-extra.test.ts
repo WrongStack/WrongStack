@@ -24,9 +24,23 @@ describe('director-state — extra coverage', () => {
 
   it('recordTaskAssigned updates an existing task in place', async () => {
     const file = path.join(dir, 's.json');
-    const cp = new DirectorStateCheckpoint(file, { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 }, 10);
-    cp.recordTaskAssigned({ taskId: 't1', subagentId: 'a', description: 'first', status: 'running' });
-    cp.recordTaskAssigned({ taskId: 't1', subagentId: 'b', description: 'second', status: 'running' });
+    const cp = new DirectorStateCheckpoint(
+      file,
+      { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 },
+      10,
+    );
+    cp.recordTaskAssigned({
+      taskId: 't1',
+      subagentId: 'a',
+      description: 'first',
+      status: 'running',
+    });
+    cp.recordTaskAssigned({
+      taskId: 't1',
+      subagentId: 'b',
+      description: 'second',
+      status: 'running',
+    });
     await cp.flush();
     const loaded = await loadDirectorState(file);
     expect(loaded?.tasks).toHaveLength(1);
@@ -35,19 +49,30 @@ describe('director-state — extra coverage', () => {
 
   it('persists via the debounce timer without an explicit flush', async () => {
     const file = path.join(dir, 'timer.json');
-    const cp = new DirectorStateCheckpoint(file, { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 }, 10);
+    const cp = new DirectorStateCheckpoint(
+      file,
+      { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 },
+      10,
+    );
     cp.recordSpawn({ id: 's1', spawnedAt: new Date().toISOString() }, 1);
-    await vi.waitFor(async () => {
-      const loaded = await loadDirectorState(file);
-      expect(loaded?.spawnCount).toBe(1);
-    }, { timeout: 2000 });
+    await vi.waitFor(
+      async () => {
+        const loaded = await loadDirectorState(file);
+        expect(loaded?.spawnCount).toBe(1);
+      },
+      { timeout: 2000 },
+    );
   });
 
   it('warns but does not throw when persist cannot write the checkpoint', async () => {
     const fileAsDir = path.join(dir, 'asdir.json');
     await fs.mkdir(fileAsDir, { recursive: true });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const cp = new DirectorStateCheckpoint(fileAsDir, { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 }, 10);
+    const cp = new DirectorStateCheckpoint(
+      fileAsDir,
+      { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 },
+      10,
+    );
     cp.recordSpawn({ id: 's1', spawnedAt: new Date().toISOString() }, 1);
     await cp.flush();
     expect(warn).toHaveBeenCalled();
@@ -55,7 +80,11 @@ describe('director-state — extra coverage', () => {
 
   it('persist defers to a follow-up write when one is already in flight', async () => {
     const file = path.join(dir, 'guard.json');
-    const cp = new DirectorStateCheckpoint(file, { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 }, 10);
+    const cp = new DirectorStateCheckpoint(
+      file,
+      { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 },
+      10,
+    );
     (cp as never as { writing: boolean }).writing = true;
     await (cp as never as { persist(): Promise<void> }).persist();
     expect((cp as never as { rewriteRequested: boolean }).rewriteRequested).toBe(true);
@@ -63,7 +92,11 @@ describe('director-state — extra coverage', () => {
 
   it('reconcileCrashedState transitions running tasks and allocated worktrees to failed', async () => {
     const file = path.join(dir, 'reconcile.json');
-    const cp = new DirectorStateCheckpoint(file, { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 }, 10);
+    const cp = new DirectorStateCheckpoint(
+      file,
+      { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 },
+      10,
+    );
     cp.recordTaskAssigned({
       taskId: 't-crashed',
       subagentId: 'sub-1',

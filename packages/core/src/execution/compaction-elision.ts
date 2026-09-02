@@ -571,7 +571,10 @@ export function findPreserveStart(messages: readonly Message[], preserveK: numbe
 export function eliseOldToolResults(
   messages: readonly Message[],
   opts: { preserveK: number; eliseThreshold: number },
-  findPreserveStartFn: (messages: readonly Message[], preserveK: number) => number = findPreserveStart,
+  findPreserveStartFn: (
+    messages: readonly Message[],
+    preserveK: number,
+  ) => number = findPreserveStart,
 ): EliseResult {
   const preserveStart = findPreserveStartFn(messages, opts.preserveK);
 

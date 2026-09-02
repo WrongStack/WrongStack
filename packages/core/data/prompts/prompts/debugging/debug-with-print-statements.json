@@ -5,10 +5,7 @@
   "description": "Find a bug systematically when no debugger is handy.",
   "content": "I am stuck on this bug and only have print/log to work with: {{problem}}\n\nGuide me through binary-searching the code path: where to put the first prints to cut the suspect region in half, what to print (values AND that a line was reached), and how to read the output to halve it again. Stop me from scattering prints randomly. Tell me the one assumption to verify first, and when the output proves the bug is somewhere I wasn't looking.",
   "category": "debugging",
-  "tags": [
-    "print-debugging",
-    "logging"
-  ],
+  "tags": ["print-debugging", "logging"],
   "source": "builtin",
   "favorite": false,
   "checksum": "25fb721a14a686bffbf0cce89711cb5989878fe76910c831f6f801650f039bbe",

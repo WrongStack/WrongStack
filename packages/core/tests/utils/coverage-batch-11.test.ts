@@ -53,7 +53,12 @@ describe('DefaultHealthRegistry', () => {
 
   it('catches check errors as unhealthy', async () => {
     const reg = new DefaultHealthRegistry();
-    reg.register({ name: 'fail', check: async () => { throw new Error('crash'); } });
+    reg.register({
+      name: 'fail',
+      check: async () => {
+        throw new Error('crash');
+      },
+    });
     const result = await reg.run();
     expect(result.status).toBe('unhealthy');
     expect(result.checks[0]?.detail).toContain('crash');
@@ -110,6 +115,8 @@ describe('OTelTracer', () => {
     const mockTracer = { startSpan: vi.fn(() => mockSpan) };
     const tracer = new OTelTracer(mockTracer as any);
     tracer.startSpan('op', { attr1: 'val1', attr2: 42 });
-    expect(mockTracer.startSpan).toHaveBeenCalledWith('op', { attributes: { attr1: 'val1', attr2: 42 } });
+    expect(mockTracer.startSpan).toHaveBeenCalledWith('op', {
+      attributes: { attr1: 'val1', attr2: 42 },
+    });
   });
 });

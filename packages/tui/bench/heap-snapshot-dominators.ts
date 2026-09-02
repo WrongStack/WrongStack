@@ -253,7 +253,9 @@ export function analyzeHeapSnapshot(
       dominatedNodes: dominatedNodes[dfs]!,
     });
   }
-  candidates.sort((left, right) => right.retainedSize - left.retainedSize || right.selfSize - left.selfSize);
+  candidates.sort(
+    (left, right) => right.retainedSize - left.retainedSize || right.selfSize - left.selfSize,
+  );
   const dominators = candidates.slice(0, Math.max(0, limit));
   dominators.forEach((entry, index) => {
     entry.rank = index + 1;

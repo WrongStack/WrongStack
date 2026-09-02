@@ -154,7 +154,8 @@ describe('extractSageBlock', () => {
    */
   describe('caps that cut the last memory line', () => {
     const header = '--- SAGE: related project knowledge (Memory Injector) ---';
-    const full = '- [fact] <memory id="mem-1">a fairly long remembered fact about globbing</memory> [tags=glob]';
+    const full =
+      '- [fact] <memory id="mem-1">a fairly long remembered fact about globbing</memory> [tags=glob]';
 
     it('accepts a truncated final memory line', () => {
       const cut = `${full.slice(0, 60)}…`;
@@ -202,7 +203,9 @@ describe('SAGE suffix parser sync contract (2026-08-02)', () => {
   it('shares the canonical heading set', async () => {
     const core = await import('@wrongstack/core/utils/sage-output-block');
     expect(
-      core.SAGE_INJECTOR_HEADINGS.has('--- SAGE: task-aware project knowledge (Memory Injector) ---'),
+      core.SAGE_INJECTOR_HEADINGS.has(
+        '--- SAGE: task-aware project knowledge (Memory Injector) ---',
+      ),
     ).toBe(true);
     expect(
       core.SAGE_INJECTOR_HEADINGS.has('--- SAGE: related project knowledge (Memory Injector) ---'),

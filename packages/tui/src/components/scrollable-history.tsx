@@ -1,13 +1,5 @@
 import type React from 'react';
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { EntryHeightCache } from '../height-cache.js';
 import { SCROLLBAR_HIT_WIDTH } from '../hit-test.js';
 import { Box, type DOMElement, measureElement, useStdout } from '../ink.js';
@@ -47,7 +39,7 @@ import {
 } from './history/selection-band-store.js';
 
 // ── Re-exports from extracted modules ────────────────────────────────────
-export type { HistoryScrollController } from './history/scroll-controller-types.js';;
+export type { HistoryScrollController } from './history/scroll-controller-types.js';
 export {
   type CopyHit,
   LIVE_TOOL_STREAM_COPY_ID,
@@ -75,10 +67,7 @@ export { Scrollbar } from './history/scrollbar-rail.js';
 
 // ── Internal imports from extracted modules ──────────────────────────────
 import type { CopyHit } from './history/copy-geometry.js';
-import {
-  type MountedCardSpan,
-  buildMountedCardSpans,
-} from './history/scrollbar-geometry.js';
+import { type MountedCardSpan, buildMountedCardSpans } from './history/scrollbar-geometry.js';
 import { Scrollbar } from './history/scrollbar-rail.js';
 import type { ScrollableHistoryProps } from './history/scroll-controller-types.js';
 
@@ -382,10 +371,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     .map((s) => `${s.entryId}:${s.viewportStartRow}:${s.viewportEndRow}`)
     .join('|');
   if (nextSignature !== spansSignatureRef.current) {
-    if (
-      selectionRef.current.anchor !== null &&
-      !selectionRef.current.inProgress
-    ) {
+    if (selectionRef.current.anchor !== null && !selectionRef.current.inProgress) {
       selectionRef.current = { anchor: null, head: null, inProgress: false };
     }
     spansSignatureRef.current = nextSignature;
@@ -553,10 +539,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
           ) : null}
 
           {plan.mountTail && assistantTail ? (
-            <AssistantStreamBox
-              text={assistantTail}
-              termWidth={termWidth}
-            />
+            <AssistantStreamBox text={assistantTail} termWidth={termWidth} />
           ) : null}
         </Box>
       </Box>

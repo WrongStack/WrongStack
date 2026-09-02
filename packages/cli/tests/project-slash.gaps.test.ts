@@ -192,15 +192,16 @@ describe('/project add', () => {
 
     const derived = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-derived-'));
     const out2 = await command().run(`add ${derived}`);
-    expect(stripAnsi(out2.message)).toContain(
-      `Added project: ${path.basename(derived)}`,
-    );
+    expect(stripAnsi(out2.message)).toContain(`Added project: ${path.basename(derived)}`);
   });
 });
 
 describe('/project rename and remove', () => {
   beforeEach(async () => {
-    await seedManifest([{ name: 'Alpha', slug: 'alpha-1' }, { name: 'Beta', slug: 'beta-1' }]);
+    await seedManifest([
+      { name: 'Alpha', slug: 'alpha-1' },
+      { name: 'Beta', slug: 'beta-1' },
+    ]);
   });
 
   it('prints rename usage and reports unknown projects', async () => {
@@ -290,6 +291,8 @@ describe('/project unknown subcommands', () => {
   it('prints the usage summary', async () => {
     const out = await command().run('teleport');
     expect(stripAnsi(out.message)).toContain('Unknown: "teleport"');
-    expect(stripAnsi(out.message)).toContain('Usage: /project [ls|list|id|init|rekey|add|rename|remove|switch]');
+    expect(stripAnsi(out.message)).toContain(
+      'Usage: /project [ls|list|id|init|rekey|add|rename|remove|switch]',
+    );
   });
 });

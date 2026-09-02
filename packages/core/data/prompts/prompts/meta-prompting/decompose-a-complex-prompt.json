@@ -5,11 +5,7 @@
   "description": "Split an overloaded prompt into a reliable sequence of steps.",
   "content": "This prompt tries to do too much at once: {{prompt}}\n\nHelp me decompose it into a sequence (or chain) of smaller prompts, each doing one thing well, where each step's output feeds the next. Show the steps and what flows between them. Tell me which steps genuinely need separate calls versus which can stay together. Aim for reliability over cleverness.",
   "category": "meta-prompting",
-  "tags": [
-    "chaining",
-    "decomposition",
-    "prompt-engineering"
-  ],
+  "tags": ["chaining", "decomposition", "prompt-engineering"],
   "source": "builtin",
   "favorite": false,
   "checksum": "a05793bfb2a34b350b4c11fc4e46c6c740d27ee58a525dbee414efba8b7edb47",

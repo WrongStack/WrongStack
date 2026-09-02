@@ -13,10 +13,7 @@ function normalizeLocalPath(value: string): string {
 }
 
 export function mailboxProjectServerKey(projectDir: string): string {
-  return createHash('sha256')
-    .update(normalizeLocalPath(projectDir))
-    .digest('hex')
-    .slice(0, 24);
+  return createHash('sha256').update(normalizeLocalPath(projectDir)).digest('hex').slice(0, 24);
 }
 
 /**
@@ -43,11 +40,7 @@ export function mailboxProjectServerEndpoint(projectDir: string): string {
   if (process.platform === 'win32') {
     return `\\\\.\\pipe\\wrongstack-mailbox-v${MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION}-${key}`;
   }
-  return path.join(
-    os.tmpdir(),
-    `wsmb-v${MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION}`,
-    `${key}.sock`,
-  );
+  return path.join(os.tmpdir(), `wsmb-v${MAILBOX_PROJECT_SERVER_PROTOCOL_VERSION}`, `${key}.sock`);
 }
 
 export function mailboxProjectServerMetadataPath(projectDir: string): string {

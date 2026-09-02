@@ -10,7 +10,8 @@ const FALLBACK_PROFILE_SCHEMA: JSONSchema = {
     action: {
       type: 'string',
       enum: ['list', 'set', 'delete'],
-      description: 'Operation: list (show all profiles), set (create/update), delete (remove a profile).',
+      description:
+        'Operation: list (show all profiles), set (create/update), delete (remove a profile).',
     },
     name: {
       type: 'string',
@@ -41,7 +42,9 @@ interface FallbackProfileOutput {
   profiles?: Record<string, string[]>;
 }
 
-export function createFallbackProfileManageTool(opts: FallbackManageToolOptions): Tool<FallbackProfileInput, FallbackProfileOutput> {
+export function createFallbackProfileManageTool(
+  opts: FallbackManageToolOptions,
+): Tool<FallbackProfileInput, FallbackProfileOutput> {
   return {
     name: FALLBACK_PROFILE_MANAGE_TOOL_NAME,
     description:
@@ -84,7 +87,10 @@ export function createFallbackProfileManageTool(opts: FallbackManageToolOptions)
           return { status: 'error', message: 'Provide "name" for the profile (e.g. "fast").' };
         }
         if (!input.chain || input.chain.length === 0) {
-          return { status: 'error', message: 'Provide "chain" — a non-empty array of model references.' };
+          return {
+            status: 'error',
+            message: 'Provide "chain" — a non-empty array of model references.',
+          };
         }
         const invalid: string[] = [];
         for (const ref of input.chain) {

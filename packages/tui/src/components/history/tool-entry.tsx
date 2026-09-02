@@ -124,9 +124,7 @@ export function ToolEntry({
             : undefined;
         const outJson = tryParseJson(outputForFormatting.trim());
         const outObj =
-          outJson && typeof outJson === 'object'
-            ? (outJson as Record<string, unknown>)
-            : undefined;
+          outJson && typeof outJson === 'object' ? (outJson as Record<string, unknown>) : undefined;
         // `created` lives in the JSON output shape; the serialized-text
         // shape carries it as a `created=true` field on the header line.
         const created =
@@ -136,8 +134,7 @@ export function ToolEntry({
         const outFiles = Array.isArray(outObj?.['files'])
           ? (outObj?.['files'] as unknown[])
           : undefined;
-        const firstOutFile =
-          outFiles && outFiles.length > 0 ? stringOf(outFiles[0]) : undefined;
+        const firstOutFile = outFiles && outFiles.length > 0 ? stringOf(outFiles[0]) : undefined;
         const path =
           stringOf(inputObj?.['path']) ??
           stringOf(inputObj?.['TargetFile']) ??
@@ -158,9 +155,7 @@ export function ToolEntry({
           added: agg ? agg.added : (diff?.added ?? 0),
           removed: agg ? agg.removed : (diff?.removed ?? 0),
           lang: langFromPath(
-            multiDiffs && multiDiffs.length > 1
-              ? ''
-              : (multiDiffs?.[0]?.path ?? path ?? ''),
+            multiDiffs && multiDiffs.length > 1 ? '' : (multiDiffs?.[0]?.path ?? path ?? ''),
           ),
         };
       })();
@@ -248,11 +243,7 @@ export function ToolEntry({
           ) : null}
         </ToolCard>
         {showSageMemoryInject !== false ? (
-          <SageMemoryBlock
-            sageLines={sageLines}
-            toolName={entry.name}
-            stats={entry.sageStats}
-          />
+          <SageMemoryBlock sageLines={sageLines} toolName={entry.name} stats={entry.sageStats} />
         ) : null}
       </Box>
     );
@@ -276,16 +267,12 @@ export function ToolEntry({
         hasBody={hasToolBody}
       >
         {visualLines && entry.resultRenderMode !== 'simple' ? (
-          <ToolOutputLines
-            lines={visualLines}
-            hasFollowingBlock={Boolean(diff || multiDiffs)}
-          />
+          <ToolOutputLines lines={visualLines} hasFollowingBlock={Boolean(diff || multiDiffs)} />
         ) : visualLines ? (
           <ToolOutputLines lines={visualLines} hasFollowingBlock={false} />
         ) : entry.resultRenderMode === 'simple' ? null : (
           outLines.map((line, i) => {
-            const connector =
-              i === outLines.length - 1 && !diff && !multiDiffs ? '  └─ ' : '  ├─ ';
+            const connector = i === outLines.length - 1 && !diff && !multiDiffs ? '  └─ ' : '  ├─ ';
             return (
               <Text key={i}>
                 <Text color={color} dimColor>

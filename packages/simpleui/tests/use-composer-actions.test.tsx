@@ -107,7 +107,10 @@ function renderHookViaRoot(
       },
       attachedImagesRef: attachedImagesRef as never,
       setRefineState: (v) => {
-        state.refineState = typeof v === 'function' ? (v as (prev: RefineState | null) => RefineState | null)(state.refineState) : v;
+        state.refineState =
+          typeof v === 'function'
+            ? (v as (prev: RefineState | null) => RefineState | null)(state.refineState)
+            : v;
         refineStateRef.current = state.refineState;
       },
     });
@@ -119,7 +122,14 @@ function renderHookViaRoot(
   const root = createRoot(container);
   roots.push(root);
   act(() => root.render(<Probe />));
-  return { root, socket, state, startSendMock, dispatchUserMessageMock, refs: { sessionIdRef, draftRef, fileRefsRef, refineStateRef, attachedImagesRef } };
+  return {
+    root,
+    socket,
+    state,
+    startSendMock,
+    dispatchUserMessageMock,
+    refs: { sessionIdRef, draftRef, fileRefsRef, refineStateRef, attachedImagesRef },
+  };
 }
 
 beforeEach(() => {
@@ -135,7 +145,10 @@ afterEach(() => {
 describe('useComposerActions — submitWith', () => {
   it('calls startSend when idle with btw mode', () => {
     const captured: Captured = { current: undefined as never };
-    const { state, startSendMock } = renderHookViaRoot(captured, { draft: 'hello', running: false });
+    const { state, startSendMock } = renderHookViaRoot(captured, {
+      draft: 'hello',
+      running: false,
+    });
     act(() => captured.current.submitWith('btw'));
     expect(startSendMock).toHaveBeenCalledTimes(1);
     expect(state.draft).toBe('');
@@ -183,7 +196,9 @@ describe('useComposerActions — refineDecision', () => {
   it("dispatches via dispatchUserMessage (not startSend) for 'refined'", () => {
     const captured: Captured = { current: undefined as never };
     const rs = makeRefineState('original');
-    const { state, startSendMock, dispatchUserMessageMock } = renderHookViaRoot(captured, { refineState: rs });
+    const { state, startSendMock, dispatchUserMessageMock } = renderHookViaRoot(captured, {
+      refineState: rs,
+    });
     act(() => captured.current.refineDecision('refined'));
     expect(state.refineState).toBeNull();
     expect(dispatchUserMessageMock).toHaveBeenCalledTimes(1);
@@ -194,7 +209,9 @@ describe('useComposerActions — refineDecision', () => {
   it("dispatches via dispatchUserMessage (not startSend) for 'original'", () => {
     const captured: Captured = { current: undefined as never };
     const rs = makeRefineState('original text');
-    const { startSendMock, dispatchUserMessageMock } = renderHookViaRoot(captured, { refineState: rs });
+    const { startSendMock, dispatchUserMessageMock } = renderHookViaRoot(captured, {
+      refineState: rs,
+    });
     act(() => captured.current.refineDecision('original'));
     expect(dispatchUserMessageMock).toHaveBeenCalledTimes(1);
     expect(dispatchUserMessageMock).toHaveBeenCalledWith('original text');
@@ -204,7 +221,9 @@ describe('useComposerActions — refineDecision', () => {
   it("dispatches via dispatchUserMessage (not startSend) for 'english'", () => {
     const captured: Captured = { current: undefined as never };
     const rs = makeRefineState('original');
-    const { startSendMock, dispatchUserMessageMock } = renderHookViaRoot(captured, { refineState: rs });
+    const { startSendMock, dispatchUserMessageMock } = renderHookViaRoot(captured, {
+      refineState: rs,
+    });
     act(() => captured.current.refineDecision('english'));
     expect(dispatchUserMessageMock).toHaveBeenCalledTimes(1);
     expect(dispatchUserMessageMock).toHaveBeenCalledWith('english version');
@@ -218,7 +237,10 @@ describe('useComposerActions — refineRetry', () => {
     const rs = makeRefineState('retry this');
     const { socket } = renderHookViaRoot(captured, { refineState: rs });
     act(() => captured.current.refineRetry());
-    expect(socket.send).toHaveBeenCalledWith('model.refine', expect.objectContaining({ text: 'retry this' }));
+    expect(socket.send).toHaveBeenCalledWith(
+      'model.refine',
+      expect.objectContaining({ text: 'retry this' }),
+    );
   });
 });
 

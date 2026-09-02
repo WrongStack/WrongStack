@@ -15,7 +15,11 @@
  * @public
  */
 
-import type { NotificationChannel, NotificationMessage, NotificationResult } from '@wrongstack/core/notifications';
+import type {
+  NotificationChannel,
+  NotificationMessage,
+  NotificationResult,
+} from '@wrongstack/core/notifications';
 
 // ---------------------------------------------------------------------------
 // Circuit breaker state

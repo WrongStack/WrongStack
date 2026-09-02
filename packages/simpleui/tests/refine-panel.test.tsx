@@ -135,10 +135,7 @@ describe('RefinePanel — edit mode', () => {
     act(() => {
       // React 19 textarea value tracking: use the native setter so the
       // change event isn't swallowed by the controlled-input dedupe.
-      const setter = Object.getOwnPropertyDescriptor(
-        HTMLTextAreaElement.prototype,
-        'value',
-      )?.set;
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
       setter?.call(textarea, 'my hand-tuned prompt');
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
     });
@@ -160,10 +157,7 @@ describe('RefinePanel — edit mode', () => {
     const textarea = host.querySelector('textarea');
     if (!textarea) throw new Error('edit textarea not rendered');
     act(() => {
-      const setter = Object.getOwnPropertyDescriptor(
-        HTMLTextAreaElement.prototype,
-        'value',
-      )?.set;
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
       setter?.call(textarea, '   ');
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
     });

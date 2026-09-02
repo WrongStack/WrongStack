@@ -175,10 +175,7 @@ export const DEFAULT_EXPLORE_EDIT_TOOLS: readonly string[] = [
 ];
 
 /** Tools whose successful zero-result run is a "search came up empty" signal. */
-export const DEFAULT_EXPLORE_SEARCH_TOOLS: readonly string[] = [
-  'grep',
-  'codebase-search',
-];
+export const DEFAULT_EXPLORE_SEARCH_TOOLS: readonly string[] = ['grep', 'codebase-search'];
 
 interface ResolvedExploreCompanionConfig {
   enabled: boolean;
@@ -214,7 +211,11 @@ function extractedPath(input: unknown): string | undefined {
   if (!input || typeof input !== 'object') return undefined;
   const rec = input as Record<string, unknown>;
   const candidate =
-    typeof rec['path'] === 'string' ? rec['path'] : typeof rec['file'] === 'string' ? rec['file'] : undefined;
+    typeof rec['path'] === 'string'
+      ? rec['path']
+      : typeof rec['file'] === 'string'
+        ? rec['file']
+        : undefined;
   return candidate && candidate.length > 0 ? candidate : undefined;
 }
 
@@ -226,8 +227,10 @@ function extractedPath(input: unknown): string | undefined {
 function looksEmpty(e: { output?: string | undefined; outputLines?: number | undefined }): boolean {
   if (typeof e.outputLines === 'number' && e.outputLines === 0) return true;
   const out = e.output ?? '';
-  return /(?:^|\n)(?:no |0 )(?:matches|results|files? found|occurrences)/i.test(out) ||
-    /total\s*:\s*0\b/i.test(out);
+  return (
+    /(?:^|\n)(?:no |0 )(?:matches|results|files? found|occurrences)/i.test(out) ||
+    /total\s*:\s*0\b/i.test(out)
+  );
 }
 
 interface SubjectToken {
@@ -318,7 +321,9 @@ export class ExploreCompanion {
       nextCfg.pollIntervalMs !== this.cfg.pollIntervalMs ||
       nextCfg.companionAgentId !== this.cfg.companionAgentId ||
       Object.keys(nextCfg.signals).some(
-        (k) => nextCfg.signals[k as keyof ExploreCompanionSignalToggles] !== this.cfg.signals[k as keyof ExploreCompanionSignalToggles],
+        (k) =>
+          nextCfg.signals[k as keyof ExploreCompanionSignalToggles] !==
+          this.cfg.signals[k as keyof ExploreCompanionSignalToggles],
       );
     this.cfg = nextCfg;
     if (!changed) return false;
@@ -444,7 +449,12 @@ export class ExploreCompanion {
       return;
     }
 
-    if (e.ok && this.cfg.signals.searchZeroHits && this.cfg.searchTools.has(tool) && looksEmpty(e)) {
+    if (
+      e.ok &&
+      this.cfg.signals.searchZeroHits &&
+      this.cfg.searchTools.has(tool) &&
+      looksEmpty(e)
+    ) {
       const input = (e.input ?? {}) as Record<string, unknown>;
       const query =
         typeof input['query'] === 'string'
@@ -479,9 +489,7 @@ export class ExploreCompanion {
         this.engage({
           id: randomUUID(),
           probe: `Pre-map files/symbols for the leader's in-progress todo so they can start already oriented: "${todo.content.slice(0, 160)}".`,
-          hint: first
-            ? { [first.kind]: first.value }
-            : undefined,
+          hint: first ? { [first.kind]: first.value } : undefined,
           context: `Todo "${todo.content.slice(0, 120)}" flipped to in_progress.`,
           source: 'todo_in_progress',
           subject: `todo:${todo.id}`,

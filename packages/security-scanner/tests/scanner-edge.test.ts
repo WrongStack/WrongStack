@@ -83,12 +83,7 @@ describe('SecurityScanner - edge coverage', () => {
     expect(internals.getConfidence(pattern, 0.7, 'src/a.ts', 'normal')).toBe('medium');
     expect(internals.getConfidence(pattern, 0.4, 'src/a.ts', 'normal')).toBe('low');
     expect(
-      internals.getConfidence(
-        { confidence: 'unexpected' } as never,
-        0.9,
-        'src/a.ts',
-        'normal',
-      ),
+      internals.getConfidence({ confidence: 'unexpected' } as never, 0.9, 'src/a.ts', 'normal'),
     ).toBe('medium');
     await fs.rm(root, { recursive: true, force: true });
   });

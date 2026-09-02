@@ -33,7 +33,11 @@ import {
   PROMPT_JOURNAL_RAW_MARKER,
 } from '../src/wiring/prompt-journal-recorder.js';
 
-async function waitFor<T>(probe: () => Promise<T>, predicate: (value: T) => boolean, timeoutMs = 4000): Promise<T> {
+async function waitFor<T>(
+  probe: () => Promise<T>,
+  predicate: (value: T) => boolean,
+  timeoutMs = 4000,
+): Promise<T> {
   const start = Date.now();
   for (;;) {
     const value = await probe();
@@ -157,9 +161,7 @@ describe('createPromptJournalRecorder', () => {
         systemPrompt: 'You are the leader agent.',
       });
       await mw.handler(payload as never, (v) => Promise.resolve(v));
-      await mw.handler({ ...payload, text: 'second turn' } as never, (v) =>
-        Promise.resolve(v),
-      );
+      await mw.handler({ ...payload, text: 'second turn' } as never, (v) => Promise.resolve(v));
 
       const entries = await waitFor(
         () => getPromptJournalEntries(tempDir),

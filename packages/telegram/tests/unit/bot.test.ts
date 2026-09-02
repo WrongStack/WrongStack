@@ -198,7 +198,9 @@ describe('helpers', () => {
   });
 
   it('escapeHtml replaces special chars including quotes', () => {
-    expect(escapeHtml('<b>"bold"</b> & text')).toBe('&lt;b&gt;&quot;bold&quot;&lt;/b&gt; &amp; text');
+    expect(escapeHtml('<b>"bold"</b> & text')).toBe(
+      '&lt;b&gt;&quot;bold&quot;&lt;/b&gt; &amp; text',
+    );
   });
 });
 

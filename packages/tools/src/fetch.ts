@@ -123,13 +123,32 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
     return final;
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<FetchOutput>> {
-    if (!input?.url) {
+    if (!input?.url || typeof input.url !== 'string' || !input.url.trim()) {
       throw new ToolValidationError({
-        message: 'fetch: url is required',
+        message: 'fetch: url is required and cannot be empty',
         field: 'url',
       });
     }
-    const u = new URL(input.url);
+
+    const trimmedUrl = input.url.trim();
+    let u: URL;
+    try {
+      u = new URL(trimmedUrl);
+    } catch {
+      throw new ToolValidationError({
+        message: `fetch: invalid URL "${input.url}"`,
+        field: 'url',
+      });
+    }
+
+    const ALLOWED_FORMATS = new Set(['markdown', 'text', 'raw']);
+    if (input.format !== undefined && !ALLOWED_FORMATS.has(input.format)) {
+      throw new ToolValidationError({
+        message: `fetch: unsupported format "${input.format}". Allowed formats: markdown, text, raw`,
+        field: 'format',
+      });
+    }
+
     if (u.username || u.password) {
       // Credentials embedded in URLs leak into logs, session transcripts, and
       // redirect targets; reject them outright instead of forwarding secrets.
@@ -152,7 +171,7 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
     }
     await assertNotPrivate(u.hostname);
 
-    yield { type: 'log', text: `GET ${input.url}` };
+    yield { type: 'log', text: `GET ${trimmedUrl}` };
 
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
@@ -173,7 +192,7 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
     try {
       let res: Response;
       try {
-        res = await guardedFetch(input.url, 5, combined);
+        res = await guardedFetch(trimmedUrl, 5, combined);
       } catch (err) {
         // A user-initiated cancel propagates unchanged. Our own timeout and any
         // transport failure get a diagnostic message: undici throws an opaque
@@ -182,7 +201,7 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
         // Surfacing just `.message` left users with "fetch failed" and no clue
         // why HTTPS broke (see #100), so unwrap the cause chain here.
         if (signal.aborted) throw err;
-        throw describeFetchError(err, input.url, ctrl.signal.aborted);
+        throw describeFetchError(err, trimmedUrl, ctrl.signal.aborted);
       }
 
       const ct = res.headers.get('content-type') ?? 'application/octet-stream';
@@ -218,7 +237,9 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
               // Snapshot recent bytes for the partial_output. Keep it cheap —
               // don't try to decode UTF-8 boundaries; the TUI just needs a
               // "things are happening" signal.
-              const recent = Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('utf8');
+              const recent = Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString(
+                'utf8',
+              );
               yield {
                 type: 'partial_output',
                 text: recent,

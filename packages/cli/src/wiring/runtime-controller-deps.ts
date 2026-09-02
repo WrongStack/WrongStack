@@ -155,7 +155,9 @@ function applyLiveSettings(
       const prev = config.tools?.wrongProxy;
       const next = {
         ...(prev ?? {}),
-        ...(settings.wrongProxyEnabled !== undefined ? { enabled: settings.wrongProxyEnabled } : {}),
+        ...(settings.wrongProxyEnabled !== undefined
+          ? { enabled: settings.wrongProxyEnabled }
+          : {}),
         ...(settings.wrongProxyUrl !== undefined ? { url: settings.wrongProxyUrl } : {}),
       };
       config = patchConfig(config, {

@@ -60,17 +60,14 @@ export async function integrateFindings(
   projectDir: string,
   reportId: string,
 ): Promise<FindingsIntegrationResult> {
-  if (
-    (!payload.reviewText || payload.reviewText.trim().length === 0) &&
-    !payload.parsedReport
-  ) {
+  if ((!payload.reviewText || payload.reviewText.trim().length === 0) && !payload.parsedReport) {
     return { created: 0, relinked: 0, reopened: 0, totalFindings: 0, unparseableCount: 0 };
   }
 
   const store = new JsonlFindingStore(projectDir);
   const source = classifyChimeraReviewSource(payload.bundle);
-  const agentId = payload.bundle.fileProvenance?.find((entry) => entry.agentId)?.agentId
-    ?? 'chimera-review';
+  const agentId =
+    payload.bundle.fileProvenance?.find((entry) => entry.agentId)?.agentId ?? 'chimera-review';
   const sessionId = payload.sessionId ?? payload.cwd;
   const model = payload.bundle.config.model;
 
@@ -89,8 +86,11 @@ export async function integrateFindings(
 
   if (parsed.findings.length === 0) {
     return {
-      created: 0, relinked: 0, reopened: 0,
-      totalFindings: 0, unparseableCount: parsed.unparseableCount,
+      created: 0,
+      relinked: 0,
+      reopened: 0,
+      totalFindings: 0,
+      unparseableCount: parsed.unparseableCount,
     };
   }
 

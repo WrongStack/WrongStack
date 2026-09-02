@@ -149,7 +149,15 @@ describe('HqSnapshotStore', () => {
       sessions: [],
       fleets: [],
       mailboxes: [],
-      totals: { activeProjects: 0, activeClients: 0, activeSessions: 0, activeSubagents: 0, unreadMailboxMessages: 0, incompleteMailboxMessages: 0, totalCostUsd: 0 },
+      totals: {
+        activeProjects: 0,
+        activeClients: 0,
+        activeSessions: 0,
+        activeSubagents: 0,
+        unreadMailboxMessages: 0,
+        incompleteMailboxMessages: 0,
+        totalCostUsd: 0,
+      },
     } as HqSnapshot;
     store.save(snap);
     await store.drain();
@@ -228,7 +236,9 @@ describe('HqTimeseriesStore', () => {
     const store = new HqTimeseriesStore({ dataDir, bucketMs: 1, maxBuckets: 3 });
     for (let i = 0; i < 10; i++) store.record({ ts: i * 10, costUsd: 0.01 });
     // record() prunes in-memory as it goes, so the map never exceeds maxBuckets.
-    expect((store as unknown as { buckets: Map<number, unknown> }).buckets.size).toBeLessThanOrEqual(3);
+    expect(
+      (store as unknown as { buckets: Map<number, unknown> }).buckets.size,
+    ).toBeLessThanOrEqual(3);
   });
 });
 
@@ -271,9 +281,18 @@ describe('HqEventLog byte cap (D1)', () => {
 
 describe('HqEventLog presets (D1 follow-up)', () => {
   it('exposes vps8 / vps32 / desktop presets', () => {
-    expect(HQ_EVENT_LOG_PRESETS.vps8).toEqual({ maxBytes: 8 * 1024 * 1024, rotateKeepBytes: 2 * 1024 * 1024 });
-    expect(HQ_EVENT_LOG_PRESETS.vps32).toEqual({ maxBytes: 32 * 1024 * 1024, rotateKeepBytes: 16 * 1024 * 1024 });
-    expect(HQ_EVENT_LOG_PRESETS.desktop).toEqual({ maxBytes: 64 * 1024 * 1024, rotateKeepBytes: 24 * 1024 * 1024 });
+    expect(HQ_EVENT_LOG_PRESETS.vps8).toEqual({
+      maxBytes: 8 * 1024 * 1024,
+      rotateKeepBytes: 2 * 1024 * 1024,
+    });
+    expect(HQ_EVENT_LOG_PRESETS.vps32).toEqual({
+      maxBytes: 32 * 1024 * 1024,
+      rotateKeepBytes: 16 * 1024 * 1024,
+    });
+    expect(HQ_EVENT_LOG_PRESETS.desktop).toEqual({
+      maxBytes: 64 * 1024 * 1024,
+      rotateKeepBytes: 24 * 1024 * 1024,
+    });
   });
 
   it('hqEventLogPresetFields returns the same numbers the preset declares', () => {
@@ -283,9 +302,9 @@ describe('HqEventLog presets (D1 follow-up)', () => {
   });
 
   it('throws on unknown preset names so the call site fails loudly', () => {
-    expect(() =>
-      hqEventLogPresetFields('vps128' as unknown as HqEventLogPreset),
-    ).toThrow(/Unknown HqEventLogPreset/);
+    expect(() => hqEventLogPresetFields('vps128' as unknown as HqEventLogPreset)).toThrow(
+      /Unknown HqEventLogPreset/,
+    );
   });
 
   it('a HqEventLog built with a preset matches the preset numbers', () => {

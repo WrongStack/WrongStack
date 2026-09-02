@@ -15,4 +15,9 @@
  * @module security/file-permissions
  */
 
-export { restrictDirPermissions, restrictFilePermissions, SECRET_DIR_MODE, SECRET_FILE_MODE } from '@wrongstack/persistence';
+export {
+  restrictDirPermissions,
+  restrictFilePermissions,
+  SECRET_DIR_MODE,
+  SECRET_FILE_MODE,
+} from '@wrongstack/persistence';

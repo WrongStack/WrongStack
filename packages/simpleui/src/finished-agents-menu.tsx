@@ -96,12 +96,7 @@ export function FinishedAgentsMenu({
         Finished ({agents.length})
       </button>
       {open && (
-        <div
-          className="agent-finished-menu"
-          role="menu"
-          aria-label="Finished agents"
-          ref={menuRef}
-        >
+        <div className="agent-finished-menu" role="menu" aria-label="Finished agents" ref={menuRef}>
           {agents.map((agent, index) => (
             <button
               type="button"

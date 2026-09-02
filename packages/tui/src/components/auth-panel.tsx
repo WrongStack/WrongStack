@@ -53,7 +53,9 @@ const OAUTH_LABEL: Record<string, { title: string; detail: string }> = {
   copilot: { title: 'GitHub Copilot', detail: '→ github-copilot' },
 };
 
-export function formatExpiry(expiresAt: string | undefined): { text: string; color: string } | null {
+export function formatExpiry(
+  expiresAt: string | undefined,
+): { text: string; color: string } | null {
   if (!expiresAt) return null;
   const expiry = Date.parse(expiresAt);
   if (!Number.isFinite(expiry)) return null;
@@ -62,8 +64,10 @@ export function formatExpiry(expiresAt: string | undefined): { text: string; col
   const msLeft = expiry - now;
 
   if (msLeft <= 0) return { text: 'expired', color: UI_COLORS.error };
-  if (msLeft < 60 * 60_000) return { text: `${Math.round(msLeft / 60_000)}m left`, color: UI_COLORS.error };
-  if (msLeft < 24 * 60 * 60_000) return { text: `${Math.round(msLeft / (60 * 60_000))}h left`, color: UI_COLORS.warning };
+  if (msLeft < 60 * 60_000)
+    return { text: `${Math.round(msLeft / 60_000)}m left`, color: UI_COLORS.error };
+  if (msLeft < 24 * 60 * 60_000)
+    return { text: `${Math.round(msLeft / (60 * 60_000))}h left`, color: UI_COLORS.warning };
   return { text: `${Math.round(msLeft / (24 * 60 * 60_000))}d left`, color: UI_COLORS.inactive };
 }
 

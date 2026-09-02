@@ -11,7 +11,13 @@ import { CircleDollarSign } from 'lucide-react';
 import type * as React from 'react';
 import { useMemo } from 'react';
 import { useHqStore } from '../data/store/index.js';
-import { HeroMetric, Section, ShareBar, ViewHero, ViewShell } from '../components/hq/view-chrome.js';
+import {
+  HeroMetric,
+  Section,
+  ShareBar,
+  ViewHero,
+  ViewShell,
+} from '../components/hq/view-chrome.js';
 import { EmptyState, Mono } from '../components/hq/primitives.js';
 import { Badge } from '../components/ui/badge.js';
 import { Card } from '../components/ui/card.js';
@@ -83,9 +89,7 @@ export function CostView(): React.ReactElement {
       <Section
         eyebrow="Spend distribution"
         title="By project"
-        action={
-          leader !== undefined && <Badge tone="info">leader: {leader.projectName}</Badge>
-        }
+        action={leader !== undefined && <Badge tone="info">leader: {leader.projectName}</Badge>}
       >
         <div className="space-y-2">
           {ranked.map((project, index) => {

@@ -21,13 +21,19 @@ class FakeSocket implements HqSocketLike {
     this.emit('close', {});
   }
 
-  addEventListener(type: 'open' | 'close' | 'error' | 'message', listener: (event: unknown) => void): void {
+  addEventListener(
+    type: 'open' | 'close' | 'error' | 'message',
+    listener: (event: unknown) => void,
+  ): void {
     const existing = this.listeners.get(type) ?? new Set();
     existing.add(listener);
     this.listeners.set(type, existing);
   }
 
-  removeEventListener(type: 'open' | 'close' | 'error' | 'message', listener: (event: unknown) => void): void {
+  removeEventListener(
+    type: 'open' | 'close' | 'error' | 'message',
+    listener: (event: unknown) => void,
+  ): void {
     this.listeners.get(type)?.delete(listener);
   }
 

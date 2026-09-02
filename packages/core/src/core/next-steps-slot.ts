@@ -83,9 +83,7 @@ export function writePendingNextSteps(
 }
 
 /** Read the parked steps, or undefined when the slot is empty or malformed. */
-export function readPendingNextSteps(
-  ctx: Pick<Context, 'meta'>,
-): PendingNextStep[] | undefined {
+export function readPendingNextSteps(ctx: Pick<Context, 'meta'>): PendingNextStep[] | undefined {
   const raw = ctx.meta[SLOT_KEY];
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
   const steps = raw.filter(

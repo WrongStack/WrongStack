@@ -159,12 +159,30 @@ export function InterfacesPage() {
         <SectionIntro index="05" eyebrow="Related" title="Explore more interfaces and tools." />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { href: '/hq', label: 'HQ Command Center', desc: 'Web-based fleet control panel. Monitor status, send steer prompts, queue work.' },
-            { href: '/telegram', label: 'Telegram', desc: 'Push notifications, approval prompts, and remote commands through Telegram.' },
-            { href: '/sync', label: 'GitHub Sync', desc: 'Sync settings, skills, prompts, and memory across machines.' },
+            {
+              href: '/hq',
+              label: 'HQ Command Center',
+              desc: 'Web-based fleet control panel. Monitor status, send steer prompts, queue work.',
+            },
+            {
+              href: '/telegram',
+              label: 'Telegram',
+              desc: 'Push notifications, approval prompts, and remote commands through Telegram.',
+            },
+            {
+              href: '/sync',
+              label: 'GitHub Sync',
+              desc: 'Sync settings, skills, prompts, and memory across machines.',
+            },
           ].map(({ href, label, desc }) => (
-            <Link key={href} href={href} className="group rounded-xl border border-line bg-card p-5 hover:border-brand/40 transition-colors">
-              <h3 className="font-black text-base text-fg group-hover:text-brand transition-colors">{label}</h3>
+            <Link
+              key={href}
+              href={href}
+              className="group rounded-xl border border-line bg-card p-5 hover:border-brand/40 transition-colors"
+            >
+              <h3 className="font-black text-base text-fg group-hover:text-brand transition-colors">
+                {label}
+              </h3>
               <p className="mt-2 text-xs leading-5 text-muted">{desc}</p>
               <span className="mt-3 inline-block text-xs font-bold text-brand">Explore →</span>
             </Link>
@@ -172,7 +190,12 @@ export function InterfacesPage() {
         </div>
       </section>
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
-        <SectionIntro index="04" eyebrow="Quick comparison" title="When to use which surface." description="Each of the six interfaces excels at a different workflow. You don't have to choose one — mix them as your task demands." />
+        <SectionIntro
+          index="04"
+          eyebrow="Quick comparison"
+          title="When to use which surface."
+          description="Each of the six interfaces excels at a different workflow. You don't have to choose one — mix them as your task demands."
+        />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           {surfaces.map(({ name, best, launch }) => (
             <div key={name} className="rounded-xl border border-line bg-card p-4">

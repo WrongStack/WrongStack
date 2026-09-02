@@ -171,9 +171,7 @@ export function buildSymbolGraphNodes(
   matched.sort((a, b) => {
     const aExternal = a.isExt ? 1 : 0;
     const bExternal = b.isExt ? 1 : 0;
-    return (
-      aExternal - bExternal || a.file.localeCompare(b.file) || a.line - b.line || a.id - b.id
-    );
+    return aExternal - bExternal || a.file.localeCompare(b.file) || a.line - b.line || a.id - b.id;
   });
 
   return matched.map((s) => ({

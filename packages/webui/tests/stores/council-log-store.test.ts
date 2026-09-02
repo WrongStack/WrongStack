@@ -137,18 +137,20 @@ describe('recordResolution', () => {
   it('opens a panel even when no seat vote arrived first', () => {
     // Every seat can fail before emitting a usable vote; the resolution still
     // carries the counts, and dropping it would hide the failure entirely.
-    useCouncilLogStore.getState().recordResolution(
-      resolution({ status: 'abstained', validVoteCount: 0 }),
-    );
+    useCouncilLogStore
+      .getState()
+      .recordResolution(resolution({ status: 'abstained', validVoteCount: 0 }));
 
     expect(panel().phase).toBe('resolved');
     expect(panel().seats).toHaveLength(0);
   });
 
   it('retains the distinctness warnings that flag a correlated panel', () => {
-    useCouncilLogStore.getState().recordResolution(
-      resolution({ warnings: ['Council distinctness policy "model" was not met.', 42] }),
-    );
+    useCouncilLogStore
+      .getState()
+      .recordResolution(
+        resolution({ warnings: ['Council distinctness policy "model" was not met.', 42] }),
+      );
 
     expect(panel().warnings).toEqual(['Council distinctness policy "model" was not met.']);
   });
@@ -225,9 +227,9 @@ describe('summarizeCouncilPanel', () => {
   it('puts panel diversity on the headline next to the seat count', () => {
     // A panel whose seats all resolved to the same model produces a normal
     // unanimous verdict while adding cost without adding independence.
-    useCouncilLogStore.getState().recordResolution(
-      resolution({ distinctTargetCount: 1, judgeUsed: true }),
-    );
+    useCouncilLogStore
+      .getState()
+      .recordResolution(resolution({ distinctTargetCount: 1, judgeUsed: true }));
 
     expect(summarizeCouncilPanel(panel())).toBe(
       'majority · 3/3 seats · 1 distinct target · judge used · 1.3s · 420 tok',

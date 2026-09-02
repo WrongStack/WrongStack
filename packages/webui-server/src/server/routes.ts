@@ -68,10 +68,7 @@ import {
   handleBrainStatus,
 } from './brain-handlers.js';
 import type { BrainRouteHandlers } from './brain-routes.js';
-import {
-  createChimeraRouteHandlers,
-  type ChimeraRouteHandlers,
-} from './chimera-routes.js';
+import { createChimeraRouteHandlers, type ChimeraRouteHandlers } from './chimera-routes.js';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { handleConfigDoctor } from './config-doctor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
@@ -926,7 +923,8 @@ export function buildRoutes(
         messageSessionId(msg),
       ),
     configGet: (ws) => handleBrainConfigGet(brainContext, ws),
-    configSet: (ws, msg) => handleBrainConfigSet(brainContext, ws, msg.payload, messageSessionId(msg)),
+    configSet: (ws, msg) =>
+      handleBrainConfigSet(brainContext, ws, msg.payload, messageSessionId(msg)),
   };
 
   const goalRoutes: GoalRouteHandlers = {

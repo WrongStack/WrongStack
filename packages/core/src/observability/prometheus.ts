@@ -136,7 +136,10 @@ export interface MetricsServerOptions {
 
 /** Loopback check for the bind guard. Mirrors the MCP server's helper. */
 function isLoopbackBindHost(host: string): boolean {
-  const h = host.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  const h = host
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '');
   return h === '127.0.0.1' || h === 'localhost' || h === '::1' || h.startsWith('127.');
 }
 
@@ -184,7 +187,10 @@ export async function startMetricsServer(opts: MetricsServerOptions): Promise<Me
     );
   }
 
-  type RequestListener = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void;
+  type RequestListener = (
+    req: import('node:http').IncomingMessage,
+    res: import('node:http').ServerResponse,
+  ) => void;
   const listener: RequestListener = (req, res) => {
     if (!req.url || req.method !== 'GET') {
       res.statusCode = req.url ? 405 : 400;
@@ -239,10 +245,7 @@ export async function startMetricsServer(opts: MetricsServerOptions): Promise<Me
   if (useHttps && tls) {
     const { createServer } = await import('node:https');
     const { readFileSync } = await import('node:fs');
-    server = createServer(
-      { cert: readFileSync(tls.cert), key: readFileSync(tls.key) },
-      listener,
-    );
+    server = createServer({ cert: readFileSync(tls.cert), key: readFileSync(tls.key) }, listener);
   } else {
     const { createServer } = await import('node:http');
     server = createServer(listener);

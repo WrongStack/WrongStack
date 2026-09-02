@@ -5,11 +5,7 @@
   "description": "Draw careful, caveated conclusions from an analysis.",
   "content": "Here are my analysis results: {{results}}\n\nHelp me interpret them honestly. What can I legitimately conclude, and what would be over-reaching? Check for: confounders, correlation-vs-causation, sample-size/selection issues, multiple-comparison risk, and practical vs. statistical significance. Tell me the caveats I should state alongside any headline finding, and what follow-up would strengthen the conclusion.",
   "category": "data-analysis",
-  "tags": [
-    "interpretation",
-    "statistics",
-    "rigor"
-  ],
+  "tags": ["interpretation", "statistics", "rigor"],
   "source": "builtin",
   "favorite": false,
   "checksum": "87183876b91895ed8d017612157f668f19a04d46f4e9ee9ccf0e99dbe0411950",

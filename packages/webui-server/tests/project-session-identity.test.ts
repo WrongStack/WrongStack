@@ -53,12 +53,12 @@ describe('WebUI project switch session identity', () => {
   });
 
   function makeHarness(
-    onSessionSwapped = vi.fn<(sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>>(
-      async () => undefined,
-    ),
-    onBeforeSessionTodosReplaced = vi.fn<(sessionId: string, sessionsDir: string) => void | Promise<void>>(
-      async () => undefined,
-    ),
+    onSessionSwapped = vi.fn<
+      (sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>
+    >(async () => undefined),
+    onBeforeSessionTodosReplaced = vi.fn<
+      (sessionId: string, sessionsDir: string) => void | Promise<void>
+    >(async () => undefined),
   ) {
     const old = writer('2026-07-27/sess_old');
     const next = writer('2026-07-27/sess_new');

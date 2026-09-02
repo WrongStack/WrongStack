@@ -4,11 +4,7 @@
  *
  * Extracted from scrollable-history.tsx.
  */
-import {
-  COPY_ICON_WIDTH,
-  copyableTextForEntries,
-  copyableTextForEntry,
-} from './copy-icon.js';
+import { COPY_ICON_WIDTH, copyableTextForEntries, copyableTextForEntry } from './copy-icon.js';
 import type { HistoryEntry } from './index.js';
 
 /**

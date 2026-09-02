@@ -17,7 +17,9 @@ function mockReaddirSync(p: string, options?: { withFileTypes?: boolean }) {
   const entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[] = [];
   for (const [path, entry] of Object.entries(mockFs)) {
     const normalized = normalizePath(path).replace(/\/$/, '') || '/';
-    const parent = normalized.includes('/') ? normalized.slice(0, normalized.lastIndexOf('/')) || '/' : '/';
+    const parent = normalized.includes('/')
+      ? normalized.slice(0, normalized.lastIndexOf('/')) || '/'
+      : '/';
     if (parent === dir) {
       const name = normalized.split('/').pop()!;
       entries.push({
@@ -85,12 +87,18 @@ const plugin = (await import('../src/refactor-suggester')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
 }
 
-function makeApi(overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {}): MockApi {
+function makeApi(
+  overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {},
+): MockApi {
   return {
     tools: { register: vi.fn() },
     config: {
@@ -162,7 +170,9 @@ describe('refactor-suggester plugin shape', () => {
     const api = makeApi({ enabled: true });
     plugin.setup(api as never);
     expect(api.tools.register).toHaveBeenCalledTimes(2);
-    const names = api.tools.register.mock.calls.map(([t]: unknown[]) => (t as { name: string }).name);
+    const names = api.tools.register.mock.calls.map(
+      ([t]: unknown[]) => (t as { name: string }).name,
+    );
     expect(names).toContain('suggest_refactors');
     expect(names).toContain('refactor_status');
     const [event, matcher] = api.registerHook.mock.calls[0]!;
@@ -190,8 +200,7 @@ describe('suggest_refactors tool', () => {
 
   it('detects magic numbers and console.log', async () => {
     setFilesystem({
-      '/project/src/app.ts':
-        'export function run() {\n  console.log("start");\n  return 42;\n}\n',
+      '/project/src/app.ts': 'export function run() {\n  console.log("start");\n  return 42;\n}\n',
     });
 
     const api = makeApi({ enabled: true });
@@ -217,14 +226,18 @@ describe('suggest_refactors tool', () => {
       ok: boolean;
       suggestions: Array<{ type: string }>;
     };
-    expect(result.suggestions).not.toContainEqual(expect.objectContaining({ type: 'magic-number' }));
+    expect(result.suggestions).not.toContainEqual(
+      expect.objectContaining({ type: 'magic-number' }),
+    );
   });
 
   it('caps suggestions at maxSuggestions', async () => {
     const content = Array.from({ length: 30 }, (_, i) => `console.log(${i + 10});`).join('\n');
     setFilesystem({ '/project/src/noisy.ts': content });
 
-    const api = makeApi({ extensions: { 'refactor-suggester': { enabled: true, maxSuggestions: 5 } } });
+    const api = makeApi({
+      extensions: { 'refactor-suggester': { enabled: true, maxSuggestions: 5 } },
+    });
     plugin.setup(api as never);
     const suggest = getTool(api, 'suggest_refactors');
     const result = (await suggest({ path: 'src/noisy.ts' })) as {
@@ -354,7 +367,10 @@ describe('teardown + counters', () => {
     const api = makeApi({ enabled: true });
     plugin.setup(api as never);
     plugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith('refactor-suggester: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'refactor-suggester: teardown complete',
+      expect.any(Object),
+    );
     const health = (await plugin.health!()) as { counters: Record<string, number> };
     expect(health.counters['scans']).toBe(0);
     expect(health.counters['suggestions']).toBe(0);

@@ -171,7 +171,10 @@ export class ReadOnlyPermissionPolicy implements PermissionPolicy {
   }
 
   async reload(): Promise<void> {
-    if ('reload' in this.inner && typeof (this.inner as { reload: () => Promise<void> }).reload === 'function') {
+    if (
+      'reload' in this.inner &&
+      typeof (this.inner as { reload: () => Promise<void> }).reload === 'function'
+    ) {
       await (this.inner as { reload: () => Promise<void> }).reload();
     }
   }
@@ -184,7 +187,15 @@ export class ReadOnlyPermissionPolicy implements PermissionPolicy {
       return {
         toolName: tool.name,
         subject: null,
-        steps: [{ rule: 'inner', matched: true, decision: decision.permission === 'deny' ? 'deny' : 'auto', source: decision.source, detail: decision.reason ?? 'Inner policy decision' }],
+        steps: [
+          {
+            rule: 'inner',
+            matched: true,
+            decision: decision.permission === 'deny' ? 'deny' : 'auto',
+            source: decision.source,
+            detail: decision.reason ?? 'Inner policy decision',
+          },
+        ],
         winnerIndex: 0,
         decision,
       };
@@ -198,7 +209,15 @@ export class ReadOnlyPermissionPolicy implements PermissionPolicy {
       return {
         toolName: tool.name,
         subject: null,
-        steps: [{ rule: 'readonly_mode', matched: decision.permission === 'deny', decision: decision.permission === 'deny' ? 'deny' : 'auto', source: 'readonly_mode', detail: decision.reason ?? 'Read-only mode' }],
+        steps: [
+          {
+            rule: 'readonly_mode',
+            matched: decision.permission === 'deny',
+            decision: decision.permission === 'deny' ? 'deny' : 'auto',
+            source: 'readonly_mode',
+            detail: decision.reason ?? 'Read-only mode',
+          },
+        ],
         winnerIndex: 0,
         decision,
       };
@@ -207,13 +226,15 @@ export class ReadOnlyPermissionPolicy implements PermissionPolicy {
     return {
       toolName: tool.name,
       subject: null,
-      steps: [{
-        rule: 'readonly_mode',
-        matched: true,
-        decision: 'deny',
-        source: 'readonly_mode',
-        detail: `Read-only mode blocks ${tool.name} because it carries mutation capabilities (${(tool.capabilities ?? []).filter((c) => MUTATION_CAPABILITIES.has(c)).join(', ')}). Only .md files under .temp_files/ may be written.`,
-      }],
+      steps: [
+        {
+          rule: 'readonly_mode',
+          matched: true,
+          decision: 'deny',
+          source: 'readonly_mode',
+          detail: `Read-only mode blocks ${tool.name} because it carries mutation capabilities (${(tool.capabilities ?? []).filter((c) => MUTATION_CAPABILITIES.has(c)).join(', ')}). Only .md files under .temp_files/ may be written.`,
+        },
+      ],
       winnerIndex: 0,
       decision: {
         permission: 'deny',

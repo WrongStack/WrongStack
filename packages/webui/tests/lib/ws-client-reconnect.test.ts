@@ -52,7 +52,10 @@ vi.stubGlobal('WebSocket', FakeWSModule.klass);
 
 // ensureAuthCookie() in connect() calls fetch; stub it so it resolves
 // immediately without touching the network.
-vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200 } as unknown as Response)));
+vi.stubGlobal(
+  'fetch',
+  vi.fn(() => Promise.resolve({ ok: true, status: 200 } as unknown as Response)),
+);
 
 // ── SUT (imported after stubs are registered) ─────────────────────────────
 import { WrongStackWebSocketClient } from '../../src/lib/ws-client';
@@ -62,7 +65,7 @@ function instances(): FakeWS[] {
 }
 function last(): FakeWS | null {
   const all = instances();
-  return all.length > 0 ? (all[all.length - 1] as FakeWS) ?? null : null;
+  return all.length > 0 ? ((all[all.length - 1] as FakeWS) ?? null) : null;
 }
 
 beforeEach(() => {
@@ -160,7 +163,9 @@ describe('WrongStackWebSocketClient — reconnection state machine', () => {
   it('retryNow resets the attempt counter and immediately connects', async () => {
     const client = new WrongStackWebSocketClient('ws://127.0.0.1:65535');
     let lastState = '';
-    client.onStatus((s) => { lastState = s.state; });
+    client.onStatus((s) => {
+      lastState = s.state;
+    });
 
     // Establish, then drop to enter reconnecting.
     const p = client.connect();

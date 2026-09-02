@@ -85,7 +85,9 @@ export function parseCouncilResponse(
   };
 }
 
-export function divergentStances(valid: readonly (CouncilVoteResult & { stance: string })[]): boolean {
+export function divergentStances(
+  valid: readonly (CouncilVoteResult & { stance: string })[],
+): boolean {
   const seen = new Set<string>();
   for (const vote of valid) {
     const normalized = vote.stance
@@ -144,7 +146,11 @@ export function parseJudge(
   };
 }
 
-export function withTruncationNote(error: string, result: OneShotLLMResult, maxTokens: number): string {
+export function withTruncationNote(
+  error: string,
+  result: OneShotLLMResult,
+  maxTokens: number,
+): string {
   if (result.stopReason !== 'max_tokens') return error;
   return `${error} (response truncated at maxTokens=${maxTokens} — reasoning models may need a larger budget)`;
 }

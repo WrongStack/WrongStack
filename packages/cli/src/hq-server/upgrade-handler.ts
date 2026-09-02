@@ -10,10 +10,7 @@ import { isLoopbackHost, type HqToken, hqTokenVerifier } from '@wrongstack/core/
 import type { WebSocket, WebSocketServer } from 'ws';
 import * as HqServerAuth from './auth.js';
 import type { HqAuthState } from './auth-state.js';
-import {
-  hasTrustedBrowserOrigin,
-  parseHqSessionCookie,
-} from './routes.js';
+import { hasTrustedBrowserOrigin, parseHqSessionCookie } from './routes.js';
 import type { ConnectedClient, HqSessionEntry, TranscriptRing } from './types.js';
 import * as HqServerWs from './ws.js';
 
@@ -162,7 +159,9 @@ export function handleHqConnection(
   if (pathname === '/ws/browser') {
     HqServerWs.handleBrowser(ws, deps.snapshotBroadcaster, deps.browsers, deps.eventLog);
   } else {
-    const token = new URL(req.url ?? '/', `http://${deps.host}:${deps.port}`).searchParams.get('token');
+    const token = new URL(req.url ?? '/', `http://${deps.host}:${deps.port}`).searchParams.get(
+      'token',
+    );
     const authToken = token
       ? deps.mutableAuth.clientTokenObjs.get(hqTokenVerifier(token))
       : undefined;

@@ -66,7 +66,7 @@ export function executeUnifiedSearch(
   options?: SearchOptions | undefined,
 ): SearchResult {
   const limit = Math.min(Math.max(options?.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
-  const statusFilter = options?.includeStatuses ?? ['active'] as SageStatus[];
+  const statusFilter = options?.includeStatuses ?? (['active'] as SageStatus[]);
   const ranking: SearchRanking = options?.ranking ?? 'hybrid';
   // Session isolation: session-scoped memories must only be visible to their
   // owning session (or to administrative callers that opt out explicitly).
@@ -83,7 +83,13 @@ export function executeUnifiedSearch(
   }
 
   if (statusFilter.length === 0) {
-    return { hits: [], suggestions: [], totalCandidates: 0, rankingApplied: ranking, queryEcho: {} };
+    return {
+      hits: [],
+      suggestions: [],
+      totalCandidates: 0,
+      rankingApplied: ranking,
+      queryEcho: {},
+    };
   }
 
   // JS-side filters (audience/anchor) live in the JSON payload and cannot be
@@ -194,9 +200,7 @@ export function executeUnifiedSearch(
       params.push(...session.params);
     }
 
-    const sharedWhereSql = sharedWhere.length > 0
-      ? ' WHERE ' + sharedWhere.join(' AND ')
-      : '';
+    const sharedWhereSql = sharedWhere.length > 0 ? ' WHERE ' + sharedWhere.join(' AND ') : '';
 
     const dataSql =
       `SELECT data FROM memories` +
@@ -317,10 +321,7 @@ function buildMatchExpr(query: SearchQuery): string | undefined {
  * Returns separate clauses for FTS (aliased `m.`) and non-FTS paths
  * because the FTS join requires the `m.` prefix on some columns.
  */
-function buildOrderBy(
-  ranking: SearchRanking,
-  hasFts: boolean,
-): { fts: string; nonFts: string } {
+function buildOrderBy(ranking: SearchRanking, hasFts: boolean): { fts: string; nonFts: string } {
   switch (ranking) {
     case 'recency':
       return {
@@ -472,7 +473,8 @@ function audienceSelectorMatches(
   const intersects = (a?: string[], b?: string[]): boolean =>
     a !== undefined && b !== undefined && a.some((value) => b.includes(value));
   if (memoryAudience.roles && !intersects(want.roles, memoryAudience.roles)) return false;
-  if (memoryAudience.taskTypes && !intersects(want.taskTypes, memoryAudience.taskTypes)) return false;
+  if (memoryAudience.taskTypes && !intersects(want.taskTypes, memoryAudience.taskTypes))
+    return false;
   if (memoryAudience.modes && !intersects(want.modes, memoryAudience.modes)) return false;
   return true;
 }

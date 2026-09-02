@@ -124,7 +124,7 @@ describe('validateTransition', () => {
     { from: 'active', to: 'ignored', valid: true },
     { from: 'active', to: 'resolved', valid: true },
     { from: 'active', to: 'in_progress', valid: false },
-    { from: 'active', to: 'active', valid: true },  // idempotent
+    { from: 'active', to: 'active', valid: true }, // idempotent
     // triaged → *
     { from: 'triaged', to: 'in_progress', valid: true },
     { from: 'triaged', to: 'ignored', valid: true },

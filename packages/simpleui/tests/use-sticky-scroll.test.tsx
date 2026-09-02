@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act } from 'react';
-import { createRoot, } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { useStickyScroll } = await import('../src/hooks/use-sticky-scroll.js');

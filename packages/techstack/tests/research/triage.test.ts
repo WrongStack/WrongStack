@@ -100,7 +100,12 @@ describe('triageCandidates — ranking', () => {
   it('ranks an exploitable transitive dep above a direct major bump', () => {
     const deps = [
       makeDep({ name: 'direct-major', status: 'update_available_breaking', direct: true }),
-      makeDep({ name: 'transitive-vuln', status: 'vulnerable', direct: false, scope: 'transitive' }),
+      makeDep({
+        name: 'transitive-vuln',
+        status: 'vulnerable',
+        direct: false,
+        scope: 'transitive',
+      }),
     ];
 
     expect(triageCandidates(deps)[0]?.dependency.name).toBe('transitive-vuln');
@@ -132,9 +137,27 @@ describe('triageCandidates — ranking', () => {
 describe('triageCandidates — dedup', () => {
   it('collapses the same package hoisted across workspaces into one question', () => {
     const deps = [
-      makeDep({ id: 'a', workspaceId: 'ws-1', name: 'lodash', locked: '4.17.20', status: 'vulnerable' }),
-      makeDep({ id: 'b', workspaceId: 'ws-2', name: 'lodash', locked: '4.17.20', status: 'vulnerable' }),
-      makeDep({ id: 'c', workspaceId: 'ws-3', name: 'lodash', locked: '4.17.20', status: 'vulnerable' }),
+      makeDep({
+        id: 'a',
+        workspaceId: 'ws-1',
+        name: 'lodash',
+        locked: '4.17.20',
+        status: 'vulnerable',
+      }),
+      makeDep({
+        id: 'b',
+        workspaceId: 'ws-2',
+        name: 'lodash',
+        locked: '4.17.20',
+        status: 'vulnerable',
+      }),
+      makeDep({
+        id: 'c',
+        workspaceId: 'ws-3',
+        name: 'lodash',
+        locked: '4.17.20',
+        status: 'vulnerable',
+      }),
     ];
 
     expect(triageCandidates(deps)).toHaveLength(1);
@@ -142,7 +165,13 @@ describe('triageCandidates — dedup', () => {
 
   it('keeps the actionable copy when a package is both direct and transitive', () => {
     const deps = [
-      makeDep({ id: 'transitive', name: 'lodash', status: 'vulnerable', direct: false, scope: 'transitive' }),
+      makeDep({
+        id: 'transitive',
+        name: 'lodash',
+        status: 'vulnerable',
+        direct: false,
+        scope: 'transitive',
+      }),
       makeDep({ id: 'direct', name: 'lodash', status: 'vulnerable', direct: true }),
     ];
 
@@ -165,7 +194,11 @@ describe('triageCandidates — cap', () => {
   it('caps the result and keeps the highest-priority candidates', () => {
     const deps = [
       ...Array.from({ length: 50 }, (_, i) =>
-        makeDep({ id: `low-${i}`, name: `low-${String(i).padStart(2, '0')}`, status: 'update_available_breaking' }),
+        makeDep({
+          id: `low-${i}`,
+          name: `low-${String(i).padStart(2, '0')}`,
+          status: 'update_available_breaking',
+        }),
       ),
       makeDep({ id: 'critical', name: 'critical', status: 'vulnerable' }),
     ];
@@ -193,7 +226,10 @@ describe('clusterCandidates', () => {
     ];
 
     const grouped = clusterCandidates(triageCandidates(deps));
-    expect(grouped.get('vulnerability')?.map((c) => c.dependency.name)).toEqual(['vuln-a', 'vuln-b']);
+    expect(grouped.get('vulnerability')?.map((c) => c.dependency.name)).toEqual([
+      'vuln-a',
+      'vuln-b',
+    ]);
     expect(grouped.get('replacement')?.map((c) => c.dependency.name)).toEqual(['dep-a']);
     expect(grouped.has('breaking_change')).toBe(false);
   });

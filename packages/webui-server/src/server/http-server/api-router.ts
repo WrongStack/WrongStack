@@ -233,9 +233,7 @@ export async function handleApiRoutes(
     return true;
   }
 
-  const intakeProjectMatch = url.pathname.match(
-    /^\/api\/projects\/([^/]+)\/requirement-intakes$/,
-  );
+  const intakeProjectMatch = url.pathname.match(/^\/api\/projects\/([^/]+)\/requirement-intakes$/);
   if (intakeProjectMatch && req.method === 'POST') {
     if (requireAccessToken && !accessTokenOk) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -538,11 +536,7 @@ export async function handleApiRoutes(
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return true;
     }
-    await handleVectorMemoryForget(
-      res,
-      url,
-      () => deps.getVectorMemoryStore?.(),
-    );
+    await handleVectorMemoryForget(res, url, () => deps.getVectorMemoryStore?.());
     return true;
   }
 
@@ -558,16 +552,10 @@ export async function handleApiRoutes(
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return true;
     }
-    await handleVectorMemoryStatus(
-      res,
-      () => deps.getVectorMemoryStore?.(),
-      {
-        ...(deps.projectRoot ? { projectRoot: deps.projectRoot } : {}),
-        ...(deps.vectorMemoryModelCacheDir
-          ? { modelCacheDir: deps.vectorMemoryModelCacheDir }
-          : {}),
-      },
-    );
+    await handleVectorMemoryStatus(res, () => deps.getVectorMemoryStore?.(), {
+      ...(deps.projectRoot ? { projectRoot: deps.projectRoot } : {}),
+      ...(deps.vectorMemoryModelCacheDir ? { modelCacheDir: deps.vectorMemoryModelCacheDir } : {}),
+    });
     return true;
   }
 

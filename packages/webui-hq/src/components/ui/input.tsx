@@ -9,9 +9,7 @@ export function Input({
   type = 'text',
   ...props
 }: React.ComponentProps<'input'>): React.ReactElement {
-  return (
-    <input data-slot="input" type={type} className={cn(FIELD, 'h-9', className)} {...props} />
-  );
+  return <input data-slot="input" type={type} className={cn(FIELD, 'h-9', className)} {...props} />;
 }
 
 export function Textarea({

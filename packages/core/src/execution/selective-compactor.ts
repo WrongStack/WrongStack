@@ -89,7 +89,12 @@ export class SelectiveCompactor implements Compactor {
   constructor(opts: SelectiveCompactorOptions) {
     this.provider = opts.provider;
     this.selector =
-      opts.selector ?? new LLMSelector({ provider: opts.provider, model: opts.selectorModel, maxOutputTokens: opts.selectorMaxOutputTokens });
+      opts.selector ??
+      new LLMSelector({
+        provider: opts.provider,
+        model: opts.selectorModel,
+        maxOutputTokens: opts.selectorMaxOutputTokens,
+      });
     this.warnThreshold = opts.warnThreshold ?? 0.5;
     this.softThreshold = opts.softThreshold ?? 0.65;
     this.hardThreshold = opts.hardThreshold ?? 0.8;
@@ -113,11 +118,13 @@ export class SelectiveCompactor implements Compactor {
       );
     }
     this.summarizerPrompt =
-      opts.summarizerPrompt ??
-      readBundledInstructionText('llm/selective-compactor-summarizer.md');
+      opts.summarizerPrompt ?? readBundledInstructionText('llm/selective-compactor-summarizer.md');
   }
 
-  async compact(ctx: Context, opts: { aggressive?: boolean | undefined } = {}): Promise<CompactReport> {
+  async compact(
+    ctx: Context,
+    opts: { aggressive?: boolean | undefined } = {},
+  ): Promise<CompactReport> {
     const beforeTokens = this.estimateTokens(ctx.messages);
     const beforeFull = this.estimateFullRequest(ctx);
     const reductions: CompactReport['reductions'] = [];
@@ -321,7 +328,10 @@ export class SelectiveCompactor implements Compactor {
     const evidence: string[] = [];
     for (const message of messages) {
       if (typeof message.content === 'string') continue;
-      if (!message.content.some((block) => block.type === 'tool_use' || block.type === 'tool_result')) continue;
+      if (
+        !message.content.some((block) => block.type === 'tool_use' || block.type === 'tool_result')
+      )
+        continue;
       const preview = buildCompactionPreview(message, 360);
       if (preview) evidence.push(preview);
       if (evidence.join(' ').length >= 1400) break;

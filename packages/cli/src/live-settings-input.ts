@@ -53,7 +53,15 @@ export interface LiveSettingsInput {
   /** Single word shown in the TUI rainbow working-state chip. */
   thinkingWord?: string | undefined;
   /** Animation style for the TUI working-state chip. */
-  animationStyle?: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'static' | 'cycle' | undefined;
+  animationStyle?:
+    | 'rainbow'
+    | 'wave'
+    | 'pulse'
+    | 'dots'
+    | 'breathe'
+    | 'static'
+    | 'cycle'
+    | undefined;
   /** Provider-runtime reasoning mode. */
   reasoningMode?: 'auto' | 'on' | 'off' | undefined;
   /** Provider-runtime reasoning effort. */

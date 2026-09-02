@@ -7,7 +7,11 @@ const makeCtx = (initialShowSidebar = true) => {
   const configStore = {
     get: () => state,
     update: (patch: any) => {
-      state = { ...state, ...patch, autonomy: { ...(state.autonomy || {}), ...(patch.autonomy || {}) } };
+      state = {
+        ...state,
+        ...patch,
+        autonomy: { ...(state.autonomy || {}), ...(patch.autonomy || {}) },
+      };
       return state;
     },
   };

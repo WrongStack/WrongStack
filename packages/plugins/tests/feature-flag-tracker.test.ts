@@ -17,7 +17,9 @@ function mockReaddirSync(p: string, options?: { withFileTypes?: boolean }) {
   const entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[] = [];
   for (const [path, entry] of Object.entries(mockFs)) {
     const normalized = normalizePath(path).replace(/\/$/, '') || '/';
-    const parent = normalized.includes('/') ? normalized.slice(0, normalized.lastIndexOf('/')) || '/' : '/';
+    const parent = normalized.includes('/')
+      ? normalized.slice(0, normalized.lastIndexOf('/')) || '/'
+      : '/';
     if (parent === dir) {
       const name = normalized.split('/').pop()!;
       entries.push({
@@ -85,7 +87,11 @@ const plugin = (await import('../src/feature-flag-tracker')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
 }
@@ -163,7 +169,9 @@ describe('feature-flag-tracker plugin shape', () => {
     const api = makeApi();
     plugin.setup(api as never);
     expect(api.tools.register).toHaveBeenCalledTimes(2);
-    const names = api.tools.register.mock.calls.map(([t]: unknown[]) => (t as { name: string }).name);
+    const names = api.tools.register.mock.calls.map(
+      ([t]: unknown[]) => (t as { name: string }).name,
+    );
     expect(names).toContain('scan_feature_flags');
     expect(names).toContain('feature_flag_status');
     const [event, matcher] = api.registerHook.mock.calls[0]!;
@@ -204,7 +212,9 @@ describe('scan_feature_flags tool', () => {
     });
 
     const api = makeApi({
-      extensions: { 'feature-flag-tracker': { patterns: [String.raw`myCustomFlag\(['"]([^'"]+)['"]\)`] } },
+      extensions: {
+        'feature-flag-tracker': { patterns: [String.raw`myCustomFlag\(['"]([^'"]+)['"]\)`] },
+      },
     });
     plugin.setup(api as never);
     const scan = getTool(api, 'scan_feature_flags');
@@ -216,7 +226,9 @@ describe('scan_feature_flags tool', () => {
   });
 
   it('caps findings at maxFindings', async () => {
-    const content = Array.from({ length: 20 }, (_, i) => `isFeatureEnabled("flag-${i}");`).join('\n');
+    const content = Array.from({ length: 20 }, (_, i) => `isFeatureEnabled("flag-${i}");`).join(
+      '\n',
+    );
     setFilesystem({ '/project/src/flags.ts': content });
 
     const api = makeApi({ extensions: { 'feature-flag-tracker': { maxFindings: 3 } } });
@@ -345,7 +357,10 @@ describe('teardown + counters', () => {
     const api = makeApi();
     plugin.setup(api as never);
     plugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith('feature-flag-tracker: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'feature-flag-tracker: teardown complete',
+      expect.any(Object),
+    );
     const health = (await plugin.health!()) as { counters: Record<string, number> };
     expect(health.counters['scans']).toBe(0);
     expect(health.counters['flags']).toBe(0);

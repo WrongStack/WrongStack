@@ -35,12 +35,7 @@
   top: 0;
   width: 2px;
   height: 34%;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    hsl(var(--warning)),
-    transparent
-  );
+  background: linear-gradient(to bottom, transparent, hsl(var(--warning)), transparent);
   animation: wsRailSweep 1.9s ease-in-out infinite;
   pointer-events: none;
 }

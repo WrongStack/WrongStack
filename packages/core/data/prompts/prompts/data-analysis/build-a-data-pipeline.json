@@ -5,11 +5,7 @@
   "description": "Design an ETL/ELT pipeline that's reliable and observable.",
   "content": "Design a data pipeline for: {{requirement}}\n\nCover: the stages (extract, transform, load), how you handle late/duplicate/malformed records, idempotency and re-runs, schema evolution, and how you'd know it broke (data-quality checks and alerting). Choose batch vs. streaming and justify it. Call out the step most likely to silently corrupt data and how you'd guard it.",
   "category": "data-analysis",
-  "tags": [
-    "pipeline",
-    "etl",
-    "data-engineering"
-  ],
+  "tags": ["pipeline", "etl", "data-engineering"],
   "source": "builtin",
   "favorite": false,
   "checksum": "ee65f3cd153d3298555cd7a9bd73c34f43f904d7ee198114326f86346a25aa70",

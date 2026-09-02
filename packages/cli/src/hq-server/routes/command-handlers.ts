@@ -6,29 +6,14 @@ import type {
   HqCommandAuditLog,
   HqQueuedCommand,
 } from '@wrongstack/core/hq';
-import {
-  tokenHasCapability,
-  validateHqCommand,
-} from '@wrongstack/core/hq';
+import { tokenHasCapability, validateHqCommand } from '@wrongstack/core/hq';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { WebSocket } from 'ws';
-import {
-  authenticateBrowserRequest,
-  hqAuthRequired,
-  isCookieAuth,
-  isTokenAuth,
-} from '../auth.js';
+import { authenticateBrowserRequest, hqAuthRequired, isCookieAuth, isTokenAuth } from '../auth.js';
 import * as HqServerSnapshot from '../snapshot.js';
 import { authorizeHqCommand } from '../trust-boundary.js';
-import type {
-  ConnectedClient,
-  HqRouterMutableAuth,
-  HqSessionEntry,
-} from '../types.js';
-import {
-  readRequestBody,
-  writeInvalidBody,
-} from '../utils.js';
+import type { ConnectedClient, HqRouterMutableAuth, HqSessionEntry } from '../types.js';
+import { readRequestBody, writeInvalidBody } from '../utils.js';
 import { callerCanEnqueue } from './mailbox-handlers.js';
 
 export async function handleApiCommand(

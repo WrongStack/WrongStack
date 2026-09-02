@@ -19,15 +19,26 @@ afterEach(async () => {
 
 async function writeSession(events: object[]): Promise<string> {
   const id = 'sess';
-  await fs.writeFile(path.join(tmp, `${id}.jsonl`), events.map((e) => JSON.stringify(e)).join('\n') + '\n', 'utf8');
+  await fs.writeFile(
+    path.join(tmp, `${id}.jsonl`),
+    events.map((e) => JSON.stringify(e)).join('\n') + '\n',
+    'utf8',
+  );
   return id;
 }
 
 describe('session-rewinder — extra coverage', () => {
   it('rewindLastN returns an empty result when there are no checkpoints', async () => {
-    const id = await writeSession([{ type: 'session_start', ts: ts(), id: 's', model: 'm', provider: 'p' }]);
+    const id = await writeSession([
+      { type: 'session_start', ts: ts(), id: 's', model: 'm', provider: 'p' },
+    ]);
     const rewind = new DefaultSessionRewinder(tmp, tmp);
-    expect(await rewind.rewindLastN(id, 1)).toEqual({ revertedFiles: [], errors: [], toPromptIndex: 0, removedEvents: 0 });
+    expect(await rewind.rewindLastN(id, 1)).toEqual({
+      revertedFiles: [],
+      errors: [],
+      toPromptIndex: 0,
+      removedEvents: 0,
+    });
   });
 
   it('rewindToStart returns an empty result when there are no file snapshots', async () => {
@@ -36,7 +47,12 @@ describe('session-rewinder — extra coverage', () => {
       { type: 'checkpoint', ts: ts(), promptIndex: 0, promptPreview: 'p' },
     ]);
     const rewind = new DefaultSessionRewinder(tmp, tmp);
-    expect(await rewind.rewindToStart(id)).toEqual({ revertedFiles: [], errors: [], toPromptIndex: 0, removedEvents: 0 });
+    expect(await rewind.rewindToStart(id)).toEqual({
+      revertedFiles: [],
+      errors: [],
+      toPromptIndex: 0,
+      removedEvents: 0,
+    });
   });
 
   it('rewindToStart reverts in-root files, skips outside-root paths, and records per-file errors', async () => {

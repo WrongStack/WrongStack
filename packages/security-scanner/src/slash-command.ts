@@ -330,9 +330,7 @@ async function handleReport(
 
       const list = reports
         .map((r, i) => {
-          const date = r
-            .replace('security-report-', '')
-            .replace(/\.(markdown|md|json|html)$/, '');
+          const date = r.replace('security-report-', '').replace(/\.(markdown|md|json|html)$/, '');
           return `  ${i + 1}. ${date}`;
         })
         .join('\n');

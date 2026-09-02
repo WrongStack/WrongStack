@@ -75,20 +75,22 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
         },
       });
     }),
-    options.events.on('tool.failed', (event) => persist(options, event, {
-      eventType: 'tool.failed',
-      outcome: 'failure',
-      durationNs: millisecondsToNanoseconds(event.durationMs),
-      attributes: {
-        toolName: event.name,
-        category: event.category,
-        retryable: event.retryable,
-        detail: event.detail,
-        errorCode: event.errorCode,
-        errorSubsystem: event.errorSubsystem,
-        errorSeverity: event.errorSeverity,
-      },
-    })),
+    options.events.on('tool.failed', (event) =>
+      persist(options, event, {
+        eventType: 'tool.failed',
+        outcome: 'failure',
+        durationNs: millisecondsToNanoseconds(event.durationMs),
+        attributes: {
+          toolName: event.name,
+          category: event.category,
+          retryable: event.retryable,
+          detail: event.detail,
+          errorCode: event.errorCode,
+          errorSubsystem: event.errorSubsystem,
+          errorSeverity: event.errorSeverity,
+        },
+      }),
+    ),
     options.events.on('tool.progress', (event) => {
       if (event.event.type !== 'file_changed') return;
       const resource = progressResource(event);
@@ -106,7 +108,10 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
       });
     }),
   ];
-  return () => unsubs.forEach((unsubscribe) => { unsubscribe(); });
+  return () =>
+    unsubs.forEach((unsubscribe) => {
+      unsubscribe();
+    });
 }
 
 type ToolCorrelationEvent = {
@@ -189,7 +194,9 @@ function hashText(value: string): string {
 /** Return the string as-is when within the byte budget; otherwise return a
  *  `{ preview, truncated, totalBytes }` summary. The hash (always computed on
  *  the full value) preserves identity for large payloads. */
-function capPreview(value: string): string | { preview: string; truncated: true; totalBytes: number } {
+function capPreview(
+  value: string,
+): string | { preview: string; truncated: true; totalBytes: number } {
   // Fast path: short strings need only a cheap byteLength check for multibyte safety.
   if (value.length <= PREVIEW_MAX_BYTES) {
     if (Buffer.byteLength(value, 'utf8') <= PREVIEW_MAX_BYTES) return value;
@@ -199,8 +206,12 @@ function capPreview(value: string): string | { preview: string; truncated: true;
   if (buf.length <= PREVIEW_MAX_BYTES) return value;
   // Walk back to the nearest valid UTF-8 character boundary.
   let end = PREVIEW_MAX_BYTES;
-  while (end > 0 && (buf[end]! & 0xC0) === 0x80) end--;
-  return { preview: buf.subarray(0, end).toString('utf8'), truncated: true, totalBytes: buf.length };
+  while (end > 0 && (buf[end]! & 0xc0) === 0x80) end--;
+  return {
+    preview: buf.subarray(0, end).toString('utf8'),
+    truncated: true,
+    totalBytes: buf.length,
+  };
 }
 
 function millisecondsToNanoseconds(durationMs: number): string {

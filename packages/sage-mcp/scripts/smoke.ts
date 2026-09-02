@@ -134,10 +134,10 @@ async function main(): Promise<void> {
     const listResult = list['result'];
     const tools =
       listResult && typeof listResult === 'object'
-        ? ((listResult as Record<string, unknown>)['tools'] as Array<{
+        ? (((listResult as Record<string, unknown>)['tools'] as Array<{
             name: string;
             inputSchema: Record<string, unknown>;
-          }>) ?? []
+          }>) ?? [])
         : [];
     assert(
       tools.length >= 4,

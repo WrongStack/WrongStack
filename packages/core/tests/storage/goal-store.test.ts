@@ -77,7 +77,12 @@ describe('goal-store', () => {
     expect(next.journal[0]?.iteration).toBe(1);
     expect(next.journal[0]?.source).toBe('todo');
 
-    const after = appendJournal(next, { source: 'git', task: 'second', status: 'failure', note: 'bad' });
+    const after = appendJournal(next, {
+      source: 'git',
+      task: 'second',
+      status: 'failure',
+      note: 'bad',
+    });
     expect(after.iterations).toBe(2);
     expect(after.journal[1]?.iteration).toBe(2);
     expect(after.journal[1]?.note).toBe('bad');
@@ -105,8 +110,17 @@ describe('goal-store', () => {
 
   it('formatGoal includes header + recent journal', () => {
     let goal = emptyGoal('Mission X');
-    goal = appendJournal(goal, { source: 'todo', task: 'pick low-hanging fruit', status: 'success' });
-    goal = appendJournal(goal, { source: 'git', task: 'finish WIP', status: 'failure', note: 'tests red' });
+    goal = appendJournal(goal, {
+      source: 'todo',
+      task: 'pick low-hanging fruit',
+      status: 'success',
+    });
+    goal = appendJournal(goal, {
+      source: 'git',
+      task: 'finish WIP',
+      status: 'failure',
+      note: 'tests red',
+    });
     const out = formatGoal(goal);
     expect(out).toContain('Goal: Mission X');
     expect(out).toContain('Iterations: 2');

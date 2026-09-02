@@ -15,7 +15,9 @@ describe('favicon — SSR guard (line 46, 62)', () => {
 
   it('does nothing when document is undefined (SSR)', async () => {
     vi.stubGlobal('document', undefined);
-    const { setFaviconStatus, installFaviconVisibilityReset } = await import('../../src/lib/favicon');
+    const { setFaviconStatus, installFaviconVisibilityReset } = await import(
+      '../../src/lib/favicon'
+    );
     // ensureLink returns null → setFaviconStatus returns early
     expect(() => setFaviconStatus('running')).not.toThrow();
     // installFaviconVisibilityReset returns early (typeof document === 'undefined')
@@ -23,7 +25,9 @@ describe('favicon — SSR guard (line 46, 62)', () => {
   });
 
   it('installFaviconVisibilityReset is idempotent', async () => {
-    const { installFaviconVisibilityReset, setFaviconStatus } = await import('../../src/lib/favicon');
+    const { installFaviconVisibilityReset, setFaviconStatus } = await import(
+      '../../src/lib/favicon'
+    );
     // Call twice — second call should early-return on visibilityHookInstalled
     installFaviconVisibilityReset();
     installFaviconVisibilityReset();
@@ -33,7 +37,9 @@ describe('favicon — SSR guard (line 46, 62)', () => {
   });
 
   it('resets from "ready" status when tab becomes visible', async () => {
-    const { installFaviconVisibilityReset, setFaviconStatus } = await import('../../src/lib/favicon');
+    const { installFaviconVisibilityReset, setFaviconStatus } = await import(
+      '../../src/lib/favicon'
+    );
     Object.defineProperty(document, 'hidden', { configurable: true, value: true });
     setFaviconStatus('ready');
     installFaviconVisibilityReset();
@@ -47,7 +53,9 @@ describe('favicon — SSR guard (line 46, 62)', () => {
   });
 
   it('resets from "error" status when tab becomes visible', async () => {
-    const { installFaviconVisibilityReset, setFaviconStatus } = await import('../../src/lib/favicon');
+    const { installFaviconVisibilityReset, setFaviconStatus } = await import(
+      '../../src/lib/favicon'
+    );
     Object.defineProperty(document, 'hidden', { configurable: true, value: true });
     setFaviconStatus('error');
     installFaviconVisibilityReset();
@@ -60,7 +68,9 @@ describe('favicon — SSR guard (line 46, 62)', () => {
   });
 
   it('resets from "attention" status when tab becomes visible', async () => {
-    const { installFaviconVisibilityReset, setFaviconStatus } = await import('../../src/lib/favicon');
+    const { installFaviconVisibilityReset, setFaviconStatus } = await import(
+      '../../src/lib/favicon'
+    );
     Object.defineProperty(document, 'hidden', { configurable: true, value: true });
     setFaviconStatus('attention');
     installFaviconVisibilityReset();

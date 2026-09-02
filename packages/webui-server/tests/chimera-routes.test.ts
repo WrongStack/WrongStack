@@ -85,12 +85,24 @@ describe('handleChimeraRoute', () => {
       transitionFinding: vi.fn().mockResolvedValue(undefined),
     };
     const ws = {} as never;
-    expect(await handleChimeraRoute(ws, { type: 'chimera.reports.list', payload: {} }, handlers)).toBe(true);
-    expect(await handleChimeraRoute(ws, { type: 'chimera.report.get', payload: {} }, handlers)).toBe(true);
-    expect(await handleChimeraRoute(ws, { type: 'chimera.report.transition', payload: {} }, handlers)).toBe(true);
-    expect(await handleChimeraRoute(ws, { type: 'chimera.report.add_note', payload: {} }, handlers)).toBe(true);
-    expect(await handleChimeraRoute(ws, { type: 'chimera.finding.transition', payload: {} }, handlers)).toBe(true);
-    expect(await handleChimeraRoute(ws, { type: 'git.changes', payload: {} }, handlers)).toBe(false);
+    expect(
+      await handleChimeraRoute(ws, { type: 'chimera.reports.list', payload: {} }, handlers),
+    ).toBe(true);
+    expect(
+      await handleChimeraRoute(ws, { type: 'chimera.report.get', payload: {} }, handlers),
+    ).toBe(true);
+    expect(
+      await handleChimeraRoute(ws, { type: 'chimera.report.transition', payload: {} }, handlers),
+    ).toBe(true);
+    expect(
+      await handleChimeraRoute(ws, { type: 'chimera.report.add_note', payload: {} }, handlers),
+    ).toBe(true);
+    expect(
+      await handleChimeraRoute(ws, { type: 'chimera.finding.transition', payload: {} }, handlers),
+    ).toBe(true);
+    expect(await handleChimeraRoute(ws, { type: 'git.changes', payload: {} }, handlers)).toBe(
+      false,
+    );
   });
 });
 
@@ -172,7 +184,11 @@ describe('createChimeraRouteHandlers operations', () => {
     expect(send).toHaveBeenCalledOnce();
     const frame = send.mock.calls[0]?.[1] as {
       type: string;
-      payload: { report: { id: string }; findings: Array<{ finding: { id: string } }>; events: unknown[] };
+      payload: {
+        report: { id: string };
+        findings: Array<{ finding: { id: string } }>;
+        events: unknown[];
+      };
     };
     expect(frame.type).toBe('chimera.report.detail');
     expect(frame.payload.report?.id).toBe('r9');
@@ -194,7 +210,9 @@ describe('createChimeraRouteHandlers operations', () => {
 
     const store = new JsonlReportStore(projectDir);
     const events = await store.getEvents('r9');
-    expect(events.some((e) => e.eventType === 'note_added' && e.reason === 'Checked by QA team')).toBe(true);
+    expect(
+      events.some((e) => e.eventType === 'note_added' && e.reason === 'Checked by QA team'),
+    ).toBe(true);
   });
 
   it('transitions a report lifecycle', async () => {
@@ -204,7 +222,10 @@ describe('createChimeraRouteHandlers operations', () => {
       payload: { reportId: 'r9', to: 'actioned', reason: 'Assigned to dev' },
     });
     expect(send).toHaveBeenCalledOnce();
-    const frame = send.mock.calls[0]?.[1] as { type: string; payload: { success: boolean; lifecycle: string } };
+    const frame = send.mock.calls[0]?.[1] as {
+      type: string;
+      payload: { success: boolean; lifecycle: string };
+    };
     expect(frame.type).toBe('chimera.report.updated');
     expect(frame.payload.lifecycle).toBe('actioned');
   });
@@ -216,7 +237,10 @@ describe('createChimeraRouteHandlers operations', () => {
       payload: { findingId: 'f-1', to: 'resolved', outcome: 'fixed', reason: 'Patched guard' },
     });
     expect(send).toHaveBeenCalledOnce();
-    const frame = send.mock.calls[0]?.[1] as { type: string; payload: { success: boolean; status: string } };
+    const frame = send.mock.calls[0]?.[1] as {
+      type: string;
+      payload: { success: boolean; status: string };
+    };
     expect(frame.type).toBe('chimera.finding.updated');
     expect(frame.payload.status).toBe('resolved');
 

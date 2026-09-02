@@ -140,7 +140,11 @@ describe('VerifierRegistry', () => {
   it('verify passes through manually passed status for unknown type', async () => {
     const reg = new VerifierRegistry();
     const result = await reg.verify(
-      makeCheck({ type: 'unknown_type' as KanbanCheck['type'], status: 'passed', checkedBy: 'reviewer' }),
+      makeCheck({
+        type: 'unknown_type' as KanbanCheck['type'],
+        status: 'passed',
+        checkedBy: 'reviewer',
+      }),
       makeContext(),
     );
     expect(result.status).toBe('passed');
@@ -161,7 +165,11 @@ describe('VerifierRegistry', () => {
   it('verify includes checkedAt in evidence for manual results', async () => {
     const reg = new VerifierRegistry();
     const result = await reg.verify(
-      makeCheck({ type: 'unknown_type' as KanbanCheck['type'], status: 'passed', checkedAt: '2026-01-01' }),
+      makeCheck({
+        type: 'unknown_type' as KanbanCheck['type'],
+        status: 'passed',
+        checkedAt: '2026-01-01',
+      }),
       makeContext(),
     );
     expect(result.evidence.checkedAt).toBe('2026-01-01');
@@ -171,12 +179,11 @@ describe('VerifierRegistry', () => {
     const reg = new VerifierRegistry();
     reg.register(new MetricPlugin());
     const ctx = makeContext({
-      task: { goalMetrics: [{ id: 'm1', name: 'cov', status: 'pending', target: 80, current: 90 }] } as KanbanTask,
+      task: {
+        goalMetrics: [{ id: 'm1', name: 'cov', status: 'pending', target: 80, current: 90 }],
+      } as KanbanTask,
     });
-    const result = await reg.verify(
-      makeCheck({ type: 'metric' as KanbanCheck['type'] }),
-      ctx,
-    );
+    const result = await reg.verify(makeCheck({ type: 'metric' as KanbanCheck['type'] }), ctx);
     expect(result.status).toBe('passed');
   });
 
@@ -198,7 +205,10 @@ describe('VerifierRegistry', () => {
     };
     reg.register(mockAgentPlugin);
     const result = await reg.verify(
-      makeCheck({ type: 'test' as KanbanCheck['type'], escalation: 'agent' as KanbanCheck['escalation'] }),
+      makeCheck({
+        type: 'test' as KanbanCheck['type'],
+        escalation: 'agent' as KanbanCheck['escalation'],
+      }),
       makeContext(),
     );
     expect(result.status).toBe('passed');
@@ -221,7 +231,10 @@ describe('VerifierRegistry', () => {
     };
     reg.register(mockCouncilPlugin);
     const result = await reg.verify(
-      makeCheck({ type: 'test' as KanbanCheck['type'], escalation: 'council' as KanbanCheck['escalation'] }),
+      makeCheck({
+        type: 'test' as KanbanCheck['type'],
+        escalation: 'council' as KanbanCheck['escalation'],
+      }),
       makeContext(),
     );
     // Should be rejected because no backingRefs
@@ -245,7 +258,10 @@ describe('VerifierRegistry', () => {
     };
     reg.register(mockAgentPlugin);
     const result = await reg.verify(
-      makeCheck({ type: 'test' as KanbanCheck['type'], escalation: 'agent' as KanbanCheck['escalation'] }),
+      makeCheck({
+        type: 'test' as KanbanCheck['type'],
+        escalation: 'agent' as KanbanCheck['escalation'],
+      }),
       makeContext(),
     );
     expect(result.status).toBe('failed');
@@ -271,10 +287,7 @@ describe('TestPlugin comprehensive', () => {
     const ctx = makeContext({
       runTest: async (pattern) => testResult(pattern, { passed: 10, durationMs: 500 }),
     });
-    const result = await plugin.verify(
-      makeCheck({ type: 'test', description: 'run tests' }),
-      ctx,
-    );
+    const result = await plugin.verify(makeCheck({ type: 'test', description: 'run tests' }), ctx);
     expect(result.status).toBe('passed');
     expect(result.evidence.passed).toBe(10);
     expect(result.error).toBeUndefined();
@@ -290,10 +303,7 @@ describe('TestPlugin comprehensive', () => {
           failureOutput: 'AssertionError',
         }),
     });
-    const result = await plugin.verify(
-      makeCheck({ type: 'test', description: 'run tests' }),
-      ctx,
-    );
+    const result = await plugin.verify(makeCheck({ type: 'test', description: 'run tests' }), ctx);
     expect(result.status).toBe('failed');
     expect(result.evidence.failed).toBe(3);
     expect(result.error).toContain('3 test(s) failed');
@@ -319,22 +329,15 @@ describe('TestPlugin comprehensive', () => {
         return testResult(p, { passed: 1, durationMs: 100 });
       },
     });
-    await plugin.verify(
-      makeCheck({ type: 'test', description: '', notes: 'test/*.test.ts' }),
-      ctx,
-    );
+    await plugin.verify(makeCheck({ type: 'test', description: '', notes: 'test/*.test.ts' }), ctx);
     expect(capturedPattern).toBe('test/*.test.ts');
   });
 
   it('returns skipped count in evidence', async () => {
     const ctx = makeContext({
-      runTest: async (pattern) =>
-        testResult(pattern, { passed: 5, skipped: 2, durationMs: 500 }),
+      runTest: async (pattern) => testResult(pattern, { passed: 5, skipped: 2, durationMs: 500 }),
     });
-    const result = await plugin.verify(
-      makeCheck({ type: 'test', description: 'run tests' }),
-      ctx,
-    );
+    const result = await plugin.verify(makeCheck({ type: 'test', description: 'run tests' }), ctx);
     expect(result.evidence.skipped).toBe(2);
   });
 });
@@ -346,7 +349,9 @@ describe('GitDiffPlugin comprehensive', () => {
 
   it('returns passed when diff matches expectations', async () => {
     const ctx = makeContext({
-      diffSince: async () => [{ path: 'src/foo.ts', operation: 'modify', linesAdded: 10, linesRemoved: 5 }],
+      diffSince: async () => [
+        { path: 'src/foo.ts', operation: 'modify', linesAdded: 10, linesRemoved: 5 },
+      ],
       gitStatus: async () => gitStatus({ unstaged: 1 }),
     });
     const result = await plugin.verify(
@@ -387,7 +392,9 @@ describe('GitDiffPlugin comprehensive', () => {
 
   it('checks expected files from config JSON', async () => {
     const ctx = makeContext({
-      diffSince: async () => [{ path: 'src/existing.ts', operation: 'modify', linesAdded: 5, linesRemoved: 2 }],
+      diffSince: async () => [
+        { path: 'src/existing.ts', operation: 'modify', linesAdded: 5, linesRemoved: 2 },
+      ],
       gitStatus: async () => gitStatus({ unstaged: 1 }),
     });
     const result = await plugin.verify(
@@ -404,7 +411,9 @@ describe('GitDiffPlugin comprehensive', () => {
 
   it('checks minChanges constraint', async () => {
     const ctx = makeContext({
-      diffSince: async () => [{ path: 'src/foo.ts', operation: 'modify', linesAdded: 2, linesRemoved: 1 }],
+      diffSince: async () => [
+        { path: 'src/foo.ts', operation: 'modify', linesAdded: 2, linesRemoved: 1 },
+      ],
       gitStatus: async () => gitStatus({ unstaged: 1 }),
     });
     const result = await plugin.verify(
@@ -421,7 +430,9 @@ describe('GitDiffPlugin comprehensive', () => {
 
   it('checks maxChanges constraint', async () => {
     const ctx = makeContext({
-      diffSince: async () => [{ path: 'src/foo.ts', operation: 'modify', linesAdded: 100, linesRemoved: 50 }],
+      diffSince: async () => [
+        { path: 'src/foo.ts', operation: 'modify', linesAdded: 100, linesRemoved: 50 },
+      ],
       gitStatus: async () => gitStatus({ unstaged: 1 }),
     });
     const result = await plugin.verify(
@@ -438,7 +449,9 @@ describe('GitDiffPlugin comprehensive', () => {
 
   it('handles non-JSON notes gracefully', async () => {
     const ctx = makeContext({
-      diffSince: async () => [{ path: 'src/foo.ts', operation: 'modify', linesAdded: 5, linesRemoved: 2 }],
+      diffSince: async () => [
+        { path: 'src/foo.ts', operation: 'modify', linesAdded: 5, linesRemoved: 2 },
+      ],
       gitStatus: async () => gitStatus({ unstaged: 1 }),
     });
     const result = await plugin.verify(

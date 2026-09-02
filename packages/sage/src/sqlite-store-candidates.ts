@@ -64,10 +64,7 @@ interface SqliteAcceptCandidateContext extends SqliteRejectCandidateContext {
   }) => Promise<Sage>;
 }
 
-export function addSqliteCandidate(
-  ctx: SqliteCandidateContext,
-  candidate: MemoryCandidate,
-): void {
+export function addSqliteCandidate(ctx: SqliteCandidateContext, candidate: MemoryCandidate): void {
   rejectIfUnsafeInput(candidate);
   ctx.upsertCandidate(candidate);
 }
@@ -144,9 +141,9 @@ export function acceptSqliteCandidate(
     ctx.candidateLockPath(candidateId),
     async () => {
       const snapshot = ctx.runMutation(() => {
-        const row = ctx.stmt("SELECT data FROM candidates WHERE id = ? AND status = 'pending'").get(
-          candidateId,
-        ) as { data: string } | undefined;
+        const row = ctx
+          .stmt("SELECT data FROM candidates WHERE id = ? AND status = 'pending'")
+          .get(candidateId) as { data: string } | undefined;
         if (!row) return undefined;
         return sqliteRowToCandidate(row);
       });
@@ -200,7 +197,8 @@ export function acceptSqliteCandidate(
             event: 'sage.candidate_accept_orphaned',
             candidateId,
             memoryId: memory.id,
-            message: 'Memory created but candidate was resolved concurrently; orphaned memory logged.',
+            message:
+              'Memory created but candidate was resolved concurrently; orphaned memory logged.',
             timestamp: ctx.nowIso(),
           }),
         );
@@ -224,9 +222,9 @@ export function rejectSqliteCandidate(
   candidateId: string,
   reason: string,
 ): boolean {
-  const row = ctx.stmt("SELECT data FROM candidates WHERE id = ? AND status = 'pending'").get(
-    candidateId,
-  ) as { data: string } | undefined;
+  const row = ctx
+    .stmt("SELECT data FROM candidates WHERE id = ? AND status = 'pending'")
+    .get(candidateId) as { data: string } | undefined;
   if (!row) return false;
   const candidate = sqliteRowToCandidate(row);
   const updated: MemoryCandidate = {
@@ -247,9 +245,9 @@ export async function resolveSqliteCandidate(
   reason?: string,
 ): Promise<MemoryCandidateResolution | undefined> {
   const snapshot = await ctx.runMutation(() => {
-    const row = ctx.stmt("SELECT data FROM candidates WHERE id = ? AND status = 'pending'").get(
-      candidateId,
-    ) as { data: string } | undefined;
+    const row = ctx
+      .stmt("SELECT data FROM candidates WHERE id = ? AND status = 'pending'")
+      .get(candidateId) as { data: string } | undefined;
     return row ? sqliteRowToCandidate(row) : undefined;
   });
   if (!snapshot) {
@@ -353,12 +351,7 @@ export async function resolveSqliteCandidate(
         .stmt(
           "UPDATE candidates SET data = ?, status = 'pending', updated_at = ? WHERE id = ? AND status = ?",
         )
-        .run(
-          JSON.stringify({ ...snapshot }),
-          ctx.nowIso(),
-          candidateId,
-          policy.candidateStatus,
-        );
+        .run(JSON.stringify({ ...snapshot }), ctx.nowIso(), candidateId, policy.candidateStatus);
       return revertResult.changes > 0;
     });
     if (reverted) {

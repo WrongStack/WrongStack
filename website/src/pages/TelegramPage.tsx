@@ -85,10 +85,26 @@ export function TelegramPage() {
           />
           <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line bg-line lg:grid-cols-4">
             {[
-              { step: '01', title: 'Create bot', body: 'Message @BotFather on Telegram. Use /newbot, pick a name and username. Copy the HTTP API token it gives you.' },
-              { step: '02', title: 'Get chat ID', body: 'Message your new bot once. Open `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser. Copy the `chat.id` from the response.' },
-              { step: '03', title: 'Validate & save', body: 'Run `/telegram-setup <botToken> <chatId>`. The command calls getMe against the API. Only valid tokens are saved.' },
-              { step: '04', title: 'Restart', body: 'Restart WrongStack so the Telegram plugin loads the new settings. The bot starts polling and is ready for notifications.' },
+              {
+                step: '01',
+                title: 'Create bot',
+                body: 'Message @BotFather on Telegram. Use /newbot, pick a name and username. Copy the HTTP API token it gives you.',
+              },
+              {
+                step: '02',
+                title: 'Get chat ID',
+                body: 'Message your new bot once. Open `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser. Copy the `chat.id` from the response.',
+              },
+              {
+                step: '03',
+                title: 'Validate & save',
+                body: 'Run `/telegram-setup <botToken> <chatId>`. The command calls getMe against the API. Only valid tokens are saved.',
+              },
+              {
+                step: '04',
+                title: 'Restart',
+                body: 'Restart WrongStack so the Telegram plugin loads the new settings. The bot starts polling and is ready for notifications.',
+              },
             ].map(({ step, title, body }) => (
               <article key={step} className="bg-card p-7">
                 <span className="font-mono text-xs font-black text-brand-2">{step}</span>
@@ -110,14 +126,46 @@ export function TelegramPage() {
         />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: Bell, cmd: '/telegram-settings session-end on|off', desc: 'Notify when a session completes. Includes session duration, tool call count, and final outcome.' },
-            { icon: Send, cmd: '/telegram-settings delegate on|off', desc: 'Notify when a delegated subagent finishes. Default on. Shows task result and duration.' },
-            { icon: Timer, cmd: '/telegram-settings long-tool <ms>|off', desc: 'Notify for tool calls slower than the threshold. Default 30 000 ms. Set 0 or off to disable.' },
-            { icon: BellOff, cmd: '/telegram-settings all on|off', desc: 'Toggle every event notification at once. session-end + delegate in one command.' },
-            { icon: RefreshCw, cmd: '/telegram-settings poll <seconds>', desc: 'Bot polling interval. Range 1–60 seconds. Default 2s. Lower = faster response, higher = less API load.' },
-            { icon: MessageSquare, cmd: '/telegram-settings chat <chatId>', desc: 'Default chat for notifications. Change without re-running setup. Useful for multi-chat bot setups.' },
-            { icon: Settings2, cmd: '/telegram-settings', desc: 'Show current settings with the exact command to change each. No argument = read-only status view.' },
-            { icon: Shield, cmd: '/telegram-settings test', desc: 'Send a test message to verify connectivity, permissions, and that the bot can reach your chat.' },
+            {
+              icon: Bell,
+              cmd: '/telegram-settings session-end on|off',
+              desc: 'Notify when a session completes. Includes session duration, tool call count, and final outcome.',
+            },
+            {
+              icon: Send,
+              cmd: '/telegram-settings delegate on|off',
+              desc: 'Notify when a delegated subagent finishes. Default on. Shows task result and duration.',
+            },
+            {
+              icon: Timer,
+              cmd: '/telegram-settings long-tool <ms>|off',
+              desc: 'Notify for tool calls slower than the threshold. Default 30 000 ms. Set 0 or off to disable.',
+            },
+            {
+              icon: BellOff,
+              cmd: '/telegram-settings all on|off',
+              desc: 'Toggle every event notification at once. session-end + delegate in one command.',
+            },
+            {
+              icon: RefreshCw,
+              cmd: '/telegram-settings poll <seconds>',
+              desc: 'Bot polling interval. Range 1–60 seconds. Default 2s. Lower = faster response, higher = less API load.',
+            },
+            {
+              icon: MessageSquare,
+              cmd: '/telegram-settings chat <chatId>',
+              desc: 'Default chat for notifications. Change without re-running setup. Useful for multi-chat bot setups.',
+            },
+            {
+              icon: Settings2,
+              cmd: '/telegram-settings',
+              desc: 'Show current settings with the exact command to change each. No argument = read-only status view.',
+            },
+            {
+              icon: Shield,
+              cmd: '/telegram-settings test',
+              desc: 'Send a test message to verify connectivity, permissions, and that the bot can reach your chat.',
+            },
           ].map(({ icon: Icon, cmd, desc }) => (
             <div key={cmd} className="rounded-xl border border-line bg-card p-5">
               <Icon className="size-4 text-brand" />
@@ -147,7 +195,7 @@ export function TelegramPage() {
               {
                 icon: Clock,
                 title: 'Timeout & auto-deny',
-                body: 'Default timeout: 60 seconds. Max: 10 minutes. If you don\'t respond in time, the operation is auto-denied. No hanging agents, no orphaned prompts.',
+                body: "Default timeout: 60 seconds. Max: 10 minutes. If you don't respond in time, the operation is auto-denied. No hanging agents, no orphaned prompts.",
               },
               {
                 icon: KeyRound,
@@ -175,13 +223,27 @@ export function TelegramPage() {
         />
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
           {[
-            { cmd: '/telegram-health', alias: '/tgstat /tgs', desc: 'Show bot health: polling state, allowlists, notification settings, last message timestamp.' },
-            { cmd: '/send [chat_id] <message>', alias: '', desc: 'Send a message. Optional numeric chat_id overrides the default. Falls back to configured notifyChatId.' },
-            { cmd: '/chatid', alias: '', desc: 'Show the configured default notification chat ID. Use this to verify your setup or copy the ID for /send.' },
+            {
+              cmd: '/telegram-health',
+              alias: '/tgstat /tgs',
+              desc: 'Show bot health: polling state, allowlists, notification settings, last message timestamp.',
+            },
+            {
+              cmd: '/send [chat_id] <message>',
+              alias: '',
+              desc: 'Send a message. Optional numeric chat_id overrides the default. Falls back to configured notifyChatId.',
+            },
+            {
+              cmd: '/chatid',
+              alias: '',
+              desc: 'Show the configured default notification chat ID. Use this to verify your setup or copy the ID for /send.',
+            },
           ].map(({ cmd, alias, desc }) => (
             <div key={cmd} className="rounded-xl border border-line bg-card p-5">
               <code className="font-mono text-sm font-black text-brand">{cmd}</code>
-              {alias && <code className="mt-1 block font-mono text-[10px] text-faint">{alias}</code>}
+              {alias && (
+                <code className="mt-1 block font-mono text-[10px] text-faint">{alias}</code>
+              )}
               <p className="mt-2 text-xs leading-5 text-muted">{desc}</p>
             </div>
           ))}

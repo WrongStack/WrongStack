@@ -63,60 +63,273 @@ describe('executeSettingsSubcommand — toggles, enums, and numbers', () => {
   it.each([
     { sub: 'hq', args: 'on', msg: 'HQ publishing → on', at: 'hq.enabled', want: true },
     { sub: 'hq', args: 'off', msg: 'HQ publishing → off', at: 'hq.enabled', want: false },
-    { sub: 'hq-url', args: 'http://localhost:3499', msg: 'HQ URL → http://localhost:3499', at: 'hq.url', want: 'http://localhost:3499' },
+    {
+      sub: 'hq-url',
+      args: 'http://localhost:3499',
+      msg: 'HQ URL → http://localhost:3499',
+      at: 'hq.url',
+      want: 'http://localhost:3499',
+    },
     { sub: 'hq-token', args: 'tok-123', msg: 'HQ token saved', at: 'hq.token', want: 'tok-123' },
     { sub: 'hq-raw', args: 'on', msg: 'HQ raw content → on', at: 'hq.rawContent', want: true },
-    { sub: 'delay', args: '30', msg: 'auto-proceed delay →', at: 'autonomy.autoProceedDelayMs', want: 30_000 },
-    { sub: 'mode', args: 'suggest', msg: 'default autonomy → suggest', at: 'autonomy.defaultMode', want: 'suggest' },
+    {
+      sub: 'delay',
+      args: '30',
+      msg: 'auto-proceed delay →',
+      at: 'autonomy.autoProceedDelayMs',
+      want: 30_000,
+    },
+    {
+      sub: 'mode',
+      args: 'suggest',
+      msg: 'default autonomy → suggest',
+      at: 'autonomy.defaultMode',
+      want: 'suggest',
+    },
     { sub: 'hints', args: 'off', msg: 'launch hints → off', at: 'hints', want: false },
     { sub: 'debug-stream', args: 'on', msg: 'debug stream → on', at: 'debugStream', want: true },
-    { sub: 'config-scope', args: 'project', msg: 'config scope → project', at: 'configScope', want: 'project' },
-    { sub: 'fs-access', args: 'project', msg: 'filesystem access → project', at: 'tools.restrictToProjectRoot', want: true },
-    { sub: 'refine', args: 'on', msg: 'refine → on', at: 'autonomy.enhance', want: true },
-    { sub: 'refine-delay', args: '5', msg: 'refine-delay →', at: 'autonomy.enhanceDelayMs', want: 5_000 },
-    { sub: 'refine-language', args: 'english', msg: 'refine-language → english', at: 'autonomy.enhanceLanguage', want: 'english' },
-    { sub: 'refiner-provider', args: 'openai', msg: 'refiner-provider → openai', at: 'autonomy.refinerProvider', want: 'openai' },
-    { sub: 'refiner-model', args: 'gpt-4o-mini', msg: 'refiner-model → gpt-4o-mini', at: 'autonomy.refinerModel', want: 'gpt-4o-mini' },
-    { sub: 'refiner-fallback-profile', args: 'nightly', msg: 'refiner-fallback-profile → nightly', at: 'autonomy.refinerFallbackProfile', want: 'nightly' },
-    { sub: 'semver-part', args: 'minor', msg: 'semver default part → minor', at: 'extensions.semver-bump.defaultPart', want: 'minor' },
-    { sub: 'breaker', args: 'off', msg: 'circuit breaker → off', at: 'circuitBreaker.enabled', want: false },
-    { sub: 'breaker-timeout', args: '60', msg: 'breaker kill/reset timeout →', at: 'circuitBreaker.autoKillResetMs', want: 60_000 },
-    { sub: 'context-mode', args: 'frugal', msg: 'context mode → frugal', at: 'context.mode', want: 'frugal' },
-    { sub: 'context-strategy', args: 'selective', msg: 'context strategy → selective', at: 'context.strategy', want: 'selective' },
-    { sub: 'context-auto-compact', args: 'off', msg: 'context auto-compact → off', at: 'context.autoCompact', want: false },
-    { sub: 'token-saving', args: 'aggressive', msg: 'token-saving → aggressive', at: 'features.tokenSavingMode', want: 'aggressive' },
-    { sub: 'max-concurrent', args: '6', msg: 'max-concurrent → 6', at: 'maxConcurrent', want: 6 },
-    { sub: 'title-animation', args: 'off', msg: 'title animation → off', at: 'autonomy.terminalTitleAnimation', want: false },
-    { sub: 'reasoning', args: 'auto', msg: 'reasoning mode → auto', at: 'modelRuntime.reasoning.mode', want: 'auto' },
-    { sub: 'reasoning-effort', args: 'xhigh', msg: 'reasoning effort → xhigh', at: 'modelRuntime.reasoning.effort', want: 'xhigh' },
-    { sub: 'reasoning-preserve', args: 'on', msg: 'reasoning preserve → on', at: 'modelRuntime.reasoning.preserve', want: true },
-    { sub: 'cache-ttl', args: '1h', msg: 'cache TTL → 1h', at: 'modelRuntime.cache.ttl', want: '1h' },
-    { sub: 'mcp', args: 'off', msg: 'MCP features → off', at: 'features.mcp', want: false },
-    { sub: 'plugins', args: 'off', msg: 'Plugin features → off', at: 'features.plugins', want: false },
-    { sub: 'memory', args: 'off', msg: 'Memory features → off', at: 'features.memory', want: false },
-    { sub: 'skills', args: 'off', msg: 'Skills features → off', at: 'features.skills', want: false },
-    { sub: 'models-registry', args: 'off', msg: 'Models registry → off', at: 'features.modelsRegistry', want: false },
-    { sub: 'stream-fleet', args: 'full', msg: 'fleet chat → full', at: 'autonomy.fleetChatVerbosity', want: 'full' },
-    { sub: 'chime', args: 'on', msg: 'completion chime → on', at: 'autonomy.chime', want: true },
-    { sub: 'confirm-exit', args: 'off', msg: 'confirm before exit → off', at: 'autonomy.confirmExit', want: false },
-    { sub: 'max-iterations', args: '12', msg: 'max iterations → 12', at: 'tools.maxIterations', want: 12 },
-    { sub: 'auto-proceed-max-iterations', args: '3', msg: 'auto-proceed max iterations → 3', at: 'autonomy.autoProceedMaxIterations', want: 3 },
-    { sub: 'index-on-start', args: 'on', msg: 'index on session start → on', at: 'indexing.onSessionStart', want: true },
-    { sub: 'log-level', args: 'trace', msg: 'log level → trace', at: 'log.level', want: 'trace' },
-    { sub: 'audit-level', args: 'full', msg: 'audit level → full', at: 'session.auditLevel', want: 'full' },
-    { sub: 'thinking-word', args: 'vibing', msg: 'thinking word → vibing', at: 'autonomy.thinkingWord', want: 'vibing' },
-    { sub: 'statusline', args: 'no-color', msg: 'statusline mode → no-color', at: 'autonomy.statuslineMode', want: 'no-color' },
-    { sub: 'read-symbols', args: 'on', msg: 'read symbols → on', at: 'autonomy.readAdvancedMode', want: true },
-    { sub: 'animation', args: 'breathe', msg: 'animation style → breathe', at: 'autonomy.animationStyle', want: 'breathe' },
-  ])(
-    'persists "$sub $args"',
-    async ({ sub, args, msg, at: jsonPath, want }) => {
-      const { ctx } = makeCtx();
-      const out = await run(sub, args, ctx);
-      expect(stripAnsi(out.message)).toContain(msg);
-      expect(at(written(), jsonPath)).toEqual(want);
+    {
+      sub: 'config-scope',
+      args: 'project',
+      msg: 'config scope → project',
+      at: 'configScope',
+      want: 'project',
     },
-  );
+    {
+      sub: 'fs-access',
+      args: 'project',
+      msg: 'filesystem access → project',
+      at: 'tools.restrictToProjectRoot',
+      want: true,
+    },
+    { sub: 'refine', args: 'on', msg: 'refine → on', at: 'autonomy.enhance', want: true },
+    {
+      sub: 'refine-delay',
+      args: '5',
+      msg: 'refine-delay →',
+      at: 'autonomy.enhanceDelayMs',
+      want: 5_000,
+    },
+    {
+      sub: 'refine-language',
+      args: 'english',
+      msg: 'refine-language → english',
+      at: 'autonomy.enhanceLanguage',
+      want: 'english',
+    },
+    {
+      sub: 'refiner-provider',
+      args: 'openai',
+      msg: 'refiner-provider → openai',
+      at: 'autonomy.refinerProvider',
+      want: 'openai',
+    },
+    {
+      sub: 'refiner-model',
+      args: 'gpt-4o-mini',
+      msg: 'refiner-model → gpt-4o-mini',
+      at: 'autonomy.refinerModel',
+      want: 'gpt-4o-mini',
+    },
+    {
+      sub: 'refiner-fallback-profile',
+      args: 'nightly',
+      msg: 'refiner-fallback-profile → nightly',
+      at: 'autonomy.refinerFallbackProfile',
+      want: 'nightly',
+    },
+    {
+      sub: 'semver-part',
+      args: 'minor',
+      msg: 'semver default part → minor',
+      at: 'extensions.semver-bump.defaultPart',
+      want: 'minor',
+    },
+    {
+      sub: 'breaker',
+      args: 'off',
+      msg: 'circuit breaker → off',
+      at: 'circuitBreaker.enabled',
+      want: false,
+    },
+    {
+      sub: 'breaker-timeout',
+      args: '60',
+      msg: 'breaker kill/reset timeout →',
+      at: 'circuitBreaker.autoKillResetMs',
+      want: 60_000,
+    },
+    {
+      sub: 'context-mode',
+      args: 'frugal',
+      msg: 'context mode → frugal',
+      at: 'context.mode',
+      want: 'frugal',
+    },
+    {
+      sub: 'context-strategy',
+      args: 'selective',
+      msg: 'context strategy → selective',
+      at: 'context.strategy',
+      want: 'selective',
+    },
+    {
+      sub: 'context-auto-compact',
+      args: 'off',
+      msg: 'context auto-compact → off',
+      at: 'context.autoCompact',
+      want: false,
+    },
+    {
+      sub: 'token-saving',
+      args: 'aggressive',
+      msg: 'token-saving → aggressive',
+      at: 'features.tokenSavingMode',
+      want: 'aggressive',
+    },
+    { sub: 'max-concurrent', args: '6', msg: 'max-concurrent → 6', at: 'maxConcurrent', want: 6 },
+    {
+      sub: 'title-animation',
+      args: 'off',
+      msg: 'title animation → off',
+      at: 'autonomy.terminalTitleAnimation',
+      want: false,
+    },
+    {
+      sub: 'reasoning',
+      args: 'auto',
+      msg: 'reasoning mode → auto',
+      at: 'modelRuntime.reasoning.mode',
+      want: 'auto',
+    },
+    {
+      sub: 'reasoning-effort',
+      args: 'xhigh',
+      msg: 'reasoning effort → xhigh',
+      at: 'modelRuntime.reasoning.effort',
+      want: 'xhigh',
+    },
+    {
+      sub: 'reasoning-preserve',
+      args: 'on',
+      msg: 'reasoning preserve → on',
+      at: 'modelRuntime.reasoning.preserve',
+      want: true,
+    },
+    {
+      sub: 'cache-ttl',
+      args: '1h',
+      msg: 'cache TTL → 1h',
+      at: 'modelRuntime.cache.ttl',
+      want: '1h',
+    },
+    { sub: 'mcp', args: 'off', msg: 'MCP features → off', at: 'features.mcp', want: false },
+    {
+      sub: 'plugins',
+      args: 'off',
+      msg: 'Plugin features → off',
+      at: 'features.plugins',
+      want: false,
+    },
+    {
+      sub: 'memory',
+      args: 'off',
+      msg: 'Memory features → off',
+      at: 'features.memory',
+      want: false,
+    },
+    {
+      sub: 'skills',
+      args: 'off',
+      msg: 'Skills features → off',
+      at: 'features.skills',
+      want: false,
+    },
+    {
+      sub: 'models-registry',
+      args: 'off',
+      msg: 'Models registry → off',
+      at: 'features.modelsRegistry',
+      want: false,
+    },
+    {
+      sub: 'stream-fleet',
+      args: 'full',
+      msg: 'fleet chat → full',
+      at: 'autonomy.fleetChatVerbosity',
+      want: 'full',
+    },
+    { sub: 'chime', args: 'on', msg: 'completion chime → on', at: 'autonomy.chime', want: true },
+    {
+      sub: 'confirm-exit',
+      args: 'off',
+      msg: 'confirm before exit → off',
+      at: 'autonomy.confirmExit',
+      want: false,
+    },
+    {
+      sub: 'max-iterations',
+      args: '12',
+      msg: 'max iterations → 12',
+      at: 'tools.maxIterations',
+      want: 12,
+    },
+    {
+      sub: 'auto-proceed-max-iterations',
+      args: '3',
+      msg: 'auto-proceed max iterations → 3',
+      at: 'autonomy.autoProceedMaxIterations',
+      want: 3,
+    },
+    {
+      sub: 'index-on-start',
+      args: 'on',
+      msg: 'index on session start → on',
+      at: 'indexing.onSessionStart',
+      want: true,
+    },
+    { sub: 'log-level', args: 'trace', msg: 'log level → trace', at: 'log.level', want: 'trace' },
+    {
+      sub: 'audit-level',
+      args: 'full',
+      msg: 'audit level → full',
+      at: 'session.auditLevel',
+      want: 'full',
+    },
+    {
+      sub: 'thinking-word',
+      args: 'vibing',
+      msg: 'thinking word → vibing',
+      at: 'autonomy.thinkingWord',
+      want: 'vibing',
+    },
+    {
+      sub: 'statusline',
+      args: 'no-color',
+      msg: 'statusline mode → no-color',
+      at: 'autonomy.statuslineMode',
+      want: 'no-color',
+    },
+    {
+      sub: 'read-symbols',
+      args: 'on',
+      msg: 'read symbols → on',
+      at: 'autonomy.readAdvancedMode',
+      want: true,
+    },
+    {
+      sub: 'animation',
+      args: 'breathe',
+      msg: 'animation style → breathe',
+      at: 'autonomy.animationStyle',
+      want: 'breathe',
+    },
+  ])('persists "$sub $args"', async ({ sub, args, msg, at: jsonPath, want }) => {
+    const { ctx } = makeCtx();
+    const out = await run(sub, args, ctx);
+    expect(stripAnsi(out.message)).toContain(msg);
+    expect(at(written(), jsonPath)).toEqual(want);
+  });
 
   it.each([
     { sub: 'hq', args: '' },
@@ -169,16 +382,13 @@ describe('executeSettingsSubcommand — toggles, enums, and numbers', () => {
     { sub: 'statusline', args: 'fancy' },
     { sub: 'read-symbols', args: 'maybe' },
     { sub: 'animation', args: 'glitter' },
-  ])(
-    'prints usage for invalid "$sub $args"',
-    async ({ sub, args }) => {
-      const { ctx } = makeCtx();
-      const out = await run(sub, args, ctx);
-      const text = stripAnsi(out.message);
-      expect(text.length).toBeGreaterThan(0);
-      expect(text).not.toContain('✓');
-    },
-  );
+  ])('prints usage for invalid "$sub $args"', async ({ sub, args }) => {
+    const { ctx } = makeCtx();
+    const out = await run(sub, args, ctx);
+    const text = stripAnsi(out.message);
+    expect(text.length).toBeGreaterThan(0);
+    expect(text).not.toContain('✓');
+  });
 });
 
 describe('executeSettingsSubcommand — special paths', () => {
@@ -195,7 +405,9 @@ describe('executeSettingsSubcommand — special paths', () => {
   });
 
   it('clears the whole refiner config', async () => {
-    const { ctx } = makeCtx({ autonomy: { refinerProvider: 'a', refinerModel: 'b', refinerFallbackProfile: 'c' } });
+    const { ctx } = makeCtx({
+      autonomy: { refinerProvider: 'a', refinerModel: 'b', refinerFallbackProfile: 'c' },
+    });
     const out = await run('refiner-clear', '', ctx);
     expect(stripAnsi(out.message)).toContain('Refiner config cleared');
     const autonomy = written()['autonomy'] as Record<string, unknown>;

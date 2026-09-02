@@ -73,10 +73,7 @@ function validate(overlay) {
     }
   }
   const providers = Object.keys(overlay).length;
-  const models = Object.values(overlay).reduce(
-    (n, p) => n + Object.keys(p.models ?? {}).length,
-    0,
-  );
+  const models = Object.values(overlay).reduce((n, p) => n + Object.keys(p.models ?? {}).length, 0);
   if (problems === 0) {
     console.log(`✓ overlay valid — ${providers} provider(s), ${models} model override(s)`);
   } else {

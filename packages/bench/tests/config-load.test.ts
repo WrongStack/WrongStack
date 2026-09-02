@@ -26,10 +26,13 @@ describe('parseBenchConfig structural errors', () => {
 describe('loadBenchConfig', () => {
   it('loads and parses a valid config file', async () => {
     const file = path.join(dir, 'bench.config.json');
-    await fs.writeFile(file, JSON.stringify({
-      cells: [{ provider: 'anthropic', model: 'claude-opus-4-8' }],
-      maxIterations: 10,
-    }));
+    await fs.writeFile(
+      file,
+      JSON.stringify({
+        cells: [{ provider: 'anthropic', model: 'claude-opus-4-8' }],
+        maxIterations: 10,
+      }),
+    );
     const cfg = await loadBenchConfig(file);
     expect(cfg.cells[0]!.label).toBe('anthropic/claude-opus-4-8');
     expect(cfg.maxIterations).toBe(10);
@@ -37,7 +40,9 @@ describe('loadBenchConfig', () => {
   });
 
   it('throws a readable error when the file is missing', async () => {
-    await expect(loadBenchConfig(path.join(dir, 'nope.json'))).rejects.toThrow(/cannot read bench config/);
+    await expect(loadBenchConfig(path.join(dir, 'nope.json'))).rejects.toThrow(
+      /cannot read bench config/,
+    );
   });
 
   it('throws a readable error for invalid JSON', async () => {

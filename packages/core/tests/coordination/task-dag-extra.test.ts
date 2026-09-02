@@ -1,4 +1,4 @@
-import { describe, expect, it, } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { TaskDAG } from '../../src/coordination/task-dag.js';
 
 describe('task-dag — extra coverage', () => {
@@ -90,9 +90,15 @@ describe('task-dag — extra coverage', () => {
   it('onEvent / onRunnable register, fire, swallow handler errors, and unsubscribe', () => {
     const dag = new TaskDAG();
     const events: string[] = [];
-    const offEvent = dag.onEvent((e) => { events.push(e.type); throw new Error('handler boom'); });
+    const offEvent = dag.onEvent((e) => {
+      events.push(e.type);
+      throw new Error('handler boom');
+    });
     const runnableSeen: number[] = [];
-    const offRunnable = dag.onRunnable((nodes) => { runnableSeen.push(nodes.length); throw new Error('runnable boom'); });
+    const offRunnable = dag.onRunnable((nodes) => {
+      runnableSeen.push(nodes.length);
+      throw new Error('runnable boom');
+    });
 
     dag.addNode('a', 'A'); // ready → emits + runnable handler fires (errors swallowed)
     expect(events.length).toBeGreaterThan(0);

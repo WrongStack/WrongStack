@@ -56,9 +56,8 @@ describe('VerificationLedgerStore transaction guards', () => {
 
       const block = lines.slice(i, blockEnd + 1).join('\n');
       if (!/this\.#db\.exec\('ROLLBACK'\)/.test(block)) continue;
-      const hasTryCatchWrapper = /try\s*\{[^}]*this\.#db\.exec\('ROLLBACK'\)[\s\S]*?\}\s*catch\s*\{/.test(
-        block,
-      );
+      const hasTryCatchWrapper =
+        /try\s*\{[^}]*this\.#db\.exec\('ROLLBACK'\)[\s\S]*?\}\s*catch\s*\{/.test(block);
       if (!hasTryCatchWrapper) unguarded.push(i + 1);
     }
 

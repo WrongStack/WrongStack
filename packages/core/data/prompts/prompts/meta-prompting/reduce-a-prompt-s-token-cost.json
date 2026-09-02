@@ -5,11 +5,7 @@
   "description": "Cut a prompt's token footprint without losing quality.",
   "content": "This prompt works but is expensive to run at scale:\n\n{{prompt}}\n\nCut its token cost without degrading output quality. Find the redundant instructions, the verbose examples that could be trimmed or dropped, and the context that could be referenced instead of inlined. Distinguish words that actually steer the model from filler that just feels thorough. Show the leaner version, estimate the rough token saving, and flag any cut that's risky enough to A/B before trusting.",
   "category": "meta-prompting",
-  "tags": [
-    "tokens",
-    "cost",
-    "optimization"
-  ],
+  "tags": ["tokens", "cost", "optimization"],
   "source": "builtin",
   "favorite": false,
   "checksum": "5e9e10e2e25edf92d7d0a842b353fccad0c41465cefc623ead80bab895934700",

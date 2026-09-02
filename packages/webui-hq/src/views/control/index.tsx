@@ -204,8 +204,7 @@ export function ControlView(): React.ReactElement {
 
   const confirmWord = confirmWordFor(type);
   const canPreview = draft.disabledReason === null && targetId !== null;
-  const canDispatch =
-    canPreview && (confirmWord === null || confirmText === confirmWord);
+  const canDispatch = canPreview && (confirmWord === null || confirmText === confirmWord);
 
   const resetToCompose = useCallback((): void => {
     setStage('compose');
@@ -318,7 +317,12 @@ export function ControlView(): React.ReactElement {
 
   return (
     <ViewShell>
-      <div data-testid="control-screen" data-stage={stage} data-risk={draft.risk} className="contents">
+      <div
+        data-testid="control-screen"
+        data-stage={stage}
+        data-risk={draft.risk}
+        className="contents"
+      >
         <ViewHero
           eyebrow="Command plane"
           headline="Remote execution, with guardrails"

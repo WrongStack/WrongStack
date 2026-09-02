@@ -6,11 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { createHttpServer } from '../src/server/http-server.js';
 import { listenWithRetry } from '../src/server/port-utils.js';
-import {
-  createWsServers,
-  resolvePorts,
-  type ResolvedPorts,
-} from '../src/server/server-runtime.js';
+import { createWsServers, resolvePorts, type ResolvedPorts } from '../src/server/server-runtime.js';
 
 const HOST = '127.0.0.1';
 const TOKEN = 'shared-port-integration-token';
@@ -143,9 +139,7 @@ describe('standalone WebUI shared port', () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toContain('<title>shared</title>');
 
-    const socket = new WebSocket(
-      `ws://${HOST}:${server.port}/?token=${encodeURIComponent(TOKEN)}`,
-    );
+    const socket = new WebSocket(`ws://${HOST}:${server.port}/?token=${encodeURIComponent(TOKEN)}`);
     sockets.push(socket);
     await waitForOpen(socket);
     expect(socket.url).toContain(`:${server.port}/`);
@@ -221,10 +215,12 @@ describe('standalone WebUI shared port', () => {
     const publicWsUrl = 'wss://proxy.example.test/socket';
     const previousPublicWsUrl = process.env['WEBUI_PUBLIC_WS_URL'];
     process.env['WEBUI_PUBLIC_WS_URL'] = publicWsUrl;
-    const ports = await resolvePorts({ surface: 'webui', wsHost: HOST, httpPort: 0 }).finally(() => {
-      if (previousPublicWsUrl === undefined) delete process.env['WEBUI_PUBLIC_WS_URL'];
-      else process.env['WEBUI_PUBLIC_WS_URL'] = previousPublicWsUrl;
-    });
+    const ports = await resolvePorts({ surface: 'webui', wsHost: HOST, httpPort: 0 }).finally(
+      () => {
+        if (previousPublicWsUrl === undefined) delete process.env['WEBUI_PUBLIC_WS_URL'];
+        else process.env['WEBUI_PUBLIC_WS_URL'] = previousPublicWsUrl;
+      },
+    );
     expect(ports.publicWsUrl).toBe(publicWsUrl);
 
     const server = await startSharedServer({

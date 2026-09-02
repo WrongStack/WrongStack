@@ -123,7 +123,13 @@ describe('startBrainTelemetryBridge', () => {
     const stop = startBrainTelemetryBridge({ events, publisher });
     stop();
     events.emit('brain.decision_requested', { request: baseRequest, at: 1 });
-    events.emit('brain.intervention', { kind: 'error_storm', request: baseRequest, decision: { type: 'deny', reason: 'x' }, intervened: false, at: 1 });
+    events.emit('brain.intervention', {
+      kind: 'error_storm',
+      request: baseRequest,
+      decision: { type: 'deny', reason: 'x' },
+      intervened: false,
+      at: 1,
+    });
     expect(spy).not.toHaveBeenCalled();
   });
 
@@ -135,7 +141,9 @@ describe('startBrainTelemetryBridge', () => {
       },
     } as unknown as HqPublisher;
     const stop = startBrainTelemetryBridge({ events, publisher });
-    expect(() => events.emit('brain.decision_requested', { request: baseRequest, at: 1 })).not.toThrow();
+    expect(() =>
+      events.emit('brain.decision_requested', { request: baseRequest, at: 1 }),
+    ).not.toThrow();
     stop();
   });
 });

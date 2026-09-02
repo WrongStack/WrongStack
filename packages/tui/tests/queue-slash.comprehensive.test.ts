@@ -20,7 +20,9 @@ function makeDeps(initial: QueueItem[] = [], pickerInit = true) {
         queue = queue.filter((_, i) => !drop.has(i));
       },
       getPickerEnabled: () => picker,
-      setPickerEnabled: (enabled: boolean) => { picker = enabled; },
+      setPickerEnabled: (enabled: boolean) => {
+        picker = enabled;
+      },
     },
     snapshot: () => ({ queue: [...queue], cleared, deleted, picker }),
   };

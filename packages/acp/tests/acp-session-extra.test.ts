@@ -147,8 +147,7 @@ describe('ACPSession — focused coverage', () => {
       // never lands in t.sent — but the invocation is recorded).
       expect(
         t.send.mock.calls.some(
-          ([message]) =>
-            (message as { method?: string }).method === 'session/cancel',
+          ([message]) => (message as { method?: string }).method === 'session/cancel',
         ),
       ).toBe(true);
 

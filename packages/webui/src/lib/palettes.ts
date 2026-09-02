@@ -12,7 +12,19 @@
  * the same order), and an i18n label key in all 7 locale files. The default
  * "signal" palette needs no CSS block — it is the base token set.
  */
-export type PaletteId = 'signal' | 'emerald-gold' | 'blue-navy' | 'purple-pink' | 'cyan-teal' | 'rose-copper' | 'indigo-amber' | 'sage-sand' | 'slate-violet' | 'coral-mint' | 'arctic-ember' | 'moss-rust';
+export type PaletteId =
+  | 'signal'
+  | 'emerald-gold'
+  | 'blue-navy'
+  | 'purple-pink'
+  | 'cyan-teal'
+  | 'rose-copper'
+  | 'indigo-amber'
+  | 'sage-sand'
+  | 'slate-violet'
+  | 'coral-mint'
+  | 'arctic-ember'
+  | 'moss-rust';
 
 export interface PaletteDefinition {
   id: PaletteId;

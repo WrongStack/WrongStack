@@ -66,7 +66,9 @@ describe('sendModeFromKey', () => {
 
 describe('formatSendModeMessagePreview', () => {
   it('collapses whitespace so multi-line prompts fit in the picker', () => {
-    expect(formatSendModeMessagePreview('first line\n\n  second\tline')).toBe('first line second line');
+    expect(formatSendModeMessagePreview('first line\n\n  second\tline')).toBe(
+      'first line second line',
+    );
   });
 
   it('truncates long prompts with an ellipsis', () => {

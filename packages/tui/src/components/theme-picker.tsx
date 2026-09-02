@@ -55,12 +55,15 @@ export function ThemePicker({
   maxRows,
 }: ThemePickerProps): React.ReactElement {
   const split =
-    columns >= SPLIT_MIN_COLUMNS && options.length > 0 && (maxRows === undefined || maxRows >= PREVIEW_MIN_ROWS);
+    columns >= SPLIT_MIN_COLUMNS &&
+    options.length > 0 &&
+    (maxRows === undefined || maxRows >= PREVIEW_MIN_ROWS);
   // In split mode the preview's full sample tops out at PREVIEW_FULL_ROWS.
   // Cap the list at the same height so the panes stay balanced — a list that
   // grew to the whole `maxRows` budget would dwarf a preview that stopped
   // growing once all its sections fit.
-  const listMaxRows = split && maxRows !== undefined ? Math.min(maxRows, PREVIEW_FULL_ROWS) : maxRows;
+  const listMaxRows =
+    split && maxRows !== undefined ? Math.min(maxRows, PREVIEW_FULL_ROWS) : maxRows;
   const { start, end, hasAbove, hasBelow } = useWindowedPicker({
     total: options.length,
     selected,
@@ -79,15 +82,13 @@ export function ThemePicker({
       borderStyle="round"
       borderColor="magenta"
       paddingX={1}
-      {...(split
-        ? { width: LIST_COLUMN_WIDTH, flexShrink: 0 }
-        : {})}
+      {...(split ? { width: LIST_COLUMN_WIDTH, flexShrink: 0 } : {})}
     >
       <Text color="cyan" bold>
         ━━ TUI Theme ━━
       </Text>
       <Text dimColor>↑/↓ navigate · Enter apply · Esc cancel</Text>
-      {hasAbove ? <Text dimColor>  … {start} more above</Text> : null}
+      {hasAbove ? <Text dimColor> … {start} more above</Text> : null}
       {visibleOptions.map((opt, j) => {
         const i = start + j;
         const isActive = opt.id === activeId;
@@ -101,9 +102,7 @@ export function ThemePicker({
           </Text>
         );
       })}
-      {hasBelow ? (
-        <Text dimColor>  … {options.length - end} more below</Text>
-      ) : null}
+      {hasBelow ? <Text dimColor> … {options.length - end} more below</Text> : null}
       {hint ? <Text color="yellow">{hint}</Text> : null}
     </Box>
   );

@@ -30,7 +30,12 @@ describe('relationship edge materialization', () => {
     }
   });
 
-  const edges = (): Array<{ from_node: string; to_node: string; relation: string; weight: number }> => {
+  const edges = (): Array<{
+    from_node: string;
+    to_node: string;
+    relation: string;
+    weight: number;
+  }> => {
     const db = new DatabaseSync(path.join(dir, '.wrongstack', 'memories', 'sage.db'), {
       readOnly: true,
     });

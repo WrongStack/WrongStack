@@ -7,7 +7,10 @@ import type { AgentInternals } from '../../src/core/agent-internals.js';
 import type { TodoItem } from '../../src/core/context.js';
 import { tagBlock } from '../../src/core/system-prompt-blocks.js';
 import type { Request } from '../../src/types/provider.js';
-import { createContextEvidenceState, recordUserIntentEvidence } from '../../src/utils/context-evidence.js';
+import {
+  createContextEvidenceState,
+  recordUserIntentEvidence,
+} from '../../src/utils/context-evidence.js';
 
 const todo = (id: string, status: TodoItem['status'], content = `todo ${id}`): TodoItem => ({
   id,
@@ -245,7 +248,10 @@ describe('provider request live-context tail', () => {
         { type: 'text', text: 'identity text', cache_control: { type: 'ephemeral' } },
         'identity',
       ),
-      tagBlock({ type: 'text', text: 'active plan text', cache_control: { type: 'ephemeral' } }, 'plan'),
+      tagBlock(
+        { type: 'text', text: 'active plan text', cache_control: { type: 'ephemeral' } },
+        'plan',
+      ),
       tagBlock({ type: 'text', text: 'glossary text' }, 'glossary'),
     ];
     const history = [{ role: 'user', content: 'do the work' }];
@@ -288,7 +294,9 @@ describe('provider request live-context tail', () => {
   it('strips delivered <nextsteps> blocks from past assistant turns in the request copy', async () => {
     const assistant = {
       role: 'assistant',
-      content: [{ type: 'text', text: 'All done.\n<nextsteps>\n- run the follow-up\n</nextsteps>' }],
+      content: [
+        { type: 'text', text: 'All done.\n<nextsteps>\n- run the follow-up\n</nextsteps>' },
+      ],
     };
     const history = [
       { role: 'user', content: 'first task' },

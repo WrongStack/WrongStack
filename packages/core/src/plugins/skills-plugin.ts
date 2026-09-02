@@ -199,9 +199,7 @@ export function buildSkillGeneratorCommand(skillLoader?: SkillLoader): SlashComm
           if (diag.shadowed.length > 0) {
             notes.push(color.dim('Shadowed (hidden by a higher-priority layer):'));
             for (const s of diag.shadowed) {
-              notes.push(
-                color.dim(`  ⚠ ${s.name} (${s.source}) ← overridden by ${s.shadowedBy}`),
-              );
+              notes.push(color.dim(`  ⚠ ${s.name} (${s.source}) ← overridden by ${s.shadowedBy}`));
             }
           }
           if (diag.skipped.length > 0) {

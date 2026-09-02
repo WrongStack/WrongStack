@@ -65,8 +65,8 @@ export function createHqServerShutdown(params: HqServerShutdownParams): () => Pr
       params.mailboxManager.close();
 
       params.httpServer.close(() => {
-        const mailboxCloses = [...params.mailboxManager.mailboxGateways.values()].map(({ mailbox }) =>
-          mailbox.close().catch(() => undefined),
+        const mailboxCloses = [...params.mailboxManager.mailboxGateways.values()].map(
+          ({ mailbox }) => mailbox.close().catch(() => undefined),
         );
         params.mailboxManager.mailboxGateways.clear();
         params.mailboxManager.mailboxGatewayLastUsed.clear();

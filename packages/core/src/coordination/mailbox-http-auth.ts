@@ -15,7 +15,10 @@ export type MailboxHttpAccessDecision =
  * TypeScript disallows interfaces extending union types, so this intersects
  * the allowed variant of MailboxHttpAccessDecision with the credential fields.
  */
-export type MailboxHttpCredentialDecision = Extract<MailboxHttpAccessDecision, { allowed: true }> & {
+export type MailboxHttpCredentialDecision = Extract<
+  MailboxHttpAccessDecision,
+  { allowed: true }
+> & {
   /** Trusted actor context used for identity and capability enforcement. */
   actor: MailboxActorContext;
 };
@@ -67,12 +70,14 @@ function credentialDecision(
   }
 
   const identitySeparator = credential.principalId.indexOf('@');
-  const role = credential.kind === 'agent'
-    ? credential.principalId.slice(0, identitySeparator === -1 ? undefined : identitySeparator)
-    : undefined;
-  const sessionId = identitySeparator === -1
-    ? undefined
-    : credential.principalId.slice(identitySeparator + 1) || undefined;
+  const role =
+    credential.kind === 'agent'
+      ? credential.principalId.slice(0, identitySeparator === -1 ? undefined : identitySeparator)
+      : undefined;
+  const sessionId =
+    identitySeparator === -1
+      ? undefined
+      : credential.principalId.slice(identitySeparator + 1) || undefined;
 
   return {
     allowed: true,

@@ -34,7 +34,10 @@ type TextOwnProps = Omit<ComponentProps<typeof InkText>, 'color' | 'backgroundCo
   color?: string | undefined;
   backgroundColor?: string | undefined;
 };
-type BoxOwnProps = Omit<ComponentProps<typeof InkBox>, 'ref' | 'borderColor' | 'backgroundColor'> & {
+type BoxOwnProps = Omit<
+  ComponentProps<typeof InkBox>,
+  'ref' | 'borderColor' | 'backgroundColor'
+> & {
   borderColor?: string | undefined;
   backgroundColor?: string | undefined;
 };
@@ -48,7 +51,7 @@ export {
   useStdin,
   useStdout,
 } from 'ink';
-export type { DOMElement, Key } from 'ink';;
+export type { DOMElement, Key } from 'ink';
 
 // `exactOptionalPropertyTypes` forbids passing `color={undefined}`, so we only
 // attach a color prop when it actually resolves to a value.
@@ -70,10 +73,7 @@ export function Text({ color, backgroundColor, ...rest }: TextOwnProps): ReactEl
 export const Box: ForwardRefExoticComponent<BoxOwnProps & RefAttributes<DOMElement>> = forwardRef<
   DOMElement,
   BoxOwnProps
->(function Box(
-  { borderColor, backgroundColor, ...rest },
-  ref,
-) {
+>(function Box({ borderColor, backgroundColor, ...rest }, ref) {
   const bc = softColor(borderColor);
   const bg = softColor(backgroundColor);
   return (

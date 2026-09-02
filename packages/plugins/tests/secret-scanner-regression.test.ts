@@ -322,13 +322,16 @@ describe('credential pattern regressions', () => {
     secretScannerPlugin.teardown?.(api as Any);
   });
 
-  it.each(databaseUris)('detects a password-bearing %s with an empty username', async (type, scheme) => {
-    const api = makeApi();
-    secretScannerPlugin.setup(api as Any);
-    const sample = `${scheme}://:password@localhost/db`;
-    expect(await matchedTypes(api, sample)).toContain(type);
-    secretScannerPlugin.teardown?.(api as Any);
-  });
+  it.each(databaseUris)(
+    'detects a password-bearing %s with an empty username',
+    async (type, scheme) => {
+      const api = makeApi();
+      secretScannerPlugin.setup(api as Any);
+      const sample = `${scheme}://:password@localhost/db`;
+      expect(await matchedTypes(api, sample)).toContain(type);
+      secretScannerPlugin.teardown?.(api as Any);
+    },
+  );
 
   const postgresUrisWithPasswordParam = [
     ['first', 'first-secret', ['password=', 'first-secret', '&sslmode=require'].join('')],
@@ -338,11 +341,10 @@ describe('credential pattern regressions', () => {
       ['sslmode=require&password=', 'middle-secret', '&connect_timeout=5'].join(''),
     ],
     ['last', 'last-secret', ['sslmode=require&password=', 'last-secret'].join('')],
-  ].map(([position, password, query]) => [
-    position,
-    password,
-    ['postgresql', '://', 'localhost', '/app?', query].join(''),
-  ] as const);
+  ].map(
+    ([position, password, query]) =>
+      [position, password, ['postgresql', '://', 'localhost', '/app?', query].join('')] as const,
+  );
 
   it.each(postgresUrisWithPasswordParam)(
     'blocks a PostgreSQL URI with a %s password query parameter',

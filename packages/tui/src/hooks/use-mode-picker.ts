@@ -17,10 +17,9 @@ export function buildModePickerOptions(result: GetModesResult) {
   return toModeOptions(result.modes, result.activeId);
 }
 
-export function useModePicker({
-  dispatch,
-  getModes,
-}: UseModePickerOptions): { openModePicker: () => Promise<void> } {
+export function useModePicker({ dispatch, getModes }: UseModePickerOptions): {
+  openModePicker: () => Promise<void>;
+} {
   const openModePicker = useCallback(async (): Promise<void> => {
     if (!getModes) return;
     const result = await getModes();

@@ -49,7 +49,13 @@ export interface ClientOfficeModel {
   stats: ClientOfficeStats;
 }
 
-export type AgentVisualRole = 'leader' | 'builder' | 'researcher' | 'reviewer' | 'planner' | 'operator';
+export type AgentVisualRole =
+  | 'leader'
+  | 'builder'
+  | 'researcher'
+  | 'reviewer'
+  | 'planner'
+  | 'operator';
 type DeskPalette = 'amber' | 'mint' | 'ocean' | 'plum' | 'rose' | 'graphite';
 
 interface DeskPersonality {
@@ -188,19 +194,18 @@ export function deskWaitState(
 
   const lastToolAt = current?.startedAt ?? history[0]?.completedAt ?? history[0]?.startedAt;
   const lastMailAt = mail[0]?.timestampMs;
-  const candidates = [lastToolAt, lastMailAt].filter((value): value is number => value !== undefined);
+  const candidates = [lastToolAt, lastMailAt].filter(
+    (value): value is number => value !== undefined,
+  );
   // The session start bounds the idle clock from below: a client that spun up
   // 20s ago cannot have been "waiting for 10 minutes", no matter how empty the
   // caches are. Without this floor every brand-new desk flags immediately.
   const startedMs = Date.parse(client.startedAt ?? '');
   const floor = Number.isFinite(startedMs) ? startedMs : 0;
   const lastActivityAt =
-    candidates.length > 0
-      ? Math.max(...candidates, floor)
-      : floor > 0
-        ? floor
-        : undefined;
-  const idleMs = lastActivityAt === undefined ? Number.POSITIVE_INFINITY : Math.max(0, now - lastActivityAt);
+    candidates.length > 0 ? Math.max(...candidates, floor) : floor > 0 ? floor : undefined;
+  const idleMs =
+    lastActivityAt === undefined ? Number.POSITIVE_INFINITY : Math.max(0, now - lastActivityAt);
 
   if (!active || current !== undefined || idleMs < thresholdMs) {
     return {

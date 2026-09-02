@@ -70,7 +70,11 @@ describe('attentionCount', () => {
     const lost = snapshotWithClient('c1');
     lost.clients[0]!.connected = false;
     expect(
-      attentionCount(lost, [alert({ severity: 'error' })], [commandEntry('c1', { ackStatus: 'failed' })]),
+      attentionCount(
+        lost,
+        [alert({ severity: 'error' })],
+        [commandEntry('c1', { ackStatus: 'failed' })],
+      ),
     ).toBe(3);
   });
 

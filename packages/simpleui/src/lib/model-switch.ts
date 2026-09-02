@@ -126,7 +126,9 @@ export function planModelSwitch(input: {
       : undefined);
   const nextDescriptor = models[nextProvider]?.find((item) => item.id === nextModel);
   const nextWindow =
-    nextDescriptor && typeof nextDescriptor.contextWindow === 'number' && nextDescriptor.contextWindow > 0
+    nextDescriptor &&
+    typeof nextDescriptor.contextWindow === 'number' &&
+    nextDescriptor.contextWindow > 0
       ? nextDescriptor.contextWindow
       : undefined;
 

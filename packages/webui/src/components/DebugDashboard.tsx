@@ -449,8 +449,12 @@ export function DebugDashboard() {
                   <th className="px-3 py-2 font-medium">{t('activity:debugDash.memory')}</th>
                   <th className="px-3 py-2 font-medium">{t('activity:debugDash.growthSignal')}</th>
                   <th className="px-3 py-2 font-medium">{t('activity:debugDash.workload')}</th>
-                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.hqOfflineQueue')}</th>
-                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.resourcesHotspot')}</th>
+                  <th className="px-3 py-2 font-medium">
+                    {t('activity:debugDash.hqOfflineQueue')}
+                  </th>
+                  <th className="px-3 py-2 font-medium">
+                    {t('activity:debugDash.resourcesHotspot')}
+                  </th>
                 </tr>
               </thead>
               <tbody>

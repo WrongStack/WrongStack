@@ -63,9 +63,12 @@ function fmtRelative(iso: string): string {
   const d = new Date(iso);
   const diff = Date.now() - d.getTime();
   if (diff < 60_000) return i18n.t('common:time.justNow');
-  if (diff < 3600_000) return i18n.t('common:time.minutesAgo', { count: Math.round(diff / 60_000) });
-  if (diff < 86400_000) return i18n.t('common:time.hoursAgo', { count: Math.round(diff / 3600_000) });
-  if (diff < 604800_000) return i18n.t('common:time.daysAgo', { count: Math.round(diff / 86400_000) });
+  if (diff < 3600_000)
+    return i18n.t('common:time.minutesAgo', { count: Math.round(diff / 60_000) });
+  if (diff < 86400_000)
+    return i18n.t('common:time.hoursAgo', { count: Math.round(diff / 3600_000) });
+  if (diff < 604800_000)
+    return i18n.t('common:time.daysAgo', { count: Math.round(diff / 86400_000) });
   return d.toLocaleDateString();
 }
 
@@ -88,7 +91,9 @@ function ReadByList({ readBy }: { readBy: Record<string, string> }) {
   if (entries.length === 0) return null;
   return (
     <div className="space-y-1">
-      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t('activity:mailbox.readBy')}</div>
+      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+        {t('activity:mailbox.readBy')}
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {entries.map(([agentId, timestamp]) => (
           <span
@@ -123,13 +128,14 @@ export function MailboxDetailView({ className }: { className?: string }) {
     showPanel('chat');
   }
 
-  if (!msg) return (
-    <EmptyState
-      icon={<Mail className="h-6 w-6" />}
-      title={t('activity:mailbox.emptyDetail')}
-      description={t('activity:mailbox.emptyDetailHint')}
-    />
-  );
+  if (!msg)
+    return (
+      <EmptyState
+        icon={<Mail className="h-6 w-6" />}
+        title={t('activity:mailbox.emptyDetail')}
+        description={t('activity:mailbox.emptyDetailHint')}
+      />
+    );
 
   const Icon = TYPE_ICONS[msg.type] ?? MessageSquare;
   const typeLabel = t(`activity:mailbox.type.${msg.type}`, { defaultValue: msg.type });
@@ -138,9 +144,7 @@ export function MailboxDetailView({ className }: { className?: string }) {
     ? { scope: msg.scope, recipientSessionId: msg.recipientSessionId }
     : classifyMailboxRecipient(msg.to);
   const recipientDisplay =
-    msg.to === '*' || msg.to === 'all'
-      ? t('activity:mailbox.everyone')
-      : msg.to;
+    msg.to === '*' || msg.to === 'all' ? t('activity:mailbox.everyone') : msg.to;
   const recipientScopeLabel =
     recipient.scope === 'session'
       ? t('activity:mailbox.sessionScope', { sid: recipient.recipientSessionId ?? '' })
@@ -156,166 +160,198 @@ export function MailboxDetailView({ className }: { className?: string }) {
       )}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/75 shadow-sm">
-      {/* ── Header bar ── */}
-      <div className="flex items-center gap-3 border-b border-border/70 px-3 py-3 sm:px-4 shrink-0">
-        <button
-          type="button"
-          onClick={handleClose}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          title={t('activity:mailbox.backToChat')}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
+        {/* ── Header bar ── */}
+        <div className="flex items-center gap-3 border-b border-border/70 px-3 py-3 sm:px-4 shrink-0">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            title={t('activity:mailbox.backToChat')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
 
-        <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', msg.completed ? 'bg-success/10' : 'bg-primary/10')}>
-          <Icon className={cn('h-4 w-4', msg.completed ? 'text-success' : 'text-primary')} />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground truncate">{msg.subject}</h2>
-            {msg.completed && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-success/25 bg-success/8 px-1.5 py-0.5 text-[10px] font-semibold text-success">
-                <CheckCircle2 className="h-3 w-3" />
-                {t('activity:mailbox.completed')}
-              </span>
+          <div
+            className={cn(
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+              msg.completed ? 'bg-success/10' : 'bg-primary/10',
             )}
-            <span className={cn('rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase', priorityClass)}>
-              {msg.priority || 'normal'}
-            </span>
-            {msg.audience === 'leaders' && (
-              <span className="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                <Lock className="h-2.5 w-2.5" /> {t('activity:mailbox.audienceLeaders')}
-              </span>
-            )}
+          >
+            <Icon className={cn('h-4 w-4', msg.completed ? 'text-success' : 'text-primary')} />
           </div>
-          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-            <span className="min-w-0 truncate font-medium text-foreground/80">{msg.from}</span>
-            <span>→</span>
-            <span className="min-w-0 truncate">{recipientDisplay}</span>
-            {recipient.scope === 'session' && (
+
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground truncate">{msg.subject}</h2>
+              {msg.completed && (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-success/25 bg-success/8 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {t('activity:mailbox.completed')}
+                </span>
+              )}
               <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-warning/12 text-warning"
-                title={t('activity:mailbox.sessionScopeTitle', { sid: recipient.recipientSessionId ?? '' })}
+                className={cn(
+                  'rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase',
+                  priorityClass,
+                )}
               >
-                <Lock className="h-2.5 w-2.5" />
-                {t('activity:mailbox.sessionLabel')}
+                {msg.priority || 'normal'}
               </span>
-            )}
-            {recipient.scope === 'project' && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/12 text-primary">
-                <Globe className="h-2.5 w-2.5" />
-                {t('activity:mailbox.projectLabel')}
+              {msg.audience === 'leaders' && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                  <Lock className="h-2.5 w-2.5" /> {t('activity:mailbox.audienceLeaders')}
+                </span>
+              )}
+            </div>
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <span className="min-w-0 truncate font-medium text-foreground/80">{msg.from}</span>
+              <span>→</span>
+              <span className="min-w-0 truncate">{recipientDisplay}</span>
+              {recipient.scope === 'session' && (
+                <span
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-warning/12 text-warning"
+                  title={t('activity:mailbox.sessionScopeTitle', {
+                    sid: recipient.recipientSessionId ?? '',
+                  })}
+                >
+                  <Lock className="h-2.5 w-2.5" />
+                  {t('activity:mailbox.sessionLabel')}
+                </span>
+              )}
+              {recipient.scope === 'project' && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/12 text-primary">
+                  <Globe className="h-2.5 w-2.5" />
+                  {t('activity:mailbox.projectLabel')}
+                </span>
+              )}
+              <span className="opacity-40">•</span>
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {fmtRelative(msg.timestamp)}
               </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleClose}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            title={t('activity:mailbox.closeTitle')}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto w-full max-w-4xl px-4 py-5">
+            <div className="markdown-content prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
+              <ReactMarkdown components={markdownComponents}>{msg.body}</ReactMarkdown>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Metadata footer ── */}
+        <div className="border-t border-border/70 bg-muted/20 px-4 py-3 shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
+            {/* Type */}
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Tag className="h-3 w-3 shrink-0" />
+              <span>{typeLabel}</span>
+            </div>
+
+            {/* Priority */}
+            <div className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  'rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase',
+                  priorityClass,
+                )}
+              >
+                {msg.priority || 'normal'}
+              </span>
+            </div>
+
+            {/* From */}
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <User className="h-3 w-3 shrink-0" />
+              <span className="truncate" title={msg.from}>
+                {msg.from}
+              </span>
+            </div>
+
+            {/* Recipient scope */}
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              {recipient.scope === 'session' ? (
+                <Lock className="h-3 w-3 shrink-0 text-warning" />
+              ) : (
+                <Globe className="h-3 w-3 shrink-0 text-primary" />
+              )}
+              <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0">
+                {t('activity:mailbox.scopeLabel')}
+              </span>
+              <span className="truncate">{recipientScopeLabel}</span>
+            </div>
+
+            {/* Timestamp */}
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Clock className="h-3 w-3 shrink-0" />
+              <span>{fmtTime(msg.timestamp)}</span>
+            </div>
+
+            {/* Reply To */}
+            {msg.replyTo && (
+              <div className="flex items-center gap-1.5 text-muted-foreground col-span-2">
+                <Reply className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {t('activity:mailbox.replyTo', { id: msg.replyTo })}
+                </span>
+              </div>
             )}
-            <span className="opacity-40">•</span>
-            <span className="inline-flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {fmtRelative(msg.timestamp)}
-            </span>
-          </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={handleClose}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          title={t('activity:mailbox.closeTitle')}
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* ── Body ── */}
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto w-full max-w-4xl px-4 py-5">
-          <div className="markdown-content prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
-            <ReactMarkdown components={markdownComponents}>{msg.body}</ReactMarkdown>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Metadata footer ── */}
-      <div className="border-t border-border/70 bg-muted/20 px-4 py-3 shrink-0">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
-          {/* Type */}
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Tag className="h-3 w-3 shrink-0" />
-            <span>{typeLabel}</span>
-          </div>
-
-          {/* Priority */}
-          <div className="flex items-center gap-1.5">
-            <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase', priorityClass)}>
-              {msg.priority || 'normal'}
-            </span>
-          </div>
-
-          {/* From */}
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <User className="h-3 w-3 shrink-0" />
-            <span className="truncate" title={msg.from}>{msg.from}</span>
-          </div>
-
-          {/* Recipient scope */}
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            {recipient.scope === 'session' ? (
-              <Lock className="h-3 w-3 shrink-0 text-warning" />
-            ) : (
-              <Globe className="h-3 w-3 shrink-0 text-primary" />
+            {/* Completed by */}
+            {msg.completed && msg.completedBy && (
+              <div className="flex items-center gap-1.5 text-muted-foreground col-span-2">
+                <CheckCircle2 className="h-3 w-3 shrink-0 text-success" />
+                <span>
+                  {msg.completedAt
+                    ? t('activity:mailbox.completedByAt', {
+                        name: msg.completedBy,
+                        time: fmtTime(msg.completedAt),
+                      })
+                    : t('activity:mailbox.completedBy', { name: msg.completedBy })}
+                </span>
+              </div>
             )}
-            <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0">
-              {t('activity:mailbox.scopeLabel')}
-            </span>
-            <span className="truncate">{recipientScopeLabel}</span>
+
+            {/* Outcome */}
+            {msg.outcome && (
+              <div className="flex items-start gap-1.5 text-muted-foreground col-span-2 sm:col-span-4">
+                <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0 mt-0.5">
+                  {t('activity:mailbox.outcome')}
+                </span>
+                <span>{msg.outcome}</span>
+              </div>
+            )}
+
+            {/* Task Context */}
+            {msg.taskContext && (
+              <div className="flex items-start gap-1.5 text-muted-foreground col-span-2 sm:col-span-4">
+                <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0 mt-0.5">
+                  {t('activity:mailbox.task')}
+                </span>
+                <span>{msg.taskContext}</span>
+              </div>
+            )}
           </div>
 
-          {/* Timestamp */}
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Clock className="h-3 w-3 shrink-0" />
-            <span>{fmtTime(msg.timestamp)}</span>
-          </div>
-
-          {/* Reply To */}
-          {msg.replyTo && (
-            <div className="flex items-center gap-1.5 text-muted-foreground col-span-2">
-              <Reply className="h-3 w-3 shrink-0" />
-              <span className="truncate">{t('activity:mailbox.replyTo', { id: msg.replyTo })}</span>
-            </div>
-          )}
-
-          {/* Completed by */}
-          {msg.completed && msg.completedBy && (
-            <div className="flex items-center gap-1.5 text-muted-foreground col-span-2">
-              <CheckCircle2 className="h-3 w-3 shrink-0 text-success" />
-              <span>{msg.completedAt ? t('activity:mailbox.completedByAt', { name: msg.completedBy, time: fmtTime(msg.completedAt) }) : t('activity:mailbox.completedBy', { name: msg.completedBy })}</span>
-            </div>
-          )}
-
-          {/* Outcome */}
-          {msg.outcome && (
-            <div className="flex items-start gap-1.5 text-muted-foreground col-span-2 sm:col-span-4">
-              <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0 mt-0.5">{t('activity:mailbox.outcome')}</span>
-              <span>{msg.outcome}</span>
-            </div>
-          )}
-
-          {/* Task Context */}
-          {msg.taskContext && (
-            <div className="flex items-start gap-1.5 text-muted-foreground col-span-2 sm:col-span-4">
-              <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0 mt-0.5">{t('activity:mailbox.task')}</span>
-              <span>{msg.taskContext}</span>
+          {/* Read by list */}
+          {Object.keys(msg.readBy ?? {}).length > 0 && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              <ReadByList readBy={msg.readBy} />
             </div>
           )}
         </div>
-
-        {/* Read by list */}
-        {Object.keys(msg.readBy ?? {}).length > 0 && (
-          <div className="mt-3 pt-3 border-t border-border/50">
-            <ReadByList readBy={msg.readBy} />
-          </div>
-        )}
-      </div>
       </div>
     </div>
   );

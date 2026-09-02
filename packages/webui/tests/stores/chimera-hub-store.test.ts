@@ -64,10 +64,13 @@ describe('chimera-hub-store', () => {
       hasActionableFindings: true,
     };
 
-    (getWSClient() as unknown as { emit: (t: string, p: unknown) => void }).emit('chimera.reports', {
-      reports: [mockReport],
-      isQuery: true,
-    });
+    (getWSClient() as unknown as { emit: (t: string, p: unknown) => void }).emit(
+      'chimera.reports',
+      {
+        reports: [mockReport],
+        isQuery: true,
+      },
+    );
 
     expect(useChimeraHubStore.getState().reports).toHaveLength(1);
     expect(useChimeraHubStore.getState().reports[0]?.reportId).toBe('r-100');
@@ -113,7 +116,12 @@ describe('chimera-hub-store', () => {
             description: 'Bug desc',
             createdAt: '2026-08-28T12:00:00Z',
             status: 'active',
-            originReport: { reportId: 'r-100', sessionId: 'sess-1', agentId: 'chimera-review', reviewerModel: 'test-model' },
+            originReport: {
+              reportId: 'r-100',
+              sessionId: 'sess-1',
+              agentId: 'chimera-review',
+              reviewerModel: 'test-model',
+            },
           },
           events: [],
         },
@@ -132,7 +140,10 @@ describe('chimera-hub-store', () => {
       ],
     };
 
-    (getWSClient() as unknown as { emit: (t: string, p: unknown) => void }).emit('chimera.report.detail', mockDetail);
+    (getWSClient() as unknown as { emit: (t: string, p: unknown) => void }).emit(
+      'chimera.report.detail',
+      mockDetail,
+    );
 
     expect(useChimeraHubStore.getState().detail?.report?.id).toBe('r-100');
     expect(useChimeraHubStore.getState().detail?.findings).toHaveLength(1);

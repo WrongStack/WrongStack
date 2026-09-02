@@ -99,7 +99,6 @@ const SESSION_AWARE_SEAMS = {
  */
 const KNOWN_ASYMMETRIES: Record<string, string> = {};
 
-
 function proxied(base: Record<string, unknown>, fallback: unknown) {
   return new Proxy(base, { get: (target, prop) => Reflect.get(target, prop) ?? fallback });
 }
@@ -138,7 +137,7 @@ function buildStandalone(): void {
         getClients: vi.fn(() => new Map()),
         getProjectRoot: vi.fn(() => '/repo'),
         getConfig: vi.fn(() => ({ provider: 'p', model: 'm' })),
-        withSessionTransition: <T,>(operation: () => Promise<T>) => operation(),
+        withSessionTransition: <T>(operation: () => Promise<T>) => operation(),
       },
       fallback,
     ) as never,

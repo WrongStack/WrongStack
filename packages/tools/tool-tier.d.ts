@@ -18,6 +18,4 @@ export interface RegisterBuiltinToolTierOptions {
 }
 
 /** Register the canonical built-in subset for a host and return that subset. */
-export declare function registerBuiltinToolTier(
-  options: RegisterBuiltinToolTierOptions,
-): Tool[];
+export declare function registerBuiltinToolTier(options: RegisterBuiltinToolTierOptions): Tool[];

@@ -28,7 +28,11 @@ import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import type * as Host from './director-host-contracts.js';
-import { instantiateRosterConfig, normalizeWorktreeOverride, stringArray } from './director-input-helpers.js';
+import {
+  instantiateRosterConfig,
+  normalizeWorktreeOverride,
+  stringArray,
+} from './director-input-helpers.js';
 import { type MutationPlanItem, parseMutationReport, planMutations } from './mutation-engine.js';
 
 /** Mutants per file kept per pass — keeps one spawn bounded. */
@@ -110,7 +114,8 @@ export function makeMutationTestTool(
           type: 'number',
           minimum: 0,
           maximum: 5,
-          description: 'Strengthen→re-verify rounds. Default 2 when repairSubagentId is set, else 0.',
+          description:
+            'Strengthen→re-verify rounds. Default 2 when repairSubagentId is set, else 0.',
         },
         repairSubagentId: {
           type: 'string',
@@ -122,7 +127,11 @@ export function makeMutationTestTool(
           description:
             "Worktree override for the chaos agent. Defaults to the roster policy for chaos-monkey ('off'), because mutation targets are usually freshly written and uncommitted — a worktree from HEAD would not contain them and every mutant would drift to skipped. Only pass 'auto' or 'required' when the targets are committed.",
         },
-        timeoutMs: { type: 'number', minimum: 1, description: 'Per-task timeout for chaos/strengthen/rerun tasks.' },
+        timeoutMs: {
+          type: 'number',
+          minimum: 1,
+          description: 'Per-task timeout for chaos/strengthen/rerun tasks.',
+        },
         reportOnly: {
           type: 'boolean',
           description: 'Skip the strengthen loop even when survivors exist. Default false.',
@@ -171,7 +180,8 @@ export function makeMutationTestTool(
       const survivors = pass1.filter((m) => m.status === 'survived');
 
       const maxAttempts = clamp(
-        i.maxStrengthenAttempts ?? (i.repairSubagentId && !i.reportOnly ? DEFAULT_MAX_STRENGTHEN_ATTEMPTS : 0),
+        i.maxStrengthenAttempts ??
+          (i.repairSubagentId && !i.reportOnly ? DEFAULT_MAX_STRENGTHEN_ATTEMPTS : 0),
         0,
         5,
       );
@@ -348,12 +358,17 @@ function buildPlan(i: MutationTestInput, projectRoot: string | undefined): Mutat
     } catch {
       continue; // unreadable target — surfaced via zero-plan error when all fail
     }
-    plan.push(...planMutations(target, source, { maxPerFile: i.maxPerFile ?? DEFAULT_MAX_PER_FILE }));
+    plan.push(
+      ...planMutations(target, source, { maxPerFile: i.maxPerFile ?? DEFAULT_MAX_PER_FILE }),
+    );
   }
   return plan;
 }
 
-function makeChaosConfig(base: SubagentConfig, worktree: SubagentConfig['worktree']): SubagentConfig {
+function makeChaosConfig(
+  base: SubagentConfig,
+  worktree: SubagentConfig['worktree'],
+): SubagentConfig {
   return { ...instantiateRosterConfig(CHAOS_ROLE, base), worktree };
 }
 
@@ -393,40 +408,47 @@ function buildChaosTask(
   ].join('\n');
 }
 
-function buildStrengthenTask(survivors: MutantOutcome[], i: MutationTestInput, attempt: number): string {
+function buildStrengthenTask(
+  survivors: MutantOutcome[],
+  i: MutationTestInput,
+  attempt: number,
+): string {
   // The worklist carries two kinds of rows under retry semantics, and
-    // lying about either wastes the repair agent's effort: a skipped row
-    // was never demonstrated to survive, so it must NOT be presented as a
-    // confirmed gap. The repair agent should re-establish the sabotage
-    // before writing assertions for it.
-    const confirmed = survivors.filter((s) => s.status === 'survived');
-    const unverified = survivors.filter((s) => s.status === 'skipped');
-    const row = (s: MutantOutcome): string =>
-      `- ${s.id} | ${s.file}:${s.line} | ${s.kind}${s.evidence ? ` | ${s.evidence}` : ''}`;
-    return [
-      `Strengthen the tests so the mutants below die (attempt ${attempt}).`,
-      '',
-      ...(confirmed.length > 0
-        ? [
-            'CONFIRMED SURVIVORS — each was a deliberate sabotage of production code that the current suite did NOT catch:',
-            ...confirmed.map(row),
-            '',
-          ]
-        : []),
-      ...(unverified.length > 0
-        ? [
-            'UNVERIFIED — these mutations were never actually re-tested (the re-verify pass skipped or did not report them). Do NOT assume the suite misses them: first apply each mutation, run the tests, and confirm it really survives; if the tests already fail, report that instead of writing new assertions.',
-            ...unverified.map(row),
-            '',
-          ]
-        : []),
-      `Test command that must fail under each CONFIRMED mutant: ${i.testCommand}`,
-      '',
-      'For each CONFIRMED survivor add or tighten exactly one assertion that pins the sabotaged boundary/behavior. Do not change production code. Do not weaken other tests. Run the suite green on clean code before finishing.',
+  // lying about either wastes the repair agent's effort: a skipped row
+  // was never demonstrated to survive, so it must NOT be presented as a
+  // confirmed gap. The repair agent should re-establish the sabotage
+  // before writing assertions for it.
+  const confirmed = survivors.filter((s) => s.status === 'survived');
+  const unverified = survivors.filter((s) => s.status === 'skipped');
+  const row = (s: MutantOutcome): string =>
+    `- ${s.id} | ${s.file}:${s.line} | ${s.kind}${s.evidence ? ` | ${s.evidence}` : ''}`;
+  return [
+    `Strengthen the tests so the mutants below die (attempt ${attempt}).`,
+    '',
+    ...(confirmed.length > 0
+      ? [
+          'CONFIRMED SURVIVORS — each was a deliberate sabotage of production code that the current suite did NOT catch:',
+          ...confirmed.map(row),
+          '',
+        ]
+      : []),
+    ...(unverified.length > 0
+      ? [
+          'UNVERIFIED — these mutations were never actually re-tested (the re-verify pass skipped or did not report them). Do NOT assume the suite misses them: first apply each mutation, run the tests, and confirm it really survives; if the tests already fail, report that instead of writing new assertions.',
+          ...unverified.map(row),
+          '',
+        ]
+      : []),
+    `Test command that must fail under each CONFIRMED mutant: ${i.testCommand}`,
+    '',
+    'For each CONFIRMED survivor add or tighten exactly one assertion that pins the sabotaged boundary/behavior. Do not change production code. Do not weaken other tests. Run the suite green on clean code before finishing.',
   ].join('\n');
 }
 
-function collectOutcomes(result: TaskResult | undefined, plan: MutationPlanItem[]): MutantOutcome[] {
+function collectOutcomes(
+  result: TaskResult | undefined,
+  plan: MutationPlanItem[],
+): MutantOutcome[] {
   const fromText = parseTextOutcomes(result);
   if (fromText.length > 0) {
     // Reconcile by OCCURRENCE, not by id set: ids are only unique per

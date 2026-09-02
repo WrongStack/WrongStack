@@ -299,10 +299,29 @@ describe('GoogleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'k' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            { content: { role: 'model', parts: [{ text: 'k' }] }, finishReason: 'stop' },
+          ],
+          usageMetadata: {},
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new GoogleProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, topK: 40, candidateCount: 3 }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 100,
+        topK: 40,
+        candidateCount: 3,
+      },
+      { signal: new AbortController().signal },
+    );
     const cfg = captured?.['generationConfig'] as Record<string, unknown>;
     expect(cfg['topK']).toBe(40);
     expect(cfg['candidateCount']).toBe(3);
@@ -312,10 +331,30 @@ describe('GoogleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'k' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            { content: { role: 'model', parts: [{ text: 'k' }] }, finishReason: 'stop' },
+          ],
+          usageMetadata: {},
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new GoogleProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, frequencyPenalty: 0.5, presencePenalty: 0.3, seed: 42 }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 100,
+        frequencyPenalty: 0.5,
+        presencePenalty: 0.3,
+        seed: 42,
+      },
+      { signal: new AbortController().signal },
+    );
     const cfg = captured?.['generationConfig'] as Record<string, unknown>;
     expect(cfg['frequencyPenalty']).toBe(0.5);
     expect(cfg['presencePenalty']).toBe(0.3);
@@ -326,10 +365,23 @@ describe('GoogleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'k' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            { content: { role: 'model', parts: [{ text: 'k' }] }, finishReason: 'stop' },
+          ],
+          usageMetadata: {},
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new GoogleProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, logprobs: true }, { signal: new AbortController().signal });
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, logprobs: true },
+      { signal: new AbortController().signal },
+    );
     const cfg = captured?.['generationConfig'] as Record<string, unknown>;
     expect(cfg['logprobs']).toBe(true);
   });
@@ -338,7 +390,17 @@ describe('GoogleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'k' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            { content: { role: 'model', parts: [{ text: 'k' }] }, finishReason: 'stop' },
+          ],
+          usageMetadata: {},
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new GoogleProvider({ apiKey: 'k', fetchImpl });
 
@@ -368,10 +430,7 @@ describe('GoogleProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
-      string,
-      unknown
-    >;
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<string, unknown>;
     expect(cfg['thinkingConfig']).toEqual({ thinkingLevel: 'minimal' });
 
     // Gemini 2.5 + effort → thinkingBudget derived from the output cap.
@@ -384,10 +443,7 @@ describe('GoogleProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
-      string,
-      unknown
-    >;
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<string, unknown>;
     const thinking = cfg['thinkingConfig'] as { thinkingBudget?: number };
     expect(typeof thinking?.thinkingBudget).toBe('number');
     expect(thinking.thinkingBudget).toBeGreaterThanOrEqual(1024);
@@ -402,10 +458,7 @@ describe('GoogleProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
-      string,
-      unknown
-    >;
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<string, unknown>;
     expect(cfg['thinkingConfig']).toEqual({ thinkingBudget: 0 });
 
     // Gemini 2.5 Pro + explicit off → omit: Pro-tier rejects budget 0 with a
@@ -419,10 +472,7 @@ describe('GoogleProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
-      string,
-      unknown
-    >;
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<string, unknown>;
     expect(cfg).not.toHaveProperty('thinkingConfig');
 
     // enabled:true with no effort → dynamic is the API default; send nothing.
@@ -435,10 +485,7 @@ describe('GoogleProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
-      string,
-      unknown
-    >;
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<string, unknown>;
     expect(cfg).not.toHaveProperty('thinkingConfig');
 
     // Unknown generation → nothing (never guess a knob).
@@ -451,10 +498,7 @@ describe('GoogleProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
-      string,
-      unknown
-    >;
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<string, unknown>;
     expect(cfg).not.toHaveProperty('thinkingConfig');
   });
 
@@ -462,10 +506,31 @@ describe('GoogleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: '{}' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            { content: { role: 'model', parts: [{ text: '{}' }] }, finishReason: 'stop' },
+          ],
+          usageMetadata: {},
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new GoogleProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, responseFormat: { type: 'json_schema', jsonSchema: { name: 'p', schema: { type: 'object' } } } }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 100,
+        responseFormat: {
+          type: 'json_schema',
+          jsonSchema: { name: 'p', schema: { type: 'object' } },
+        },
+      },
+      { signal: new AbortController().signal },
+    );
     const cfg = captured?.['generationConfig'] as Record<string, unknown>;
     expect(cfg['responseMimeType']).toBe('application/json');
     expect(cfg['responseSchema']).toEqual({ type: 'object' });
@@ -475,16 +540,31 @@ describe('GoogleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            { content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'stop' },
+          ],
+          usageMetadata: {},
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new GoogleProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({
-      model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100,
-      safetySettings: [
-        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_LOW_AND_ABOVE' },
-      ],
-    }, { signal: new AbortController().signal });
+    await p.complete(
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 100,
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_LOW_AND_ABOVE' },
+        ],
+      },
+      { signal: new AbortController().signal },
+    );
     expect(captured?.['safetySettings']).toEqual([
       { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_LOW_AND_ABOVE' },
@@ -508,7 +588,17 @@ describe('GoogleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            { content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'stop' },
+          ],
+          usageMetadata: {},
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new GoogleProvider({ apiKey: 'k', fetchImpl, maxTools: 2 });
     await p.complete(
@@ -520,7 +610,9 @@ describe('GoogleProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    const toolsWrapper = captured?.['tools'] as Array<{ functionDeclarations: Array<{ name: string }> }>;
+    const toolsWrapper = captured?.['tools'] as Array<{
+      functionDeclarations: Array<{ name: string }>;
+    }>;
     expect(toolsWrapper).toBeDefined();
     const wireTools = toolsWrapper[0]!.functionDeclarations;
     expect(wireTools).toHaveLength(2);
@@ -534,7 +626,17 @@ describe('GoogleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            { content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'stop' },
+          ],
+          usageMetadata: {},
+        }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new GoogleProvider({ apiKey: 'k', fetchImpl, maxTools: 128 });
     await p.complete(
@@ -546,7 +648,9 @@ describe('GoogleProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    const toolsWrapper = captured?.['tools'] as Array<{ functionDeclarations: Array<{ name: string }> }>;
+    const toolsWrapper = captured?.['tools'] as Array<{
+      functionDeclarations: Array<{ name: string }>;
+    }>;
     expect(toolsWrapper[0]!.functionDeclarations).toHaveLength(3);
   });
 });

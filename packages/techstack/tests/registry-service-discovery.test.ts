@@ -1,11 +1,16 @@
-import { describe, it, expect, } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   mapEcosystem,
   deriveCoverage,
   workspaceId,
   computeFingerprint,
 } from '../src/discovery/index.js';
-import { parseNpmPackument, supportedRegistryEcosystems, clearRegistryCache, invalidateRegistryCache } from '../src/registry/client.js';
+import {
+  parseNpmPackument,
+  supportedRegistryEcosystems,
+  clearRegistryCache,
+  invalidateRegistryCache,
+} from '../src/registry/client.js';
 import type { Snapshot, DependencyObservation, Finding, Workspace } from '../src/types.js';
 import { TechStackEngine } from '../src/service.js';
 
@@ -87,11 +92,14 @@ describe('computeFingerprint', () => {
 
 describe('parseNpmPackument', () => {
   it('extracts latest version and license', () => {
-    const entry = parseNpmPackument({
-      'dist-tags': { latest: '1.2.3' },
-      license: 'MIT',
-      versions: {},
-    }, 'test-pkg');
+    const entry = parseNpmPackument(
+      {
+        'dist-tags': { latest: '1.2.3' },
+        license: 'MIT',
+        versions: {},
+      },
+      'test-pkg',
+    );
     expect(entry.latestStable).toBe('1.2.3');
     expect(entry.license).toBe('MIT');
     expect(entry.deprecated).toBeUndefined();
@@ -99,23 +107,29 @@ describe('parseNpmPackument', () => {
   });
 
   it('detects deprecation of the latest version', () => {
-    const entry = parseNpmPackument({
-      'dist-tags': { latest: '2.0.0' },
-      versions: {
-        '2.0.0': { deprecated: 'Use v3 instead' },
+    const entry = parseNpmPackument(
+      {
+        'dist-tags': { latest: '2.0.0' },
+        versions: {
+          '2.0.0': { deprecated: 'Use v3 instead' },
+        },
       },
-    }, 'dead-pkg');
+      'dead-pkg',
+    );
     expect(entry.deprecated).toBe(true);
   });
 
   it('does NOT flag deprecation on old versions only', () => {
-    const entry = parseNpmPackument({
-      'dist-tags': { latest: '2.0.0' },
-      versions: {
-        '1.0.0': { deprecated: 'old' },
-        '2.0.0': {},
+    const entry = parseNpmPackument(
+      {
+        'dist-tags': { latest: '2.0.0' },
+        versions: {
+          '1.0.0': { deprecated: 'old' },
+          '2.0.0': {},
+        },
       },
-    }, 'pkg');
+      'pkg',
+    );
     expect(entry.deprecated).toBeUndefined();
   });
 
@@ -218,7 +232,13 @@ describe('TechStackEngine.generateReport', () => {
         dep({ id: 'dep-2', name: 'lodash', locked: '4.17.20', status: 'deprecated' }),
       ],
       findings: [
-        finding({ id: 'f1', dependencyId: 'dep-2', type: 'deprecated', severity: 'medium', rationale: 'Package is deprecated' }),
+        finding({
+          id: 'f1',
+          dependencyId: 'dep-2',
+          type: 'deprecated',
+          severity: 'medium',
+          rationale: 'Package is deprecated',
+        }),
       ],
     });
     const md = engine.generateReport(snap, 'md');

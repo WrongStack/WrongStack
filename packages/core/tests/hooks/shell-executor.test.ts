@@ -56,10 +56,7 @@ describe('runShellHook', () => {
   });
 
   it('feeds the HookInput JSON to stdin', async () => {
-    const r = await runShellHook(
-      { command: `node ${scripts.echo}` },
-      input({ toolName: 'edit' }),
-    );
+    const r = await runShellHook({ command: `node ${scripts.echo}` }, input({ toolName: 'edit' }));
     expect(r?.additionalContext).toBe('edit');
   });
 

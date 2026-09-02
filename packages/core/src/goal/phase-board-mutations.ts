@@ -26,10 +26,7 @@ export interface PhaseBoardMutationContext {
   emit: (event: PhaseBoardEmit['event'], payload: PhaseBoardEmit['payload']) => void;
 }
 
-export function findPhaseOfTaskInGraph(
-  graph: PhaseGraph,
-  taskId: string,
-): PhaseNode | undefined {
+export function findPhaseOfTaskInGraph(graph: PhaseGraph, taskId: string): PhaseNode | undefined {
   for (const phase of graph.phases.values()) {
     if (phase.taskGraph.nodes.has(taskId)) return phase;
   }

@@ -35,14 +35,34 @@ function makeTool(name: string): Tool {
 }
 
 const BENCH_TOOLS = [
-  'read', 'write', 'edit', 'glob', 'grep', 'bash', 'fetch', 'todo',
-  'replace', 'search', 'git', 'exec', 'patch', 'json', 'diff',
+  'read',
+  'write',
+  'edit',
+  'glob',
+  'grep',
+  'bash',
+  'fetch',
+  'todo',
+  'replace',
+  'search',
+  'git',
+  'exec',
+  'patch',
+  'json',
+  'diff',
 ].map(makeTool);
 
 const agentNames = [
-  'Leader Agent', 'Bug Hunter', 'Security Scanner', 'Refactor Planner',
-  'chimera-review', 'Einstein (Test)', 'Lovelace (Frontend)', 'Von Neumann (Architect)',
-  'Newton (Research)', 'Curie (Research)',
+  'Leader Agent',
+  'Bug Hunter',
+  'Security Scanner',
+  'Refactor Planner',
+  'chimera-review',
+  'Einstein (Test)',
+  'Lovelace (Frontend)',
+  'Von Neumann (Architect)',
+  'Newton (Research)',
+  'Curie (Research)',
 ];
 
 function makeAgents() {
@@ -148,10 +168,8 @@ describe('B7 — markAssistantReferencedEvidence scan window', () => {
   const matching80 = fillToolCalls(80, true);
   const matching20 = fillToolCalls(20, true);
   // Response text matches ALL entries so both paths do full metadataReferencedByText work.
-  const response80 = 'reviewed ' + matching80
-    .map((c) => c.files[0]).join(' ');
-  const response20 = 'reviewed ' + matching20
-    .map((c) => c.files[0]).join(' ');
+  const response80 = 'reviewed ' + matching80.map((c) => c.files[0]).join(' ');
+  const response20 = 'reviewed ' + matching20.map((c) => c.files[0]).join(' ');
 
   bench('80 entries all match — scans last 20 (new cap)', () => {
     const ctx = makeEvidenceContext(matching80);
@@ -188,7 +206,7 @@ function makeLargeToolOutput(sizeKb: number): string {
   const repeats = Math.ceil((sizeKb * 1024) / block.length);
   let content = block.repeat(repeats);
   // Append error-like lines at the bottom (where errors actually surface).
-  content += '\nError: ENOENT: no such file or directory, open \'missing.txt\'\n';
+  content += "\nError: ENOENT: no such file or directory, open 'missing.txt'\n";
   content += 'TypeError: Cannot read properties of undefined\n';
   content += '    at parseConfig (src/config.ts:42:15)\n';
   return content.slice(0, sizeKb * 1024 + 500);

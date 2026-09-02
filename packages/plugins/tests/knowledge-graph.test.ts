@@ -87,7 +87,9 @@ describe('knowledge-graph plugin', () => {
     knowledgeGraphPlugin.setup(api as never);
     const add = getTool(api, 'kg_add_fact');
     const remove = getTool(api, 'kg_remove_fact');
-    const added = (await add({ subject: 'x', relation: 'y', object: 'z' })) as { fact: { id: string } };
+    const added = (await add({ subject: 'x', relation: 'y', object: 'z' })) as {
+      fact: { id: string };
+    };
     const result = (await remove({ id: added.fact.id })) as { ok: boolean; removed: number };
     expect(result.ok).toBe(true);
     expect(result.removed).toBe(1);

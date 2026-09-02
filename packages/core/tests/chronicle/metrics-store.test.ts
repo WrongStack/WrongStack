@@ -205,24 +205,30 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
     const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-paths-'));
     dirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-24.events.jsonl') });
-    await journal.append(input({
-      eventType: 'file.event',
-      occurredAt: '2026-07-24T10:00:00.000Z',
-      resource: { kind: 'file', id: 'a-old', path: 'src/a.ts' },
-      attributes: { operation: 'update', source: 'tool' },
-    }));
-    await journal.append(input({
-      eventType: 'file.event',
-      occurredAt: '2026-07-24T10:01:00.000Z',
-      resource: { kind: 'file', id: 'b-latest', path: 'SRC\\B.TS' },
-      attributes: { operation: 'create', source: 'tool' },
-    }));
-    await journal.append(input({
-      eventType: 'file.event',
-      occurredAt: '2026-07-24T10:02:00.000Z',
-      resource: { kind: 'file', id: 'a-latest', path: 'src/a.ts' },
-      attributes: { operation: 'delete', source: 'tool' },
-    }));
+    await journal.append(
+      input({
+        eventType: 'file.event',
+        occurredAt: '2026-07-24T10:00:00.000Z',
+        resource: { kind: 'file', id: 'a-old', path: 'src/a.ts' },
+        attributes: { operation: 'update', source: 'tool' },
+      }),
+    );
+    await journal.append(
+      input({
+        eventType: 'file.event',
+        occurredAt: '2026-07-24T10:01:00.000Z',
+        resource: { kind: 'file', id: 'b-latest', path: 'SRC\\B.TS' },
+        attributes: { operation: 'create', source: 'tool' },
+      }),
+    );
+    await journal.append(
+      input({
+        eventType: 'file.event',
+        occurredAt: '2026-07-24T10:02:00.000Z',
+        resource: { kind: 'file', id: 'a-latest', path: 'src/a.ts' },
+        attributes: { operation: 'delete', source: 'tool' },
+      }),
+    );
     await journal.flush();
 
     const store = ChronicleMetricsStore.open(dir);
@@ -262,11 +268,17 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
         input({
           eventType: 'provider.fallback',
           outcome: 'success',
-          attributes: { from: { providerId: 'openai', model: 'gpt' }, to: { providerId: 'anthropic', model: 'claude' }, status: 529 },
+          attributes: {
+            from: { providerId: 'openai', model: 'gpt' },
+            to: { providerId: 'anthropic', model: 'claude' },
+            status: 529,
+          },
         }),
       ),
       // An identity-less provider event must not create a ('', '') row.
-      journal.append(input({ eventType: 'provider.fallback', outcome: 'success', attributes: { status: 500 } })),
+      journal.append(
+        input({ eventType: 'provider.fallback', outcome: 'success', attributes: { status: 500 } }),
+      ),
     ]);
     await journal.flush();
 
@@ -276,7 +288,12 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
       const rows = store.providerDaily();
       // Only the openai/gpt row exists — no blank-identity phantom.
       expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({ providerId: 'openai', modelId: 'gpt', attempts: 1, fallbacks: 1 });
+      expect(rows[0]).toMatchObject({
+        providerId: 'openai',
+        modelId: 'gpt',
+        attempts: 1,
+        fallbacks: 1,
+      });
       expect(rows.some((row) => row.providerId === '' && row.modelId === '')).toBe(false);
     } finally {
       store.close();
@@ -323,30 +340,95 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
     const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-24.events.jsonl') });
     const withAgent = { ...scope, agentId: 'worker-1' };
     await Promise.all([
-      journal.append(input({ eventType: 'tool.started', scope: withAgent, correlation: { ...correlation, toolCallId: 'tc-1' } })),
-      journal.append(input({ eventType: 'tool.executed', scope: withAgent, correlation: { ...correlation, toolCallId: 'tc-1' }, outcome: 'success', durationNs: '10000000' })),
-      journal.append(input({ eventType: 'tool.failed', scope: withAgent, correlation: { ...correlation, toolCallId: 'tc-2' }, outcome: 'failure', durationNs: '5000000' })),
+      journal.append(
+        input({
+          eventType: 'tool.started',
+          scope: withAgent,
+          correlation: { ...correlation, toolCallId: 'tc-1' },
+        }),
+      ),
+      journal.append(
+        input({
+          eventType: 'tool.executed',
+          scope: withAgent,
+          correlation: { ...correlation, toolCallId: 'tc-1' },
+          outcome: 'success',
+          durationNs: '10000000',
+        }),
+      ),
+      journal.append(
+        input({
+          eventType: 'tool.failed',
+          scope: withAgent,
+          correlation: { ...correlation, toolCallId: 'tc-2' },
+          outcome: 'failure',
+          durationNs: '5000000',
+        }),
+      ),
       journal.append(input({ eventType: 'process.started', scope: withAgent })),
-      journal.append(input({ eventType: 'process.completed', scope: withAgent, outcome: 'failure' })),
-      journal.append(input({ eventType: 'decision.requested', scope: withAgent, attributes: { decisionId: 'd1' } })),
-      journal.append(input({ eventType: 'decision.escalated', scope: withAgent, attributes: { decisionId: 'd1' } })),
+      journal.append(
+        input({ eventType: 'process.completed', scope: withAgent, outcome: 'failure' }),
+      ),
+      journal.append(
+        input({
+          eventType: 'decision.requested',
+          scope: withAgent,
+          attributes: { decisionId: 'd1' },
+        }),
+      ),
+      journal.append(
+        input({
+          eventType: 'decision.escalated',
+          scope: withAgent,
+          attributes: { decisionId: 'd1' },
+        }),
+      ),
       journal.append(input({ eventType: 'agent.status_changed', scope: withAgent })),
-      journal.append(input({ eventType: 'file.event', scope: withAgent, resource: { kind: 'file', id: 'path:a.ts', path: 'a.ts' }, attributes: { operation: 'update' } })),
-      journal.append(input({ eventType: 'file.event', scope: withAgent, resource: { kind: 'file', id: 'path:b.ts', path: 'b.ts' }, attributes: { operation: 'read' } })),
-      journal.append(input({
-        eventType: 'provider.attempt.completed', scope: withAgent, correlation: { ...correlation, logicalRequestId: 'r1' },
-        runtime: { providerId: 'openai', modelId: 'gpt' }, outcome: 'success', durationNs: '20000000',
-        attributes: { usage: { input: 10, output: 2 } },
-      })),
+      journal.append(
+        input({
+          eventType: 'file.event',
+          scope: withAgent,
+          resource: { kind: 'file', id: 'path:a.ts', path: 'a.ts' },
+          attributes: { operation: 'update' },
+        }),
+      ),
+      journal.append(
+        input({
+          eventType: 'file.event',
+          scope: withAgent,
+          resource: { kind: 'file', id: 'path:b.ts', path: 'b.ts' },
+          attributes: { operation: 'read' },
+        }),
+      ),
+      journal.append(
+        input({
+          eventType: 'provider.attempt.completed',
+          scope: withAgent,
+          correlation: { ...correlation, logicalRequestId: 'r1' },
+          runtime: { providerId: 'openai', modelId: 'gpt' },
+          outcome: 'success',
+          durationNs: '20000000',
+          attributes: { usage: { input: 10, output: 2 } },
+        }),
+      ),
       // A different day — must be excluded by a from/to window scoped to the 24th.
-      journal.append(input({ eventType: 'tool.started', scope: withAgent, occurredAt: '2026-07-25T10:00:00.000Z' })),
+      journal.append(
+        input({
+          eventType: 'tool.started',
+          scope: withAgent,
+          occurredAt: '2026-07-25T10:00:00.000Z',
+        }),
+      ),
     ]);
     await journal.flush();
 
     const store = ChronicleMetricsStore.open(dir);
     try {
       await store.refresh();
-      const bounded = store.defaultSummary({ from: '2026-07-24T00:00:00.000Z', to: '2026-07-24T23:59:59.000Z' });
+      const bounded = store.defaultSummary({
+        from: '2026-07-24T00:00:00.000Z',
+        to: '2026-07-24T23:59:59.000Z',
+      });
       expect(bounded).toMatchObject({
         toolCalls: 1,
         completedTools: 1,
@@ -376,7 +458,10 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
       expect(bounded.failuresByFamily.tool).toBeGreaterThan(0);
 
       // Widening the window picks up the 25th's extra tool.started.
-      const wide = store.defaultSummary({ from: '2026-07-24T00:00:00.000Z', to: '2026-07-25T23:59:59.000Z' });
+      const wide = store.defaultSummary({
+        from: '2026-07-24T00:00:00.000Z',
+        to: '2026-07-25T23:59:59.000Z',
+      });
       expect(wide.toolCalls).toBe(2);
 
       // No bound at all — everything.

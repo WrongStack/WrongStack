@@ -198,9 +198,7 @@ describe('SessionMemoryConsolidator operations', () => {
   it('maps legacy kinds and priorities, then continues after a rejected SAGE write', async () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     const Sage = mkSage();
-    Sage.rememberSage
-      .mockRejectedValueOnce(new Error('rejected item'))
-      .mockResolvedValueOnce({});
+    Sage.rememberSage.mockRejectedValueOnce(new Error('rejected item')).mockResolvedValueOnce({});
     const ops = {
       operations: [
         { action: 'add', text: 'reference that fails', type: 'reference', priority: 'critical' },

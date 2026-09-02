@@ -7,7 +7,7 @@
  * @see packages/techstack/src/advisory/osv.ts
  */
 
-import { describe, it, } from 'vitest';
+import { describe, it } from 'vitest';
 import { queryOsvSingle } from '../../src/advisory/osv.js';
 
 describe('queryOsvSingle', () => {

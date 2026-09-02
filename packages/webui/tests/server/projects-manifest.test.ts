@@ -32,7 +32,9 @@ describe('projects-manifest', () => {
 
   it('saveManifest then loadManifest round-trips the projects', async () => {
     const manifest = {
-      projects: [{ name: 'proj', root: '/x/proj', slug: 'proj-abc', lastSeen: '2026-06-21T00:00:00Z' }],
+      projects: [
+        { name: 'proj', root: '/x/proj', slug: 'proj-abc', lastSeen: '2026-06-21T00:00:00Z' },
+      ],
     };
     await saveManifest(manifest, configPath);
     expect(await loadManifest(configPath)).toEqual(manifest);

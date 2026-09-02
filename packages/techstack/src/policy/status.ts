@@ -88,7 +88,12 @@ export function compareVersions(a: string, b: string): number {
     if (aId === bId) continue;
     const aNum = Number(aId);
     const bNum = Number(bId);
-    if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && Number.isFinite(aNum) && Number.isFinite(bNum)) {
+    if (
+      !Number.isNaN(aNum) &&
+      !Number.isNaN(bNum) &&
+      Number.isFinite(aNum) &&
+      Number.isFinite(bNum)
+    ) {
       if (aNum > bNum) return 1;
       if (aNum < bNum) return -1;
     } else {
@@ -267,10 +272,7 @@ export function classifyStatus(
 /**
  * Create a registry status data object indicating a private/unresolved package.
  */
-export function privateOrUnresolvedStatus(
-  source: string,
-  detail?: string,
-): RegistryStatusData {
+export function privateOrUnresolvedStatus(source: string, detail?: string): RegistryStatusData {
   return {
     privateOrUnresolved: true,
     evidence: [
@@ -287,10 +289,7 @@ export function privateOrUnresolvedStatus(
 /**
  * Create a registry status data object indicating a failed/offline lookup.
  */
-export function failedLookupStatus(
-  source: string,
-  error?: string,
-): RegistryStatusData {
+export function failedLookupStatus(source: string, error?: string): RegistryStatusData {
   return {
     lookupFailed: true,
     evidence: [

@@ -39,10 +39,7 @@ import {
   toProposals,
   validateLlmSuggestionOutput,
 } from './suggestions.js';
-import type {
-  RequirementIntakeStore,
-  StoreUpdateOptions,
-} from './store.js';
+import type { RequirementIntakeStore, StoreUpdateOptions } from './store.js';
 import type {
   AddAnswerInput,
   AttachResourceInput,
@@ -784,4 +781,3 @@ export class RequirementIntakeService {
     }
   }
 }
-

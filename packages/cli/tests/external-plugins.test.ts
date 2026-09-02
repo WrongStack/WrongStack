@@ -49,9 +49,7 @@ function importStub(fixtures: Record<string, Plugin>) {
   const calls: string[] = [];
   const importModule = async (target: string): Promise<unknown> => {
     calls.push(target);
-    const key = target.startsWith('file:')
-      ? (fileURLToPath(target) as string)
-      : target;
+    const key = target.startsWith('file:') ? (fileURLToPath(target) as string) : target;
     const plugin = fixtures[key] ?? fixtures[target];
     if (!plugin) throw new Error(`no fixture for ${target}`);
     return { default: plugin };
@@ -94,9 +92,9 @@ describe('loadExternalPlugins — config path entries', () => {
     expect(stub.calls[0]).toMatch(/^file:\/\//);
     expect(stub.calls[0]).toContain('my-plugin');
     // First use wrote a TOFU pin keyed by the entry file.
-    const store = JSON.parse(
-      await fs.readFile(join(globalRoot, 'plugin-trust.json'), 'utf8'),
-    ) as { pinned: Record<string, unknown> };
+    const store = JSON.parse(await fs.readFile(join(globalRoot, 'plugin-trust.json'), 'utf8')) as {
+      pinned: Record<string, unknown>;
+    };
     const pinKey = Object.keys(store.pinned)[0]!.replaceAll('\\', '/');
     expect(pinKey.endsWith('my-plugin/index.js')).toBe(true);
     expect(log.error).not.toHaveBeenCalled();
@@ -157,7 +155,9 @@ describe('loadExternalPlugins — config path entries', () => {
 
     expect(loaded).toEqual([]);
     expect(stub.calls).toEqual([]); // never even imported
-    const refused = (log.error as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0])).join('\n');
+    const refused = (log.error as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => String(c[0]))
+      .join('\n');
     expect(refused).toContain('REFUSING');
     expect(refused).toContain('wstack plugin trust');
   });
@@ -168,7 +168,7 @@ describe('loadExternalPlugins — config path entries', () => {
     const entry = await writeEntry(join(projectRoot, 'no-trust-plugin'));
     const stub = importStub({ [entry]: pluginFixture('no-trust-plugin') });
     const config = makeConfig([{ name: 'no-trust-plugin', path: entry }]);
-    ((config.features as unknown) as Record<string, unknown>).pluginsTrust = false;
+    (config.features as unknown as Record<string, unknown>).pluginsTrust = false;
 
     const loaded = await loadExternalPlugins(
       {
@@ -202,7 +202,9 @@ describe('loadExternalPlugins — validation and guards', () => {
       hooks,
     );
     expect(loaded).toEqual([]);
-    const warned = (log.warn as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0])).join('\n');
+    const warned = (log.warn as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => String(c[0]))
+      .join('\n');
     expect(warned).toContain('invalid');
     expect(warned).toContain('apiVersion');
   });
@@ -222,7 +224,9 @@ describe('loadExternalPlugins — validation and guards', () => {
       hooks,
     );
     expect(loaded).toEqual([]);
-    const warned = (log.warn as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0])).join('\n');
+    const warned = (log.warn as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => String(c[0]))
+      .join('\n');
     expect(warned).toContain('reserved name');
   });
 
@@ -249,7 +253,9 @@ describe('loadExternalPlugins — validation and guards', () => {
       hooks,
     );
     expect(loaded).toEqual([first]);
-    expect((log.warn as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0])).join('\n')).toContain('duplicates');
+    expect(
+      (log.warn as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0])).join('\n'),
+    ).toContain('duplicates');
   });
 });
 
@@ -335,7 +341,9 @@ describe('loadExternalPlugins — directory discovery', () => {
     expect(loaded).toHaveLength(1);
     // Only the config-spec import happened; the discovery candidate was skipped.
     expect(stub.calls).toEqual(['shared']);
-    expect((log.info as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0])).join('\n')).toContain('config entry wins');
+    expect(
+      (log.info as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0])).join('\n'),
+    ).toContain('config entry wins');
   });
 
   it('respects enablement for discovered plugins via plugins[] entries', async () => {
@@ -364,7 +372,7 @@ describe('loadExternalPlugins — directory discovery', () => {
     const projectRoot = await tempDir('ws-ext-project-');
     await writeEntry(join(globalRoot, 'plugins', 'never'));
     const config = makeConfig([]);
-    ((config.features as unknown) as Record<string, unknown>).plugins = false;
+    (config.features as unknown as Record<string, unknown>).plugins = false;
     const loaded = await loadExternalPlugins(
       {
         config,

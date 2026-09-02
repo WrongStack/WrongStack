@@ -1,7 +1,4 @@
-import {
-  MAILBOX_TYPE_PROPERTIES,
-  type MailboxMessageType,
-} from './mailbox-type-properties.js';
+import { MAILBOX_TYPE_PROPERTIES, type MailboxMessageType } from './mailbox-type-properties.js';
 import type {
   ActorMailboxMessage,
   MailboxMessage,

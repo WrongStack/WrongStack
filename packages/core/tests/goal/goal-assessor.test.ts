@@ -9,9 +9,8 @@ import { GoalAssessor } from '../../src/goal/goal-assessor.js';
 // Mock the instruction-file module so buildPrompt() doesn't hit disk.
 vi.mock('../../src/utils/instruction-file.js', () => ({
   readBundledInstructionText: vi.fn(() => 'Assess this goal: {{goal}}'),
-  renderInstructionTemplate: vi.fn(
-    (template: string, vars: Record<string, string>) =>
-      template.replace('{{goal}}', vars.goal ?? ''),
+  renderInstructionTemplate: vi.fn((template: string, vars: Record<string, string>) =>
+    template.replace('{{goal}}', vars.goal ?? ''),
   ),
 }));
 
@@ -103,7 +102,9 @@ describe('GoalAssessor.parse', () => {
 describe('JSON extraction via parse()', () => {
   it('extracts JSON from a fenced code block', () => {
     const a = makeAssessor('');
-    const result = a.parse('Here is my assessment:\n```json\n{"realistic": false, "explanation": "nope"}\n```\nDone.');
+    const result = a.parse(
+      'Here is my assessment:\n```json\n{"realistic": false, "explanation": "nope"}\n```\nDone.',
+    );
     expect(result.parseFailed).toBe(false);
     expect(result.realistic).toBe(false);
     expect(result.explanation).toBe('nope');
@@ -125,7 +126,9 @@ describe('JSON extraction via parse()', () => {
 
   it('handles nested braces in JSON', () => {
     const a = makeAssessor('');
-    const result = a.parse('{"realistic": true, "concerns": ["a"], "nested": {"deep": {"deeper": 1}}}');
+    const result = a.parse(
+      '{"realistic": true, "concerns": ["a"], "nested": {"deep": {"deeper": 1}}}',
+    );
     expect(result.parseFailed).toBe(false);
     expect(result.realistic).toBe(true);
   });

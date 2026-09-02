@@ -47,7 +47,9 @@ function createMockRuntime(overrides: Partial<DesktopRuntimeRecord> = {}): Deskt
   };
 }
 
-function createMockContext(overrides: Partial<RuntimeOperationsContext> = {}): RuntimeOperationsContext {
+function createMockContext(
+  overrides: Partial<RuntimeOperationsContext> = {},
+): RuntimeOperationsContext {
   const runtimeManager = {
     snapshot: vi.fn().mockReturnValue({
       runtimes: [createMockRuntime()],

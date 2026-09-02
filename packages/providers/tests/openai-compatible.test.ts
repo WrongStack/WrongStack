@@ -471,21 +471,38 @@ describe('OpenAICompatibleProvider', () => {
 
     // Verbatim-level effort: dropped under tools.
     await p.complete(
-      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'medium' }, tools },
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { effort: 'medium' },
+        tools,
+      },
       { signal: new AbortController().signal },
     );
     expect(captured).not.toHaveProperty('reasoning_effort');
 
     // Mapped-level effort (max → high via the generic fill): ALSO dropped.
     await p.complete(
-      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'max' }, tools },
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { effort: 'max' },
+        tools,
+      },
       { signal: new AbortController().signal },
     );
     expect(captured).not.toHaveProperty('reasoning_effort');
 
     // Without tools the mapped fill still reaches the wire.
     await p.complete(
-      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'max' } },
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { effort: 'max' },
+      },
       { signal: new AbortController().signal },
     );
     expect(captured?.['reasoning_effort']).toBe('high');

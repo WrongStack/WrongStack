@@ -5,11 +5,7 @@
   "description": "Capture a requirement as a clear user story with acceptance criteria.",
   "content": "Turn this requirement into a user story: {{requirement}}\n\nFormat: 'As a [user], I want [capability], so that [benefit].' Then write acceptance criteria as concrete, testable Given/When/Then statements covering the happy path and the important edge cases. Keep it focused on user-observable behavior, not implementation. Flag any ambiguity that needs a product decision before this is ready to build.",
   "category": "product",
-  "tags": [
-    "user-story",
-    "requirements",
-    "agile"
-  ],
+  "tags": ["user-story", "requirements", "agile"],
   "source": "builtin",
   "favorite": false,
   "checksum": "62c737cce3412f43d3edf9f47e86002c23d2a00c84c6019747e12d271e57d65e",

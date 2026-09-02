@@ -50,7 +50,10 @@ function makeApi(extensions: Record<string, unknown> = {}) {
 
 function tool(api: { _tools: RegisteredTool[] }, name: string): RegisteredTool {
   const t = api._tools.find((x) => x.name === name);
-  if (!t) throw new Error(`tool ${name} not registered (have: ${api._tools.map((x) => x.name).join(', ')})`);
+  if (!t)
+    throw new Error(
+      `tool ${name} not registered (have: ${api._tools.map((x) => x.name).join(', ')})`,
+    );
   return t;
 }
 
@@ -137,7 +140,11 @@ describe('interface-contract-guard', () => {
     // as the old per-name cross-file regex sweep did.
     const src = path.join(tmpDir, 'src');
     await fs.mkdir(src);
-    await fs.writeFile(path.join(src, 'contract.ts'), 'export interface Greeter { hi(): void }\n', 'utf8');
+    await fs.writeFile(
+      path.join(src, 'contract.ts'),
+      'export interface Greeter { hi(): void }\n',
+      'utf8',
+    );
     await fs.writeFile(
       path.join(src, 'impl.ts'),
       'class EnglishGreeter implements Greeter { hi() {} }\n',
@@ -158,7 +165,11 @@ describe('interface-contract-guard', () => {
   it('flags an interface nothing implements', async () => {
     const src = path.join(tmpDir, 'src');
     await fs.mkdir(src);
-    await fs.writeFile(path.join(src, 'lonely.ts'), 'export interface Orphan { x: number }\n', 'utf8');
+    await fs.writeFile(
+      path.join(src, 'lonely.ts'),
+      'export interface Orphan { x: number }\n',
+      'utf8',
+    );
 
     const api = makeApi({ 'interface-contract-guard': { enabled: true } });
     await interfaceContractGuard.setup(api as Any);

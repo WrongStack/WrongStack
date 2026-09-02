@@ -45,9 +45,7 @@ export function buildProjectsMenu(
           enabled: Boolean(group.sessions[0]),
         },
         { type: 'separator' },
-        ...group.sessions.map((runtime, index) =>
-          buildSessionMenu(runtime, index + 1, actions, t),
-        ),
+        ...group.sessions.map((runtime, index) => buildSessionMenu(runtime, index + 1, actions, t)),
       ],
     });
   }
@@ -75,7 +73,8 @@ export function buildSessionMenu(
         submenu: [
           {
             label: t('chat'),
-            click: () => actions.activateAndNavigate(runtime.id, { activity: 'chat', view: 'chat' }),
+            click: () =>
+              actions.activateAndNavigate(runtime.id, { activity: 'chat', view: 'chat' }),
           },
           {
             label: t('focusPrompt'),
@@ -120,8 +119,7 @@ export function buildSessionMenu(
           },
           {
             label: t('modelSwitcher'),
-            click: () =>
-              actions.activateAndNavigate(runtime.id, { action: 'open-model-switcher' }),
+            click: () => actions.activateAndNavigate(runtime.id, { action: 'open-model-switcher' }),
           },
         ],
       },

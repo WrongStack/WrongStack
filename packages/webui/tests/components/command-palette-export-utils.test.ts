@@ -124,7 +124,13 @@ describe('downloadChatAsMarkdown', () => {
 
   it('marks a completed tool call with a tick and includes both sides', () => {
     messages([
-      { role: 'tool', content: '', toolName: 'Read', toolInput: { path: 'a.ts' }, toolResult: 'ok' },
+      {
+        role: 'tool',
+        content: '',
+        toolName: 'Read',
+        toolInput: { path: 'a.ts' },
+        toolResult: 'ok',
+      },
     ]);
     downloadChatAsMarkdown();
 
@@ -284,7 +290,13 @@ describe('downloadChatAsHtml', () => {
 
   it('renders a tool turn with both details blocks', () => {
     messages([
-      { role: 'tool', content: '', toolName: 'Read', toolInput: { path: 'a.ts' }, toolResult: 'ok' },
+      {
+        role: 'tool',
+        content: '',
+        toolName: 'Read',
+        toolInput: { path: 'a.ts' },
+        toolResult: 'ok',
+      },
     ]);
     downloadChatAsHtml();
 

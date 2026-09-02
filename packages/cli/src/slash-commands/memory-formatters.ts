@@ -208,7 +208,9 @@ export function formatMemoryDiagnostics(diag: MemoryDiagnostics): string {
     lines.push(`  with vectors:   ${v.vectors}`);
     lines.push(`  providers:      ${v.providers.join(', ') || '∅'}`);
     lines.push(`  model:          ${v.modelId} (${v.dimensions}-dim)`);
-    lines.push(`  cache:          ${v.cacheEntries} rows · ${v.cacheProviders} provider(s) · ${v.totalUseCount} hits`);
+    lines.push(
+      `  cache:          ${v.cacheEntries} rows · ${v.cacheProviders} provider(s) · ${v.totalUseCount} hits`,
+    );
     if (v.oldestLastUsedAt) {
       lines.push(`  cache oldest:   ${v.oldestLastUsedAt}`);
     }
@@ -217,7 +219,9 @@ export function formatMemoryDiagnostics(diag: MemoryDiagnostics): string {
     lines.push('Cross-system coverage:');
     lines.push(`  vector ↔ SAGE:  ${v.mirroredInSage} mirrored`);
     if (v.standalone > 0) {
-      lines.push(`  standalone:     ${v.standalone} vector-only entries (no SAGE id — lexical recall misses these)`);
+      lines.push(
+        `  standalone:     ${v.standalone} vector-only entries (no SAGE id — lexical recall misses these)`,
+      );
     }
     if (v.mirroredInSage === 0 && diag.sageTotal > 0) {
       lines.push('  💡 Run `wrongstack --vector-sync` to backfill the vector mirror.');
@@ -353,18 +357,14 @@ export function formatSearchRace(race: SearchRaceResult): string {
   if (race.lexicalOnly.length > 0) {
     lines.push('### 🅰️ Lexical only (vector missed)');
     for (const row of race.lexicalOnly) {
-      lines.push(
-        `- \`${row.id.slice(0, 12)}…\` L=${pct(row.lexicalScore ?? 0)}  ${row.preview}`,
-      );
+      lines.push(`- \`${row.id.slice(0, 12)}…\` L=${pct(row.lexicalScore ?? 0)}  ${row.preview}`);
     }
     lines.push('');
   }
   if (race.vectorOnly.length > 0) {
     lines.push('### 🅱️ Vector only (lexical missed)');
     for (const row of race.vectorOnly) {
-      lines.push(
-        `- \`${row.id.slice(0, 12)}…\` V=${pct(row.vectorScore ?? 0)}  ${row.preview}`,
-      );
+      lines.push(`- \`${row.id.slice(0, 12)}…\` V=${pct(row.vectorScore ?? 0)}  ${row.preview}`);
     }
     lines.push('');
   }

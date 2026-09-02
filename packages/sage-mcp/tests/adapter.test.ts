@@ -210,7 +210,9 @@ describe('createSageMcpServer (read-only default)', () => {
     // Fetch the persisted memory via the typed service capability (same
     // shape scripts/smoke.ts uses).
     const sageService = port as unknown as {
-      listSage: (statuses?: string[]) => Promise<
+      listSage: (
+        statuses?: string[],
+      ) => Promise<
         Array<{ id: string; text: string; audience?: { roles?: string[] } | undefined }>
       >;
     };

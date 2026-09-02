@@ -351,10 +351,9 @@ describe('IntelligentCompactor', () => {
     // Should still produce a report without crashing
     expect(report).toBeDefined();
     expect(report.reductions).toBeDefined();
-    expect(logger.warn).toHaveBeenCalledWith(
-      'Summarizer failed; falling back to lossless digest',
-      { err: expect.objectContaining({ message: 'provider failed' }) },
-    );
+    expect(logger.warn).toHaveBeenCalledWith('Summarizer failed; falling back to lossless digest', {
+      err: expect.objectContaining({ message: 'provider failed' }),
+    });
   });
 
   it('does not summarize when not enough ancient messages', async () => {

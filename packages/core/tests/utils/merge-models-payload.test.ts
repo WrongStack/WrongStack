@@ -13,14 +13,18 @@ describe('mergeModelsPayload', () => {
         id: 'deepseek',
         name: 'DeepSeek',
         npm: '@ai-sdk/openai-compatible',
-        models: { 'deepseek-v4-pro': { id: 'deepseek-v4-pro', name: 'V4 Pro', limit: { context: 32_000 } } },
+        models: {
+          'deepseek-v4-pro': { id: 'deepseek-v4-pro', name: 'V4 Pro', limit: { context: 32_000 } },
+        },
       },
     });
     const overlay = payload({
       deepseek: {
         id: 'deepseek',
         name: 'DeepSeek',
-        models: { 'deepseek-v4-pro': { id: 'deepseek-v4-pro', name: 'V4 Pro', limit: { context: 128_000 } } },
+        models: {
+          'deepseek-v4-pro': { id: 'deepseek-v4-pro', name: 'V4 Pro', limit: { context: 128_000 } },
+        },
       },
     });
     const merged = mergeModelsPayload(base, overlay);
@@ -32,7 +36,9 @@ describe('mergeModelsPayload', () => {
       p: {
         id: 'p',
         name: 'P',
-        models: { m: { id: 'm', name: 'M', limit: { context: 8_000, output: 4_000 }, tool_call: true } },
+        models: {
+          m: { id: 'm', name: 'M', limit: { context: 8_000, output: 4_000 }, tool_call: true },
+        },
       },
     });
     const overlay = payload({
@@ -99,8 +105,12 @@ describe('mergeModelsPayload', () => {
   });
 
   it('does not mutate its inputs', () => {
-    const base = payload({ p: { id: 'p', name: 'P', models: { m: { id: 'm', name: 'M', limit: { context: 1 } } } } });
-    const overlay = payload({ p: { id: 'p', name: 'P', models: { m: { id: 'm', name: 'M', limit: { context: 2 } } } } });
+    const base = payload({
+      p: { id: 'p', name: 'P', models: { m: { id: 'm', name: 'M', limit: { context: 1 } } } },
+    });
+    const overlay = payload({
+      p: { id: 'p', name: 'P', models: { m: { id: 'm', name: 'M', limit: { context: 2 } } } },
+    });
     const baseSnapshot = JSON.stringify(base);
     const overlaySnapshot = JSON.stringify(overlay);
     mergeModelsPayload(base, overlay);

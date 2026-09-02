@@ -140,7 +140,10 @@ describe('WebUI theme color boundaries', () => {
     const missing = [...ISOLATED_COLOR_SURFACES].filter((file) => !sourceFiles.has(file));
     const unnecessary = [...ISOLATED_COLOR_SURFACES].filter((file) => {
       const absolutePath = sourceFiles.get(file);
-      return absolutePath !== undefined && colorViolations(file, readFileSync(absolutePath, 'utf8')).length === 0;
+      return (
+        absolutePath !== undefined &&
+        colorViolations(file, readFileSync(absolutePath, 'utf8')).length === 0
+      );
     });
 
     expect(missing).toEqual([]);

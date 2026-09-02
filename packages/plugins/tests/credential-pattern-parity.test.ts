@@ -16,8 +16,10 @@ import { detectSecrets } from '../src/prompt-firewall/index.js';
 
 // Helper: construct a postgres URI at test-time to avoid the
 // secret-scanner redacting the literal credential pattern in source.
-const PG_BASE = ["postgresql", "://", "localhost", "/app?"].join("");
-function pg(qs: string): string { return PG_BASE + qs; }
+const PG_BASE = ['postgresql', '://', 'localhost', '/app?'].join('');
+function pg(qs: string): string {
+  return PG_BASE + qs;
+}
 
 describe('canonical credential table', () => {
   it('gives every pattern a unique id', () => {
@@ -78,7 +80,11 @@ describe('postgres_uri query-parameter password detection', () => {
     ['password as first param', pg('password=first-secret&user=alice'), true],
     ['password as last param (no other params)', pg('password=secret'), true],
     ['password as last param (with preceding params)', pg('user=alice&password=secret'), true],
-    ['password in middle (followed by another param)', pg('user=alice&password=secret&sslmode=require'), true],
+    [
+      'password in middle (followed by another param)',
+      pg('user=alice&password=secret&sslmode=require'),
+      true,
+    ],
     ['uripassword (no colon)', pg('appname=somepass'), false],
     ['percent-encoded password key', pg('user=alice&pass%77ord=secret'), true],
     ['no password param', pg('user=alice&sslmode=require'), false],

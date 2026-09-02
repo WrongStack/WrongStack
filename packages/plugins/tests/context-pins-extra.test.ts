@@ -27,8 +27,16 @@ const contextPinsPlugin = (await import('../src/context-pins')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   registerHook: ReturnType<typeof vi.fn>;
   registerSystemPromptContributor: ReturnType<typeof vi.fn>;
 }
@@ -44,7 +52,10 @@ function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): Mock
   };
 }
 
-function getTool(api: MockApi, name: string): { execute: (input: unknown) => Promise<Record<string, unknown>> } {
+function getTool(
+  api: MockApi,
+  name: string,
+): { execute: (input: unknown) => Promise<Record<string, unknown>> } {
   const call = api.tools.register.mock.calls.find(
     ([t]: unknown[]) => (t as { name: string }).name === name,
   );
@@ -52,11 +63,15 @@ function getTool(api: MockApi, name: string): { execute: (input: unknown) => Pro
   return call[0] as { execute: (input: unknown) => Promise<Record<string, unknown>> };
 }
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('context-pins plugin - persist error', () => {
   it('handles write failure gracefully', async () => {
-    mockAtomicWrite.mockImplementation(() => { throw new Error('mock error'); });
+    mockAtomicWrite.mockImplementation(() => {
+      throw new Error('mock error');
+    });
     // A non-empty filePath is required: with the default empty path the plugin
     // is in-memory-only and persistPins() short-circuits to `true` before ever
     // calling the (mocked, throwing) atomicWrite — so the error path is never
@@ -64,7 +79,7 @@ describe('context-pins plugin - persist error', () => {
     const api = makeApi({ extensions: { 'context-pins': { filePath: 'pins.json' } } });
     contextPinsPlugin.setup(api as never);
     const add = getTool(api, 'pin_add');
-    const result = await add.execute({ text: 'test pin' }) as Record<string, unknown>;
+    const result = (await add.execute({ text: 'test pin' })) as Record<string, unknown>;
     expect(result.ok).toBe(true);
     expect(result.persisted).toBe(false);
   });

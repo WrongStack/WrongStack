@@ -16,11 +16,11 @@ import { describe, expect, it } from 'vitest';
 function toKebabCase(input: string): string {
   return input
     .toLowerCase()
-    .replace(/_/g, ' ')            // underscores → spaces (become hyphens next)
+    .replace(/_/g, ' ') // underscores → spaces (become hyphens next)
     .replace(/[^a-z0-9\s-]/g, '') // remove special chars
-    .replace(/\s+/g, '-')         // spaces → hyphens
-    .replace(/-+/g, '-')          // collapse multiple hyphens
-    .replace(/^-|-$/g, '');       // trim leading/trailing hyphens
+    .replace(/\s+/g, '-') // spaces → hyphens
+    .replace(/-+/g, '-') // collapse multiple hyphens
+    .replace(/^-|-$/g, ''); // trim leading/trailing hyphens
 }
 
 describe('toKebabCase — name conversion for Create Skill modal', () => {
@@ -141,7 +141,7 @@ interface CreateSkillPayload {
 function buildCreateSkillMessage(
   name: string,
   description: string,
-  scope: 'project' | 'global'
+  scope: 'project' | 'global',
 ): CreateSkillPayload {
   return {
     type: 'skills.create',
@@ -152,7 +152,11 @@ function buildCreateSkillMessage(
 
 describe('buildCreateSkillMessage — WS message construction', () => {
   it('builds a correct message for project scope', () => {
-    const msg = buildCreateSkillMessage('api-design', 'Use this skill when designing APIs', 'project');
+    const msg = buildCreateSkillMessage(
+      'api-design',
+      'Use this skill when designing APIs',
+      'project',
+    );
 
     expect(msg).toEqual({
       type: 'skills.create',
@@ -235,7 +239,9 @@ function computeSkillPath(scope: 'project' | 'global', name: string): string {
 
 describe('computeSkillPath — skill file path preview', () => {
   it('returns a project-scoped path', () => {
-    expect(computeSkillPath('project', 'api-design')).toBe('.wrongstack/skills/api-design/SKILL.md');
+    expect(computeSkillPath('project', 'api-design')).toBe(
+      '.wrongstack/skills/api-design/SKILL.md',
+    );
   });
 
   it('returns a global-scoped path', () => {
@@ -260,7 +266,10 @@ interface ValidationResult {
 
 function validateSkillName(name: string): ValidationResult {
   if (!name || name.trim() !== name) {
-    return { valid: false, error: 'Skill name cannot be empty or have leading/trailing whitespace' };
+    return {
+      valid: false,
+      error: 'Skill name cannot be empty or have leading/trailing whitespace',
+    };
   }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
     return {
@@ -325,10 +334,7 @@ interface SkillsState {
   historyIndex: number;
 }
 
-function applySkillsCreatedToState(
-  currentState: SkillsState,
-  skillName: string
-): SkillsState {
+function applySkillsCreatedToState(currentState: SkillsState, skillName: string): SkillsState {
   return {
     ...currentState,
     // After creating, the new skill should appear in the list
@@ -396,7 +402,8 @@ describe('buildSkillDescription — trigger extraction', () => {
   });
 
   it('handles multiline with Triggers line', () => {
-    const desc = 'Use this skill when testing.\n\nMore details.\nTriggers: user says "test", "spec"';
+    const desc =
+      'Use this skill when testing.\n\nMore details.\nTriggers: user says "test", "spec"';
     const result = buildSkillDescription(desc);
 
     expect(result.trigger).toBe('Use this skill when testing.');

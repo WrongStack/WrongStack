@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  actionForFKeyPanel,
-  F_KEY_PANEL_ENTRIES,
-  fKeyEntryFor,
-} from '../src/f-key-panels.js';
+import { actionForFKeyPanel, F_KEY_PANEL_ENTRIES, fKeyEntryFor } from '../src/f-key-panels.js';
 
 describe('fKeyEntryFor', () => {
   it('returns null when no key is pressed', () => {
@@ -147,9 +143,9 @@ describe('F_KEY_PANEL_ENTRIES table integrity', () => {
   });
 
   it('ctrlAlias entries are unique', () => {
-    const aliases = F_KEY_PANEL_ENTRIES
-      .map((e) => e.ctrlAlias)
-      .filter((a): a is string => a !== undefined);
+    const aliases = F_KEY_PANEL_ENTRIES.map((e) => e.ctrlAlias).filter(
+      (a): a is string => a !== undefined,
+    );
     expect(new Set(aliases).size).toBe(aliases.length);
   });
 });

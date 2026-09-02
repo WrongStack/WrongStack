@@ -438,9 +438,7 @@ export function FleetMapView(): React.ReactElement {
   const liveAgents = topology.nodes.filter(
     (node) => node.kind === 'agent' && isLive(node.status),
   ).length;
-  const mailboxServe = topology.nodes.filter(
-    (node) => node.serviceMode === 'mailbox-serve',
-  ).length;
+  const mailboxServe = topology.nodes.filter((node) => node.serviceMode === 'mailbox-serve').length;
 
   return (
     <div className="flex h-full min-h-0 flex-col">

@@ -5,10 +5,7 @@
   "description": "Decide how to answer a question before touching the data.",
   "content": "I want to answer this question with data: {{question}}\n\nWrite the analysis plan before I start, so I don't fish for a result. Define the metric, the population, the comparison, and what answer each outcome would imply. State the assumptions and the confounders that could fool me. Decide the cuts I'll look at up front. Note what would make the result NOT actionable even if it's significant.",
   "category": "data-analysis",
-  "tags": [
-    "analysis",
-    "planning"
-  ],
+  "tags": ["analysis", "planning"],
   "source": "builtin",
   "favorite": false,
   "checksum": "9b6874cc3d085c6d6d26fc541f56c609f9b28416e1276d540b023219071996af",

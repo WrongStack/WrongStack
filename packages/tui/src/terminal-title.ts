@@ -59,7 +59,9 @@ export function startTerminalTitle(opts: TerminalTitleOptions): TerminalTitleHan
     events.on('iteration.started', () => touch('thinking')),
     events.on('provider.text_delta', () => touch('thinking')),
     events.on('provider.thinking_delta', () => touch('thinking')),
-    events.on('tool.started', (e) => touch('tool', (e as { name?: string | undefined }).name ?? 'tool')),
+    events.on('tool.started', (e) =>
+      touch('tool', (e as { name?: string | undefined }).name ?? 'tool'),
+    ),
     events.on('tool.executed', () => touch('thinking')),
   ];
 

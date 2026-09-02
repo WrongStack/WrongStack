@@ -247,9 +247,7 @@ function replayAttachments(
 ): ChatMessageAttachment[] {
   return images.map((image, index) => {
     const mediaType = image.mediaType ?? 'image/png';
-    const dataUrl = image.data
-      ? `data:${mediaType};base64,${image.data}`
-      : image.url;
+    const dataUrl = image.data ? `data:${mediaType};base64,${image.data}` : image.url;
     return {
       id: `${messageId}_img_${index}`,
       kind: 'image' as const,
@@ -283,9 +281,7 @@ export function handleSessionStart(msg: WSServerMessage) {
     useVizStore.getState().setActive(true);
   }
 
-  const payload = (msg?.payload && typeof msg.payload === 'object'
-    ? msg.payload
-    : {}) as {
+  const payload = (msg?.payload && typeof msg.payload === 'object' ? msg.payload : {}) as {
     sessionId: string;
     model: unknown;
     provider: unknown;
@@ -338,13 +334,15 @@ export function handleSessionStart(msg: WSServerMessage) {
     appVersion?: unknown;
     latestVersion?: unknown;
     updateAvailable?: unknown;
-    agentSessions?: Array<{
-      subagentId: string;
-      agentName?: string | undefined;
-      status?: string | undefined;
-      task?: string | undefined;
-      transcript?: import('@/stores').AgentTranscriptEntry[] | undefined;
-    }> | undefined;
+    agentSessions?:
+      | Array<{
+          subagentId: string;
+          agentName?: string | undefined;
+          status?: string | undefined;
+          task?: string | undefined;
+          transcript?: import('@/stores').AgentTranscriptEntry[] | undefined;
+        }>
+      | undefined;
   };
 
   const sessionId = payload.sessionId;
@@ -448,8 +446,7 @@ export function handleSessionStart(msg: WSServerMessage) {
   // already moved; the positional test stays for the case it does answer
   // correctly — an unrequested re-announce for a background lane.
   const isFocusFrame = payload.replayReason === 'focus';
-  const returningToKnownTab =
-    !isFirstSightOfLane && (isFocusFrame || activeLaneId() !== sessionId);
+  const returningToKnownTab = !isFirstSightOfLane && (isFocusFrame || activeLaneId() !== sessionId);
   const isReset = isFirstSightOfLane || (payload.reset === true && !returningToKnownTab);
 
   if (isReset) {
@@ -480,15 +477,17 @@ export function handleSessionStart(msg: WSServerMessage) {
     hasReasoningEffortKey: 'reasoningEffortLevels' in payload,
     // Tri-state companion: undefined = undocumented vocabulary (show control),
     // false = the model documents that it has no effort control (hide it).
-    effortSupported: payload.effortSupported === true || payload.effortSupported === false
-      ? payload.effortSupported
-      : undefined,
+    effortSupported:
+      payload.effortSupported === true || payload.effortSupported === false
+        ? payload.effortSupported
+        : undefined,
     hasEffortSupportedKey: 'effortSupported' in payload,
     // Display-only hint: the project-wide effort the composer auto option
     // follows (absent when the project pins no effort — provider default).
-    projectReasoningEffort: typeof payload.projectReasoningEffort === 'string'
-      ? payload.projectReasoningEffort
-      : undefined,
+    projectReasoningEffort:
+      typeof payload.projectReasoningEffort === 'string'
+        ? payload.projectReasoningEffort
+        : undefined,
     hasProjectEffortKey: 'projectReasoningEffort' in payload,
   });
 

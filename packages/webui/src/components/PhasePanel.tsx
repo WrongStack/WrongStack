@@ -45,11 +45,27 @@ const STATUS_CONFIG: Record<
 > = {
   pending: { icon: <Circle className="w-4 h-4" />, color: 'text-muted-foreground', bg: 'bg-muted' },
   ready: { icon: <Play className="w-4 h-4" />, color: 'text-primary', bg: 'bg-primary/10' },
-  running: { icon: <Clock className="w-4 h-4 animate-spin" />, color: 'text-warning', bg: 'bg-warning/10' },
+  running: {
+    icon: <Clock className="w-4 h-4 animate-spin" />,
+    color: 'text-warning',
+    bg: 'bg-warning/10',
+  },
   paused: { icon: <Pause className="w-4 h-4" />, color: 'text-warning', bg: 'bg-warning/10' },
-  completed: { icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-success', bg: 'bg-success/10' },
-  failed: { icon: <XCircle className="w-4 h-4" />, color: 'text-destructive', bg: 'bg-destructive/10' },
-  skipped: { icon: <SkipForward className="w-4 h-4" />, color: 'text-muted-foreground', bg: 'bg-muted' },
+  completed: {
+    icon: <CheckCircle2 className="w-4 h-4" />,
+    color: 'text-success',
+    bg: 'bg-success/10',
+  },
+  failed: {
+    icon: <XCircle className="w-4 h-4" />,
+    color: 'text-destructive',
+    bg: 'bg-destructive/10',
+  },
+  skipped: {
+    icon: <SkipForward className="w-4 h-4" />,
+    color: 'text-muted-foreground',
+    bg: 'bg-muted',
+  },
 };
 
 const PRIORITY_DOT: Record<PhaseItem['priority'], string> = {
@@ -85,7 +101,12 @@ export function PhasePanel({
 }: PhasePanelProps): React.ReactElement {
   const { t } = useAppTranslation();
   return (
-    <div className={cn('flex h-full min-h-0 min-w-0 flex-col border-r border-border/70 bg-[hsl(var(--surface-2)/0.35)]', className)}>
+    <div
+      className={cn(
+        'flex h-full min-h-0 min-w-0 flex-col border-r border-border/70 bg-[hsl(var(--surface-2)/0.35)]',
+        className,
+      )}
+    >
       {/* Header */}
       <div className="border-b border-border/70 bg-card/70 p-4">
         <div className="flex items-center justify-between mb-3">
@@ -99,7 +120,11 @@ export function PhasePanel({
                 ? 'border-success/25 bg-success/10 text-success'
                 : 'border-border/70 bg-muted/60 text-muted-foreground',
             )}
-            title={autonomous ? t('activity:phase.autonomousOnTitle') : t('activity:phase.autonomousOffTitle')}
+            title={
+              autonomous
+                ? t('activity:phase.autonomousOnTitle')
+                : t('activity:phase.autonomousOffTitle')
+            }
           >
             {autonomous ? t('activity:phase.autonomousOn') : t('activity:phase.autonomousOff')}
           </button>
@@ -121,7 +146,10 @@ export function PhasePanel({
       </div>
 
       {/* Phase List */}
-      <div ref={useScrollPosition('phases')} className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3">
+      <div
+        ref={useScrollPosition('phases')}
+        className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3"
+      >
         {phases.map((phase) => {
           const status = STATUS_CONFIG[phase.status];
           const isActive = phase.id === activePhaseId;
@@ -140,13 +168,21 @@ export function PhasePanel({
             >
               {/* Phase Header */}
               <div className="flex items-start gap-2">
-                <span className={cn('mt-0.5', status.color)} role="img" aria-label={phase.status === 'running' ? t('common:status.running') : undefined}>{status.icon}</span>
+                <span
+                  className={cn('mt-0.5', status.color)}
+                  role="img"
+                  aria-label={phase.status === 'running' ? t('common:status.running') : undefined}
+                >
+                  {status.icon}
+                </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <div className={cn('w-1.5 h-1.5 rounded-full', PRIORITY_DOT[phase.priority])} />
                     <span className="text-sm font-medium truncate">{phase.name}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">{phase.description}</p>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {phase.description}
+                  </p>
                 </div>
               </div>
 
@@ -154,11 +190,12 @@ export function PhasePanel({
               <div className="mt-2 space-y-1">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">
-                    {t('activity:phase.tasksSuffix', { done: phase.completedTasks, total: phase.taskCount })}
+                    {t('activity:phase.tasksSuffix', {
+                      done: phase.completedTasks,
+                      total: phase.taskCount,
+                    })}
                   </span>
-                  <span className="text-muted-foreground">
-                    {phase.progressPercent}%
-                  </span>
+                  <span className="text-muted-foreground">{phase.progressPercent}%</span>
                 </div>
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
@@ -178,11 +215,11 @@ export function PhasePanel({
               {/* Meta */}
               <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                 <span>~{phase.estimateHours}h</span>
-                {phase.actualDurationMs && (
-                  <span>· {formatDuration(phase.actualDurationMs)}</span>
-                )}
+                {phase.actualDurationMs && <span>· {formatDuration(phase.actualDurationMs)}</span>}
                 {phase.assignedAgents.length > 0 && (
-                  <span>· {t('activity:phase.agentsSuffix', { count: phase.assignedAgents.length })}</span>
+                  <span>
+                    · {t('activity:phase.agentsSuffix', { count: phase.assignedAgents.length })}
+                  </span>
                 )}
               </div>
             </button>

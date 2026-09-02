@@ -13,10 +13,7 @@ interface ShadowPanelProps {
   hint?: string | undefined;
 }
 
-export function ShadowPanel({
-  shadow,
-  hint,
-}: ShadowPanelProps): React.ReactElement {
+export function ShadowPanel({ shadow, hint }: ShadowPanelProps): React.ReactElement {
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="blue" paddingX={1}>
       <Text bold color="blue">
@@ -33,9 +30,7 @@ export function ShadowPanel({
           ) : (
             <Text color="gray">○ stopped</Text>
           )}
-          {shadow.activeId ? (
-            <Text dimColor>{`  ${shadow.activeId.slice(0, 12)}…`}</Text>
-          ) : null}
+          {shadow.activeId ? <Text dimColor>{`  ${shadow.activeId.slice(0, 12)}…`}</Text> : null}
         </Box>
 
         {/* Model */}
@@ -47,8 +42,10 @@ export function ShadowPanel({
         {/* Interval */}
         <Box marginTop={1}>
           <Text bold>Interval: </Text>
-          <Text color="yellow">{shadow.intervalMs >= 1000 ? `${shadow.intervalMs / 1000}s` : `${shadow.intervalMs}ms`}</Text>
-          <Text dimColor>  (min 5s)</Text>
+          <Text color="yellow">
+            {shadow.intervalMs >= 1000 ? `${shadow.intervalMs / 1000}s` : `${shadow.intervalMs}ms`}
+          </Text>
+          <Text dimColor> (min 5s)</Text>
         </Box>
 
         {/* Actions legend */}

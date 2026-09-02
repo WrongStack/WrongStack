@@ -48,7 +48,13 @@ export async function executeFindingCommand(
     const id = args[1];
     if (!id) return 'Usage: /review finding <id> [resolve|ignore|reopen|triage|start]';
     const action = args[2];
-    if (action === 'resolve' || action === 'ignore' || action === 'reopen' || action === 'triage' || action === 'start') {
+    if (
+      action === 'resolve' ||
+      action === 'ignore' ||
+      action === 'reopen' ||
+      action === 'triage' ||
+      action === 'start'
+    ) {
       return transitionFinding(id, action, args.slice(3), ctx);
     }
     return showFinding(id, ctx);
@@ -114,10 +120,7 @@ async function loadStore(ctx: FindingCommandContext) {
   return store;
 }
 
-async function listFindings(
-  args: string[],
-  ctx: FindingCommandContext,
-): Promise<string> {
+async function listFindings(args: string[], ctx: FindingCommandContext): Promise<string> {
   let severityFilter: string | undefined;
   let statusFilter: string | undefined;
   let limit = 20;
@@ -140,17 +143,29 @@ async function listFindings(
   });
 
   if (all.length === 0) {
-    const filters = [severityFilter && `severity=${severityFilter}`, statusFilter && `status=${statusFilter}`]
-      .filter(Boolean).join(', ');
+    const filters = [
+      severityFilter && `severity=${severityFilter}`,
+      statusFilter && `status=${statusFilter}`,
+    ]
+      .filter(Boolean)
+      .join(', ');
     return `No findings found${filters ? ` (${filters})` : ''}.`;
   }
 
-  const lines: string[] = ['| Severity | Status | File | Title |',
-    '|---|---|---|---|'];
+  const lines: string[] = ['| Severity | Status | File | Title |', '|---|---|---|---|'];
   for (const f of all) {
     const location = f.location?.file ?? 'unknown';
-    const file = location.substring(location.lastIndexOf('/') + 1).substring(location.lastIndexOf('\\') + 1) || location;
-    const severityEmoji = f.severity === 'critical' ? '🔴' : f.severity === 'high' ? '🟠' : f.severity === 'medium' ? '🟡' : '⚪';
+    const file =
+      location.substring(location.lastIndexOf('/') + 1).substring(location.lastIndexOf('\\') + 1) ||
+      location;
+    const severityEmoji =
+      f.severity === 'critical'
+        ? '🔴'
+        : f.severity === 'high'
+          ? '🟠'
+          : f.severity === 'medium'
+            ? '🟡'
+            : '⚪';
     const title = f.title.length > 60 ? f.title.substring(0, 57) + '...' : f.title;
     lines.push(`| ${severityEmoji} ${f.severity} | ${f.status} | \`${file}\` | ${title} |`);
   }
@@ -198,7 +213,13 @@ async function showFinding(id: string, ctx: FindingCommandContext): Promise<stri
 // ── Finding lifecycle commands ─────────────────────────────────────
 
 /** Valid resolution outcomes for the `resolve` action. */
-const VALID_RESOLUTION_OUTCOMES: readonly ResolutionOutcome[] = ['fixed', 'wontfix', 'duplicate', 'false_positive', 'stale'];
+const VALID_RESOLUTION_OUTCOMES: readonly ResolutionOutcome[] = [
+  'fixed',
+  'wontfix',
+  'duplicate',
+  'false_positive',
+  'stale',
+];
 
 /**
  * Transition a finding's lifecycle, then sync the parent report.
@@ -248,32 +269,50 @@ async function transitionFinding(
       return `⚠️ \`--outcome\` only applies to \`resolve\`. Usage: \`/review finding ${id} reopen --reason "..."\``;
     }
     try {
-      await store.transition(finding.id, 'active', { id: 'operator', kind: 'operator' }, {
-        ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
-      });
+      await store.transition(
+        finding.id,
+        'active',
+        { id: 'operator', kind: 'operator' },
+        {
+          ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
+        },
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return `Could not reopen finding ${id}: ${msg}`;
     }
 
-    const lines: string[] = [
-      `✅ Finding \`${id}\` reopened as **active**.`,
-    ];
+    const lines: string[] = [`✅ Finding \`${id}\` reopened as **active**.`];
 
     // Auto-reopen: if the parent report was completed/skipped, reopen it.
     const reportId = finding.originReport?.reportId;
     if (reportId) {
       try {
-        const reopenResult = await syncReportReopen(reportId, ctx.projectDir, {
-          id: 'operator',
-          kind: 'operator',
-        }, cleanReason);
+        const reopenResult = await syncReportReopen(
+          reportId,
+          ctx.projectDir,
+          {
+            id: 'operator',
+            kind: 'operator',
+          },
+          cleanReason,
+        );
         if (reopenResult.reopened) {
-          lines.push('', `🔵 Report \`${reportId}\` auto-reopened — was ${reopenResult.previousLifecycle}.`);
+          lines.push(
+            '',
+            `🔵 Report \`${reportId}\` auto-reopened — was ${reopenResult.previousLifecycle}.`,
+          );
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.warn(JSON.stringify({ level: 'warn', event: 'review_auto_reopen_failed', reportId, message: msg }));
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'review_auto_reopen_failed',
+            reportId,
+            message: msg,
+          }),
+        );
       }
     }
 
@@ -286,9 +325,14 @@ async function transitionFinding(
       return `⚠️ \`--outcome\` only applies to \`resolve\`. Usage: \`/review finding ${id} triage --reason "..."\``;
     }
     try {
-      await store.transition(finding.id, 'triaged', { id: 'operator', kind: 'operator' }, {
-        ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
-      });
+      await store.transition(
+        finding.id,
+        'triaged',
+        { id: 'operator', kind: 'operator' },
+        {
+          ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
+        },
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return `Could not triage finding ${id}: ${msg}`;
@@ -303,9 +347,14 @@ async function transitionFinding(
       return `⚠️ \`--outcome\` only applies to \`resolve\`. Usage: \`/review finding ${id} start --reason "..."\``;
     }
     try {
-      await store.transition(finding.id, 'in_progress', { id: 'operator', kind: 'operator' }, {
-        ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
-      });
+      await store.transition(
+        finding.id,
+        'in_progress',
+        { id: 'operator', kind: 'operator' },
+        {
+          ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
+        },
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return `Could not start finding ${id}: ${msg}`;
@@ -324,27 +373,32 @@ async function transitionFinding(
 
   // Validate outcome against the known ResolutionOutcome union.
   // When resolving without an explicit outcome, default to 'fixed'.
-  if (action === 'resolve' && cleanOutcome && !VALID_RESOLUTION_OUTCOMES.includes(cleanOutcome as ResolutionOutcome)) {
+  if (
+    action === 'resolve' &&
+    cleanOutcome &&
+    !VALID_RESOLUTION_OUTCOMES.includes(cleanOutcome as ResolutionOutcome)
+  ) {
     return `Invalid outcome "${cleanOutcome}". Valid values: ${VALID_RESOLUTION_OUTCOMES.join(', ')}`;
   }
   const resolvedOutcome: ResolutionOutcome | undefined =
-    action === 'resolve'
-      ? ((cleanOutcome as ResolutionOutcome | undefined) ?? 'fixed')
-      : undefined;
+    action === 'resolve' ? ((cleanOutcome as ResolutionOutcome | undefined) ?? 'fixed') : undefined;
 
   try {
-    await store.transition(finding.id, targetStatus, { id: 'operator', kind: 'operator' }, {
-      ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
-      ...(resolvedOutcome ? { outcome: resolvedOutcome } : {}),
-    });
+    await store.transition(
+      finding.id,
+      targetStatus,
+      { id: 'operator', kind: 'operator' },
+      {
+        ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
+        ...(resolvedOutcome ? { outcome: resolvedOutcome } : {}),
+      },
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return `Could not transition finding ${id} to ${targetStatus}: ${msg}`;
   }
 
-  const lines: string[] = [
-    `✅ Finding \`${id}\` marked as **${targetStatus}**.`,
-  ];
+  const lines: string[] = [`✅ Finding \`${id}\` marked as **${targetStatus}**.`];
 
   // Auto-completion: check if the parent report can be closed.
   // originReport is typed as required, but corrupt JSONL or old-format data
@@ -357,13 +411,25 @@ async function transitionFinding(
         kind: 'operator',
       });
       if (syncResult.completed) {
-        lines.push('', `🟢 Report \`${reportId}\` auto-completed — all ${syncResult.totalFindings} finding(s) resolved or ignored.`);
+        lines.push(
+          '',
+          `🟢 Report \`${reportId}\` auto-completed — all ${syncResult.totalFindings} finding(s) resolved or ignored.`,
+        );
       } else if (syncResult.totalFindings > 0 && syncResult.remaining > 0) {
-        lines.push(`_Report \`${reportId}\`: ${syncResult.remaining} of ${syncResult.totalFindings} finding(s) still open._`);
+        lines.push(
+          `_Report \`${reportId}\`: ${syncResult.remaining} of ${syncResult.totalFindings} finding(s) still open._`,
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(JSON.stringify({ level: 'warn', event: 'review_auto_completion_failed', reportId, message: msg }));
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'review_auto_completion_failed',
+          reportId,
+          message: msg,
+        }),
+      );
     }
   }
 
@@ -384,10 +450,7 @@ const LIFECYCLE_EMOJI: Record<string, string> = {
   skipped: '⚪',
 };
 
-async function listReports(
-  args: string[],
-  ctx: FindingCommandContext,
-): Promise<string> {
+async function listReports(args: string[], ctx: FindingCommandContext): Promise<string> {
   let statusFilter: string | undefined;
   let limit = 15;
 
@@ -416,12 +479,17 @@ async function listReports(
   for (const r of reports) {
     const emoji = LIFECYCLE_EMOJI[r.lifecycle] ?? '⚪';
     const total = r.counts.critical + r.counts.high + r.counts.medium + r.counts.low;
-    const sevSummary = total === 0 ? 'clean' : [
-      r.counts.critical > 0 && `${r.counts.critical}🔴`,
-      r.counts.high > 0 && `${r.counts.high}🟠`,
-      r.counts.medium > 0 && `${r.counts.medium}🟡`,
-      r.counts.low > 0 && `${r.counts.low}⚪`,
-    ].filter(Boolean).join(' ');
+    const sevSummary =
+      total === 0
+        ? 'clean'
+        : [
+            r.counts.critical > 0 && `${r.counts.critical}🔴`,
+            r.counts.high > 0 && `${r.counts.high}🟠`,
+            r.counts.medium > 0 && `${r.counts.medium}🟡`,
+            r.counts.low > 0 && `${r.counts.low}⚪`,
+          ]
+            .filter(Boolean)
+            .join(' ');
     const date = r.reviewedAt.substring(0, 10);
     const id = r.id.substring(0, 8);
     lines.push(`| ${emoji} ${r.lifecycle} | ${r.source} | ${sevSummary} | ${date} | \`${id}\` |`);
@@ -435,7 +503,7 @@ async function listReports(
  * Resolve a report by exact ID or short-ID prefix (≥8 chars).
  * Exported for integration testing.
  */
- async function resolveReportId(
+async function resolveReportId(
   store: Awaited<ReturnType<typeof loadReportStore>>,
   id: string,
 ): Promise<ReviewReport | null> {
@@ -520,7 +588,14 @@ async function showReport(id: string, ctx: FindingCommandContext): Promise<strin
   }
 
   if (report.rawText?.trim()) {
-    lines.push('', '<details><summary>Raw report text</summary>', '', report.rawText, '', '</details>');
+    lines.push(
+      '',
+      '<details><summary>Raw report text</summary>',
+      '',
+      report.rawText,
+      '',
+      '</details>',
+    );
   }
 
   return lines.join('\n');
@@ -563,9 +638,14 @@ export async function transitionReport(
   if (!report) return `Report not found: ${id}`;
 
   try {
-    await store.transition(report.id, targetStatus, { id: 'operator', kind: 'operator' }, {
-      ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
-    });
+    await store.transition(
+      report.id,
+      targetStatus,
+      { id: 'operator', kind: 'operator' },
+      {
+        ...(cleanReason !== undefined ? { reason: cleanReason } : {}),
+      },
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return `Could not transition report \`${report.id}\` to ${targetStatus}: ${msg}`;

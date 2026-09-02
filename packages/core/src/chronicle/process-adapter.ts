@@ -15,38 +15,43 @@ export interface ChronicleProcessAdapterOptions {
 
 export function wireProcessesToChronicle(options: ChronicleProcessAdapterOptions): () => void {
   const unsubs = [
-    options.events.on('process.started', (event) => persist(options, event, {
-      eventType: 'process.started',
-      outcome: 'started',
-      occurredAt: event.startedAt,
-      attributes: {
-        command: options.scrubber.scrub(event.command),
-        args: event.args.map((arg) => options.scrubber.scrub(arg)),
-        cwd: event.cwd,
-        parentPid: event.parentPid,
-        background: event.background,
-      },
-    })),
-    options.events.on('process.completed', (event) => persist(options, event, {
-      eventType: 'process.completed',
-      outcome: event.exitCode === 0 ? 'success' : event.timedOut ? 'cancelled' : 'failure',
-      occurredAt: event.endedAt,
-      durationNs: Math.round(event.durationMs * 1_000_000).toString(),
-      attributes: {
-        exitCode: event.exitCode,
-        signal: event.signal,
-        stdoutBytes: event.stdoutBytes,
-        stderrBytes: event.stderrBytes,
-        timedOut: event.timedOut,
-      },
-    })),
+    options.events.on('process.started', (event) =>
+      persist(options, event, {
+        eventType: 'process.started',
+        outcome: 'started',
+        occurredAt: event.startedAt,
+        attributes: {
+          command: options.scrubber.scrub(event.command),
+          args: event.args.map((arg) => options.scrubber.scrub(arg)),
+          cwd: event.cwd,
+          parentPid: event.parentPid,
+          background: event.background,
+        },
+      }),
+    ),
+    options.events.on('process.completed', (event) =>
+      persist(options, event, {
+        eventType: 'process.completed',
+        outcome: event.exitCode === 0 ? 'success' : event.timedOut ? 'cancelled' : 'failure',
+        occurredAt: event.endedAt,
+        durationNs: Math.round(event.durationMs * 1_000_000).toString(),
+        attributes: {
+          exitCode: event.exitCode,
+          signal: event.signal,
+          stdoutBytes: event.stdoutBytes,
+          stderrBytes: event.stderrBytes,
+          timedOut: event.timedOut,
+        },
+      }),
+    ),
   ];
-  return () => unsubs.forEach((unsubscribe) => { unsubscribe(); });
+  return () =>
+    unsubs.forEach((unsubscribe) => {
+      unsubscribe();
+    });
 }
 
-type ProcessEvent =
-  | EventMap['process.started']
-  | EventMap['process.completed'];
+type ProcessEvent = EventMap['process.started'] | EventMap['process.completed'];
 
 function persist(
   options: ChronicleProcessAdapterOptions,

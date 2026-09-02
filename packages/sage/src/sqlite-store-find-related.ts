@@ -20,12 +20,14 @@ interface SqliteFindRelatedContext {
    * surface truncation consistently. The store-side `SqliteSageStore`
    * typically omits this and surfaces via the audit log instead.
    */
-  onTruncated?: ((info: {
-    bfsBudget: number;
-    requestedLimit: number;
-    scoredCount: number;
-    returned: number;
-  }) => void) | undefined;
+  onTruncated?:
+    | ((info: {
+        bfsBudget: number;
+        requestedLimit: number;
+        scoredCount: number;
+        returned: number;
+      }) => void)
+    | undefined;
 }
 
 export interface SqliteFindRelatedOptions {
@@ -59,7 +61,9 @@ export async function findRelatedSqliteSage(
     .stmt(`SELECT data FROM memories WHERE id IN (${seedPlaceholders})`)
     .all(...memoryIds) as Array<{ data: string }>;
   const seedIds = new Set(memoryIds);
-  const seeds = seedRows.map((row) => sqliteRowToMemory(row)).filter((memory) => seedIds.has(memory.id));
+  const seeds = seedRows
+    .map((row) => sqliteRowToMemory(row))
+    .filter((memory) => seedIds.has(memory.id));
   if (seeds.length === 0) return [];
 
   const bfsBudget = Math.max(100, (opts.limit ?? 20) * 20);

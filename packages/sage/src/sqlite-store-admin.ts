@@ -1,10 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { readSqliteSageRow, sqliteRowToMemory } from './sqlite-store-codec.js';
 import { findSqliteMemoriesForFile } from './sqlite-store-find-file.js';
-import {
-  backfillRecoverableSqliteSage,
-  recoverSqliteSage,
-} from './sqlite-store-recovery.js';
+import { backfillRecoverableSqliteSage, recoverSqliteSage } from './sqlite-store-recovery.js';
 import type {
   FindMemoriesForFileOptions,
   FindMemoriesForFileResponse,
@@ -33,9 +30,9 @@ function getMemory(host: SqliteAdminHost, id: string): Sage | null {
 }
 
 function listMemories(host: SqliteAdminHost): Sage[] {
-  const rows = host
-    .stmt('SELECT data FROM memories ORDER BY updated_at DESC')
-    .all() as Array<{ data: string }>;
+  const rows = host.stmt('SELECT data FROM memories ORDER BY updated_at DESC').all() as Array<{
+    data: string;
+  }>;
   return rows.map((row) => sqliteRowToMemory(row));
 }
 

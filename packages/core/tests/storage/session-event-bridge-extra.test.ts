@@ -6,7 +6,11 @@ import {
   resolveSessionLoggingConfig,
 } from '../../src/storage/session-event-bridge.js';
 
-function makeMockWriter(): { writer: SessionWriter; append: ReturnType<typeof vi.fn>; appendBatch: ReturnType<typeof vi.fn> } {
+function makeMockWriter(): {
+  writer: SessionWriter;
+  append: ReturnType<typeof vi.fn>;
+  appendBatch: ReturnType<typeof vi.fn>;
+} {
   const append = vi.fn().mockResolvedValue(undefined);
   const appendBatch = vi.fn().mockResolvedValue(undefined);
   const writer = {
@@ -47,7 +51,12 @@ describe('session-event-bridge — extra coverage', () => {
   it('allows an uncategorized event at full level (allow-everything tail)', async () => {
     const { writer, append } = makeMockWriter();
     const bridge = createSessionEventBridge(writer, 'full');
-    await bridge.append({ type: 'task_created', ts: new Date().toISOString(), taskId: 't', title: 'x' } as never as SessionEvent);
+    await bridge.append({
+      type: 'task_created',
+      ts: new Date().toISOString(),
+      taskId: 't',
+      title: 'x',
+    } as never as SessionEvent);
     expect(append).toHaveBeenCalled();
   });
 
@@ -80,7 +89,13 @@ describe('session-event-bridge — extra coverage', () => {
       const bridge = createSessionEventBridge(writer, 'minimal');
       await bridge.appendBatch([
         userInput(),
-        { type: 'tool_progress', ts: new Date().toISOString(), name: 'b', id: 'c', event: { type: 'log', text: 'x' } } as never as SessionEvent,
+        {
+          type: 'tool_progress',
+          ts: new Date().toISOString(),
+          name: 'b',
+          id: 'c',
+          event: { type: 'log', text: 'x' },
+        } as never as SessionEvent,
       ]);
       expect(appendBatch).toHaveBeenCalledTimes(1);
       expect(appendBatch.mock.calls[0]?.[0]).toHaveLength(1);
@@ -90,7 +105,13 @@ describe('session-event-bridge — extra coverage', () => {
       const { writer, appendBatch } = makeMockWriter();
       const bridge = createSessionEventBridge(writer, 'minimal');
       await bridge.appendBatch([
-        { type: 'tool_progress', ts: new Date().toISOString(), name: 'b', id: 'c', event: { type: 'log', text: 'x' } } as never as SessionEvent,
+        {
+          type: 'tool_progress',
+          ts: new Date().toISOString(),
+          name: 'b',
+          id: 'c',
+          event: { type: 'log', text: 'x' },
+        } as never as SessionEvent,
       ]);
       expect(appendBatch).not.toHaveBeenCalled();
     });
@@ -117,11 +138,19 @@ describe('session-event-bridge — extra coverage', () => {
         auditLevel: 'standard',
         sampling: { toolProgress: { sampleRate: 8 } },
       });
-      expect(resolveSessionLoggingConfig({ session: { auditLevel: 'full', sampling: { toolProgress: { sampleRate: 0 } } } })).toEqual({
+      expect(
+        resolveSessionLoggingConfig({
+          session: { auditLevel: 'full', sampling: { toolProgress: { sampleRate: 0 } } },
+        }),
+      ).toEqual({
         auditLevel: 'full',
         sampling: { toolProgress: { sampleRate: 1 } },
       });
-      expect(resolveSessionLoggingConfig({ session: { sampling: { toolProgress: { sampleRate: 3.9 } } } }).sampling.toolProgress.sampleRate).toBe(3);
+      expect(
+        resolveSessionLoggingConfig({
+          session: { sampling: { toolProgress: { sampleRate: 3.9 } } },
+        }).sampling.toolProgress.sampleRate,
+      ).toBe(3);
     });
   });
 });

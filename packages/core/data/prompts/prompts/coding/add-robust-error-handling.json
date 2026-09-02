@@ -5,11 +5,7 @@
   "description": "Harden a function or module against failure with deliberate error handling.",
   "content": "Review the code below and add robust error handling:\n\n```\n{{code}}\n```\n\nFor each failure mode, decide deliberately: validate-and-reject, retry, fall back, or propagate. Then:\n- Validate inputs at the boundary; fail fast with actionable messages.\n- Never swallow errors silently — log or rethrow with context.\n- Distinguish expected failures (return/throw typed errors) from bugs (let them surface).\n- Keep the happy path readable; don't drown it in try/catch.\n\nShow the revised code and a one-line rationale per change.",
   "category": "coding",
-  "tags": [
-    "errors",
-    "resilience",
-    "validation"
-  ],
+  "tags": ["errors", "resilience", "validation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "9882ab3129fa94d3b821b8e417582e129de751ef7072c1c2834a1a409025291a",

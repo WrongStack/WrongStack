@@ -47,9 +47,19 @@ export class TrendStore {
   constructor(private readonly source: SnapshotSource) {}
 
   analyze(projectId: string, limit = 100): TrendReport {
-    const snapshots = this.source.listSnapshots(projectId, limit)
+    const snapshots = this.source
+      .listSnapshots(projectId, limit)
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
-    const versionHistory = new Map<string, Array<{ at: number; version: string | undefined; vulnerable: boolean; name: string; ecosystem: string }>>();
+    const versionHistory = new Map<
+      string,
+      Array<{
+        at: number;
+        version: string | undefined;
+        vulnerable: boolean;
+        name: string;
+        ecosystem: string;
+      }>
+    >();
     const vulnerabilityDurations: number[] = [];
     const openVulnerabilities = new Map<string, number>();
     for (const snapshot of snapshots) {
@@ -60,7 +70,13 @@ export class TrendStore {
         active.add(key);
         const vulnerable = dependency.status === 'vulnerable';
         const history = versionHistory.get(key) ?? [];
-        history.push({ at, version: dependency.locked ?? dependency.installed ?? dependency.requested, vulnerable, name: dependency.name, ecosystem: dependency.ecosystem });
+        history.push({
+          at,
+          version: dependency.locked ?? dependency.installed ?? dependency.requested,
+          vulnerable,
+          name: dependency.name,
+          ecosystem: dependency.ecosystem,
+        });
         versionHistory.set(key, history);
         if (vulnerable && !openVulnerabilities.has(key)) openVulnerabilities.set(key, at);
         if (!vulnerable && openVulnerabilities.has(key)) {
@@ -94,9 +110,12 @@ export class TrendStore {
       }
       const spanDays = Math.max(1, (latest.at - first.at) / 86_400_000);
       dependencies.push({
-        key, name: latest.name, ecosystem: latest.ecosystem,
+        key,
+        name: latest.name,
+        ecosystem: latest.ecosystem,
         ...(latest.version ? { currentVersion: latest.version } : {}),
-        lockedVersionAgeMs: Math.max(0, latest.at - sameVersionSince), versionChanges,
+        lockedVersionAgeMs: Math.max(0, latest.at - sameVersionSince),
+        versionChanges,
         upgradeVelocityPerDay: versionChanges / spanDays,
       });
     }
@@ -106,7 +125,9 @@ export class TrendStore {
     const lastSnapshot = snapshots.at(-1);
     return {
       projectId,
-      ...(firstSnapshot && lastSnapshot ? { from: firstSnapshot.createdAt, to: lastSnapshot.createdAt } : {}),
+      ...(firstSnapshot && lastSnapshot
+        ? { from: firstSnapshot.createdAt, to: lastSnapshot.createdAt }
+        : {}),
       snapshots: snapshots.length,
       dependencies,
       ...(halfLife !== undefined ? { vulnerabilityHalfLifeMs: halfLife } : {}),
@@ -114,8 +135,11 @@ export class TrendStore {
         snapshotId: snapshot.id,
         createdAt: snapshot.createdAt,
         dependencies: snapshot.dependencies.length,
-        outdated: snapshot.dependencies.filter((dependency) => dependency.status.startsWith('update_available')).length,
-        vulnerable: snapshot.dependencies.filter((dependency) => dependency.status === 'vulnerable').length,
+        outdated: snapshot.dependencies.filter((dependency) =>
+          dependency.status.startsWith('update_available'),
+        ).length,
+        vulnerable: snapshot.dependencies.filter((dependency) => dependency.status === 'vulnerable')
+          .length,
       })),
     };
   }
@@ -123,10 +147,19 @@ export class TrendStore {
 
 export function renderTrendMarkdown(report: TrendReport): string {
   const lines = ['# TechStack Trend', '', `**Snapshots:** ${report.snapshots}`];
-  if (report.vulnerabilityHalfLifeMs !== undefined) lines.push(`**Vulnerability half-life:** ${(report.vulnerabilityHalfLifeMs / 86_400_000).toFixed(1)} days`);
-  lines.push('', '| Dependency | Version | Age (days) | Changes | Velocity/day |', '|---|---|---:|---:|---:|');
+  if (report.vulnerabilityHalfLifeMs !== undefined)
+    lines.push(
+      `**Vulnerability half-life:** ${(report.vulnerabilityHalfLifeMs / 86_400_000).toFixed(1)} days`,
+    );
+  lines.push(
+    '',
+    '| Dependency | Version | Age (days) | Changes | Velocity/day |',
+    '|---|---|---:|---:|---:|',
+  );
   for (const dependency of report.dependencies) {
-    lines.push(`| ${dependency.ecosystem}:${dependency.name} | ${dependency.currentVersion ?? '—'} | ${(dependency.lockedVersionAgeMs / 86_400_000).toFixed(1)} | ${dependency.versionChanges} | ${dependency.upgradeVelocityPerDay.toFixed(3)} |`);
+    lines.push(
+      `| ${dependency.ecosystem}:${dependency.name} | ${dependency.currentVersion ?? '—'} | ${(dependency.lockedVersionAgeMs / 86_400_000).toFixed(1)} | ${dependency.versionChanges} | ${dependency.upgradeVelocityPerDay.toFixed(3)} |`,
+    );
   }
   return lines.join('\n');
 }

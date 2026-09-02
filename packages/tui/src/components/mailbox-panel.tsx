@@ -112,7 +112,9 @@ export function MailboxPanel({
       {/* Messages */}
       {showMessages.length > 0 ? (
         <Box flexDirection="column" marginTop={1}>
-          <Text bold dimColor>Messages</Text>
+          <Text bold dimColor>
+            Messages
+          </Text>
           {showMessages.map((m) => (
             <Box key={m.id} flexDirection="row" gap={1}>
               <Text>{TYPE_ICONS[m.type] ?? '📨'}</Text>
@@ -128,17 +130,13 @@ export function MailboxPanel({
               <Text dimColor>{fmtTime(m.timestamp)}</Text>
               {m.audience === 'leaders' ? <Text color="cyan">🔒 leaders</Text> : null}
               {m.readByCount > 0 ? (
-                <Text dimColor>
-                  👁 {m.readByCount}
-                </Text>
+                <Text dimColor>👁 {m.readByCount}</Text>
               ) : (
                 <Text color="yellow" bold>
                   ✉ new
                 </Text>
               )}
-              {m.completed ? (
-                <Text color="green">✓</Text>
-              ) : null}
+              {m.completed ? <Text color="green">✓</Text> : null}
             </Box>
           ))}
         </Box>
@@ -151,25 +149,19 @@ export function MailboxPanel({
       {/* Online agents */}
       {showAgents.length > 0 ? (
         <Box flexDirection="column" marginTop={1}>
-          <Text bold dimColor>Online agents</Text>
+          <Text bold dimColor>
+            Online agents
+          </Text>
           {showAgents.map((a) => (
             <Box key={a.agentId} flexDirection="row" gap={1}>
-              <Text color={a.online ? 'green' : 'dim'}>
-                {a.online ? '●' : '○'}
-              </Text>
+              <Text color={a.online ? 'green' : 'dim'}>{a.online ? '●' : '○'}</Text>
               <Text>{a.name}</Text>
               {a.role ? <Text dimColor>({a.role})</Text> : null}
-              <Text dimColor>
-                {a.status}
-              </Text>
-              {a.currentTool ? (
-                <Text color="cyan">{a.currentTool}</Text>
-              ) : null}
+              <Text dimColor>{a.status}</Text>
+              {a.currentTool ? <Text color="cyan">{a.currentTool}</Text> : null}
               {a.currentTask ? (
                 <Text dimColor>
-                  {a.currentTask.length > 25
-                    ? `${a.currentTask.slice(0, 24)}…`
-                    : a.currentTask}
+                  {a.currentTask.length > 25 ? `${a.currentTask.slice(0, 24)}…` : a.currentTask}
                 </Text>
               ) : null}
               <Text dimColor>{fmtTime(a.lastSeenAt)}</Text>
@@ -181,9 +173,7 @@ export function MailboxPanel({
 
       {/* Footer */}
       <Box marginTop={1}>
-        <Text dimColor>
-          /mailbox — Esc to close
-        </Text>
+        <Text dimColor>/mailbox — Esc to close</Text>
       </Box>
     </Box>
   );

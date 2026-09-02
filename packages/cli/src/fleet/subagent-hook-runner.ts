@@ -35,12 +35,7 @@ export function createSubagentWrongTraceHookRunner(
   const hooks = createWrongTraceHookPair(sessionId, {
     emit: (event) => emit?.(event),
   });
-  registry.registerInProcess(
-    'PreToolUse',
-    WRONGTRACE_MATCHER,
-    hooks.preToolUse,
-    'wrongtrace-gate',
-  );
+  registry.registerInProcess('PreToolUse', WRONGTRACE_MATCHER, hooks.preToolUse, 'wrongtrace-gate');
   registry.registerInProcess(
     'PostToolUse',
     WRONGTRACE_MATCHER,

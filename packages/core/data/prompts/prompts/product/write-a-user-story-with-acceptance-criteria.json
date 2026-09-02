@@ -5,10 +5,7 @@
   "description": "Turn a feature idea into a buildable, testable story.",
   "content": "Turn this into a user story: {{feature}}\n\nWrite it as: as a [user], I want [capability], so that [outcome] — with the outcome being a real benefit, not a restatement of the capability. Then write acceptance criteria in given/when/then form that are specific and testable, covering the happy path, the key edge cases, and what's explicitly out of scope. Flag any criterion that's actually ambiguous about who decides done.",
   "category": "product",
-  "tags": [
-    "user-story",
-    "acceptance-criteria"
-  ],
+  "tags": ["user-story", "acceptance-criteria"],
   "source": "builtin",
   "favorite": false,
   "checksum": "3c8131bc8166dae686ccc138398373d990cb491cada71fbfaa69bbd4edb3b07b",

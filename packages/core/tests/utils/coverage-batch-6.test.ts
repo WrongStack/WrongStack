@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { repairToolUseAdjacency } from '../../src/utils/message-invariants.js';
-import { parseIncomingImages, buildUserContentBlocks, IncomingImageError, MAX_INCOMING_IMAGES } from '../../src/utils/incoming-images.js';
+import {
+  parseIncomingImages,
+  buildUserContentBlocks,
+  IncomingImageError,
+  MAX_INCOMING_IMAGES,
+} from '../../src/utils/incoming-images.js';
 import { mergeCustomModelDefs } from '../../src/utils/merge-custom-models.js';
 import { mergeModelsPayload } from '../../src/utils/merge-models-payload.js';
 import type { ContentBlock } from '../../src/types/blocks.js';
@@ -26,20 +31,14 @@ describe('repairToolUseAdjacency', () => {
   }
 
   it('passes through clean paired sequences unchanged', () => {
-    const msgs = [
-      asst(text('hi'), tu('a')),
-      user(tr('a')),
-    ];
+    const msgs = [asst(text('hi'), tu('a')), user(tr('a'))];
     const result = repairToolUseAdjacency(msgs);
     expect(result.report.changed).toBe(false);
     expect(result.messages).toBe(msgs);
   });
 
   it('removes orphaned tool_use when next message lacks matching result', () => {
-    const msgs = [
-      asst(text('ok'), tu('a')),
-      user(text('no result')),
-    ];
+    const msgs = [asst(text('ok'), tu('a')), user(text('no result'))];
     const result = repairToolUseAdjacency(msgs);
     expect(result.report.changed).toBe(true);
     expect(result.report.removedToolUses).toEqual(['a']);
@@ -48,20 +47,14 @@ describe('repairToolUseAdjacency', () => {
   });
 
   it('removes orphaned tool_result when no preceding tool_use', () => {
-    const msgs = [
-      asst(text('hello')),
-      user(tr('orphan')),
-    ];
+    const msgs = [asst(text('hello')), user(tr('orphan'))];
     const result = repairToolUseAdjacency(msgs);
     expect(result.report.changed).toBe(true);
     expect(result.report.removedToolResults).toEqual(['orphan']);
   });
 
   it('removes entirely empty messages after block removal', () => {
-    const msgs = [
-      asst(tu('a')),
-      user(text('nothing')),
-    ];
+    const msgs = [asst(tu('a')), user(text('nothing'))];
     const result = repairToolUseAdjacency(msgs);
     expect(result.report.removedMessages).toBeGreaterThanOrEqual(0);
     // The assistant message with only a removed tool_use becomes empty → removed
@@ -69,9 +62,7 @@ describe('repairToolUseAdjacency', () => {
   });
 
   it('handles string-content messages without crashing', () => {
-    const msgs: Message[] = [
-      { role: 'user', content: 'hello' },
-    ];
+    const msgs: Message[] = [{ role: 'user', content: 'hello' }];
     const result = repairToolUseAdjacency(msgs);
     expect(result.report.changed).toBe(false);
   });
@@ -123,7 +114,9 @@ describe('parseIncomingImages', () => {
   });
 
   it('throws on unsupported media type', () => {
-    expect(() => parseIncomingImages([{ data: 'aGVsbG8=', mediaType: 'image/bmp' }])).toThrow(/unsupported media type/);
+    expect(() => parseIncomingImages([{ data: 'aGVsbG8=', mediaType: 'image/bmp' }])).toThrow(
+      /unsupported media type/,
+    );
   });
 
   it('throws on empty image data', () => {
@@ -142,7 +135,10 @@ describe('parseIncomingImages', () => {
 
 describe('buildUserContentBlocks', () => {
   it('places images before text', () => {
-    const img = { type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/png', data: 'abc' } };
+    const img = {
+      type: 'image' as const,
+      source: { type: 'base64' as const, media_type: 'image/png', data: 'abc' },
+    };
     const blocks = buildUserContentBlocks('hello', [img]);
     expect(blocks[0]?.type).toBe('image');
     expect(blocks[1]?.type).toBe('text');
@@ -175,16 +171,13 @@ describe('mergeCustomModelDefs', () => {
   });
 
   it('merges non-overlapping models from both sources', () => {
-    const result = mergeCustomModelDefs(
-      { 'p-model': { name: 'P' } },
-      { 'c-model': { name: 'C' } },
-    );
+    const result = mergeCustomModelDefs({ 'p-model': { name: 'P' } }, { 'c-model': { name: 'C' } });
     expect(Object.keys(result ?? {}).sort()).toEqual(['c-model', 'p-model']);
   });
 
   it('does not mutate inputs', () => {
-    const provider = { 'm': { name: 'P' } };
-    const config = { 'm': { name: 'C' } };
+    const provider = { m: { name: 'P' } };
+    const config = { m: { name: 'C' } };
     mergeCustomModelDefs(provider, config);
     expect(provider['m']?.name).toBe('P');
     expect(config['m']?.name).toBe('C');
@@ -207,7 +200,11 @@ describe('mergeModelsPayload', () => {
   it('adds overlay-only providers', () => {
     const base = {};
     const overlay = {
-      anthropic: { id: 'anthropic', name: 'Anthropic', models: { 'claude': { id: 'claude', name: 'Claude' } } },
+      anthropic: {
+        id: 'anthropic',
+        name: 'Anthropic',
+        models: { claude: { id: 'claude', name: 'Claude' } },
+      },
     };
     const result = mergeModelsPayload(base, overlay);
     expect(result.anthropic?.name).toBe('Anthropic');
@@ -228,8 +225,8 @@ describe('mergeModelsPayload', () => {
   });
 
   it('merges model maps by id', () => {
-    const base = { p: { id: 'p', name: 'P', models: { 'm1': { id: 'm1', name: 'M1' } } } };
-    const overlay = { p: { id: 'p', name: 'Overlay', models: { 'm2': { id: 'm2', name: 'M2' } } } };
+    const base = { p: { id: 'p', name: 'P', models: { m1: { id: 'm1', name: 'M1' } } } };
+    const overlay = { p: { id: 'p', name: 'Overlay', models: { m2: { id: 'm2', name: 'M2' } } } };
     const result = mergeModelsPayload(base, overlay);
     expect(Object.keys(result.p?.models ?? {}).sort()).toEqual(['m1', 'm2']);
   });
@@ -237,15 +234,19 @@ describe('mergeModelsPayload', () => {
   it('deep-merges model limit/cost/modalities', () => {
     const base = {
       p: {
-        id: 'p', name: 'P', models: {
-          'm': { id: 'm', name: 'M', limit: { context: 8000, output: 4096 }, cost: { input: 0.01 } },
+        id: 'p',
+        name: 'P',
+        models: {
+          m: { id: 'm', name: 'M', limit: { context: 8000, output: 4096 }, cost: { input: 0.01 } },
         },
       },
     };
     const overlay = {
       p: {
-        id: 'p', name: 'Overlay', models: {
-          'm': { id: 'm', name: 'M', limit: { context: 128000 }, cost: { output: 0.03 } },
+        id: 'p',
+        name: 'Overlay',
+        models: {
+          m: { id: 'm', name: 'M', limit: { context: 128000 }, cost: { output: 0.03 } },
         },
       },
     };
@@ -256,8 +257,16 @@ describe('mergeModelsPayload', () => {
   });
 
   it('does not mutate inputs', () => {
-    const base = { p: { id: 'p', name: 'Base', models: { m: { id: 'm', name: 'M', limit: { context: 100 } } } } };
-    const overlay = { p: { id: 'p', name: 'Overlay', models: { m: { id: 'm', name: 'M', limit: { context: 200 } } } } };
+    const base = {
+      p: { id: 'p', name: 'Base', models: { m: { id: 'm', name: 'M', limit: { context: 100 } } } },
+    };
+    const overlay = {
+      p: {
+        id: 'p',
+        name: 'Overlay',
+        models: { m: { id: 'm', name: 'M', limit: { context: 200 } } },
+      },
+    };
     mergeModelsPayload(base, overlay);
     expect(base.p?.models?.['m']?.limit?.context).toBe(100);
   });

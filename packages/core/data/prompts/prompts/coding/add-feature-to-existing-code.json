@@ -5,10 +5,7 @@
   "description": "Extend a codebase with a new feature while preserving existing behavior and conventions.",
   "content": "I want to add the following feature: {{feature}}\n\nBefore writing code:\n1. Identify the files and functions that must change, and explain why.\n2. Describe how you'll keep existing behavior intact (and which tests prove it).\n3. Match the project's existing patterns, naming, and error-handling style.\n\nThen implement the change as a minimal, reviewable diff. Call out any place where the existing code made you choose between two reasonable approaches.",
   "category": "coding",
-  "tags": [
-    "feature",
-    "integration"
-  ],
+  "tags": ["feature", "integration"],
   "source": "builtin",
   "favorite": false,
   "checksum": "f84237bae4713441add482a6c3bea0c64baa68d7dd4f5f026150ad8fb9c7d6f2",

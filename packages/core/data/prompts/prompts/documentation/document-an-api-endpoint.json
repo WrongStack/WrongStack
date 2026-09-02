@@ -5,11 +5,7 @@
   "description": "Write reference docs for one HTTP endpoint.",
   "content": "Document this endpoint: {{endpoint}}\n\nCover: method and path, what it does in one line, parameters (path/query/body) with types and which are required, the request and a realistic response example, the status codes and what each means, auth, and rate limits. Show one full working example a reader can copy. Note the non-obvious behavior — pagination, idempotency, side effects — that callers get wrong. Be precise about error responses.",
   "category": "documentation",
-  "tags": [
-    "api",
-    "reference",
-    "docs"
-  ],
+  "tags": ["api", "reference", "docs"],
   "source": "builtin",
   "favorite": false,
   "checksum": "57469dd813ad2d5d49a9db681d3556a373717b89cf740fd1b0670a0aa2d69a4c",

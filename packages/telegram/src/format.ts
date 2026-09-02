@@ -82,14 +82,14 @@ export function fmtToolOutput(raw: string | undefined): string {
   // Redact BEFORE the JSON-stripping pass so we don't transform the
   // redacted marker (e.g. `[REDACTED]` survives untouched).
   const redacted = redactSecrets(raw);
-  const cleaned = redacted
-    .replace(/^[{[]\s*/, '')      // strip leading JSON opening
-    .replace(/\s*[}\]]$/, '')      // strip trailing JSON closing
-    .replace(/"([^"]+)":/g, '$1: ') // unquote JSON keys, add space for readability
-    .replace(/\\n/g, '\n')         // expand escaped newlines
-    .replace(/\\"/g, '"')          // expand escaped quotes
-    .trim()
-    || redacted;
+  const cleaned =
+    redacted
+      .replace(/^[{[]\s*/, '') // strip leading JSON opening
+      .replace(/\s*[}\]]$/, '') // strip trailing JSON closing
+      .replace(/"([^"]+)":/g, '$1: ') // unquote JSON keys, add space for readability
+      .replace(/\\n/g, '\n') // expand escaped newlines
+      .replace(/\\"/g, '"') // expand escaped quotes
+      .trim() || redacted;
 
   // Try to split into short lines; show the first 3 meaningful ones.
   const lines = cleaned.split('\n').filter((l) => l.trim().length > 0);
@@ -122,11 +122,7 @@ export function formatDelegateCompleted(e: DelegateCompletedLike): string {
   const rawBody = e.summary?.trim() || `(no summary) — ${task}`;
   const body = redactSecrets(rawBody);
 
-  const stats = [
-    `⏱ ${fmtDuration(e.durationMs)}`,
-    `${e.iterations} iter`,
-    `${e.toolCalls} tools`,
-  ];
+  const stats = [`⏱ ${fmtDuration(e.durationMs)}`, `${e.iterations} iter`, `${e.toolCalls} tools`];
   if (typeof e.costUsd === 'number' && e.costUsd > 0) {
     stats.push(`💲${e.costUsd.toFixed(4)}`);
   }

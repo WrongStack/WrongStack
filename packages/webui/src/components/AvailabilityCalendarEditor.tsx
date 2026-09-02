@@ -184,7 +184,9 @@ export function AvailabilityCalendarEditor({
           className="h-9 w-full rounded-md border bg-background px-2 text-xs"
         >
           <option value="blackout">{t('activity:availability.doNotUseDuringSelectedTimes')}</option>
-          <option value="allow_only">{t('activity:availability.useOnlyDuringSelectedTimes')}</option>
+          <option value="allow_only">
+            {t('activity:availability.useOnlyDuringSelectedTimes')}
+          </option>
         </select>
         <div className="flex flex-wrap gap-1">
           {DAYS.map((day, index) => (

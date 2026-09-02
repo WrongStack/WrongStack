@@ -21,9 +21,19 @@ import { computeDependencyFingerprint } from './finding-factory.js';
 export const ADAPTER_VERSION = '0.1.0';
 
 const ADAPTERS: Readonly<Record<EcosystemId, EcosystemAdapter>> = {
-  npm: npmAdapter, python: pythonAdapter, rust: rustAdapter, go: goAdapter,
-  dotnet: dotNetAdapter, php: phpAdapter, dart: dartAdapter, maven: mavenAdapter,
-  gradle: gradleAdapter, ruby: rubyAdapter, swift: swiftAdapter, elixir: elixirAdapter, cpp: cppAdapter,
+  npm: npmAdapter,
+  python: pythonAdapter,
+  rust: rustAdapter,
+  go: goAdapter,
+  dotnet: dotNetAdapter,
+  php: phpAdapter,
+  dart: dartAdapter,
+  maven: mavenAdapter,
+  gradle: gradleAdapter,
+  ruby: rubyAdapter,
+  swift: swiftAdapter,
+  elixir: elixirAdapter,
+  cpp: cppAdapter,
 };
 
 export interface InventoryPhaseOptions extends InventoryOptions {
@@ -45,11 +55,13 @@ export async function runInventoryPhase(
   for (const workspace of workspaces) {
     if (options.signal?.aborted) throw new DOMException('TechStack job cancelled', 'AbortError');
     try {
-      dependencies.push(...await ADAPTERS[workspace.ecosystem].inventory(workspace, {
-        projectRoot: targetRoot,
-        includeTransitive: options.includeTransitive,
-        signal: options.signal,
-      }));
+      dependencies.push(
+        ...(await ADAPTERS[workspace.ecosystem].inventory(workspace, {
+          projectRoot: targetRoot,
+          includeTransitive: options.includeTransitive,
+          signal: options.signal,
+        })),
+      );
     } catch {
       // One malformed workspace must not discard other ecosystem inventories.
     }
@@ -58,8 +70,15 @@ export async function runInventoryPhase(
     options.onProgress?.('inventorying', completed, workspaces.length);
   }
   const snapshot: Snapshot = {
-    id: randomUUID(), projectId, targetRoot, fingerprint: computeDependencyFingerprint(dependencies),
-    createdAt: new Date().toISOString(), workspaces, dependencies, findings: [], coverage,
+    id: randomUUID(),
+    projectId,
+    targetRoot,
+    fingerprint: computeDependencyFingerprint(dependencies),
+    createdAt: new Date().toISOString(),
+    workspaces,
+    dependencies,
+    findings: [],
+    coverage,
     adapterVersion: ADAPTER_VERSION,
   };
   store.saveSnapshot(snapshot);

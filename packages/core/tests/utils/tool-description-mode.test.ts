@@ -43,9 +43,13 @@ describe('normalizeToolDescriptionMode', () => {
 describe('resolveToolDescriptionMode', () => {
   it('uses the per-tool mode, falls back to the default', () => {
     expect(resolveToolDescriptionMode({ bash: 'simple' }, 'bash')).toBe('simple');
-    expect(resolveToolDescriptionMode({ bash: 'simple' }, 'other')).toBe(DEFAULT_TOOL_DESCRIPTION_MODE);
+    expect(resolveToolDescriptionMode({ bash: 'simple' }, 'other')).toBe(
+      DEFAULT_TOOL_DESCRIPTION_MODE,
+    );
     expect(resolveToolDescriptionMode(undefined, 'bash')).toBe(DEFAULT_TOOL_DESCRIPTION_MODE);
-    expect(resolveToolDescriptionMode({ bash: 'garbage' }, 'bash')).toBe(DEFAULT_TOOL_DESCRIPTION_MODE);
+    expect(resolveToolDescriptionMode({ bash: 'garbage' }, 'bash')).toBe(
+      DEFAULT_TOOL_DESCRIPTION_MODE,
+    );
   });
 });
 
@@ -54,7 +58,8 @@ describe('simplifyToolDescription', () => {
     expect(simplifyToolDescription('  Hello   world.  ')).toBe('Hello world.');
   });
   it('keeps text under the char limit as-is', () => {
-    const text = 'This is a short description that fits within the default limit without any problem.';
+    const text =
+      'This is a short description that fits within the default limit without any problem.';
     expect(simplifyToolDescription(text)).toBe(text);
   });
   it('selects up to maxSentences for multi-sentence text', () => {
@@ -112,7 +117,10 @@ describe('applyToolDescriptionModeToTool', () => {
     expect(out.description.length).toBeLessThan(tool.description.length);
   });
   it('simplifies a present usageHint and drops an undefined one', () => {
-    const toolWithHint = makeTool({ description: 'Short.', usageHint: `${'hint sentence. '.repeat(30)}` });
+    const toolWithHint = makeTool({
+      description: 'Short.',
+      usageHint: `${'hint sentence. '.repeat(30)}`,
+    });
     const out1 = applyToolDescriptionModeToTool(toolWithHint, 'simple');
     expect(out1.usageHint).toBeDefined();
     expect(out1.usageHint!.length).toBeLessThan(toolWithHint.usageHint!.length);
@@ -155,24 +163,49 @@ describe('registry helpers', () => {
   });
 
   it('setToolDescriptionMode returns false when the tool is missing or no wrap', () => {
-    expect(setToolDescriptionMode({ get: () => undefined, list: () => [], wrap: vi.fn() } as never, 'x', 'simple')).toBe(false);
-    expect(setToolDescriptionMode({ get: () => makeTool(), list: () => [] } as never, 'x', 'simple')).toBe(false);
+    expect(
+      setToolDescriptionMode(
+        { get: () => undefined, list: () => [], wrap: vi.fn() } as never,
+        'x',
+        'simple',
+      ),
+    ).toBe(false);
+    expect(
+      setToolDescriptionMode({ get: () => makeTool(), list: () => [] } as never, 'x', 'simple'),
+    ).toBe(false);
   });
 
   it('getToolDescriptionMode delegates or defaults', () => {
-    expect(getToolDescriptionMode({ get: () => undefined, list: () => [], getDescriptionMode: () => 'simple' } as never, 'x')).toBe('simple');
-    expect(getToolDescriptionMode({ get: () => undefined, list: () => [] } as never, 'x')).toBe(DEFAULT_TOOL_DESCRIPTION_MODE);
+    expect(
+      getToolDescriptionMode(
+        { get: () => undefined, list: () => [], getDescriptionMode: () => 'simple' } as never,
+        'x',
+      ),
+    ).toBe('simple');
+    expect(getToolDescriptionMode({ get: () => undefined, list: () => [] } as never, 'x')).toBe(
+      DEFAULT_TOOL_DESCRIPTION_MODE,
+    );
   });
 
   it('applyToolDescriptionModes prefers registry.applyDescriptionModes', () => {
-    const registry = { get: vi.fn(), list: vi.fn(), applyDescriptionModes: vi.fn(() => ({ applied: 3, missing: ['z'] })) };
-    expect(applyToolDescriptionModes(registry as never, { bash: 'simple' })).toEqual({ applied: 3, missing: ['z'] });
+    const registry = {
+      get: vi.fn(),
+      list: vi.fn(),
+      applyDescriptionModes: vi.fn(() => ({ applied: 3, missing: ['z'] })),
+    };
+    expect(applyToolDescriptionModes(registry as never, { bash: 'simple' })).toEqual({
+      applied: 3,
+      missing: ['z'],
+    });
   });
 
   it('applyToolDescriptionModes with no modes applies nothing', () => {
     const wrap = vi.fn();
     const registry = { get: vi.fn(() => makeTool()), list: () => [], wrap };
-    expect(applyToolDescriptionModes(registry as never, undefined)).toEqual({ applied: 0, missing: [] });
+    expect(applyToolDescriptionModes(registry as never, undefined)).toEqual({
+      applied: 0,
+      missing: [],
+    });
     expect(wrap).not.toHaveBeenCalled();
   });
 

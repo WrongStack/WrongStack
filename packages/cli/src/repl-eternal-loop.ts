@@ -82,9 +82,7 @@ export async function runReplEternalLoop(
   if (autonomy === 'eternal-parallel') {
     const engine = opts.getParallelEngine?.();
     if (!engine) {
-      opts.renderer.writeWarning(
-        'Parallel mode set but no engine wired — falling back to off.',
-      );
+      opts.renderer.writeWarning('Parallel mode set but no engine wired — falling back to off.');
       return false;
     }
 
@@ -101,9 +99,7 @@ export async function runReplEternalLoop(
       );
     }
 
-    opts.renderer.write(
-      color.magenta(`  ↳ [parallel #${beforeIter + 1}] launching fan-out…\n`),
-    );
+    opts.renderer.write(color.magenta(`  ↳ [parallel #${beforeIter + 1}] launching fan-out…\n`));
     onInterruptsReset();
 
     try {

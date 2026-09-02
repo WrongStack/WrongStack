@@ -2,9 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import {
-  startTechStackConsumer,
-} from '../../src/coordination/techstack-mailbox-consumer.js';
+import { startTechStackConsumer } from '../../src/coordination/techstack-mailbox-consumer.js';
 import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 
 describe('techstack-mailbox-consumer', () => {
@@ -286,9 +284,7 @@ describe('techstack-mailbox-consumer', () => {
   });
 
   it('handles fileAuthorOpts and recordFileAction', async () => {
-    const fileAuthDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'tsc-fileauth-'),
-    );
+    const fileAuthDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tsc-fileauth-'));
     try {
       const onSpawn = vi.fn(async () => ({ subagentId: 'x', taskId: 'y' }));
 

@@ -56,9 +56,7 @@ export async function gatherProjectContext(projectRoot: string): Promise<string>
     const entries = await fsp.readdir(packagesDir, { withFileTypes: true });
     const pkgs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
     if (pkgs.length > 0) {
-      parts.push(
-        `Packages: ${pkgs.slice(0, 25).join(', ')}${pkgs.length > 25 ? '...' : ''}`,
-      );
+      parts.push(`Packages: ${pkgs.slice(0, 25).join(', ')}${pkgs.length > 25 ? '...' : ''}`);
     }
   } catch {
     /* no packages/ */

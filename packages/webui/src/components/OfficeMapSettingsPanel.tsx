@@ -163,11 +163,31 @@ export function OfficeMapSettingsPanel() {
           {t('activity:officeMap.displayHeading')}
         </div>
         <div className="space-y-0.5">
-          <Toggle label={t('activity:officeMap.statsHud')} checked={showHud} onChange={setShowHud} />
-          <Toggle label={t('activity:officeMap.legends')} checked={showLegend} onChange={setShowLegend} />
-          <Toggle label={t('activity:officeMap.minimap')} checked={showMinimap} onChange={setShowMinimap} />
-          <Toggle label={t('activity:officeMap.zoomControls')} checked={showControls} onChange={setShowControls} />
-          <Toggle label={t('activity:officeMap.animateWires')} checked={animateEdges} onChange={setAnimateEdges} />
+          <Toggle
+            label={t('activity:officeMap.statsHud')}
+            checked={showHud}
+            onChange={setShowHud}
+          />
+          <Toggle
+            label={t('activity:officeMap.legends')}
+            checked={showLegend}
+            onChange={setShowLegend}
+          />
+          <Toggle
+            label={t('activity:officeMap.minimap')}
+            checked={showMinimap}
+            onChange={setShowMinimap}
+          />
+          <Toggle
+            label={t('activity:officeMap.zoomControls')}
+            checked={showControls}
+            onChange={setShowControls}
+          />
+          <Toggle
+            label={t('activity:officeMap.animateWires')}
+            checked={animateEdges}
+            onChange={setAnimateEdges}
+          />
         </div>
       </div>
 

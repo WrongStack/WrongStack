@@ -13,7 +13,14 @@
   --accent-2: oklch(85% 0.18 145);
   --red: oklch(65% 0.2 25);
   --blue: oklch(85% 0.18 145);
-  font-family: JetBrains Mono, IBM Plex Mono, VT323, ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family:
+    JetBrains Mono,
+    IBM Plex Mono,
+    VT323,
+    ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
 }
 
 * {
@@ -900,7 +907,7 @@ button {
   outline: 0;
   background: transparent;
   color: var(--text);
-  font: 12px/1.2 inherit;
+  font: 12px / 1.2 inherit;
 }
 
 .project-search-input::placeholder {
@@ -1037,7 +1044,12 @@ button {
 
 .project-item-path {
   color: var(--faint);
-  font: 10px/1.25 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font:
+    10px / 1.25 ui-monospace,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    monospace;
 }
 
 .project-source-tags {
@@ -1320,7 +1332,7 @@ button {
   color: var(--muted);
   padding: 0 7px;
   cursor: pointer;
-  font: 10px/1 inherit;
+  font: 10px / 1 inherit;
 }
 
 .runtime-session-action.primary {
@@ -1418,9 +1430,7 @@ button {
   place-items: center;
   padding: 28px;
   overflow: auto;
-  background:
-    linear-gradient(180deg, rgba(120, 186, 143, 0.04), transparent 40%),
-    #101114;
+  background: linear-gradient(180deg, rgba(120, 186, 143, 0.04), transparent 40%), #101114;
 }
 
 .stage-mounted {
@@ -1513,7 +1523,12 @@ button {
   padding: 8px 9px 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--muted);
-  font: 11px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font:
+    11px / 1.45 ui-monospace,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    monospace;
   overflow: auto;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -1521,7 +1536,12 @@ button {
 
 .error-card pre {
   margin: 0;
-  font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font:
+    12px / 1.5 ui-monospace,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    monospace;
 }
 
 /* biome-ignore lint/style/noDescendingSpecificity: base dot sizing lives with the status section; the earlier scoped rule relies on specificity, not order */

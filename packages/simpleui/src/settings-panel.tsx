@@ -43,7 +43,15 @@ interface ToggleRowProps {
   hidden?: boolean | undefined;
 }
 
-function ToggleRow({ label, hint, checked, disabled, onChange, settingId, hidden }: ToggleRowProps) {
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  disabled,
+  onChange,
+  settingId,
+  hidden,
+}: ToggleRowProps) {
   return (
     <label
       className={`settings-toggle${disabled ? ' disabled' : ''}`}
@@ -75,11 +83,7 @@ function ToggleRow({ label, hint, checked, disabled, onChange, settingId, hidden
 function GroupCount({ groupId, label }: { groupId: string; label: string | null }) {
   if (label === null) return null;
   return (
-    <span
-      className="settings-group-count"
-      data-group-count={groupId}
-      aria-live="polite"
-    >
+    <span className="settings-group-count" data-group-count={groupId} aria-live="polite">
       {label}
     </span>
   );
@@ -245,7 +249,10 @@ export function SettingsPanel({
             aria-label="Reset to defaults confirmation"
             ref={resetConfirmRef}
           >
-            <p>Reset every setting to its default? This will affect autonomy, yolo, refine, model reasoning, chime, and confirm-exit.</p>
+            <p>
+              Reset every setting to its default? This will affect autonomy, yolo, refine, model
+              reasoning, chime, and confirm-exit.
+            </p>
             <div className="settings-reset-actions">
               <button
                 type="button"
@@ -366,7 +373,8 @@ export function SettingsPanel({
               hidden={rowHidden('refine.enhanceEnabled')}
             />
             <small className="settings-hint">
-              Refine adds a review step before sending. Language follows the saved server preference.
+              Refine adds a review step before sending. Language follows the saved server
+              preference.
             </small>
           </section>
 
@@ -441,9 +449,7 @@ export function SettingsPanel({
                 </button>
               ))}
             </div>
-            <small className="settings-hint">
-              Pick the main color accent for the interface.
-            </small>
+            <small className="settings-hint">Pick the main color accent for the interface.</small>
           </section>
 
           <section

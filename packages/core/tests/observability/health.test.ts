@@ -71,10 +71,7 @@ describe('DefaultHealthRegistry', () => {
     r.register(
       check(
         'slow',
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve({ status: 'healthy' }), 200),
-          ),
+        () => new Promise((resolve) => setTimeout(() => resolve({ status: 'healthy' }), 200)),
       ),
     );
     const result = await r.run();

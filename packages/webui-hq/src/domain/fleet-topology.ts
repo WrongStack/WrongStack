@@ -76,19 +76,14 @@ export function filterFleetTopology(
 
   return {
     nodes: topology.nodes.filter((node) => included.has(node.id)),
-    edges: topology.edges.filter(
-      (edge) => included.has(edge.source) && included.has(edge.target),
-    ),
+    edges: topology.edges.filter((edge) => included.has(edge.source) && included.has(edge.target)),
   };
 }
 
 /** Search the visible fleet without losing the hierarchy around a match.
  * Ancestors explain where a terminal/agent lives; descendants are included
  * when a container or terminal itself matches so the result remains useful. */
-export function filterFleetTopologyByQuery(
-  topology: FleetTopology,
-  query: string,
-): FleetTopology {
+export function filterFleetTopologyByQuery(topology: FleetTopology, query: string): FleetTopology {
   const needle = query.trim().toLocaleLowerCase();
   if (needle.length === 0) return topology;
 
@@ -147,9 +142,7 @@ export function filterFleetTopologyByQuery(
   }
   return {
     nodes: topology.nodes.filter((node) => included.has(node.id)),
-    edges: topology.edges.filter(
-      (edge) => included.has(edge.source) && included.has(edge.target),
-    ),
+    edges: topology.edges.filter((edge) => included.has(edge.source) && included.has(edge.target)),
   };
 }
 
@@ -317,18 +310,29 @@ function agentKey(sessionId: string, agentId: string): string {
   return `agent:${sessionId}:${agentId}`;
 }
 
-function addEdge(edges: FleetTopologyEdge[], seen: Set<string>, source: string, target: string): void {
+function addEdge(
+  edges: FleetTopologyEdge[],
+  seen: Set<string>,
+  source: string,
+  target: string,
+): void {
   const id = `${source}->${target}`;
   if (seen.has(id)) return;
   seen.add(id);
   edges.push({ id, source, target });
 }
 
-function projectLabel(project: HqProjectRecord | undefined, session?: HqSessionSnapshotPayload): string {
+function projectLabel(
+  project: HqProjectRecord | undefined,
+  session?: HqSessionSnapshotPayload,
+): string {
   return project?.projectName ?? session?.projectName ?? 'unknown project';
 }
 
-function projectSub(project: HqProjectRecord | undefined, session?: HqSessionSnapshotPayload): string | undefined {
+function projectSub(
+  project: HqProjectRecord | undefined,
+  session?: HqSessionSnapshotPayload,
+): string | undefined {
   const root = project?.projectRootDisplay ?? session?.projectRoot;
   if (root === undefined || root.length === 0) return undefined;
   return root.length > 54 ? `…${root.slice(-51)}` : root;
@@ -349,7 +353,10 @@ function terminalLabel(session: HqSessionSnapshotPayload): string {
  */
 export const SYNTHETIC_TERMINAL_GRACE_MS = 45_000;
 
-function syntheticSessionFromClient(client: HqClientRecord, project: HqProjectRecord | undefined): HqSessionSnapshotPayload {
+function syntheticSessionFromClient(
+  client: HqClientRecord,
+  project: HqProjectRecord | undefined,
+): HqSessionSnapshotPayload {
   const sessionId = client.sessionId ?? `client:${client.clientId}`;
   return {
     sessionId,
@@ -385,14 +392,15 @@ function machineRecordFor(
   const session = sessions.find((s) => s.machineId === machineId);
   const client = clients.find((c) => c.machineId === machineId);
   const label = machine?.hostname ?? session?.hostname ?? client?.hostname ?? machineId;
-  const sessionCount = machine?.sessionCount ?? sessions.filter((s) => s.machineId === machineId).length;
-  const agentCount = machine?.agentCount ?? sessions.reduce((sum, s) => sum + (s.machineId === machineId ? s.agents.length : 0), 0);
-  const clientCount = machine?.clientCount ?? clients.filter((c) => c.machineId === machineId && c.connected).length;
+  const sessionCount =
+    machine?.sessionCount ?? sessions.filter((s) => s.machineId === machineId).length;
+  const agentCount =
+    machine?.agentCount ??
+    sessions.reduce((sum, s) => sum + (s.machineId === machineId ? s.agents.length : 0), 0);
+  const clientCount =
+    machine?.clientCount ?? clients.filter((c) => c.machineId === machineId && c.connected).length;
   const mailboxServeCount = clients.filter(
-    (c) =>
-      c.machineId === machineId &&
-      c.connected &&
-      c.capabilities.includes('mailbox.serve'),
+    (c) => c.machineId === machineId && c.connected && c.capabilities.includes('mailbox.serve'),
   ).length;
   return {
     label,
@@ -422,9 +430,7 @@ export function buildFleetTopology(snapshot: HqSnapshot | null): FleetTopology {
   // Processes already represented by a live session — their auxiliary
   // sockets (mailbox/brain publishers) must not spawn duplicate terminals.
   const liveSessionProcesses = new Set(
-    liveSessions
-      .filter((s) => s.pid !== undefined)
-      .map((s) => `${s.machineId}:${s.pid}`),
+    liveSessions.filter((s) => s.pid !== undefined).map((s) => `${s.machineId}:${s.pid}`),
   );
   const generatedAt = Date.parse(snapshot.generatedAt);
 
@@ -437,10 +443,7 @@ export function buildFleetTopology(snapshot: HqSnapshot | null): FleetTopology {
     // mailbox.serve is the exception: it is a deliberate, operator-visible
     // service client rather than a phantom terminal.
     if (!client.capabilities?.includes('session.summary') && !mailboxService) continue;
-    if (
-      client.pid !== undefined &&
-      liveSessionProcesses.has(`${client.machineId}:${client.pid}`)
-    ) {
+    if (client.pid !== undefined && liveSessionProcesses.has(`${client.machineId}:${client.pid}`)) {
       continue;
     }
     // A client that stayed sessionless past the grace window is a broken or
@@ -470,7 +473,14 @@ export function buildFleetTopology(snapshot: HqSnapshot | null): FleetTopology {
   for (const machineId of machineIds) {
     const id = machineKey(machineId);
     const record = machineRecordFor(machineId, machines, liveSessions, snapshot.clients ?? []);
-    nodes.push({ id, kind: 'machine', label: record.label, sub: record.sub, chips: record.chips, machineId });
+    nodes.push({
+      id,
+      kind: 'machine',
+      label: record.label,
+      sub: record.sub,
+      chips: record.chips,
+      machineId,
+    });
     nodeIds.add(id);
   }
 

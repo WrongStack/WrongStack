@@ -97,7 +97,10 @@ describe('fallback_profile_manage', () => {
   });
 
   it('shows empty message when no profiles', async () => {
-    const tool = getTool(createFallbackManageTools(makeOpts({ fallbackProfiles: {} })), FALLBACK_PROFILE_MANAGE_TOOL_NAME);
+    const tool = getTool(
+      createFallbackManageTools(makeOpts({ fallbackProfiles: {} })),
+      FALLBACK_PROFILE_MANAGE_TOOL_NAME,
+    );
     const result = await run(tool, { action: 'list' });
     expect(result.message).toContain('No fallback profiles');
   });
@@ -105,7 +108,11 @@ describe('fallback_profile_manage', () => {
   it('creates a profile with valid favorites', async () => {
     const opts = makeOpts();
     const tool = getTool(createFallbackManageTools(opts), FALLBACK_PROFILE_MANAGE_TOOL_NAME);
-    const result = await run(tool, { action: 'set', name: 'economy', chain: ['test-provider/other-model'] });
+    const result = await run(tool, {
+      action: 'set',
+      name: 'economy',
+      chain: ['test-provider/other-model'],
+    });
     expect(result.status).toBe('ok');
     expect(result.message).toContain('economy');
     expect(opts.updateConfig).toHaveBeenCalled();
@@ -158,9 +165,14 @@ describe('fallback_profile_manage', () => {
 
 describe('agent_model_assign', () => {
   it('lists matrix assignments', async () => {
-    const tool = getTool(createFallbackManageTools(makeOpts({
-      modelMatrix: { 'bug-hunter': { provider: 'test-provider', model: 'test-model' } },
-    })), AGENT_MODEL_ASSIGN_TOOL_NAME);
+    const tool = getTool(
+      createFallbackManageTools(
+        makeOpts({
+          modelMatrix: { 'bug-hunter': { provider: 'test-provider', model: 'test-model' } },
+        }),
+      ),
+      AGENT_MODEL_ASSIGN_TOOL_NAME,
+    );
     const result = await run(tool, { role: 'list' });
     expect(result.status).toBe('ok');
     expect(result.message).toContain('bug-hunter');
@@ -195,9 +207,14 @@ describe('agent_model_assign', () => {
   });
 
   it('shows current assignment for a role', async () => {
-    const tool = getTool(createFallbackManageTools(makeOpts({
-      modelMatrix: { 'bug-hunter': { provider: 'test-provider', model: 'test-model' } },
-    })), AGENT_MODEL_ASSIGN_TOOL_NAME);
+    const tool = getTool(
+      createFallbackManageTools(
+        makeOpts({
+          modelMatrix: { 'bug-hunter': { provider: 'test-provider', model: 'test-model' } },
+        }),
+      ),
+      AGENT_MODEL_ASSIGN_TOOL_NAME,
+    );
     const result = await run(tool, { role: 'bug-hunter' });
     expect(result.status).toBe('ok');
     expect(result.message).toContain('bug-hunter');
@@ -366,7 +383,10 @@ describe('provider_manage', () => {
   });
 
   it('shows empty message when no providers', async () => {
-    const tool = getTool(createFallbackManageTools(makeOpts({ providers: {} })), PROVIDER_MANAGE_TOOL_NAME);
+    const tool = getTool(
+      createFallbackManageTools(makeOpts({ providers: {} })),
+      PROVIDER_MANAGE_TOOL_NAME,
+    );
     const result = await run(tool, { action: 'list' });
     expect(result.message).toContain('No providers');
   });
@@ -395,7 +415,11 @@ describe('provider_manage', () => {
   it('configures an existing provider', async () => {
     const opts = makeOpts();
     const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
-    const result = await run(tool, { action: 'configure', provider: 'test-provider', models: ['new-model'] });
+    const result = await run(tool, {
+      action: 'configure',
+      provider: 'test-provider',
+      models: ['new-model'],
+    });
     expect(result.status).toBe('ok');
     expect(result.message).toContain('Updated');
   });
@@ -407,7 +431,13 @@ describe('provider_manage', () => {
   describe('baseUrl / credential coupling', () => {
     const withKey = () =>
       makeOpts({
-        providers: { 'test-provider': { type: 'openai', apiKey: 'sk-real-key', baseUrl: 'https://api.openai.com' } },
+        providers: {
+          'test-provider': {
+            type: 'openai',
+            apiKey: 'sk-real-key',
+            baseUrl: 'https://api.openai.com',
+          },
+        },
       });
 
     // The shape the product ACTUALLY stores. `fallback-provider-key-store.ts`
@@ -438,7 +468,9 @@ describe('provider_manage', () => {
       });
       expect(result.status).toBe('ok');
       expect(result.message).toContain('cleared apiKey');
-      const cfg = opts.getConfig() as unknown as { providers: Record<string, { apiKey?: string; baseUrl?: string }> };
+      const cfg = opts.getConfig() as unknown as {
+        providers: Record<string, { apiKey?: string; baseUrl?: string }>;
+      };
       expect(cfg.providers['test-provider']?.apiKey).toBeUndefined();
       expect(cfg.providers['test-provider']?.baseUrl).toBe('https://evil.example/v1');
     });
@@ -454,9 +486,11 @@ describe('provider_manage', () => {
         baseUrl: 'https://evil.example/v1',
       });
       expect(result.status).toBe('ok');
-      const entry = (opts.getConfig() as unknown as {
-        providers: Record<string, Record<string, unknown>>;
-      }).providers['test-provider']!;
+      const entry = (
+        opts.getConfig() as unknown as {
+          providers: Record<string, Record<string, unknown>>;
+        }
+      ).providers['test-provider']!;
       expect(entry.apiKeys).toBeUndefined();
       expect(entry.activeKey).toBeUndefined();
       expect(entry.envVars).toBeUndefined();
@@ -487,7 +521,9 @@ describe('provider_manage', () => {
     });
 
     it('still lets a provider declare its own environment variable', async () => {
-      const opts = makeOpts({ providers: { openai: { type: 'openai', envVars: ['OPENAI_API_KEY'] } } });
+      const opts = makeOpts({
+        providers: { openai: { type: 'openai', envVars: ['OPENAI_API_KEY'] } },
+      });
       const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
       const result = await run(tool, {
         action: 'add',
@@ -578,7 +614,7 @@ describe('provider_manage', () => {
     const opts = makeOpts({
       providers: {
         'test-provider': { type: 'openai', apiKey: 'k' },
-        'backup': { type: 'anthropic' },
+        backup: { type: 'anthropic' },
       },
     });
     const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);

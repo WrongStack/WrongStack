@@ -343,7 +343,7 @@ describe('Key rotation', () => {
   it('legacy 32-byte key file is still readable', async () => {
     const { keyFile } = await makeVault();
     // Write a legacy 32-byte key file
-    const legacyKey = Buffer.alloc(32, 0xAB);
+    const legacyKey = Buffer.alloc(32, 0xab);
     fsSync.writeFileSync(keyFile, legacyKey);
 
     const vault = trackVault(new DefaultSecretVault({ keyFile }));
@@ -468,9 +468,7 @@ describe('Key rotation', () => {
     );
 
     // Rotation must throw, naming the offending field path...
-    await expect(rotateConfigKeys(cfgPath, vault)).rejects.toThrow(
-      /providers\.openai\.apiKey/,
-    );
+    await expect(rotateConfigKeys(cfgPath, vault)).rejects.toThrow(/providers\.openai\.apiKey/);
 
     // ...and must NOT have rotated the key (old key still intact, so the
     // valid field remains recoverable).

@@ -257,7 +257,7 @@ export { type MailboxBridgeLock, readLiveLock };
 // Helper to keep the fs import alive for future token-file fallback
 // reads (currently unused but exported for callers that want to
 // re-read the token without going through the lock).
- export async function readTokenFromFile(tokenPath: string): Promise<string | null> {
+export async function readTokenFromFile(tokenPath: string): Promise<string | null> {
   try {
     return (await fsp.readFile(tokenPath, 'utf-8')).trim();
   } catch {

@@ -114,7 +114,5 @@ for (const role of roles) {
 }
 
 console.log(
-  dryRun
-    ? `\nDry run: ${repaired} file(s) would be rewritten.`
-    : `\nRepaired ${repaired} file(s).`,
+  dryRun ? `\nDry run: ${repaired} file(s) would be rewritten.` : `\nRepaired ${repaired} file(s).`,
 );

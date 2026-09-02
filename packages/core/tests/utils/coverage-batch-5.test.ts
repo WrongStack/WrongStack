@@ -190,7 +190,7 @@ describe('simplifyToolDescription', () => {
 
 describe('applyToolDescriptionModeToTool', () => {
   it('returns tool unchanged when mode is extend and no original exists', () => {
-    const tool = { name: 't', description: 'desc', execute: (() => {}) } as never;
+    const tool = { name: 't', description: 'desc', execute: () => {} } as never;
     const result = applyToolDescriptionModeToTool(tool, 'extend');
     expect(result).toBe(tool);
   });
@@ -213,12 +213,62 @@ describe('applyToolDescriptionModeToTool', () => {
 describe('computeTaskItemProgress', () => {
   it('computes progress for mixed tasks', () => {
     const tasks: TaskItem[] = [
-      { id: '1', title: 'A', type: 'feature', priority: 'high', status: 'completed', createdAt: '', updatedAt: '', estimateHours: 2 },
-      { id: '2', title: 'B', type: 'bugfix', priority: 'medium', status: 'pending', createdAt: '', updatedAt: '' },
-      { id: '3', title: 'C', type: 'chore', priority: 'low', status: 'in_progress', createdAt: '', updatedAt: '', estimateHours: 1 },
-      { id: '4', title: 'D', type: 'test', priority: 'critical', status: 'blocked', createdAt: '', updatedAt: '' },
-      { id: '5', title: 'E', type: 'docs', priority: 'high', status: 'failed', createdAt: '', updatedAt: '' },
-      { id: '6', title: 'F', type: 'refactor', priority: 'medium', status: 'review', createdAt: '', updatedAt: '' },
+      {
+        id: '1',
+        title: 'A',
+        type: 'feature',
+        priority: 'high',
+        status: 'completed',
+        createdAt: '',
+        updatedAt: '',
+        estimateHours: 2,
+      },
+      {
+        id: '2',
+        title: 'B',
+        type: 'bugfix',
+        priority: 'medium',
+        status: 'pending',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: '3',
+        title: 'C',
+        type: 'chore',
+        priority: 'low',
+        status: 'in_progress',
+        createdAt: '',
+        updatedAt: '',
+        estimateHours: 1,
+      },
+      {
+        id: '4',
+        title: 'D',
+        type: 'test',
+        priority: 'critical',
+        status: 'blocked',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: '5',
+        title: 'E',
+        type: 'docs',
+        priority: 'high',
+        status: 'failed',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: '6',
+        title: 'F',
+        type: 'refactor',
+        priority: 'medium',
+        status: 'review',
+        createdAt: '',
+        updatedAt: '',
+      },
     ];
     const p = computeTaskItemProgress(tasks);
     expect(p.total).toBe(6);
@@ -244,7 +294,15 @@ describe('formatTaskProgress', () => {
   });
   it('renders progress bar for non-empty list', () => {
     const tasks: TaskItem[] = [
-      { id: '1', title: 'A', type: 'feature', priority: 'high', status: 'completed', createdAt: '', updatedAt: '' },
+      {
+        id: '1',
+        title: 'A',
+        type: 'feature',
+        priority: 'high',
+        status: 'completed',
+        createdAt: '',
+        updatedAt: '',
+      },
     ];
     const result = formatTaskProgress(tasks);
     expect(result).toContain('Tasks');
@@ -259,8 +317,24 @@ describe('formatTaskList', () => {
   });
   it('groups tasks by status in order', () => {
     const tasks: TaskItem[] = [
-      { id: '1', title: 'Active', type: 'feature', priority: 'high', status: 'in_progress', createdAt: '', updatedAt: '' },
-      { id: '2', title: 'Done', type: 'bugfix', priority: 'medium', status: 'completed', createdAt: '', updatedAt: '' },
+      {
+        id: '1',
+        title: 'Active',
+        type: 'feature',
+        priority: 'high',
+        status: 'in_progress',
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: '2',
+        title: 'Done',
+        type: 'bugfix',
+        priority: 'medium',
+        status: 'completed',
+        createdAt: '',
+        updatedAt: '',
+      },
     ];
     const result = formatTaskList(tasks);
     expect(result).toContain('IN_PROGRESS');

@@ -1,7 +1,23 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useHistoryStore } from '../../src/stores/history-store';
 
-function makeEntry(overrides: Partial<{ id: string; title: string; startedAt: string; model: string; provider: string }> = {}): { id: string; title: string; startedAt: string; model: string; provider: string; tokenTotal: number; isCurrent: boolean } {
+function makeEntry(
+  overrides: Partial<{
+    id: string;
+    title: string;
+    startedAt: string;
+    model: string;
+    provider: string;
+  }> = {},
+): {
+  id: string;
+  title: string;
+  startedAt: string;
+  model: string;
+  provider: string;
+  tokenTotal: number;
+  isCurrent: boolean;
+} {
   return {
     id: 'id-1',
     title: 'Test Session',

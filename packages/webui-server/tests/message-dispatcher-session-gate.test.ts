@@ -130,10 +130,14 @@ describe('ensureCurrentSession gate (cross-session rejection regression)', () =>
     const ws = mockWs();
     clients.set(ws, { sessionId: null });
 
-    await dispatcher(ws, null as any, {
-      type: 'todos.get',
-      payload: { sessionId: 'sess-other' },
-    } as unknown as WSClientMessage);
+    await dispatcher(
+      ws,
+      null as any,
+      {
+        type: 'todos.get',
+        payload: { sessionId: 'sess-other' },
+      } as unknown as WSClientMessage,
+    );
 
     const err = sentFrames(ws).find((m) => m.type === 'error');
     expect(err).toMatchObject({
@@ -158,10 +162,14 @@ describe('ensureCurrentSession gate (cross-session rejection regression)', () =>
     const ws = mockWs();
     clients.set(ws, { sessionId: null });
 
-    await dispatcher(ws, null as any, {
-      type: 'todos.get',
-      payload: { sessionId: 'sess-current' },
-    } as unknown as WSClientMessage);
+    await dispatcher(
+      ws,
+      null as any,
+      {
+        type: 'todos.get',
+        payload: { sessionId: 'sess-current' },
+      } as unknown as WSClientMessage,
+    );
 
     expect(sentFrames(ws).find((m) => m.type === 'error')).toBeUndefined();
     // Allowed ⇒ rebind so session-filtered broadcasts and abort cleanup
@@ -175,10 +183,14 @@ describe('ensureCurrentSession gate (cross-session rejection regression)', () =>
     const ws = mockWs();
     clients.set(ws, { sessionId: null });
 
-    await dispatcher(ws, null as any, {
-      type: 'todos.get',
-      payload: {},
-    } as unknown as WSClientMessage);
+    await dispatcher(
+      ws,
+      null as any,
+      {
+        type: 'todos.get',
+        payload: {},
+      } as unknown as WSClientMessage,
+    );
 
     expect(sentFrames(ws).find((m) => m.type === 'error')).toBeUndefined();
     expect(clients.get(ws)?.sessionId).toBeNull();

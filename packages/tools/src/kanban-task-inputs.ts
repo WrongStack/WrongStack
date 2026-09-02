@@ -60,9 +60,7 @@ export function taskInput(input: KanbanToolInput) {
               status: input.metricStatus ?? ('pending' as const),
               ...(input.metricTarget !== undefined ? { target: input.metricTarget } : {}),
               ...(input.metricCurrent !== undefined ? { current: input.metricCurrent } : {}),
-              ...(input.metricDirection !== undefined
-                ? { direction: input.metricDirection }
-                : {}),
+              ...(input.metricDirection !== undefined ? { direction: input.metricDirection } : {}),
               ...(input.metricUnit !== undefined ? { unit: input.metricUnit } : {}),
               ...(input.metricNotes !== undefined ? { notes: input.metricNotes } : {}),
             },

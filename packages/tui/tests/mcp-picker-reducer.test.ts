@@ -86,14 +86,34 @@ function initial(over: Partial<State> = {}): State {
     pluginPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
     mcpPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
     toolsPicker: {
-      open: false, items: [], selected: 0, busy: false, hint: undefined, filter: undefined,
+      open: false,
+      items: [],
+      selected: 0,
+      busy: false,
+      hint: undefined,
+      filter: undefined,
     },
     authPanel: {
-      open: false, view: 'list', providers: [], presets: [], busy: false, selected: 0,
-      filter: '', catalog: [], catalogFilter: '', input: null, confirm: null, flowLog: [],
+      open: false,
+      view: 'list',
+      providers: [],
+      presets: [],
+      busy: false,
+      selected: 0,
+      filter: '',
+      catalog: [],
+      catalogFilter: '',
+      input: null,
+      confirm: null,
+      flowLog: [],
     },
     projectPicker: {
-      open: false, allItems: [], items: [], selected: 0, filter: '', hint: undefined,
+      open: false,
+      allItems: [],
+      items: [],
+      selected: 0,
+      filter: '',
+      hint: undefined,
     },
     fKeyPicker: { open: false, selected: 0 },
     sessionResumeConfirm: null,
@@ -106,24 +126,55 @@ function initial(over: Partial<State> = {}): State {
     sddBoard: null,
     worktrees: {},
     coordinator: {
-      goals: [], timeline: [], knowledgeCount: 0, monitorOpen: false, healthy: false,
+      goals: [],
+      timeline: [],
+      knowledgeCount: 0,
+      monitorOpen: false,
+      healthy: false,
     },
     settingsPicker: {
-      open: false, field: 0, lastSettingsField: 0,
-      mode: 'off', delayMs: 0, titleAnimation: true, yolo: false,
-      fleetChat: 'off', chime: false, confirmExit: true,
-      nextPrediction: false, featureMcp: true, featurePlugins: true,
-      featureMemory: true, featureSkills: true, featureModelsRegistry: true,
-      tokenSavingTier: 'off', allowOutsideProjectRoot: true,
-      contextAutoCompact: true, contextStrategy: 'hybrid', contextMode: 'balanced',
-      maxConcurrent: 4, logLevel: 'info', auditLevel: 'standard',
-      indexOnStart: true, multiDiffSummaryThreshold: 5,
-      maxIterations: 500, autoProceedMaxIterations: 50,
-      enhanceDelayMs: 60000, enhanceEnabled: true, enhanceLanguage: 'original',
-      debugStream: false, statuslineMode: 'detailed',
-      reasoningMode: 'auto', reasoningEffort: 'high', reasoningPreserve: false,
-      thinkingWord: 'thinking', cacheTtl: 'default', configScope: 'global',
-      animationStyle: 'rainbow', filter: undefined, hint: undefined,
+      open: false,
+      field: 0,
+      lastSettingsField: 0,
+      mode: 'off',
+      delayMs: 0,
+      titleAnimation: true,
+      yolo: false,
+      fleetChat: 'off',
+      chime: false,
+      confirmExit: true,
+      nextPrediction: false,
+      featureMcp: true,
+      featurePlugins: true,
+      featureMemory: true,
+      featureSkills: true,
+      featureModelsRegistry: true,
+      tokenSavingTier: 'off',
+      allowOutsideProjectRoot: true,
+      contextAutoCompact: true,
+      contextStrategy: 'hybrid',
+      contextMode: 'balanced',
+      maxConcurrent: 4,
+      logLevel: 'info',
+      auditLevel: 'standard',
+      indexOnStart: true,
+      multiDiffSummaryThreshold: 5,
+      maxIterations: 500,
+      autoProceedMaxIterations: 50,
+      enhanceDelayMs: 60000,
+      enhanceEnabled: true,
+      enhanceLanguage: 'original',
+      debugStream: false,
+      statuslineMode: 'detailed',
+      reasoningMode: 'auto',
+      reasoningEffort: 'high',
+      reasoningPreserve: false,
+      thinkingWord: 'thinking',
+      cacheTtl: 'default',
+      configScope: 'global',
+      animationStyle: 'rainbow',
+      filter: undefined,
+      hint: undefined,
     },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },
     viewportRows: 0,
@@ -186,10 +237,9 @@ describe('mcpPicker reducer — open/close', () => {
     ) as unknown as { mcpPicker: { open: boolean; busy: boolean } };
     expect(opened.mcpPicker.open).toBe(true);
 
-    const closed = reducer(
-      opened as never,
-      { type: 'mcpPickerClose' } as never,
-    ) as unknown as { mcpPicker: { open: boolean; busy: boolean } };
+    const closed = reducer(opened as never, { type: 'mcpPickerClose' } as never) as unknown as {
+      mcpPicker: { open: boolean; busy: boolean };
+    };
     expect(closed.mcpPicker.open).toBe(false);
     expect(closed.mcpPicker.busy).toBe(false);
   });
@@ -214,8 +264,7 @@ describe('mcpPicker reducer — navigation', () => {
 
   it('move wraps forward across the items list', () => {
     let s = openWith([item('a'), item('b'), item('c')]);
-    const sel = () =>
-      (s as unknown as { mcpPicker: { selected: number } }).mcpPicker.selected;
+    const sel = () => (s as unknown as { mcpPicker: { selected: number } }).mcpPicker.selected;
     s = reducer(s as never, { type: 'mcpPickerMove', delta: 1 } as never) as unknown as State;
     expect(sel()).toBe(1);
     s = reducer(s as never, { type: 'mcpPickerMove', delta: 1 } as never) as unknown as State;
@@ -226,17 +275,18 @@ describe('mcpPicker reducer — navigation', () => {
 
   it('move wraps backward past the first item', () => {
     let s = openWith([item('a'), item('b')]);
-    const sel = () =>
-      (s as unknown as { mcpPicker: { selected: number } }).mcpPicker.selected;
+    const sel = () => (s as unknown as { mcpPicker: { selected: number } }).mcpPicker.selected;
     s = reducer(s as never, { type: 'mcpPickerMove', delta: -1 } as never) as unknown as State;
     expect(sel()).toBe(1);
   });
 
   it('move clears hint on every navigation', () => {
     let s = openWith([item('a'), item('b')]);
-    s = reducer(s as never, { type: 'mcpPickerHint', text: 'restarting…' } as never) as unknown as State;
-    const withHint = () =>
-      (s as unknown as { mcpPicker: { hint?: string } }).mcpPicker.hint;
+    s = reducer(
+      s as never,
+      { type: 'mcpPickerHint', text: 'restarting…' } as never,
+    ) as unknown as State;
+    const withHint = () => (s as unknown as { mcpPicker: { hint?: string } }).mcpPicker.hint;
     expect(withHint()).toBe('restarting…');
     s = reducer(s as never, { type: 'mcpPickerMove', delta: 1 } as never) as unknown as State;
     expect(withHint()).toBeUndefined();
@@ -272,8 +322,7 @@ describe('mcpPicker reducer — items / busy / hint', () => {
   it('setItems clamps selected when item count shrinks', () => {
     let s = openWith([item('a'), item('b'), item('c')]);
     s = reducer(s as never, { type: 'mcpPickerMove', delta: 2 } as never) as unknown as State;
-    const sel = () =>
-      (s as unknown as { mcpPicker: { selected: number } }).mcpPicker.selected;
+    const sel = () => (s as unknown as { mcpPicker: { selected: number } }).mcpPicker.selected;
     expect(sel()).toBe(2); // moved to third item
     s = reducer(
       s as never,
@@ -309,10 +358,9 @@ describe('mcpPicker reducer — items / busy / hint', () => {
     ) as unknown as { mcpPicker: { hint?: string } };
     expect(withHint.mcpPicker.hint).toBe('Restarted.');
 
-    const cleared = reducer(
-      withHint as never,
-      { type: 'mcpPickerHint' } as never,
-    ) as unknown as { mcpPicker: { hint?: string } };
+    const cleared = reducer(withHint as never, { type: 'mcpPickerHint' } as never) as unknown as {
+      mcpPicker: { hint?: string };
+    };
     expect(cleared.mcpPicker.hint).toBeUndefined();
   });
 });

@@ -55,7 +55,9 @@ export function DeleteMemoryDialog({
             ) : (
               <Trash2 className="size-4" />
             )}
-            {busyAction === 'delete' ? t('activity:memoryManager.deletingLabel') : t('activity:memoryManager.actionDeleteMemory')}
+            {busyAction === 'delete'
+              ? t('activity:memoryManager.deletingLabel')
+              : t('activity:memoryManager.actionDeleteMemory')}
           </Button>
         </DialogFooter>
       </DialogContent>

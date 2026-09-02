@@ -112,7 +112,6 @@ function mockSpawnOk(stdout = '', stderr = '', exitCode = 0, mutateFile?: (path:
   return child;
 }
 
-
 /**
  * Unwrap a spawn invocation back to the logical `(command, args)` the
  * plugin asked for.
@@ -632,7 +631,9 @@ describe('import-organizer plugin', () => {
       // 127 = command not found. Without a working fallback, the
       // hook returns without emitting. (We disable the fallback via
       // a disallowed command so neither path succeeds.)
-      api.config.extensions = { 'import-organizer': { fallbackCommand: 'definitely-not-installed-xyz' } };
+      api.config.extensions = {
+        'import-organizer': { fallbackCommand: 'definitely-not-installed-xyz' },
+      };
       importOrganizerPlugin.teardown!(api as never);
       importOrganizerPlugin.setup(api as never);
       const hook2 = getHook(api);
@@ -640,7 +641,10 @@ describe('import-organizer plugin', () => {
       // Force the spawn to return 127 (command missing)
       vi.mocked(spawn).mockImplementation((() => {
         const { EventEmitter } = require('node:events');
-        const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter };
+        const child = new EventEmitter() as EventEmitter & {
+          stdout: EventEmitter;
+          stderr: EventEmitter;
+        };
         child.stdout = new EventEmitter();
         child.stderr = new EventEmitter();
         // close with code 127 → fallback path also returns null
@@ -742,10 +746,15 @@ describe('issue #367 allowlist + oxlint + timeout', () => {
     const api = createMockAPI();
     api.config.extensions = { 'import-organizer': { timeoutMs: 30 } };
     importOrganizerPlugin.setup(api as never);
-    const hook = (api.registerHook.mock.calls[0] as unknown[])[2] as (input: unknown) => Promise<unknown>;
+    const hook = (api.registerHook.mock.calls[0] as unknown[])[2] as (
+      input: unknown,
+    ) => Promise<unknown>;
     const filePath = path.join(issueTmp, 'hang.ts');
     await fs.writeFile(filePath, 'const x = 1;\n', 'utf8');
-    const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter };
+    const child = new EventEmitter() as EventEmitter & {
+      stdout: EventEmitter;
+      stderr: EventEmitter;
+    };
     child.stdout = new EventEmitter();
     child.stderr = new EventEmitter();
     vi.mocked(spawn).mockImplementationOnce(() => child as never);

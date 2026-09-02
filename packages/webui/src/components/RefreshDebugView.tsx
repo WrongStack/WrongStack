@@ -121,9 +121,7 @@ export function RefreshDebugView() {
                 <RotateCw className="h-6 w-6 shrink-0 text-primary sm:h-7 sm:w-7" />
                 {t('activity:refresh.heading')}
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t('activity:refresh.subtitle')}
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{t('activity:refresh.subtitle')}</p>
             </div>
             <button
               type="button"
@@ -158,7 +156,11 @@ export function RefreshDebugView() {
           <CardRow
             label={t('activity:refresh.lastVisited')}
             ok={lastVisitedAt > 0}
-            extra={lastVisitedAt > 0 ? new Date(lastVisitedAt).toISOString() : t('activity:refresh.never')}
+            extra={
+              lastVisitedAt > 0
+                ? new Date(lastVisitedAt).toISOString()
+                : t('activity:refresh.never')
+            }
           />
         </section>
 
@@ -196,7 +198,10 @@ export function RefreshDebugView() {
             ok={!bleed}
             extra={
               bleed
-                ? t('activity:refresh.bleedExtra', { bound: boundSessionId ?? '∅', active: persistedSessionId ?? '∅' })
+                ? t('activity:refresh.bleedExtra', {
+                    bound: boundSessionId ?? '∅',
+                    active: persistedSessionId ?? '∅',
+                  })
                 : t('activity:refresh.transcriptBinds')
             }
             warn={bleed}
@@ -222,7 +227,11 @@ export function RefreshDebugView() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <DataTile label="currentView" value={currentView} mono />
-            <DataTile label="dockSection" value={dockSection ?? t('activity:refresh.noneValue')} mono />
+            <DataTile
+              label="dockSection"
+              value={dockSection ?? t('activity:refresh.noneValue')}
+              mono
+            />
           </div>
           <p className="text-xs text-muted-foreground">
             {t('activity:refresh.payloadSize', { count: localStorageSize })}
@@ -233,9 +242,7 @@ export function RefreshDebugView() {
         <section className="space-y-2">
           <h2 className="text-lg font-semibold">{t('activity:refresh.probeLog')}</h2>
           {probeLog.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t('activity:refresh.noProbes')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('activity:refresh.noProbes')}</p>
           ) : (
             <ul className="space-y-1 text-xs font-mono">
               {probeLog.map((p, i) => (
@@ -278,7 +285,11 @@ function CardRow({
   return (
     <div className={`rounded-lg border px-3 py-2 ${tone}`}>
       <div className="flex min-w-0 items-center gap-2 text-xs font-medium">
-        {ok && !warn ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}
+        {ok && !warn ? (
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+        ) : (
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+        )}
         <span className="min-w-0 break-words">{label}</span>
       </div>
       <div className="text-xs font-mono mt-1 break-all">{extra}</div>

@@ -50,12 +50,7 @@ interface AutoHealServiceState {
 }
 
 /** UI-facing event emitted at each healer decision point. */
-export type AutoHealStatusPhase =
-  | 'restarting'
-  | 'restarted'
-  | 'failed'
-  | 'escalated'
-  | 'refused';
+export type AutoHealStatusPhase = 'restarting' | 'restarted' | 'failed' | 'escalated' | 'refused';
 
 export interface AutoHealStatusEvent {
   serviceId: ConnectionHealthService['id'] | null;
@@ -180,155 +175,155 @@ export function createAutoHealer(options: AutoHealerOptions): AutoHealer {
   }
 
   async function tick(): Promise<AutoHealSnapshot> {
-  if (!enabled || disposed) return snapshot();
-      if (!options.trustBoundary) {
-        if (!warnedNoBoundary) {
-          warnedNoBoundary = true;
-          options.logger?.warn?.(
-            '[AutoHeal] Disabled: no policy authority (trust boundary) is configured.',
-          );
-        }
-        return snapshot();
-      }
-      if (ticking) return snapshot(); // single-flight: never run two ticks concurrently
-  
-      ticking = true;
-      try {
-        const report = await collect();
-        const now = Date.now();
-        const projectRoot = options.projectRoot();
-        const indexDir = options.indexDir();
-  
-        for (const service of report.services) {
-          // Once disposed, never start (or wait to authorize) another restart.
-          if (disposed) break;
-          const state = stateFor(service.id);
-  
-          // A service back to non-error (manual restart, respawn on use, or a
-          // transient fault) re-arms the watchdog: clear the failure streak.
-          if (service.status !== 'error') {
-            state.consecutiveFailures = 0;
-            state.escalated = false;
-            continue;
-          }
-  
-          if (!RESTARTABLE_SERVICE_IDS.has(service.id) || service.control === 'none') {
-            continue;
-          }
-          if (state.lastAttemptAt !== null && now - state.lastAttemptAt < cooldownMs) continue;
-          if (state.consecutiveFailures >= maxAttempts) {
-            state.escalated = true;
-            options.logger?.warn?.(
-              `[AutoHeal] ${service.id} left to manual intervention after ${state.consecutiveFailures} failed auto-restart(s): ${state.lastMessage ?? 'unknown'}`,
-            );
-            continue;
-          }
-          if (state.inFlight) continue;
-  
-          const authorization = await authorizeWebUIAction(
-            options.trustBoundary,
-            {
-              capability: 'connections.service.restart',
-              subject: { kind: 'process', id: `${service.id}@${projectRoot}` },
-              risk: 'elevated',
-              cwd: projectRoot,
-              metadata: { transport: 'auto-heal', serviceId: service.id, action: 'restart' },
-            },
-            options.logger,
-          );
-          // Disposal can begin while the authorization await was pending;
-          // never start (or emit) a new restart once shutdown has begun.
-          if (disposed) break;
-          if (!authorization.allowed) {
-            state.lastAttemptAt = now;
-            state.lastMessage = `refused by policy: ${authorization.reason}`;
-            emitStatus({
-              serviceId: service.id,
-              phase: 'refused',
-              message: `refused by policy: ${authorization.reason}`,
-              attempt: state.consecutiveFailures + 1,
-            });
-            options.logger?.warn?.(
-              `[AutoHeal] ${service.id} restart refused by policy: ${authorization.reason}`,
-            );
-            continue;
-          }
-  
-          state.inFlight = true;
-          const attempt = state.consecutiveFailures + 1;
-          emitStatus({
-            serviceId: service.id,
-            phase: 'restarting',
-            message: `Auto-restarting ${service.id}`,
-            attempt,
-          });
-          try {
-            const result = await execute(service.id, 'restart', projectRoot, indexDir);
-            state.consecutiveFailures = result.success ? 0 : state.consecutiveFailures + 1;
-            state.lastSuccess = result.success;
-            state.lastMessage = result.message;
-            emitStatus({
-              serviceId: service.id,
-              phase: result.success ? 'restarted' : 'failed',
-              message: result.message,
-              attempt,
-            });
-            if (!result.success && state.consecutiveFailures >= maxAttempts) {
-              state.escalated = true;
-              emitStatus({
-                serviceId: service.id,
-                phase: 'escalated',
-                message: `left to manual intervention after ${state.consecutiveFailures} failed auto-restart(s): ${result.message}`,
-                attempt,
-              });
-              options.logger?.warn?.(
-                `[AutoHeal] ${service.id} escalated after ${state.consecutiveFailures} failed auto-restart(s): ${result.message}`,
-              );
-            }
-            options.logger?.[result.success ? 'info' : 'warn']?.(
-              `[AutoHeal] ${service.id} auto-restart ${result.success ? 'succeeded' : 'failed'}: ${result.message}`,
-            );
-          } catch (error) {
-            state.consecutiveFailures += 1;
-            state.lastSuccess = false;
-            state.lastMessage = error instanceof Error ? error.message : String(error);
-            emitStatus({
-              serviceId: service.id,
-              phase: 'failed',
-              message: state.lastMessage,
-              attempt,
-            });
-            if (state.consecutiveFailures >= maxAttempts) {
-              state.escalated = true;
-              emitStatus({
-                serviceId: service.id,
-                phase: 'escalated',
-                message: `left to manual intervention after ${state.consecutiveFailures} failed auto-restart(s): ${state.lastMessage}`,
-                attempt,
-              });
-              options.logger?.warn?.(
-                `[AutoHeal] ${service.id} escalated after ${state.consecutiveFailures} failed auto-restart(s): ${state.lastMessage}`,
-              );
-            }
-            options.logger?.warn?.(
-              `[AutoHeal] ${service.id} auto-restart threw: ${state.lastMessage}`,
-            );
-          } finally {
-            state.lastAttemptAt = Date.now();
-            state.inFlight = false;
-          }
-        }
-  
-        lastTickAt = Date.now();
-      } catch (error) {
+    if (!enabled || disposed) return snapshot();
+    if (!options.trustBoundary) {
+      if (!warnedNoBoundary) {
+        warnedNoBoundary = true;
         options.logger?.warn?.(
-          `[AutoHeal] health collect failed: ${error instanceof Error ? error.message : String(error)}`,
+          '[AutoHeal] Disabled: no policy authority (trust boundary) is configured.',
         );
-      } finally {
-        ticking = false;
       }
       return snapshot();
-}
+    }
+    if (ticking) return snapshot(); // single-flight: never run two ticks concurrently
+
+    ticking = true;
+    try {
+      const report = await collect();
+      const now = Date.now();
+      const projectRoot = options.projectRoot();
+      const indexDir = options.indexDir();
+
+      for (const service of report.services) {
+        // Once disposed, never start (or wait to authorize) another restart.
+        if (disposed) break;
+        const state = stateFor(service.id);
+
+        // A service back to non-error (manual restart, respawn on use, or a
+        // transient fault) re-arms the watchdog: clear the failure streak.
+        if (service.status !== 'error') {
+          state.consecutiveFailures = 0;
+          state.escalated = false;
+          continue;
+        }
+
+        if (!RESTARTABLE_SERVICE_IDS.has(service.id) || service.control === 'none') {
+          continue;
+        }
+        if (state.lastAttemptAt !== null && now - state.lastAttemptAt < cooldownMs) continue;
+        if (state.consecutiveFailures >= maxAttempts) {
+          state.escalated = true;
+          options.logger?.warn?.(
+            `[AutoHeal] ${service.id} left to manual intervention after ${state.consecutiveFailures} failed auto-restart(s): ${state.lastMessage ?? 'unknown'}`,
+          );
+          continue;
+        }
+        if (state.inFlight) continue;
+
+        const authorization = await authorizeWebUIAction(
+          options.trustBoundary,
+          {
+            capability: 'connections.service.restart',
+            subject: { kind: 'process', id: `${service.id}@${projectRoot}` },
+            risk: 'elevated',
+            cwd: projectRoot,
+            metadata: { transport: 'auto-heal', serviceId: service.id, action: 'restart' },
+          },
+          options.logger,
+        );
+        // Disposal can begin while the authorization await was pending;
+        // never start (or emit) a new restart once shutdown has begun.
+        if (disposed) break;
+        if (!authorization.allowed) {
+          state.lastAttemptAt = now;
+          state.lastMessage = `refused by policy: ${authorization.reason}`;
+          emitStatus({
+            serviceId: service.id,
+            phase: 'refused',
+            message: `refused by policy: ${authorization.reason}`,
+            attempt: state.consecutiveFailures + 1,
+          });
+          options.logger?.warn?.(
+            `[AutoHeal] ${service.id} restart refused by policy: ${authorization.reason}`,
+          );
+          continue;
+        }
+
+        state.inFlight = true;
+        const attempt = state.consecutiveFailures + 1;
+        emitStatus({
+          serviceId: service.id,
+          phase: 'restarting',
+          message: `Auto-restarting ${service.id}`,
+          attempt,
+        });
+        try {
+          const result = await execute(service.id, 'restart', projectRoot, indexDir);
+          state.consecutiveFailures = result.success ? 0 : state.consecutiveFailures + 1;
+          state.lastSuccess = result.success;
+          state.lastMessage = result.message;
+          emitStatus({
+            serviceId: service.id,
+            phase: result.success ? 'restarted' : 'failed',
+            message: result.message,
+            attempt,
+          });
+          if (!result.success && state.consecutiveFailures >= maxAttempts) {
+            state.escalated = true;
+            emitStatus({
+              serviceId: service.id,
+              phase: 'escalated',
+              message: `left to manual intervention after ${state.consecutiveFailures} failed auto-restart(s): ${result.message}`,
+              attempt,
+            });
+            options.logger?.warn?.(
+              `[AutoHeal] ${service.id} escalated after ${state.consecutiveFailures} failed auto-restart(s): ${result.message}`,
+            );
+          }
+          options.logger?.[result.success ? 'info' : 'warn']?.(
+            `[AutoHeal] ${service.id} auto-restart ${result.success ? 'succeeded' : 'failed'}: ${result.message}`,
+          );
+        } catch (error) {
+          state.consecutiveFailures += 1;
+          state.lastSuccess = false;
+          state.lastMessage = error instanceof Error ? error.message : String(error);
+          emitStatus({
+            serviceId: service.id,
+            phase: 'failed',
+            message: state.lastMessage,
+            attempt,
+          });
+          if (state.consecutiveFailures >= maxAttempts) {
+            state.escalated = true;
+            emitStatus({
+              serviceId: service.id,
+              phase: 'escalated',
+              message: `left to manual intervention after ${state.consecutiveFailures} failed auto-restart(s): ${state.lastMessage}`,
+              attempt,
+            });
+            options.logger?.warn?.(
+              `[AutoHeal] ${service.id} escalated after ${state.consecutiveFailures} failed auto-restart(s): ${state.lastMessage}`,
+            );
+          }
+          options.logger?.warn?.(
+            `[AutoHeal] ${service.id} auto-restart threw: ${state.lastMessage}`,
+          );
+        } finally {
+          state.lastAttemptAt = Date.now();
+          state.inFlight = false;
+        }
+      }
+
+      lastTickAt = Date.now();
+    } catch (error) {
+      options.logger?.warn?.(
+        `[AutoHeal] health collect failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      ticking = false;
+    }
+    return snapshot();
+  }
 
   /** Run a tick and remember it so `dispose()` can drain it. */
   function runTick(): void {

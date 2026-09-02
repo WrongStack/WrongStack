@@ -5,11 +5,7 @@
   "description": "Instrument code to capture exactly the evidence a bug requires.",
   "content": "I'm chasing this intermittent bug: {{bug}}\n\nShow me where to add logging to capture the evidence needed to diagnose it. For each log point:\n- What to log (state, inputs, timing) and at what level.\n- Why that data discriminates between hypotheses.\n- How to keep it cheap enough to leave in production if useful.\n\nPrefer a few high-signal logs over blanket tracing.",
   "category": "debugging",
-  "tags": [
-    "logging",
-    "observability",
-    "diagnosis"
-  ],
+  "tags": ["logging", "observability", "diagnosis"],
   "source": "builtin",
   "favorite": false,
   "checksum": "5de727d551f898d370f2562266ed22385c824aa4edec6f439ccd462516917919",

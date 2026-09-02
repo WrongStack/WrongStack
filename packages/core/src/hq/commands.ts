@@ -128,30 +128,57 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
   if (p === null || typeof p !== 'object') return null;
   switch (queued.type as HqCommandType) {
     case 'steer': {
-      if (typeof p['to'] !== 'string' || typeof p['subject'] !== 'string' || typeof p['body'] !== 'string') {
+      if (
+        typeof p['to'] !== 'string' ||
+        typeof p['subject'] !== 'string' ||
+        typeof p['body'] !== 'string'
+      ) {
         return null;
       }
-      const result: HqSteerCommand = { type: 'steer', to: p['to'], subject: p['subject'], body: p['body'] };
+      const result: HqSteerCommand = {
+        type: 'steer',
+        to: p['to'],
+        subject: p['subject'],
+        body: p['body'],
+      };
       if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
         result.priority = p['priority'];
       }
       return result;
     }
     case 'btw': {
-      if (typeof p['to'] !== 'string' || typeof p['subject'] !== 'string' || typeof p['body'] !== 'string') {
+      if (
+        typeof p['to'] !== 'string' ||
+        typeof p['subject'] !== 'string' ||
+        typeof p['body'] !== 'string'
+      ) {
         return null;
       }
-      const result: HqBtwCommand = { type: 'btw', to: p['to'], subject: p['subject'], body: p['body'] };
+      const result: HqBtwCommand = {
+        type: 'btw',
+        to: p['to'],
+        subject: p['subject'],
+        body: p['body'],
+      };
       if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
         result.priority = p['priority'];
       }
       return result;
     }
     case 'queue': {
-      if (typeof p['to'] !== 'string' || typeof p['subject'] !== 'string' || typeof p['body'] !== 'string') {
+      if (
+        typeof p['to'] !== 'string' ||
+        typeof p['subject'] !== 'string' ||
+        typeof p['body'] !== 'string'
+      ) {
         return null;
       }
-      const result: HqQueueCommand = { type: 'queue', to: p['to'], subject: p['subject'], body: p['body'] };
+      const result: HqQueueCommand = {
+        type: 'queue',
+        to: p['to'],
+        subject: p['subject'],
+        body: p['body'],
+      };
       if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
         result.priority = p['priority'];
       }
@@ -169,7 +196,11 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
     }
     case 'broadcast': {
       if (typeof p['subject'] !== 'string' || typeof p['body'] !== 'string') return null;
-      const result: HqBroadcastCommand = { type: 'broadcast', subject: p['subject'], body: p['body'] };
+      const result: HqBroadcastCommand = {
+        type: 'broadcast',
+        subject: p['subject'],
+        body: p['body'],
+      };
       if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
         result.priority = p['priority'];
       }

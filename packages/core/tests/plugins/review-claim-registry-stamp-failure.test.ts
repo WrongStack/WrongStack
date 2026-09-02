@@ -27,7 +27,9 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   };
 });
 
-function bundle(content: string): import('../../src/plugins/chimera-plugin.js').ReviewContextBundle {
+function bundle(
+  content: string,
+): import('../../src/plugins/chimera-plugin.js').ReviewContextBundle {
   return {
     cwd: 'C:\\project',
     config: {
@@ -63,11 +65,9 @@ describe('review claim registry — stamp-failure branch', () => {
 
     // The stamp writeFile rejects 3× → fail-closed throw → ownerless lock
     // must be unlinked, and the caller must still emit via the fallback.
-    const emitted = await emitReviewIfChanged(
-      { events, emitCustom } as never,
-      bundle('v1'),
-      { storeDir },
-    );
+    const emitted = await emitReviewIfChanged({ events, emitCustom } as never, bundle('v1'), {
+      storeDir,
+    });
     expect(emitted).not.toBeNull();
     expect(emitCustom).toHaveBeenCalledOnce();
     // The orphan lock is gone (removed by the stamp-failure cleanup).

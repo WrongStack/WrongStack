@@ -163,8 +163,14 @@ describe('SessionMemoryCurator', () => {
         supersedes: ['mem_1', 'mem_2'],
       }),
     );
-    expect(sage.updateSage).toHaveBeenCalledWith('mem_1', expect.objectContaining({ status: 'superseded' }));
-    expect(sage.updateSage).toHaveBeenCalledWith('mem_2', expect.objectContaining({ status: 'superseded' }));
+    expect(sage.updateSage).toHaveBeenCalledWith(
+      'mem_1',
+      expect.objectContaining({ status: 'superseded' }),
+    );
+    expect(sage.updateSage).toHaveBeenCalledWith(
+      'mem_2',
+      expect.objectContaining({ status: 'superseded' }),
+    );
   });
 
   it('executes split operations', async () => {

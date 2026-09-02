@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { envBool, envBoolOptional, envEnum, envFloat, envInt, envString } from '../../src/utils/env-typed.js';
+import {
+  envBool,
+  envBoolOptional,
+  envEnum,
+  envFloat,
+  envInt,
+  envString,
+} from '../../src/utils/env-typed.js';
 
 describe('envBool', () => {
   it('returns false for unset env var', () => {

@@ -58,7 +58,9 @@ describe('buildFleetPulseBlock', () => {
     expect(block).not.toBeNull();
     const text = block?.text ?? '';
     expect(text).toContain('[FLEET PULSE] 2 peers online:');
-    expect(text).toContain('• Einstein (Executor) — running — "refactor auth module" — tool: bash — 12 tools');
+    expect(text).toContain(
+      '• Einstein (Executor) — running — "refactor auth module" — tool: bash — 12 tools',
+    );
     expect(text).toContain('• Curie — idle');
     expect(text).not.toContain('leader');
     expect(text).toContain('[END FLEET PULSE]');
@@ -113,9 +115,24 @@ describe('buildFleetPulseBlock', () => {
     const block = buildFleetPulseBlock(
       [
         status({ agentId: 'leader@aaaa' }),
-        status({ agentId: 'chimera-1@b', name: 'chimera-review', role: 'reviewer', status: 'idle' }),
-        status({ agentId: 'chimera-2@c', name: 'chimera-review', role: 'reviewer', status: 'idle' }),
-        status({ agentId: 'chimera-3@d', name: 'chimera-review', role: 'reviewer', status: 'idle' }),
+        status({
+          agentId: 'chimera-1@b',
+          name: 'chimera-review',
+          role: 'reviewer',
+          status: 'idle',
+        }),
+        status({
+          agentId: 'chimera-2@c',
+          name: 'chimera-review',
+          role: 'reviewer',
+          status: 'idle',
+        }),
+        status({
+          agentId: 'chimera-3@d',
+          name: 'chimera-review',
+          role: 'reviewer',
+          status: 'idle',
+        }),
       ],
       { selfId: 'leader@aaaa' },
     );

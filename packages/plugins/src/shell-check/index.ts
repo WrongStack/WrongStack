@@ -94,15 +94,10 @@ async function runShellCheck(
   // event loop free — the prior sync version blocked on every tool invocation.
   try {
     await new Promise<void>((resolvePromise, rejectPromise) => {
-      execFile(
-        'shellcheck',
-        ['--version'],
-        { encoding: 'utf-8', windowsHide: true },
-        (err) => {
-          if (err) rejectPromise(err);
-          else resolvePromise();
-        },
-      );
+      execFile('shellcheck', ['--version'], { encoding: 'utf-8', windowsHide: true }, (err) => {
+        if (err) rejectPromise(err);
+        else resolvePromise();
+      });
     });
   } catch {
     throw new Error(
@@ -147,11 +142,7 @@ async function runShellCheck(
             // the Node version/wrapper, its JSON can be delivered through
             // the callback's stdout/stderr or copied onto the Error object.
             const diagnostic =
-              stdout ||
-              e.stdout?.toString() ||
-              stderr ||
-              e.stderr?.toString() ||
-              '';
+              stdout || e.stdout?.toString() || stderr || e.stderr?.toString() || '';
             if (diagnostic.trim()) {
               resolvePromise(diagnostic);
               return;
@@ -338,7 +329,9 @@ const plugin: Plugin = {
           if (typeof rawFiles === 'string' && rawFiles.trim().length > 0) {
             files = [rawFiles.trim()];
           } else if (Array.isArray(rawFiles)) {
-            files = rawFiles.filter((f): f is string => typeof f === 'string' && f.trim().length > 0);
+            files = rawFiles.filter(
+              (f): f is string => typeof f === 'string' && f.trim().length > 0,
+            );
           }
         }
         const rawDirectory =

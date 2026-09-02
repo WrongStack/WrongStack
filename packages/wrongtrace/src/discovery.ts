@@ -15,10 +15,10 @@
  * path of boot.
  */
 
-import { platform } from "node:os";
-import { join } from "node:path";
+import { platform } from 'node:os';
+import { join } from 'node:path';
 
-import type { WrongTraceHealth } from "./types.js";
+import type { WrongTraceHealth } from './types.js';
 
 export interface DiscoveryOptions {
   /** Override the base URL. Default: process.env.WRONGTRACE_URL ?? "http://localhost:3444". */
@@ -41,19 +41,19 @@ export interface DiscoveryResult {
 
 /** Default IPC paths per platform — only consulted when `/api/health` did not return `socket_path`. */
 export function defaultSocketPath(
-  home = process.env['HOME'] ?? process.env['USERPROFILE'] ?? "",
+  home = process.env['HOME'] ?? process.env['USERPROFILE'] ?? '',
 ): string {
-  if (platform() === "win32") return "\\\\.\\pipe\\wrongtrace";
-  if (home) return join(home, ".wrongtrace", "ipc.sock");
-  return "/tmp/wrongtrace.sock";
+  if (platform() === 'win32') return '\\\\.\\pipe\\wrongtrace';
+  if (home) return join(home, '.wrongtrace', 'ipc.sock');
+  return '/tmp/wrongtrace.sock';
 }
 
 export async function discover(opts: DiscoveryOptions = {}): Promise<DiscoveryResult> {
-  const baseUrl = opts.baseUrl ?? process.env['WRONGTRACE_URL'] ?? "http://localhost:3444";
+  const baseUrl = opts.baseUrl ?? process.env['WRONGTRACE_URL'] ?? 'http://localhost:3444';
   const timeoutMs = opts.timeoutMs ?? 1000;
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
 
-  if (typeof fetchImpl !== "function") {
+  if (typeof fetchImpl !== 'function') {
     return { available: false };
   }
 
@@ -62,18 +62,18 @@ export async function discover(opts: DiscoveryOptions = {}): Promise<DiscoveryRe
   try {
     const res = await fetchImpl(`${baseUrl}/api/health`, {
       signal: controller.signal,
-      headers: { Accept: "application/json" },
+      headers: { Accept: 'application/json' },
     });
     if (!res.ok) return { available: false, baseUrl };
     const body = (await res.json().catch(() => ({}))) as WrongTraceHealth;
     // Accept either contract the daemon might speak:
     //   * { ok: true }                    (older / strict boolean schema)
     //   * { status: "ok" }                (current WrongProxy-style schema)
-    if (body?.ok !== true && body?.status !== "ok") return { available: false, baseUrl };
+    if (body?.ok !== true && body?.status !== 'ok') return { available: false, baseUrl };
     const result: DiscoveryResult = { available: true, baseUrl };
-    if (typeof body.socket_path === "string") result.socketPath = body.socket_path;
+    if (typeof body.socket_path === 'string') result.socketPath = body.socket_path;
     else result.socketPath = defaultSocketPath();
-    if (typeof body.version === "string") result.version = body.version;
+    if (typeof body.version === 'string') result.version = body.version;
     return result;
   } catch {
     return { available: false, baseUrl };

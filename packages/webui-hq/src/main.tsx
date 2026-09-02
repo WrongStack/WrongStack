@@ -8,7 +8,11 @@ import './syntax-highlight.css';
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { exchangeBootstrapIfNeeded, scrubTokenFromUrl, upgradeStoredTokenToCookie } from './data/auth/index.js';
+import {
+  exchangeBootstrapIfNeeded,
+  scrubTokenFromUrl,
+  upgradeStoredTokenToCookie,
+} from './data/auth/index.js';
 import { connectHqDataPlane } from './data/wire.js';
 import { AppShell } from './components/hq/app-shell.js';
 

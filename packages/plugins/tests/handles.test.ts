@@ -23,7 +23,9 @@ describe('releaseHandle', () => {
   });
 
   it('swallows errors thrown by the unregister function', () => {
-    const off = vi.fn(() => { throw new Error('already disposed'); });
+    const off = vi.fn(() => {
+      throw new Error('already disposed');
+    });
     expect(() => releaseHandle(off)).not.toThrow();
     expect(off).toHaveBeenCalledOnce();
   });
@@ -44,14 +46,19 @@ describe('releaseHandles', () => {
   });
 
   it('handles null/undefined entries without throwing', () => {
-    const state: { a: null | (() => void); b: null | (() => void) } = { a: null, b: undefined as never };
+    const state: { a: null | (() => void); b: null | (() => void) } = {
+      a: null,
+      b: undefined as never,
+    };
 
     expect(() => releaseHandles(state, ['a', 'b'])).not.toThrow();
     expect(state.a).toBeNull();
   });
 
   it('handles throwing unregister functions gracefully', () => {
-    const off1 = vi.fn(() => { throw new Error('fail'); });
+    const off1 = vi.fn(() => {
+      throw new Error('fail');
+    });
     const off2 = vi.fn();
     const state: { a: null | (() => void); b: null | (() => void) } = { a: off1, b: off2 };
 

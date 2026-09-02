@@ -15,7 +15,8 @@ const PROVIDER_MANAGE_SCHEMA: JSONSchema = {
     },
     provider: {
       type: 'string',
-      description: 'Provider id (e.g. "openai", "anthropic"). Required for all actions except list.',
+      description:
+        'Provider id (e.g. "openai", "anthropic"). Required for all actions except list.',
     },
     type: {
       type: 'string',
@@ -125,7 +126,9 @@ export function validateProviderBaseUrl(raw: string): string | null {
   return null;
 }
 
-export function createProviderManageTool(opts: FallbackManageToolOptions): Tool<ProviderManageInput, ProviderManageOutput> {
+export function createProviderManageTool(
+  opts: FallbackManageToolOptions,
+): Tool<ProviderManageInput, ProviderManageOutput> {
   return {
     name: PROVIDER_MANAGE_TOOL_NAME,
     description:
@@ -156,16 +159,21 @@ export function createProviderManageTool(opts: FallbackManageToolOptions): Tool<
         if (ids.length === 0) {
           return { status: 'ok', message: 'No providers configured.', providers: [] };
         }
-        const msg = ids.sort().map((id) => {
-          const entry = providers[id] ?? {};
-          const type = (entry.type as string) ?? '(unknown)';
-          const models = Array.isArray(entry.models) ? (entry.models as string[]).join(', ') : '(all)';
-          const hasKey = entry.apiKey ? '✓' : entry.apiKeys ? '✓' : '✗';
-          const prefix = id === leaderProvider ? '★ ' : '  ';
-          const baseUrl = entry.baseUrl ? ` url:${entry.baseUrl}` : '';
-          const family = entry.family ? ` family:${entry.family}` : '';
-          return `  ${prefix}${id} (${type}) key:${hasKey} models:[${models}]${baseUrl}${family}`;
-        }).join('\n');
+        const msg = ids
+          .sort()
+          .map((id) => {
+            const entry = providers[id] ?? {};
+            const type = (entry.type as string) ?? '(unknown)';
+            const models = Array.isArray(entry.models)
+              ? (entry.models as string[]).join(', ')
+              : '(all)';
+            const hasKey = entry.apiKey ? '✓' : entry.apiKeys ? '✓' : '✗';
+            const prefix = id === leaderProvider ? '★ ' : '  ';
+            const baseUrl = entry.baseUrl ? ` url:${entry.baseUrl}` : '';
+            const family = entry.family ? ` family:${entry.family}` : '';
+            return `  ${prefix}${id} (${type}) key:${hasKey} models:[${models}]${baseUrl}${family}`;
+          })
+          .join('\n');
         return {
           status: 'ok',
           message: `Providers (leader: ${leaderProvider}):\n${msg}`,
@@ -175,10 +183,16 @@ export function createProviderManageTool(opts: FallbackManageToolOptions): Tool<
 
       if (input.action === 'add') {
         if (!input.provider || !input.type) {
-          return { status: 'error', message: 'Provide "provider" (id) and "type" to add a provider.' };
+          return {
+            status: 'error',
+            message: 'Provide "provider" (id) and "type" to add a provider.',
+          };
         }
         if (providers[input.provider]) {
-          return { status: 'error', message: `Provider "${input.provider}" already exists. Use "configure" to update.` };
+          return {
+            status: 'error',
+            message: `Provider "${input.provider}" already exists. Use "configure" to update.`,
+          };
         }
         if (input.baseUrl) {
           const invalid = validateProviderBaseUrl(input.baseUrl);
@@ -191,13 +205,17 @@ export function createProviderManageTool(opts: FallbackManageToolOptions): Tool<
         if (input.baseUrl) entry.baseUrl = input.baseUrl;
         if (input.family) entry.family = input.family;
         if (input.envVars) entry.envVars = input.envVars;
-        if (input.autoDiscoverModels !== undefined) entry.autoDiscoverModels = input.autoDiscoverModels;
+        if (input.autoDiscoverModels !== undefined)
+          entry.autoDiscoverModels = input.autoDiscoverModels;
         if (input.apiKey) entry.apiKey = input.apiKey;
         providers[input.provider] = entry;
         await opts.updateConfig((cfg) => {
           cfg.providers = providers;
         });
-        return { status: 'ok', message: `✓ Added provider: ${input.provider} (type: ${input.type})` };
+        return {
+          status: 'ok',
+          message: `✓ Added provider: ${input.provider} (type: ${input.type})`,
+        };
       }
 
       if (input.action === 'configure') {
@@ -205,7 +223,10 @@ export function createProviderManageTool(opts: FallbackManageToolOptions): Tool<
           return { status: 'error', message: 'Provide "provider" id to configure.' };
         }
         if (!providers[input.provider]) {
-          return { status: 'error', message: `Provider "${input.provider}" not found. Use "add" first or check "list".` };
+          return {
+            status: 'error',
+            message: `Provider "${input.provider}" not found. Use "add" first or check "list".`,
+          };
         }
         if (input.baseUrl) {
           const invalid = validateProviderBaseUrl(input.baseUrl);
@@ -217,11 +238,13 @@ export function createProviderManageTool(opts: FallbackManageToolOptions): Tool<
         if (input.baseUrl !== undefined) entry.baseUrl = input.baseUrl || undefined;
         if (input.family !== undefined) entry.family = input.family || undefined;
         if (input.envVars !== undefined) entry.envVars = input.envVars;
-        if (input.autoDiscoverModels !== undefined) entry.autoDiscoverModels = input.autoDiscoverModels;
+        if (input.autoDiscoverModels !== undefined)
+          entry.autoDiscoverModels = input.autoDiscoverModels;
         if (input.apiKey !== undefined) entry.apiKey = input.apiKey || undefined;
 
         const endpointChanged =
-          input.baseUrl !== undefined && (entry.baseUrl ?? undefined) !== (previous.baseUrl ?? undefined);
+          input.baseUrl !== undefined &&
+          (entry.baseUrl ?? undefined) !== (previous.baseUrl ?? undefined);
         const explicitlySupplied = new Set<string>([
           ...(input.apiKey !== undefined ? ['apiKey'] : []),
           ...(input.envVars !== undefined ? ['envVars'] : []),
@@ -240,7 +263,9 @@ export function createProviderManageTool(opts: FallbackManageToolOptions): Tool<
         await opts.updateConfig((cfg) => {
           cfg.providers = providers;
         });
-        const updated = Object.keys({ ...entry }).filter((k) => k !== 'apiKey').join(', ');
+        const updated = Object.keys({ ...entry })
+          .filter((k) => k !== 'apiKey')
+          .join(', ');
         const keyNote =
           droppedFields.length > 0
             ? ` — cleared ${droppedFields.join(', ')} because the base URL changed; set the key again with provider_key_set`
@@ -256,7 +281,10 @@ export function createProviderManageTool(opts: FallbackManageToolOptions): Tool<
           return { status: 'error', message: `Provider "${input.provider}" not found.` };
         }
         if (input.provider === leaderProvider) {
-          return { status: 'error', message: `Cannot remove the active leader provider "${input.provider}". Switch the leader first.` };
+          return {
+            status: 'error',
+            message: `Cannot remove the active leader provider "${input.provider}". Switch the leader first.`,
+          };
         }
         delete providers[input.provider];
         await opts.updateConfig((cfg) => {

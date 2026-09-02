@@ -111,7 +111,17 @@ describe('DefaultBrainArbiter', () => {
 
     it('matches all resolution markers', async () => {
       const brain = new DefaultBrainArbiter();
-      const markers = ['resolved', 'fixed', 'completed', 'unblocked', 'available', 'done', 'merged', 'landed', 'shipped'];
+      const markers = [
+        'resolved',
+        'fixed',
+        'completed',
+        'unblocked',
+        'available',
+        'done',
+        'merged',
+        'landed',
+        'shipped',
+      ];
 
       for (const marker of markers) {
         const decision = await brain.decide(
@@ -119,7 +129,9 @@ describe('DefaultBrainArbiter', () => {
         );
         expect(decision.type).toBe('answer');
         if (decision.type === 'answer') {
-          expect(decision.text).toBe('Blocker resolved. Continue with the previously blocked work.');
+          expect(decision.text).toBe(
+            'Blocker resolved. Continue with the previously blocked work.',
+          );
         }
       }
     });

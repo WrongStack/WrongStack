@@ -30,7 +30,11 @@ export function splitStableStreamPrefix(text: string): [prefix: string, tail: st
 /** Memoized full-pipeline markdown — re-parses only when `text` changes. */
 const StableMarkdownPrefix = memo(function StableMarkdownPrefix({ text }: { text: string }) {
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={rehypePlugins} components={markdownComponents}>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={rehypePlugins}
+      components={markdownComponents}
+    >
       {text}
     </ReactMarkdown>
   );

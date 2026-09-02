@@ -149,7 +149,9 @@ export function RunTaskControls({
       </div>
       {isSdd && (
         <div className="mb-2">
-          <div className="mb-1 text-[10px] uppercase text-muted-foreground">{t('activity:kanban.workerModel')}</div>
+          <div className="mb-1 text-[10px] uppercase text-muted-foreground">
+            {t('activity:kanban.workerModel')}
+          </div>
           <ModelPicker
             candidates={modelCandidates}
             placeholder={t('activity:kanban.setModelForTask')}

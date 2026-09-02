@@ -250,8 +250,10 @@ const plugin: Plugin = {
           const hasTools =
             (Array.isArray(req['tools']) && (req['tools'] as unknown[]).length > 0) ||
             (Array.isArray(req['functions']) && (req['functions'] as unknown[]).length > 0) ||
-            (Array.isArray(req['tool_definitions']) && (req['tool_definitions'] as unknown[]).length > 0) ||
-            (Array.isArray(req['toolDefinitions']) && (req['toolDefinitions'] as unknown[]).length > 0) ||
+            (Array.isArray(req['tool_definitions']) &&
+              (req['tool_definitions'] as unknown[]).length > 0) ||
+            (Array.isArray(req['toolDefinitions']) &&
+              (req['toolDefinitions'] as unknown[]).length > 0) ||
             Boolean(req['tool_choice']) ||
             Boolean(req['toolChoice']);
           const rule = pickRule(cfg.rules, size, hasTools);

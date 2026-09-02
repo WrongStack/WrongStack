@@ -106,7 +106,11 @@ describe('runBlocks busy guard', () => {
 
   it('stamps the drained item journalRaw into ctx.meta right before that item runs', async () => {
     const refs = makeRefs([
-      { displayText: 'refined queued', blocks: textBlocks('refined queued'), journalRaw: 'raw original' },
+      {
+        displayText: 'refined queued',
+        blocks: textBlocks('refined queued'),
+        journalRaw: 'raw original',
+      },
     ]);
     const { host, run } = makeHost(refs);
     const agent = (host as { capabilities: { agent: { ctx: { meta: Record<string, unknown> } } } })

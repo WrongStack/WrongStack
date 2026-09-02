@@ -5,10 +5,7 @@
   "description": "Add correct pagination to a list endpoint or query.",
   "content": "I need to paginate: {{what}}\n\nRecommend cursor-based or offset-based for my case and say why. Show the implementation: the page size, how the cursor or offset is encoded, how the client asks for the next page, and how the last page is detected. Handle the edge cases: items inserted or deleted mid-iteration, an invalid cursor, and an empty result. Note the stability and performance trade-off of the choice.",
   "category": "coding",
-  "tags": [
-    "pagination",
-    "api"
-  ],
+  "tags": ["pagination", "api"],
   "source": "builtin",
   "favorite": false,
   "checksum": "1cb927d7b630a0f9a85e0692ade89d7eae47562314e0a96bf95c3e5e3d111852",

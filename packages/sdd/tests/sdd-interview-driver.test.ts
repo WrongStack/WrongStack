@@ -342,7 +342,9 @@ describe('SddInterviewDriver', () => {
     h.driver.start('OAuth login');
     await h.driver.ingestAgentOutput(SPEC_OUTPUT);
     await h.driver.approve(); // moves to implementation
-    await h.driver.ingestAgentOutput(`Here is the implementation plan:\nArchitecture decisions...\n\`\`\`json\n[{"id":"t1","title":"Task 1","description":"desc"}]\n\`\`\``);
+    await h.driver.ingestAgentOutput(
+      `Here is the implementation plan:\nArchitecture decisions...\n\`\`\`json\n[{"id":"t1","title":"Task 1","description":"desc"}]\n\`\`\``,
+    );
     expect(h.driver.phase()).toBe('task_review');
 
     // Rewind back to spec_review

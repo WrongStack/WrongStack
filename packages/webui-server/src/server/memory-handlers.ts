@@ -52,10 +52,7 @@ export async function handleMemoryList(ws: WebSocket, memoryStore: MemoryPort): 
     const Sage = getSageSurface(memoryStore);
     if (Sage) {
       const [stats, memories] = await Promise.all([Sage.stats(), Sage.listSage()]);
-      const text =
-        memories.length === 0
-          ? '🧠 SAGE is empty.'
-          : formatSageText(stats, memories);
+      const text = memories.length === 0 ? '🧠 SAGE is empty.' : formatSageText(stats, memories);
       send(ws, { type: 'memory.list', payload: { text } });
       return;
     }
@@ -158,10 +155,7 @@ export async function handleSageListPage(
     };
 
     if (typeof Sage.listSagePage === 'function') {
-      const [page, stats] = await Promise.all([
-        Sage.listSagePage(options as never),
-        Sage.stats(),
-      ]);
+      const [page, stats] = await Promise.all([Sage.listSagePage(options as never), Sage.stats()]);
       send(ws, { type: 'memory.sage.listPage', payload: { ...page, stats } });
       return;
     }
@@ -336,9 +330,9 @@ export async function handleSageGraph(
         if (node.startsWith('mem:')) memoryIds.add(node.slice(4));
       }
     }
-    const memories = (
-      await Promise.all([...memoryIds].map((id) => Sage.getSage(id)))
-    ).filter((memory) => memory !== null);
+    const memories = (await Promise.all([...memoryIds].map((id) => Sage.getSage(id)))).filter(
+      (memory) => memory !== null,
+    );
     send(ws, { type: 'memory.sage.graph', payload: { query, edges, memories } });
   } catch (err) {
     send(ws, {
@@ -649,10 +643,7 @@ export async function handleSageCandidateResolve(
       const accepted = await Sage.acceptCandidate(candidateId);
       candidate = accepted ? { id: accepted.id, status: accepted.status ?? 'active' } : undefined;
     } else {
-      const rejected = await Sage.rejectCandidate(
-        candidateId,
-        reason ?? 'Rejected via WebUI',
-      );
+      const rejected = await Sage.rejectCandidate(candidateId, reason ?? 'Rejected via WebUI');
       candidate = rejected ? { id: candidateId, status: 'rejected' } : undefined;
     }
     if (!candidate) {

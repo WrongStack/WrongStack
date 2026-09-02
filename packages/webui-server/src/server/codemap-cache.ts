@@ -75,10 +75,7 @@ export function codemapCacheKey(
   return `${projectRoot}\0${indexDir ?? ''}\0${scope}`;
 }
 
-export function getCachedCodemapBody(
-  key: string,
-  version: string,
-): string | undefined {
+export function getCachedCodemapBody(key: string, version: string): string | undefined {
   const entry = cache.get(key);
   if (!entry) return undefined;
   if (entry.version !== version) {
@@ -91,11 +88,7 @@ export function getCachedCodemapBody(
   return entry.body;
 }
 
-export function setCachedCodemapBody(
-  key: string,
-  version: string,
-  body: string,
-): void {
+export function setCachedCodemapBody(key: string, version: string, body: string): void {
   if (cache.has(key)) deleteCachedCodemapBody(key);
   if (body.length > MAX_CACHE_BODY_CHARS) return;
   cache.set(key, { version, body });

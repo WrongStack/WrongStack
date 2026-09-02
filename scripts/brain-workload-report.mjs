@@ -107,7 +107,12 @@ const WORKLOAD = [
       fallback: 'ask_human',
       options: [
         { id: 'resolve', label: 'Try the configured conflict resolver', risk: 'critical' },
-        { id: 'review', label: 'Keep the worktree for human review', risk: 'low', recommended: true },
+        {
+          id: 'review',
+          label: 'Keep the worktree for human review',
+          risk: 'low',
+          recommended: true,
+        },
       ],
     },
   },
@@ -117,7 +122,8 @@ const WORKLOAD = [
       id: 'goal-reached-9',
       source: 'system',
       question: 'Have all goal deliverables been reached and verified?',
-      context: 'Goal: ship the exporter\nProgress: 100%\nCompleted deliverables:\n1. schema\n2. writer',
+      context:
+        'Goal: ship the exporter\nProgress: 100%\nCompleted deliverables:\n1. schema\n2. writer',
       risk: 'high',
       fallback: 'continue',
       options: [
@@ -280,10 +286,7 @@ ${title}`);
 }
 
 const withRules = process.argv.includes('--rules');
-const base = render(
-  "Council-capable install (autonomy ceiling 'all')",
-  await measure(null, 'all'),
-);
+const base = render("Council-capable install (autonomy ceiling 'all')", await measure(null, 'all'));
 
 // A single-model install resolves the ceiling to 'high', so `critical`
 // requests never reach an unchecked model at all: the ladder returns the

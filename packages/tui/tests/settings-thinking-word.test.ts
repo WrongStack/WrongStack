@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { reducer } from '../src/app-reducer.js';
-import {
-  THINKING_WORD_FIELD,
-  THINKING_WORD_PRESETS,
-} from '../src/components/settings-picker.js';
+import { THINKING_WORD_FIELD, THINKING_WORD_PRESETS } from '../src/components/settings-picker.js';
 
 // Minimal settingsPicker state focused on the thinking-word field (22). Other
 // fields are valid filler the reducer doesn't read for these operations.
@@ -128,9 +125,12 @@ describe('thinking word — free-text editing (Enter)', () => {
   });
 
   it('commit applies a valid draft, clears edit mode, no hint', () => {
-    const s = reducer(base({ thinkingWord: 'thinking', thinkingWordEditing: true, thinkingWordDraft: 'vibing' }), {
-      type: 'settingsThinkingEditCommit',
-    });
+    const s = reducer(
+      base({ thinkingWord: 'thinking', thinkingWordEditing: true, thinkingWordDraft: 'vibing' }),
+      {
+        type: 'settingsThinkingEditCommit',
+      },
+    );
     expect(s.settingsPicker.thinkingWord).toBe('vibing');
     expect(s.settingsPicker.thinkingWordEditing).toBe(false);
     expect(s.settingsPicker.thinkingWordDraft).toBe('');
@@ -138,27 +138,36 @@ describe('thinking word — free-text editing (Enter)', () => {
   });
 
   it('commit of an empty draft keeps the current word (treated as cancel)', () => {
-    const s = reducer(base({ thinkingWord: 'cooking', thinkingWordEditing: true, thinkingWordDraft: '   ' }), {
-      type: 'settingsThinkingEditCommit',
-    });
+    const s = reducer(
+      base({ thinkingWord: 'cooking', thinkingWordEditing: true, thinkingWordDraft: '   ' }),
+      {
+        type: 'settingsThinkingEditCommit',
+      },
+    );
     expect(s.settingsPicker.thinkingWord).toBe('cooking');
     expect(s.settingsPicker.thinkingWordEditing).toBe(false);
     expect(s.settingsPicker.hint).toBeUndefined();
   });
 
   it('commit of an invalid draft keeps the word and surfaces a hint', () => {
-    const s = reducer(base({ thinkingWord: 'cooking', thinkingWordEditing: true, thinkingWordDraft: 'two words' }), {
-      type: 'settingsThinkingEditCommit',
-    });
+    const s = reducer(
+      base({ thinkingWord: 'cooking', thinkingWordEditing: true, thinkingWordDraft: 'two words' }),
+      {
+        type: 'settingsThinkingEditCommit',
+      },
+    );
     expect(s.settingsPicker.thinkingWord).toBe('cooking'); // unchanged
     expect(s.settingsPicker.thinkingWordEditing).toBe(false);
     expect(s.settingsPicker.hint).toMatch(/invalid/i);
   });
 
   it('cancel discards the draft and leaves the word unchanged', () => {
-    const s = reducer(base({ thinkingWord: 'cooking', thinkingWordEditing: true, thinkingWordDraft: 'zzz' }), {
-      type: 'settingsThinkingEditCancel',
-    });
+    const s = reducer(
+      base({ thinkingWord: 'cooking', thinkingWordEditing: true, thinkingWordDraft: 'zzz' }),
+      {
+        type: 'settingsThinkingEditCancel',
+      },
+    );
     expect(s.settingsPicker.thinkingWord).toBe('cooking');
     expect(s.settingsPicker.thinkingWordEditing).toBe(false);
     expect(s.settingsPicker.thinkingWordDraft).toBe('');

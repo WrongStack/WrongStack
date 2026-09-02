@@ -87,9 +87,11 @@ describe('heap-watchdog.ts — critical threshold path', () => {
     const stop = startHeapWatchdog({
       sampleEveryMs: 100000,
       logEveryMs: 100000,
-      warnAt: -0.1,   // below current load
+      warnAt: -0.1, // below current load
       criticalAt: -0.05, // also below → critical fires first
-      onWarn: (lvl) => { level = lvl; },
+      onWarn: (lvl) => {
+        level = lvl;
+      },
     });
     // critical fires because both thresholds are below current load
     // and critical takes precedence
@@ -105,9 +107,7 @@ describe('heap-watchdog.ts — critical threshold path', () => {
 describe('rehydrate-history.ts — user msg with empty text', () => {
   it('skips user messages with empty text (tool-result-only turns)', async () => {
     const { rehydrateHistory } = await import('../src/rehydrate-history.js');
-    const messages: Message[] = [
-      { role: 'user', content: '   ', ts: '2026-01-01T00:00:00.000Z' },
-    ];
+    const messages: Message[] = [{ role: 'user', content: '   ', ts: '2026-01-01T00:00:00.000Z' }];
     const entries = rehydrateHistory(messages, 1);
     // Whitespace-only → trimmed → empty → skipped
     expect(entries).toEqual([]);
@@ -124,7 +124,12 @@ describe('terminal-title.ts — event handler coverage', () => {
     const events: Array<{ event: string; cb: unknown }> = [];
     const written: string[] = [];
     const { stop } = startTerminalTitle({
-      stdout: { isTTY: true, write: (s: string) => { written.push(s); } } as never,
+      stdout: {
+        isTTY: true,
+        write: (s: string) => {
+          written.push(s);
+        },
+      } as never,
       events: {
         on: (event: string, cb: unknown) => {
           events.push({ event, cb });
@@ -223,7 +228,9 @@ describe('queue-slash.ts — delete edge cases', () => {
     handleQueueCommand('del 1', {
       getQueue: () => [{ id: 1, displayText: 'msg', blocks: [{ type: 'text', text: 'msg' }] }],
       clear: () => {},
-      deleteAt: (positions: number[]) => { deletedPositions = positions; },
+      deleteAt: (positions: number[]) => {
+        deletedPositions = positions;
+      },
     });
     expect(deletedPositions).toEqual([1]);
   });
@@ -237,7 +244,9 @@ describe('queue-slash.ts — delete edge cases', () => {
         { id: 2, displayText: 'b', blocks: [{ type: 'text', text: 'b' }] },
       ],
       clear: () => {},
-      deleteAt: (positions: number[]) => { deletedPositions = positions; },
+      deleteAt: (positions: number[]) => {
+        deletedPositions = positions;
+      },
     });
     // Should deduplicate 1 → [1, 2]
     expect(deletedPositions).toEqual([1, 2]);
@@ -249,7 +258,9 @@ describe('queue-slash.ts — delete edge cases', () => {
     handleQueueCommand('rm 1', {
       getQueue: () => [{ id: 1, displayText: 'm', blocks: [{ type: 'text', text: 'm' }] }],
       clear: () => {},
-      deleteAt: () => { called = true; },
+      deleteAt: () => {
+        called = true;
+      },
     });
     expect(called).toBe(true);
   });
@@ -264,9 +275,9 @@ describe('highlight.ts — remaining branch gaps', () => {
     const { highlightLine } = await import('../src/highlight.js');
     // BASH_VAR matches $VAR and ${VAR}
     const r1 = highlightLine('echo $HOME $USER', 'bash');
-    expect(r1.tokens.map(t => t.text).join('')).toBe('echo $HOME $USER');
+    expect(r1.tokens.map((t) => t.text).join('')).toBe('echo $HOME $USER');
     // At least one of the $ vars should carry the variable syntax role
-    const varTokens = r1.tokens.filter(t => t.text.startsWith('$'));
+    const varTokens = r1.tokens.filter((t) => t.text.startsWith('$'));
     expect(varTokens.length).toBeGreaterThan(0);
     expect(varTokens[0]!.color).toBe('syntax.variable');
   });
@@ -275,19 +286,21 @@ describe('highlight.ts — remaining branch gaps', () => {
     const { highlightLine } = await import('../src/highlight.js');
     // Flag after first word: ls -la --color
     const r1 = highlightLine('ls -la --color', 'bash');
-    expect(r1.tokens.map(t => t.text).join('')).toBe('ls -la --color');
-    const flagTokens = r1.tokens.filter(t => t.text === '-la' || t.text === '--color');
+    expect(r1.tokens.map((t) => t.text).join('')).toBe('ls -la --color');
+    const flagTokens = r1.tokens.filter((t) => t.text === '-la' || t.text === '--color');
     // At least one should carry the flag syntax role
-    const roleFlags = flagTokens.filter(t => t.color === 'syntax.flag');
+    const roleFlags = flagTokens.filter((t) => t.color === 'syntax.flag');
     expect(roleFlags.length).toBeGreaterThan(0);
   });
 
   it('tokenizeJson handles number and boolean literal tokens', async () => {
     const { highlightLine } = await import('../src/highlight.js');
     const r1 = highlightLine('{ "key": 42, "ok": true, "no": null }', 'json');
-    const numberTokens = r1.tokens.filter(t => t.text === '42' && t.color === 'syntax.number');
+    const numberTokens = r1.tokens.filter((t) => t.text === '42' && t.color === 'syntax.number');
     expect(numberTokens.length).toBeGreaterThan(0);
-    const litTokens = r1.tokens.filter(t => (t.text === 'true' || t.text === 'null') && t.color === 'syntax.literal');
+    const litTokens = r1.tokens.filter(
+      (t) => (t.text === 'true' || t.text === 'null') && t.color === 'syntax.literal',
+    );
     expect(litTokens.length).toBeGreaterThan(0);
   });
 
@@ -371,7 +384,10 @@ describe('terminal-title.ts — write error handling', () => {
     const { stop } = startTerminalTitle({
       stdout: {
         isTTY: true,
-        write: () => { _calls++; throw new Error('write error'); },
+        write: () => {
+          _calls++;
+          throw new Error('write error');
+        },
       } as never,
       events: {
         on: () => () => {},

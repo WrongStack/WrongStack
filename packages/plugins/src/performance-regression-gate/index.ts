@@ -77,7 +77,9 @@ function readConfig(raw: unknown): PerformanceRegressionGateConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
   const threshold =
-    typeof r['thresholdPercent'] === 'number' && r['thresholdPercent'] >= 0 && r['thresholdPercent'] <= 1000
+    typeof r['thresholdPercent'] === 'number' &&
+    r['thresholdPercent'] >= 0 &&
+    r['thresholdPercent'] <= 1000
       ? r['thresholdPercent']
       : DEFAULTS.thresholdPercent;
   return {
@@ -221,7 +223,10 @@ function pairInternal(benchmarks: FlatBenchmark[]): { old: FlatBenchmark; new: F
   return pairs;
 }
 
-function pairCrossFile(baseline: FlatBenchmark[], current: FlatBenchmark[]): { old: FlatBenchmark; new: FlatBenchmark }[] {
+function pairCrossFile(
+  baseline: FlatBenchmark[],
+  current: FlatBenchmark[],
+): { old: FlatBenchmark; new: FlatBenchmark }[] {
   const byKey = new Map<string, FlatBenchmark>();
   for (const bench of baseline) {
     byKey.set(bench.key, bench);
@@ -240,7 +245,10 @@ function pairCrossFile(baseline: FlatBenchmark[], current: FlatBenchmark[]): { o
   return pairs;
 }
 
-function comparePairs(pairs: { old: FlatBenchmark; new: FlatBenchmark }[], thresholdPercent: number): Regression[] {
+function comparePairs(
+  pairs: { old: FlatBenchmark; new: FlatBenchmark }[],
+  thresholdPercent: number,
+): Regression[] {
   const regressions: Regression[] = [];
   const thresholdFactor = 1 + thresholdPercent / 100;
   for (const { old, new: current } of pairs) {
@@ -316,7 +324,8 @@ const plugin: Plugin = {
           },
           baselinePath: {
             type: 'string',
-            description: 'Optional path to baseline/previous results. If omitted, (old)/(new) pairs within resultsPath are compared.',
+            description:
+              'Optional path to baseline/previous results. If omitted, (old)/(new) pairs within resultsPath are compared.',
           },
           thresholdPercent: {
             type: 'number',
@@ -346,9 +355,7 @@ const plugin: Plugin = {
           raw['thresholdPercent'] ??
           raw['percent'];
         const threshold =
-          typeof rawThreshold === 'number' &&
-          rawThreshold >= 0 &&
-          rawThreshold <= 1000
+          typeof rawThreshold === 'number' && rawThreshold >= 0 && rawThreshold <= 1000
             ? rawThreshold
             : cfg.thresholdPercent;
 
@@ -362,7 +369,10 @@ const plugin: Plugin = {
           raw['TargetFile'] ??
           raw['targetFile'] ??
           'bench-results.json';
-        const resultsPathStr = typeof rawResultsPath === 'string' && rawResultsPath.trim() ? rawResultsPath.trim() : 'bench-results.json';
+        const resultsPathStr =
+          typeof rawResultsPath === 'string' && rawResultsPath.trim()
+            ? rawResultsPath.trim()
+            : 'bench-results.json';
         const resultsPath = resolveProjectPath(resultsPathStr) ?? '';
         if (!resultsPath) {
           state.errorCount += 1;
@@ -401,7 +411,10 @@ const plugin: Plugin = {
           raw['baseline'] ??
           raw['basePath'] ??
           raw['base_path'];
-        const baselinePathStr = typeof rawBaselinePath === 'string' && rawBaselinePath.trim() ? rawBaselinePath.trim() : undefined;
+        const baselinePathStr =
+          typeof rawBaselinePath === 'string' && rawBaselinePath.trim()
+            ? rawBaselinePath.trim()
+            : undefined;
 
         let pairs: { old: FlatBenchmark; new: FlatBenchmark }[];
         if (baselinePathStr) {

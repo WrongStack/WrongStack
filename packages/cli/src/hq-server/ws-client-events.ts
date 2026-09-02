@@ -81,10 +81,7 @@ export function handleIncomingClientEvent(
 ): void {
   const client = clients.get(ws);
   if (!client) return;
-  if (
-    incomingEvent.clientId !== client.clientId ||
-    incomingEvent.projectId !== client.projectId
-  ) {
+  if (incomingEvent.clientId !== client.clientId || incomingEvent.projectId !== client.projectId) {
     ws.close(1008, 'event identity mismatch');
     return;
   }
@@ -118,10 +115,7 @@ export function handleIncomingClientEvent(
   const event = redactHqEvent(
     { ...incomingEvent, payload: parsedPayload.payload },
     {
-      policy: tightenHqRedactionPolicy(
-        client.declaredRedactionPolicy,
-        auth.getOperatorPolicy(),
-      ),
+      policy: tightenHqRedactionPolicy(client.declaredRedactionPolicy, auth.getOperatorPolicy()),
       projectRoot: client.project.projectRoot,
       // Chat-transcript events carry full turns — the generic 500-char
       // summary cap would truncate them a second time after the

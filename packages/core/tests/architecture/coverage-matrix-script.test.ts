@@ -69,9 +69,18 @@ describe('coverage-matrix script', () => {
     writeFileSync(path.join(brokenDir, 'coverage-summary.json'), '{not json', 'utf8');
 
     const [rootRow, missingRow, brokenRow] = [
-      summarize({ label: 'coverage/root', summaryPath: path.join(root, 'coverage', 'root', 'coverage-summary.json') }),
-      summarize({ label: 'coverage/none', summaryPath: path.join(root, 'coverage', 'none', 'coverage-summary.json') }),
-      summarize({ label: 'packages/broken', summaryPath: path.join(root, 'packages', 'broken', 'coverage', 'coverage-summary.json') }),
+      summarize({
+        label: 'coverage/root',
+        summaryPath: path.join(root, 'coverage', 'root', 'coverage-summary.json'),
+      }),
+      summarize({
+        label: 'coverage/none',
+        summaryPath: path.join(root, 'coverage', 'none', 'coverage-summary.json'),
+      }),
+      summarize({
+        label: 'packages/broken',
+        summaryPath: path.join(root, 'packages', 'broken', 'coverage', 'coverage-summary.json'),
+      }),
     ];
 
     expect(rootRow).not.toBeNull();
@@ -85,7 +94,12 @@ describe('coverage-matrix script', () => {
       summaryPath: path.join(makeTmpRoot(), 'coverage', 'root', 'coverage-summary.json'),
     });
     // summarize returned null for the missing fixture — feed a parsed row instead.
-    const parsed = { label: 'coverage/root', summaryPath: 'x', mtimeMs: nowMs, json: summaryFor(50, 50) };
+    const parsed = {
+      label: 'coverage/root',
+      summaryPath: 'x',
+      mtimeMs: nowMs,
+      json: summaryFor(50, 50),
+    };
     expect(row).toBeNull();
 
     const [built] = buildMatrix([null, parsed], nowMs);
@@ -151,7 +165,12 @@ describe('coverage-matrix script', () => {
   });
 
   it('renders a markdown table including errors and the worst-file section', () => {
-    const parsed = { label: 'coverage/root', summaryPath: 'x', mtimeMs: nowMs, json: summaryFor(84.29, 84) };
+    const parsed = {
+      label: 'coverage/root',
+      summaryPath: 'x',
+      mtimeMs: nowMs,
+      json: summaryFor(84.29, 84),
+    };
     const broken = {
       label: 'packages/broken',
       summaryPath: 'y',
@@ -186,16 +205,18 @@ describe('coverage-matrix script', () => {
     expect(readFileSync(outPath, 'utf8')).toContain('# Coverage Matrix — 2026-08-29');
     expect(log).toHaveBeenCalledWith(expect.stringContaining('no summary for coverage/scripts'));
 
-    expect(() => run(['--bogus'], { repoRoot: root, log, nowMs })).toThrow('unknown argument: --bogus');
+    expect(() => run(['--bogus'], { repoRoot: root, log, nowMs })).toThrow(
+      'unknown argument: --bogus',
+    );
     expect(() => run(['--out'], { repoRoot: root, log, nowMs })).toThrow('--out requires a path');
   });
 
   it('recognizes direct execution for the CLI guard', () => {
     const scriptPath = path.resolve(import.meta.dirname, '../../../../scripts/coverage-matrix.mjs');
     expect(isDirectRun(pathToFileURL(scriptPath).href, scriptPath)).toBe(true);
-    expect(isDirectRun(pathToFileURL(scriptPath).href, path.join(scriptPath, '..', 'other.mjs'))).toBe(
-      false,
-    );
+    expect(
+      isDirectRun(pathToFileURL(scriptPath).href, path.join(scriptPath, '..', 'other.mjs')),
+    ).toBe(false);
   });
 
   it('runs standalone via node (direct CLI branch, default dependencies)', () => {

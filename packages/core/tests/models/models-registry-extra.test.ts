@@ -11,7 +11,14 @@ const SAMPLE: ModelsDevPayload = {
     name: 'Anthropic',
     npm: '@ai-sdk/anthropic',
     models: {
-      m1: { id: 'm1', name: 'M1', release_date: '2026-01-01', tool_call: true, limit: { context: 1000 }, cost: { input: 1, output: 2 } },
+      m1: {
+        id: 'm1',
+        name: 'M1',
+        release_date: '2026-01-01',
+        tool_call: true,
+        limit: { context: 1000 },
+        cost: { input: 1, output: 2 },
+      },
     },
   },
   empty: { id: 'empty', name: 'Empty', npm: '@ai-sdk/openai', models: {} },
@@ -36,7 +43,10 @@ afterEach(async () => {
 });
 
 async function writeCache(file: string, payload: ModelsDevPayload, ageMs = 0): Promise<void> {
-  await fs.writeFile(file, JSON.stringify({ fetchedAt: new Date(Date.now() - ageMs).toISOString(), url: 'x', payload }));
+  await fs.writeFile(
+    file,
+    JSON.stringify({ fetchedAt: new Date(Date.now() - ageMs).toISOString(), url: 'x', payload }),
+  );
 }
 
 describe('models-registry — extra coverage', () => {
@@ -56,8 +66,17 @@ describe('models-registry — extra coverage', () => {
   });
 
   it('maps an AbortError to a timeout error', async () => {
-    const fetchImpl = vi.fn(async () => { const e = new Error('aborted'); e.name = 'AbortError'; throw e; }) as never as typeof fetch;
-    const reg = new DefaultModelsRegistry({ cacheFile, fetchImpl, ttlSeconds: 0, refreshTimeoutMs: 5 });
+    const fetchImpl = vi.fn(async () => {
+      const e = new Error('aborted');
+      e.name = 'AbortError';
+      throw e;
+    }) as never as typeof fetch;
+    const reg = new DefaultModelsRegistry({
+      cacheFile,
+      fetchImpl,
+      ttlSeconds: 0,
+      refreshTimeoutMs: 5,
+    });
     await expect(reg.load()).rejects.toThrow(/timed out/);
   });
 
@@ -75,7 +94,9 @@ describe('models-registry — extra coverage', () => {
   });
 
   it('refuses to cache a poisoned 200 payload when there is no cache', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ error: 'blocked' })) as never as typeof fetch;
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ error: 'blocked' }),
+    ) as never as typeof fetch;
     const reg = new DefaultModelsRegistry({ cacheFile, fetchImpl, ttlSeconds: 0 });
     await expect(reg.load()).rejects.toThrow(/non-catalog payload/);
   });
@@ -84,7 +105,10 @@ describe('models-registry — extra coverage', () => {
     const reg = new DefaultModelsRegistry({ cacheFile, seed: SAMPLE });
     expect(await reg.getModel('nope', 'm1')).toBeUndefined();
     expect(await reg.getModel('anthropic', 'nope')).toBeUndefined();
-    expect(await reg.getModel('anthropic', 'm1')).toMatchObject({ providerId: 'anthropic', modelId: 'm1' });
+    expect(await reg.getModel('anthropic', 'm1')).toMatchObject({
+      providerId: 'anthropic',
+      modelId: 'm1',
+    });
   });
 
   it('suggestModel returns undefined for unknown provider or a provider with no models', async () => {

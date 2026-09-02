@@ -64,15 +64,11 @@ describe('KanbanVerificationDashboard summary memo', () => {
     expect(afterFirstRender).toBeGreaterThanOrEqual(1);
 
     // Poll churn: fresh object identity, same contents, same revision.
-    rerender(
-      <KanbanVerificationDashboard board={boardWith(1)} onSelectTask={vi.fn()} />,
-    );
+    rerender(<KanbanVerificationDashboard board={boardWith(1)} onSelectTask={vi.fn()} />);
     expect(selectSpy.mock.calls.length).toBe(afterFirstRender);
 
     // A real change lands with a revision bump.
-    rerender(
-      <KanbanVerificationDashboard board={boardWith(2)} onSelectTask={vi.fn()} />,
-    );
+    rerender(<KanbanVerificationDashboard board={boardWith(2)} onSelectTask={vi.fn()} />);
     expect(selectSpy.mock.calls.length).toBe(afterFirstRender + 1);
   });
 });

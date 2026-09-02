@@ -4,10 +4,7 @@
  * @module hq-server/ws-resume
  */
 
-import type {
-  HqClientResumeMessage,
-  HqEventEnvelope,
-} from '@wrongstack/core/hq';
+import type { HqClientResumeMessage, HqEventEnvelope } from '@wrongstack/core/hq';
 import {
   HQ_BROWSER_PEER_RESUME_CLIENT_ID,
   HQ_RESUME_GAP_MAX_BYTES,
@@ -18,7 +15,10 @@ import type { WebSocket } from 'ws';
 import { sendGuarded } from './snapshot.js';
 import type { ConnectedClient, HqSnapshotBroadcaster } from './types.js';
 
-export function browserResumeClient(ws: WebSocket, clientId: string): Map<WebSocket, ConnectedClient> {
+export function browserResumeClient(
+  ws: WebSocket,
+  clientId: string,
+): Map<WebSocket, ConnectedClient> {
   return new Map<WebSocket, ConnectedClient>([
     [
       ws,

@@ -10,7 +10,13 @@ import {
   truncatePanelText,
   useMonitorSize,
 } from './monitor-shell.js';
-import { fmtElapsed, fmtMemory, fmtRatioPct, renderMeter, truncateChip } from './status-bar-format.js';
+import {
+  fmtElapsed,
+  fmtMemory,
+  fmtRatioPct,
+  renderMeter,
+  truncateChip,
+} from './status-bar-format.js';
 import type { StatusBarProps } from './status-bar-types.js';
 import { STATUSLINE_ITEMS } from './statusline-picker.js';
 

@@ -109,10 +109,7 @@ describe('ActivityBar navigation coupling', () => {
   it('keeps visible panels in sync with the navigation map', () => {
     // PANEL_ORDER reflects displayed panels only (agents/history elsewhere;
     // worktrees moved into the Changes panel, officemap into Agent Roster)
-    expect(PANEL_ORDER).toEqual([
-      'chat', 'files', 'changes', 'mailbox',
-      'skills', 'design',
-    ]);
+    expect(PANEL_ORDER).toEqual(['chat', 'files', 'changes', 'mailbox', 'skills', 'design']);
   });
 
   it('keeps panel shortcut labels and key routing in sync', () => {

@@ -138,7 +138,12 @@ export interface PhaseEventMap {
   };
   'phase.allTasksDone': { phaseId: string; completed: number; failed: number };
   'phase.verifying': { phaseId: string; name: string; attempt: number };
-  'phase.verifyFailed': { phaseId: string; name: string; attempt: number; error?: string | undefined };
+  'phase.verifyFailed': {
+    phaseId: string;
+    name: string;
+    attempt: number;
+    error?: string | undefined;
+  };
   'phase.repairing': { phaseId: string; name: string; attempt: number };
   'phase.conflictResolving': { phaseId: string; name: string; files: string[] };
   'phase.conflictResolved': { phaseId: string; name: string };
@@ -244,10 +249,7 @@ export interface PhaseExecutionContext {
    * If undefined, conflicts keep the old parked-for-review behavior.
    */
   resolveConflict?:
-    | ((
-        phase: PhaseNode,
-        info: { conflictFiles: string[]; cwd: string },
-      ) => Promise<boolean>)
+    | ((phase: PhaseNode, info: { conflictFiles: string[]; cwd: string }) => Promise<boolean>)
     | undefined;
   /** Optional global Brain arbiter for the policy, decision, and escalation layer. */
   brain?: BrainArbiter | undefined;

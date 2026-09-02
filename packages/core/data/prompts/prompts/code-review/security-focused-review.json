@@ -5,11 +5,7 @@
   "description": "Audit a change specifically for security vulnerabilities.",
   "content": "Review this code for security issues only:\n\n```\n{{code}}\n```\n\nCheck for: injection (SQL/command/template), broken authn/authz, secrets in code or logs, unsafe deserialization, SSRF, path traversal, missing input validation, and unsafe defaults. For each issue: the exploit scenario, severity, and the fix. If you find nothing exploitable, state what you verified rather than padding the list.",
   "category": "code-review",
-  "tags": [
-    "security",
-    "audit",
-    "owasp"
-  ],
+  "tags": ["security", "audit", "owasp"],
   "source": "builtin",
   "favorite": false,
   "checksum": "561e1d50f297c5486e5bc9e8d0c966d5a74860e939686e42a8d831965d1de4e3",

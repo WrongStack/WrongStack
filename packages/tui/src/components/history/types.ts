@@ -1,7 +1,11 @@
 import type { TodoItem } from '@wrongstack/core/agent';
 import type { Lang } from '../../highlight.js';
 import type { HistoryEntry } from '../../history-entry.js';
-export type { AutonomyAgentStatus, HistoryEntry, MemoryActivationItem } from '../../history-entry.js';
+export type {
+  AutonomyAgentStatus,
+  HistoryEntry,
+  MemoryActivationItem,
+} from '../../history-entry.js';
 
 // ============================================
 // Shared types for history components

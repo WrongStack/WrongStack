@@ -140,7 +140,10 @@ export function appendTargetList(
   }
 }
 
-export function isReadOnlyInvocation(toolName: string, toolInput: Record<string, unknown>): boolean {
+export function isReadOnlyInvocation(
+  toolName: string,
+  toolInput: Record<string, unknown>,
+): boolean {
   if (toolName === 'git') {
     const command = toolInput['command'];
     if (

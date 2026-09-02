@@ -11,8 +11,16 @@ import lintGatePlugin from '../src/lint-gate/index.js';
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   registerHook: ReturnType<typeof vi.fn>;
   onEvent: ReturnType<typeof vi.fn>;
   emitCustom: ReturnType<typeof vi.fn>;
@@ -45,7 +53,7 @@ function getStatusTool(api: MockApi): { execute: (input: unknown) => Promise<unk
     ([t]: unknown[]) => (t as { name: string }).name === 'lint_gate_status',
   );
   if (!call) throw new Error('lint_gate_status not registered');
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -131,7 +139,7 @@ describe('lint-gate coverage — health with lastResult', () => {
       { toolName: 'write', toolInput: { path: 'test.ts', content: 'const x = 1;\n' } },
       { signal: new AbortController().signal },
     );
-    const h = await lintGatePlugin.health!() as { ok: boolean; message: string };
+    const h = (await lintGatePlugin.health!()) as { ok: boolean; message: string };
     expect(h.ok).toBe(true);
     // message will be either the default or lastResult message
     expect(typeof h.message).toBe('string');
@@ -142,7 +150,7 @@ describe('lint-gate coverage — status tool returns counters', () => {
   it('status tool returns all expected fields', async () => {
     const api = makeApi();
     lintGatePlugin.setup(api as never);
-    const status = await getStatusTool(api).execute({}) as Record<string, unknown>;
+    const status = (await getStatusTool(api).execute({})) as Record<string, unknown>;
     expect(status).toHaveProperty('ok');
     expect(status).toHaveProperty('linter');
     expect(status).toHaveProperty('mode');

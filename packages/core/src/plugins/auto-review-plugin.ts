@@ -36,7 +36,16 @@ import type {
 import { emitReviewIfChanged } from './review-claim-registry.js';
 import { buildReviewContext } from './review-context-builder.js';
 
-export { buildReviewerModelPool, decideCascadeAgents, parseReviewSeverity, resolveAutoReviewConfig, selectRoundRobinReviewerAssignment, severitiesFromFindings, shouldCascade, trimKnownFingerprints };;
+export {
+  buildReviewerModelPool,
+  decideCascadeAgents,
+  parseReviewSeverity,
+  resolveAutoReviewConfig,
+  selectRoundRobinReviewerAssignment,
+  severitiesFromFindings,
+  shouldCascade,
+  trimKnownFingerprints,
+};
 
 interface InFlightReview {
   files: string[];

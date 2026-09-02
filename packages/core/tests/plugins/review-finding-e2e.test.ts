@@ -98,16 +98,32 @@ describe('Finding store end-to-end pipeline', () => {
   it('survives multiple report upserts — deduplicates by fingerprint', async () => {
     // First report
     const parsed1 = parseChimeraReviewReport(REPORT, {
-      sessionId: 'sess-1', reviewerModel: 'm1', reviewType: 'auto', reportId: 'r1',
+      sessionId: 'sess-1',
+      reviewerModel: 'm1',
+      reviewType: 'auto',
+      reportId: 'r1',
     });
-    const r1 = await store.upsert(parsed1.findings, { sessionId: 'sess-1', reportId: 'r1', agentId: 'chimera-review', model: 'm1' });
+    const r1 = await store.upsert(parsed1.findings, {
+      sessionId: 'sess-1',
+      reportId: 'r1',
+      agentId: 'chimera-review',
+      model: 'm1',
+    });
     expect(r1.created).toBe(4);
 
     // Second report with the same findings (simulating re-review of same file)
     const parsed2 = parseChimeraReviewReport(REPORT, {
-      sessionId: 'sess-2', reviewerModel: 'm2', reviewType: 'auto', reportId: 'r2',
+      sessionId: 'sess-2',
+      reviewerModel: 'm2',
+      reviewType: 'auto',
+      reportId: 'r2',
     });
-    const r2 = await store.upsert(parsed2.findings, { sessionId: 'sess-2', reportId: 'r2', agentId: 'chimera-review', model: 'm2' });
+    const r2 = await store.upsert(parsed2.findings, {
+      sessionId: 'sess-2',
+      reportId: 'r2',
+      agentId: 'chimera-review',
+      model: 'm2',
+    });
     // Most should be relinked, not created (fingerprint dedup)
     expect(r2.relinked).toBeGreaterThanOrEqual(3);
     expect(r2.created).toBe(0);
@@ -115,9 +131,17 @@ describe('Finding store end-to-end pipeline', () => {
 
   it('returns findings via /review findings CLI command', async () => {
     const parsed = parseChimeraReviewReport(REPORT, {
-      sessionId: 'cli-test', reviewerModel: 'm', reviewType: 'auto', reportId: 'cr',
+      sessionId: 'cli-test',
+      reviewerModel: 'm',
+      reviewType: 'auto',
+      reportId: 'cr',
     });
-    await store.upsert(parsed.findings, { sessionId: 'cli-test', reportId: 'cr', agentId: 'chimera-review', model: 'm' });
+    await store.upsert(parsed.findings, {
+      sessionId: 'cli-test',
+      reportId: 'cr',
+      agentId: 'chimera-review',
+      model: 'm',
+    });
 
     // Unfiltered list
     const list = await executeFindingCommand(['findings'], { projectDir: dir });
@@ -126,7 +150,9 @@ describe('Finding store end-to-end pipeline', () => {
     expect(list).toContain('4 finding(s)');
 
     // Filter by severity
-    const criticalOnly = await executeFindingCommand(['findings', '--severity', 'critical'], { projectDir: dir });
+    const criticalOnly = await executeFindingCommand(['findings', '--severity', 'critical'], {
+      projectDir: dir,
+    });
     expect(criticalOnly).toContain('Null dereference');
     expect(criticalOnly).not.toContain('Hardcoded API token');
 

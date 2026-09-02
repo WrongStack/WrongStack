@@ -117,7 +117,8 @@ export function deriveTaskIntelligence(
     .map(stringValue)
     .filter((value): value is string => value !== undefined);
   const fallbackProfile =
-    stringValue(assignment?.fallbackProfile) ?? stringValue(historicalAssignment['fallbackProfile']);
+    stringValue(assignment?.fallbackProfile) ??
+    stringValue(historicalAssignment['fallbackProfile']);
   const owner =
     stringValue(assignment?.name) ??
     stringValue(assignment?.agentId) ??
@@ -345,7 +346,11 @@ export function TaskIntelligencePanel({
               label={t('activity:taskIntel.assignee')}
               value={stringValue(task.assignee) ?? stringValue(task.assignedAgent) ?? '—'}
             />
-            <InfoRow label={t('activity:taskIntel.agentId')} value={stringValue(assignment?.agentId) ?? '—'} mono />
+            <InfoRow
+              label={t('activity:taskIntel.agentId')}
+              value={stringValue(assignment?.agentId) ?? '—'}
+              mono
+            />
             <InfoRow
               label={t('activity:taskIntel.agentNameRole')}
               value={
@@ -354,9 +359,20 @@ export function TaskIntelligencePanel({
                   .join(' · ') || '—'
               }
             />
-            <InfoRow label={t('activity:taskIntel.runStatus')} value={stringValue(assignment?.status) ?? 'unassigned'} />
-            <InfoRow label={t('activity:taskIntel.subagent')} value={stringValue(assignment?.subagentId) ?? '—'} mono />
-            <InfoRow label={t('activity:taskIntel.runTask')} value={stringValue(assignment?.runTaskId) ?? '—'} mono />
+            <InfoRow
+              label={t('activity:taskIntel.runStatus')}
+              value={stringValue(assignment?.status) ?? 'unassigned'}
+            />
+            <InfoRow
+              label={t('activity:taskIntel.subagent')}
+              value={stringValue(assignment?.subagentId) ?? '—'}
+              mono
+            />
+            <InfoRow
+              label={t('activity:taskIntel.runTask')}
+              value={stringValue(assignment?.runTaskId) ?? '—'}
+              mono
+            />
             <InfoRow
               label={t('activity:taskIntel.sessionS')}
               value={intelligence.sessions.join(', ') || 'Unknown'}
@@ -372,12 +388,27 @@ export function TaskIntelligencePanel({
             />
           </Group>
 
-          <Group icon={<Route className="size-3" />} title={t('activity:taskIntel.modelRouteFallback')}>
+          <Group
+            icon={<Route className="size-3" />}
+            title={t('activity:taskIntel.modelRouteFallback')}
+          >
             <InfoRow label={t('activity:taskIntel.routingMode')} value={intelligence.routingMode} />
-            <InfoRow label={t('activity:taskIntel.primary')} value={intelligence.primaryModel} mono />
-            <InfoRow label={t('activity:taskIntel.provider')} value={intelligence.provider ?? '—'} mono />
+            <InfoRow
+              label={t('activity:taskIntel.primary')}
+              value={intelligence.primaryModel}
+              mono
+            />
+            <InfoRow
+              label={t('activity:taskIntel.provider')}
+              value={intelligence.provider ?? '—'}
+              mono
+            />
             <InfoRow label={t('activity:taskIntel.model')} value={intelligence.model ?? '—'} mono />
-            <InfoRow label={t('activity:taskIntel.fallbackRoute')} value={intelligence.fallbackRoute} mono />
+            <InfoRow
+              label={t('activity:taskIntel.fallbackRoute')}
+              value={intelligence.fallbackRoute}
+              mono
+            />
             <InfoRow
               label={t('activity:taskIntel.skills')}
               value={assignment?.skills?.map(stringValue).filter(Boolean).join(', ') || 'Default'}
@@ -398,7 +429,10 @@ export function TaskIntelligencePanel({
             />
           </Group>
 
-          <Group icon={<ShieldCheck className="size-3" />} title={t('activity:taskIntel.executionPolicyOutcome')}>
+          <Group
+            icon={<ShieldCheck className="size-3" />}
+            title={t('activity:taskIntel.executionPolicyOutcome')}
+          >
             <InfoRow
               label={t('activity:taskIntel.attempts')}
               value={`${intelligence.attempts}${assignment?.maxAttempts ? ` / ${assignment.maxAttempts}` : ''}`}
@@ -419,12 +453,24 @@ export function TaskIntelligencePanel({
               label={t('activity:taskIntel.failuresDone')}
               value={`${intelligence.failures} / ${intelligence.completions}`}
             />
-            <InfoRow label={t('activity:taskIntel.checks')} value={`${passedChecks} / ${checkCount} passed`} />
-            <InfoRow label={t('activity:taskIntel.lastFailure')} value={intelligence.lastFailure ?? '—'} />
-            <InfoRow label={t('activity:taskIntel.result')} value={intelligence.lastResult ?? 'No result recorded'} />
+            <InfoRow
+              label={t('activity:taskIntel.checks')}
+              value={`${passedChecks} / ${checkCount} passed`}
+            />
+            <InfoRow
+              label={t('activity:taskIntel.lastFailure')}
+              value={intelligence.lastFailure ?? '—'}
+            />
+            <InfoRow
+              label={t('activity:taskIntel.result')}
+              value={intelligence.lastResult ?? 'No result recorded'}
+            />
           </Group>
 
-          <Group icon={<Activity className="size-3" />} title={t('activity:taskIntel.timingAuditCoverage')}>
+          <Group
+            icon={<Activity className="size-3" />}
+            title={t('activity:taskIntel.timingAuditCoverage')}
+          >
             <InfoRow label={t('activity:taskIntel.created')} value={displayDate(task.createdAt)} />
             <InfoRow label={t('activity:taskIntel.updated')} value={displayDate(task.updatedAt)} />
             <InfoRow label={t('activity:taskIntel.due')} value={displayDate(task.dueDate)} />
@@ -443,24 +489,43 @@ export function TaskIntelligencePanel({
                 assignment?.completedAt,
               )}
             />
-            <InfoRow label={t('activity:taskIntel.heartbeat')} value={displayDate(assignment?.heartbeatAt)} />
-            <InfoRow label={t('activity:taskIntel.leaseExpires')} value={displayDate(assignment?.leaseExpiresAt)} />
-            <InfoRow label={t('activity:taskIntel.actors')} value={intelligence.actors.join(', ') || 'Unknown'} mono />
+            <InfoRow
+              label={t('activity:taskIntel.heartbeat')}
+              value={displayDate(assignment?.heartbeatAt)}
+            />
+            <InfoRow
+              label={t('activity:taskIntel.leaseExpires')}
+              value={displayDate(assignment?.leaseExpiresAt)}
+            />
+            <InfoRow
+              label={t('activity:taskIntel.actors')}
+              value={intelligence.actors.join(', ') || 'Unknown'}
+              mono
+            />
           </Group>
         </div>
 
-        <Group icon={<GitBranch className="size-3" />} title={t('activity:taskIntel.dependenciesChainProvenance')}>
+        <Group
+          icon={<GitBranch className="size-3" />}
+          title={t('activity:taskIntel.dependenciesChainProvenance')}
+        >
           <InfoRow
             label={t('activity:taskIntel.dependencies')}
             value={<RelationList items={intelligence.dependencies} />}
           />
-          <InfoRow label={t('activity:taskIntel.otherRelations')} value={<RelationList items={relations} />} />
+          <InfoRow
+            label={t('activity:taskIntel.otherRelations')}
+            value={<RelationList items={relations} />}
+          />
           <InfoRow
             label={t('activity:taskIntel.chain')}
             value={task.chain ? `${task.chain.chainId} · position ${task.chain.order}` : 'None'}
             mono
           />
-          <InfoRow label={t('activity:taskIntel.originSystem')} value={task.origin?.system ?? 'manual'} />
+          <InfoRow
+            label={t('activity:taskIntel.originSystem')}
+            value={task.origin?.system ?? 'manual'}
+          />
           <InfoRow
             label={t('activity:taskIntel.originIds')}
             value={

@@ -77,9 +77,13 @@ export function CollabPage() {
               <p className="mt-3 text-sm leading-7 text-muted">{body}</p>
               <div className="mt-5 space-y-2 border-t border-line pt-5">
                 {events.map((e) => (
-                  <code key={e} className="block font-mono text-xs text-brand">{e}</code>
+                  <code key={e} className="block font-mono text-xs text-brand">
+                    {e}
+                  </code>
                 ))}
-                <span className="block font-mono text-[10px] uppercase tracking-[0.08em] text-faint">{budget}</span>
+                <span className="block font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+                  {budget}
+                </span>
               </div>
             </article>
           ))}
@@ -90,7 +94,10 @@ export function CollabPage() {
           <Lightbulb className="size-3.5" />
           <ArrowDown className="size-3.5" />
           <MessageSquare className="size-3.5" />
-          <span className="ml-2">All three start simultaneously • BugHunter emits first • RefactorPlanner and Critic consume in real time</span>
+          <span className="ml-2">
+            All three start simultaneously • BugHunter emits first • RefactorPlanner and Critic
+            consume in real time
+          </span>
         </div>
       </section>
 
@@ -110,11 +117,31 @@ export function CollabPage() {
                 event: 'bug.found',
                 fields: [
                   { name: 'finding.id', type: 'string', desc: 'UUID for this finding' },
-                  { name: 'finding.type', type: 'string', desc: 'Bug pattern name (e.g. race-condition)' },
-                  { name: 'finding.severity', type: 'enum', desc: 'critical | high | medium | low' },
-                  { name: 'finding.location', type: 'object', desc: '{ file: string, line: number }' },
-                  { name: 'finding.description', type: 'string', desc: 'Human-readable explanation' },
-                  { name: 'finding.suggestedFix', type: 'string?', desc: 'Optional fix suggestion' },
+                  {
+                    name: 'finding.type',
+                    type: 'string',
+                    desc: 'Bug pattern name (e.g. race-condition)',
+                  },
+                  {
+                    name: 'finding.severity',
+                    type: 'enum',
+                    desc: 'critical | high | medium | low',
+                  },
+                  {
+                    name: 'finding.location',
+                    type: 'object',
+                    desc: '{ file: string, line: number }',
+                  },
+                  {
+                    name: 'finding.description',
+                    type: 'string',
+                    desc: 'Human-readable explanation',
+                  },
+                  {
+                    name: 'finding.suggestedFix',
+                    type: 'string?',
+                    desc: 'Optional fix suggestion',
+                  },
                 ],
               },
               {
@@ -122,11 +149,27 @@ export function CollabPage() {
                 event: 'refactor.plan',
                 fields: [
                   { name: 'plan.id', type: 'string', desc: 'UUID for this plan' },
-                  { name: 'plan.basedOnBugIds', type: 'string[]', desc: 'Bug IDs this plan addresses' },
-                  { name: 'plan.phases', type: 'object[]', desc: '{ number, title, tasks[], risk }' },
+                  {
+                    name: 'plan.basedOnBugIds',
+                    type: 'string[]',
+                    desc: 'Bug IDs this plan addresses',
+                  },
+                  {
+                    name: 'plan.phases',
+                    type: 'object[]',
+                    desc: '{ number, title, tasks[], risk }',
+                  },
                   { name: 'plan.riskScore', type: 'enum', desc: 'low | medium | high' },
-                  { name: 'plan.estimatedChangeCount', type: 'number', desc: 'Approximate files/lines affected' },
-                  { name: 'plan.rollbackStrategy', type: 'string', desc: 'How to reverse if needed' },
+                  {
+                    name: 'plan.estimatedChangeCount',
+                    type: 'number',
+                    desc: 'Approximate files/lines affected',
+                  },
+                  {
+                    name: 'plan.rollbackStrategy',
+                    type: 'string',
+                    desc: 'How to reverse if needed',
+                  },
                 ],
               },
               {
@@ -134,12 +177,32 @@ export function CollabPage() {
                 event: 'critic.evaluation',
                 fields: [
                   { name: 'evaluation.id', type: 'string', desc: 'UUID for this evaluation' },
-                  { name: 'evaluation.subjectType', type: 'enum', desc: 'bug_finding | refactor_plan' },
+                  {
+                    name: 'evaluation.subjectType',
+                    type: 'enum',
+                    desc: 'bug_finding | refactor_plan',
+                  },
                   { name: 'evaluation.score', type: 'number', desc: '0–10 quality score' },
-                  { name: 'evaluation.verdict', type: 'enum', desc: 'approve | needs_revision | reject' },
-                  { name: 'evaluation.strengths', type: 'string[]', desc: 'What the finding/plan did well' },
-                  { name: 'evaluation.weaknesses', type: 'string[]', desc: 'What could be improved' },
-                  { name: 'evaluation.concerns', type: 'object[]', desc: '{ description, severity: blocking|advisory }' },
+                  {
+                    name: 'evaluation.verdict',
+                    type: 'enum',
+                    desc: 'approve | needs_revision | reject',
+                  },
+                  {
+                    name: 'evaluation.strengths',
+                    type: 'string[]',
+                    desc: 'What the finding/plan did well',
+                  },
+                  {
+                    name: 'evaluation.weaknesses',
+                    type: 'string[]',
+                    desc: 'What could be improved',
+                  },
+                  {
+                    name: 'evaluation.concerns',
+                    type: 'object[]',
+                    desc: '{ description, severity: blocking|advisory }',
+                  },
                 ],
               },
             ].map(({ icon: Icon, event, fields }) => (
@@ -179,10 +242,22 @@ export function CollabPage() {
             <h2 className="mt-8 text-xl font-black text-fg">Snapshot contents</h2>
             <div className="mt-5 space-y-3">
               {[
-                { label: 'File content', body: 'Full UTF-8 text of every target file, captured at session start.' },
-                { label: 'Language detection', body: 'Extension-based: .ts/.tsx→typescript, .js/.jsx→javascript, .md→markdown, .json→json.' },
-                { label: 'Metadata', body: 'mtime and file size recorded at snapshot time. Used after the session to detect mid-run changes.' },
-                { label: 'Freshness check', body: 'After all agents finish, the snapshot is compared against current disk state. Changed files are listed as warnings in the report.' },
+                {
+                  label: 'File content',
+                  body: 'Full UTF-8 text of every target file, captured at session start.',
+                },
+                {
+                  label: 'Language detection',
+                  body: 'Extension-based: .ts/.tsx→typescript, .js/.jsx→javascript, .md→markdown, .json→json.',
+                },
+                {
+                  label: 'Metadata',
+                  body: 'mtime and file size recorded at snapshot time. Used after the session to detect mid-run changes.',
+                },
+                {
+                  label: 'Freshness check',
+                  body: 'After all agents finish, the snapshot is compared against current disk state. Changed files are listed as warnings in the report.',
+                },
               ].map(({ label, body }) => (
                 <div key={label} className="rounded-lg border border-line bg-bg p-4">
                   <h3 className="font-black text-sm text-fg">{label}</h3>
@@ -195,14 +270,27 @@ export function CollabPage() {
             <FileWarning className="size-5 text-brand" />
             <h2 className="mt-8 text-xl font-black text-fg">File limits</h2>
             <p className="mt-3 text-sm leading-7 text-muted">
-              Each agent receives the full file snapshot as context. Three agents × N files creates high token cost. The limit prevents overflow.
+              Each agent receives the full file snapshot as context. Three agents × N files creates
+              high token cost. The limit prevents overflow.
             </p>
             <div className="mt-5 space-y-3">
               {[
-                { label: 'Default limit', body: '30 files (DEFAULT_MAX_TARGET_FILES). Safe for most package-level scans.' },
-                { label: 'Dynamic limit', body: 'Pass contextWindow to calculate: floor((contextWindow × 0.4) ÷ 2000). Reserves 40% of context for the snapshot.' },
-                { label: 'Hard override', body: 'Pass maxTargetFiles to set an exact limit, ignoring contextWindow.' },
-                { label: 'Exceeding the limit', body: 'Throws a descriptive error. Narrow the target — run package-by-package for large codebases.' },
+                {
+                  label: 'Default limit',
+                  body: '30 files (DEFAULT_MAX_TARGET_FILES). Safe for most package-level scans.',
+                },
+                {
+                  label: 'Dynamic limit',
+                  body: 'Pass contextWindow to calculate: floor((contextWindow × 0.4) ÷ 2000). Reserves 40% of context for the snapshot.',
+                },
+                {
+                  label: 'Hard override',
+                  body: 'Pass maxTargetFiles to set an exact limit, ignoring contextWindow.',
+                },
+                {
+                  label: 'Exceeding the limit',
+                  body: 'Throws a descriptive error. Narrow the target — run package-by-package for large codebases.',
+                },
               ].map(({ label, body }) => (
                 <div key={label} className="rounded-lg border border-line bg-bg p-4">
                   <h3 className="font-black text-sm text-fg">{label}</h3>
@@ -230,9 +318,18 @@ export function CollabPage() {
                 title: 'DirectorAlertLevel',
                 body: 'Three severity tiers for budget events. The Director receives them and can cancel the session, extend limits, or let the default auto-extend logic handle it.',
                 items: [
-                  { label: 'WARNING', body: 'Agent hit a soft limit but is still making progress. Default: auto-extend by 25%.' },
-                  { label: 'CRITICAL', body: 'Hard limit reached. Session cannot continue without Director intervention.' },
-                  { label: 'CANCELLED', body: 'Director explicitly cancelled. All agents finish early with cancelled status.' },
+                  {
+                    label: 'WARNING',
+                    body: 'Agent hit a soft limit but is still making progress. Default: auto-extend by 25%.',
+                  },
+                  {
+                    label: 'CRITICAL',
+                    body: 'Hard limit reached. Session cannot continue without Director intervention.',
+                  },
+                  {
+                    label: 'CANCELLED',
+                    body: 'Director explicitly cancelled. All agents finish early with cancelled status.',
+                  },
                 ],
               },
               {
@@ -240,9 +337,18 @@ export function CollabPage() {
                 title: 'Progress-based timeout',
                 body: 'Wall-clock and idle timeouts are not denied blindly. If the agent has made tool calls since its last extension, the timeout is doubled. Only genuinely stuck agents are stopped.',
                 items: [
-                  { label: 'Timeout track', body: 'Tool call counts per subagent are tracked. Progress = any new tool call since last grant.' },
-                  { label: 'Extend policy', body: 'Progress detected → double the timeout (capped at 24h). No progress → deny.' },
-                  { label: 'Auto-extend', body: 'Soft budget kinds (iterations, tool_calls, tokens, cost) auto-extend by 25% on ignore.' },
+                  {
+                    label: 'Timeout track',
+                    body: 'Tool call counts per subagent are tracked. Progress = any new tool call since last grant.',
+                  },
+                  {
+                    label: 'Extend policy',
+                    body: 'Progress detected → double the timeout (capped at 24h). No progress → deny.',
+                  },
+                  {
+                    label: 'Auto-extend',
+                    body: 'Soft budget kinds (iterations, tool_calls, tokens, cost) auto-extend by 25% on ignore.',
+                  },
                 ],
               },
               {
@@ -251,9 +357,15 @@ export function CollabPage() {
                 body: 'Callers can pass per-role budget overrides via CollabBudgetOverrides. The Director can also supply an onBudgetWarning callback for custom cancel/extend/ignore logic.',
                 items: [
                   { label: 'bug-hunter', body: '2000 iter, 5000 tools, 10 min timeout (default)' },
-                  { label: 'refactor-planner', body: '1500 iter, 4000 tools, 8 min timeout (default)' },
+                  {
+                    label: 'refactor-planner',
+                    body: '1500 iter, 4000 tools, 8 min timeout (default)',
+                  },
                   { label: 'critic', body: '1000 iter, 3000 tools, 6 min timeout (default)' },
-                  { label: 'onBudgetWarning', body: 'Return cancel | extend | ignore per alert. Custom policy for fleet-wide rules.' },
+                  {
+                    label: 'onBudgetWarning',
+                    body: 'Return cancel | extend | ignore per alert. Custom policy for fleet-wide rules.',
+                  },
                 ],
               },
             ].map(({ icon: Icon, title, body, items }) => (
@@ -320,41 +432,63 @@ export function CollabPage() {
               <div className="mt-4 border-t border-white/10 pt-4">
                 <span className="text-zinc-500">bugs</span>
                 <span className="text-zinc-600">: </span>
-                <span className="text-zinc-400">BugFinding[] — id, type, severity, location, description, suggestedFix</span>
+                <span className="text-zinc-400">
+                  BugFinding[] — id, type, severity, location, description, suggestedFix
+                </span>
               </div>
               <div>
                 <span className="text-zinc-500">refactorPlans</span>
                 <span className="text-zinc-600">: </span>
-                <span className="text-zinc-400">RefactorPlan[] — id, basedOnBugIds, phases[], riskScore, rollbackStrategy</span>
+                <span className="text-zinc-400">
+                  RefactorPlan[] — id, basedOnBugIds, phases[], riskScore, rollbackStrategy
+                </span>
               </div>
               <div>
                 <span className="text-zinc-500">evaluations</span>
                 <span className="text-zinc-600">: </span>
-                <span className="text-zinc-400">CriticEvaluation[] — id, subjectType, score, verdict, strengths, weaknesses, concerns</span>
+                <span className="text-zinc-400">
+                  CriticEvaluation[] — id, subjectType, score, verdict, strengths, weaknesses,
+                  concerns
+                </span>
               </div>
               <div>
                 <span className="text-zinc-500">alerts</span>
                 <span className="text-zinc-600">: </span>
-                <span className="text-zinc-400">DirectorAlert[] — budget warnings raised during the session</span>
+                <span className="text-zinc-400">
+                  DirectorAlert[] — budget warnings raised during the session
+                </span>
               </div>
               <div>
                 <span className="text-zinc-500">snapshotWarnings</span>
                 <span className="text-zinc-600">: </span>
-                <span className="text-zinc-400">string[] — files that changed after the snapshot was captured</span>
+                <span className="text-zinc-400">
+                  string[] — files that changed after the snapshot was captured
+                </span>
               </div>
               <div>
                 <span className="text-zinc-500">summary</span>
                 <span className="text-zinc-600">: </span>
-                <span className="text-zinc-400">Markdown-formatted summary for the Director's context window</span>
+                <span className="text-zinc-400">
+                  Markdown-formatted summary for the Director's context window
+                </span>
               </div>
             </div>
           </div>
         </div>
         <div className="mt-8 grid gap-5 sm:grid-cols-3">
           {[
-            { title: 'Overall verdict', body: 'Computed as the worst evaluation across all subjects. One reject in any evaluation makes the whole report reject.' },
-            { title: 'Mid-run changes', body: 'snapshotWarnings lists files modified during the session. Useful for catching concurrent edits that invalidate findings.' },
-            { title: 'Cancellation audit', body: 'Cancelled sessions still produce a full report with disposition=cancelled. All partial findings are included.' },
+            {
+              title: 'Overall verdict',
+              body: 'Computed as the worst evaluation across all subjects. One reject in any evaluation makes the whole report reject.',
+            },
+            {
+              title: 'Mid-run changes',
+              body: 'snapshotWarnings lists files modified during the session. Useful for catching concurrent edits that invalidate findings.',
+            },
+            {
+              title: 'Cancellation audit',
+              body: 'Cancelled sessions still produce a full report with disposition=cancelled. All partial findings are included.',
+            },
           ].map(({ title, body }) => (
             <div key={title} className="rounded-xl border border-line bg-card p-5">
               <h3 className="font-black text-sm text-fg">{title}</h3>
@@ -379,9 +513,18 @@ export function CollabPage() {
               <h2 className="mt-8 text-xl font-black text-fg">Good targets</h2>
               <div className="mt-5 space-y-2">
                 {[
-                  { cmd: '/collab packages/core/src/agents/', desc: 'Single package directory — 10–15 files. Reliable in under 3 minutes.' },
-                  { cmd: '/collab packages/runtime/src/sessions/', desc: 'Subdirectory within a package — 5–8 files. Fast, focused results.' },
-                  { cmd: '/collab src/auth/ src/middleware/', desc: 'Multiple small targets — each 5–10 files. Handled in one snapshot.' },
+                  {
+                    cmd: '/collab packages/core/src/agents/',
+                    desc: 'Single package directory — 10–15 files. Reliable in under 3 minutes.',
+                  },
+                  {
+                    cmd: '/collab packages/runtime/src/sessions/',
+                    desc: 'Subdirectory within a package — 5–8 files. Fast, focused results.',
+                  },
+                  {
+                    cmd: '/collab src/auth/ src/middleware/',
+                    desc: 'Multiple small targets — each 5–10 files. Handled in one snapshot.',
+                  },
                 ].map(({ cmd, desc }) => (
                   <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                     <code className="font-mono text-sm font-black text-brand">{cmd}</code>
@@ -395,9 +538,18 @@ export function CollabPage() {
               <h2 className="mt-8 text-xl font-black text-fg">Avoid</h2>
               <div className="mt-5 space-y-2">
                 {[
-                  { cmd: '/collab packages/**/src/**/*.ts', desc: 'Entire monorepo — hundreds of files. Will throw a limit error immediately.' },
-                  { cmd: '/collab packages/core/src/', desc: 'Top-level package with deep nesting — often 150+ files. Split into subdirectories.' },
-                  { cmd: '--timeout 1800000', desc: 'Large timeout for big targets. Shrinking the target is always preferable to extending timeout.' },
+                  {
+                    cmd: '/collab packages/**/src/**/*.ts',
+                    desc: 'Entire monorepo — hundreds of files. Will throw a limit error immediately.',
+                  },
+                  {
+                    cmd: '/collab packages/core/src/',
+                    desc: 'Top-level package with deep nesting — often 150+ files. Split into subdirectories.',
+                  },
+                  {
+                    cmd: '--timeout 1800000',
+                    desc: 'Large timeout for big targets. Shrinking the target is always preferable to extending timeout.',
+                  },
                 ].map(({ cmd, desc }) => (
                   <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                     <code className="font-mono text-sm font-black text-faint">{cmd}</code>
@@ -424,9 +576,18 @@ export function CollabPage() {
             <h2 className="mt-8 text-xl font-black text-fg">Slash commands</h2>
             <div className="mt-5 space-y-3">
               {[
-                { cmd: '/collab src/auth/', desc: 'Run the trio on a specific directory. Default 10 min timeout, 30 file limit.' },
-                { cmd: '/collab --timeout 600000 src/auth/', desc: 'Custom session timeout in ms. Agents still have their own per-role budgets.' },
-                { cmd: '/collab --max-files 50 src/', desc: 'Override the file limit. Use cautiously — large snapshots cause token pressure.' },
+                {
+                  cmd: '/collab src/auth/',
+                  desc: 'Run the trio on a specific directory. Default 10 min timeout, 30 file limit.',
+                },
+                {
+                  cmd: '/collab --timeout 600000 src/auth/',
+                  desc: 'Custom session timeout in ms. Agents still have their own per-role budgets.',
+                },
+                {
+                  cmd: '/collab --max-files 50 src/',
+                  desc: 'Override the file limit. Use cautiously — large snapshots cause token pressure.',
+                },
               ].map(({ cmd, desc }) => (
                 <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                   <code className="font-mono text-sm font-black text-brand">{cmd}</code>
@@ -440,9 +601,18 @@ export function CollabPage() {
             <h2 className="mt-8 text-xl font-black text-fg">Quality gate integration</h2>
             <div className="mt-5 space-y-3">
               {[
-                { label: 'Automated review', body: 'quality_gate can spawn a collab session as part of its reviewer lane. The collab report feeds into the gate verdict.' },
-                { label: 'Repair loop', body: 'When the gate fails, the implementer receives the collab report as feedback. Fix → re-run collab → re-evaluate.' },
-                { label: 'Standalone alternatives', body: 'For quick scans without the full pipeline, run a standalone bug-hunter subagent. For lint/typecheck only, use the lint and typecheck tools directly.' },
+                {
+                  label: 'Automated review',
+                  body: 'quality_gate can spawn a collab session as part of its reviewer lane. The collab report feeds into the gate verdict.',
+                },
+                {
+                  label: 'Repair loop',
+                  body: 'When the gate fails, the implementer receives the collab report as feedback. Fix → re-run collab → re-evaluate.',
+                },
+                {
+                  label: 'Standalone alternatives',
+                  body: 'For quick scans without the full pipeline, run a standalone bug-hunter subagent. For lint/typecheck only, use the lint and typecheck tools directly.',
+                },
               ].map(({ label, body }) => (
                 <div key={label} className="rounded-lg border border-line bg-bg p-4">
                   <h3 className="font-black text-sm text-fg">{label}</h3>
@@ -457,14 +627,54 @@ export function CollabPage() {
           <h2 className="mt-8 text-xl font-black text-fg">When to use vs. alternatives</h2>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { scenario: 'New feature final review', use: 'Yes — full trio', icon: Check, color: 'text-emerald-400' },
-              { scenario: 'Planned refactor of one module', use: 'Yes — targeted collab', icon: Check, color: 'text-emerald-400' },
-              { scenario: 'Security vulnerability scan', use: 'Yes — BugHunter finds these', icon: Check, color: 'text-emerald-400' },
-              { scenario: 'Entire repository scan', use: 'No — package by package', icon: AlertTriangle, color: 'text-amber-400' },
-              { scenario: 'CI/CD automated check', use: 'No — single agent scan', icon: AlertTriangle, color: 'text-amber-400' },
-              { scenario: 'Quick lint or typecheck', use: 'No — use lint/typecheck', icon: AlertTriangle, color: 'text-amber-400' },
-              { scenario: '1000+ line file review', use: 'Caution — review alone', icon: AlertTriangle, color: 'text-amber-400' },
-              { scenario: 'Broad architecture audit', use: 'No — standalone scan', icon: AlertTriangle, color: 'text-amber-400' },
+              {
+                scenario: 'New feature final review',
+                use: 'Yes — full trio',
+                icon: Check,
+                color: 'text-emerald-400',
+              },
+              {
+                scenario: 'Planned refactor of one module',
+                use: 'Yes — targeted collab',
+                icon: Check,
+                color: 'text-emerald-400',
+              },
+              {
+                scenario: 'Security vulnerability scan',
+                use: 'Yes — BugHunter finds these',
+                icon: Check,
+                color: 'text-emerald-400',
+              },
+              {
+                scenario: 'Entire repository scan',
+                use: 'No — package by package',
+                icon: AlertTriangle,
+                color: 'text-amber-400',
+              },
+              {
+                scenario: 'CI/CD automated check',
+                use: 'No — single agent scan',
+                icon: AlertTriangle,
+                color: 'text-amber-400',
+              },
+              {
+                scenario: 'Quick lint or typecheck',
+                use: 'No — use lint/typecheck',
+                icon: AlertTriangle,
+                color: 'text-amber-400',
+              },
+              {
+                scenario: '1000+ line file review',
+                use: 'Caution — review alone',
+                icon: AlertTriangle,
+                color: 'text-amber-400',
+              },
+              {
+                scenario: 'Broad architecture audit',
+                use: 'No — standalone scan',
+                icon: AlertTriangle,
+                color: 'text-amber-400',
+              },
             ].map(({ scenario, use, icon: Icon, color }) => (
               <div key={scenario} className="rounded-lg border border-line bg-bg p-4">
                 <Icon className={`size-3.5 ${color}`} />

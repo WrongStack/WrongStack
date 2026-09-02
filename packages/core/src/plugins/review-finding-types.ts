@@ -26,12 +26,7 @@ export type FindingSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type FindingStatus = 'active' | 'triaged' | 'in_progress' | 'resolved' | 'ignored';
 
 /** How a resolved finding was concluded. */
-export type ResolutionOutcome =
-  | 'fixed'
-  | 'wontfix'
-  | 'duplicate'
-  | 'false_positive'
-  | 'stale';
+export type ResolutionOutcome = 'fixed' | 'wontfix' | 'duplicate' | 'false_positive' | 'stale';
 
 /** What type of agent produced the review report. */
 export type FindingSource = 'auto' | 'chimera' | 'cascade' | 'security-scanner';
@@ -228,7 +223,7 @@ export function normalizeFingerprintTitle(title: string): string {
     .trim()
     .toLowerCase()
     .replace(/[^\w\s]/g, '') // strip punctuation
-    .replace(/\s+/g, ' ')    // collapse whitespace
+    .replace(/\s+/g, ' ') // collapse whitespace
     .trim();
 }
 
@@ -267,10 +262,7 @@ const TRANSITION_MATRIX: Record<FindingStatus, ReadonlySet<FindingStatus>> = {
  * Check whether a status transition is valid per the state machine.
  * Throws InvalidTransitionError for invalid transitions.
  */
-export function validateTransition(
-  from: FindingStatus,
-  to: FindingStatus,
-): void {
+export function validateTransition(from: FindingStatus, to: FindingStatus): void {
   if (from === to) return; // same status is idempotent
   const allowed = TRANSITION_MATRIX[from];
   if (!allowed?.has(to)) {

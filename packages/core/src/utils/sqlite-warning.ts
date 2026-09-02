@@ -1,7 +1,8 @@
 const SQLITE_EXPERIMENTAL_WARNING_RE = /sqlite is an experimental feature/i;
 
 function isSqliteExperimentalWarning(warning: unknown, rest: readonly unknown[]): boolean {
-  const message = typeof warning === 'string' ? warning : warning instanceof Error ? warning.message : '';
+  const message =
+    typeof warning === 'string' ? warning : warning instanceof Error ? warning.message : '';
   const typeOrOptions = rest[0];
   const warningType =
     typeof warning === 'string'

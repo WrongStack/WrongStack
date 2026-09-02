@@ -90,7 +90,7 @@ describe('DirectorTaskRegistry', () => {
     expect(JSON.parse(registry.rollUp(['t-1'], 'json'))[0]).toMatchObject({ taskId: 't-1' });
   });
 
-  it('removeTasksOwnedBy reclaims only the given owner\'s descriptions/owners and is idempotent', async () => {
+  it("removeTasksOwnedBy reclaims only the given owner's descriptions/owners and is idempotent", async () => {
     // Regression (RAM-leak audit 2026-08-01): on the default FleetManager path
     // Director.remove() never called removeTasks (its only call site was gated
     // behind the empty manifestEntries map), so descriptions (full task briefs)

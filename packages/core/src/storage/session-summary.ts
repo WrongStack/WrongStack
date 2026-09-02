@@ -19,7 +19,10 @@ export function compareSessionSummaries(a: SessionSummary, b: SessionSummary): n
   return a.id.localeCompare(b.id);
 }
 
-export function matchesSessionFilter(summary: SessionSummary, criteria: SessionFilterCriteria): boolean {
+export function matchesSessionFilter(
+  summary: SessionSummary,
+  criteria: SessionFilterCriteria,
+): boolean {
   if (criteria.since && summary.startedAt < criteria.since) return false;
   if (criteria.until && summary.startedAt > criteria.until) return false;
   if (criteria.provider && summary.provider !== criteria.provider) return false;

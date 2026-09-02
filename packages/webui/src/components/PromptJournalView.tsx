@@ -89,9 +89,7 @@ export function PromptJournalView() {
       // Narrow the journal to the manually-entered user prompts and their
       // refined copies only; ignore every other category the recorder writes
       // so the page is strictly a record of what the user submitted.
-      const entries = (payload.entries ?? []).filter((e) =>
-        TRACKED_CATEGORIES.has(e.category),
-      );
+      const entries = (payload.entries ?? []).filter((e) => TRACKED_CATEGORIES.has(e.category));
       setEntries(entries);
       setError(payload.error ?? null);
       setLoading(false);
@@ -156,13 +154,13 @@ export function PromptJournalView() {
             {t('activity:promptJournal.refresh')}
           </button>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t('activity:promptJournal.subtitle')}
-        </p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('activity:promptJournal.subtitle')}</p>
         {enabled && stats.count > 0 && (
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span>{t('activity:promptJournal.statEntries', { count: stats.count })}</span>
-            <span>{t('activity:promptJournal.statTokens', { count: stats.tokens.toLocaleString() })}</span>
+            <span>
+              {t('activity:promptJournal.statTokens', { count: stats.tokens.toLocaleString() })}
+            </span>
           </div>
         )}
       </div>
@@ -285,8 +283,7 @@ function JournalEntryCard({
   // `entry.rawContent` whenever the refiner rewrote the original. No model,
   // provider, iteration, duration, tool list, context file, or rationale —
   // those are out of scope for this view.
-  const hasRefinedDiff =
-    entry.rawContent !== undefined && entry.rawContent !== entry.content;
+  const hasRefinedDiff = entry.rawContent !== undefined && entry.rawContent !== entry.content;
 
   return (
     <li className="rounded-lg border border-border/70 bg-card/60">

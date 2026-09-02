@@ -64,18 +64,30 @@ const SAGE_TABS: ReadonlyArray<{
   hint: string;
   Icon: typeof BrainCircuit;
 }> = [
-  { value: 'all', label: 'activity:memoryManager.tabAllMemories', hint: 'activity:memoryManager.tabAllMemoriesHint', Icon: ListFilter },
-  { value: 'audience', label: 'activity:memoryManager.tabAudience', hint: 'activity:memoryManager.tabAudienceHint', Icon: Users2 },
-  { value: 'vector', label: 'activity:memoryManager.tabVectorMemory', hint: 'activity:memoryManager.tabVectorMemoryHint', Icon: Network },
+  {
+    value: 'all',
+    label: 'activity:memoryManager.tabAllMemories',
+    hint: 'activity:memoryManager.tabAllMemoriesHint',
+    Icon: ListFilter,
+  },
+  {
+    value: 'audience',
+    label: 'activity:memoryManager.tabAudience',
+    hint: 'activity:memoryManager.tabAudienceHint',
+    Icon: Users2,
+  },
+  {
+    value: 'vector',
+    label: 'activity:memoryManager.tabVectorMemory',
+    hint: 'activity:memoryManager.tabVectorMemoryHint',
+    Icon: Network,
+  },
 ];
 
 export function SageTabs({ defaultValue = 'all' }: { defaultValue?: SageTabValue } = {}) {
   const { t } = useAppTranslation();
   return (
-    <Tabs
-      defaultValue={defaultValue}
-      className="flex h-full min-h-0 min-w-0 flex-1 flex-col"
-    >
+    <Tabs defaultValue={defaultValue} className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
       <div
         className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card/55 px-4 py-2 sm:px-5"
         role="presentation"
@@ -128,7 +140,9 @@ export function SageTabs({ defaultValue = 'all' }: { defaultValue?: SageTabValue
         value="vector"
         className="mt-0 flex-1 overflow-y-auto px-4 pb-6 pt-4 ring-offset-0 focus-visible:ring-0 sm:px-5"
       >
-        <Suspense fallback={<TabFallback label={t('activity:memoryManager.loadingVectorMemory')} />}>
+        <Suspense
+          fallback={<TabFallback label={t('activity:memoryManager.loadingVectorMemory')} />}
+        >
           <VectorMemoryPanel />
         </Suspense>
       </TabsContent>

@@ -43,12 +43,7 @@ export interface ServiceActionResult {
 }
 
 /** Server→client auto-heal visibility event (`connections.auto_heal_status`). */
-export type AutoHealStatusPhase =
-  | 'restarting'
-  | 'restarted'
-  | 'failed'
-  | 'escalated'
-  | 'refused';
+export type AutoHealStatusPhase = 'restarting' | 'restarted' | 'failed' | 'escalated' | 'refused';
 
 export interface AutoHealStatusEvent {
   serviceId: ConnectionHealthService['id'] | null;

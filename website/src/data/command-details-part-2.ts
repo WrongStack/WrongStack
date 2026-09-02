@@ -1,7 +1,6 @@
 import type { CommandDetailMap } from './command-detail-types';
 
 export const commandDetailsPart2: CommandDetailMap = {
-
   '/agents': {
     purpose:
       'Monitor agents, timeline events, and per-agent transcripts — the agent observability dashboard.',
@@ -15,9 +14,9 @@ export const commandDetailsPart2: CommandDetailMap = {
 
   '/agent-improve': {
     purpose:
-      "Inspect and develop a roster agent for this project — what it has learned, which of its skills the project has extended, and when the next distillation runs.",
+      'Inspect and develop a roster agent for this project — what it has learned, which of its skills the project has extended, and when the next distillation runs.',
     behavior:
-      "`/agent-improve` lists roles with project customization; `<role> show` summarizes its identity, learned directives and developed skills. `<role> capture` re-scans the last turn for `## LEARNED` blocks. `<role> optimize` distils captured directives into per-skill project addenda plus a consolidated role document, archives the raw buffer and resets it. `<role> skills` shows each skill with its project affinity; add a skill name to print its addendum, or `pin`/`unpin` to force it in or out of the eager load set.",
+      '`/agent-improve` lists roles with project customization; `<role> show` summarizes its identity, learned directives and developed skills. `<role> capture` re-scans the last turn for `## LEARNED` blocks. `<role> optimize` distils captured directives into per-skill project addenda plus a consolidated role document, archives the raw buffer and resets it. `<role> skills` shows each skill with its project affinity; add a skill name to print its addendum, or `pin`/`unpin` to force it in or out of the eager load set.',
     before:
       'Nothing is required — capture and distillation run automatically. Reach for the command when you want to read what an agent has learned, teach it something directly, or force a pass early.',
     during:
@@ -32,10 +31,8 @@ export const commandDetailsPart2: CommandDetailMap = {
     behavior:
       'Director Mode is now always active. Fleet orchestration tools (spawn, assign, monitor, terminate) are available on every session without any command or flag. The `/director` slash command is a no-op that always succeeds.',
     before: 'No preparation needed — Director Mode is always on.',
-    during:
-      'Fleet orchestration tools are available without any promotion step.',
-    after:
-      'No action needed. Manage your fleet via /spawn, /fleet, /delegate, and /agents.',
+    during: 'Fleet orchestration tools are available without any promotion step.',
+    after: 'No action needed. Manage your fleet via /spawn, /fleet, /delegate, and /agents.',
   },
 
   '/delegate': {
@@ -58,8 +55,7 @@ export const commandDetailsPart2: CommandDetailMap = {
       '`/fleet` shows a snapshot of all subagents, coordinator counts, and pending tasks. `/fleet status` shows live state. `/fleet usage` shows token and cost breakdowns per agent. `/fleet health` shows budget pressure and activity. `/fleet dispatch` sends work to the fleet. `/fleet session <id>` reads agent transcripts.',
     before:
       'No preparation needed. Run it whenever you want visibility into your fleet operations.',
-    during:
-      'Status output updates live. Usage reports show cumulative and per-agent breakdowns.',
+    during: 'Status output updates live. Usage reports show cumulative and per-agent breakdowns.',
     after:
       'Use `/fleet health` to identify agents near budget limits. Terminate idle agents to free resources.',
   },
@@ -71,8 +67,7 @@ export const commandDetailsPart2: CommandDetailMap = {
       'The command sends the same task to multiple installed ACP agents (Claude Code, Codex CLI, Gemini CLI, etc.) in parallel. Each agent works independently with its own tools and context. Results are collected and presented side by side for comparison or voting.',
     before:
       'Install and configure the ACP agents you want to use. Verify they are discoverable with `/acp probe`.',
-    during:
-      'Each agent runs in parallel. Progress indicators show which agents are still working.',
+    during: 'Each agent runs in parallel. Progress indicators show which agents are still working.',
     after:
       'Compare results. Ensemble works best for review tasks, architecture decisions, and solution comparison.',
   },
@@ -82,12 +77,10 @@ export const commandDetailsPart2: CommandDetailMap = {
       'Start structured live collaboration helpers — BugHunter, RefactorPlanner, and Critic run in parallel on target files.',
     behavior:
       'The collaboration workflow spawns three specialist agents simultaneously: BugHunter scans for bugs, RefactorPlanner proposes improvements, and Critic evaluates both. Events flow between them on the FleetBus. The final report aggregates findings with an overall verdict.',
-    before:
-      'Identify the target files or directories. Narrow scope for faster results.',
+    before: 'Identify the target files or directories. Narrow scope for faster results.',
     during:
       'Agents emit events on the FleetBus as they find issues. The Critic evaluates in real time.',
-    after:
-      'Review the structured report. Address bugs first, then consider refactor suggestions.',
+    after: 'Review the structured report. Address bugs first, then consider refactor suggestions.',
   },
 
   '/brain': {
@@ -123,8 +116,7 @@ export const commandDetailsPart2: CommandDetailMap = {
       'The project mailbox is a shared message store for all agents working on the same project. `/mailbox` shows unread messages. `/mailbox send` sends a typed message (note, ask, assign, steer, broadcast, etc.). `/mailbox query` filters messages. Messages support priorities, read receipts, and completion tracking.',
     before:
       'Check `/mailbox` when starting work to see if other agents have left messages or assignments for you.',
-    during:
-      'Unread messages appear inline. Sending confirms with a message ID.',
+    during: 'Unread messages appear inline. Sending confirms with a message ID.',
     after:
       'Acknowledge completed assignments with `/mailbox ack`. Broadcast milestones so peers avoid duplicate work.',
   },
@@ -157,8 +149,7 @@ export const commandDetailsPart2: CommandDetailMap = {
       'Start and manage a shadow fleet monitor — a background agent that watches fleet health and detects anomalies.',
     behavior:
       'The Shadow Agent runs silently, checking fleet heartbeats, detecting stuck agents, tracking spike tasks (agents that start and die quickly), and monitoring mailbox traffic. `/shadow start` activates it. `/shadow status` shows its current snapshot. `/shadow stop` deactivates it. It can auto-intervene if configured.',
-    before:
-      'Decide whether you want automatic intervention or observation-only mode.',
+    before: 'Decide whether you want automatic intervention or observation-only mode.',
     during:
       'The Shadow runs on a cron schedule. Its findings appear as status events in the mailbox.',
     after:
@@ -172,8 +163,7 @@ export const commandDetailsPart2: CommandDetailMap = {
       'The Supervisor sits between the Director and the fleet, evaluating every spawn, assign, and tool escalation against Brain risk thresholds. `/supervisor status` shows current state. `/supervisor on` enables it. `/supervisor off` disables it (not recommended for production work).',
     before:
       'Understand the risk implications of disabling the Supervisor. It prevents runaway fleet behavior.',
-    during:
-      'Status shows recent decisions: approved, blocked, and escalated actions.',
+    during: 'Status shows recent decisions: approved, blocked, and escalated actions.',
     after:
       'Review blocked actions to understand why they were rejected. Adjust Brain risk levels if the Supervisor is too strict.',
   },
@@ -187,8 +177,7 @@ export const commandDetailsPart2: CommandDetailMap = {
       'Install the ACP agents you want to use. Run `/acp probe` to verify they are reachable.',
     during:
       'The external agent runs with its own tools and context. Progress is streamed back to WrongStack.',
-    after:
-      'Review the external agent output. Results are captured in the session transcript.',
+    after: 'Review the external agent output. Results are captured in the session transcript.',
   },
 
   '/hq': {
@@ -237,10 +226,8 @@ export const commandDetailsPart2: CommandDetailMap = {
       '`/models` lists all configured models (built-in + custom). `/models add` registers a new model with provider, context window, pricing, and capability metadata. `/models remove` deletes a custom entry. Custom models appear in `/setmodel` and `/modelcaps` alongside built-ins.',
     before:
       'Have the model metadata ready: provider name, model ID, context window size, and pricing if known.',
-    during:
-      'Custom model registration validates the metadata and adds it to the registry.',
-    after:
-      'Verify the new model appears in `/modelcaps` and can be selected with `/setmodel`.',
+    during: 'Custom model registration validates the metadata and adds it to the registry.',
+    after: 'Verify the new model appears in `/modelcaps` and can be selected with `/setmodel`.',
   },
 
   '/modelcaps': {
@@ -249,7 +236,8 @@ export const commandDetailsPart2: CommandDetailMap = {
     behavior:
       'The command prints a browsable table of all registered models with columns: provider, context window, max output tokens, pricing (input/output per 1M tokens), capabilities (vision, reasoning, tool use), and status. Custom models added via `/models` appear alongside built-ins.',
     before: 'No preparation needed. Run it when deciding which model to use for a task.',
-    during: 'The table prints with sortable columns. Use search to filter by provider or capability.',
+    during:
+      'The table prints with sortable columns. Use search to filter by provider or capability.',
     after:
       'Select a model with `/setmodel <id>`. Consider using cheaper models for simple tasks and premium models for complex work.',
   },
@@ -261,8 +249,7 @@ export const commandDetailsPart2: CommandDetailMap = {
       'By default, tools require confirmation before execution. `/yolo` enables automatic approval — the agent runs tools without asking. `/yolo off` restores confirmations. `/yolo` without arguments shows the current state. YOLO mode is session-scoped and resets on restart. Explicit deny rules still apply.',
     before:
       'Only enable YOLO when you fully trust the agent and the working directory. Review the permission policy first.',
-    during:
-      'The status line updates to show YOLO is active. Tools execute without prompting.',
+    during: 'The status line updates to show YOLO is active. Tools execute without prompting.',
     after:
       'Monitor agent actions more closely in YOLO mode. Disable it when you need to review each step.',
   },
@@ -287,8 +274,7 @@ export const commandDetailsPart2: CommandDetailMap = {
       'The TUI status line shows mode, model, token usage, goal, YOLO state, and more. `/statusline` lists available instruments. `/statusline <instrument> on|off` toggles visibility. You can create a minimal bar for focus or a dense bar for full situational awareness.',
     before:
       'Decide which information you need visible at all times vs. what you can check on demand.',
-    during:
-      'The status bar updates immediately. Changes persist for the session.',
+    during: 'The status bar updates immediately. Changes persist for the session.',
     after:
       'Observe the status bar for a few turns. Adjust if it feels too sparse or too cluttered.',
   },
@@ -300,8 +286,7 @@ export const commandDetailsPart2: CommandDetailMap = {
       'Fallback chains let you specify backup models. `/fallback` shows the current chain. `/fallback add <model>` appends a fallback. `/fallback remove <model>` removes one. When the primary model errors, times out, or exceeds budget, the next fallback in the chain is tried automatically.',
     before:
       'Identify reliable backup models. Fallbacks should have different failure characteristics than the primary.',
-    during:
-      'The chain prints in order. Fallback events are logged when they activate.',
+    during: 'The chain prints in order. Fallback events are logged when they activate.',
     after:
       'Monitor fallback usage in `/stats`. Frequent fallbacks suggest the primary model is unreliable for your workload.',
   },

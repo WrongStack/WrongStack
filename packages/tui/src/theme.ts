@@ -1,11 +1,5 @@
 import { baseTheme, themePresets } from './theme-presets.js';
-import type {
-  SyntaxPalette,
-  SyntaxRole,
-  Theme,
-  ThemeListener,
-  ThemeName,
-} from './theme-types.js';
+import type { SyntaxPalette, SyntaxRole, Theme, ThemeListener, ThemeName } from './theme-types.js';
 import {
   mixHexColors,
   resolveSyntaxColor as resolveSyntaxColorFn,
@@ -13,7 +7,7 @@ import {
   softColorWithTheme,
 } from './theme-utils.js';
 
-export { baseTheme, THEME_OPTIONS, themePresets } from './theme-presets.js';;
+export { baseTheme, THEME_OPTIONS, themePresets } from './theme-presets.js';
 export type {
   SyntaxPalette,
   SyntaxRole,
@@ -21,7 +15,7 @@ export type {
   ThemeName,
   ThemePickerOption,
 } from './theme-types.js';
-export { catppuccin, detectSupportsBackground, pastel, SYNTAX_TOKEN } from './theme-utils.js';;
+export { catppuccin, detectSupportsBackground, pastel, SYNTAX_TOKEN } from './theme-utils.js';
 
 export const theme: Theme = { ...baseTheme };
 

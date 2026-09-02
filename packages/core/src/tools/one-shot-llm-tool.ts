@@ -1,5 +1,9 @@
 import type { JSONSchema, Tool } from '../types/tool.js';
-import type { OneShotLLMInput, OneShotLLMResult, OneShotOrchestratorOptions } from '../types/one-shot-llm.js';
+import type {
+  OneShotLLMInput,
+  OneShotLLMResult,
+  OneShotOrchestratorOptions,
+} from '../types/one-shot-llm.js';
 import { OneShotOrchestrator } from '../execution/one-shot-llm.js';
 
 /**
@@ -80,7 +84,8 @@ const INPUT_SCHEMA: JSONSchema = {
         required: ['role', 'content'],
         additionalProperties: true,
       },
-      description: 'Conversation messages for few-shot examples or multi-turn context. Appended before userPrompt when both are set.',
+      description:
+        'Conversation messages for few-shot examples or multi-turn context. Appended before userPrompt when both are set.',
     },
     model: {
       type: 'string',
@@ -97,7 +102,8 @@ const INPUT_SCHEMA: JSONSchema = {
     fallbackModels: {
       type: 'array',
       items: { type: 'string' },
-      description: 'Explicit fallback model chain (e.g. ["anthropic/claude-haiku", "openai/gpt-4o-mini"]). Resolved named profiles from FallbackProfileManager are passed here.',
+      description:
+        'Explicit fallback model chain (e.g. ["anthropic/claude-haiku", "openai/gpt-4o-mini"]). Resolved named profiles from FallbackProfileManager are passed here.',
     },
     maxTokens: {
       type: 'number',
@@ -119,7 +125,8 @@ const INPUT_SCHEMA: JSONSchema = {
           additionalProperties: false,
         },
       ],
-      description: 'Response format: "text" (default), "json_object", or { type: "json_schema", json_schema: {...} }.',
+      description:
+        'Response format: "text" (default), "json_object", or { type: "json_schema", json_schema: {...} }.',
     },
     temperature: {
       type: 'number',
@@ -153,7 +160,9 @@ const INPUT_SCHEMA: JSONSchema = {
  * toolRegistry.register(createOneShotLLMTool({ buildProvider, getConfig }));
  * ```
  */
-export function createOneShotLLMTool(opts: CreateOneShotLLMToolOptions): Tool<OneShotLLMInput, OneShotLLMResult> {
+export function createOneShotLLMTool(
+  opts: CreateOneShotLLMToolOptions,
+): Tool<OneShotLLMInput, OneShotLLMResult> {
   const orchestrator = new OneShotOrchestrator({
     buildProvider: opts.buildProvider,
     getConfig: opts.getConfig,

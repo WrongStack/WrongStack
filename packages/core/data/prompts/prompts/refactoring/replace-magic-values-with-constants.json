@@ -5,10 +5,7 @@
   "description": "Name unexplained literals scattered through code.",
   "content": "This code has unexplained magic numbers or strings:\n\n{{code}}\n\nReplace them with well-named constants (or an enum) that say what the value MEANS, not just what it is. Group related ones and put them where they belong. Distinguish a true magic value from a self-evident literal (0, 1, an empty string) that needs no name. Show the before and after, and flag any literal whose duplication was hiding a bug.",
   "category": "refactoring",
-  "tags": [
-    "constants",
-    "readability"
-  ],
+  "tags": ["constants", "readability"],
   "source": "builtin",
   "favorite": false,
   "checksum": "f2adc67ddc5f0b9fe7d761a769612beb746d953a34fe282d6c9c10444cb61d36",

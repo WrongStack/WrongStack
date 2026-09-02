@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { DEFAULT_PANEL_POSITIONS } from '../src/ui-contracts.js';
-import {
-  SettingsPicker,
-  settingsPickerJumpByName,
-} from '../src/components/settings-picker.js';
+import { SettingsPicker, settingsPickerJumpByName } from '../src/components/settings-picker.js';
 
 // ── Minimal props factory ──────────────────────────────────────────────
 // SettingsPicker has 30+ props. This factory covers every required field
@@ -79,9 +76,7 @@ describe('SettingsPicker filter mode', () => {
           baseProps({ profileConfigPath: '~/.wrongstack/profiles/work/config.json' }),
         ),
       );
-      expect(lastFrame() ?? '').toContain(
-        'Persisted to ~/.wrongstack/profiles/work/config.json',
-      );
+      expect(lastFrame() ?? '').toContain('Persisted to ~/.wrongstack/profiles/work/config.json');
     });
 
     it('keeps the project path for project-scoped settings', () => {
@@ -94,9 +89,7 @@ describe('SettingsPicker filter mode', () => {
           }),
         ),
       );
-      expect(lastFrame() ?? '').toContain(
-        'Persisted to <project>/.wrongstack/config.json',
-      );
+      expect(lastFrame() ?? '').toContain('Persisted to <project>/.wrongstack/config.json');
     });
   });
 
@@ -118,9 +111,7 @@ describe('SettingsPicker filter mode', () => {
     it('keeps the Display header visible when the last row is selected', () => {
       const field = settingsPickerJumpByName('Agent swarm panel');
       expect(field).toBeDefined();
-      const { lastFrame } = render(
-        React.createElement(SettingsPicker, baseProps({ field })),
-      );
+      const { lastFrame } = render(React.createElement(SettingsPicker, baseProps({ field })));
       const frame = lastFrame() ?? '';
       expect(frame).toContain('Display');
       expect(frame).toContain('Agent swarm panel');
@@ -428,9 +419,7 @@ describe('SettingsPicker filter mode', () => {
   describe('filter edge cases', () => {
     it('treats a bare "/" (no query text) as inactive (shows all rows)', () => {
       // filter length === 1 (just the leading /) → filterActive is false.
-      const { lastFrame } = render(
-        React.createElement(SettingsPicker, baseProps({ filter: '/' })),
-      );
+      const { lastFrame } = render(React.createElement(SettingsPicker, baseProps({ filter: '/' })));
       const frame = lastFrame() ?? '';
       // Should NOT show the filter indicator — "/" alone doesn't activate.
       expect(frame).not.toContain('Filter: /');
@@ -442,16 +431,12 @@ describe('SettingsPicker filter mode', () => {
       const { lastFrame: withEmpty } = render(
         React.createElement(SettingsPicker, baseProps({ filter: '' })),
       );
-      const { lastFrame: withoutFilter } = render(
-        React.createElement(SettingsPicker, baseProps()),
-      );
+      const { lastFrame: withoutFilter } = render(React.createElement(SettingsPicker, baseProps()));
       expect(withEmpty()).toBe(withoutFilter());
     });
 
     it('shows the full label text in normal mode (no segmentation artifacts)', () => {
-      const { lastFrame } = render(
-        React.createElement(SettingsPicker, baseProps({ field: 21 })),
-      );
+      const { lastFrame } = render(React.createElement(SettingsPicker, baseProps({ field: 21 })));
       const frame = lastFrame() ?? '';
       // Field 21 = Multi-diff summary; it should be visible and intact.
       expect(frame).toContain('Multi-diff summary');

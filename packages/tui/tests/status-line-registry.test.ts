@@ -76,10 +76,9 @@ describe('partitionRailEntries', () => {
   });
 
   it('falls back to the builder line for ids outside the contract (override impossible)', () => {
-    const rails = partitionRailEntries(
-      [{ entries: [entry('mystery-span')], fallbackLine: 4 }],
-      { todos: 1 },
-    );
+    const rails = partitionRailEntries([{ entries: [entry('mystery-span')], fallbackLine: 4 }], {
+      todos: 1,
+    });
     expect(rails[3]!.entries.map((e) => e.id)).toEqual(['mystery-span']);
   });
 

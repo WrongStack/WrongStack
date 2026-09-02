@@ -4,20 +4,22 @@ const mockExecFileSync = vi.fn((_cmd: string, _args: string[], _options?: unknow
   // Default behavior: alternating flaky result across runs is driven per-test.
   return '';
 });
-const mockExecFile = vi.fn((
-  cmd: string,
-  args: string[],
-  options: unknown,
-  callback: (error: Error | null, stdout: string, stderr: string) => void,
-) => {
-  try {
-    callback(null, mockExecFileSync(cmd, args, options), '');
-  } catch (error) {
-    const failure = error as Error & { stdout?: string; stderr?: string };
-    callback(failure, failure.stdout ?? '', failure.stderr ?? '');
-  }
-  return {};
-});
+const mockExecFile = vi.fn(
+  (
+    cmd: string,
+    args: string[],
+    options: unknown,
+    callback: (error: Error | null, stdout: string, stderr: string) => void,
+  ) => {
+    try {
+      callback(null, mockExecFileSync(cmd, args, options), '');
+    } catch (error) {
+      const failure = error as Error & { stdout?: string; stderr?: string };
+      callback(failure, failure.stdout ?? '', failure.stderr ?? '');
+    }
+    return {};
+  },
+);
 
 vi.mock('node:child_process', () => ({
   execFile: mockExecFile,
@@ -53,7 +55,9 @@ function getTool(api: MockApi, name: string): { execute: (input: unknown) => Pro
   return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
-function getTools(api: MockApi): Array<{ name: string; permission: string; category: string; mutating: boolean }> {
+function getTools(
+  api: MockApi,
+): Array<{ name: string; permission: string; category: string; mutating: boolean }> {
   return api.tools.register.mock.calls.map((c) => {
     const t = c[0] as { name: string; permission: string; category: string; mutating: boolean };
     return { name: t.name, permission: t.permission, category: t.category, mutating: t.mutating };
@@ -139,7 +143,10 @@ describe('test-flake-detector plugin', () => {
 
     expect(result.ok).toBe(true);
     expect(result.flakyTests).toHaveLength(0);
-    expect(result.alwaysPassing.map((t) => t.test).sort()).toEqual(['always passes', 'always passes too']);
+    expect(result.alwaysPassing.map((t) => t.test).sort()).toEqual([
+      'always passes',
+      'always passes too',
+    ]);
     expect(result.alwaysFailing.map((t) => t.test)).toEqual(['always fails']);
   });
 
@@ -159,7 +166,12 @@ describe('test-flake-detector plugin', () => {
     expect(result.command).toBe('pnpm vitest run --reporter=verbose pattern');
     expect(mockExecFileSync).toHaveBeenCalledWith(
       process.execPath,
-      [expect.stringMatching(/[\\/]vitest[\\/]vitest\.mjs$/), 'run', '--reporter=verbose', 'pattern'],
+      [
+        expect.stringMatching(/[\\/]vitest[\\/]vitest\.mjs$/),
+        'run',
+        '--reporter=verbose',
+        'pattern',
+      ],
       expect.objectContaining({ shell: false }),
     );
   });
@@ -167,10 +179,15 @@ describe('test-flake-detector plugin', () => {
   it('falls back to configured default command', async () => {
     mockExecFileSync.mockReturnValue('  ✓ default test\n');
 
-    const api = makeApi({ extensions: { 'test-flake-detector': { defaultCommand: 'npx vitest run' } } });
+    const api = makeApi({
+      extensions: { 'test-flake-detector': { defaultCommand: 'npx vitest run' } },
+    });
     flakePlugin.setup(api as never);
     const detect = getTool(api, 'flake_detect');
-    const result = (await detect.execute({ testPattern: 'src/baz.test.ts' })) as { ok: boolean; command: string };
+    const result = (await detect.execute({ testPattern: 'src/baz.test.ts' })) as {
+      ok: boolean;
+      command: string;
+    };
 
     expect(result.ok).toBe(true);
     expect(result.command).toBe('npx vitest run src/baz.test.ts');

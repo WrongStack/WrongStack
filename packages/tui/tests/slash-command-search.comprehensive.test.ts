@@ -1,9 +1,6 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
-import {
-  buildSlashCommandMatches,
-  selectedSlashCommandLine,
-} from '../src/slash-command-search.js';
+import { buildSlashCommandMatches, selectedSlashCommandLine } from '../src/slash-command-search.js';
 
 function command(overrides: Partial<SlashCommand> & Pick<SlashCommand, 'name'>): SlashCommand {
   return {
@@ -23,12 +20,16 @@ describe('selectedSlashCommandLine', () => {
   });
 
   it('returns /name of the selected match', () => {
-    const matches = [{ name: 'settings', description: 'Config', isBuiltin: true, category: 'Config' as const }];
+    const matches = [
+      { name: 'settings', description: 'Config', isBuiltin: true, category: 'Config' as const },
+    ];
     expect(selectedSlashCommandLine({ open: true, matches, selected: 0 })).toBe('/settings');
   });
 
   it('returns null when selected index is out of bounds', () => {
-    const matches = [{ name: 'settings', description: 'Config', isBuiltin: true, category: 'Config' as const }];
+    const matches = [
+      { name: 'settings', description: 'Config', isBuiltin: true, category: 'Config' as const },
+    ];
     expect(selectedSlashCommandLine({ open: true, matches, selected: 5 })).toBeNull();
   });
 });
@@ -41,10 +42,22 @@ describe('buildSlashCommandMatches', () => {
       owner: 'core',
       fullName: 'telegram-settings',
     },
-    { cmd: command({ name: 'session', aliases: ['resume'], category: 'Session' }), owner: 'core', fullName: 'session' },
+    {
+      cmd: command({ name: 'session', aliases: ['resume'], category: 'Session' }),
+      owner: 'core',
+      fullName: 'session',
+    },
     { cmd: command({ name: 'f1', hidden: true, category: 'App' }), owner: 'core', fullName: 'f1' },
-    { cmd: command({ name: 'plugin', aliases: ['pl'], category: 'App' }), owner: 'myplugin', fullName: 'myplugin:plugin' },
-    { cmd: command({ name: 'help', category: 'App', aliases: ['?'] }), owner: 'core', fullName: 'help' },
+    {
+      cmd: command({ name: 'plugin', aliases: ['pl'], category: 'App' }),
+      owner: 'myplugin',
+      fullName: 'myplugin:plugin',
+    },
+    {
+      cmd: command({ name: 'help', category: 'App', aliases: ['?'] }),
+      owner: 'core',
+      fullName: 'help',
+    },
   ];
 
   it('uses prefix matching, so settings does not match telegram-settings', () => {
@@ -59,17 +72,27 @@ describe('buildSlashCommandMatches', () => {
 
   it('matches aliases by prefix and marks the matched alias', () => {
     const matches = buildSlashCommandMatches(entries, 'tg');
-    expect(matches).toMatchObject([
-      { name: 'telegram-settings', matchedAlias: 'tg-settings' },
-    ]);
+    expect(matches).toMatchObject([{ name: 'telegram-settings', matchedAlias: 'tg-settings' }]);
   });
 
   it('orders exact aliases before name-prefix matches', () => {
     const matches = buildSlashCommandMatches(
       [
-        { cmd: command({ name: 'settings', aliases: ['set'] }), owner: 'core', fullName: 'settings' },
-        { cmd: command({ name: 'setmodel', category: 'Config' }), owner: 'core', fullName: 'setmodel' },
-        { cmd: command({ name: 'tool', aliases: ['settings-tool'] }), owner: 'core', fullName: 'tool' },
+        {
+          cmd: command({ name: 'settings', aliases: ['set'] }),
+          owner: 'core',
+          fullName: 'settings',
+        },
+        {
+          cmd: command({ name: 'setmodel', category: 'Config' }),
+          owner: 'core',
+          fullName: 'setmodel',
+        },
+        {
+          cmd: command({ name: 'tool', aliases: ['settings-tool'] }),
+          owner: 'core',
+          fullName: 'tool',
+        },
       ],
       'set',
     );
@@ -96,7 +119,11 @@ describe('buildSlashCommandMatches', () => {
   });
 
   it('displays non-core command names correctly when fullName has a colon', () => {
-    const pluginEntry = { cmd: command({ name: 'mycmd' }), owner: 'myplugin', fullName: 'myplugin:mycmd' };
+    const pluginEntry = {
+      cmd: command({ name: 'mycmd' }),
+      owner: 'myplugin',
+      fullName: 'myplugin:mycmd',
+    };
     const matches = buildSlashCommandMatches([pluginEntry], 'myplugin');
     expect(matches[0]?.name).toBe('myplugin:mycmd');
   });

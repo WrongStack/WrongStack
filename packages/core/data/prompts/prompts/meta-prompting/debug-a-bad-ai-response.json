@@ -5,11 +5,7 @@
   "description": "Figure out why a prompt gave a poor answer and fix it.",
   "content": "I gave this prompt:\n\n{{prompt}}\n\nAnd got this unsatisfactory response:\n\n{{response}}\n\nDiagnose why: was the instruction ambiguous, was context missing, did it ignore a constraint, or did I ask for too much at once? Pinpoint the cause and rewrite the prompt to fix it. Tell me which single change would most improve the result.",
   "category": "meta-prompting",
-  "tags": [
-    "debugging",
-    "prompt-engineering",
-    "diagnosis"
-  ],
+  "tags": ["debugging", "prompt-engineering", "diagnosis"],
   "source": "builtin",
   "favorite": false,
   "checksum": "007fc542a0e2f21229d0e43e8f29b4876c18b7eccd662a15abd59835d338ce95",

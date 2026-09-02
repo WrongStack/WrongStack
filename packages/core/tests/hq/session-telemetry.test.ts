@@ -260,9 +260,9 @@ describe('transcript mapper — audit markers', () => {
         role: 'reviewer',
       }),
     ).toEqual([]);
-    expect(
-      mapSessionEventToEntries({ type: 'agent_stopped', ts: 't', agentId: 'agt_1' }),
-    ).toEqual([]);
+    expect(mapSessionEventToEntries({ type: 'agent_stopped', ts: 't', agentId: 'agt_1' })).toEqual(
+      [],
+    );
     expect(
       mapSessionEventToEntries({ type: 'agent_error', ts: 't', agentId: 'agt_1', error: 'nope' }),
     ).toEqual([]);
@@ -270,7 +270,12 @@ describe('transcript mapper — audit markers', () => {
 
   it('skips checkpoints — one per prompt would restate the user message next to it', () => {
     expect(
-      mapSessionEventToEntries({ type: 'checkpoint', ts: 't', promptIndex: 0, promptPreview: 'hi' }),
+      mapSessionEventToEntries({
+        type: 'checkpoint',
+        ts: 't',
+        promptIndex: 0,
+        promptPreview: 'hi',
+      }),
     ).toEqual([]);
   });
 

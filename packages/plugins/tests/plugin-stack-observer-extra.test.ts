@@ -9,7 +9,11 @@ import pluginStackObserver from '../src/plugin-stack-observer/index.js';
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   onPattern: ReturnType<typeof vi.fn>;
   registerSystemPromptContributor: ReturnType<typeof vi.fn>;
@@ -52,7 +56,12 @@ describe('plugin-stack-observer extra coverage', () => {
   it('health() returns no wraps when none registered', async () => {
     const api = makeApi();
     pluginStackObserver.setup(api as never);
-    const h = await pluginStackObserver.health!() as { ok: boolean; message: string; wrapCount: number; wraps: unknown[] };
+    const h = (await pluginStackObserver.health!()) as {
+      ok: boolean;
+      message: string;
+      wrapCount: number;
+      wraps: unknown[];
+    };
     expect(h.ok).toBe(true);
     expect(h.message).toContain('no wraps active');
     expect(h.wrapCount).toBe(0);
@@ -62,7 +71,7 @@ describe('plugin-stack-observer extra coverage', () => {
     const api = makeApi();
     pluginStackObserver.setup(api as never);
     const handler = api.onPattern.mock.calls[0]?.[1] as (event: string, payload: unknown) => void;
-    
+
     handler('provider.wrap:loaded', {
       plugin: 'llm-cache',
       kind: 'wrapProviderRunner',
@@ -74,7 +83,7 @@ describe('plugin-stack-observer extra coverage', () => {
     const api = makeApi();
     pluginStackObserver.setup(api as never);
     const handler = api.onPattern.mock.calls[0]?.[1] as (event: string, payload: unknown) => void;
-    
+
     // Empty plugin name should be ignored
     handler('provider.wrap:loaded', { plugin: '', kind: 'test', wraps: [] });
     handler('provider.wrap:loaded', {});
@@ -91,7 +100,7 @@ describe('plugin-stack-observer extra coverage', () => {
     const statusTool = api.tools.register.mock.calls.find(
       (c: unknown[]) => (c[0] as { name: string }).name === 'plugin_stack_status',
     )?.[0] as { execute: () => Promise<unknown> };
-    const result = await statusTool.execute() as { ok: boolean; wrapCount: number };
+    const result = (await statusTool.execute()) as { ok: boolean; wrapCount: number };
     expect(result.ok).toBe(true);
     expect(result.wrapCount).toBe(0);
   });
@@ -105,7 +114,10 @@ describe('plugin-stack-observer extra coverage', () => {
     const api = makeApi();
     pluginStackObserver.setup(api as never);
     pluginStackObserver.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith('plugin-stack-observer: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'plugin-stack-observer: teardown complete',
+      expect.any(Object),
+    );
   });
 
   it('teardown is safe before setup', () => {

@@ -17,7 +17,13 @@ import {
   SectionIntro,
   heroTitleFontSize,
 } from '@/components/site/primitives';
-import { PLUGIN_COUNT, TOOL_COUNT, toolCatalog, toolCategories, toolSlug } from '@/data/runtime-catalog';
+import {
+  PLUGIN_COUNT,
+  TOOL_COUNT,
+  toolCatalog,
+  toolCategories,
+  toolSlug,
+} from '@/data/runtime-catalog';
 import { Link } from '@/lib/router';
 import { cn } from '@/lib/utils';
 
@@ -59,16 +65,7 @@ const scopeOptions: Array<{ value: ToolScope; label: string }> = [
   { value: 'mutating', label: 'Mutating' },
 ];
 
-const categoryIcons = [
-  Activity,
-  Braces,
-  Terminal,
-  Layers3,
-  Check,
-  Gauge,
-  Wrench,
-  Search,
-] as const;
+const categoryIcons = [Activity, Braces, Terminal, Layers3, Check, Gauge, Wrench, Search] as const;
 
 export function ToolsPage() {
   const [query, setQuery] = useState('');
@@ -303,7 +300,11 @@ export function ToolsPage() {
         />
         <div className="mt-12 overflow-hidden rounded-2xl border border-line">
           {[
-            ['off', String(TOOL_TIER_COUNTS.off), 'The complete built-in registry, including browser and E2E tools.'],
+            [
+              'off',
+              String(TOOL_TIER_COUNTS.off),
+              'The complete built-in registry, including browser and E2E tools.',
+            ],
             [
               'minimal / light',
               String(TOOL_TIER_COUNTS.minimal),

@@ -23,7 +23,13 @@ async function writeLines(lines: unknown[]): Promise<void> {
 describe('isStrictlyEmptySessionFile', () => {
   it('accepts a lifecycle-only journal', async () => {
     await writeLines([
-      { type: 'session_start', ts: '2026-01-01T00:00:00.000Z', id: 'session', model: 'm', provider: 'p' },
+      {
+        type: 'session_start',
+        ts: '2026-01-01T00:00:00.000Z',
+        id: 'session',
+        model: 'm',
+        provider: 'p',
+      },
       { type: 'session_end', ts: '2026-01-01T00:01:00.000Z' },
     ]);
 
@@ -32,7 +38,13 @@ describe('isStrictlyEmptySessionFile', () => {
 
   it('rejects a journal containing session content', async () => {
     await writeLines([
-      { type: 'session_start', ts: '2026-01-01T00:00:00.000Z', id: 'session', model: 'm', provider: 'p' },
+      {
+        type: 'session_start',
+        ts: '2026-01-01T00:00:00.000Z',
+        id: 'session',
+        model: 'm',
+        provider: 'p',
+      },
       { type: 'user_input', ts: '2026-01-01T00:00:01.000Z', content: 'hello' },
     ]);
 

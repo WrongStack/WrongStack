@@ -205,14 +205,22 @@ describe('read tool', () => {
   it('repeated read past EOF does not return inverted range message from cache', async () => {
     const file = path.join(sb.dir, 'repeated-eof.txt');
     await fs.writeFile(file, 'line 1\nline 2\n');
-    const out1 = await readTool.execute({ path: 'repeated-eof.txt', offset: 10, limit: 10 }, sb.ctx, {
-      signal: newSignal(),
-    });
+    const out1 = await readTool.execute(
+      { path: 'repeated-eof.txt', offset: 10, limit: 10 },
+      sb.ctx,
+      {
+        signal: newSignal(),
+      },
+    );
     expect(out1.text).toContain('past end of file');
 
-    const out2 = await readTool.execute({ path: 'repeated-eof.txt', offset: 10, limit: 10 }, sb.ctx, {
-      signal: newSignal(),
-    });
+    const out2 = await readTool.execute(
+      { path: 'repeated-eof.txt', offset: 10, limit: 10 },
+      sb.ctx,
+      {
+        signal: newSignal(),
+      },
+    );
     expect(out2.text).toContain('past end of file');
     expect(out2.text).not.toContain('already shown');
   });
@@ -528,4 +536,3 @@ describe('read tool', () => {
     });
   });
 });
-

@@ -47,10 +47,9 @@ export interface HqPublisherEnvConfig {
  * marker (pid-liveness-checked) and the first client token. Returns
  * `undefined` when no live HQ is advertised on this machine.
  */
-export function discoverLocalHqEndpoint(options: {
-  dataDir?: string | undefined;
-  env?: NodeJS.ProcessEnv | undefined;
-} = {}): { url: string; token?: string | undefined } | undefined {
+export function discoverLocalHqEndpoint(
+  options: { dataDir?: string | undefined; env?: NodeJS.ProcessEnv | undefined } = {},
+): { url: string; token?: string | undefined } | undefined {
   const dataDir = resolveHqDataDir(options.dataDir, options.env ?? process.env);
   const runtime = readHqRuntimeFileSync(dataDir);
   if (runtime === undefined) return undefined;
@@ -83,20 +82,27 @@ function readFirstClientTokenFromAuthFile(dataDir: string): string | undefined {
 function isLoopbackHqUrl(url: string): boolean {
   try {
     const host = new URL(url).hostname.toLowerCase();
-    return host === '127.0.0.1' || host === 'localhost' || host === '::1' || host === '[::1]' || host === '0.0.0.0';
+    return (
+      host === '127.0.0.1' ||
+      host === 'localhost' ||
+      host === '::1' ||
+      host === '[::1]' ||
+      host === '0.0.0.0'
+    );
   } catch {
     return false;
   }
 }
 
-export function resolveHqConfigFromEnv(env: NodeJS.ProcessEnv = process.env): HqPublisherEnvConfig | undefined {
+export function resolveHqConfigFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): HqPublisherEnvConfig | undefined {
   return resolveHqConfig({ env });
 }
 
-export function resolveHqConfig(options: {
-  env?: NodeJS.ProcessEnv | undefined;
-  config?: HqClientConfig | undefined;
-} = {}): HqPublisherEnvConfig | undefined {
+export function resolveHqConfig(
+  options: { env?: NodeJS.ProcessEnv | undefined; config?: HqClientConfig | undefined } = {},
+): HqPublisherEnvConfig | undefined {
   const env = options.env ?? process.env;
   const fileConfig = options.config;
   const envUrl = env['WRONGSTACK_HQ_URL']?.trim();
@@ -104,9 +110,10 @@ export function resolveHqConfig(options: {
   const configUrl = fileConfig?.url?.trim();
   const configToken = fileConfig?.token?.trim();
   const envEnabledRaw = env['WRONGSTACK_HQ_ENABLED']?.trim();
-  const enabled = envEnabledRaw !== undefined && envEnabledRaw.length > 0
-    ? envEnabledRaw !== '0'
-    : fileConfig?.enabled;
+  const enabled =
+    envEnabledRaw !== undefined && envEnabledRaw.length > 0
+      ? envEnabledRaw !== '0'
+      : fileConfig?.enabled;
   const dataDir = resolveHqDataDir(fileConfig?.dataDir, env);
   const explicitToken = envToken || configToken;
   const runtimeUrl = readHqRuntimeFileSync(dataDir)?.url.trim();
@@ -204,14 +211,17 @@ export interface CreateHqPublisherOptions {
   logger?: Logger | undefined;
 }
 
-export function createHqPublisherFromEnv(options: CreateHqPublisherOptions): HqPublisher | undefined {
+export function createHqPublisherFromEnv(
+  options: CreateHqPublisherOptions,
+): HqPublisher | undefined {
   const config = options.config ?? resolveHqConfig({ config: options.appConfig?.hq });
   if (!config || config.enabled === false) return undefined;
 
   const machineId = options.machineId ?? stableMachineId();
   const host = options.hostnameOverride ?? hostname();
   const projectAlias = config.projectAlias?.trim() || undefined;
-  const projectName = projectAlias ?? options.projectName ?? (basename(options.projectRoot) || 'unknown');
+  const projectName =
+    projectAlias ?? options.projectName ?? (basename(options.projectRoot) || 'unknown');
 
   const client: HqClientIdentity = {
     clientId: `${machineId}:${options.clientKind}:${process.pid}:${randomUUID().slice(0, 8)}`,

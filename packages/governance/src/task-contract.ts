@@ -314,13 +314,8 @@ export function validateTaskContractV1(contract: TaskContractV1): ContractValida
 
   for (const assumption of contract.assumptions) {
     addRequiredStringIssue(issues, assumption.id, 'assumptions[].id');
-    addRequiredStringIssue(
-      issues,
-      assumption.statement,
-      `assumptions[${assumption.id}].statement`,
-    );
+    addRequiredStringIssue(issues, assumption.statement, `assumptions[${assumption.id}].statement`);
   }
-
 
   if (
     hasMutatingOperation(contract.autonomy.allowedOperations) &&

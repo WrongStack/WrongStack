@@ -33,13 +33,7 @@ export const DESKTOP_COMMAND_VIEWS = new Set([
 ]);
 
 /** WorkspaceDock sections the native sidebar may reveal via a desktop command. */
-export const DESKTOP_COMMAND_DOCKS = new Set([
-  'goal',
-  'fleet',
-  'work',
-  'worktrees',
-  'collab',
-]);
+export const DESKTOP_COMMAND_DOCKS = new Set(['goal', 'fleet', 'work', 'worktrees', 'collab']);
 
 /** Work-dashboard tabs the native sidebar may focus via a desktop command. */
 export const DESKTOP_COMMAND_WORK_TABS = new Set(['todos', 'tasks', 'plan']);

@@ -232,9 +232,7 @@ export class Agent {
       // window, and NaN (no committed timestamp yet) fails both comparisons,
       // so a first-ever input can never be treated as a duplicate.
       const burstDuplicate =
-        hash === this._lastInputHash &&
-        elapsed >= 0 &&
-        elapsed < Agent.INPUT_DEDUP_WINDOW_MS;
+        hash === this._lastInputHash && elapsed >= 0 && elapsed < Agent.INPUT_DEDUP_WINDOW_MS;
       if (burstDuplicate) {
         // Logger.debug is a required method (types/logger.ts); no fallback
         // chain needed — this only has to be observable at debug level.

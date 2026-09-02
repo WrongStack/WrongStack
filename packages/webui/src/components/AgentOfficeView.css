@@ -3352,8 +3352,7 @@ button.agent-office__parcel:hover {
   border: 1px dashed hsl(var(--border));
   border-radius: 14px;
   background:
-    linear-gradient(160deg, hsl(var(--warning) / 0.05), transparent 62%),
-    var(--office-panel);
+    linear-gradient(160deg, hsl(var(--warning) / 0.05), transparent 62%), var(--office-panel);
 }
 
 .agent-office__lounge-heading {

@@ -34,7 +34,9 @@ function fakeSage(id: string, text: string): Sage {
   } as unknown as Sage;
 }
 
-function fakeProvider(hits: Array<{ id: string; score: number; text: string; sageId?: string }>): VectorRecallProvider {
+function fakeProvider(
+  hits: Array<{ id: string; score: number; text: string; sageId?: string }>,
+): VectorRecallProvider {
   return {
     async search(query, opts) {
       return hits
@@ -123,11 +125,7 @@ describe('augmentLexicalWithVectorRecall', () => {
   });
 
   it('sorts by finalScore descending and caps at `limit`', async () => {
-    const lexical = [
-      fakeSage('a', 'apple'),
-      fakeSage('b', 'banana'),
-      fakeSage('c', 'cherry'),
-    ];
+    const lexical = [fakeSage('a', 'apple'), fakeSage('b', 'banana'), fakeSage('c', 'cherry')];
     const provider = fakeProvider([
       { id: 'a', score: 0.95, text: 'apple', sageId: 'a' },
       { id: 'b', score: 0.7, text: 'banana', sageId: 'b' },

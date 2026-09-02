@@ -42,7 +42,7 @@ async function listNodeProcesses(): Promise<Candidate[]> {
       [
         '-NoProfile',
         '-Command',
-        "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress",
+        'Get-CimInstance Win32_Process -Filter "Name=\'node.exe\'" | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress',
       ],
       { maxBuffer: 16 * 1024 * 1024 },
     );

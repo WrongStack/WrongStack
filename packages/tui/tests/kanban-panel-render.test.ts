@@ -11,12 +11,7 @@
 //   - The kanban panel advertises Ctrl+J in its footer hint so users can
 //     discover the chord (Sprint 2 introduced it)
 
-import type {
-  KanbanBoard,
-  KanbanCheck,
-  KanbanGoalMetric,
-  KanbanTask,
-} from '@wrongstack/kanban';
+import type { KanbanBoard, KanbanCheck, KanbanGoalMetric, KanbanTask } from '@wrongstack/kanban';
 import { describe, expect, it } from 'vitest';
 import {
   computeBoardColumnLayout,
@@ -227,7 +222,13 @@ describe('KanbanPanel header hint advertises Ctrl+Y', () => {
 // or report "already at done" one stage early.
 
 function managedBoard(columns?: Partial<Record<string, string>>): KanbanBoard {
-  const cols = columns ?? { backlog: 'backlog', todo: 'todo', running: 'in-progress', review: 'review', done: 'done' };
+  const cols = columns ?? {
+    backlog: 'backlog',
+    todo: 'todo',
+    running: 'in-progress',
+    review: 'review',
+    done: 'done',
+  };
   return {
     id: 'mb',
     title: 'Managed',
@@ -296,4 +297,3 @@ describe('nextManagedStage — single-step forward advance', () => {
     expect(nextManagedStage('done')).toBeNull();
   });
 });
-

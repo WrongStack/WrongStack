@@ -186,8 +186,7 @@ describe('git_autocommit', () => {
       // The scoped diff/readback uses the CONCRETE staged file list (the
       // source resolves pathspecs to files first), not the glob patterns.
       if (k === 'diff --cached --stat -- package.json packages/core/package.json') return 'stat';
-      if (k === 'diff --cached -- package.json packages/core/package.json')
-        return '+version bump';
+      if (k === 'diff --cached -- package.json packages/core/package.json') return '+version bump';
       if (k === 'diff --name-only -- package.json packages/core/package.json') return '';
       if (k.startsWith('commit -m')) {
         staged.push(args.slice()); // capture exact commit argv

@@ -321,7 +321,9 @@ export function MemoryGraph({
           )}
         </div>
         <span className="font-mono text-[10px] text-muted-foreground">
-          {loading ? t('activity:memoryManager.loadingGraph') : t('activity:memoryManager.graphStats', { nodes: nodes.length, edges: edges.length })}
+          {loading
+            ? t('activity:memoryManager.loadingGraph')
+            : t('activity:memoryManager.graphStats', { nodes: nodes.length, edges: edges.length })}
         </span>
       </div>
       {error && (

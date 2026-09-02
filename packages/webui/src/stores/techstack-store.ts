@@ -157,9 +157,7 @@ const JOB_STATUSES = new Set<TechStackJobStatus>([
 ]);
 
 function jobStatusForPhase(phase: string): TechStackJobStatus | undefined {
-  return JOB_STATUSES.has(phase as TechStackJobStatus)
-    ? (phase as TechStackJobStatus)
-    : undefined;
+  return JOB_STATUSES.has(phase as TechStackJobStatus) ? (phase as TechStackJobStatus) : undefined;
 }
 
 const INITIAL = {
@@ -183,9 +181,7 @@ export const useTechStackStore = create<TechStackState>()((set) => ({
       stale,
       loading: false,
       error: null,
-      activeJob: state.activeJob
-        ? { ...state.activeJob, status: 'completed', error: null }
-        : null,
+      activeJob: state.activeJob ? { ...state.activeJob, status: 'completed', error: null } : null,
     })),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error, loading: false }),

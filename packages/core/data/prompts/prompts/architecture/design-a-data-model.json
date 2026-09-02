@@ -5,11 +5,7 @@
   "description": "Model entities, relationships, and constraints for a domain.",
   "content": "Design a data model for: {{domain}}\n\nProvide: the entities and their fields with types, the relationships and cardinalities, and the key constraints/invariants. Call out where you'd index, where you'd denormalize and why, and how the model handles the trickiest query: {{key_query}}. Note any modeling decision that would be expensive to reverse later.",
   "category": "architecture",
-  "tags": [
-    "data-model",
-    "schema",
-    "domain"
-  ],
+  "tags": ["data-model", "schema", "domain"],
   "source": "builtin",
   "favorite": false,
   "checksum": "68e85737241702dfaa4fada7f9ddf608175140a22c36de3fc71c0051c97d7a6a",

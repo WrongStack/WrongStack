@@ -66,10 +66,22 @@ describe('useFleetPolling', () => {
 
   it('returns mixed-status summary with cost aggregation', () => {
     const agents = new Map();
-    agents.set('a1', makeAgent('a1', { name: 'alpha', status: 'running', costUsd: 0.1, startedAt: 100 }));
-    agents.set('a2', makeAgent('a2', { name: 'beta', status: 'completed', costUsd: 0.2, startedAt: 200 }));
-    agents.set('a3', makeAgent('a3', { name: 'gamma', status: 'failed', costUsd: 0.3, startedAt: 50 }));
-    agents.set('a4', makeAgent('a4', { name: 'delta', status: 'timeout', costUsd: 0.4, startedAt: 300 }));
+    agents.set(
+      'a1',
+      makeAgent('a1', { name: 'alpha', status: 'running', costUsd: 0.1, startedAt: 100 }),
+    );
+    agents.set(
+      'a2',
+      makeAgent('a2', { name: 'beta', status: 'completed', costUsd: 0.2, startedAt: 200 }),
+    );
+    agents.set(
+      'a3',
+      makeAgent('a3', { name: 'gamma', status: 'failed', costUsd: 0.3, startedAt: 50 }),
+    );
+    agents.set(
+      'a4',
+      makeAgent('a4', { name: 'delta', status: 'timeout', costUsd: 0.4, startedAt: 300 }),
+    );
 
     act(() => {
       useFleetStore.setState({
@@ -115,7 +127,9 @@ describe('useFleetPolling', () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useFleetPolling(true));
     const first = result.current.now;
-    act(() => { vi.advanceTimersByTime(1000); });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     const second = result.current.now;
     expect(second - first).toBeGreaterThanOrEqual(1000);
     vi.useRealTimers();
@@ -124,21 +138,24 @@ describe('useFleetPolling', () => {
   it('refreshNow bumps the timestamp immediately', () => {
     const { result } = renderHook(() => useFleetPolling(true));
     const before = result.current.now;
-    act(() => { result.current.refreshNow(); });
+    act(() => {
+      result.current.refreshNow();
+    });
     expect(result.current.now).toBeGreaterThanOrEqual(before);
   });
 
   it('stops ticking when disabled', () => {
     vi.useFakeTimers();
-    const { result, rerender } = renderHook(
-      (enabled: boolean) => useFleetPolling(enabled),
-      { initialProps: true },
-    );
+    const { result, rerender } = renderHook((enabled: boolean) => useFleetPolling(enabled), {
+      initialProps: true,
+    });
     const first = result.current.now;
 
     // Re-render with enabled=false — clock stops.
     rerender(false);
-    act(() => { vi.advanceTimersByTime(5000); });
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
 
     // The timestamp should NOT have advanced because the interval was cleared.
     expect(result.current.now).toBe(first);

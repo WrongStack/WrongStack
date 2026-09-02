@@ -5,11 +5,7 @@
   "description": "Specify what a service owns and how others talk to it.",
   "content": "For this service: {{service}}\n\nDefine its boundary precisely: the data it owns (and that no one else writes), the operations it exposes, and the events it emits. Specify the contract: request and response shapes, error semantics, and consistency guarantees. Identify what it must NOT know about its callers. Flag any shared database or leaky coupling that would undermine the boundary.",
   "category": "architecture",
-  "tags": [
-    "boundaries",
-    "contracts",
-    "api"
-  ],
+  "tags": ["boundaries", "contracts", "api"],
   "source": "builtin",
   "favorite": false,
   "checksum": "8c6545f96bf1b7f1e48440ed449404261d7eb1848f2dc733e7090db1056e8ff2",

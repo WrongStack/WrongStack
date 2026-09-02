@@ -10,10 +10,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { redirectSafeFetch } from '../src/redirect-safe-fetch.js';
 
-function response(
-  status: number,
-  location?: string,
-): Response {
+function response(status: number, location?: string): Response {
   return {
     status,
     ok: status >= 200 && status < 300,
@@ -36,9 +33,7 @@ describe('redirectSafeFetch', () => {
     const calls: Record<string, string>[] = [];
     const impl = vi.fn(async (_url: string, init: { headers: Record<string, string> }) => {
       calls.push(init.headers);
-      return calls.length === 1
-        ? response(307, 'https://api.example/v2')
-        : response(200);
+      return calls.length === 1 ? response(307, 'https://api.example/v2') : response(200);
     });
 
     await redirectSafeFetch(impl as unknown as typeof fetch, 'https://api.example/v1', {

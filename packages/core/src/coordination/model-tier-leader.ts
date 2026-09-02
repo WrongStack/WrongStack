@@ -287,7 +287,11 @@ export function evaluateLeaderTierSwitch(
   // cost-motivated move, so it has to actually save money. An upgrade is a
   // capability-motivated move and is never justified by arithmetic — it is
   // gated by the ceiling and, in 'propose' mode, by a human.
-  if (pricingKnown && economics.isDowngrade && economics.projectedSavingsUsd < policy.minSavingsUsd) {
+  if (
+    pricingKnown &&
+    economics.isDowngrade &&
+    economics.projectedSavingsUsd < policy.minSavingsUsd
+  ) {
     return {
       allowed: false,
       code: 'not-worth-it',

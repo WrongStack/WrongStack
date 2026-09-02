@@ -224,14 +224,18 @@ describe('recovery strategies', () => {
     expect(res).toEqual({ action: 'retry', reason: 'model_downgrade', model: 'gpt-3.5' });
   });
 
-  it('429 backs off and never reaches downgrade_model even with a registry', { timeout: 10_000 }, async () => {
+  it('429 backs off and never reaches downgrade_model even with a registry', {
+    timeout: 10_000,
+  }, async () => {
     // rate_limit_backoff returns first for 429, so downgrade_model (which no
     // longer lists 429 in its guard) is never consulted. getProvider must not
     // be called.
     const getProvider = vi.fn(async () => ({ id: 'openai', models: [] }));
     const modelsRegistry = { getProvider, getModel: vi.fn() } as never as ModelsRegistry;
     const eh = new DefaultErrorHandler(buildRecoveryStrategies({ modelsRegistry }));
-    const err = new ProviderError('rate limited', 429, true, 'test', { body: { retryAfterMs: 10 } });
+    const err = new ProviderError('rate limited', 429, true, 'test', {
+      body: { retryAfterMs: 10 },
+    });
     const res = await eh.recover(err, makeCtx());
     expect(res).toEqual({ action: 'retry', reason: 'rate_limit_backoff' });
     expect(getProvider).not.toHaveBeenCalled();
@@ -280,14 +284,17 @@ describe('recovery strategies', () => {
         capabilities: { tools: true, vision: false },
       })),
     } as never as ModelsRegistry;
-    const eh = new DefaultErrorHandler(buildRecoveryStrategies({
-      modelsRegistry,
-      getConfig: () => ({
-        provider: 'openai',
-        model: 'gpt-4',
-        providers: { openai: { type: 'openai', models: ['gpt-3.7'] } },
-      } as never),
-    }));
+    const eh = new DefaultErrorHandler(
+      buildRecoveryStrategies({
+        modelsRegistry,
+        getConfig: () =>
+          ({
+            provider: 'openai',
+            model: 'gpt-4',
+            providers: { openai: { type: 'openai', models: ['gpt-3.7'] } },
+          }) as never,
+      }),
+    );
     const res = await eh.recover(provErr('server', 503), makeCtx());
     expect(res).toEqual({
       action: 'retry',

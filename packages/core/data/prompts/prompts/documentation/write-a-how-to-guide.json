@@ -5,11 +5,7 @@
   "description": "Produce a task-focused guide that walks a user to a goal.",
   "content": "Write a how-to guide for: {{task}}\n\nAssume the reader wants to accomplish this specific task, not learn the whole system. Give numbered steps with the exact commands/code, show expected output at key checkpoints, and include a 'if this fails' note for the steps most likely to trip people up. End with how to verify success.",
   "category": "documentation",
-  "tags": [
-    "how-to",
-    "tutorial",
-    "guide"
-  ],
+  "tags": ["how-to", "tutorial", "guide"],
   "source": "builtin",
   "favorite": false,
   "checksum": "890a0817fd5d5365544d185c920f87e230881cd4014226a84f04939d14cadd62",

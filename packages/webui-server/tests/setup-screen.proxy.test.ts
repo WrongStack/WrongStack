@@ -27,9 +27,11 @@ vi.mock('@wrongstack/core/wiring/proxy-rewrite', async (importOriginal) => {
 vi.mock('@wrongstack/providers', () => ({
   // Capture the routed cfg so tests can assert the effective baseUrl without
   // constructing a real SDK provider.
-  makeProviderFromConfig: vi.fn(
-    (id: string, cfg: Record<string, unknown>) => ({ id, ...cfg, capabilities: {} }),
-  ),
+  makeProviderFromConfig: vi.fn((id: string, cfg: Record<string, unknown>) => ({
+    id,
+    ...cfg,
+    capabilities: {},
+  })),
 }));
 
 import { resolveSetupProvider } from '../src/server/setup-screen.js';
@@ -58,7 +60,11 @@ afterEach(() => __resetProxyConfigForTests());
 describe('resolveSetupProvider proxy rewrite', () => {
   it('rewrites the configured provider baseUrl through the proxy when active', () => {
     applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
-    const result = resolveSetupProvider({ config: openaiConfig(), needsProvider: false, providerRegistry: registry });
+    const result = resolveSetupProvider({
+      config: openaiConfig(),
+      needsProvider: false,
+      providerRegistry: registry,
+    });
     expect(result.needsSetup).toBe(false);
     expect(makeProviderFromConfig).toHaveBeenCalledWith(
       'openai',
@@ -71,7 +77,11 @@ describe('resolveSetupProvider proxy rewrite', () => {
 
   it('keeps the raw baseUrl when active=false', () => {
     applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: false });
-    const result = resolveSetupProvider({ config: openaiConfig(), needsProvider: false, providerRegistry: registry });
+    const result = resolveSetupProvider({
+      config: openaiConfig(),
+      needsProvider: false,
+      providerRegistry: registry,
+    });
     expect(makeProviderFromConfig).toHaveBeenCalledWith(
       'openai',
       expect.objectContaining({ baseUrl: 'https://api.openai.com/v1' }),
@@ -80,7 +90,11 @@ describe('resolveSetupProvider proxy rewrite', () => {
   });
 
   it('keeps the raw baseUrl when the singleton is never enabled', () => {
-    const result = resolveSetupProvider({ config: openaiConfig(), needsProvider: false, providerRegistry: registry });
+    const result = resolveSetupProvider({
+      config: openaiConfig(),
+      needsProvider: false,
+      providerRegistry: registry,
+    });
     expect(makeProviderFromConfig).toHaveBeenCalledWith(
       'openai',
       expect.objectContaining({ baseUrl: 'https://api.openai.com/v1' }),
@@ -96,10 +110,18 @@ describe('resolveSetupProvider proxy rewrite', () => {
       model: 'gpt-4o',
       features: { modelsRegistry: false },
       providers: {
-        anthropic: { type: 'anthropic', apiKey: 'sk-test', baseUrl: 'https://api.anthropic.com/v1' },
+        anthropic: {
+          type: 'anthropic',
+          apiKey: 'sk-test',
+          baseUrl: 'https://api.anthropic.com/v1',
+        },
       },
     } as unknown as Config;
-    const result = resolveSetupProvider({ config, needsProvider: true, providerRegistry: registry });
+    const result = resolveSetupProvider({
+      config,
+      needsProvider: true,
+      providerRegistry: registry,
+    });
     expect(result.needsSetup).toBe(false);
     expect(makeProviderFromConfig).toHaveBeenCalledWith(
       'anthropic',

@@ -176,9 +176,7 @@ export function ModelTiersSection({ syncPref }: ModelTiersSectionProps): React.R
               <div className="flex flex-wrap items-center gap-1.5">
                 <select
                   value={level.fallbackProfile ?? ''}
-                  onChange={(e) =>
-                    patchLevel(id, { fallbackProfile: e.target.value || undefined })
-                  }
+                  onChange={(e) => patchLevel(id, { fallbackProfile: e.target.value || undefined })}
                   className="rounded-sm border border-border bg-background px-1.5 py-0.5 text-[11px]"
                   data-testid={`model-tier-profile-${id}`}
                 >
@@ -392,7 +390,9 @@ export function ModelTiersSection({ syncPref }: ModelTiersSectionProps): React.R
             ceiling
             <select
               value={leader.maxTier ?? ''}
-              onChange={(e) => patch({ leader: { ...leader, maxTier: e.target.value || undefined } })}
+              onChange={(e) =>
+                patch({ leader: { ...leader, maxTier: e.target.value || undefined } })
+              }
               className="rounded-sm border border-border bg-background px-1.5 py-0.5"
               data-testid="model-tier-leader-ceiling"
             >

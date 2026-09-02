@@ -160,9 +160,7 @@ describe('SQLite public API completion coverage', () => {
       }),
     ).resolves.toEqual([expect.objectContaining({ id: general.id })]);
     await expect(store.retrieveForAudience({ role: 'missing' })).resolves.toEqual([]);
-    await expect(
-      store.retrieveForAudience({ role: 'reviewer' }, 1),
-    ).resolves.toHaveLength(1);
+    await expect(store.retrieveForAudience({ role: 'reviewer' }, 1)).resolves.toHaveLength(1);
   });
 
   it('filters and cursors paginated listings by status, kind, and escaped query', async () => {
@@ -295,9 +293,9 @@ describe('SQLite public API completion coverage', () => {
       expect.objectContaining({ removedEdges: 1 }),
     );
     expect(
-      db
-        .prepare("SELECT COUNT(*) AS n FROM edges WHERE relation = 'related_to'")
-        .get() as { n: number },
+      db.prepare("SELECT COUNT(*) AS n FROM edges WHERE relation = 'related_to'").get() as {
+        n: number;
+      },
     ).toEqual({ n: 1 });
   });
 
@@ -329,9 +327,11 @@ describe('SQLite public API completion coverage', () => {
 
   it('drains rejected mutation chains', async () => {
     const store = createStore();
-    const queue = (store as unknown as {
-      mutationQueue: { mutationChain: Promise<unknown> };
-    }).mutationQueue;
+    const queue = (
+      store as unknown as {
+        mutationQueue: { mutationChain: Promise<unknown> };
+      }
+    ).mutationQueue;
     queue.mutationChain = Promise.reject(new Error('failed mutation'));
     await expect(store.drainMutations()).resolves.toBeUndefined();
   });

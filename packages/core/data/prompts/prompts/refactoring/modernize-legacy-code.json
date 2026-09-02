@@ -5,10 +5,7 @@
   "description": "Bring old code up to current language idioms and APIs.",
   "content": "Modernize this legacy {{language}} code to current idioms and APIs:\n\n```\n{{code}}\n```\n\nReplace deprecated APIs, adopt modern language features where they genuinely improve clarity or safety, and tighten types. Preserve behavior exactly. List each deprecation you removed and what replaced it. Do not modernize for its own sake — skip changes that add churn without benefit.",
   "category": "refactoring",
-  "tags": [
-    "legacy",
-    "modernization"
-  ],
+  "tags": ["legacy", "modernization"],
   "source": "builtin",
   "favorite": false,
   "checksum": "7499bbfb95711c96a683425299a5ab2bec7747d44b377f2983f63651b60f174a",

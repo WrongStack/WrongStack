@@ -101,9 +101,7 @@ export function MemoryFilters({
         <select
           id="memory-status-filter"
           value={statusFilter}
-          onChange={(event) =>
-            onStatusFilterChange(event.target.value as 'all' | SageStatus)
-          }
+          onChange={(event) => onStatusFilterChange(event.target.value as 'all' | SageStatus)}
           className="h-9 min-w-0 border border-input bg-background px-2 text-xs"
         >
           <option value="all">{t('activity:memoryManager.allStatuses')}</option>
@@ -146,9 +144,7 @@ export function MemoryFilters({
             disabled={Boolean(tagFilter)}
             className={cn(
               'flex items-center gap-1.5 px-1 py-0.5 text-[10px] uppercase tracking-wide transition-colors',
-              tagsVisible
-                ? 'text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
+              tagsVisible ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
               Boolean(tagFilter) && 'cursor-default',
             )}
             title={
@@ -160,16 +156,11 @@ export function MemoryFilters({
             }
           >
             <ChevronDown
-              className={cn(
-                'size-3 transition-transform',
-                !tagsVisible && '-rotate-90',
-              )}
+              className={cn('size-3 transition-transform', !tagsVisible && '-rotate-90')}
             />
             <Tag className="size-3" />
             <span className="font-semibold">{t('activity:memoryManager.tagsLabel')}</span>
-            <span className="font-mono text-[9px] text-muted-foreground">
-              {allTags.length}
-            </span>
+            <span className="font-mono text-[9px] text-muted-foreground">{allTags.length}</span>
           </button>
           {/* Active-tag badge lives OUTSIDE the toggle button so the toggle's
               accessible name stays stable (e.g. "Tags 3") regardless of which
@@ -186,10 +177,7 @@ export function MemoryFilters({
         </div>
       )}
       {hasTags && tagsVisible && (
-        <fieldset
-          id="memory-tags-panel"
-          className="min-w-0 border-0 p-0"
-        >
+        <fieldset id="memory-tags-panel" className="min-w-0 border-0 p-0">
           <legend className="sr-only">{t('activity:memoryManager.popularTags')}</legend>
           <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-0.5">
             {allTags.slice(0, 18).map(([tagName, count]) => (

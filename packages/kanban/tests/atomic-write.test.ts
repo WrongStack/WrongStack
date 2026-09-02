@@ -18,7 +18,9 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   for (const key of Object.keys(actual) as Array<keyof typeof actual>) {
     const origFn = actual[key];
     if (typeof origFn === 'function') {
-      (wrapped as any)[key] = vi.fn().mockImplementation((...args: any[]) => (origFn as any)(...args));
+      (wrapped as any)[key] = vi
+        .fn()
+        .mockImplementation((...args: any[]) => (origFn as any)(...args));
     } else {
       (wrapped as any)[key] = origFn;
     }
@@ -116,10 +118,15 @@ describe('withFileLock', () => {
     const target = path.join(tmpDir, 'throws.json');
     const lockPath = path.join(tmpDir, '.throws.json.lock');
     await expect(
-      withFileLock(target, async () => { throw new Error('fn failed'); }),
+      withFileLock(target, async () => {
+        throw new Error('fn failed');
+      }),
     ).rejects.toThrow('fn failed');
     // Lock file should be cleaned up
-    const exists = await fs.stat(lockPath).then(() => true).catch(() => false);
+    const exists = await fs
+      .stat(lockPath)
+      .then(() => true)
+      .catch(() => false);
     expect(exists).toBe(false);
   });
 });
@@ -189,7 +196,10 @@ describe('withFileLock - ENOENT recovery', () => {
     expect(result).toBe('created-dir');
     // Verify lock file was cleaned up
     const lockPath = path.join(dir, '.target.json.lock');
-    const exists = await fs.stat(lockPath).then(() => true).catch(() => false);
+    const exists = await fs
+      .stat(lockPath)
+      .then(() => true)
+      .catch(() => false);
     expect(exists).toBe(false);
   });
 
@@ -205,7 +215,10 @@ describe('withFileLock - ENOENT recovery', () => {
     });
     expect(result).toBe('stale-recovered');
     // Lock should be gone
-    const exists = await fs.stat(lockPath).then(() => true).catch(() => false);
+    const exists = await fs
+      .stat(lockPath)
+      .then(() => true)
+      .catch(() => false);
     expect(exists).toBe(false);
   });
 });
@@ -292,9 +305,7 @@ describe('withFileLock unexpected error', () => {
     const target = path.join(tmpDir, 'unexpected', 'target.json');
     // Create the lock dir as a file so open fails with ENOTDIR or similar
     await fs.writeFile(path.join(tmpDir, 'unexpected'), 'not-dir', 'utf8');
-    await expect(
-      withFileLock(target, async () => 'never', { timeoutMs: 100 }),
-    ).rejects.toThrow();
+    await expect(withFileLock(target, async () => 'never', { timeoutMs: 100 })).rejects.toThrow();
   });
 
   it('handles EEXIST and re-acquires lock after stale timeout', async () => {

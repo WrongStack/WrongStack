@@ -36,11 +36,31 @@ const VERIFICATION_CHIP: Record<
     className: 'bg-muted text-muted-foreground',
     icon: ShieldQuestion,
   },
-  running: { labelKey: 'activity:kanbanTree.verifyVerifying', className: 'bg-info/10 text-info', icon: Loader2 },
-  passed: { labelKey: 'activity:kanbanTree.verifyVerified', className: 'bg-success/10 text-success', icon: ShieldCheck },
-  failed: { labelKey: 'activity:kanbanTree.verifyFailed', className: 'bg-destructive/10 text-destructive', icon: ShieldX },
-  needs_human: { labelKey: 'activity:kanbanTree.verifyNeedsReview', className: 'bg-warning/10 text-warning', icon: AlertTriangle },
-  incomplete: { labelKey: 'activity:kanbanTree.verifyIncomplete', className: 'bg-warning/10 text-warning', icon: AlertTriangle },
+  running: {
+    labelKey: 'activity:kanbanTree.verifyVerifying',
+    className: 'bg-info/10 text-info',
+    icon: Loader2,
+  },
+  passed: {
+    labelKey: 'activity:kanbanTree.verifyVerified',
+    className: 'bg-success/10 text-success',
+    icon: ShieldCheck,
+  },
+  failed: {
+    labelKey: 'activity:kanbanTree.verifyFailed',
+    className: 'bg-destructive/10 text-destructive',
+    icon: ShieldX,
+  },
+  needs_human: {
+    labelKey: 'activity:kanbanTree.verifyNeedsReview',
+    className: 'bg-warning/10 text-warning',
+    icon: AlertTriangle,
+  },
+  incomplete: {
+    labelKey: 'activity:kanbanTree.verifyIncomplete',
+    className: 'bg-warning/10 text-warning',
+    icon: AlertTriangle,
+  },
 };
 
 function StatusIcon({ task }: { task: KanbanTask }) {

@@ -145,11 +145,10 @@ describe('withFileLock — structured FsError on timeout', () => {
     try {
       let caught: unknown;
       try {
-        await withFileLock(
-          target,
-          async () => 'should not run',
-          { timeoutMs: 50, staleMs: 60_000 },
-        );
+        await withFileLock(target, async () => 'should not run', {
+          timeoutMs: 50,
+          staleMs: 60_000,
+        });
       } catch (err) {
         caught = err;
       }

@@ -51,7 +51,15 @@ export class BatchScanner {
 
     const targetFiles = options.skill.metadata.targetFiles;
     const fallbackExtensions: string[] = [
-      '.ts', '.js', '.jsx', '.tsx', '.py', '.go', '.java', '.cs', '.rs',
+      '.ts',
+      '.js',
+      '.jsx',
+      '.tsx',
+      '.py',
+      '.go',
+      '.java',
+      '.cs',
+      '.rs',
     ];
     const extensions: string[] = Array.from(
       new Set(
@@ -64,8 +72,7 @@ export class BatchScanner {
           .flat(),
       ),
     );
-    const maxDepth =
-      options.depth === 'quick' ? 2 : options.depth === 'deep' ? 20 : 5;
+    const maxDepth = options.depth === 'quick' ? 2 : options.depth === 'deep' ? 20 : 5;
     const files = await gatherFiles({
       root: options.projectRoot,
       extensions: extensions.length > 0 ? extensions : fallbackExtensions,

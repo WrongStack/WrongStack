@@ -19,7 +19,13 @@ function toolCallId(value: string): ToolCallId {
 
 function makeReq(overrides: Partial<PermissionRequest> = {}): PermissionRequest {
   return {
-    toolCall: { sessionUpdate: 'tool_call_update', toolCallId: toolCallId('tc1'), title: 'test', kind: 'edit', status: 'pending' },
+    toolCall: {
+      sessionUpdate: 'tool_call_update',
+      toolCallId: toolCallId('tc1'),
+      title: 'test',
+      kind: 'edit',
+      status: 'pending',
+    },
     options: [
       { optionId: 'allow_once', name: 'Allow Once', kind: 'allow_once' },
       { optionId: 'reject_once', name: 'Reject Once', kind: 'reject_once' },
@@ -72,7 +78,15 @@ describe('readOnlyPermissionPolicy', () => {
   it('auto-approves read/search/fetch/think tool kinds', async () => {
     for (const kind of ['read', 'search', 'fetch', 'think'] as const) {
       const outcome = await readOnlyPermissionPolicy(
-        makeReq({ toolCall: { sessionUpdate: 'tool_call_update', toolCallId: toolCallId('tc'), title: kind, kind, status: 'pending' } }),
+        makeReq({
+          toolCall: {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: toolCallId('tc'),
+            title: kind,
+            kind,
+            status: 'pending',
+          },
+        }),
       );
       expect(outcome).toEqual({ outcome: 'selected', optionId: 'allow_once' });
     }
@@ -81,7 +95,15 @@ describe('readOnlyPermissionPolicy', () => {
   it('rejects edit/delete/move/execute tool kinds', async () => {
     for (const kind of ['edit', 'delete', 'move', 'execute'] as const) {
       const outcome = await readOnlyPermissionPolicy(
-        makeReq({ toolCall: { sessionUpdate: 'tool_call_update', toolCallId: toolCallId('tc'), title: kind, kind, status: 'pending' } }),
+        makeReq({
+          toolCall: {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: toolCallId('tc'),
+            title: kind,
+            kind,
+            status: 'pending',
+          },
+        }),
       );
       expect(outcome).toEqual({ outcome: 'selected', optionId: 'reject_once' });
     }
@@ -89,7 +111,14 @@ describe('readOnlyPermissionPolicy', () => {
 
   it('rejects unknown tool kinds by selecting the reject option', async () => {
     const outcome = await readOnlyPermissionPolicy(
-      makeReq({ toolCall: { sessionUpdate: 'tool_call_update', toolCallId: toolCallId('tc'), title: 'other', status: 'pending' } }),
+      makeReq({
+        toolCall: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: toolCallId('tc'),
+          title: 'other',
+          status: 'pending',
+        },
+      }),
     );
     // When a tool has no kind (not in READ_ONLY_KINDS), pickReject finds reject_once in the options
     expect(outcome).toEqual({ outcome: 'selected', optionId: 'reject_once' });
@@ -99,7 +128,16 @@ describe('readOnlyPermissionPolicy', () => {
     const ac = new AbortController();
     ac.abort();
     const outcome = await readOnlyPermissionPolicy(
-      makeReq({ toolCall: { sessionUpdate: 'tool_call_update', toolCallId: toolCallId('tc'), title: 'read', kind: 'read', status: 'pending' }, signal: ac.signal }),
+      makeReq({
+        toolCall: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: toolCallId('tc'),
+          title: 'read',
+          kind: 'read',
+          status: 'pending',
+        },
+        signal: ac.signal,
+      }),
     );
     expect(outcome).toEqual({ outcome: 'cancelled' });
   });
@@ -109,10 +147,14 @@ describe('readOnlyPermissionPolicy', () => {
     // If there are no reject options, pickReject returns cancelled.
     const outcome = await readOnlyPermissionPolicy(
       makeReq({
-        toolCall: { sessionUpdate: 'tool_call_update', toolCallId: toolCallId('tc'), title: 'edit', kind: 'edit', status: 'pending' },
-        options: [
-          { optionId: 'allow_once', name: 'Allow Once', kind: 'allow_once' },
-        ],
+        toolCall: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: toolCallId('tc'),
+          title: 'edit',
+          kind: 'edit',
+          status: 'pending',
+        },
+        options: [{ optionId: 'allow_once', name: 'Allow Once', kind: 'allow_once' }],
       }),
     );
     // pickReject finds no reject options → returns cancelled
@@ -122,10 +164,14 @@ describe('readOnlyPermissionPolicy', () => {
   it('uses pickReject when only reject options are available for non-read-only tools', async () => {
     const outcome = await readOnlyPermissionPolicy(
       makeReq({
-        toolCall: { sessionUpdate: 'tool_call_update', toolCallId: toolCallId('tc'), title: 'edit', kind: 'edit', status: 'pending' },
-        options: [
-          { optionId: 'reject_always', name: 'Reject Always', kind: 'reject_always' },
-        ],
+        toolCall: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: toolCallId('tc'),
+          title: 'edit',
+          kind: 'edit',
+          status: 'pending',
+        },
+        options: [{ optionId: 'reject_always', name: 'Reject Always', kind: 'reject_always' }],
       }),
     );
     expect(outcome).toEqual({ outcome: 'selected', optionId: 'reject_always' });

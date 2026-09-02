@@ -60,4 +60,3 @@ declare global {
  * fetch(url, { dispatcher: agent as HttpsAgentAsDispatcher });
  */
 export type HttpsAgentAsDispatcher = https.Agent;
-

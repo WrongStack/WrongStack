@@ -108,7 +108,14 @@ export {
 /** The lane pointer — the single answer to "which tab is in front". */
 export { activeSessionLaneId, useActiveSessionId } from './session-lanes.js';
 export { memorySessionSnapshots, useSessionStore } from './session-store.js';
-export { isTabBusy, MAX_OPEN_TABS, slotOf, summarizeTab, type TabSummary, useSessionTabStore } from './session-tab-store.js';
+export {
+  isTabBusy,
+  MAX_OPEN_TABS,
+  slotOf,
+  summarizeTab,
+  type TabSummary,
+  useSessionTabStore,
+} from './session-tab-store.js';
 export { type SideEffectEntry, useSideEffectStore } from './side-effect-store.js';
 export {
   type BoardTaskItem,
@@ -143,7 +150,21 @@ export {
   type ToolStatsSession,
   useToolStatsStore,
 } from './tool-stats-store.js';
-export type { AgentTranscriptEntry, AgentTranscriptKind, BrainDecisionData, ChatMessage, ChatMessageAttachment, CouncilDecisionData, CouncilSeatVote, FleetTimelineEvent, SessionHistoryEntry, SessionInfo, SubagentEvent, SubagentView, ToolExecution } from './types.js';
+export type {
+  AgentTranscriptEntry,
+  AgentTranscriptKind,
+  BrainDecisionData,
+  ChatMessage,
+  ChatMessageAttachment,
+  CouncilDecisionData,
+  CouncilSeatVote,
+  FleetTimelineEvent,
+  SessionHistoryEntry,
+  SessionInfo,
+  SubagentEvent,
+  SubagentView,
+  ToolExecution,
+} from './types.js';
 export type { Activity, DockSection, InspectorTab, WorkDashboardTab } from './ui-store.js';
 export {
   coerceActivity,

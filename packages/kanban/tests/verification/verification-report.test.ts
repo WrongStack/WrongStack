@@ -59,10 +59,7 @@ function erroredCheck(id: string, description = 'Check error'): KanbanVerificati
   };
 }
 
-function checkWithBackingRefs(
-  id: string,
-  description: string,
-): KanbanVerificationCheckResult {
+function checkWithBackingRefs(id: string, description: string): KanbanVerificationCheckResult {
   return {
     checkId: id,
     description,
@@ -252,9 +249,7 @@ describe('buildVerificationReport', () => {
         total: 2,
         completed: 0,
         failed: 0,
-        children: [
-          { taskId: 'st1', title: 'Sub 1', verdict: 'incomplete' },
-        ],
+        children: [{ taskId: 'st1', title: 'Sub 1', verdict: 'incomplete' }],
       },
     });
 
@@ -322,7 +317,12 @@ describe('buildVerificationReport', () => {
       scopeMatches: false,
       files: [
         { path: 'src/foo.ts', operation: 'modify' as const, expected: true, linesChanged: 47 },
-        { path: 'src/unexpected.ts', operation: 'create' as const, expected: false, linesChanged: 12 },
+        {
+          path: 'src/unexpected.ts',
+          operation: 'create' as const,
+          expected: false,
+          linesChanged: 12,
+        },
       ],
     };
     const report = buildVerificationReport({
@@ -406,9 +406,7 @@ describe('buildVerificationReport', () => {
       total: 1,
       completed: 1,
       failed: 0,
-      children: [
-        { taskId: 'st1', title: 'Sub 1', verdict: 'passed' as const },
-      ],
+      children: [{ taskId: 'st1', title: 'Sub 1', verdict: 'passed' as const }],
     };
     const report = buildVerificationReport({
       taskId: 't1',
@@ -572,9 +570,7 @@ describe('renderVerificationReportMarkdown', () => {
         total: 1,
         completed: 0,
         failed: 1,
-        children: [
-          { taskId: 'st1', title: 'Failed sub', verdict: 'failed' },
-        ],
+        children: [{ taskId: 'st1', title: 'Failed sub', verdict: 'failed' }],
       },
     });
 

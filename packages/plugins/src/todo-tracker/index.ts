@@ -79,7 +79,12 @@ function deriveFilePath(api: { config: { extensions?: Record<string, unknown> } 
   projectSlug: string | null;
 } {
   const raw = api.config.extensions?.['todo-tracker'] as Record<string, unknown> | undefined;
-  const rawPath = raw?.['filePath'] ?? raw?.['file_path'] ?? raw?.['path'] ?? raw?.['file'] ?? raw?.['targetFile'];
+  const rawPath =
+    raw?.['filePath'] ??
+    raw?.['file_path'] ??
+    raw?.['path'] ??
+    raw?.['file'] ??
+    raw?.['targetFile'];
   const explicit = typeof rawPath === 'string' && rawPath.trim().length > 0 ? rawPath.trim() : null;
   if (explicit) {
     // The projectSlug is the file's basename (without extension).
@@ -278,9 +283,13 @@ const plugin: Plugin = {
       mutating: false,
       async execute(input: Record<string, unknown>) {
         if (state.filePath === null) return notConfiguredError();
-        const rawStatus = typeof input['status'] === 'string' ? input['status'].trim().toLowerCase() : undefined;
+        const rawStatus =
+          typeof input['status'] === 'string' ? input['status'].trim().toLowerCase() : undefined;
         const status = rawStatus ?? 'active';
-        const rawPriority = typeof input['priority'] === 'string' ? input['priority'].trim().toLowerCase() : undefined;
+        const rawPriority =
+          typeof input['priority'] === 'string'
+            ? input['priority'].trim().toLowerCase()
+            : undefined;
         const priority = rawPriority as Priority | undefined;
         const tag = input['tag'] as string | undefined;
         const limit = Math.min(Math.max(Number(input['limit'] ?? 50) || 50, 1), 200);
@@ -342,11 +351,10 @@ const plugin: Plugin = {
         if (!content) {
           return { ok: false, error: 'content is required and must be a non-empty string' };
         }
-        const rawPri = typeof input['priority'] === 'string' ? input['priority'].trim().toLowerCase() : '';
+        const rawPri =
+          typeof input['priority'] === 'string' ? input['priority'].trim().toLowerCase() : '';
         const priority: Priority =
-          rawPri === 'low' || rawPri === 'high'
-            ? (rawPri as Priority)
-            : 'normal';
+          rawPri === 'low' || rawPri === 'high' ? (rawPri as Priority) : 'normal';
         const tags = Array.isArray(input['tags'])
           ? (input['tags'] as unknown[]).filter((t): t is string => typeof t === 'string')
           : [];

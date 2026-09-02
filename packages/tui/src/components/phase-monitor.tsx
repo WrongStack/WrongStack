@@ -20,7 +20,9 @@ interface PhaseMonitorProps {
       completedTasks: number;
       totalTasks: number;
       startedAt?: number | undefined;
-      activeTasks?: Array<{ taskId: string; title: string; agent?: string | undefined }> | undefined;
+      activeTasks?:
+        | Array<{ taskId: string; title: string; agent?: string | undefined }>
+        | undefined;
     }
   >;
   /** IDs of currently running phases. */
@@ -60,8 +62,6 @@ export function PhaseMonitor({
   elapsedMs,
   nowTick,
 }: PhaseMonitorProps): React.ReactElement {
-
-
   const phaseList = Object.values(phases);
   const running = phaseList.filter((p) =>
     runningPhaseIds.includes(Object.keys(phases).find((k) => phases[k] === p) ?? ''),

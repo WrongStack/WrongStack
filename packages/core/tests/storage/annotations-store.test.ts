@@ -123,17 +123,19 @@ describe('AnnotationsStore', () => {
 
   it('accepts date-sharded session ids', async () => {
     const sharded = '2026-06-11/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
-    const added = await store.add({ sessionId: sharded, atEventIndex: 0, authorId: 'p1', text: 'sharded' });
+    const added = await store.add({
+      sessionId: sharded,
+      atEventIndex: 0,
+      authorId: 'p1',
+      text: 'sharded',
+    });
     expect(added.sessionId).toBe(sharded);
     expect(await store.list(sharded)).toHaveLength(1);
   });
 
   it('corrupt JSON treated as empty store', async () => {
     await fs.mkdir(path.join(dir, '2026-06-11'), { recursive: true });
-    await fs.writeFile(
-      path.join(dir, '2026-06-11', 's1.annotations.json'),
-      '{not json',
-    );
+    await fs.writeFile(path.join(dir, '2026-06-11', 's1.annotations.json'), '{not json');
     expect(await store.list('2026-06-11/s1')).toEqual([]);
   });
 
@@ -147,8 +149,7 @@ describe('AnnotationsStore', () => {
     }
     const evictCalls = (events.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
       ([ev, payload]) =>
-        ev === 'storage.write'
-        && (payload as { operation: string }).operation === 'evict',
+        ev === 'storage.write' && (payload as { operation: string }).operation === 'evict',
     );
     expect(evictCalls).toHaveLength(1);
   }, 60_000);
@@ -181,12 +182,15 @@ describe('AnnotationsStore', () => {
     const list = await loggedStore.list('2026-06-11/s1');
     expect(list).toHaveLength(1);
     expect(list[0]!.text).toBe('found me');
-    expect(emitSpy).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-      store: 'annotations',
-      operation: 'list',
-      outcome: 'success',
-      sessionId: '2026-06-11/s1',
-    }));
+    expect(emitSpy).toHaveBeenCalledWith(
+      'storage.read',
+      expect.objectContaining({
+        store: 'annotations',
+        operation: 'list',
+        outcome: 'success',
+        sessionId: '2026-06-11/s1',
+      }),
+    );
   });
 
   it('emits storage.read with outcome success when list() finds no file (ENOENT)', async () => {
@@ -195,12 +199,15 @@ describe('AnnotationsStore', () => {
     const loggedStore = new AnnotationsStore({ dir, events });
     const list = await loggedStore.list('brand-new');
     expect(list).toEqual([]);
-    expect(emitSpy).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-      store: 'annotations',
-      operation: 'list',
-      outcome: 'success',
-      sessionId: 'brand-new',
-    }));
+    expect(emitSpy).toHaveBeenCalledWith(
+      'storage.read',
+      expect.objectContaining({
+        store: 'annotations',
+        operation: 'list',
+        outcome: 'success',
+        sessionId: 'brand-new',
+      }),
+    );
   });
 
   it('emits storage.read with outcome failure when list() encounters a disk I/O error', async () => {
@@ -216,13 +223,16 @@ describe('AnnotationsStore', () => {
     try {
       const list = await loggedStore.list('io-error');
       expect(list).toEqual([]);
-      expect(emitSpy).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'annotations',
-        operation: 'list',
-        outcome: 'failure',
-        sessionId: 'io-error',
-        error: expect.stringContaining('EACCES'),
-      }));
+      expect(emitSpy).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'annotations',
+          operation: 'list',
+          outcome: 'failure',
+          sessionId: 'io-error',
+          error: expect.stringContaining('EACCES'),
+        }),
+      );
     } finally {
       fs.readFile.mockReset();
     }
@@ -232,13 +242,21 @@ describe('AnnotationsStore', () => {
     const events = new EventBus();
     const emitSpy = vi.spyOn(events, 'emit');
     const loggedStore = new AnnotationsStore({ dir, events });
-    await loggedStore.add({ sessionId: 's1', atEventIndex: 1, authorId: 'alice', text: 'needs review' });
-    expect(emitSpy).toHaveBeenCalledWith('storage.write', expect.objectContaining({
-      store: 'annotations',
-      operation: 'add',
-      outcome: 'success',
+    await loggedStore.add({
       sessionId: 's1',
-    }));
+      atEventIndex: 1,
+      authorId: 'alice',
+      text: 'needs review',
+    });
+    expect(emitSpy).toHaveBeenCalledWith(
+      'storage.write',
+      expect.objectContaining({
+        store: 'annotations',
+        operation: 'add',
+        outcome: 'success',
+        sessionId: 's1',
+      }),
+    );
   });
 
   it('emits storage.write with operation evict when add() exceeds MAX_ANNOTATIONS', async () => {
@@ -250,25 +268,36 @@ describe('AnnotationsStore', () => {
     }
     const evict = emitSpy.mock.calls.find(
       ([ev, payload]) =>
-        ev === 'storage.write'
-        && (payload as { operation: string }).operation === 'evict',
+        ev === 'storage.write' && (payload as { operation: string }).operation === 'evict',
     );
     expect(evict).toBeDefined();
-    expect(evict![1]).toMatchObject({ store: 'annotations', operation: 'evict', outcome: 'success' });
+    expect(evict![1]).toMatchObject({
+      store: 'annotations',
+      operation: 'evict',
+      outcome: 'success',
+    });
   });
 
   it('emits storage.write with operation resolve on successful resolve()', async () => {
     const events = new EventBus();
     const emitSpy = vi.spyOn(events, 'emit');
     const loggedStore = new AnnotationsStore({ dir, events });
-    const added = await loggedStore.add({ sessionId: 's1', atEventIndex: 1, authorId: 'alice', text: 'fix this' });
-    await loggedStore.resolve({ sessionId: 's1', annotationId: added.id, resolvedBy: 'bob' });
-    expect(emitSpy).toHaveBeenCalledWith('storage.write', expect.objectContaining({
-      store: 'annotations',
-      operation: 'resolve',
-      outcome: 'success',
+    const added = await loggedStore.add({
       sessionId: 's1',
-    }));
+      atEventIndex: 1,
+      authorId: 'alice',
+      text: 'fix this',
+    });
+    await loggedStore.resolve({ sessionId: 's1', annotationId: added.id, resolvedBy: 'bob' });
+    expect(emitSpy).toHaveBeenCalledWith(
+      'storage.write',
+      expect.objectContaining({
+        store: 'annotations',
+        operation: 'resolve',
+        outcome: 'success',
+        sessionId: 's1',
+      }),
+    );
   });
 
   it('emits storage.error when add() encounters a write failure', async () => {
@@ -282,12 +311,15 @@ describe('AnnotationsStore', () => {
       await expect(
         loggedStore.add({ sessionId: 's1', atEventIndex: 1, authorId: 'alice', text: 'test' }),
       ).rejects.toThrow('ENOSPC');
-      expect(emitSpy).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-        store: 'annotations',
-        operation: 'add',
-        outcome: 'failure',
-        error: expect.stringContaining('ENOSPC'),
-      }));
+      expect(emitSpy).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          store: 'annotations',
+          operation: 'add',
+          outcome: 'failure',
+          error: expect.stringContaining('ENOSPC'),
+        }),
+      );
     } finally {
       fs.writeFile.mockReset();
     }
@@ -297,7 +329,12 @@ describe('AnnotationsStore', () => {
     const events = new EventBus();
     const emitSpy = vi.spyOn(events, 'emit');
     const loggedStore = new AnnotationsStore({ dir, events });
-    const added = await loggedStore.add({ sessionId: 's1', atEventIndex: 1, authorId: 'alice', text: 'fix this' });
+    const added = await loggedStore.add({
+      sessionId: 's1',
+      atEventIndex: 1,
+      authorId: 'alice',
+      text: 'fix this',
+    });
     fs.writeFile.mockRejectedValueOnce(
       Object.assign(new Error('ENOSPC no space left'), { code: 'ENOSPC' }),
     );
@@ -305,12 +342,15 @@ describe('AnnotationsStore', () => {
       await expect(
         loggedStore.resolve({ sessionId: 's1', annotationId: added.id, resolvedBy: 'bob' }),
       ).rejects.toThrow('ENOSPC');
-      expect(emitSpy).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-        store: 'annotations',
-        operation: 'resolve',
-        outcome: 'failure',
-        error: expect.stringContaining('ENOSPC'),
-      }));
+      expect(emitSpy).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          store: 'annotations',
+          operation: 'resolve',
+          outcome: 'failure',
+          error: expect.stringContaining('ENOSPC'),
+        }),
+      );
     } finally {
       fs.writeFile.mockReset();
     }

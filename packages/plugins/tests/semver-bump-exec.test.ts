@@ -50,23 +50,42 @@ vi.mock('node:fs/promises', async (o) => ({
 
 import semverPlugin, { determineBump, parseConventional } from '../src/semver-bump';
 
-interface Tool { name: string; execute: (i: Record<string, unknown>) => Promise<Record<string, unknown>>; }
-interface Slash { name: string; run: (args: string, ctx?: { cwd?: string }) => Promise<{ message: string }>; }
+interface Tool {
+  name: string;
+  execute: (i: Record<string, unknown>) => Promise<Record<string, unknown>>;
+}
+interface Slash {
+  name: string;
+  run: (args: string, ctx?: { cwd?: string }) => Promise<{ message: string }>;
+}
 
 let gitHandler: (args: string[]) => string;
 let sessionAppend: ReturnType<typeof vi.fn>;
 let onConfigChange: ((next: unknown) => void) | undefined;
 
-function setup(cfg: Record<string, unknown> = {}): { tools: Record<string, Tool>; slash: Record<string, Slash> } {
+function setup(cfg: Record<string, unknown> = {}): {
+  tools: Record<string, Tool>;
+  slash: Record<string, Slash>;
+} {
   const tools: Record<string, Tool> = {};
   const slash: Record<string, Slash> = {};
   sessionAppend = vi.fn(async () => {});
   onConfigChange = undefined;
   const api = {
-    tools: { register: (t: Tool) => { tools[t.name] = t; } },
-    slashCommands: { register: (s: Slash) => { slash[s.name] = s; } },
+    tools: {
+      register: (t: Tool) => {
+        tools[t.name] = t;
+      },
+    },
+    slashCommands: {
+      register: (s: Slash) => {
+        slash[s.name] = s;
+      },
+    },
     config: { extensions: { 'semver-bump': cfg } },
-    onConfigChange: (fn: (n: unknown) => void) => { onConfigChange = fn; },
+    onConfigChange: (fn: (n: unknown) => void) => {
+      onConfigChange = fn;
+    },
     log: { info: vi.fn(), warn: vi.fn() },
     metrics: { counter: vi.fn(), gauge: vi.fn(), histogram: vi.fn() },
     session: { append: sessionAppend },
@@ -97,19 +116,36 @@ beforeEach(() => {
 describe('parseConventional', () => {
   it('parses breaking marker before and after the scope', () => {
     expect(parseConventional('feat!: big change')).toMatchObject({ type: 'feat', breaking: true });
-    expect(parseConventional('feat(api)!: big change')).toMatchObject({ type: 'feat', scope: 'api', breaking: true });
+    expect(parseConventional('feat(api)!: big change')).toMatchObject({
+      type: 'feat',
+      scope: 'api',
+      breaking: true,
+    });
   });
   it('parses a scoped non-breaking commit', () => {
-    expect(parseConventional('fix(ui): a bug')).toMatchObject({ type: 'fix', scope: 'ui', breaking: false, message: 'a bug' });
+    expect(parseConventional('fix(ui): a bug')).toMatchObject({
+      type: 'fix',
+      scope: 'ui',
+      breaking: false,
+      message: 'a bug',
+    });
   });
   it('falls back to chore for non-conventional subjects', () => {
-    expect(parseConventional('just some text')).toMatchObject({ type: 'chore', breaking: false, message: 'just some text' });
+    expect(parseConventional('just some text')).toMatchObject({
+      type: 'chore',
+      breaking: false,
+      message: 'just some text',
+    });
   });
 });
 
 describe('determineBump', () => {
-  const mk = (over: Partial<ReturnType<typeof parseConventional>> & { type: string }) =>
-    ({ hash: 'h', message: 'm', breaking: false, ...over });
+  const mk = (over: Partial<ReturnType<typeof parseConventional>> & { type: string }) => ({
+    hash: 'h',
+    message: 'm',
+    breaking: false,
+    ...over,
+  });
   it('returns major for a breaking change', () => {
     expect(determineBump([mk({ type: 'fix', breaking: true })] as never)).toBe('major');
   });
@@ -132,13 +168,22 @@ describe('semver_bump', () => {
   it('dry-runs an explicit patch bump', async () => {
     const { tools } = setup();
     const res = await tools.semver_bump!.execute({ part: 'patch', dry_run: true });
-    expect(res).toMatchObject({ ok: true, dry_run: true, currentVersion: '1.2.3', newVersion: '1.2.4' });
+    expect(res).toMatchObject({
+      ok: true,
+      dry_run: true,
+      currentVersion: '1.2.3',
+      newVersion: '1.2.4',
+    });
   });
 
   it('dry-runs major and minor bumps', async () => {
     const { tools } = setup();
-    expect((await tools.semver_bump!.execute({ part: 'major', dry_run: true })).newVersion).toBe('2.0.0');
-    expect((await tools.semver_bump!.execute({ part: 'minor', dry_run: true })).newVersion).toBe('1.3.0');
+    expect((await tools.semver_bump!.execute({ part: 'major', dry_run: true })).newVersion).toBe(
+      '2.0.0',
+    );
+    expect((await tools.semver_bump!.execute({ part: 'minor', dry_run: true })).newVersion).toBe(
+      '1.3.0',
+    );
   });
 
   it('auto-detects the bump from commits since the last tag', async () => {
@@ -222,7 +267,9 @@ describe('semver_bump', () => {
     const res = await tools.semver_bump!.execute({ part: 'minor' });
     expect(res.ok).toBe(true);
     // node was invoked with the bump script
-    const calledNode = cp.behavior.mock.calls.some(([, a]) => Array.isArray(a) && a.includes('set'));
+    const calledNode = cp.behavior.mock.calls.some(
+      ([, a]) => Array.isArray(a) && a.includes('set'),
+    );
     expect(calledNode).toBe(true);
     expect(fsm.writeFileSync).not.toHaveBeenCalled();
   });
@@ -265,13 +312,18 @@ describe('semver_bump', () => {
     const { tools } = setup();
     const res = await tools.semver_bump!.execute({ part: 'patch', dry_run: true, cwd: 'work' });
     expect(res.ok).toBe(true);
-    expect(fsm.existsSync).toHaveBeenCalledWith(expect.stringMatching(/[\\/]work[\\/]package\.json$/));
+    expect(fsm.existsSync).toHaveBeenCalledWith(
+      expect.stringMatching(/[\\/]work[\\/]package\.json$/),
+    );
   });
 
   it('skips tagging when autoTag is disabled', async () => {
     const { tools } = setup({ autoTag: false });
     const tagCalls: string[][] = [];
-    gitHandler = (args) => { if (args[0] === 'tag') tagCalls.push(args); return ''; };
+    gitHandler = (args) => {
+      if (args[0] === 'tag') tagCalls.push(args);
+      return '';
+    };
     await tools.semver_bump!.execute({ part: 'patch' });
     expect(tagCalls).toHaveLength(0);
   });
@@ -311,7 +363,9 @@ describe('semver_current', () => {
 
   it('reports unknown version and null tag when git/pkg are unavailable', async () => {
     fsm.existsSync.mockReturnValue(false);
-    gitHandler = () => { throw new Error('no git'); };
+    gitHandler = () => {
+      throw new Error('no git');
+    };
     const { tools } = setup();
     const res = await tools.semver_current!.execute({});
     expect(res).toMatchObject({ currentVersion: 'unknown', latestTag: null });
@@ -326,7 +380,11 @@ describe('semver_current', () => {
   });
 
   it('surfaces "Not a git repository" for git exit status 128', async () => {
-    gitHandler = () => { const e = new Error('fatal') as Error & { status: number }; e.status = 128; throw e; };
+    gitHandler = () => {
+      const e = new Error('fatal') as Error & { status: number };
+      e.status = 128;
+      throw e;
+    };
     const { tools } = setup();
     // status 128 → runGit throws "Not a git repository", caught by semver_current → null tag
     const res = await tools.semver_current!.execute({});
@@ -337,12 +395,13 @@ describe('semver_current', () => {
 // ── semver_changelog ─────────────────────────────────────────────────────────
 describe('semver_changelog', () => {
   it('produces a markdown changelog grouped by section', async () => {
-    gitHandler = () => [
-      'h1 feat(api)!: breaking feature',
-      'h2 feat: plain feature',
-      'h3 fix: a fix',
-      'h4 build: tooling tweak',
-    ].join('\n');
+    gitHandler = () =>
+      [
+        'h1 feat(api)!: breaking feature',
+        'h2 feat: plain feature',
+        'h3 fix: a fix',
+        'h4 build: tooling tweak',
+      ].join('\n');
     const { tools } = setup();
     const res = await tools.semver_changelog!.execute({ from: 'v1.0.0', to: 'HEAD' });
     expect(res.ok).toBe(true);
@@ -372,7 +431,9 @@ describe('semver_changelog', () => {
   });
 
   it('errors when git log fails', async () => {
-    gitHandler = () => { throw new Error('bad range'); };
+    gitHandler = () => {
+      throw new Error('bad range');
+    };
     const { tools } = setup();
     const res = await tools.semver_changelog!.execute({ from: 'a', to: 'b' });
     expect(res.ok).toBe(false);
@@ -401,7 +462,9 @@ describe('/semver slash command', () => {
   });
 
   it('status tolerates git being unavailable', async () => {
-    gitHandler = () => { throw new Error('no git'); };
+    gitHandler = () => {
+      throw new Error('no git');
+    };
     const { slash } = setup();
     const res = await slash.semver!.run('status');
     expect(res.message).toMatch(/Latest tag: {6}\(none\)/);

@@ -17,7 +17,9 @@ vi.mock('../src/app-initial-state.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/app-initial-state.js')>();
   return {
     ...actual,
-    buildRestoredEntries: reconstructionSpies.entries.mockImplementation(actual.buildRestoredEntries),
+    buildRestoredEntries: reconstructionSpies.entries.mockImplementation(
+      actual.buildRestoredEntries,
+    ),
     buildRestoredCheckpoints: reconstructionSpies.checkpoints.mockImplementation(
       actual.buildRestoredCheckpoints,
     ),

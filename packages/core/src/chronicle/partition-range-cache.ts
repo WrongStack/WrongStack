@@ -54,7 +54,11 @@ export class ChroniclePartitionRangeCache {
     try {
       const raw = await fs.readFile(this.cachePath, 'utf8');
       const parsed = JSON.parse(raw) as Partial<CacheFile>;
-      if (parsed.version === CACHE_VERSION && parsed.entries && typeof parsed.entries === 'object') {
+      if (
+        parsed.version === CACHE_VERSION &&
+        parsed.entries &&
+        typeof parsed.entries === 'object'
+      ) {
         for (const [key, range] of Object.entries(parsed.entries)) {
           if (isRange(range)) entries.set(key, range);
         }
@@ -93,7 +97,10 @@ export class ChroniclePartitionRangeCache {
 
   async flush(): Promise<void> {
     if (!this.dirty || !this.entries) return;
-    const payload: CacheFile = { version: CACHE_VERSION, entries: Object.fromEntries(this.entries) };
+    const payload: CacheFile = {
+      version: CACHE_VERSION,
+      entries: Object.fromEntries(this.entries),
+    };
     try {
       await withFileLock(this.cachePath, async () => {
         await atomicWrite(this.cachePath, `${JSON.stringify(payload)}\n`, { mode: 0o600 });

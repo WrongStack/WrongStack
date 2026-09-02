@@ -47,9 +47,7 @@ export interface DepWatcherBridgeOptions {
  *   // ... session runs ...
  *   dispose(); // clean up on exit
  */
-export function attachDepWatcherBridge(
-  opts: DepWatcherBridgeOptions,
-): () => void {
+export function attachDepWatcherBridge(opts: DepWatcherBridgeOptions): () => void {
   const {
     events,
     mailbox,
@@ -71,23 +69,27 @@ export function attachDepWatcherBridge(
   // Subscribe to file-watcher:changed events from the file-watcher plugin.
   // The plugin emits: { watchId, path, event, filename, timestamp }
   const unsub = events.onPattern('file-watcher:changed', (_eventName, rawPayload) => {
-    const payload = rawPayload as {
-      watchId?: string;
-      path?: string;
-      event?: string;
-      filename?: string;
-      timestamp?: string;
-    } | undefined;
+    const payload = rawPayload as
+      | {
+          watchId?: string;
+          path?: string;
+          event?: string;
+          filename?: string;
+          timestamp?: string;
+        }
+      | undefined;
     if (!payload?.path) return;
 
     // Forward to dep-watcher pipeline (includes debounce + filtering)
-    void cfg.onChange({
-      path: payload.path,
-      event: payload.event ?? 'change',
-      timestamp: payload.timestamp ?? new Date().toISOString(),
-    }).catch(() => {
-      // Best-effort — a lost notification is acceptable
-    });
+    void cfg
+      .onChange({
+        path: payload.path,
+        event: payload.event ?? 'change',
+        timestamp: payload.timestamp ?? new Date().toISOString(),
+      })
+      .catch(() => {
+        // Best-effort — a lost notification is acceptable
+      });
   });
 
   return () => {

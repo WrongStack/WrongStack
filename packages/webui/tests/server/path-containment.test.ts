@@ -29,7 +29,9 @@ describe('path containment helpers', () => {
   });
 
   it('accepts an existing directory inside the project root', async () => {
-    await expect(resolveWorkingDirInsideProject(projectRoot, 'src')).resolves.toBe(path.join(projectRoot, 'src'));
+    await expect(resolveWorkingDirInsideProject(projectRoot, 'src')).resolves.toBe(
+      path.join(projectRoot, 'src'),
+    );
   });
 
   it('rejects a lexical escape outside the project root', async () => {

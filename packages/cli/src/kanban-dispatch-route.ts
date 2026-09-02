@@ -65,7 +65,7 @@ export function resolveKanbanDispatchRoute(
       tier = resolved.tier;
       provider = provider ?? resolved.provider ?? config.provider;
       model = model ?? resolved.model;
-      fallbackModels = fallbackModels ?? (resolved.fallbackModels?.slice() ?? undefined);
+      fallbackModels = fallbackModels ?? resolved.fallbackModels?.slice() ?? undefined;
     }
   }
 

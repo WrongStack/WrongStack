@@ -74,7 +74,12 @@ const SPLIT_EVENT_CONTEXT = { sessionId: '2026-08-26/sess_01TESTSPLITHANDLER0000
 
 describe('handleSplitTask', () => {
   it('fails when required params missing', async () => {
-    const result = await handleSplitTask('/project', { action: 'split_task' }, {}, SPLIT_EVENT_CONTEXT);
+    const result = await handleSplitTask(
+      '/project',
+      { action: 'split_task' },
+      {},
+      SPLIT_EVENT_CONTEXT,
+    );
     expect(result.ok).toBe(false);
     expect(result.message).toContain(
       'split requires boardId, taskId, and at least one childTitles',

@@ -5,11 +5,7 @@
   "description": "Help users diagnose common failures themselves.",
   "content": "Write a troubleshooting guide for: {{system}}\n\nFor each common symptom, give: what the user sees, the likely cause, how to confirm it, and the fix. Order by frequency so the common cases come first. Use a symptom-first structure (users search by what they see, not by cause). Include the one diagnostic command or check that resolves the most ambiguity. End with where to go if nothing here helps.",
   "category": "documentation",
-  "tags": [
-    "troubleshooting",
-    "docs",
-    "support"
-  ],
+  "tags": ["troubleshooting", "docs", "support"],
   "source": "builtin",
   "favorite": false,
   "checksum": "926e942e3d737d03d1e2b6df282478fcb9b9ca1d99b169047ae042c2bd25f4e2",

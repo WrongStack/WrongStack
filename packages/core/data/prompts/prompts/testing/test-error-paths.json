@@ -5,10 +5,7 @@
   "description": "Write tests for the failure cases, not just the happy path.",
   "content": "Here is code whose error handling is untested:\n\n{{code}}\n\nWrite tests for the failure modes: invalid input, dependency failures, timeouts, partial writes, and the boundaries where it should reject. Assert the RIGHT failure happens (correct error type and message, no side effects, clean state), not just that it throws. Note any error path that is currently impossible to trigger.",
   "category": "testing",
-  "tags": [
-    "error-paths",
-    "negative-tests"
-  ],
+  "tags": ["error-paths", "negative-tests"],
   "source": "builtin",
   "favorite": false,
   "checksum": "72a027dc8fa45048cc2f448d29ea90535744343f7161b7fcf0f5068ced1aa4e8",

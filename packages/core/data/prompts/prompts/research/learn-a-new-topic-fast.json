@@ -5,11 +5,7 @@
   "description": "Build an efficient learning path for an unfamiliar topic.",
   "content": "I need to get productive in {{topic}}, starting from {{starting_point}}.\n\nDesign a learning path: the core concepts in dependency order, the 20% that delivers 80% of the value, a concrete first project to cement it, and the common misconceptions to avoid. Bias toward doing over reading. Tell me how I'll know I've actually learned it versus just recognizing the terms.",
   "category": "research",
-  "tags": [
-    "learning",
-    "onboarding",
-    "study-plan"
-  ],
+  "tags": ["learning", "onboarding", "study-plan"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2a50201e0b71a2a0aa2add92551d334631183deda2fd6d00c149298c29260dd6",

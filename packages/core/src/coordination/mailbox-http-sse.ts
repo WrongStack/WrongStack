@@ -90,9 +90,11 @@ export function createCredentialRevalidator(
   if (parsed === undefined) return async () => false;
   return async () => {
     const validation = await store.verifyPersisted(parsed.credentialId, parsed.secret);
-    return validation.valid &&
+    return (
+      validation.valid &&
       validation.credential?.principalId === actor.actorId &&
-      validation.credential.projectId === actor.projectId;
+      validation.credential.projectId === actor.projectId
+    );
   };
 }
 
@@ -168,11 +170,9 @@ export function handleSse(
       return;
     }
     pendingOperations += 1;
-    deliveryChain = deliveryChain
-      .then(operation, operation)
-      .finally(() => {
-        pendingOperations -= 1;
-      });
+    deliveryChain = deliveryChain.then(operation, operation).finally(() => {
+      pendingOperations -= 1;
+    });
   };
 
   unsubscribe = eventEmitter.subscribe((event) => {
@@ -190,10 +190,7 @@ export function handleSse(
         if (minTimestampIso !== undefined && isEventOlderThan(event, minTimestampIso)) {
           return;
         }
-        if (
-          actor !== undefined &&
-          !isMailboxEventVisibleToActor(event, actor)
-        ) {
+        if (actor !== undefined && !isMailboxEventVisibleToActor(event, actor)) {
           return;
         }
         response.write(`data: ${JSON.stringify(event)}\n\n`);

@@ -38,7 +38,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { DefaultBrainArbiter } from '../../src/coordination/brain.js';
 import { readDecisionTier } from '../../src/coordination/brain-telemetry.js';
-import { createAutonomyBrain, createTieredBrainArbiter } from '../../src/execution/autonomy-brain.js';
+import {
+  createAutonomyBrain,
+  createTieredBrainArbiter,
+} from '../../src/execution/autonomy-brain.js';
 import {
   type BrainEvaluationCaseV1,
   runBrainEvaluation,
@@ -170,7 +173,10 @@ describe('brain adversarial fixtures', () => {
 
   it('resolves each fixture at exactly the tier it declares', async () => {
     const { arbiter, tiers } = recordingChain();
-    await runBrainEvaluation(arbiter, fixtures.map((f) => f.raw));
+    await runBrainEvaluation(
+      arbiter,
+      fixtures.map((f) => f.raw),
+    );
 
     const wrong = fixtures
       .map(({ raw }) => ({

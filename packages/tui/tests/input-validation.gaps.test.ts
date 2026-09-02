@@ -98,7 +98,11 @@ describe('validateAction — remaining branch coverage', () => {
   it('validates debug stream counters', () => {
     expectInvalid('debugStreamStats', { chunkCount: -1 }, 'chunkCount');
     expectInvalid('debugStreamStats', { chunkCount: 1, lastChunkSize: -1 }, 'lastChunkSize');
-    expectInvalid('debugStreamStats', { chunkCount: 1, lastChunkSize: 1, totalBytes: -5 }, 'totalBytes');
+    expectInvalid(
+      'debugStreamStats',
+      { chunkCount: 1, lastChunkSize: 1, totalBytes: -5 },
+      'totalBytes',
+    );
     expect(
       validateAction({ type: 'debugStreamStats', chunkCount: 1, lastChunkSize: 2, totalBytes: 3 })
         .valid,

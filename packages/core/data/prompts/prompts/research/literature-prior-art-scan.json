@@ -5,11 +5,7 @@
   "description": "Map what's already known or built before you start.",
   "content": "Before I build/decide on {{topic}}, help me map the prior art. What are the established approaches, the well-known tools or papers, and the standard pitfalls people hit? What's the consensus, and where is it genuinely contested? Tell me what I should read or try first, and what's likely a dead end. Flag where your knowledge may be out of date so I can verify.",
   "category": "research",
-  "tags": [
-    "prior-art",
-    "survey",
-    "research"
-  ],
+  "tags": ["prior-art", "survey", "research"],
   "source": "builtin",
   "favorite": false,
   "checksum": "000062ff4ec35e6a02f6b24cf65d18116016935091ddb5cc43fa111a043523c1",

@@ -13,8 +13,21 @@ const VALID_PLAN = JSON.stringify([
     estimateHours: 2,
     parallelizable: false,
     tasks: [
-      { title: 'Read the existing code', description: 'survey modules', type: 'chore', priority: 'high', estimateHours: 1, tags: ['recon'] },
-      { title: 'List open questions', description: 'gaps', type: 'docs', priority: 'medium', estimateHours: 1 },
+      {
+        title: 'Read the existing code',
+        description: 'survey modules',
+        type: 'chore',
+        priority: 'high',
+        estimateHours: 1,
+        tags: ['recon'],
+      },
+      {
+        title: 'List open questions',
+        description: 'gaps',
+        type: 'docs',
+        priority: 'medium',
+        estimateHours: 1,
+      },
     ],
   },
   {
@@ -24,7 +37,13 @@ const VALID_PLAN = JSON.stringify([
     estimateHours: 8,
     parallelizable: false,
     tasks: [
-      { title: 'Add the endpoint', description: 'POST /things', type: 'feature', priority: 'critical', estimateHours: 4 },
+      {
+        title: 'Add the endpoint',
+        description: 'POST /things',
+        type: 'feature',
+        priority: 'critical',
+        estimateHours: 4,
+      },
     ],
   },
 ]);
@@ -82,7 +101,9 @@ describe('GoalPlanner', () => {
 
     expect(result.parseFailed).toBe(true);
     expect(result.phases).toEqual([]);
-    expect(result.warnings).toContain('Phase "Later remediation" has no executable tasks and was rejected.');
+    expect(result.warnings).toContain(
+      'Phase "Later remediation" has no executable tasks and was rejected.',
+    );
   });
 
   it('produces templates a PhaseGraphBuilder can materialize into a populated graph', async () => {

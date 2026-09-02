@@ -18,7 +18,11 @@ export interface UseFileMentionResult {
   /** Pick a file from the picker: removes the `@query` mention from the
    *  draft and returns the updated text + fileRefs so the caller can
    *  apply them to its own state. */
-  selectFile: (path: string, draft: string, fileRefs: string[]) => {
+  selectFile: (
+    path: string,
+    draft: string,
+    fileRefs: string[],
+  ) => {
     draft: string;
     fileRefs: string[];
   };

@@ -274,11 +274,7 @@ export function tryToolsSettingsPickerKeys(
       return true;
     }
     if (input && input.length === 1 && (key.ctrl || key.meta)) {
-      const mod: 'ctrl' | 'alt' | 'alt-shift' = key.ctrl
-        ? 'ctrl'
-        : key.shift
-          ? 'alt-shift'
-          : 'alt';
+      const mod: 'ctrl' | 'alt' | 'alt-shift' = key.ctrl ? 'ctrl' : key.shift ? 'alt-shift' : 'alt';
       const field = settingsPickerJumpField(mod, input);
       if (field !== undefined) {
         dispatch({ type: 'settingsFieldSet', field });
@@ -418,12 +414,7 @@ export function tryToolsSettingsPickerKeys(
       void host.onToolsPickerToggle?.();
       return true;
     }
-    if (
-      input &&
-      input.length === 1 &&
-      input.charCodeAt(0) >= 0x20 &&
-      input.charCodeAt(0) < 0x7f
-    ) {
+    if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
       dispatch({ type: 'toolsPickerFilter', filter: (state.toolsPicker.filter ?? '') + input });
       return true;
     }
@@ -457,12 +448,7 @@ export function tryToolsSettingsPickerKeys(
       dispatch({ type: 'helpFilter', filter: state.helpPanel.filter.slice(0, -1) });
       return true;
     }
-    if (
-      input &&
-      input.length === 1 &&
-      input.charCodeAt(0) >= 0x20 &&
-      input.charCodeAt(0) < 0x7f
-    ) {
+    if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
       dispatch({ type: 'helpFilter', filter: state.helpPanel.filter + input });
       return true;
     }
@@ -642,12 +628,7 @@ export function tryToolsSettingsPickerKeys(
       }
       return true;
     }
-    if (
-      input &&
-      input.length === 1 &&
-      input.charCodeAt(0) >= 0x20 &&
-      input.charCodeAt(0) < 0x7f
-    ) {
+    if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
       dispatch({ type: 'projectPickerFilter', filter: state.projectPicker.filter + input });
       return true;
     }

@@ -12,8 +12,26 @@ const snapshot = {
     { label: 'Phase 1', taskIds: ['t2'] },
   ],
   tasks: [
-    { id: 'task-1', shortId: 't1', title: 'Research', displayStatus: 'in_progress' as const, priority: 'high', deps: [], agentName: 'agent-1', retries: 0 },
-    { id: 'task-2', shortId: 't2', title: 'Implement', displayStatus: 'pending' as const, priority: 'medium', deps: ['t1'], agentName: undefined, retries: 0 },
+    {
+      id: 'task-1',
+      shortId: 't1',
+      title: 'Research',
+      displayStatus: 'in_progress' as const,
+      priority: 'high',
+      deps: [],
+      agentName: 'agent-1',
+      retries: 0,
+    },
+    {
+      id: 'task-2',
+      shortId: 't2',
+      title: 'Implement',
+      displayStatus: 'pending' as const,
+      priority: 'medium',
+      deps: ['t1'],
+      agentName: undefined,
+      retries: 0,
+    },
   ],
   progress: { total: 2, completed: 0, inProgress: 1, failed: 0, percentComplete: 0 },
   feed: [{ ts: Date.now(), kind: 'started', text: 'Task started' }],
@@ -57,7 +75,12 @@ describe('SddBoardOverlay', () => {
   });
 
   it('shows empty state when no tasks', () => {
-    const snap = { ...snapshot, tasks: [], columns: [], progress: { total: 0, completed: 0, inProgress: 0, failed: 0, percentComplete: 0 } };
+    const snap = {
+      ...snapshot,
+      tasks: [],
+      columns: [],
+      progress: { total: 0, completed: 0, inProgress: 0, failed: 0, percentComplete: 0 },
+    };
     const view = render(React.createElement(SddBoardOverlay, { snapshot: snap } as never));
     const frame = view.lastFrame() ?? '';
     expect(frame).toContain('No active SDD run');
@@ -86,7 +109,9 @@ describe('SddBoardOverlay', () => {
   });
 
   it('focuses a specific column when focusColumn provided', () => {
-    const view = render(React.createElement(SddBoardOverlay, { snapshot, focusColumn: 0 } as never));
+    const view = render(
+      React.createElement(SddBoardOverlay, { snapshot, focusColumn: 0 } as never),
+    );
     const frame = view.lastFrame() ?? '';
     expect(frame).toContain('Start');
     // Ink wraps text, "column 1/2" may be on adjacent lines
@@ -115,12 +140,21 @@ describe('SddBoardOverlay', () => {
       { displayStatus: 'cancelled', icon: '' },
     ];
     const tasks = statuses.map((s, i) => ({
-      id: `t-${i}`, shortId: `s${i}`, title: `Task ${s.displayStatus}`, displayStatus: s.displayStatus as any,
-      priority: 'low', deps: [], agentName: undefined, retries: 0, worktreeBranch: undefined,
+      id: `t-${i}`,
+      shortId: `s${i}`,
+      title: `Task ${s.displayStatus}`,
+      displayStatus: s.displayStatus as any,
+      priority: 'low',
+      deps: [],
+      agentName: undefined,
+      retries: 0,
+      worktreeBranch: undefined,
     }));
     const cols = [{ label: 'All', taskIds: tasks.map((t: any) => t.shortId) }];
     const snap = {
-      ...snapshot, tasks, columns: cols,
+      ...snapshot,
+      tasks,
+      columns: cols,
       progress: { total: tasks.length, completed: 0, inProgress: 0, failed: 0, percentComplete: 0 },
     };
     const view = render(React.createElement(SddBoardOverlay, { snapshot: snap } as never));

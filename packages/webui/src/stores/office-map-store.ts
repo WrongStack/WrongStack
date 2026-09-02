@@ -71,7 +71,9 @@ export const useOfficeMapStore = create<OfficeMapState>()(
       setShowFeed: (v) => set({ showFeed: v }),
       setBackground: (v) => set({ background: v }),
       setWaitThresholdMs: (v) =>
-        set({ waitThresholdMs: Number.isFinite(v) && v > 0 ? Math.round(v) : DEFAULT_WAIT_THRESHOLD_MS }),
+        set({
+          waitThresholdMs: Number.isFinite(v) && v > 0 ? Math.round(v) : DEFAULT_WAIT_THRESHOLD_MS,
+        }),
     }),
     { name: 'wrongstack-officemap' },
   ),

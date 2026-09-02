@@ -141,7 +141,9 @@ describe('performance-regression-gate plugin', () => {
         ]),
       ),
     );
-    const api = makeApi({ extensions: { 'performance-regression-gate': { thresholdPercent: 25 } } });
+    const api = makeApi({
+      extensions: { 'performance-regression-gate': { thresholdPercent: 25 } },
+    });
     perfPlugin.setup(api as never);
     const status = getTool(api, 'perf_regression_status');
     const result = (await status({})) as {

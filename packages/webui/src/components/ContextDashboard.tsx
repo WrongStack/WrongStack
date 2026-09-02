@@ -834,9 +834,7 @@ export function ContextDashboard() {
   const activeSessionId = useActiveSessionId();
   const fleetAgents = useFleetStore(
     useShallow((s) =>
-      [...s.agents.values()].filter((a) =>
-        agentBelongsToSession(a.sessionId, activeSessionId),
-      ),
+      [...s.agents.values()].filter((a) => agentBelongsToSession(a.sessionId, activeSessionId)),
     ),
   );
 

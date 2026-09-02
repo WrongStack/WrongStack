@@ -2,10 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  DirectorStateCheckpoint,
-  loadDirectorState,
-} from '../../src/storage/director-state.js';
+import { DirectorStateCheckpoint, loadDirectorState } from '../../src/storage/director-state.js';
 
 describe('director-state checkpoint', () => {
   it('records spawns and writes to disk', async () => {
@@ -96,8 +93,9 @@ describe('director-state checkpoint', () => {
       // Write a lock with our own PID — process.kill(pid, 0) will succeed
       const lock = { pid: process.pid, hostname: 'test', startedAt: new Date().toISOString() };
       await fs.writeFile(lockPath, JSON.stringify(lock), 'utf8');
-      const result = await import('../../src/storage/director-state.js')
-        .then(({ acquireDirectorStateLock }) => acquireDirectorStateLock(lockPath, process.pid));
+      const result = await import('../../src/storage/director-state.js').then(
+        ({ acquireDirectorStateLock }) => acquireDirectorStateLock(lockPath, process.pid),
+      );
       expect(result).toBe(false);
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
@@ -136,7 +134,13 @@ describe('director-state checkpoint', () => {
   it('DirectorStateCheckpoint constructor initializes full snapshot', () => {
     const cp = new DirectorStateCheckpoint(
       '/tmp/dstate.json',
-      { directorRunId: 'run-ctor', maxSpawns: 5, spawnDepth: 1, maxSpawnDepth: 3, directorBudget: { maxCostUsd: 10 } },
+      {
+        directorRunId: 'run-ctor',
+        maxSpawns: 5,
+        spawnDepth: 1,
+        maxSpawnDepth: 3,
+        directorBudget: { maxCostUsd: 10 },
+      },
       100,
     );
     const snap = cp.current();
@@ -155,10 +159,19 @@ describe('director-state checkpoint', () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-dstate-'));
     const file = path.join(dir, 'director-state.json');
     try {
-      const cp = new DirectorStateCheckpoint(file, { directorRunId: 'run', spawnDepth: 0, maxSpawnDepth: 2 }, 10);
+      const cp = new DirectorStateCheckpoint(
+        file,
+        { directorRunId: 'run', spawnDepth: 0, maxSpawnDepth: 2 },
+        10,
+      );
       const snapshot: import('../../src/storage/director-state.js').DirectorStateSnapshot = {
-        version: 1, directorRunId: 'run', updatedAt: new Date().toISOString(),
-        spawnCount: 5, spawnDepth: 1, maxSpawnDepth: 2, subagents: [{ id: 'sub', spawnedAt: new Date().toISOString() }],
+        version: 1,
+        directorRunId: 'run',
+        updatedAt: new Date().toISOString(),
+        spawnCount: 5,
+        spawnDepth: 1,
+        maxSpawnDepth: 2,
+        subagents: [{ id: 'sub', spawnedAt: new Date().toISOString() }],
         tasks: [{ taskId: 't1', status: 'running' }],
       };
       cp.resume(snapshot);
@@ -172,7 +185,11 @@ describe('director-state checkpoint', () => {
   });
 
   it('checkpoint.current() returns current snapshot', () => {
-    const cp = new DirectorStateCheckpoint('/tmp/dstate.json', { directorRunId: 'run', spawnDepth: 0, maxSpawnDepth: 2 });
+    const cp = new DirectorStateCheckpoint('/tmp/dstate.json', {
+      directorRunId: 'run',
+      spawnDepth: 0,
+      maxSpawnDepth: 2,
+    });
     const snap = cp.current();
     expect(snap).toBeDefined();
     expect(snap.directorRunId).toBe('run');
@@ -182,7 +199,11 @@ describe('director-state checkpoint', () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-dstate-'));
     const file = path.join(dir, 'director-state.json');
     try {
-      const cp = new DirectorStateCheckpoint(file, { directorRunId: 'run', spawnDepth: 0, maxSpawnDepth: 2 }, 10);
+      const cp = new DirectorStateCheckpoint(
+        file,
+        { directorRunId: 'run', spawnDepth: 0, maxSpawnDepth: 2 },
+        10,
+      );
       cp.setUsage({ totalCost: 0.5 });
       await cp.flush();
       const loaded = await loadDirectorState(file);
@@ -196,7 +217,11 @@ describe('director-state checkpoint', () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-dstate-'));
     const file = path.join(dir, 'director-state.json');
     try {
-      const cp = new DirectorStateCheckpoint(file, { directorRunId: 'run', spawnDepth: 0, maxSpawnDepth: 2 });
+      const cp = new DirectorStateCheckpoint(file, {
+        directorRunId: 'run',
+        spawnDepth: 0,
+        maxSpawnDepth: 2,
+      });
       const acquired = await cp.acquireLock();
       expect(acquired).toBe(true);
       // Lock file should exist

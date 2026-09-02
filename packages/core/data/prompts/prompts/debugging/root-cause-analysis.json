@@ -5,11 +5,7 @@
   "description": "Systematically find the true root cause of a bug, not just a symptom.",
   "content": "I have this bug: {{symptom}}\n\nHelp me find the root cause, not just a patch. Work through it:\n1. Restate the expected vs. actual behavior precisely.\n2. List the most likely hypotheses, ordered by probability.\n3. For each, name the single cheapest observation that would confirm or rule it out.\n4. Tell me exactly what to inspect, log, or run next.\n\nDo not propose a fix until we've isolated the cause. Ask for any log, stack trace, or code you need.",
   "category": "debugging",
-  "tags": [
-    "rca",
-    "bug",
-    "investigation"
-  ],
+  "tags": ["rca", "bug", "investigation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "d8d1bdd62b01a4afcf7472116d2371b59e014f7af5a340b23bce9e64a0e9bb79",

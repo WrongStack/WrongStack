@@ -17,7 +17,10 @@ function mkWorkspace(
   files: Record<string, string>,
   manifestFilter?: (f: string) => boolean,
 ): { dir: string; ws: Workspace } {
-  const dir = join(tmpdir(), `ts-${ecosystem}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const dir = join(
+    tmpdir(),
+    `ts-${ecosystem}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  );
   mkdirSync(dir, { recursive: true });
   for (const [name, content] of Object.entries(files)) {
     writeFileSync(join(dir, name), content);
@@ -83,7 +86,10 @@ describe('DartAdapter', () => {
   });
 
   it('reads locked versions from pubspec.lock', async () => {
-    const { dir, ws } = mkWorkspace('dart', { 'pubspec.yaml': PUBSPEC, 'pubspec.lock': PUBSPEC_LOCK });
+    const { dir, ws } = mkWorkspace('dart', {
+      'pubspec.yaml': PUBSPEC,
+      'pubspec.lock': PUBSPEC_LOCK,
+    });
     await withCleanup(async () => {
       const deps = await new DartAdapter().inventory(ws, {});
       expect(deps.find((d) => d.name === 'http')?.locked).toBe('1.2.2');
@@ -139,7 +145,10 @@ describe('PhpAdapter', () => {
   });
 
   it('reads locked versions from composer.lock', async () => {
-    const { dir, ws } = mkWorkspace('php', { 'composer.json': COMPOSER_JSON, 'composer.lock': COMPOSER_LOCK });
+    const { dir, ws } = mkWorkspace('php', {
+      'composer.json': COMPOSER_JSON,
+      'composer.lock': COMPOSER_LOCK,
+    });
     await withCleanup(async () => {
       const deps = await new PhpAdapter().inventory(ws, {});
       expect(deps.find((d) => d.name === 'monolog/monolog')?.locked).toBe('3.5.0');
@@ -207,7 +216,10 @@ describe('DotNetAdapter', () => {
   });
 
   it('reads locked versions from project.assets.json', async () => {
-    const { dir, ws } = mkWorkspace('dotnet', { 'App.csproj': CSPROJ, 'project.assets.json': ASSETS });
+    const { dir, ws } = mkWorkspace('dotnet', {
+      'App.csproj': CSPROJ,
+      'project.assets.json': ASSETS,
+    });
     await withCleanup(async () => {
       const deps = await new DotNetAdapter().inventory(ws, {});
       expect(deps.find((d) => d.name === 'Newtonsoft.Json')?.locked).toBe('13.0.3');
@@ -271,13 +283,9 @@ describe('RubyAdapter', () => {
 // ── C++ adapter ───────────────────────────────────────────────────────
 
 describe('CppAdapter', () => {
-  const CONANFILE = [
-    '[requires]',
-    'boost/1.84.0',
-    'openssl/3.2.1',
-    '[generators]',
-    'cmake',
-  ].join('\n');
+  const CONANFILE = ['[requires]', 'boost/1.84.0', 'openssl/3.2.1', '[generators]', 'cmake'].join(
+    '\n',
+  );
   const VCPKG_JSON = JSON.stringify({
     dependencies: ['fmt', { name: 'spdlog', version: '1.13.0' }],
   });
@@ -304,7 +312,10 @@ describe('CppAdapter', () => {
   });
 
   it('deduplicates across manifests', async () => {
-    const { dir, ws } = mkWorkspace('cpp', { 'conanfile.txt': CONANFILE, 'vcpkg.json': VCPKG_JSON });
+    const { dir, ws } = mkWorkspace('cpp', {
+      'conanfile.txt': CONANFILE,
+      'vcpkg.json': VCPKG_JSON,
+    });
     await withCleanup(async () => {
       const deps = await new CppAdapter().inventory(ws, {});
       // No duplicate names
@@ -417,7 +428,9 @@ describe('MavenAdapter', () => {
     const { dir, ws } = mkWorkspace('maven', { 'pom.xml': POM_XML });
     await withCleanup(async () => {
       const deps = await new MavenAdapter().inventory(ws, {});
-      expect(deps.find((d) => d.name === 'org.springframework:spring-core')?.requested).toBe('6.1.0');
+      expect(deps.find((d) => d.name === 'org.springframework:spring-core')?.requested).toBe(
+        '6.1.0',
+      );
     }, dir);
   });
 

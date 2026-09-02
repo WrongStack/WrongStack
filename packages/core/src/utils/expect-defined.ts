@@ -4,7 +4,9 @@
  *  prove it (e.g. after a check on a related field). */
 export function expectDefined<T>(value: T | null | undefined, label?: string): T {
   if (value === null || value === undefined) {
-    const err = new Error(label ? `Expected ${label} to be defined` : 'Expected value to be defined');
+    const err = new Error(
+      label ? `Expected ${label} to be defined` : 'Expected value to be defined',
+    );
     err.name = 'ExpectDefinedError';
     throw err;
   }

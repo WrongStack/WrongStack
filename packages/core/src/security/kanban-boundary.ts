@@ -149,7 +149,9 @@ export async function evaluateToolKanbanBoundary(
       const failed: string[] = [];
       let reassessmentNote = '';
       if (!lifecycleOk) {
-        failed.push(`lifecycle.currentStage (got: ${lifecycleStage ?? 'missing'}; want: 'running')`);
+        failed.push(
+          `lifecycle.currentStage (got: ${lifecycleStage ?? 'missing'}; want: 'running')`,
+        );
       }
       if (!assignmentOk) {
         failed.push(`assignment.status (got: ${assignmentStatus ?? 'missing'}; want: 'running')`);
@@ -158,7 +160,12 @@ export async function evaluateToolKanbanBoundary(
         // automated kanban reassessment agent. The leader still owns
         // the card; the binding was lost. Tell the operator so they
         // don't re-issue start_task needlessly.
-        if (lifecycleOk && (assignmentStatus === 'queued' || assignmentStatus === undefined || assignmentStatus === null)) {
+        if (
+          lifecycleOk &&
+          (assignmentStatus === 'queued' ||
+            assignmentStatus === undefined ||
+            assignmentStatus === null)
+        ) {
           reassessmentNote =
             '\nNote: lifecycle is still "running" but the assignment was cleared — ' +
             'the automated kanban reassessment agent likely reset the binding. ' +

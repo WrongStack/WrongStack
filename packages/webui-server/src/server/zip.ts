@@ -14,7 +14,8 @@ export function createZipBuffer(entries: ZipEntryInput[]): Buffer {
 
   for (const entry of entries) {
     const name = Buffer.from(normalizeZipPath(entry.name), 'utf8');
-    const data = typeof entry.data === 'string' ? Buffer.from(entry.data, 'utf8') : Buffer.from(entry.data);
+    const data =
+      typeof entry.data === 'string' ? Buffer.from(entry.data, 'utf8') : Buffer.from(entry.data);
     const compressed = deflateRawSync(data);
     const crc = crc32(data);
     const local = Buffer.alloc(30);
@@ -109,7 +110,8 @@ export function readZipEntries(archive: Uint8Array): Map<string, Buffer> {
           : undefined;
     if (!data) throw new Error(`Unsupported ZIP compression method: ${method}`);
     if (data.length !== expectedSize) throw new Error(`ZIP size mismatch for ${name}`);
-    if (crc32(data) !== buffer.readUInt32LE(offset + 14)) throw new Error(`ZIP CRC mismatch for ${name}`);
+    if (crc32(data) !== buffer.readUInt32LE(offset + 14))
+      throw new Error(`ZIP CRC mismatch for ${name}`);
     result.set(name, data);
     totalBytes += data.length;
     offset = dataEnd;

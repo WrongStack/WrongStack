@@ -31,18 +31,35 @@ function makeHost(over: Partial<DirectorCheckpointHost> = {}): DirectorCheckpoin
   } as DirectorCheckpointHost;
 }
 
-const okResult = (taskId: string): TaskResult => ({ subagentId: 's', taskId, status: 'success', iterations: 2, toolCalls: 3, durationMs: 4 });
+const okResult = (taskId: string): TaskResult => ({
+  subagentId: 's',
+  taskId,
+  status: 'success',
+  iterations: 2,
+  toolCalls: 3,
+  durationMs: 4,
+});
 
 describe('appendSessionEvent', () => {
   it('is a no-op without a session writer', async () => {
-    await expect(cw.appendSessionEvent(makeHost(), { type: 'x' } as never)).resolves.toBeUndefined();
+    await expect(
+      cw.appendSessionEvent(makeHost(), { type: 'x' } as never),
+    ).resolves.toBeUndefined();
   });
   it('appends through the writer and swallows writer errors', async () => {
     const append = vi.fn(async () => {});
-    await cw.appendSessionEvent(makeHost({ sessionWriter: { append } as never }), { type: 'x' } as never);
+    await cw.appendSessionEvent(makeHost({ sessionWriter: { append } as never }), {
+      type: 'x',
+    } as never);
     expect(append).toHaveBeenCalled();
-    const throwing = vi.fn(async () => { throw new Error('handle closed'); });
-    await expect(cw.appendSessionEvent(makeHost({ sessionWriter: { append: throwing } as never }), { type: 'y' } as never)).resolves.toBeUndefined();
+    const throwing = vi.fn(async () => {
+      throw new Error('handle closed');
+    });
+    await expect(
+      cw.appendSessionEvent(makeHost({ sessionWriter: { append: throwing } as never }), {
+        type: 'y',
+      } as never),
+    ).resolves.toBeUndefined();
   });
 });
 
@@ -98,18 +115,30 @@ describe('scheduleManifest', () => {
     const filePath = path.join(tmp, 'blocker');
     await fs.writeFile(filePath, 'x');
     const logShutdownError = vi.fn();
-    const host = makeHost({ manifestDebounceMs: 0, manifestPath: path.join(filePath, 'manifest.json'), logShutdownError });
+    const host = makeHost({
+      manifestDebounceMs: 0,
+      manifestPath: path.join(filePath, 'manifest.json'),
+      logShutdownError,
+    });
     cw.scheduleManifest(host);
-    await vi.waitFor(() => expect(logShutdownError).toHaveBeenCalledWith('manifest_write_debounced', expect.anything()));
+    await vi.waitFor(() =>
+      expect(logShutdownError).toHaveBeenCalledWith('manifest_write_debounced', expect.anything()),
+    );
   });
 
   it('routes a debounced-write failure to logShutdownError', async () => {
     const filePath = path.join(tmp, 'blocker2');
     await fs.writeFile(filePath, 'x');
     const logShutdownError = vi.fn();
-    const host = makeHost({ manifestDebounceMs: 5, manifestPath: path.join(filePath, 'manifest.json'), logShutdownError });
+    const host = makeHost({
+      manifestDebounceMs: 5,
+      manifestPath: path.join(filePath, 'manifest.json'),
+      logShutdownError,
+    });
     const handle = cw.scheduleManifest(host);
-    await vi.waitFor(() => expect(logShutdownError).toHaveBeenCalledWith('manifest_write_debounced', expect.anything()));
+    await vi.waitFor(() =>
+      expect(logShutdownError).toHaveBeenCalledWith('manifest_write_debounced', expect.anything()),
+    );
     clearTimeout(handle!);
   });
 });
@@ -118,7 +147,9 @@ describe('checkpoint state helpers', () => {
   it('setCheckpointState / resumeFromCheckpoint delegate to the checkpoint and no-op without one', () => {
     const resume = vi.fn();
     cw.setCheckpointState(makeHost({ stateCheckpoint: { resume } as never }), { foo: 1 } as never);
-    cw.resumeFromCheckpoint(makeHost({ stateCheckpoint: { resume } as never }), { foo: 1 } as never);
+    cw.resumeFromCheckpoint(makeHost({ stateCheckpoint: { resume } as never }), {
+      foo: 1,
+    } as never);
     expect(resume).toHaveBeenCalledTimes(2);
     expect(() => cw.setCheckpointState(makeHost(), {} as never)).not.toThrow();
     expect(() => cw.resumeFromCheckpoint(makeHost(), {} as never)).not.toThrow();
@@ -127,6 +158,8 @@ describe('checkpoint state helpers', () => {
   it('acquireCheckpointLock delegates, and returns true without a checkpoint', async () => {
     expect(await cw.acquireCheckpointLock(makeHost())).toBe(true);
     const acquireLock = vi.fn().mockResolvedValue(false);
-    expect(await cw.acquireCheckpointLock(makeHost({ stateCheckpoint: { acquireLock } as never }))).toBe(false);
+    expect(
+      await cw.acquireCheckpointLock(makeHost({ stateCheckpoint: { acquireLock } as never })),
+    ).toBe(false);
   });
 });

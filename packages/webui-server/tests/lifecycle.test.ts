@@ -5,10 +5,7 @@ describe('lifecycle', () => {
   describe('createShutdown', () => {
     it('calls flushSession, closes clients and servers, then exits', async () => {
       const flushSession = vi.fn().mockResolvedValue(undefined);
-      const clientsFn = vi.fn().mockReturnValue([
-        { close: vi.fn() },
-        { close: vi.fn() },
-      ]);
+      const clientsFn = vi.fn().mockReturnValue([{ close: vi.fn() }, { close: vi.fn() }]);
       const server1 = { close: vi.fn() };
       const server2 = { close: vi.fn() };
       const exit = vi.fn();

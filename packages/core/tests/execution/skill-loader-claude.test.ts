@@ -94,7 +94,11 @@ describe('DefaultSkillLoader — foreign (.claude) + extra dirs', () => {
   });
 
   it('reads the body of a foreign skill', async () => {
-    await writeSkill(path.join(projectRoot, '.claude', 'skills'), 'foreign', 'Foreign body content');
+    await writeSkill(
+      path.join(projectRoot, '.claude', 'skills'),
+      'foreign',
+      'Foreign body content',
+    );
     const paths = resolveWstackPaths({ projectRoot, userHome });
     const loader = new DefaultSkillLoader({ paths });
     expect(await loader.readBody('foreign')).toContain('Foreign body content');

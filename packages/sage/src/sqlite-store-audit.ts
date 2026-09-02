@@ -1,8 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import {
-  AUDIT_LOG_MAX_ROWS,
-  AUDIT_LOG_PRUNE_INTERVAL,
-} from './sqlite-store-schema.js';
+import { AUDIT_LOG_MAX_ROWS, AUDIT_LOG_PRUNE_INTERVAL } from './sqlite-store-schema.js';
 import { sqliteRowToAuditRecord, type SqliteAuditRow } from './sqlite-store-codec.js';
 import type { SageAuditRecord } from './types.js';
 
@@ -19,12 +16,9 @@ export function writeSqliteAudit(
   event: string,
   data?: Record<string, unknown>,
 ): void {
-  ctx.stmt('INSERT INTO audit_log (event, at, trace_id, data) VALUES (?, ?, ?, ?)').run(
-    event,
-    ctx.nowIso(),
-    ctx.getTraceId() ?? null,
-    data ? JSON.stringify(data) : null,
-  );
+  ctx
+    .stmt('INSERT INTO audit_log (event, at, trace_id, data) VALUES (?, ?, ?, ?)')
+    .run(event, ctx.nowIso(), ctx.getTraceId() ?? null, data ? JSON.stringify(data) : null);
   const writes = ctx.getWritesSincePrune() + 1;
   if (writes >= AUDIT_LOG_PRUNE_INTERVAL) {
     ctx.setWritesSincePrune(0);

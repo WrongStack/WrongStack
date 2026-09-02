@@ -13,10 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Sage } from '../src/types.js';
 import { computeValueScore } from '../src/triage/value-score.js';
-import {
-  evaluateMemory,
-  evaluateBatch,
-} from '../src/triage/llm-evaluator.js';
+import { evaluateMemory, evaluateBatch } from '../src/triage/llm-evaluator.js';
 import type { LlmCallFn, TriageAction } from '../src/triage/llm-evaluator.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -58,7 +55,11 @@ describe('LLM evaluator — response parsing', () => {
   it('parses standard "SCORE | REASON" format', async () => {
     const m = makeMemory();
     const vs = computeValueScore(m);
-    const result = await evaluateMemory(m, vs, mockLlm('4 | Documents a key architectural invariant'));
+    const result = await evaluateMemory(
+      m,
+      vs,
+      mockLlm('4 | Documents a key architectural invariant'),
+    );
     expect(result.evaluation.score).toBe(4);
     expect(result.evaluation.reason).toBe('Documents a key architectural invariant');
     expect(result.evaluation.ok).toBe(true);
@@ -240,9 +241,7 @@ describe('batch evaluation', () => {
       makeMemory({ id: 'c', text: 'Memory C is essential knowledge' }),
     ];
 
-    const valueScores = new Map(
-      memories.map((m) => [m.id, computeValueScore(m)]),
-    );
+    const valueScores = new Map(memories.map((m) => [m.id, computeValueScore(m)]));
 
     let callCount = 0;
     const mockCall: LlmCallFn = async (_sys, prompt) => {
@@ -263,10 +262,7 @@ describe('batch evaluation', () => {
   });
 
   it('skips memories without value scores', async () => {
-    const memories = [
-      makeMemory({ id: 'a' }),
-      makeMemory({ id: 'b' }),
-    ];
+    const memories = [makeMemory({ id: 'a' }), makeMemory({ id: 'b' })];
 
     const valueScores = new Map([
       ['a', computeValueScore(memories[0]!)],
@@ -288,9 +284,7 @@ describe('batch evaluation', () => {
     const many = Array.from({ length: 10 }, (_, i) =>
       makeMemory({ id: `mem_${i}`, text: `Memory ${i}` }),
     );
-    const valueScores = new Map(
-      many.map((m) => [m.id, computeValueScore(m)]),
-    );
+    const valueScores = new Map(many.map((m) => [m.id, computeValueScore(m)]));
 
     let callCount = 0;
     const mockCall: LlmCallFn = async () => {
@@ -362,13 +356,28 @@ describe('action coverage', () => {
   it('all 6 TriageAction values are reachable', async () => {
     const actionsSeen = new Set<string>();
 
-    const testCases: Array<{ imp: number; detScore: number; llmResponse: string; expectedAction: TriageAction }> = [
+    const testCases: Array<{
+      imp: number;
+      detScore: number;
+      llmResponse: string;
+      expectedAction: TriageAction;
+    }> = [
       { imp: 0.6, detScore: 10, llmResponse: '5 | essential', expectedAction: 'keep' },
       { imp: 0.6, detScore: 60, llmResponse: '4 | useful', expectedAction: 'keep' },
-      { imp: 0.3, detScore: 25, llmResponse: '4 | useful override', expectedAction: 'keep_llm_override' },
+      {
+        imp: 0.3,
+        detScore: 25,
+        llmResponse: '4 | useful override',
+        expectedAction: 'keep_llm_override',
+      },
       { imp: 0.4, detScore: 35, llmResponse: '3 | niche low', expectedAction: 'stale' },
       { imp: 0.5, detScore: 40, llmResponse: '2 | transient', expectedAction: 'propose_archive' },
-      { imp: 0.95, detScore: 40, llmResponse: '1 | noise', expectedAction: 'propose_archive_safety_stale' },
+      {
+        imp: 0.95,
+        detScore: 40,
+        llmResponse: '1 | noise',
+        expectedAction: 'propose_archive_safety_stale',
+      },
     ];
 
     for (const tc of testCases) {

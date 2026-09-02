@@ -70,8 +70,16 @@ export class MailboxValidationError extends Error {
 
 /** Fields allowed in a send mutation payload from untrusted callers. */
 export const SEND_ALLOWED_FIELDS: ReadonlySet<string> = new Set<string>([
-  'to', 'subject', 'body', 'type', 'priority', 'audience', 'replyTo',
-  'senderSessionId', 'ttlMs', 'taskContext',
+  'to',
+  'subject',
+  'body',
+  'type',
+  'priority',
+  'audience',
+  'replyTo',
+  'senderSessionId',
+  'ttlMs',
+  'taskContext',
   // 'sessionAffinity' is NOT in the allow-list. The trust-line contract:
   // session-affinity tokens are stamped ONLY by trusted internal callers
   // (chimera/auto-review pipelines) that call `mailbox.send()` directly
@@ -94,10 +102,7 @@ export const SEND_ALLOWED_FIELDS: ReadonlySet<string> = new Set<string>([
  *   - `sessionAffinity` — session-scoping token reserved for trusted
  *     internal callers (see the note in SEND_ALLOWED_FIELDS)
  */
-const SEND_FORBIDDEN_FIELDS: ReadonlySet<string> = new Set<string>([
-  'from',
-  'sessionAffinity',
-]);
+const SEND_FORBIDDEN_FIELDS: ReadonlySet<string> = new Set<string>(['from', 'sessionAffinity']);
 
 // ── Send payload filter ─────────────────────────────────────────────
 
@@ -130,9 +135,7 @@ export interface FilteredSendPayload {
  * them here would convert a forgery attempt into a successful,
  * differently-scoped send.
  */
-export function filterMailboxSendPayload(
-  input: Record<string, unknown>,
-): FilteredSendPayload {
+export function filterMailboxSendPayload(input: Record<string, unknown>): FilteredSendPayload {
   const payload: Record<string, unknown> = {};
   const stripped: string[] = [];
   for (const key of Object.keys(input)) {
@@ -147,19 +150,36 @@ export function filterMailboxSendPayload(
 
 /** Fields allowed in an ack mutation payload. */
 const ACK_ALLOWED_FIELDS = new Set<string>([
-  'messageId', 'read', 'completed', 'readerId', 'outcome',
+  'messageId',
+  'read',
+  'completed',
+  'readerId',
+  'outcome',
 ]);
 
 /** Fields allowed in a presence-registration payload. */
 const REGISTER_ALLOWED_FIELDS = new Set<string>([
-  'agentId', 'sessionId', 'name', 'role', 'status', 'currentTool',
-  'currentTask', 'iterations', 'toolCalls', 'source',
+  'agentId',
+  'sessionId',
+  'name',
+  'role',
+  'status',
+  'currentTool',
+  'currentTask',
+  'iterations',
+  'toolCalls',
+  'source',
 ]);
 
 /** Fields allowed in a heartbeat payload. */
 const HEARTBEAT_ALLOWED_FIELDS = new Set<string>([
-  'agentId', 'sessionId', 'status', 'currentTool', 'currentTask',
-  'iterations', 'toolCalls',
+  'agentId',
+  'sessionId',
+  'status',
+  'currentTool',
+  'currentTask',
+  'iterations',
+  'toolCalls',
 ]);
 
 // ── Send codec ───────────────────────────────────────────────────────
@@ -212,7 +232,11 @@ export function parseMailboxSendInput(
   }
   const rawPriority = payload['priority'];
   if (rawPriority !== undefined && typeof rawPriority !== 'string') {
-    throw new MailboxValidationError('VALIDATION_ERROR', 'priority', 'field "priority" must be a string');
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      'priority',
+      'field "priority" must be a string',
+    );
   }
 
   // Validate type + recipient semantic rules via the canonical resolver.
@@ -375,9 +399,8 @@ export function parseMailboxAckInput(
   // Derive readerId from actor, not from the body.
   // Legacy/admin mode may accept body-supplied readerId.
   const bodyReaderId = optionalString(payload, 'readerId', 'ack');
-  const readerId = actor.authMode === 'legacy-operator' && bodyReaderId
-    ? bodyReaderId
-    : actor.actorId;
+  const readerId =
+    actor.authMode === 'legacy-operator' && bodyReaderId ? bodyReaderId : actor.actorId;
 
   const read = optionalBoolean(payload, 'read', 'ack');
   const completed = optionalBoolean(payload, 'completed', 'ack');
@@ -451,9 +474,10 @@ export function parseMailboxRegistrationInput(
 
   const rawStatus = payload['status'];
   const validStatuses = ['idle', 'running', 'streaming', 'waiting_user', 'error'];
-  const status = rawStatus !== undefined && typeof rawStatus === 'string' && validStatuses.includes(rawStatus)
-    ? (rawStatus as ParsedRegistrationInput['status'])
-    : 'idle';
+  const status =
+    rawStatus !== undefined && typeof rawStatus === 'string' && validStatuses.includes(rawStatus)
+      ? (rawStatus as ParsedRegistrationInput['status'])
+      : 'idle';
 
   const currentTool = optionalString(payload, 'currentTool', 'register');
   const currentTask = optionalString(payload, 'currentTask', 'register');
@@ -462,11 +486,23 @@ export function parseMailboxRegistrationInput(
 
   const rawSource = payload['source'];
   const validSources = ['cli', 'webui', 'mcp', 'acp', 'http'];
-  const source = rawSource !== undefined && typeof rawSource === 'string' && validSources.includes(rawSource)
-    ? (rawSource as ParsedRegistrationInput['source'])
-    : undefined;
+  const source =
+    rawSource !== undefined && typeof rawSource === 'string' && validSources.includes(rawSource)
+      ? (rawSource as ParsedRegistrationInput['source'])
+      : undefined;
 
-  return { agentId, sessionId, name, role, status, currentTool, currentTask, iterations, toolCalls, source };
+  return {
+    agentId,
+    sessionId,
+    name,
+    role,
+    status,
+    currentTool,
+    currentTask,
+    iterations,
+    toolCalls,
+    source,
+  };
 }
 
 // ── Heartbeat codec ──────────────────────────────────────────────────
@@ -505,9 +541,10 @@ export function parseMailboxHeartbeatInput(
 
   const rawStatus = payload['status'];
   const validStatuses = ['idle', 'running', 'streaming', 'waiting_user', 'error'];
-  const status = rawStatus !== undefined && typeof rawStatus === 'string' && validStatuses.includes(rawStatus)
-    ? (rawStatus as ParsedHeartbeatInput['status'])
-    : undefined;
+  const status =
+    rawStatus !== undefined && typeof rawStatus === 'string' && validStatuses.includes(rawStatus)
+      ? (rawStatus as ParsedHeartbeatInput['status'])
+      : undefined;
 
   const currentTool = optionalString(payload, 'currentTool', 'heartbeat');
   const currentTask = optionalString(payload, 'currentTask', 'heartbeat');
@@ -536,20 +573,28 @@ function rejectUnknownFields(
   }
 }
 
-function requireString(
-  payload: Record<string, unknown>,
-  field: string,
-  op: string,
-): string {
+function requireString(payload: Record<string, unknown>, field: string, op: string): string {
   const val = payload[field];
   if (val === undefined || val === null) {
-    throw new MailboxValidationError('VALIDATION_ERROR', field, `missing required field "${field}" in ${op}`);
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      field,
+      `missing required field "${field}" in ${op}`,
+    );
   }
   if (typeof val !== 'string') {
-    throw new MailboxValidationError('VALIDATION_ERROR', field, `field "${field}" must be a string`);
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      field,
+      `field "${field}" must be a string`,
+    );
   }
   if (val.length === 0) {
-    throw new MailboxValidationError('VALIDATION_ERROR', field, `field "${field}" must not be empty`);
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      field,
+      `field "${field}" must not be empty`,
+    );
   }
   return val;
 }
@@ -562,7 +607,11 @@ function optionalString(
   const val = payload[field];
   if (val === undefined || val === null) return undefined;
   if (typeof val !== 'string') {
-    throw new MailboxValidationError('VALIDATION_ERROR', field, `field "${field}" must be a string`);
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      field,
+      `field "${field}" must be a string`,
+    );
   }
   return val || undefined;
 }
@@ -575,7 +624,11 @@ function optionalBoolean(
   const val = payload[field];
   if (val === undefined || val === null) return undefined;
   if (typeof val !== 'boolean') {
-    throw new MailboxValidationError('VALIDATION_ERROR', field, `field "${field}" must be a boolean`);
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      field,
+      `field "${field}" must be a boolean`,
+    );
   }
   return val;
 }
@@ -588,7 +641,11 @@ function optionalNonNegInt(
   const val = payload[field];
   if (val === undefined || val === null) return undefined;
   if (typeof val !== 'number' || !Number.isFinite(val) || val < 0) {
-    throw new MailboxValidationError('VALIDATION_ERROR', field, `field "${field}" must be a non-negative number`);
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      field,
+      `field "${field}" must be a non-negative number`,
+    );
   }
   return Math.floor(val);
 }
@@ -596,7 +653,11 @@ function optionalNonNegInt(
 function validatePriority(val: unknown): 'low' | 'normal' | 'high' {
   if (val === undefined || val === null) return 'normal';
   if (typeof val !== 'string') {
-    throw new MailboxValidationError('VALIDATION_ERROR', 'priority', 'field "priority" must be a string');
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      'priority',
+      'field "priority" must be a string',
+    );
   }
   if (val === 'low' || val === 'normal' || val === 'high') return val;
   throw new MailboxValidationError('VALIDATION_ERROR', 'priority', `invalid priority "${val}"`);
@@ -605,7 +666,11 @@ function validatePriority(val: unknown): 'low' | 'normal' | 'high' {
 function validateAudience(val: unknown): MailboxAudience {
   if (val === undefined || val === null) return 'all';
   if (typeof val !== 'string') {
-    throw new MailboxValidationError('VALIDATION_ERROR', 'audience', 'field "audience" must be a string');
+    throw new MailboxValidationError(
+      'VALIDATION_ERROR',
+      'audience',
+      'field "audience" must be a string',
+    );
   }
   if (val === 'all' || val === 'leaders') return val;
   throw new MailboxValidationError('VALIDATION_ERROR', 'audience', `invalid audience "${val}"`);

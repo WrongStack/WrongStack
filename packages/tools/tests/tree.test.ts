@@ -224,4 +224,3 @@ describe('treeTool', () => {
     expect(result.total_files).toBe(1);
   });
 });
-

@@ -121,8 +121,10 @@ function readBoundedNumber(value: unknown, min: number, max: number, fallback: n
 function readConfig(raw: unknown): TokenBudgetConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
-  const rawWarn = r['warnPercent'] ?? r['warn_percent'] ?? r['warnThreshold'] ?? r['warn_threshold'];
-  const rawStop = r['stopPercent'] ?? r['stop_percent'] ?? r['stopThreshold'] ?? r['stop_threshold'];
+  const rawWarn =
+    r['warnPercent'] ?? r['warn_percent'] ?? r['warnThreshold'] ?? r['warn_threshold'];
+  const rawStop =
+    r['stopPercent'] ?? r['stop_percent'] ?? r['stopThreshold'] ?? r['stop_threshold'];
   const rawLimit = r['limit'] ?? r['maxTokens'] ?? r['max_tokens'] ?? r['budget'];
   const warnPercent = readBoundedNumber(rawWarn, 1, 100, DEFAULTS.warnPercent);
   const stopPercent = readBoundedNumber(rawStop, 1, 100, DEFAULTS.stopPercent);
@@ -164,7 +166,8 @@ function clearRegistrations(): void {
 const plugin: Plugin = {
   name: 'token-budget',
   version: '0.1.0',
-  description: 'Enforces a per-session token budget — warns at a threshold and stops the agent loop when the limit is hit',
+  description:
+    'Enforces a per-session token budget — warns at a threshold and stops the agent loop when the limit is hit',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -175,7 +178,8 @@ const plugin: Plugin = {
         type: 'number',
         minimum: 0,
         default: 0,
-        description: 'Hard token limit (prompt + completion combined). 0 = disabled (tracking only).',
+        description:
+          'Hard token limit (prompt + completion combined). 0 = disabled (tracking only).',
       },
       warnPercent: {
         type: 'number',
@@ -194,7 +198,8 @@ const plugin: Plugin = {
       model: {
         type: 'string',
         default: '',
-        description: 'Restrict counting to a specific model. Supports "*" trailing wildcard (e.g. "gpt-4*" matches gpt-4o, gpt-4o-mini). Empty string = count all models.',
+        description:
+          'Restrict counting to a specific model. Supports "*" trailing wildcard (e.g. "gpt-4*" matches gpt-4o, gpt-4o-mini). Empty string = count all models.',
       },
     },
   },
@@ -235,7 +240,8 @@ const plugin: Plugin = {
       const modelName =
         (typeof rawPayload['model'] === 'string' ? rawPayload['model'] : undefined) ??
         (typeof p?.ctx?.model === 'string' ? p.ctx.model : undefined) ??
-        (typeof (rawPayload['response'] as Record<string, unknown> | undefined)?.['model'] === 'string'
+        (typeof (rawPayload['response'] as Record<string, unknown> | undefined)?.['model'] ===
+        'string'
           ? ((rawPayload['response'] as Record<string, unknown>)['model'] as string)
           : 'unknown');
 
@@ -252,7 +258,9 @@ const plugin: Plugin = {
 
       const completionTokens =
         (typeof rawUsage['output'] === 'number' ? rawUsage['output'] : undefined) ??
-        (typeof rawUsage['completion_tokens'] === 'number' ? rawUsage['completion_tokens'] : undefined) ??
+        (typeof rawUsage['completion_tokens'] === 'number'
+          ? rawUsage['completion_tokens']
+          : undefined) ??
         (typeof rawUsage['output_tokens'] === 'number' ? rawUsage['output_tokens'] : undefined) ??
         (typeof rawUsage['completionTokens'] === 'number' ? rawUsage['completionTokens'] : 0);
       const total = promptTokens + completionTokens;

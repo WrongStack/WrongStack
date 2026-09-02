@@ -21,7 +21,13 @@ const writeLock = (obj: unknown) => fs.writeFile(lockPath(), JSON.stringify(obj)
 
 describe('recovery-lock — extra coverage', () => {
   it('treats a future/NaN timestamp as an orphan (returns null)', async () => {
-    await writeLock({ v: 1, sessionId: 's', pid: 1, hostname: os.hostname(), startedAt: '2999-01-01T00:00:00.000Z' });
+    await writeLock({
+      v: 1,
+      sessionId: 's',
+      pid: 1,
+      hostname: os.hostname(),
+      startedAt: '2999-01-01T00:00:00.000Z',
+    });
     const lock = new RecoveryLock({ dir, isPidAlive: () => false });
     expect(await lock.checkAbandoned()).toBeNull();
   });
@@ -61,19 +67,37 @@ describe('recovery-lock — extra coverage', () => {
   });
 
   it('default PID probe: non-positive pid is not alive (→ abandoned)', async () => {
-    await writeLock({ v: 1, sessionId: 's', pid: 0, hostname: os.hostname(), startedAt: new Date().toISOString() });
+    await writeLock({
+      v: 1,
+      sessionId: 's',
+      pid: 0,
+      hostname: os.hostname(),
+      startedAt: new Date().toISOString(),
+    });
     const lock = new RecoveryLock({ dir }); // no isPidAlive override → defaultIsPidAlive
     expect((await lock.checkAbandoned())?.sessionId).toBe('s');
   });
 
   it('default PID probe: a live pid (this process) is treated as still active (→ null)', async () => {
-    await writeLock({ v: 1, sessionId: 's', pid: process.pid, hostname: os.hostname(), startedAt: new Date().toISOString() });
+    await writeLock({
+      v: 1,
+      sessionId: 's',
+      pid: process.pid,
+      hostname: os.hostname(),
+      startedAt: new Date().toISOString(),
+    });
     const lock = new RecoveryLock({ dir });
     expect(await lock.checkAbandoned()).toBeNull();
   });
 
   it('default PID probe: a dead pid is not alive (→ abandoned)', async () => {
-    await writeLock({ v: 1, sessionId: 's', pid: 2_147_483_646, hostname: os.hostname(), startedAt: new Date().toISOString() });
+    await writeLock({
+      v: 1,
+      sessionId: 's',
+      pid: 2_147_483_646,
+      hostname: os.hostname(),
+      startedAt: new Date().toISOString(),
+    });
     const lock = new RecoveryLock({ dir });
     expect((await lock.checkAbandoned())?.sessionId).toBe('s');
   });

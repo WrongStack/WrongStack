@@ -89,7 +89,12 @@ describe('useSubagentEvents — leader ctx.pct throttle', () => {
     const dispatched: Action[] = [];
     const dispatch = ((a: Action) => dispatched.push(a)) as React.Dispatch<Action>;
     const view = renderHook(() =>
-      useSubagentEvents(events, dispatch, () => undefined, () => 'sess-1'),
+      useSubagentEvents(
+        events,
+        dispatch,
+        () => undefined,
+        () => 'sess-1',
+      ),
     );
     const leaderCtx = () =>
       dispatched.filter((a): a is Action & { tokens: number } => a.type === 'leaderCtxPct');

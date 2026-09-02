@@ -55,12 +55,10 @@ describe('withCatalogCapabilities', () => {
     };
     const provider = fakeProvider(baseline);
 
-    const out = await withCatalogCapabilities(
-      reg(),
-      'anthropic',
-      provider,
-      { type: 'anthropic', model: 'anthropic-test-model' },
-    );
+    const out = await withCatalogCapabilities(reg(), 'anthropic', provider, {
+      type: 'anthropic',
+      model: 'anthropic-test-model',
+    });
 
     expect(out.capabilities.maxOutput).toBe(64_000);
     // The family baseline still applies for non-catalog fields:
@@ -121,12 +119,10 @@ describe('withCatalogCapabilities', () => {
       cacheControl: 'none',
     });
 
-    const out = await withCatalogCapabilities(
-      reg(),
-      'anthropic',
-      provider,
-      { type: 'anthropic', model: 'anthropic-test-model' },
-    );
+    const out = await withCatalogCapabilities(reg(), 'anthropic', provider, {
+      type: 'anthropic',
+      model: 'anthropic-test-model',
+    });
 
     expect(out).toBe(provider);
   });
@@ -146,18 +142,13 @@ describe('withCatalogCapabilities', () => {
     };
     const provider = fakeProvider(baseline);
 
-    const out = await withCatalogCapabilities(
-      reg(),
-      'anthropic',
-      provider,
-      {
-        type: 'anthropic',
-        model: 'anthropic-test-model',
-        customModels: {
-          'anthropic-test-model': { capabilities: { maxOutput: 32_000 } },
-        },
+    const out = await withCatalogCapabilities(reg(), 'anthropic', provider, {
+      type: 'anthropic',
+      model: 'anthropic-test-model',
+      customModels: {
+        'anthropic-test-model': { capabilities: { maxOutput: 32_000 } },
       },
-    );
+    });
 
     expect(out.capabilities.maxOutput).toBe(32_000);
   });

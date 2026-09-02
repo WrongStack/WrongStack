@@ -186,13 +186,17 @@ export function SddWizard({
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
           <div>
-            <h1 className="text-lg font-semibold">{snapshot?.title || t('activity:sddWizard.titleFallback')}</h1>
+            <h1 className="text-lg font-semibold">
+              {snapshot?.title || t('activity:sddWizard.titleFallback')}
+            </h1>
             {started && (
               <p className="text-xs text-muted-foreground">
                 {t(`activity:sddWizard.${PHASE_LABEL[phase] ?? 'phaseStart'}`)}
                 {phase === 'questioning' &&
                   ` · ${t('activity:sddWizard.questionsSuffix', { cur: snapshot?.questionCount ?? 0, max: snapshot?.maxQuestions ?? 0 })}`}
-                {snapshot && snapshot.taskCount > 0 ? ` · ${t('activity:sddWizard.tasksSuffix', { count: snapshot.taskCount })}` : ''}
+                {snapshot && snapshot.taskCount > 0
+                  ? ` · ${t('activity:sddWizard.tasksSuffix', { count: snapshot.taskCount })}`
+                  : ''}
               </p>
             )}
           </div>
@@ -281,7 +285,10 @@ export function SddWizard({
 
                   {/* Parallelism + isolation */}
                   <div className="mt-3 flex items-center justify-between gap-2">
-                    <label htmlFor="sdd-slots" className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <label
+                      htmlFor="sdd-slots"
+                      className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
                       {t('activity:sddWizard.parallelAgents')}
                     </label>
                     <input
@@ -352,7 +359,10 @@ export function SddWizard({
                   <button
                     type="button"
                     onClick={() => rewind(p)}
-                    title={t('activity:sddWizard.rewindToPhaseTitle', 'Return to this phase to revise')}
+                    title={t(
+                      'activity:sddWizard.rewindToPhaseTitle',
+                      'Return to this phase to revise',
+                    )}
                     className="inline-flex items-center rounded-full px-2 py-0.5 text-success transition hover:bg-success/10 hover:underline"
                   >
                     <Check className="mr-0.5 inline h-3 w-3" />
@@ -380,7 +390,10 @@ export function SddWizard({
         </div>
       )}
 
-      <div ref={useScrollPosition('sdd-wizard')} className="min-h-0 flex-1 overflow-auto overscroll-contain p-4">
+      <div
+        ref={useScrollPosition('sdd-wizard')}
+        className="min-h-0 flex-1 overflow-auto overscroll-contain p-4"
+      >
         {error && (
           <div className="mb-3 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
             {error}
@@ -413,7 +426,8 @@ export function SddWizard({
             <Button className="mt-3" onClick={startGoal} disabled={!goal.trim() || submitting}>
               {submitting ? (
                 <>
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> {t('activity:sddWizard.startingInterview')}
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />{' '}
+                  {t('activity:sddWizard.startingInterview')}
                 </>
               ) : (
                 <>
@@ -437,7 +451,10 @@ export function SddWizard({
                     {t('activity:sddWizard.interviewProgress', 'Interview Progress')}
                   </span>
                   <span className="text-[11px] text-muted-foreground">
-                    {t('activity:sddWizard.questionOf', { current: answeredCount + 1, max: maxQuestions })}
+                    {t('activity:sddWizard.questionOf', {
+                      current: answeredCount + 1,
+                      max: maxQuestions,
+                    })}
                     {' · '}
                     {hasMetMin ? (
                       <span className="font-medium text-success">
@@ -445,7 +462,9 @@ export function SddWizard({
                       </span>
                     ) : (
                       <span>
-                        {t('activity:sddWizard.minRequiredRemaining', { count: minQuestions - answeredCount })}
+                        {t('activity:sddWizard.minRequiredRemaining', {
+                          count: minQuestions - answeredCount,
+                        })}
                       </span>
                     )}
                   </span>
@@ -470,10 +489,18 @@ export function SddWizard({
                   onClick={() => setGraphOpen((o) => !o)}
                   className="flex w-full items-center gap-1.5 border-b border-border/60 px-3 py-1.5 text-[11px] font-medium text-primary hover:bg-muted/40"
                 >
-                  {graphOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  {graphOpen ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
                   <Network className="h-3.5 w-3.5" />
                   {t('activity:sddWizard.taskGraphSummary', { count: snapshot?.taskCount ?? 0 })}
-                  <span className="ml-auto text-muted-foreground">{graphOpen ? t('activity:sddWizard.dragToExplore') : t('activity:sddWizard.show')}</span>
+                  <span className="ml-auto text-muted-foreground">
+                    {graphOpen
+                      ? t('activity:sddWizard.dragToExplore')
+                      : t('activity:sddWizard.show')}
+                  </span>
                 </button>
                 {graphOpen && (
                   <div className="h-[32dvh] min-h-[200px]">
@@ -528,7 +555,10 @@ export function SddWizard({
                 <p className="mb-2 text-xs text-muted-foreground">{snapshot.spec.overview}</p>
                 <ul className="space-y-0.5 text-xs">
                   {snapshot.spec.requirements.map((r, idx) => (
-                    <li key={`${r.priority}-${idx}-${r.description.slice(0, 24)}`} className="flex gap-1.5">
+                    <li
+                      key={`${r.priority}-${idx}-${r.description.slice(0, 24)}`}
+                      className="flex gap-1.5"
+                    >
                       <span
                         className={cn(
                           'shrink-0 font-mono uppercase',
@@ -552,8 +582,13 @@ export function SddWizard({
                   onClick={() => setPlanOpen((o) => !o)}
                   className="flex w-full items-center gap-1.5 border-b border-border/60 px-3 py-2 text-sm font-semibold hover:bg-muted/40"
                 >
-                  {planOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                  <Sparkles className="h-3.5 w-3.5 text-primary" /> {t('activity:sddWizard.implementationPlan')}
+                  {planOpen ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />{' '}
+                  {t('activity:sddWizard.implementationPlan')}
                 </button>
                 {planOpen && (
                   <div className="max-h-[40dvh] overflow-auto px-3 py-2">
@@ -573,9 +608,7 @@ export function SddWizard({
               !snapshot?.spec && <ChatBubble speaker="assistant" text={agentText} />}
 
             {/* Approve & Revise buttons for review phases */}
-            {(phase === 'spec_review' ||
-              phase === 'implementation' ||
-              phase === 'task_review') && (
+            {(phase === 'spec_review' || phase === 'implementation' || phase === 'task_review') && (
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 {phase === 'task_review' ? (
                   <Button
@@ -601,8 +634,14 @@ export function SddWizard({
                   className="text-xs text-muted-foreground hover:text-foreground"
                   title={
                     phase === 'spec_review'
-                      ? t('activity:sddWizard.backToQuestionsTitle', 'Reject spec and return to questioning')
-                      : t('activity:sddWizard.backToSpecTitle', 'Reject plan and return to spec review')
+                      ? t(
+                          'activity:sddWizard.backToQuestionsTitle',
+                          'Reject spec and return to questioning',
+                        )
+                      : t(
+                          'activity:sddWizard.backToSpecTitle',
+                          'Reject plan and return to spec review',
+                        )
                   }
                 >
                   <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
@@ -718,7 +757,9 @@ function extractQuickReplies(text: string): string[] {
   if (!text) return [];
   const results: string[] = [];
 
-  const listMatches = text.matchAll(/(?:^|\n)\s*(?:[0-9]+[.)]|[A-D][.)]|[-*]\s+\*\*|[-*]\s+\[)\s*([^:\n\r]+)/gi);
+  const listMatches = text.matchAll(
+    /(?:^|\n)\s*(?:[0-9]+[.)]|[A-D][.)]|[-*]\s+\*\*|[-*]\s+\[)\s*([^:\n\r]+)/gi,
+  );
   for (const m of listMatches) {
     const raw = (m[1] ?? '').trim().replace(/^[`"']|[`"']$/g, '');
     if (raw && raw.length > 2 && raw.length < 50 && !results.includes(raw)) {
@@ -744,7 +785,10 @@ function extractQuickReplies(text: string): string[] {
 function detectTopicBadge(text: string): { label: string; color: string } | null {
   const lower = text.toLowerCase();
   if (/security|auth|jwt|oauth|token|permission|role|rbac|şifre|güvenlik/i.test(lower)) {
-    return { label: 'Security & Auth', color: 'bg-destructive/10 text-destructive border-destructive/20' };
+    return {
+      label: 'Security & Auth',
+      color: 'bg-destructive/10 text-destructive border-destructive/20',
+    };
   }
   if (/database|sql|postgres|sqlite|redis|mongodb|schema|tablo|veritabanı/i.test(lower)) {
     return { label: 'Data & Storage', color: 'bg-info/10 text-info border-info/20' };
@@ -841,7 +885,11 @@ function ChatBubble({
             title={copied ? 'Copied' : 'Copy'}
             className="absolute -bottom-2 right-2 hidden rounded bg-background/90 p-1 text-[10px] text-muted-foreground shadow border group-hover:flex items-center gap-1 hover:text-foreground"
           >
-            {copied ? <CheckCheck className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+            {copied ? (
+              <CheckCheck className="h-3 w-3 text-success" />
+            ) : (
+              <Copy className="h-3 w-3" />
+            )}
           </button>
         )}
       </div>

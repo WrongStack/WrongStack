@@ -155,7 +155,10 @@ describe('builtin prompt dataset', () => {
 
   it('ships the ratchet measure-change-measure contract', () => {
     const entry = JSON.parse(
-      fs.readFileSync(path.join(promptsDir, 'performance', 'elite-performance-ratchet.json'), 'utf8'),
+      fs.readFileSync(
+        path.join(promptsDir, 'performance', 'elite-performance-ratchet.json'),
+        'utf8',
+      ),
     ) as { slug: string; content: string; variables?: unknown[] };
     expect(entry.slug).toBe('elite-performance-ratchet');
     // Like the bug hunter, the ratchet is launched with one click and must not

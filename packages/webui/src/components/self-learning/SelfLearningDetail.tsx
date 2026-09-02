@@ -11,7 +11,12 @@ import {
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { CustomRosterStats } from '../agent-roster-data.js';
-import { AUTO_REASON_LABEL, type AutoOptimizeStatus, type RetiredDirective, type RoleSkill } from './types.js';
+import {
+  AUTO_REASON_LABEL,
+  type AutoOptimizeStatus,
+  type RetiredDirective,
+  type RoleSkill,
+} from './types.js';
 
 export function SelfLearningDetail({
   selectedRole,
@@ -105,17 +110,13 @@ export function SelfLearningDetail({
           <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
             {t('activity:agentRoster.entries')}
           </span>
-          <div className="text-lg font-mono font-semibold mt-0.5">
-            {selectedStats.entryCount}
-          </div>
+          <div className="text-lg font-mono font-semibold mt-0.5">{selectedStats.entryCount}</div>
         </div>
         <div className="rounded-lg border bg-card p-2">
           <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
             {t('activity:agentRoster.size')}
           </span>
-          <div className="text-lg font-mono font-semibold mt-0.5">
-            {selectedStats.totalBytes}B
-          </div>
+          <div className="text-lg font-mono font-semibold mt-0.5">{selectedStats.totalBytes}B</div>
         </div>
         <div className="rounded-lg border bg-card p-2">
           <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
@@ -170,9 +171,7 @@ export function SelfLearningDetail({
             {t('activity:agentRoster.neverUsed')}
           </span>
           <div className="text-lg font-mono font-semibold mt-0.5">
-            {typeof selectedStats.deadEntryCount === 'number'
-              ? selectedStats.deadEntryCount
-              : '—'}
+            {typeof selectedStats.deadEntryCount === 'number' ? selectedStats.deadEntryCount : '—'}
           </div>
         </div>
       </div>
@@ -252,9 +251,9 @@ export function SelfLearningDetail({
           </div>
         )}
         <p className="text-[10px] text-muted-foreground leading-relaxed">
-          Synthesizes all {selectedStats.entryCount} raw entries into a single reviewed
-          document — narrowly scoped to this agent's skills, preserving every fact but
-          reducing context volume. The result replaces raw entries in the agent's prompt.
+          Synthesizes all {selectedStats.entryCount} raw entries into a single reviewed document —
+          narrowly scoped to this agent's skills, preserving every fact but reducing context volume.
+          The result replaces raw entries in the agent's prompt.
         </p>
         {selectedStats.isConsolidated && selectedStats.consolidation && (
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground pt-1 border-t border-border/50">
@@ -305,13 +304,14 @@ export function SelfLearningDetail({
             <BookOpen className="h-4 w-4 text-brand-2" />
             <span className="text-xs font-semibold">Skills</span>
             <span className="text-[10px] text-muted-foreground">
-              {skills.filter((s) => s.developed).length} of {skills.length} developed for this project
+              {skills.filter((s) => s.developed).length} of {skills.length} developed for this
+              project
             </span>
           </div>
           <p className="text-[10px] text-muted-foreground leading-relaxed">
-            A developed skill carries a project addendum injected right after the bundled
-            skill body — the agent reads one skill, refined for this codebase. Only the
-            highest-ranked few are loaded per spawn; <span className="text-primary">loaded</span> marks those.
+            A developed skill carries a project addendum injected right after the bundled skill body
+            — the agent reads one skill, refined for this codebase. Only the highest-ranked few are
+            loaded per spawn; <span className="text-primary">loaded</span> marks those.
           </p>
           <div className="space-y-1">
             {skills.map((entry) => (
@@ -405,8 +405,8 @@ export function SelfLearningDetail({
           {showRetired && (
             <>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Each of these was exercised repeatedly and kept correlating with failed tasks,
-                so it was removed from the buffer and scrubbed out of the distilled documents.
+                Each of these was exercised repeatedly and kept correlating with failed tasks, so it
+                was removed from the buffer and scrubbed out of the distilled documents.
               </p>
               <ul className="space-y-1">
                 {retired.map((entry) => (
@@ -532,8 +532,7 @@ export function SelfLearningDetail({
       {/* Teach section */}
       <div className="space-y-2 pt-4 border-t border-border">
         <div className="flex items-center gap-1 text-sm font-medium">
-          <BookOpen className="h-4 w-4 text-brand-2" />{' '}
-          {t('activity:agentRoster.teachThisAgent')}
+          <BookOpen className="h-4 w-4 text-brand-2" /> {t('activity:agentRoster.teachThisAgent')}
         </div>
         <p className="text-[10px] text-muted-foreground">
           {t('activity:agentRoster.describeACommandPatternOrBehavior')}
@@ -554,12 +553,7 @@ export function SelfLearningDetail({
             <BookOpen className="h-3.5 w-3.5" /> {t('activity:agentRoster.teach')}
           </button>
           {teachFeedback && (
-            <span
-              className={cn(
-                'text-xs',
-                teachFeedback.ok ? 'text-success' : 'text-destructive',
-              )}
-            >
+            <span className={cn('text-xs', teachFeedback.ok ? 'text-success' : 'text-destructive')}>
               {teachFeedback.msg}
             </span>
           )}

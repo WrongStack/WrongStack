@@ -5,10 +5,7 @@
   "description": "Cut a passage down without losing meaning.",
   "content": "Tighten this without losing meaning or nuance:\n\n{{text}}\n\nCut filler, redundancy, hedging, and throat-clearing. Prefer strong verbs over noun phrases, and active over passive where it helps. Keep the author's voice. Show the tightened version, then list the 2-3 cuts that mattered most and why. Don't strip qualifications that are actually load-bearing.",
   "category": "writing",
-  "tags": [
-    "editing",
-    "concision"
-  ],
+  "tags": ["editing", "concision"],
   "source": "builtin",
   "favorite": false,
   "checksum": "197626a22eeff96d77527a73acb768acd2a66c595127b46c7d55a487080fa1a6",

@@ -57,7 +57,12 @@ export type {
 // The two core types the projector's input names. Re-exported for the same
 // reason as the projector itself: SimpleUI reaches core only through this
 // package.
-export type { Message, SessionEvent, SessionMarker, SessionMarkerDetail } from '@wrongstack/core/types';
+export type {
+  Message,
+  SessionEvent,
+  SessionMarker,
+  SessionMarkerDetail,
+} from '@wrongstack/core/types';
 // The marker projector itself, so a LIVE surface can render an event with the
 // same wording its replay will use. Without it the SimpleUI would have had to
 // hand-write a second copy of every marker sentence.

@@ -36,12 +36,22 @@ export function startChronicleHealthMonitor(options: ChronicleHealthMonitorOptio
       options.events.emit('runtime.health.sampled', {
         sessionId: context.scope.sessionId,
         uptimeSeconds: process.uptime(),
-        eventLoop: { utilization: elu.utilization, activeMs: elu.active, idleMs: elu.idle,
-          delayMeanMs: Number(delay.mean) / 1e6, delayP95Ms: Number(delay.percentile(95)) / 1e6,
-          delayMaxMs: Number(delay.max) / 1e6 },
+        eventLoop: {
+          utilization: elu.utilization,
+          activeMs: elu.active,
+          idleMs: elu.idle,
+          delayMeanMs: Number(delay.mean) / 1e6,
+          delayP95Ms: Number(delay.percentile(95)) / 1e6,
+          delayMaxMs: Number(delay.max) / 1e6,
+        },
         cpu: { userMicros: cpu.user, systemMicros: cpu.system },
-        memory: { rssBytes: memory.rss, heapTotalBytes: memory.heapTotal,
-          heapUsedBytes: memory.heapUsed, externalBytes: memory.external, arrayBuffersBytes: memory.arrayBuffers },
+        memory: {
+          rssBytes: memory.rss,
+          heapTotalBytes: memory.heapTotal,
+          heapUsedBytes: memory.heapUsed,
+          externalBytes: memory.external,
+          arrayBuffersBytes: memory.arrayBuffers,
+        },
         chronicle: journalBeforeSample,
       });
     } catch (error) {
@@ -52,5 +62,8 @@ export function startChronicleHealthMonitor(options: ChronicleHealthMonitorOptio
 
   const timer = setInterval(sample, intervalMs);
   timer.unref?.();
-  return () => { clearInterval(timer); delay.disable(); };
+  return () => {
+    clearInterval(timer);
+    delay.disable();
+  };
 }

@@ -127,8 +127,7 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
     const globRe = input.glob ? compileGlob(input.glob) : null;
     const dryRun = input.dry_run ?? true;
 
-    const filesInput = Array.isArray(input.files) ? input.files.join(',') : input.files;
-    const fileList = await resolveFiles(filesInput, ctx, globRe);
+    const fileList = await resolveFiles(input.files, ctx, globRe);
 
     // Resolve the project root through realpath ONCE so the sandbox check
     // below compares like-for-like with realpath(file). The project root
@@ -195,7 +194,8 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
       for (let i = 0; i < matches.length; i++) {
         const m = expectDefined(matches[i]);
         const matchIdx = expectDefined(m.index);
-        newContentLf += contentLf.slice(lastIdx, matchIdx) + expandReplacement(input.replacement, m);
+        newContentLf +=
+          contentLf.slice(lastIdx, matchIdx) + expandReplacement(input.replacement, m);
         lastIdx = matchIdx + m[0].length;
       }
       newContentLf += contentLf.slice(lastIdx);
@@ -224,18 +224,22 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
         });
       }
 
+      const isIdentical = newContentLf === contentLf;
       const rawDiff: string | undefined =
         dryRun || matches.length > 0
-          ? unifiedDiff(content, toStyle(newContentLf, style), {
-              fromFile: absPath,
-              toFile: absPath,
-            })
+          ? isIdentical
+            ? '(no-op: replacement produced identical content)'
+            : unifiedDiff(content, toStyle(newContentLf, style), {
+                fromFile: absPath,
+                toFile: absPath,
+              })
           : undefined;
 
       return {
         path: absPath,
         replacements: count,
         rawDiff,
+        isIdentical,
       };
     });
 
@@ -283,16 +287,26 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
       }
     }
 
+    const hasIdentical = fileResults.some((r) => r?.isIdentical);
     const overBudget = diffsOmitted > 0 || diffsTruncated > 0;
+    const notes: string[] = [];
+    if (overBudget) {
+      notes.push(
+        `Diff payload exceeded the 256 KiB output budget: ${diffsTruncated} diff(s) truncated, ` +
+          `${diffsOmitted} diff(s) omitted. Replacement counts are complete; use the read tool to inspect individual files.`,
+      );
+    }
+    if (hasIdentical && !overBudget) {
+      notes.push(
+        'Some replacements produced content identical to existing files (see no-op diff).',
+      );
+    }
     return {
       files_modified: results.length,
       total_replacements: totalReplacements,
       results,
       dry_run: dryRun,
-      note: overBudget
-        ? `Diff payload exceeded the 256 KiB output budget: ${diffsTruncated} diff(s) truncated, ` +
-          `${diffsOmitted} diff(s) omitted. Replacement counts are complete; use the read tool to inspect individual files.`
-        : undefined,
+      note: notes.length > 0 ? notes.join('\n') : undefined,
     };
   },
 };
@@ -338,12 +352,7 @@ function expandReplacement(template: string, match: RegExpMatchArray): string {
 }
 
 /** True when `name` (basename), `rel` (relative to base), or `full` (path) passes the compiled extra glob. */
-function passesExtraGlob(
-  extraGlob: RegExp,
-  name: string,
-  full: string,
-  base?: string,
-): boolean {
+function passesExtraGlob(extraGlob: RegExp, name: string, full: string, base?: string): boolean {
   extraGlob.lastIndex = 0;
   if (extraGlob.test(name)) return true;
   if (base) {
@@ -363,7 +372,7 @@ function passesExtraGlob(
 }
 
 async function resolveFiles(
-  filesInput: string,
+  filesInput: string | string[],
   ctx: Context,
   extraGlob?: RegExp | null | undefined,
 ): Promise<string[]> {
@@ -376,11 +385,13 @@ async function resolveFiles(
   // `[`/`]` are deliberately NOT treated as glob syntax here: they are legal
   // in Windows filenames (C:\Users\Foo[1]\...), so a literal path containing
   // them must stay on the literal branch.
-  const parts = filesInput
-    .trim()
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const parts = Array.isArray(filesInput)
+    ? filesInput.map((s) => s.trim()).filter(Boolean)
+    : filesInput
+        .trim()
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
   const resolved: string[] = [];
 
   for (const p of parts) {
@@ -499,7 +510,11 @@ function spawnRgFind(pattern: string, base: string): { promise: Promise<string[]
   return {
     promise: new Promise((resolve, reject) => {
       child.on('error', reject);
-      child.on('close', () => {
+      child.on('close', (code) => {
+        if (code !== 0 && code !== null) {
+          reject(new Error(`rg exited with code ${code}`));
+          return;
+        }
         resolve(
           buf
             .split(/\r?\n/)

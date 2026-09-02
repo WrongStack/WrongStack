@@ -5,10 +5,7 @@
   "description": "Curate an ordered path into a topic.",
   "content": "Build me a reading list to understand: {{topic}}\n\nOrder it as a path, not a pile: start with the one or two sources that build the foundation, then progressively deeper or more specialized ones. For each, say what it gives me and why it is on the list (and roughly how hard it is). Include the seminal source and a recent overview. Cut the redundant and the merely famous. Tell me where I can stop if I just need working knowledge versus mastery.",
   "category": "research",
-  "tags": [
-    "reading-list",
-    "learning"
-  ],
+  "tags": ["reading-list", "learning"],
   "source": "builtin",
   "favorite": false,
   "checksum": "850bac339a0fafde72a656473133b12eea5080d17a900c172cf488061c9d6aeb",

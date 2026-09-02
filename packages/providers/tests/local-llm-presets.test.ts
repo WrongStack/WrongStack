@@ -128,9 +128,7 @@ describe('createLocalLlmPreset', () => {
 
   it('builds the OpenAI-compatible chat completions URL with sensible variants', () => {
     const p = createLocalLlmPreset({ id: 'x', defaultBaseUrl: 'http://x' });
-    expect(p.buildUrl('http://localhost:11434')).toBe(
-      'http://localhost:11434/v1/chat/completions',
-    );
+    expect(p.buildUrl('http://localhost:11434')).toBe('http://localhost:11434/v1/chat/completions');
     expect(p.buildUrl('http://localhost:11434/v1')).toBe(
       'http://localhost:11434/v1/chat/completions',
     );
@@ -210,9 +208,7 @@ describe('Ollama preset', () => {
           choices: [
             {
               delta: {
-                tool_calls: [
-                  { index: 0, function: { arguments: '"x"}' } },
-                ],
+                tool_calls: [{ index: 0, function: { arguments: '"x"}' } }],
               },
             },
           ],
@@ -247,9 +243,7 @@ describe('Ollama preset', () => {
     // Real Ollama streams often terminate abruptly after a final content chunk.
     const events = await collectFromPreset(
       ollamaWireFormat,
-      sseBody([
-        JSON.stringify({ model: 'llama3', choices: [{ delta: { content: 'answer' } }] }),
-      ]),
+      sseBody([JSON.stringify({ model: 'llama3', choices: [{ delta: { content: 'answer' } }] })]),
       'llama3',
     );
     expect(events.some((e) => e.type === 'text_delta')).toBe(true);
@@ -316,9 +310,7 @@ describe('vLLM preset', () => {
   it('tolerates a stream that closes abruptly without [DONE]', async () => {
     const events = await collectFromPreset(
       vllmWireFormat,
-      sseBody([
-        JSON.stringify({ model: 'm', choices: [{ delta: { content: 'x' } }] }),
-      ]),
+      sseBody([JSON.stringify({ model: 'm', choices: [{ delta: { content: 'x' } }] })]),
       'm',
     );
     const stop = events.find((e) => e.type === 'message_stop');
@@ -361,9 +353,7 @@ describe('LM Studio preset', () => {
           choices: [
             {
               delta: {
-                tool_calls: [
-                  { index: 0, function: { arguments: '"x"}' } },
-                ],
+                tool_calls: [{ index: 0, function: { arguments: '"x"}' } }],
               },
             },
           ],

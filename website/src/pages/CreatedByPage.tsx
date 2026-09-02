@@ -112,9 +112,7 @@ export function CreatedByPage() {
                   className="group inline-flex items-center gap-3 border-b border-line pb-2 text-sm font-black text-fg transition-colors hover:border-brand hover:text-brand"
                 >
                   {profile.label}
-                  <span className="font-mono text-xs font-normal text-faint">
-                    {profile.handle}
-                  </span>
+                  <span className="font-mono text-xs font-normal text-faint">{profile.handle}</span>
                   <ArrowUpRight className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                 </a>
               ))}

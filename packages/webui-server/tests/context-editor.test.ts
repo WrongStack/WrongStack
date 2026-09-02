@@ -592,9 +592,7 @@ describe('validateContextEditorProposal', () => {
 
     expect(result.ok).toBe(false);
     expect(result.validationErrors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: 'INVALID_UNICODE_RANGE' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ code: 'INVALID_UNICODE_RANGE' })]),
     );
   });
 

@@ -54,7 +54,15 @@ function makeMinimalOpts(): any {
     deps: {
       agent,
       context,
-      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(function (this: any) { return this; }) },
+      logger: {
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+        child: vi.fn(function (this: any) {
+          return this;
+        }),
+      },
       trustBoundary: { authorize: vi.fn(async () => ({ allowed: true })) } as any,
       memoryStore: null,
       skillLoader: undefined,
@@ -121,12 +129,18 @@ describe('createMessageDispatcher', () => {
 
   it('terminal handler errors are caught and logged', async () => {
     const opts = makeMinimalOpts();
-    opts.deps.terminalHandler.handleMessage = vi.fn(async () => { throw new Error('term fail'); });
+    opts.deps.terminalHandler.handleMessage = vi.fn(async () => {
+      throw new Error('term fail');
+    });
     const dispatcher = createMessageDispatcher(opts);
     const ws = mockWs();
     // Sending a terminal message — the terminal error should be caught,
     // not propagated. The message type must route to clientTransport.terminal.
-    await dispatcher(ws, null as any, { type: 'terminal.input', payload: { id: 't1', data: 'ls\n' } } as any);
+    await dispatcher(
+      ws,
+      null as any,
+      { type: 'terminal.input', payload: { id: 't1', data: 'ls\n' } } as any,
+    );
     // No throw = pass
   });
 });

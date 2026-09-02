@@ -85,7 +85,12 @@ describe('stripCacheControl', () => {
 
   it('preserves other block properties', () => {
     const input = [
-      { type: 'text', text: 'Test', metadata: { key: 'value' }, cache_control: { type: 'ephemeral' } },
+      {
+        type: 'text',
+        text: 'Test',
+        metadata: { key: 'value' },
+        cache_control: { type: 'ephemeral' },
+      },
     ] as any;
     const result = stripCacheControl(input);
     expect(result![0]).toEqual({ type: 'text', text: 'Test', metadata: { key: 'value' } });

@@ -33,7 +33,12 @@ describe('knowledge-graph - contributor edge cases', () => {
     const api = makeKgApi({ 'knowledge-graph': { contributeToSystemPrompt: false, filePath: '' } });
     knowledgeGraphPlugin.setup(api as never);
     const add = getKgTool(api, 'kg_add_fact');
-    const result = await add({ subject: 'srv', relation: 'connects_to', object: 'db', source: 'config.yaml' }) as { ok: boolean; fact: { source: string | null; confidence: string } };
+    const result = (await add({
+      subject: 'srv',
+      relation: 'connects_to',
+      object: 'db',
+      source: 'config.yaml',
+    })) as { ok: boolean; fact: { source: string | null; confidence: string } };
     expect(result.ok).toBe(true);
     expect(result.fact.source).toBe('config.yaml');
     expect(result.fact.confidence).toBe('medium');
@@ -43,7 +48,12 @@ describe('knowledge-graph - contributor edge cases', () => {
     const api = makeKgApi({ 'knowledge-graph': { contributeToSystemPrompt: false, filePath: '' } });
     knowledgeGraphPlugin.setup(api as never);
     const query = getKgTool(api, 'kg_query');
-    const result = await query({ subject: 'nonexistent' }) as { ok: boolean; totalFacts: number; returned: number; facts: unknown[] };
+    const result = (await query({ subject: 'nonexistent' })) as {
+      ok: boolean;
+      totalFacts: number;
+      returned: number;
+      facts: unknown[];
+    };
     expect(result.ok).toBe(true);
     expect(result.returned).toBe(0);
   });
@@ -56,7 +66,7 @@ describe('knowledge-graph - contributor edge cases', () => {
     for (let i = 0; i < 5; i++) {
       await add({ subject: `s-${i}`, relation: 'type', object: 'test' });
     }
-    const result = await query({ limit: 2 }) as { returned: number };
+    const result = (await query({ limit: 2 })) as { returned: number };
     expect(result.returned).toBe(2);
   });
 
@@ -64,7 +74,7 @@ describe('knowledge-graph - contributor edge cases', () => {
     const api = makeKgApi({ 'knowledge-graph': { enabled: false, filePath: '' } });
     knowledgeGraphPlugin.setup(api as never);
     const query = getKgTool(api, 'kg_query');
-    const result = await query({ subject: 'x' }) as { ok: boolean; error: string };
+    const result = (await query({ subject: 'x' })) as { ok: boolean; error: string };
     expect(result.ok).toBe(false);
     expect(result.error).toContain('disabled');
   });
@@ -73,7 +83,7 @@ describe('knowledge-graph - contributor edge cases', () => {
     const api = makeKgApi({ 'knowledge-graph': { enabled: false, filePath: '' } });
     knowledgeGraphPlugin.setup(api as never);
     const remove = getKgTool(api, 'kg_remove_fact');
-    const result = await remove({}) as { ok: boolean; error: string };
+    const result = (await remove({})) as { ok: boolean; error: string };
     expect(result.ok).toBe(false);
     expect(result.error).toContain('disabled');
   });
@@ -106,13 +116,16 @@ describe('refactor-suggester extra coverage', () => {
     const api = makeRsApi();
     refactorSuggesterPlugin.setup(api as never);
     refactorSuggesterPlugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith(expect.stringContaining('teardown complete'), expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      expect.stringContaining('teardown complete'),
+      expect.any(Object),
+    );
   });
 
   it('health returns ok', async () => {
     const api = makeRsApi();
     refactorSuggesterPlugin.setup(api as never);
-    const h = await refactorSuggesterPlugin.health!() as { ok: boolean };
+    const h = (await refactorSuggesterPlugin.health!()) as { ok: boolean };
     expect(h.ok).toBe(true);
   });
 
@@ -149,13 +162,16 @@ describe('commit-validator extra coverage', () => {
     const api = makeCvApi();
     commitValidatorPlugin.setup(api as never);
     commitValidatorPlugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith(expect.stringContaining('teardown complete'), expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      expect.stringContaining('teardown complete'),
+      expect.any(Object),
+    );
   });
 
   it('health returns ok', async () => {
     const api = makeCvApi();
     commitValidatorPlugin.setup(api as never);
-    const h = await commitValidatorPlugin.health!() as { ok: boolean };
+    const h = (await commitValidatorPlugin.health!()) as { ok: boolean };
     expect(h.ok).toBe(true);
   });
 });
@@ -187,13 +203,16 @@ describe('semantic-search-indexer extra coverage', () => {
     const api = makeSsiApi();
     ssiPlugin.setup(api as never);
     ssiPlugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith(expect.stringContaining('teardown complete'), expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      expect.stringContaining('teardown complete'),
+      expect.any(Object),
+    );
   });
 
   it('health returns ok', async () => {
     const api = makeSsiApi();
     ssiPlugin.setup(api as never);
-    const h = await ssiPlugin.health!() as { ok: boolean };
+    const h = (await ssiPlugin.health!()) as { ok: boolean };
     expect(h.ok).toBe(true);
   });
 });
@@ -225,13 +244,16 @@ describe('schema-evolution-guard extra coverage', () => {
     const api = makeSegApi();
     segPlugin.setup(api as never);
     segPlugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith(expect.stringContaining('teardown complete'), expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      expect.stringContaining('teardown complete'),
+      expect.any(Object),
+    );
   });
 
   it('health returns ok', async () => {
     const api = makeSegApi();
     segPlugin.setup(api as never);
-    const h = await segPlugin.health!() as { ok: boolean };
+    const h = (await segPlugin.health!()) as { ok: boolean };
     expect(h.ok).toBe(true);
   });
 });
@@ -263,13 +285,16 @@ describe('interface-contract-guard extra coverage', () => {
     const api = makeIcgApi();
     icgPlugin.setup(api as never);
     icgPlugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith(expect.stringContaining('teardown complete'), expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      expect.stringContaining('teardown complete'),
+      expect.any(Object),
+    );
   });
 
   it('health returns ok', async () => {
     const api = makeIcgApi();
     icgPlugin.setup(api as never);
-    const h = await icgPlugin.health!() as { ok: boolean };
+    const h = (await icgPlugin.health!()) as { ok: boolean };
     expect(h.ok).toBe(true);
   });
 });
@@ -301,13 +326,16 @@ describe('duplicate-code-detector extra coverage', () => {
     const api = makeDcdApi();
     dcdPlugin.setup(api as never);
     dcdPlugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith(expect.stringContaining('teardown complete'), expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      expect.stringContaining('teardown complete'),
+      expect.any(Object),
+    );
   });
 
   it('health returns ok', async () => {
     const api = makeDcdApi();
     dcdPlugin.setup(api as never);
-    const h = await dcdPlugin.health!() as { ok: boolean };
+    const h = (await dcdPlugin.health!()) as { ok: boolean };
     expect(h.ok).toBe(true);
   });
 });

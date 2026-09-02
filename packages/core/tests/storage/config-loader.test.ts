@@ -2,10 +2,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../../src/kernel/events.js';
-import {
-  DefaultConfigLoader,
-  repairConfigDefaults,
-} from '../../src/storage/config-loader.js';
+import { DefaultConfigLoader, repairConfigDefaults } from '../../src/storage/config-loader.js';
 import { resolveWstackPaths } from '../../src/utils/wstack-paths.js';
 
 // vi.mock is hoisted above imports — the factory uses vi.importActual to lazily
@@ -202,7 +199,9 @@ describe('DefaultConfigLoader', () => {
     await fs.mkdir(path.dirname(paths.globalConfig), { recursive: true });
     await fs.writeFile(
       paths.globalConfig,
-      JSON.stringify({ mcpServers: { playwright: { enabled: true, transport: 'stdio', command: 'npx' } } }),
+      JSON.stringify({
+        mcpServers: { playwright: { enabled: true, transport: 'stdio', command: 'npx' } },
+      }),
     );
 
     const cfg = await l.load();
@@ -481,7 +480,10 @@ describe('DefaultConfigLoader', () => {
     const { loader: l, profileCfgPath } = loader();
     // Write the initial config to the profile config (user settings)
     await fs.mkdir(path.dirname(profileCfgPath), { recursive: true });
-    await fs.writeFile(profileCfgPath, JSON.stringify({ provider: 'anthropic', model: 'claude-opus-4-7' }));
+    await fs.writeFile(
+      profileCfgPath,
+      JSON.stringify({ provider: 'anthropic', model: 'claude-opus-4-7' }),
+    );
 
     const readSpy = vi.spyOn(fs, 'readFile');
     const statSpy = vi.spyOn(fs, 'stat');
@@ -790,7 +792,9 @@ describe('DefaultConfigLoader', () => {
     await fs.mkdir(path.dirname(paths.globalConfig), { recursive: true });
     await fs.writeFile(
       paths.globalConfig,
-      JSON.stringify({ context: { warnThreshold: 'oops', softThreshold: 0.7, hardThreshold: 0.9 } }),
+      JSON.stringify({
+        context: { warnThreshold: 'oops', softThreshold: 0.7, hardThreshold: 0.9 },
+      }),
     );
     await expect(l.load()).rejects.toThrow(/context\.warnThreshold/);
   });
@@ -808,10 +812,7 @@ describe('DefaultConfigLoader', () => {
   it('falls back to the default when context.mode is an unknown id', async () => {
     const { loader: l, paths } = loader();
     await fs.mkdir(path.dirname(paths.globalConfig), { recursive: true });
-    await fs.writeFile(
-      paths.globalConfig,
-      JSON.stringify({ context: { mode: 'lightning-fast' } }),
-    );
+    await fs.writeFile(paths.globalConfig, JSON.stringify({ context: { mode: 'lightning-fast' } }));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const cfg = await l.load();
@@ -830,11 +831,14 @@ describe('DefaultConfigLoader', () => {
     const emitSpy = vi.spyOn(events, 'emit');
     const { loader: l } = loader({ events });
     await l.persistSyncConfig({});
-    expect(emitSpy).toHaveBeenCalledWith('storage.write', expect.objectContaining({
-      store: 'config',
-      operation: 'persist_sync',
-      outcome: 'success',
-    }));
+    expect(emitSpy).toHaveBeenCalledWith(
+      'storage.write',
+      expect.objectContaining({
+        store: 'config',
+        operation: 'persist_sync',
+        outcome: 'success',
+      }),
+    );
   });
 
   it('emits storage.error when persistSyncConfig() encounters a write failure', async () => {
@@ -850,12 +854,15 @@ describe('DefaultConfigLoader', () => {
     );
     try {
       await expect(l.persistSyncConfig({})).rejects.toThrow('Permission denied');
-      expect(emitSpy).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-        store: 'config',
-        operation: 'persist_sync',
-        outcome: 'failure',
-        error: expect.stringContaining('EACCES'),
-      }));
+      expect(emitSpy).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          store: 'config',
+          operation: 'persist_sync',
+          outcome: 'failure',
+          error: expect.stringContaining('EACCES'),
+        }),
+      );
     } finally {
       mockFs.writeFile.mockReset();
     }
@@ -870,11 +877,14 @@ describe('DefaultConfigLoader', () => {
     const result = await l.loadSyncConfig();
     expect(result).not.toBeNull();
     expect(result!.githubToken).toBe('ghp_abc123');
-    expect(emitSpy).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-      store: 'config',
-      operation: 'load_sync',
-      outcome: 'success',
-    }));
+    expect(emitSpy).toHaveBeenCalledWith(
+      'storage.read',
+      expect.objectContaining({
+        store: 'config',
+        operation: 'load_sync',
+        outcome: 'success',
+      }),
+    );
   });
 
   it('emits storage.read with outcome failure when loadSyncConfig() encounters EACCES', async () => {
@@ -893,12 +903,15 @@ describe('DefaultConfigLoader', () => {
       const result = await l.loadSyncConfig();
       // EACCES → returns null, not a thrown error
       expect(result).toBeNull();
-      expect(emitSpy).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'config',
-        operation: 'load_sync',
-        outcome: 'failure',
-        error: expect.stringContaining('EACCES'),
-      }));
+      expect(emitSpy).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'config',
+          operation: 'load_sync',
+          outcome: 'failure',
+          error: expect.stringContaining('EACCES'),
+        }),
+      );
     } finally {
       mockFs.readFile.mockReset();
     }
@@ -912,12 +925,15 @@ describe('DefaultConfigLoader', () => {
     await fs.writeFile(paths.syncConfig, 'not-json{');
     const result = await l.loadSyncConfig();
     expect(result).toBeNull();
-    expect(emitSpy).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-      store: 'config',
-      operation: 'load_sync',
-      outcome: 'failure',
-      error: 'parse error or empty file',
-    }));
+    expect(emitSpy).toHaveBeenCalledWith(
+      'storage.read',
+      expect.objectContaining({
+        store: 'config',
+        operation: 'load_sync',
+        outcome: 'failure',
+        error: 'parse error or empty file',
+      }),
+    );
   });
 });
 

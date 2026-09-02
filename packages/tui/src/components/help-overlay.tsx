@@ -76,7 +76,10 @@ export function helpSections(): HelpSection[] {
         { keys: '/fleet', desc: 'multi-agent fleet controls' },
         { keys: '/goal', desc: 'set an autonomous goal' },
         { keys: '/autonomy', desc: 'autonomy mode (eternal / off)' },
-        { keys: '/settings', desc: 'settings picker (also: /settings <chord> <value> · /settings reset <chord>)' },
+        {
+          keys: '/settings',
+          desc: 'settings picker (also: /settings <chord> <value> · /settings reset <chord>)',
+        },
         { keys: '/settings-get', desc: 'show setting value(s) without opening picker' },
         { keys: '/clear', desc: 'clear the conversation' },
       ],
@@ -315,10 +318,7 @@ export function HelpOverlay(): React.ReactElement {
   // The leftover width is shared by BOTH description columns — giving each
   // the full remainder overflowed the line and wrapped pair rows to two
   // terminal rows, breaking the one-row-per-entry height math.
-  const toolDescWidth = Math.max(
-    0,
-    Math.floor((size.contentWidth - 2 * toolKeyCol - 2) / 2),
-  );
+  const toolDescWidth = Math.max(0, Math.floor((size.contentWidth - 2 * toolKeyCol - 2) / 2));
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={theme.accent} paddingX={1}>
@@ -345,9 +345,7 @@ export function HelpOverlay(): React.ReactElement {
             </Text>
           );
         }
-        const leftDesc = truncatePanelText(row.left.desc, toolDescWidth).padEnd(
-          toolDescWidth + 2,
-        );
+        const leftDesc = truncatePanelText(row.left.desc, toolDescWidth).padEnd(toolDescWidth + 2);
         return (
           <Text key={`pair-${win.start + i}`}>
             <Text color={theme.accent}>{row.left.keys.padEnd(toolKeyCol)}</Text>

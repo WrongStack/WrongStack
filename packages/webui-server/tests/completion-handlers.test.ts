@@ -246,19 +246,19 @@ describe('completion WebSocket handler', { timeout: 30_000 }, () => {
   });
 
   it('uses machine-readable LSP tool output when wrapping the tool source', async () => {
-    const { createToolLspCompletionSource } = await import(
-      '@wrongstack/webui-server'
+    const { createToolLspCompletionSource } = await import('@wrongstack/webui-server');
+    const execute = vi.fn(async () =>
+      JSON.stringify({
+        items: [
+          {
+            label: 'findByEmail',
+            insertText: 'findByEmail(email)',
+            kind: 'Method',
+            detail: 'semantic match',
+          },
+        ],
+      }),
     );
-    const execute = vi.fn(async () => JSON.stringify({
-      items: [
-        {
-          label: 'findByEmail',
-          insertText: 'findByEmail(email)',
-          kind: 'Method',
-          detail: 'semantic match',
-        },
-      ],
-    }));
     const source = createToolLspCompletionSource({ execute } as never, { cwd: tempDir } as never);
 
     const items = await source!({

@@ -151,9 +151,7 @@ describe('ModelSwitcher — picker', () => {
     const input = picker.querySelector<HTMLInputElement>('.model-picker-search input');
     if (!input) throw new Error('search input not found');
     act(() => {
-      input.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
-      );
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     });
     act(() => {
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -161,13 +159,9 @@ describe('ModelSwitcher — picker', () => {
     expect(onSelectModel).toHaveBeenCalledWith('openai', 'gpt-4o-mini');
 
     const reopened = openPicker(container);
-    const reopenedInput = reopened.querySelector<HTMLInputElement>(
-      '.model-picker-search input',
-    );
+    const reopenedInput = reopened.querySelector<HTMLInputElement>('.model-picker-search input');
     act(() => {
-      reopenedInput?.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-      );
+      reopenedInput?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
     expect(container.querySelector('.model-picker')).toBeNull();
   });

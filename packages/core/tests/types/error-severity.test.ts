@@ -193,9 +193,15 @@ describe('WrongStackError subclass severity defaults', () => {
 
   describe('all subclasses extend WrongStackError', () => {
     const cases: Array<{ label: string; err: WrongStackError }> = [
-      { label: 'ToolError', err: new ToolError({ message: 'x', code: 'TOOL_EXECUTION_FAILED', toolName: 't' }) },
+      {
+        label: 'ToolError',
+        err: new ToolError({ message: 'x', code: 'TOOL_EXECUTION_FAILED', toolName: 't' }),
+      },
       { label: 'ConfigError', err: new ConfigError({ message: 'x', code: 'CONFIG_INVALID' }) },
-      { label: 'PluginError', err: new PluginError({ message: 'x', code: 'PLUGIN_LOAD_FAILED', pluginName: 'p' }) },
+      {
+        label: 'PluginError',
+        err: new PluginError({ message: 'x', code: 'PLUGIN_LOAD_FAILED', pluginName: 'p' }),
+      },
       { label: 'AgentError', err: new AgentError({ message: 'x', code: 'AGENT_RUN_FAILED' }) },
       { label: 'SessionError', err: new SessionError({ message: 'x', code: 'SESSION_NOT_FOUND' }) },
       { label: 'SddError', err: new SddError({ message: 'x', code: 'SDD_VALIDATION_FAILED' }) },
@@ -218,15 +224,36 @@ describe('WrongStackError subclass severity defaults', () => {
     const validSeverities: ErrorSeverity[] = ['warning', 'error', 'fatal'];
 
     const allConstructable: Array<{ label: string; err: WrongStackError }> = [
-      { label: 'ToolError', err: new ToolError({ message: 'x', code: 'TOOL_EXECUTION_FAILED', toolName: 't' }) },
+      {
+        label: 'ToolError',
+        err: new ToolError({ message: 'x', code: 'TOOL_EXECUTION_FAILED', toolName: 't' }),
+      },
       { label: 'ConfigError', err: new ConfigError({ message: 'x', code: 'CONFIG_INVALID' }) },
-      { label: 'PluginError', err: new PluginError({ message: 'x', code: 'PLUGIN_LOAD_FAILED', pluginName: 'p' }) },
-      { label: 'AgentError(ABORTED)', err: new AgentError({ message: 'x', code: 'AGENT_ABORTED' }) },
-      { label: 'AgentError(FAILED)', err: new AgentError({ message: 'x', code: 'AGENT_RUN_FAILED' }) },
-      { label: 'SessionError(WRITE)', err: new SessionError({ message: 'x', code: 'SESSION_WRITE_FAILED' }) },
-      { label: 'SessionError(NOT_FOUND)', err: new SessionError({ message: 'x', code: 'SESSION_NOT_FOUND' }) },
+      {
+        label: 'PluginError',
+        err: new PluginError({ message: 'x', code: 'PLUGIN_LOAD_FAILED', pluginName: 'p' }),
+      },
+      {
+        label: 'AgentError(ABORTED)',
+        err: new AgentError({ message: 'x', code: 'AGENT_ABORTED' }),
+      },
+      {
+        label: 'AgentError(FAILED)',
+        err: new AgentError({ message: 'x', code: 'AGENT_RUN_FAILED' }),
+      },
+      {
+        label: 'SessionError(WRITE)',
+        err: new SessionError({ message: 'x', code: 'SESSION_WRITE_FAILED' }),
+      },
+      {
+        label: 'SessionError(NOT_FOUND)',
+        err: new SessionError({ message: 'x', code: 'SESSION_NOT_FOUND' }),
+      },
       { label: 'SddError(PARSE)', err: new SddError({ message: 'x', code: 'SDD_PARSE_FAILED' }) },
-      { label: 'SddError(VALIDATION)', err: new SddError({ message: 'x', code: 'SDD_VALIDATION_FAILED' }) },
+      {
+        label: 'SddError(VALIDATION)',
+        err: new SddError({ message: 'x', code: 'SDD_VALIDATION_FAILED' }),
+      },
       { label: 'FsError', err: new FsError({ message: 'x', code: 'FS_READ_FAILED' }) },
       { label: 'FetchError', err: new FetchError({ message: 'x', status: 500 }) },
       { label: 'ToolValidationError', err: new ToolValidationError({ message: 'x' }) },
@@ -234,7 +261,9 @@ describe('WrongStackError subclass severity defaults', () => {
     ];
 
     it.each(allConstructable)('$label has a valid severity', ({ err, label }) => {
-      expect(validSeverities, `${label} severity '${err.severity}' is valid`).toContain(err.severity);
+      expect(validSeverities, `${label} severity '${err.severity}' is valid`).toContain(
+        err.severity,
+      );
     });
   });
 });

@@ -115,7 +115,10 @@ function splitColors(set: Record<string, string>): {
 
 /** camelCase / kebab → kebab-case for CSS var names. */
 function kebab(name: string): string {
-  return name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/_/g, '-').toLowerCase();
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/_/g, '-')
+    .toLowerCase();
 }
 
 /** PascalCase for Swift/Kotlin identifiers. */
@@ -163,7 +166,9 @@ function genWebCss(tokens: DesignKitTokens, kitId: string): string {
 
   // Colors → `@theme inline` so `bg-bg`, `text-fg`, `border-border` resolve to
   // the raw vars (which flip in `.dark`).
-  const colorKeys = Object.keys(light).filter((k) => !isScaleToken(k) && isColorToken(light[k] ?? ''));
+  const colorKeys = Object.keys(light).filter(
+    (k) => !isScaleToken(k) && isColorToken(light[k] ?? ''),
+  );
   const colorMap = colorKeys.map((k) => `  --color-${kebab(k)}: var(--${kebab(k)});`).join('\n');
 
   // Scales → `@theme` (namespace-mapped, literal light values). Non-inline

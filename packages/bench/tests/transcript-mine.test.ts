@@ -21,25 +21,31 @@ describe('mineTranscript', () => {
   it('copies a real JSONL and emits a curator-ready draft for each edit attempt', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'source.jsonl');
-    const raw = [
-      { type: 'session_start', id: 'sess/source', model: 'x', provider: 'p' },
-      { type: 'user_input', content: 'Modernize the legacy handler.' },
-      { type: 'tool_use', id: 'read-1', name: 'read', input: { path: 'src/handler.ts' } },
-      { type: 'tool_result', id: 'read-1', content: 'export const handler = legacyHandler;', isError: false },
-      {
-        type: 'tool_use',
-        id: 'edit-1',
-        name: 'edit',
-        input: {
-          path: 'src/handler.ts',
-          oldText: 'legacyHandler',
-          newText: 'modernHandler',
+    const raw =
+      [
+        { type: 'session_start', id: 'sess/source', model: 'x', provider: 'p' },
+        { type: 'user_input', content: 'Modernize the legacy handler.' },
+        { type: 'tool_use', id: 'read-1', name: 'read', input: { path: 'src/handler.ts' } },
+        {
+          type: 'tool_result',
+          id: 'read-1',
+          content: 'export const handler = legacyHandler;',
+          isError: false,
         },
-      },
-      { type: 'tool_call_end', id: 'edit-1', name: 'edit', ok: false },
-    ]
-      .map((event) => JSON.stringify(event))
-      .join('\n') + '\n';
+        {
+          type: 'tool_use',
+          id: 'edit-1',
+          name: 'edit',
+          input: {
+            path: 'src/handler.ts',
+            oldText: 'legacyHandler',
+            newText: 'modernHandler',
+          },
+        },
+        { type: 'tool_call_end', id: 'edit-1', name: 'edit', ok: false },
+      ]
+        .map((event) => JSON.stringify(event))
+        .join('\n') + '\n';
     await fs.writeFile(transcriptPath, raw, 'utf8');
 
     const outDir = path.join(dir, 'evals');
@@ -67,17 +73,23 @@ describe('mineTranscript', () => {
     });
     expect(result.candidates[0]?.needsCuration).toHaveLength(1);
 
-    const draft = JSON.parse(await fs.readFile(result.draftsPath, 'utf8')) as { candidates: unknown[] };
+    const draft = JSON.parse(await fs.readFile(result.draftsPath, 'utf8')) as {
+      candidates: unknown[];
+    };
     expect(draft.candidates).toHaveLength(1);
   });
 
   it('refuses a non-session JSONL rather than fabricating provenance', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'not-a-session.jsonl');
-    await fs.writeFile(transcriptPath, JSON.stringify({ type: 'tool_use', id: 'x', name: 'edit' }), 'utf8');
-
-    await expect(mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') })).rejects.toThrow(
-      /no session_start\/session_resumed id/,
+    await fs.writeFile(
+      transcriptPath,
+      JSON.stringify({ type: 'tool_use', id: 'x', name: 'edit' }),
+      'utf8',
     );
+
+    await expect(
+      mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals') }),
+    ).rejects.toThrow(/no session_start\/session_resumed id/);
   });
 });

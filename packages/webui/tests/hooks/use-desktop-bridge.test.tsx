@@ -197,7 +197,9 @@ describe('useDesktopBridge', () => {
       expect(subscribe).toHaveBeenCalled();
 
       // Commands delivered through the native channel are handled too.
-      const cb = (subscribe.mock.calls as Array<Array<unknown>>)[0]?.[0] as unknown as (c: Record<string, unknown>) => void;
+      const cb = (subscribe.mock.calls as Array<Array<unknown>>)[0]?.[0] as unknown as (
+        c: Record<string, unknown>,
+      ) => void;
       cb({ action: 'open-command-palette' });
       expect(opts.setPaletteOpen).toHaveBeenCalledWith(true);
 

@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CouncilDecisionCard, parseCouncilMarkdown } from '../../src/components/ChatView/CouncilDecisionCard';
+import {
+  CouncilDecisionCard,
+  parseCouncilMarkdown,
+} from '../../src/components/ChatView/CouncilDecisionCard';
 import type { ChatMessage, CouncilDecisionData } from '../../src/stores/types';
 
 function createCouncilMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
@@ -64,7 +67,8 @@ function createCouncilMessage(overrides: Partial<ChatMessage> = {}): ChatMessage
   return {
     id: 'msg-council-1',
     role: 'assistant',
-    content: '⚖️ **Council resolved** · 3/3 seats · 3 distinct targets · 620 tok\n- **executor** → merge · `claude-3-5-sonnet`\n- **skeptic** → merge · `gpt-4o`\n- **auditor** → merge · `gemini-1.5-pro`',
+    content:
+      '⚖️ **Council resolved** · 3/3 seats · 3 distinct targets · 620 tok\n- **executor** → merge · `claude-3-5-sonnet`\n- **skeptic** → merge · `gpt-4o`\n- **auditor** → merge · `gemini-1.5-pro`',
     timestamp: 1000,
     councilDecision,
     ...overrides,
@@ -179,14 +183,17 @@ describe('CouncilDecisionCard', () => {
     render(<CouncilDecisionCard message={message} />);
     expect(screen.getByText(/Judicial Arbiter Tie-Breaker/i)).toBeTruthy();
     expect(screen.getByText('claude-3-opus')).toBeTruthy();
-    expect(screen.getByText(/Judge decided refactoring was the safer long-term architecture/i)).toBeTruthy();
+    expect(
+      screen.getByText(/Judge decided refactoring was the safer long-term architecture/i),
+    ).toBeTruthy();
   });
 
   it('parses legacy markdown seamlessly when councilDecision field is not present', () => {
     const legacyMessage: ChatMessage = {
       id: 'legacy-msg-1',
       role: 'assistant',
-      content: '⚖️ **Council resolved** · 2/2 seats · 2 distinct targets\n- **executor** → allow · `gpt-4o`\n- **skeptic** (veto) → allow · `claude-3-5-sonnet`\n> ⚠ Panel has tight latency constraints',
+      content:
+        '⚖️ **Council resolved** · 2/2 seats · 2 distinct targets\n- **executor** → allow · `gpt-4o`\n- **skeptic** (veto) → allow · `claude-3-5-sonnet`\n> ⚠ Panel has tight latency constraints',
       timestamp: 1000,
     };
 

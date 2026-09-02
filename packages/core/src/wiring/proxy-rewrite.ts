@@ -152,9 +152,7 @@ let proxyTransitionLogger: ProxyTransitionLogger | undefined;
  * probe immediately (the flip path reads this variable at log time).
  * Passing undefined silences transition logging again.
  */
-export function setProxyTransitionLogger(
-  logger: ProxyTransitionLogger | undefined,
-): void {
+export function setProxyTransitionLogger(logger: ProxyTransitionLogger | undefined): void {
   proxyTransitionLogger = logger;
 }
 

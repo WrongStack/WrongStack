@@ -15,10 +15,12 @@ function io(files: Record<string, string>, dirs: string[] = []): DiscoveryIo {
       if (!dirSet.has(path(root))) throw new Error('ENOENT');
       const names = new Set<string>();
       for (const key of Object.keys(files)) {
-        if (key.startsWith(`${path(root)}/`)) names.add(key.slice(path(root).length + 1).split('/')[0]!);
+        if (key.startsWith(`${path(root)}/`))
+          names.add(key.slice(path(root).length + 1).split('/')[0]!);
       }
       for (const dir of dirSet) {
-        if (dir.startsWith(`${path(root)}/`)) names.add(dir.slice(path(root).length + 1).split('/')[0]!);
+        if (dir.startsWith(`${path(root)}/`))
+          names.add(dir.slice(path(root).length + 1).split('/')[0]!);
       }
       return [...names].map((name) => ({
         name,
@@ -45,7 +47,10 @@ const JS = 'export default { name: "x", apiVersion: "^0.1", setup() {} };';
 describe('discoverExternalPlugins', () => {
   it('resolves entries from package.json main', async () => {
     const i = io(
-      { '/r/alpha/package.json': JSON.stringify({ main: './dist/entry.js' }), '/r/alpha/dist/entry.js': JS },
+      {
+        '/r/alpha/package.json': JSON.stringify({ main: './dist/entry.js' }),
+        '/r/alpha/dist/entry.js': JS,
+      },
       ['/r', '/r/alpha', '/r/alpha/dist'],
     );
     const { candidates, skipped } = await discoverExternalPlugins(['/r'], i);
@@ -58,7 +63,10 @@ describe('discoverExternalPlugins', () => {
   it('prefers exports["."] import condition over main and handles string exports', async () => {
     const withConditions = io(
       {
-        '/r/a/package.json': JSON.stringify({ main: './old.js', exports: { '.': { import: './new.mjs' } } }),
+        '/r/a/package.json': JSON.stringify({
+          main: './old.js',
+          exports: { '.': { import: './new.mjs' } },
+        }),
         '/r/a/old.js': JS,
         '/r/a/new.mjs': JS,
       },
@@ -80,15 +88,19 @@ describe('discoverExternalPlugins', () => {
   });
 
   it('falls back to index probing when package.json has no resolvable entry', async () => {
-    const i = io(
-      { '/r/no-manifest/index.mjs': JS, '/r/broken/package.json': '{ not json' },
-      ['/r', '/r/no-manifest', '/r/broken'],
-    );
+    const i = io({ '/r/no-manifest/index.mjs': JS, '/r/broken/package.json': '{ not json' }, [
+      '/r',
+      '/r/no-manifest',
+      '/r/broken',
+    ]);
     const { candidates, skipped } = await discoverExternalPlugins(['/r'], i);
     expect(candidates.map((c) => c.name)).toEqual(['no-manifest']);
     expect(candidates[0]!.entryPath.replace(/\\/g, '/')).toBe('/r/no-manifest/index.mjs');
     expect(skipped).toHaveLength(1);
-    expect(skipped[0]).toMatchObject({ name: 'broken', reason: expect.stringContaining('package.json') });
+    expect(skipped[0]).toMatchObject({
+      name: 'broken',
+      reason: expect.stringContaining('package.json'),
+    });
   });
 
   it('accepts single entry files directly under the root', async () => {
@@ -118,7 +130,12 @@ describe('discoverExternalPlugins', () => {
   });
 
   it('scans multiple roots in order', async () => {
-    const i = io({ '/one/a/index.js': JS, '/two/b/index.js': JS }, ['/one', '/two', '/one/a', '/two/b']);
+    const i = io({ '/one/a/index.js': JS, '/two/b/index.js': JS }, [
+      '/one',
+      '/two',
+      '/one/a',
+      '/two/b',
+    ]);
     const { candidates } = await discoverExternalPlugins(['/one', '/two'], i);
     expect(candidates.map((c) => c.root)).toEqual(['/one', '/two']);
   });

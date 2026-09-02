@@ -13,8 +13,7 @@ export function parseSessionSummaries(value: unknown): SimpleSessionSummary[] {
         name: typeof item['name'] === 'string' ? item['name'] : undefined,
         lastUserMessage:
           typeof item['lastUserMessage'] === 'string' ? item['lastUserMessage'] : undefined,
-        messageCount:
-          typeof item['messageCount'] === 'number' ? item['messageCount'] : undefined,
+        messageCount: typeof item['messageCount'] === 'number' ? item['messageCount'] : undefined,
         lastActivityAt:
           typeof item['lastActivityAt'] === 'string' ? item['lastActivityAt'] : undefined,
         startedAt: typeof item['startedAt'] === 'string' ? item['startedAt'] : '',

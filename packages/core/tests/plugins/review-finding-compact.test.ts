@@ -35,33 +35,43 @@ const ctx = {
 describe('FS-P0.GATE — Compaction', () => {
   it('removes old resolved findings', async () => {
     // Create a resolved finding with a very old timestamp
-    const old = await store.upsert([{
-      id: 'old-resolved',
-      fingerprint: 'fp-old',
-      severity: 'critical' as const,
-      source: 'chimera' as const,
-      location: { file: 'old.ts', line: 1 },
-      title: 'Old resolved',
-      description: 'Should be compacted',
-      status: 'resolved' as const,
-      createdAt: new Date(Date.now() - 40 * 86400_000).toISOString(), // 40 days ago
-      originReport: { reportId: 'r-old', sessionId: 's-old', agentId: 'a', reviewerModel: 'm' },
-    }], ctx);
+    const old = await store.upsert(
+      [
+        {
+          id: 'old-resolved',
+          fingerprint: 'fp-old',
+          severity: 'critical' as const,
+          source: 'chimera' as const,
+          location: { file: 'old.ts', line: 1 },
+          title: 'Old resolved',
+          description: 'Should be compacted',
+          status: 'resolved' as const,
+          createdAt: new Date(Date.now() - 40 * 86400_000).toISOString(), // 40 days ago
+          originReport: { reportId: 'r-old', sessionId: 's-old', agentId: 'a', reviewerModel: 'm' },
+        },
+      ],
+      ctx,
+    );
     expect(old.created).toBe(1);
 
     // Create an active finding (same age, but active — should be kept)
-    const active = await store.upsert([{
-      id: 'old-active',
-      fingerprint: 'fp-active',
-      severity: 'high' as const,
-      source: 'chimera' as const,
-      location: { file: 'active.ts', line: 2 },
-      title: 'Old but active',
-      description: 'Should survive compaction',
-      status: 'active' as const,
-      createdAt: new Date(Date.now() - 40 * 86400_000).toISOString(),
-      originReport: { reportId: 'r-old', sessionId: 's-old', agentId: 'a', reviewerModel: 'm' },
-    }], ctx);
+    const active = await store.upsert(
+      [
+        {
+          id: 'old-active',
+          fingerprint: 'fp-active',
+          severity: 'high' as const,
+          source: 'chimera' as const,
+          location: { file: 'active.ts', line: 2 },
+          title: 'Old but active',
+          description: 'Should survive compaction',
+          status: 'active' as const,
+          createdAt: new Date(Date.now() - 40 * 86400_000).toISOString(),
+          originReport: { reportId: 'r-old', sessionId: 's-old', agentId: 'a', reviewerModel: 'm' },
+        },
+      ],
+      ctx,
+    );
     expect(active.created).toBe(1);
 
     // Compact with a short retention window
@@ -80,18 +90,23 @@ describe('FS-P0.GATE — Compaction', () => {
   });
 
   it('removes old ignored findings', async () => {
-    const oldIgnored = await store.upsert([{
-      id: 'old-ignored',
-      fingerprint: 'fp-ignored',
-      severity: 'low' as const,
-      source: 'chimera' as const,
-      location: { file: 'ignored.ts', line: 3 },
-      title: 'Old ignored',
-      description: 'Should be compacted',
-      status: 'ignored' as const,
-      createdAt: new Date(Date.now() - 20 * 86400_000).toISOString(), // 20 days ago
-      originReport: { reportId: 'r-ign', sessionId: 's-ign', agentId: 'a', reviewerModel: 'm' },
-    }], ctx);
+    const oldIgnored = await store.upsert(
+      [
+        {
+          id: 'old-ignored',
+          fingerprint: 'fp-ignored',
+          severity: 'low' as const,
+          source: 'chimera' as const,
+          location: { file: 'ignored.ts', line: 3 },
+          title: 'Old ignored',
+          description: 'Should be compacted',
+          status: 'ignored' as const,
+          createdAt: new Date(Date.now() - 20 * 86400_000).toISOString(), // 20 days ago
+          originReport: { reportId: 'r-ign', sessionId: 's-ign', agentId: 'a', reviewerModel: 'm' },
+        },
+      ],
+      ctx,
+    );
     expect(oldIgnored.created).toBe(1);
 
     const result = await store.compact({
@@ -105,18 +120,23 @@ describe('FS-P0.GATE — Compaction', () => {
   });
 
   it('keeps active findings regardless of age', async () => {
-    const veryOld = await store.upsert([{
-      id: 'very-old-active',
-      fingerprint: 'fp-very-old',
-      severity: 'medium' as const,
-      source: 'chimera' as const,
-      location: { file: 'old.ts', line: 10 },
-      title: 'Very old but active',
-      description: 'Active findings survive even past TTL',
-      status: 'active' as const,
-      createdAt: new Date(Date.now() - 100 * 86400_000).toISOString(), // 100 days ago!
-      originReport: { reportId: 'r-old', sessionId: 's-old', agentId: 'a', reviewerModel: 'm' },
-    }], ctx);
+    const veryOld = await store.upsert(
+      [
+        {
+          id: 'very-old-active',
+          fingerprint: 'fp-very-old',
+          severity: 'medium' as const,
+          source: 'chimera' as const,
+          location: { file: 'old.ts', line: 10 },
+          title: 'Very old but active',
+          description: 'Active findings survive even past TTL',
+          status: 'active' as const,
+          createdAt: new Date(Date.now() - 100 * 86400_000).toISOString(), // 100 days ago!
+          originReport: { reportId: 'r-old', sessionId: 's-old', agentId: 'a', reviewerModel: 'm' },
+        },
+      ],
+      ctx,
+    );
     expect(veryOld.created).toBe(1);
 
     const result = await store.compact({
@@ -130,18 +150,23 @@ describe('FS-P0.GATE — Compaction', () => {
   });
 
   it('compaction is idempotent', async () => {
-    await store.upsert([{
-      id: 'idempotent',
-      fingerprint: 'fp-ido',
-      severity: 'high' as const,
-      source: 'chimera' as const,
-      location: { file: 'tmp.ts', line: 1 },
-      title: 'Test',
-      description: 'Test',
-      status: 'resolved' as const,
-      createdAt: new Date(Date.now() - 60 * 86400_000).toISOString(),
-      originReport: { reportId: 'r', sessionId: 's', agentId: 'a', reviewerModel: 'm' },
-    }], ctx);
+    await store.upsert(
+      [
+        {
+          id: 'idempotent',
+          fingerprint: 'fp-ido',
+          severity: 'high' as const,
+          source: 'chimera' as const,
+          location: { file: 'tmp.ts', line: 1 },
+          title: 'Test',
+          description: 'Test',
+          status: 'resolved' as const,
+          createdAt: new Date(Date.now() - 60 * 86400_000).toISOString(),
+          originReport: { reportId: 'r', sessionId: 's', agentId: 'a', reviewerModel: 'm' },
+        },
+      ],
+      ctx,
+    );
 
     const r1 = await store.compact({ resolvedMaxAgeMs: 30 * 86400_000 });
     expect(r1.removed).toBe(1);

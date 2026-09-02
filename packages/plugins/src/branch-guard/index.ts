@@ -82,13 +82,17 @@ const DEFAULTS: BranchGuardConfig = {
 function readConfig(raw: unknown): BranchGuardConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
-  const rawBranches = r['branches'] ?? r['protectedBranches'] ?? r['protected_branches'] ?? r['protected'];
+  const rawBranches =
+    r['branches'] ?? r['protectedBranches'] ?? r['protected_branches'] ?? r['protected'];
   const branches = Array.isArray(rawBranches)
     ? (rawBranches as unknown[]).filter((b): b is string => typeof b === 'string')
     : DEFAULTS.branches;
-  const rawMode = typeof (r['mode'] ?? r['action']) === 'string'
-    ? String(r['mode'] ?? r['action']).trim().toLowerCase()
-    : undefined;
+  const rawMode =
+    typeof (r['mode'] ?? r['action']) === 'string'
+      ? String(r['mode'] ?? r['action'])
+          .trim()
+          .toLowerCase()
+      : undefined;
   const mode = rawMode === 'warn' ? 'warn' : rawMode === 'off' ? 'off' : 'block';
   return {
     enabled: r['enabled'] !== false && mode !== 'off',
@@ -300,7 +304,7 @@ const plugin: Plugin = {
     state.hookUnregister = releaseHandle(state.hookUnregister);
     state.configUnregister = releaseHandle(state.configUnregister);
     state.lastBlock = null;
-    
+
     // Clear branch cache to ensure fresh detection after config changes.
     branchCache.clear();
 
@@ -338,11 +342,7 @@ const plugin: Plugin = {
         gitOp = detectStructuredGitCommand(inp);
       } else {
         const rawCmd =
-          inp['command'] ??
-          inp['CommandLine'] ??
-          inp['cmd'] ??
-          inp['script'] ??
-          inp['input'];
+          inp['command'] ?? inp['CommandLine'] ?? inp['cmd'] ?? inp['script'] ?? inp['input'];
         const command = typeof rawCmd === 'string' ? rawCmd : undefined;
         if (typeof command !== 'string') return;
         gitOp = detectGitCommand(command);

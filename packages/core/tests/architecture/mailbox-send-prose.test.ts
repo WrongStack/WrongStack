@@ -54,8 +54,7 @@ async function productionSourceFiles(root: string): Promise<string[]> {
  * payloads without a `body:` key inside a `.send({` object literal do not
  * match.
  */
-const JSON_BODY_SEND =
-  /\.send\(\s*\{[\s\S]{0,500}?body\s*:\s*JSON\.stringify\s*\(/u;
+const JSON_BODY_SEND = /\.send\(\s*\{[\s\S]{0,500}?body\s*:\s*JSON\.stringify\s*\(/u;
 
 describe('mailbox send bodies are human-readable', () => {
   it('finds no production mailbox.send call site with a JSON.stringify body', async () => {

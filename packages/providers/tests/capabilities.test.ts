@@ -1,7 +1,11 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DefaultModelsRegistry } from '@wrongstack/core/models';
-import type { CustomModelDefinition, ModelsDevPayload, ModelsRegistry } from '@wrongstack/core/types';
+import type {
+  CustomModelDefinition,
+  ModelsDevPayload,
+  ModelsRegistry,
+} from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { capabilitiesFor } from '../src/capabilities.js';
 

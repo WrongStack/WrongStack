@@ -296,11 +296,7 @@ export function HomePage() {
             </div>
             <div className="grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-3">
               {surfaces.map((surface, index) => (
-                <Reveal
-                  key={surface.id}
-                  delay={index * 0.04}
-                  className="bg-[#0c0d12] p-6"
-                >
+                <Reveal key={surface.id} delay={index * 0.04} className="bg-[#0c0d12] p-6">
                   <surface.icon className="size-5 text-brand" />
                   <h3 className="mt-6 text-lg font-black">{surface.name}</h3>
                   <p className="mt-2 text-sm leading-6 text-zinc-500">

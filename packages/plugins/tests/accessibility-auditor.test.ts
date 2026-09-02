@@ -116,7 +116,10 @@ describe('accessibility-auditor plugin', () => {
   });
 
   it('a11y_audit recognizes a label associated by for/id', async () => {
-    writeFixture('LabeledInput.tsx', '<label for="name">Name</label><input id="name" type="text" />\n');
+    writeFixture(
+      'LabeledInput.tsx',
+      '<label for="name">Name</label><input id="name" type="text" />\n',
+    );
     const api = makeApi();
     accessibilityAuditorPlugin.setup(api as never);
     const audit = getTool(api, 'a11y_audit');
@@ -257,7 +260,10 @@ describe('accessibility-auditor plugin', () => {
     writeFixture('Label.tsx', '<label htmlFor="email">Email</label>\n');
     const api = makeApi();
     accessibilityAuditorPlugin.setup(api as never);
-    const result = (await getTool(api, 'a11y_audit')({
+    const result = (await getTool(
+      api,
+      'a11y_audit',
+    )({
       path: resolve(FIXTURE_DIR, 'Input.tsx'),
     })) as { findings: Array<{ rule: string; note?: string }> };
     const missing = result.findings.find((f) => f.rule === 'missing-input-label');
@@ -336,7 +342,9 @@ describe('accessibility-auditor plugin', () => {
     const api = makeApi();
     accessibilityAuditorPlugin.setup(api as never);
     accessibilityAuditorPlugin.teardown!(api as never);
-    const health = (await accessibilityAuditorPlugin.health!()) as { counters: Record<string, number> };
+    const health = (await accessibilityAuditorPlugin.health!()) as {
+      counters: Record<string, number>;
+    };
     expect(health.counters['audits']).toBe(0);
     expect(api.log.info).toHaveBeenCalledWith(
       'accessibility-auditor: teardown complete',

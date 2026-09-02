@@ -232,8 +232,18 @@ describe('SessionNoteHub', () => {
     const bus = new EventBus();
     const seen: string[] = [];
     bus.on('session.note', (e) => seen.push(e.body));
-    const offA = hub.register({ sessionId: 'sess-1', agentId: 'a', events: bus, deliver: () => {} });
-    const offB = hub.register({ sessionId: 'sess-1', agentId: 'b', events: bus, deliver: () => {} });
+    const offA = hub.register({
+      sessionId: 'sess-1',
+      agentId: 'a',
+      events: bus,
+      deliver: () => {},
+    });
+    const offB = hub.register({
+      sessionId: 'sess-1',
+      agentId: 'b',
+      events: bus,
+      deliver: () => {},
+    });
 
     offA();
     offA(); // Second call must not decrement the ref count again.

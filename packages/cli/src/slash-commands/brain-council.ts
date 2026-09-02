@@ -125,10 +125,7 @@ export async function handleBrainCouncilSubcommand(
       opts.renderer.writeWarning(msg);
       return { message: msg };
     }
-    return applyPatch(
-      { council: { voters: seats as BrainCouncilVoterConfig[] } },
-      councilSummary,
-    );
+    return applyPatch({ council: { voters: seats as BrainCouncilVoterConfig[] } }, councilSummary);
   }
   if (op === 'personas') {
     const lines = [

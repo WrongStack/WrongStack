@@ -61,9 +61,7 @@ describe('memory tool completion coverage', () => {
       getSage: vi.fn(async () => ({ id: 'memory', status: 'deleted' })),
       recoverSage: vi.fn(async () => recovered),
     });
-    const recoverOnDeleted = createSageTools(deleted).find(
-      (t) => t.name === 'memory_recover',
-    )!;
+    const recoverOnDeleted = createSageTools(deleted).find((t) => t.name === 'memory_recover')!;
     await expect(
       recoverOnDeleted.execute({ id: 'memory', reason: 'undo' }, {} as never, options),
     ).resolves.toMatchObject({ recovered: true, id: 'memory', noop: false });
@@ -72,9 +70,7 @@ describe('memory tool completion coverage', () => {
       getSage: vi.fn(async () => ({ id: 'memory', status: 'active' })),
       recoverSage: vi.fn(async () => recovered),
     });
-    const recoverOnActive = createSageTools(active).find(
-      (t) => t.name === 'memory_recover',
-    )!;
+    const recoverOnActive = createSageTools(active).find((t) => t.name === 'memory_recover')!;
     await expect(
       recoverOnActive.execute({ id: 'memory' }, {} as never, options),
     ).resolves.toMatchObject({ noop: true });
@@ -123,4 +119,3 @@ describe('memory tool completion coverage', () => {
     );
   });
 });
-

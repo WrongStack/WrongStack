@@ -10,7 +10,11 @@ function setup(): { tools: Record<string, Tool>; fire: (p: unknown) => void } {
   const tools: Record<string, Tool> = {};
   let responseHandler: ((p: unknown) => void) | undefined;
   const api = {
-    tools: { register: (t: Tool) => { tools[t.name] = t; } },
+    tools: {
+      register: (t: Tool) => {
+        tools[t.name] = t;
+      },
+    },
     config: { extensions: {} },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
@@ -40,7 +44,7 @@ describe('cost_export with recorded requests', () => {
     const { tools, fire } = setup();
     fire({ usage: { input: 100, output: 50 }, ctx: { model: 'claude-opus-4-8' } });
     const res = await tools.cost_export!.execute({ format: 'csv' });
-    expect((res.data as string)).toContain('claude-opus-4-8');
+    expect(res.data as string).toContain('claude-opus-4-8');
   });
 
   it('strips the model field from JSON requests when includeModel=false', async () => {

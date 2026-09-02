@@ -14,7 +14,8 @@ export const META_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'meta',
-      summary: 'Skill curation: audits, refines descriptions/triggers, scaffolds, and retires skills.',
+      summary:
+        'Skill curation: audits, refines descriptions/triggers, scaffolds, and retires skills.',
       keywords: [
         'skill',
         'skills',
@@ -38,7 +39,8 @@ export const META_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'meta',
-      summary: 'Learns from execution logs: mines recurring failures/inefficiencies and proposes evidence-based improvements.',
+      summary:
+        'Learns from execution logs: mines recurring failures/inefficiencies and proposes evidence-based improvements.',
       keywords: [
         'self-improving',
         'learn from',
@@ -63,7 +65,8 @@ export const META_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'meta',
-      summary: 'Memory + context-window management: compaction, recall, and curation within a token budget.',
+      summary:
+        'Memory + context-window management: compaction, recall, and curation within a token budget.',
       keywords: [
         'context',
         'context window',
@@ -89,7 +92,8 @@ export const META_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'meta',
-      summary: 'Token/cloud cost optimization: finds spend waste, recommends model routing and trimming with $ estimates.',
+      summary:
+        'Token/cloud cost optimization: finds spend waste, recommends model routing and trimming with $ estimates.',
       keywords: [
         'cost',
         'token cost',
@@ -122,7 +126,8 @@ export const META_AGENTS: AgentDefinition[] = [
     },
     capability: {
       phase: 'meta',
-      summary: 'Single-shot tech stack validator: checks npm for latest versions, rejects dead/obsolete packages, enforces modern alternatives.',
+      summary:
+        'Single-shot tech stack validator: checks npm for latest versions, rejects dead/obsolete packages, enforces modern alternatives.',
       keywords: [
         'tech stack',
         'version',

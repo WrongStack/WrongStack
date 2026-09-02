@@ -1,4 +1,7 @@
-import { filterMailboxMessagesByTimestamp, type MailboxCheckInput } from './mailbox-http-validation.js';
+import {
+  filterMailboxMessagesByTimestamp,
+  type MailboxCheckInput,
+} from './mailbox-http-validation.js';
 import type {
   ActorMailboxMessage,
   Mailbox,
@@ -46,11 +49,13 @@ export function stripAggregateReceiptState(
 }
 
 export function eligibleRecipientsForActor(actor: MailboxActorContext): string[] {
-  return [...new Set([
-    actor.actorId,
-    ...actor.recipientAliases,
-    ...(actor.sessionId === undefined ? [] : [sessionRecipient(actor.sessionId)]),
-  ])];
+  return [
+    ...new Set([
+      actor.actorId,
+      ...actor.recipientAliases,
+      ...(actor.sessionId === undefined ? [] : [sessionRecipient(actor.sessionId)]),
+    ]),
+  ];
 }
 
 export async function queryMessagesForActor(
@@ -62,12 +67,9 @@ export async function queryMessagesForActor(
   const requestedRecipient = query.to;
   if (requestedRecipient !== undefined && !eligibleRecipients.has(requestedRecipient)) return [];
 
-  const recipients = requestedRecipient === undefined
-    ? [...eligibleRecipients]
-    : [requestedRecipient];
-  const batches = await Promise.all(
-    recipients.map((to) => mailbox.query({ ...query, to })),
-  );
+  const recipients =
+    requestedRecipient === undefined ? [...eligibleRecipients] : [requestedRecipient];
+  const batches = await Promise.all(recipients.map((to) => mailbox.query({ ...query, to })));
   const seen = new Set<string>();
   const visible = batches.flat().filter((message) => {
     if (seen.has(message.id)) return false;
@@ -172,11 +174,11 @@ export async function checkMailbox(
   const limit = input.limit ?? 20;
   const markRead = input.markRead ?? true;
   const completed = input.completed ?? false;
-  const targets = eligibleRecipients ?? (
-    input.baseId !== undefined && input.baseId !== input.agentId
+  const targets =
+    eligibleRecipients ??
+    (input.baseId !== undefined && input.baseId !== input.agentId
       ? [input.agentId, input.baseId]
-      : [input.agentId]
-  );
+      : [input.agentId]);
   const batches = await Promise.all(
     targets.map((to) =>
       mailbox.query({

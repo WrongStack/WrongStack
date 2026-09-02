@@ -129,7 +129,9 @@ export function FallbackModal({ info, socketRef, onClose }: FallbackModalProps) 
     >
       <div className="fallback-modal">
         <div className="fallback-modal-header">
-          <span className="fallback-modal-title"><TriangleAlert size={13} aria-hidden="true" /> MODEL FALLBACK</span>
+          <span className="fallback-modal-title">
+            <TriangleAlert size={13} aria-hidden="true" /> MODEL FALLBACK
+          </span>
           <span className="fallback-modal-countdown">{remaining}s</span>
         </div>
         <p className="fallback-modal-from">

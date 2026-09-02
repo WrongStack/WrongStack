@@ -71,10 +71,7 @@ export async function handleDeadCodeScan(
     if (scanIndexDir) {
       const resolvedRoot = path.resolve(deps.projectRoot);
       const resolvedIndex = path.resolve(deps.projectRoot, scanIndexDir);
-      if (
-        resolvedIndex !== resolvedRoot &&
-        !resolvedIndex.startsWith(resolvedRoot + path.sep)
-      ) {
+      if (resolvedIndex !== resolvedRoot && !resolvedIndex.startsWith(resolvedRoot + path.sep)) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid indexDir: must be within project root' }));
         return;
@@ -227,7 +224,9 @@ function buildActionPlan(result: DeadCodeScanOutput): ActionPlan {
     });
   }
 
-  const sorted = [...files.values()].sort((a, b) => a.priority - b.priority || a.file.localeCompare(b.file));
+  const sorted = [...files.values()].sort(
+    (a, b) => a.priority - b.priority || a.file.localeCompare(b.file),
+  );
 
   return {
     summary:

@@ -63,7 +63,9 @@ export function copyableTextForEntry(entry: HistoryEntry): string {
       return textOrRaw([entry.label, entry.detail].filter(Boolean).join('\n'), entry);
     case 'brain':
       return textOrRaw(
-        [entry.question, entry.decision, entry.rationale, entry.outcome].filter(Boolean).join('\n\n'),
+        [entry.question, entry.decision, entry.rationale, entry.outcome]
+          .filter(Boolean)
+          .join('\n\n'),
         entry,
       );
     case 'subagent':

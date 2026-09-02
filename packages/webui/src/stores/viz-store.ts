@@ -12,35 +12,34 @@ import { create } from 'zustand';
 
 /** Categories the cinematic renderer understands. */
 export type VizEventKind =
-  | 'provider:call'        // LLM provider call started
-  | 'provider:delta'       // Streaming text delta
-  | 'provider:response'    // Provider response received
-  | 'agent:spawned'        // Agent (leader or subagent) spawned
-  | 'agent:tool'           // Agent executed a tool
-  | 'agent:status'         // Agent status change (running → completed/failed)
-  | 'agent:ctx'            // Agent context pressure update
-  | 'agent:text'           // Agent streaming/partial text
-  | 'tool:started'         // Tool execution started
-  | 'tool:executed'        // Tool execution completed
-  | 'tool:progress'        // Tool progress update
-  | 'mailbox:send'         // Mailbox message sent
-  | 'mailbox:deliver'      // Mailbox message delivered/read
-  | 'collab:event'         // Collaboration observer/control event
-  | 'memory:event'         // SAGE retrieval/verification/hygiene event
-  | 'brain:council_vote'   // One Brain council seat cast its vote
-  | 'session:start'        // Session started/resumed
-  | 'session:end'          // Session ended
-  | 'iteration:start'      // Iteration started
-  | 'iteration:end'        // Iteration completed
-  | 'eternal:iteration'    // Eternal-autonomy journal tick
-  | 'error'                // Error occurred
-  | 'context:compacted'    // Context compaction
-  | 'context:repaired'     // Context repair
-  | 'budget:warning'       // Agent budget warning
-  | 'budget:extended'      // Agent budget extended
-  | 'cost:update'          // Cost/token update
-  | 'fleet:snapshot'       // Cross-process fleet snapshot (sessions + agents)
-  ;
+  | 'provider:call' // LLM provider call started
+  | 'provider:delta' // Streaming text delta
+  | 'provider:response' // Provider response received
+  | 'agent:spawned' // Agent (leader or subagent) spawned
+  | 'agent:tool' // Agent executed a tool
+  | 'agent:status' // Agent status change (running → completed/failed)
+  | 'agent:ctx' // Agent context pressure update
+  | 'agent:text' // Agent streaming/partial text
+  | 'tool:started' // Tool execution started
+  | 'tool:executed' // Tool execution completed
+  | 'tool:progress' // Tool progress update
+  | 'mailbox:send' // Mailbox message sent
+  | 'mailbox:deliver' // Mailbox message delivered/read
+  | 'collab:event' // Collaboration observer/control event
+  | 'memory:event' // SAGE retrieval/verification/hygiene event
+  | 'brain:council_vote' // One Brain council seat cast its vote
+  | 'session:start' // Session started/resumed
+  | 'session:end' // Session ended
+  | 'iteration:start' // Iteration started
+  | 'iteration:end' // Iteration completed
+  | 'eternal:iteration' // Eternal-autonomy journal tick
+  | 'error' // Error occurred
+  | 'context:compacted' // Context compaction
+  | 'context:repaired' // Context repair
+  | 'budget:warning' // Agent budget warning
+  | 'budget:extended' // Agent budget extended
+  | 'cost:update' // Cost/token update
+  | 'fleet:snapshot'; // Cross-process fleet snapshot (sessions + agents)
 
 export interface VizEvent {
   id: string;
@@ -111,7 +110,9 @@ export interface VizNode {
   /** When this node was last updated */
   lastSeenAt: number;
   /** Position hints for the layout engine */
-  positionHint?: { zone: 'left' | 'center' | 'right' | 'top' | 'bottom'; order: number } | undefined;
+  positionHint?:
+    | { zone: 'left' | 'center' | 'right' | 'top' | 'bottom'; order: number }
+    | undefined;
 }
 
 function contextPctFromLoad(load: unknown): number {
@@ -151,9 +152,19 @@ interface VizState {
 
   // Actions
   pushEvent: (event: VizEvent) => void;
-  upsertNode: (node: Partial<VizNode> & { id: string; kind: VizNode['kind']; label: string }) => void;
+  upsertNode: (
+    node: Partial<VizNode> & { id: string; kind: VizNode['kind']; label: string },
+  ) => void;
   removeNode: (id: string) => void;
-  upsertEdge: (edge: Partial<VizEdge> & { id: string; source: string; target: string; kind: VizEdge['kind']; label: string }) => void;
+  upsertEdge: (
+    edge: Partial<VizEdge> & {
+      id: string;
+      source: string;
+      target: string;
+      kind: VizEdge['kind'];
+      label: string;
+    },
+  ) => void;
   removeEdge: (id: string) => void;
   clear: () => void;
   setActive: (active: boolean) => void;
@@ -223,7 +234,11 @@ const MAX_VIZ_EDGES = 1200;
  * Mirrors `capMap` in `coordinator-monitor-store`, which is the reference
  * implementation for bounded stores in this package.
  */
-function capByRecency<V>(map: Map<string, V>, max: number, recency: (v: V) => number): Map<string, V> {
+function capByRecency<V>(
+  map: Map<string, V>,
+  max: number,
+  recency: (v: V) => number,
+): Map<string, V> {
   if (map.size <= max) return map;
   const byAge = [...map.entries()].sort((a, b) => recency(a[1]) - recency(b[1]));
   for (const [id] of byAge.slice(0, map.size - max)) map.delete(id);
@@ -290,7 +305,10 @@ function presenceFresh(lastStamp: number, now: number): boolean {
   return now - lastStamp < VOLATILE_REFRESH_MS;
 }
 
-function shallowEqual(a: Record<string, unknown> | null | undefined, b: Record<string, unknown> | null | undefined): boolean {
+function shallowEqual(
+  a: Record<string, unknown> | null | undefined,
+  b: Record<string, unknown> | null | undefined,
+): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
   const ak = Object.keys(a);
@@ -352,292 +370,324 @@ export const useVizStore = create<VizState>()((set, _get) => ({
     mailboxMessages: 0,
   },
 
-  pushEvent: (event) => set((state) => {
-    const normalizedEvent = {
-      ...event,
-      id: event.id ?? nextId(),
-      timestamp: event.timestamp || Date.now(),
-    };
-    const events = [normalizedEvent, ...state.events];
-    if (events.length > state.maxEvents) events.length = state.maxEvents;
-    const isToolEvent =
-      event.kind === 'agent:tool' ||
-      event.kind === 'tool:started' ||
-      event.kind === 'tool:progress' ||
-      event.kind === 'tool:executed';
-    const toolEvents = isToolEvent
-      ? [normalizedEvent, ...state.toolEvents].slice(0, 600)
-      : state.toolEvents;
+  pushEvent: (event) =>
+    set((state) => {
+      const normalizedEvent = {
+        ...event,
+        id: event.id ?? nextId(),
+        timestamp: event.timestamp || Date.now(),
+      };
+      const events = [normalizedEvent, ...state.events];
+      if (events.length > state.maxEvents) events.length = state.maxEvents;
+      const isToolEvent =
+        event.kind === 'agent:tool' ||
+        event.kind === 'tool:started' ||
+        event.kind === 'tool:progress' ||
+        event.kind === 'tool:executed';
+      const toolEvents = isToolEvent
+        ? [normalizedEvent, ...state.toolEvents].slice(0, 600)
+        : state.toolEvents;
 
-    // ── Apply event to nodes/edges maps ───────────────────────────
-    // Perf note (Track E.7): the throttling/coalescing policy for
-    // high-frequency events (provider:delta, tool:progress) is parked
-    // pending a design call from someone with viz-store context. Until
-    // that lands, this push path keeps the per-event shape but skips
-    // the Map clone when every upsert is shallow-equal to the existing
-    // entry — preserves zustand's reference-stable contract for
-    // subscribers that select only nodes or only edges.
-    const now = Date.now();
+      // ── Apply event to nodes/edges maps ───────────────────────────
+      // Perf note (Track E.7): the throttling/coalescing policy for
+      // high-frequency events (provider:delta, tool:progress) is parked
+      // pending a design call from someone with viz-store context. Until
+      // that lands, this push path keeps the per-event shape but skips
+      // the Map clone when every upsert is shallow-equal to the existing
+      // entry — preserves zustand's reference-stable contract for
+      // subscribers that select only nodes or only edges.
+      const now = Date.now();
 
-    // Upsert source node
-    const sourceId = event.source;
-    const sourceNode: VizNode = {
-      id: sourceId,
-      kind: inferKind(event),
-      label: event.label,
-      status: inferStatus(event.kind),
-      activity: 1.0,
-      color: event.color ?? NODE_COLORS[inferKind(event)],
-      lastSeenAt: now,
-    };
-    const existingSource = state.nodes.get(sourceId);
-    let mergedSource: VizNode = existingSource ? { ...existingSource, ...sourceNode } : sourceNode;
-    let sourceChanged = !shallowEqual(
-      existingSource as unknown as Record<string, unknown> | undefined,
-      mergedSource as unknown as Record<string, unknown>,
-    );
-    // The clone-skip above never fired in practice: `sourceNode` always
-    // carries `lastSeenAt: now` (and re-pins activity), so every
-    // provider:delta counted as a change and re-cloned both Maps per token.
-    // Presence fields are only consumed at human timescales (decay visuals,
-    // recency caps), so refresh them at most every VOLATILE_REFRESH_MS when
-    // nothing else about the node changed.
-    if (existingSource && sourceChanged && presenceFresh(existingSource.lastSeenAt, now)) {
-      if (
-        shallowEqual(
-          { ...existingSource, activity: mergedSource.activity, lastSeenAt: mergedSource.lastSeenAt } as unknown as Record<string, unknown>,
-          mergedSource as unknown as Record<string, unknown>,
-        )
-      ) {
-        mergedSource = existingSource;
-        sourceChanged = false;
-      }
-    }
-
-    // Upsert target node if present
-    let mergedTarget: VizNode | undefined;
-    let targetChanged = false;
-    let targetId: string | undefined;
-    if (event.target) {
-      targetId = event.target;
-      const targetNode: VizNode = {
-        id: targetId,
-        kind: inferKind(event, true),
-        label: targetId,
+      // Upsert source node
+      const sourceId = event.source;
+      const sourceNode: VizNode = {
+        id: sourceId,
+        kind: inferKind(event),
+        label: event.label,
         status: inferStatus(event.kind),
-        activity: 0.8,
-        color: event.color ?? NODE_COLORS[inferKind(event, true)],
+        activity: 1.0,
+        color: event.color ?? NODE_COLORS[inferKind(event)],
         lastSeenAt: now,
       };
-      const existingTarget = state.nodes.get(targetId);
-      mergedTarget = existingTarget ? { ...existingTarget, ...targetNode } : targetNode;
-      targetChanged = !shallowEqual(
-        existingTarget as unknown as Record<string, unknown> | undefined,
-        mergedTarget as unknown as Record<string, unknown>,
+      const existingSource = state.nodes.get(sourceId);
+      let mergedSource: VizNode = existingSource
+        ? { ...existingSource, ...sourceNode }
+        : sourceNode;
+      let sourceChanged = !shallowEqual(
+        existingSource as unknown as Record<string, unknown> | undefined,
+        mergedSource as unknown as Record<string, unknown>,
       );
-      if (existingTarget && targetChanged && presenceFresh(existingTarget.lastSeenAt, now)) {
+      // The clone-skip above never fired in practice: `sourceNode` always
+      // carries `lastSeenAt: now` (and re-pins activity), so every
+      // provider:delta counted as a change and re-cloned both Maps per token.
+      // Presence fields are only consumed at human timescales (decay visuals,
+      // recency caps), so refresh them at most every VOLATILE_REFRESH_MS when
+      // nothing else about the node changed.
+      if (existingSource && sourceChanged && presenceFresh(existingSource.lastSeenAt, now)) {
         if (
           shallowEqual(
-            { ...existingTarget, activity: mergedTarget.activity, lastSeenAt: mergedTarget.lastSeenAt } as unknown as Record<string, unknown>,
-            mergedTarget as unknown as Record<string, unknown>,
+            {
+              ...existingSource,
+              activity: mergedSource.activity,
+              lastSeenAt: mergedSource.lastSeenAt,
+            } as unknown as Record<string, unknown>,
+            mergedSource as unknown as Record<string, unknown>,
           )
         ) {
-          mergedTarget = existingTarget;
-          targetChanged = false;
+          mergedSource = existingSource;
+          sourceChanged = false;
         }
       }
-    }
 
-    // Upsert edge if both endpoints present
-    let mergedEdge: VizEdge | undefined;
-    let edgeChanged = false;
-    let edgeId: string | undefined;
-    if (event.target && sourceId) {
-      edgeId = `${sourceId}->${event.target}`;
-      const existingEdge = state.edges.get(edgeId);
-      const newEdge: VizEdge = {
-        id: edgeId,
-        source: sourceId,
-        target: event.target,
-        kind: event.kind as VizEdge['kind'],
-        label: event.label,
-        intensity: existingEdge ? Math.min(1, existingEdge.intensity + 0.3) : 0.7,
-        color: event.color ?? NODE_COLORS[inferKind(event)] ?? NODE_COLORS.agent,
-        lastActiveAt: now,
-        totalMagnitude: (existingEdge?.totalMagnitude ?? 0) + (event.magnitude ?? 0),
-      };
-      mergedEdge = existingEdge ? { ...existingEdge, ...newEdge } : newEdge;
-      edgeChanged = !shallowEqual(
-        existingEdge as unknown as Record<string, unknown> | undefined,
-        mergedEdge as unknown as Record<string, unknown>,
-      );
-      // Same volatile-field throttle as the nodes above; `lastActiveAt` is
-      // the edge's only per-event field once intensity has saturated at 1
-      // and no magnitude is accruing (the provider:delta steady state).
-      if (existingEdge && edgeChanged && presenceFresh(existingEdge.lastActiveAt, now)) {
-        if (
-          shallowEqual(
-            { ...existingEdge, lastActiveAt: mergedEdge.lastActiveAt } as unknown as Record<string, unknown>,
-            mergedEdge as unknown as Record<string, unknown>,
-          )
-        ) {
-          mergedEdge = existingEdge;
-          edgeChanged = false;
+      // Upsert target node if present
+      let mergedTarget: VizNode | undefined;
+      let targetChanged = false;
+      let targetId: string | undefined;
+      if (event.target) {
+        targetId = event.target;
+        const targetNode: VizNode = {
+          id: targetId,
+          kind: inferKind(event, true),
+          label: targetId,
+          status: inferStatus(event.kind),
+          activity: 0.8,
+          color: event.color ?? NODE_COLORS[inferKind(event, true)],
+          lastSeenAt: now,
+        };
+        const existingTarget = state.nodes.get(targetId);
+        mergedTarget = existingTarget ? { ...existingTarget, ...targetNode } : targetNode;
+        targetChanged = !shallowEqual(
+          existingTarget as unknown as Record<string, unknown> | undefined,
+          mergedTarget as unknown as Record<string, unknown>,
+        );
+        if (existingTarget && targetChanged && presenceFresh(existingTarget.lastSeenAt, now)) {
+          if (
+            shallowEqual(
+              {
+                ...existingTarget,
+                activity: mergedTarget.activity,
+                lastSeenAt: mergedTarget.lastSeenAt,
+              } as unknown as Record<string, unknown>,
+              mergedTarget as unknown as Record<string, unknown>,
+            )
+          ) {
+            mergedTarget = existingTarget;
+            targetChanged = false;
+          }
         }
       }
-    }
 
-    // Only allocate new Maps when something actually changed. Otherwise
-    // return the existing references so zustand skips the notification.
-    let nodes: Map<string, VizNode> = state.nodes;
-    let edges: Map<string, VizEdge> = state.edges;
-    if (sourceChanged || targetChanged) {
-      nodes = new Map(state.nodes);
-      if (sourceChanged) nodes.set(sourceId, mergedSource);
-      if (targetChanged && mergedTarget && targetId) nodes.set(targetId, mergedTarget);
-    }
-    if (edgeChanged && mergedEdge && edgeId) {
-      edges = new Map(state.edges);
-      edges.set(edgeId, mergedEdge);
-    }
+      // Upsert edge if both endpoints present
+      let mergedEdge: VizEdge | undefined;
+      let edgeChanged = false;
+      let edgeId: string | undefined;
+      if (event.target && sourceId) {
+        edgeId = `${sourceId}->${event.target}`;
+        const existingEdge = state.edges.get(edgeId);
+        const newEdge: VizEdge = {
+          id: edgeId,
+          source: sourceId,
+          target: event.target,
+          kind: event.kind as VizEdge['kind'],
+          label: event.label,
+          intensity: existingEdge ? Math.min(1, existingEdge.intensity + 0.3) : 0.7,
+          color: event.color ?? NODE_COLORS[inferKind(event)] ?? NODE_COLORS.agent,
+          lastActiveAt: now,
+          totalMagnitude: (existingEdge?.totalMagnitude ?? 0) + (event.magnitude ?? 0),
+        };
+        mergedEdge = existingEdge ? { ...existingEdge, ...newEdge } : newEdge;
+        edgeChanged = !shallowEqual(
+          existingEdge as unknown as Record<string, unknown> | undefined,
+          mergedEdge as unknown as Record<string, unknown>,
+        );
+        // Same volatile-field throttle as the nodes above; `lastActiveAt` is
+        // the edge's only per-event field once intensity has saturated at 1
+        // and no magnitude is accruing (the provider:delta steady state).
+        if (existingEdge && edgeChanged && presenceFresh(existingEdge.lastActiveAt, now)) {
+          if (
+            shallowEqual(
+              { ...existingEdge, lastActiveAt: mergedEdge.lastActiveAt } as unknown as Record<
+                string,
+                unknown
+              >,
+              mergedEdge as unknown as Record<string, unknown>,
+            )
+          ) {
+            mergedEdge = existingEdge;
+            edgeChanged = false;
+          }
+        }
+      }
 
-    // Bound the graph at INGEST.
-    //
-    // `events` and `toolEvents` are capped above; `nodes` and `edges` were not.
-    // Every distinct `event.source`/`event.target` string ever seen became a
-    // permanent node — and those include per-spawn agent ids, session ids, tool
-    // names and `model ?? persona` for council votes — so an 8-hour run that
-    // spawned 400 subagents left 400+ nodes and O(n²) edges resident, all of
-    // them rendered by OfficeMapCanvas.
-    //
-    // The store already ships `decayActivity`/`prunesStale` for this, but
-    // NOTHING called them (their only references were two test files), and
-    // even wired they would not have helped: `prunesStale` skipped anything
-    // whose status was not 'active', and `inferStatus` returns 'active' by
-    // default. A cap here is independent of any consumer or timer.
-    if (nodes !== state.nodes) nodes = capByRecency(nodes, MAX_VIZ_NODES, (n) => n.lastSeenAt);
-    if (edges !== state.edges) edges = capByRecency(edges, MAX_VIZ_EDGES, (e) => e.lastActiveAt);
+      // Only allocate new Maps when something actually changed. Otherwise
+      // return the existing references so zustand skips the notification.
+      let nodes: Map<string, VizNode> = state.nodes;
+      let edges: Map<string, VizEdge> = state.edges;
+      if (sourceChanged || targetChanged) {
+        nodes = new Map(state.nodes);
+        if (sourceChanged) nodes.set(sourceId, mergedSource);
+        if (targetChanged && mergedTarget && targetId) nodes.set(targetId, mergedTarget);
+      }
+      if (edgeChanged && mergedEdge && edgeId) {
+        edges = new Map(state.edges);
+        edges.set(edgeId, mergedEdge);
+      }
 
-    return { events, toolEvents, nodes, edges };
-  }),
+      // Bound the graph at INGEST.
+      //
+      // `events` and `toolEvents` are capped above; `nodes` and `edges` were not.
+      // Every distinct `event.source`/`event.target` string ever seen became a
+      // permanent node — and those include per-spawn agent ids, session ids, tool
+      // names and `model ?? persona` for council votes — so an 8-hour run that
+      // spawned 400 subagents left 400+ nodes and O(n²) edges resident, all of
+      // them rendered by OfficeMapCanvas.
+      //
+      // The store already ships `decayActivity`/`prunesStale` for this, but
+      // NOTHING called them (their only references were two test files), and
+      // even wired they would not have helped: `prunesStale` skipped anything
+      // whose status was not 'active', and `inferStatus` returns 'active' by
+      // default. A cap here is independent of any consumer or timer.
+      if (nodes !== state.nodes) nodes = capByRecency(nodes, MAX_VIZ_NODES, (n) => n.lastSeenAt);
+      if (edges !== state.edges) edges = capByRecency(edges, MAX_VIZ_EDGES, (e) => e.lastActiveAt);
 
-  upsertNode: (partial) => set((state) => {
-    const nodes = new Map(state.nodes);
-    const existing = nodes.get(partial.id);
-    nodes.set(partial.id, {
-      ...existing,
-      ...partial,
-      lastSeenAt: partial.lastSeenAt !== undefined ? partial.lastSeenAt : Date.now(),
-    } as VizNode);
-    return { nodes };
-  }),
+      return { events, toolEvents, nodes, edges };
+    }),
 
-  removeNode: (id) => set((state) => {
-    const nodes = new Map(state.nodes);
-    nodes.delete(id);
-    const edges = new Map(state.edges);
-    for (const [eid, edge] of edges) {
-      if (edge.source === id || edge.target === id) edges.delete(eid);
-    }
-    return { nodes, edges };
-  }),
+  upsertNode: (partial) =>
+    set((state) => {
+      const nodes = new Map(state.nodes);
+      const existing = nodes.get(partial.id);
+      nodes.set(partial.id, {
+        ...existing,
+        ...partial,
+        lastSeenAt: partial.lastSeenAt !== undefined ? partial.lastSeenAt : Date.now(),
+      } as VizNode);
+      return { nodes };
+    }),
 
-  upsertEdge: (partial) => set((state) => {
-    const edges = new Map(state.edges);
-    const existing = edges.get(partial.id);
-    edges.set(partial.id, {
-      ...existing,
-      ...partial,
-      lastActiveAt: partial.lastActiveAt !== undefined ? partial.lastActiveAt : Date.now(),
-      intensity: partial.intensity ?? existing?.intensity ?? 0.5,
-      color: partial.color ?? EDGE_COLORS[partial.kind] ?? EDGE_COLORS.default,
-      totalMagnitude: (existing?.totalMagnitude ?? 0) + (partial.totalMagnitude ?? 0),
-    } as VizEdge & { totalMagnitude: number });
-    return { edges };
-  }),
+  removeNode: (id) =>
+    set((state) => {
+      const nodes = new Map(state.nodes);
+      nodes.delete(id);
+      const edges = new Map(state.edges);
+      for (const [eid, edge] of edges) {
+        if (edge.source === id || edge.target === id) edges.delete(eid);
+      }
+      return { nodes, edges };
+    }),
 
-  removeEdge: (id) => set((state) => {
-    const edges = new Map(state.edges);
-    edges.delete(id);
-    return { edges };
-  }),
+  upsertEdge: (partial) =>
+    set((state) => {
+      const edges = new Map(state.edges);
+      const existing = edges.get(partial.id);
+      edges.set(partial.id, {
+        ...existing,
+        ...partial,
+        lastActiveAt: partial.lastActiveAt !== undefined ? partial.lastActiveAt : Date.now(),
+        intensity: partial.intensity ?? existing?.intensity ?? 0.5,
+        color: partial.color ?? EDGE_COLORS[partial.kind] ?? EDGE_COLORS.default,
+        totalMagnitude: (existing?.totalMagnitude ?? 0) + (partial.totalMagnitude ?? 0),
+      } as VizEdge & { totalMagnitude: number });
+      return { edges };
+    }),
 
-  clear: () => set({
-    events: [],
-    toolEvents: [],
-    nodes: new Map(),
-    edges: new Map(),
-    counters: {
-      totalTokens: 0, totalCost: 0, totalToolCalls: 0,
-      activeAgents: 0, completedTasks: 0, errors: 0, mailboxMessages: 0,
-    },
-  }),
+  removeEdge: (id) =>
+    set((state) => {
+      const edges = new Map(state.edges);
+      edges.delete(id);
+      return { edges };
+    }),
+
+  clear: () =>
+    set({
+      events: [],
+      toolEvents: [],
+      nodes: new Map(),
+      edges: new Map(),
+      counters: {
+        totalTokens: 0,
+        totalCost: 0,
+        totalToolCalls: 0,
+        activeAgents: 0,
+        completedTasks: 0,
+        errors: 0,
+        mailboxMessages: 0,
+      },
+    }),
 
   setActive: (active) => set({ isActive: active }),
 
-  decayActivity: () => set((state) => {
-    const nodes = new Map(state.nodes);
-    for (const [id, node] of nodes) {
-      if (node.activity >= 0.01) {
-        const decayed = node.activity * 0.92;
-        nodes.set(id, { ...node, activity: decayed < 0.01 ? 0 : decayed });
+  decayActivity: () =>
+    set((state) => {
+      const nodes = new Map(state.nodes);
+      for (const [id, node] of nodes) {
+        if (node.activity >= 0.01) {
+          const decayed = node.activity * 0.92;
+          nodes.set(id, { ...node, activity: decayed < 0.01 ? 0 : decayed });
+        }
       }
-    }
-    const edges = new Map(state.edges);
-    for (const [id, edge] of edges) {
-      if (edge.intensity >= 0.01) {
-        const decayed = edge.intensity * 0.90;
-        edges.set(id, { ...edge, intensity: decayed < 0.01 ? 0 : decayed });
+      const edges = new Map(state.edges);
+      for (const [id, edge] of edges) {
+        if (edge.intensity >= 0.01) {
+          const decayed = edge.intensity * 0.9;
+          edges.set(id, { ...edge, intensity: decayed < 0.01 ? 0 : decayed });
+        }
       }
-    }
-    return { nodes, edges };
-  }),
+      return { nodes, edges };
+    }),
 
-  prunesStale: (olderThan) => set((state) => {
-    const cutoff = Date.now() - olderThan;
-    const nodes = new Map(state.nodes);
-    for (const [id, node] of nodes) {
-      // Staleness alone. The old `status !== 'active'` condition made most
-      // nodes immortal, because `inferStatus` returns 'active' as its DEFAULT
-      // — mailbox:send, agent:spawned, agent:ctx, memory:event,
-      // brain:council_vote and fleet:snapshot all land there. A node not seen
-      // since the cutoff is stale whatever status string it last carried.
-      if (node.lastSeenAt < cutoff) nodes.delete(id);
-    }
-    const edges = new Map(state.edges);
-    for (const [id, edge] of edges) {
-      if (edge.lastActiveAt < cutoff) edges.delete(id);
-    }
-    const events = state.events.filter((e) => e.timestamp > cutoff);
-    return { nodes, edges, events };
-  }),
+  prunesStale: (olderThan) =>
+    set((state) => {
+      const cutoff = Date.now() - olderThan;
+      const nodes = new Map(state.nodes);
+      for (const [id, node] of nodes) {
+        // Staleness alone. The old `status !== 'active'` condition made most
+        // nodes immortal, because `inferStatus` returns 'active' as its DEFAULT
+        // — mailbox:send, agent:spawned, agent:ctx, memory:event,
+        // brain:council_vote and fleet:snapshot all land there. A node not seen
+        // since the cutoff is stale whatever status string it last carried.
+        if (node.lastSeenAt < cutoff) nodes.delete(id);
+      }
+      const edges = new Map(state.edges);
+      for (const [id, edge] of edges) {
+        if (edge.lastActiveAt < cutoff) edges.delete(id);
+      }
+      const events = state.events.filter((e) => e.timestamp > cutoff);
+      return { nodes, edges, events };
+    }),
 }));
 
 // ── Event pipeline helper ─────────────────────────────────────────────
 // Called from ws-handlers.ts to convert raw WS messages to VizEvents.
 
-export function wsToVizEvent(
-  wsType: string,
-  payload: Record<string, unknown>,
-): VizEvent | null {
+export function wsToVizEvent(wsType: string, payload: Record<string, unknown>): VizEvent | null {
   switch (wsType) {
     case 'provider.text_delta': {
       const text = (payload.text as string) ?? '';
       return {
-        id: nextId(), kind: 'provider:delta', timestamp: Date.now(),
-        source: 'provider', target: 'leader',
-        label: text.slice(0, 60), magnitude: text.length,
+        id: nextId(),
+        kind: 'provider:delta',
+        timestamp: Date.now(),
+        source: 'provider',
+        target: 'leader',
+        label: text.slice(0, 60),
+        magnitude: text.length,
         data: { text },
         color: NODE_COLORS.provider,
         flowGroup: 'provider',
       };
     }
     case 'provider.response': {
-      const usage = payload.usage as { input?: number; output?: number; cacheRead?: number; cacheWrite?: number } | undefined;
+      const usage = payload.usage as
+        | { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
+        | undefined;
       const total = (usage?.input ?? 0) + (usage?.output ?? 0);
       return {
-        id: nextId(), kind: 'provider:response', timestamp: Date.now(),
-        source: 'provider', target: 'leader',
+        id: nextId(),
+        kind: 'provider:response',
+        timestamp: Date.now(),
+        source: 'provider',
+        target: 'leader',
         label: `${(usage?.input ?? 0).toLocaleString('en-US')} in / ${(usage?.output ?? 0).toLocaleString('en-US')} out`,
         magnitude: total,
         data: payload as Record<string, unknown>,
@@ -646,10 +696,13 @@ export function wsToVizEvent(
       };
     }
     case 'provider.stream_error': {
-      const message = payload.message as string ?? 'Provider stream error';
+      const message = (payload.message as string) ?? 'Provider stream error';
       return {
-        id: nextId(), kind: 'error', timestamp: Date.now(),
-        source: 'provider', target: 'leader',
+        id: nextId(),
+        kind: 'error',
+        timestamp: Date.now(),
+        source: 'provider',
+        target: 'leader',
         label: message.slice(0, 80),
         magnitude: 1,
         data: payload as Record<string, unknown>,
@@ -658,35 +711,45 @@ export function wsToVizEvent(
       };
     }
     case 'tool.started': {
-      const name = payload.name as string ?? 'tool';
+      const name = (payload.name as string) ?? 'tool';
       return {
-        id: nextId(), kind: 'tool:started', timestamp: Date.now(),
-        source: name, target: 'filesystem',
-        label: name, magnitude: 1,
+        id: nextId(),
+        kind: 'tool:started',
+        timestamp: Date.now(),
+        source: name,
+        target: 'filesystem',
+        label: name,
+        magnitude: 1,
         data: payload as Record<string, unknown>,
         color: NODE_COLORS.tool,
         flowGroup: `tool:${name}`,
       };
     }
     case 'tool.executed': {
-      const name = payload.name as string ?? 'tool';
-      const ok = payload.ok as boolean ?? true;
+      const name = (payload.name as string) ?? 'tool';
+      const ok = (payload.ok as boolean) ?? true;
       return {
-        id: nextId(), kind: 'tool:executed', timestamp: Date.now(),
-        source: name, target: 'leader',
-        label: `${name} ${ok ? '✓' : '✗'} (${payload.durationMs as number ?? 0}ms)`,
-        magnitude: payload.durationMs as number ?? 0,
+        id: nextId(),
+        kind: 'tool:executed',
+        timestamp: Date.now(),
+        source: name,
+        target: 'leader',
+        label: `${name} ${ok ? '✓' : '✗'} (${(payload.durationMs as number) ?? 0}ms)`,
+        magnitude: (payload.durationMs as number) ?? 0,
         data: payload as Record<string, unknown>,
         color: ok ? NODE_COLORS.tool : NODE_COLORS.error,
         flowGroup: `tool:${name}`,
       };
     }
     case 'tool.progress': {
-      const name = payload.name as string ?? 'tool';
+      const name = (payload.name as string) ?? 'tool';
       const text = (payload.event as { type?: string; text?: string } | undefined)?.text ?? '';
       return {
-        id: nextId(), kind: 'tool:progress', timestamp: Date.now(),
-        source: name, target: 'leader',
+        id: nextId(),
+        kind: 'tool:progress',
+        timestamp: Date.now(),
+        source: name,
+        target: 'leader',
         label: text.slice(0, 60) || name,
         magnitude: text.length,
         data: payload as Record<string, unknown>,
@@ -695,51 +758,64 @@ export function wsToVizEvent(
       };
     }
     case 'codemap.tool_started': {
-      const name = payload.name as string ?? 'tool';
-      const agentId = payload.agentId as string ?? 'subagent';
+      const name = (payload.name as string) ?? 'tool';
+      const agentId = (payload.agentId as string) ?? 'subagent';
       return {
-        id: nextId(), kind: 'tool:started', timestamp: Date.now(),
-        source: agentId, target: name,
-        label: name, magnitude: 1,
+        id: nextId(),
+        kind: 'tool:started',
+        timestamp: Date.now(),
+        source: agentId,
+        target: name,
+        label: name,
+        magnitude: 1,
         data: payload as Record<string, unknown>,
         color: NODE_COLORS.tool,
         flowGroup: `agent:${agentId}`,
       };
     }
     case 'codemap.tool_executed': {
-      const name = payload.name as string ?? 'tool';
-      const agentId = payload.agentId as string ?? 'subagent';
-      const ok = payload.ok as boolean ?? true;
+      const name = (payload.name as string) ?? 'tool';
+      const agentId = (payload.agentId as string) ?? 'subagent';
+      const ok = (payload.ok as boolean) ?? true;
       return {
-        id: nextId(), kind: 'tool:executed', timestamp: Date.now(),
-        source: agentId, target: name,
-        label: `${name} ${ok ? '✓' : '✗'} (${payload.durationMs as number ?? 0}ms)`,
-        magnitude: payload.durationMs as number ?? 0,
+        id: nextId(),
+        kind: 'tool:executed',
+        timestamp: Date.now(),
+        source: agentId,
+        target: name,
+        label: `${name} ${ok ? '✓' : '✗'} (${(payload.durationMs as number) ?? 0}ms)`,
+        magnitude: (payload.durationMs as number) ?? 0,
         data: payload as Record<string, unknown>,
         color: ok ? NODE_COLORS.tool : NODE_COLORS.error,
         flowGroup: `agent:${agentId}`,
       };
     }
     case 'tool.loop_detected': {
-      const tools = payload.tools as string ?? '';
-      const kind = payload.kind as string ?? 'loop';
+      const tools = (payload.tools as string) ?? '';
+      const kind = (payload.kind as string) ?? 'loop';
       const isSteer = payload.action === 'steer';
       return {
-        id: nextId(), kind: isSteer ? 'agent:status' : 'error', timestamp: Date.now(),
-        source: tools || kind, target: 'leader',
-        label: `${kind} loop x${payload.repeatCount as number ?? 0}`,
-        magnitude: payload.repeatCount as number ?? 1,
+        id: nextId(),
+        kind: isSteer ? 'agent:status' : 'error',
+        timestamp: Date.now(),
+        source: tools || kind,
+        target: 'leader',
+        label: `${kind} loop x${(payload.repeatCount as number) ?? 0}`,
+        magnitude: (payload.repeatCount as number) ?? 1,
         data: payload as Record<string, unknown>,
         color: isSteer ? NODE_COLORS.agent : NODE_COLORS.error,
         flowGroup: 'tool',
       };
     }
     case 'delegate.started': {
-      const target = payload.target as string ?? 'delegate';
-      const task = payload.task as string ?? '';
+      const target = (payload.target as string) ?? 'delegate';
+      const task = (payload.task as string) ?? '';
       return {
-        id: nextId(), kind: 'agent:status', timestamp: Date.now(),
-        source: 'leader', target,
+        id: nextId(),
+        kind: 'agent:status',
+        timestamp: Date.now(),
+        source: 'leader',
+        target,
         label: task.slice(0, 80) || `Delegating to ${target}`,
         magnitude: 1,
         data: payload as Record<string, unknown>,
@@ -748,13 +824,20 @@ export function wsToVizEvent(
       };
     }
     case 'delegate.completed': {
-      const target = payload.subagentId as string ?? payload.target as string ?? 'delegate';
-      const ok = payload.ok as boolean ?? false;
+      const target = (payload.subagentId as string) ?? (payload.target as string) ?? 'delegate';
+      const ok = (payload.ok as boolean) ?? false;
       return {
-        id: nextId(), kind: ok ? 'agent:status' : 'error', timestamp: Date.now(),
-        source: target, target: 'leader',
-        label: (payload.summary as string ?? payload.status as string ?? 'delegate completed').slice(0, 80),
-        magnitude: payload.durationMs as number ?? 1,
+        id: nextId(),
+        kind: ok ? 'agent:status' : 'error',
+        timestamp: Date.now(),
+        source: target,
+        target: 'leader',
+        label: (
+          (payload.summary as string) ??
+          (payload.status as string) ??
+          'delegate completed'
+        ).slice(0, 80),
+        magnitude: (payload.durationMs as number) ?? 1,
         data: payload as Record<string, unknown>,
         color: ok ? NODE_COLORS.agent : NODE_COLORS.error,
         flowGroup: `delegate:${target}`,
@@ -762,13 +845,16 @@ export function wsToVizEvent(
     }
     case 'subagent.event': {
       const kind = payload.kind as string;
-      const agentId = payload.subagentId as string ?? 'unknown';
-      const agentName = payload.name as string ?? agentId;
+      const agentId = (payload.subagentId as string) ?? 'unknown';
+      const agentName = (payload.name as string) ?? agentId;
       switch (kind) {
         case 'spawned':
           return {
-            id: nextId(), kind: 'agent:spawned', timestamp: Date.now(),
-            source: agentId, target: 'session',
+            id: nextId(),
+            kind: 'agent:spawned',
+            timestamp: Date.now(),
+            source: agentId,
+            target: 'session',
             label: `${agentName} spawned`,
             magnitude: 1,
             data: payload as Record<string, unknown>,
@@ -776,23 +862,29 @@ export function wsToVizEvent(
             flowGroup: `agent:${agentId}`,
           };
         case 'tool_executed': {
-          const toolName = payload.toolName as string ?? 'tool';
-          const toolOk = payload.ok as boolean ?? true;
+          const toolName = (payload.toolName as string) ?? 'tool';
+          const toolOk = (payload.ok as boolean) ?? true;
           return {
-            id: nextId(), kind: 'agent:tool', timestamp: Date.now(),
-            source: agentId, target: toolName,
+            id: nextId(),
+            kind: 'agent:tool',
+            timestamp: Date.now(),
+            source: agentId,
+            target: toolName,
             label: toolName,
-            magnitude: payload.durationMs as number ?? 0,
+            magnitude: (payload.durationMs as number) ?? 0,
             data: payload as Record<string, unknown>,
             color: toolOk ? NODE_COLORS.tool : NODE_COLORS.error,
             flowGroup: `agent:${agentId}`,
           };
         }
         case 'task_completed': {
-          const status = payload.status as string ?? 'completed';
+          const status = (payload.status as string) ?? 'completed';
           return {
-            id: nextId(), kind: 'agent:status', timestamp: Date.now(),
-            source: agentId, target: 'session',
+            id: nextId(),
+            kind: 'agent:status',
+            timestamp: Date.now(),
+            source: agentId,
+            target: 'session',
             label: `${agentName} ${status}`,
             magnitude: 1,
             data: payload as Record<string, unknown>,
@@ -802,40 +894,54 @@ export function wsToVizEvent(
         }
         case 'ctx_pct':
           return {
-            id: nextId(), kind: 'agent:ctx', timestamp: Date.now(),
-            source: agentId, target: 'session',
+            id: nextId(),
+            kind: 'agent:ctx',
+            timestamp: Date.now(),
+            source: agentId,
+            target: 'session',
             label: `ctx ${contextPctFromLoad(payload.load)}%`,
-            magnitude: payload.tokens as number ?? 0,
+            magnitude: (payload.tokens as number) ?? 0,
             data: payload as Record<string, unknown>,
             color: NODE_COLORS.agent,
             flowGroup: `agent:${agentId}`,
           };
         case 'iteration_summary':
           return {
-            id: nextId(), kind: 'agent:text', timestamp: Date.now(),
-            source: agentId, target: 'session',
-            label: (payload.partialText as string ?? '').slice(0, 80) || `iter ${payload.iteration as number ?? 0}`,
-            magnitude: payload.costUsd as number ?? 0,
+            id: nextId(),
+            kind: 'agent:text',
+            timestamp: Date.now(),
+            source: agentId,
+            target: 'session',
+            label:
+              ((payload.partialText as string) ?? '').slice(0, 80) ||
+              `iter ${(payload.iteration as number) ?? 0}`,
+            magnitude: (payload.costUsd as number) ?? 0,
             data: payload as Record<string, unknown>,
             color: NODE_COLORS.agent,
             flowGroup: `agent:${agentId}`,
           };
         case 'budget_extended':
           return {
-            id: nextId(), kind: 'budget:extended', timestamp: Date.now(),
-            source: agentId, target: 'session',
+            id: nextId(),
+            kind: 'budget:extended',
+            timestamp: Date.now(),
+            source: agentId,
+            target: 'session',
             label: `${agentName} extended budget`,
-            magnitude: payload.totalExtensions as number ?? 1,
+            magnitude: (payload.totalExtensions as number) ?? 1,
             data: payload as Record<string, unknown>,
             color: NODE_COLORS.tool,
             flowGroup: `agent:${agentId}`,
           };
         case 'budget_warning':
           return {
-            id: nextId(), kind: 'budget:warning', timestamp: Date.now(),
-            source: agentId, target: 'session',
-            label: `${agentName} hit ${payload.budgetKind as string ?? 'budget'} ${payload.used as number ?? 0}/${payload.limit as number ?? 0}`,
-            magnitude: payload.used as number ?? 1,
+            id: nextId(),
+            kind: 'budget:warning',
+            timestamp: Date.now(),
+            source: agentId,
+            target: 'session',
+            label: `${agentName} hit ${(payload.budgetKind as string) ?? 'budget'} ${(payload.used as number) ?? 0}/${(payload.limit as number) ?? 0}`,
+            magnitude: (payload.used as number) ?? 1,
             data: payload as Record<string, unknown>,
             color: NODE_COLORS.error,
             flowGroup: `agent:${agentId}`,
@@ -845,13 +951,16 @@ export function wsToVizEvent(
     }
     case 'mailbox.event': {
       const eventName = payload.event as string;
-      const from = payload.from as string ?? '?';
-      const to = payload.to as string ?? '?';
-      const subject = payload.subject as string ?? '';
+      const from = (payload.from as string) ?? '?';
+      const to = (payload.to as string) ?? '?';
+      const subject = (payload.subject as string) ?? '';
       const isSend = eventName === 'mailbox.sent';
       return {
-        id: nextId(), kind: isSend ? 'mailbox:send' : 'mailbox:deliver', timestamp: Date.now(),
-        source: from, target: to,
+        id: nextId(),
+        kind: isSend ? 'mailbox:send' : 'mailbox:deliver',
+        timestamp: Date.now(),
+        source: from,
+        target: to,
         label: subject || (isSend ? `→ ${to}` : `← ${from}`),
         magnitude: 1,
         data: payload as Record<string, unknown>,
@@ -860,10 +969,13 @@ export function wsToVizEvent(
       };
     }
     case 'iteration.started': {
-      const idx = payload.index as number ?? 0;
+      const idx = (payload.index as number) ?? 0;
       return {
-        id: nextId(), kind: 'iteration:start', timestamp: Date.now(),
-        source: 'leader', target: 'session',
+        id: nextId(),
+        kind: 'iteration:start',
+        timestamp: Date.now(),
+        source: 'leader',
+        target: 'session',
         label: `Iteration ${idx}`,
         magnitude: idx,
         data: payload as Record<string, unknown>,
@@ -872,10 +984,13 @@ export function wsToVizEvent(
       };
     }
     case 'iteration.completed': {
-      const idx = payload.index as number ?? 0;
+      const idx = (payload.index as number) ?? 0;
       return {
-        id: nextId(), kind: 'iteration:end', timestamp: Date.now(),
-        source: 'leader', target: 'session',
+        id: nextId(),
+        kind: 'iteration:end',
+        timestamp: Date.now(),
+        source: 'leader',
+        target: 'session',
         label: `Iteration ${idx} done`,
         magnitude: idx,
         data: payload as Record<string, unknown>,
@@ -884,10 +999,13 @@ export function wsToVizEvent(
       };
     }
     case 'ctx.pct': {
-      const tokens = payload.tokens as number ?? 0;
+      const tokens = (payload.tokens as number) ?? 0;
       return {
-        id: nextId(), kind: 'agent:ctx', timestamp: Date.now(),
-        source: 'leader', target: 'session',
+        id: nextId(),
+        kind: 'agent:ctx',
+        timestamp: Date.now(),
+        source: 'leader',
+        target: 'session',
         label: `ctx ${contextPctFromLoad(payload.load)}%`,
         magnitude: tokens,
         data: payload as Record<string, unknown>,
@@ -896,10 +1014,13 @@ export function wsToVizEvent(
       };
     }
     case 'error': {
-      const msg = payload.message as string ?? 'Error';
+      const msg = (payload.message as string) ?? 'Error';
       return {
-        id: nextId(), kind: 'error', timestamp: Date.now(),
-        source: payload.phase as string ?? 'system', target: 'session',
+        id: nextId(),
+        kind: 'error',
+        timestamp: Date.now(),
+        source: (payload.phase as string) ?? 'system',
+        target: 'session',
         label: msg,
         magnitude: 1,
         data: payload as Record<string, unknown>,
@@ -909,21 +1030,27 @@ export function wsToVizEvent(
     }
     case 'context.compacted':
       return {
-        id: nextId(), kind: 'context:compacted', timestamp: Date.now(),
-        source: 'system', target: 'session',
-        label: `Compacted: ${(payload.saved as number ?? 0).toLocaleString('en-US')} tokens`,
-        magnitude: payload.saved as number ?? 0,
+        id: nextId(),
+        kind: 'context:compacted',
+        timestamp: Date.now(),
+        source: 'system',
+        target: 'session',
+        label: `Compacted: ${((payload.saved as number) ?? 0).toLocaleString('en-US')} tokens`,
+        magnitude: (payload.saved as number) ?? 0,
         data: payload as Record<string, unknown>,
         color: 'hsl(var(--info))',
         flowGroup: 'context',
       };
     case 'compaction.failed': {
-      const message = payload.message as string ?? 'Compaction failed';
+      const message = (payload.message as string) ?? 'Compaction failed';
       return {
-        id: nextId(), kind: 'error', timestamp: Date.now(),
-        source: 'compactor', target: 'session',
+        id: nextId(),
+        kind: 'error',
+        timestamp: Date.now(),
+        source: 'compactor',
+        target: 'session',
         label: message.slice(0, 80),
-        magnitude: payload.tokens as number ?? 1,
+        magnitude: (payload.tokens as number) ?? 1,
         data: payload as Record<string, unknown>,
         color: NODE_COLORS.error,
         flowGroup: 'context',
@@ -931,20 +1058,26 @@ export function wsToVizEvent(
     }
     case 'context.repaired':
       return {
-        id: nextId(), kind: 'context:repaired', timestamp: Date.now(),
-        source: 'system', target: 'session',
-        label: `Repaired: ${payload.removedMessages as number ?? 0} msgs`,
-        magnitude: payload.removedMessages as number ?? 0,
+        id: nextId(),
+        kind: 'context:repaired',
+        timestamp: Date.now(),
+        source: 'system',
+        target: 'session',
+        label: `Repaired: ${(payload.removedMessages as number) ?? 0} msgs`,
+        magnitude: (payload.removedMessages as number) ?? 0,
         data: payload as Record<string, unknown>,
         color: 'hsl(var(--info))',
         flowGroup: 'context',
       };
     case 'session.start': {
-      const sid = payload.sessionId as string ?? '?';
-      const proj = payload.projectName as string ?? '';
+      const sid = (payload.sessionId as string) ?? '?';
+      const proj = (payload.projectName as string) ?? '';
       return {
-        id: nextId(), kind: 'session:start', timestamp: Date.now(),
-        source: 'session', target: 'leader',
+        id: nextId(),
+        kind: 'session:start',
+        timestamp: Date.now(),
+        source: 'session',
+        target: 'leader',
         label: proj || sid.slice(0, 12),
         magnitude: 1,
         data: payload as Record<string, unknown>,
@@ -956,10 +1089,13 @@ export function wsToVizEvent(
       // Convert the cross-process fleet snapshot into VizEvents that the
       // AgentFlowViz can render as session + agent nodes with live status.
       // We emit one fleet:snapshot event per tick; the renderer diffes it.
-      const sessions = payload.sessions as Array<Record<string, unknown>> ?? [];
+      const sessions = (payload.sessions as Array<Record<string, unknown>>) ?? [];
       return {
-        id: nextId(), kind: 'fleet:snapshot', timestamp: Date.now(),
-        source: 'system', target: 'session',
+        id: nextId(),
+        kind: 'fleet:snapshot',
+        timestamp: Date.now(),
+        source: 'system',
+        target: 'session',
         label: `${sessions.length} session(s)`,
         magnitude: sessions.length,
         data: payload as Record<string, unknown>,

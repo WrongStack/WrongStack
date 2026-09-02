@@ -17,7 +17,9 @@ function mockReaddirSync(p: string, options?: { withFileTypes?: boolean }) {
   const entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[] = [];
   for (const [path, entry] of Object.entries(mockFs)) {
     const normalized = normalizePath(path).replace(/\/$/, '') || '/';
-    const parent = normalized.includes('/') ? normalized.slice(0, normalized.lastIndexOf('/')) || '/' : '/';
+    const parent = normalized.includes('/')
+      ? normalized.slice(0, normalized.lastIndexOf('/')) || '/'
+      : '/';
     if (parent === dir) {
       const name = normalized.split('/').pop()!;
       entries.push({
@@ -91,7 +93,9 @@ interface MockApi {
   registerHook: ReturnType<typeof vi.fn>;
 }
 
-function makeApi(overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {}): MockApi {
+function makeApi(
+  overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {},
+): MockApi {
   return {
     tools: { register: vi.fn() },
     config: {
@@ -165,7 +169,8 @@ describe('dead-code-detector plugin', () => {
   it('dead_code_scan reports an unused exported const', async () => {
     setFilesystem({
       '/project/src/util.ts': 'export const unusedHelper = 42;\n',
-      '/project/src/main.ts': 'import { unusedHelper } from "./util";\nconsole.log(unusedHelper);\n',
+      '/project/src/main.ts':
+        'import { unusedHelper } from "./util";\nconsole.log(unusedHelper);\n',
     });
 
     const api = makeApi({ enabled: true });

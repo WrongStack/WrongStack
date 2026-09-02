@@ -57,7 +57,8 @@ export function UpdateBanner() {
     }
   };
 
-  const shouldShow = (!dismissed) && (newBuildDetected || (updateAvailable && Boolean(latestVersion)));
+  const shouldShow =
+    !dismissed && (newBuildDetected || (updateAvailable && Boolean(latestVersion)));
   if (!shouldShow) return null;
 
   return (
@@ -71,7 +72,8 @@ export function UpdateBanner() {
       <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
         {newBuildDetected ? (
           <span className="font-medium text-foreground">
-            {t('activity:updateBanner.newBuildReady', 'New build ready. Cache cleared.')} (v{appVersion})
+            {t('activity:updateBanner.newBuildReady', 'New build ready. Cache cleared.')} (v
+            {appVersion})
           </span>
         ) : (
           <>
@@ -79,7 +81,11 @@ export function UpdateBanner() {
               Update available: v{appVersion || '?'} → v{latestVersion}
             </span>
             <span className="text-xs opacity-80">
-              {t('activity:updateBanner.run')} <code className="font-mono text-[inherit]">{t('activity:updateBanner.wstackUpdate')}</code> {t('activity:updateBanner.orYourPackageManagerToUpgrade')}
+              {t('activity:updateBanner.run')}{' '}
+              <code className="font-mono text-[inherit]">
+                {t('activity:updateBanner.wstackUpdate')}
+              </code>{' '}
+              {t('activity:updateBanner.orYourPackageManagerToUpgrade')}
             </span>
           </>
         )}

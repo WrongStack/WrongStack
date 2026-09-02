@@ -5,10 +5,7 @@
   "description": "Find what you don't yet know about a question.",
   "content": "Here is what I currently know about: {{topic}}\n\n{{current_understanding}}\n\nFind the gaps. What questions are still unanswered, what assumptions am I treating as fact, and what would an expert immediately ask that I haven't considered? Separate the gaps that actually matter for my goal from interesting tangents. Rank them by how much resolving each would change my conclusion. End with the single most important thing to go find out next.",
   "category": "research",
-  "tags": [
-    "gaps",
-    "unknowns"
-  ],
+  "tags": ["gaps", "unknowns"],
   "source": "builtin",
   "favorite": false,
   "checksum": "36540c0aa38d5cc07eca147ea7363626030176b44e41c39c266ccc0d00ff86b0",

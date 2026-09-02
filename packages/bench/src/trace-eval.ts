@@ -1,9 +1,5 @@
 import { readSessionLogEvents } from './session-metrics.js';
-import type {
-  RecallExpectation,
-  TraceEvalResult,
-  TranscriptEvalSpec,
-} from './types.js';
+import type { RecallExpectation, TraceEvalResult, TranscriptEvalSpec } from './types.js';
 
 /**
  * Evaluate a fresh benchmark-session trace against a transcript-mined case.

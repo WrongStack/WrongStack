@@ -62,7 +62,9 @@ export function DialogHeader({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.ReactElement {
-  return <div data-slot="dialog-header" className={cn('flex flex-col gap-1', className)} {...props} />;
+  return (
+    <div data-slot="dialog-header" className={cn('flex flex-col gap-1', className)} {...props} />
+  );
 }
 
 export function DialogFooter({

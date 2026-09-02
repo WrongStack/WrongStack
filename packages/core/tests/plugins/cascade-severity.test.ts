@@ -207,9 +207,7 @@ describe('decideCascadeAgents', () => {
 
 describe('shouldCascade', () => {
   it('returns null when cascadeOn is off, regardless of severities', () => {
-    expect(
-      shouldCascade('off', { critical: 5, high: 5, medium: 5 }),
-    ).toBeNull();
+    expect(shouldCascade('off', { critical: 5, high: 5, medium: 5 })).toBeNull();
   });
 
   it('returns null when cascadeOn is off and there are no findings', () => {
@@ -218,21 +216,15 @@ describe('shouldCascade', () => {
 
   it("returns 'critical' when a Critical finding exists and threshold is 'high'", () => {
     // A Critical finding crosses both thresholds; we report the highest crossed
-    expect(
-      shouldCascade('high', { critical: 1, high: 0, medium: 0 }),
-    ).toBe('critical');
+    expect(shouldCascade('high', { critical: 1, high: 0, medium: 0 })).toBe('critical');
   });
 
   it("returns 'critical' when a Critical finding exists and threshold is 'critical'", () => {
-    expect(
-      shouldCascade('critical', { critical: 1, high: 2, medium: 3 }),
-    ).toBe('critical');
+    expect(shouldCascade('critical', { critical: 1, high: 2, medium: 3 })).toBe('critical');
   });
 
   it("returns 'high' when only High findings exist and threshold is 'high'", () => {
-    expect(shouldCascade('high', { critical: 0, high: 3, medium: 0 })).toBe(
-      'high',
-    );
+    expect(shouldCascade('high', { critical: 0, high: 3, medium: 0 })).toBe('high');
   });
 
   it("returns null when only High findings exist but threshold is 'critical'", () => {

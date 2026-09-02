@@ -43,9 +43,7 @@ export function attentionCount(
     (command) => command.ackStatus === 'failed' || command.ackStatus === 'rejected',
   ).length;
 
-  return (
-    actionableAlertCount(alerts) + governance + blockedAgents + lostClients + failedCommands
-  );
+  return actionableAlertCount(alerts) + governance + blockedAgents + lostClients + failedCommands;
 }
 
 export function unreadMailboxCount(snapshot: HqSnapshot | null): number {

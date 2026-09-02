@@ -179,7 +179,10 @@ export function isVisibleToSession(
   return memory.ownerSessionId === undefined || memory.ownerSessionId === null;
 }
 
-export function countRowsByField(rows: readonly SqliteCountRow[], field: 'status' | 'kind'): Record<string, number> {
+export function countRowsByField(
+  rows: readonly SqliteCountRow[],
+  field: 'status' | 'kind',
+): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const row of rows) {
     const key = row[field];

@@ -196,10 +196,7 @@ describe('ScrollableHistory on a tall terminal', () => {
         contentRowCount(lines, VP),
         `page-up #${page + 1}: viewport should stay full`,
       ).toBeGreaterThan(VP - 8);
-      expect(
-        maxBlankRun(lines, VP),
-        `page-up #${page + 1}: no blank hole`,
-      ).toBeLessThanOrEqual(2);
+      expect(maxBlankRun(lines, VP), `page-up #${page + 1}: no blank hole`).toBeLessThanOrEqual(2);
     }
     tty.unmount();
   });

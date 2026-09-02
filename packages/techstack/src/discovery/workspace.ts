@@ -86,7 +86,12 @@ const ECOSYSTEM_TIER: Readonly<Record<EcosystemId, Coverage>> = {
 function resolveJavaEcosystem(evidence: readonly LanguageEvidence[]): 'maven' | 'gradle' {
   for (const item of evidence) {
     if (item.kind === 'lockfile' && item.value === 'gradle.lockfile') return 'gradle';
-    if (item.kind === 'manifest' && (item.value === 'build.gradle' || item.value === 'build.gradle.kts' || item.value === 'settings.gradle')) {
+    if (
+      item.kind === 'manifest' &&
+      (item.value === 'build.gradle' ||
+        item.value === 'build.gradle.kts' ||
+        item.value === 'settings.gradle')
+    ) {
       return 'gradle';
     }
   }

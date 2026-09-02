@@ -72,8 +72,7 @@ export function formatBrainStatus(opts: SlashCommandContext): string {
   } else {
     lines.push(`  recent decisions (${log.length}):`);
     for (const entry of log.slice(-10)) {
-      const q =
-        entry.question.length > 70 ? `${entry.question.slice(0, 67)}…` : entry.question;
+      const q = entry.question.length > 70 ? `${entry.question.slice(0, 67)}…` : entry.question;
       lines.push(
         `  ${color.dim(fmtAge(entry.at).padEnd(8))} ${entry.kind.padEnd(12)} ${q}${entry.outcome ? color.dim(` → ${entry.outcome}`) : ''}`,
       );
@@ -137,10 +136,7 @@ export function formatBrainStats(opts: SlashCommandContext): string {
   return lines.join('\n');
 }
 
-export async function readLedgerEntries(
-  ledgerPath: string,
-  limit: number,
-): Promise<string> {
+export async function readLedgerEntries(ledgerPath: string, limit: number): Promise<string> {
   let raw: string;
   try {
     raw = await readFile(ledgerPath, 'utf8');

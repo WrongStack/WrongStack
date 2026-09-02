@@ -5,10 +5,7 @@
   "description": "Spot performance problems in a change before they ship.",
   "content": "Review this code for performance problems:\n\n```\n{{code}}\n```\n\nLook for: N+1 queries, unnecessary allocations in hot paths, accidental O(n^2), blocking I/O on critical paths, missing pagination/limits, and repeated work that could be cached. For each, estimate the impact and whether it matters at this code's expected scale. Don't micro-optimize cold paths.",
   "category": "code-review",
-  "tags": [
-    "performance",
-    "review"
-  ],
+  "tags": ["performance", "review"],
   "source": "builtin",
   "favorite": false,
   "checksum": "c3aa610186fb689cffdc8d009839c9d3ebe455cb54f7e01144bac64a4e92273c",

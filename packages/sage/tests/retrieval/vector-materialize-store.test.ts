@@ -39,9 +39,7 @@ afterEach(async () => {
  * the given order. Mirrors the production adapter: each hit carries
  * `metadata.sageId` so the fusion can map it back to a SAGE memory.
  */
-function scriptedProvider(
-  hits: Array<{ sageId: string; score: number }>,
-): VectorRecallProvider {
+function scriptedProvider(hits: Array<{ sageId: string; score: number }>): VectorRecallProvider {
   return {
     async search(_query, opts) {
       return hits.slice(0, opts.limit).map((h) => ({

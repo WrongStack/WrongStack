@@ -213,9 +213,17 @@ export class GraphMemoryBackend implements MemoryBackend {
     return limit ? enriched.slice(0, limit) : enriched;
   }
 
-  async search(scope: MemoryScope, query: string, _filePath: string, limit?: number): Promise<MemoryEntry[]> {
+  async search(
+    scope: MemoryScope,
+    query: string,
+    _filePath: string,
+    limit?: number,
+  ): Promise<MemoryEntry[]> {
     await this.loadGraph(scope);
-    const needle = query.toLowerCase().split(/\s+/).filter((t) => t.length >= GraphMemoryBackend.MIN_TERM_LEN);
+    const needle = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length >= GraphMemoryBackend.MIN_TERM_LEN);
 
     // Use inverted index to find candidate nodes — O(K * avg_results) instead of O(N)
     const candidates = new Map<string, number>();
@@ -272,7 +280,11 @@ export class GraphMemoryBackend implements MemoryBackend {
     this.loadedScope = scope;
     this.loaded = true;
     // Write empty graph
-    try { await fs.unlink(this.graphFile); } catch { /* ok */ }
+    try {
+      await fs.unlink(this.graphFile);
+    } catch {
+      /* ok */
+    }
   }
 
   async consolidate(scope: MemoryScope, filePath: string): Promise<number> {
@@ -284,7 +296,12 @@ export class GraphMemoryBackend implements MemoryBackend {
   /**
    * Find memories related to the given entry, ordered by edge weight.
    */
-  async findRelated(scope: MemoryScope, _filePath: string, entryText: string, limit = 5): Promise<MemoryEntry[]> {
+  async findRelated(
+    scope: MemoryScope,
+    _filePath: string,
+    entryText: string,
+    limit = 5,
+  ): Promise<MemoryEntry[]> {
     await this.loadGraph(scope);
     const targetId = this.nodeId({ scope, text: entryText, ts: '' });
     const related = this.edges
@@ -459,8 +476,18 @@ export class GraphMemoryBackend implements MemoryBackend {
 
 /** Jaccard-style word overlap between two strings. 0.0 = no overlap, 1.0 = identical. */
 function wordOverlap(a: string, b: string): number {
-  const wordsA = new Set(a.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
-  const wordsB = new Set(b.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
+  const wordsA = new Set(
+    a
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
+  );
+  const wordsB = new Set(
+    b
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
+  );
   if (wordsA.size === 0 || wordsB.size === 0) return 0;
   let intersection = 0;
   for (const w of wordsA) {

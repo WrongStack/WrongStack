@@ -14,7 +14,8 @@ function toolCall(name: string, output: string): ToolCallInfo {
 
 describe('extractFileEditMeta — SAGE injector stripping', () => {
   it('strips a trailing SAGE block from serialized-format diff output', () => {
-    const out = 'edit (path=src/file.ts replacements=1 matched_by=exact)\n@@ -1,3 +1,3 @@\n old\n+new\n-old';
+    const out =
+      'edit (path=src/file.ts replacements=1 matched_by=exact)\n@@ -1,3 +1,3 @@\n old\n+new\n-old';
     const meta = extractFileEditMeta(toolCall('edit', `${out}\n\n${SAGE_BLOCK}`));
     expect(meta?.diff).toBeDefined();
     expect(meta?.diff).not.toContain('SAGE');
@@ -25,7 +26,11 @@ describe('extractFileEditMeta — SAGE injector stripping', () => {
   });
 
   it('strips a trailing SAGE block from JSON diff output', () => {
-    const out = JSON.stringify({ path: 'src/file.ts', replacements: 1, diff: '@@ -1,1 +1,1 @@\n-old\n+new' });
+    const out = JSON.stringify({
+      path: 'src/file.ts',
+      replacements: 1,
+      diff: '@@ -1,1 +1,1 @@\n-old\n+new',
+    });
     const meta = extractFileEditMeta(toolCall('edit', `${out}\n\n${SAGE_BLOCK}`));
     expect(meta?.diff).toBeDefined();
     expect(meta?.diff).not.toContain('SAGE');
@@ -33,7 +38,8 @@ describe('extractFileEditMeta — SAGE injector stripping', () => {
   });
 
   it('leaves output untouched when there is no SAGE block', () => {
-    const out = 'edit (path=src/file.ts replacements=1 matched_by=exact)\n@@ -1,1 +1,1 @@\n-old\n+new';
+    const out =
+      'edit (path=src/file.ts replacements=1 matched_by=exact)\n@@ -1,1 +1,1 @@\n-old\n+new';
     const meta = extractFileEditMeta(toolCall('edit', out));
     expect(meta?.diff).toContain('+new');
     expect(meta?.diff).not.toContain('SAGE');

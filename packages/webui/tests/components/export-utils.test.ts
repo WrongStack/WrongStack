@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { downloadChatAsHtml, downloadChatAsMarkdown } from '../../src/components/CommandPalette/export-utils.js';
+import {
+  downloadChatAsHtml,
+  downloadChatAsMarkdown,
+} from '../../src/components/CommandPalette/export-utils.js';
 import { useChatStore, useSessionStore } from '../../src/stores';
 import type { ChatMessage } from '../../src/stores';
 

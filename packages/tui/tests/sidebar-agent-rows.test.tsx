@@ -6,7 +6,12 @@ import type { FleetEntry } from '../src/app-state-fleet.js';
 
 const WIDTH = 36; // typical sidebar width
 
-function makeEntry(id: string, name: string, status: FleetEntry['status'], opts?: Partial<FleetEntry>): FleetEntry {
+function makeEntry(
+  id: string,
+  name: string,
+  status: FleetEntry['status'],
+  opts?: Partial<FleetEntry>,
+): FleetEntry {
   return {
     id,
     name,
@@ -19,8 +24,14 @@ function makeEntry(id: string, name: string, status: FleetEntry['status'], opts?
 describe('SidebarContent agent rows — 2-line format', () => {
   it('renders each agent as 2 lines (name+ctx% / status+tool)', () => {
     const entries: Record<string, FleetEntry> = {};
-    const leader = makeEntry('leader', 'Leader Agent', 'running', { ctxPct: 0.42, currentTool: { name: 'read' } as never });
-    const sub1 = makeEntry('sub-1', 'bug-hunter', 'running', { ctxPct: 0.15, currentTool: { name: 'grep' } as never });
+    const leader = makeEntry('leader', 'Leader Agent', 'running', {
+      ctxPct: 0.42,
+      currentTool: { name: 'read' } as never,
+    });
+    const sub1 = makeEntry('sub-1', 'bug-hunter', 'running', {
+      ctxPct: 0.15,
+      currentTool: { name: 'grep' } as never,
+    });
     const sub2 = makeEntry('sub-2', 'refactor-planner', 'running', { ctxPct: 0.08 });
     entries['leader'] = leader;
     entries['sub-1'] = sub1;

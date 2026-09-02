@@ -5,10 +5,7 @@
   "description": "Find unusual points and decide what to do with them.",
   "content": "Help me handle outliers in: {{dataset}}\n\nFirst, how to detect them appropriately for this data's distribution (a z-score assumes normality; IQR and others don't). Then the harder question: is each outlier an error to fix, a rare-but-real event to keep, or the very thing I should be studying? Decide per case, not blanket-drop. Show how the decision changes the conclusion, and insist I document what I removed and why so the analysis stays honest.",
   "category": "data-analysis",
-  "tags": [
-    "outliers",
-    "anomalies"
-  ],
+  "tags": ["outliers", "anomalies"],
   "source": "builtin",
   "favorite": false,
   "checksum": "d6fc63c5cabc5fddbee891051723950f85d0e529c560018a0146f1acfe19f617",

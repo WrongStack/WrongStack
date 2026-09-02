@@ -40,11 +40,7 @@ export function HowItWorksPage() {
           </>
         }
         description="WrongStack is easiest to trust when you can trace it. Here is the complete path a request takes through the kernel, including where policy, recovery and persistence enter."
-        aside={
-          <ExternalDoc path="docs/architecture.md">
-            Open engineering reference
-          </ExternalDoc>
-        }
+        aside={<ExternalDoc path="docs/architecture.md">Open engineering reference</ExternalDoc>}
       />
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
         <SectionIntro

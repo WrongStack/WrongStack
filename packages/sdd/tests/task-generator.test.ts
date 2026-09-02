@@ -516,7 +516,11 @@ describe('extractVerificationCommand', () => {
 
 describe('TaskGenerator — verificationFromAcceptance (opt-in)', () => {
   const req = (criteria: string[]): SpecRequirement =>
-    makeRequirement({ id: 'REQ-V', description: 'Gated requirement', acceptanceCriteria: criteria });
+    makeRequirement({
+      id: 'REQ-V',
+      description: 'Gated requirement',
+      acceptanceCriteria: criteria,
+    });
 
   function run(enabled: boolean, criteria: string[]) {
     const trk = new TaskTracker({ store: makeFakeStore() });

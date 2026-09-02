@@ -153,8 +153,8 @@ export function CommandDetailPage() {
             {!detail && (
               <p className="mt-4 text-sm leading-7 text-muted">
                 The REPL parses the command name before a provider request is built. It dispatches
-                through the shared slash-command registry, so the same behavior is available from the
-                plain REPL and command-aware TUI surfaces.
+                through the shared slash-command registry, so the same behavior is available from
+                the plain REPL and command-aware TUI surfaces.
               </p>
             )}
             {command.note && (

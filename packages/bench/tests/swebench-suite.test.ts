@@ -56,7 +56,10 @@ describe('createSwebenchSuite.loadTasks', () => {
       test_patch: 'diff --git ...',
     });
     // inst-2 is NOT materialized → should be skipped.
-    const suite = createSwebenchSuite({ subsetFile: subsetPath(), datasetDir: path.join(dir, 'dataset') });
+    const suite = createSwebenchSuite({
+      subsetFile: subsetPath(),
+      datasetDir: path.join(dir, 'dataset'),
+    });
     const tasks = await suite.loadTasks({});
     expect(tasks).toHaveLength(1);
     const t = tasks[0]!;
@@ -64,13 +67,21 @@ describe('createSwebenchSuite.loadTasks', () => {
     expect(t.prompt).toMatch(/Fix the bug/);
     expect(t.templateDir).toBe(path.join(dir, 'dataset', 'inst-1', 'repo'));
     const meta = t.meta as never as SwebenchMeta;
-    expect(meta).toMatchObject({ instanceId: 'inst-1', image: 'swebench/inst-1:latest', failToPass: ['test_a'], passToPass: ['test_b'] });
+    expect(meta).toMatchObject({
+      instanceId: 'inst-1',
+      image: 'swebench/inst-1:latest',
+      failToPass: ['test_a'],
+      passToPass: ['test_b'],
+    });
   });
 
   it('defaults missing fields and a non-string problem statement', async () => {
     await fs.writeFile(subsetPath(), JSON.stringify({ instances: ['inst-min'] }));
     await writeInstance('inst-min', { problem_statement: 123 }); // non-string → ''
-    const suite = createSwebenchSuite({ subsetFile: subsetPath(), datasetDir: path.join(dir, 'dataset') });
+    const suite = createSwebenchSuite({
+      subsetFile: subsetPath(),
+      datasetDir: path.join(dir, 'dataset'),
+    });
     const tasks = await suite.loadTasks({});
     const meta = tasks[0]!.meta as never as SwebenchMeta;
     expect(meta.failToPass).toEqual([]);
@@ -82,7 +93,10 @@ describe('createSwebenchSuite.loadTasks', () => {
     await fs.writeFile(subsetPath(), JSON.stringify({ instances: ['i1', 'i2'] }));
     await writeInstance('i1', { problem_statement: 'a' });
     await writeInstance('i2', { problem_statement: 'b' });
-    const suite = createSwebenchSuite({ subsetFile: subsetPath(), datasetDir: path.join(dir, 'dataset') });
+    const suite = createSwebenchSuite({
+      subsetFile: subsetPath(),
+      datasetDir: path.join(dir, 'dataset'),
+    });
     expect(await suite.loadTasks({ limit: 1 })).toHaveLength(1);
   });
 });

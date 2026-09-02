@@ -25,7 +25,7 @@ describe('useFleetGenerationGate', () => {
         gate = useFleetGenerationGate(genRef);
         // Force re-render when genRef changes
         React.useEffect(() => {
-          if (genRef.current > 0) forceUpdate(n => n + 1);
+          if (genRef.current > 0) forceUpdate((n) => n + 1);
         }, [genRef.current]);
         return React.createElement(Text, null, 'test');
       }

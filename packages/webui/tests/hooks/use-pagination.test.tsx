@@ -4,10 +4,9 @@ import { usePagination } from '../../src/hooks/usePagination';
 
 describe('usePagination', () => {
   it('returns the requested page and clamps when the collection shrinks', () => {
-    const { result, rerender } = renderHook(
-      ({ items }) => usePagination(items, 3),
-      { initialProps: { items: [1, 2, 3, 4, 5, 6, 7] } },
-    );
+    const { result, rerender } = renderHook(({ items }) => usePagination(items, 3), {
+      initialProps: { items: [1, 2, 3, 4, 5, 6, 7] },
+    });
 
     act(() => result.current.setPage(3));
     expect(result.current.pageItems).toEqual([7]);

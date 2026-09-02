@@ -30,8 +30,18 @@ describe('buildRestoredCheckpoints', () => {
     ]);
 
     expect(restored).toEqual([
-      { promptIndex: 0, promptPreview: 'first prompt', ts: '2026-07-05T10:00:00.000Z', fileCount: 0 },
-      { promptIndex: 1, promptPreview: 'second prompt', ts: '2026-07-05T10:00:01.000Z', fileCount: 0 },
+      {
+        promptIndex: 0,
+        promptPreview: 'first prompt',
+        ts: '2026-07-05T10:00:00.000Z',
+        fileCount: 0,
+      },
+      {
+        promptIndex: 1,
+        promptPreview: 'second prompt',
+        ts: '2026-07-05T10:00:01.000Z',
+        fileCount: 0,
+      },
     ]);
   });
 

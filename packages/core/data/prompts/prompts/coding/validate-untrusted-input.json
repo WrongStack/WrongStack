@@ -5,10 +5,7 @@
   "description": "Validate and sanitize input at a trust boundary.",
   "content": "This input crosses a trust boundary: {{input}}\n\nWrite validation that rejects anything that isn't explicitly allowed (allow-list, not deny-list). Define the shape, types, ranges, and formats that are valid, and the exact error for each violation. Normalize before comparing. Cover the attack-shaped cases: oversized, malformed, injection, and unexpected encodings. Tell me what to do on failure (reject vs coerce) and why reject is usually right here.",
   "category": "coding",
-  "tags": [
-    "validation",
-    "security"
-  ],
+  "tags": ["validation", "security"],
   "source": "builtin",
   "favorite": false,
   "checksum": "d515602c0823b7fe17e765bdc3626bb7c5af5bb85e5f7ea8f521df74b2b776cc",

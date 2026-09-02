@@ -68,8 +68,7 @@ export function useStickyScroll(options: UseStickyScrollOptions): UseStickyScrol
   // ── Scroll handler ──
   const onScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
-    const nearBottom =
-      element.scrollHeight - element.scrollTop - element.clientHeight <= 120;
+    const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight <= 120;
     stickToBottomRef.current = nearBottom;
     setShowJumpToLatest(!nearBottom);
   }, []);

@@ -12,10 +12,7 @@
 
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import {
-  getSharedProjectMailbox,
-  projectSlug,
-} from '../packages/core/dist/index.js';
+import { getSharedProjectMailbox, projectSlug } from '../packages/core/dist/index.js';
 
 const AGENT_PURGE_MS = 3_600_000;
 const slug = process.argv[2] || projectSlug(process.cwd());

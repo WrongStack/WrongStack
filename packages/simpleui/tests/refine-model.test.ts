@@ -102,7 +102,6 @@ describe('resolveRefineText', () => {
     expect(resolveRefineText(ready, 'english')).toBe('ENGLISH');
     expect(resolveRefineText(ready, 'original')).toBe('fix the bug');
   });
-
 });
 
 describe('parseFallbackRef', () => {

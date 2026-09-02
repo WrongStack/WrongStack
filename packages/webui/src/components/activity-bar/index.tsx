@@ -105,11 +105,7 @@ const VIEWS: ViewDef[] = [
 
 const DESKTOP_CORE_PANEL_IDS: readonly Activity[] = ['chat', 'files', 'changes', 'mailbox'];
 
-const DESKTOP_PANEL_PRIORITY: readonly Activity[] = [
-  ...DESKTOP_CORE_PANEL_IDS,
-  'skills',
-  'design',
-];
+const DESKTOP_PANEL_PRIORITY: readonly Activity[] = [...DESKTOP_CORE_PANEL_IDS, 'skills', 'design'];
 
 // Compact (desktop shell): h-9 icons, no project name text.
 // Full   (browser WebUI): h-11 icons, taller brand area with project name.

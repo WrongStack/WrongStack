@@ -36,7 +36,10 @@ export function buildSteeringPreamble(
   }
   if (snapshot?.subagentsTerminated && snapshot.subagentsTerminated > 0) {
     const subDetails = snapshot.subagents
-      .map((s: { label: string; tool?: string | undefined }) => `${s.label}${s.tool ? ` (was running: ${s.tool})` : ''}`)
+      .map(
+        (s: { label: string; tool?: string | undefined }) =>
+          `${s.label}${s.tool ? ` (was running: ${s.tool})` : ''}`,
+      )
       .join(', ');
     ctx.push(
       `- subagents (${snapshot.subagentsTerminated} terminated by me, do NOT await them): ${subDetails}`,

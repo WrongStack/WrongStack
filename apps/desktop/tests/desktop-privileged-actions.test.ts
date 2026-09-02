@@ -42,7 +42,11 @@ describe('Desktop privileged action adapter', () => {
     expect(evaluate).toHaveBeenCalledWith(
       expect.objectContaining({
         capability: 'process.spawn',
-        subject: { kind: 'command', id: 'wrongstack-webui-runtime', attributes: { runtimeKind: 'node' } },
+        subject: {
+          kind: 'command',
+          id: 'wrongstack-webui-runtime',
+          attributes: { runtimeKind: 'node' },
+        },
         risk: 'high',
         scope: { cwd: '/projects/test' },
       }),

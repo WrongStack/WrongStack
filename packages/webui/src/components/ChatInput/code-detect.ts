@@ -12,8 +12,14 @@ const LANG_PATTERNS: LanguagePattern[] = [
   {
     lang: 'typescript',
     patterns: [
-      { regex: /:\s*(string|number|boolean|void|never|any|unknown|Promise|Array|Record|Map|Set)\b/, weight: 4 },
-      { regex: /\b(interface|type|enum|namespace|implements|extends|as|satisfies|infer)\b/, weight: 3 },
+      {
+        regex: /:\s*(string|number|boolean|void|never|any|unknown|Promise|Array|Record|Map|Set)\b/,
+        weight: 4,
+      },
+      {
+        regex: /\b(interface|type|enum|namespace|implements|extends|as|satisfies|infer)\b/,
+        weight: 3,
+      },
       { regex: /\b(import|export)\s+/, weight: 3 },
       { regex: /\b(const|let|var)\s+\w+\s*[:=]/, weight: 2 },
       { regex: /=>/, weight: 1 },
@@ -100,7 +106,10 @@ const LANG_PATTERNS: LanguagePattern[] = [
   {
     lang: 'sql',
     patterns: [
-      { regex: /\b(SELECT|INSERT|UPDATE|DELETE|CREATE TABLE|ALTER TABLE|DROP TABLE)\b/i, weight: 4 },
+      {
+        regex: /\b(SELECT|INSERT|UPDATE|DELETE|CREATE TABLE|ALTER TABLE|DROP TABLE)\b/i,
+        weight: 4,
+      },
       { regex: /\bFROM\s+\w+/i, weight: 2 },
       { regex: /\bWHERE\s+/i, weight: 2 },
       { regex: /\b(JOIN|INNER JOIN|LEFT JOIN)\b/i, weight: 2 },
@@ -182,7 +191,9 @@ export function detectLanguage(text: string): string | null {
   for (const lp of LANG_PATTERNS) {
     let score = 0;
     for (const { regex, weight } of lp.patterns) {
-      const matches = text.match(new RegExp(regex.source, regex.flags.includes('g') ? regex.flags : `${regex.flags}g`));
+      const matches = text.match(
+        new RegExp(regex.source, regex.flags.includes('g') ? regex.flags : `${regex.flags}g`),
+      );
       if (matches) score += matches.length * weight;
     }
     if (score > 0) scores[lp.lang] = score;

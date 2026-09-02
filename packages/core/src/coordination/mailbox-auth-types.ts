@@ -97,7 +97,9 @@ export const MAILBOX_CAPABILITY_IMPLICATIONS: Readonly<
  * Expand a set of capabilities to include all implied capabilities.
  * For example, `mail.read.all` implies `mail.read.self`.
  */
-export function expandMailboxCapabilities(caps: Iterable<MailboxCapability>): Set<MailboxCapability> {
+export function expandMailboxCapabilities(
+  caps: Iterable<MailboxCapability>,
+): Set<MailboxCapability> {
   const result = new Set<MailboxCapability>();
   const queue = [...caps];
   while (queue.length > 0) {

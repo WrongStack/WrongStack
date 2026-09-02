@@ -5,11 +5,7 @@
   "description": "Define a metric that actually measures what you care about.",
   "content": "I want to measure: {{goal}}\n\nHelp me design a good metric. Propose the precise definition (numerator, denominator, window, segment), explain what behavior it would drive, and stress-test it: how could it be gamed or give a misleading signal? Suggest a guardrail metric to pair with it. Prefer a metric that's slightly harder to compute but honest over an easy one that lies.",
   "category": "data-analysis",
-  "tags": [
-    "metrics",
-    "kpi",
-    "measurement"
-  ],
+  "tags": ["metrics", "kpi", "measurement"],
   "source": "builtin",
   "favorite": false,
   "checksum": "6455d3431ebb6dea5c2c7899fa4e6294beef5d00d4c5288751b95ad9df7e4518",

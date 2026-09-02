@@ -87,7 +87,10 @@ describe('CronJobsMonitor', () => {
     vi.spyOn(Date, 'now').mockReturnValue(NOW);
     const getCronJobs = vi.fn().mockResolvedValue(snapshot());
     const view = render(React.createElement(CronJobsMonitor, { getCronJobs }));
-    const frame = await waitForFrame(view, (f) => f.includes('CRON JOBS') && f.includes('fast-job'));
+    const frame = await waitForFrame(
+      view,
+      (f) => f.includes('CRON JOBS') && f.includes('fast-job'),
+    );
 
     expect(frame).toContain('2 / 3 jobs');
     expect(frame).toContain('1 overdue');

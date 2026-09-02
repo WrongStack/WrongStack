@@ -63,7 +63,7 @@ describe('BrainMonitor attributes distress to the session that produced it', () 
     failTool(events, 'tab-2', 2);
     await vi.waitFor(() => expect(intervene).toHaveBeenCalled());
 
-    expect((intervene.mock.calls[0]?.[0] as unknown as { sessionId?: string })).toMatchObject({
+    expect(intervene.mock.calls[0]?.[0] as unknown as { sessionId?: string }).toMatchObject({
       sessionId: 'tab-2',
     });
     stop();
@@ -106,7 +106,7 @@ describe('BrainMonitor attributes distress to the session that produced it', () 
 
     failTool(events, 'the-only-one', 2);
     await vi.waitFor(() => expect(intervene).toHaveBeenCalledTimes(1));
-    expect((intervene.mock.calls[0]?.[0] as unknown as { sessionId?: string })).toMatchObject({
+    expect(intervene.mock.calls[0]?.[0] as unknown as { sessionId?: string }).toMatchObject({
       sessionId: 'the-only-one',
     });
     stop();

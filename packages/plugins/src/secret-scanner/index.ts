@@ -469,12 +469,18 @@ const DEFAULTS: SecretScannerConfig = {
 function readConfig(raw: unknown): SecretScannerConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
-  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
-    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
-    : undefined;
-  const mode: Mode = rawMode === 'redact' || rawMode === 'allow' || rawMode === 'warn'
-    ? (rawMode === 'warn' ? 'allow' : rawMode as Mode)
-    : 'block';
+  const rawMode =
+    typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+      ? String(r['mode'] ?? r['action'] ?? r['behavior'])
+          .trim()
+          .toLowerCase()
+      : undefined;
+  const mode: Mode =
+    rawMode === 'redact' || rawMode === 'allow' || rawMode === 'warn'
+      ? rawMode === 'warn'
+        ? 'allow'
+        : (rawMode as Mode)
+      : 'block';
   const customPatterns: CustomPattern[] = [];
   const rawCustom = r['customPatterns'] ?? r['custom_patterns'] ?? r['patterns'];
   if (Array.isArray(rawCustom)) {
@@ -500,8 +506,9 @@ function readConfig(raw: unknown): SecretScannerConfig {
   return {
     matcher: typeof r['matcher'] === 'string' ? r['matcher'] : DEFAULTS.matcher,
     postToolUseMatcher:
-      typeof (r['postToolUseMatcher'] ?? r['post_tool_use_matcher'] ?? r['outputMatcher']) === 'string'
-        ? (r['postToolUseMatcher'] ?? r['post_tool_use_matcher'] ?? r['outputMatcher']) as string
+      typeof (r['postToolUseMatcher'] ?? r['post_tool_use_matcher'] ?? r['outputMatcher']) ===
+      'string'
+        ? ((r['postToolUseMatcher'] ?? r['post_tool_use_matcher'] ?? r['outputMatcher']) as string)
         : DEFAULTS.postToolUseMatcher,
     mode,
     enabled: r['enabled'] !== false,

@@ -2,7 +2,10 @@
  * Coverage for core/src/models/alibaba-token-plan-catalog.ts
  */
 import { describe, expect, it } from 'vitest';
-import { ALIBABA_TOKEN_PLAN_MODELS, alibabaTokenPlanModelMeta } from '../../src/models/alibaba-token-plan-catalog.js';
+import {
+  ALIBABA_TOKEN_PLAN_MODELS,
+  alibabaTokenPlanModelMeta,
+} from '../../src/models/alibaba-token-plan-catalog.js';
 
 describe('ALIBABA_TOKEN_PLAN_MODELS', () => {
   it('exports a non-empty array', () => {

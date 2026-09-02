@@ -5,11 +5,7 @@
   "description": "Make a shell script safe, portable, and predictable.",
   "content": "Review and harden this shell script:\n\n```\n{{script}}\n```\n\nApply: `set -euo pipefail`, quote all expansions, validate inputs, handle spaces/edge cases in paths, and fail loudly on error. Flag any non-portable or dangerous construct (unguarded `rm -rf`, unvalidated `eval`, parsing `ls`). Show the hardened version with brief comments on each change.",
   "category": "devops",
-  "tags": [
-    "bash",
-    "scripting",
-    "safety"
-  ],
+  "tags": ["bash", "scripting", "safety"],
   "source": "builtin",
   "favorite": false,
   "checksum": "b66ce523100eedda2bbd2360afbb441e9ced74d0ed78f819361c8e6b95b60a35",

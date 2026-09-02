@@ -39,7 +39,12 @@ describe('WS_HANDLERS — TechStack', () => {
 
   it('techstack.job.progress ignores non-finite numbers', () => {
     dispatch('techstack.job.started', { jobId: 'j1', kind: 'inventory' });
-    dispatch('techstack.job.progress', { jobId: 'j1', phase: 'enriching', completed: NaN, total: 5 });
+    dispatch('techstack.job.progress', {
+      jobId: 'j1',
+      phase: 'enriching',
+      completed: NaN,
+      total: 5,
+    });
     expect(useTechStackStore.getState().activeJob?.status).toBe('queued');
   });
 
@@ -64,7 +69,12 @@ describe('WS_HANDLERS — TechStack', () => {
   });
 
   it('techstack.workspace.completed stores last workspace id', () => {
-    dispatch('techstack.workspace.completed', { jobId: 'j1', workspaceId: 'ws-3', ecosystem: 'npm', dependencyCount: 10 });
+    dispatch('techstack.workspace.completed', {
+      jobId: 'j1',
+      workspaceId: 'ws-3',
+      ecosystem: 'npm',
+      dependencyCount: 10,
+    });
     expect(useTechStackStore.getState().lastWorkspaceId).toBe('ws-3');
   });
 

@@ -22,9 +22,15 @@ const fakeVault = (): SecretVault =>
   }) as never as SecretVault;
 
 const ENV_KEYS = [
-  'WRONGSTACK_PROVIDER', 'WRONGSTACK_MODEL', 'WRONGSTACK_API_KEY', 'WRONGSTACK_BASE_URL',
-  'WRONGSTACK_LOG_LEVEL', 'WRONGSTACK_INDEX_ON_START', 'WRONGSTACK_INDEX_ON_EDIT',
-  'WRONGSTACK_INDEX_WATCH', 'WRONGSTACK_DEBUG_CONFIG',
+  'WRONGSTACK_PROVIDER',
+  'WRONGSTACK_MODEL',
+  'WRONGSTACK_API_KEY',
+  'WRONGSTACK_BASE_URL',
+  'WRONGSTACK_LOG_LEVEL',
+  'WRONGSTACK_INDEX_ON_START',
+  'WRONGSTACK_INDEX_ON_EDIT',
+  'WRONGSTACK_INDEX_WATCH',
+  'WRONGSTACK_DEBUG_CONFIG',
 ];
 const savedEnv: Record<string, string | undefined> = {};
 
@@ -33,7 +39,12 @@ beforeEach(async () => {
   userHome = await fs.mkdtemp(path.join(os.tmpdir(), 'cfg-home-'));
   paths = resolveWstackPaths({ projectRoot, userHome });
   // Ensure parent dirs exist for the config files we write directly.
-  for (const f of [paths.globalConfig, paths.projectLocalConfig, paths.inProjectConfig, paths.syncConfig]) {
+  for (const f of [
+    paths.globalConfig,
+    paths.projectLocalConfig,
+    paths.inProjectConfig,
+    paths.syncConfig,
+  ]) {
     await fs.mkdir(path.dirname(f), { recursive: true });
   }
   for (const k of ENV_KEYS) savedEnv[k] = process.env[k];
@@ -90,7 +101,10 @@ describe('DefaultConfigLoader env-var layer', () => {
     process.env.WRONGSTACK_DEBUG_CONFIG = '1';
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     await fs.writeFile(paths.globalConfig, JSON.stringify({ version: 1, sources: [{ a: 1 }] }));
-    await fs.writeFile(paths.projectLocalConfig, JSON.stringify({ version: 1, sources: [{ b: 2 }] }));
+    await fs.writeFile(
+      paths.projectLocalConfig,
+      JSON.stringify({ version: 1, sources: [{ b: 2 }] }),
+    );
     await new DefaultConfigLoader({ paths }).load();
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
@@ -196,8 +210,22 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     expect(warned).toContain('config.in_project_unsafe_fields_ignored');
     // Every denied key the malicious payload set appears in the warning.
     for (const k of [
-      'activeProfile', 'provider', 'apiKey', 'baseUrl', 'providers', 'mcpServers', 'hooks',
-      'plugins', 'pluginManager', 'sync', 'yolo', 'extensions', 'hq', 'acp', 'fleet', 'git',
+      'activeProfile',
+      'provider',
+      'apiKey',
+      'baseUrl',
+      'providers',
+      'mcpServers',
+      'hooks',
+      'plugins',
+      'pluginManager',
+      'sync',
+      'yolo',
+      'extensions',
+      'hq',
+      'acp',
+      'fleet',
+      'git',
     ]) {
       expect(warned).toContain(k);
     }
@@ -387,7 +415,9 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
       '/tmp/.wrongstack/config.json',
       warn,
     );
-    const tools = (out as { tools?: { maxIterations?: number; exec?: { allow?: unknown; deny?: unknown } } }).tools;
+    const tools = (
+      out as { tools?: { maxIterations?: number; exec?: { allow?: unknown; deny?: unknown } } }
+    ).tools;
     expect(tools?.maxIterations).toBe(7); // benign limit survives
     expect(tools?.exec?.allow).toBeUndefined(); // dangerous: stripped
     expect(tools?.exec?.deny).toEqual(['rm']); // safe: kept
@@ -420,9 +450,7 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
             profiles: [
               {
                 id: 'attacker-panel',
-                seats: [
-                  { persona: 'exfil', target: { providerId: 'evil', model: 'm' } },
-                ],
+                seats: [{ persona: 'exfil', target: { providerId: 'evil', model: 'm' } }],
               },
             ],
           },
@@ -505,7 +533,9 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
       '/tmp/.wrongstack/config.json',
       warn,
     );
-    const exec = (out as { tools?: { exec?: { allow?: unknown; deny?: unknown; danger?: unknown } } }).tools?.exec;
+    const exec = (
+      out as { tools?: { exec?: { allow?: unknown; deny?: unknown; danger?: unknown } } }
+    ).tools?.exec;
     expect(exec?.allow).toBeUndefined();
     expect(exec?.danger).toBeUndefined();
     expect(exec?.deny).toEqual(['rm']); // safe field kept
@@ -544,9 +574,11 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
       '/tmp/.wrongstack/config.json',
       warn,
     );
-    const skills = (out as {
-      skills?: { readClaudeSkills?: boolean; mode?: string; extraDirs?: unknown };
-    }).skills;
+    const skills = (
+      out as {
+        skills?: { readClaudeSkills?: boolean; mode?: string; extraDirs?: unknown };
+      }
+    ).skills;
     expect(skills?.readClaudeSkills).toBe(true);
     expect(skills?.mode).toBe('progressive');
     expect(skills?.extraDirs).toBeUndefined();
@@ -568,18 +600,22 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
       '/tmp/.wrongstack/config.json',
       warn,
     );
-    const memory = (out as {
-      Sage?: {
-        storage?: { projectLocal?: boolean; directory?: string };
-        inject?: { maxHintsPerTool?: number };
-        hygiene?: { retentionDays?: number };
-      };
-    }).Sage;
+    const memory = (
+      out as {
+        Sage?: {
+          storage?: { projectLocal?: boolean; directory?: string };
+          inject?: { maxHintsPerTool?: number };
+          hygiene?: { retentionDays?: number };
+        };
+      }
+    ).Sage;
     expect(memory?.storage?.directory).toBeUndefined();
     expect(memory?.storage?.projectLocal).toBe(true);
     expect(memory?.inject?.maxHintsPerTool).toBe(2);
     expect(memory?.hygiene?.retentionDays).toBe(14);
-    expect(warn.mock.calls.map((call) => String(call[0])).join('\n')).toContain('Sage.storage.directory');
+    expect(warn.mock.calls.map((call) => String(call[0])).join('\n')).toContain(
+      'Sage.storage.directory',
+    );
     warn.mockRestore();
   });
 
@@ -599,7 +635,9 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     // must survive and no spurious unsafe-field warning may fire.
     const homeRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'cfg-homeroot-'));
     const collidingPaths = resolveWstackPaths({ projectRoot: homeRoot, userHome: homeRoot });
-    expect(path.resolve(collidingPaths.inProjectConfig)).toBe(path.resolve(collidingPaths.globalConfig));
+    expect(path.resolve(collidingPaths.inProjectConfig)).toBe(
+      path.resolve(collidingPaths.globalConfig),
+    );
     await fs.mkdir(path.dirname(collidingPaths.globalConfig), { recursive: true });
     await fs.writeFile(
       collidingPaths.globalConfig,
@@ -625,12 +663,18 @@ describe('DefaultConfigLoader extra sources', () => {
     const good: ConfigSource = {
       name: 'good',
       priority: 10,
-      read: async () => { order.push('good'); return { model: 'from-source' }; },
+      read: async () => {
+        order.push('good');
+        return { model: 'from-source' };
+      },
     };
     const bad: ConfigSource = {
       name: 'bad',
       priority: 5,
-      read: async () => { order.push('bad'); throw new Error('source failed'); },
+      read: async () => {
+        order.push('bad');
+        throw new Error('source failed');
+      },
     };
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const cfg = await new DefaultConfigLoader({ paths, sources: [good, bad] }).load();
@@ -645,7 +689,10 @@ describe('DefaultConfigLoader extra sources', () => {
     const mk = (name: string): ConfigSource => ({
       name,
       priority: 20, // identical priority → name tie-break
-      read: async () => { order.push(name); return {}; },
+      read: async () => {
+        order.push(name);
+        return {};
+      },
     });
     await new DefaultConfigLoader({ paths, sources: [mk('zebra'), mk('alpha')] }).load();
     expect(order).toEqual(['alpha', 'zebra']); // sorted by name
@@ -659,17 +706,26 @@ describe('DefaultConfigLoader extra sources', () => {
 
 describe('DefaultConfigLoader apiKeys[] resolution', () => {
   it('mirrors the active key into apiKey and tolerates malformed entries', async () => {
-    await fs.writeFile(paths.globalConfig, JSON.stringify({
-      version: 1,
-      providers: {
-        good: { apiKeys: [{ label: 'a', apiKey: 'k-a' }, { label: 'b', apiKey: 'k-b' }], activeKey: 'b' },
-        firstWins: { apiKeys: [{ label: 'x', apiKey: 'k-x' }] }, // no activeKey → first
-        existing: { apiKey: 'explicit', apiKeys: [{ label: 'y', apiKey: 'k-y' }] }, // existing wins
-        notObject: 'oops',
-        emptyKeys: { apiKeys: [] },
-        malformed: { apiKeys: [null, { label: 'z' }, { apiKey: 'no-label' }] }, // all filtered out
-      },
-    }));
+    await fs.writeFile(
+      paths.globalConfig,
+      JSON.stringify({
+        version: 1,
+        providers: {
+          good: {
+            apiKeys: [
+              { label: 'a', apiKey: 'k-a' },
+              { label: 'b', apiKey: 'k-b' },
+            ],
+            activeKey: 'b',
+          },
+          firstWins: { apiKeys: [{ label: 'x', apiKey: 'k-x' }] }, // no activeKey → first
+          existing: { apiKey: 'explicit', apiKeys: [{ label: 'y', apiKey: 'k-y' }] }, // existing wins
+          notObject: 'oops',
+          emptyKeys: { apiKeys: [] },
+          malformed: { apiKeys: [null, { label: 'z' }, { apiKey: 'no-label' }] }, // all filtered out
+        },
+      }),
+    );
     const cfg = await new DefaultConfigLoader({ paths }).load();
     const providers = (cfg as { providers: Record<string, { apiKey?: string }> }).providers;
     expect(providers.good?.apiKey).toBe('k-b');
@@ -679,10 +735,13 @@ describe('DefaultConfigLoader apiKeys[] resolution', () => {
   });
 
   it('decrypts apiKey-like fields when a vault is configured', async () => {
-    await fs.writeFile(paths.globalConfig, JSON.stringify({
-      version: 1,
-      providers: { anthropic: { apiKey: 'enc:secret-key' } },
-    }));
+    await fs.writeFile(
+      paths.globalConfig,
+      JSON.stringify({
+        version: 1,
+        providers: { anthropic: { apiKey: 'enc:secret-key' } },
+      }),
+    );
     const cfg = await new DefaultConfigLoader({ paths, vault: fakeVault() }).load();
     const providers = (cfg as { providers: Record<string, { apiKey?: string }> }).providers;
     expect(providers.anthropic?.apiKey).toBe('secret-key');
@@ -712,7 +771,12 @@ describe('DefaultConfigLoader readJson error handling', () => {
 describe('DefaultConfigLoader sync config persistence', () => {
   it('persists and reloads a sync config, encrypting/decrypting the token', async () => {
     const loader = new DefaultConfigLoader({ paths, vault: fakeVault() });
-    await loader.persistSyncConfig({ enabled: true, repo: 'o/r', categories: ['settings'], githubToken: 'plain-tok' });
+    await loader.persistSyncConfig({
+      enabled: true,
+      repo: 'o/r',
+      categories: ['settings'],
+      githubToken: 'plain-tok',
+    });
     const raw = await fs.readFile(paths.syncConfig, 'utf8');
     expect(raw).toContain('enc:plain-tok'); // token encrypted on disk
     // loadSyncConfig runs the vault-decrypt branch (decryptConfigSecrets).

@@ -5,10 +5,7 @@
   "description": "Introduce caching to a hot path correctly.",
   "content": "I want to cache: {{what}}\n\nDesign the cache: the key, what to store, the eviction policy, and the TTL. Critically, define the INVALIDATION strategy: when does cached data go stale and how is it refreshed? Handle the cache-stampede and stale-read cases. Tell me how I will measure hit rate and whether this cache is even worth it.",
   "category": "coding",
-  "tags": [
-    "caching",
-    "performance"
-  ],
+  "tags": ["caching", "performance"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2d9fbfc17df02b93b9c41a87b85bff4c1e1f4df98acd292d0deef054432ee3d0",

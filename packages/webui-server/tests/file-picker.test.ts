@@ -14,7 +14,7 @@ describe('file-picker', () => {
 
     it('is frozen at import time', () => {
       // Set is immutable in practice
-      expect(() => (SKIP_DIRS as any).add = 'test').not.toThrow();
+      expect(() => ((SKIP_DIRS as any).add = 'test')).not.toThrow();
     });
   });
 

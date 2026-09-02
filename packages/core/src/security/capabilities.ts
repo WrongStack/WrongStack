@@ -209,7 +209,9 @@ export function hasDangerousCapabilityForSubagents(
 ): boolean {
   if (!toolOrCaps) return false;
   const input = toolOrCaps as never as { capabilities?: readonly string[] | undefined };
-  const caps: readonly string[] = Array.isArray(toolOrCaps) ? toolOrCaps : (input.capabilities ?? []);
+  const caps: readonly string[] = Array.isArray(toolOrCaps)
+    ? toolOrCaps
+    : (input.capabilities ?? []);
   return caps.some((c) => DANGEROUS_FOR_SUBAGENTS.includes(c as ToolCapability));
 }
 
@@ -222,7 +224,9 @@ export function hasCapability(
 ): boolean {
   if (!toolOrCaps) return false;
   const input = toolOrCaps as never as { capabilities?: readonly string[] | undefined };
-  const caps: readonly string[] = Array.isArray(toolOrCaps) ? toolOrCaps : (input.capabilities ?? []);
+  const caps: readonly string[] = Array.isArray(toolOrCaps)
+    ? toolOrCaps
+    : (input.capabilities ?? []);
   const toCheck = Array.isArray(capability) ? capability : [capability];
   return toCheck.some((c) => caps.includes(c));
 }
@@ -236,7 +240,9 @@ export function getDangerousCapabilities(
 ): ToolCapability[] {
   if (!toolOrCaps) return [];
   const input = toolOrCaps as never as { capabilities?: readonly string[] | undefined };
-  const caps: readonly string[] = Array.isArray(toolOrCaps) ? toolOrCaps : (input.capabilities ?? []);
+  const caps: readonly string[] = Array.isArray(toolOrCaps)
+    ? toolOrCaps
+    : (input.capabilities ?? []);
   return caps.filter((c): c is ToolCapability =>
     DANGEROUS_FOR_SUBAGENTS.includes(c as ToolCapability),
   );

@@ -50,12 +50,22 @@ export class TechStackEngine {
     return generateReport(snapshot, format);
   }
 
-  async analyze(projectId: string, options: AnalyzeOptions): Promise<{ snapshot: Snapshot; job: TechStackJob }> {
+  async analyze(
+    projectId: string,
+    options: AnalyzeOptions,
+  ): Promise<{ snapshot: Snapshot; job: TechStackJob }> {
     const jobId = options.jobId ?? randomUUID();
     const job: TechStackJob = {
-      id: jobId, projectId, targetRoot: options.targetRoot, kind: 'analyze', status: 'queued',
-      fingerprint: '', requestedBy: options.requestedBy ?? 'system', sessionId: options.sessionId,
-      createdAt: new Date().toISOString(), progress: { phase: 'queued', completed: 0, total: 0 },
+      id: jobId,
+      projectId,
+      targetRoot: options.targetRoot,
+      kind: 'analyze',
+      status: 'queued',
+      fingerprint: '',
+      requestedBy: options.requestedBy ?? 'system',
+      sessionId: options.sessionId,
+      createdAt: new Date().toISOString(),
+      progress: { phase: 'queued', completed: 0, total: 0 },
     };
     this.store.saveJob(job);
     const updateJob = (status: TechStackJobStatus, progress?: TechStackJobProgress): void => {
@@ -68,26 +78,41 @@ export class TechStackEngine {
     try {
       throwIfAborted();
       updateJob('discovering', { phase: 'discovering', completed: 0, total: 1 });
-      let snapshot = await this.inventory(projectId, options.targetRoot, jobId, (phase, completed, total) => {
-        throwIfAborted();
-        updateJob(phase as TechStackJobStatus, { phase, completed, total });
-      }, { includeTransitive: options.includeTransitive, signal: options.signal });
+      let snapshot = await this.inventory(
+        projectId,
+        options.targetRoot,
+        jobId,
+        (phase, completed, total) => {
+          throwIfAborted();
+          updateJob(phase as TechStackJobStatus, { phase, completed, total });
+        },
+        { includeTransitive: options.includeTransitive, signal: options.signal },
+      );
       throwIfAborted();
       if (options.online !== false) {
         updateJob('enriching', { phase: 'enriching', completed: 0, total: 1 });
         snapshot = await this.enrich(snapshot, { online: true, signal: options.signal });
         throwIfAborted();
         snapshot = await this.research(snapshot, {
-          researcher: options.researcher, researchLimit: options.researchLimit, signal: options.signal,
+          researcher: options.researcher,
+          researchLimit: options.researchLimit,
+          signal: options.signal,
           onProgress: (phase, completed, total) => updateJob(phase, { phase, completed, total }),
         });
         throwIfAborted();
       }
       this.store.saveSnapshot(snapshot);
       updateJob('completed', { phase: 'completed', completed: 1, total: 1 });
-      return { snapshot, job: { ...job, status: 'completed', completedAt: new Date().toISOString() } };
+      return {
+        snapshot,
+        job: { ...job, status: 'completed', completedAt: new Date().toISOString() },
+      };
     } catch (error) {
-      updateJob(options.signal?.aborted || (error instanceof DOMException && error.name === 'AbortError') ? 'cancelled' : 'failed');
+      updateJob(
+        options.signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')
+          ? 'cancelled'
+          : 'failed',
+      );
       throw error;
     }
   }

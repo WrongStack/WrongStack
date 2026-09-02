@@ -80,10 +80,10 @@ describe('safePayload', () => {
       type: 'custom.event',
       payload: { text: 'hello', count: 42 },
     } as unknown as WSServerMessage;
-    const result = safePayload<{ text: string; count: number }>(
-      msg,
-      { text: 'string', count: 'number' },
-    );
+    const result = safePayload<{ text: string; count: number }>(msg, {
+      text: 'string',
+      count: 'number',
+    });
     expect(result).not.toBeNull();
     expect(result!.text).toBe('hello');
     expect(result!.count).toBe(42);
@@ -94,10 +94,10 @@ describe('safePayload', () => {
       type: 'custom.event',
       payload: { text: 'hello' },
     } as unknown as WSServerMessage;
-    const result = safePayload<{ text: string; count: number }>(
-      msg,
-      { text: 'string', count: 'number' },
-    );
+    const result = safePayload<{ text: string; count: number }>(msg, {
+      text: 'string',
+      count: 'number',
+    });
     expect(result).toBeNull();
   });
 
@@ -106,10 +106,10 @@ describe('safePayload', () => {
       type: 'custom.event',
       payload: { text: 'hello', count: 'not-a-number' },
     } as unknown as WSServerMessage;
-    const result = safePayload<{ text: string; count: number }>(
-      msg,
-      { text: 'string', count: 'number' },
-    );
+    const result = safePayload<{ text: string; count: number }>(msg, {
+      text: 'string',
+      count: 'number',
+    });
     expect(result).toBeNull();
   });
 
@@ -151,11 +151,7 @@ describe('safePayload', () => {
       type: 'custom.event',
       payload: { text: 'hello' },
     } as unknown as WSServerMessage;
-    const result = safePayload<{ text: string }>(
-      msg,
-      { text: 'string' },
-      { extra: 'string' },
-    );
+    const result = safePayload<{ text: string }>(msg, { text: 'string' }, { extra: 'string' });
     expect(result).not.toBeNull();
     expect(result!.text).toBe('hello');
   });
@@ -169,10 +165,7 @@ describe('safePayload', () => {
         items: [1, 2, 3],
       },
     } as unknown as WSServerMessage;
-    const result = safePayload(
-      msg,
-      { flag: 'boolean', meta: 'object', items: 'array' },
-    );
+    const result = safePayload(msg, { flag: 'boolean', meta: 'object', items: 'array' });
     expect(result).not.toBeNull();
   });
 
@@ -181,10 +174,7 @@ describe('safePayload', () => {
       type: 'custom.event',
       payload: { text: 'hello' },
     } as unknown as WSServerMessage;
-    const result = safePayload(
-      msg,
-      { text: 'unknown_kind' as any },
-    );
+    const result = safePayload(msg, { text: 'unknown_kind' as any });
     expect(result).toBeNull();
   });
 });

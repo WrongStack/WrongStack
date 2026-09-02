@@ -36,7 +36,11 @@ export function ModeDetailPage() {
       />
 
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-32">
-        <SectionIntro index="01" eyebrow="When to use it" title={`Where ${mode.name} earns its keep.`} />
+        <SectionIntro
+          index="01"
+          eyebrow="When to use it"
+          title={`Where ${mode.name} earns its keep.`}
+        />
         <div className="mt-12 grid gap-6 lg:grid-cols-[1fr_.72fr]">
           <article className="rounded-2xl border border-line bg-card p-6 sm:p-8">
             <CircleGauge className="size-5 text-brand" />

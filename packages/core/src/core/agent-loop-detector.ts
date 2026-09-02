@@ -17,11 +17,9 @@ export function iterationFingerprint(blocks: ContentBlock[]): string {
   const hasContent = toolNameSet.length > 0 || textBlob.length > 0;
   if (!hasContent) return '__empty__';
 
-  return [
-    `tools=${toolNameSet.join('+') || '-'}`,
-    `in0=${firstInputHash}`,
-    `txt=${textBlob}`,
-  ].join('\n');
+  return [`tools=${toolNameSet.join('+') || '-'}`, `in0=${firstInputHash}`, `txt=${textBlob}`].join(
+    '\n',
+  );
 }
 
 export function stableStringify(value: unknown): string {
@@ -105,8 +103,7 @@ export class AgentLoopDetector {
             : `same assistant text repeated ${this.toolLoopCount} times in a row`;
 
       const cutAt =
-        (loopCfg.mode === 'cut' ? loopCfg.steerThreshold : loopCfg.cutThreshold) *
-        repeatMultiplier;
+        (loopCfg.mode === 'cut' ? loopCfg.steerThreshold : loopCfg.cutThreshold) * repeatMultiplier;
       if (this.toolLoopCount >= cutAt) {
         this.a.logger.warn(`Loop detected: ${detail} — stopping to prevent infinite loop.`);
         this.a.events.emit('tool.loop_detected', {

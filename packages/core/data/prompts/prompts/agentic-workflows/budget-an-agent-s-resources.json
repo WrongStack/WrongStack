@@ -5,11 +5,7 @@
   "description": "Cap iterations, tokens, and cost so an agent can't run away.",
   "content": "I want to bound the resource use of an agent doing: {{task}}\n\nSet the budgets: max iterations, token and cost ceilings, wall-clock timeout, and tool-call limits. For each, the value that allows real work but stops a runaway loop, and what should happen at the limit (stop, summarize and hand off, or ask to extend). Decide whether limits are hard stops or negotiable. Flag the loop shape most likely to burn the budget without progress, and how to detect it early.",
   "category": "agentic-workflows",
-  "tags": [
-    "budget",
-    "limits",
-    "cost"
-  ],
+  "tags": ["budget", "limits", "cost"],
   "source": "builtin",
   "favorite": false,
   "checksum": "ea9c7b2e4ff8b9babfe90f34574a662c6c2d8db638cb087510cfe35e6fff7055",

@@ -334,9 +334,7 @@ describe('memory_graph tool', () => {
 describe('memory_gather_batch tool', () => {
   it('calls listSagePage with provided filters and returns GatherBatchResult', async () => {
     const listSagePage = vi.fn().mockResolvedValue({
-      memories: [
-        { id: 'mem_1', text: 'Alpha', kind: 'fact', status: 'active' },
-      ],
+      memories: [{ id: 'mem_1', text: 'Alpha', kind: 'fact', status: 'active' }],
       nextCursor: null,
       total: 1,
       statusCounts: { active: 1 },
@@ -360,9 +358,7 @@ describe('memory_gather_batch tool', () => {
       total: number;
     };
 
-    expect(listSagePage).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'fact', limit: 10 }),
-    );
+    expect(listSagePage).toHaveBeenCalledWith(expect.objectContaining({ kind: 'fact', limit: 10 }));
     expect(result.memories).toHaveLength(1);
     expect(result.relations).toEqual([]);
     expect(result.relationsScannedAt).toBe(0);
@@ -380,9 +376,11 @@ describe('memory_gather_batch tool', () => {
       total: 2,
       statusCounts: { active: 2 },
     });
-    const graphFor = vi.fn().mockResolvedValue([
-      { id: 'edge_1', sourceId: 'mem_1', targetId: 'mem_2', relation: 'related' },
-    ]);
+    const graphFor = vi
+      .fn()
+      .mockResolvedValue([
+        { id: 'edge_1', sourceId: 'mem_1', targetId: 'mem_2', relation: 'related' },
+      ]);
     const service = createMockService();
     service.listSagePage = listSagePage;
     service.graphFor = graphFor;
@@ -418,9 +416,11 @@ describe('memory_gather_batch tool', () => {
       statusCounts: { active: 2 },
     });
     // Both memories return the same edge id
-    const graphFor = vi.fn().mockResolvedValue([
-      { id: 'edge_shared', sourceId: 'mem_1', targetId: 'mem_2', relation: 'duplicate' },
-    ]);
+    const graphFor = vi
+      .fn()
+      .mockResolvedValue([
+        { id: 'edge_shared', sourceId: 'mem_1', targetId: 'mem_2', relation: 'duplicate' },
+      ]);
     const service = createMockService();
     service.listSagePage = listSagePage;
     service.graphFor = graphFor;
@@ -486,7 +486,9 @@ describe('memory_gather_batch tool', () => {
     });
     const graphFor = vi
       .fn()
-      .mockResolvedValueOnce([{ id: 'edge_ok', sourceId: 'mem_1', targetId: 'mem_3', relation: 'r' }])
+      .mockResolvedValueOnce([
+        { id: 'edge_ok', sourceId: 'mem_1', targetId: 'mem_3', relation: 'r' },
+      ])
       .mockRejectedValueOnce(new Error('graph lookup failed'));
     const service = createMockService();
     service.listSagePage = listSagePage;
@@ -950,6 +952,3 @@ describe('memory_delete tool', () => {
     ).rejects.toThrow();
   });
 });
-
-
-

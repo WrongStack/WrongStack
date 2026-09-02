@@ -115,7 +115,16 @@ describe('mapWithConcurrency', () => {
 
 describe('compareSessionSummaries', () => {
   const mk = (startedAt: string, id = 's1'): SessionSummary =>
-    ({ id, startedAt, tokenTotal: 0, title: 't', provider: 'p', model: 'm', providerName: 'pn', modelName: 'mn' }) as SessionSummary;
+    ({
+      id,
+      startedAt,
+      tokenTotal: 0,
+      title: 't',
+      provider: 'p',
+      model: 'm',
+      providerName: 'pn',
+      modelName: 'mn',
+    }) as SessionSummary;
 
   it('sorts newest first', () => {
     expect(compareSessionSummaries(mk('2026-01-02'), mk('2026-01-01'))).toBe(-1);
@@ -131,7 +140,17 @@ describe('compareSessionSummaries', () => {
 
 describe('matchesSessionFilter', () => {
   const mk = (overrides: Partial<SessionSummary> = {}): SessionSummary =>
-    ({ id: 's1', startedAt: '2026-06-06T10:00:00Z', tokenTotal: 1000, title: 'Test Session', provider: 'anthropic', model: 'claude-3', providerName: 'pn', modelName: 'mn', ...overrides }) as SessionSummary;
+    ({
+      id: 's1',
+      startedAt: '2026-06-06T10:00:00Z',
+      tokenTotal: 1000,
+      title: 'Test Session',
+      provider: 'anthropic',
+      model: 'claude-3',
+      providerName: 'pn',
+      modelName: 'mn',
+      ...overrides,
+    }) as SessionSummary;
 
   it('passes when no criteria given', () => {
     expect(matchesSessionFilter(mk(), {})).toBe(true);

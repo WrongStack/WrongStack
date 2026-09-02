@@ -38,6 +38,8 @@ describe('createDefaultContainer without synchronous SQLite', () => {
         } as never,
         modelsRegistry: {} as never,
       }),
-    ).toThrow(/SAGE requires synchronous SQLite \(node:sqlite on Node >= 22\.5 or bun:sqlite on Bun\)/);
+    ).toThrow(
+      /SAGE requires synchronous SQLite \(node:sqlite on Node >= 22\.5 or bun:sqlite on Bun\)/,
+    );
   });
 });

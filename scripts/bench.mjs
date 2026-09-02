@@ -913,8 +913,7 @@ function bench6_mTierSweep() {
   const noMarker4K = 'x'.repeat(4_000);
 
   // Helper: simulate the pre-fix path — same regex, no tail restriction.
-  const LINE_MARKERS_FULL =
-    /^\s*\[(continue|next step|proceed|done)\]\s*$/gim;
+  const LINE_MARKERS_FULL = /^\s*\[(continue|next step|proceed|done)\]\s*$/gim;
   function preFixScan(text) {
     // Full-scan: no slice, walk the entire input.
     let match;

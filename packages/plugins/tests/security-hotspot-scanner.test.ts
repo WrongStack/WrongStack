@@ -40,7 +40,9 @@ interface MockApi {
   registerHook: ReturnType<typeof vi.fn>;
 }
 
-function makeApi(overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {}): MockApi {
+function makeApi(
+  overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {},
+): MockApi {
   return {
     tools: { register: vi.fn() },
     config: {
@@ -54,7 +56,10 @@ function makeApi(overrides: { extensions?: Record<string, unknown>; enabled?: bo
   };
 }
 
-function getRegisteredTool(api: MockApi, name: string): {
+function getRegisteredTool(
+  api: MockApi,
+  name: string,
+): {
   execute: (input: unknown) => Promise<unknown>;
 } {
   const call = api.tools.register.mock.calls.find(
@@ -64,10 +69,16 @@ function getRegisteredTool(api: MockApi, name: string): {
   return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
-function getHook(api: MockApi): (input: unknown) => Promise<{ decision?: string; reason?: string; additionalContext?: string } | void> {
+function getHook(
+  api: MockApi,
+): (
+  input: unknown,
+) => Promise<{ decision?: string; reason?: string; additionalContext?: string } | void> {
   const call = api.registerHook.mock.calls[0];
   if (!call) throw new Error('hook not registered');
-  return (call as unknown[])[2] as (input: unknown) => Promise<{ decision?: string; reason?: string; additionalContext?: string } | void>;
+  return (call as unknown[])[2] as (
+    input: unknown,
+  ) => Promise<{ decision?: string; reason?: string; additionalContext?: string } | void>;
 }
 
 function mockFile(content: string, isDir = false) {
@@ -91,7 +102,9 @@ describe('security-hotspot-scanner plugin', () => {
   it('registers security_hotspot_scan, security_hotspot_status and a PostToolUse write|edit hook', () => {
     const api = makeApi({ enabled: true });
     plugin.setup(api as never);
-    const names = api.tools.register.mock.calls.map(([t]: unknown[]) => (t as { name: string }).name);
+    const names = api.tools.register.mock.calls.map(
+      ([t]: unknown[]) => (t as { name: string }).name,
+    );
     expect(names).toContain('security_hotspot_scan');
     expect(names).toContain('security_hotspot_status');
     const [event, matcher] = api.registerHook.mock.calls[0]!;
@@ -156,7 +169,9 @@ describe('security-hotspot-scanner plugin', () => {
     mockFile(
       'const url = "http://example.com/api";\n' +
         'console.log("password", user.password);\n' +
-        'exec(`rm -rf ' + String.fromCharCode(36) + '{dir}`);',
+        'exec(`rm -rf ' +
+        String.fromCharCode(36) +
+        '{dir}`);',
     );
     const api = makeApi({ enabled: true });
     plugin.setup(api as never);
@@ -219,7 +234,9 @@ describe('security-hotspot-scanner plugin', () => {
       }
       return { isDirectory: () => false, isFile: () => true } as ReturnType<typeof statSync>;
     });
-    vi.mocked(readdirSync).mockReturnValue(['a.js', 'b.ts'] as unknown[] as ReturnType<typeof readdirSync>);
+    vi.mocked(readdirSync).mockReturnValue(['a.js', 'b.ts'] as unknown[] as ReturnType<
+      typeof readdirSync
+    >);
     vi.mocked(readFileSync).mockImplementation((p: string | Buffer | URL) => {
       const path = String(p);
       if (path.endsWith('a.js')) return 'eval(x);';
@@ -257,7 +274,9 @@ describe('security-hotspot-scanner plugin', () => {
 
   it('PostToolUse hook returns block decision when severity is block', async () => {
     mockFile('element.innerHTML = payload;');
-    const api = makeApi({ extensions: { 'security-hotspot-scanner': { enabled: true, severity: 'block' } } });
+    const api = makeApi({
+      extensions: { 'security-hotspot-scanner': { enabled: true, severity: 'block' } },
+    });
     plugin.setup(api as never);
     const hook = getHook(api);
     const result = await hook({
@@ -327,7 +346,10 @@ describe('security-hotspot-scanner plugin', () => {
     expect(hookResult).toBeUndefined();
 
     const tool = getRegisteredTool(api, 'security_hotspot_scan');
-    const scanResult = (await tool.execute({ path: 'src/bad.js' })) as { ok: boolean; error: string };
+    const scanResult = (await tool.execute({ path: 'src/bad.js' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(scanResult.ok).toBe(false);
     expect(scanResult.error).toContain('disabled');
   });

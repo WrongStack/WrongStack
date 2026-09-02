@@ -79,7 +79,9 @@ export function KanbanTaskActivityRecorder({
       <input
         value={details}
         onChange={(event) => onDetailsChange(event.target.value)}
-        placeholder={t('activity:kanbanRecorder.optionalEvidenceRationaleCommandLinkOrFailureDetail')}
+        placeholder={t(
+          'activity:kanbanRecorder.optionalEvidenceRationaleCommandLinkOrFailureDetail',
+        )}
         aria-label={t('activity:kanbanRecorder.taskActivityDetails')}
         className="mt-1.5 h-8 w-full rounded-md border bg-background px-2 text-xs outline-none focus:border-primary"
       />

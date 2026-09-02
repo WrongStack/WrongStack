@@ -15,7 +15,17 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bot, FileText, RefreshCw, Settings, Sparkles, Trash2, AlertTriangle, Database, BookOpen } from 'lucide-react';
+import {
+  Bot,
+  FileText,
+  RefreshCw,
+  Settings,
+  Sparkles,
+  Trash2,
+  AlertTriangle,
+  Database,
+  BookOpen,
+} from 'lucide-react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 
@@ -67,7 +77,9 @@ function sendRosterMessage(type: string, payload?: unknown): Promise<unknown> {
           ws.removeEventListener('message', handler);
           resolve(data.payload ?? data);
         }
-      } catch { /* non-JSON message, skip */ }
+      } catch {
+        /* non-JSON message, skip */
+      }
     };
 
     // Timeout safety
@@ -105,14 +117,19 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
   const [reviewEntries, setReviewEntries] = useState<string[] | null>(null);
   const [reviewDecisions, setReviewDecisions] = useState<Record<number, 'keep' | 'drop'>>({});
   const [reviewBusy, setReviewBusy] = useState(false);
-  const [conflicts, setConflicts] = useState<Array<{ roleA: string; roleB: string; similarity: number }>>([]);
+  const [conflicts, setConflicts] = useState<
+    Array<{ roleA: string; roleB: string; similarity: number }>
+  >([]);
 
   // ── Load roster data ──────────────────────────────────────────────────
   const loadRoster = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await sendRosterMessage('agent-roster.list', { projectRoot }) as { roles: string[]; stats: ProjectAgentLearnStats[] };
+      const data = (await sendRosterMessage('agent-roster.list', { projectRoot })) as {
+        roles: string[];
+        stats: ProjectAgentLearnStats[];
+      };
       setRoles(data.stats ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('activity:customRoster.loadFailed'));
@@ -123,12 +140,19 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
 
   const loadConflicts = useCallback(async () => {
     try {
-      const data = await sendRosterMessage('agent-roster.conflicts', { projectRoot }) as { conflicts: Array<{ roleA: string; roleB: string; similarity: number }> };
+      const data = (await sendRosterMessage('agent-roster.conflicts', { projectRoot })) as {
+        conflicts: Array<{ roleA: string; roleB: string; similarity: number }>;
+      };
       setConflicts(data.conflicts ?? []);
-    } catch { /* non-critical */ }
+    } catch {
+      /* non-critical */
+    }
   }, [projectRoot]);
 
-  useEffect(() => { loadRoster(); loadConflicts(); }, [loadRoster, loadConflicts]);
+  useEffect(() => {
+    loadRoster();
+    loadConflicts();
+  }, [loadRoster, loadConflicts]);
 
   // ── Select role and load its data ─────────────────────────────────────
   const selectedStats = useMemo(
@@ -143,9 +167,14 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
     setImproveResult(null);
     setSelectedRole(role);
     try {
-      const data = await sendRosterMessage('agent-roster.stats', { role, projectRoot }) as ProjectAgentLearnStats;
+      const data = (await sendRosterMessage('agent-roster.stats', {
+        role,
+        projectRoot,
+      })) as ProjectAgentLearnStats;
       setRoles((prev) => prev.map((r) => (r.role === role ? { ...r, ...data } : r)));
-    } catch { /* use cached data */ }
+    } catch {
+      /* use cached data */
+    }
   };
 
   // ── Save edit ─────────────────────────────────────────────────────────
@@ -160,7 +189,11 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       };
       const payload: Record<string, unknown> = { role: selectedRole, projectRoot };
       if (editMode === 'config') {
-        try { payload.config = JSON.parse(editContent); } catch { throw new Error(t('activity:customRoster.invalidJson')); }
+        try {
+          payload.config = JSON.parse(editContent);
+        } catch {
+          throw new Error(t('activity:customRoster.invalidJson'));
+        }
       } else {
         payload.content = editContent;
       }
@@ -179,12 +212,16 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
     if (!selectedRole || !improvePrompt.trim()) return;
     setImproveResult(null);
     try {
-      const data = await sendRosterMessage('agent-roster.llm-improve', {
-        role: selectedRole, prompt: improvePrompt, projectRoot,
-      }) as { instruction: string };
+      const data = (await sendRosterMessage('agent-roster.llm-improve', {
+        role: selectedRole,
+        prompt: improvePrompt,
+        projectRoot,
+      })) as { instruction: string };
       setImproveResult(data.instruction ?? t('activity:customRoster.noImprovement'));
     } catch (err) {
-      setImproveResult(err instanceof Error ? err.message : t('activity:customRoster.improveFailed'));
+      setImproveResult(
+        err instanceof Error ? err.message : t('activity:customRoster.improveFailed'),
+      );
     }
   };
 
@@ -195,9 +232,11 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
     setSaving(true);
     try {
       const content = `> Taught ${new Date().toISOString().slice(0, 10)}\n\n${teachInput.trim()}`;
-      const data = await sendRosterMessage('agent-roster.append-learned', {
-        role: selectedRole, content, projectRoot,
-      }) as { success: boolean; path: string };
+      const data = (await sendRosterMessage('agent-roster.append-learned', {
+        role: selectedRole,
+        content,
+        projectRoot,
+      })) as { success: boolean; path: string };
       if (data.success) {
         setTeachFeedback({ ok: true, msg: t('activity:customRoster.behaviorSaved') });
         setTeachInput('');
@@ -206,7 +245,10 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
         setTeachFeedback({ ok: false, msg: t('activity:customRoster.saveFailedServer') });
       }
     } catch (err) {
-      setTeachFeedback({ ok: false, msg: err instanceof Error ? err.message : t('activity:agentRoster.teachFailed') });
+      setTeachFeedback({
+        ok: false,
+        msg: err instanceof Error ? err.message : t('activity:agentRoster.teachFailed'),
+      });
     } finally {
       setSaving(false);
     }
@@ -215,11 +257,16 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
   // ── Review learned entries ───────────────────────────────────────────
   const loadReviewEntries = async (role: string) => {
     try {
-      const data = await sendRosterMessage('agent-roster.read-learned', { role, projectRoot }) as { entries: string[] };
+      const data = (await sendRosterMessage('agent-roster.read-learned', {
+        role,
+        projectRoot,
+      })) as { entries: string[] };
       setReviewEntries(data.entries ?? []);
       setReviewDecisions({});
       setReviewBusy(false);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   const applyReview = async () => {
@@ -228,20 +275,30 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
     const kept = reviewEntries.filter((_, i) => reviewDecisions[i] !== 'drop');
     const content = kept.join('\n\n---\n\n');
     try {
-      await sendRosterMessage('agent-roster.update-learned', { role: selectedRole, content, projectRoot });
+      await sendRosterMessage('agent-roster.update-learned', {
+        role: selectedRole,
+        content,
+        projectRoot,
+      });
       setReviewEntries(null);
       setReviewDecisions({});
       loadRoster();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setReviewBusy(false);
   };
 
   // ── Capture learned ──────────────────────────────────────────────────
   const runCapture = async (role: string) => {
     try {
-      const _data = await sendRosterMessage('agent-roster.capture', { role, projectRoot }) as { captured: number };
+      const _data = (await sendRosterMessage('agent-roster.capture', { role, projectRoot })) as {
+        captured: number;
+      };
       loadRoster();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   // ── Reset role ────────────────────────────────────────────────────────
@@ -250,7 +307,9 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       await sendRosterMessage('agent-roster.reset', { role, projectRoot });
       setSelectedRole(null);
       loadRoster();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   // ── Render ────────────────────────────────────────────────────────────
@@ -260,7 +319,9 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
       <div className="flex items-center justify-center h-full text-destructive">
         <AlertTriangle className="h-4 w-4 mr-2" />
         {error}
-        <button type="button" onClick={loadRoster} className="ml-2 underline">{t('common:action.retry')}</button>
+        <button type="button" onClick={loadRoster} className="ml-2 underline">
+          {t('common:action.retry')}
+        </button>
       </div>
     );
   }
@@ -281,11 +342,16 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
         <p className="text-lg font-medium">{t('activity:customRoster.emptyTitle')}</p>
         <p className="text-sm text-center max-w-md">
           {t('activity:customRoster.emptyBody')}
-          <code className="block mt-1 text-xs bg-muted px-2 py-1 rounded">.wrongstack/agents/&lt;role&gt;/</code>
+          <code className="block mt-1 text-xs bg-muted px-2 py-1 rounded">
+            .wrongstack/agents/&lt;role&gt;/
+          </code>
         </p>
         <button
           type="button"
-          onClick={() => { startEdit('executor', 'identity'); setSelectedRole('executor'); }}
+          onClick={() => {
+            startEdit('executor', 'identity');
+            setSelectedRole('executor');
+          }}
           className="text-sm text-primary hover:underline mt-2"
         >
           {t('activity:customRoster.createExecutorIdentity')}
@@ -319,10 +385,22 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
               <span className="text-[10px] text-muted-foreground">{r.totalBytes}B</span>
             </div>
             <div className="flex gap-2 text-[10px] text-muted-foreground mt-0.5">
-              {r.hasIdentity && <span className="flex items-center gap-0.5"><FileText className="h-3 w-3" />id</span>}
-              {r.entryCount > 0 && <span className="flex items-center gap-0.5"><Database className="h-3 w-3" />{r.entryCount}e</span>}
+              {r.hasIdentity && (
+                <span className="flex items-center gap-0.5">
+                  <FileText className="h-3 w-3" />
+                  id
+                </span>
+              )}
+              {r.entryCount > 0 && (
+                <span className="flex items-center gap-0.5">
+                  <Database className="h-3 w-3" />
+                  {r.entryCount}e
+                </span>
+              )}
               {r.needsSummarization && <span className="text-warning">⚠</span>}
-              {r.sessionCaptureCount > 0 && <span className="text-brand-2">+{r.sessionCaptureCount}</span>}
+              {r.sessionCaptureCount > 0 && (
+                <span className="text-brand-2">+{r.sessionCaptureCount}</span>
+              )}
             </div>
           </button>
         ))}
@@ -341,10 +419,20 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">{selectedRole}</h3>
               <div className="flex gap-1">
-                <button type="button" onClick={() => runCapture(selectedRole)} className="btn-sm" title={t('activity:agentRoster.captureLearned')}>
+                <button
+                  type="button"
+                  onClick={() => runCapture(selectedRole)}
+                  className="btn-sm"
+                  title={t('activity:agentRoster.captureLearned')}
+                >
                   <Database className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => runReset(selectedRole)} className="btn-sm text-destructive" title={t('common:action.reset')}>
+                <button
+                  type="button"
+                  onClick={() => runReset(selectedRole)}
+                  className="btn-sm text-destructive"
+                  title={t('common:action.reset')}
+                >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -369,7 +457,9 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                 </div>
               </div>
               <div className="bg-card rounded-lg p-2 border border-line">
-                <div className="text-muted-foreground">{t('activity:customRoster.sessionCaptures')}</div>
+                <div className="text-muted-foreground">
+                  {t('activity:customRoster.sessionCaptures')}
+                </div>
                 <div className="text-lg font-semibold">{selectedStats.sessionCaptureCount}/3</div>
               </div>
             </div>
@@ -378,31 +468,53 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
             {selectedStats.needsSummarization && (
               <div className="flex items-center gap-2 text-xs text-warning bg-warning/10 rounded-lg px-3 py-2">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                learned.md exceeds soft limit ({selectedStats.totalBytes}B / 8192B). Run /agent-improve {selectedRole} refresh or summarize manually.
+                learned.md exceeds soft limit ({selectedStats.totalBytes}B / 8192B). Run
+                /agent-improve {selectedRole} refresh or summarize manually.
               </div>
             )}
 
             {/* Conflicts */}
-            {conflicts.filter((c) => c.roleA === selectedRole || c.roleB === selectedRole).length > 0 && (
+            {conflicts.filter((c) => c.roleA === selectedRole || c.roleB === selectedRole).length >
+              0 && (
               <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                {conflicts.filter((c) => c.roleA === selectedRole || c.roleB === selectedRole).length} conflict(s) detected
+                {
+                  conflicts.filter((c) => c.roleA === selectedRole || c.roleB === selectedRole)
+                    .length
+                }{' '}
+                conflict(s) detected
               </div>
             )}
 
             {/* Edit buttons */}
             <div className="flex gap-2 flex-wrap">
-              <button type="button" onClick={() => startEdit(selectedRole, 'identity')} className="btn-sm">
+              <button
+                type="button"
+                onClick={() => startEdit(selectedRole, 'identity')}
+                className="btn-sm"
+              >
                 <FileText className="h-3.5 w-3.5 mr-1" /> {t('activity:customRoster.editIdentity')}
               </button>
-              <button type="button" onClick={() => startEdit(selectedRole, 'learned')} className="btn-sm">
+              <button
+                type="button"
+                onClick={() => startEdit(selectedRole, 'learned')}
+                className="btn-sm"
+              >
                 <Database className="h-3.5 w-3.5 mr-1" /> {t('activity:customRoster.editLearned')}
               </button>
-              <button type="button" onClick={() => startEdit(selectedRole, 'config')} className="btn-sm">
+              <button
+                type="button"
+                onClick={() => startEdit(selectedRole, 'config')}
+                className="btn-sm"
+              >
                 <Settings className="h-3.5 w-3.5 mr-1" /> {t('activity:customRoster.editConfig')}
               </button>
               {selectedStats.entryCount > 0 && !reviewEntries && (
-                <button type="button" onClick={() => loadReviewEntries(selectedRole)} className="btn-sm">
+                <button
+                  type="button"
+                  onClick={() => loadReviewEntries(selectedRole)}
+                  className="btn-sm"
+                >
                   <AlertTriangle className="h-3.5 w-3.5 mr-1" />{' '}
                   {t('activity:customRoster.reviewEntries', { count: selectedStats.entryCount })}
                 </button>
@@ -420,10 +532,24 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                     })}
                   </span>
                   <div className="flex gap-2">
-                    <button type="button" onClick={applyReview} disabled={reviewBusy} className="btn-sm btn-primary">
-                      {reviewBusy ? t('activity:agentRoster.applying') : t('activity:customRoster.applySelection')}
+                    <button
+                      type="button"
+                      onClick={applyReview}
+                      disabled={reviewBusy}
+                      className="btn-sm btn-primary"
+                    >
+                      {reviewBusy
+                        ? t('activity:agentRoster.applying')
+                        : t('activity:customRoster.applySelection')}
                     </button>
-                    <button type="button" onClick={() => { setReviewEntries(null); setReviewDecisions({}); }} className="btn-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReviewEntries(null);
+                        setReviewDecisions({});
+                      }}
+                      className="btn-sm"
+                    >
                       {t('common:action.cancel')}
                     </button>
                   </div>
@@ -433,24 +559,41 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                     const decision = reviewDecisions[i] ?? 'keep';
                     const preview = entry.length > 280 ? entry.slice(0, 280) + '…' : entry;
                     return (
-                      <div key={i} className={cn(
-                        'rounded-lg border p-2 transition-colors',
-                        decision === 'drop' ? 'border-destructive/40 bg-destructive/5 opacity-60' : 'border-line',
-                      )}>
+                      <div
+                        key={i}
+                        className={cn(
+                          'rounded-lg border p-2 transition-colors',
+                          decision === 'drop'
+                            ? 'border-destructive/40 bg-destructive/5 opacity-60'
+                            : 'border-line',
+                        )}
+                      >
                         <div className="flex items-start justify-between gap-2">
-                          <pre className="text-[11px] whitespace-pre-wrap flex-1 leading-relaxed font-sans">{preview}</pre>
+                          <pre className="text-[11px] whitespace-pre-wrap flex-1 leading-relaxed font-sans">
+                            {preview}
+                          </pre>
                           <div className="flex gap-1 shrink-0">
                             <button
                               type="button"
                               onClick={() => setReviewDecisions((p) => ({ ...p, [i]: 'keep' }))}
-                              className={cn('px-2 py-1 text-[10px] rounded', decision === 'keep' ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground')}
+                              className={cn(
+                                'px-2 py-1 text-[10px] rounded',
+                                decision === 'keep'
+                                  ? 'bg-success/20 text-success'
+                                  : 'bg-muted text-muted-foreground',
+                              )}
                             >
                               {t('activity:customRoster.keep')}
                             </button>
                             <button
                               type="button"
                               onClick={() => setReviewDecisions((p) => ({ ...p, [i]: 'drop' }))}
-                              className={cn('px-2 py-1 text-[10px] rounded', decision === 'drop' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-muted-foreground')}
+                              className={cn(
+                                'px-2 py-1 text-[10px] rounded',
+                                decision === 'drop'
+                                  ? 'bg-destructive/20 text-destructive'
+                                  : 'bg-muted text-muted-foreground',
+                              )}
                             >
                               {t('activity:customRoster.drop')}
                             </button>
@@ -467,12 +610,21 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
             {editMode && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium">{editMode}.md / {editMode}.json</span>
+                  <span className="text-xs font-medium">
+                    {editMode}.md / {editMode}.json
+                  </span>
                   <div className="flex gap-1">
-                    <button type="button" onClick={saveEdit} disabled={saving} className="btn-sm btn-primary">
+                    <button
+                      type="button"
+                      onClick={saveEdit}
+                      disabled={saving}
+                      className="btn-sm btn-primary"
+                    >
                       {saving ? t('activity:agentRoster.saving') : t('common:action.save')}
                     </button>
-                    <button type="button" onClick={() => setEditMode(null)} className="btn-sm">{t('common:action.cancel')}</button>
+                    <button type="button" onClick={() => setEditMode(null)} className="btn-sm">
+                      {t('common:action.cancel')}
+                    </button>
                   </div>
                 </div>
                 {editMode === 'config' ? (
@@ -521,7 +673,12 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
                   <BookOpen className="h-3.5 w-3.5 mr-1" /> {t('activity:customRoster.teach')}
                 </button>
                 {teachFeedback && (
-                  <span className={cn('text-xs', teachFeedback.ok ? 'text-success' : 'text-destructive')}>
+                  <span
+                    className={cn(
+                      'text-xs',
+                      teachFeedback.ok ? 'text-success' : 'text-destructive',
+                    )}
+                  >
                     {teachFeedback.msg}
                   </span>
                 )}

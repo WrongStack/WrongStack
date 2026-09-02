@@ -160,10 +160,17 @@ interface CostTrackerConfig {
  * @internal
  */
 function readCostTrackerConfig(raw: Record<string, unknown> | undefined): CostTrackerConfig {
-  const digestEveryN = raw?.['mailboxDigestEveryN'] ?? raw?.['mailbox_digest_every_n'] ?? raw?.['digestEveryN'];
+  const digestEveryN =
+    raw?.['mailboxDigestEveryN'] ?? raw?.['mailbox_digest_every_n'] ?? raw?.['digestEveryN'];
   const digestTo = raw?.['mailboxDigestTo'] ?? raw?.['mailbox_digest_to'] ?? raw?.['digestTo'];
-  const rawBudget = raw?.['budgetLimit'] ?? raw?.['budget_limit'] ?? raw?.['budget'] ?? raw?.['limit'];
-  const rawThreshold = raw?.['warningThreshold'] ?? raw?.['warning_threshold'] ?? raw?.['warnThreshold'] ?? raw?.['warn_threshold'] ?? raw?.['threshold'];
+  const rawBudget =
+    raw?.['budgetLimit'] ?? raw?.['budget_limit'] ?? raw?.['budget'] ?? raw?.['limit'];
+  const rawThreshold =
+    raw?.['warningThreshold'] ??
+    raw?.['warning_threshold'] ??
+    raw?.['warnThreshold'] ??
+    raw?.['warn_threshold'] ??
+    raw?.['threshold'];
   return {
     budgetLimit: typeof rawBudget === 'number' ? rawBudget : 0,
     warningThreshold: typeof rawThreshold === 'number' ? rawThreshold : 80,
@@ -329,7 +336,8 @@ const plugin: Plugin = {
       | Record<string, unknown>
       | undefined;
     const cfg = readCostTrackerConfig(rawConfig);
-    const userOverrides = rawConfig?.['pricingOverrides'] ?? rawConfig?.['pricing_overrides'] ?? rawConfig?.['pricing'];
+    const userOverrides =
+      rawConfig?.['pricingOverrides'] ?? rawConfig?.['pricing_overrides'] ?? rawConfig?.['pricing'];
     if (userOverrides && typeof userOverrides === 'object') {
       for (const [model, value] of Object.entries(userOverrides as Record<string, unknown>)) {
         if (!value || typeof value !== 'object') continue;
@@ -406,14 +414,17 @@ const plugin: Plugin = {
 
       const u = (usage ?? {}) as unknown as Record<string, unknown>;
       const cachedTokens =
-        Number(u['cacheRead'] ?? u['cache_read_input_tokens'] ?? u['cached_prompt_tokens'] ?? 0) || 0;
+        Number(u['cacheRead'] ?? u['cache_read_input_tokens'] ?? u['cached_prompt_tokens'] ?? 0) ||
+        0;
       const rawInput =
         Number(u['input'] ?? u['prompt_tokens'] ?? u['inputTokens'] ?? u['promptTokens'] ?? 0) || 0;
       const rawCacheWrite = Number(u['cacheWrite'] ?? u['cache_creation_input_tokens'] ?? 0) || 0;
       const freshTokens = rawInput + rawCacheWrite;
       const promptTokens = freshTokens + cachedTokens;
       const completionTokens =
-        Number(u['output'] ?? u['completion_tokens'] ?? u['outputTokens'] ?? u['completionTokens'] ?? 0) || 0;
+        Number(
+          u['output'] ?? u['completion_tokens'] ?? u['outputTokens'] ?? u['completionTokens'] ?? 0,
+        ) || 0;
       const totalTokens = promptTokens + completionTokens;
       const costUsd = estimateCost(model, freshTokens, completionTokens, cachedTokens);
 

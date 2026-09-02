@@ -1,4 +1,9 @@
-import { completePartialObject, safeParse, sanitizeJsonString, stripCodeFences } from '@wrongstack/core/utils';
+import {
+  completePartialObject,
+  safeParse,
+  sanitizeJsonString,
+  stripCodeFences,
+} from '@wrongstack/core/utils';
 
 /**
  * Parse a tool-call arguments JSON blob into a canonical

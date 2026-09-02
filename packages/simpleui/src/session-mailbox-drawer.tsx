@@ -41,12 +41,7 @@ export function SessionMailboxDrawer({
           </button>
         </header>
         <div className="tool-sidebar-list">
-          <MailboxSidebar
-            store={store}
-            onRefresh={onRefresh}
-            onSend={onSend}
-            onAction={onAction}
-          />
+          <MailboxSidebar store={store} onRefresh={onRefresh} onSend={onSend} onAction={onAction} />
         </div>
       </aside>
     </>

@@ -243,9 +243,9 @@ describe('clamp01', () => {
 
 describe('looksLikeSecret', () => {
   it('detects PEM private key', () => {
-    expect(
-      looksLikeSecret('-----BEGIN PRIVATE KEY-----\nABCD\n-----END PRIVATE KEY-----'),
-    ).toBe(true);
+    expect(looksLikeSecret('-----BEGIN PRIVATE KEY-----\nABCD\n-----END PRIVATE KEY-----')).toBe(
+      true,
+    );
   });
 
   it('detects API key pattern (key=value with 16+ chars)', () => {
@@ -255,7 +255,11 @@ describe('looksLikeSecret', () => {
   it('detects JWT-like tokens (three segments 20+ chars)', () => {
     // Must match /\b[A-Za-z0-9_]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/
     const jwtFake =
-      'aaaa_bbbb_cccc_dddd_eeee' + '.' + 'ffff_gggg_hhhh_iiii_jjjj' + '.' + 'kkkk_llll_mmmm_nnnn_oooo';
+      'aaaa_bbbb_cccc_dddd_eeee' +
+      '.' +
+      'ffff_gggg_hhhh_iiii_jjjj' +
+      '.' +
+      'kkkk_llll_mmmm_nnnn_oooo';
     expect(looksLikeSecret(jwtFake)).toBe(true);
   });
 
@@ -374,9 +378,9 @@ describe('validateRememberInput', () => {
   });
 
   it('rejects non-string text', () => {
-    expect(() =>
-      validateRememberInput({ ...minimal, text: 123 as unknown as string }),
-    ).toThrow('text must be a string');
+    expect(() => validateRememberInput({ ...minimal, text: 123 as unknown as string })).toThrow(
+      'text must be a string',
+    );
   });
 
   it('rejects text exceeding MAX_MEMORY_TEXT_CHARS', () => {
@@ -385,15 +389,15 @@ describe('validateRememberInput', () => {
   });
 
   it('rejects invalid scope', () => {
-    expect(() =>
-      validateRememberInput({ ...minimal, scope: 'invalid' as never }),
-    ).toThrow('Invalid SAGE scope');
+    expect(() => validateRememberInput({ ...minimal, scope: 'invalid' as never })).toThrow(
+      'Invalid SAGE scope',
+    );
   });
 
   it('rejects invalid kind', () => {
-    expect(() =>
-      validateRememberInput({ ...minimal, kind: 'invalid' as never }),
-    ).toThrow('Invalid SAGE kind');
+    expect(() => validateRememberInput({ ...minimal, kind: 'invalid' as never })).toThrow(
+      'Invalid SAGE kind',
+    );
   });
 
   it('rejects structural kinds without anchors', () => {

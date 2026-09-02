@@ -85,10 +85,7 @@ describe('userInput middleware', () => {
   it('activates design state when the message has UI intent', async () => {
     const ctx = fakeCtx() as unknown as Context;
     const mw = makeDesignDetectUserInputMiddleware();
-    await mw.handler(
-      { text: 'design a dashboard UI', content: [], ctx },
-      async (p) => p,
-    );
+    await mw.handler({ text: 'design a dashboard UI', content: [], ctx }, async (p) => p);
     expect(getDesignState(ctx as unknown as { meta: Record<string, unknown> })?.active).toBe(true);
   });
 });

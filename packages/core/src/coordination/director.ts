@@ -575,8 +575,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
   }
 
   private resolveSpawnModel(config: SubagentConfig): void {
-    const appConfig =
-      typeof this.appConfig === 'function' ? this.appConfig() : this.appConfig;
+    const appConfig = typeof this.appConfig === 'function' ? this.appConfig() : this.appConfig;
     resolveDirectorSpawnModel(config, {
       modelMatrix: this.modelMatrix,
       ...(appConfig ? { config: appConfig } : {}),

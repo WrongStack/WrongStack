@@ -27,12 +27,15 @@ describe('wireToolsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({
-      installationId: 'install',
-      machineId: 'machine',
-      projectId: 'project',
-      sessionId: 'session',
-    }, 'trace');
+    const context = createChronicleContext(
+      {
+        installationId: 'install',
+        machineId: 'machine',
+        projectId: 'project',
+        sessionId: 'session',
+      },
+      'trace',
+    );
     const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
 
     events.emit('tool.started', {
@@ -49,7 +52,13 @@ describe('wireToolsToChronicle', () => {
       agentId: 'leader',
       name: 'edit',
       id: 'tool-1',
-      event: { type: 'file_changed', path: 'src/auth.ts', operation: 'edit', line: 72, endLine: 91 },
+      event: {
+        type: 'file_changed',
+        path: 'src/auth.ts',
+        operation: 'edit',
+        line: 72,
+        endLine: 91,
+      },
     });
     events.emit('tool.executed', {
       sessionId: 'session',
@@ -126,8 +135,16 @@ describe('wireToolsToChronicle', () => {
 
     const recorded = await journal.readAll();
     expect(recorded).toHaveLength(1);
-    expect(recorded[0]).toMatchObject({ eventType: 'tool.failed', outcome: 'failure', durationNs: '300000000' });
-    expect(recorded[0]?.attributes).toMatchObject({ toolName: 'bash', category: 'transient', retryable: true });
+    expect(recorded[0]).toMatchObject({
+      eventType: 'tool.failed',
+      outcome: 'failure',
+      durationNs: '300000000',
+    });
+    expect(recorded[0]?.attributes).toMatchObject({
+      toolName: 'bash',
+      category: 'transient',
+      retryable: true,
+    });
   });
 
   it('records permission provenance without persisting raw tool arguments', async () => {
@@ -210,7 +227,19 @@ describe('wireToolsToChronicle', () => {
       outputBytes: 3000,
       outputTokens: 750,
       outputLines: 1,
-      metadata: { toolUseId: 'tool-trunc', toolName: 'read', ok: true, summary: 'large read', files: [], symbols: [], commands: [], errors: [], status: 'seen', referenceCount: 0, seenAt: 1 },
+      metadata: {
+        toolUseId: 'tool-trunc',
+        toolName: 'read',
+        ok: true,
+        summary: 'large read',
+        files: [],
+        symbols: [],
+        commands: [],
+        errors: [],
+        status: 'seen',
+        referenceCount: 0,
+        seenAt: 1,
+      },
     });
 
     const recorded = await journal.readAll();
@@ -246,7 +275,19 @@ describe('wireToolsToChronicle', () => {
       outputBytes: 12,
       outputTokens: 2,
       outputLines: 1,
-      metadata: { toolUseId: 'tool-short', toolName: 'read', ok: true, summary: 'small read', files: [], symbols: [], commands: [], errors: [], status: 'seen', referenceCount: 0, seenAt: 1 },
+      metadata: {
+        toolUseId: 'tool-short',
+        toolName: 'read',
+        ok: true,
+        summary: 'small read',
+        files: [],
+        symbols: [],
+        commands: [],
+        errors: [],
+        status: 'seen',
+        referenceCount: 0,
+        seenAt: 1,
+      },
     });
 
     const recorded = await journal.readAll();
@@ -262,7 +303,10 @@ describe('wireToolsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
     const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
 
     events.emit('tool.started', {
@@ -299,7 +343,10 @@ describe('wireToolsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
     const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
 
     events.emit('tool.executed', {
@@ -314,7 +361,19 @@ describe('wireToolsToChronicle', () => {
       outputBytes: 12,
       outputTokens: 3,
       outputLines: 2,
-      metadata: { toolUseId: 'tool-exec-task', toolName: 'edit', ok: true, summary: 'edit file', files: [], symbols: [], commands: [], errors: [], status: 'seen', referenceCount: 0, seenAt: 1 },
+      metadata: {
+        toolUseId: 'tool-exec-task',
+        toolName: 'edit',
+        ok: true,
+        summary: 'edit file',
+        files: [],
+        symbols: [],
+        commands: [],
+        errors: [],
+        status: 'seen',
+        referenceCount: 0,
+        seenAt: 1,
+      },
       taskId: 'task-99',
       boardId: 'board-7',
       provider: 'openai',
@@ -334,7 +393,10 @@ describe('wireToolsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
     const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
 
     events.emit('tool.failed', {
@@ -357,7 +419,10 @@ describe('wireToolsToChronicle', () => {
 
     expect(recorded).toHaveLength(1);
     expect(recorded[0]?.scope).toMatchObject({ taskId: 'task-77', kanbanBoardId: 'board-7' });
-    expect(recorded[0]?.runtime).toMatchObject({ providerId: 'anthropic', modelId: 'claude-haiku-3' });
+    expect(recorded[0]?.runtime).toMatchObject({
+      providerId: 'anthropic',
+      modelId: 'claude-haiku-3',
+    });
   });
 
   it('records taskId/boardId/provider/model on permission.evaluated', async () => {
@@ -365,7 +430,10 @@ describe('wireToolsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
     const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
 
     events.emit('permission.evaluated', {
@@ -390,6 +458,9 @@ describe('wireToolsToChronicle', () => {
 
     expect(recorded).toHaveLength(1);
     expect(recorded[0]?.scope).toMatchObject({ taskId: 'task-55', kanbanBoardId: 'board-7' });
-    expect(recorded[0]?.runtime).toMatchObject({ providerId: 'google', modelId: 'gemini-2.0-flash' });
+    expect(recorded[0]?.runtime).toMatchObject({
+      providerId: 'google',
+      modelId: 'gemini-2.0-flash',
+    });
   });
 });

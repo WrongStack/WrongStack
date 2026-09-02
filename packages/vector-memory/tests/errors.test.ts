@@ -7,10 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  VectorMemoryError,
-  VectorMemoryProviderUnavailableError,
-} from '../src/errors.js';
+import { VectorMemoryError, VectorMemoryProviderUnavailableError } from '../src/errors.js';
 
 describe('VectorMemoryError', () => {
   it('is an Error with the expected name and message', () => {

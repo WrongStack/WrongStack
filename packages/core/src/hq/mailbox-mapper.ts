@@ -24,7 +24,11 @@ export interface HqMailboxSnapshotOptions extends HqMailboxMappingOptions {
 
 export type HqMailboxEventAction = HqMailboxEventPayload['action'];
 
-function previewText(value: string | undefined, maxLength: number, policy?: Partial<HqRedactionPolicy>): string | undefined {
+function previewText(
+  value: string | undefined,
+  maxLength: number,
+  policy?: Partial<HqRedactionPolicy>,
+): string | undefined {
   if (value === undefined || value.length === 0) return undefined;
   if (policy?.rawContent === false) return '[REDACTED:hq_raw_content]';
   if (policy?.rawContent === true) {
@@ -64,8 +68,12 @@ function taskSummary(message: MailboxMessage): HqMailboxMessageSummary['task'] {
   if (message.taskContext === undefined) return undefined;
   const task = {
     ...(message.taskContext.taskId !== undefined ? { taskId: message.taskContext.taskId } : {}),
-    ...(message.taskContext.agentRole !== undefined ? { agentRole: message.taskContext.agentRole } : {}),
-    ...(message.taskContext.agentName !== undefined ? { agentName: message.taskContext.agentName } : {}),
+    ...(message.taskContext.agentRole !== undefined
+      ? { agentRole: message.taskContext.agentRole }
+      : {}),
+    ...(message.taskContext.agentName !== undefined
+      ? { agentName: message.taskContext.agentName }
+      : {}),
     ...(message.taskContext.status !== undefined ? { status: message.taskContext.status } : {}),
   } satisfies HqMailboxMessageSummary['task'];
   return Object.keys(task).length > 0 ? task : undefined;
@@ -87,7 +95,9 @@ export function mapMailboxMessageToHqSummary(
     from: message.from,
     to: message.to,
     scope: recipient.scope,
-    ...(recipient.recipientSessionId !== undefined ? { recipientSessionId: recipient.recipientSessionId } : {}),
+    ...(recipient.recipientSessionId !== undefined
+      ? { recipientSessionId: recipient.recipientSessionId }
+      : {}),
     type: message.type,
     ...(message.audience !== undefined ? { audience: message.audience } : {}),
     subject: previewText(message.subject, previewLength, options.redactionPolicy) ?? '',
@@ -130,9 +140,13 @@ export function createMailboxSnapshotPayload(
   options: HqMailboxSnapshotOptions,
 ): HqMailboxSnapshotPayload {
   const includeCompleted = options.includeCompleted ?? true;
-  const filteredMessages = includeCompleted ? messages : messages.filter((message) => !message.completed);
+  const filteredMessages = includeCompleted
+    ? messages
+    : messages.filter((message) => !message.completed);
   const limit = options.limit ?? 50;
-  const sortedMessages = [...filteredMessages].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
+  const sortedMessages = [...filteredMessages]
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    .slice(0, limit);
   const summaries = sortedMessages.map((message) => mapMailboxMessageToHqSummary(message, options));
   const agentSummaries = agents.map(mapMailboxAgentToHqSummary);
 
@@ -180,10 +194,15 @@ export function createMailboxEventPayload(input: {
   return {
     mailboxId: input.mailboxId,
     action: input.action,
-    ...(input.message !== undefined ? { message: mapMailboxMessageToHqSummary(input.message, summaryOptions) } : {}),
+    ...(input.message !== undefined
+      ? { message: mapMailboxMessageToHqSummary(input.message, summaryOptions) }
+      : {}),
     ...(input.agent !== undefined ? { agent: mapMailboxAgentToHqSummary(input.agent) } : {}),
     ...(input.summary !== undefined
-      ? { summary: previewText(input.summary, input.previewLength ?? 160, input.redactionPolicy) ?? '' }
+      ? {
+          summary:
+            previewText(input.summary, input.previewLength ?? 160, input.redactionPolicy) ?? '',
+        }
       : {}),
   };
 }

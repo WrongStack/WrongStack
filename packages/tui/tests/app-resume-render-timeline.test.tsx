@@ -177,11 +177,7 @@ describe('Issue 005 — resumed timeline structure', () => {
     // search is enough for the structural assertion; a false positive
     // would require the literal word "read" to appear in another panel
     // header, which this fixture does not produce.
-    const headerNeedles = [
-      'USER',
-      'ASSISTANT',
-      'Model Reasoning',
-    ];
+    const headerNeedles = ['USER', 'ASSISTANT', 'Model Reasoning'];
     const headerRows: number[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i] ?? '';

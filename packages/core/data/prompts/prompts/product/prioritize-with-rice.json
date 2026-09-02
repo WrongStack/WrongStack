@@ -5,10 +5,7 @@
   "description": "Rank competing initiatives objectively.",
   "content": "Help me prioritize these initiatives: {{initiatives}}\n\nApply RICE (Reach, Impact, Confidence, Effort). For each, reason out each factor and where the estimate is shaky, then compute the score. Show the ranking, but treat it as a conversation starter, not gospel: call out where a low-confidence guess is driving the order, and which item you'd validate before committing. Note anything strategic that RICE structurally undervalues.",
   "category": "product",
-  "tags": [
-    "prioritization",
-    "rice"
-  ],
+  "tags": ["prioritization", "rice"],
   "source": "builtin",
   "favorite": false,
   "checksum": "da3ce2842f6f9586a75ee0b424e6a04d2a4a735a3856b1afd41b5309b69cf717",

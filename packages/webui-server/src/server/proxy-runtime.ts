@@ -100,9 +100,7 @@ export async function probeWrongProxyActive(): Promise<boolean> {
  * (the next provider build reads the freshly-probed `active`). Skips when the
  * payload carries neither key. Mirrors the CLI's `applyWrongProxyPrefs`.
  */
-export async function applyWrongProxyPrefs(
-  payload: Record<string, unknown>,
-): Promise<void> {
+export async function applyWrongProxyPrefs(payload: Record<string, unknown>): Promise<void> {
   const patch: Partial<{ enabled: boolean; url: string }> = {};
   if (typeof payload['wrongProxyEnabled'] === 'boolean') {
     patch.enabled = payload['wrongProxyEnabled'];
@@ -170,4 +168,3 @@ export function routeProviderCfgThroughProxy<T extends object>(
     ...(baseUrl !== cfgBaseUrl ? { baseUrl } : {}),
   } as T;
 }
-

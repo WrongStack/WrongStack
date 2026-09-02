@@ -77,17 +77,41 @@ function initial(over: Partial<State> = {}): State {
     pluginPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
     mcpPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
     toolsPicker: {
-      open: false, items: [], selected: 0, busy: false, hint: undefined, filter: undefined,
+      open: false,
+      items: [],
+      selected: 0,
+      busy: false,
+      hint: undefined,
+      filter: undefined,
     },
     brainPanel: {
-      open: false, riskLevel: 'medium', log: [], selected: 0, hint: undefined,
+      open: false,
+      riskLevel: 'medium',
+      log: [],
+      selected: 0,
+      hint: undefined,
     },
     authPanel: {
-      open: false, view: 'list', providers: [], presets: [], busy: false, selected: 0,
-      filter: '', catalog: [], catalogFilter: '', input: null, confirm: null, flowLog: [],
+      open: false,
+      view: 'list',
+      providers: [],
+      presets: [],
+      busy: false,
+      selected: 0,
+      filter: '',
+      catalog: [],
+      catalogFilter: '',
+      input: null,
+      confirm: null,
+      flowLog: [],
     },
     projectPicker: {
-      open: false, allItems: [], items: [], selected: 0, filter: '', hint: undefined,
+      open: false,
+      allItems: [],
+      items: [],
+      selected: 0,
+      filter: '',
+      hint: undefined,
     },
     fKeyPicker: { open: false, selected: 0 },
     sessionResumeConfirm: null,
@@ -100,24 +124,55 @@ function initial(over: Partial<State> = {}): State {
     sddBoard: null,
     worktrees: {},
     coordinator: {
-      goals: [], timeline: [], knowledgeCount: 0, monitorOpen: false, healthy: false,
+      goals: [],
+      timeline: [],
+      knowledgeCount: 0,
+      monitorOpen: false,
+      healthy: false,
     },
     settingsPicker: {
-      open: false, field: 0, lastSettingsField: 0,
-      mode: 'off', delayMs: 0, titleAnimation: true, yolo: false,
-      fleetChat: 'off', chime: false, confirmExit: true,
-      nextPrediction: false, featureMcp: true, featurePlugins: true,
-      featureMemory: true, featureSkills: true, featureModelsRegistry: true,
-      tokenSavingTier: 'off', allowOutsideProjectRoot: true,
-      contextAutoCompact: true, contextStrategy: 'hybrid', contextMode: 'balanced',
-      maxConcurrent: 4, logLevel: 'info', auditLevel: 'standard',
-      indexOnStart: true, multiDiffSummaryThreshold: 5,
-      maxIterations: 500, autoProceedMaxIterations: 50,
-      enhanceDelayMs: 60000, enhanceEnabled: true, enhanceLanguage: 'original',
-      debugStream: false, statuslineMode: 'detailed',
-      reasoningMode: 'auto', reasoningEffort: 'high', reasoningPreserve: false,
-      thinkingWord: 'thinking', cacheTtl: 'default', configScope: 'global',
-      animationStyle: 'rainbow', filter: undefined, hint: undefined,
+      open: false,
+      field: 0,
+      lastSettingsField: 0,
+      mode: 'off',
+      delayMs: 0,
+      titleAnimation: true,
+      yolo: false,
+      fleetChat: 'off',
+      chime: false,
+      confirmExit: true,
+      nextPrediction: false,
+      featureMcp: true,
+      featurePlugins: true,
+      featureMemory: true,
+      featureSkills: true,
+      featureModelsRegistry: true,
+      tokenSavingTier: 'off',
+      allowOutsideProjectRoot: true,
+      contextAutoCompact: true,
+      contextStrategy: 'hybrid',
+      contextMode: 'balanced',
+      maxConcurrent: 4,
+      logLevel: 'info',
+      auditLevel: 'standard',
+      indexOnStart: true,
+      multiDiffSummaryThreshold: 5,
+      maxIterations: 500,
+      autoProceedMaxIterations: 50,
+      enhanceDelayMs: 60000,
+      enhanceEnabled: true,
+      enhanceLanguage: 'original',
+      debugStream: false,
+      statuslineMode: 'detailed',
+      reasoningMode: 'auto',
+      reasoningEffort: 'high',
+      reasoningPreserve: false,
+      thinkingWord: 'thinking',
+      cacheTtl: 'default',
+      configScope: 'global',
+      animationStyle: 'rainbow',
+      filter: undefined,
+      hint: undefined,
     },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },
     viewportRows: 0,
@@ -137,7 +192,15 @@ describe('brainPanel reducer — open/close', () => {
         riskLevel: 'high',
         log: [logEntry('tool', 'Allow write to /etc?', 'denied')],
       } as never,
-    ) as unknown as { brainPanel: { open: boolean; riskLevel: string; log: BrainLogEntry[]; selected: number; hint?: string } };
+    ) as unknown as {
+      brainPanel: {
+        open: boolean;
+        riskLevel: string;
+        log: BrainLogEntry[];
+        selected: number;
+        hint?: string;
+      };
+    };
     expect(s.brainPanel.open).toBe(true);
     expect(s.brainPanel.riskLevel).toBe('high');
     expect(s.brainPanel.log).toHaveLength(1);
@@ -166,10 +229,9 @@ describe('brainPanel reducer — open/close', () => {
     ) as unknown as { brainPanel: { open: boolean } };
     expect(opened.brainPanel.open).toBe(true);
 
-    const closed = reducer(
-      opened as never,
-      { type: 'brainClose' } as never,
-    ) as unknown as { brainPanel: { open: boolean } };
+    const closed = reducer(opened as never, { type: 'brainClose' } as never) as unknown as {
+      brainPanel: { open: boolean };
+    };
     expect(closed.brainPanel.open).toBe(false);
   });
 });
@@ -193,8 +255,7 @@ describe('brainPanel reducer — navigation', () => {
 
   it('move wraps forward across log entries', () => {
     let s = openWith([logEntry('a'), logEntry('b'), logEntry('c')]);
-    const sel = () =>
-      (s as unknown as { brainPanel: { selected: number } }).brainPanel.selected;
+    const sel = () => (s as unknown as { brainPanel: { selected: number } }).brainPanel.selected;
     s = reducer(s as never, { type: 'brainMove', delta: 1 } as never) as unknown as State;
     expect(sel()).toBe(1);
     s = reducer(s as never, { type: 'brainMove', delta: 1 } as never) as unknown as State;
@@ -205,8 +266,7 @@ describe('brainPanel reducer — navigation', () => {
 
   it('move wraps backward past the first entry', () => {
     let s = openWith([logEntry('a'), logEntry('b')]);
-    const sel = () =>
-      (s as unknown as { brainPanel: { selected: number } }).brainPanel.selected;
+    const sel = () => (s as unknown as { brainPanel: { selected: number } }).brainPanel.selected;
     s = reducer(s as never, { type: 'brainMove', delta: -1 } as never) as unknown as State;
     expect(sel()).toBe(1);
   });
@@ -214,13 +274,9 @@ describe('brainPanel reducer — navigation', () => {
   it('move clears hint on every navigation', () => {
     let s = openWith([logEntry('a')]);
     s = reducer(s as never, { type: 'brainHint', text: 'hint text' } as never) as unknown as State;
-    expect(
-      (s as unknown as { brainPanel: { hint?: string } }).brainPanel.hint,
-    ).toBe('hint text');
+    expect((s as unknown as { brainPanel: { hint?: string } }).brainPanel.hint).toBe('hint text');
     s = reducer(s as never, { type: 'brainMove', delta: 1 } as never) as unknown as State;
-    expect(
-      (s as unknown as { brainPanel: { hint?: string } }).brainPanel.hint,
-    ).toBeUndefined();
+    expect((s as unknown as { brainPanel: { hint?: string } }).brainPanel.hint).toBeUndefined();
   });
 });
 
@@ -288,8 +344,7 @@ describe('brainPanel reducer — setLog and hint', () => {
     let s = openWith([logEntry('a'), logEntry('b'), logEntry('c')]);
     // Navigate to last entry
     s = reducer(s as never, { type: 'brainMove', delta: 2 } as never) as unknown as State;
-    const sel = () =>
-      (s as unknown as { brainPanel: { selected: number } }).brainPanel.selected;
+    const sel = () => (s as unknown as { brainPanel: { selected: number } }).brainPanel.selected;
     expect(sel()).toBe(2);
 
     // Shrink log to 1 entry
@@ -298,9 +353,9 @@ describe('brainPanel reducer — setLog and hint', () => {
       { type: 'brainSetLog', log: [logEntry('x')] } as never,
     ) as unknown as State;
     expect(sel()).toBe(0);
-    expect(
-      (s as unknown as { brainPanel: { log: BrainLogEntry[] } }).brainPanel.log,
-    ).toHaveLength(1);
+    expect((s as unknown as { brainPanel: { log: BrainLogEntry[] } }).brainPanel.log).toHaveLength(
+      1,
+    );
   });
 
   it('setLog preserves riskLevel', () => {
@@ -330,10 +385,9 @@ describe('brainPanel reducer — setLog and hint', () => {
     ) as unknown as { brainPanel: { hint?: string } };
     expect(withHint.brainPanel.hint).toBe('Risk ceiling → HIGH');
 
-    const cleared = reducer(
-      withHint as never,
-      { type: 'brainHint' } as never,
-    ) as unknown as { brainPanel: { hint?: string } };
+    const cleared = reducer(withHint as never, { type: 'brainHint' } as never) as unknown as {
+      brainPanel: { hint?: string };
+    };
     expect(cleared.brainPanel.hint).toBeUndefined();
   });
 });

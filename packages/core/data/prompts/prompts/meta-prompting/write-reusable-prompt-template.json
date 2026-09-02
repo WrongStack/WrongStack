@@ -5,11 +5,7 @@
   "description": "Generalize a one-off prompt into a parameterized template.",
   "content": "I keep writing variations of this prompt: {{example}}\n\nHelp me turn it into a reusable template with clear {{double-brace}} placeholders for the parts that change. Identify which pieces should be variables, give each a short description and a sensible default where one exists, and keep the fixed scaffolding strong. Show the template and one filled-in example so I can confirm it generalizes correctly.",
   "category": "meta-prompting",
-  "tags": [
-    "template",
-    "reuse",
-    "variables"
-  ],
+  "tags": ["template", "reuse", "variables"],
   "source": "builtin",
   "favorite": false,
   "checksum": "ae6ef347d819537062d3908ae95dda300791b036378120da7a276032571190b8",

@@ -2,7 +2,11 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { childChronicleContext, ChronicleJournal, createChronicleContext } from '../../src/chronicle/index.js';
+import {
+  childChronicleContext,
+  ChronicleJournal,
+  createChronicleContext,
+} from '../../src/chronicle/index.js';
 
 const tempDirs: string[] = [];
 const T0 = '2026-07-17T20:42:18.381Z';
@@ -26,12 +30,15 @@ afterEach(async () => {
 describe('ChronicleJournal', () => {
   it('persists ordered, hash-chained project events', async () => {
     const journal = await makeJournal();
-    const context = createChronicleContext({
-      installationId: 'install-1',
-      machineId: 'machine-1',
-      projectId: 'project-1',
-      sessionId: 'session-1',
-    }, 'trace-1');
+    const context = createChronicleContext(
+      {
+        installationId: 'install-1',
+        machineId: 'machine-1',
+        projectId: 'project-1',
+        sessionId: 'session-1',
+      },
+      'trace-1',
+    );
 
     const first = await journal.append({
       eventType: 'provider.attempt.started',
@@ -51,21 +58,29 @@ describe('ChronicleJournal', () => {
     expect(second.previousHash).toBe(first.hash);
     expect(second.scope.projectId).toBe('project-1');
     expect(second.correlation.parentSpanId).toBe(context.correlation.spanId);
-    await expect(journal.verify()).resolves.toMatchObject({ ok: true, entries: 2, lastSequence: 2 });
+    await expect(journal.verify()).resolves.toMatchObject({
+      ok: true,
+      entries: 2,
+      lastSequence: 2,
+    });
   });
 
   it('serializes concurrent appends without losing sequence numbers', async () => {
     const journal = await makeJournal();
     const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
     await Promise.all(
-      Array.from({ length: 12 }, (_, index) => journal.append({
-        eventType: 'tool.progress',
-        ...context,
-        attributes: { index },
-      })),
+      Array.from({ length: 12 }, (_, index) =>
+        journal.append({
+          eventType: 'tool.progress',
+          ...context,
+          attributes: { index },
+        }),
+      ),
     );
     const entries = await journal.readAll();
-    expect(entries.map((entry) => entry.sequence)).toEqual(Array.from({ length: 12 }, (_, index) => index + 1));
+    expect(entries.map((entry) => entry.sequence)).toEqual(
+      Array.from({ length: 12 }, (_, index) => index + 1),
+    );
     expect(journal.stats()).toMatchObject({
       acceptedEvents: 12,
       persistedEvents: 12,
@@ -79,13 +94,23 @@ describe('ChronicleJournal', () => {
   it('applies bounded backpressure without blocking the caller thread', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-chronicle-pressure-'));
     tempDirs.push(dir);
-    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl'), maxPending: 2, batchWindowMs: 25 });
+    const journal = new ChronicleJournal({
+      filePath: path.join(dir, 'events.jsonl'),
+      maxPending: 2,
+      batchWindowMs: 25,
+    });
     const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
     const first = journal.append({ eventType: 'one', ...context });
     const second = journal.append({ eventType: 'two', ...context });
-    await expect(journal.append({ eventType: 'three', ...context })).rejects.toThrow('backpressure limit');
+    await expect(journal.append({ eventType: 'three', ...context })).rejects.toThrow(
+      'backpressure limit',
+    );
     await Promise.all([first, second]);
-    expect(journal.stats()).toMatchObject({ acceptedEvents: 2, persistedEvents: 2, rejectedEvents: 1 });
+    expect(journal.stats()).toMatchObject({
+      acceptedEvents: 2,
+      persistedEvents: 2,
+      rejectedEvents: 1,
+    });
   });
 
   it('continues the hash chain after rotation and process restart', async () => {
@@ -111,7 +136,11 @@ describe('ChronicleJournal', () => {
     expect(third.sequence).toBe(3);
     expect(third.previousHash).toBe(second.hash);
     expect(first.sequence).toBe(1);
-    await expect(restarted.verify()).resolves.toMatchObject({ ok: true, entries: 3, lastSequence: 3 });
+    await expect(restarted.verify()).resolves.toMatchObject({
+      ok: true,
+      entries: 3,
+      lastSequence: 3,
+    });
   });
 
   it('serializes independent journal instances through one base lock', async () => {
@@ -159,12 +188,20 @@ describe('ChronicleJournal', () => {
   it('detects post-hoc payload tampering', async () => {
     const journal = await makeJournal();
     const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
-    await journal.append({ eventType: 'tool.completed', ...context, attributes: { output: 'safe' } });
+    await journal.append({
+      eventType: 'tool.completed',
+      ...context,
+      attributes: { output: 'safe' },
+    });
 
     const raw = await readFile(journal.path, 'utf8');
     await writeFile(journal.path, raw.replace('safe', 'tampered'), 'utf8');
 
-    await expect(journal.verify()).resolves.toMatchObject({ ok: false, brokenAt: 0, reason: 'entry hash mismatch' });
+    await expect(journal.verify()).resolves.toMatchObject({
+      ok: false,
+      brokenAt: 0,
+      reason: 'entry hash mismatch',
+    });
   });
 
   it('purge dry-run reports the oldest removable prefix without deleting it', async () => {
@@ -210,14 +247,22 @@ describe('ChronicleJournal', () => {
     const activePath = journal.path;
     const oldFile = path.join(dir, 'active.events.jsonl');
     const { utimes } = await import('node:fs/promises');
-    await utimes(oldFile, new Date(Date.now() - 30 * 86400000), new Date(Date.now() - 30 * 86400000));
+    await utimes(
+      oldFile,
+      new Date(Date.now() - 30 * 86400000),
+      new Date(Date.now() - 30 * 86400000),
+    );
 
     const result = await journal.purge({ retentionDays: 7, files: [activePath, oldFile] });
 
     expect(result).toMatchObject({ deletedCount: 1, skippedCount: 1, errors: [] });
     await expect(readFile(activePath, 'utf8')).resolves.toBeTruthy();
     await expect(readFile(oldFile, 'utf8')).rejects.toThrow();
-    await expect(journal.verify()).resolves.toMatchObject({ ok: true, entries: 1, lastSequence: 2 });
+    await expect(journal.verify()).resolves.toMatchObject({
+      ok: true,
+      entries: 1,
+      lastSequence: 2,
+    });
 
     const restarted = new ChronicleJournal({
       filePath: oldFile,
@@ -227,7 +272,11 @@ describe('ChronicleJournal', () => {
     });
     const next = await restarted.append({ eventType: 'after-retention', ...context });
     expect(next).toMatchObject({ sequence: 3 });
-    await expect(restarted.verify()).resolves.toMatchObject({ ok: true, entries: 2, lastSequence: 3 });
+    await expect(restarted.verify()).resolves.toMatchObject({
+      ok: true,
+      entries: 2,
+      lastSequence: 3,
+    });
   });
 
   it('validates checkpoint-covered bytes that remain after a purge interruption', async () => {
@@ -284,7 +333,11 @@ describe('ChronicleJournal', () => {
     const oldJournal = new ChronicleJournal({ filePath: oldPath, batchWindowMs: 0 });
     await oldJournal.append({ eventType: 'old', ...context });
     const { utimes } = await import('node:fs/promises');
-    await utimes(oldPath, new Date(Date.now() - 30 * 86400000), new Date(Date.now() - 30 * 86400000));
+    await utimes(
+      oldPath,
+      new Date(Date.now() - 30 * 86400000),
+      new Date(Date.now() - 30 * 86400000),
+    );
 
     const journal = new ChronicleJournal({
       filePath: path.join(dir, '2026-07-18.events.jsonl'),
@@ -295,7 +348,14 @@ describe('ChronicleJournal', () => {
     });
     await journal.append({ eventType: 'fresh', ...context });
 
-    await expect.poll(async () => readFile(oldPath, 'utf8').then(() => false, () => true)).toBe(true);
+    await expect
+      .poll(async () =>
+        readFile(oldPath, 'utf8').then(
+          () => false,
+          () => true,
+        ),
+      )
+      .toBe(true);
     await expect(readFile(journal.path, 'utf8')).resolves.toBeTruthy();
   });
 });

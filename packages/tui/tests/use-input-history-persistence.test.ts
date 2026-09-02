@@ -11,7 +11,9 @@ import type { State } from '../src/app-reducer.js';
 vi.mock('@wrongstack/core/storage', () => {
   const mockStore = {
     _entries: [] as string[],
-    load: vi.fn(async function (this: typeof mockStore) { return this._entries; }),
+    load: vi.fn(async function (this: typeof mockStore) {
+      return this._entries;
+    }),
     save: vi.fn(async () => undefined),
   };
   return {
@@ -39,7 +41,9 @@ interface HarnessRefs {
 function buildHarness(): HarnessRefs {
   return {
     projectRoot: '/test/project',
-    inputHistory: [{ displayText: 'hello', blocks: [] as never[] }] as unknown as State['inputHistory'],
+    inputHistory: [
+      { displayText: 'hello', blocks: [] as never[] },
+    ] as unknown as State['inputHistory'],
     dispatch: vi.fn(),
   };
 }
@@ -80,7 +84,9 @@ describe('useInputHistoryPersistence', () => {
   it('does not dispatch when loaded entries are empty', async () => {
     const refs = buildHarness();
     render(React.createElement(Harness, { refs }));
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     // No setInputHistory dispatch
     expect(refs.dispatch).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'setInputHistory' }),
@@ -90,15 +96,28 @@ describe('useInputHistoryPersistence', () => {
   it('saves history on change with debounce', async () => {
     const refs = buildHarness();
     render(React.createElement(Harness, { refs }));
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     // Trigger save by updating inputHistory
-    render(React.createElement(Harness, { refs: { ...refs, inputHistory: [{ displayText: 'new', blocks: [] as never[] }] as unknown as State['inputHistory'] } }));
+    render(
+      React.createElement(Harness, {
+        refs: {
+          ...refs,
+          inputHistory: [
+            { displayText: 'new', blocks: [] as never[] },
+          ] as unknown as State['inputHistory'],
+        },
+      }),
+    );
   });
 
   it('skips save when snapshot matches last saved', async () => {
     const refs = buildHarness();
     render(React.createElement(Harness, { refs }));
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     // Re-render with same inputHistory - snapshot should match
     render(React.createElement(Harness, { refs }));
   });
@@ -107,7 +126,9 @@ describe('useInputHistoryPersistence', () => {
     const { InputHistoryStore } = await import('@wrongstack/core/storage');
     (InputHistoryStore as unknown as Mock).mockImplementation(() => ({
       _entries: [],
-      load: vi.fn(async () => { throw new Error('load error'); }),
+      load: vi.fn(async () => {
+        throw new Error('load error');
+      }),
       save: vi.fn(async () => undefined),
     }));
     const refs = buildHarness();

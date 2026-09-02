@@ -63,7 +63,9 @@ describe('KanbanCleanerAlert', () => {
 
     expect(screen.queryByRole('button', { name: /Open Repair lease/ })).toBeNull();
     expect(
-      screen.getByRole('button', { name: 'Expand Kanban Cleaner issues' }).getAttribute('aria-expanded'),
+      screen
+        .getByRole('button', { name: 'Expand Kanban Cleaner issues' })
+        .getAttribute('aria-expanded'),
     ).toBe('false');
   });
 
@@ -85,7 +87,9 @@ describe('KanbanCleanerAlert', () => {
     // The 5s board poll hands the component a fresh audit object each time;
     // the collapse must survive it (this regressed when the panel
     // auto-expanded on any issues.length change).
-    rerender(<KanbanCleanerAlert audit={{ ...audit, issues: [...audit.issues] }} onSelectTask={vi.fn()} />);
+    rerender(
+      <KanbanCleanerAlert audit={{ ...audit, issues: [...audit.issues] }} onSelectTask={vi.fn()} />,
+    );
     expect(screen.getByRole('button', { name: 'Expand Kanban Cleaner issues' })).toBeTruthy();
   });
 

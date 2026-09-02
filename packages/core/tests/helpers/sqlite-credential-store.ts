@@ -23,7 +23,9 @@ import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 
 export interface CredentialStoreLike {
   load(): Promise<void>;
-  issue(options: IssueCredentialOptions): Promise<{ credential: MailboxCredential; secret: string }>;
+  issue(
+    options: IssueCredentialOptions,
+  ): Promise<{ credential: MailboxCredential; secret: string }>;
   verify(credentialId: string, secret: string): CredentialValidation;
   verifyPersisted(credentialId: string, secret: string): Promise<CredentialValidation>;
   revoke(credentialId: string, reason?: string, by?: string): Promise<boolean>;
@@ -67,8 +69,7 @@ export function openCredentialStore(projectDir: string): CredentialStoreLike {
     load: async () => {},
     issue: async (options) => mailbox.credentialIssue(options),
     verify: (credentialId, secret) => mailbox.credentialVerify(credentialId, secret),
-    verifyPersisted: async (credentialId, secret) =>
-      mailbox.credentialVerify(credentialId, secret),
+    verifyPersisted: async (credentialId, secret) => mailbox.credentialVerify(credentialId, secret),
     revoke: async (credentialId, reason, by) => mailbox.credentialRevoke(credentialId, reason, by),
     rotate: async (credentialId, options) => mailbox.credentialRotate(credentialId, options),
     get: (credentialId) => mailbox.credentialGet(credentialId),

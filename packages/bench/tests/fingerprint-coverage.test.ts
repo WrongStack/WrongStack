@@ -68,12 +68,8 @@ describe('computeToolManifestHash edge cases', () => {
   });
 
   it('differentiates tools with different risk tiers', () => {
-    const a = computeToolManifestHash([
-      { name: 'bash', riskTier: 'high' },
-    ]);
-    const b = computeToolManifestHash([
-      { name: 'bash', riskTier: 'medium' },
-    ]);
+    const a = computeToolManifestHash([{ name: 'bash', riskTier: 'high' }]);
+    const b = computeToolManifestHash([{ name: 'bash', riskTier: 'medium' }]);
     expect(a).not.toBe(b);
   });
 });

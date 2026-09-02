@@ -10,7 +10,9 @@ function mockWs() {
 }
 
 function sentMessages(ws: ReturnType<typeof mockWs>) {
-  return ws.send.mock.calls.map(([raw]) => JSON.parse(String(raw)) as { type: string; payload: Record<string, unknown> });
+  return ws.send.mock.calls.map(
+    ([raw]) => JSON.parse(String(raw)) as { type: string; payload: Record<string, unknown> },
+  );
 }
 
 function handlers(): ProjectRouteHandlers {
@@ -27,36 +29,30 @@ describe('handleProjectRoute dispatcher characterization', () => {
     const ws = mockWs();
     const h = handlers();
 
-    await expect(
-      handleProjectRoute(ws, { type: 'git.info', payload: {} }, h),
-    ).resolves.toBe(false);
+    await expect(handleProjectRoute(ws, { type: 'git.info', payload: {} }, h)).resolves.toBe(false);
 
     expect(ws.send).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['projects.list'],
-    ['projects.add'],
-    ['projects.select'],
-    ['working_dir.set'],
-  ])('dispatches %s to the correct handler and returns true', async (type) => {
-    const ws = mockWs();
-    const h = handlers();
+  it.each([['projects.list'], ['projects.add'], ['projects.select'], ['working_dir.set']])(
+    'dispatches %s to the correct handler and returns true',
+    async (type) => {
+      const ws = mockWs();
+      const h = handlers();
 
-    await expect(
-      handleProjectRoute(ws, { type, payload: {} }, h),
-    ).resolves.toBe(true);
+      await expect(handleProjectRoute(ws, { type, payload: {} }, h)).resolves.toBe(true);
 
-    const handlerMap: Record<string, ReturnType<typeof vi.fn>> = {
-      'projects.list': h.listProjects as ReturnType<typeof vi.fn>,
-      'projects.add': h.addProject as ReturnType<typeof vi.fn>,
-      'projects.select': h.selectProject as ReturnType<typeof vi.fn>,
-      'working_dir.set': h.setWorkingDir as ReturnType<typeof vi.fn>,
-    };
+      const handlerMap: Record<string, ReturnType<typeof vi.fn>> = {
+        'projects.list': h.listProjects as ReturnType<typeof vi.fn>,
+        'projects.add': h.addProject as ReturnType<typeof vi.fn>,
+        'projects.select': h.selectProject as ReturnType<typeof vi.fn>,
+        'working_dir.set': h.setWorkingDir as ReturnType<typeof vi.fn>,
+      };
 
-    expect(handlerMap[type]).toHaveBeenCalledTimes(1);
-    expect(handlerMap[type]).toHaveBeenCalledWith(ws, expect.anything());
-  });
+      expect(handlerMap[type]).toHaveBeenCalledTimes(1);
+      expect(handlerMap[type]).toHaveBeenCalledWith(ws, expect.anything());
+    },
+  );
 
   it('does not invoke any other handler when one type is dispatched', async () => {
     const ws = mockWs();
@@ -84,7 +80,10 @@ describe('handleProjectRoute dispatcher characterization', () => {
   it('dispatches projects.add with the original message object', async () => {
     const ws = mockWs();
     const h = handlers();
-    const msg = { type: 'projects.add', payload: { root: '/home/user/project', name: 'My Project' } };
+    const msg = {
+      type: 'projects.add',
+      payload: { root: '/home/user/project', name: 'My Project' },
+    };
 
     await handleProjectRoute(ws, msg, h);
 

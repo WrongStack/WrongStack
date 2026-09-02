@@ -54,13 +54,7 @@ import { send } from './ws-utils.js';
  */
 async function authorizeMcpMutation(
   ws: WebSocket,
-  operation:
-    | 'mcp.add'
-    | 'mcp.update'
-    | 'mcp.enable'
-    | 'mcp.disable'
-    | 'mcp.wake'
-    | 'mcp.restart',
+  operation: 'mcp.add' | 'mcp.update' | 'mcp.enable' | 'mcp.disable' | 'mcp.wake' | 'mcp.restart',
   serverName: string,
   trustBoundary: TrustBoundary | undefined,
 ): Promise<boolean> {

@@ -42,10 +42,8 @@ const api: WrongStackDesktopApi = {
     return () => ipcRenderer.off(IPC.conversationChanged, handler);
   },
   onWebuiStatusChanged: (cb: (status: DesktopWebuiStatusSnapshot) => void) => {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      status: DesktopWebuiStatusSnapshot,
-    ) => cb(status);
+    const handler = (_event: Electron.IpcRendererEvent, status: DesktopWebuiStatusSnapshot) =>
+      cb(status);
     ipcRenderer.on(IPC.webuiStatusChanged, handler);
     return () => ipcRenderer.off(IPC.webuiStatusChanged, handler);
   },

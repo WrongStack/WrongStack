@@ -56,10 +56,9 @@ export class GoalAssessor {
 
   /** Build the instruction prompt for the LLM. */
   buildPrompt(): string {
-    return renderInstructionTemplate(
-      readBundledInstructionText('goal/goal-assessor.md'),
-      { goal: this.opts.goal },
-    );
+    return renderInstructionTemplate(readBundledInstructionText('goal/goal-assessor.md'), {
+      goal: this.opts.goal,
+    });
   }
 
   /** Extract and validate the JSON object from the raw LLM output. */

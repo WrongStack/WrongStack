@@ -1,10 +1,4 @@
-import {
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Download,
-  Loader2,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Download, Loader2 } from 'lucide-react';
 import { memo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { getToolTooltip, getToolVisual } from '@/lib/tool-icon';
@@ -44,11 +38,7 @@ const DOT_COLOR: Record<Status, string> = {
  * footer. Sharp corners by design — the identity is the rail + hairline, not
  * rounding. Replaces the old two-part "chevron button + gray box" layout.
  */
-export const ToolLedgerCard = memo(function ToolLedgerCard({
-  message,
-}: {
-  message: ChatMessage;
-}) {
+export const ToolLedgerCard = memo(function ToolLedgerCard({ message }: { message: ChatMessage }) {
   const { t } = useAppTranslation();
   const [expanded, setExpanded] = useState(false);
   const status = statusOf(message);
@@ -90,31 +80,35 @@ export const ToolLedgerCard = memo(function ToolLedgerCard({
           'transition-colors',
         )}
       >
-        <span className={cn('ws-ledger__dot', DOT_COLOR[status], status === 'running' && 'ws-ledger__dot--running')} />
+        <span
+          className={cn(
+            'ws-ledger__dot',
+            DOT_COLOR[status],
+            status === 'running' && 'ws-ledger__dot--running',
+          )}
+        />
         <ToolIcon className="h-3.5 w-3.5 shrink-0" style={{ color: toolColor }} />
         <span className="font-semibold tracking-tight" style={{ color: toolColor }}>
           {message.toolName}
         </span>
 
         {inputSummary && (
-          <span className="min-w-0 flex-1 truncate text-muted-foreground/80">
-            {inputSummary}
-          </span>
+          <span className="min-w-0 flex-1 truncate text-muted-foreground/80">{inputSummary}</span>
         )}
         {!inputSummary && <span className="flex-1" />}
 
         {/* Meta cluster — right aligned, tabular so it doesn't jitter. */}
         <span className="flex shrink-0 items-center gap-2 tabular-nums text-muted-foreground/75">
           {resultLines > 0 && !expanded && (
-            <span className="text-[10px]">{t('activity:message.linesSuffix', { count: resultLines })}</span>
+            <span className="text-[10px]">
+              {t('activity:message.linesSuffix', { count: resultLines })}
+            </span>
           )}
           {exitCode !== undefined && (
             <span
               className={cn(
                 'px-1 text-[10px] font-semibold',
-                exitCode === 0
-                  ? 'text-success/90'
-                  : 'text-destructive',
+                exitCode === 0 ? 'text-success/90' : 'text-destructive',
               )}
             >
               exit {exitCode}

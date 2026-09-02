@@ -57,9 +57,7 @@ export interface GitHubCopilotProviderOptions {
   fetchImpl?: typeof fetch | undefined;
   capabilities?: Partial<Capabilities> | undefined;
   streamOpts?: WireAdapterStreamOptions | undefined;
-  onRefresh?:
-    | ((creds: { accessToken: string; expiresAt: number }) => void)
-    | undefined;
+  onRefresh?: ((creds: { accessToken: string; expiresAt: number }) => void) | undefined;
   refreshFn?:
     | ((githubToken: string, signal?: AbortSignal) => Promise<CopilotTokenResult>)
     | undefined;
@@ -95,10 +93,13 @@ export class GitHubCopilotProvider extends WireFormatProvider<OpenAIStreamState>
     this.githubToken = opts.credentials.githubToken;
     this.apiBase = apiBase;
     this.refreshFn = opts.refreshFn ?? refreshCopilotToken;
-    this.refreshCoordinator = new OAuthRefreshCoordinator<CopilotTokenResult, {
-      accessToken: string;
-      expiresAt: number;
-    }>({
+    this.refreshCoordinator = new OAuthRefreshCoordinator<
+      CopilotTokenResult,
+      {
+        accessToken: string;
+        expiresAt: number;
+      }
+    >({
       // The "refresh key" here is the long-lived GitHub OAuth token, which
       // does NOT rotate. The rotated value is the short-lived Copilot token.
       initialRefreshKey: opts.credentials.githubToken,

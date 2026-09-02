@@ -54,11 +54,7 @@ export function MemoryDrawerToolbar({
             : t('activity:memoryManager.showFileDrawer')
         }
       >
-        {drawerActive ? (
-          <PanelRightOpen className="size-3" />
-        ) : (
-          <PanelRight className="size-3" />
-        )}
+        {drawerActive ? <PanelRightOpen className="size-3" /> : <PanelRight className="size-3" />}
         {drawerActive
           ? t('activity:memoryManager.hideDrawer')
           : t('activity:memoryManager.showDrawer')}

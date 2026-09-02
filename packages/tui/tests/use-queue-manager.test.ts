@@ -22,7 +22,10 @@ function makeQueueStore(overrides?: Partial<QueueStore>): QueueStore {
   } as unknown as QueueStore;
 }
 
-function makeRegistry(): SlashCommandRegistry & { registered: { name: string }[]; unregisterCalls: string[] } {
+function makeRegistry(): SlashCommandRegistry & {
+  registered: { name: string }[];
+  unregisterCalls: string[];
+} {
   const registered: { name: string }[] = [];
   const unregisterCalls: string[] = [];
   const commands = new Map<string, unknown>();
@@ -40,7 +43,10 @@ function makeRegistry(): SlashCommandRegistry & { registered: { name: string }[]
     get(name: string) {
       return commands.get(name);
     },
-  } as unknown as SlashCommandRegistry & { registered: { name: string }[]; unregisterCalls: string[] };
+  } as unknown as SlashCommandRegistry & {
+    registered: { name: string }[];
+    unregisterCalls: string[];
+  };
 }
 
 interface HarnessRefs {
@@ -64,7 +70,7 @@ function buildHarness(): HarnessRefs {
     slashRegistry: makeRegistry(),
     stateRef: { current: state },
     dispatch: vi.fn(),
-    getSettings: vi.fn(() => ({ midRunSendPicker: false } as unknown as Settings)),
+    getSettings: vi.fn(() => ({ midRunSendPicker: false }) as unknown as Settings),
     saveSettings: vi.fn(() => null),
     midRunSendPickerRef: { current: false },
   };
@@ -118,9 +124,7 @@ describe('useQueueManager', () => {
     refs.queueStore = makeQueueStore({ read: vi.fn(async () => persisted) });
     render(React.createElement(Harness, { refs }));
     await vi.waitFor(() => {
-      expect(refs.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'enqueue' }),
-      );
+      expect(refs.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'enqueue' }));
     });
     // journalRaw survives rehydration so a refined prompt's provenance is
     // not lost across a restart.
@@ -144,18 +148,14 @@ describe('useQueueManager', () => {
 
   it('does not clear or write an empty queue when the read restores items', async () => {
     const refs = buildHarness();
-    const persisted = [
-      { displayText: 'msg1', blocks: [{ type: 'text' as const, text: 'hello' }] },
-    ];
+    const persisted = [{ displayText: 'msg1', blocks: [{ type: 'text' as const, text: 'hello' }] }];
     const store = makeQueueStore({ read: vi.fn(async () => persisted) });
     refs.queueStore = store;
     render(React.createElement(Harness, { refs }));
 
     // The restored item is dispatched (rehydration succeeds).
     await vi.waitFor(() => {
-      expect(refs.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'enqueue' }),
-      );
+      expect(refs.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'enqueue' }));
     });
 
     // Regression (chimera High on the flush-after-hydration change): when the
@@ -169,9 +169,7 @@ describe('useQueueManager', () => {
 
   it('persists restored items plus a pre-hydration enqueue, never clearing', async () => {
     const refs = buildHarness();
-    const persisted = [
-      { displayText: 'restored', blocks: [{ type: 'text' as const, text: 'r' }] },
-    ];
+    const persisted = [{ displayText: 'restored', blocks: [{ type: 'text' as const, text: 'r' }] }];
     const store = makeQueueStore({ read: vi.fn(async () => persisted) });
     refs.queueStore = store;
     // The user enqueues BEFORE the read resolves (pre-hydration window) while
@@ -186,7 +184,10 @@ describe('useQueueManager', () => {
 
     await vi.waitFor(() => {
       expect(refs.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'enqueue', item: expect.objectContaining({ displayText: 'restored' }) }),
+        expect.objectContaining({
+          type: 'enqueue',
+          item: expect.objectContaining({ displayText: 'restored' }),
+        }),
       );
     });
 
@@ -218,7 +219,9 @@ describe('useQueueManager', () => {
     refs.queueStore = makeQueueStore();
     render(React.createElement(Harness, { refs }));
     // Wait for promise to resolve - should not dispatch unless cancelled
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     const enqueueCalls = refs.dispatch.mock.calls.filter(
       (c: unknown[]) => (c[0] as Action).type === 'enqueue',
     );
@@ -227,9 +230,15 @@ describe('useQueueManager', () => {
 
   it('handles rehydration error gracefully', async () => {
     const refs = buildHarness();
-    refs.queueStore = makeQueueStore({ read: vi.fn(async () => { throw new Error('read error'); }) });
+    refs.queueStore = makeQueueStore({
+      read: vi.fn(async () => {
+        throw new Error('read error');
+      }),
+    });
     render(React.createElement(Harness, { refs }));
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     // Should not have dispatched anything on failure
     expect(refs.dispatch).not.toHaveBeenCalled();
   });
@@ -274,9 +283,9 @@ describe('useQueueManager', () => {
   it('calls onQueueChange when queue changes', async () => {
     const refs = buildHarness();
     refs.queueStore = makeQueueStore();
-    refs.stateRef.current = { queue: [
-      { displayText: 'item1', blocks: [] as ContentBlock[] },
-    ] } as unknown as State;
+    refs.stateRef.current = {
+      queue: [{ displayText: 'item1', blocks: [] as ContentBlock[] }],
+    } as unknown as State;
     render(React.createElement(Harness, { refs }));
 
     await vi.waitFor(() => {

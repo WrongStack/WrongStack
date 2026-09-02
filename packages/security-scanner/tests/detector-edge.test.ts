@@ -44,7 +44,9 @@ describe('TechStackDetector - remaining uncovered paths', () => {
       '.mvn/jvm.config': '-Xmx512m',
     });
     const result = await detector.detect(dir);
-    expect(result.detectedStacks.some((s) => s.stack === 'java' && s.packageManager === 'maven')).toBe(true);
+    expect(
+      result.detectedStacks.some((s) => s.stack === 'java' && s.packageManager === 'maven'),
+    ).toBe(true);
   });
 
   // ── MATCHERS.yarnConfig — second branch: yarn.config.js ──────────────────
@@ -81,7 +83,8 @@ describe('TechStackDetector - remaining uncovered paths', () => {
   // ── .NET with fsproj (glob pattern in lockFiles) ──────────────────────────
   it('detects .NET with fsproj file (glob pattern in dotnetSdk)', async () => {
     const dir = await createProject({
-      'MyLib.fsproj': '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>',
+      'MyLib.fsproj':
+        '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>',
     });
     const result = await detector.detect(dir);
     expect(result.detectedStacks.some((s) => s.stack === 'dotnet')).toBe(true);
@@ -100,7 +103,7 @@ describe('TechStackDetector - remaining uncovered paths', () => {
   it('detects Gradle KTS project with gradlew', async () => {
     const dir = await createProject({
       'build.gradle.kts': 'plugins { kotlin("jvm") version "1.9" }',
-      'gradlew': '#!/bin/bash',
+      gradlew: '#!/bin/bash',
     });
     const result = await detector.detect(dir);
     expect(result.detectedStacks.some((s) => s.packageManager === 'gradle')).toBe(true);
@@ -122,7 +125,8 @@ describe('TechStackDetector - remaining uncovered paths', () => {
   it('detects .NET monorepo with Directory.Build.props indicator', async () => {
     const dir = await createProject({
       'MyApp.csproj': '<Project Sdk="Microsoft.NET.Sdk"></Project>',
-      'Directory.Build.props': '<Project><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>',
+      'Directory.Build.props':
+        '<Project><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>',
     });
     const result = await detector.detect(dir);
     expect(result.isMonorepo).toBe(true);
@@ -204,7 +208,7 @@ describe('TechStackDetector - remaining uncovered paths', () => {
   // ── Ruby project (Gemfile only) ───────────────────────────────────────────
   it('detects Ruby project with Gemfile only', async () => {
     const dir = await createProject({
-      'Gemfile': 'source "https://rubygems.org"\ngem "rails"',
+      Gemfile: 'source "https://rubygems.org"\ngem "rails"',
     });
     const result = await detector.detect(dir);
     expect(result.detectedStacks.some((s) => s.stack === 'ruby')).toBe(true);
@@ -248,18 +252,15 @@ describe('TechStackDetector - remaining uncovered paths', () => {
         files: string[],
       ): string[];
     };
-    expect(
-      internals.findWorkspaceConfigs([{ packageManager: 'future-pm' }], [], []),
-    ).toEqual([]);
+    expect(internals.findWorkspaceConfigs([{ packageManager: 'future-pm' }], [], [])).toEqual([]);
   });
 
   it('does not match manifest wildcard patterns when dot is substituted with arbitrary characters', async () => {
     const dir = await createProject({
-      'my_csproj': 'not a real csproj file',
-      'fooAcsproj': 'not a real csproj file',
+      my_csproj: 'not a real csproj file',
+      fooAcsproj: 'not a real csproj file',
     });
     const result = await detector.detect(dir);
     expect(result.detectedStacks.some((s) => s.stack === 'dotnet')).toBe(false);
   });
 });
-

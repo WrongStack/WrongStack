@@ -1,5 +1,10 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { KnowledgeGraph, type FactNode, type GoalNode, type ChangeNode, } from '../../src/coordination/knowledge-graph.js';
+import {
+  KnowledgeGraph,
+  type FactNode,
+  type GoalNode,
+  type ChangeNode,
+} from '../../src/coordination/knowledge-graph.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -204,9 +209,42 @@ describe('KnowledgeGraph', () => {
     it('filters by type', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'fact', category: 'bug', subject: 'Fact1', detail: '', key: 'k1', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'Goal1', description: '', status: 'pending', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'fact', category: 'security', subject: 'Fact2', detail: '', key: 'k2', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'bug',
+        subject: 'Fact1',
+        detail: '',
+        key: 'k1',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'Goal1',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'security',
+        subject: 'Fact2',
+        detail: '',
+        key: 'k2',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
 
       const facts = graph.getAll({ type: 'fact' });
       expect(facts).toHaveLength(2);
@@ -218,9 +256,39 @@ describe('KnowledgeGraph', () => {
     it('filters by category', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'fact', category: 'bug', subject: 'Bug1', detail: '', key: 'k1', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
-      await graph.add({ type: 'fact', category: 'security', subject: 'Sec1', detail: '', key: 'k2', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
-      await graph.add({ type: 'fact', category: 'bug', subject: 'Bug2', detail: '', key: 'k3', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'bug',
+        subject: 'Bug1',
+        detail: '',
+        key: 'k1',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'security',
+        subject: 'Sec1',
+        detail: '',
+        key: 'k2',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'bug',
+        subject: 'Bug2',
+        detail: '',
+        key: 'k3',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
 
       const bugs = graph.getAll({ type: 'fact', category: 'bug' });
       expect(bugs).toHaveLength(2);
@@ -229,9 +297,48 @@ describe('KnowledgeGraph', () => {
     it('filters by status', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'goal', title: 'G1', description: '', status: 'pending', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'G2', description: '', status: 'in_progress', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'G3', description: '', status: 'pending', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G1',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G2',
+        description: '',
+        status: 'in_progress',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G3',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
 
       const pending = graph.getAll({ type: 'goal', status: 'pending' });
       expect(pending).toHaveLength(2);
@@ -245,9 +352,45 @@ describe('KnowledgeGraph', () => {
     it('returns only goal nodes', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'fact', category: 'bug', subject: 'F', detail: '', key: 'k1', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'G1', description: '', status: 'pending', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'G2', description: '', status: 'done', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'bug',
+        subject: 'F',
+        detail: '',
+        key: 'k1',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G1',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G2',
+        description: '',
+        status: 'done',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
 
       const goals = graph.getGoals();
       expect(goals).toHaveLength(2);
@@ -256,8 +399,36 @@ describe('KnowledgeGraph', () => {
     it('filters by assignee', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'goal', title: 'G1', description: '', status: 'in_progress', priority: 'medium', assignee: 'agent-1', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'G2', description: '', status: 'in_progress', priority: 'medium', assignee: 'agent-2', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G1',
+        description: '',
+        status: 'in_progress',
+        priority: 'medium',
+        assignee: 'agent-1',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G2',
+        description: '',
+        status: 'in_progress',
+        priority: 'medium',
+        assignee: 'agent-2',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
 
       const agent1Goals = graph.getGoals({ assignee: 'agent-1' });
       expect(agent1Goals).toHaveLength(1);
@@ -268,8 +439,34 @@ describe('KnowledgeGraph', () => {
       // Note: _matches doesn't filter by priority internally - callers must filter post-query
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'goal', title: 'G1', description: '', status: 'pending', priority: 'critical', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'G2', description: '', status: 'pending', priority: 'low', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G1',
+        description: '',
+        status: 'pending',
+        priority: 'critical',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G2',
+        description: '',
+        status: 'pending',
+        priority: 'low',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
 
       // Parameter accepted (all goals returned since _matches doesn't filter by priority)
       const goals = graph.getGoals({ priority: 'critical' });
@@ -281,9 +478,48 @@ describe('KnowledgeGraph', () => {
     it('getOpenGoals returns pending and in_progress', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'goal', title: 'G1', description: '', status: 'pending', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'G2', description: '', status: 'in_progress', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'G3', description: '', status: 'done', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G1',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G2',
+        description: '',
+        status: 'in_progress',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G3',
+        description: '',
+        status: 'done',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
 
       const open = graph.getOpenGoals();
       expect(open).toHaveLength(2);
@@ -292,8 +528,34 @@ describe('KnowledgeGraph', () => {
     it('getBlockedGoals returns blocked goals', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'goal', title: 'G1', description: '', status: 'blocked', priority: 'medium', blockedBy: ['other'], createdBy: 'a', createdAt: '', updatedAt: '', dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'G2', description: '', status: 'pending', priority: 'medium', blockedBy: [], createdBy: 'a', createdAt: '', updatedAt: '', dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G1',
+        description: '',
+        status: 'blocked',
+        priority: 'medium',
+        blockedBy: ['other'],
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G2',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        blockedBy: [],
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
 
       const blocked = graph.getBlockedGoals();
       expect(blocked).toHaveLength(1);
@@ -305,8 +567,31 @@ describe('KnowledgeGraph', () => {
     it('returns only change nodes', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'fact', category: 'bug', subject: 'F', detail: '', key: 'k1', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
-      await graph.add({ type: 'change', title: 'C1', description: '', files: [], status: 'proposed', proposedBy: 'a', proposedAt: '', approvedBy: [], rejectedBy: [], votes: [], qualityGate: { passed: false, checks: [] }, satisfiesGoals: [] } as Omit<ChangeNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'bug',
+        subject: 'F',
+        detail: '',
+        key: 'k1',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'change',
+        title: 'C1',
+        description: '',
+        files: [],
+        status: 'proposed',
+        proposedBy: 'a',
+        proposedAt: '',
+        approvedBy: [],
+        rejectedBy: [],
+        votes: [],
+        qualityGate: { passed: false, checks: [] },
+        satisfiesGoals: [],
+      } as Omit<ChangeNode, 'id'>);
 
       const changes = graph.getChanges();
       expect(changes).toHaveLength(1);
@@ -315,8 +600,34 @@ describe('KnowledgeGraph', () => {
     it('filters by status', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'change', title: 'C1', description: '', files: [], status: 'proposed', proposedBy: 'a', proposedAt: '', approvedBy: [], rejectedBy: [], votes: [], qualityGate: { passed: false, checks: [] }, satisfiesGoals: [] } as Omit<ChangeNode, 'id'>);
-      await graph.add({ type: 'change', title: 'C2', description: '', files: [], status: 'approved', proposedBy: 'a', proposedAt: '', approvedBy: [], rejectedBy: [], votes: [], qualityGate: { passed: true, checks: [] }, satisfiesGoals: [] } as Omit<ChangeNode, 'id'>);
+      await graph.add({
+        type: 'change',
+        title: 'C1',
+        description: '',
+        files: [],
+        status: 'proposed',
+        proposedBy: 'a',
+        proposedAt: '',
+        approvedBy: [],
+        rejectedBy: [],
+        votes: [],
+        qualityGate: { passed: false, checks: [] },
+        satisfiesGoals: [],
+      } as Omit<ChangeNode, 'id'>);
+      await graph.add({
+        type: 'change',
+        title: 'C2',
+        description: '',
+        files: [],
+        status: 'approved',
+        proposedBy: 'a',
+        proposedAt: '',
+        approvedBy: [],
+        rejectedBy: [],
+        votes: [],
+        qualityGate: { passed: true, checks: [] },
+        satisfiesGoals: [],
+      } as Omit<ChangeNode, 'id'>);
 
       const proposed = graph.getChanges({ status: 'proposed' });
       expect(proposed).toHaveLength(1);
@@ -328,8 +639,31 @@ describe('KnowledgeGraph', () => {
     it('returns only fact nodes', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'goal', title: 'G', description: '', status: 'pending', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'fact', category: 'bug', subject: 'F1', detail: '', key: 'k1', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'G',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'bug',
+        subject: 'F1',
+        detail: '',
+        key: 'k1',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
 
       const facts = graph.getFacts();
       expect(facts).toHaveLength(1);
@@ -339,8 +673,30 @@ describe('KnowledgeGraph', () => {
       // Note: _matches doesn't filter by severity internally - callers must filter post-query
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'fact', category: 'bug', subject: 'F1', detail: '', key: 'k1', severity: 'critical', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
-      await graph.add({ type: 'fact', category: 'bug', subject: 'F2', detail: '', key: 'k2', severity: 'low', discoveredBy: 'a', discoveredAt: '', tags: [], related: [] } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'bug',
+        subject: 'F1',
+        detail: '',
+        key: 'k1',
+        severity: 'critical',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
+      await graph.add({
+        type: 'fact',
+        category: 'bug',
+        subject: 'F2',
+        detail: '',
+        key: 'k2',
+        severity: 'low',
+        discoveredBy: 'a',
+        discoveredAt: '',
+        tags: [],
+        related: [],
+      } as Omit<FactNode, 'id'>);
 
       // Parameter accepted (all facts returned since _matches doesn't filter by severity)
       const facts = graph.getFacts({ severity: 'critical' });
@@ -352,8 +708,35 @@ describe('KnowledgeGraph', () => {
     it('returns goals without parentGoal', async () => {
       const graph = new KnowledgeGraph(tempDir);
 
-      await graph.add({ type: 'goal', title: 'Parent', description: '', status: 'pending', priority: 'medium', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
-      await graph.add({ type: 'goal', title: 'Child', description: '', status: 'pending', priority: 'medium', parentGoal: 'some-parent', createdBy: 'a', createdAt: '', updatedAt: '', blockedBy: [], dependsOn: [], tags: [], children: [] } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'Parent',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
+      await graph.add({
+        type: 'goal',
+        title: 'Child',
+        description: '',
+        status: 'pending',
+        priority: 'medium',
+        parentGoal: 'some-parent',
+        createdBy: 'a',
+        createdAt: '',
+        updatedAt: '',
+        blockedBy: [],
+        dependsOn: [],
+        tags: [],
+        children: [],
+      } as Omit<GoalNode, 'id'>);
 
       const topLevel = graph.getTopLevelGoals();
       expect(topLevel).toHaveLength(1);

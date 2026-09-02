@@ -82,7 +82,13 @@ function makeApi(): Any {
     container: {},
     events: { on: () => () => {}, emit() {} },
     config: { extensions: {} },
-    log: { info() {}, warn() {}, error() {}, debug() {}, child: () => ({ info() {}, warn() {}, error() {}, debug() {} }) },
+    log: {
+      info() {},
+      warn() {},
+      error() {},
+      debug() {},
+      child: () => ({ info() {}, warn() {}, error() {}, debug() {} }),
+    },
     metrics: { counter() {}, histogram() {}, gauge() {} },
     session: { append: async () => {} },
     // ExtensionRegistry.register returns the unregister FUNCTION directly.

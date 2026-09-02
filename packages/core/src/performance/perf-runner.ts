@@ -15,11 +15,7 @@ import { spawn } from 'node:child_process';
 import * as os from 'node:os';
 import { buildChildEnv } from '../utils/child-env.js';
 import { treeKill } from '../utils/tree-kill.js';
-import {
-  type MetricExtractor,
-  type PerfRunOutput,
-  wallTimeExtractor,
-} from './perf-extractors.js';
+import { type MetricExtractor, type PerfRunOutput, wallTimeExtractor } from './perf-extractors.js';
 import { summarize } from './perf-stats.js';
 import { DEFAULT_RUNS, type PerfMeasurement, type PerfMetricId } from './perf-types.js';
 

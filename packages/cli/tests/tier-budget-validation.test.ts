@@ -23,7 +23,7 @@ describe('tier command — /tier budget validation', () => {
   let cfg: Record<string, unknown>;
 
   const levels = (): Record<string, TierLevelRecord> =>
-    ((cfg['modelTiers'] as { levels?: Record<string, TierLevelRecord> } | undefined)?.levels ?? {});
+    (cfg['modelTiers'] as { levels?: Record<string, TierLevelRecord> } | undefined)?.levels ?? {};
 
   beforeEach(async () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-tier-'));

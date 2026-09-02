@@ -169,9 +169,7 @@ export function registerSetupEventsToolHandlers(options: {
     // another tab's todos mid-update. Unresolvable → skip the state blocks
     // entirely: a missing board is refetchable, a mis-paired one is a lie.
     const owning =
-      e.sessionId && e.sessionId !== context.session?.id
-        ? sessionContext?.(e.sessionId)
-        : context;
+      e.sessionId && e.sessionId !== context.session?.id ? sessionContext?.(e.sessionId) : context;
     if (!owning) return;
 
     broadcast(clients, {

@@ -25,9 +25,11 @@ export function FileReferenceChip({ reference, onRemove }: FileReferenceChipProp
   const name = basename(reference.path);
   const Icon = fileIcon(name);
   const colorClass = fileIconColor(name, false);
-  const label = reference.kind === 'file' ? name : `${name}:${reference.startLine}-${reference.endLine}`;
+  const label =
+    reference.kind === 'file' ? name : `${name}:${reference.startLine}-${reference.endLine}`;
   const lineCount = reference.kind === 'snippet' ? reference.content.split('\n').length : 0;
-  const snippetBadge = lineCount > 0 ? t('activity:fileRef.linesCount', { count: lineCount }) : null;
+  const snippetBadge =
+    lineCount > 0 ? t('activity:fileRef.linesCount', { count: lineCount }) : null;
 
   return (
     <div

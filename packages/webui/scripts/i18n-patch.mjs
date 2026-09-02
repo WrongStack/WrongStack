@@ -60,4 +60,6 @@ for (const [ns, byLang] of Object.entries(spec)) {
   }
 }
 
-console.log(`${dryRun ? '[dry-run] ' : ''}${changed} file(s) ${dryRun ? 'would change' : 'patched'}`);
+console.log(
+  `${dryRun ? '[dry-run] ' : ''}${changed} file(s) ${dryRun ? 'would change' : 'patched'}`,
+);

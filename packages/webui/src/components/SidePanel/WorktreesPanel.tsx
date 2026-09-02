@@ -70,10 +70,7 @@ export function WorktreesPanel(): React.ReactElement {
   // client.send`) drops the `this` binding and the first call throws
   // "can't access property 'ws', this is undefined". Every other panel calls
   // `client.send(...)` directly for the same reason.
-  const send = useMemo(
-    () => (client ? client.send.bind(client) : undefined),
-    [client],
-  );
+  const send = useMemo(() => (client ? client.send.bind(client) : undefined), [client]);
   useEffect(() => {
     send?.({ type: 'worktree.scan' });
   }, [send]);
@@ -98,7 +95,15 @@ export function WorktreesPanel(): React.ReactElement {
     }));
     for (const o of orphans) {
       if (o.branch && liveBranches.has(o.branch)) continue; // already shown as live
-      out.push({ branch: o.branch, dir: o.dir, status: 'orphan', insertions: 0, deletions: 0, files: 0, live: false });
+      out.push({
+        branch: o.branch,
+        dir: o.dir,
+        status: 'orphan',
+        insertions: 0,
+        deletions: 0,
+        files: 0,
+        live: false,
+      });
     }
     return out;
   }, [live, orphans]);
@@ -151,7 +156,11 @@ export function WorktreesPanel(): React.ReactElement {
               type="button"
               disabled={!canClean}
               onClick={() => send?.({ type: 'worktree.cleanup' })}
-              title={canClean ? t('activity:worktrees.cleanOrphansTitle') : t('activity:worktrees.liveBusyTitle')}
+              title={
+                canClean
+                  ? t('activity:worktrees.cleanOrphansTitle')
+                  : t('activity:worktrees.liveBusyTitle')
+              }
               className="inline-flex items-center gap-1 rounded bg-warning px-1.5 py-0.5 text-[11px] font-medium text-primary-foreground hover:bg-warning/90 disabled:opacity-50"
             >
               <Eraser className="h-3 w-3" /> {t('activity:worktrees.cleanOrphans')}
@@ -173,7 +182,7 @@ export function WorktreesPanel(): React.ReactElement {
         <Banner ok={cleanResult.ok}>
           {cleanResult.ok
             ? t('activity:worktrees.removed', { count: cleanResult.removed })
-            : cleanResult.reason ?? t('activity:worktrees.failed')}
+            : (cleanResult.reason ?? t('activity:worktrees.failed'))}
         </Banner>
       )}
       {mergeResult && (
@@ -183,7 +192,8 @@ export function WorktreesPanel(): React.ReactElement {
             : mergeResult.conflict
               ? t('activity:worktrees.conflictMerge', {
                   branch: shortBranch(mergeResult.branch),
-                  files: (mergeResult.conflictFiles ?? []).join(', ') || t('activity:worktrees.seeGit'),
+                  files:
+                    (mergeResult.conflictFiles ?? []).join(', ') || t('activity:worktrees.seeGit'),
                 })
               : t('activity:worktrees.mergeFailed', {
                   reason: mergeResult.reason ?? t('activity:worktrees.unknownReason'),
@@ -209,11 +219,24 @@ export function WorktreesPanel(): React.ReactElement {
                 className="mb-1.5 rounded-md border border-border bg-card/60 px-2.5 py-2"
               >
                 <div className="flex items-center gap-2">
-                  <GitBranch className={cn('h-3.5 w-3.5 shrink-0', STATUS_TINT[row.status] ?? 'text-muted-foreground')} />
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground" title={row.branch}>
+                  <GitBranch
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0',
+                      STATUS_TINT[row.status] ?? 'text-muted-foreground',
+                    )}
+                  />
+                  <span
+                    className="min-w-0 flex-1 truncate font-mono text-xs text-foreground"
+                    title={row.branch}
+                  >
                     {shortBranch(row.branch)}
                   </span>
-                  <span className={cn('shrink-0 text-[10px] uppercase', STATUS_TINT[row.status] ?? 'text-muted-foreground')}>
+                  <span
+                    className={cn(
+                      'shrink-0 text-[10px] uppercase',
+                      STATUS_TINT[row.status] ?? 'text-muted-foreground',
+                    )}
+                  >
                     {row.status}
                   </span>
                 </div>
@@ -229,22 +252,51 @@ export function WorktreesPanel(): React.ReactElement {
 
                 {/* Actions */}
                 <div className="mt-1.5 flex items-center gap-0.5 pl-5">
-                  <Act title={t('activity:worktrees.actOpenTerm')} disabled={!row.dir} onClick={() => onOpen(row.dir, 'terminal')}>
+                  <Act
+                    title={t('activity:worktrees.actOpenTerm')}
+                    disabled={!row.dir}
+                    onClick={() => onOpen(row.dir, 'terminal')}
+                  >
                     <Terminal className="h-3.5 w-3.5" />
                   </Act>
-                  <Act title={t('activity:worktrees.actOpenFolder')} disabled={!row.dir} onClick={() => onOpen(row.dir, 'file-manager')}>
+                  <Act
+                    title={t('activity:worktrees.actOpenFolder')}
+                    disabled={!row.dir}
+                    onClick={() => onOpen(row.dir, 'file-manager')}
+                  >
                     <FolderOpen className="h-3.5 w-3.5" />
                   </Act>
-                  <Act title={t('activity:worktrees.actViewChanges')} disabled={!row.dir} onClick={() => onDiff(row.dir)}>
+                  <Act
+                    title={t('activity:worktrees.actViewChanges')}
+                    disabled={!row.dir}
+                    onClick={() => onDiff(row.dir)}
+                  >
                     <Eye className="h-3.5 w-3.5" />
                   </Act>
-                  <Act title={t('activity:worktrees.actMerge')} disabled={row.live || !row.branch} onClick={() => onMerge(row.branch)}>
-                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitMerge className="h-3.5 w-3.5" />}
+                  <Act
+                    title={t('activity:worktrees.actMerge')}
+                    disabled={row.live || !row.branch}
+                    onClick={() => onMerge(row.branch)}
+                  >
+                    {busy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <GitMerge className="h-3.5 w-3.5" />
+                    )}
                   </Act>
-                  <Act title={t('activity:worktrees.actRemove')} danger disabled={row.live} onClick={() => onRemove(row)}>
+                  <Act
+                    title={t('activity:worktrees.actRemove')}
+                    danger
+                    disabled={row.live}
+                    onClick={() => onRemove(row)}
+                  >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Act>
-                  {row.live && <span className="ml-1 text-[10px] text-warning">{t('activity:worktrees.live')}</span>}
+                  {row.live && (
+                    <span className="ml-1 text-[10px] text-warning">
+                      {t('activity:worktrees.live')}
+                    </span>
+                  )}
                 </div>
 
                 {/* Inline diff summary */}
@@ -330,7 +382,11 @@ function Banner({ ok, children }: { ok: boolean; children: React.ReactNode }) {
           : 'border-warning/30 bg-warning/5 text-warning',
       )}
     >
-      {ok ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+      {ok ? (
+        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      ) : (
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      )}
       <span className="min-w-0 flex-1">{children}</span>
       {!ok && <XCircle className="mt-0.5 h-3 w-3 shrink-0 opacity-40" />}
     </div>

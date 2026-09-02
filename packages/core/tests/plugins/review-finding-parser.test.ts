@@ -76,11 +76,7 @@ describe('parseChimeraReviewReport', () => {
   });
 
   it('extracts duration from a Duration line', () => {
-    const report = [
-      'Duration: 42s',
-      '### Critical (1)',
-      '1. src/a.ts:1 — X',
-    ].join('\n');
+    const report = ['Duration: 42s', '### Critical (1)', '1. src/a.ts:1 — X'].join('\n');
     const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
     expect(result.durationSeconds).toBe(42);
   });
@@ -97,7 +93,7 @@ describe('parseChimeraReviewReport', () => {
       '### High (1)',
       '1. `isFanOutRecipient` in `packages/core/src/coordination/mailbox-receipt-folding.ts` — ',
       '   base-alias `to: "leader"` not detected as fan-out',
-      '   → Add `!to.includes(\'@\')` to the fan-out check',
+      "   → Add `!to.includes('@')` to the fan-out check",
     ].join('\n');
 
     const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
@@ -448,11 +444,7 @@ describe('parseChimeraReviewReport — structured JSON contract', () => {
   });
 
   it('reads durationSeconds from the structured block', () => {
-    const report = [
-      '```json',
-      '{ "findings": [], "durationSeconds": 41.7 }',
-      '```',
-    ].join('\n');
+    const report = ['```json', '{ "findings": [], "durationSeconds": 41.7 }', '```'].join('\n');
     const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
     expect(result.durationSeconds).toBe(41);
   });
@@ -496,7 +488,11 @@ describe('parseChimeraReviewReport — structured JSON contract', () => {
     // finding (severity/title/file are the contract minimum); the optional
     // enrichment fields are simply left unset.
     expect(result.findings).toHaveLength(3);
-    expect(result.findings[0]).toMatchObject({ title: 'Good', category: 'security', confidence: 'high' });
+    expect(result.findings[0]).toMatchObject({
+      title: 'Good',
+      category: 'security',
+      confidence: 'high',
+    });
     expect(result.findings[1]!.category).toBeUndefined();
     expect(result.findings[1]!.confidence).toBeUndefined();
     expect(result.findings[2]!.category).toBeUndefined();
@@ -565,7 +561,10 @@ describe('parseChimeraReviewReport — structured JSON contract', () => {
 describe('parseChimeraReviewReport — source normalization', () => {
   it('preserves supported review sources', () => {
     const report = '### High (1)\n1. src/a.ts:1 — SQL injection vulnerability\n';
-    const result = parseChimeraReviewReport(report, { ...SAMPLE_CONTEXT, reviewType: 'security-scanner' });
+    const result = parseChimeraReviewReport(report, {
+      ...SAMPLE_CONTEXT,
+      reviewType: 'security-scanner',
+    });
     expect(result.findings[0]!.source).toBe('security-scanner');
   });
 

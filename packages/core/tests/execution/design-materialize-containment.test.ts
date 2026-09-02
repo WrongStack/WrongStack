@@ -47,17 +47,14 @@ describe('resolveMaterializeTarget', () => {
 
   it('rejects the deep traversal that reaches the user profile config', async () => {
     await expect(
-      resolveMaterializeTarget(
-        '../../../../.wrongstack/profiles/default/config.json',
-        root,
-      ),
+      resolveMaterializeTarget('../../../../.wrongstack/profiles/default/config.json', root),
     ).rejects.toThrow(/escape the project root/);
   });
 
   it('rejects a git-hook write, the arbitrary-write-to-execution pivot', async () => {
-    await expect(
-      resolveMaterializeTarget('../.git/hooks/pre-commit', root),
-    ).rejects.toThrow(/escape the project root/);
+    await expect(resolveMaterializeTarget('../.git/hooks/pre-commit', root)).rejects.toThrow(
+      /escape the project root/,
+    );
   });
 
   it('rejects an absolute path outside the root', async () => {
@@ -77,9 +74,9 @@ describe('resolveMaterializeTarget', () => {
     const sibling = `${root}-evil`;
     await fs.mkdir(sibling, { recursive: true });
     try {
-      await expect(
-        resolveMaterializeTarget(path.join(sibling, 'x.css'), root),
-      ).rejects.toThrow(/escape the project root/);
+      await expect(resolveMaterializeTarget(path.join(sibling, 'x.css'), root)).rejects.toThrow(
+        /escape the project root/,
+      );
     } finally {
       await fs.rm(sibling, { recursive: true, force: true });
     }

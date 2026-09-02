@@ -30,7 +30,10 @@ describe('assertProjectRootOutsideStateDir', () => {
     // Naive `startsWith` string matching would reject this; path.relative
     // does not.
     expect(() =>
-      assertProjectRootOutsideStateDir(path.resolve('/home/testuser/.wrongstack-notes'), globalRoot),
+      assertProjectRootOutsideStateDir(
+        path.resolve('/home/testuser/.wrongstack-notes'),
+        globalRoot,
+      ),
     ).not.toThrow();
   });
 

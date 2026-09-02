@@ -71,7 +71,10 @@ export function installFaviconVisibilityReset(): void {
   if (visibilityHookInstalled || typeof document === 'undefined') return;
   visibilityHookInstalled = true;
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && (currentStatus === 'ready' || currentStatus === 'error' || currentStatus === 'attention')) {
+    if (
+      !document.hidden &&
+      (currentStatus === 'ready' || currentStatus === 'error' || currentStatus === 'attention')
+    ) {
       setFaviconStatus('idle');
     }
   });

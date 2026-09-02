@@ -16,7 +16,11 @@ beforeEach(async () => {
 
 afterEach(async () => {
   for (const store of activeStores) {
-    try { store.close(); } catch { /* already closed */ }
+    try {
+      store.close();
+    } catch {
+      /* already closed */
+    }
   }
   // Give Windows a tick to release WAL file handles
   await new Promise((r) => setTimeout(r, 10));
@@ -87,14 +91,12 @@ describe('SqliteSageStore', () => {
       const manifestPath = path.join(tempDir, '.wrongstack', 'memories', 'manifest.json');
       expect(fs.existsSync(dbPath)).toBe(true);
       expect(fs.existsSync(manifestPath)).toBe(true);
-
     });
 
     it('is idempotent — calling initialize twice does not throw', async () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();
       await store.initialize();
-
     });
   });
 
@@ -106,17 +108,19 @@ describe('SqliteSageStore', () => {
       expect(mem.id).toBeTruthy();
       expect(mem.text).toBe('SQLite test memory');
       expect(mem.status).toBe('active');
-
     });
 
     it('merges duplicates by canonical text', async () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();
       const first = await store.rememberSage({ text: 'Duplicate  test  content', kind: 'fact' });
-      const second = await store.rememberSage({ text: 'duplicate test content', kind: 'fact', tags: ['new-tag'] });
+      const second = await store.rememberSage({
+        text: 'duplicate test content',
+        kind: 'fact',
+        tags: ['new-tag'],
+      });
       expect(second.id).toBe(first.id);
       expect(second.tags).toContain('new-tag');
-
     });
 
     it('merges near-duplicate paraphrases of the same durable fact', async () => {
@@ -253,7 +257,9 @@ describe('SqliteSageStore', () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       const credential = `api_key=${'a'.repeat(24)}`;
 
-      await expect(store.rememberSage({ text: credential })).rejects.toThrow(/secret or credential/i);
+      await expect(store.rememberSage({ text: credential })).rejects.toThrow(
+        /secret or credential/i,
+      );
       expect((await store.getStats()).total).toBe(0);
     });
 
@@ -261,10 +267,12 @@ describe('SqliteSageStore', () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       const credential = `token=${'b'.repeat(24)}`;
 
-      await expect(store.rememberSage({
-        text: 'Harmless text',
-        anchors: [{ type: 'command', command: `echo ${credential}` }],
-      })).rejects.toThrow(/secret or credential/i);
+      await expect(
+        store.rememberSage({
+          text: 'Harmless text',
+          anchors: [{ type: 'command', command: `echo ${credential}` }],
+        }),
+      ).rejects.toThrow(/secret or credential/i);
       expect((await store.getStats()).total).toBe(0);
     });
 
@@ -284,7 +292,6 @@ describe('SqliteSageStore', () => {
       expect(mem.anchors[0]?.path).toBe('src/index.ts');
       expect(mem.tags).toEqual(expect.arrayContaining(['api', 'v2']));
       expect(mem.audience?.roles).toEqual(['reviewer']);
-
     });
   });
 
@@ -297,7 +304,6 @@ describe('SqliteSageStore', () => {
       expect(updated.text).toBe('Updated text');
       expect(updated.status).toBe('stale');
       expect(updated.revision).toBe(mem.revision + 1);
-
     });
 
     it('updates persistence and requires force to delete permanent memories', async () => {
@@ -340,9 +346,9 @@ describe('SqliteSageStore', () => {
       });
 
       // Without force, the deletion guard rejects ALL deletions, not just permanent.
-      await expect(
-        store.updateSage(mem.id, { status: 'deleted' }),
-      ).rejects.toThrow(/cannot be deleted without explicit authorization/);
+      await expect(store.updateSage(mem.id, { status: 'deleted' })).rejects.toThrow(
+        /cannot be deleted without explicit authorization/,
+      );
 
       // With force, the deletion succeeds.
       const deleted = await store.updateSage(mem.id, { status: 'deleted', force: true });
@@ -353,7 +359,6 @@ describe('SqliteSageStore', () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();
       await expect(store.updateSage('nonexistent', { text: 'x' })).rejects.toThrow();
-
     });
   });
 
@@ -389,7 +394,6 @@ describe('SqliteSageStore', () => {
       for (const r of results) {
         expect(r.text.toLowerCase()).toContain('postgresql');
       }
-
     });
 
     it('returns empty for non-matching query', async () => {
@@ -398,7 +402,6 @@ describe('SqliteSageStore', () => {
       await store.rememberSage({ text: 'Some memory about databases', kind: 'fact' });
       const results = await store.searchSage('xyznonexistent');
       expect(results).toHaveLength(0);
-
     });
 
     it('respects limit option', async () => {
@@ -409,7 +412,6 @@ describe('SqliteSageStore', () => {
       }
       const results = await store.searchSage('Limitable', { limit: 2 });
       expect(results.length).toBeLessThanOrEqual(2);
-
     });
 
     it('filters scope before applying an empty-query limit', async () => {
@@ -468,7 +470,9 @@ describe('SqliteSageStore', () => {
       expect(emptyForA.map((memory) => memory.id)).toEqual([sessionA.id]);
       expect(ftsForA.map((memory) => memory.id)).toEqual([sessionA.id]);
       expect(unscoped).toEqual([]);
-      expect(admin.map((memory) => memory.id)).toEqual(expect.arrayContaining([sessionA.id, sessionB.id]));
+      expect(admin.map((memory) => memory.id)).toEqual(
+        expect.arrayContaining([sessionA.id, sessionB.id]),
+      );
     });
 
     it('keeps session parameters ordered correctly in LIKE fallback searches', async () => {
@@ -509,7 +513,6 @@ describe('SqliteSageStore', () => {
       const results = await store.retrieveForPath(['src/auth/config.ts']);
       expect(results.length).toBeGreaterThanOrEqual(1);
       expect(results[0]!.text).toContain('auth module');
-
     });
 
     it('finds ancestor-anchored memories when includeAncestors is true', async () => {
@@ -520,9 +523,11 @@ describe('SqliteSageStore', () => {
         kind: 'file_note',
         anchors: [{ type: 'directory', path: 'src/auth' }],
       });
-      const results = await store.retrieveForPath(['src/auth/config.ts'], { path: 'src/auth/config.ts', includeAncestors: true });
+      const results = await store.retrieveForPath(['src/auth/config.ts'], {
+        path: 'src/auth/config.ts',
+        includeAncestors: true,
+      });
       expect(results.length).toBeGreaterThanOrEqual(1);
-
     });
   });
 
@@ -595,7 +600,6 @@ describe('SqliteSageStore', () => {
       const firstDate = list[0]!.updatedAt;
       const secondDate = list[1]!.updatedAt;
       expect(firstDate.localeCompare(secondDate)).toBeGreaterThanOrEqual(0);
-
     });
 
     it('filters by status', async () => {
@@ -609,7 +613,6 @@ describe('SqliteSageStore', () => {
       expect(active.every((m) => m.status === 'active')).toBe(true);
       expect(archived.every((m) => m.status === 'archived')).toBe(true);
       expect(archived.length).toBe(1);
-
     });
 
     it('filters by kind', async () => {
@@ -619,7 +622,6 @@ describe('SqliteSageStore', () => {
       await store.rememberSage({ text: 'A decision', kind: 'decision' });
       const facts = await store.listMemories({ kind: 'fact' });
       expect(facts.every((m) => m.kind === 'fact')).toBe(true);
-
     });
   });
 
@@ -636,7 +638,6 @@ describe('SqliteSageStore', () => {
       expect(stats.byKind.fact).toBe(1);
       expect(stats.byKind.decision).toBe(1);
       expect(stats.edges).toBeGreaterThanOrEqual(1);
-
     });
   });
 
@@ -648,7 +649,6 @@ describe('SqliteSageStore', () => {
       await store.addGraphEdge('mem:b', 'mem:c', 'supersedes');
       const edges = await store.traverseGraph(['mem:a'], { maxDepth: 3 });
       expect(edges.length).toBeGreaterThanOrEqual(2);
-
     });
 
     it('keeps edge weights monotone on duplicate inserts (MAX policy)', async () => {
@@ -895,8 +895,7 @@ describe('SqliteSageStore', () => {
       expect(report.superseded).toBeGreaterThanOrEqual(1);
       const active = await store.listMemories({ status: 'active', limit: 100 });
       const survivors = active.filter(
-        (m) =>
-          m.text.includes('pnpm workspaces') && m.text.includes('monorepo package'),
+        (m) => m.text.includes('pnpm workspaces') && m.text.includes('monorepo package'),
       );
       expect(survivors).toHaveLength(1);
     });
@@ -950,8 +949,13 @@ describe('SqliteSageStore', () => {
       const mems = await store.listMemories({ status: 'active', limit: 100 });
       const target = mems.find((m) => m.text.includes('Low confidence'));
       if (target) {
-        const db = (store as unknown as { db: { prepare: (s: string) => { run: (...args: unknown[]) => void } } });
-        db.db.prepare('UPDATE memories SET data = json_set(data, \'$.updatedAt\', ?, \'$.lastAccessedAt\', ?) WHERE id = ?')
+        const db = store as unknown as {
+          db: { prepare: (s: string) => { run: (...args: unknown[]) => void } };
+        };
+        db.db
+          .prepare(
+            "UPDATE memories SET data = json_set(data, '$.updatedAt', ?, '$.lastAccessedAt', ?) WHERE id = ?",
+          )
           .run(oldDate, oldDate, target.id);
       }
 
@@ -970,20 +974,29 @@ describe('SqliteSageStore', () => {
       const mems = await store.listMemories({ status: 'active', limit: 100 });
       const target = mems.find((m) => m.text.includes('Another low'));
       if (target) {
-        const db = (store as unknown as { db: { prepare: (s: string) => { run: (...args: unknown[]) => void } } });
-        db.db.prepare('UPDATE memories SET data = json_set(data, \'$.updatedAt\', ?, \'$.lastAccessedAt\', ?) WHERE id = ?')
+        const db = store as unknown as {
+          db: { prepare: (s: string) => { run: (...args: unknown[]) => void } };
+        };
+        db.db
+          .prepare(
+            "UPDATE memories SET data = json_set(data, '$.updatedAt', ?, '$.lastAccessedAt', ?) WHERE id = ?",
+          )
           .run(oldDate, oldDate, target.id);
       }
 
       // First run creates the candidate
       await store.hygiene({ archiveLowConfidenceAfterDays: 30, verify: false });
       const candidatesAfterFirst = await store.listCandidates();
-      const pendingAfterFirst = candidatesAfterFirst.filter((c) => c.status === 'pending' && c.tags.some((t) => t === 'review:confidence_low'));
+      const pendingAfterFirst = candidatesAfterFirst.filter(
+        (c) => c.status === 'pending' && c.tags.some((t) => t === 'review:confidence_low'),
+      );
 
       // Second run should NOT create a duplicate
       const report2 = await store.hygiene({ archiveLowConfidenceAfterDays: 30, verify: false });
       const candidatesAfterSecond = await store.listCandidates();
-      const pendingAfterSecond = candidatesAfterSecond.filter((c) => c.status === 'pending' && c.tags.some((t) => t === 'review:confidence_low'));
+      const pendingAfterSecond = candidatesAfterSecond.filter(
+        (c) => c.status === 'pending' && c.tags.some((t) => t === 'review:confidence_low'),
+      );
 
       expect(pendingAfterSecond.length).toBe(pendingAfterFirst.length);
       expect(report2.reviewCandidatesCreated).toBe(0);
@@ -993,12 +1006,21 @@ describe('SqliteSageStore', () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();
       const oldDate = new Date(Date.now() - 45 * 86_400_000).toISOString();
-      await store.rememberSage({ text: 'Permanent low confidence fact.', confidence: 0.1, persistence: 'permanent' });
+      await store.rememberSage({
+        text: 'Permanent low confidence fact.',
+        confidence: 0.1,
+        persistence: 'permanent',
+      });
       const mems = await store.listMemories({ status: 'active', limit: 100 });
       const target = mems.find((m) => m.text.includes('Permanent'));
       if (target) {
-        const db = (store as unknown as { db: { prepare: (s: string) => { run: (...args: unknown[]) => void } } });
-        db.db.prepare('UPDATE memories SET data = json_set(data, \'$.updatedAt\', ?, \'$.lastAccessedAt\', ?) WHERE id = ?')
+        const db = store as unknown as {
+          db: { prepare: (s: string) => { run: (...args: unknown[]) => void } };
+        };
+        db.db
+          .prepare(
+            "UPDATE memories SET data = json_set(data, '$.updatedAt', ?, '$.lastAccessedAt', ?) WHERE id = ?",
+          )
           .run(oldDate, oldDate, target.id);
       }
 
@@ -1080,11 +1102,18 @@ describe('SqliteSageStore', () => {
       expect(stats.edges).toBe(1);
       expect(await sqliteStore.listCandidates()).toHaveLength(1);
 
-      const db = (sqliteStore as unknown as {
-        db: { prepare: (sql: string) => { get: (...args: unknown[]) => { n: number } } };
-      }).db;
-      expect(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE event != 'memory.legacy_jsonl_migrated'").get().n)
-        .toBeGreaterThan(0);
+      const db = (
+        sqliteStore as unknown as {
+          db: { prepare: (sql: string) => { get: (...args: unknown[]) => { n: number } } };
+        }
+      ).db;
+      expect(
+        db
+          .prepare(
+            "SELECT COUNT(*) AS n FROM audit_log WHERE event != 'memory.legacy_jsonl_migrated'",
+          )
+          .get().n,
+      ).toBeGreaterThan(0);
 
       // Search should find migrated content
       const results = await sqliteStore.searchSage('JSONL');
@@ -1190,9 +1219,7 @@ describe('SqliteSageStore', () => {
         store.createCandidate({
           text: 'Harmless text',
           kind: 'fact',
-          anchors: [
-            { type: 'command', command: `cat id_ecdsa: ${pemHeader}` },
-          ],
+          anchors: [{ type: 'command', command: `cat id_ecdsa: ${pemHeader}` }],
         }),
       ).rejects.toThrow(/secret or credential/i);
       expect(await store.listCandidates()).toHaveLength(0);
@@ -1279,7 +1306,9 @@ describe('SqliteSageStore', () => {
       expect(result!.candidateId).toBe(candidate.id);
       // Target should be soft-deleted (status='deleted', not hard-removed).
       // Verify via searchSage since getSage is not public on this store.
-      const found = await store.searchSage('delete-target', { includeStatuses: ['active', 'deleted'] });
+      const found = await store.searchSage('delete-target', {
+        includeStatuses: ['active', 'deleted'],
+      });
       expect(found.length).toBe(1);
       expect(found[0]!.status).toBe('deleted');
     });
@@ -1298,7 +1327,9 @@ describe('SqliteSageStore', () => {
       expect(result).toBeDefined();
       expect(result!.applied).toBe(true);
       expect(result!.decision).toBe('archive');
-      const found = await store.searchSage('archive-target', { includeStatuses: ['active', 'deleted', 'archived'] });
+      const found = await store.searchSage('archive-target', {
+        includeStatuses: ['active', 'deleted', 'archived'],
+      });
       expect(found.length).toBe(1);
       expect(found[0]!.status).toBe('archived');
     });
@@ -1515,9 +1546,7 @@ describe('SqliteSageStore', () => {
     ): Promise<Array<{ to: string; relation: string }>> {
       const from = `mem:${memoryId}`;
       const all = await store.traverseGraph([from], { maxDepth: 1 });
-      return all
-        .filter((e) => e.from === from)
-        .map((e) => ({ to: e.to, relation: e.relation }));
+      return all.filter((e) => e.from === from).map((e) => ({ to: e.to, relation: e.relation }));
     }
 
     it('creates one edge per anchor, one relation per type', async () => {
@@ -1662,14 +1691,10 @@ describe('SqliteSageStore', () => {
       await store.updateSage(mem.id, { status: 'superseded' });
 
       const after = await store.traverseGraph([fromMem], { maxDepth: 1 });
-      const about = after.filter(
-        (e) => e.from === fromMem && e.relation.startsWith('about_'),
-      );
+      const about = after.filter((e) => e.from === fromMem && e.relation.startsWith('about_'));
       expect(about).toEqual([]);
       // Non-`about_*` relations survive the soft-delete.
-      const related = after.find(
-        (e) => e.from === fromMem && e.relation === 'related_to',
-      );
+      const related = after.find((e) => e.from === fromMem && e.relation === 'related_to');
       expect(related).toBeDefined();
       expect(related?.to).toBe('mem:sibling');
     });

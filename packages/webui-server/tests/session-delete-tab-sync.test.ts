@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
-import { createSessionHandlers, type SessionHandlersContext } from '../src/server/session-handlers.js';
+import {
+  createSessionHandlers,
+  type SessionHandlersContext,
+} from '../src/server/session-handlers.js';
 
 interface SentMessage {
   type: string;
@@ -32,7 +35,10 @@ function makeHarness(
   let active = runtime;
   const live = new Set<string>([runtime.id]);
   const agents = new Map<string, { ctx: { session: ReturnType<typeof writer> } }>();
-  const clients = new Map<WebSocket, { ws: WebSocket; sessionId: string | null; sessionIds?: Set<string>; connectedAt: number }>();
+  const clients = new Map<
+    WebSocket,
+    { ws: WebSocket; sessionId: string | null; sessionIds?: Set<string>; connectedAt: number }
+  >();
   const sent: SentMessage[] = [];
   const broadcasts: SentMessage[] = [];
   const ws = {
@@ -51,7 +57,7 @@ function makeHarness(
     order.push('abort');
     opts.onAbort?.(id);
   });
-  const withSessionTransition = <T,>(operation: () => Promise<T>): Promise<T> => {
+  const withSessionTransition = <T>(operation: () => Promise<T>): Promise<T> => {
     order.push('gate');
     return operation();
   };
@@ -127,10 +133,13 @@ describe('session.subscribe — deliberate removal of the acting session', () =>
     connect(h, 'sess_a', ['sess_a', 'sess_b']);
     const clientWs = h.clients.keys().next().value as WebSocket;
 
-    await h.routes.subscribeSessions(clientWs as never, {
-      type: 'session.subscribe',
-      payload: { sessionIds: ['sess_b'] },
-    } as never);
+    await h.routes.subscribeSessions(
+      clientWs as never,
+      {
+        type: 'session.subscribe',
+        payload: { sessionIds: ['sess_b'] },
+      } as never,
+    );
 
     const client = h.clients.get(clientWs);
     expect([...(client?.sessionIds ?? [])]).toEqual(['sess_b']);
@@ -141,10 +150,13 @@ describe('session.subscribe — deliberate removal of the acting session', () =>
     connect(h, 'sess_a', ['sess_b']);
     const clientWs = h.clients.keys().next().value as WebSocket;
 
-    await h.routes.subscribeSessions(clientWs as never, {
-      type: 'session.subscribe',
-      payload: { sessionIds: ['sess_b'] },
-    } as never);
+    await h.routes.subscribeSessions(
+      clientWs as never,
+      {
+        type: 'session.subscribe',
+        payload: { sessionIds: ['sess_b'] },
+      } as never,
+    );
 
     const client = h.clients.get(clientWs);
     // 'sess_a' is the acting session and was NOT in the previous declaration:
@@ -158,10 +170,13 @@ describe('session.subscribe — deliberate removal of the acting session', () =>
     connect(h, 'sess_b', ['sess_a', 'sess_b']);
     const clientWs = h.clients.keys().next().value as WebSocket;
 
-    await h.routes.subscribeSessions(clientWs as never, {
-      type: 'session.subscribe',
-      payload: { sessionIds: ['sess_b'] },
-    } as never);
+    await h.routes.subscribeSessions(
+      clientWs as never,
+      {
+        type: 'session.subscribe',
+        payload: { sessionIds: ['sess_b'] },
+      } as never,
+    );
 
     expect(h.onSessionsUndisplayed).toHaveBeenCalledWith(['sess_a']);
   });

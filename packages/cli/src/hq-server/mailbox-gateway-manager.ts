@@ -54,12 +54,14 @@ export class MailboxGatewayManager {
     this.sweepTimer.unref?.();
   }
 
-  authorizeMailboxGateway(
-    req: IncomingMessage,
-    projectDir: string,
-  ): MailboxHttpAccessDecision {
+  authorizeMailboxGateway(req: IncomingMessage, projectDir: string): MailboxHttpAccessDecision {
     const requestUrl = new URL(req.url ?? '/', `http://${this.deps.host}:${this.deps.port}`);
-    const auth = authenticateBrowserRequest(req, requestUrl, this.deps.mutableAuth, this.deps.sessions);
+    const auth = authenticateBrowserRequest(
+      req,
+      requestUrl,
+      this.deps.mutableAuth,
+      this.deps.sessions,
+    );
     const tokenMode = this.deps.mutableAuth.browserTokens.size > 0;
 
     if (HqServerAuth.hqAuthRequired(this.deps.mutableAuth) && auth === undefined) {
@@ -69,11 +71,13 @@ export class MailboxGatewayManager {
         body: { error: { code: 'UNAUTHORIZED', message: 'unauthorized' } },
       };
     }
-    const token = isTokenAuth(auth) ? this.deps.mutableAuth.browserTokenObjs.get(auth.token) : undefined;
+    const token = isTokenAuth(auth)
+      ? this.deps.mutableAuth.browserTokenObjs.get(auth.token)
+      : undefined;
     const canUseMailbox = isCookieAuth(auth)
       ? auth.capabilities === undefined || auth.capabilities.includes('control.enqueue')
       : isTokenAuth(auth)
-        ? token?.capabilities === undefined || !(!token?.capabilities.includes('control.enqueue'))
+        ? token?.capabilities === undefined || !!token?.capabilities.includes('control.enqueue')
         : !tokenMode;
     if (!canUseMailbox) {
       return {

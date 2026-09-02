@@ -14,7 +14,13 @@ import { useCallback } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { useCronStore } from '@/stores';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogHeader,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Jobs are bounded (user-defined), show all without pagination.
@@ -61,9 +67,26 @@ function fmtTime(iso: string | null): string {
 
 function StatusBadge({ enabled, overdue }: { enabled: boolean; overdue: boolean }) {
   const { t } = useAppTranslation();
-  if (!enabled) return <Badge variant="secondary" className="gap-1"><PauseCircle className="h-3 w-3" />{t('activity:cronJobs.statusDisabled')}</Badge>;
-  if (overdue) return <Badge variant="destructive" className="gap-1"><Clock className="h-3 w-3" />{t('activity:cronJobs.statusOverdue')}</Badge>;
-  return <Badge variant="outline" className="gap-1 border-success/30 bg-success/10 text-success"><PlayCircle className="h-3 w-3" />{t('activity:cronJobs.statusActive')}</Badge>;
+  if (!enabled)
+    return (
+      <Badge variant="secondary" className="gap-1">
+        <PauseCircle className="h-3 w-3" />
+        {t('activity:cronJobs.statusDisabled')}
+      </Badge>
+    );
+  if (overdue)
+    return (
+      <Badge variant="destructive" className="gap-1">
+        <Clock className="h-3 w-3" />
+        {t('activity:cronJobs.statusOverdue')}
+      </Badge>
+    );
+  return (
+    <Badge variant="outline" className="gap-1 border-success/30 bg-success/10 text-success">
+      <PlayCircle className="h-3 w-3" />
+      {t('activity:cronJobs.statusActive')}
+    </Badge>
+  );
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -100,19 +123,27 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
             <RotateCw className="h-5 w-5" />
             {t('activity:cronJobs.heading')}
           </DialogTitle>
-          <DialogDescription>
-            {t('activity:cronJobs.subtitle')}
-          </DialogDescription>
+          <DialogDescription>{t('activity:cronJobs.subtitle')}</DialogDescription>
         </DialogHeader>
 
         {/* Summary bar */}
         {count > 0 && (
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground border-b border-border/70 pb-3">
-            <span className="font-medium text-foreground">{t('activity:cronJobs.jobCount', { count })}</span>
-            <span className="text-success">{t('activity:cronJobs.enabledCount', { count: enabledCount })}</span>
-            {overdueCount > 0 && <span className="text-destructive">{t('activity:cronJobs.overdueCount', { count: overdueCount })}</span>}
+            <span className="font-medium text-foreground">
+              {t('activity:cronJobs.jobCount', { count })}
+            </span>
+            <span className="text-success">
+              {t('activity:cronJobs.enabledCount', { count: enabledCount })}
+            </span>
+            {overdueCount > 0 && (
+              <span className="text-destructive">
+                {t('activity:cronJobs.overdueCount', { count: overdueCount })}
+              </span>
+            )}
             <span>{t('activity:cronJobs.totalRuns', { count: totalRuns })}</span>
-            <span className="text-muted-foreground/60">{t('activity:cronJobs.maxConcurrent', { count: maxConcurrent })}</span>
+            <span className="text-muted-foreground/60">
+              {t('activity:cronJobs.maxConcurrent', { count: maxConcurrent })}
+            </span>
           </div>
         )}
 
@@ -121,7 +152,11 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
           <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
             <Clock className="h-8 w-8 opacity-40" />
             <p className="text-sm">{t('activity:cronJobs.emptyTitle')}</p>
-            <p className="text-xs">{t('activity:cronJobs.emptyUse')} <code className="rounded bg-muted px-1 py-0.5">cron_schedule</code> {t('activity:cronJobs.emptyToAdd')}</p>
+            <p className="text-xs">
+              {t('activity:cronJobs.emptyUse')}{' '}
+              <code className="rounded bg-muted px-1 py-0.5">cron_schedule</code>{' '}
+              {t('activity:cronJobs.emptyToAdd')}
+            </p>
           </div>
         )}
 
@@ -134,7 +169,9 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
                   <th className="pb-2 pr-3 font-medium">{t('activity:cronJobs.thStatus')}</th>
                   <th className="pb-2 pr-3 font-medium">{t('activity:cronJobs.thName')}</th>
                   <th className="pb-2 pr-3 font-medium">{t('activity:cronJobs.thInterval')}</th>
-                  <th className="pb-2 pr-3 font-medium text-right">{t('activity:cronJobs.thRuns')}</th>
+                  <th className="pb-2 pr-3 font-medium text-right">
+                    {t('activity:cronJobs.thRuns')}
+                  </th>
                   <th className="pb-2 pr-3 font-medium">{t('activity:cronJobs.thNextRun')}</th>
                   <th className="pb-2 pr-3 font-medium">{t('activity:cronJobs.thLastRun')}</th>
                   <th className="pb-2 font-medium">{t('activity:cronJobs.thAction')}</th>
@@ -146,7 +183,10 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
                     <td className="py-2.5 pr-3">
                       <StatusBadge enabled={job.enabled} overdue={job.overdue} />
                     </td>
-                    <td className="py-2.5 pr-3 font-mono text-xs font-medium max-w-[160px] truncate" title={job.name}>
+                    <td
+                      className="py-2.5 pr-3 font-mono text-xs font-medium max-w-[160px] truncate"
+                      title={job.name}
+                    >
                       {job.name}
                     </td>
                     <td className="py-2.5 pr-3 font-mono text-xs tabular-nums">
@@ -155,7 +195,14 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
                     <td className="py-2.5 pr-3 text-right font-mono text-xs tabular-nums">
                       {job.runCount}
                       {lastFiredAt[job.name] && (
-                        <span className="ml-1 text-success" title={t('activity:cronJobs.lastFiredAtTitle', { time: lastFiredAt[job.name] })}>●</span>
+                        <span
+                          className="ml-1 text-success"
+                          title={t('activity:cronJobs.lastFiredAtTitle', {
+                            time: lastFiredAt[job.name],
+                          })}
+                        >
+                          ●
+                        </span>
                       )}
                     </td>
                     <td className="py-2.5 pr-3 font-mono text-xs tabular-nums">
@@ -164,7 +211,10 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
                     <td className="py-2.5 pr-3 font-mono text-xs tabular-nums">
                       {fmtTime(job.lastRun)}
                     </td>
-                    <td className="py-2.5 font-mono text-xs max-w-[200px] truncate text-muted-foreground" title={job.action}>
+                    <td
+                      className="py-2.5 font-mono text-xs max-w-[200px] truncate text-muted-foreground"
+                      title={job.action}
+                    >
                       {job.action}
                     </td>
                   </tr>
@@ -176,8 +226,11 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
         {/* Footer hint */}
         {count > 0 && (
           <p className="text-xs text-muted-foreground pt-3 border-t border-border/70">
-            {t('activity:cronJobs.footerUse')} <code className="rounded bg-muted px-1 py-0.5 text-[11px]">cron_schedule</code> {t('activity:cronJobs.footerToAdd')}
-            <code className="rounded bg-muted px-1 py-0.5 text-[11px] ml-1">cron_cancel</code> {t('activity:cronJobs.footerToRemove')}
+            {t('activity:cronJobs.footerUse')}{' '}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">cron_schedule</code>{' '}
+            {t('activity:cronJobs.footerToAdd')}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px] ml-1">cron_cancel</code>{' '}
+            {t('activity:cronJobs.footerToRemove')}
           </p>
         )}
       </DialogContent>

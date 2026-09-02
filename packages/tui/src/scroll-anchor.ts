@@ -111,10 +111,7 @@ export function pageRows(viewportRows: number): number {
  * Anchor for a 0-based cell clicked on a scrollbar track of `viewportRows`
  * height: cell 0 → oldest content, the last cell → pinned to newest.
  */
-export function anchorForTrackCell(
-  geometry: ScrollGeometry,
-  cell: number,
-): ScrollAnchor | null {
+export function anchorForTrackCell(geometry: ScrollGeometry, cell: number): ScrollAnchor | null {
   const rows = Math.max(1, geometry.viewportRows);
   const max = maxTopRow(geometry);
   if (max <= 0) return null;
@@ -218,10 +215,7 @@ export function planPinned(geometry: ScrollGeometry, extraRows = 0): MountPlan {
   } else {
     startIdx = Math.min(
       startIdx,
-      Math.max(
-        0,
-        groupCount - (Math.max(1, geometry.viewportRows) + OVERSCAN_ROWS + extraRows),
-      ),
+      Math.max(0, groupCount - (Math.max(1, geometry.viewportRows) + OVERSCAN_ROWS + extraRows)),
     );
   }
   return { startIdx, endIdx: groupCount, mountTail: true };

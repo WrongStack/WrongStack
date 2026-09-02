@@ -5,10 +5,7 @@
   "description": "Answer the questions people actually keep asking.",
   "content": "Write a FAQ for: {{subject}}\n\nUse REAL questions people ask, phrased the way they ask them, ordered by how common they are — not questions invented to show off features. Answer each directly in the first sentence, then add detail. Include the awkward ones (limitations, gotchas, why it works this way) instead of dodging them. Keep each answer self-contained. Cut questions nobody asks, and link out rather than duplicating long explanations.",
   "category": "writing",
-  "tags": [
-    "faq",
-    "docs"
-  ],
+  "tags": ["faq", "docs"],
   "source": "builtin",
   "favorite": false,
   "checksum": "978352403bcbf6566b2532979a860e3c1cb604c6974f310d88ea76d95a978322",

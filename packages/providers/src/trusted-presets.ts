@@ -68,12 +68,7 @@ export interface TrustedProviderPreset extends ProviderDefinition {
  * 2026-07-15. Update only after re-verifying the URL, the model aliases,
  * and the usage-class contract.
  */
-export const TRUSTED_PROVIDER_PRESETS: Readonly<
-  Record<
-    string,
-    TrustedProviderPreset
-  >
-> = {
+export const TRUSTED_PROVIDER_PRESETS: Readonly<Record<string, TrustedProviderPreset>> = {
   /**
    * OpenRouter — meta-provider routing to 400+ models through a single
    * OpenAI-compatible endpoint. Unlike vendor-specific presets, OpenRouter
@@ -424,96 +419,150 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
     customModels: {
       'qwen3.8-max-preview': {
         capabilities: {
-          tools: true, vision: true, reasoning: true,
-          streaming: true, systemPrompt: true, jsonMode: true,
-          promptCache: true, parallelTools: true,
+          tools: true,
+          vision: true,
+          reasoning: true,
+          streaming: true,
+          systemPrompt: true,
+          jsonMode: true,
+          promptCache: true,
+          parallelTools: true,
           cacheControl: 'auto',
         },
       },
       'qwen3.7-max': {
         capabilities: {
-          tools: true, vision: false, reasoning: true,
-          streaming: true, systemPrompt: true, jsonMode: true,
-          promptCache: true, parallelTools: true,
+          tools: true,
+          vision: false,
+          reasoning: true,
+          streaming: true,
+          systemPrompt: true,
+          jsonMode: true,
+          promptCache: true,
+          parallelTools: true,
           cacheControl: 'auto',
         },
       },
       'qwen3.7-plus': {
         capabilities: {
-          tools: true, vision: true, reasoning: true,
-          streaming: true, systemPrompt: true, jsonMode: true,
-          promptCache: true, parallelTools: true,
+          tools: true,
+          vision: true,
+          reasoning: true,
+          streaming: true,
+          systemPrompt: true,
+          jsonMode: true,
+          promptCache: true,
+          parallelTools: true,
           cacheControl: 'auto',
         },
       },
       'qwen3.6-flash': {
         capabilities: {
-          tools: true, vision: true, reasoning: true,
-          streaming: true, systemPrompt: true, jsonMode: true,
-          promptCache: true, parallelTools: true,
+          tools: true,
+          vision: true,
+          reasoning: true,
+          streaming: true,
+          systemPrompt: true,
+          jsonMode: true,
+          promptCache: true,
+          parallelTools: true,
           cacheControl: 'auto',
         },
       },
       'glm-5.2': {
         capabilities: {
-          tools: true, vision: false, reasoning: true,
-          streaming: true, systemPrompt: true, jsonMode: true,
-          promptCache: true, parallelTools: true,
+          tools: true,
+          vision: false,
+          reasoning: true,
+          streaming: true,
+          systemPrompt: true,
+          jsonMode: true,
+          promptCache: true,
+          parallelTools: true,
           cacheControl: 'auto',
         },
       },
       'deepseek-v4-pro': {
         capabilities: {
-          tools: true, vision: false, reasoning: true,
-          streaming: true, systemPrompt: true, jsonMode: false,
-          promptCache: true, parallelTools: true,
+          tools: true,
+          vision: false,
+          reasoning: true,
+          streaming: true,
+          systemPrompt: true,
+          jsonMode: false,
+          promptCache: true,
+          parallelTools: true,
           cacheControl: 'auto',
         },
       },
       'wan2.7-image': {
         capabilities: {
-          tools: false, vision: true, reasoning: false,
-          streaming: true, systemPrompt: false, jsonMode: false,
-          promptCache: false, parallelTools: false,
+          tools: false,
+          vision: true,
+          reasoning: false,
+          streaming: true,
+          systemPrompt: false,
+          jsonMode: false,
+          promptCache: false,
+          parallelTools: false,
           cacheControl: 'none',
         },
       },
       'wan2.7-image-pro': {
         capabilities: {
-          tools: false, vision: true, reasoning: false,
-          streaming: true, systemPrompt: false, jsonMode: false,
-          promptCache: false, parallelTools: false,
+          tools: false,
+          vision: true,
+          reasoning: false,
+          streaming: true,
+          systemPrompt: false,
+          jsonMode: false,
+          promptCache: false,
+          parallelTools: false,
           cacheControl: 'none',
         },
       },
       'happyhorse-1.1-t2v': {
         capabilities: {
-          tools: false, vision: true, reasoning: false,
-          streaming: true, systemPrompt: false, jsonMode: false,
-          promptCache: false, parallelTools: false,
+          tools: false,
+          vision: true,
+          reasoning: false,
+          streaming: true,
+          systemPrompt: false,
+          jsonMode: false,
+          promptCache: false,
+          parallelTools: false,
           cacheControl: 'none',
         },
       },
       'happyhorse-1.1-i2v': {
         capabilities: {
-          tools: false, vision: true, reasoning: false,
-          streaming: true, systemPrompt: false, jsonMode: false,
-          promptCache: false, parallelTools: false,
+          tools: false,
+          vision: true,
+          reasoning: false,
+          streaming: true,
+          systemPrompt: false,
+          jsonMode: false,
+          promptCache: false,
+          parallelTools: false,
           cacheControl: 'none',
         },
       },
       'happyhorse-1.1-r2v': {
         capabilities: {
-          tools: false, vision: true, reasoning: false,
-          streaming: true, systemPrompt: false, jsonMode: false,
-          promptCache: false, parallelTools: false,
+          tools: false,
+          vision: true,
+          reasoning: false,
+          streaming: true,
+          systemPrompt: false,
+          jsonMode: false,
+          promptCache: false,
+          parallelTools: false,
           cacheControl: 'none',
         },
       },
     },
     usage: 'subscription-interactive',
-    docsUrl:
-      'https://www.alibabacloud.com/help/en/model-studio/token-plan-personal-overview',
+    docsUrl: 'https://www.alibabacloud.com/help/en/model-studio/token-plan-personal-overview',
     requestPolicy: 'alibaba',
     catalog: {
       description:
@@ -613,7 +662,10 @@ export function rehydrateCanonicalProviderConfig(
     }
   }
 
-  if (template.customModels && (!dest.customModels || Object.keys(dest.customModels).length === 0)) {
+  if (
+    template.customModels &&
+    (!dest.customModels || Object.keys(dest.customModels).length === 0)
+  ) {
     dest.customModels = template.customModels;
   }
   if (template.quirks) {

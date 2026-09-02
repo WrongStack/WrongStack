@@ -150,9 +150,8 @@ describe('agent-loop fingerprint detector', () => {
     cleanupDirs.push(tmp);
 
     const detected: Array<{ tools: string; kind?: string; repeatCount: number }> = [];
-    (agent as never as { events: EventBus }).events.on(
-      'tool.loop_detected',
-      (e) => detected.push({ tools: e.tools, kind: e.kind, repeatCount: e.repeatCount }),
+    (agent as never as { events: EventBus }).events.on('tool.loop_detected', (e) =>
+      detected.push({ tools: e.tools, kind: e.kind, repeatCount: e.repeatCount }),
     );
 
     const result = await agent.run('loop', { maxIterations: 20 });
@@ -188,15 +187,21 @@ describe('agent-loop fingerprint detector', () => {
     };
     const provider = new MockProvider([
       {
-        content: [{ type: 'tool_use', id: 'u1', name: 'read', input: { path: 'foo.txt', offset: 1 } }],
+        content: [
+          { type: 'tool_use', id: 'u1', name: 'read', input: { path: 'foo.txt', offset: 1 } },
+        ],
         stopReason: 'tool_use',
       },
       {
-        content: [{ type: 'tool_use', id: 'u2', name: 'read', input: { path: 'foo.txt', offset: 2 } }],
+        content: [
+          { type: 'tool_use', id: 'u2', name: 'read', input: { path: 'foo.txt', offset: 2 } },
+        ],
         stopReason: 'tool_use',
       },
       {
-        content: [{ type: 'tool_use', id: 'u3', name: 'read', input: { path: 'foo.txt', offset: 3 } }],
+        content: [
+          { type: 'tool_use', id: 'u3', name: 'read', input: { path: 'foo.txt', offset: 3 } },
+        ],
         stopReason: 'tool_use',
       },
       // Final entry: the model eventually gives up and reports its findings.
@@ -222,7 +227,7 @@ describe('agent-loop fingerprint detector', () => {
     expect(result.status).toBe('done');
   });
 
-  it("catches the k2p7 \"assistant message repeats\" pattern via autonomous-continue (legacy 'cut' mode)", async () => {
+  it('catches the k2p7 "assistant message repeats" pattern via autonomous-continue (legacy \'cut\' mode)', async () => {
     // K2P7 in autonomous-continue mode echoes the same prose turn after
     // turn with no tool calls at all. The OLD detector only ran when there
     // was a tool_use, so this case was invisible. The NEW detector
@@ -368,7 +373,12 @@ describe('agent-loop fingerprint detector', () => {
     // Six identical responses scripted; the run must cut at iteration 5
     // (steer at 3, cut at 5) without reaching the 6th.
     const provider = new MockProvider([
-      identical(), identical(), identical(), identical(), identical(), identical(),
+      identical(),
+      identical(),
+      identical(),
+      identical(),
+      identical(),
+      identical(),
     ]);
     const { agent, ctx, tmp } = await buildAgent(provider, [echo]);
     cleanupDirs.push(tmp);
@@ -435,13 +445,17 @@ describe('agent-loop fingerprint detector', () => {
       stopReason: 'tool_use' as const,
     });
     const provider = new MockProvider([
-      repeatedRead('r1'), repeatedRead('r2'), repeatedRead('r3'),
+      repeatedRead('r1'),
+      repeatedRead('r2'),
+      repeatedRead('r3'),
       { content: [{ type: 'text', text: 'done' }], stopReason: 'end_turn' },
     ]);
     const { agent, tmp } = await buildAgent(provider, [read]);
     cleanupDirs.push(tmp);
     const detected: unknown[] = [];
-    (agent as never as { events: EventBus }).events.on('tool.loop_detected', () => detected.push(true));
+    (agent as never as { events: EventBus }).events.on('tool.loop_detected', () =>
+      detected.push(true),
+    );
 
     expect((await agent.run('inspect', { maxIterations: 20 })).status).toBe('done');
     expect(detected).toEqual([]);
@@ -453,9 +467,7 @@ describe('agent-loop fingerprint detector', () => {
     // The sliding-window per-call detector catches the 4th identical read.
     const tools = [echoTool('read'), echoTool('aux')];
     const read = () => ({
-      content: [
-        { type: 'tool_use' as const, id: 'r', name: 'read', input: { path: 'same.txt' } },
-      ],
+      content: [{ type: 'tool_use' as const, id: 'r', name: 'read', input: { path: 'same.txt' } }],
       stopReason: 'tool_use' as const,
     });
     const aux = (n: number) => ({
@@ -463,7 +475,13 @@ describe('agent-loop fingerprint detector', () => {
       stopReason: 'tool_use' as const,
     });
     const provider = new MockProvider([
-      read(), aux(1), read(), aux(2), read(), aux(3), read(),
+      read(),
+      aux(1),
+      read(),
+      aux(2),
+      read(),
+      aux(3),
+      read(),
       { content: [{ type: 'text', text: 'ok, moving on' }], stopReason: 'end_turn' },
     ]);
     const { agent, ctx, tmp } = await buildAgent(provider, tools);
@@ -472,7 +490,12 @@ describe('agent-loop fingerprint detector', () => {
     const detected: Array<{ action?: string; scope?: string; tools: string; repeatCount: number }> =
       [];
     (agent as never as { events: EventBus }).events.on('tool.loop_detected', (e) =>
-      detected.push({ action: e.action, scope: e.scope, tools: e.tools, repeatCount: e.repeatCount }),
+      detected.push({
+        action: e.action,
+        scope: e.scope,
+        tools: e.tools,
+        repeatCount: e.repeatCount,
+      }),
     );
 
     const result = await agent.run('go', { maxIterations: 20 });
@@ -510,7 +533,13 @@ describe('agent-loop fingerprint detector', () => {
       stopReason: 'tool_use' as const,
     });
     const provider = new MockProvider([
-      readAB(), aux(1), readBA(), aux(2), readAB(), aux(3), readBA(),
+      readAB(),
+      aux(1),
+      readBA(),
+      aux(2),
+      readAB(),
+      aux(3),
+      readBA(),
       { content: [{ type: 'text', text: 'done' }], stopReason: 'end_turn' },
     ]);
     const { agent, tmp } = await buildAgent(provider, tools);
@@ -533,7 +562,12 @@ describe('agent-loop fingerprint detector', () => {
       stopReason: 'tool_use' as const,
     });
     const provider = new MockProvider([
-      identical(), identical(), identical(), identical(), identical(), identical(),
+      identical(),
+      identical(),
+      identical(),
+      identical(),
+      identical(),
+      identical(),
       { content: [{ type: 'text', text: 'finally done' }], stopReason: 'end_turn' },
     ]);
     const { agent, tmp } = await buildAgent(provider, [echo], { mode: 'off' });

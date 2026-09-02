@@ -5,11 +5,7 @@
   "description": "Turn an open question into experiments that resolve it.",
   "content": "I'm unsure about: {{uncertainty}}\n\nDesign the cheapest experiments to resolve it. For each: the hypothesis, the exact thing to measure, what result would confirm vs. refute, and roughly what it costs to run. Order them so the most decisive/cheapest comes first. Tell me the smallest experiment that would meaningfully reduce my uncertainty.",
   "category": "research",
-  "tags": [
-    "experiment",
-    "hypothesis",
-    "validation"
-  ],
+  "tags": ["experiment", "hypothesis", "validation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "82a5f05b0fb2f00b3182a50b4f7cc04fd24bc60a0f9e26db5547de708a4975b0",

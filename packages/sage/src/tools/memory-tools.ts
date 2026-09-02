@@ -304,9 +304,7 @@ function memoryForgetTool(
   };
 }
 
-function memoryUpdateTool(
-  memory: SageServiceLike,
-): Tool<{ id: string } & UpdateSageInput, Sage> {
+function memoryUpdateTool(memory: SageServiceLike): Tool<{ id: string } & UpdateSageInput, Sage> {
   return {
     name: 'memory_update',
     category: 'Session',
@@ -731,9 +729,7 @@ function memorySearchTool(
  * `searchSageWithBreakdown` — keeps the tool usable on remote IPC
  * ports that don't ship the rich variant.
  */
-function memorySearchExplainTool(
-  memory: SageServiceLike,
-): Tool<
+function memorySearchExplainTool(memory: SageServiceLike): Tool<
   { query: string; limit?: number; include_stale?: boolean },
   Array<{
     memory: Sage;
@@ -838,9 +834,7 @@ function memoryGraphTool(
   };
 }
 
-function memoryGatherBatchTool(
-  memory: SageServiceLike,
-): Tool<
+function memoryGatherBatchTool(memory: SageServiceLike): Tool<
   {
     statuses?: Sage['status'][] | undefined;
     kind?: string | undefined;
@@ -866,7 +860,7 @@ function memoryGatherBatchTool(
       kind: stringSchema('Optional kind filter (e.g. "fact").'),
       query: stringSchema('Case-insensitive substring match against memory text.'),
       limit: numberSchema(1, 500),
-      cursor: stringSchema('Opaque cursor from a previous page\'s `nextCursor`.'),
+      cursor: stringSchema("Opaque cursor from a previous page's `nextCursor`."),
       includeRelations: {
         type: 'boolean',
         description: 'Include graph edges among gathered memories. Default true.',
@@ -952,9 +946,7 @@ function memoryVerifyTool(
   };
 }
 
-function memoryHygieneTool(
-  memory: SageServiceLike,
-): Tool<SageHygieneOptions, SageHygieneReport> {
+function memoryHygieneTool(memory: SageServiceLike): Tool<SageHygieneOptions, SageHygieneReport> {
   return {
     name: 'memory_hygiene',
     category: 'Session',

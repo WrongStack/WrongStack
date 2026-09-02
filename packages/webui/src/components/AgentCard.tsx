@@ -157,9 +157,7 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
         </div>
         <div className="rounded-lg border bg-muted/30 px-2 py-1.5 text-center">
           <div className="text-[10px] text-muted-foreground">{t('activity:fleet.cost')}</div>
-          <div className="text-xs font-mono font-semibold tabular-nums">
-            {stats.cost}
-          </div>
+          <div className="text-xs font-mono font-semibold tabular-nums">{stats.cost}</div>
         </div>
         <div className="rounded-lg border bg-muted/30 px-2 py-1.5 text-center">
           <div className="text-[10px] text-muted-foreground">{t('activity:fleet.elapsed')}</div>
@@ -224,13 +222,11 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
           </div>
           <div className="space-y-0.5">
             {last8Tools.map((tool) => (
-              <div key={`${tool.name}-${tool.at}`} className="flex items-center gap-2 text-[10px] font-mono">
-                <span
-                  className={cn(
-                    'shrink-0',
-                    tool.ok ? 'text-success' : 'text-destructive',
-                  )}
-                >
+              <div
+                key={`${tool.name}-${tool.at}`}
+                className="flex items-center gap-2 text-[10px] font-mono"
+              >
+                <span className={cn('shrink-0', tool.ok ? 'text-success' : 'text-destructive')}>
                   {tool.ok ? '✓' : '✗'}
                 </span>
                 <span className="text-muted-foreground truncate">{tool.name}</span>

@@ -27,8 +27,7 @@ function buildPlanCommand(planPath?: string): SlashCommand {
   const command = buildCliPlanCommand({ planPath } as never);
   return {
     ...command,
-    run: (args, context) =>
-      buildCliPlanCommand({ planPath, context } as never).run!(args, context),
+    run: (args, context) => buildCliPlanCommand({ planPath, context } as never).run!(args, context),
   };
 }
 

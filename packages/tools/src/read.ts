@@ -190,7 +190,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       limit > 0 &&
       prior &&
       offset <= requestedEnd &&
-      coversRange(prior, stat.mtimeMs, offset, requestedEnd)
+      coversRange(prior, stat.mtimeMs, stat.size, offset, requestedEnd)
     ) {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', ctx.lastReadHash?.(absPath));
       const symResult = shouldIncludeSymbols
@@ -231,15 +231,16 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
 
     if (input.mode === 'summary') {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
-      rememberReadRange(ctx, absPath, stat.mtimeMs, total, 1, Math.min(total, 200));
+      rememberReadRange(ctx, absPath, stat.mtimeMs, stat.size, total, 1, Math.min(total, 200));
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
+      const summary = summarizeFile(input.path, stat.size, allLines);
       return {
-        text: summarizeFile(input.path, stat.size, allLines),
+        text: summary.text,
         total_lines: total,
         encoding: 'utf8',
-        truncated: total > 200,
+        truncated: summary.truncated,
         note: mergeSymbolNote(
           'Summary mode returned compact structure instead of full file content.',
           symResult?.note,
@@ -249,7 +250,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     }
     if (limit === 0) {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
-      rememberReadRange(ctx, absPath, stat.mtimeMs, total, 1, 0);
+      rememberReadRange(ctx, absPath, stat.mtimeMs, stat.size, total, 1, 0);
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
@@ -297,7 +298,15 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     const numbered = parts.join('\n');
 
     ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
-    rememberReadRange(ctx, absPath, stat.mtimeMs, total, offset, offset + slice.length - 1);
+    rememberReadRange(
+      ctx,
+      absPath,
+      stat.mtimeMs,
+      stat.size,
+      total,
+      offset,
+      offset + slice.length - 1,
+    );
 
     const symResult = shouldIncludeSymbols
       ? await fetchSymbolsForFile(absPath, ctx, signal)
@@ -373,6 +382,7 @@ function mergeSymbolNote(
 
 interface ReadRangeRecord {
   mtimeMs: number;
+  size: number;
   totalLines: number;
   ranges: Array<{ start: number; end: number }>;
 }
@@ -404,6 +414,7 @@ function rememberReadRange(
   ctx: import('@wrongstack/core/agent').Context,
   absPath: string,
   mtimeMs: number,
+  size: number,
   totalLines: number,
   start: number,
   end: number,
@@ -412,10 +423,13 @@ function rememberReadRange(
   const ranges = getReadRanges(ctx);
   const prior = ranges[absPath];
   const nextRanges =
-    prior && Math.abs(prior.mtimeMs - mtimeMs) <= MTIME_TOLERANCE_MS ? prior.ranges.slice() : [];
+    prior && prior.size === size && Math.abs(prior.mtimeMs - mtimeMs) <= MTIME_TOLERANCE_MS
+      ? prior.ranges.slice()
+      : [];
   nextRanges.push({ start, end });
   ranges[absPath] = {
     mtimeMs,
+    size,
     totalLines,
     ranges: mergeRanges(nextRanges),
   };
@@ -424,9 +438,11 @@ function rememberReadRange(
 function coversRange(
   record: ReadRangeRecord,
   mtimeMs: number,
+  size: number,
   start: number,
   end: number,
 ): boolean {
+  if (record.size !== undefined && record.size !== size) return false;
   if (Math.abs(record.mtimeMs - mtimeMs) > MTIME_TOLERANCE_MS) return false;
   return record.ranges.some((range) => range.start <= start && range.end >= end);
 }
@@ -447,17 +463,26 @@ function mergeRanges(
   return merged;
 }
 
-function summarizeFile(filePath: string, bytes: number, lines: string[]): string {
+function summarizeFile(
+  filePath: string,
+  bytes: number,
+  lines: string[],
+): { text: string; truncated: boolean } {
   const interesting: string[] = [];
   const symbolRegex =
-    /^(import\s|export\s|class\s|interface\s|type\s|function\s|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|def\s+|async\s+function\s)/;
-  for (let i = 0; i < lines.length && interesting.length < 80; i++) {
+    /^(import\s|export\s|class\s|interface\s|type\s|function\s|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|def\s+|async\s+(?:def|function)\s|func\s+|fn\s+|pub\s+(?:fn|struct|enum|trait|type|const)\s+|struct\s+|enum\s+|impl\s+)/;
+  let truncated = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (interesting.length >= 80) {
+      truncated = true;
+      break;
+    }
     const trimmed = (lines[i] as string).trim();
     if (symbolRegex.test(trimmed)) {
       interesting.push(`${i + 1}: ${trimmed}`);
     }
   }
-  return [
+  const text = [
     `summary: ${filePath}`,
     `bytes=${bytes}`,
     `total_lines=${lines.length}`,
@@ -465,4 +490,5 @@ function summarizeFile(filePath: string, bytes: number, lines: string[]): string
       ? `symbols/imports:\n${interesting.join('\n')}`
       : 'symbols/imports: (none detected)',
   ].join('\n');
+  return { text, truncated };
 }

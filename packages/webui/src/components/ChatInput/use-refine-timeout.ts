@@ -52,5 +52,15 @@ export function useRefineTimeout({
       }
     }, window);
     return () => clearTimeout(timer);
-  }, [refinePanel, clientConnected, addMessage, setLoading, sendMessage, setRefinePanel, enqueue, setInput, t]);
+  }, [
+    refinePanel,
+    clientConnected,
+    addMessage,
+    setLoading,
+    sendMessage,
+    setRefinePanel,
+    enqueue,
+    setInput,
+    t,
+  ]);
 }

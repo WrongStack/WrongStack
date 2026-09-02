@@ -31,11 +31,7 @@ describe('eternal-iteration-broadcast', () => {
     it('dispose is idempotent', () => {
       const disposeOriginal = vi.fn();
       const subscribe = vi.fn(() => disposeOriginal);
-      const sub = createEternalSubscription(
-        subscribe,
-        vi.fn(),
-        () => new Map(),
-      );
+      const sub = createEternalSubscription(subscribe, vi.fn(), () => new Map());
 
       sub.dispose();
       sub.dispose();

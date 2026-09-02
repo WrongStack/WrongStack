@@ -63,17 +63,22 @@ describe('ProviderRegistry', () => {
 
   it('override throws when type not registered', () => {
     const r = new ProviderRegistry();
-    expect(() => r.override('unknown', makeFactory('unknown'))).toThrow(/not registered.*cannot override/);
+    expect(() => r.override('unknown', makeFactory('unknown'))).toThrow(
+      /not registered.*cannot override/,
+    );
   });
 
   it('override replaces existing factory', () => {
     const r = new ProviderRegistry();
     let _callCount = 0;
     r.register(makeFactory('a', () => ({ ...fakeProvider, id: 'first' })));
-    r.override('a', makeFactory('a', () => {
-      _callCount++;
-      return { ...fakeProvider, id: 'second' };
-    }));
+    r.override(
+      'a',
+      makeFactory('a', () => {
+        _callCount++;
+        return { ...fakeProvider, id: 'second' };
+      }),
+    );
     const prov = r.create({ type: 'a' }) as typeof fakeProvider & { id: string };
     expect(prov.id).toBe('second');
   });

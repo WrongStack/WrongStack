@@ -10,7 +10,9 @@ function mockWs() {
 }
 
 function sentMessages(ws: ReturnType<typeof mockWs>) {
-  return ws.send.mock.calls.map(([raw]) => JSON.parse(String(raw)) as { type: string; payload: Record<string, unknown> });
+  return ws.send.mock.calls.map(
+    ([raw]) => JSON.parse(String(raw)) as { type: string; payload: Record<string, unknown> },
+  );
 }
 
 function handlers(): ModeRouteHandlers {

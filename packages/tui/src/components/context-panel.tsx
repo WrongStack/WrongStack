@@ -380,9 +380,7 @@ function ThresholdSection({
   const diffPct = nextBoundary ? nextBoundary.from - curVal : 0;
   const headroom =
     nextBoundary && maxTok > 0
-      ? `${fmtPct(diffPct)} (${fmtTok(
-          (diffPct / 100) * maxTok,
-        )}) until ${nextBoundary.desc}`
+      ? `${fmtPct(diffPct)} (${fmtTok((diffPct / 100) * maxTok)}) until ${nextBoundary.desc}`
       : nextBoundary
         ? `${fmtPct(diffPct)} until ${nextBoundary.desc}`
         : 'in the final zone — compaction is overdue';
@@ -621,8 +619,7 @@ function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement 
   // the 5-min / 1-hour cache-write split. OpenAI-family gateways emit only
   // the aggregate and leave both undefined, in which case the panel skips
   // the TTL sub-row entirely instead of advertising two fabricated zeros.
-  const hasTtlSplit =
-    cs.cacheWrite5m !== undefined && cs.cacheWrite1h !== undefined;
+  const hasTtlSplit = cs.cacheWrite5m !== undefined && cs.cacheWrite1h !== undefined;
   const coverage = Math.max(0, data.cacheCoverageTokens ?? 0);
   const max = data.ctxMaxTokens ?? 0;
   const covBarLen = 30;
@@ -653,12 +650,10 @@ function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement 
       {hasTtlSplit ? (
         <Box>
           <Text color={theme.textMuted}>Write TTL </Text>
-          <Text color={theme.textPrimary}>
-            5m {((cs.cacheWrite5m ?? 0)).toLocaleString('en-US')}
-          </Text>
+          <Text color={theme.textPrimary}>5m {(cs.cacheWrite5m ?? 0).toLocaleString('en-US')}</Text>
           <Text color={theme.textMuted}> · </Text>
           <Text color={theme.textSecondary}>
-            1h {((cs.cacheWrite1h ?? 0)).toLocaleString('en-US')}
+            1h {(cs.cacheWrite1h ?? 0).toLocaleString('en-US')}
           </Text>
         </Box>
       ) : null}
@@ -674,13 +669,9 @@ function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement 
                 {fmtRatioPct(provider.hitRatio)}
               </Text>
               <Text color={theme.textMuted}> · read </Text>
-              <Text color={theme.textPrimary}>
-                {provider.cacheRead.toLocaleString('en-US')}
-              </Text>
+              <Text color={theme.textPrimary}>{provider.cacheRead.toLocaleString('en-US')}</Text>
               <Text color={theme.textMuted}> · write </Text>
-              <Text color={theme.textSecondary}>
-                {provider.cacheWrite.toLocaleString('en-US')}
-              </Text>
+              <Text color={theme.textSecondary}>{provider.cacheWrite.toLocaleString('en-US')}</Text>
               {provider.cacheWrite5m !== undefined && provider.cacheWrite1h !== undefined ? (
                 <>
                   <Text color={theme.textMuted}> (</Text>
@@ -711,8 +702,7 @@ function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement 
             <Text color={theme.borderSubtle}>{'□'.repeat(Math.max(0, covBarLen - covFilled))}</Text>
             <Text color={theme.textMuted}> </Text>
             <Text color={theme.success}>
-              {coverage.toLocaleString('en-US')} / {max.toLocaleString('en-US')} (
-              {fmtPct(covPct)})
+              {coverage.toLocaleString('en-US')} / {max.toLocaleString('en-US')} ({fmtPct(covPct)})
             </Text>
           </Box>
           <Text color={theme.textMuted}>

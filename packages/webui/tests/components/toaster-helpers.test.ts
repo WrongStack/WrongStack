@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  ACTION_TTL_MS,
-  buildUndoToastEntry,
-} from '../../src/components/toaster-helpers';
+import { ACTION_TTL_MS, buildUndoToastEntry } from '../../src/components/toaster-helpers';
 
 /**
  * Tests for the `toast.undoable(...)` payload builder. The store

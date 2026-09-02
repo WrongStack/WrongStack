@@ -15,7 +15,11 @@
 
 import type { MailboxAudience } from './mailbox-types.js';
 
-export type MailboxEventType = 'message.sent' | 'message.acked' | 'message.deleted' | 'message.restored';
+export type MailboxEventType =
+  | 'message.sent'
+  | 'message.acked'
+  | 'message.deleted'
+  | 'message.restored';
 
 export interface MailboxEvent {
   type: MailboxEventType;
@@ -33,13 +37,19 @@ export class MailboxEventEmitter {
 
   subscribe(fn: MailboxEventListener): () => void {
     this.listeners.add(fn);
-    return () => { this.listeners.delete(fn); };
+    return () => {
+      this.listeners.delete(fn);
+    };
   }
 
   emit(event: MailboxEvent): void {
     const snapshot = [...this.listeners];
     for (const fn of snapshot) {
-      try { fn(event); } catch { /* listener must not crash the emitter */ }
+      try {
+        fn(event);
+      } catch {
+        /* listener must not crash the emitter */
+      }
     }
   }
 

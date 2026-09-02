@@ -99,4 +99,3 @@ function normalizeToolResultContent(raw: unknown, opts: FromAnthropicOptions): s
   if (raw === undefined || raw === null) return '';
   return JSON.stringify(raw);
 }
-

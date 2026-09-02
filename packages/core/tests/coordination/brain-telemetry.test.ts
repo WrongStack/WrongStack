@@ -53,7 +53,14 @@ describe('markDecisionTier / readDecisionTier', () => {
 
 describe('isDeterministicTier', () => {
   it('classifies the free tiers as deterministic', () => {
-    for (const tier of ['rule', 'policy', 'heuristic', 'cache', 'ledger-guard', 'terminal'] as const) {
+    for (const tier of [
+      'rule',
+      'policy',
+      'heuristic',
+      'cache',
+      'ledger-guard',
+      'terminal',
+    ] as const) {
       expect(isDeterministicTier(tier)).toBe(true);
     }
   });

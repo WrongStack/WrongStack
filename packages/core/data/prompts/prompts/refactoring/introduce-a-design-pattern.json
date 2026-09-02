@@ -5,10 +5,7 @@
   "description": "Apply an appropriate design pattern to untangle code — or argue against it.",
   "content": "Here is code that feels tangled: \n\n```\n{{code}}\n```\n\nWould a design pattern help? If yes, recommend the specific pattern, explain exactly what problem it solves here, and show the refactor. If a pattern would be over-engineering, say so and propose the simpler structural fix instead. Bias toward the simplest thing that removes the pain.",
   "category": "refactoring",
-  "tags": [
-    "patterns",
-    "design"
-  ],
+  "tags": ["patterns", "design"],
   "source": "builtin",
   "favorite": false,
   "checksum": "428c2c0f5678020d411aba06b17fa34936b0128ea0be01c87fb944767854b2a2",

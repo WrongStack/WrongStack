@@ -1,7 +1,15 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
-import type { CreateProjectAgentInput, ProjectAgentProfile } from './project-agent-identity-types.js';
-import { assertProjectAgentRole, projectAgentProfilePath, roleDir, writeTextAtomically } from './project-agent-paths.js';
+import type {
+  CreateProjectAgentInput,
+  ProjectAgentProfile,
+} from './project-agent-identity-types.js';
+import {
+  assertProjectAgentRole,
+  projectAgentProfilePath,
+  roleDir,
+  writeTextAtomically,
+} from './project-agent-paths.js';
 
 export function slugifyProjectAgentRole(name: string): string {
   const slug = name

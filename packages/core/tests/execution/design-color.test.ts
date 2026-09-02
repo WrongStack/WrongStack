@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { colorToHex, isColorToken, oklchToHex, parseOklch } from '../../src/execution/design-color.js';
+import {
+  colorToHex,
+  isColorToken,
+  oklchToHex,
+  parseOklch,
+} from '../../src/execution/design-color.js';
 
 describe('design-color — OKLCH conversion', () => {
   it('parses oklch components (percent + bare + alpha)', () => {
@@ -14,9 +19,7 @@ describe('design-color — OKLCH conversion', () => {
     // Chroma `50%` must parse to 0.20, not 0.50 — L & alpha stay 100% → 1.0.
     expect(parseOklch('oklch(62% 50% 145)')).toEqual([0.62, 0.2, 145, 1]);
     // A percent-chroma token must convert identically to its bare-number twin.
-    expect(oklchToHex('oklch(62.79% 64.43% 29.23)')).toBe(
-      oklchToHex('oklch(62.79% 0.2577 29.23)'),
-    );
+    expect(oklchToHex('oklch(62.79% 64.43% 29.23)')).toBe(oklchToHex('oklch(62.79% 0.2577 29.23)'));
   });
 
   it('converts achromatic endpoints exactly', () => {

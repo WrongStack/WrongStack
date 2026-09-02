@@ -61,10 +61,7 @@ let cachedChecksums: Record<string, string> | null | undefined;
 function expectedChecksums(): Record<string, string> | null {
   if (cachedChecksums !== undefined) return cachedChecksums;
   try {
-    cachedChecksums = JSON.parse(readFileSync(CHECKSUMS_PATH, 'utf8')) as Record<
-      string,
-      string
-    >;
+    cachedChecksums = JSON.parse(readFileSync(CHECKSUMS_PATH, 'utf8')) as Record<string, string>;
   } catch (err) {
     // Only an intentionally ABSENT manifest (the published dist tree does
     // not ship the wasm directory) skips verification. A manifest that

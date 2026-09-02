@@ -102,9 +102,9 @@ export function useSubagentEvents(
   sessionGenerationRef?: { current: number } | undefined,
 ): void {
   const labelsRef = useRef<Map<string, { label: string; color: string }>>(new Map());
-  const ctxDispatchRef = useRef<Map<string, { at: number; load: number; tokens?: number; max?: number }>>(
-    new Map(),
-  );
+  const ctxDispatchRef = useRef<
+    Map<string, { at: number; load: number; tokens?: number; max?: number }>
+  >(new Map());
   const leaderCtxDispatchRef = useRef<
     { at: number; load: number; tokens?: number; max?: number } | undefined
   >(undefined);

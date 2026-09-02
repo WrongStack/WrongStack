@@ -52,7 +52,10 @@ export function createSyncPlugin(opts?: SyncPluginOptions): Plugin {
         () => {
           const cfg = configStore?.get();
           return (cfg as Record<string, unknown>).sync as {
-            enabled: boolean; repo: string; githubToken: string; categories: SyncCategory[]
+            enabled: boolean;
+            repo: string;
+            githubToken: string;
+            categories: SyncCategory[];
           } | null;
         },
         async (cfg) => {
@@ -86,7 +89,9 @@ async function persistSyncConfig(
   let githubToken = cfg.githubToken;
   if (githubToken && !githubToken.startsWith('enc:')) {
     if (!vault) {
-      throw new Error('Secure token storage is unavailable; refusing to persist a plaintext token.');
+      throw new Error(
+        'Secure token storage is unavailable; refusing to persist a plaintext token.',
+      );
     }
     const encryptedToken = vault.encrypt(githubToken);
     if (encryptedToken === githubToken || !encryptedToken.startsWith('enc:')) {
@@ -94,7 +99,9 @@ async function persistSyncConfig(
     }
     githubToken = encryptedToken;
   }
-  await atomicWrite(syncConfigPath, JSON.stringify({ ...cfg, githubToken }, null, 2), { mode: 0o600 });
+  await atomicWrite(syncConfigPath, JSON.stringify({ ...cfg, githubToken }, null, 2), {
+    mode: 0o600,
+  });
 }
 
 function buildSyncCommand(
@@ -139,7 +146,9 @@ function buildSyncCommand(
           }
 
           if (!vault) {
-            return { message: 'Secure token storage is unavailable; refusing to enable CloudSync.' };
+            return {
+              message: 'Secure token storage is unavailable; refusing to enable CloudSync.',
+            };
           }
           // Keep plaintext in memory for GitHub requests; persistSyncConfig encrypts
           // the token in sync.json before it reaches disk.
@@ -155,7 +164,7 @@ function buildSyncCommand(
             enabled: true,
             repo,
             githubToken: expectDefined(token),
-            categories: cats.length > 0 ? cats as SyncCategory[] : ALL_SYNC_CATEGORIES,
+            categories: cats.length > 0 ? (cats as SyncCategory[]) : ALL_SYNC_CATEGORIES,
             lastSyncedAt: undefined,
           };
 
@@ -183,7 +192,8 @@ function buildSyncCommand(
         case 'push': {
           const cfg = (configStore.get() as Record<string, unknown>).sync as SyncConfig | null;
           if (!cfg?.enabled) return { message: 'CloudSync not enabled. Run `/sync enable`.' };
-          if (!cfg?.githubToken) return { message: 'No GitHub token found. Run `/sync enable owner/repo TOKEN`.' };
+          if (!cfg?.githubToken)
+            return { message: 'No GitHub token found. Run `/sync enable owner/repo TOKEN`.' };
 
           let result;
           try {
@@ -208,7 +218,8 @@ function buildSyncCommand(
         case 'pull': {
           const cfg = (configStore.get() as Record<string, unknown>).sync as SyncConfig | null;
           if (!cfg?.enabled) return { message: 'CloudSync not enabled. Run `/sync enable`.' };
-          if (!cfg?.githubToken) return { message: 'No GitHub token. Run `/sync enable owner/repo TOKEN`.' };
+          if (!cfg?.githubToken)
+            return { message: 'No GitHub token. Run `/sync enable owner/repo TOKEN`.' };
 
           let result;
           try {
@@ -251,14 +262,16 @@ function buildSyncCommand(
             if (!ALL_SYNC_CATEGORIES.includes(catName)) {
               return { message: `Unknown. Available: ${ALL_SYNC_CATEGORIES.join(', ')}` };
             }
-            if (cfg.categories.includes(catName)) return { message: `"${catName}" already synced.` };
+            if (cfg.categories.includes(catName))
+              return { message: `"${catName}" already synced.` };
             await setSyncConfig({ ...cfg, categories: [...cfg.categories, catName] });
             return { message: `Added "${catName}" to sync categories.` };
           }
 
           if (action === 'remove') {
             const catName = catRest[0] as SyncCategory;
-            if (!cfg.categories.includes(catName)) return { message: `"${catName}" not in sync categories.` };
+            if (!cfg.categories.includes(catName))
+              return { message: `"${catName}" not in sync categories.` };
             await setSyncConfig({
               ...cfg,
               categories: cfg.categories.filter((c: SyncCategory) => c !== catName),

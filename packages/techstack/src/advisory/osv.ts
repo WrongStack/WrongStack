@@ -156,15 +156,18 @@ export async function queryOsvBatch(
       if (!purl) continue;
       const vulns = result.results[i]?.vulns;
       if (!vulns || vulns.length === 0) continue;
-      advisories.set(purl, vulns.map((vuln) => ({
-        id: vuln.id,
-        summary: vuln.summary ?? vuln.details ?? 'No summary available',
-        severity: mapSeverity(
-          vuln.severity,
-          vuln.database_specific?.severity ?? vuln.affected?.[0]?.database_specific?.severity,
-        ),
-        aliases: vuln.aliases ?? [],
-      })));
+      advisories.set(
+        purl,
+        vulns.map((vuln) => ({
+          id: vuln.id,
+          summary: vuln.summary ?? vuln.details ?? 'No summary available',
+          severity: mapSeverity(
+            vuln.severity,
+            vuln.database_specific?.severity ?? vuln.affected?.[0]?.database_specific?.severity,
+          ),
+          aliases: vuln.aliases ?? [],
+        })),
+      );
     }
   }
 

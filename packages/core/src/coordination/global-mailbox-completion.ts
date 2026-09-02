@@ -5,16 +5,11 @@ export function isMailboxMessageProjection(msg: MailboxMessage): msg is MailboxM
   if (!('recipientState' in msg)) return false;
   const recipientState: unknown = msg.recipientState;
   return (
-    typeof recipientState === 'object' &&
-    recipientState !== null &&
-    !Array.isArray(recipientState)
+    typeof recipientState === 'object' && recipientState !== null && !Array.isArray(recipientState)
   );
 }
 
-export function isMessageCompletedForActor(
-  msg: MailboxMessage,
-  actorId?: string,
-): boolean {
+export function isMessageCompletedForActor(msg: MailboxMessage, actorId?: string): boolean {
   if (!isMailboxMessageProjection(msg)) return msg.completed === true;
   if (msg.legacyGlobalCompletion) return true;
   if (actorId !== undefined) {

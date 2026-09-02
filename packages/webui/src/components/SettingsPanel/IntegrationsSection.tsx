@@ -23,7 +23,9 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
             <Server className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-sm font-semibold">{t('settings:integrations.wrongProxyHeading')}</h3>
+            <h3 className="text-sm font-semibold">
+              {t('settings:integrations.wrongProxyHeading')}
+            </h3>
           </div>
         </div>
         <div className="space-y-3">
@@ -31,9 +33,7 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
             label={t('settings:integrations.wrongProxyEnabledLabel')}
             hint={t('settings:integrations.wrongProxyEnabledHint')}
             value={localPrefs.wrongProxyEnabled}
-            onChange={() =>
-              syncPref('wrongProxyEnabled', !localPrefs.wrongProxyEnabled)
-            }
+            onChange={() => syncPref('wrongProxyEnabled', !localPrefs.wrongProxyEnabled)}
           />
           <div className="space-y-1">
             <span className="text-sm font-medium">

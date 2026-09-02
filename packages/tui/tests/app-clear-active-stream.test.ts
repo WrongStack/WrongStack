@@ -42,7 +42,13 @@ function streamingState(): State {
     picker: { open: false, query: '', matches: [], selected: 0 },
     slashPicker: { open: false, query: '', matches: [], selected: 0 },
     runningTools: new Map([['tool-1', { name: 'bash', startedAt: 1 }]]),
-    queue: [{ id: 1, displayText: 'queued follow-up', blocks: [{ type: 'text', text: 'queued follow-up' }] }],
+    queue: [
+      {
+        id: 1,
+        displayText: 'queued follow-up',
+        blocks: [{ type: 'text', text: 'queued follow-up' }],
+      },
+    ],
     nextQueueId: 2,
     confirmQueue: [
       {

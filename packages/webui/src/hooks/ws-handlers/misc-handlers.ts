@@ -250,7 +250,13 @@ export function handleBrainAnswer(msg: WSServerMessage) {
   const chat = chatFor(msg) ?? activeChatLane();
   const p = msg.payload as {
     question: string;
-    decision: { type: string; text?: string; rationale?: string; reason?: string; optionId?: string };
+    decision: {
+      type: string;
+      text?: string;
+      rationale?: string;
+      reason?: string;
+      optionId?: string;
+    };
   };
   let content: string;
   if (p.decision.type === 'answer') {
@@ -265,7 +271,12 @@ export function handleBrainAnswer(msg: WSServerMessage) {
     content = '🧠 The Brain escalated this question back to you — it needs human judgement.';
   }
   const brainDecision: BrainDecisionData = {
-    kind: p.decision.type === 'answer' ? 'answered' : p.decision.type === 'deny' ? 'denied' : 'ask_human',
+    kind:
+      p.decision.type === 'answer'
+        ? 'answered'
+        : p.decision.type === 'deny'
+          ? 'denied'
+          : 'ask_human',
     question: p.question,
     decisionType: p.decision.type,
     text: p.decision.text,
@@ -390,7 +401,9 @@ export function handleBrainEvent(msg: WSServerMessage) {
       configuredSeatCount: p.configuredSeatCount ?? panel?.configuredSeatCount ?? seats.length,
       validVoteCount: p.validVoteCount ?? panel?.validVoteCount ?? seats.length,
       distinctTargetCount:
-        p.distinctTargetCount ?? panel?.distinctTargetCount ?? new Set(seats.map((s) => s.model || s.persona)).size,
+        p.distinctTargetCount ??
+        panel?.distinctTargetCount ??
+        new Set(seats.map((s) => s.model || s.persona)).size,
       judgeUsed: Boolean(p.judgeUsed ?? panel?.judgeUsed),
       totalTokens: p.usage?.totalTokens ?? panel?.totalTokens,
       durationMs: p.usage?.durationMs ?? panel?.durationMs,
@@ -951,7 +964,6 @@ export function handleChimeraReports(msg: WSServerMessage) {
         };
       }),
   );
-
 }
 
 export const miscHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> = {

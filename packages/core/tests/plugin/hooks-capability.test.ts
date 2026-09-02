@@ -64,7 +64,10 @@ describe('loadPlugins — capabilities.hooks enforcement', () => {
     expect(failed).toHaveLength(0);
     expect(registerHook).toHaveBeenCalledWith('PreToolUse', '*', expect.any(Function));
     expect(warn).not.toHaveBeenCalled();
-    await unloadPlugins(loaded, { apiFactory: () => makeMockApi(registerHook), log: makeStubLog(warn) });
+    await unloadPlugins(loaded, {
+      apiFactory: () => makeMockApi(registerHook),
+      log: makeStubLog(warn),
+    });
   });
 
   it('warns (default) when a plugin declares hooks:false but uses registerHook', async () => {
@@ -88,7 +91,10 @@ describe('loadPlugins — capabilities.hooks enforcement', () => {
       String(args[0] ?? '').includes('registerHook'),
     );
     expect(sawHookWarning).toBe(true);
-    await unloadPlugins(loaded, { apiFactory: () => makeMockApi(registerHook), log: makeStubLog(warn) });
+    await unloadPlugins(loaded, {
+      apiFactory: () => makeMockApi(registerHook),
+      log: makeStubLog(warn),
+    });
   });
 
   it('throws (enforceCapabilities) when a plugin declares hooks:false and uses registerHook', async () => {
@@ -108,7 +114,10 @@ describe('loadPlugins — capabilities.hooks enforcement', () => {
     expect(failed).toHaveLength(1);
     expect(failed[0]!.plugin.name).toBe('a');
     expect(String(failed[0]!.err)).toContain('registerHook');
-    await unloadPlugins(loaded, { apiFactory: () => makeMockApi(registerHook), log: makeStubLog(warn) });
+    await unloadPlugins(loaded, {
+      apiFactory: () => makeMockApi(registerHook),
+      log: makeStubLog(warn),
+    });
   });
 
   it('plugins without capabilities at all bypass the wrap (mirror of tools/providers behavior)', async () => {
@@ -132,6 +141,9 @@ describe('loadPlugins — capabilities.hooks enforcement', () => {
     expect(loaded).toHaveLength(1);
     expect(warn).not.toHaveBeenCalled();
     expect(registerHook).toHaveBeenCalled();
-    await unloadPlugins(loaded, { apiFactory: () => makeMockApi(registerHook), log: makeStubLog(warn) });
+    await unloadPlugins(loaded, {
+      apiFactory: () => makeMockApi(registerHook),
+      log: makeStubLog(warn),
+    });
   });
 });

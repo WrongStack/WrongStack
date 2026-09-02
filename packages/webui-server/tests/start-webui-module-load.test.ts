@@ -11,10 +11,7 @@ vi.mock('../src/server/server-runtime.js', async (importOriginal) => ({
   resolvePorts,
 }));
 
-import {
-  createStandaloneTodosCheckpointLifecycle,
-  startWebUI,
-} from '../src/server/start-webui.js';
+import { createStandaloneTodosCheckpointLifecycle, startWebUI } from '../src/server/start-webui.js';
 
 describe('start-webui module', () => {
   it('enters startup but stops safely before booting services or binding sockets', async () => {

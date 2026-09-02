@@ -5,10 +5,7 @@
   "description": "Write a clear, actionable email about a technical matter.",
   "content": "Draft an email about: {{topic}}\n\nTo: {{recipient}}\n\nLead with the ask or the key point in the first sentence. Keep it skimmable — short paragraphs, and a clear action with any deadline. Match a professional but human tone. Anticipate the one question the recipient will have and answer it preemptively. End with the specific next step.",
   "category": "writing",
-  "tags": [
-    "email",
-    "communication"
-  ],
+  "tags": ["email", "communication"],
   "source": "builtin",
   "favorite": false,
   "checksum": "6f5b7d5496c7721fb421c563c7dd827bcf9bd30d16da66f28d7b20341da83992",

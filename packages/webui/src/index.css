@@ -1594,7 +1594,9 @@ kbd {
      and fades in — the destination state's transition rules drive this, so
      parking fades-then-hides and un-parking shows-then-fades-in. */
   opacity: 0;
-  transition: opacity 140ms ease, visibility 0s linear 140ms;
+  transition:
+    opacity 140ms ease,
+    visibility 0s linear 140ms;
 }
 
 @media (prefers-reduced-motion: reduce) {

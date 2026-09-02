@@ -5,10 +5,7 @@
   "description": "Decide what a dashboard should show before building it.",
   "content": "I need a dashboard for: {{audience_and_goal}}\n\nStart from the decisions it should support, not the data you happen to have. Choose the few metrics that answer the audience's real questions and the chart for each. Decide the layout: what they see first (the headline), what is one level down, and what is noise to leave out. Add the context that makes a number meaningful — targets, trends, comparisons. Flag vanity metrics that look good but drive no decision.",
   "category": "data-analysis",
-  "tags": [
-    "dashboard",
-    "visualization"
-  ],
+  "tags": ["dashboard", "visualization"],
   "source": "builtin",
   "favorite": false,
   "checksum": "f9d9e2cc6e13a46601fda0761ce301744a0645684dcb73cc77f787c05946953b",

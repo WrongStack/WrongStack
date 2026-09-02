@@ -38,7 +38,11 @@ export interface RouteDef {
   cases: MutationCase[];
 }
 
-export type PostFn = (route: string, body: unknown, headers?: Record<string, string>) => Promise<{ status: number; json: unknown }>
+export type PostFn = (
+  route: string,
+  body: unknown,
+  headers?: Record<string, string>,
+) => Promise<{ status: number; json: unknown }>;
 
 // ── Route definitions ────────────────────────────────────────────────────
 
@@ -46,13 +50,48 @@ export const SEND_DEF: RouteDef = {
   route: '/mailbox/send',
   validBody: { from: 'ext-sender', to: 'recv', type: 'note', subject: 's', body: 'b' },
   cases: [
-    { rejectContains: '"from"', mutate: (b) => { delete b['from']; } },
-    { rejectContains: '"type"', mutate: (b) => { b['type'] = 'invalid-type'; } },
-    { rejectContains: 'priority', mutate: (b) => { b['priority'] = 'unknown-prio'; } },
-    { rejectContains: 'ttlMs', mutate: (b) => { b['ttlMs'] = 0; } },
-    { rejectContains: 'ttlMs', mutate: (b) => { b['ttlMs'] = -1; } },
-    { rejectContains: 'ttlMs', mutate: (b) => { b['ttlMs'] = 1.5; } },
-    { rejectContains: '"from"', mutate: (b) => { b['from'] = 'leader'; } },
+    {
+      rejectContains: '"from"',
+      mutate: (b) => {
+        delete b['from'];
+      },
+    },
+    {
+      rejectContains: '"type"',
+      mutate: (b) => {
+        b['type'] = 'invalid-type';
+      },
+    },
+    {
+      rejectContains: 'priority',
+      mutate: (b) => {
+        b['priority'] = 'unknown-prio';
+      },
+    },
+    {
+      rejectContains: 'ttlMs',
+      mutate: (b) => {
+        b['ttlMs'] = 0;
+      },
+    },
+    {
+      rejectContains: 'ttlMs',
+      mutate: (b) => {
+        b['ttlMs'] = -1;
+      },
+    },
+    {
+      rejectContains: 'ttlMs',
+      mutate: (b) => {
+        b['ttlMs'] = 1.5;
+      },
+    },
+    {
+      rejectContains: '"from"',
+      mutate: (b) => {
+        b['from'] = 'leader';
+      },
+    },
   ],
 };
 
@@ -60,12 +99,42 @@ export const QUERY_DEF: RouteDef = {
   route: '/mailbox/query',
   validBody: { to: 'leader', limit: 5 },
   cases: [
-    { rejectContains: 'limit', mutate: (b) => { b['limit'] = 0; } },
-    { rejectContains: 'limit', mutate: (b) => { b['limit'] = -1; } },
-    { rejectContains: 'limit', mutate: (b) => { b['limit'] = 1.5; } },
-    { rejectContains: 'limit', mutate: (b) => { b['limit'] = 'ten'; } },
-    { rejectContains: 'minPriority', mutate: (b) => { b['minPriority'] = 'unknown-prio'; } },
-    { rejectContains: 'incompleteOnly', mutate: (b) => { b['incompleteOnly'] = 'yes'; } },
+    {
+      rejectContains: 'limit',
+      mutate: (b) => {
+        b['limit'] = 0;
+      },
+    },
+    {
+      rejectContains: 'limit',
+      mutate: (b) => {
+        b['limit'] = -1;
+      },
+    },
+    {
+      rejectContains: 'limit',
+      mutate: (b) => {
+        b['limit'] = 1.5;
+      },
+    },
+    {
+      rejectContains: 'limit',
+      mutate: (b) => {
+        b['limit'] = 'ten';
+      },
+    },
+    {
+      rejectContains: 'minPriority',
+      mutate: (b) => {
+        b['minPriority'] = 'unknown-prio';
+      },
+    },
+    {
+      rejectContains: 'incompleteOnly',
+      mutate: (b) => {
+        b['incompleteOnly'] = 'yes';
+      },
+    },
   ],
 };
 
@@ -73,10 +142,30 @@ export const CHECK_DEF: RouteDef = {
   route: '/mailbox/check',
   validBody: { agentId: 'ext-checker' },
   cases: [
-    { rejectContains: '"agentId"', mutate: (b) => { delete b['agentId']; } },
-    { rejectContains: 'limit', mutate: (b) => { b['limit'] = 0; } },
-    { rejectContains: 'limit', mutate: (b) => { b['limit'] = -1; } },
-    { rejectContains: 'limit', mutate: (b) => { b['limit'] = 1.5; } },
+    {
+      rejectContains: '"agentId"',
+      mutate: (b) => {
+        delete b['agentId'];
+      },
+    },
+    {
+      rejectContains: 'limit',
+      mutate: (b) => {
+        b['limit'] = 0;
+      },
+    },
+    {
+      rejectContains: 'limit',
+      mutate: (b) => {
+        b['limit'] = -1;
+      },
+    },
+    {
+      rejectContains: 'limit',
+      mutate: (b) => {
+        b['limit'] = 1.5;
+      },
+    },
   ],
 };
 
@@ -84,9 +173,24 @@ export const ACK_DEF: RouteDef = {
   route: '/mailbox/ack',
   validBody: { messageId: 'm-1', readerId: 'ext-reader' },
   cases: [
-    { rejectContains: 'messageId', mutate: (b) => { delete b['messageId']; } },
-    { rejectContains: 'readerId', mutate: (b) => { delete b['readerId']; } },
-    { rejectContains: 'messageId', mutate: (b) => { b['messageId'] = 7; } },
+    {
+      rejectContains: 'messageId',
+      mutate: (b) => {
+        delete b['messageId'];
+      },
+    },
+    {
+      rejectContains: 'readerId',
+      mutate: (b) => {
+        delete b['readerId'];
+      },
+    },
+    {
+      rejectContains: 'messageId',
+      mutate: (b) => {
+        b['messageId'] = 7;
+      },
+    },
   ],
 };
 
@@ -94,10 +198,30 @@ export const ACK_MANY_DEF: RouteDef = {
   route: '/mailbox/ack-many',
   validBody: { acks: [{ messageId: 'm-1', readerId: 'ext-reader', read: true }] },
   cases: [
-    { rejectContains: '"acks"', mutate: (b) => { b['acks'] = 'not-array'; } },
-    { rejectContains: '"acks"', mutate: (b) => { b['acks'] = null; } },
-    { rejectContains: '"acks"', mutate: (b) => { delete b['acks']; } },
-    { rejectContains: 'messageId', mutate: (b) => { (b['acks'] as Array<Record<string, unknown>>)[0]!.messageId = 7; } },
+    {
+      rejectContains: '"acks"',
+      mutate: (b) => {
+        b['acks'] = 'not-array';
+      },
+    },
+    {
+      rejectContains: '"acks"',
+      mutate: (b) => {
+        b['acks'] = null;
+      },
+    },
+    {
+      rejectContains: '"acks"',
+      mutate: (b) => {
+        delete b['acks'];
+      },
+    },
+    {
+      rejectContains: 'messageId',
+      mutate: (b) => {
+        (b['acks'] as Array<Record<string, unknown>>)[0]!.messageId = 7;
+      },
+    },
   ],
 };
 
@@ -105,11 +229,36 @@ export const AGENT_REG_DEF: RouteDef = {
   route: '/mailbox/agents/register',
   validBody: { agentId: 'ext-agent', name: 'Mut Agent', pid: 9999 },
   cases: [
-    { rejectContains: '"pid"', mutate: (b) => { b['pid'] = 0; } },
-    { rejectContains: '"pid"', mutate: (b) => { b['pid'] = -1; } },
-    { rejectContains: '"pid"', mutate: (b) => { b['pid'] = 1.5; } },
-    { rejectContains: '"pid"', mutate: (b) => { b['pid'] = 'string-pid'; } },
-    { rejectContains: 'reserved', mutate: (b) => { b['agentId'] = 'hq'; } },
+    {
+      rejectContains: '"pid"',
+      mutate: (b) => {
+        b['pid'] = 0;
+      },
+    },
+    {
+      rejectContains: '"pid"',
+      mutate: (b) => {
+        b['pid'] = -1;
+      },
+    },
+    {
+      rejectContains: '"pid"',
+      mutate: (b) => {
+        b['pid'] = 1.5;
+      },
+    },
+    {
+      rejectContains: '"pid"',
+      mutate: (b) => {
+        b['pid'] = 'string-pid';
+      },
+    },
+    {
+      rejectContains: 'reserved',
+      mutate: (b) => {
+        b['agentId'] = 'hq';
+      },
+    },
   ],
 };
 
@@ -117,10 +266,30 @@ export const CLIENT_REG_DEF: RouteDef = {
   route: '/mailbox/register-client',
   validBody: { clientId: 'ext-tui', name: 'Mut TUI', pid: 8888 },
   cases: [
-    { rejectContains: '"pid"', mutate: (b) => { b['pid'] = 0; } },
-    { rejectContains: '"pid"', mutate: (b) => { b['pid'] = -1; } },
-    { rejectContains: '"pid"', mutate: (b) => { b['pid'] = 1.5; } },
-    { rejectContains: '"pid"', mutate: (b) => { b['pid'] = 'abc'; } },
+    {
+      rejectContains: '"pid"',
+      mutate: (b) => {
+        b['pid'] = 0;
+      },
+    },
+    {
+      rejectContains: '"pid"',
+      mutate: (b) => {
+        b['pid'] = -1;
+      },
+    },
+    {
+      rejectContains: '"pid"',
+      mutate: (b) => {
+        b['pid'] = 1.5;
+      },
+    },
+    {
+      rejectContains: '"pid"',
+      mutate: (b) => {
+        b['pid'] = 'abc';
+      },
+    },
   ],
 };
 
@@ -128,7 +297,12 @@ export const HEARTBEAT_DEF: RouteDef = {
   route: '/mailbox/heartbeat',
   validBody: { clientId: 'ext-tui' },
   cases: [
-    { rejectContains: 'clientId', mutate: (b) => { delete b['clientId']; } },
+    {
+      rejectContains: 'clientId',
+      mutate: (b) => {
+        delete b['clientId'];
+      },
+    },
   ],
 };
 
@@ -136,11 +310,36 @@ export const AGENT_HEARTBEAT_DEF: RouteDef = {
   route: '/mailbox/agents/heartbeat',
   validBody: { agentId: 'ext-agent' },
   cases: [
-    { rejectContains: 'agentId', mutate: (b) => { delete b['agentId']; } },
-    { rejectContains: 'iterations', mutate: (b) => { b['iterations'] = -1; } },
-    { rejectContains: 'iterations', mutate: (b) => { b['iterations'] = 0.5; } },
-    { rejectContains: 'toolCalls', mutate: (b) => { b['toolCalls'] = -1; } },
-    { rejectContains: 'toolCalls', mutate: (b) => { b['toolCalls'] = 0.5; } },
+    {
+      rejectContains: 'agentId',
+      mutate: (b) => {
+        delete b['agentId'];
+      },
+    },
+    {
+      rejectContains: 'iterations',
+      mutate: (b) => {
+        b['iterations'] = -1;
+      },
+    },
+    {
+      rejectContains: 'iterations',
+      mutate: (b) => {
+        b['iterations'] = 0.5;
+      },
+    },
+    {
+      rejectContains: 'toolCalls',
+      mutate: (b) => {
+        b['toolCalls'] = -1;
+      },
+    },
+    {
+      rejectContains: 'toolCalls',
+      mutate: (b) => {
+        b['toolCalls'] = 0.5;
+      },
+    },
   ],
 };
 
@@ -162,9 +361,7 @@ export const AGENT_HEARTBEAT_DEF: RouteDef = {
 export function addRouteMutationTests(
   defs: RouteDef[],
   post: PostFn,
-  resourceCleanup?: (
-    slug: string,
-  ) => Promise<{
+  resourceCleanup?: (slug: string) => Promise<{
     projectRoot?: string;
     cleanup: () => Promise<void>;
     baseline?: number;
@@ -189,7 +386,9 @@ export function addRouteMutationTests(
             expect(res.status, `expected 400 for ${c.rejectContains}`).toBe(400);
             const err = (res.json as { error?: { code?: string; message?: string } }).error;
             expect(err?.code, 'expected VALIDATION_ERROR').toBe('VALIDATION_ERROR');
-            expect(err?.message ?? '', 'expected matching reject message').toContain(c.rejectContains);
+            expect(err?.message ?? '', 'expected matching reject message').toContain(
+              c.rejectContains,
+            );
           } finally {
             if (scopeCleanup) await scopeCleanup();
           }

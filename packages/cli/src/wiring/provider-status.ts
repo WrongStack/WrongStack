@@ -124,8 +124,7 @@ export async function setupProviderStatus(input: ProviderStatusInput) {
             providerId !== undefined && model !== undefined
               ? tracker.getStatus(providerId, model)
               : undefined;
-          const localFailedAt =
-            typeof local?.lastFailureAt === 'number' ? local.lastFailureAt : 0;
+          const localFailedAt = typeof local?.lastFailureAt === 'number' ? local.lastFailureAt : 0;
           const clearedAt = key !== undefined ? clearedPairs.get(key) : undefined;
           if (localFailedAt > failedAt) {
             if (clearedAt !== undefined && clearedAt < localFailedAt) {

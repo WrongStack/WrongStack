@@ -55,9 +55,17 @@ describe('aggregateCell — trace-eval edge cases', () => {
     expect(agg.traceEval).toBeDefined();
     expect(agg.traceEval!.retrieval).toEqual({ eligible: 2, passed: 0, rate: 0 });
     // recallEligible is empty → eligible=0 → rate=undefined
-    expect(agg.traceEval!.recallGivenRetrieval).toEqual({ eligible: 0, passed: 0, rate: undefined });
+    expect(agg.traceEval!.recallGivenRetrieval).toEqual({
+      eligible: 0,
+      passed: 0,
+      rate: undefined,
+    });
     // applicationEligible is empty → eligible=0 → rate=undefined
-    expect(agg.traceEval!.editApplicationGivenRecall).toEqual({ eligible: 0, passed: 0, rate: undefined });
+    expect(agg.traceEval!.editApplicationGivenRecall).toEqual({
+      eligible: 0,
+      passed: 0,
+      rate: undefined,
+    });
   });
 
   it('produces undefined editApplicationGivenRecall when no trace passed recall', () => {
@@ -79,7 +87,11 @@ describe('aggregateCell — trace-eval edge cases', () => {
     expect(agg.traceEval!.retrieval).toEqual({ eligible: 1, passed: 1, rate: 1 });
     expect(agg.traceEval!.recallGivenRetrieval).toEqual({ eligible: 1, passed: 0, rate: 0 });
     // applicationEligible is empty → eligible=0 → rate=undefined
-    expect(agg.traceEval!.editApplicationGivenRecall).toEqual({ eligible: 0, passed: 0, rate: undefined });
+    expect(agg.traceEval!.editApplicationGivenRecall).toEqual({
+      eligible: 0,
+      passed: 0,
+      rate: undefined,
+    });
   });
 
   it('omits traceEval from the result when no trace data is present', () => {

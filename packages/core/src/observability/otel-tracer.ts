@@ -17,7 +17,11 @@ import type { Span as WStackSpan, Tracer as WStackTracer } from '../types/observ
 
 interface OTelLikeSpan {
   setAttribute(key: string, value: string | number | boolean): unknown;
-  recordException(err: { message: string; stack?: string | undefined; name?: string | undefined }): unknown;
+  recordException(err: {
+    message: string;
+    stack?: string | undefined;
+    name?: string | undefined;
+  }): unknown;
   setStatus?(status: { code: number; message?: string | undefined }): unknown;
   end(): unknown;
 }

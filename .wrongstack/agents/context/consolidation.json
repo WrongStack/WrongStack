@@ -7,7 +7,5 @@
   "model": "stealth/ox-alpha",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\context\\archive\\learned-2026-08-21T12-28-22-427Z.md",
-  "skills": [
-    "output-standards"
-  ]
+  "skills": ["output-standards"]
 }

@@ -88,7 +88,9 @@ describe('runtime helper extra coverage', () => {
 
     it('rejects absolute path outside project', () => {
       expect(
-        resolveRunnerCommand(TYPESCRIPT_RUNTIME, '/usr/bin/tsc --noEmit', { projectRoot: process.cwd() }),
+        resolveRunnerCommand(TYPESCRIPT_RUNTIME, '/usr/bin/tsc --noEmit', {
+          projectRoot: process.cwd(),
+        }),
       ).toBeNull();
     });
   });
@@ -101,10 +103,11 @@ describe('runtime helper extra coverage', () => {
     });
 
     it('returns spawnError for cwd outside project', async () => {
-      const result = await runRunnerCommand(
-        ['node', '-e', 'console.log("hi")'],
-        { cwd: '/nonexistent', timeoutMs: 1000, projectRoot: process.cwd() },
-      );
+      const result = await runRunnerCommand(['node', '-e', 'console.log("hi")'], {
+        cwd: '/nonexistent',
+        timeoutMs: 1000,
+        projectRoot: process.cwd(),
+      });
       expect(result.spawnError).toBe(true);
       expect(result.stderr).toContain('outside project');
     });
@@ -120,7 +123,10 @@ describe('runtime helper extra coverage', () => {
         subcommands: ['exec'],
         defaultCommand: 'pnpm exec nonexistent-tool-xyz --version',
       };
-      const result = await probeRunner(runtime, '--version', { cwd: process.cwd(), timeoutMs: 1000 });
+      const result = await probeRunner(runtime, '--version', {
+        cwd: process.cwd(),
+        timeoutMs: 1000,
+      });
       expect(result).toBe(false);
     });
 
@@ -133,7 +139,10 @@ describe('runtime helper extra coverage', () => {
         subcommands: [],
         defaultCommand: 'nonexistent-cmd-999 --version',
       };
-      const result = await probeRunner(runtime, '--version', { cwd: process.cwd(), timeoutMs: 1000 });
+      const result = await probeRunner(runtime, '--version', {
+        cwd: process.cwd(),
+        timeoutMs: 1000,
+      });
       expect(result).toBe(false);
     });
   });

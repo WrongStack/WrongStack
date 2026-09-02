@@ -295,7 +295,8 @@ function MemoryRelationships({
     <section className="border border-border/75 bg-card/40">
       <div className="flex items-center justify-between border-b border-border/65 px-3 py-2.5">
         <h3 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          <GitBranch className="size-3.5 text-info" /> {t('activity:memoryManager.memoryRelationships')}
+          <GitBranch className="size-3.5 text-info" />{' '}
+          {t('activity:memoryManager.memoryRelationships')}
         </h3>
         <span className="font-mono text-[10px] text-muted-foreground">
           {relatedMemories.length}
@@ -321,7 +322,9 @@ function MemoryRelationships({
                   {relationship.relation}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-xs">
-                  {target ? memoryPreview(target.text, 95) : t('activity:memoryManager.referencedUnavailable')}
+                  {target
+                    ? memoryPreview(target.text, 95)
+                    : t('activity:memoryManager.referencedUnavailable')}
                 </span>
                 <code className="hidden max-w-32 truncate font-mono text-[9px] text-muted-foreground sm:block">
                   {relationship.id}

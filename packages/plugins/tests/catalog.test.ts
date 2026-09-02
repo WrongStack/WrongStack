@@ -5,16 +5,14 @@
  * the actual plugin exports.
  */
 import { describe, expect, it } from 'vitest';
-import {
-  PLUGIN_CATALOG,
-  PLUGIN_CATALOG_ENTRIES,
-  PLUGIN_NAMES,
-} from '../src/catalog.js';
+import { PLUGIN_CATALOG, PLUGIN_CATALOG_ENTRIES, PLUGIN_NAMES } from '../src/catalog.js';
 import * as pluginExports from '../src/index.js';
 
 describe('plugin catalog', () => {
   const exportedPlugins = Object.values(pluginExports).filter(
-    (value): value is {
+    (
+      value,
+    ): value is {
       name: string;
       version?: string;
       description?: string;
@@ -97,9 +95,10 @@ describe('plugin catalog', () => {
     expect(exportedPlugins).toHaveLength(PLUGIN_CATALOG_ENTRIES.length);
     for (const plugin of exportedPlugins) {
       expect(plugin.version, `${plugin.name} has no version`).toMatch(/^\d+\.\d+\.\d+$/);
-      expect(plugin.description?.trim().length, `${plugin.name} has no description`).toBeGreaterThan(
-        20,
-      );
+      expect(
+        plugin.description?.trim().length,
+        `${plugin.name} has no description`,
+      ).toBeGreaterThan(20);
       expect(plugin.apiVersion, `${plugin.name} has no apiVersion`).toMatch(/^\^\d+\.\d+/);
       expect(plugin.capabilities, `${plugin.name} has no capabilities`).toBeTruthy();
       expect(plugin.configSchema, `${plugin.name} has no config schema`).toBeTruthy();

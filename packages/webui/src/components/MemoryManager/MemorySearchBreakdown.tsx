@@ -77,7 +77,10 @@ export function MemorySearchBreakdown({
         </p>
       )}
       {error && (
-        <p className="border-t border-border/55 px-3 py-2 text-[10px] text-destructive" role="alert">
+        <p
+          className="border-t border-border/55 px-3 py-2 text-[10px] text-destructive"
+          role="alert"
+        >
           {error}
         </p>
       )}
@@ -130,9 +133,7 @@ function BreakdownRow({
           )}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-[11px] leading-5 text-foreground/90">
-            {hit.memory.text}
-          </p>
+          <p className="line-clamp-2 text-[11px] leading-5 text-foreground/90">{hit.memory.text}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[9px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <span className="uppercase text-[9px] text-muted-foreground/80">L</span>

@@ -11,7 +11,10 @@ import { FakeEmbeddingProvider } from './fake-provider.js';
 const testRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 function makeStore(): VectorMemoryStore {
-  const projectRoot = path.join(os.tmpdir(), `wrongstack-vm-tools-${testRunId}-${Math.random().toString(36).slice(2, 8)}`);
+  const projectRoot = path.join(
+    os.tmpdir(),
+    `wrongstack-vm-tools-${testRunId}-${Math.random().toString(36).slice(2, 8)}`,
+  );
   return new VectorMemoryStore({
     provider: new FakeEmbeddingProvider({ dimensions: 32 }),
     projectRoot,
@@ -53,11 +56,9 @@ describe('createVectorMemoryTools', () => {
   it('executes vector_memory_remember and returns an id + hasVector flag', async () => {
     const tools = createVectorMemoryTools(store);
     const remember = tools.find((t) => t.name === 'vector_memory_remember')!;
-    const result = (await remember.execute!(
-      { text: 'persist me', tags: ['t'] },
-      {} as never,
-      { signal: new AbortController().signal },
-    )) as { id: string; hasVector: boolean };
+    const result = (await remember.execute!({ text: 'persist me', tags: ['t'] }, {} as never, {
+      signal: new AbortController().signal,
+    })) as { id: string; hasVector: boolean };
     expect(result.id).toBeTypeOf('string');
     expect(result.hasVector).toBe(true);
   });
@@ -67,11 +68,9 @@ describe('createVectorMemoryTools', () => {
     await store.remember({ text: 'apple mango' });
     const tools = createVectorMemoryTools(store);
     const search = tools.find((t) => t.name === 'vector_memory_search')!;
-    const result = (await search.execute!(
-      { query: 'apple banana', limit: 5 },
-      {} as never,
-      { signal: new AbortController().signal },
-    )) as { hits: Array<{ id: string; score: number; text: string }> };
+    const result = (await search.execute!({ query: 'apple banana', limit: 5 }, {} as never, {
+      signal: new AbortController().signal,
+    })) as { hits: Array<{ id: string; score: number; text: string }> };
     expect(result.hits.length).toBe(2);
     expect(result.hits[0]!.text).toContain('apple');
   });
@@ -80,7 +79,9 @@ describe('createVectorMemoryTools', () => {
     await store.remember({ text: 'one' });
     const tools = createVectorMemoryTools(store);
     const stats = tools.find((t) => t.name === 'vector_memory_stats')!;
-    const result = (await stats.execute!({}, {} as never, { signal: new AbortController().signal })) as {
+    const result = (await stats.execute!({}, {} as never, {
+      signal: new AbortController().signal,
+    })) as {
       entries: number;
       vectors: number;
     };
@@ -92,11 +93,9 @@ describe('createVectorMemoryTools', () => {
     const entry = await store.remember({ text: 'goodbye' });
     const tools = createVectorMemoryTools(store);
     const forget = tools.find((t) => t.name === 'vector_memory_forget')!;
-    const result = (await forget.execute!(
-      { id: entry.id },
-      {} as never,
-      { signal: new AbortController().signal },
-    )) as { removed: boolean };
+    const result = (await forget.execute!({ id: entry.id }, {} as never, {
+      signal: new AbortController().signal,
+    })) as { removed: boolean };
     expect(result.removed).toBe(true);
   });
 });

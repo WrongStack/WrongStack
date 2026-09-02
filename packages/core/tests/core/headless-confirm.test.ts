@@ -165,8 +165,9 @@ describe('Headless confirm fallback (P1 #4)', () => {
     cleanupDirs.push(tmp);
 
     // Attach a listener that approves — simulates a TUI/WebUI confirm handler.
-    events.on('tool.confirm_needed', (e: { resolve: (d: 'yes' | 'no' | 'always' | 'deny') => void }) =>
-      e.resolve('yes'),
+    events.on(
+      'tool.confirm_needed',
+      (e: { resolve: (d: 'yes' | 'no' | 'always' | 'deny') => void }) => e.resolve('yes'),
     );
     expect(events.listenerCount('tool.confirm_needed')).toBe(1);
 

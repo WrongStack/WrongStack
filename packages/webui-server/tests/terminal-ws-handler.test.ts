@@ -85,7 +85,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('terminal.create spawns a pty in the given cwd and streams output', async () => {
-    const h = new TerminalWebSocketHandler(() => '/my/cwd', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/my/cwd',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
 
@@ -162,7 +168,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('terminal.create is idempotent for the same id', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -172,7 +184,13 @@ describe('TerminalWebSocketHandler', () => {
 
   it('can opt into node-pty useConptyDll on Windows', async () => {
     process.env.WRONGSTACK_TERMINAL_USE_CONPTY_DLL = '1';
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -184,7 +202,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('terminal.input writes to the pty', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -193,7 +217,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('terminal.resize resizes the pty', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -205,7 +235,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('terminal.close kills the pty', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -214,7 +250,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('terminal.close logs kill errors without throwing', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -232,7 +274,13 @@ describe('TerminalWebSocketHandler', () => {
   it('terminal.close uses taskkill on Windows when the pty pid is available', async () => {
     if (process.platform !== 'win32') return;
     const killProcessTree = vi.fn();
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, killProcessTree, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      killProcessTree,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -245,7 +293,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('pty exit notifies the client', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -257,7 +311,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('client disconnect kills all its ptys', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -268,7 +328,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('client disconnect logs kill errors without throwing', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
@@ -282,7 +348,13 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('ignores malformed payloads without throwing', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     expect(await h.handleMessage(ws, { type: 'terminal.create', payload: {} })).toBe(true);
@@ -291,14 +363,26 @@ describe('TerminalWebSocketHandler', () => {
   });
 
   it('returns false for non-terminal messages', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     expect(await h.handleMessage(ws, { type: 'user_message', payload: {} })).toBe(false);
   });
 
   it('enforces the per-client session cap', async () => {
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     for (let i = 0; i < 8; i++) {
@@ -339,7 +423,13 @@ describe('TerminalWebSocketHandler', () => {
     spawnMock.mockImplementationOnce(() => {
       throw new Error('AttachConsole failed');
     });
-    const h = new TerminalWebSocketHandler(() => '/c', logger, loadFakeNodePty, undefined, allowBoundary);
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
     const ws = makeWs();
     h.addClient(ws);
     expect(await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } })).toBe(

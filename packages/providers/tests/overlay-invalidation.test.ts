@@ -69,7 +69,10 @@ describe('mergeOverlay invalidates caches built from the catalog', () => {
     const registry = registryWith(BASE);
     await installCatalogModelOutputLimits({ registry, getConfig: () => undefined as never });
 
-    const ctx = { capabilities: capabilitiesForFamily('openai-compatible'), providerId: 'ai-gateway' };
+    const ctx = {
+      capabilities: capabilitiesForFamily('openai-compatible'),
+      providerId: 'ai-gateway',
+    };
     expect(resolveMaxOutputTokens({ model: 'anthropic/claude-sonnet-5' }, ctx)).toBeUndefined();
 
     registry.mergeOverlay(DISCOVERED);

@@ -60,11 +60,39 @@ const COMPACTOR_SRC = path.resolve(
 
 const SESSION_SIZE = 50_000;
 const WORD_POOL = [
-  'function', 'variable', 'module', 'export', 'import', 'class', 'interface',
-  'type', 'generic', 'promise', 'async', 'await', 'event', 'listener',
-  'cache', 'eviction', 'compaction', 'streaming', 'parser', 'token',
-  'commit', 'branch', 'merge', 'rebase', 'deploy', 'index', 'search',
-  'fixture', 'mock', 'integration', 'unit', 'benchmark', 'lint',
+  'function',
+  'variable',
+  'module',
+  'export',
+  'import',
+  'class',
+  'interface',
+  'type',
+  'generic',
+  'promise',
+  'async',
+  'await',
+  'event',
+  'listener',
+  'cache',
+  'eviction',
+  'compaction',
+  'streaming',
+  'parser',
+  'token',
+  'commit',
+  'branch',
+  'merge',
+  'rebase',
+  'deploy',
+  'index',
+  'search',
+  'fixture',
+  'mock',
+  'integration',
+  'unit',
+  'benchmark',
+  'lint',
 ];
 const CRITICAL_PHRASES = [
   'no, this is wrong, revert that change',
@@ -95,7 +123,12 @@ function makeAssistantText(text: string): Message {
   };
 }
 
-function makeAssistantWithTool(id: string, toolName: string, input: Record<string, unknown>, text: string): Message {
+function makeAssistantWithTool(
+  id: string,
+  toolName: string,
+  input: Record<string, unknown>,
+  text: string,
+): Message {
   return {
     role: 'assistant',
     content: [
@@ -134,7 +167,9 @@ function buildSession(n: number): Message[] {
     } else if (phase >= 2 && phase <= 4) {
       const id = `t${toolId++}`;
       const toolName = TOOL_NAMES[Math.floor(Math.random() * TOOL_NAMES.length)]!;
-      messages.push(makeAssistantWithTool(id, toolName, { path: `src/${randomWords(1)[0]}.ts` }, ''));
+      messages.push(
+        makeAssistantWithTool(id, toolName, { path: `src/${randomWords(1)[0]}.ts` }, ''),
+      );
       messages.push(makeToolResult(id, `${randomWords(8).join(' ')} (matched)`));
     } else if (phase === 5) {
       // Pure tool I/O — exercises the early-bail in buildSmartDigest.
@@ -156,16 +191,16 @@ function median(arr: number[]): number {
 
 function bench(fn: () => void, iters = 5): { median: number; min: number; max: number } {
   // Warm up V8 — the first calls pay parse/JIT/tier-up costs we don't
-    // want to attribute to the production code path. Five iterations lets
-    // the optimizing tier settle before sampling begins.
-    for (let i = 0; i < 5; i++) fn();
-    const times: number[] = [];
-    for (let i = 0; i < iters; i++) {
-      const t0 = performance.now();
-      fn();
-      times.push(performance.now() - t0);
-    }
-    return { median: median(times), min: Math.min(...times), max: Math.max(...times) };
+  // want to attribute to the production code path. Five iterations lets
+  // the optimizing tier settle before sampling begins.
+  for (let i = 0; i < 5; i++) fn();
+  const times: number[] = [];
+  for (let i = 0; i < iters; i++) {
+    const t0 = performance.now();
+    fn();
+    times.push(performance.now() - t0);
+  }
+  return { median: median(times), min: Math.min(...times), max: Math.max(...times) };
 }
 
 describe('compactor perf — structural guards', () => {
@@ -246,8 +281,7 @@ describe('compactor perf — structural guards', () => {
     const digestBody = digestMatch![0];
 
     // Find the noise early-bail block: contains Array.isArray, tool_result, and `continue`.
-    const earlyBailRegex =
-      /Array\.isArray[\s\S]*?tool_result[\s\S]*?continue/;
+    const earlyBailRegex = /Array\.isArray[\s\S]*?tool_result[\s\S]*?continue/;
     expect(
       earlyBailRegex.test(digestBody),
       'buildSmartDigest is missing the pure-tool-I/O noise early-bail. Re-add it before the scoreMessage call so pure tool_result messages collapse to the noise summary without paying the regex-suite cost.',

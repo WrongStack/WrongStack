@@ -116,8 +116,7 @@ async function startStubProvider(): Promise<StubHandle> {
           // fall through with defaults
         }
         const model = typeof body.model === 'string' ? body.model : 'unknown';
-        const name =
-          NAMES.find((n) => model === modelFor(n)) ?? ('ALPHA' as Name);
+        const name = NAMES.find((n) => model === modelFor(n)) ?? ('ALPHA' as Name);
         requests.push({ model, at: Date.now() });
 
         const lastText = [...(body.messages ?? [])]
@@ -158,9 +157,7 @@ async function startStubProvider(): Promise<StubHandle> {
               `data: ${JSON.stringify({
                 id: `chatcmpl-e2elr-${name}`,
                 object: 'chat.completion.chunk',
-                choices: [
-                  { index: 0, delta: { content: piece }, finish_reason: null },
-                ],
+                choices: [{ index: 0, delta: { content: piece }, finish_reason: null }],
               })}\n\n`,
             );
           }
@@ -192,8 +189,7 @@ async function startStubProvider(): Promise<StubHandle> {
     server,
     port,
     requests,
-    close: () =>
-      new Promise<void>((resolve) => server.close(() => resolve())),
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
 
@@ -204,11 +200,7 @@ async function startStubProvider(): Promise<StubHandle> {
  * (server-runtime.ts) — one shared port. A plain Node WebSocket with the
  * token in the query string passes verifyClient exactly like the browser.
  */
-async function addStubProvider(
-  baseURL: string,
-  token: string,
-  stubPort: number,
-): Promise<void> {
+async function addStubProvider(baseURL: string, token: string, stubPort: number): Promise<void> {
   const wsUrl = `${baseURL.replace(/^http/, 'ws')}/ws?token=${encodeURIComponent(token)}`;
   const ws = new WebSocket(wsUrl);
   const opened = new Promise<void>((resolve, reject) => {
@@ -291,10 +283,7 @@ async function removeStubProvider(baseURL: string, token: string): Promise<void>
     });
   });
   ws.send(JSON.stringify({ type: 'provider.remove', payload: { providerId: PROVIDER_ID } }));
-  await Promise.race([
-    done,
-    new Promise<void>((resolve) => setTimeout(resolve, 5_000)),
-  ]);
+  await Promise.race([done, new Promise<void>((resolve) => setTimeout(resolve, 5_000))]);
   ws.close();
 }
 
@@ -528,10 +517,7 @@ test.describe('four-tab live runs', () => {
     'needs the standalone multi-session server: WEBUI_URL + WEBUI_E2E_TOKEN',
   );
 
-  test('four concurrent runs stay on their own tabs end to end', async ({
-    page,
-    baseURL,
-  }) => {
+  test('four concurrent runs stay on their own tabs end to end', async ({ page, baseURL }) => {
     test.setTimeout(420_000);
     const token = process.env.WEBUI_E2E_TOKEN as string;
 
@@ -613,10 +599,9 @@ test.describe('four-tab live runs', () => {
       // "Disconnected from backend" page silently swallows every send and
       // the run assertions below then fail for the wrong reason.
       const disconnected = page.getByRole('status').filter({ hasText: 'Disconnected' });
-      await expect(disconnected, 'page socket must be connected before sending').toHaveCount(
-        0,
-        { timeout: 30_000 },
-      );
+      await expect(disconnected, 'page socket must be connected before sending').toHaveCount(0, {
+        timeout: 30_000,
+      });
 
       // ── Open all four from History into the tab strip ─────────────────
       for (const name of NAMES) {
@@ -648,9 +633,7 @@ test.describe('four-tab live runs', () => {
       // all four session.start confirmations instead of assuming them.
       {
         const hasStart = (n: Name) =>
-          sessionFrames.some(
-            (f) => f.type === 'session.start' && f.sessionId === sessionIdFor(n),
-          );
+          sessionFrames.some((f) => f.type === 'session.start' && f.sessionId === sessionIdFor(n));
         const deadline = Date.now() + 60_000;
         while (Date.now() < deadline && NAMES.filter(hasStart).length < NAMES.length) {
           await page.waitForTimeout(1_000);
@@ -730,42 +713,42 @@ test.describe('four-tab live runs', () => {
             // itself — which is runtime-scoped, so any socket may trigger it.
             probeWs.send(JSON.stringify({ type: 'session.resume', payload: { id: sid } }));
             await page.waitForTimeout(1_500);
-          probeWs.send(
-            JSON.stringify({
-              type: 'user_message',
-              payload: {
-                id: `e2elr_probe_${name}_${attempt}_${Date.now()}`,
-                content: `readiness probe for ${name}, attempt ${attempt}.`,
-                timestamp: Date.now(),
-                sessionId: sid,
-              },
-            }),
-          );
-          const outcome = await waitForProbe(sid, ['accepted', 'not_ready'], 8_000);
-          if (outcome === 'accepted') break;
-          if (attempt === 5) {
-            probeWs.close();
-            throw new Error(
-              `session ${sid} never accepted a probe (placeholder writer persisted ` +
-                `after 5 direct resumes); probe events: ${JSON.stringify(probeEvents)}`,
+            probeWs.send(
+              JSON.stringify({
+                type: 'user_message',
+                payload: {
+                  id: `e2elr_probe_${name}_${attempt}_${Date.now()}`,
+                  content: `readiness probe for ${name}, attempt ${attempt}.`,
+                  timestamp: Date.now(),
+                  sessionId: sid,
+                },
+              }),
             );
+            const outcome = await waitForProbe(sid, ['accepted', 'not_ready'], 8_000);
+            if (outcome === 'accepted') break;
+            if (attempt === 5) {
+              probeWs.close();
+              throw new Error(
+                `session ${sid} never accepted a probe (placeholder writer persisted ` +
+                  `after 5 direct resumes); probe events: ${JSON.stringify(probeEvents)}`,
+              );
+            }
+            await page.waitForTimeout(1_000);
           }
-          await page.waitForTimeout(1_000);
-        }
-        // Let accepted probe runs FINISH before the real sends, so their
-        // run.results cannot pollute the real-run completion/simultaneity
-        // math below (probe runs carry zero usage — stub is marker-gated).
-        {
-          const deadline = Date.now() + 30_000;
-          while (Date.now() < deadline) {
-            const settled = NAMES.every((n) =>
-              probeEvents.some((e) => e.sessionId === sessionIdFor(n) && e.kind === 'run_result'),
-            );
-            if (settled) break;
-            await page.waitForTimeout(500);
+          // Let accepted probe runs FINISH before the real sends, so their
+          // run.results cannot pollute the real-run completion/simultaneity
+          // math below (probe runs carry zero usage — stub is marker-gated).
+          {
+            const deadline = Date.now() + 30_000;
+            while (Date.now() < deadline) {
+              const settled = NAMES.every((n) =>
+                probeEvents.some((e) => e.sessionId === sessionIdFor(n) && e.kind === 'run_result'),
+              );
+              if (settled) break;
+              await page.waitForTimeout(500);
+            }
           }
         }
-      }
       }
       const probeCutoff = runResults.length;
       // probeWs stays OPEN: the runtime ties the resumed agents' lifecycle
@@ -786,7 +769,12 @@ test.describe('four-tab live runs', () => {
       const agentStates: Record<string, string> = {};
       const agentChip = page.locator('header span[title^="Agent state:"]');
       const readAgentState = async (): Promise<string> =>
-        (await agentChip.first().innerText({ timeout: 5_000 }).catch(() => 'unknown')).trim();
+        (
+          await agentChip
+            .first()
+            .innerText({ timeout: 5_000 })
+            .catch(() => 'unknown')
+        ).trim();
 
       for (const name of NAMES) {
         await switchToSession(page, sessionIdFor(name));
@@ -808,9 +796,7 @@ test.describe('four-tab live runs', () => {
         // A successful submit clears the composer; text still sitting there
         // means the send never happened — fail loudly instead of waiting
         // 120s for run.results that can never arrive.
-        await expect
-          .poll(async () => composer.inputValue(), { timeout: 5_000 })
-          .toBe('');
+        await expect.poll(async () => composer.inputValue(), { timeout: 5_000 }).toBe('');
         sendTimes[name] = Date.now();
         // Small settle so the user_message is on the wire before we switch.
         await page.waitForTimeout(500);

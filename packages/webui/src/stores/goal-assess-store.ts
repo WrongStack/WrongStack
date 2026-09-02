@@ -54,8 +54,7 @@ export const useGoalAssessStore = create<GoalAssessState>()((set, get) => ({
       return { result, loading: false };
     }),
 
-  setLoading: () =>
-    set({ loading: true, result: null }),
+  setLoading: () => set({ loading: true, result: null }),
 
   clear: () => set({ result: null, loading: false }),
 

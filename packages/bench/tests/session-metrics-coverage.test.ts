@@ -8,7 +8,9 @@ import { readToolMetrics, readSessionLogEvents } from '../src/session-metrics.js
 const tempDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true }).catch(() => {})));
+  await Promise.all(
+    tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true }).catch(() => {})),
+  );
 });
 
 describe('readSessionLogEvents — edge cases', () => {
@@ -40,7 +42,10 @@ describe('newestJsonl — subdirectory read error coverage', () => {
     // Create a shard subdirectory
     const shard = path.join(d, '2026-07-10');
     await fs.mkdir(shard, { recursive: true });
-    await fs.writeFile(path.join(shard, 'sess_01.jsonl'), JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }));
+    await fs.writeFile(
+      path.join(shard, 'sess_01.jsonl'),
+      JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
+    );
 
     // Create a second entry that looks like a directory but might cause issues
     // on Windows we create a regular subdirectory which should just be readable

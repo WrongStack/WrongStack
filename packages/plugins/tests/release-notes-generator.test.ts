@@ -5,23 +5,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // ---------------------------------------------------------------------------
 
 let mockGitOutput = '';
-const mockExecFile = vi.fn((
-  _file: string,
-  args: string[],
-  _options: unknown,
-  callback: (error: Error | null, stdout: string, stderr: string) => void,
-) => {
-  let output: string;
-  if (args[0] === 'describe') output = 'v1.0.0\n';
-  else if (args[0] === 'rev-parse') {
-    const ref = args.at(-1) ?? '';
-    output = ref.startsWith('HEAD') || ref.startsWith('--help')
-      ? `${'b'.repeat(40)}\n`
-      : `${'a'.repeat(40)}\n`;
-  } else output = mockGitOutput;
-  callback(null, output, '');
-  return {};
-});
+const mockExecFile = vi.fn(
+  (
+    _file: string,
+    args: string[],
+    _options: unknown,
+    callback: (error: Error | null, stdout: string, stderr: string) => void,
+  ) => {
+    let output: string;
+    if (args[0] === 'describe') output = 'v1.0.0\n';
+    else if (args[0] === 'rev-parse') {
+      const ref = args.at(-1) ?? '';
+      output =
+        ref.startsWith('HEAD') || ref.startsWith('--help')
+          ? `${'b'.repeat(40)}\n`
+          : `${'a'.repeat(40)}\n`;
+    } else output = mockGitOutput;
+    callback(null, output, '');
+    return {};
+  },
+);
 
 vi.mock('node:child_process', () => ({
   execFile: mockExecFile,
@@ -36,7 +39,11 @@ const plugin = (await import('../src/release-notes-generator')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
   llm?: { complete: ReturnType<typeof vi.fn> };
@@ -93,7 +100,9 @@ describe('release-notes-generator plugin shape', () => {
     const api = makeApi();
     plugin.setup(api as never);
     expect(api.tools.register).toHaveBeenCalledTimes(1);
-    const names = api.tools.register.mock.calls.map(([t]: unknown[]) => (t as { name: string }).name);
+    const names = api.tools.register.mock.calls.map(
+      ([t]: unknown[]) => (t as { name: string }).name,
+    );
     expect(names).toContain('generate_release_notes');
     expect(api.registerHook).not.toHaveBeenCalled();
   });
@@ -293,7 +302,10 @@ describe('generate_release_notes tool', () => {
     const api = makeApi({ llm: { complete } });
     plugin.setup(api as never);
 
-    const result = (await getTool(api, 'generate_release_notes')({
+    const result = (await getTool(
+      api,
+      'generate_release_notes',
+    )({
       from: 'v1.0.0',
       to: 'HEAD',
       use_llm: true,
@@ -322,7 +334,10 @@ describe('generate_release_notes tool', () => {
     });
     plugin.setup(api as never);
 
-    const result = (await getTool(api, 'generate_release_notes')({
+    const result = (await getTool(
+      api,
+      'generate_release_notes',
+    )({
       from: 'v1.0.0',
       use_llm: true,
     })) as { notes: string; llm: { used: boolean; fallbackReason: string } };
@@ -363,12 +378,18 @@ describe('teardown + counters', () => {
 describe('config parsing', () => {
   it('reads includeScope and defaultFrom', async () => {
     const api = makeApi({
-      extensions: { 'release-notes-generator': { includeScope: false, defaultFrom: 'origin/main' } },
+      extensions: {
+        'release-notes-generator': { includeScope: false, defaultFrom: 'origin/main' },
+      },
     });
     plugin.setup(api as never);
     const generate = getTool(api, 'generate_release_notes');
     mockGitOutput = 'aaa111\tfeat(scope): x\n';
-    const result = (await generate({ to: 'HEAD' })) as { ok: boolean; from: string | null; notes: string };
+    const result = (await generate({ to: 'HEAD' })) as {
+      ok: boolean;
+      from: string | null;
+      notes: string;
+    };
     expect(result.from).toBe('origin/main');
     expect(result.notes).not.toContain('[scope]');
   });

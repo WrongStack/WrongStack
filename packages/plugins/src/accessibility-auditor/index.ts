@@ -28,7 +28,12 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { releaseHandle, collectSourceFilesAsync, matchesExtension, withinProject } from '../runtime/index.js';
+import {
+  releaseHandle,
+  collectSourceFilesAsync,
+  matchesExtension,
+  withinProject,
+} from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -104,9 +109,12 @@ function readConfig(raw: unknown): AccessibilityAuditorConfig {
   const r = raw as Record<string, unknown>;
   const rawExts = r['includeExtensions'] ?? r['include_extensions'] ?? r['extensions'];
   const rawMax = r['maxFindings'] ?? r['max_findings'] ?? r['limit'];
-  const rawSeverity = typeof (r['severity'] ?? r['mode'] ?? r['action']) === 'string'
-    ? String(r['severity'] ?? r['mode'] ?? r['action']).trim().toLowerCase()
-    : undefined;
+  const rawSeverity =
+    typeof (r['severity'] ?? r['mode'] ?? r['action']) === 'string'
+      ? String(r['severity'] ?? r['mode'] ?? r['action'])
+          .trim()
+          .toLowerCase()
+      : undefined;
   const severity = rawSeverity === 'block' ? 'block' : DEFAULTS.severity;
   return {
     enabled: r['enabled'] !== false,
@@ -114,9 +122,7 @@ function readConfig(raw: unknown): AccessibilityAuditorConfig {
       ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.includeExtensions,
     maxFindings:
-      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
-        ? rawMax
-        : DEFAULTS.maxFindings,
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500 ? rawMax : DEFAULTS.maxFindings,
     severity,
     onWriteEdit: (r['onWriteEdit'] ?? r['on_write_edit'] ?? r['onSave']) !== false,
   };
@@ -243,7 +249,13 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
       const type = typeMatch ? typeMatch[1]!.toLowerCase() : 'text';
       // Hidden/submit/button/reset inputs are not text-field a11y concerns;
       // input[type=submit|button|reset] is handled separately below.
-      if (type === 'hidden' || type === 'button' || type === 'submit' || type === 'reset' || type === 'image') {
+      if (
+        type === 'hidden' ||
+        type === 'button' ||
+        type === 'submit' ||
+        type === 'reset' ||
+        type === 'image'
+      ) {
         continue;
       }
 
@@ -263,7 +275,8 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
       }
       const wrappedInLabel = /<label\b[\s\S]*?<input\b[\s\S]*?<\/label>/i.test(content);
       const hasLegend = hasFieldsetLegendLabel(tag, content);
-      const hasPrimaryLabel = hasAriaLabel || hasTitle || hasLabelFor || wrappedInLabel || hasLegend;
+      const hasPrimaryLabel =
+        hasAriaLabel || hasTitle || hasLabelFor || wrappedInLabel || hasLegend;
 
       // aria-describedby is supplementary, not a primary name.
       if (!hasPrimaryLabel && hasDescribedBy) {
@@ -285,7 +298,12 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
 
       // Placeholder used as a label proxy is a common low-contrast / usability issue.
       if (!hasPrimaryLabel && ATTR_PLACEHOLDER.test(tag)) {
-        add(lineNo, 'low-contrast-placeholder', 'warning', '<input> uses placeholder text (often low contrast and disappears on input)');
+        add(
+          lineNo,
+          'low-contrast-placeholder',
+          'warning',
+          '<input> uses placeholder text (often low contrast and disappears on input)',
+        );
       }
     }
     TAG_INPUT.lastIndex = 0;
@@ -298,7 +316,12 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
       const hasAriaLabel = ATTR_ARIA_LABEL.test(tag);
       const hasTitle = ATTR_TITLE.test(tag);
       if (!hasText && !hasAriaLabel && !hasTitle) {
-        add(lineNo, 'missing-button-text', 'error', '<button> has no visible text or accessible label');
+        add(
+          lineNo,
+          'missing-button-text',
+          'error',
+          '<button> has no visible text or accessible label',
+        );
       }
     }
     TAG_BUTTON.lastIndex = 0;
@@ -307,7 +330,12 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
     for (const inputButtonMatch of line.matchAll(INPUT_BUTTON)) {
       const tag = inputButtonMatch[0]!;
       if (!ATTR_VALUE.test(tag) && !ATTR_ARIA_LABEL.test(tag) && !ATTR_TITLE.test(tag)) {
-        add(lineNo, 'missing-button-text', 'error', `<input type="${inputButtonMatch[1]}"> is missing value/aria-label/title`);
+        add(
+          lineNo,
+          'missing-button-text',
+          'error',
+          `<input type="${inputButtonMatch[1]}"> is missing value/aria-label/title`,
+        );
       }
     }
     INPUT_BUTTON.lastIndex = 0;
@@ -453,13 +481,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['accessibility-auditor']);
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
       if (!cfg.enabled || !cfg.onWriteEdit) return;
       if (input.toolResult?.isError) return;
 
@@ -499,7 +525,9 @@ const plugin: Plugin = {
       return { additionalContext: summary };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- a11y_audit tool ---
     api.tools.register({
@@ -523,7 +551,9 @@ const plugin: Plugin = {
         if (!cfg.enabled) return { ok: false, error: 'accessibility-auditor is disabled' };
         const raw = input as Record<string, unknown>;
         const rawPath =
-          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof input.path === 'string' && input.path.trim().length > 0
+            ? input.path.trim()
+            : undefined) ??
           (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
           (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
           (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
@@ -559,9 +589,7 @@ const plugin: Plugin = {
           truncated: result.truncated,
           findingCount: result.findings.length,
           findings: result.findings,
-          ...(warning
-            ? { additionalContext: `⚠️ ${warning}`, warning }
-            : {}),
+          ...(warning ? { additionalContext: `⚠️ ${warning}`, warning } : {}),
         };
       },
     });

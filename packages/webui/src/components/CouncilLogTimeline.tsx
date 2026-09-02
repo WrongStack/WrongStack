@@ -103,7 +103,10 @@ function CouncilPanelRow({ panel }: { panel: CouncilPanelEntry }) {
               {summarizeCouncilPanel(panel)}
             </span>
             {panel.judgeUsed ? (
-              <Gavel className="h-3 w-3 shrink-0 text-info" aria-label={t('activity:councilLogTimeline.judgeUsed')} />
+              <Gavel
+                className="h-3 w-3 shrink-0 text-info"
+                aria-label={t('activity:councilLogTimeline.judgeUsed')}
+              />
             ) : null}
             {correlated ? (
               <AlertTriangle
@@ -149,7 +152,10 @@ function CouncilSeatRow({ seat }: { seat: CouncilSeatVote }) {
       </span>
       <span className="shrink-0 text-muted-foreground">{seat.persona}</span>
       {seat.veto ? (
-        <ShieldAlert className="h-2.5 w-2.5 shrink-0 text-warning" aria-label={t('activity:councilLogTimeline.veto')} />
+        <ShieldAlert
+          className="h-2.5 w-2.5 shrink-0 text-warning"
+          aria-label={t('activity:councilLogTimeline.veto')}
+        />
       ) : null}
       <span className="text-muted-foreground/50">→</span>
       <span className={cn('truncate', failed ? 'text-destructive' : 'text-foreground')}>

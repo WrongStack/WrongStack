@@ -32,10 +32,7 @@ interface ProjectWatcherDeps {
   /** Absolute project root to watch. */
   projectRoot: string;
   /** Broadcast a message to all connected WS clients. */
-  broadcast: (
-    clients: Map<import('ws').WebSocket, ConnectedClient>,
-    msg: WSServerMessage,
-  ) => void;
+  broadcast: (clients: Map<import('ws').WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
   /** Live client map (same reference the rest of setupEvents uses). */
   clients: Map<import('ws').WebSocket, ConnectedClient>;
 }

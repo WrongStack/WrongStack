@@ -367,10 +367,6 @@ export const capabilityIndex = [
     'Typed events, metrics, traces, health, side-effect audit, HQ alerts',
     'observability',
   ],
-  [
-    'Persistence',
-    'Sessions, checkpoints, replay, rewind, SAGE, project registry',
-    'persistence',
-  ],
+  ['Persistence', 'Sessions, checkpoints, replay, rewind, SAGE, project registry', 'persistence'],
   ['Extensibility', 'MCP, skills, plugins, hooks, prompts and provider adapters', 'extensibility'],
 ] as const;

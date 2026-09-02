@@ -5,10 +5,7 @@ import type {
   KanbanRecoveryPolicy,
   KanbanTask,
 } from '../src/types.js';
-import {
-  areDependenciesMet,
-  findBlockedTasks,
-} from '../src/manager/dependencies.js';
+import { areDependenciesMet, findBlockedTasks } from '../src/manager/dependencies.js';
 import {
   assertNoDependencyCycles,
   buildTaskGraphMetadata,
@@ -161,9 +158,9 @@ describe('selectRecoveryMode', () => {
 
   it('short-circuits to the requested mode when not auto', () => {
     const t = task({ id: 't1' });
-    expect(selectRecoveryMode({ requested: 'release', task: t, isHeartbeatDue: true, policy })).toBe(
-      'release',
-    );
+    expect(
+      selectRecoveryMode({ requested: 'release', task: t, isHeartbeatDue: true, policy }),
+    ).toBe('release');
     expect(selectRecoveryMode({ requested: 'fail', task: t, isHeartbeatDue: false, policy })).toBe(
       'fail',
     );
@@ -315,7 +312,10 @@ describe('msUntilExpiry', () => {
 describe('compareTasksForWork', () => {
   it('orders by priority first', () => {
     expect(
-      compareTasksForWork(task({ id: 'a', priority: 'critical' }), task({ id: 'b', priority: 'low' })),
+      compareTasksForWork(
+        task({ id: 'a', priority: 'critical' }),
+        task({ id: 'b', priority: 'low' }),
+      ),
     ).toBeLessThan(0);
   });
   it('falls back to columnId locale compare', () => {
@@ -337,8 +337,20 @@ describe('compareTasksForWork', () => {
   it('falls back to createdAt when the rest are equal', () => {
     expect(
       compareTasksForWork(
-        task({ id: 'a', priority: 'high', columnId: 'backlog', order: 0, createdAt: '2026-01-01T00:00:00Z' }),
-        task({ id: 'b', priority: 'high', columnId: 'backlog', order: 0, createdAt: '2026-01-02T00:00:00Z' }),
+        task({
+          id: 'a',
+          priority: 'high',
+          columnId: 'backlog',
+          order: 0,
+          createdAt: '2026-01-01T00:00:00Z',
+        }),
+        task({
+          id: 'b',
+          priority: 'high',
+          columnId: 'backlog',
+          order: 0,
+          createdAt: '2026-01-02T00:00:00Z',
+        }),
       ),
     ).toBeLessThan(0);
   });
@@ -350,9 +362,7 @@ describe('matchesKanbanSearch', () => {
   const b = board([task({ id: 't1', title: 'Fix login' })]);
 
   it('returns false on assignedAgent mismatch', () => {
-    expect(
-      matchesKanbanSearch(b, b.tasks[0]!, { assignedAgent: 'someone-else' }),
-    ).toBe(false);
+    expect(matchesKanbanSearch(b, b.tasks[0]!, { assignedAgent: 'someone-else' })).toBe(false);
   });
   it('returns false on status mismatch', () => {
     expect(matchesKanbanSearch(b, b.tasks[0]!, { status: 'completed' })).toBe(false);
@@ -456,7 +466,11 @@ describe('hasDependencyPath', () => {
   });
   it('walks the chain and finds a path', () => {
     // c -> b -> a
-    const b = board([task({ id: 'a' }), task({ id: 'b', dependsOn: ['a'] }), task({ id: 'c', dependsOn: ['b'] })]);
+    const b = board([
+      task({ id: 'a' }),
+      task({ id: 'b', dependsOn: ['a'] }),
+      task({ id: 'c', dependsOn: ['b'] }),
+    ]);
     expect(hasDependencyPath(b, 'c', 'a')).toBe(true);
     expect(hasDependencyPath(b, 'a', 'c')).toBe(false);
   });
@@ -491,10 +505,18 @@ describe('uniqueColumnId', () => {
   it('appends a suffix when the slug collides', () => {
     const b = board([], [{ id: 'new-column', title: 'Existing', order: 0, wipLimit: 0 }]);
     expect(uniqueColumnId(b, 'New Column')).toBe('new-column-2');
-    expect(uniqueColumnId(board([], [
-      { id: 'new-column', title: 'A', order: 0, wipLimit: 0 },
-      { id: 'new-column-2', title: 'B', order: 1, wipLimit: 0 },
-    ]), 'New Column')).toBe('new-column-3');
+    expect(
+      uniqueColumnId(
+        board(
+          [],
+          [
+            { id: 'new-column', title: 'A', order: 0, wipLimit: 0 },
+            { id: 'new-column-2', title: 'B', order: 1, wipLimit: 0 },
+          ],
+        ),
+        'New Column',
+      ),
+    ).toBe('new-column-3');
   });
   it('falls back to "column" when slug is empty', () => {
     expect(uniqueColumnId(board([]), '!!!')).toBe('column');
@@ -541,7 +563,12 @@ describe('optionalArray', () => {
 describe('mergedTaskDescription', () => {
   it('joins title, description, and note contents', () => {
     const desc = mergedTaskDescription([
-      task({ id: 'a', title: 'A', description: 'desc-a', notes: [{ id: 'n1', author: 'x', content: 'note-a', createdAt: 'now' }] }),
+      task({
+        id: 'a',
+        title: 'A',
+        description: 'desc-a',
+        notes: [{ id: 'n1', author: 'x', content: 'note-a', createdAt: 'now' }],
+      }),
       task({ id: 'b', title: 'B' }),
     ]);
     expect(desc).toContain('## A');
@@ -566,17 +593,21 @@ describe('highestPriority', () => {
 describe('isTaskReadyForWork', () => {
   it('returns false for non-pending/ready statuses', () => {
     const b = board([]);
-    for (const status of ['in_progress', 'review', 'completed', 'failed', 'archived', 'blocked'] as const) {
+    for (const status of [
+      'in_progress',
+      'review',
+      'completed',
+      'failed',
+      'archived',
+      'blocked',
+    ] as const) {
       expect(isTaskReadyForWork(b, task({ id: 't', status }))).toBe(false);
     }
   });
   it('returns false when an active assignment exists', () => {
     const b = board([]);
     expect(
-      isTaskReadyForWork(
-        b,
-        task({ id: 't', status: 'pending', assignment: { status: 'queued' } }),
-      ),
+      isTaskReadyForWork(b, task({ id: 't', status: 'pending', assignment: { status: 'queued' } })),
     ).toBe(false);
     expect(
       isTaskReadyForWork(
@@ -587,7 +618,9 @@ describe('isTaskReadyForWork', () => {
   });
   it('returns false when the task is merged', () => {
     const b = board([]);
-    expect(isTaskReadyForWork(b, task({ id: 't', status: 'pending', mergedIntoTaskId: 'other' }))).toBe(false);
+    expect(
+      isTaskReadyForWork(b, task({ id: 't', status: 'pending', mergedIntoTaskId: 'other' })),
+    ).toBe(false);
   });
   it('returns false when dependencies are unmet', () => {
     const b = board([
@@ -618,14 +651,20 @@ describe('taskGraphStatusToKanbanStatus', () => {
 describe('kanbanStatusToTaskGraphStatus', () => {
   it('prefers assignment status, then maps kanban status', () => {
     expect(
-      kanbanStatusToTaskGraphStatus(task({ id: 't', status: 'pending', assignment: { status: 'running' } })),
+      kanbanStatusToTaskGraphStatus(
+        task({ id: 't', status: 'pending', assignment: { status: 'running' } }),
+      ),
     ).toBe('in_progress');
     expect(
-      kanbanStatusToTaskGraphStatus(task({ id: 't', status: 'pending', assignment: { status: 'failed' } })),
+      kanbanStatusToTaskGraphStatus(
+        task({ id: 't', status: 'pending', assignment: { status: 'failed' } }),
+      ),
     ).toBe('failed');
     expect(kanbanStatusToTaskGraphStatus(task({ id: 't', status: 'ready' }))).toBe('pending');
     expect(kanbanStatusToTaskGraphStatus(task({ id: 't', status: 'archived' }))).toBe('pending');
-    expect(kanbanStatusToTaskGraphStatus(task({ id: 't', status: 'in_progress' }))).toBe('in_progress');
+    expect(kanbanStatusToTaskGraphStatus(task({ id: 't', status: 'in_progress' }))).toBe(
+      'in_progress',
+    );
     expect(kanbanStatusToTaskGraphStatus(task({ id: 't', status: 'completed' }))).toBe('completed');
     expect(kanbanStatusToTaskGraphStatus(task({ id: 't', status: 'review' }))).toBe('review');
     expect(kanbanStatusToTaskGraphStatus(task({ id: 't', status: 'blocked' }))).toBe('blocked');
@@ -895,7 +934,15 @@ describe('remapTaskReferences', () => {
       mergedFromTaskIds: ['f1'],
       chain: { chainId: 'ch', order: 0, previousTaskId: 'prev', nextTaskId: 'next' },
     });
-    const cloned = task({ id: 'new', dependsOn: ['d1'], parentTaskId: 'p1', childTaskIds: ['c1'], mergedIntoTaskId: 'm1', mergedFromTaskIds: ['f1'], chain: { chainId: 'ch', order: 0, previousTaskId: 'prev', nextTaskId: 'next' } });
+    const cloned = task({
+      id: 'new',
+      dependsOn: ['d1'],
+      parentTaskId: 'p1',
+      childTaskIds: ['c1'],
+      mergedIntoTaskId: 'm1',
+      mergedFromTaskIds: ['f1'],
+      chain: { chainId: 'ch', order: 0, previousTaskId: 'prev', nextTaskId: 'next' },
+    });
     const map = new Map([
       ['d1', 'd2'],
       ['p1', 'p2'],
@@ -914,7 +961,12 @@ describe('remapTaskReferences', () => {
     expect(cloned.chain).toMatchObject({ previousTaskId: 'prev2', nextTaskId: 'next2' });
   });
   it('deletes references that have no mapping', () => {
-    const original = task({ id: 'old', dependsOn: ['x'], parentTaskId: 'y', mergedIntoTaskId: 'z' });
+    const original = task({
+      id: 'old',
+      dependsOn: ['x'],
+      parentTaskId: 'y',
+      mergedIntoTaskId: 'z',
+    });
     const cloned = task({ id: 'new', dependsOn: ['x'], parentTaskId: 'y', mergedIntoTaskId: 'z' });
     remapTaskReferences(cloned, original, new Map());
     expect(cloned.dependsOn).toBeUndefined();

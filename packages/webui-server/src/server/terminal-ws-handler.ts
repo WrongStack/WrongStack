@@ -201,7 +201,9 @@ export class TerminalWebSocketHandler {
     }
 
     map.set(payload.id, pty);
-    this.logger.info?.(`terminal.create spawned (id=${payload.id}, pid=${pty.pid ?? '?'}) in ${cwd}`);
+    this.logger.info?.(
+      `terminal.create spawned (id=${payload.id}, pid=${pty.pid ?? '?'}) in ${cwd}`,
+    );
 
     pty.onData((data) => {
       this.send(ws, { type: 'terminal.output', payload: { id: payload.id, data } });

@@ -11,8 +11,12 @@ const baseMessage: Pick<MailboxMessage, 'type' | 'sessionAffinity'> = {
 
 describe('acceptMailboxMessageForSession', () => {
   it('accepts ordinary result and review messages without a Chimera session-affinity token', async () => {
-    await expect(acceptMailboxMessageForSession({ ...baseMessage, type: 'result' }, 'session-1')).resolves.toBe(true);
-    await expect(acceptMailboxMessageForSession({ ...baseMessage, type: 'review' }, 'session-1')).resolves.toBe(true);
+    await expect(
+      acceptMailboxMessageForSession({ ...baseMessage, type: 'result' }, 'session-1'),
+    ).resolves.toBe(true);
+    await expect(
+      acceptMailboxMessageForSession({ ...baseMessage, type: 'review' }, 'session-1'),
+    ).resolves.toBe(true);
   });
 
   it('rejects an explicit mismatching session id before report-id fallback', async () => {
@@ -52,7 +56,8 @@ describe('acceptMailboxMessageForSession', () => {
       },
       'session-1',
       {
-        resolveChimeraReportSessionId: (reportId) => (reportId === 'report-1' ? 'session-1' : undefined),
+        resolveChimeraReportSessionId: (reportId) =>
+          reportId === 'report-1' ? 'session-1' : undefined,
       },
     );
 
@@ -230,10 +235,7 @@ describe('acceptMailboxMessageForSession', () => {
   // ── No currentSessionId ──────────────────────────────────────────────
 
   it('fails closed when no currentSessionId and no affinity token', async () => {
-    const accepted = await acceptMailboxMessageForSession(
-      { ...baseMessage },
-      undefined,
-    );
+    const accepted = await acceptMailboxMessageForSession({ ...baseMessage }, undefined);
     expect(accepted).toBe(true); // no token → not affected → accept
   });
 

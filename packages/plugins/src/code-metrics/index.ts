@@ -88,9 +88,7 @@ function readConfig(raw: unknown): CodeMetricsConfig {
       ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.extensions,
     maxFiles:
-      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
-        ? rawMax
-        : DEFAULTS.maxFiles,
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500 ? rawMax : DEFAULTS.maxFiles,
   };
 }
 
@@ -151,15 +149,17 @@ export const COMPLEXITY_FORMULA =
   'control(if|else if|for|while|switch|catch) + (&& || ?? ||= &&= ??=) + ternary ?; optional chaining ?. is not counted';
 
 function stripNonExecutable(code: string): string {
-  return code
-    // Remove multi-line comments
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    // Remove single-line comments
-    .replace(/\/\/[^\n]*/g, ' ')
-    // Remove string literals (single, double, template)
-    .replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, ' ')
-    // Remove TypeScript optional property annotations (e.g. `foo?: string`)
-    .replace(/\b[A-Za-z_$][A-Za-z0-9_$]*\s*\?\s*:/g, ' ');
+  return (
+    code
+      // Remove multi-line comments
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      // Remove single-line comments
+      .replace(/\/\/[^\n]*/g, ' ')
+      // Remove string literals (single, double, template)
+      .replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, ' ')
+      // Remove TypeScript optional property annotations (e.g. `foo?: string`)
+      .replace(/\b[A-Za-z_$][A-Za-z0-9_$]*\s*\?\s*:/g, ' ')
+  );
 }
 
 function countComplexity(content: string): number {
@@ -289,7 +289,8 @@ async function measurePath(
 const plugin: Plugin = {
   name: 'code-metrics',
   version: '0.1.0',
-  description: 'Computes per-file line counts, function counts, and cyclomatic-complexity-like scores',
+  description:
+    'Computes per-file line counts, function counts, and cyclomatic-complexity-like scores',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -329,13 +330,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['code-metrics']);
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
       if (!cfg.enabled) return;
       if (input.toolResult?.isError) return;
 
@@ -375,7 +374,9 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- measure_code_metrics tool ---
     api.tools.register({
@@ -396,7 +397,9 @@ const plugin: Plugin = {
 
         const raw = (input ?? {}) as Record<string, unknown>;
         const rawPath =
-          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof input.path === 'string' && input.path.trim().length > 0
+            ? input.path.trim()
+            : undefined) ??
           (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
           (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
           (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??

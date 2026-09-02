@@ -21,12 +21,15 @@ describe('wireProviderAttemptsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({
-      installationId: 'install',
-      machineId: 'machine',
-      projectId: 'project',
-      sessionId: 'session',
-    }, 'trace');
+    const context = createChronicleContext(
+      {
+        installationId: 'install',
+        machineId: 'machine',
+        projectId: 'project',
+        sessionId: 'session',
+      },
+      'trace',
+    );
     const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
 
     events.emit('provider.attempt.started', {
@@ -88,11 +91,16 @@ describe('wireProviderAttemptsToChronicle', () => {
       'provider.attempt.failed',
       'provider.attempt.completed',
     ]);
-    expect(recorded.every((event) => event.correlation.logicalRequestId === 'request-1')).toBe(true);
+    expect(recorded.every((event) => event.correlation.logicalRequestId === 'request-1')).toBe(
+      true,
+    );
     expect(
       recorded.every((event) => event.correlation.promptManifestId === 'prompt_request_1'),
     ).toBe(true);
-    expect(recorded[1]?.attributes).toMatchObject({ failureKind: 'rate_limit', retryDelayMs: 2000 });
+    expect(recorded[1]?.attributes).toMatchObject({
+      failureKind: 'rate_limit',
+      retryDelayMs: 2000,
+    });
     expect(recorded[2]?.durationNs).toBe('1500000000');
     expect(recorded[2]?.runtime).toEqual({ providerId: 'openai', modelId: 'model-a' });
     await expect(journal.verify()).resolves.toMatchObject({ ok: true, entries: 3 });
@@ -110,19 +118,44 @@ describe('wireProviderAttemptsToChronicle', () => {
       messageCount,
       estimatedMessageTokens: 10,
       contentBytes: 100,
-      messages: Array.from({ length: messageCount }, (_, index) => ({ index, role: 'user', bytes: 5, hash: `h${index}`, blocks: { text: 1 } })),
-      tools: { count: 3, estimatedDefinitionTokens: 30, manifestHash: 'tools-hash-1', names: ['read', 'write', 'edit'], mutating: 2, destructive: 0 },
+      messages: Array.from({ length: messageCount }, (_, index) => ({
+        index,
+        role: 'user',
+        bytes: 5,
+        hash: `h${index}`,
+        blocks: { text: 1 },
+      })),
+      tools: {
+        count: 3,
+        estimatedDefinitionTokens: 30,
+        manifestHash: 'tools-hash-1',
+        names: ['read', 'write', 'edit'],
+        mutating: 2,
+        destructive: 0,
+      },
     });
-    const emitStarted = (attemptId: string, promptManifest: unknown) => events.emit('provider.attempt.started', {
-      sessionId: 's', logicalRequestId: 'lr', attemptId, attempt: 0, providerId: 'p', model: 'm',
-      streaming: true, messageCount: 1, toolCount: 3, startedAt: new Date().toISOString(), promptManifest,
-    } as never);
+    const emitStarted = (attemptId: string, promptManifest: unknown) =>
+      events.emit('provider.attempt.started', {
+        sessionId: 's',
+        logicalRequestId: 'lr',
+        attemptId,
+        attempt: 0,
+        providerId: 'p',
+        model: 'm',
+        streaming: true,
+        messageCount: 1,
+        toolCount: 3,
+        startedAt: new Date().toISOString(),
+        promptManifest,
+      } as never);
     const first = manifest('prompt_1', 2);
     emitStarted('a1', first);
     emitStarted('a2', manifest('prompt_2', 12));
     const recorded = await journal.readAll();
     unsubscribe();
-    const manifests = recorded.map((event) => (event.attributes as { promptManifest: Record<string, unknown> }).promptManifest);
+    const manifests = recorded.map(
+      (event) => (event.attributes as { promptManifest: Record<string, unknown> }).promptManifest,
+    );
     // First occurrence keeps the full name list; repeats carry only the hash ref.
     expect((manifests[0]!.tools as { names?: string[] }).names).toEqual(['read', 'write', 'edit']);
     expect((manifests[1]!.tools as { names?: string[]; namesRef?: string }).names).toBeUndefined();
@@ -139,7 +172,10 @@ describe('wireProviderAttemptsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
     const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
 
     events.emit('provider.attempt.started', {
@@ -168,7 +204,10 @@ describe('wireProviderAttemptsToChronicle', () => {
       taskId: 'task-42',
       kanbanBoardId: 'board-7',
     });
-    expect(recorded[0]?.runtime).toMatchObject({ providerId: 'anthropic', modelId: 'claude-sonnet-4-20250514' });
+    expect(recorded[0]?.runtime).toMatchObject({
+      providerId: 'anthropic',
+      modelId: 'claude-sonnet-4-20250514',
+    });
   });
 
   it('records taskId/boardId in scope on provider.attempt.completed', async () => {
@@ -176,7 +215,10 @@ describe('wireProviderAttemptsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
     const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
 
     events.emit('provider.attempt.completed', {
@@ -208,7 +250,10 @@ describe('wireProviderAttemptsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
     const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
 
     events.emit('provider.attempt.failed', {
@@ -243,7 +288,10 @@ describe('wireProviderAttemptsToChronicle', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', sessionId: 'sess' }, 'trace');
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
     const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
 
     events.emit('provider.attempt.started', {

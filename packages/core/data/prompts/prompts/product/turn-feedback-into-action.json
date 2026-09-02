@@ -5,11 +5,7 @@
   "description": "Convert raw user feedback into prioritized product changes.",
   "content": "Here's user feedback I collected: {{feedback}}\n\nSynthesize it: group the feedback into themes, separate what users SAID from the underlying problem they have, and distinguish loud-but-rare from quiet-but-common. For the top themes, propose a concrete product response and how to validate it's the right one. Flag any feedback that's a vocal-minority trap we shouldn't chase.",
   "category": "product",
-  "tags": [
-    "user-feedback",
-    "synthesis",
-    "action"
-  ],
+  "tags": ["user-feedback", "synthesis", "action"],
   "source": "builtin",
   "favorite": false,
   "checksum": "5d2ef07ef0b54a61d7139448957933ad90f8f0c2705748377b303da438565d67",

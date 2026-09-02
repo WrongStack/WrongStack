@@ -33,7 +33,10 @@ async function writeSession(events: unknown[]): Promise<{ homeDir: string; workd
   const homeDir = path.join(base, 'home');
   const workdir = path.join(base, 'work');
   await fs.mkdir(workdir, { recursive: true });
-  const sessionsDir = resolveWstackPaths({ projectRoot: workdir, globalRoot: homeDir }).projectSessions;
+  const sessionsDir = resolveWstackPaths({
+    projectRoot: workdir,
+    globalRoot: homeDir,
+  }).projectSessions;
   await fs.mkdir(sessionsDir, { recursive: true });
   await fs.writeFile(
     path.join(sessionsDir, 'sess_trace.jsonl'),

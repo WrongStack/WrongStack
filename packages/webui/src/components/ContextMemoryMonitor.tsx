@@ -20,7 +20,9 @@ export function ContextMemoryMonitor() {
       <header className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
         <BrainCircuit className="size-4 text-primary" />
         <h2 className="text-xs font-semibold">{t('activity:ctxMonitor.contextMemoryMonitor')}</h2>
-        <span className="text-[10px] text-muted-foreground">{t('activity:ctxMonitor.exactProviderBoundPresence')}</span>
+        <span className="text-[10px] text-muted-foreground">
+          {t('activity:ctxMonitor.exactProviderBoundPresence')}
+        </span>
         <div className="ml-auto flex gap-2 font-mono text-[10px]">
           <span className="text-success">{active.length} ctx</span>
           <span className="text-warning">{pending.length} pending</span>

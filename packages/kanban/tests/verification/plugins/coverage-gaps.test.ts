@@ -112,9 +112,7 @@ describe('MetricPlugin comprehensive', () => {
   });
 
   it('marks metrics with undefined target/current as not met', async () => {
-    const metrics: KanbanGoalMetric[] = [
-      { id: 'm1', name: 'coverage', status: 'pending' },
-    ];
+    const metrics: KanbanGoalMetric[] = [{ id: 'm1', name: 'coverage', status: 'pending' }];
     const result = await plugin.verify(
       makeCheck({ type: 'metric' }),
       makeContext({ task: { goalMetrics: metrics } as KanbanTask }),
@@ -164,7 +162,14 @@ describe('MetricPlugin comprehensive', () => {
 
   it('at_most metric passes when current is below target (lower is better)', async () => {
     const metrics: KanbanGoalMetric[] = [
-      { id: 'm1', name: 'error rate', status: 'pending', target: 5, current: 2, direction: 'at_most' },
+      {
+        id: 'm1',
+        name: 'error rate',
+        status: 'pending',
+        target: 5,
+        current: 2,
+        direction: 'at_most',
+      },
     ];
     const result = await plugin.verify(
       makeCheck({ type: 'metric' }),
@@ -178,7 +183,14 @@ describe('MetricPlugin comprehensive', () => {
 
   it('at_most metric passes when current equals target (boundary)', async () => {
     const metrics: KanbanGoalMetric[] = [
-      { id: 'm1', name: 'cost ceiling', status: 'pending', target: 100, current: 100, direction: 'at_most' },
+      {
+        id: 'm1',
+        name: 'cost ceiling',
+        status: 'pending',
+        target: 100,
+        current: 100,
+        direction: 'at_most',
+      },
     ];
     const result = await plugin.verify(
       makeCheck({ type: 'metric' }),
@@ -190,7 +202,14 @@ describe('MetricPlugin comprehensive', () => {
 
   it('at_most metric fails when current exceeds target — the bug the old >= comparator had inverted', async () => {
     const metrics: KanbanGoalMetric[] = [
-      { id: 'm1', name: 'open bugs', status: 'pending', target: 5, current: 50, direction: 'at_most' },
+      {
+        id: 'm1',
+        name: 'open bugs',
+        status: 'pending',
+        target: 5,
+        current: 50,
+        direction: 'at_most',
+      },
     ];
     const result = await plugin.verify(
       makeCheck({ type: 'metric' }),
@@ -203,8 +222,22 @@ describe('MetricPlugin comprehensive', () => {
 
   it('explicit at_least keeps the current >= target semantics', async () => {
     const metrics: KanbanGoalMetric[] = [
-      { id: 'm1', name: 'coverage', status: 'pending', target: 80, current: 95, direction: 'at_least' },
-      { id: 'm2', name: 'features', status: 'pending', target: 10, current: 3, direction: 'at_least' },
+      {
+        id: 'm1',
+        name: 'coverage',
+        status: 'pending',
+        target: 80,
+        current: 95,
+        direction: 'at_least',
+      },
+      {
+        id: 'm2',
+        name: 'features',
+        status: 'pending',
+        target: 10,
+        current: 3,
+        direction: 'at_least',
+      },
     ];
     const result = await plugin.verify(
       makeCheck({ type: 'metric' }),
@@ -230,8 +263,22 @@ describe('MetricPlugin comprehensive', () => {
   it('mixed-direction metrics each use their own comparator', async () => {
     const metrics: KanbanGoalMetric[] = [
       { id: 'm1', name: 'coverage', status: 'pending', target: 80, current: 90 }, // at_least: met
-      { id: 'm2', name: 'latency p95', status: 'pending', target: 200, current: 350, direction: 'at_most' }, // not met
-      { id: 'm3', name: 'flaky tests', status: 'pending', target: 3, current: 1, direction: 'at_most' }, // met
+      {
+        id: 'm2',
+        name: 'latency p95',
+        status: 'pending',
+        target: 200,
+        current: 350,
+        direction: 'at_most',
+      }, // not met
+      {
+        id: 'm3',
+        name: 'flaky tests',
+        status: 'pending',
+        target: 3,
+        current: 1,
+        direction: 'at_most',
+      }, // met
     ];
     const result = await plugin.verify(
       makeCheck({ type: 'metric' }),
@@ -245,7 +292,14 @@ describe('MetricPlugin comprehensive', () => {
 
   it('at_most works with string-coerced numeric values', async () => {
     const metrics: KanbanGoalMetric[] = [
-      { id: 'm1', name: 'cost', status: 'pending', target: '20', current: '15.5', direction: 'at_most' },
+      {
+        id: 'm1',
+        name: 'cost',
+        status: 'pending',
+        target: '20',
+        current: '15.5',
+        direction: 'at_most',
+      },
     ];
     const result = await plugin.verify(
       makeCheck({ type: 'metric' }),
@@ -285,8 +339,7 @@ describe('CommandPlugin comprehensive', () => {
 
   it('returns passed when command exits 0', async () => {
     const ctx = makeContext({
-      runCommand: async (command) =>
-        commandResult(command, { stdout: 'success', durationMs: 10 }),
+      runCommand: async (command) => commandResult(command, { stdout: 'success', durationMs: 10 }),
     });
     const result = await plugin.verify(
       makeCheck({ type: 'command', description: 'echo hello' }),
@@ -301,10 +354,7 @@ describe('CommandPlugin comprehensive', () => {
       runCommand: async (command) =>
         commandResult(command, { exitCode: 1, stderr: 'error msg', durationMs: 10 }),
     });
-    const result = await plugin.verify(
-      makeCheck({ type: 'command', description: 'false' }),
-      ctx,
-    );
+    const result = await plugin.verify(makeCheck({ type: 'command', description: 'false' }), ctx);
     expect(result.status).toBe('failed');
     expect(result.error).toContain('code 1');
   });
@@ -339,10 +389,7 @@ describe('CommandPlugin comprehensive', () => {
           durationMs: 5,
         }),
     });
-    const result = await plugin.verify(
-      makeCheck({ type: 'command', description: 'test' }),
-      ctx,
-    );
+    const result = await plugin.verify(makeCheck({ type: 'command', description: 'test' }), ctx);
     expect((result.evidence.stdout as string).length).toBe(5000);
     expect((result.evidence.stderr as string).length).toBe(2000);
   });
@@ -393,8 +440,11 @@ describe('FileExistsPlugin comprehensive', () => {
 
   it('returns failed when file does not exist', async () => {
     const ctx = makeContext({
-      fileStat: (async () => ({ exists: false, size: 0, mtime: null })) as unknown as
-        VerificationContext['fileStat'],
+      fileStat: (async () => ({
+        exists: false,
+        size: 0,
+        mtime: null,
+      })) as unknown as VerificationContext['fileStat'],
     });
     const result = await plugin.verify(
       makeCheck({ type: 'file_exists', description: 'missing.ts' }),
@@ -517,7 +567,9 @@ describe('FileMatchesPlugin comprehensive', () => {
 
   it('returns error on file read failure', async () => {
     const ctx = makeContext({
-      readFile: async () => { throw new Error('ENOENT'); },
+      readFile: async () => {
+        throw new Error('ENOENT');
+      },
     });
     const result = await plugin.verify(
       makeCheck({

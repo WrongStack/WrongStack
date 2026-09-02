@@ -180,7 +180,11 @@ describe('safeEmit', () => {
   });
 
   it('returns unwritable when write throws', () => {
-    const stdout = mockWriteStream({ write: vi.fn(() => { throw new Error('EPIPE'); }) });
+    const stdout = mockWriteStream({
+      write: vi.fn(() => {
+        throw new Error('EPIPE');
+      }),
+    });
     const result = safeEmit('\x1b[31m', stdout);
     expect(result.ok).toBe(false);
     expect(result.reason).toBe('unwritable');

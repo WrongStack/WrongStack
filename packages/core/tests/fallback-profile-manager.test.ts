@@ -237,8 +237,7 @@ describe('FallbackProfileManager', () => {
     });
 
     it('caps resolveAllConfigured at MAX_LAST_RESORT_CANDIDATES', () => {
-      const manyProviders: Record<string, { type: string; apiKey: string; models: string[] }> =
-        {};
+      const manyProviders: Record<string, { type: string; apiKey: string; models: string[] }> = {};
       for (let i = 0; i < 8; i++) {
         manyProviders[`prov${i}`] = {
           type: 'openai',
@@ -453,7 +452,11 @@ describe('FallbackProfileManager', () => {
     it('falls back to default constant when config value is unset', () => {
       const cfg = makeConfig({
         providers: {
-          p1: { type: 'openai', apiKey: 'sk-1', models: Array.from({ length: 20 }, (_, i) => `m${i}`) },
+          p1: {
+            type: 'openai',
+            apiKey: 'sk-1',
+            models: Array.from({ length: 20 }, (_, i) => `m${i}`),
+          },
         },
         // fallbackMaxLastResortCandidates not set — should default to 12
       });
@@ -467,7 +470,11 @@ describe('FallbackProfileManager', () => {
     it('respects a large config cap', () => {
       const cfg = makeConfig({
         providers: {
-          p1: { type: 'openai', apiKey: 'sk-1', models: Array.from({ length: 20 }, (_, i) => `m${i}`) },
+          p1: {
+            type: 'openai',
+            apiKey: 'sk-1',
+            models: Array.from({ length: 20 }, (_, i) => `m${i}`),
+          },
         },
         fallbackMaxLastResortCandidates: 50,
       });

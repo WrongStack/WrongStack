@@ -5,10 +5,7 @@
   "description": "Sharpen who you are building for.",
   "content": "Help me define the target user for: {{product}}\n\nGet specific: their context, the job they are trying to get done, what they do today, and what frustrates them. Separate the person who uses it from the one who buys it if they differ. Avoid a demographic caricature — anchor on goals and behavior. State who we are explicitly NOT for, because trying to serve everyone serves no one. End with the one insight about this user that should shape the product.",
   "category": "product",
-  "tags": [
-    "persona",
-    "users"
-  ],
+  "tags": ["persona", "users"],
   "source": "builtin",
   "favorite": false,
   "checksum": "b640ceb8599ff025bd83f24dc731799a60cb3b83bfb3b3950af25e09b1eec906",

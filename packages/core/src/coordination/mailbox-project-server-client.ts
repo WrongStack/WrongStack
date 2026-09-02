@@ -355,9 +355,7 @@ export class MailboxProjectServerConnection {
         // connecting does not become slower or newly failable. The daemon
         // greets only once its metadata file is readable, so the token is on
         // disk by the time this runs.
-        void this.request({ type: 'request', op: 'ping', args: {} }, 3_000).catch(
-          () => undefined,
-        );
+        void this.request({ type: 'request', op: 'ping', args: {} }, 3_000).catch(() => undefined);
       };
       this.connectReject = (error) => {
         clearTimeout(timer);

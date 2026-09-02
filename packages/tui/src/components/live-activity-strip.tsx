@@ -122,7 +122,9 @@ export const LiveActivityStrip = React.memo(function LiveActivityStrip({
   // the same class of bug as the enhance/todos input-height shift.
   void nowTick;
   const hasEntries = Object.keys(entries).length > 0;
-  const rows = hasEntries ? activityStripRows(entries, Date.now(), maxRows, width) : new Array<string>(maxRows).fill('');
+  const rows = hasEntries
+    ? activityStripRows(entries, Date.now(), maxRows, width)
+    : new Array<string>(maxRows).fill('');
 
   return (
     <Box flexDirection="column" paddingX={1}>

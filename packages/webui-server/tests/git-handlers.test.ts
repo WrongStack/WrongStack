@@ -181,7 +181,10 @@ describe('git change-set handlers', () => {
     });
 
     it('never throws outside a git repo', async () => {
-      const notRepo = path.join(process.env.TEMP || '/tmp', `notgit-${randomBytes(4).toString('hex')}`);
+      const notRepo = path.join(
+        process.env.TEMP || '/tmp',
+        `notgit-${randomBytes(4).toString('hex')}`,
+      );
       fsSync.mkdirSync(notRepo, { recursive: true });
       try {
         const ws = createMockWs();
@@ -565,7 +568,9 @@ describe('git change-set handlers', () => {
       const stageResult = ws.sent.find((m) => m.type === 'git.action_result')?.payload;
       expect(stageResult).toMatchObject({ action: 'stage', ok: true });
 
-      const changesAfterStage = ws.sent.find((m) => m.type === 'git.changes')?.payload as { files: Array<{ path: string; staged: boolean }> };
+      const changesAfterStage = ws.sent.find((m) => m.type === 'git.changes')?.payload as {
+        files: Array<{ path: string; staged: boolean }>;
+      };
       expect(changesAfterStage.files.find((f) => f.path === 'keep.txt')?.staged).toBe(true);
 
       // Now unstage
@@ -574,7 +579,9 @@ describe('git change-set handlers', () => {
       const unstageResult = ws2.sent.find((m) => m.type === 'git.action_result')?.payload;
       expect(unstageResult).toMatchObject({ action: 'unstage', ok: true });
 
-      const changesAfterUnstage = ws2.sent.find((m) => m.type === 'git.changes')?.payload as { files: Array<{ path: string; staged: boolean }> };
+      const changesAfterUnstage = ws2.sent.find((m) => m.type === 'git.changes')?.payload as {
+        files: Array<{ path: string; staged: boolean }>;
+      };
       expect(changesAfterUnstage.files.find((f) => f.path === 'keep.txt')?.staged).toBe(false);
     });
 
@@ -593,7 +600,9 @@ describe('git change-set handlers', () => {
       await handleGitDiscard(ws, repo, ['keep.txt']);
       const res = ws.sent.find((m) => m.type === 'git.action_result')?.payload;
       expect(res).toMatchObject({ action: 'discard', ok: true });
-      expect(fsSync.readFileSync(path.join(repo, 'keep.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe('line1\nline2\nline3\n');
+      expect(fsSync.readFileSync(path.join(repo, 'keep.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe(
+        'line1\nline2\nline3\n',
+      );
     });
 
     it('discards untracked files', async () => {
@@ -616,7 +625,9 @@ describe('git change-set handlers', () => {
       expect(res).toMatchObject({ action: 'commit', ok: true, message: 'feat: updated keep.txt' });
 
       // Clean tree after commit
-      const changesAfterCommit = ws.sent.find((m) => m.type === 'git.changes')?.payload as { files: unknown[] };
+      const changesAfterCommit = ws.sent.find((m) => m.type === 'git.changes')?.payload as {
+        files: unknown[];
+      };
       expect(changesAfterCommit.files).toHaveLength(0);
     });
 

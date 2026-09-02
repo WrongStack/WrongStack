@@ -148,10 +148,7 @@ export function setOutputLineGuard(guard: OutputLineGuard | null): void {
  * are the public surface so the "this is the standard error stream"
  * intent stays visible at every call site.
  */
-function writeTo(
-  s: string,
-  stream: NodeJS.WriteStream | undefined,
-): boolean {
+function writeTo(s: string, stream: NodeJS.WriteStream | undefined): boolean {
   if (!stream || typeof stream.write !== 'function') return false;
   const guard = activeOutputGuard;
   if (!guard) {
@@ -188,10 +185,7 @@ function writeTo(
  * with `writeOut(...)`. Until that migration lands, both forms coexist
  * and `writeOut` is the preferred form for new code.
  */
-export function writeOut(
-  s: string,
-  stream: NodeJS.WriteStream = process.stdout,
-): boolean {
+export function writeOut(s: string, stream: NodeJS.WriteStream = process.stdout): boolean {
   return writeTo(s, stream);
 }
 
@@ -213,10 +207,7 @@ export function writeOut(
  * one boundary and lets future logging middleware (e.g. a JSON-line rewriter)
  * swap the destination for the entire process in one place.
  */
-export function writeErr(
-  s: string,
-  stream: NodeJS.WriteStream = process.stderr,
-): boolean {
+export function writeErr(s: string, stream: NodeJS.WriteStream = process.stderr): boolean {
   return writeTo(s, stream);
 }
 
@@ -319,7 +310,12 @@ export interface TerminalCapability {
  * This pure function is trivial to test and predictable regardless of import
  * order.
  */
-function parseColorDepth(env: { FORCE_COLOR?: string; NO_COLOR?: string; COLORTERM?: string; TERM?: string; }): ColorDepth {
+function parseColorDepth(env: {
+  FORCE_COLOR?: string;
+  NO_COLOR?: string;
+  COLORTERM?: string;
+  TERM?: string;
+}): ColorDepth {
   // `FORCE_COLOR=0` is an explicit opt-out, even when `COLORTERM=truecolor`.
   if (env.FORCE_COLOR === '0') return 0;
   // `FORCE_COLOR` with no value or any truthy value forces truecolor.
@@ -402,24 +398,26 @@ export function detectTerminal(
     env?: typeof process.env;
   } = {},
 ): TerminalCapability {
-  const stdin  = opts.stdin  ?? process.stdin;
+  const stdin = opts.stdin ?? process.stdin;
   const stdout = opts.stdout ?? process.stdout;
-  const env    = opts.env    ?? process.env;
+  const env = opts.env ?? process.env;
 
-  const isRealTTY        = (stdin?.isTTY ?? false) && (stdout?.isTTY ?? false);
-  const stdoutWritable   = isRealTTY && typeof stdout?.write === 'function';
-  const term             = env.TERM ?? '';
-  const isTmux          = term.toLowerCase().startsWith('tmux');
-  const isWindowsConhost = isRealTTY
-    && process.platform === 'win32'
-    && typeof (stdout as NodeJS.WriteStream & { getColorDepth?: unknown }).getColorDepth !== 'function';
+  const isRealTTY = (stdin?.isTTY ?? false) && (stdout?.isTTY ?? false);
+  const stdoutWritable = isRealTTY && typeof stdout?.write === 'function';
+  const term = env.TERM ?? '';
+  const isTmux = term.toLowerCase().startsWith('tmux');
+  const isWindowsConhost =
+    isRealTTY &&
+    process.platform === 'win32' &&
+    typeof (stdout as NodeJS.WriteStream & { getColorDepth?: unknown }).getColorDepth !==
+      'function';
 
   return {
     isRealTTY,
-    colorDepth:         isRealTTY ? parseColorDepth(env) : 0,
+    colorDepth: isRealTTY ? parseColorDepth(env) : 0,
     stdoutWritable,
-    mouseProtocol:      parseMouseProtocol(term),
-    canSetTitle:        isRealTTY && term !== 'dumb',
+    mouseProtocol: parseMouseProtocol(term),
+    canSetTitle: isRealTTY && term !== 'dumb',
     isTmux,
     isWindowsConhost,
   };
@@ -538,7 +536,7 @@ export class TerminalLifecycle {
     // Snapshot the pre-TUI raw state so release() restores correctly.
     this._wasRaw = stdin.isRaw ?? false;
     this._wasPaused = stdin.isPaused();
-    this._stdin  = stdin;
+    this._stdin = stdin;
 
     stdin.setRawMode(true);
     // A preceding readline prompt normally leaves process.stdin paused.
@@ -583,7 +581,7 @@ export class TerminalLifecycle {
       stdin.setRawMode?.(this._wasRaw ?? false);
       if (this._wasPaused) stdin.pause();
     }
-    this._stdin  = undefined;
+    this._stdin = undefined;
     this._wasRaw = null;
     this._wasPaused = null;
   }
@@ -660,8 +658,8 @@ export interface EscapeSequence {
  * to BEL is observed to be garbled.
  */
 export const ESCAPE_TERMINATOR = Object.freeze({
-  BEL: '\x07',   // OSC 0 / OSC 2 (title)
-  ST:  '\x1b\\', // DCS / strict OSC
+  BEL: '\x07', // OSC 0 / OSC 2 (title)
+  ST: '\x1b\\', // DCS / strict OSC
 });
 
 /**
@@ -768,9 +766,6 @@ export function buildSgrSequence(...codes: number[]): EscapeSequence {
  * @param title - The title string.
  * @param stdout - Target stream.
  */
-export function setTitle(
-  title: string,
-  stdout: NodeJS.WriteStream = process.stdout,
-): boolean {
+export function setTitle(title: string, stdout: NodeJS.WriteStream = process.stdout): boolean {
   return safeEmit(buildTitleSequence(title), stdout).ok;
 }

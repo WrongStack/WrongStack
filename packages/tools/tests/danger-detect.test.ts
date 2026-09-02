@@ -172,35 +172,37 @@ describe('detectDanger — PowerShell Remove-Item -Recurse -Force', () => {
     // PowerShell switch parameters accept an explicit boolean value form:
     // `-Recurse:$true` ≡ `-Recurse`, `-Force:$true` ≡ `-Force`. Both are a
     // verbatim recursive force-delete and must hit the confirm gate.
-    expect(detectDanger('powershell', ['Remove-Item', '-Recurse:$true', '-Force', 'foo']).level).toBe(
-      'destructive',
-    );
-    expect(detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force:$true', 'foo']).level).toBe(
-      'destructive',
-    );
-    expect(detectDanger('pwsh', ['Remove-Item', '-Recurse:$true', '-Force:$true', 'foo']).level).toBe(
-      'destructive',
-    );
+    expect(
+      detectDanger('powershell', ['Remove-Item', '-Recurse:$true', '-Force', 'foo']).level,
+    ).toBe('destructive');
+    expect(
+      detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force:$true', 'foo']).level,
+    ).toBe('destructive');
+    expect(
+      detectDanger('pwsh', ['Remove-Item', '-Recurse:$true', '-Force:$true', 'foo']).level,
+    ).toBe('destructive');
   });
 
   it('does NOT flag `:$false` switch-value spellings (switch explicitly OFF)', () => {
     // `-Recurse:$false` turns recursion OFF and `-Force:$false` turns force
     // OFF — neither is a recursive force-delete, so both stay safe.
-    expect(detectDanger('powershell', ['Remove-Item', '-Recurse:$false', '-Force', 'foo']).level).toBe(
-      'safe',
-    );
-    expect(detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force:$false', 'foo']).level).toBe(
-      'safe',
-    );
+    expect(
+      detectDanger('powershell', ['Remove-Item', '-Recurse:$false', '-Force', 'foo']).level,
+    ).toBe('safe');
+    expect(
+      detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force:$false', 'foo']).level,
+    ).toBe('safe');
   });
 
   it('exempts explicit `-WhatIf:$true` (dry-run) and NOT `-WhatIf:$false` (executes)', () => {
-    expect(detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force', '-WhatIf:$true', 'foo']).level).toBe(
-      'safe',
-    );
-    expect(detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force', '-WhatIf:$false', 'foo']).level).toBe(
-      'destructive',
-    );
+    expect(
+      detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force', '-WhatIf:$true', 'foo'])
+        .level,
+    ).toBe('safe');
+    expect(
+      detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force', '-WhatIf:$false', 'foo'])
+        .level,
+    ).toBe('destructive');
   });
 });
 
@@ -394,11 +396,15 @@ describe('detectDanger — git push --force / -f', () => {
   });
 
   it('flags `git push origin +HEAD:refs/heads/main` (CI force-push form) as destructive', () => {
-    expect(detectDanger('git', ['push', 'origin', '+HEAD:refs/heads/main']).level).toBe('destructive');
+    expect(detectDanger('git', ['push', 'origin', '+HEAD:refs/heads/main']).level).toBe(
+      'destructive',
+    );
   });
 
   it('flags wildcard `+refs/heads/*:refs/heads/*` refspec force as destructive', () => {
-    expect(detectDanger('git', ['push', 'origin', '+refs/heads/*:refs/heads/*']).level).toBe('destructive');
+    expect(detectDanger('git', ['push', 'origin', '+refs/heads/*:refs/heads/*']).level).toBe(
+      'destructive',
+    );
   });
 
   it('keeps non-force plus/exclusion refspecs safe (`feature+fix`, `^main`)', () => {

@@ -11,10 +11,8 @@ import {
 } from '../src/wiring/wrongtrace-gate-counters.js';
 
 const EVENT_FACTORY = {
-  deny: (path = 'a.ts') =>
-    ({ kind: 'deny', path, reason: 'WrongTrace lock: peer' }) as const,
-  allowFragile: (path = 'b.ts') =>
-    ({ kind: 'allow-fragile', path, reasons: ['x'] }) as const,
+  deny: (path = 'a.ts') => ({ kind: 'deny', path, reason: 'WrongTrace lock: peer' }) as const,
+  allowFragile: (path = 'b.ts') => ({ kind: 'allow-fragile', path, reasons: ['x'] }) as const,
   lockAcquired: (path = 'c.ts') =>
     ({ kind: 'lock-acquired', path, owner: 'wrongstack:s1' }) as const,
   lockConflictRace: (path = 'd.ts') => ({ kind: 'lock-conflict-race', path }) as const,
@@ -132,7 +130,9 @@ describe('wrongtrace-gate-counters', () => {
     const path = await import('node:path');
     const absent = path.join(process.cwd(), '.wrongstack', 'definitely-missing-counters.json');
     // Point at a nonexistent path via a fake projectRoot deep under tmp.
-    const loaded = await loadWrongTraceGateCounters(path.join(process.cwd(), 'no-such-project-dir-xyz'));
+    const loaded = await loadWrongTraceGateCounters(
+      path.join(process.cwd(), 'no-such-project-dir-xyz'),
+    );
     expect(loaded).toBeNull();
     expect(absent.length).toBeGreaterThan(0);
   });

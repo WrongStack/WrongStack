@@ -29,7 +29,7 @@ export class InMemoryAgentBridge implements AgentBridge {
   /** Guards request() so concurrent calls on the same id can't silently overwrite. */
   private readonly inflightGuards = new Set<string>();
   /** Stores the transport unsubscribe function so it can be called on stop(). */
-  private _transportUnsubscribe?: ((() => void)) | undefined;
+  private _transportUnsubscribe?: (() => void) | undefined;
 
   constructor(config: AgentBridgeConfig, transport: BridgeTransport) {
     this.agentId = config.agentId;
@@ -76,10 +76,11 @@ export class InMemoryAgentBridge implements AgentBridge {
   }
 
   async request<T>(msg: BridgeMessage, timeoutMs?: number): Promise<BridgeMessage<T>> {
-    if (this.stopped) throw new AgentError({
-      message: 'Bridge is stopped',
-      code: ERROR_CODES.AGENT_ABORTED,
-    });
+    if (this.stopped)
+      throw new AgentError({
+        message: 'Bridge is stopped',
+        code: ERROR_CODES.AGENT_ABORTED,
+      });
     const timeout = timeoutMs ?? this.timeoutMs;
     const correlationId = msg.id;
 
@@ -102,11 +103,13 @@ export class InMemoryAgentBridge implements AgentBridge {
       const timer = setTimeout(() => {
         this.inflightGuards.delete(correlationId);
         this.pendingRequests.delete(correlationId);
-        reject(new AgentError({
-          message: `Request ${correlationId} timed out after ${timeout}ms`,
-          code: ERROR_CODES.AGENT_RUN_FAILED,
-          context: { correlationId, timeoutMs: timeout },
-        }));
+        reject(
+          new AgentError({
+            message: `Request ${correlationId} timed out after ${timeout}ms`,
+            code: ERROR_CODES.AGENT_RUN_FAILED,
+            context: { correlationId, timeoutMs: timeout },
+          }),
+        );
       }, timeout);
 
       // Double-check stopped after setting up the pending entry, so stop()
@@ -116,10 +119,12 @@ export class InMemoryAgentBridge implements AgentBridge {
       // stop() has already released the lock on pendingRequests.
       if (!this.inflightGuards.has(correlationId)) {
         clearTimeout(timer);
-        reject(new AgentError({
-          message: 'Bridge stopped',
-          code: ERROR_CODES.AGENT_ABORTED,
-        }));
+        reject(
+          new AgentError({
+            message: 'Bridge stopped',
+            code: ERROR_CODES.AGENT_ABORTED,
+          }),
+        );
         return;
       }
 
@@ -143,10 +148,12 @@ export class InMemoryAgentBridge implements AgentBridge {
     this.stopped = true;
     for (const [, p] of this.pendingRequests) {
       clearTimeout(p.timer);
-      p.reject(new AgentError({
-        message: 'Bridge stopped',
-        code: ERROR_CODES.AGENT_ABORTED,
-      }));
+      p.reject(
+        new AgentError({
+          message: 'Bridge stopped',
+          code: ERROR_CODES.AGENT_ABORTED,
+        }),
+      );
     }
     this.pendingRequests.clear();
     this.inflightGuards.clear();

@@ -8,6 +8,7 @@ import {
   emitProcessStarted,
 } from '@wrongstack/core/observability';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
 import {
@@ -133,7 +134,12 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     return final;
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<BashOutput>> {
-    if (!input?.command) throw new Error('bash: command is required');
+    if (!input?.command || typeof input.command !== 'string' || !input.command.trim()) {
+      throw new ToolValidationError({
+        message: 'bash: command is required and cannot be empty',
+        field: 'command',
+      });
+    }
 
     const registry = getProcessRegistry();
     // Background processes bypass the circuit breaker — they are fire-and-forget
@@ -187,7 +193,11 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         'before trusting the result, and prefer downloading to a file and inspecting it first.'
       : '';
 
-    const timeoutMs = Math.max(1, Math.min(input.timeout_ms ?? DEFAULT_TIMEOUT_MS, 600_000));
+    const rawTimeout =
+      typeof input.timeout_ms === 'number' && !Number.isNaN(input.timeout_ms)
+        ? input.timeout_ms
+        : DEFAULT_TIMEOUT_MS;
+    const timeoutMs = Math.max(1, Math.min(rawTimeout, 600_000));
 
     const isWin = os.platform() === 'win32';
     // Shell selection:
@@ -637,6 +647,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
             !timedOut && typeof c.code === 'number' && c.code !== 0 && winShellKind
               ? diagnoseBashism(input.command, winShellKind)
               : undefined;
+          const isAborted = callerSignal.aborted;
           yield {
             type: 'final',
             output: {
@@ -645,8 +656,10 @@ export const bashTool: Tool<BashInput, BashOutput> = {
                 (spooled ? spoolNote(spooled) : '') +
                 (hint ? `\n\n${hint}` : '') +
                 pipeToShellNote,
-              exit_code: timedOut ? 124 : c.code,
-              timed_out: timedOut,
+              exit_code: timedOut || isAborted ? 124 : c.code,
+              timed_out: timedOut || isAborted,
+              pid: pid ?? null,
+              error: isAborted ? 'Command aborted by user or signal' : undefined,
             },
           };
           // P2 #5: record the command execution as a structured side effect.

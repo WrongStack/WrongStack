@@ -83,7 +83,10 @@ describe('GoalWebSocketHandler lifecycle', () => {
     await h.handleMessage(ws, { type: 'goal.revert', payload: {} });
 
     const reverted = ws.send.mock.calls
-      .map(([raw]) => JSON.parse(String(raw)) as { type: string; payload?: { ok?: boolean; reason?: string } })
+      .map(
+        ([raw]) =>
+          JSON.parse(String(raw)) as { type: string; payload?: { ok?: boolean; reason?: string } },
+      )
       .find((m) => m.type === 'goal.reverted');
     expect(reverted?.payload?.ok).toBe(false);
     expect(reverted?.payload?.reason).toBeTruthy();

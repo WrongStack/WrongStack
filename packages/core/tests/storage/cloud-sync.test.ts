@@ -69,7 +69,12 @@ describe('CloudSync', () => {
           globalConfig: bootstrapPath,
           profileConfig: (name: string) => path.join(dir, 'profiles', name, 'config.json'),
         } as WstackPaths;
-        const sync = new CloudSync(paths, () => mockSyncConfig, vi.fn(), () => profilePath);
+        const sync = new CloudSync(
+          paths,
+          () => mockSyncConfig,
+          vi.fn(),
+          () => profilePath,
+        );
 
         const tree = await (
           sync as unknown as {
@@ -80,7 +85,11 @@ describe('CloudSync', () => {
         ).buildLocalTree(['settings']);
 
         expect(tree.treeEntries).toEqual([
-          { path: 'data/settings', content: JSON.stringify({ provider: 'anthropic' }), mode: '100644' },
+          {
+            path: 'data/settings',
+            content: JSON.stringify({ provider: 'anthropic' }),
+            mode: '100644',
+          },
         ]);
         expect(tree.treeEntries[0]?.content).not.toContain('activeProfile');
       });
@@ -110,7 +119,11 @@ describe('CloudSync', () => {
 
     it('includes repo and categories when enabled', async () => {
       await withTempDir(async (dir) => {
-        const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => mockSyncConfig, vi.fn());
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir },
+          () => mockSyncConfig,
+          vi.fn(),
+        );
         const result = await sync.status();
         expect(result).toContain('enabled');
         expect(result).toContain('testuser/testrepo');
@@ -121,7 +134,11 @@ describe('CloudSync', () => {
 
     it('shows "never" when no state file exists', async () => {
       await withTempDir(async (dir) => {
-        const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => mockSyncConfig, vi.fn());
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir },
+          () => mockSyncConfig,
+          vi.fn(),
+        );
         await sync.loadState();
         const result = await sync.status();
         expect(result).toContain('never');
@@ -135,7 +152,11 @@ describe('CloudSync', () => {
           path.join(dir, 'sync-state.json'),
           JSON.stringify({ version: 1, sha: 'abc123', lastSyncedAt: twoMinsAgo, localRev: 'rev1' }),
         );
-        const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => mockSyncConfig, vi.fn());
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir },
+          () => mockSyncConfig,
+          vi.fn(),
+        );
         await sync.loadState();
         const result = await sync.status();
         expect(result).toContain('2m ago');
@@ -154,7 +175,11 @@ describe('CloudSync', () => {
           path.join(dir, 'sync-state.json'),
           JSON.stringify({ version: 1, sha: 'abc', lastSyncedAt, localRev: 'r1' }),
         );
-        const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => mockSyncConfig, vi.fn());
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir },
+          () => mockSyncConfig,
+          vi.fn(),
+        );
         await sync.loadState();
         const result = await sync.status();
         expect(result).toContain(`${daysAgo}d ago`);
@@ -163,7 +188,11 @@ describe('CloudSync', () => {
 
     it('sets state to null when file does not exist', async () => {
       await withTempDir(async (dir) => {
-        const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => mockSyncConfig, vi.fn());
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir },
+          () => mockSyncConfig,
+          vi.fn(),
+        );
         await sync.loadState();
         const result = await sync.status();
         expect(result).toContain('never');
@@ -173,7 +202,11 @@ describe('CloudSync', () => {
     it('sets state to null when file is malformed JSON', async () => {
       await withTempDir(async (dir) => {
         await fs.writeFile(path.join(dir, 'sync-state.json'), 'not valid json');
-        const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => mockSyncConfig, vi.fn());
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir },
+          () => mockSyncConfig,
+          vi.fn(),
+        );
         await sync.loadState();
         const result = await sync.status();
         expect(result).toContain('never');
@@ -221,22 +254,20 @@ describe('CloudSync', () => {
           () => ({ enabled: true, repo: 'testuser/testrepo', categories: ['prompts'] }),
           vi.fn(),
         );
-        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
-          (async (
-            _t: string,
-            _o: string,
-            _r: string,
-            method: string,
-            segment: string,
-          ) => {
-            if (method === 'GET' && segment.includes('/git/refs/heads/main')) {
-              throw new Error('GitHub API GET failed (404): missing');
-            }
-            if (method === 'POST' && segment === '/git/trees') return { sha: 'tree' };
-            if (method === 'POST' && segment === '/git/commits') return { sha: 'commit' };
-            return {};
-          }) as never,
-        );
+        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation((async (
+          _t: string,
+          _o: string,
+          _r: string,
+          method: string,
+          segment: string,
+        ) => {
+          if (method === 'GET' && segment.includes('/git/refs/heads/main')) {
+            throw new Error('GitHub API GET failed (404): missing');
+          }
+          if (method === 'POST' && segment === '/git/trees') return { sha: 'tree' };
+          if (method === 'POST' && segment === '/git/commits') return { sha: 'commit' };
+          return {};
+        }) as never);
 
         await sync.push('token');
         expect(await sync.hasLocalChanges()).toBe(false);
@@ -255,7 +286,12 @@ describe('CloudSync', () => {
       await withTempDir(async (dir) => {
         await fs.writeFile(
           path.join(dir, 'sync-state.json'),
-          JSON.stringify({ version: 1, sha: 'abc', lastSyncedAt: '2024-01-01T00:00:00Z', localRev: 'rev1' }),
+          JSON.stringify({
+            version: 1,
+            sha: 'abc',
+            lastSyncedAt: '2024-01-01T00:00:00Z',
+            localRev: 'rev1',
+          }),
         );
         const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => null, vi.fn());
         await sync.loadState();
@@ -283,29 +319,33 @@ describe('CloudSync', () => {
         await fs.writeFile(paths.globalConfig, '{}');
         await fs.writeFile(paths.historyFile, '[]');
 
-        const sync = new CloudSync(paths, () => ({
-          enabled: true,
-          repo: 'testuser/testrepo',
-          categories: ['prompts'],
-        }), vi.fn());
+        const sync = new CloudSync(
+          paths,
+          () => ({
+            enabled: true,
+            repo: 'testuser/testrepo',
+            categories: ['prompts'],
+          }),
+          vi.fn(),
+        );
 
         // Mock GitHub API calls via spy on private githubFetch
-        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
-          (async (
-            _t: string,
-            _o: string,
-            _r: string,
-            method: string,
-            seg: string,
-          ) => {
-            if (method === 'GET' && seg === '/git/refs/heads/main') return { object: { sha: 'remote-commit' } };
-            if (method === 'GET' && seg === '/git/commits/remote-commit') return { tree: { sha: 'remote-tree' }, message: 'm' };
-            if (method === 'POST' && seg === '/git/trees') return { sha: 'tree-sha-abc' };
-            if (method === 'POST' && seg === '/git/commits') return { sha: 'commit-sha-abc' };
-            if (method === 'PATCH' && seg === '/git/refs/heads/main') return {};
-            return {};
-          }) as never,
-        );
+        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation((async (
+          _t: string,
+          _o: string,
+          _r: string,
+          method: string,
+          seg: string,
+        ) => {
+          if (method === 'GET' && seg === '/git/refs/heads/main')
+            return { object: { sha: 'remote-commit' } };
+          if (method === 'GET' && seg === '/git/commits/remote-commit')
+            return { tree: { sha: 'remote-tree' }, message: 'm' };
+          if (method === 'POST' && seg === '/git/trees') return { sha: 'tree-sha-abc' };
+          if (method === 'POST' && seg === '/git/commits') return { sha: 'commit-sha-abc' };
+          if (method === 'PATCH' && seg === '/git/refs/heads/main') return {};
+          return {};
+        }) as never);
 
         const result = await sync.push('fake-token');
 
@@ -340,30 +380,32 @@ describe('CloudSync', () => {
         await fs.writeFile(paths.globalConfig, '{}');
         await fs.writeFile(paths.historyFile, '[]');
 
-        const sync = new CloudSync(paths, () => ({
-          enabled: true,
-          repo: 'testuser/testrepo',
-          categories: ['prompts'],
-        }), vi.fn());
-
-        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
-          (async (
-            _t: string,
-            _o: string,
-            _r: string,
-            method: string,
-            seg: string,
-          ) => {
-            if (method === 'GET' && seg.startsWith('/git/refs/heads/')) {
-              return { object: { sha: 'remote-commit-sha' } };
-            }
-            if (method === 'GET' && seg.startsWith('/git/commits/')) {
-              return { tree: { sha: 'tree-sha-xyz' } };
-            }
-            if (method === 'GET' && seg.startsWith('/git/trees/')) return [];
-            return {};
-          }) as never,
+        const sync = new CloudSync(
+          paths,
+          () => ({
+            enabled: true,
+            repo: 'testuser/testrepo',
+            categories: ['prompts'],
+          }),
+          vi.fn(),
         );
+
+        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation((async (
+          _t: string,
+          _o: string,
+          _r: string,
+          method: string,
+          seg: string,
+        ) => {
+          if (method === 'GET' && seg.startsWith('/git/refs/heads/')) {
+            return { object: { sha: 'remote-commit-sha' } };
+          }
+          if (method === 'GET' && seg.startsWith('/git/commits/')) {
+            return { tree: { sha: 'tree-sha-xyz' } };
+          }
+          if (method === 'GET' && seg.startsWith('/git/trees/')) return [];
+          return {};
+        }) as never);
 
         const result = await sync.pull('fake-token');
 
@@ -422,23 +464,21 @@ describe('CloudSync', () => {
         }));
         const sync = new CloudSync(paths, getConfig, vi.fn());
 
-        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
-          (async (
-            _t: string,
-            _o: string,
-            _r: string,
-            method: string,
-            segment: string,
-          ) => {
-            if (method === 'GET' && segment === '/git/refs/heads/main') {
-              return { object: { sha: 'remote-commit' } };
-            }
-            if (method === 'GET' && segment === '/git/commits/remote-commit') {
-              return { tree: { sha: 'remote-tree' }, message: 'm' };
-            }
-            return { sha: 'c' };
-          }) as never,
-        );
+        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation((async (
+          _t: string,
+          _o: string,
+          _r: string,
+          method: string,
+          segment: string,
+        ) => {
+          if (method === 'GET' && segment === '/git/refs/heads/main') {
+            return { object: { sha: 'remote-commit' } };
+          }
+          if (method === 'GET' && segment === '/git/commits/remote-commit') {
+            return { tree: { sha: 'remote-tree' }, message: 'm' };
+          }
+          return { sha: 'c' };
+        }) as never);
 
         await sync.push('tok');
         expect(getConfig).toHaveBeenCalledTimes(1);
@@ -492,7 +532,11 @@ describe('CloudSync', () => {
           path.join(dir, 'sync-state.json'),
           JSON.stringify({ version: 1, sha: 'x', lastSyncedAt: justNow, localRev: 'r' }),
         );
-        const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => mockSyncConfig, vi.fn());
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir },
+          () => mockSyncConfig,
+          vi.fn(),
+        );
         await sync.loadState();
         const result = await sync.status();
         expect(result).toContain('just now');
@@ -506,7 +550,11 @@ describe('CloudSync', () => {
           path.join(dir, 'sync-state.json'),
           JSON.stringify({ version: 1, sha: 'x', lastSyncedAt: threeHoursAgo, localRev: 'r' }),
         );
-        const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => mockSyncConfig, vi.fn());
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir },
+          () => mockSyncConfig,
+          vi.fn(),
+        );
         await sync.loadState();
         const result = await sync.status();
         expect(result).toMatch(/\d+h ago/);
@@ -520,7 +568,11 @@ describe('CloudSync', () => {
           path.join(dir, 'sync-state.json'),
           JSON.stringify({ version: 1, sha: 'x', lastSyncedAt: fiveDaysAgo, localRev: 'r' }),
         );
-        const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => mockSyncConfig, vi.fn());
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir },
+          () => mockSyncConfig,
+          vi.fn(),
+        );
         await sync.loadState();
         const result = await sync.status();
         expect(result).toContain('5d ago');
@@ -618,12 +670,18 @@ describe('CloudSync', () => {
           () => ({ enabled: true, repo: 'testuser/testrepo', categories: ['skills'] }),
           vi.fn(),
         );
-        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({ object: { sha: 'commit' } } as never);
-        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({ tree: { sha: 'tree' } } as never);
+        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({
+          object: { sha: 'commit' },
+        } as never);
+        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({
+          tree: { sha: 'tree' },
+        } as never);
         vi.spyOn(sync, 'getTreeEntries' as keyof CloudSync).mockResolvedValue([
           { path: 'data/skills/a.txt', sha: 'blob', type: 'blob' },
         ] as never);
-        const getBlob = vi.spyOn(sync, 'getBlob' as keyof CloudSync).mockResolvedValue(Buffer.from('owned').toString('base64') as never);
+        const getBlob = vi
+          .spyOn(sync, 'getBlob' as keyof CloudSync)
+          .mockResolvedValue(Buffer.from('owned').toString('base64') as never);
 
         await expect(sync.pull('fake-token')).rejects.toThrow(/symlink/i);
         expect(getBlob).not.toHaveBeenCalled();
@@ -651,12 +709,18 @@ describe('CloudSync', () => {
           () => ({ enabled: true, repo: 'testuser/testrepo', categories: ['skills'] }),
           vi.fn(),
         );
-        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({ object: { sha: 'commit' } } as never);
-        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({ tree: { sha: 'tree' } } as never);
+        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({
+          object: { sha: 'commit' },
+        } as never);
+        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({
+          tree: { sha: 'tree' },
+        } as never);
         vi.spyOn(sync, 'getTreeEntries' as keyof CloudSync).mockResolvedValue([
           { path: 'data/skills/a.txt', sha: 'blob', type: 'blob' },
         ] as never);
-        const getBlob = vi.spyOn(sync, 'getBlob' as keyof CloudSync).mockResolvedValue(Buffer.from('owned').toString('base64') as never);
+        const getBlob = vi
+          .spyOn(sync, 'getBlob' as keyof CloudSync)
+          .mockResolvedValue(Buffer.from('owned').toString('base64') as never);
 
         await expect(sync.pull('fake-token')).rejects.toThrow(/symlink/i);
         expect(getBlob).not.toHaveBeenCalled();
@@ -677,13 +741,19 @@ describe('CloudSync', () => {
           vi.fn(),
         );
 
-        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({ object: { sha: 'commit' } } as never);
-        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({ tree: { sha: 'tree' } } as never);
+        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({
+          object: { sha: 'commit' },
+        } as never);
+        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({
+          tree: { sha: 'tree' },
+        } as never);
         vi.spyOn(sync, 'getTreeEntries' as keyof CloudSync).mockResolvedValue([
           { path: 'data/skills/..\\escape.txt', sha: 'blob', type: 'blob' },
         ] as never);
 
-        await expect(sync.pull('fake-token')).rejects.toThrow(/outside category root|path traversal/i);
+        await expect(sync.pull('fake-token')).rejects.toThrow(
+          /outside category root|path traversal/i,
+        );
       });
     });
 
@@ -701,12 +771,18 @@ describe('CloudSync', () => {
           vi.fn(),
         );
 
-        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({ object: { sha: 'commit' } } as never);
-        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({ tree: { sha: 'tree' } } as never);
+        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({
+          object: { sha: 'commit' },
+        } as never);
+        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({
+          tree: { sha: 'tree' },
+        } as never);
         vi.spyOn(sync, 'getTreeEntries' as keyof CloudSync).mockResolvedValue([
           { path: 'data/skills/../../config.json', sha: 'blob', type: 'blob' },
         ] as never);
-        vi.spyOn(sync, 'getBlob' as keyof CloudSync).mockResolvedValue(Buffer.from('owned').toString('base64') as never);
+        vi.spyOn(sync, 'getBlob' as keyof CloudSync).mockResolvedValue(
+          Buffer.from('owned').toString('base64') as never,
+        );
 
         await expect(sync.pull('fake-token')).rejects.toThrow(/path traversal/i);
         await expect(fs.readFile(path.join(dir, 'config.json'), 'utf8')).rejects.toThrow();
@@ -726,8 +802,12 @@ describe('CloudSync', () => {
           vi.fn(),
         );
 
-        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({ object: { sha: 'commit' } } as never);
-        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({ tree: { sha: 'tree' } } as never);
+        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({
+          object: { sha: 'commit' },
+        } as never);
+        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({
+          tree: { sha: 'tree' },
+        } as never);
         vi.spyOn(sync, 'getTreeEntries' as keyof CloudSync).mockResolvedValue([
           { path: 'data/settings/nested/config.json', sha: 'blob', type: 'blob' },
         ] as never);

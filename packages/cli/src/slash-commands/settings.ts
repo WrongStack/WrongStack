@@ -3,7 +3,11 @@ import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand } from './helpers.js';
 import { executeSettingsSubcommand } from './settings-mutations.js';
-import { formatCurrentSettingsView, formatSettingsDefaults, SETTINGS_HELP } from './settings-view.js';
+import {
+  formatCurrentSettingsView,
+  formatSettingsDefaults,
+  SETTINGS_HELP,
+} from './settings-view.js';
 
 /**
  * `/settings` — view or change persisted settings.

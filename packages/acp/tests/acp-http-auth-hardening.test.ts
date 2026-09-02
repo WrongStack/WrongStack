@@ -27,7 +27,9 @@ async function startServer(): Promise<void> {
     runTurn: async () => ({ stopReason: 'end_turn' }) as never,
   });
   await server.start();
-  const port = (server as unknown as { httpServer: { address(): { port: number } } }).httpServer.address().port;
+  const port = (
+    server as unknown as { httpServer: { address(): { port: number } } }
+  ).httpServer.address().port;
   base = `http://127.0.0.1:${port}`;
 }
 
@@ -93,7 +95,9 @@ describe('ACP HTTP auth gate', () => {
       runTurn: async () => ({ stopReason: 'end_turn' }) as never,
     });
     await server.start();
-    const port = (server as unknown as { httpServer: { address(): { port: number } } }).httpServer.address().port;
+    const port = (
+      server as unknown as { httpServer: { address(): { port: number } } }
+    ).httpServer.address().port;
     base = `http://127.0.0.1:${port}`;
     expect((await post('/', { Authorization: 'Bearer ' })).status).toBe(401);
   });

@@ -116,7 +116,10 @@ export const TELEGRAM_CONFIG_FIELDS = {
   outboundQueueConcurrency: { lifecycle: 'restart' },
   rateLimitTokensPerSecond: { lifecycle: 'hot', description: 'Per-chat rate limit (tokens/sec)' },
   rateLimitBurst: { lifecycle: 'hot', description: 'Per-chat rate limit burst size' },
-  parseMode: { lifecycle: 'hot', description: 'Telegram parse mode: HTML, MarkdownV2, or empty for plain text' },
+  parseMode: {
+    lifecycle: 'hot',
+    description: 'Telegram parse mode: HTML, MarkdownV2, or empty for plain text',
+  },
 } as const satisfies PluginConfigFields<TelegramPluginConfig>;
 
 export const telegramConfigSchema = {

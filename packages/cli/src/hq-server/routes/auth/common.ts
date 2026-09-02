@@ -1,9 +1,6 @@
 import type * as http from 'node:http';
 import { type HqAuthFile, isLoopbackHost } from '@wrongstack/core/hq';
-import {
-  authenticateBrowserRequest,
-  type HqBrowserAuthResult,
-} from '../../auth.js';
+import { authenticateBrowserRequest, type HqBrowserAuthResult } from '../../auth.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
 
 export function isLoopbackRequest(req: http.IncomingMessage): boolean {

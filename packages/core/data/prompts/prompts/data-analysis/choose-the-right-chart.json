@@ -5,10 +5,7 @@
   "description": "Pick a visualization that fits the data and message.",
   "content": "I want to show: {{message}} from data that looks like {{data}}\n\nRecommend the chart type that makes that message obvious, and say why the obvious alternatives are worse here. Cover the encoding (what maps to position, length, color), the axis and scale choices, and the one way this chart could mislead. Keep it honest: no dual axes or truncated baselines that distort. Suggest the single annotation that would make the takeaway unmissable.",
   "category": "data-analysis",
-  "tags": [
-    "visualization",
-    "charts"
-  ],
+  "tags": ["visualization", "charts"],
   "source": "builtin",
   "favorite": false,
   "checksum": "792eca93424416acc65e3adad701039d5545368e4a7b90550855d96510cfedad",

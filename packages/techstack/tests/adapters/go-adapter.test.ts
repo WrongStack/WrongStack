@@ -13,7 +13,18 @@ function mkWorkspace(files: Record<string, string>): { dir: string; ws: Workspac
   const dir = join(tmpdir(), `ts-go-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   mkdirSync(dir, { recursive: true });
   for (const [n, c] of Object.entries(files)) writeFileSync(join(dir, n), c);
-  return { dir, ws: { id: workspaceId('', 'go'), relativeRoot: dir, ecosystem: 'go' as const, manifests: Object.keys(files).filter(f => f === 'go.mod'), lockfiles: Object.keys(files).filter(f => f === 'go.sum'), confidence: 0.9, coverage: 'full' as const } };
+  return {
+    dir,
+    ws: {
+      id: workspaceId('', 'go'),
+      relativeRoot: dir,
+      ecosystem: 'go' as const,
+      manifests: Object.keys(files).filter((f) => f === 'go.mod'),
+      lockfiles: Object.keys(files).filter((f) => f === 'go.sum'),
+      confidence: 0.9,
+      coverage: 'full' as const,
+    },
+  };
 }
 
 describe('GoAdapter', () => {
@@ -21,41 +32,51 @@ describe('GoAdapter', () => {
     const { dir, ws } = mkWorkspace({ 'go.mod': GOMOD });
     try {
       const deps = await new GoAdapter().inventory(ws, {});
-      expect(deps.map(d => d.name)).toContain('github.com/gorilla/mux');
-    } finally { rmSync(dir, { recursive: true, force: true }); }
+      expect(deps.map((d) => d.name)).toContain('github.com/gorilla/mux');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('marks indirect deps as transitive', async () => {
     const { dir, ws } = mkWorkspace({ 'go.mod': GOMOD });
     try {
       const deps = await new GoAdapter().inventory(ws, {});
-      const uuid = deps.find(d => d.name === 'github.com/google/uuid');
+      const uuid = deps.find((d) => d.name === 'github.com/google/uuid');
       expect(uuid?.scope).toBe('transitive');
       expect(uuid?.direct).toBe(false);
-    } finally { rmSync(dir, { recursive: true, force: true }); }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('reads locked versions from go.sum', async () => {
     const { dir, ws } = mkWorkspace({ 'go.mod': GOMOD, 'go.sum': GOSUM });
     try {
       const deps = await new GoAdapter().inventory(ws, {});
-      expect(deps.find(d => d.name === 'github.com/gorilla/mux')?.locked).toBe('1.8.1');
-    } finally { rmSync(dir, { recursive: true, force: true }); }
+      expect(deps.find((d) => d.name === 'github.com/gorilla/mux')?.locked).toBe('1.8.1');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('skips own module', async () => {
     const { dir, ws } = mkWorkspace({ 'go.mod': GOMOD });
     try {
       const deps = await new GoAdapter().inventory(ws, {});
-      expect(deps.find(d => d.name === 'github.com/x')).toBeUndefined();
-    } finally { rmSync(dir, { recursive: true, force: true }); }
+      expect(deps.find((d) => d.name === 'github.com/x')).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('has manifest evidence', async () => {
     const { dir, ws } = mkWorkspace({ 'go.mod': GOMOD });
     try {
       const deps = await new GoAdapter().inventory(ws, {});
-      for (const d of deps) expect(d.evidence.some(e => e.kind === 'manifest')).toBe(true);
-    } finally { rmSync(dir, { recursive: true, force: true }); }
+      for (const d of deps) expect(d.evidence.some((e) => e.kind === 'manifest')).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

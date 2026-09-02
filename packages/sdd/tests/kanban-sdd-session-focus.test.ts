@@ -23,8 +23,7 @@ vi.mock('@wrongstack/kanban', () => ({
   // Spread into a typed mock needs a tuple, not `unknown[]` — the other three
   // mocks take `unknown[]` themselves so they pass through fine, but
   // `kanbanWorkflowId` declares `(kind: string, name: string)`.
-  kanbanWorkflowId: (...args: Parameters<typeof h.kanbanWorkflowId>) =>
-    h.kanbanWorkflowId(...args),
+  kanbanWorkflowId: (...args: Parameters<typeof h.kanbanWorkflowId>) => h.kanbanWorkflowId(...args),
 }));
 
 import { createKanbanSddSessionPersistence } from '../src/kanban-sdd-session.js';
@@ -79,12 +78,7 @@ describe('createKanbanSddSessionPersistence — focused branches', () => {
     expect(h.writeState).toHaveBeenCalledWith(dir, 'sdd:session', expect.any(Object), 7);
     // A subsequent save now writes against the tracked revision.
     await persistence.save({ ...session, title: 'updated again', updatedAt: 3 });
-    expect(h.writeState).toHaveBeenLastCalledWith(
-      dir,
-      'sdd:session',
-      expect.any(Object),
-      8,
-    );
+    expect(h.writeState).toHaveBeenLastCalledWith(dir, 'sdd:session', expect.any(Object), 8);
   });
 
   it('delete() removes the kanban state and legacy file (kanban-sdd-session.ts:72-75)', async () => {

@@ -43,11 +43,7 @@
  */
 
 import type { EventBus } from '../kernel/events.js';
-import {
-  MAX_RESET_HINT_MS,
-  type ProviderErrorKind,
-  parseResetHintMs,
-} from '../types/provider.js';
+import { MAX_RESET_HINT_MS, type ProviderErrorKind, parseResetHintMs } from '../types/provider.js';
 import { QUOTA_EXHAUSTED_RE, ROUTE_SCOPED_QUOTA_RE } from '../types/quota-regex.js';
 
 // ── Public types ────────────────────────────────────────────────────────────

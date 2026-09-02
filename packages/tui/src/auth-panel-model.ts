@@ -99,11 +99,7 @@ export interface AuthPanelHost {
    * values so the user can see what the upstream defaults are and reset
    * individual fields back to them.
    */
-  editModelDetails(
-    providerId: string,
-    modelId: string,
-    io: AuthFlowIo,
-  ): Promise<AuthFlowResult>;
+  editModelDetails(providerId: string, modelId: string, io: AuthFlowIo): Promise<AuthFlowResult>;
   /**
    * Add a model to the provider's allowlist with optional full schema details
    * (ME-5). When `fromCatalog` is true, prefills from the models.dev registry.
@@ -301,4 +297,3 @@ export function authMoveSelected(state: AuthPanelState, delta: number): number {
   if (count === 0) return 0;
   return (((state.selected + delta) % count) + count) % count;
 }
-

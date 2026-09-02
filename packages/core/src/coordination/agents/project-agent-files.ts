@@ -1,10 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import * as path from 'node:path';
 import { validateProjectAgentConfig } from './project-agent-config-validation.js';
 import {
@@ -23,10 +17,7 @@ import {
   parseStructuredLearnedEntriesFromContent,
   renderLearnedInstructions,
 } from './project-agent-learning-structured.js';
-import type {
-  ProjectAgentConfig,
-  RoleKnowledgeManifest,
-} from './project-agent-identity-types.js';
+import type { ProjectAgentConfig, RoleKnowledgeManifest } from './project-agent-identity-types.js';
 
 /**
  * Write or update the learned instruction buffer for a given role.
@@ -64,10 +55,7 @@ export function updateProjectAgentLearned(
     }
   })();
   const now = new Date().toISOString();
-  const entries = parseStructuredLearnedEntriesFromContent(
-    existing,
-    splitLearnedEntries(existing),
-  );
+  const entries = parseStructuredLearnedEntriesFromContent(existing, splitLearnedEntries(existing));
   // Taught text is authored by a human and is not held to the automatic
   // capture quality bar; it is only stripped of decoration and split into
   // directives so it participates in dedup, categorisation and rendering.
@@ -77,7 +65,10 @@ export function updateProjectAgentLearned(
       .replace(/^[-*]\s+/gm, '')
       .replace(/\s+/g, ' ')
       .trim();
-  const chunks = content.split(/\n{2,}/).map(clean).filter(Boolean);
+  const chunks = content
+    .split(/\n{2,}/)
+    .map(clean)
+    .filter(Boolean);
   const longEnough = chunks.filter((chunk) => chunk.length >= MIN_INSTRUCTIVE_LENGTH);
   // Taught text is never dropped for being terse. Splitting on blank lines is
   // a convenience for multi-rule input; when no paragraph clears the bar the

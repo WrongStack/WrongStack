@@ -90,9 +90,7 @@ test.describe('WebUI File Explorer', () => {
       await filesBtn.click();
       return treeItems.count();
     };
-    await expect
-      .poll(countOrRetry, { timeout: 25_000 })
-      .toBeGreaterThan(1);
+    await expect.poll(countOrRetry, { timeout: 25_000 }).toBeGreaterThan(1);
   });
 
   test('opening a file shows its content in the editor', async ({ page }) => {

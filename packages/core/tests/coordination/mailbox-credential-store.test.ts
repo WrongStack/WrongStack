@@ -53,7 +53,9 @@ describe('resolveCredentialStorePath', () => {
   // `SqliteMailbox.migrateLegacyCredentials()` reads to carry pre-SQLite
   // credentials forward exactly once.
   it('resolves to the correct file name', async () => {
-    const { resolveCredentialStorePath } = await import('../../src/coordination/mailbox-credential-store.js');
+    const { resolveCredentialStorePath } = await import(
+      '../../src/coordination/mailbox-credential-store.js'
+    );
     expect(resolveCredentialStorePath(dir)).toBe(path.join(dir, '_mailbox_credentials.json'));
   });
 });
@@ -282,8 +284,7 @@ describe('rotate', () => {
 
     const result = await store.rotate(old.credentialId);
     const rotated = result!.credential;
-    const lifetimeMs =
-      new Date(rotated.expiresAt).getTime() - new Date(rotated.issuedAt).getTime();
+    const lifetimeMs = new Date(rotated.expiresAt).getTime() - new Date(rotated.issuedAt).getTime();
     expect(lifetimeMs).toBe(shortTtlMs);
     // And an explicit ttl still wins.
     const explicit = await store.rotate(rotated.credentialId, { ttlMs: 60_000 });
@@ -315,21 +316,29 @@ describe('rotate', () => {
 describe('list and status', () => {
   it('list returns credentials sorted with active first', async () => {
     await store.load();
-    const a1 = (await store.issue({ principalId: 'a', kind: 'agent', capabilities: [], ttlMs: 60_000 })).credential;
-    const a2 = (await store.issue({ principalId: 'b', kind: 'agent', capabilities: [], ttlMs: 60_000 })).credential;
+    const a1 = (
+      await store.issue({ principalId: 'a', kind: 'agent', capabilities: [], ttlMs: 60_000 })
+    ).credential;
+    const a2 = (
+      await store.issue({ principalId: 'b', kind: 'agent', capabilities: [], ttlMs: 60_000 })
+    ).credential;
     await store.revoke(a2.credentialId, 'test');
 
     const list = store.list();
     expect(list[0]!.status).toBe('active');
     // a1 is active, a2 was revoked — active should sort first
-    expect(list.findIndex((c) => c.status === 'active')).toBeLessThan(list.findIndex((c) => c.status === 'revoked'));
+    expect(list.findIndex((c) => c.status === 'active')).toBeLessThan(
+      list.findIndex((c) => c.status === 'revoked'),
+    );
     expect(list.find((c) => c.status === 'active')!.credentialId).toBe(a1.credentialId);
   });
 
   it('statusCounts returns correct breakdown', async () => {
     await store.load();
     await store.issue({ principalId: 'a', kind: 'agent', capabilities: [], ttlMs: 60_000 });
-    const c2 = (await store.issue({ principalId: 'b', kind: 'agent', capabilities: [], ttlMs: 60_000 })).credential;
+    const c2 = (
+      await store.issue({ principalId: 'b', kind: 'agent', capabilities: [], ttlMs: 60_000 })
+    ).credential;
     await store.revoke(c2.credentialId, 'test');
 
     const counts = store.statusCounts();

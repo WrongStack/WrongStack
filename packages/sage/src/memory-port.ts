@@ -8,10 +8,7 @@ import {
 import * as fs from 'node:fs/promises';
 import type { SageRetrieverLike } from './middleware/tool-call-memory.js';
 import type { SageServiceLike, SageSurface } from './service-contract.js';
-import {
-  ProjectSageMemoryPort,
-  type ProjectSageMemoryPortOptions,
-} from './remote-memory-port.js';
+import { ProjectSageMemoryPort, type ProjectSageMemoryPortOptions } from './remote-memory-port.js';
 import { SqliteSageStore } from './sqlite-store.js';
 import type { SageStoreOptions } from './types.js';
 
@@ -123,8 +120,7 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     verify: (memoryId, signal) => super.verify(memoryId, signal),
     recoverSage: (id, reason) => super.recoverSage(id, reason),
     backfillRecoverable: (options) => super.backfillRecoverable(options),
-    findMemoriesForFile: (filePath, options) =>
-      super.findMemoriesForFile(filePath, options),
+    findMemoriesForFile: (filePath, options) => super.findMemoriesForFile(filePath, options),
     readAudit: (limit) => super.readAudit(limit),
     importLegacy: (files) => this.importLegacyFiles(files),
   };
@@ -138,8 +134,7 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     clear: (scope) => super.clear(scope),
     list: (scope, limit) => super.list(scope, limit),
     search: (query, scope, limit) => super.search(query, scope, limit),
-    findRelated: (text, scope, limit) =>
-      super.search(text, scope, limit),
+    findRelated: (text, scope, limit) => super.search(text, scope, limit),
     scoreRelevant: async (context, scope, limit) =>
       (await super.search(context.currentTask, scope, limit)).map((entry, index) => ({
         ...entry,
@@ -171,8 +166,7 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     deleteSage: (id, reason, options) => super.deleteSage(id, reason, options),
     recoverSage: (id, reason) => super.recoverSage(id, reason),
     backfillRecoverable: (options) => super.backfillRecoverable(options),
-    findMemoriesForFile: (filePath, options) =>
-      super.findMemoriesForFile(filePath, options),
+    findMemoriesForFile: (filePath, options) => super.findMemoriesForFile(filePath, options),
     getSage: (id) => super.getSage(id),
     listSagePage: (options) => super.listSagePage(options),
   };
@@ -331,5 +325,3 @@ export function createProjectSageMemoryPort(options: ProjectSageMemoryPortOption
 }
 
 export { ProjectSageMemoryPort, type ProjectSageMemoryPortOptions };
-
-

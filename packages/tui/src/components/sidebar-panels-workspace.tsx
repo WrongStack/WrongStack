@@ -16,7 +16,12 @@ import {
   SidebarStatRow,
   trunc,
 } from './sidebar-panel-frame.js';
-import { EmptyState, fleetStatusVisual, fmtShortDuration, SidebarWorklistRow } from './sidebar-panels-shared.js';
+import {
+  EmptyState,
+  fleetStatusVisual,
+  fmtShortDuration,
+  SidebarWorklistRow,
+} from './sidebar-panels-shared.js';
 import { fmtRatioPct } from './status-bar-format.js';
 
 export interface ProjectPickerSidebarProps {
@@ -188,7 +193,10 @@ export function FleetPanelSidebar({
           return (
             <Box key={e.id} flexDirection="row" width={bodyWidth}>
               <Text color={v.color}>{v.glyph}</Text>
-              <Text color={e.status === 'running' ? theme.textPrimary : theme.textSecondary} wrap="truncate">
+              <Text
+                color={e.status === 'running' ? theme.textPrimary : theme.textSecondary}
+                wrap="truncate"
+              >
                 {' '}
                 {name}
               </Text>
@@ -452,11 +460,7 @@ export function CoordinatorPanelSidebar({
       width={width}
       kicker="phases"
       pillLabel={
-        inner >= PILL_MIN_INNER_WIDTH
-          ? running
-            ? `${activePhases} active`
-            : 'idle'
-          : undefined
+        inner >= PILL_MIN_INNER_WIDTH ? (running ? `${activePhases} active` : 'idle') : undefined
       }
       pillColor={running ? theme.warn : theme.textMuted}
       right={
@@ -571,7 +575,11 @@ export function ConnectionsPanelSidebar({
             color={downCount > 0 ? theme.error : warnCount > 0 ? theme.warn : theme.success}
             bold
           >
-            {downCount > 0 ? `${downCount} DOWN` : warnCount > 0 ? `${warnCount} WARN` : `${okCount} OK`}
+            {downCount > 0
+              ? `${downCount} DOWN`
+              : warnCount > 0
+                ? `${warnCount} WARN`
+                : `${okCount} OK`}
           </Text>
         ) : undefined
       }
@@ -587,7 +595,9 @@ export function ConnectionsPanelSidebar({
       <Box flexDirection="row" width={bodyWidth}>
         <Text color={okCount > 0 ? theme.success : theme.borderSubtle}>
           {glyphs.barFull.repeat(
-            Math.round((okCount / Math.max(1, connections.length || 1)) * Math.max(4, bodyWidth - 4)),
+            Math.round(
+              (okCount / Math.max(1, connections.length || 1)) * Math.max(4, bodyWidth - 4),
+            ),
           )}
         </Text>
         <Text color={theme.borderSubtle}>
@@ -649,7 +659,9 @@ export function ConnectionsPanelSidebar({
               <Box flexDirection="row" width={bodyWidth}>
                 <Text color={color} dimColor wrap="truncate">
                   {'  '}
-                  {glyphs.workingDirectory.repeat(Math.max(1, Math.min(bodyWidth - 2, 3 + (i % 4))))}
+                  {glyphs.workingDirectory.repeat(
+                    Math.max(1, Math.min(bodyWidth - 2, 3 + (i % 4))),
+                  )}
                 </Text>
                 <Text color={theme.textMuted}> link {String(i + 1).padStart(2, '0')}</Text>
               </Box>

@@ -1,7 +1,6 @@
 import type { CommandDetailMap } from './command-detail-types';
 
 export const commandDetailsPart1: CommandDetailMap = {
-
   '/btw': {
     purpose:
       'Ask a quick side question without derailing the current task or polluting the main conversation thread.',
@@ -32,12 +31,10 @@ export const commandDetailsPart1: CommandDetailMap = {
       'Generate context-aware next actions manually, with an optional fast heuristic mode that skips the model call.',
     behavior:
       'The command analyzes your current session context — open files, recent tasks, mailbox messages, and todo list — and produces a ranked list of suggested next prompts. In heuristic mode it uses pattern matching for speed; without it, the configured model generates richer suggestions.',
-    before:
-      'Complete or pause your current task so the context reflects what remains to be done.',
+    before: 'Complete or pause your current task so the context reflects what remains to be done.',
     during:
       'Suggestions appear as a numbered list. Heuristic mode returns near-instantly; model mode may take a few seconds.',
-    after:
-      'Type `/next <number>` to select a suggestion or `/next list` to review them again.',
+    after: 'Type `/next <number>` to select a suggestion or `/next list` to review them again.',
   },
 
   '/enhance': {
@@ -99,8 +96,7 @@ export const commandDetailsPart1: CommandDetailMap = {
       'The plan is a durable outline that survives within the session. `/plan add "title"` creates an item. `/plan start <id>` marks it in progress. `/plan done <id>` completes it. `/plan promote <id>` breaks a plan item into todo items. Plans can be session-scoped or project-scoped.',
     before:
       'Think about the high-level milestones for your session. Plans are coarser than todos — they represent phases or features.',
-    during:
-      'The plan board prints after each mutation. Active items show their status.',
+    during: 'The plan board prints after each mutation. Active items show their status.',
     after:
       'Use `/plan promote` to convert completed plan items into actionable todos for detailed execution.',
   },
@@ -140,8 +136,7 @@ export const commandDetailsPart1: CommandDetailMap = {
       'Understand your refinement preferences. Aggressive refinement may change your intent; light refinement only fixes clarity.',
     during:
       'Settings take effect immediately. Future prompts are refined according to the new configuration.',
-    after:
-      'Test with a sample prompt to verify the refinement level matches your expectations.',
+    after: 'Test with a sample prompt to verify the refinement level matches your expectations.',
   },
 
   '/compact': {
@@ -187,15 +182,15 @@ export const commandDetailsPart1: CommandDetailMap = {
       'Show token, cost, and iteration statistics for the current session — understand where your budget is going.',
     behavior:
       'The command prints a breakdown: total tokens used (input vs output), estimated cost, iteration count, tool call count, and averages per turn. Some providers expose more detail than others. The stats reset when you start a new session.',
-    before: 'No preparation needed. Run it to check your usage against provider limits or cost concerns.',
+    before:
+      'No preparation needed. Run it to check your usage against provider limits or cost concerns.',
     during: 'The stats print instantly — no model call required.',
     after:
       'If costs are high, consider switching to a cheaper model with `/setmodel` or compacting with `/compact`.',
   },
 
   '/memory': {
-    purpose:
-      'Search, graph, verify, clean, import, and inspect the structured Sage system.',
+    purpose: 'Search, graph, verify, clean, import, and inspect the structured Sage system.',
     behavior:
       'Sage persists facts across sessions. `/memory search <query>` finds relevant memories. `/memory graph` shows the knowledge graph. `/memory verify` checks integrity. `/memory hygiene` cleans stale entries. `/memory import` loads from external sources. The memory system auto-injects relevant facts into agent context.',
     before:
@@ -207,8 +202,7 @@ export const commandDetailsPart1: CommandDetailMap = {
   },
 
   '/todos': {
-    purpose:
-      'View and manage the current session todo list — the agent tactical task tracker.',
+    purpose: 'View and manage the current session todo list — the agent tactical task tracker.',
     behavior:
       'The todo list is the agent per-turn task list. `/todos` prints all items with their status (pending, in_progress, completed). The agent updates it automatically as it works. You can add, remove, or reorder items manually. Unlike `/tasks`, todos are ephemeral and reset each session.',
     before: 'No preparation needed. Run it to see what the agent is currently working on.',
@@ -224,8 +218,7 @@ export const commandDetailsPart1: CommandDetailMap = {
     before:
       'Plan your task hierarchy. Define dependencies before marking tasks ready to avoid blocked states.',
     during: 'The task list prints with type badges, priority indicators, and dependency arrows.',
-    after:
-      'Completed tasks can be promoted to todos for detailed execution tracking.',
+    after: 'Completed tasks can be promoted to todos for detailed execution tracking.',
   },
 
   '/save': {
@@ -244,8 +237,7 @@ export const commandDetailsPart1: CommandDetailMap = {
       'List and resume saved sessions — pick up where you left off, also available as `/resume` and `/load`.',
     behavior:
       'The command lists all saved sessions with timestamps, durations, and summary snippets. `/sessions resume <id>` restores a session with its full context, todo list, plan, and memory state. `/sessions rename <id> "name"` labels a session. `/sessions delete <id>` removes old sessions.',
-    before:
-      'Save your current session with `/save` first if you plan to switch.',
+    before: 'Save your current session with `/save` first if you plan to switch.',
     during:
       'The session list prints with IDs and metadata. Resuming loads the session and prints a restore summary.',
     after:
@@ -260,17 +252,14 @@ export const commandDetailsPart1: CommandDetailMap = {
     before:
       'Run `/prune` without flags first to preview what would be deleted. Confirm nothing important is in the list.',
     during: 'The preview lists sessions with size and age. The execute phase shows progress.',
-    after:
-      'Run `/prune` again to confirm the old sessions are gone. Freed disk space is reported.',
+    after: 'Run `/prune` again to confirm the old sessions are gone. Freed disk space is reported.',
   },
 
   '/exit': {
-    purpose:
-      'Close the REPL cleanly — aliases include `/quit` and `/q`.',
+    purpose: 'Close the REPL cleanly — aliases include `/quit` and `/q`.',
     behavior:
       'The command triggers a graceful shutdown: the session is saved, active subagents are terminated, cron jobs are cancelled, and the process exits. Any unsaved changes are flushed before exit. Use this instead of Ctrl+C for a clean teardown.',
-    before:
-      'Confirm you want to end the session. Any running fleet operations will be terminated.',
+    before: 'Confirm you want to end the session. Any running fleet operations will be terminated.',
     during:
       'The shutdown sequence prints: saving session, stopping agents, cancelling timers, exiting.',
     after: 'The terminal returns to your shell. Your session is saved for later resume.',
@@ -282,7 +271,8 @@ export const commandDetailsPart1: CommandDetailMap = {
     behavior:
       'When the agent is in the middle of a model call or long tool execution, `/interrupt` sends a cancellation signal. The current operation stops gracefully, partial output is discarded, and the REPL prompt returns. Unlike Ctrl+C, it does not risk corrupting the session file.',
     before: 'Use when the agent is stuck, looping, or heading in the wrong direction.',
-    during: 'The interrupt signal propagates. In-flight tool calls may complete or abort depending on their phase.',
+    during:
+      'The interrupt signal propagates. In-flight tool calls may complete or abort depending on their phase.',
     after:
       'The REPL prompt returns. Review what the agent was doing and provide corrective steering.',
   },

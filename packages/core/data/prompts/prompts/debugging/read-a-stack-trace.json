@@ -5,10 +5,7 @@
   "description": "Interpret a stack trace and find the real culprit.",
   "content": "Help me read this stack trace:\n\n{{trace}}\n\nFind the frame where MY code actually went wrong, not just the top of the trace or the deepest library frame. Explain what the error type and message really mean. Translate the chain into a plain-language story of what happened. Then tell me the single most useful place to put a breakpoint or log, and what to inspect there.",
   "category": "debugging",
-  "tags": [
-    "stack-trace",
-    "diagnosis"
-  ],
+  "tags": ["stack-trace", "diagnosis"],
   "source": "builtin",
   "favorite": false,
   "checksum": "a1a5b2681032eda8903b8e186ed1862871197105743a988d1a4b837b6161caab",

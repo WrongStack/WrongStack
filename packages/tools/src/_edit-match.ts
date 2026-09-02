@@ -103,8 +103,13 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
 
   // Line-based tiers operate on whole-line windows.
   const fileLines = fileLf.split('\n');
-  const needleLines = oldLf.split('\n');
-  if (needleLines.length > fileLines.length) return undefined;
+  const needleEndsWithNewline = oldLf.endsWith('\n');
+  const rawNeedleLines = oldLf.split('\n');
+  const needleLines =
+    needleEndsWithNewline && rawNeedleLines[rawNeedleLines.length - 1] === ''
+      ? rawNeedleLines.slice(0, -1)
+      : rawNeedleLines;
+  if (needleLines.length === 0 || needleLines.length > fileLines.length) return undefined;
   const offsets = lineOffsets(fileLines);
 
   // Pre-trim file lines ONCE so the sliding window doesn't call trimEnd()/
@@ -114,7 +119,14 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
   const fileTrimEnd = fileLines.map((l) => l.trimEnd());
   const needleTrimEnd = needleLines.map((l) => l.trimEnd());
 
-  const trailing = windowScan(fileTrimEnd, needleTrimEnd, offsets, fileLines, (a, b) => a === b);
+  const trailing = windowScan(
+    fileTrimEnd,
+    needleTrimEnd,
+    offsets,
+    fileLines,
+    (a, b) => a === b,
+    needleEndsWithNewline,
+  );
   if (trailing.length > 0) return { tier: 'trailing-whitespace', matches: trailing };
 
   const normalizedLen = needleTrimEnd.reduce((n, l) => n + l.trimStart().length, 0);
@@ -122,10 +134,17 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
 
   const fileTrimmed = fileTrimEnd.map((l) => l.trimStart());
   const needleTrimmed = needleTrimEnd.map((l) => l.trimStart());
-  const normalized = windowScan(fileTrimmed, needleTrimmed, offsets, fileLines, (a, b) => a === b);
+  const normalized = windowScan(
+    fileTrimmed,
+    needleTrimmed,
+    offsets,
+    fileLines,
+    (a, b) => a === b,
+    needleEndsWithNewline,
+  );
   if (normalized.length > 0) return { tier: 'whitespace-normalized', matches: normalized };
 
-  return fuzzyScan(fileLines, needleLines, offsets);
+  return fuzzyScan(fileLines, needleLines, offsets, needleEndsWithNewline);
 }
 
 /** Start char offset of each line in the LF-normalized text. */
@@ -144,11 +163,14 @@ function windowToMatch(
   offsets: number[],
   start: number,
   windowLen: number,
+  includeTrailingNewline = false,
 ): LadderMatch {
   const lastLine = start + windowLen - 1;
+  const lineEnd = (offsets[lastLine] as number) + (fileLines[lastLine] as string).length;
+  const end = includeTrailingNewline && lastLine < fileLines.length - 1 ? lineEnd + 1 : lineEnd;
   return {
     start: offsets[start] as number,
-    end: (offsets[lastLine] as number) + (fileLines[lastLine] as string).length,
+    end,
     startLine: start + 1,
   };
 }
@@ -161,6 +183,7 @@ function windowScan(
   offsets: number[],
   originalLines: string[],
   eq: (fileLine: string, needleLine: string) => boolean,
+  includeTrailingNewline = false,
 ): LadderMatch[] {
   const n = needleLines.length;
   const out: LadderMatch[] = [];
@@ -173,7 +196,7 @@ function windowScan(
       }
     }
     if (all) {
-      out.push(windowToMatch(originalLines, offsets, i, n));
+      out.push(windowToMatch(originalLines, offsets, i, n, includeTrailingNewline));
       i += n - 1; // no overlapping windows
     }
   }
@@ -186,6 +209,7 @@ function fuzzyScan(
   fileLines: string[],
   needleLines: string[],
   offsets: number[],
+  includeTrailingNewline = false,
 ): LadderResult | undefined {
   const n = needleLines.length;
   if (n < 3) return undefined;
@@ -206,7 +230,10 @@ function fuzzyScan(
     if (windowInterior.length > FUZZY_MAX_INTERIOR_CHARS) continue;
     const score = similarity(needleInterior, windowInterior);
     if (score >= FUZZY_MIN_SIMILARITY) {
-      candidates.push({ match: windowToMatch(fileLines, offsets, i, n), score });
+      candidates.push({
+        match: windowToMatch(fileLines, offsets, i, n, includeTrailingNewline),
+        score,
+      });
     }
   }
 
@@ -299,14 +326,19 @@ export function adjustIndent(
   if (toIndent.startsWith(fromIndent)) {
     const extra = toIndent.slice(fromIndent.length);
     return {
-      text: lines.map((l) => (l.trim() === '' ? l : extra + l)).join('\n'),
+      text: lines.map((l) => (l.trim() === '' ? '' : extra + l)).join('\n'),
       adjusted: true,
     };
   }
   if (fromIndent.startsWith(toIndent)) {
     const remove = fromIndent.slice(toIndent.length);
     return {
-      text: lines.map((l) => (l.startsWith(remove) ? l.slice(remove.length) : l)).join('\n'),
+      text: lines
+        .map((l) => {
+          if (l.trim() === '') return '';
+          return l.startsWith(remove) ? l.slice(remove.length) : l;
+        })
+        .join('\n'),
       adjusted: true,
     };
   }
@@ -315,9 +347,7 @@ export function adjustIndent(
 
 /**
  * Best-effort locator for the no-match error: find the window whose trimmed
- * lines are most similar to the needle (cheap common-prefix scoring — this
- * runs on the failure path where the needle by definition doesn't match, so
- * precision matters less than never being slow). Returns the 1-based line
+ * lines are most similar to the needle. Returns the 1-based line
  * and a short snippet the model can use to correct itself without re-reading.
  */
 export function nearestMatchHint(
@@ -325,9 +355,13 @@ export function nearestMatchHint(
   oldLf: string,
 ): { line: number; snippet: string } | undefined {
   const fileLines = fileLf.split('\n');
-  const needleLines = oldLf.split('\n');
+  const rawNeedle = oldLf.split('\n');
+  const needleLines =
+    oldLf.endsWith('\n') && rawNeedle[rawNeedle.length - 1] === ''
+      ? rawNeedle.slice(0, -1)
+      : rawNeedle;
   const n = needleLines.length;
-  if (n > fileLines.length) return undefined;
+  if (n === 0 || n > fileLines.length) return undefined;
 
   const needleTrimmed = needleLines.map((l) => l.trim());
   const fileTrimmed = fileLines.map((l) => l.trim());
@@ -339,7 +373,7 @@ export function nearestMatchHint(
     let sum = 0;
     let possible = true;
     for (let j = 0; j < n; j++) {
-      sum += prefixSimilarity(needleTrimmed[j] as string, fileTrimmed[i + j] as string);
+      sum += lineSimilarity(needleTrimmed[j] as string, fileTrimmed[i + j] as string);
       // Prune if remaining maximum score cannot beat bestScore
       if (sum + (n - 1 - j) <= bestScore * n) {
         possible = false;
@@ -363,13 +397,18 @@ export function nearestMatchHint(
   return { line: bestStart + 1, snippet };
 }
 
-/** Cheap similarity proxy: shared prefix length over max length. */
-function prefixSimilarity(a: string, b: string): number {
+/** Similarity proxy: combination of containment, shared prefix and shared suffix. */
+function lineSimilarity(a: string, b: string): number {
   if (a === b) return 1;
   const max = Math.max(a.length, b.length);
   if (max === 0) return 1;
+  if (a.includes(b) || b.includes(a)) {
+    return Math.min(a.length, b.length) / max;
+  }
   let p = 0;
   const lim = Math.min(a.length, b.length);
   while (p < lim && a.charCodeAt(p) === b.charCodeAt(p)) p++;
-  return p / max;
+  let s = 0;
+  while (s < lim - p && a.charCodeAt(a.length - 1 - s) === b.charCodeAt(b.length - 1 - s)) s++;
+  return (p + s) / max;
 }

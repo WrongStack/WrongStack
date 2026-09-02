@@ -95,7 +95,10 @@ export class SpecStore {
   }
 
   /** Update spec fields and persist. */
-  async update(id: string, patch: Partial<Omit<Specification, 'id' | 'createdAt'>>): Promise<Specification | null> {
+  async update(
+    id: string,
+    patch: Partial<Omit<Specification, 'id' | 'createdAt'>>,
+  ): Promise<Specification | null> {
     const spec = await this.load(id);
     if (!spec) return null;
     const updated: Specification = {

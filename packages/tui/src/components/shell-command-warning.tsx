@@ -44,11 +44,17 @@ export function ShellCommandWarning({
       <Text dimColor>─────────────────</Text>
       <Box flexDirection="row">
         <Text>
-          <Text bold color="green">[y]</Text>
+          <Text bold color="green">
+            [y]
+          </Text>
           <Text dimColor>es </Text>
-          <Text bold color="red">[n]</Text>
+          <Text bold color="red">
+            [n]
+          </Text>
           <Text dimColor>o </Text>
-          <Text bold color="cyan">[d]</Text>
+          <Text bold color="cyan">
+            [d]
+          </Text>
           <Text dimColor>ont show again</Text>
         </Text>
       </Box>

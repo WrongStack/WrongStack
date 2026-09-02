@@ -5,10 +5,7 @@
   "description": "Plan the cleaning a dataset needs before analysis.",
   "content": "Here's a description of my dataset: {{dataset}}\n\nWalk me through cleaning it. Identify likely problems: missing values, duplicates, inconsistent units or formats, outliers, and encoding issues. For each, the detection check and the decision to make (drop, impute, flag) with its bias risk. Insist I record every transformation so the cleaning is reproducible. Tell me which problems would most distort my eventual conclusion.",
   "category": "data-analysis",
-  "tags": [
-    "cleaning",
-    "data-quality"
-  ],
+  "tags": ["cleaning", "data-quality"],
   "source": "builtin",
   "favorite": false,
   "checksum": "f39a46b12ef49bc9aaaf3b6af85c5c155d4a14a06455ba1cf4ec92dc4abb9e3a",

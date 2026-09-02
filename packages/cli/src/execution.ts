@@ -594,7 +594,10 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
             // Best-effort: a registry that cannot be read must not take the
             // picker down with it. The host reservation is still the
             // authority, and it fails closed.
-            const liveBySession = new Map<string, { pid: number; clientType?: string | undefined }>();
+            const liveBySession = new Map<
+              string,
+              { pid: number; clientType?: string | undefined }
+            >();
             try {
               for (const entry of await getLiveSessions({ state })) {
                 if (entry.pid == null) continue;

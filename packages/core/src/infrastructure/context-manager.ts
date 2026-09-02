@@ -54,11 +54,13 @@ export interface ContextManagerResult {
   messageCount: number;
   summary?: string | undefined;
   notes?: string | undefined;
-  repaired?: {
-    removedToolUses: string[];
-    removedToolResults: string[];
-    removedMessages: number;
-  } | undefined;
+  repaired?:
+    | {
+        removedToolUses: string[];
+        removedToolResults: string[];
+        removedMessages: number;
+      }
+    | undefined;
 }
 
 /**
@@ -72,7 +74,7 @@ export interface ContextManagerToolOptions {
    * to produce real summaries of message ranges instead of placeholder text.
    * (signature matches Provider.complete — return the summary text in result.content[0].text)
    */
-  summarizer?: (((messages: Message[]) => Promise<string>)) | undefined;
+  summarizer?: ((messages: Message[]) => Promise<string>) | undefined;
   /**
    * Minimum full-request token count before the compact action is allowed to run.
    * Prevents unnecessary compaction calls when context is small.
@@ -190,9 +192,10 @@ export function createContextManagerTool(
           // Prefer the full API request estimate when systemPrompt + tools are available.
           // This is the accurate number for context-window bar display.
           // Falls back to roughEstimate (messages-only) for backward compat and test environments.
-          const estimate = (input.systemPrompt != null && Array.isArray(input.tools))
-            ? estimateRequestTokens(messages, input.systemPrompt, input.tools)
-            : { total: beforeTokens, messages: beforeTokens, systemPrompt: 0, tools: 0 };
+          const estimate =
+            input.systemPrompt != null && Array.isArray(input.tools)
+              ? estimateRequestTokens(messages, input.systemPrompt, input.tools)
+              : { total: beforeTokens, messages: beforeTokens, systemPrompt: 0, tools: 0 };
           return {
             action: 'check',
             beforeTokens: estimate.total,
@@ -241,9 +244,10 @@ export function createContextManagerTool(
             };
           }
           // Compute full request tokens for threshold check.
-          const fullEstimate = (input.systemPrompt != null && Array.isArray(input.tools))
-            ? estimateRequestTokens(messages, input.systemPrompt, input.tools)
-            : { total: beforeTokens, messages: beforeTokens, systemPrompt: 0, tools: 0 };
+          const fullEstimate =
+            input.systemPrompt != null && Array.isArray(input.tools)
+              ? estimateRequestTokens(messages, input.systemPrompt, input.tools)
+              : { total: beforeTokens, messages: beforeTokens, systemPrompt: 0, tools: 0 };
           const currentTokens = fullEstimate.total;
 
           // Resolve maxContext at execution time from the live provider capabilities.
@@ -252,9 +256,10 @@ export function createContextManagerTool(
           // value only when no runtime value is available (e.g. in test environments).
           const runtimeMaxContext =
             configuredMaxContext ?? ctx.provider?.capabilities?.maxContext ?? 128_000;
-          const runtimeThreshold = minCompactThreshold > 0
-            ? minCompactThreshold
-            : Math.floor(runtimeMaxContext * compactThresholdFraction);
+          const runtimeThreshold =
+            minCompactThreshold > 0
+              ? minCompactThreshold
+              : Math.floor(runtimeMaxContext * compactThresholdFraction);
 
           // NOOP retry prevention: skip if the previous compaction saved nothing
           // and context hasn't grown enough to make another attempt worthwhile.

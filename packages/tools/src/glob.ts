@@ -68,9 +68,9 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     required: ['pattern'],
   },
   async execute(input, ctx, opts) {
-    if (!input?.pattern) {
+    if (!input?.pattern || typeof input.pattern !== 'string' || !input.pattern.trim()) {
       throw new ToolValidationError({
-        message: 'glob: pattern is required',
+        message: 'glob: pattern is required and cannot be empty',
         field: 'pattern',
       });
     }
@@ -83,7 +83,9 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     // Throws on escape, matching how single-file tools (`read`, `edit`,
     // `write`) reject out-of-root paths: the caller named the base explicitly.
     const base = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
-    const limit = Math.max(1, Math.min(input.limit ?? 1000, 5000));
+    const rawLimit =
+      typeof input.limit === 'number' && !Number.isNaN(input.limit) ? input.limit : 1000;
+    const limit = Math.max(1, Math.min(Math.floor(rawLimit), 5000));
 
     // Full gitignore semantics (globs, anchors, negation, dir-only rules)
     // rooted at the walk base — a project whose build output isn't in the
@@ -92,6 +94,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     const re = compileGlob(input.pattern);
 
     const results: { rel: string; mtime: number }[] = [];
+    const visitedRealDirs = new Set<string>();
     let truncated = false;
     const pushResult = async (full: string): Promise<void> => {
       // Bail before stat if a concurrent worker has already filled the budget —
@@ -121,6 +124,9 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
         truncated = true;
         return;
       }
+      const realDir = await fs.realpath(dir).catch(() => dir);
+      if (visitedRealDirs.has(realDir)) return;
+      visitedRealDirs.add(realDir);
       /* v8 ignore start -- the inner limit guards (file push + post-recursion return) always stop first; this re-entry guard is defensive. */
       if (results.length >= limit) {
         truncated = true;
@@ -146,7 +152,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
         } else if (e.isFile()) {
           if (isGitIgnored(rel, false)) continue;
           re.lastIndex = 0;
-          if (re.test(rel) || (re.lastIndex = 0, re.test(name))) {
+          if (re.test(rel) || ((re.lastIndex = 0), re.test(name))) {
             matchedFiles.push(full);
           }
         } else if (e.isSymbolicLink()) {
@@ -168,7 +174,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
               const real = await fs.realpath(full);
               await assertRealInsideRoot(real, ctx);
               re.lastIndex = 0;
-              if (re.test(rel) || (re.lastIndex = 0, re.test(name))) matchedFiles.push(full);
+              if (re.test(rel) || ((re.lastIndex = 0), re.test(name))) matchedFiles.push(full);
             }
           } catch {
             // Skip broken symlink, stat error, OR out-of-root target. All

@@ -154,9 +154,7 @@ describe('discovery — mapDetectedWorkspace', () => {
     const ws = mapDetectedWorkspace(
       mkDetectedWorkspace({
         language: 'java',
-        evidence: [
-          { kind: 'manifest', path: '/proj/pom.xml', value: 'pom.xml', weight: 90 },
-        ],
+        evidence: [{ kind: 'manifest', path: '/proj/pom.xml', value: 'pom.xml', weight: 90 }],
       }),
       '/proj',
     );

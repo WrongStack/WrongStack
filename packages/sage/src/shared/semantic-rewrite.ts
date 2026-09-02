@@ -14,11 +14,7 @@ import type { Sage } from '../types.js';
  * @param nowIso - ISO timestamp for `updatedAt`
  * @returns A new `Sage` object with `revision + 1` and fresh `updatedAt`
  */
-export function applySemanticChange(
-  existing: Sage,
-  patch: Partial<Sage>,
-  nowIso: string,
-): Sage {
+export function applySemanticChange(existing: Sage, patch: Partial<Sage>, nowIso: string): Sage {
   return {
     ...existing,
     ...patch,

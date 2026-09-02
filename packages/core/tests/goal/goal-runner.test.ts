@@ -147,10 +147,17 @@ describe('GoalRunner event handlers + lifecycle', () => {
     const events = new EventBus();
     const onComplete = vi.fn();
     const runner = new GoalRunner({
-      title: 't', phases: phases(), events, executeTask: async () => {}, onComplete,
+      title: 't',
+      phases: phases(),
+      events,
+      executeTask: async () => {},
+      onComplete,
     });
     const graph = await runner.start();
-    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.completed', { graphId: graph.id, durationMs: 500 });
+    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.completed', {
+      graphId: graph.id,
+      durationMs: 500,
+    });
     expect(onComplete).toHaveBeenCalledWith(graph);
   });
 
@@ -158,14 +165,27 @@ describe('GoalRunner event handlers + lifecycle', () => {
     const events = new EventBus();
     const onFail = vi.fn();
     const runner = new GoalRunner({
-      title: 't', phases: phases(), events, executeTask: async () => {}, onFail, stopOnFailure: true,
+      title: 't',
+      phases: phases(),
+      events,
+      executeTask: async () => {},
+      onFail,
+      stopOnFailure: true,
     });
     const graph = await runner.start();
     const phaseId = Array.from(graph.phases.keys())[0]!;
-    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.failed', { graphId: graph.id, failedPhaseId: phaseId, error: 'boom' });
+    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.failed', {
+      graphId: graph.id,
+      failedPhaseId: phaseId,
+      error: 'boom',
+    });
     expect(onFail).toHaveBeenCalledTimes(1);
     // cleanup ran (handler unsubscribed) — a second emit is a no-op.
-    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.failed', { graphId: graph.id, failedPhaseId: phaseId, error: 'x' });
+    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.failed', {
+      graphId: graph.id,
+      failedPhaseId: phaseId,
+      error: 'x',
+    });
     expect(onFail).toHaveBeenCalledTimes(1);
   });
 
@@ -173,14 +193,27 @@ describe('GoalRunner event handlers + lifecycle', () => {
     const events = new EventBus();
     const onFail = vi.fn();
     const runner = new GoalRunner({
-      title: 't', phases: phases(), events, executeTask: async () => {}, onFail, stopOnFailure: false,
+      title: 't',
+      phases: phases(),
+      events,
+      executeTask: async () => {},
+      onFail,
+      stopOnFailure: false,
     });
     const graph = await runner.start();
     const phaseId = Array.from(graph.phases.keys())[0]!;
-    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.failed', { graphId: graph.id, failedPhaseId: phaseId, error: 'boom' });
+    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.failed', {
+      graphId: graph.id,
+      failedPhaseId: phaseId,
+      error: 'boom',
+    });
     expect(onFail).toHaveBeenCalledTimes(1);
     // not cleaned up — second emit fires onFail again.
-    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.failed', { graphId: graph.id, failedPhaseId: phaseId, error: 'x' });
+    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.failed', {
+      graphId: graph.id,
+      failedPhaseId: phaseId,
+      error: 'x',
+    });
     expect(onFail).toHaveBeenCalledTimes(2);
   });
 
@@ -188,10 +221,17 @@ describe('GoalRunner event handlers + lifecycle', () => {
     const events = new EventBus();
     const onComplete = vi.fn();
     const runner = new GoalRunner({
-      title: 't', phases: phases(), events, executeTask: async () => {}, onComplete,
+      title: 't',
+      phases: phases(),
+      events,
+      executeTask: async () => {},
+      onComplete,
     });
     await runner.start();
-    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.completed', { graphId: 'other', durationMs: 500 });
+    (events as unknown as { emit: (t: string, p: unknown) => void }).emit('graph.completed', {
+      graphId: 'other',
+      durationMs: 500,
+    });
     expect(onComplete).not.toHaveBeenCalled();
   });
 
@@ -200,11 +240,15 @@ describe('GoalRunner event handlers + lifecycle', () => {
     const onPhaseFail = vi.fn();
     const onTick = vi.fn();
     const runner = new GoalRunner({
-      title: 't', phases: phases(), executeTask: async () => {},
+      title: 't',
+      phases: phases(),
+      executeTask: async () => {},
       verifyPhase: async () => ({ ok: false }), // force a verify failure → onPhaseFail path
       maxRetries: 0,
       maxVerifyAttempts: 0,
-      onPhaseComplete, onPhaseFail, onTick,
+      onPhaseComplete,
+      onPhaseFail,
+      onTick,
       resolveConflict: async () => true,
     });
     const graph = await runner.start();
@@ -222,7 +266,10 @@ describe('GoalRunner event handlers + lifecycle', () => {
 
   it('maxRunDurationMs <= 0 cancels the safety-net timer immediately', async () => {
     const runner = new GoalRunner({
-      title: 't', phases: phases(), executeTask: async () => {}, maxRunDurationMs: 0,
+      title: 't',
+      phases: phases(),
+      executeTask: async () => {},
+      maxRunDurationMs: 0,
     });
     await runner.start();
     runner.stop();
@@ -233,8 +280,11 @@ describe('GoalRunner event handlers + lifecycle', () => {
     try {
       const onProgress = vi.fn();
       const runner = new GoalRunner({
-        title: 't', phases: phases(), executeTask: async () => {},
-        onProgress, maxRunDurationMs: 5_000,
+        title: 't',
+        phases: phases(),
+        executeTask: async () => {},
+        onProgress,
+        maxRunDurationMs: 5_000,
       });
       await runner.start();
       // Progress interval (2s) fires first, before the 5s safety net.
@@ -255,7 +305,10 @@ describe('createGoalRunnerFromTaskGraph', () => {
     const taskGraph = {
       title: 'TG',
       nodes: new Map([
-        ['n1', { id: 'n1', title: 'T1', description: 'd', status: 'pending', dependsOn: [] as string[] }],
+        [
+          'n1',
+          { id: 'n1', title: 'T1', description: 'd', status: 'pending', dependsOn: [] as string[] },
+        ],
       ]),
       edges: [],
       rootNodes: ['n1'],

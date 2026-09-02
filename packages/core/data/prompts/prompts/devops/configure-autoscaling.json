@@ -5,10 +5,7 @@
   "description": "Scale a service with load without thrashing.",
   "content": "I want to autoscale: {{workload}}\n\nChoose the scaling signal (CPU, memory, queue depth, request latency, custom) that actually tracks load for this workload, and explain why the obvious one might mislead. Set min/max replicas, the target, and the scale-up/scale-down behavior to avoid flapping. Account for startup time and warm-up. Flag the cases autoscaling handles badly — sudden spikes, slow-starting pods, and stateful work.",
   "category": "devops",
-  "tags": [
-    "autoscaling",
-    "scaling"
-  ],
+  "tags": ["autoscaling", "scaling"],
   "source": "builtin",
   "favorite": false,
   "checksum": "05300ab7c5bb993027f0be88454dcdc8220a144440de00e6373df8b5c5c36cc6",

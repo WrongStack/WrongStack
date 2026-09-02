@@ -483,11 +483,15 @@ const plugin: Plugin = {
         if (!cfg.enabled) return { ok: false, error: 'checkpoint is disabled' };
         const raw = (input ?? {}) as Record<string, unknown>;
         const rawId =
-          (typeof input.id === 'string' && input.id.trim().length > 0 ? input.id.trim() : undefined) ??
+          (typeof input.id === 'string' && input.id.trim().length > 0
+            ? input.id.trim()
+            : undefined) ??
           (typeof raw['snapshotId'] === 'string' ? raw['snapshotId'] : undefined) ??
           (typeof raw['snapshot_id'] === 'string' ? raw['snapshot_id'] : undefined);
         const rawPath =
-          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof input.path === 'string' && input.path.trim().length > 0
+            ? input.path.trim()
+            : undefined) ??
           (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
           (typeof raw['file_path'] === 'string' ? raw['file_path'] : undefined) ??
           (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??

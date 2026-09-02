@@ -5,11 +5,7 @@
   "description": "Produce a handoff-ready status of an in-flight task.",
   "content": "Summarize the current state of this work: {{work}}\n\nProduce a handoff a fresh agent (or future me) could pick up cold: what's done and verified, what's in progress, what's left, the key decisions made and why, and the immediate next action. Note any landmine — a thing that looks done but isn't, or a constraint that isn't obvious from the code. Keep it tight and factual.",
   "category": "agentic-workflows",
-  "tags": [
-    "status",
-    "handoff",
-    "continuity"
-  ],
+  "tags": ["status", "handoff", "continuity"],
   "source": "builtin",
   "favorite": false,
   "checksum": "aba817a8d1094c82465d36553b1c36d5f382cdaae10866cbe0b914ae4a0a6af0",

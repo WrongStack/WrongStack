@@ -24,7 +24,11 @@ import type { Context } from '../core/context.js';
 import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import { getSharedProjectMailbox } from './remote-mailbox.js';
-import { filterMailboxSendPayload, parseMailboxSendInput, type ParsedSendInput } from './mailbox-codecs.js';
+import {
+  filterMailboxSendPayload,
+  parseMailboxSendInput,
+  type ParsedSendInput,
+} from './mailbox-codecs.js';
 import { isMailboxMessageVisibleTo, normalizeRecipient } from './mailbox-types.js';
 import type {
   Mailbox,
@@ -87,7 +91,10 @@ function makeResolver(opts: MailToolsOptions): MailboxResolver {
   );
 }
 
-async function register(mb: Mailbox, ctx: Context): Promise<ReturnType<typeof resolveMailboxIdentity>> {
+async function register(
+  mb: Mailbox,
+  ctx: Context,
+): Promise<ReturnType<typeof resolveMailboxIdentity>> {
   const identity = resolveMailboxIdentity(ctx);
   try {
     await mb.registerAgent({
@@ -150,13 +157,24 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
       properties: {
         to: {
           type: 'string',
-          description: 'Recipient: exact agent id ("leader@a1b2c3d4"), base alias ("leader"), "@session" for your current session, or "*" / "all" for everyone.',
+          description:
+            'Recipient: exact agent id ("leader@a1b2c3d4"), base alias ("leader"), "@session" for your current session, or "*" / "all" for everyone.',
         },
         subject: { type: 'string', description: 'Short subject line.' },
         body: { type: 'string', description: 'The message.' },
         type: {
           type: 'string',
-          enum: ['note', 'ask', 'assign', 'steer', 'btw', 'broadcast', 'status', 'result', 'review'],
+          enum: [
+            'note',
+            'ask',
+            'assign',
+            'steer',
+            'btw',
+            'broadcast',
+            'status',
+            'result',
+            'review',
+          ],
           description:
             'Message intent. Default: "broadcast" when to="*", otherwise "note". ' +
             'Actionable types: ask (blocking question), assign (task), result (completion notice), ' +
@@ -168,7 +186,8 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
         audience: {
           type: 'string',
           enum: ['all', 'leaders'],
-          description: 'Delivery audience. "leaders" hides the mail from subagent inboxes and agent-loop injection.',
+          description:
+            'Delivery audience. "leaders" hides the mail from subagent inboxes and agent-loop injection.',
         },
         replyTo: { type: 'string', description: 'Message id this replies to.' },
       },
@@ -232,10 +251,7 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
       // the canonical default follow the FINAL recipient (`note`). Explicit
       // types are unchanged by default logic and re-validate against the
       // final recipient here.
-      const resolvedType = resolveSendType(
-        i.type as MailboxMessageType | undefined,
-        delivery.to,
-      );
+      const resolvedType = resolveSendType(i.type as MailboxMessageType | undefined, delivery.to);
       const msg = await mb.send({
         from: identity.callerId,
         to: delivery.to,
@@ -256,8 +272,13 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
         // Surfacing what was stripped keeps the send auditable without
         // re-introducing the clutter into the payload itself.
         ...(stripped.length > 0
-          ? { strippedFields: stripped, summary: `Mail sent to ${msg.to === '*' ? 'all agents' : msg.to} as ${identity.callerId}. Ignored ${stripped.length} unrecognized field(s): ${stripped.join(', ')}.` }
-          : { summary: `Mail sent to ${msg.to === '*' ? 'all agents' : msg.to} as ${identity.callerId}.` }),
+          ? {
+              strippedFields: stripped,
+              summary: `Mail sent to ${msg.to === '*' ? 'all agents' : msg.to} as ${identity.callerId}. Ignored ${stripped.length} unrecognized field(s): ${stripped.join(', ')}.`,
+            }
+          : {
+              summary: `Mail sent to ${msg.to === '*' ? 'all agents' : msg.to} as ${identity.callerId}.`,
+            }),
       };
     },
   } satisfies Tool;
@@ -277,7 +298,8 @@ export function makeMailInboxTool(opts: MailToolsOptions = {}) {
       'notes, questions, handoffs, results, and review requests (type="review" — passive ' +
       'asks where no reply is required). Best called after a long stretch of tool work. ' +
       'Set completed=true to finish every returned message in the same call.',
-    usageHint: 'mail_inbox  (optionally: limit=10, markRead=false to peek, completed=true outcome="handled")',
+    usageHint:
+      'mail_inbox  (optionally: limit=10, markRead=false to peek, completed=true outcome="handled")',
     category: 'Coordination',
     permission: 'auto',
     mutating: true,

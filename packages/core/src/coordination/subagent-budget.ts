@@ -6,7 +6,13 @@ import {
   SUBAGENT_FINISH_REQUESTED_EVENT,
 } from './subagent-finish.js';
 
-export type BudgetKind = 'tool_calls' | 'iterations' | 'tokens' | 'timeout' | 'idle_timeout' | 'cost';
+export type BudgetKind =
+  | 'tool_calls'
+  | 'iterations'
+  | 'tokens'
+  | 'timeout'
+  | 'idle_timeout'
+  | 'cost';
 
 /**
  * Fraction of the wall-clock `timeoutMs` window at which a PROACTIVE extension
@@ -137,9 +143,7 @@ export class BudgetThresholdSignal extends Error {
   }
 }
 
-export type BudgetThresholdDecision =
-  | 'stop'
-  | { extend: Partial<BudgetLimits> };
+export type BudgetThresholdDecision = 'stop' | { extend: Partial<BudgetLimits> };
 
 /**
  * Callback invoked when a budget limit is about to be exceeded.
@@ -162,7 +166,12 @@ export type BudgetThresholdHandler = (info: {
    */
   extend?: (extra: Partial<BudgetLimits>) => void;
   deny?: () => void;
-}) => 'throw' | 'continue' | 'stop' | { extend: Partial<BudgetLimits> } | Promise<BudgetThresholdDecision>;
+}) =>
+  | 'throw'
+  | 'continue'
+  | 'stop'
+  | { extend: Partial<BudgetLimits> }
+  | Promise<BudgetThresholdDecision>;
 
 /**
  * Per-subagent budget enforcement. Each subagent gets its own instance so a
@@ -249,7 +258,11 @@ export class SubagentBudget {
    * and/or granted grace); `false` when there was nothing to do (already
    * notified, grace already granted, no EventBus wired, budget not started).
    */
-  notifyFinish(reason: string, opts?: { graceMs?: number | undefined }, now: () => number = Date.now): boolean {
+  notifyFinish(
+    reason: string,
+    opts?: { graceMs?: number | undefined },
+    now: () => number = Date.now,
+  ): boolean {
     if (!this._events) return false;
     if (this.startTime === null) return false;
     const shouldEmit = !this._finishNotified;
@@ -261,7 +274,9 @@ export class SubagentBudget {
     let graceDeadlineMs: number | undefined;
     if (shouldGrant && rawGrace !== undefined) {
       grantedGraceMs =
-        Number.isFinite(rawGrace) && rawGrace > 0 ? Math.floor(rawGrace) : DEFAULT_SUBAGENT_FINISH_GRACE_MS;
+        Number.isFinite(rawGrace) && rawGrace > 0
+          ? Math.floor(rawGrace)
+          : DEFAULT_SUBAGENT_FINISH_GRACE_MS;
       graceDeadlineMs = now() + grantedGraceMs;
       this._grace = { deadlineMs: graceDeadlineMs, graceMs: grantedGraceMs };
       // Single write path for limit mutations: extend the wall-clock ceiling
@@ -356,19 +371,25 @@ export class SubagentBudget {
   /** Returns the timeout ceiling currently being negotiated by the watchdog,
    * or `undefined` when no wall-clock negotiation is in flight.
    * Used by `executeWithTimeout` to detect a stale lock (M3). */
-  get watchdogActive(): number | undefined { return this._watchdogActive; }
+  get watchdogActive(): number | undefined {
+    return this._watchdogActive;
+  }
 
   /** Called by the coordinator watchdog BEFORE calling `onThreshold` so that
    * `checkTimeout()` skips its wall-clock check for this ceiling. Prevents
    * the budget's own `checkTimeout()` from emitting a second
    * `budget.threshold_reached` event while the watchdog is already
    * negotiating the same wall-clock deadline (C1). */
-  setWatchdogNegotiation(timeoutMs: number): void { this._watchdogActive = timeoutMs; }
+  setWatchdogNegotiation(timeoutMs: number): void {
+    this._watchdogActive = timeoutMs;
+  }
 
   /** Clears the watchdog guard after negotiation resolves. Called in the
    * `finally` block of both the pre-empt and deadline branches so it fires
    * on every exit path: grant, deny, throw, or error. */
-  clearWatchdogNegotiation(): void { this._watchdogActive = undefined; }
+  clearWatchdogNegotiation(): void {
+    this._watchdogActive = undefined;
+  }
 
   /**
    * Negotiation mode — controls whether a threshold hit tries to emit
@@ -480,7 +501,11 @@ export class SubagentBudget {
     const exceeded: { kind: BudgetKind; used: number; limit: number }[] = [];
 
     if (this.limits.maxIterations !== undefined && this.iterations > this.limits.maxIterations) {
-      exceeded.push({ kind: 'iterations', used: this.iterations, limit: this.limits.maxIterations });
+      exceeded.push({
+        kind: 'iterations',
+        used: this.iterations,
+        limit: this.limits.maxIterations,
+      });
     }
     if (this.limits.maxToolCalls !== undefined && this.toolCalls > this.limits.maxToolCalls) {
       exceeded.push({ kind: 'tool_calls', used: this.toolCalls, limit: this.limits.maxToolCalls });
@@ -698,9 +723,11 @@ export class SubagentBudget {
    * `{ extend: {} }` — keep going without patching; next overrun fires
    * a fresh signal.
    */
-  private async _negotiateExtension(
-    entry: { kind: BudgetKind; used: number; limit: number },
-  ): Promise<BudgetThresholdDecision> {
+  private async _negotiateExtension(entry: {
+    kind: BudgetKind;
+    used: number;
+    limit: number;
+  }): Promise<BudgetThresholdDecision> {
     if (!this._onThreshold) {
       // Should never reach here — caller should have thrown already
       return 'stop';

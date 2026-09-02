@@ -70,4 +70,3 @@ export async function handleHelpVersionShortCircuit(argv: string[]): Promise<num
 
   return null;
 }
-

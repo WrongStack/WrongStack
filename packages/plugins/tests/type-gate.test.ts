@@ -21,11 +21,15 @@ interface MockApi {
   registerHook: ReturnType<typeof vi.fn>;
 }
 
-function makeApi(overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {}): MockApi {
+function makeApi(
+  overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {},
+): MockApi {
   return {
     tools: { register: vi.fn() },
     config: {
-      extensions: overrides.extensions ?? (overrides.enabled === true ? { 'type-gate': { enabled: true } } : {}),
+      extensions:
+        overrides.extensions ??
+        (overrides.enabled === true ? { 'type-gate': { enabled: true } } : {}),
     },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn() },
@@ -56,8 +60,14 @@ beforeEach(() => {
       const stdoutHandlers = new Map<string, (chunk: Buffer) => void>();
       const stderrHandlers = new Map<string, (chunk: Buffer) => void>();
       const child = {
-        stdout: { on: (event: string, handler: (chunk: Buffer) => void) => void stdoutHandlers.set(event, handler) },
-        stderr: { on: (event: string, handler: (chunk: Buffer) => void) => void stderrHandlers.set(event, handler) },
+        stdout: {
+          on: (event: string, handler: (chunk: Buffer) => void) =>
+            void stdoutHandlers.set(event, handler),
+        },
+        stderr: {
+          on: (event: string, handler: (chunk: Buffer) => void) =>
+            void stderrHandlers.set(event, handler),
+        },
         on: (event: string, handler: (...args: unknown[]) => void) => {
           childHandlers.set(event, handler);
           return child;
@@ -194,7 +204,7 @@ describe('type-gate plugin', () => {
   });
 
   it.each([
-    { command: 'node -e "require(\'child_process\').exec(\'calc.exe\')"' },
+    { command: "node -e \"require('child_process').exec('calc.exe')\"" },
     { command: 'tsx ./attacker.ts' },
     { command: 'npx vitest run' },
     { command: 'npx tsc --config=../../evil.tsconfig.json' },
@@ -249,22 +259,21 @@ describe('type-gate plugin', () => {
     );
   });
 
-  it.each([
-    '../evil/tsconfig.json',
-    '--config=evil.json',
-    '/etc/passwd',
-  ])('rejects unsafe tsConfigPath %#', async (tsConfigPath) => {
-    vi.mocked(execFileSync).mockReturnValue('');
-    const api = makeApi({
-      extensions: { 'type-gate': { enabled: true, tsConfigPath } },
-    });
-    typeGatePlugin.setup(api as never);
-    const hook = getHook(api);
-    await hook({
-      toolName: 'write',
-      toolInput: { path: 'src/foo.ts' },
-      toolResult: { content: '', isError: false },
-    });
-    expect(execFileSync).not.toHaveBeenCalled();
-  });
+  it.each(['../evil/tsconfig.json', '--config=evil.json', '/etc/passwd'])(
+    'rejects unsafe tsConfigPath %#',
+    async (tsConfigPath) => {
+      vi.mocked(execFileSync).mockReturnValue('');
+      const api = makeApi({
+        extensions: { 'type-gate': { enabled: true, tsConfigPath } },
+      });
+      typeGatePlugin.setup(api as never);
+      const hook = getHook(api);
+      await hook({
+        toolName: 'write',
+        toolInput: { path: 'src/foo.ts' },
+        toolResult: { content: '', isError: false },
+      });
+      expect(execFileSync).not.toHaveBeenCalled();
+    },
+  );
 });

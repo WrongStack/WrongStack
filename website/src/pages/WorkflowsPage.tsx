@@ -110,9 +110,7 @@ export function WorkflowsPage() {
             {['Requirements', 'Analysis', 'Design', 'Tasks', 'Implementation'].map(
               (phase, index) => (
                 <article key={phase} className="relative rounded-xl border border-line bg-card p-5">
-                  <span className="font-mono text-xs font-black text-brand-2">
-                    0{index + 1}
-                  </span>
+                  <span className="font-mono text-xs font-black text-brand-2">0{index + 1}</span>
                   <h2 className="mt-8 text-sm font-black text-fg">{phase}</h2>
                   {index < 4 && (
                     <ArrowRight className="absolute -right-3 top-1/2 z-10 hidden size-4 -translate-y-1/2 text-faint lg:block" />
@@ -181,13 +179,35 @@ export function WorkflowsPage() {
         <SectionIntro index="05" eyebrow="Related" title="Explore more coordination tools." />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { href: '/sdd', label: 'SDD workflow', desc: 'Spec-driven: plan, implement, verify with review between phases.' },
-            { href: '/goal', label: 'Goal', desc: 'Fully autonomous phased work with worktree isolation and rollback.' },
-            { href: '/checkpoints', label: 'Checkpoints', desc: 'File state snapshots. Rewind after risky edits.' },
-            { href: '/commit-workflow', label: 'Commit workflow', desc: 'Auto-generated conventional commits from your diff.' },
+            {
+              href: '/sdd',
+              label: 'SDD workflow',
+              desc: 'Spec-driven: plan, implement, verify with review between phases.',
+            },
+            {
+              href: '/goal',
+              label: 'Goal',
+              desc: 'Fully autonomous phased work with worktree isolation and rollback.',
+            },
+            {
+              href: '/checkpoints',
+              label: 'Checkpoints',
+              desc: 'File state snapshots. Rewind after risky edits.',
+            },
+            {
+              href: '/commit-workflow',
+              label: 'Commit workflow',
+              desc: 'Auto-generated conventional commits from your diff.',
+            },
           ].map(({ href, label, desc }) => (
-            <Link key={href} href={href} className="group rounded-xl border border-line bg-card p-5 hover:border-brand/40 transition-colors">
-              <h3 className="font-black text-base text-fg group-hover:text-brand transition-colors">{label}</h3>
+            <Link
+              key={href}
+              href={href}
+              className="group rounded-xl border border-line bg-card p-5 hover:border-brand/40 transition-colors"
+            >
+              <h3 className="font-black text-base text-fg group-hover:text-brand transition-colors">
+                {label}
+              </h3>
               <p className="mt-2 text-xs leading-5 text-muted">{desc}</p>
               <span className="mt-3 inline-block text-xs font-bold text-brand">Explore →</span>
             </Link>
@@ -195,17 +215,53 @@ export function WorkflowsPage() {
         </div>
       </section>
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
-        <SectionIntro index="04" eyebrow="Decision guide" title="Which workflow for which situation?" />
+        <SectionIntro
+          index="04"
+          eyebrow="Decision guide"
+          title="Which workflow for which situation?"
+        />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { when: 'Well-understood feature', use: 'SDD', why: 'Interactive phases, you review each step.' },
-            { when: 'Complex multi-day effort', use: 'Goal', why: 'Autonomous worktrees + checkpoint rollback.' },
-            { when: 'Quick fix or refactor', use: 'BTW / Goals', why: 'Lightweight. No phase overhead.' },
-            { when: 'Independent perspectives', use: 'Ensemble', why: 'Multiple ACP agents, compare results.' },
-            { when: 'Code review / QA', use: 'Collab', why: 'BugHunter + RefactorPlanner + Critic pipeline.' },
-            { when: 'Team coordination', use: 'Mailbox / HQ', why: 'Cross-session steer and fleet monitoring.' },
-            { when: 'CI/CD autonomous', use: 'Goal', why: 'Zero-interaction pipeline with manifest.' },
-            { when: 'Learning / exploring', use: 'Goals', why: 'Loosely structured, adapts as you go.' },
+            {
+              when: 'Well-understood feature',
+              use: 'SDD',
+              why: 'Interactive phases, you review each step.',
+            },
+            {
+              when: 'Complex multi-day effort',
+              use: 'Goal',
+              why: 'Autonomous worktrees + checkpoint rollback.',
+            },
+            {
+              when: 'Quick fix or refactor',
+              use: 'BTW / Goals',
+              why: 'Lightweight. No phase overhead.',
+            },
+            {
+              when: 'Independent perspectives',
+              use: 'Ensemble',
+              why: 'Multiple ACP agents, compare results.',
+            },
+            {
+              when: 'Code review / QA',
+              use: 'Collab',
+              why: 'BugHunter + RefactorPlanner + Critic pipeline.',
+            },
+            {
+              when: 'Team coordination',
+              use: 'Mailbox / HQ',
+              why: 'Cross-session steer and fleet monitoring.',
+            },
+            {
+              when: 'CI/CD autonomous',
+              use: 'Goal',
+              why: 'Zero-interaction pipeline with manifest.',
+            },
+            {
+              when: 'Learning / exploring',
+              use: 'Goals',
+              why: 'Loosely structured, adapts as you go.',
+            },
           ].map(({ when, use, why }) => (
             <div key={when} className="rounded-xl border border-line bg-card p-4">
               <span className="font-black text-xs text-fg">{when}</span>

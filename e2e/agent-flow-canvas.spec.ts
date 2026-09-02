@@ -14,7 +14,9 @@ test.describe('AgentFlowCanvas', () => {
 
   test('canvas renders without crash', async ({ page }) => {
     // Look for the React Flow canvas container
-    const canvas = page.locator('.react-flow, [class*="flow-canvas"], [class*="agent-flow"]').first();
+    const canvas = page
+      .locator('.react-flow, [class*="flow-canvas"], [class*="agent-flow"]')
+      .first();
     if (await canvas.isVisible({ timeout: 5000 })) {
       await expect(canvas).toBeVisible();
     }

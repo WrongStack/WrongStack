@@ -77,11 +77,7 @@ describe('projectSessionTimeline — conversation backbone', () => {
         ],
       },
     ];
-    expect(kinds(projectSessionTimeline({ messages }))).toEqual([
-      'assistant',
-      'tool',
-      'assistant',
-    ]);
+    expect(kinds(projectSessionTimeline({ messages }))).toEqual(['assistant', 'tool', 'assistant']);
   });
 
   it('marks only tool-free assistant messages as final', () => {

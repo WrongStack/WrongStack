@@ -4,7 +4,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { renderMarkdownReport, reportHeaderLine } from '../src/report/markdown.js';
 import { readSummary, writeJsonArtifacts } from '../src/report/json.js';
-import type { BenchReport, CellResult, HarnessFingerprint, ModelCell, TaskResult } from '../src/types.js';
+import type {
+  BenchReport,
+  CellResult,
+  HarnessFingerprint,
+  ModelCell,
+  TaskResult,
+} from '../src/types.js';
 
 const FP: HarnessFingerprint = {
   cliVersion: '0.260.0',
@@ -39,10 +45,7 @@ describe('renderMarkdownReport', () => {
       suite: 'polyglot' as const,
       finishedAt: '2026-06-15T00:00:00Z',
       fingerprint: FP,
-      cells: [
-        cell({ cell: haiku, passRate: 0.3 }),
-        cell({ cell: opus, passRate: 0.8 }),
-      ],
+      cells: [cell({ cell: haiku, passRate: 0.3 }), cell({ cell: opus, passRate: 0.8 })],
     };
     const md = renderMarkdownReport(report);
     expect(md).toMatch(/# WrongStack benchmark — polyglot/);
@@ -104,7 +107,12 @@ describe('renderMarkdownReport', () => {
   });
 
   it('handles an empty cell list (taskCount defaults to 0)', () => {
-    const md = renderMarkdownReport({ suite: 'polyglot', finishedAt: 'now', fingerprint: FP, cells: [] });
+    const md = renderMarkdownReport({
+      suite: 'polyglot',
+      finishedAt: 'now',
+      fingerprint: FP,
+      cells: [],
+    });
     expect(md).toMatch(/Tasks\/cell:\*\* 0/);
   });
 
@@ -134,7 +142,16 @@ describe('writeJsonArtifacts / readSummary', () => {
   const mkResult = (taskId: string): TaskResult => ({
     taskId,
     cell: opus,
-    run: { status: 'completed', finalText: 'done', iterations: 3, tokensIn: 100, tokensOut: 50, costUsd: 0.01, elapsedMs: 1000, exitCode: 0 },
+    run: {
+      status: 'completed',
+      finalText: 'done',
+      iterations: 3,
+      tokensIn: 100,
+      tokensOut: 50,
+      costUsd: 0.01,
+      elapsedMs: 1000,
+      exitCode: 0,
+    },
     grade: { passed: true },
     tools: { totalCalls: 5, editCalls: 2, editErrors: 0, rateLimitRetries: 0 },
   });

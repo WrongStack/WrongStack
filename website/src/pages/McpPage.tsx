@@ -186,13 +186,38 @@ export function McpPage() {
         </div>
       </section>
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
-        <SectionIntro index="04" eyebrow="Transports" title="Stdio today. SSE and streamable HTTP on the roadmap." description="WrongStack supports three MCP transport types. Each has different latency, security, and setup characteristics." />
+        <SectionIntro
+          index="04"
+          eyebrow="Transports"
+          title="Stdio today. SSE and streamable HTTP on the roadmap."
+          description="WrongStack supports three MCP transport types. Each has different latency, security, and setup characteristics."
+        />
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
           {[
-            { title: 'Stdio', body: 'Child process over stdin/stdout. Zero network — the MCP server runs as a local subprocess. Lowest latency, simplest security model.', tag: 'default' },
-            { title: 'SSE', body: 'Server-Sent Events over HTTP. The server pushes tool results to the client. Supports remote servers behind a reverse proxy.', tag: 'remote' },
-            { title: 'Streamable HTTP', body: 'Bidirectional HTTP streaming. The most flexible transport. Supports both local and remote servers with full-duplex communication.', tag: 'roadmap' },
-          ].map(({ title, body, tag }) => (<article key={title} className="rounded-2xl border border-line bg-card p-7"><h2 className="text-xl font-black text-fg">{title}</h2><span className="mt-2 inline-block rounded-full border border-line bg-bg px-2 py-0.5 font-mono text-xs text-brand">{tag}</span><p className="mt-4 text-sm leading-7 text-muted">{body}</p></article>))}
+            {
+              title: 'Stdio',
+              body: 'Child process over stdin/stdout. Zero network — the MCP server runs as a local subprocess. Lowest latency, simplest security model.',
+              tag: 'default',
+            },
+            {
+              title: 'SSE',
+              body: 'Server-Sent Events over HTTP. The server pushes tool results to the client. Supports remote servers behind a reverse proxy.',
+              tag: 'remote',
+            },
+            {
+              title: 'Streamable HTTP',
+              body: 'Bidirectional HTTP streaming. The most flexible transport. Supports both local and remote servers with full-duplex communication.',
+              tag: 'roadmap',
+            },
+          ].map(({ title, body, tag }) => (
+            <article key={title} className="rounded-2xl border border-line bg-card p-7">
+              <h2 className="text-xl font-black text-fg">{title}</h2>
+              <span className="mt-2 inline-block rounded-full border border-line bg-bg px-2 py-0.5 font-mono text-xs text-brand">
+                {tag}
+              </span>
+              <p className="mt-4 text-sm leading-7 text-muted">{body}</p>
+            </article>
+          ))}
         </div>
       </section>
       <PageNext

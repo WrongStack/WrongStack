@@ -7,7 +7,9 @@ vi.mock('node:fs/promises', () => ({
 }));
 
 const { readdir, readFile, stat } = await import('node:fs/promises');
-const { semanticIndexerCoverage, readConfig } = await import('../src/semantic-search-indexer/index.js');
+const { semanticIndexerCoverage, readConfig } = await import(
+  '../src/semantic-search-indexer/index.js'
+);
 const plugin = (await import('../src/semantic-search-indexer/index.js')).default;
 
 interface MockApi {
@@ -90,7 +92,7 @@ function mockTree(tree: Tree) {
       err.code = 'ENOENT';
       throw err;
     }
-    const size = entry.type === 'file' ? entry.size ?? entry.content.length : 0;
+    const size = entry.type === 'file' ? (entry.size ?? entry.content.length) : 0;
     return {
       isFile: () => entry.type === 'file',
       isDirectory: () => entry.type === 'dir',
@@ -189,7 +191,10 @@ describe('semantic-search-indexer plugin', () => {
     mockTree({
       '/project': { type: 'dir', entries: ['src'] },
       '/project/src': { type: 'dir', entries: ['auth.ts', 'utils.ts'] },
-      '/project/src/auth.ts': { type: 'file', content: 'export function login() {}\nconst auth = true;\n' },
+      '/project/src/auth.ts': {
+        type: 'file',
+        content: 'export function login() {}\nconst auth = true;\n',
+      },
       '/project/src/utils.ts': { type: 'file', content: 'export function helper() {}\n' },
     });
 
@@ -199,21 +204,30 @@ describe('semantic-search-indexer plugin', () => {
     const result = (await search({ query: 'auth' })) as {
       ok: boolean;
       totalResults: number;
-      results: Array<{ path: string; score: number; matchedLines: Array<{ lineNumber: number; text: string }> }>;
+      results: Array<{
+        path: string;
+        score: number;
+        matchedLines: Array<{ lineNumber: number; text: string }>;
+      }>;
     };
 
     expect(result.ok).toBe(true);
     expect(result.totalResults).toBe(1);
     expect(result.results[0]?.path).toBe('src/auth.ts');
     expect(result.results[0]?.score).toBeGreaterThan(0);
-    expect(result.results[0]?.matchedLines).toEqual([{ lineNumber: 2, text: 'const auth = true;' }]);
+    expect(result.results[0]?.matchedLines).toEqual([
+      { lineNumber: 2, text: 'const auth = true;' },
+    ]);
   });
 
   it('ranks files by term frequency', async () => {
     mockTree({
       '/project': { type: 'dir', entries: ['src'] },
       '/project/src': { type: 'dir', entries: ['helpers.ts', 'utils.ts'] },
-      '/project/src/helpers.ts': { type: 'file', content: 'function helper() {}\nfunction helper() {}\n' },
+      '/project/src/helpers.ts': {
+        type: 'file',
+        content: 'function helper() {}\nfunction helper() {}\n',
+      },
       '/project/src/utils.ts': { type: 'file', content: 'function helper() {}\n' },
     });
 
@@ -236,9 +250,15 @@ describe('semantic-search-indexer plugin', () => {
       '/project': { type: 'dir', entries: ['src'] },
       '/project/src': { type: 'dir', entries: ['z.ts', 'b.ts', 'c.ts', 'a.ts'] },
       '/project/src/z.ts': { type: 'file', content: 'function helper() {}\n' },
-      '/project/src/b.ts': { type: 'file', content: 'function helper() {}\nfunction helper() {}\n' },
+      '/project/src/b.ts': {
+        type: 'file',
+        content: 'function helper() {}\nfunction helper() {}\n',
+      },
       '/project/src/c.ts': { type: 'file', content: 'function helper() {}\n' },
-      '/project/src/a.ts': { type: 'file', content: 'function helper() {}\nfunction helper() {}\n' },
+      '/project/src/a.ts': {
+        type: 'file',
+        content: 'function helper() {}\nfunction helper() {}\n',
+      },
     });
 
     const api = makeApi();
@@ -318,7 +338,10 @@ describe('semantic-search-indexer plugin', () => {
     const api = makeApi();
     plugin.setup(api as never);
     const search = getTool(api, 'semantic_search');
-    const result = (await search({ query: 'auth', path: '/etc' })) as { ok: boolean; error: string };
+    const result = (await search({ query: 'auth', path: '/etc' })) as {
+      ok: boolean;
+      error: string;
+    };
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain('outside project root');
@@ -345,9 +368,14 @@ describe('semantic-search-indexer plugin', () => {
       (c) => (c[0] as { name: string }).name === 'semantic_search',
     );
     expect(reg).toBeDefined();
-    const schema = (reg![0] as {
-      inputSchema: { properties: Record<string, unknown>; anyOf: Array<Record<string, string[]>> };
-    }).inputSchema;
+    const schema = (
+      reg![0] as {
+        inputSchema: {
+          properties: Record<string, unknown>;
+          anyOf: Array<Record<string, string[]>>;
+        };
+      }
+    ).inputSchema;
 
     for (const alias of ['q', 'text', 'keyword', 'keywords', 'search']) {
       expect(schema.properties[alias]).toBeDefined();

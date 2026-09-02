@@ -416,9 +416,7 @@ describe('connections service actions require a policy authority', () => {
 
     expect(handled).toBe(true);
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toEqual(
-      expect.objectContaining({ type: 'connections.service_action_result' }),
-    );
+    expect(sent[0]).toEqual(expect.objectContaining({ type: 'connections.service_action_result' }));
     const payload = (sent[0] as { payload: { success: boolean; message: string } }).payload;
     expect(payload.success).toBe(false);
     expect(payload.message).toContain('no policy authority');

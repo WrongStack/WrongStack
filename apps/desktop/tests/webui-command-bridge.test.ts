@@ -43,7 +43,7 @@ describe('desktop WebUI command bridge', () => {
       requestId: 'req-</script><img>',
     });
 
-    expect(script).toContain("wrongstack:desktop-command");
+    expect(script).toContain('wrongstack:desktop-command');
     expect(script).toContain('"terminal":"new"');
     expect(script).toContain('\\u003c/script>');
     expect(script).not.toContain('</script>');

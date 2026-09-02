@@ -16,10 +16,7 @@
 import type { Mailbox, MailboxMessage } from './mailbox-types.js';
 import { isMailboxSenderInFamily } from './mailbox-types.js';
 import { toErrorMessage } from '../utils/error.js';
-import {
-  recordFileAction,
-  type FileAuthorTrackerOptions,
-} from './file-author-tracker.js';
+import { recordFileAction, type FileAuthorTrackerOptions } from './file-author-tracker.js';
 
 export interface TechStackConsumerOptions {
   /** The mailbox to poll. */

@@ -3,7 +3,6 @@ import type { KanbanBoard, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
 import { describe, expect, it } from 'vitest';
 import { analyzeTaskRisk, TaskRiskPanel } from '../../src/components/TaskRiskPanel.js';
 
-
 const dependency: KanbanTask = {
   id: 'dependency-1',
   title: 'Pending dependency',

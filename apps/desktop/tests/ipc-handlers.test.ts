@@ -90,7 +90,9 @@ describe('sanitizeWebuiPrefs', () => {
 
   it('should extract contextAutoCompact boolean', () => {
     expect(sanitizeWebuiPrefs({ contextAutoCompact: true })).toEqual({ contextAutoCompact: true });
-    expect(sanitizeWebuiPrefs({ contextAutoCompact: false })).toEqual({ contextAutoCompact: false });
+    expect(sanitizeWebuiPrefs({ contextAutoCompact: false })).toEqual({
+      contextAutoCompact: false,
+    });
   });
 
   it('should extract multiple boolean prefs', () => {

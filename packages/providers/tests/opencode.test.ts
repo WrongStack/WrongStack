@@ -50,12 +50,9 @@ describe('OpenCodeZenProvider', () => {
     },
   );
 
-  it.each(['gpt-4.1', 'claude-sonnet-4-6', 'glm-5'])(
-    'keeps %s on Chat Completions',
-    (model) => {
-      expect(usesResponsesEndpoint(model)).toBe(false);
-    },
-  );
+  it.each(['gpt-4.1', 'claude-sonnet-4-6', 'glm-5'])('keeps %s on Chat Completions', (model) => {
+    expect(usesResponsesEndpoint(model)).toBe(false);
+  });
 
   it('uses /responses and parses its terminal envelope for GPT-5 models', async () => {
     let capturedUrl = '';

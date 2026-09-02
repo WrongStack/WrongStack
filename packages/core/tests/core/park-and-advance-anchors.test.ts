@@ -57,7 +57,9 @@ describe('park-and-advance anchors', () => {
       // Case-insensitive on purpose: the prose that slipped past an earlier
       // version of this guard read "Set `status: blocked` via `update_task`" —
       // capital S and "via" were the only reasons it matched neither pattern.
-      expect(text, name).not.toMatch(/status: ?`?blocked`? (with|via|through|using) `?update_task/i);
+      expect(text, name).not.toMatch(
+        /status: ?`?blocked`? (with|via|through|using) `?update_task/i,
+      );
       expect(text, name).not.toMatch(/set `?status: ?`?blocked`?/i);
     }
   });

@@ -26,8 +26,14 @@ function mockReadFileSync(p: string, encoding?: string) {
 }
 
 function mockWriteFileSync(p: string, content: string, _encoding?: string) {
-  writes.push({ path: normalizePath(p), content: typeof content === 'string' ? content : String(content) });
-  mockFs[normalizePath(p)] = { type: 'file', content: typeof content === 'string' ? content : String(content) };
+  writes.push({
+    path: normalizePath(p),
+    content: typeof content === 'string' ? content : String(content),
+  });
+  mockFs[normalizePath(p)] = {
+    type: 'file',
+    content: typeof content === 'string' ? content : String(content),
+  };
 }
 
 vi.mock('node:fs', () => ({
@@ -44,7 +50,11 @@ const plugin = (await import('../src/smart-rename')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
 }
@@ -111,7 +121,9 @@ describe('smart-rename plugin shape', () => {
     const api = makeApi();
     plugin.setup(api as never);
     expect(api.tools.register).toHaveBeenCalledTimes(1);
-    const names = api.tools.register.mock.calls.map(([t]: unknown[]) => (t as { name: string }).name);
+    const names = api.tools.register.mock.calls.map(
+      ([t]: unknown[]) => (t as { name: string }).name,
+    );
     expect(names).toContain('smart_rename');
     expect(api.registerHook).not.toHaveBeenCalled();
   });
@@ -151,7 +163,12 @@ describe('smart_rename tool', () => {
     const api = makeApi();
     plugin.setup(api as never);
     const rename = getTool(api, 'smart_rename');
-    const result = (await rename({ path: 'src/util.ts', oldName: 'x', newName: 'y', apply: true })) as {
+    const result = (await rename({
+      path: 'src/util.ts',
+      oldName: 'x',
+      newName: 'y',
+      apply: true,
+    })) as {
       ok: boolean;
       applied: boolean;
       preview: string;
@@ -196,11 +213,17 @@ describe('smart_rename tool', () => {
     const api = makeApi();
     plugin.setup(api as never);
     const rename = getTool(api, 'smart_rename');
-    const missingOld = (await rename({ path: 'src/util.ts', newName: 'y' })) as { ok: boolean; error: string };
+    const missingOld = (await rename({ path: 'src/util.ts', newName: 'y' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(missingOld.ok).toBe(false);
     expect(missingOld.error).toContain('oldName');
 
-    const missingNew = (await rename({ path: 'src/util.ts', oldName: 'x' })) as { ok: boolean; error: string };
+    const missingNew = (await rename({ path: 'src/util.ts', oldName: 'x' })) as {
+      ok: boolean;
+      error: string;
+    };
     expect(missingNew.ok).toBe(false);
     expect(missingNew.error).toContain('newName');
   });
@@ -226,7 +249,10 @@ describe('teardown + counters', () => {
     const rename = getTool(api, 'smart_rename');
     await rename({ path: 'src/a.ts', oldName: 'x', newName: 'y' });
     plugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith('smart-rename: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'smart-rename: teardown complete',
+      expect.any(Object),
+    );
     const health = (await plugin.health!()) as { counters: Record<string, number> };
     expect(health.counters['renames']).toBe(0);
     expect(health.counters['replacements']).toBe(0);

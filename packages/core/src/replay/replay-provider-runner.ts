@@ -115,9 +115,7 @@ export class ReplayProviderRunner implements ProviderRunner {
     }
 
     if (this.opts.mode === 'auto' && cached) {
-      this.opts.logger?.debug?.(
-        `replay: auto-hit hash ${hash}, served cached response`,
-      );
+      this.opts.logger?.debug?.(`replay: auto-hit hash ${hash}, served cached response`);
       return cached.response;
     }
 

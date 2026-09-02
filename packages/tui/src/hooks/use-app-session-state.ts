@@ -52,7 +52,7 @@ export function useAppSessionState(options: AppSessionStateOptions) {
       (typeof reqTokens?.input === 'number' ? reqTokens.input : 0) +
       (typeof reqTokens?.cacheRead === 'number' ? reqTokens.cacheRead : 0) +
       (typeof reqTokens?.cacheWrite === 'number' ? reqTokens.cacheWrite : 0);
-    const tokens = sumReqTokens > 0 ? sumReqTokens : (typeof lastReq === 'number' ? lastReq : 0);
+    const tokens = sumReqTokens > 0 ? sumReqTokens : typeof lastReq === 'number' ? lastReq : 0;
     const maxContext =
       (options.agent?.ctx?.provider as { capabilities?: { maxContext?: number } } | undefined)
         ?.capabilities?.maxContext ?? 0;

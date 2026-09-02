@@ -152,7 +152,8 @@ export function activityText(entry: FleetEntry, now: number): string {
 }
 
 function elapsedText(entry: FleetEntry, now: number): string {
-  const anchor = entry.status === 'running' ? entry.startedAt : entry.lastEventAt || entry.startedAt;
+  const anchor =
+    entry.status === 'running' ? entry.startedAt : entry.lastEventAt || entry.startedAt;
   return fmtShortDuration(Math.max(0, now - anchor));
 }
 
@@ -422,17 +423,18 @@ export function FleetPanel({
         <Text color={theme.monitor.fleet} bold>
           {glyphs.fleet} AGENT SWARM
         </Text>
-        {terminal.columns >= 60 ? (
-          <Text color={theme.textMuted}>  /  parallel workspace</Text>
-        ) : null}
+        {terminal.columns >= 60 ? <Text color={theme.textMuted}> / parallel workspace</Text> : null}
         <Box flexGrow={1} />
         <Text color={runningCount > 0 ? theme.success : theme.textMuted} bold={runningCount > 0}>
           {runningCount > 0 ? '●' : '○'} {runningCount} LIVE
         </Text>
         {terminal.columns >= 72 ? (
-          <Text color={theme.textMuted}>  {totalIterations}i · {totalTools}t</Text>
+          <Text color={theme.textMuted}>
+            {' '}
+            {totalIterations}i · {totalTools}t
+          </Text>
         ) : null}
-        {cost && terminal.columns >= 88 ? <Text color={theme.success}>  {cost}</Text> : null}
+        {cost && terminal.columns >= 88 ? <Text color={theme.success}> {cost}</Text> : null}
       </Box>
 
       {hasCollab && collabSession ? (
@@ -440,8 +442,8 @@ export function FleetPanel({
           <Text color={theme.monitor.agents}>{glyphs.bug} COLLAB</Text>
           <Text color={theme.textMuted}>
             {' '}
-            {collabSession.bugCount} bugs · {collabSession.planCount} plans · {collabSession.evalCount}{' '}
-            reviews
+            {collabSession.bugCount} bugs · {collabSession.planCount} plans ·{' '}
+            {collabSession.evalCount} reviews
           </Text>
           {collabSession.sessionId ? (
             <Text color={theme.textMuted}> · {truncToWidth(collabSession.sessionId, 12)}</Text>
@@ -471,11 +473,13 @@ export function FleetPanel({
             </Text>
             {terminal.columns >= 56 ? (
               <Text color={theme.textMuted}>
-                {'  '}{todoCounts.active} active · {todoCounts.queued} queued · {todoCounts.done} done
+                {'  '}
+                {todoCounts.active} active · {todoCounts.queued} queued · {todoCounts.done} done
               </Text>
             ) : (
               <Text color={theme.textMuted}>
-                {'  '}{todoCounts.active}/{todoCounts.queued}/{todoCounts.done}
+                {'  '}
+                {todoCounts.active}/{todoCounts.queued}/{todoCounts.done}
               </Text>
             )}
             <Box flexGrow={1} />
@@ -483,7 +487,7 @@ export function FleetPanel({
           </Box>
           {todoRows.map((row) => (
             <Box key={row.id} height={1}>
-              <Text color={theme.textMuted}>  ├─ </Text>
+              <Text color={theme.textMuted}> ├─ </Text>
               <Text color={row.color}>{row.marker}</Text>
               <Text> </Text>
               <Text

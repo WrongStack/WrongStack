@@ -68,12 +68,18 @@ describe('readToolMetrics edge cases', () => {
   it('picks the newest of several jsonl files', async () => {
     const d = await sessionsDir();
     await fs.mkdir(d, { recursive: true });
-    await fs.writeFile(path.join(d, 'old.jsonl'), JSON.stringify({ type: 'tool_call_end', name: 'read', ok: true }));
+    await fs.writeFile(
+      path.join(d, 'old.jsonl'),
+      JSON.stringify({ type: 'tool_call_end', name: 'read', ok: true }),
+    );
     await new Promise((r) => setTimeout(r, 20));
-    await fs.writeFile(path.join(d, 'new.jsonl'), [
-      JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
-      JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
-    ].join('\n'));
+    await fs.writeFile(
+      path.join(d, 'new.jsonl'),
+      [
+        JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
+        JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
+      ].join('\n'),
+    );
     const m = await readToolMetrics({ homeDir, workdir });
     expect(m.totalCalls).toBe(2); // from new.jsonl
     expect(m.editCalls).toBe(2);
@@ -99,7 +105,10 @@ describe('readToolMetrics edge cases', () => {
   it('chooses the newest log across flat and sharded layouts', async () => {
     const d = await sessionsDir();
     await fs.mkdir(d, { recursive: true });
-    await fs.writeFile(path.join(d, 'legacy.jsonl'), JSON.stringify({ type: 'tool_call_end', name: 'read', ok: true }));
+    await fs.writeFile(
+      path.join(d, 'legacy.jsonl'),
+      JSON.stringify({ type: 'tool_call_end', name: 'read', ok: true }),
+    );
 
     await new Promise((r) => setTimeout(r, 20));
     const shard = path.join(d, '2026-07-06');

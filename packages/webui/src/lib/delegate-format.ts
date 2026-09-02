@@ -33,9 +33,7 @@ export function delegateCompletedText(input: {
 }): string {
   const seconds = Math.max(0, Math.round(input.durationMs / 100) / 10);
   const cost =
-    typeof input.costUsd === 'number' && input.costUsd > 0
-      ? ` · $${input.costUsd.toFixed(4)}`
-      : '';
+    typeof input.costUsd === 'number' && input.costUsd > 0 ? ` · $${input.costUsd.toFixed(4)}` : '';
   return [
     `Delegate ${input.ok ? 'completed' : 'failed'} for \`${input.target}\`${
       input.status ? ` (${input.status})` : ''

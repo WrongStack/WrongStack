@@ -121,10 +121,7 @@ export async function findSqliteMemoriesForFile(
   const limit = Math.max(1, Math.min(250, Math.floor(options.limit ?? 50)));
   const memories = ctx.listMemories();
   const memoryById = new Map(memories.map((memory) => [memory.id, memory]));
-  const pendingByMemoryId = new Map<
-    string,
-    NonNullable<MemoryForFileMatch['pendingReview']>
-  >();
+  const pendingByMemoryId = new Map<string, NonNullable<MemoryForFileMatch['pendingReview']>>();
 
   try {
     for (const candidate of await ctx.listCandidates()) {
@@ -139,7 +136,9 @@ export async function findSqliteMemoriesForFile(
         candidateId: candidate.id,
         reason: candidate.reviewReason ?? candidate.kind,
         suggestedAction:
-          suggestedAction === 'delete' || suggestedAction === 'archive' || suggestedAction === 'update'
+          suggestedAction === 'delete' ||
+          suggestedAction === 'archive' ||
+          suggestedAction === 'update'
             ? suggestedAction
             : 'investigate',
         ageDays: Math.max(

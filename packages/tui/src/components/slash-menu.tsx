@@ -45,26 +45,33 @@ export function SlashMenu({ query, matches, selected }: SlashMenuProps): React.R
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
       <Text bold color="cyan">
-        ━━ Command palette ━━ <Text dimColor>{placeholder}</Text> <Text dimColor>({resultMeta})</Text>
+        ━━ Command palette ━━ <Text dimColor>{placeholder}</Text>{' '}
+        <Text dimColor>({resultMeta})</Text>
       </Text>
       <Text dimColor>Type to filter commands by name, alias, or description.</Text>
-      {hiddenAbove > 0 && <Text dimColor>  ↑ {hiddenAbove} more</Text>}
+      {hiddenAbove > 0 && <Text dimColor> ↑ {hiddenAbove} more</Text>}
       {visible.contextHeader && (
         <Text bold color="yellow" dimColor>
-          {'  '}{visible.contextHeader}
+          {'  '}
+          {visible.contextHeader}
         </Text>
       )}
       {visible.rows.map((row) => {
         if (row.type === 'header') {
           return (
             <Text key={`cat-${row.category}`} bold color="yellow" dimColor>
-              {'  '}{row.category}
+              {'  '}
+              {row.category}
             </Text>
           );
         }
         const { match: m, index: i } = row;
         return (
-          <Text key={m.name} inverse={i === selected} {...(i === selected ? { color: 'cyan' } : {})}>
+          <Text
+            key={m.name}
+            inverse={i === selected}
+            {...(i === selected ? { color: 'cyan' } : {})}
+          >
             {i === selected ? '› ' : '  '}
             <Text bold>{m.name}</Text>
             {m.argsHint ? <Text dimColor> {m.argsHint}</Text> : null}
@@ -73,7 +80,7 @@ export function SlashMenu({ query, matches, selected }: SlashMenuProps): React.R
           </Text>
         );
       })}
-      {hiddenBelow > 0 && <Text dimColor>  ↓ {hiddenBelow} more</Text>}
+      {hiddenBelow > 0 && <Text dimColor> ↓ {hiddenBelow} more</Text>}
       {matches.length === 0 && <Text dimColor>No matching commands</Text>}
       <Text dimColor>─── ↑↓ nav · Enter run · Tab fill · Esc close</Text>
     </Box>

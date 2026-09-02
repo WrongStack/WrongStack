@@ -67,12 +67,14 @@ function createMockDb(): MockDb {
 vi.mock('node:module', () => ({
   createRequire: () => (id: string) => {
     if (id === 'node:sqlite') {
-      return { DatabaseSync: class FakeDatabaseSync {
-        constructor(_path: string) {
-          const db = createMockDb();
-          Object.assign(this, db);
-        }
-      } };
+      return {
+        DatabaseSync: class FakeDatabaseSync {
+          constructor(_path: string) {
+            const db = createMockDb();
+            Object.assign(this, db);
+          }
+        },
+      };
     }
     throw new Error(`Mock require not implemented: ${id}`);
   },
@@ -154,7 +156,11 @@ describe('TechStackStore', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    try { lastStore?.close(); } catch { /* ignore */ }
+    try {
+      lastStore?.close();
+    } catch {
+      /* ignore */
+    }
   });
 
   // ── Constructor ─────────────────────────────────────────────────────────
@@ -306,10 +312,7 @@ describe('TechStackStore', () => {
     lastStore!.listSnapshots('proj-1');
     const stmt = findStatement('SELECT raw_json FROM snapshots');
     expect(stmt).toBeDefined();
-    stmt!.all.mockReturnValue([
-      { raw_json: '{"id":"good"}' },
-      { raw_json: 'corrupt{' },
-    ]);
+    stmt!.all.mockReturnValue([{ raw_json: '{"id":"good"}' }, { raw_json: 'corrupt{' }]);
 
     const snapshots = lastStore!.listSnapshots('proj-1');
     expect(snapshots).toHaveLength(1);

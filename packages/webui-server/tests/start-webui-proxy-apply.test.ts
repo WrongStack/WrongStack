@@ -25,8 +25,7 @@ import type { Provider, ProviderConfig } from '@wrongstack/core/types';
 
 vi.mock('@wrongstack/providers', () => ({
   makeProviderFromConfig: vi.fn(
-    (id: string, cfg: ProviderConfig) =>
-      ({ id, capabilities: {}, cfg }) as unknown as Provider,
+    (id: string, cfg: ProviderConfig) => ({ id, capabilities: {}, cfg }) as unknown as Provider,
   ),
   withCatalogCapabilities: vi.fn(async (_m: unknown, _id: string, provider: Provider) => provider),
 }));
@@ -100,9 +99,7 @@ describe('setupWebuiProxyInstantApply', () => {
       'openai',
       expect.objectContaining({ baseUrl: `${PROXY_URL}/proxy/api.example.com/v1` }),
     );
-    expect(deps.logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('live provider rebuilt'),
-    );
+    expect(deps.logger.info).toHaveBeenCalledWith(expect.stringContaining('live provider rebuilt'));
     dispose();
   });
 

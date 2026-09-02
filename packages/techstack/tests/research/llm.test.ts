@@ -8,10 +8,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import {
-  createProviderLlm,
-  parseResearchJson,
-} from '../../src/research/llm.js';
+import { createProviderLlm, parseResearchJson } from '../../src/research/llm.js';
 import type { Provider, Response } from '@wrongstack/core/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -28,9 +25,9 @@ function makeResponse(content: Response['content']): Response {
 function makeProvider(caps: Partial<Provider['capabilities']> = {}): Provider {
   return {
     id: 'test-provider',
-    complete: vi.fn<Provider['complete']>().mockResolvedValue(
-      makeResponse([{ type: 'text', text: '{}' }]),
-    ),
+    complete: vi
+      .fn<Provider['complete']>()
+      .mockResolvedValue(makeResponse([{ type: 'text', text: '{}' }])),
     async *stream() {},
     capabilities: {
       tools: false,
@@ -93,22 +90,30 @@ describe('createProviderLlm', () => {
       return undefined; // provider disappears when the closure is called
     };
     const llm = createProviderLlm(accessor);
-    if (!llm) { expect.fail('llm should be defined'); return; }
+    if (!llm) {
+      expect.fail('llm should be defined');
+      return;
+    }
 
-    await expect(llm({
-      system: '',
-      prompt: 'test',
-      schema: {},
-      schemaName: 'x',
-      maxTokens: 100,
-    })).rejects.toThrow('no provider available');
+    await expect(
+      llm({
+        system: '',
+        prompt: 'test',
+        schema: {},
+        schemaName: 'x',
+        maxTokens: 100,
+      }),
+    ).rejects.toThrow('no provider available');
   });
 
   it('uses structuredOutput capabilities when available', async () => {
     const provider = makeProvider({ structuredOutput: true });
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor);
-    if (!llm) { expect.fail('llm should be defined'); return; }
+    if (!llm) {
+      expect.fail('llm should be defined');
+      return;
+    }
 
     await llm({
       system: '',
@@ -133,7 +138,10 @@ describe('createProviderLlm', () => {
     const provider = makeProvider({ structuredOutput: false, jsonMode: true });
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor);
-    if (!llm) { expect.fail('llm should be defined'); return; }
+    if (!llm) {
+      expect.fail('llm should be defined');
+      return;
+    }
 
     await llm({
       system: '',
@@ -152,19 +160,35 @@ describe('createProviderLlm', () => {
     const provider = makeProvider();
     // Make the provider hang but reject with the signal's reason on abort
     vi.mocked(provider.complete).mockImplementation(
-      (_req, opts) => new Promise<Response>((_resolve, reject) => {
-        if (opts?.signal?.aborted) {
-          reject(opts.signal!.reason instanceof Error ? opts.signal!.reason : new Error(String(opts.signal!.reason)));
-          return;
-        }
-        opts?.signal?.addEventListener('abort', () => {
-          reject(opts!.signal!.reason instanceof Error ? opts!.signal!.reason : new Error(String(opts!.signal!.reason)));
-        }, { once: true });
-      }),
+      (_req, opts) =>
+        new Promise<Response>((_resolve, reject) => {
+          if (opts?.signal?.aborted) {
+            reject(
+              opts.signal!.reason instanceof Error
+                ? opts.signal!.reason
+                : new Error(String(opts.signal!.reason)),
+            );
+            return;
+          }
+          opts?.signal?.addEventListener(
+            'abort',
+            () => {
+              reject(
+                opts!.signal!.reason instanceof Error
+                  ? opts!.signal!.reason
+                  : new Error(String(opts!.signal!.reason)),
+              );
+            },
+            { once: true },
+          );
+        }),
     );
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor, { timeoutMs: 100 });
-    if (!llm) { expect.fail('llm should be defined'); return; }
+    if (!llm) {
+      expect.fail('llm should be defined');
+      return;
+    }
 
     const promise = llm({
       system: '',
@@ -183,17 +207,23 @@ describe('createProviderLlm', () => {
   it('supports cancellation via AbortSignal', async () => {
     const provider = makeProvider();
     vi.mocked(provider.complete).mockImplementation(
-      (_req, opts) => new Promise<Response>((_resolve, reject) => {
-        if (opts?.signal?.aborted) {
-          reject(new Error('cancelled'));
-          return;
-        }
-        opts?.signal?.addEventListener('abort', () => reject(new Error('cancelled')), { once: true });
-      }),
+      (_req, opts) =>
+        new Promise<Response>((_resolve, reject) => {
+          if (opts?.signal?.aborted) {
+            reject(new Error('cancelled'));
+            return;
+          }
+          opts?.signal?.addEventListener('abort', () => reject(new Error('cancelled')), {
+            once: true,
+          });
+        }),
     );
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor);
-    if (!llm) { expect.fail('llm should be defined'); return; }
+    if (!llm) {
+      expect.fail('llm should be defined');
+      return;
+    }
 
     const controller = new AbortController();
     const promise = llm({
@@ -217,7 +247,10 @@ describe('createProviderLlm', () => {
     );
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor);
-    if (!llm) { expect.fail('llm should be defined'); return; }
+    if (!llm) {
+      expect.fail('llm should be defined');
+      return;
+    }
 
     const controller = new AbortController();
     const onAbort = vi.fn();
@@ -318,14 +351,19 @@ describe('parseResearchJson', () => {
 describe('createProviderLlm — content concatenation', () => {
   it('joins multiple text blocks with newlines', async () => {
     const provider = makeProvider();
-    vi.mocked(provider.complete).mockResolvedValue(makeResponse([
-      { type: 'text', text: '{"findings": [' },
-      { type: 'text', text: '{"pkg": "react"}' },
-      { type: 'text', text: ']}' },
-    ]));
+    vi.mocked(provider.complete).mockResolvedValue(
+      makeResponse([
+        { type: 'text', text: '{"findings": [' },
+        { type: 'text', text: '{"pkg": "react"}' },
+        { type: 'text', text: ']}' },
+      ]),
+    );
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor);
-    if (!llm) { expect.fail('llm should be defined'); return; }
+    if (!llm) {
+      expect.fail('llm should be defined');
+      return;
+    }
 
     const result = await llm({
       system: '',
@@ -341,13 +379,18 @@ describe('createProviderLlm — content concatenation', () => {
 
   it('filters out non-text blocks', async () => {
     const provider = makeProvider();
-    vi.mocked(provider.complete).mockResolvedValue(makeResponse([
-      { type: 'text', text: '{"a":1}' },
-      { type: 'tool_use', id: 'x', name: 'x', input: {} },
-    ]));
+    vi.mocked(provider.complete).mockResolvedValue(
+      makeResponse([
+        { type: 'text', text: '{"a":1}' },
+        { type: 'tool_use', id: 'x', name: 'x', input: {} },
+      ]),
+    );
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor);
-    if (!llm) { expect.fail('llm should be defined'); return; }
+    if (!llm) {
+      expect.fail('llm should be defined');
+      return;
+    }
 
     const result = await llm({
       system: '',

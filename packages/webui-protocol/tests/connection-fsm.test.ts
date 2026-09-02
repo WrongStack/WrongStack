@@ -145,7 +145,11 @@ describe('planConnectionReconnect', () => {
 });
 
 describe('isConnectionHeartbeatTimedOut', () => {
-  const cfg = { ...DEFAULT_SURFACE_CONNECTION_CONFIG, heartbeatIntervalMs: 1000, heartbeatTimeoutMs: 500 };
+  const cfg = {
+    ...DEFAULT_SURFACE_CONNECTION_CONFIG,
+    heartbeatIntervalMs: 1000,
+    heartbeatTimeoutMs: 500,
+  };
 
   it('returns false when not open', () => {
     const state = createSurfaceConnectionState();
@@ -159,17 +163,29 @@ describe('isConnectionHeartbeatTimedOut', () => {
 
   it('returns false when heartbeat is disabled', () => {
     const off = { ...DEFAULT_SURFACE_CONNECTION_CONFIG, heartbeatIntervalMs: 0 };
-    const state = { ...createSurfaceConnectionState(), phase: 'open' as const, lastActivityAt: 1000 };
+    const state = {
+      ...createSurfaceConnectionState(),
+      phase: 'open' as const,
+      lastActivityAt: 1000,
+    };
     expect(isConnectionHeartbeatTimedOut(state, off, 5000)).toBe(false);
   });
 
   it('returns false inside the heartbeat + timeout window', () => {
-    const state = { ...createSurfaceConnectionState(), phase: 'open' as const, lastActivityAt: 1000 };
+    const state = {
+      ...createSurfaceConnectionState(),
+      phase: 'open' as const,
+      lastActivityAt: 1000,
+    };
     expect(isConnectionHeartbeatTimedOut(state, cfg, 1500)).toBe(false);
   });
 
   it('returns true past heartbeatIntervalMs + heartbeatTimeoutMs', () => {
-    const state = { ...createSurfaceConnectionState(), phase: 'open' as const, lastActivityAt: 1000 };
+    const state = {
+      ...createSurfaceConnectionState(),
+      phase: 'open' as const,
+      lastActivityAt: 1000,
+    };
     // strict > comparison: at exactly (interval + timeout) the timer is not yet
     // considered expired. One ms past the boundary it is.
     expect(isConnectionHeartbeatTimedOut(state, cfg, 2501)).toBe(true);

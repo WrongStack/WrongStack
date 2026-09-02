@@ -92,16 +92,20 @@ export function mailboxSessionTag(sessionId: string): string {
 export function resolveMailboxIdentity(
   ctx: Context,
   fallbackBase = 'leader',
-): { baseId: string; callerId: string; name: string; role?: string | undefined; sessionId: string } {
-  const fieldId =
-    ctx.agentId && ctx.agentId !== 'unknown' ? ctx.agentId : undefined;
+): {
+  baseId: string;
+  callerId: string;
+  name: string;
+  role?: string | undefined;
+  sessionId: string;
+} {
+  const fieldId = ctx.agentId && ctx.agentId !== 'unknown' ? ctx.agentId : undefined;
   const baseId = (ctx.meta['agentId'] as string | undefined) ?? fieldId ?? fallbackBase;
   const sessionId = (ctx.meta['sessionId'] as string | undefined) ?? ctx.session?.id ?? 'default';
   const callerId =
     (ctx.meta['globalAgentId'] as string | undefined) ??
     `${baseId}@${mailboxSessionTag(sessionId)}`;
-  const fieldName =
-    ctx.agentName && ctx.agentName !== 'Unknown Agent' ? ctx.agentName : undefined;
+  const fieldName = ctx.agentName && ctx.agentName !== 'Unknown Agent' ? ctx.agentName : undefined;
   const name = (ctx.meta['agentName'] as string | undefined) ?? fieldName ?? baseId;
   const role = ctx.meta['agentRole'] as string | undefined;
   return { baseId, callerId, name, role, sessionId };
@@ -123,8 +127,7 @@ export function applyMailboxSendPolicy(
     const normalized = value.trim().toLowerCase();
     return normalized === 'chimera' || normalized.startsWith('chimera-');
   };
-  const chimeraSender =
-    isChimeraIdentity(identity.baseId) || isChimeraIdentity(identity.name);
+  const chimeraSender = isChimeraIdentity(identity.baseId) || isChimeraIdentity(identity.name);
   if (policy === 'leaders-only' || chimeraSender) {
     return { to: 'leader', audience: 'leaders' };
   }
@@ -135,10 +138,12 @@ export function applyMailboxSendPolicy(
 }
 
 export function makeMailboxTool(opts: MailboxToolOptions = {}): Tool {
-  const resolveMailbox = opts.resolveMailbox ?? ((ctx: Context) => {
-    const dir = opts.projectDir ?? defaultResolveProjectDir(ctx);
-    return getSharedProjectMailbox(dir, opts.events);
-  });
+  const resolveMailbox =
+    opts.resolveMailbox ??
+    ((ctx: Context) => {
+      const dir = opts.projectDir ?? defaultResolveProjectDir(ctx);
+      return getSharedProjectMailbox(dir, opts.events);
+    });
   const agentId = opts.agentId ?? 'leader';
   const sessionId = opts.sessionId ?? 'default';
 
@@ -166,21 +171,57 @@ export function makeMailboxTool(opts: MailboxToolOptions = {}): Tool {
           enum: ['check', 'send', 'ack', 'query', 'status', 'online', 'unread'],
           description: 'Which mailbox operation to perform.',
         },
-        to: { type: 'string', description: "Recipient agent id, base alias, '@session' for the sender's session, or '*' / 'all' for project broadcast." },
-        type: { type: 'string', enum: ['note', 'ask', 'assign', 'steer', 'btw', 'broadcast', 'status', 'result', 'review', 'control'], description: 'Required message intent. Actionable: ask (blocking question), assign (task delegation, must have specific to), steer (mid-course direction), review (passive ask). Informational: note (general FYI), btw (low-priority aside), result (completion notice), status (system update). Routing: broadcast (multi-recipient). Reserved: control (runtime only, agents cannot send).' },
+        to: {
+          type: 'string',
+          description:
+            "Recipient agent id, base alias, '@session' for the sender's session, or '*' / 'all' for project broadcast.",
+        },
+        type: {
+          type: 'string',
+          enum: [
+            'note',
+            'ask',
+            'assign',
+            'steer',
+            'btw',
+            'broadcast',
+            'status',
+            'result',
+            'review',
+            'control',
+          ],
+          description:
+            'Required message intent. Actionable: ask (blocking question), assign (task delegation, must have specific to), steer (mid-course direction), review (passive ask). Informational: note (general FYI), btw (low-priority aside), result (completion notice), status (system update). Routing: broadcast (multi-recipient). Reserved: control (runtime only, agents cannot send).',
+        },
         subject: { type: 'string', description: 'Short subject line.' },
         body: { type: 'string', description: 'Full message content.' },
         priority: { type: 'string', enum: ['low', 'normal', 'high'] },
-        audience: { type: 'string', enum: ['all', 'leaders'], description: 'Delivery audience. "leaders" prevents subagent consumption.' },
+        audience: {
+          type: 'string',
+          enum: ['all', 'leaders'],
+          description: 'Delivery audience. "leaders" prevents subagent consumption.',
+        },
         replyTo: { type: 'string', description: 'Reply to a specific message id.' },
-        messageId: { type: 'string', description: "Message id to acknowledge. Required for 'ack'." },
+        messageId: {
+          type: 'string',
+          description: "Message id to acknowledge. Required for 'ack'.",
+        },
         read: { type: 'boolean', description: 'Mark as read (adds read receipt).' },
-        markRead: { type: 'boolean', description: 'For action=check, add read receipts for returned messages (default true).' },
-        completed: { type: 'boolean', description: 'Mark as completed. For action=check, completes every returned message.' },
+        markRead: {
+          type: 'boolean',
+          description: 'For action=check, add read receipts for returned messages (default true).',
+        },
+        completed: {
+          type: 'boolean',
+          description: 'Mark as completed. For action=check, completes every returned message.',
+        },
         outcome: { type: 'string', description: 'Outcome summary when marking complete.' },
-        unreadBy: { type: 'string', description: "Filter messages unread by this agent. Used by 'check'." },
+        unreadBy: {
+          type: 'string',
+          description: "Filter messages unread by this agent. Used by 'check'.",
+        },
         incompleteOnly: { type: 'boolean', description: 'Only incomplete messages.' },
-        from: { type: 'string', description: "Filter by sender." },
+        from: { type: 'string', description: 'Filter by sender.' },
         minPriority: { type: 'string', enum: ['low', 'normal', 'high'] },
         since: { type: 'string', description: 'ISO8601 timestamp — only messages after this.' },
         sessionId: { type: 'string', description: 'Filter query results by sender session id.' },
@@ -198,8 +239,7 @@ export function makeMailboxTool(opts: MailboxToolOptions = {}): Tool {
       const identity = resolveMailboxIdentity(ctx, agentId);
       const baseCallerId = identity.baseId;
       const callerId = identity.callerId;
-      const callerSessionId =
-        (ctx.meta['sessionId'] as string) ?? (ctx.session?.id ?? sessionId);
+      const callerSessionId = (ctx.meta['sessionId'] as string) ?? ctx.session?.id ?? sessionId;
 
       // Auto-register this agent on first use (idempotent)
       try {
@@ -211,12 +251,16 @@ export function makeMailboxTool(opts: MailboxToolOptions = {}): Tool {
           pid: process.pid,
           source: (ctx.meta['source'] as 'cli' | 'webui' | undefined) ?? 'cli',
         });
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
 
       // Update heartbeat
       try {
         await mb.heartbeat({ agentId: callerId });
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
 
       switch (action) {
         case 'check':
@@ -234,7 +278,10 @@ export function makeMailboxTool(opts: MailboxToolOptions = {}): Tool {
         case 'unread':
           return executeUnread(mb, callerId, callerSessionId, [baseCallerId], identity.role);
         default:
-          return { ok: false, error: `Unknown action: "${action}". Use check, send, ack, query, status, online, or unread.` };
+          return {
+            ok: false,
+            error: `Unknown action: "${action}". Use check, send, ack, query, status, online, or unread.`,
+          };
       }
     },
   };
@@ -263,7 +310,9 @@ async function executeCheck(
   ];
   const batches = await Promise.all(
     targets.map((to) =>
-      mb.query({ to, unreadBy: agentId, readerRole: role, limit, minPriority: 'low' }).catch(() => []),
+      mb
+        .query({ to, unreadBy: agentId, readerRole: role, limit, minPriority: 'low' })
+        .catch(() => []),
     ),
   );
   const seen = new Set<string>();
@@ -289,25 +338,29 @@ async function executeCheck(
   // Auto-read: add read receipts for each message by default. Use the batch
   // path so catch-up checks perform one locked rewrite instead of N rewrites.
   // Return the post-ack snapshots so readByMe/completed reflect this call.
-  const acked = markRead || completed
-    ? await mb
-        .ackMany({
-          acks: messages.map((m) => ({
-            messageId: m.id,
-            readerId: agentId,
-            read: markRead,
-            completed,
-            outcome: completed ? outcome : undefined,
-          })),
-        })
-        .catch(() => messages)
-    : messages;
+  const acked =
+    markRead || completed
+      ? await mb
+          .ackMany({
+            acks: messages.map((m) => ({
+              messageId: m.id,
+              readerId: agentId,
+              read: markRead,
+              completed,
+              outcome: completed ? outcome : undefined,
+            })),
+          })
+          .catch(() => messages)
+      : messages;
 
   return {
     ok: true,
     count: acked.length,
     messages: acked.map((m) => formatMessage(m, agentId)),
-    summary: acked.length === 0 ? 'No unread messages.' : `${acked.length} unread message(s)${markRead ? ' (marked read)' : ''}${completed ? ' (completed)' : ''}.`,
+    summary:
+      acked.length === 0
+        ? 'No unread messages.'
+        : `${acked.length} unread message(s)${markRead ? ' (marked read)' : ''}${completed ? ' (completed)' : ''}.`,
   };
 }
 
@@ -348,7 +401,10 @@ async function executeSend(
 
   const msg = await mb.send({
     from: identity.callerId,
-    to: delivery.to, type: typeResult.type, subject, body,
+    to: delivery.to,
+    type: typeResult.type,
+    subject,
+    body,
     audience: delivery.audience,
     priority: (i.priority as 'low' | 'normal' | 'high') ?? 'normal',
     replyTo: i.replyTo as string | undefined,
@@ -365,7 +421,11 @@ async function executeSend(
   });
 
   return {
-    ok: true, messageId: msg.id, to: msg.to, type: msg.type, timestamp: msg.timestamp,
+    ok: true,
+    messageId: msg.id,
+    to: msg.to,
+    type: msg.type,
+    timestamp: msg.timestamp,
     summary: `Message sent to ${msg.to === '*' ? 'all agents' : msg.to}. Id: ${msg.id}`,
   };
 }
@@ -385,7 +445,8 @@ async function executeAck(mb: Mailbox, agentId: string, i: Record<string, unknow
   if (!updated) return { ok: false, error: `Message "${messageId}" not found.` };
 
   return {
-    ok: true, messageId: updated.id,
+    ok: true,
+    messageId: updated.id,
     readBy: Object.keys(updated.readBy),
     readByCount: Object.keys(updated.readBy).length,
     completed: updated.completed,
@@ -423,18 +484,33 @@ async function executeQuery(
       visible.push(message);
     }
   }
-  return { ok: true, count: visible.length, messages: visible, summary: `${visible.length} message(s).` };
+  return {
+    ok: true,
+    count: visible.length,
+    messages: visible,
+    summary: `${visible.length} message(s).`,
+  };
 }
 
 async function executeStatus(mb: Mailbox) {
   const agents = await mb.getAgentStatuses();
   return {
-    ok: true, count: agents.length,
+    ok: true,
+    count: agents.length,
     agents: agents.map((a) => ({
-      agentId: a.agentId, name: a.name, role: a.role, sessionId: a.sessionId,
-      status: a.status, currentTool: a.currentTool, currentTask: a.currentTask,
-      iterations: a.iterations, toolCalls: a.toolCalls,
-      lastSeenAt: a.lastSeenAt, online: a.online, pid: a.pid, source: a.source,
+      agentId: a.agentId,
+      name: a.name,
+      role: a.role,
+      sessionId: a.sessionId,
+      status: a.status,
+      currentTool: a.currentTool,
+      currentTask: a.currentTask,
+      iterations: a.iterations,
+      toolCalls: a.toolCalls,
+      lastSeenAt: a.lastSeenAt,
+      online: a.online,
+      pid: a.pid,
+      source: a.source,
     })),
     summary: `${agents.filter((a) => a.online).length} online, ${agents.length} total.`,
   };
@@ -443,11 +519,18 @@ async function executeStatus(mb: Mailbox) {
 async function executeOnline(mb: Mailbox) {
   const agents = await mb.getOnlineAgents();
   return {
-    ok: true, count: agents.length,
+    ok: true,
+    count: agents.length,
     agents: agents.map((a) => ({
-      agentId: a.agentId, name: a.name, role: a.role, sessionId: a.sessionId,
-      status: a.status, currentTool: a.currentTool, currentTask: a.currentTask,
-      lastSeenAt: a.lastSeenAt, source: a.source,
+      agentId: a.agentId,
+      name: a.name,
+      role: a.role,
+      sessionId: a.sessionId,
+      status: a.status,
+      currentTool: a.currentTool,
+      currentTask: a.currentTask,
+      lastSeenAt: a.lastSeenAt,
+      source: a.source,
     })),
     summary: `${agents.length} online agent(s).`,
   };
@@ -468,7 +551,9 @@ async function executeUnread(
     `@session:${sessionId}`,
   ];
   const batches = await Promise.all(
-    targets.map((to) => mb.query({ to, unreadBy: agentId, readerRole: role, limit: 200 }).catch(() => [])),
+    targets.map((to) =>
+      mb.query({ to, unreadBy: agentId, readerRole: role, limit: 200 }).catch(() => []),
+    ),
   );
   // Session-affinity filter: every read path that touches cross-session
   // mail must wire the same filter — check (line 284) and query (line 412)
@@ -489,13 +574,22 @@ function formatMessage(m: MailboxMessage, readerId: string) {
   const maxBody = 2000;
   const truncated = m.body.length > maxBody ? `${m.body.slice(0, maxBody)}… [truncated]` : m.body;
   return {
-    id: m.id, from: m.from, to: m.to, type: m.type, audience: m.audience ?? 'all',
-    subject: m.subject, body: truncated, priority: m.priority,
+    id: m.id,
+    from: m.from,
+    to: m.to,
+    type: m.type,
+    audience: m.audience ?? 'all',
+    subject: m.subject,
+    body: truncated,
+    priority: m.priority,
     readByMe: readerId in m.readBy,
     readByCount: Object.keys(m.readBy).length,
     readBy: m.readBy,
-    completed: m.completed, completedBy: m.completedBy,
-    outcome: m.outcome, timestamp: m.timestamp,
-    replyTo: m.replyTo, senderSessionId: m.senderSessionId,
+    completed: m.completed,
+    completedBy: m.completedBy,
+    outcome: m.outcome,
+    timestamp: m.timestamp,
+    replyTo: m.replyTo,
+    senderSessionId: m.senderSessionId,
   };
 }

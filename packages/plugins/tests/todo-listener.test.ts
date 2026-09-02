@@ -23,8 +23,16 @@ interface PluginAPI {
   slashCommands: { register: ReturnType<typeof vi.fn> };
   pipelines: Record<string, { use: (h: unknown) => void }>;
   config: { extensions?: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   session: { append: ReturnType<typeof vi.fn> };
   extensions: { register: ReturnType<typeof vi.fn> };
   registerSystemPromptContributor: ReturnType<typeof vi.fn>;
@@ -105,7 +113,10 @@ describe('todo-listener plugin', () => {
     });
 
     it('configSchema defines enabled, subjectPrefix, broadcastOnChange, cooldownMs', () => {
-      const schema = todoListenerPlugin.configSchema as Record<string, { properties?: Record<string, unknown> }>;
+      const schema = todoListenerPlugin.configSchema as Record<
+        string,
+        { properties?: Record<string, unknown> }
+      >;
       const props = schema.properties;
       expect(props?.enabled).toBeDefined();
       expect(props?.subjectPrefix).toBeDefined();
@@ -198,8 +209,13 @@ describe('todo-listener plugin', () => {
       });
       expect(result).toBeUndefined();
       // Status tool should report mailboxAvailable=false
-      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as { execute: () => Promise<unknown> };
-      const status = (await tool.execute()) as { mailboxAvailable: boolean; counters: { invocations: number; skipped: number } };
+      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as {
+        execute: () => Promise<unknown>;
+      };
+      const status = (await tool.execute()) as {
+        mailboxAvailable: boolean;
+        counters: { invocations: number; skipped: number };
+      };
       expect(status.mailboxAvailable).toBe(false);
       expect(status.counters.invocations).toBe(1);
       expect(status.counters.skipped).toBe(1);
@@ -267,11 +283,17 @@ describe('todo-listener plugin', () => {
       const api = createMockAPI({ withMailbox: true, enabled: true });
       todoListenerPlugin.setup(api as never);
       const hook = getHook(api);
-      const todos = [
-        { id: 'a', content: 'write tests', status: 'in_progress' as const },
-      ];
-      await hook({ toolName: 'todo', toolInput: { todos }, toolResult: { content: 'ok', isError: false } });
-      await hook({ toolName: 'todo', toolInput: { todos }, toolResult: { content: 'ok', isError: false } });
+      const todos = [{ id: 'a', content: 'write tests', status: 'in_progress' as const }];
+      await hook({
+        toolName: 'todo',
+        toolInput: { todos },
+        toolResult: { content: 'ok', isError: false },
+      });
+      await hook({
+        toolName: 'todo',
+        toolInput: { todos },
+        toolResult: { content: 'ok', isError: false },
+      });
       expect(api.mailbox?.send).toHaveBeenCalledTimes(1);
     });
 
@@ -331,7 +353,9 @@ describe('todo-listener plugin', () => {
         toolInput: { todos: [{ id: 'a', content: 'one', status: 'pending' }] },
         toolResult: { content: 'ok', isError: false },
       });
-      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as { execute: () => Promise<unknown> };
+      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as {
+        execute: () => Promise<unknown>;
+      };
       const status = (await tool.execute()) as { counters: { errors: number; sent: number } };
       expect(status.counters.errors).toBe(1);
       expect(status.counters.sent).toBe(0);

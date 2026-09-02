@@ -43,11 +43,7 @@ import type {
   HqTranscriptAppendPayload,
   HqTranscriptEntry,
 } from './session.js';
-import type {
-  HqRedactionPolicy,
-  HqToolCompletedPayload,
-  HqToolStartedPayload,
-} from './tool.js';
+import type { HqRedactionPolicy, HqToolCompletedPayload, HqToolStartedPayload } from './tool.js';
 import {
   HQ_PROTOCOL_VERSION,
   type HqEventEnvelope,
@@ -202,7 +198,10 @@ function isHqRedactionPolicy(x: unknown): x is HqRedactionPolicy {
   const v = x as Record<string, unknown>;
   return (
     typeof v.rawContent === 'boolean' &&
-    (v.toolArgs === 'none' || v.toolArgs === 'summary' || v.toolArgs === 'redacted' || v.toolArgs === 'full') &&
+    (v.toolArgs === 'none' ||
+      v.toolArgs === 'summary' ||
+      v.toolArgs === 'redacted' ||
+      v.toolArgs === 'full') &&
     (v.paths === 'none' ||
       v.paths === 'project-relative' ||
       v.paths === 'redacted' ||
@@ -332,9 +331,7 @@ export function parseHqFrame(raw: string | Buffer): HqParseResult {
           type: 'client.command_poll',
           clientId: obj.clientId,
           projectId: obj.projectId,
-          ...(typeof obj.afterCommandId === 'string'
-            ? { afterCommandId: obj.afterCommandId }
-            : {}),
+          ...(typeof obj.afterCommandId === 'string' ? { afterCommandId: obj.afterCommandId } : {}),
           ...(typeof obj.limit === 'number' ? { limit: obj.limit } : {}),
         },
       };
@@ -417,9 +414,7 @@ function isHqMcpFailureCounts(x: unknown): x is HqMcpFailureCounts {
   if (typeof x !== 'object' || x === null) return false;
   const v = x as Record<string, unknown>;
   return (
-    typeof v.transport === 'number' &&
-    typeof v.protocol === 'number' &&
-    typeof v.tool === 'number'
+    typeof v.transport === 'number' && typeof v.protocol === 'number' && typeof v.tool === 'number'
   );
 }
 

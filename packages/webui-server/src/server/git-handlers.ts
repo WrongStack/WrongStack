@@ -58,7 +58,10 @@ export async function handleGitInfo(ws: WebSocket, projectRoot: string): Promise
     send(ws, { type: 'git.info', payload: { branch, added, deleted, untracked, ahead, behind } });
   } catch {
     // Git not available or not a repo — send empty info silently.
-    send(ws, { type: 'git.info', payload: { branch: '', added: 0, deleted: 0, untracked: 0, ahead: 0, behind: 0 } });
+    send(ws, {
+      type: 'git.info',
+      payload: { branch: '', added: 0, deleted: 0, untracked: 0, ahead: 0, behind: 0 },
+    });
   }
 }
 
@@ -211,7 +214,8 @@ export async function handleGitChanges(ws: WebSocket, projectRoot: string): Prom
 
       let status: string;
       if (x === '?' && y === '?') status = '?';
-      else if (x === 'U' || y === 'U' || (x === 'A' && y === 'A') || (x === 'D' && y === 'D')) status = 'U';
+      else if (x === 'U' || y === 'U' || (x === 'A' && y === 'A') || (x === 'D' && y === 'D'))
+        status = 'U';
       else if (x === 'R' || y === 'R') status = 'R';
       else if (x === 'C' || y === 'C') status = 'C';
       else if (x === 'A' || y === 'A') status = 'A';
@@ -436,10 +440,19 @@ async function execGit(
  * rejected outright.
  */
 function isUnsafeRelativePath(p: string): boolean {
-  if (!p || typeof p !== 'string' || p.includes('\0') || nodePath.isAbsolute(p) || p.startsWith('-')) {
+  if (
+    !p ||
+    typeof p !== 'string' ||
+    p.includes('\0') ||
+    nodePath.isAbsolute(p) ||
+    p.startsWith('-')
+  ) {
     return true;
   }
-  return p.replaceAll('\\', '/').split('/').some((seg) => seg === '..');
+  return p
+    .replaceAll('\\', '/')
+    .split('/')
+    .some((seg) => seg === '..');
 }
 
 /** Collapse `//` runs and trailing separators into a clean git pathspec. */
@@ -448,7 +461,10 @@ function normalizePathspec(p: string): string {
   return collapsed || '.';
 }
 
-function validateAndFilterPaths(projectRoot: string, paths: string[]): { safe: string[]; error?: string } {
+function validateAndFilterPaths(
+  projectRoot: string,
+  paths: string[],
+): { safe: string[]; error?: string } {
   const safe: string[] = [];
   const root = nodePath.resolve(projectRoot || '.');
   for (const p of paths) {
@@ -551,7 +567,7 @@ async function translateRepoPathspecs(
       }
     }
     // Slicing the exact directory yields '' — stage the whole project.
-    translated.push(prefix ? (p.slice(prefix.length) || '.') : p);
+    translated.push(prefix ? p.slice(prefix.length) || '.' : p);
   }
   const validation = validateAndFilterPaths(projectRoot, translated);
   if (validation.error) return { safe: [], originals: [], error: validation.error };
@@ -577,7 +593,10 @@ export async function handleGitStage(
   const args = safe.length === 0 ? ['add', '-A', '--', '.'] : ['add', '--', ...safe];
   const res = await execGit(cwd, args, { literalPathspecs: true });
   if (!res.ok) {
-    send(ws, { type: 'git.action_result', payload: { action: 'stage', ok: false, error: res.stderr || res.error || 'git add failed' } });
+    send(ws, {
+      type: 'git.action_result',
+      payload: { action: 'stage', ok: false, error: res.stderr || res.error || 'git add failed' },
+    });
     return;
   }
 
@@ -600,16 +619,24 @@ export async function handleGitUnstage(
   // `.` keeps the no-path unstage contained to the execution cwd (same
   // subdirectory rationale as the stage-all pathspec above).
   const args =
-    safe.length === 0
-      ? ['restore', '--staged', '--', '.']
-      : ['restore', '--staged', '--', ...safe];
+    safe.length === 0 ? ['restore', '--staged', '--', '.'] : ['restore', '--staged', '--', ...safe];
   const res = await execGit(cwd, args, { literalPathspecs: true });
   if (!res.ok) {
-    send(ws, { type: 'git.action_result', payload: { action: 'unstage', ok: false, error: res.stderr || res.error || 'git unstage failed' } });
+    send(ws, {
+      type: 'git.action_result',
+      payload: {
+        action: 'unstage',
+        ok: false,
+        error: res.stderr || res.error || 'git unstage failed',
+      },
+    });
     return;
   }
 
-  send(ws, { type: 'git.action_result', payload: { action: 'unstage', ok: true, paths: originals } });
+  send(ws, {
+    type: 'git.action_result',
+    payload: { action: 'unstage', ok: true, paths: originals },
+  });
   await Promise.all([handleGitChanges(ws, projectRoot), handleGitInfo(ws, projectRoot)]);
 }
 
@@ -620,7 +647,10 @@ export async function handleGitDiscard(
 ): Promise<void> {
   const cwd = projectRoot || undefined;
   if (!paths || paths.length === 0) {
-    send(ws, { type: 'git.action_result', payload: { action: 'discard', ok: false, error: 'Explicit path required for discard' } });
+    send(ws, {
+      type: 'git.action_result',
+      payload: { action: 'discard', ok: false, error: 'Explicit path required for discard' },
+    });
     return;
   }
   const { safe, originals, error } = await translateRepoPathspecs(projectRoot, paths);
@@ -658,11 +688,21 @@ export async function handleGitDiscard(
   }
   const cleanRes = await execGit(cwd, ['clean', '-fd', '--', ...safe], { literalPathspecs: true });
   if (!cleanRes.ok && !benign.test(cleanRes.stderr)) {
-    send(ws, { type: 'git.action_result', payload: { action: 'discard', ok: false, error: cleanRes.stderr || cleanRes.error || 'git clean failed' } });
+    send(ws, {
+      type: 'git.action_result',
+      payload: {
+        action: 'discard',
+        ok: false,
+        error: cleanRes.stderr || cleanRes.error || 'git clean failed',
+      },
+    });
     return;
   }
 
-  send(ws, { type: 'git.action_result', payload: { action: 'discard', ok: true, paths: originals } });
+  send(ws, {
+    type: 'git.action_result',
+    payload: { action: 'discard', ok: true, paths: originals },
+  });
   await Promise.all([handleGitChanges(ws, projectRoot), handleGitInfo(ws, projectRoot)]);
 }
 
@@ -674,16 +714,29 @@ export async function handleGitCommit(
   const cwd = projectRoot || undefined;
   const trimmed = message?.trim();
   if (!trimmed) {
-    send(ws, { type: 'git.action_result', payload: { action: 'commit', ok: false, error: 'Commit message cannot be empty' } });
+    send(ws, {
+      type: 'git.action_result',
+      payload: { action: 'commit', ok: false, error: 'Commit message cannot be empty' },
+    });
     return;
   }
 
   const res = await execGit(cwd, ['commit', '-m', trimmed, '--', '.']);
   if (!res.ok) {
-    send(ws, { type: 'git.action_result', payload: { action: 'commit', ok: false, error: res.stderr || res.error || 'git commit failed' } });
+    send(ws, {
+      type: 'git.action_result',
+      payload: {
+        action: 'commit',
+        ok: false,
+        error: res.stderr || res.error || 'git commit failed',
+      },
+    });
     return;
   }
 
-  send(ws, { type: 'git.action_result', payload: { action: 'commit', ok: true, message: trimmed } });
+  send(ws, {
+    type: 'git.action_result',
+    payload: { action: 'commit', ok: true, message: trimmed },
+  });
   await Promise.all([handleGitChanges(ws, projectRoot), handleGitInfo(ws, projectRoot)]);
 }

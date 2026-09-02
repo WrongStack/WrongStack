@@ -121,9 +121,12 @@ function readConfig(raw: unknown): TypeGateConfig {
   runOnChangeSet = new Set(runOnChange);
 
   const rawPath = r['tsConfigPath'] ?? r['tsconfig_path'] ?? r['tsconfigPath'] ?? r['tsconfig'];
-  const rawSeverity = typeof (r['failSeverity'] ?? r['fail_severity'] ?? r['severity'] ?? r['mode']) === 'string'
-    ? String(r['failSeverity'] ?? r['fail_severity'] ?? r['severity'] ?? r['mode']).trim().toLowerCase()
-    : undefined;
+  const rawSeverity =
+    typeof (r['failSeverity'] ?? r['fail_severity'] ?? r['severity'] ?? r['mode']) === 'string'
+      ? String(r['failSeverity'] ?? r['fail_severity'] ?? r['severity'] ?? r['mode'])
+          .trim()
+          .toLowerCase()
+      : undefined;
   const failSeverity = rawSeverity === 'block' ? 'block' : DEFAULTS.failSeverity;
 
   return {
@@ -185,9 +188,8 @@ interface TypeCheckResult {
 async function runTypeCheck(cfg: TypeGateConfig): Promise<TypeCheckResult | null> {
   const start = Date.now();
   const rawTsConfig = cfg.tsConfigPath;
-  const validTsConfig = rawTsConfig && rawTsConfig !== 'tsconfig.json'
-    ? validateTsConfigPath(rawTsConfig)
-    : null;
+  const validTsConfig =
+    rawTsConfig && rawTsConfig !== 'tsconfig.json' ? validateTsConfigPath(rawTsConfig) : null;
   if (rawTsConfig && rawTsConfig !== 'tsconfig.json' && !validTsConfig) {
     return null;
   }
@@ -336,13 +338,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['type-gate']);
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
       if (!cfg.enabled) return;
 
       // Skip if the write/edit itself errored.
@@ -409,7 +409,9 @@ const plugin: Plugin = {
       return { additionalContext: message };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- type_gate_status tool ---
     api.tools.register({

@@ -5,11 +5,7 @@
   "description": "Evaluate choices against weighted criteria.",
   "content": "Help me choose between these options: {{options}}\n\nBuild a decision matrix. First derive the criteria that actually matter for {{goal}} and weight them. Score each option honestly, noting where evidence is thin. Surface the decisive criterion that the others hinge on. Give a recommendation, the runner-up, and the condition under which the runner-up would win instead. Call out any option I'm overrating for non-substantive reasons.",
   "category": "research",
-  "tags": [
-    "decision",
-    "comparison",
-    "tradeoffs"
-  ],
+  "tags": ["decision", "comparison", "tradeoffs"],
   "source": "builtin",
   "favorite": false,
   "checksum": "494d4947eb40cef5633ec4e7fa2454fb4f46ea6f35b3c59b0a82bc6a50a14a2a",

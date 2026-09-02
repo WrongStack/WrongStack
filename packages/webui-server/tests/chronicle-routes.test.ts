@@ -163,7 +163,9 @@ describe('canonical Chronicle handler family', () => {
     });
   });
 
-  it('surfaces query gateway creation failures as chronicle.error instead of rejecting', { timeout: 5_000 }, async () => {
+  it('surfaces query gateway creation failures as chronicle.error instead of rejecting', {
+    timeout: 5_000,
+  }, async () => {
     const { context, sent } = harness();
     const ws = {} as WebSocket;
     const failingContext: ChronicleRouteContext = {

@@ -4,8 +4,16 @@ import tokenBudgetPlugin from '../src/token-budget';
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   registerHook: ReturnType<typeof vi.fn>;
   onEvent: ReturnType<typeof vi.fn>;
   emitCustom: ReturnType<typeof vi.fn>;
@@ -32,12 +40,16 @@ function getResponseHandler(api: MockApi): (payload: unknown) => void {
 }
 
 function getStatusTool(api: MockApi): { execute: (input: unknown) => Promise<unknown> } {
-  const call = api.tools.register.mock.calls.find(([t]: unknown[]) => (t as { name: string }).name === 'token_budget_status');
+  const call = api.tools.register.mock.calls.find(
+    ([t]: unknown[]) => (t as { name: string }).name === 'token_budget_status',
+  );
   if (!call) throw new Error('token_budget_status tool not registered');
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
-function getStopHook(api: MockApi): (input: unknown) => { decision?: string; reason?: string } | void {
+function getStopHook(
+  api: MockApi,
+): (input: unknown) => { decision?: string; reason?: string } | void {
   const call = api.registerHook.mock.calls.find(([event]: unknown[]) => event === 'Stop');
   if (!call) throw new Error('Stop hook not registered');
   return (call as unknown[])[2] as ReturnType<typeof getStopHook>;
@@ -102,11 +114,14 @@ describe('warning threshold', () => {
     tokenBudgetPlugin.setup(api as never);
     const handler = getResponseHandler(api);
     handler({ usage: { input: 5000, output: 3000 }, ctx: { model: 'gpt-4o' } });
-    expect(api.emitCustom).toHaveBeenCalledWith('token-budget:warning', expect.objectContaining({
-      percent: 80,
-      total: 8000,
-      limit: 10000,
-    }));
+    expect(api.emitCustom).toHaveBeenCalledWith(
+      'token-budget:warning',
+      expect.objectContaining({
+        percent: 80,
+        total: 8000,
+        limit: 10000,
+      }),
+    );
   });
 
   it('does not fire warning again (one-shot)', () => {
@@ -115,7 +130,9 @@ describe('warning threshold', () => {
     const handler = getResponseHandler(api);
     handler({ usage: { input: 5000, output: 3000 }, ctx: { model: 'gpt-4o' } });
     handler({ usage: { input: 1000, output: 0 }, ctx: { model: 'gpt-4o' } });
-    const warns = api.emitCustom.mock.calls.filter((c: unknown[]) => c[0] === 'token-budget:warning');
+    const warns = api.emitCustom.mock.calls.filter(
+      (c: unknown[]) => c[0] === 'token-budget:warning',
+    );
     expect(warns).toHaveLength(1);
   });
 });
@@ -126,10 +143,13 @@ describe('stop threshold', () => {
     tokenBudgetPlugin.setup(api as never);
     const handler = getResponseHandler(api);
     handler({ usage: { input: 600, output: 400 }, ctx: { model: 'gpt-4o' } });
-    expect(api.emitCustom).toHaveBeenCalledWith('token-budget:limit_reached', expect.objectContaining({
-      total: 1000,
-      limit: 1000,
-    }));
+    expect(api.emitCustom).toHaveBeenCalledWith(
+      'token-budget:limit_reached',
+      expect.objectContaining({
+        total: 1000,
+        limit: 1000,
+      }),
+    );
   });
 
   it('Stop hook returns block when budget is exhausted', () => {
@@ -204,7 +224,10 @@ describe('teardown + H1 pattern', () => {
     const api = makeApi();
     tokenBudgetPlugin.setup(api as never);
     expect(() => tokenBudgetPlugin.teardown!(api as never)).not.toThrow();
-    expect(api.log.info).toHaveBeenCalledWith('token-budget: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'token-budget: teardown complete',
+      expect.any(Object),
+    );
   });
 
   it('zeros counters on teardown', async () => {
@@ -343,7 +366,9 @@ describe('model wildcard matching', () => {
   });
 
   it('matches with a trailing wildcard model prefix', async () => {
-    const api = makeApi({ extensions: { 'token-budget': { limit: 100000, model: 'anthropic-*' } } });
+    const api = makeApi({
+      extensions: { 'token-budget': { limit: 100000, model: 'anthropic-*' } },
+    });
     tokenBudgetPlugin.setup(api as never);
     const handler = getResponseHandler(api);
 

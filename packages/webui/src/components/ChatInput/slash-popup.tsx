@@ -1,9 +1,6 @@
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
-import {
-  SLASH_CATEGORY_ORDER,
-  type SlashCommandDef,
-} from './slash-commands.js';
+import { SLASH_CATEGORY_ORDER, type SlashCommandDef } from './slash-commands.js';
 
 export function SlashCommandPopup({
   suggestions,
@@ -43,9 +40,7 @@ export function SlashCommandPopup({
               onMouseEnter={() => onSelectIndex(idx)}
               className={cn(
                 'flex w-full items-center gap-3 rounded px-3 py-1.5 text-left transition-colors',
-                idx === selectedIndex
-                  ? 'bg-accent text-accent-foreground'
-                  : 'hover:bg-accent/40',
+                idx === selectedIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/40',
               )}
             >
               <span className="shrink-0 font-mono">{cmd.name}</span>

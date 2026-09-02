@@ -218,10 +218,7 @@ describe('prunesStale', () => {
           'old',
           { id: 'old', kind: 'agent', label: 'old', lastSeenAt: now - 10_000, status: 'idle' },
         ],
-        [
-          'new',
-          { id: 'new', kind: 'agent', label: 'new', lastSeenAt: now, status: 'idle' },
-        ],
+        ['new', { id: 'new', kind: 'agent', label: 'new', lastSeenAt: now, status: 'idle' }],
       ] as never),
       edges: new Map(),
       events: [],

@@ -6,11 +6,7 @@ const plainText = (tokens: InlineToken[]) => tokens.map((t) => t.text).join('');
 describe('parseInline', () => {
   it('bolds **text** and strips the markers', () => {
     const t = parseInline('a **bold** b');
-    expect(t).toEqual([
-      { text: 'a ' },
-      { text: 'bold', bold: true },
-      { text: ' b' },
-    ]);
+    expect(t).toEqual([{ text: 'a ' }, { text: 'bold', bold: true }, { text: ' b' }]);
   });
 
   it('italicizes *text* (single asterisk)', () => {

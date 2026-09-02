@@ -48,7 +48,10 @@ describe('WrongStackWebSocketClient — offline queue cap (H4)', () => {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const queue = (client as any).messageQueue as Array<{ type: string; payload: { index: number } }>;
+    const queue = (client as any).messageQueue as Array<{
+      type: string;
+      payload: { index: number };
+    }>;
     expect(queue).toHaveLength(cap);
     // The oldest 5 (indices 0..4) should be gone.
     expect(queue[0]?.payload.index).toBe(5);

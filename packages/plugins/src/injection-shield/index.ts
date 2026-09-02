@@ -90,13 +90,8 @@ function readConfig(raw: unknown): InjectionShieldConfig {
     enabled: r['enabled'] !== false,
     tools: typeof rawTools === 'string' && rawTools.length > 0 ? rawTools : DEFAULTS.tools,
     minMatches:
-      typeof rawMin === 'number' && rawMin >= 1 && rawMin <= 10
-        ? rawMin
-        : DEFAULTS.minMatches,
-    maxScanChars:
-      typeof rawMax === 'number' && rawMax >= 1024
-        ? rawMax
-        : DEFAULTS.maxScanChars,
+      typeof rawMin === 'number' && rawMin >= 1 && rawMin <= 10 ? rawMin : DEFAULTS.minMatches,
+    maxScanChars: typeof rawMax === 'number' && rawMax >= 1024 ? rawMax : DEFAULTS.maxScanChars,
   };
 }
 
@@ -159,8 +154,7 @@ const PATTERNS: InjectionPattern[] = [
  * the LTR/RTL directional marks and overrides. All of them can sit inside
  * a word without changing how a human — or a language model — reads it.
  */
-const INVISIBLE_CHARS =
-  /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g;
+const INVISIBLE_CHARS = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g;
 
 /**
  * Strip invisible characters so a payload cannot hide between letters.
@@ -205,7 +199,9 @@ export function extractToolContent(toolResult: unknown): string {
         .map((item) =>
           typeof item === 'string'
             ? item
-            : typeof item === 'object' && item && typeof (item as Record<string, unknown>)['text'] === 'string'
+            : typeof item === 'object' &&
+                item &&
+                typeof (item as Record<string, unknown>)['text'] === 'string'
               ? ((item as Record<string, unknown>)['text'] as string)
               : '',
         )

@@ -62,7 +62,9 @@ function fakeTransport(): FakeTransport {
   const sent: unknown[] = [];
   return {
     sent,
-    send: vi.fn(async (m: unknown) => { sent.push(m); }),
+    send: vi.fn(async (m: unknown) => {
+      sent.push(m);
+    }),
   };
 }
 
@@ -128,7 +130,9 @@ describe('makeACPServerAgentTurn', () => {
     const { handler, transport } = makeHandlerWithFactory(() => makeFakeAgent('hello world'));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const newResp = transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } };
+    const newResp = transport.sent[transport.sent.length - 1] as {
+      result?: { sessionId?: string };
+    };
     const sessionId = newResp.result?.sessionId!;
     transport.sent.length = 0;
 
@@ -140,7 +144,9 @@ describe('makeACPServerAgentTurn', () => {
 
     // Two sends: agent_message_chunk + prompt response
     expect(transport.sent.length).toBe(2);
-    const note = transport.sent[0] as { params?: { update?: { sessionUpdate?: string; content?: { type?: string; text?: string } } } };
+    const note = transport.sent[0] as {
+      params?: { update?: { sessionUpdate?: string; content?: { type?: string; text?: string } } };
+    };
     expect(note.params?.update?.sessionUpdate).toBe('agent_message_chunk');
     expect(note.params?.update?.content?.text).toBe('hello world');
 
@@ -159,7 +165,9 @@ describe('makeACPServerAgentTurn', () => {
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     await handler.handleMessage({
@@ -177,7 +185,11 @@ describe('makeACPServerAgentTurn', () => {
     // With an image present the adapter builds a core ContentBlock[] so a
     // vision model can actually see it (not a bracketed text placeholder).
     expect(Array.isArray(captured)).toBe(true);
-    const blocks = captured as Array<{ type: string; text?: string; source?: { media_type?: string; data?: string } }>;
+    const blocks = captured as Array<{
+      type: string;
+      text?: string;
+      source?: { media_type?: string; data?: string };
+    }>;
     expect(blocks.map((b) => b.type)).toEqual(['text', 'image', 'text']);
     expect(blocks[0]?.text).toBe('look at this:');
     expect(blocks[1]?.source).toMatchObject({ media_type: 'image/png', data: 'AAAA' });
@@ -195,7 +207,9 @@ describe('makeACPServerAgentTurn', () => {
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     // Mixed content with audio, resource, resource_link, and text blocks
@@ -232,7 +246,9 @@ describe('makeACPServerAgentTurn', () => {
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     // Image triggers multimodal path; audio+resource blocks become text placeholders
@@ -252,7 +268,11 @@ describe('makeACPServerAgentTurn', () => {
     });
     // With an image present, the adapter builds a ContentBlock[] array
     expect(Array.isArray(captured)).toBe(true);
-    const blocks = captured as Array<{ type: string; text?: string; source?: { media_type?: string } }>;
+    const blocks = captured as Array<{
+      type: string;
+      text?: string;
+      source?: { media_type?: string };
+    }>;
     expect(blocks[0]?.text).toBe('look:');
     expect(blocks[1]?.source?.media_type).toBe('image/png');
     // Audio block becomes a text placeholder
@@ -264,19 +284,29 @@ describe('makeACPServerAgentTurn', () => {
   });
 
   it('emits plan and usage updates from the agent result', async () => {
-    const planEntries = [{ content: 'Step 1', priority: 'high' as const, status: 'in_progress' as const }];
+    const planEntries = [
+      { content: 'Step 1', priority: 'high' as const, status: 'in_progress' as const },
+    ];
     const usage = { used: 100, size: 1000, cost: { amount: 0.05, currency: 'USD' } };
     const { handler, transport } = makeHandlerWithFactory(() => ({
-      run: vi.fn(async () => ({ text: 'planned', stopReason: 'end_turn', plan: planEntries, usage })),
+      run: vi.fn(async () => ({
+        text: 'planned',
+        stopReason: 'end_turn',
+        plan: planEntries,
+        usage,
+      })),
       teardown: vi.fn(async () => {}),
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     await handler.handleMessage({
-      id: 3, method: 'session/prompt',
+      id: 3,
+      method: 'session/prompt',
       params: { sessionId, prompt: [{ type: 'text', text: 'plan it' }] },
     });
 
@@ -289,7 +319,9 @@ describe('makeACPServerAgentTurn', () => {
     const usageUpdate = updates.find((u) => u.sessionUpdate === 'usage_update');
     expect(usageUpdate).toBeDefined();
     // The result text from the agent
-    const result = transport.sent.find((m) => (m as { result?: unknown }).result) as { result?: { stopReason?: string } };
+    const result = transport.sent.find((m) => (m as { result?: unknown }).result) as {
+      result?: { stopReason?: string };
+    };
     expect(result?.result?.stopReason).toBe('end_turn');
   });
 
@@ -312,20 +344,32 @@ describe('makeACPServerAgentTurn', () => {
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     await handler.handleMessage({
-      id: 3, method: 'session/prompt',
+      id: 3,
+      method: 'session/prompt',
       params: { sessionId, prompt: [{ type: 'text', text: 'go' }] },
     });
 
     const updates = transport.sent
-      .map((m) => (m as { params?: { update?: { sessionUpdate?: string; entries?: unknown[]; used?: number } } }).params?.update)
+      .map(
+        (m) =>
+          (
+            m as {
+              params?: { update?: { sessionUpdate?: string; entries?: unknown[]; used?: number } };
+            }
+          ).params?.update,
+      )
       .filter(Boolean);
     const planUpd = updates.find((u) => (u as { sessionUpdate?: string }).sessionUpdate === 'plan');
     expect(planUpd).toBeDefined();
-    const usageUpd = updates.find((u) => (u as { sessionUpdate?: string }).sessionUpdate === 'usage_update');
+    const usageUpd = updates.find(
+      (u) => (u as { sessionUpdate?: string }).sessionUpdate === 'usage_update',
+    );
     expect(usageUpd).toBeDefined();
     const u = usageUpd as { used?: number; size?: number };
     expect(u.used).toBe(50);
@@ -334,7 +378,11 @@ describe('makeACPServerAgentTurn', () => {
 
   it('extractPlan returns empty array for non-array plan field', async () => {
     const fakeAgent = {
-      run: vi.fn(async () => ({ text: 'done', stopReason: 'end_turn' as const, plan: 'not-an-array' })),
+      run: vi.fn(async () => ({
+        text: 'done',
+        stopReason: 'end_turn' as const,
+        plan: 'not-an-array',
+      })),
       teardown: vi.fn(async () => {}),
     };
     const transport = fakeTransport();
@@ -346,14 +394,19 @@ describe('makeACPServerAgentTurn', () => {
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     // Should not throw despite plan being non-array
-    await expect(handler.handleMessage({
-      id: 3, method: 'session/prompt',
-      params: { sessionId, prompt: [{ type: 'text', text: 'go' }] },
-    })).resolves.toBeDefined();
+    await expect(
+      handler.handleMessage({
+        id: 3,
+        method: 'session/prompt',
+        params: { sessionId, prompt: [{ type: 'text', text: 'go' }] },
+      }),
+    ).resolves.toBeDefined();
   });
 
   it('handles agent result with usage but no cost', async () => {
@@ -374,13 +427,18 @@ describe('makeACPServerAgentTurn', () => {
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
-    await expect(handler.handleMessage({
-      id: 3, method: 'session/prompt',
-      params: { sessionId, prompt: [{ type: 'text', text: 'go' }] },
-    })).resolves.toBeDefined();
+    await expect(
+      handler.handleMessage({
+        id: 3,
+        method: 'session/prompt',
+        params: { sessionId, prompt: [{ type: 'text', text: 'go' }] },
+      }),
+    ).resolves.toBeDefined();
   });
 
   it('keeps an all-text prompt as a plain string input', async () => {
@@ -394,7 +452,9 @@ describe('makeACPServerAgentTurn', () => {
     }));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     await handler.handleMessage({
@@ -409,7 +469,9 @@ describe('makeACPServerAgentTurn', () => {
     const { handler, transport } = makeHandlerWithFactory(() => makeFakeAgent('hello'));
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     const ac = new AbortController();
@@ -455,16 +517,26 @@ describe('makeACPServerAgentTurn', () => {
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     await handler.handleMessage({
-      id: 3, method: 'session/prompt',
+      id: 3,
+      method: 'session/prompt',
       params: { sessionId, prompt: [{ type: 'text', text: 'go' }] },
     });
 
     const updates = transport.sent
-      .map((m) => (m as { params?: { update?: { sessionUpdate?: string; status?: string; kind?: string } } }).params?.update)
+      .map(
+        (m) =>
+          (
+            m as {
+              params?: { update?: { sessionUpdate?: string; status?: string; kind?: string } };
+            }
+          ).params?.update,
+      )
       .filter((u): u is { sessionUpdate: string; status?: string; kind?: string } => !!u);
     const toolCall = updates.find((u) => u.sessionUpdate === 'tool_call');
     const toolUpdate = updates.find((u) => u.sessionUpdate === 'tool_call_update');
@@ -486,18 +558,31 @@ describe('makeACPServerAgentTurn', () => {
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
 
     await handler.handleMessage({
-      id: 3, method: 'session/prompt',
+      id: 3,
+      method: 'session/prompt',
       params: { sessionId, prompt: [{ type: 'text', text: 'the question' }] },
     });
     transport.sent.length = 0;
 
-    await handler.handleMessage({ id: 4, method: 'session/load', params: { sessionId, cwd: ACP_TEST_CWD } });
+    await handler.handleMessage({
+      id: 4,
+      method: 'session/load',
+      params: { sessionId, cwd: ACP_TEST_CWD },
+    });
 
     const replayed = transport.sent
-      .map((m) => (m as { method?: string; params?: { update?: { sessionUpdate?: string; content?: { text?: string } } } }))
+      .map(
+        (m) =>
+          m as {
+            method?: string;
+            params?: { update?: { sessionUpdate?: string; content?: { text?: string } } };
+          },
+      )
       .filter((m) => m.method === 'session/update')
       .map((m) => m.params?.update)
       .filter((u): u is { sessionUpdate: string; content?: { text?: string } } => !!u);
@@ -507,12 +592,14 @@ describe('makeACPServerAgentTurn', () => {
     expect(agent?.content?.text).toBe('the answer');
   });
 
-  it('seeds a restored session\'s agent context with prior conversation', async () => {
+  it("seeds a restored session's agent context with prior conversation", async () => {
     const appended: Array<{ role: string; content: unknown }> = [];
     const agent = {
       run: vi.fn(async () => ({ text: 'continued', stopReason: 'end_turn' as const })),
       teardown: vi.fn(async () => {}),
-      ctx: { state: { appendMessage: (m: { role: string; content: unknown }) => appended.push(m) } },
+      ctx: {
+        state: { appendMessage: (m: { role: string; content: unknown }) => appended.push(m) },
+      },
     };
     const turn = makeACPServerAgentTurn({ agentFor: async () => agent as never as Agent });
 
@@ -524,7 +611,11 @@ describe('makeACPServerAgentTurn', () => {
     expect(turn.replay('s1')).toHaveLength(2); // seed also feeds replay
 
     await turn(
-      { sessionId: 's1', prompt: [{ type: 'text', text: 'follow up' }], signal: new AbortController().signal },
+      {
+        sessionId: 's1',
+        prompt: [{ type: 'text', text: 'follow up' }],
+        signal: new AbortController().signal,
+      },
       () => {},
     );
 
@@ -537,14 +628,21 @@ describe('makeACPServerAgentTurn', () => {
     // Seeding is one-shot: a second prompt on the same session doesn't re-seed.
     appended.length = 0;
     await turn(
-      { sessionId: 's1', prompt: [{ type: 'text', text: 'again' }], signal: new AbortController().signal },
+      {
+        sessionId: 's1',
+        prompt: [{ type: 'text', text: 'again' }],
+        signal: new AbortController().signal,
+      },
       () => {},
     );
     expect(appended).toEqual([]);
   });
 
   it('persists history and restores it on session/load after a "restart"', async () => {
-    const dir = path.join(os.tmpdir(), `wstack-acp-store-${process.pid}-${Math.round(performance.now())}`);
+    const dir = path.join(
+      os.tmpdir(),
+      `wstack-acp-store-${process.pid}-${Math.round(performance.now())}`,
+    );
     const store = new ACPSessionStore({ dir });
     try {
       // First server instance: create a session and run a turn.
@@ -561,9 +659,11 @@ describe('makeACPServerAgentTurn', () => {
       });
       await h1.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
       await h1.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-      const sessionId = (t1.sent[t1.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+      const sessionId = (t1.sent[t1.sent.length - 1] as { result?: { sessionId?: string } }).result
+        ?.sessionId!;
       await h1.handleMessage({
-        id: 3, method: 'session/prompt',
+        id: 3,
+        method: 'session/prompt',
         params: { sessionId, prompt: [{ type: 'text', text: 'persisted question' }] },
       });
 
@@ -584,17 +684,31 @@ describe('makeACPServerAgentTurn', () => {
       await h2.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
       // Before load, the fresh turn engine knows nothing about the session.
       expect(turn2.replay(sessionId)).toHaveLength(0);
-      await h2.handleMessage({ id: 2, method: 'session/load', params: { sessionId, cwd: ACP_TEST_CWD } });
+      await h2.handleMessage({
+        id: 2,
+        method: 'session/load',
+        params: { sessionId, cwd: ACP_TEST_CWD },
+      });
       // After load, the handler seeded the turn engine from the durable store.
       expect(turn2.replay(sessionId)).toHaveLength(2);
 
       const replayed = t2.sent
-        .map((m) => (m as { method?: string; params?: { update?: { sessionUpdate?: string; content?: { text?: string } } } }))
+        .map(
+          (m) =>
+            m as {
+              method?: string;
+              params?: { update?: { sessionUpdate?: string; content?: { text?: string } } };
+            },
+        )
         .filter((m) => m.method === 'session/update')
         .map((m) => m.params?.update)
         .filter((u): u is { sessionUpdate: string; content?: { text?: string } } => !!u);
-      expect(replayed.find((u) => u.sessionUpdate === 'user_message_chunk')?.content?.text).toBe('persisted question');
-      expect(replayed.find((u) => u.sessionUpdate === 'agent_message_chunk')?.content?.text).toBe('persisted answer');
+      expect(replayed.find((u) => u.sessionUpdate === 'user_message_chunk')?.content?.text).toBe(
+        'persisted question',
+      );
+      expect(replayed.find((u) => u.sessionUpdate === 'agent_message_chunk')?.content?.text).toBe(
+        'persisted answer',
+      );
       // The load response succeeded (no error).
       const loadResp = t2.sent[t2.sent.length - 1] as { result?: unknown; error?: unknown };
       expect(loadResp.error).toBeUndefined();
@@ -623,18 +737,22 @@ describe('makeACPServerAgentTurn', () => {
     });
     await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
-    const sessionId = (transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
     transport.sent.length = 0;
 
     // First turn
     await handler.handleMessage({
-      id: 3, method: 'session/prompt',
+      id: 3,
+      method: 'session/prompt',
       params: { sessionId, prompt: [{ type: 'text', text: 'a' }] },
     });
     transport.sent.length = 0;
     // Second turn on the same session
     await handler.handleMessage({
-      id: 4, method: 'session/prompt',
+      id: 4,
+      method: 'session/prompt',
       params: { sessionId, prompt: [{ type: 'text', text: 'b' }] },
     });
 
@@ -706,23 +824,26 @@ describe('makeACPServerAgentTurn', () => {
     const controller = new AbortController();
     controller.abort();
     const turn = makeACPServerAgentTurn({
-      agentFor: async () => ({
-        run: vi.fn(async () => ({})),
-        teardown: vi.fn(),
-      }) as never as Agent,
+      agentFor: async () =>
+        ({
+          run: vi.fn(async () => ({})),
+          teardown: vi.fn(),
+        }) as never as Agent,
     });
-    await expect(turn(
-      { sessionId: 'already-aborted', prompt: [], signal: controller.signal },
-      () => {},
-    )).resolves.toMatchObject({ stopReason: 'cancelled' });
+    await expect(
+      turn({ sessionId: 'already-aborted', prompt: [], signal: controller.signal }, () => {}),
+    ).resolves.toMatchObject({ stopReason: 'cancelled' });
   });
 
   it('covers empty seeds and clears an active timer on dispose', async () => {
     let finish!: (value: unknown) => void;
     const agent = {
-      run: vi.fn(() => new Promise((resolve) => {
-        finish = resolve;
-      })),
+      run: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      ),
       teardown: vi.fn(),
     };
     const turn = makeACPServerAgentTurn({
@@ -760,14 +881,15 @@ describe('makeACPServerAgentTurn', () => {
     const turn = makeACPServerAgentTurn({
       agentFor: async () => agent as never as Agent,
     });
-    await turn(
-      { sessionId: 'tools', prompt: [], signal: new AbortController().signal },
-      (update) => emitted.push(update),
+    await turn({ sessionId: 'tools', prompt: [], signal: new AbortController().signal }, (update) =>
+      emitted.push(update),
     );
-    expect(emitted).toEqual(expect.arrayContaining([
-      expect.objectContaining({ status: 'in_progress', kind: 'other' }),
-      expect.objectContaining({ status: 'failed', toolCallId: 'mystery' }),
-    ]));
+    expect(emitted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ status: 'in_progress', kind: 'other' }),
+        expect.objectContaining({ status: 'failed', toolCallId: 'mystery' }),
+      ]),
+    );
   });
 });
 
@@ -798,16 +920,13 @@ describe('serverAgentTurn deterministic helpers', () => {
   it('seeds only valid text messages into an available agent state', () => {
     h.seedAgentContext({} as Agent, []);
     const appendMessage = vi.fn();
-    h.seedAgentContext(
-      { ctx: { state: { appendMessage } } } as never as Agent,
-      [
-        { sessionUpdate: 'user_message_chunk', content: { text: 'question' } },
-        { sessionUpdate: 'agent_message_chunk', content: { text: 'answer' } },
-        { sessionUpdate: 'agent_message_chunk', content: { text: '' } },
-        { sessionUpdate: 'agent_message_chunk', content: { text: 42 } },
-        { sessionUpdate: 'agent_message_chunk', content: undefined },
-      ],
-    );
+    h.seedAgentContext({ ctx: { state: { appendMessage } } } as never as Agent, [
+      { sessionUpdate: 'user_message_chunk', content: { text: 'question' } },
+      { sessionUpdate: 'agent_message_chunk', content: { text: 'answer' } },
+      { sessionUpdate: 'agent_message_chunk', content: { text: '' } },
+      { sessionUpdate: 'agent_message_chunk', content: { text: 42 } },
+      { sessionUpdate: 'agent_message_chunk', content: undefined },
+    ]);
     expect(appendMessage).toHaveBeenNthCalledWith(1, {
       role: 'user',
       content: 'question',
@@ -860,9 +979,7 @@ describe('serverAgentTurn deterministic helpers', () => {
     expect(h.toolTitle('tool', { filePath: 'c' })).toBe('tool: c');
     expect(h.toolTitle('tool', { pattern: 'd' })).toBe('tool: d');
     expect(h.toolTitle('tool', { command: 'e' })).toBe('tool: e');
-    expect(h.toolTitle('tool', { path: 'x'.repeat(81) })).toBe(
-      `tool: ${'x'.repeat(77)}…`,
-    );
+    expect(h.toolTitle('tool', { path: 'x'.repeat(81) })).toBe(`tool: ${'x'.repeat(77)}…`);
     expect(h.isRecord({})).toBe(true);
     expect(h.isRecord(null)).toBe(false);
     expect(h.isRecord([])).toBe(false);
@@ -870,14 +987,16 @@ describe('serverAgentTurn deterministic helpers', () => {
   });
 
   it('converts all prompt block variants', () => {
-    expect(h.promptToText([
-      { type: 'text', text: 'text' },
-      { type: 'image', mimeType: 'image/png', data: 'x' },
-      { type: 'audio', mimeType: 'audio/wav', data: 'x' },
-      { type: 'resource', resource: { uri: 'file:///a' } as never },
-      { type: 'resource_link', uri: 'https://a', name: 'a' },
-      { type: 'unknown' } as never,
-    ])).toContain('[image: image/png]');
+    expect(
+      h.promptToText([
+        { type: 'text', text: 'text' },
+        { type: 'image', mimeType: 'image/png', data: 'x' },
+        { type: 'audio', mimeType: 'audio/wav', data: 'x' },
+        { type: 'resource', resource: { uri: 'file:///a' } as never },
+        { type: 'resource_link', uri: 'https://a', name: 'a' },
+        { type: 'unknown' } as never,
+      ]),
+    ).toContain('[image: image/png]');
 
     const multimodal = h.promptToAgentInput([
       { type: 'image', mimeType: 'image/png', data: 'x' },
@@ -889,26 +1008,30 @@ describe('serverAgentTurn deterministic helpers', () => {
       { type: 'resource_link', uri: 'https://a', name: 'a' },
       { type: 'unknown' } as never,
     ]);
-    expect(multimodal).toEqual(expect.arrayContaining([
-      { type: 'text', text: 'embedded' },
-      { type: 'text', text: '[embedded resource: file:///b]' },
-      { type: 'text', text: '[resource link: https://a]' },
-    ]));
+    expect(multimodal).toEqual(
+      expect.arrayContaining([
+        { type: 'text', text: 'embedded' },
+        { type: 'text', text: '[embedded resource: file:///b]' },
+        { type: 'text', text: '[resource link: https://a]' },
+      ]),
+    );
   });
 
   it('extracts legacy text and defensive empty shapes', () => {
     expect(h.extractText(null)).toBe('');
     expect(h.extractText('text')).toBe('');
     expect(h.extractText({ text: 'direct' })).toBe('direct');
-    expect(h.extractText({
-      content: [
-        { type: 'text', text: 'a' },
-        { type: 'image', text: 'ignored' },
-        { type: 'text', text: 3 },
-        null,
-        'primitive',
-      ],
-    })).toBe('a');
+    expect(
+      h.extractText({
+        content: [
+          { type: 'text', text: 'a' },
+          { type: 'image', text: 'ignored' },
+          { type: 'text', text: 3 },
+          null,
+          'primitive',
+        ],
+      }),
+    ).toBe('a');
     expect(h.extractText({})).toBe('');
   });
 
@@ -929,9 +1052,11 @@ describe('serverAgentTurn deterministic helpers', () => {
     expect(h.extractPlan(null)).toEqual([]);
     expect(h.extractPlan('value')).toEqual([]);
     expect(h.extractPlan({ plan: 'no' })).toEqual([]);
-    expect(h.extractPlan({
-      plan: [{ content: 'yes' }, { content: 2 }, null, 'bad'],
-    })).toEqual([{ content: 'yes' }]);
+    expect(
+      h.extractPlan({
+        plan: [{ content: 'yes' }, { content: 2 }, null, 'bad'],
+      }),
+    ).toEqual([{ content: 'yes' }]);
 
     expect(h.extractUsage(null)).toBeNull();
     expect(h.extractUsage('value')).toBeNull();
@@ -956,15 +1081,19 @@ describe('serverAgentTurn deterministic helpers', () => {
 
   it('settles teardown for every registered agent', async () => {
     const first = { teardown: vi.fn(async () => {}) };
-    const second = { teardown: vi.fn(async () => {
-      throw new Error('ignored');
-    }) };
-    await expect(disposeACPServerAgentTurn({
-      agents: new Map([
-        ['first', first as never as Agent],
-        ['second', second as never as Agent],
-      ]),
-    })).resolves.toBeUndefined();
+    const second = {
+      teardown: vi.fn(async () => {
+        throw new Error('ignored');
+      }),
+    };
+    await expect(
+      disposeACPServerAgentTurn({
+        agents: new Map([
+          ['first', first as never as Agent],
+          ['second', second as never as Agent],
+        ]),
+      }),
+    ).resolves.toBeUndefined();
     expect(first.teardown).toHaveBeenCalledOnce();
     expect(second.teardown).toHaveBeenCalledOnce();
   });

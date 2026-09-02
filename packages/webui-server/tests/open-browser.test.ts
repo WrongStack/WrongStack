@@ -54,11 +54,11 @@ describe('open-browser', () => {
 
       openBrowser('http://localhost:3456', 'linux');
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'xdg-open',
-        ['http://localhost:3456'],
-        { stdio: 'ignore', detached: true, windowsHide: true }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('xdg-open', ['http://localhost:3456'], {
+        stdio: 'ignore',
+        detached: true,
+        windowsHide: true,
+      });
     });
 
     it('handles spawn errors gracefully', () => {
@@ -80,11 +80,11 @@ describe('open-browser', () => {
 
       openBrowser('http://localhost:3456', 'win32');
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'cmd',
-        ['/c', 'start', '', 'http://localhost:3456'],
-        { stdio: 'ignore', detached: true, windowsHide: true }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('cmd', ['/c', 'start', '', 'http://localhost:3456'], {
+        stdio: 'ignore',
+        detached: true,
+        windowsHide: true,
+      });
       expect(mockOn).toHaveBeenCalledWith('error', expect.any(Function));
       expect(mockUnref).toHaveBeenCalled();
     });
@@ -100,11 +100,11 @@ describe('open-browser', () => {
 
       openBrowser('http://localhost:3456', 'darwin');
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'open',
-        ['http://localhost:3456'],
-        { stdio: 'ignore', detached: true, windowsHide: true }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('open', ['http://localhost:3456'], {
+        stdio: 'ignore',
+        detached: true,
+        windowsHide: true,
+      });
     });
 
     it('handles error event on child (async spawn failure)', () => {

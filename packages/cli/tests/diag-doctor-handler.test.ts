@@ -40,10 +40,12 @@ vi.mock('@wrongstack/core/wiring/proxy-rewrite', () => ({
  * instance is created per call and its `poke()` reads the latest value.
  */
 const mockStartProxyProbe = vi.hoisted(
-  (): Mock<(opts?: Record<string, unknown>) => {
-    stop(): void;
-    poke: () => Promise<boolean>;
-  }> =>
+  (): Mock<
+    (opts?: Record<string, unknown>) => {
+      stop(): void;
+      poke: () => Promise<boolean>;
+    }
+  > =>
     vi.fn(() => ({
       stop: vi.fn(),
       poke: vi.fn(async () => mockProbeResponse.value),

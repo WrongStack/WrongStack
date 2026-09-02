@@ -268,8 +268,7 @@ describe('SageDomainTermExtractor — persistence (disabled)', () => {
   // no-op that returns a `skipped` outcome for every term so the
   // existing call sites and report shape are preserved.
 
-  const PERSIST_DISABLED_REASON =
-    'memory persistence disabled (domain-term tagging removed)';
+  const PERSIST_DISABLED_REASON = 'memory persistence disabled (domain-term tagging removed)';
   const ex = new SageDomainTermExtractor();
 
   it('returns a skipped report for every term and never touches SAGE', async () => {

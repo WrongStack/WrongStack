@@ -91,10 +91,7 @@ export class SecurityScannerOrchestrator {
     });
   }
 
-  async run(
-    ctx: SecurityScannerContext,
-    options: SecurityScannerOptions,
-  ): Promise<FullScanResult> {
+  async run(ctx: SecurityScannerContext, options: SecurityScannerOptions): Promise<FullScanResult> {
     const {
       projectRoot,
       reportOptions,
@@ -180,9 +177,7 @@ export class SecurityScannerOrchestrator {
         reportOptions,
       );
 
-      const gitignoreResult = skipGitignore
-        ? undefined
-        : await this.gitignoreUpdater.update();
+      const gitignoreResult = skipGitignore ? undefined : await this.gitignoreUpdater.update();
 
       return {
         detectionResult,

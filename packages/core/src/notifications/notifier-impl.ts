@@ -14,11 +14,7 @@
  */
 
 import type { NotificationChannel, NotificationMessage, NotificationResult } from './types.js';
-import type {
-  NotificationChannelStatus,
-  Notifier,
-  NotifierCounters,
-} from './notifier.js';
+import type { NotificationChannelStatus, Notifier, NotifierCounters } from './notifier.js';
 
 // ---------------------------------------------------------------------------
 // Internal counter state
@@ -50,10 +46,7 @@ export class NotifierImpl implements Notifier {
   // Lifecycle
   // -----------------------------------------------------------------------
 
-  notify(
-    channels: string | string[],
-    message: NotificationMessage,
-  ): Promise<NotificationResult[]> {
+  notify(channels: string | string[], message: NotificationMessage): Promise<NotificationResult[]> {
     const names = typeof channels === 'string' ? [channels] : channels;
     if (names.length === 0) return Promise.resolve([]);
 
@@ -82,8 +75,7 @@ export class NotifierImpl implements Notifier {
             // Catch the rejection to prevent a single crashing channel from
             // tearing down every parallel delivery in the same notify() call.
             counters.failed += 1;
-            const error =
-              err instanceof Error ? err.message : 'unknown rejection';
+            const error = err instanceof Error ? err.message : 'unknown rejection';
             return {
               ok: false,
               channel: name,

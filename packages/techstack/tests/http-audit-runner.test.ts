@@ -12,7 +12,9 @@ describe('shared HTTP retry policy', () => {
 
 describe('createAuditRunner', () => {
   it('uses an injected command strategy for dispatch and availability', async () => {
-    const command = vi.fn().mockResolvedValue({ status: 0, stdout: '{"vulnerabilities":{}}', stderr: '' });
+    const command = vi
+      .fn()
+      .mockResolvedValue({ status: 0, stdout: '{"vulnerabilities":{}}', stderr: '' });
     const runner = createAuditRunner(command);
     await expect(runner.run('npm', '/workspace')).resolves.toMatchObject({ advisories: [] });
     await expect(runner.isAvailable('npm', '/workspace')).resolves.toBe(true);

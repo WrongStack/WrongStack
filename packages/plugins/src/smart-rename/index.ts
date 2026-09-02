@@ -60,7 +60,8 @@ function normalizeExtensions(exts: string[]): string[] {
 }
 
 function readConfig(raw: unknown): SmartRenameConfig {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULTS, extensions: normalizeExtensions(DEFAULTS.extensions) };
+  if (!raw || typeof raw !== 'object')
+    return { ...DEFAULTS, extensions: normalizeExtensions(DEFAULTS.extensions) };
   const r = raw as Record<string, unknown>;
   const rawExts = r['extensions'] ?? r['file_extensions'] ?? r['fileExtensions'];
   const exts = Array.isArray(rawExts)
@@ -131,10 +132,7 @@ function renameInContent(
   oldName: string,
   newName: string,
 ): { preview: string; replacements: number } {
-  const re = new RegExp(
-    `(?<![A-Za-z0-9_$])${escapeRegex(oldName)}(?![A-Za-z0-9_$])`,
-    'g',
-  );
+  const re = new RegExp(`(?<![A-Za-z0-9_$])${escapeRegex(oldName)}(?![A-Za-z0-9_$])`, 'g');
   let replacements = 0;
   const preview = content.replace(re, () => {
     replacements++;
@@ -185,7 +183,11 @@ const plugin: Plugin = {
           path: { type: 'string', description: 'Source file path (relative to project root).' },
           oldName: { type: 'string', description: 'Identifier to replace.' },
           newName: { type: 'string', description: 'New identifier.' },
-          apply: { type: 'boolean', default: false, description: 'When true, write the preview back to disk.' },
+          apply: {
+            type: 'boolean',
+            default: false,
+            description: 'When true, write the preview back to disk.',
+          },
         },
         required: ['path', 'oldName', 'newName'],
       },

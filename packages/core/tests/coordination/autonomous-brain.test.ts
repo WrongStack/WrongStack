@@ -2,7 +2,12 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { AutonomousBrain } from '../../src/coordination/autonomous-brain.js';
 import type { KnowledgeGraph } from '../../src/coordination/knowledge-graph.js';
 import type { FleetBus } from '../../src/coordination/fleet-bus.js';
-import type { DecisionNode, GoalNode, FactNode, ChangeNode } from '../../src/coordination/knowledge-graph.js';
+import type {
+  DecisionNode,
+  GoalNode,
+  FactNode,
+  ChangeNode,
+} from '../../src/coordination/knowledge-graph.js';
 
 // ── Mock helpers ──────────────────────────────────────────────────────────────
 
@@ -106,7 +111,9 @@ describe('AutonomousBrain', () => {
 
     it('returns deny when LLM fails and risk is not low', async () => {
       const llm = {
-        decide: vi.fn(async () => { throw new Error('LLM unavailable'); }),
+        decide: vi.fn(async () => {
+          throw new Error('LLM unavailable');
+        }),
       };
       const brain = new AutonomousBrain({ llmProvider: llm, graph, fleet });
 
@@ -114,9 +121,7 @@ describe('AutonomousBrain', () => {
         id: 'req-1',
         source: 'system',
         question: 'Should we spawn?',
-        options: [
-          { id: 'yes', label: 'Yes', risk: 'medium', recommended: true },
-        ],
+        options: [{ id: 'yes', label: 'Yes', risk: 'medium', recommended: true }],
         context: '',
         risk: 'medium',
         fallback: 'deny',
@@ -127,7 +132,9 @@ describe('AutonomousBrain', () => {
 
     it('falls back to recommended option when LLM fails and risk is low', async () => {
       const llm = {
-        decide: vi.fn(async () => { throw new Error('LLM unavailable'); }),
+        decide: vi.fn(async () => {
+          throw new Error('LLM unavailable');
+        }),
       };
       const brain = new AutonomousBrain({ llmProvider: llm, graph, fleet });
 
@@ -135,9 +142,7 @@ describe('AutonomousBrain', () => {
         id: 'req-1',
         source: 'system',
         question: 'Should we spawn?',
-        options: [
-          { id: 'yes', label: 'Yes', risk: 'low', recommended: true },
-        ],
+        options: [{ id: 'yes', label: 'Yes', risk: 'low', recommended: true }],
         context: '',
         risk: 'low',
         fallback: 'deny',
@@ -208,9 +213,7 @@ describe('AutonomousBrain', () => {
         decisionType: 'approve_change',
         question: 'Should we approve this change?',
         context: {},
-        options: [
-          { id: 'approve', label: 'Approve', risk: 'high', recommended: true },
-        ],
+        options: [{ id: 'approve', label: 'Approve', risk: 'high', recommended: true }],
         risk: 'high',
         requiresConsensus: true,
       });
@@ -222,14 +225,17 @@ describe('AutonomousBrain', () => {
 
   describe('decideSpawn', () => {
     it('generates spawn decision', async () => {
-      const llm = createMockLlmProvider({ optionId: 'spawn:bug-hunter', rationale: 'Bug fix needed' });
+      const llm = createMockLlmProvider({
+        optionId: 'spawn:bug-hunter',
+        rationale: 'Bug fix needed',
+      });
       const brain = new AutonomousBrain({ llmProvider: llm, graph, fleet });
 
       const result = await brain.decideSpawn(
         'system',
         'Fix the null pointer exception in auth/session.ts',
         [],
-        { running: 1, idle: 2, total: 3, costSoFar: 0.10 },
+        { running: 1, idle: 2, total: 3, costSoFar: 0.1 },
       );
 
       expect(result.type).toBe('answer');
@@ -270,29 +276,22 @@ describe('AutonomousBrain', () => {
       const llm = createMockLlmProvider({ optionId: 'retry', rationale: 'Worth another try' });
       const brain = new AutonomousBrain({ llmProvider: llm, graph, fleet });
 
-      const result = await brain.decideEscalation(
-        'system',
-        'task-1',
-        'Timeout error',
-        2,
-      );
+      const result = await brain.decideEscalation('system', 'task-1', 'Timeout error', 2);
 
       expect(result.type).toBe('answer');
     });
 
     it('recommends mark_failed after max retries', async () => {
-      const llm = createMockLlmProvider({ optionId: 'mark_failed', rationale: 'Max retries reached' });
+      const llm = createMockLlmProvider({
+        optionId: 'mark_failed',
+        rationale: 'Max retries reached',
+      });
       const brain = new AutonomousBrain({ llmProvider: llm, graph, fleet, maxRetries: 3 });
 
       // Simulate that we've already retried 3 times
       brain.recordOutcome('decision-id', 'failure');
 
-      const result = await brain.decideEscalation(
-        'system',
-        'task-1',
-        'Timeout error',
-        3,
-      );
+      const result = await brain.decideEscalation('system', 'task-1', 'Timeout error', 3);
 
       expect(result.type).toBe('answer');
     });

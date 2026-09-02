@@ -5,11 +5,7 @@
   "description": "Force an explicit plan before an agent touches anything.",
   "content": "Before you make any change for this task: {{task}}\n\nFirst produce a plan: the concrete steps in order, the files/systems each will touch, the risks, and how you'll verify success at the end. Do NOT make changes yet. Identify anything you're unsure about and ask me. Wait for my approval of the plan before executing.",
   "category": "agentic-workflows",
-  "tags": [
-    "planning",
-    "agent",
-    "safety"
-  ],
+  "tags": ["planning", "agent", "safety"],
   "source": "builtin",
   "favorite": false,
   "checksum": "705036b1ea65e7bd1046e3a4c1d1753140f13ff716b98d3b7372e7782cfa0c1c",

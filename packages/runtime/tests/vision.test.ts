@@ -93,14 +93,11 @@ describe('vision routing', () => {
 
   it('reports malformed native image URLs as unresolvable', async () => {
     await expect(
-      routeImagesForModel(
-        [{ type: 'image', source: { type: 'url', url: 'not a url' } } as never],
-        {
-          supportsVision: true,
-          ctx,
-          signal: new AbortController().signal,
-        },
-      ),
+      routeImagesForModel([{ type: 'image', source: { type: 'url', url: 'not a url' } } as never], {
+        supportsVision: true,
+        ctx,
+        signal: new AbortController().signal,
+      }),
     ).rejects.toThrow(/unresolvable host/);
   });
 
@@ -186,7 +183,14 @@ describe('vision routing', () => {
         supportsVision: false,
         ctx,
         signal: new AbortController().signal,
-        adapters: [{ name: 'blank', async describe() { return '   '; } }],
+        adapters: [
+          {
+            name: 'blank',
+            async describe() {
+              return '   ';
+            },
+          },
+        ],
       }),
     ).rejects.toThrow('No image-understanding adapter could process an image.');
 
@@ -195,7 +199,14 @@ describe('vision routing', () => {
         supportsVision: false,
         ctx,
         signal: new AbortController().signal,
-        adapters: [{ name: 'broken', async describe() { throw new Error('details'); } }],
+        adapters: [
+          {
+            name: 'broken',
+            async describe() {
+              throw new Error('details');
+            },
+          },
+        ],
       }),
     ).rejects.toThrow('Last error: details');
 
@@ -204,7 +215,14 @@ describe('vision routing', () => {
         supportsVision: false,
         ctx,
         signal: new AbortController().signal,
-        adapters: [{ name: 'broken', async describe() { throw 'non-error'; } }],
+        adapters: [
+          {
+            name: 'broken',
+            async describe() {
+              throw 'non-error';
+            },
+          },
+        ],
       }),
     ).rejects.toThrow('No image-understanding adapter could process an image.');
   });
@@ -214,7 +232,14 @@ describe('vision routing', () => {
       supportsVision: false,
       ctx,
       signal: new AbortController().signal,
-      adapters: [{ name: undefined, async describe() { return 'worked'; } } as never],
+      adapters: [
+        {
+          name: undefined,
+          async describe() {
+            return 'worked';
+          },
+        } as never,
+      ],
     });
     expect((result.blocks[0] as { text: string }).text).toContain('via vision adapter');
   });
@@ -285,7 +310,9 @@ describe('vision routing', () => {
       inputSchema: { type: 'object', properties: { image: { type: 'object' } } },
       permission: 'auto',
       mutating: false,
-      async execute() { return 'unused'; },
+      async execute() {
+        return 'unused';
+      },
     });
     const adapters = createToolVisionAdapters(registry);
     registry.unregister('vision_read');
@@ -578,7 +605,9 @@ describe('vision routing', () => {
         inputSchema: { type: 'object', properties: { image: { type: 'object' } } },
         permission: 'auto',
         mutating: false,
-        async execute() { return result as never; },
+        async execute() {
+          return result as never;
+        },
       });
       return createToolVisionAdapters(registry)[0]!;
     };
@@ -710,7 +739,9 @@ describe('vision routing', () => {
       inputSchema: { type: 'object', properties: { image: { type: 'object' } } },
       permission: 'auto' as const,
       mutating: false,
-      async execute() { return 'unused'; },
+      async execute() {
+        return 'unused';
+      },
     };
     registry.register({ ...base, name: 'manual_vision', permission: 'confirm' });
     registry.register({ ...base, name: 'mutating_vision', mutating: true });

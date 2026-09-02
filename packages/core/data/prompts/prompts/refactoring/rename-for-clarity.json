@@ -5,10 +5,7 @@
   "description": "Propose better names for confusing identifiers.",
   "content": "These names are unclear:\n\n{{code}}\n\nPropose better names. Each should say what the thing IS or DOES, at the right abstraction level, consistent with its neighbors. Avoid encodings, vague words (data, info, manager, helper), and lies. For each rename, one line on why it is clearer. Flag any name whose confusion signals a deeper design problem.",
   "category": "refactoring",
-  "tags": [
-    "naming",
-    "readability"
-  ],
+  "tags": ["naming", "readability"],
   "source": "builtin",
   "favorite": false,
   "checksum": "97acab4068f6faec1d4db0d630187fa1408e0e78afcf54383cf3533871f5c8d5",

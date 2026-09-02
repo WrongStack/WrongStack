@@ -25,20 +25,10 @@ import {
 import { WebSocket } from 'ws';
 import { broadcastCommandStatus, broadcastEvent, sendGuarded } from './snapshot.js';
 import type { ConnectedClient, HqSnapshotBroadcaster, TranscriptRing } from './types.js';
-import {
-  recordTimeseriesSignal,
-} from './utils.js';
-import {
-  handleIncomingClientEvent,
-} from './ws-client-events.js';
-import {
-  computeIsLeader,
-  detectLeaderLoss,
-} from './ws-leader.js';
-import {
-  browserResumeClient,
-  handleClientResume,
-} from './ws-resume.js';
+import { recordTimeseriesSignal } from './utils.js';
+import { handleIncomingClientEvent } from './ws-client-events.js';
+import { computeIsLeader, detectLeaderLoss } from './ws-leader.js';
+import { browserResumeClient, handleClientResume } from './ws-resume.js';
 
 // ── Re-exports for backward compat and testing ────────────────────────────
 

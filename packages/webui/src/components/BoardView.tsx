@@ -89,11 +89,13 @@ export function BoardView(): React.ReactElement {
   );
   const onAddTask = useCallback(
     (phaseId: string) => {
-      void promptModal({ title: t('activity:board.newTaskTitle'), placeholder: t('activity:board.newTaskPlaceholder'), confirmLabel: t('activity:board.addTask') }).then(
-        (title) => {
-          if (title) send({ type: 'goal.addTask', payload: { phaseId, title } });
-        },
-      );
+      void promptModal({
+        title: t('activity:board.newTaskTitle'),
+        placeholder: t('activity:board.newTaskPlaceholder'),
+        confirmLabel: t('activity:board.addTask'),
+      }).then((title) => {
+        if (title) send({ type: 'goal.addTask', payload: { phaseId, title } });
+      });
     },
     [send],
   );
@@ -167,7 +169,9 @@ export function BoardView(): React.ReactElement {
             onClick={() => setLayout('phase')}
             className={cn(
               'inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors',
-              layout === 'phase' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground',
+              layout === 'phase'
+                ? 'bg-primary/15 text-primary'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Columns3 className="h-3.5 w-3.5" /> {t('activity:board.phases')}
@@ -177,7 +181,9 @@ export function BoardView(): React.ReactElement {
             onClick={() => setLayout('status')}
             className={cn(
               'inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors',
-              layout === 'status' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground',
+              layout === 'status'
+                ? 'bg-primary/15 text-primary'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Rows3 className="h-3.5 w-3.5" /> {t('activity:board.statusTab')}
@@ -289,7 +295,12 @@ function PhaseColumn({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold">{phase.name}</span>
-            <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium capitalize', PHASE_STATUS_BADGE[phase.status])}>
+            <span
+              className={cn(
+                'rounded px-1.5 py-0.5 text-[10px] font-medium capitalize',
+                PHASE_STATUS_BADGE[phase.status],
+              )}
+            >
               {phase.status}
             </span>
           </div>
@@ -308,10 +319,16 @@ function PhaseColumn({
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-2">
         {phaseTasks.length === 0 ? (
-          <p className="px-1 py-4 text-center text-[11px] text-muted-foreground">{t('activity:board.dropHere')}</p>
+          <p className="px-1 py-4 text-center text-[11px] text-muted-foreground">
+            {t('activity:board.dropHere')}
+          </p>
         ) : (
           phaseTasks.map((task) => (
-            <div key={task.id} {...draggable(task.id)} className={cn(dragId === task.id && 'opacity-50')}>
+            <div
+              key={task.id}
+              {...draggable(task.id)}
+              className={cn(dragId === task.id && 'opacity-50')}
+            >
               <TaskCard task={task} {...callbacks} />
             </div>
           ))
@@ -434,10 +451,16 @@ function SinglePhaseBoard({
 
   return (
     <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain p-3">
-      <div className="grid min-w-[900px] gap-2" style={{ gridTemplateColumns: `9rem repeat(${STATUS_COLUMNS.length}, minmax(0, 1fr))` }}>
+      <div
+        className="grid min-w-[900px] gap-2"
+        style={{ gridTemplateColumns: `9rem repeat(${STATUS_COLUMNS.length}, minmax(0, 1fr))` }}
+      >
         <div />
         {STATUS_COLUMNS.map((col) => (
-          <div key={col.key} className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div
+            key={col.key}
+            className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             {t(`activity:board.status.${col.key}`)}
           </div>
         ))}
@@ -445,7 +468,12 @@ function SinglePhaseBoard({
           <div className="flex items-center pr-2">
             <div className="min-w-0">
               <div className="truncate text-sm font-medium">{phase.name}</div>
-              <span className={cn('mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] capitalize', PHASE_STATUS_BADGE[phase.status])}>
+              <span
+                className={cn(
+                  'mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] capitalize',
+                  PHASE_STATUS_BADGE[phase.status],
+                )}
+              >
                 {phase.status}
               </span>
             </div>
@@ -463,7 +491,11 @@ function SinglePhaseBoard({
                 )}
               >
                 {cellTasks.map((task) => (
-                  <div key={task.id} {...draggable(task.id)} className={cn(dragId === task.id && 'opacity-50')}>
+                  <div
+                    key={task.id}
+                    {...draggable(task.id)}
+                    className={cn(dragId === task.id && 'opacity-50')}
+                  >
                     <TaskCard task={task} compact {...callbacks} />
                   </div>
                 ))}
@@ -498,10 +530,16 @@ function StatusSwimlaneBoard({
 }): React.ReactElement {
   const { t } = useAppTranslation();
   return (
-    <div className="grid min-w-[900px] gap-2" style={{ gridTemplateColumns: `9rem repeat(${STATUS_COLUMNS.length}, minmax(0, 1fr))` }}>
+    <div
+      className="grid min-w-[900px] gap-2"
+      style={{ gridTemplateColumns: `9rem repeat(${STATUS_COLUMNS.length}, minmax(0, 1fr))` }}
+    >
       <div />
       {STATUS_COLUMNS.map((col) => (
-        <div key={col.key} className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div
+          key={col.key}
+          className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
           {t(`activity:board.status.${col.key}`)}
         </div>
       ))}
@@ -510,7 +548,12 @@ function StatusSwimlaneBoard({
           <div className="flex items-center pr-2">
             <div className="min-w-0">
               <div className="truncate text-sm font-medium">{phase.name}</div>
-              <span className={cn('mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] capitalize', PHASE_STATUS_BADGE[phase.status])}>
+              <span
+                className={cn(
+                  'mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] capitalize',
+                  PHASE_STATUS_BADGE[phase.status],
+                )}
+              >
                 {phase.status}
               </span>
             </div>
@@ -530,7 +573,11 @@ function StatusSwimlaneBoard({
                 )}
               >
                 {cellTasks.map((task) => (
-                  <div key={task.id} {...draggable(task.id)} className={cn(dragId === task.id && 'opacity-50')}>
+                  <div
+                    key={task.id}
+                    {...draggable(task.id)}
+                    className={cn(dragId === task.id && 'opacity-50')}
+                  >
                     <TaskCard task={task} compact {...callbacks} />
                   </div>
                 ))}

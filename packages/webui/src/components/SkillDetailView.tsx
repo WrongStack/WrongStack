@@ -33,12 +33,7 @@ import { showPanel } from '@/lib/view-navigation';
 import { useUIStore } from '@/stores/ui-store';
 import { EmptyState } from './ui/empty-state';
 import { markdownComponents } from './MessageBubble/utils';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 /** Lazy-loaded code editor — only needed when the user enters edit mode. */
 const TextareaCodeEditor = lazy(() => import('@uiw/react-textarea-code-editor'));
@@ -69,7 +64,11 @@ function skillNameFromFile(fileName: string): string | null {
 function ScopeBadge({ source }: { source: string }) {
   const { t } = useAppTranslation();
   const scope = source === 'project' ? 'project' : source === 'user' ? 'user' : 'bundled';
-  const labelKeys: Record<string, string> = { project: 'scopeProject', user: 'scopeGlobal', bundled: 'scopeBundled' };
+  const labelKeys: Record<string, string> = {
+    project: 'scopeProject',
+    user: 'scopeGlobal',
+    bundled: 'scopeBundled',
+  };
 
   return (
     <span
@@ -133,7 +132,19 @@ export function SkillDetailView({ className }: { className?: string }) {
   const [uninstalling, setUninstalling] = useState(false);
 
   // Skills list (for finding related skills)
-  const [skills, setSkills] = useState<Array<{ name: string; description: string; version: string; source: string; sourceUrl: string; ref: string; path: string; trigger: string; scope: string[] }>>([]);
+  const [skills, setSkills] = useState<
+    Array<{
+      name: string;
+      description: string;
+      version: string;
+      source: string;
+      sourceUrl: string;
+      ref: string;
+      path: string;
+      trigger: string;
+      scope: string[];
+    }>
+  >([]);
   const skillsStateRef = useRef(skillsState);
   skillsStateRef.current = skillsState;
 
@@ -149,13 +160,19 @@ export function SkillDetailView({ className }: { className?: string }) {
   }, [editContent]);
 
   // localStorage warning
-  const charsWarning = useMemo((): null | { level: 'warn' | 'critical'; used: number; limit: number } => {
+  const charsWarning = useMemo((): null | {
+    level: 'warn' | 'critical';
+    used: number;
+    limit: number;
+  } => {
     if (!editContent) return null;
     const LOCALSTORAGE_LIMIT = 5 * 1024 * 1024;
     const SOFT_LIMIT = 4 * 1024 * 1024;
     const sizeBytes = new Blob([editContent]).size;
-    if (sizeBytes >= LOCALSTORAGE_LIMIT) return { level: 'critical', used: sizeBytes, limit: LOCALSTORAGE_LIMIT };
-    if (sizeBytes >= SOFT_LIMIT) return { level: 'warn', used: sizeBytes, limit: LOCALSTORAGE_LIMIT };
+    if (sizeBytes >= LOCALSTORAGE_LIMIT)
+      return { level: 'critical', used: sizeBytes, limit: LOCALSTORAGE_LIMIT };
+    if (sizeBytes >= SOFT_LIMIT)
+      return { level: 'warn', used: sizeBytes, limit: LOCALSTORAGE_LIMIT };
     return null;
   }, [editContent]);
 
@@ -215,7 +232,17 @@ export function SkillDetailView({ className }: { className?: string }) {
 
     const handleSkillsContent = (msg: unknown) => {
       clearTimeout(timeoutId);
-      const m = msg as { payload: { name: string; body: string; path: string; source: string; relatedFiles: string[]; references: string[]; error?: string } };
+      const m = msg as {
+        payload: {
+          name: string;
+          body: string;
+          path: string;
+          source: string;
+          relatedFiles: string[];
+          references: string[];
+          error?: string;
+        };
+      };
       if (m.payload.error) {
         setContentError(m.payload.error);
       } else if (m.payload.name) {
@@ -253,7 +280,13 @@ export function SkillDetailView({ className }: { className?: string }) {
         });
         client.send({ type: 'skills.list' }, { echoToChat: false });
       } else {
-        setUpdateResult({ updated: [], unchanged: [], errors: [{ name: '', error: m.payload.error ?? i18n.t('activity:skillDetail.updateFailed') }] });
+        setUpdateResult({
+          updated: [],
+          unchanged: [],
+          errors: [
+            { name: '', error: m.payload.error ?? i18n.t('activity:skillDetail.updateFailed') },
+          ],
+        });
       }
     };
 
@@ -265,7 +298,10 @@ export function SkillDetailView({ className }: { className?: string }) {
     client.on('skills.content', handleSkillsContent as (msg: unknown) => void);
     client.on('skills.updated', handleSkillsUpdated as (msg: unknown) => void);
     client.on('skills.list', handleSkillsList as (msg: unknown) => void);
-    client.send({ type: 'skills.content', payload: { name: selectedSkill.name, source: selectedSkill.source } });
+    client.send({
+      type: 'skills.content',
+      payload: { name: selectedSkill.name, source: selectedSkill.source },
+    });
 
     return () => {
       clearTimeout(timeoutId);
@@ -393,7 +429,10 @@ export function SkillDetailView({ className }: { className?: string }) {
         localStorage.removeItem(`skills_draft_${selectedSkill.name}`);
         setDraftRestored(false);
         setEditMode(false);
-        client.send({ type: 'skills.content', payload: { name: selectedSkill.name, source: selectedSkill.source } });
+        client.send({
+          type: 'skills.content',
+          payload: { name: selectedSkill.name, source: selectedSkill.source },
+        });
         client.send({ type: 'skills.list' }, { echoToChat: false });
       } else {
         setEditError(m.payload.error ?? i18n.t('activity:skillDetail.saveFailed'));
@@ -474,7 +513,12 @@ export function SkillDetailView({ className }: { className?: string }) {
   }
 
   return (
-    <div className={cn('flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden bg-[hsl(var(--surface-2)/0.45)] p-3', className)}>
+    <div
+      className={cn(
+        'flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden bg-[hsl(var(--surface-2)/0.45)] p-3',
+        className,
+      )}
+    >
       {/* Header */}
       <div className="shrink-0 rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -512,7 +556,11 @@ export function SkillDetailView({ className }: { className?: string }) {
                   className="flex shrink-0 items-center text-muted-foreground transition-colors hover:text-foreground"
                   title={t('activity:skillDetail.copySourceUrl')}
                 >
-                  {copiedSourceUrl ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                  {copiedSourceUrl ? (
+                    <Check className="h-3 w-3 text-success" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
                 </button>
               </div>
             )}
@@ -521,7 +569,10 @@ export function SkillDetailView({ className }: { className?: string }) {
             {selectedSkill.scope.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
                 {selectedSkill.scope.map((s) => (
-                  <span key={s} className="px-1.5 py-0.5 text-[10px] rounded bg-muted text-muted-foreground">
+                  <span
+                    key={s}
+                    className="px-1.5 py-0.5 text-[10px] rounded bg-muted text-muted-foreground"
+                  >
                     {s}
                   </span>
                 ))}
@@ -533,15 +584,27 @@ export function SkillDetailView({ className }: { className?: string }) {
               <div className="mt-2 text-xs space-y-1">
                 {updateResult.updated.length > 0 && (
                   <div className="text-success">
-                    {t('activity:skillDetail.updatedLabel', { list: updateResult.updated.map((u) => `${u.name} (${u.oldRef} → ${u.newRef})`).join(', ') })}
+                    {t('activity:skillDetail.updatedLabel', {
+                      list: updateResult.updated
+                        .map((u) => `${u.name} (${u.oldRef} → ${u.newRef})`)
+                        .join(', '),
+                    })}
                   </div>
                 )}
                 {updateResult.unchanged.length > 0 && (
-                  <div className="text-muted-foreground">{t('activity:skillDetail.upToDateLabel', { list: updateResult.unchanged.join(', ') })}</div>
+                  <div className="text-muted-foreground">
+                    {t('activity:skillDetail.upToDateLabel', {
+                      list: updateResult.unchanged.join(', '),
+                    })}
+                  </div>
                 )}
                 {updateResult.errors.length > 0 && (
                   <div className="text-destructive">
-                    {t('activity:skillDetail.errorsLabel', { list: updateResult.errors.map((e) => `${e.name ? `${e.name}: ` : ''}${e.error}`).join('; ') })}
+                    {t('activity:skillDetail.errorsLabel', {
+                      list: updateResult.errors
+                        .map((e) => `${e.name ? `${e.name}: ` : ''}${e.error}`)
+                        .join('; '),
+                    })}
                   </div>
                 )}
               </div>
@@ -559,7 +622,11 @@ export function SkillDetailView({ className }: { className?: string }) {
                 className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 title={t('activity:skillDetail.checkUpdatesTitle')}
               >
-                {checkingForUpdates ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                {checkingForUpdates ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
               </button>
             )}
 
@@ -644,7 +711,9 @@ export function SkillDetailView({ className }: { className?: string }) {
             <div className="flex items-center gap-0.5 overflow-x-auto text-xs">
               {navHistory.map((skill, idx) => (
                 <span key={skill.name + idx} className="flex items-center shrink-0">
-                  {idx > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground/65 mx-0.5 shrink-0" />}
+                  {idx > 0 && (
+                    <ChevronRight className="h-3 w-3 text-muted-foreground/65 mx-0.5 shrink-0" />
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -675,67 +744,78 @@ export function SkillDetailView({ className }: { className?: string }) {
       </div>
 
       {/* Related files + References bar */}
-      {skillContent && (skillContent.relatedFiles.length > 0 || skillContent.references.length > 0) && (
-        <div className="shrink-0 space-y-2 rounded-xl border border-border/70 bg-card/70 px-4 py-3 shadow-sm">
-          {skillContent.relatedFiles.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <FolderOpen className="h-3 w-3" />
-                <span className="font-medium uppercase tracking-wide">{t('activity:skillDetail.relatedFiles')}</span>
-              </div>
-              {skillContent.relatedFiles.map((file) => {
-                const derivedName = skillNameFromFile(file);
-                const linkedSkill = derivedName ? findSkillByName(derivedName) : undefined;
-                return linkedSkill ? (
-                  <button
-                    key={file}
-                    type="button"
-                    onClick={() => handleNavigateToSkill(derivedName!)}
-                    className="inline-flex min-w-0 items-center gap-1 rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 text-[10px] transition-colors hover:border-primary/40 hover:text-primary"
-                    title={t('activity:skillDetail.goToSkillTitle', { name: derivedName! })}
-                  >
-                    <ArrowUpRight className="h-2.5 w-2.5" />
-                    {file}
-                  </button>
-                ) : (
-                  <span key={file} className="rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                    {file}
+      {skillContent &&
+        (skillContent.relatedFiles.length > 0 || skillContent.references.length > 0) && (
+          <div className="shrink-0 space-y-2 rounded-xl border border-border/70 bg-card/70 px-4 py-3 shadow-sm">
+            {skillContent.relatedFiles.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <FolderOpen className="h-3 w-3" />
+                  <span className="font-medium uppercase tracking-wide">
+                    {t('activity:skillDetail.relatedFiles')}
                   </span>
-                );
-              })}
-            </div>
-          )}
+                </div>
+                {skillContent.relatedFiles.map((file) => {
+                  const derivedName = skillNameFromFile(file);
+                  const linkedSkill = derivedName ? findSkillByName(derivedName) : undefined;
+                  return linkedSkill ? (
+                    <button
+                      key={file}
+                      type="button"
+                      onClick={() => handleNavigateToSkill(derivedName!)}
+                      className="inline-flex min-w-0 items-center gap-1 rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 text-[10px] transition-colors hover:border-primary/40 hover:text-primary"
+                      title={t('activity:skillDetail.goToSkillTitle', { name: derivedName! })}
+                    >
+                      <ArrowUpRight className="h-2.5 w-2.5" />
+                      {file}
+                    </button>
+                  ) : (
+                    <span
+                      key={file}
+                      className="rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {file}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
 
-          {skillContent.references.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <FileText className="h-3 w-3" />
-                <span className="font-medium uppercase tracking-wide">{t('activity:skillDetail.references')}</span>
-              </div>
-              {skillContent.references.map((ref) => {
-                const derivedName = skillNameFromFile(ref) ?? ref.replace(/\.md$/, '');
-                const linkedSkill = findSkillByName(derivedName);
-                return linkedSkill ? (
-                  <button
-                    key={ref}
-                    type="button"
-                    onClick={() => handleNavigateToSkill(derivedName)}
-                    className="inline-flex min-w-0 items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary transition-colors hover:border-primary/30 hover:bg-primary/10"
-                    title={t('activity:skillDetail.goToSkillTitle', { name: derivedName })}
-                  >
-                    <ArrowUpRight className="h-2.5 w-2.5" />
-                    {derivedName}
-                  </button>
-                ) : (
-                  <span key={ref} className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                    {derivedName}
+            {skillContent.references.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <FileText className="h-3 w-3" />
+                  <span className="font-medium uppercase tracking-wide">
+                    {t('activity:skillDetail.references')}
                   </span>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                </div>
+                {skillContent.references.map((ref) => {
+                  const derivedName = skillNameFromFile(ref) ?? ref.replace(/\.md$/, '');
+                  const linkedSkill = findSkillByName(derivedName);
+                  return linkedSkill ? (
+                    <button
+                      key={ref}
+                      type="button"
+                      onClick={() => handleNavigateToSkill(derivedName)}
+                      className="inline-flex min-w-0 items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary transition-colors hover:border-primary/30 hover:bg-primary/10"
+                      title={t('activity:skillDetail.goToSkillTitle', { name: derivedName })}
+                    >
+                      <ArrowUpRight className="h-2.5 w-2.5" />
+                      {derivedName}
+                    </button>
+                  ) : (
+                    <span
+                      key={ref}
+                      className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {derivedName}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
       {/* Content */}
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/70 shadow-sm">
@@ -753,19 +833,36 @@ export function SkillDetailView({ className }: { className?: string }) {
                   {t('activity:skillDetail.editingLabel', { name: selectedSkill.name })}
                 </span>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  {t('activity:skillDetail.editStats', { lines: editStats.lines, words: editStats.words, chars: editStats.chars })}
+                  {t('activity:skillDetail.editStats', {
+                    lines: editStats.lines,
+                    words: editStats.words,
+                    chars: editStats.chars,
+                  })}
                 </span>
                 {charsWarning && (
                   <span
                     className={`text-xs tabular-nums ${
-                      charsWarning.level === 'critical' ? 'font-medium text-destructive' : 'text-warning'
+                      charsWarning.level === 'critical'
+                        ? 'font-medium text-destructive'
+                        : 'text-warning'
                     }`}
                   >
-                    {t('activity:skillDetail.charsWarningFmt', { used: (charsWarning.used / (1024 * 1024)).toFixed(1), limit: (charsWarning.limit / (1024 * 1024)).toFixed(0) })}
+                    {t('activity:skillDetail.charsWarningFmt', {
+                      used: (charsWarning.used / (1024 * 1024)).toFixed(1),
+                      limit: (charsWarning.limit / (1024 * 1024)).toFixed(0),
+                    })}
                   </span>
                 )}
-                {draftSavedAt && <span className="text-xs text-success animate-pulse">{t('activity:skillDetail.draftSaved')}</span>}
-                {draftRestored && <span className="animate-pulse text-xs text-warning">{t('activity:skillDetail.draftRestored')}</span>}
+                {draftSavedAt && (
+                  <span className="text-xs text-success animate-pulse">
+                    {t('activity:skillDetail.draftSaved')}
+                  </span>
+                )}
+                {draftRestored && (
+                  <span className="animate-pulse text-xs text-warning">
+                    {t('activity:skillDetail.draftRestored')}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {editError && <span className="text-xs text-destructive">{editError}</span>}
@@ -778,15 +875,25 @@ export function SkillDetailView({ className }: { className?: string }) {
                     {t('activity:skillDetail.discardDraft')}
                   </button>
                 )}
-                <button type="button" onClick={handleCancelEdit} className="rounded-md border border-border/70 px-2 py-1 text-xs transition-colors hover:bg-accent">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="rounded-md border border-border/70 px-2 py-1 text-xs transition-colors hover:bg-accent"
+                >
                   {t('common:action.cancel')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSplitPreview((v) => !v)}
-                  title={splitPreview ? t('activity:skillDetail.hidePreviewTitle') : t('activity:skillDetail.splitViewTitle')}
+                  title={
+                    splitPreview
+                      ? t('activity:skillDetail.hidePreviewTitle')
+                      : t('activity:skillDetail.splitViewTitle')
+                  }
                   className={`rounded-md border px-2 py-1 text-xs transition-colors ${
-                    splitPreview ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/70 text-muted-foreground hover:bg-accent'
+                    splitPreview
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : 'border-border/70 text-muted-foreground hover:bg-accent'
                   }`}
                 >
                   <PanelRight className="h-3 w-3 inline" />
@@ -797,7 +904,11 @@ export function SkillDetailView({ className }: { className?: string }) {
                   disabled={editSaving || !editContent.trim()}
                   className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground shadow-sm shadow-primary/15 transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {editSaving ? <Loader2 className="h-3 w-3 animate-spin inline" /> : t('common:action.save')}
+                  {editSaving ? (
+                    <Loader2 className="h-3 w-3 animate-spin inline" />
+                  ) : (
+                    t('common:action.save')
+                  )}
                 </button>
               </div>
             </div>
@@ -838,7 +949,10 @@ export function SkillDetailView({ className }: { className?: string }) {
             )}
           </div>
         ) : skillContent ? (
-          <div ref={skillScrollRef} className="h-full min-h-0 overflow-y-auto overscroll-contain p-5 sm:p-6 prose prose-sm dark:prose-invert max-w-none">
+          <div
+            ref={skillScrollRef}
+            className="h-full min-h-0 overflow-y-auto overscroll-contain p-5 sm:p-6 prose prose-sm dark:prose-invert max-w-none"
+          >
             <ReactMarkdown rehypePlugins={[rehypeHighlight]} components={markdownComponents}>
               {skillContent.body}
             </ReactMarkdown>
@@ -853,7 +967,10 @@ export function SkillDetailView({ className }: { className?: string }) {
                 if (client && selectedSkill) {
                   setContentLoading(true);
                   setContentError(null);
-                  client.send({ type: 'skills.content', payload: { name: selectedSkill.name, source: selectedSkill.source } });
+                  client.send({
+                    type: 'skills.content',
+                    payload: { name: selectedSkill.name, source: selectedSkill.source },
+                  });
                 }
               }}
               className="mt-4 rounded-md border border-border/70 px-3 py-1.5 text-xs transition-colors hover:bg-accent"
@@ -869,23 +986,42 @@ export function SkillDetailView({ className }: { className?: string }) {
       </div>
 
       {/* Uninstall confirmation modal */}
-      <Dialog open={!!uninstallConfirmSkill} onOpenChange={(v) => { if (!v) setUninstallConfirmSkill(null); }}>
-        <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[380px] max-w-[90vw] flex-col gap-0 overflow-hidden p-0" showCloseButton={false}>
+      <Dialog
+        open={!!uninstallConfirmSkill}
+        onOpenChange={(v) => {
+          if (!v) setUninstallConfirmSkill(null);
+        }}
+      >
+        <DialogContent
+          className="flex max-h-[calc(100dvh-2rem)] w-[380px] max-w-[90vw] flex-col gap-0 overflow-hidden p-0"
+          showCloseButton={false}
+        >
           <DialogHeader className="flex shrink-0 items-center justify-between border-b border-border/70 p-4 sm:flex-row sm:justify-between sm:space-y-0">
             <div className="flex items-center gap-2">
               <Trash2 className="h-4 w-4 text-destructive" />
-              <DialogTitle className="font-semibold text-sm">{t('activity:skillDetail.uninstallSkillHeading')}</DialogTitle>
+              <DialogTitle className="font-semibold text-sm">
+                {t('activity:skillDetail.uninstallSkillHeading')}
+              </DialogTitle>
             </div>
-            <button type="button" onClick={() => setUninstallConfirmSkill(null)} aria-label={t('common:action.close')} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+            <button
+              type="button"
+              onClick={() => setUninstallConfirmSkill(null)}
+              aria-label={t('common:action.close')}
+              className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
               <X className="h-4 w-4" />
             </button>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-4">
-            <p className="text-sm">{uninstallConfirmSkill && t('activity:skillDetail.uninstallConfirm', { name: uninstallConfirmSkill.name })}</p>
+            <p className="text-sm">
+              {uninstallConfirmSkill &&
+                t('activity:skillDetail.uninstallConfirm', { name: uninstallConfirmSkill.name })}
+            </p>
             <p className="text-xs text-muted-foreground">
-              {uninstallConfirmSkill && t('activity:skillDetail.uninstallRemovePath', {
-                path: uninstallConfirmSkill.path,
-              })}
+              {uninstallConfirmSkill &&
+                t('activity:skillDetail.uninstallRemovePath', {
+                  path: uninstallConfirmSkill.path,
+                })}
             </p>
           </div>
           <div className="flex shrink-0 justify-end gap-2 border-t border-border/70 bg-muted/20 p-4">

@@ -12,7 +12,11 @@ import { Input } from '../ui/input';
 import { waitForKeyOperationResult } from './key-operation';
 import { ModelEditor, type ModelEntry } from './ModelEditor';
 
-export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId: string) => void }) {
+export function CustomProviderSection({
+  onKeySaved,
+}: {
+  onKeySaved: (providerId: string) => void;
+}) {
   const { t } = useAppTranslation();
   const [expanded, setExpanded] = useState(false);
   const [providerId, setProviderId] = useState('');
@@ -88,9 +92,7 @@ export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId:
         </div>
         <div className="flex-1">
           <h3 className="text-sm font-medium">{t('setup:screen.custom.title')}</h3>
-          <p className="text-xs text-muted-foreground">
-            {t('setup:screen.custom.description')}
-          </p>
+          <p className="text-xs text-muted-foreground">{t('setup:screen.custom.description')}</p>
         </div>
         <ChevronRight
           className={cn(

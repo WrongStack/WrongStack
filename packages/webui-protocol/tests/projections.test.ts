@@ -139,7 +139,9 @@ describe('projectChatMessage', () => {
 
   it('projects responses with content and stop reason', () => {
     expect(
-      projectChatMessage(envelope('provider.response', { content: 'done', stopReason: 'end_turn' })),
+      projectChatMessage(
+        envelope('provider.response', { content: 'done', stopReason: 'end_turn' }),
+      ),
     ).toEqual({ kind: 'response', content: 'done', stopReason: 'end_turn' });
   });
 
@@ -177,7 +179,9 @@ describe('projectToolMessage', () => {
 
   it('projects tool.started with id falling back to the tool name', () => {
     expect(
-      projectToolMessage(envelope('tool.started', { name: 'read', messageId: 'm1', input: { a: 1 } })),
+      projectToolMessage(
+        envelope('tool.started', { name: 'read', messageId: 'm1', input: { a: 1 } }),
+      ),
     ).toEqual({ kind: 'started', id: 'read', name: 'read', input: { a: 1 }, messageId: 'm1' });
     expect(
       projectToolMessage(envelope('tool.started', { id: 't9', name: 'grep', input: null })),
@@ -194,9 +198,13 @@ describe('projectToolMessage', () => {
         }),
       ),
     ).toEqual({ kind: 'progress', id: 't1', name: 'bash', eventType: 'stdout', text: 'out' });
-    expect(
-      projectToolMessage(envelope('tool.progress', { id: 't1', name: 'bash' })),
-    ).toEqual({ kind: 'progress', id: 't1', name: 'bash', eventType: '', text: '' });
+    expect(projectToolMessage(envelope('tool.progress', { id: 't1', name: 'bash' }))).toEqual({
+      kind: 'progress',
+      id: 't1',
+      name: 'bash',
+      eventType: '',
+      text: '',
+    });
   });
 
   it('projects tool.executed defaulting ok to true and duration to 0', () => {
@@ -209,9 +217,22 @@ describe('projectToolMessage', () => {
     });
     expect(
       projectToolMessage(
-        envelope('tool.executed', { id: 't2', name: 'bash', ok: false, durationMs: 12, output: 'err' }),
+        envelope('tool.executed', {
+          id: 't2',
+          name: 'bash',
+          ok: false,
+          durationMs: 12,
+          output: 'err',
+        }),
       ),
-    ).toEqual({ kind: 'executed', id: 't2', name: 'bash', ok: false, durationMs: 12, output: 'err' });
+    ).toEqual({
+      kind: 'executed',
+      id: 't2',
+      name: 'bash',
+      ok: false,
+      durationMs: 12,
+      output: 'err',
+    });
   });
 
   it('filters non-string lines out of the sage block and omits it when absent', () => {
@@ -245,7 +266,9 @@ describe('projectFleetMessage', () => {
 
   it('projects concurrency updates with optional fields left undefined', () => {
     expect(
-      projectFleetMessage(envelope('fleet.concurrency_update', { fleetConcurrency: 2, fleetConcurrencyMax: 5 })),
+      projectFleetMessage(
+        envelope('fleet.concurrency_update', { fleetConcurrency: 2, fleetConcurrencyMax: 5 }),
+      ),
     ).toEqual({
       kind: 'concurrency',
       active: 2,
@@ -307,7 +330,9 @@ describe('projectFleetMessage', () => {
         envelope('coordinator.stats', { subagentStatuses: [{ id: 'a1' }, 'junk', 5] }),
       ),
     ).toEqual({ kind: 'coordinator', agents: [{ id: 'a1' }] });
-    expect(projectFleetMessage(envelope('coordinator.stats', { subagentStatuses: 'nope' }))).toEqual({
+    expect(
+      projectFleetMessage(envelope('coordinator.stats', { subagentStatuses: 'nope' })),
+    ).toEqual({
       kind: 'coordinator',
       agents: [],
     });
@@ -327,28 +352,56 @@ describe('projectHqFleetMessage', () => {
   });
 
   it('rejects snapshots missing required arrays or fields', () => {
-    expect(projectHqFleetMessage({ type: 'hq.snapshot', snapshot: { ...validHqSnapshot, generatedAt: 5 } })).toBeNull();
-    expect(projectHqFleetMessage({ type: 'hq.snapshot', snapshot: { ...validHqSnapshot, clients: 'x' } })).toBeNull();
-    expect(projectHqFleetMessage({ type: 'hq.snapshot', snapshot: { ...validHqSnapshot, totals: {} } })).toBeNull();
-    expect(projectHqFleetMessage({ type: 'hq.snapshot', snapshot: { ...validHqSnapshot, totals: null } })).toBeNull();
+    expect(
+      projectHqFleetMessage({
+        type: 'hq.snapshot',
+        snapshot: { ...validHqSnapshot, generatedAt: 5 },
+      }),
+    ).toBeNull();
+    expect(
+      projectHqFleetMessage({
+        type: 'hq.snapshot',
+        snapshot: { ...validHqSnapshot, clients: 'x' },
+      }),
+    ).toBeNull();
+    expect(
+      projectHqFleetMessage({ type: 'hq.snapshot', snapshot: { ...validHqSnapshot, totals: {} } }),
+    ).toBeNull();
+    expect(
+      projectHqFleetMessage({
+        type: 'hq.snapshot',
+        snapshot: { ...validHqSnapshot, totals: null },
+      }),
+    ).toBeNull();
     expect(projectHqFleetMessage({ type: 'hq.snapshot' })).toBeNull();
     expect(projectHqFleetMessage({ type: 'hq.snapshot', snapshot: 'x' })).toBeNull();
   });
 
   it('rejects snapshots whose optional arrays have the wrong type', () => {
     expect(
-      projectHqFleetMessage({ type: 'hq.snapshot', snapshot: { ...validHqSnapshot, machines: 42 } }),
+      projectHqFleetMessage({
+        type: 'hq.snapshot',
+        snapshot: { ...validHqSnapshot, machines: 42 },
+      }),
     ).toBeNull();
     expect(
-      projectHqFleetMessage({ type: 'hq.snapshot', snapshot: { ...validHqSnapshot, liveSessions: {} } }),
+      projectHqFleetMessage({
+        type: 'hq.snapshot',
+        snapshot: { ...validHqSnapshot, liveSessions: {} },
+      }),
     ).toBeNull();
     expect(
-      projectHqFleetMessage({ type: 'hq.snapshot', snapshot: { ...validHqSnapshot, mcpServers: 'x' } }),
+      projectHqFleetMessage({
+        type: 'hq.snapshot',
+        snapshot: { ...validHqSnapshot, mcpServers: 'x' },
+      }),
     ).toBeNull();
   });
 
   it('accepts snapshots without the optional arrays', () => {
-    expect(projectHqFleetMessage({ type: 'hq.snapshot', snapshot: validHqSnapshot })).not.toBeNull();
+    expect(
+      projectHqFleetMessage({ type: 'hq.snapshot', snapshot: validHqSnapshot }),
+    ).not.toBeNull();
   });
 });
 
@@ -400,11 +453,20 @@ describe('projectHqAlertMessage', () => {
 
   it('rejects unknown severities and malformed fields', () => {
     expect(
-      projectHqAlertMessage({ type: 'hq.alert', severity: 'critical', message: 'm', timestamp: 't' }),
+      projectHqAlertMessage({
+        type: 'hq.alert',
+        severity: 'critical',
+        message: 'm',
+        timestamp: 't',
+      }),
     ).toBeNull();
-    expect(projectHqAlertMessage({ type: 'hq.alert', severity: 'info', timestamp: 't' })).toBeNull();
+    expect(
+      projectHqAlertMessage({ type: 'hq.alert', severity: 'info', timestamp: 't' }),
+    ).toBeNull();
     expect(projectHqAlertMessage({ type: 'hq.alert', severity: 'info', message: 'm' })).toBeNull();
-    expect(projectHqAlertMessage({ type: 'hq.alert', severity: 3, message: 'm', timestamp: 't' })).toBeNull();
+    expect(
+      projectHqAlertMessage({ type: 'hq.alert', severity: 3, message: 'm', timestamp: 't' }),
+    ).toBeNull();
   });
 });
 
@@ -440,7 +502,10 @@ describe('projectHqCommandStatusMessage', () => {
       }),
     ).toBeNull();
     expect(
-      projectHqCommandStatusMessage({ type: 'hq.command_status', command: { ...command, commandId: 5 } }),
+      projectHqCommandStatusMessage({
+        type: 'hq.command_status',
+        command: { ...command, commandId: 5 },
+      }),
     ).toBeNull();
     expect(projectHqCommandStatusMessage({ type: 'hq.command_status' })).toBeNull();
   });

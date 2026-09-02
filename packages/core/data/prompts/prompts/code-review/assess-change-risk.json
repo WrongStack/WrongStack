@@ -5,11 +5,7 @@
   "description": "Gauge how risky a change is and what to do about it.",
   "content": "Assess the risk of shipping this change:\n\n{{diff}}\n\nRate the blast radius (who and what breaks if it's wrong), the reversibility, and how well it's tested and observable. Identify the single riskiest line or assumption. Recommend a rollout that matches the risk: feature flag, canary, gradual ramp, or just ship. Tell me what to watch after deploy to catch a problem early.",
   "category": "code-review",
-  "tags": [
-    "risk",
-    "review",
-    "rollout"
-  ],
+  "tags": ["risk", "review", "rollout"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2446c74121af0f77177a461c5c863c07545324bdb84624281c4e752168795229",

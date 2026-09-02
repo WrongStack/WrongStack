@@ -28,7 +28,11 @@ import type { DesignKitLoader, DesignStack, DesignStudioState } from '../types/d
 import { isDesignStack } from '../types/design-kit.js';
 import type { Request } from '../types/provider.js';
 import { getDesignKitLoader } from './design-kit-loader.js';
-import { applyTokenOverrides, loadActiveKit, loadProjectDesignRules } from './design-project-store.js';
+import {
+  applyTokenOverrides,
+  loadActiveKit,
+  loadProjectDesignRules,
+} from './design-project-store.js';
 import { verifyFiles } from './design-verify.js';
 
 const META_KEY = 'designStudio';

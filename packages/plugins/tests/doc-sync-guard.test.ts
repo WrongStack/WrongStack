@@ -40,7 +40,9 @@ function getHook(api: MockApi): (input: unknown) => HookResult {
 }
 
 function getTool(api: MockApi, name: string) {
-  const calls = api.tools.register.mock.calls as unknown as [{ name: string; execute: (...args: unknown[]) => unknown }][];
+  const calls = api.tools.register.mock.calls as unknown as [
+    { name: string; execute: (...args: unknown[]) => unknown },
+  ][];
   const found = calls.find((c) => c[0].name === name);
   if (!found) throw new Error(`tool ${name} not registered`);
   return found[0];
@@ -71,8 +73,16 @@ describe('doc-sync-guard plugin', () => {
     docSyncGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    hook({ toolName: 'write', toolInput: { path: 'src/utils.ts', content: 'export const x = 1;' }, toolResult: { content: '', isError: false } });
-    hook({ toolName: 'edit', toolInput: { path: 'src/api.tsx', old_string: 'a', new_string: 'b' }, toolResult: { content: '', isError: false } });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/utils.ts', content: 'export const x = 1;' },
+      toolResult: { content: '', isError: false },
+    });
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/api.tsx', old_string: 'a', new_string: 'b' },
+      toolResult: { content: '', isError: false },
+    });
 
     const status = getTool(api, 'doc_sync_status');
     const result = status.execute();
@@ -88,7 +98,11 @@ describe('doc-sync-guard plugin', () => {
     docSyncGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    hook({ toolName: 'write', toolInput: { path: 'src/foo.ts', content: 'export const foo = 1;' }, toolResult: { content: '', isError: false } });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: 'export const foo = 1;' },
+      toolResult: { content: '', isError: false },
+    });
     const result = hook({
       toolName: 'write',
       toolInput: { path: 'README.md', content: '# Project\n\nIntro text.' },
@@ -105,7 +119,11 @@ describe('doc-sync-guard plugin', () => {
     docSyncGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    hook({ toolName: 'write', toolInput: { path: 'src/bar.ts', content: 'export const bar = 1;' }, toolResult: { content: '', isError: false } });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/bar.ts', content: 'export const bar = 1;' },
+      toolResult: { content: '', isError: false },
+    });
     const result = hook({
       toolName: 'write',
       toolInput: { path: 'README.md', content: '# Project\n\nSee src/bar.ts for details.' },
@@ -120,8 +138,16 @@ describe('doc-sync-guard plugin', () => {
     docSyncGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    hook({ toolName: 'write', toolInput: { path: 'src/foo.test.ts', content: '' }, toolResult: { content: '', isError: false } });
-    hook({ toolName: 'write', toolInput: { path: 'src/bar.spec.tsx', content: '' }, toolResult: { content: '', isError: false } });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.test.ts', content: '' },
+      toolResult: { content: '', isError: false },
+    });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/bar.spec.tsx', content: '' },
+      toolResult: { content: '', isError: false },
+    });
 
     const status = getTool(api, 'doc_sync_status');
     await expect(status.execute()).resolves.toMatchObject({
@@ -136,7 +162,11 @@ describe('doc-sync-guard plugin', () => {
     docSyncGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    hook({ toolName: 'write', toolInput: { path: 'src/foo.ts', content: 'export const foo = 1;' }, toolResult: { content: '', isError: false } });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: 'export const foo = 1;' },
+      toolResult: { content: '', isError: false },
+    });
     const result = hook({
       toolName: 'write',
       toolInput: { path: 'src/other.ts', content: 'export const other = 1;' },
@@ -151,7 +181,11 @@ describe('doc-sync-guard plugin', () => {
     docSyncGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    hook({ toolName: 'write', toolInput: { path: 'src/foo.ts', content: '' }, toolResult: { content: 'error', isError: true } });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: '' },
+      toolResult: { content: 'error', isError: true },
+    });
     hook({
       toolName: 'write',
       toolInput: { path: 'README.md', content: '# Project' },
@@ -171,7 +205,11 @@ describe('doc-sync-guard plugin', () => {
     docSyncGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    hook({ toolName: 'write', toolInput: { path: 'src/foo.ts', content: '' }, toolResult: { content: '', isError: false } });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: '' },
+      toolResult: { content: '', isError: false },
+    });
     const result = hook({
       toolName: 'write',
       toolInput: { path: 'README.md', content: '# Project' },
@@ -186,9 +224,21 @@ describe('doc-sync-guard plugin', () => {
     docSyncGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    hook({ toolName: 'write', toolInput: { path: 'src/a.ts', content: '' }, toolResult: { content: '', isError: false } });
-    hook({ toolName: 'write', toolInput: { path: 'src/b.ts', content: '' }, toolResult: { content: '', isError: false } });
-    hook({ toolName: 'write', toolInput: { path: 'src/c.ts', content: '' }, toolResult: { content: '', isError: false } });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/a.ts', content: '' },
+      toolResult: { content: '', isError: false },
+    });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/b.ts', content: '' },
+      toolResult: { content: '', isError: false },
+    });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/c.ts', content: '' },
+      toolResult: { content: '', isError: false },
+    });
 
     const status = getTool(api, 'doc_sync_status');
     await expect(status.execute()).resolves.toMatchObject({
@@ -201,11 +251,18 @@ describe('doc-sync-guard plugin', () => {
     const api = makeApi();
     docSyncGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    hook({ toolName: 'write', toolInput: { path: 'src/foo.ts', content: '' }, toolResult: { content: '', isError: false } });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: '' },
+      toolResult: { content: '', isError: false },
+    });
 
     docSyncGuardPlugin.teardown!(api as never);
     const health = (await docSyncGuardPlugin.health!()) as { counters: Record<string, number> };
     expect(health.counters['changedFiles']).toBe(0);
-    expect(api.log.info).toHaveBeenCalledWith('doc-sync-guard: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'doc-sync-guard: teardown complete',
+      expect.any(Object),
+    );
   });
 });

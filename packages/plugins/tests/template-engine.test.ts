@@ -6,7 +6,7 @@ import templateEnginePlugin from '../src/template-engine';
 
 const mockApi = {
   tools: {
-    register: vi.fn()
+    register: vi.fn(),
   },
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   config: { extensions: {} },
@@ -51,10 +51,12 @@ describe('template-engine plugin', () => {
   it('template_expand should have correct properties', () => {
     templateEnginePlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'template_expand'
+      ([tool]: any[]) => tool.name === 'template_expand',
     )?.[0];
 
-    expect(tool.description).toBe('Expand a template string with variable substitution. Supports {{variable}}, {{#if var}}...{{/if}} conditionals, and {{#each items}}...{{/each}} loops.');
+    expect(tool.description).toBe(
+      'Expand a template string with variable substitution. Supports {{variable}}, {{#if var}}...{{/if}} conditionals, and {{#each items}}...{{/each}} loops.',
+    );
     // Writes caller-supplied content to a caller-supplied path. `auto` with no
     // declared capability meant no prompt, no read-only-mode block (that
     // policy keys on `capabilities`, not `mutating`) and no PreToolUse hook.
@@ -67,10 +69,12 @@ describe('template-engine plugin', () => {
   it('template_render should have correct properties', () => {
     templateEnginePlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'template_render'
+      ([tool]: any[]) => tool.name === 'template_render',
     )?.[0];
 
-    expect(tool.description).toBe('Read a template file from disk and expand it with the given variables.');
+    expect(tool.description).toBe(
+      'Read a template file from disk and expand it with the given variables.',
+    );
     expect(tool.permission).toBe('confirm');
     expect(tool.mutating).toBe(true);
     expect(tool.capabilities).toContain('fs.write');
@@ -113,7 +117,7 @@ describe('template-engine plugin', () => {
     ])('template_expand refuses to write the protected path %s', async (target) => {
       templateEnginePlugin.setup(mockApi as any);
       const tool = mockApi.tools.register.mock.calls.find(
-        ([tool]: any[]) => tool.name === 'template_expand'
+        ([tool]: any[]) => tool.name === 'template_expand',
       )?.[0];
 
       // All of these are INSIDE the project, so "must resolve inside the
@@ -137,10 +141,12 @@ describe('template-engine plugin', () => {
   it('template_create should have correct properties', () => {
     templateEnginePlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'template_create'
+      ([tool]: any[]) => tool.name === 'template_create',
     )?.[0];
 
-    expect(tool.description).toBe("Save a named template to the plugin's template store for later use.");
+    expect(tool.description).toBe(
+      "Save a named template to the plugin's template store for later use.",
+    );
     expect(tool.permission).toBe('auto');
     expect(tool.mutating).toBe(false);
   });
@@ -149,7 +155,7 @@ describe('template-engine plugin', () => {
     it('rejects absolute output_path', async () => {
       templateEnginePlugin.setup(mockApi as any);
       const tool = mockApi.tools.register.mock.calls.find(
-        ([t]: any[]) => t.name === 'template_expand'
+        ([t]: any[]) => t.name === 'template_expand',
       )?.[0];
       const result = await tool.execute({
         template: 'hello {{name}}',
@@ -163,7 +169,7 @@ describe('template-engine plugin', () => {
     it('rejects output_path with .. traversal', async () => {
       templateEnginePlugin.setup(mockApi as any);
       const tool = mockApi.tools.register.mock.calls.find(
-        ([t]: any[]) => t.name === 'template_expand'
+        ([t]: any[]) => t.name === 'template_expand',
       )?.[0];
       const result = await tool.execute({
         template: 'hello {{name}}',
@@ -177,7 +183,7 @@ describe('template-engine plugin', () => {
     it('accepts relative output_path (no path validation error)', async () => {
       templateEnginePlugin.setup(mockApi as any);
       const tool = mockApi.tools.register.mock.calls.find(
-        ([t]: any[]) => t.name === 'template_expand'
+        ([t]: any[]) => t.name === 'template_expand',
       )?.[0];
       // Use a temp file in cwd. The important thing is that the path
       // validation does NOT reject it (no "relative path" error).

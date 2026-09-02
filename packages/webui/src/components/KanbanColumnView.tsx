@@ -133,9 +133,7 @@ function taskIntelligenceKey(task: KanbanTask): string {
     task.assignedAgent ?? '',
     JSON.stringify(task.dependsOn ?? null),
     JSON.stringify(task.childTaskIds ?? null),
-    JSON.stringify(
-      (task.successCriteria ?? []).map((check) => `${check.id}:${check.status}`),
-    ),
+    JSON.stringify((task.successCriteria ?? []).map((check) => `${check.id}:${check.status}`)),
     task.atomicityAssessment?.verdict ?? '',
     task.verificationReport?.attachments.length ?? 0,
     task.decomposition?.status ?? '',
@@ -299,10 +297,7 @@ export function KanbanColumnView({
           // The dataTransfer payload is UNTRUSTED — a foreign drag (text from
           // another window/app) can carry arbitrary content. Only honor ids
           // that name a task on this board; anything else is a no-op drop.
-          if (
-            droppedTaskId &&
-            board.tasks.some((candidate) => candidate.id === droppedTaskId)
-          ) {
+          if (droppedTaskId && board.tasks.some((candidate) => candidate.id === droppedTaskId)) {
             onMoveTask(droppedTaskId, column.id);
           }
           setDragTaskId(null);
@@ -418,7 +413,8 @@ export function KanbanColumnView({
                     // "move" back to the card's own column.
                     onDragStart={(event) => event.stopPropagation()}
                     onChange={(event) => {
-                      if (event.target.value !== task.columnId) onMoveTask(task.id, event.target.value);
+                      if (event.target.value !== task.columnId)
+                        onMoveTask(task.id, event.target.value);
                     }}
                     className="pointer-events-auto relative max-w-28 cursor-pointer rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
                   >

@@ -44,10 +44,7 @@ function mkCtx(): Context {
   } as unknown as Context;
 }
 
-function ctxWith(
-  reads: string[] = [],
-  writes: string[] = [],
-): Context {
+function ctxWith(reads: string[] = [], writes: string[] = []): Context {
   const readSet = new Set(reads);
   const writeSet = new Set(writes);
   return {
@@ -76,7 +73,7 @@ describe('Context — readFiles / writtenFiles separation (P1 #1)', () => {
     expect(ctx.hasWritten('/p/src/a.ts')).toBe(false);
   });
 
-  it("recordRead(write) does NOT populate readFiles — hasRead() returns false", () => {
+  it('recordRead(write) does NOT populate readFiles — hasRead() returns false', () => {
     const ctx = new Context({
       systemPrompt: [],
       provider: {} as never,
@@ -142,7 +139,7 @@ describe('DefaultPermissionPolicy — write smart-bypass (step 7, P1 #1)', () =>
 
   const t = writeTool();
 
-  it("auto-approves write to a file the user explicitly read (bypass still works)", async () => {
+  it('auto-approves write to a file the user explicitly read (bypass still works)', async () => {
     const p = new DefaultPermissionPolicy({ trustFile });
     // User ran `read` on src/a.ts → hasRead() returns true for the subject.
     const decision = await p.evaluate(t, { path: 'src/a.ts' }, ctxWith([subj('src/a.ts')]));
@@ -150,21 +147,25 @@ describe('DefaultPermissionPolicy — write smart-bypass (step 7, P1 #1)', () =>
     expect(decision.source).toBe('context');
   });
 
-  it("does NOT auto-approve write to a file only touched by edit/write (P1 #1 regression)", async () => {
+  it('does NOT auto-approve write to a file only touched by edit/write (P1 #1 regression)', async () => {
     const p = new DefaultPermissionPolicy({ trustFile });
     // edit/write recorded the file, but with source 'write'. The bypass must
     // fall through to the normal confirm flow.
-    const decision = await p.evaluate(t, { path: 'src/secret.ts' }, ctxWith([], [subj('src/secret.ts')]));
+    const decision = await p.evaluate(
+      t,
+      { path: 'src/secret.ts' },
+      ctxWith([], [subj('src/secret.ts')]),
+    );
     expect(decision.permission).toBe('confirm');
   });
 
-  it("does NOT auto-approve when neither read nor write touched the file", async () => {
+  it('does NOT auto-approve when neither read nor write touched the file', async () => {
     const p = new DefaultPermissionPolicy({ trustFile });
     const decision = await p.evaluate(t, { path: 'src/new.ts' }, mkCtx());
     expect(decision.permission).toBe('confirm');
   });
 
-  it("a prior user read still bypasses even if the file was later written", async () => {
+  it('a prior user read still bypasses even if the file was later written', async () => {
     // Common flow: read → edit → write. The user saw the original content, so
     // the bypass should apply. Both readFiles and writtenFiles contain the path,
     // but hasRead() (the bypass source of truth) returns true.
@@ -388,9 +389,21 @@ describe('YOLO carve-out — path keys beyond `path`/`file_path` (C1 follow-up)'
 
   it('project files via those keys still auto-approve (no regression)', async () => {
     const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
-    expect((await p.evaluate(fsWriteTool('replace'), { files: 'src/app.ts' }, mkCtx())).permission).toBe('auto');
-    expect((await p.evaluate(fsWriteTool('design'), { action: 'materialize', out: 'src/theme.css' }, mkCtx())).permission).toBe('auto');
-    expect((await p.evaluate(fsWriteTool('patch'), { directory: 'src' }, mkCtx())).permission).toBe('auto');
+    expect(
+      (await p.evaluate(fsWriteTool('replace'), { files: 'src/app.ts' }, mkCtx())).permission,
+    ).toBe('auto');
+    expect(
+      (
+        await p.evaluate(
+          fsWriteTool('design'),
+          { action: 'materialize', out: 'src/theme.css' },
+          mkCtx(),
+        )
+      ).permission,
+    ).toBe('auto');
+    expect((await p.evaluate(fsWriteTool('patch'), { directory: 'src' }, mkCtx())).permission).toBe(
+      'auto',
+    );
   });
 });
 

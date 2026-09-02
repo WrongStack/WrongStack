@@ -149,17 +149,21 @@ describe('usePasteDrop', () => {
       const { options } = makeHookOptions();
       const { result } = renderHook(() => usePasteDrop(options));
 
-      act(() => result.current.onDragEnter({
-        dataTransfer: { types: ['Files'] },
-        preventDefault: vi.fn(),
-      } as never as React.DragEvent<HTMLFormElement>));
+      act(() =>
+        result.current.onDragEnter({
+          dataTransfer: { types: ['Files'] },
+          preventDefault: vi.fn(),
+        } as never as React.DragEvent<HTMLFormElement>),
+      );
 
       expect(result.current.draggingOver).toBe(true);
 
-      act(() => result.current.onDragLeave({
-        currentTarget: { contains: () => false },
-        relatedTarget: null,
-      } as never as React.DragEvent<HTMLFormElement>));
+      act(() =>
+        result.current.onDragLeave({
+          currentTarget: { contains: () => false },
+          relatedTarget: null,
+        } as never as React.DragEvent<HTMLFormElement>),
+      );
 
       expect(result.current.draggingOver).toBe(false);
     });
@@ -290,7 +294,10 @@ describe('usePasteDrop', () => {
         fenced: '```typescript\nconst x = 1;\n```',
       });
 
-      const { options, setInput, _textarea } = makeHookOptions({ input: 'before ', selectionStart: 7 });
+      const { options, setInput, _textarea } = makeHookOptions({
+        input: 'before ',
+        selectionStart: 7,
+      });
       const { result } = renderHook(() => usePasteDrop(options));
 
       const event = {
@@ -359,7 +366,6 @@ describe('usePasteDrop', () => {
     });
   });
 });
-
 
 // ── Coverage completion pass (2026-07-29) ───────────────────────────────────
 // The blocks above use a fully stubbed textarea whose addEventListener is a

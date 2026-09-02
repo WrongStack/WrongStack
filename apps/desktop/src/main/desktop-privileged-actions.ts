@@ -46,7 +46,9 @@ export async function authorizeDesktopAction(
   if (logger) {
     logger.info('Trust boundary decision', auditEntry);
   } else {
-    console.warn(JSON.stringify({ level: 'info', ...auditEntry, timestamp: new Date().toISOString() }));
+    console.warn(
+      JSON.stringify({ level: 'info', ...auditEntry, timestamp: new Date().toISOString() }),
+    );
   }
   return { allowed: isTrustDecisionAllowed(decision), reason: decision.reason };
 }

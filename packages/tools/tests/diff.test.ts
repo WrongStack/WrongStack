@@ -321,4 +321,3 @@ describe('diffTool', () => {
     expect(resultWithSignal).toHaveProperty('mode');
   });
 });
-

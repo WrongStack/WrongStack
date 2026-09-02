@@ -5,11 +5,7 @@
   "description": "Track down which change introduced a regression.",
   "content": "Something that used to work now breaks: {{regression}}\n\nHelp me bisect it:\n1. Define a crisp pass/fail test I can run at any commit.\n2. Walk me through using git bisect (or manual halving) to find the culprit commit.\n3. Once found, explain how to read that diff to understand WHY it broke things.\n4. Recommend a fix that doesn't reintroduce whatever the bad commit was trying to do.",
   "category": "debugging",
-  "tags": [
-    "regression",
-    "git-bisect",
-    "history"
-  ],
+  "tags": ["regression", "git-bisect", "history"],
   "source": "builtin",
   "favorite": false,
   "checksum": "cfff3a6dacfc44e380c915ff5b71467a7b22735ea1c3214ad5c41d026965b17c",

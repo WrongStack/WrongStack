@@ -34,8 +34,8 @@ afterEach(() => {
 function stubFetchWith(body: string, status = 200): void {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () =>
-      new Response(body, { status, headers: { 'content-type': 'application/json' } }),
+    vi.fn(
+      async () => new Response(body, { status, headers: { 'content-type': 'application/json' } }),
     ),
   );
 }

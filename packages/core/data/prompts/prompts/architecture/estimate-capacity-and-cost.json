@@ -5,11 +5,7 @@
   "description": "Sanity-check scale and cost before building.",
   "content": "For this system: {{system}}\n\nDo a back-of-the-envelope estimate. From the expected load ({{load}}), work out requests per second, storage growth, bandwidth, and the rough infrastructure cost. Identify which resource becomes the bottleneck first and at what scale. Flag any number that's off by an order of magnitude from what I assumed. Keep the math visible so I can challenge it.",
   "category": "architecture",
-  "tags": [
-    "capacity",
-    "scale",
-    "cost"
-  ],
+  "tags": ["capacity", "scale", "cost"],
   "source": "builtin",
   "favorite": false,
   "checksum": "4e91e8c0a05e709fde1b5075963b9a1d46c38073e8b640a179d29e6802312252",

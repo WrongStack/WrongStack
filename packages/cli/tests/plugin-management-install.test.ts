@@ -70,10 +70,12 @@ describe('wstack plugin add --install', () => {
       return { code: 0, stdout: 'added 1 package', stderr: '' };
     });
 
-    const result = await runPluginManagementCommand(
-      ['add', 'wstack-plugin-x', '--install'],
-      { config: config(), configPath, globalRoot, runPackageManager },
-    );
+    const result = await runPluginManagementCommand(['add', 'wstack-plugin-x', '--install'], {
+      config: config(),
+      configPath,
+      globalRoot,
+      runPackageManager,
+    });
 
     expect(result.code).toBe(0);
     expect(result.message).toContain('Installed');
@@ -102,7 +104,13 @@ describe('wstack plugin add --install', () => {
 
   it('honours --pm=pnpm and --run-scripts', async () => {
     await writePluginPackage('wstack-plugin-y');
-    const runPackageManager = vi.fn(async (_pm: string, _args: readonly string[], _cwd: string) => ({ code: 0, stdout: '', stderr: '' }));
+    const runPackageManager = vi.fn(
+      async (_pm: string, _args: readonly string[], _cwd: string) => ({
+        code: 0,
+        stdout: '',
+        stderr: '',
+      }),
+    );
 
     const result = await runPluginManagementCommand(
       ['add', 'wstack-plugin-y', '--install', '--pm=pnpm', '--run-scripts'],
@@ -118,19 +126,16 @@ describe('wstack plugin add --install', () => {
   });
 
   it('surfaces package-manager failures with the stderr tail', async () => {
-    const result = await runPluginManagementCommand(
-      ['add', 'wstack-plugin-z', '--install'],
-      {
-        config: config(),
-        configPath,
-        globalRoot,
-        runPackageManager: async () => ({
-          code: 1,
-          stdout: '',
-          stderr: 'line1\nline2\n404 not found',
-        }),
-      },
-    );
+    const result = await runPluginManagementCommand(['add', 'wstack-plugin-z', '--install'], {
+      config: config(),
+      configPath,
+      globalRoot,
+      runPackageManager: async () => ({
+        code: 1,
+        stdout: '',
+        stderr: 'line1\nline2\n404 not found',
+      }),
+    });
     expect(result.code).toBe(1);
     expect(result.level).toBe('error');
     expect(result.message).toContain('404 not found');
@@ -139,17 +144,14 @@ describe('wstack plugin add --install', () => {
   });
 
   it('routes official aliases to plain registration (no install)', async () => {
-    const result = await runPluginManagementCommand(
-      ['add', 'lsp', '--install'],
-      {
-        config: config(),
-        configPath,
-        globalRoot,
-        runPackageManager: async () => {
-          throw new Error('must not run');
-        },
+    const result = await runPluginManagementCommand(['add', 'lsp', '--install'], {
+      config: config(),
+      configPath,
+      globalRoot,
+      runPackageManager: async () => {
+        throw new Error('must not run');
       },
-    );
+    });
     expect(result.code).toBe(0);
     expect(result.message).toContain('Added');
   });
@@ -196,10 +198,7 @@ describe('wstack plugin trust', () => {
     expect(pin).toBeDefined();
     expect(pin!.integrity).not.toBe('sha256-' + '0'.repeat(64));
 
-    const remove = await runPluginManagementCommand(
-      ['trust', 'wstack-plugin-t', '--remove'],
-      deps,
-    );
+    const remove = await runPluginManagementCommand(['trust', 'wstack-plugin-t', '--remove'], deps);
     expect(remove.code).toBe(0);
     const afterRemove = JSON.parse(await fs.readFile(trustPath, 'utf8')) as {
       pinned: Record<string, unknown>;

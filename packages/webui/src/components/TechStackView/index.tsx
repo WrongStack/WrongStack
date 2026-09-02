@@ -15,7 +15,18 @@
  * @see docs/specs/techstack-sdd.md §4.2, §6
  */
 
-import { Boxes, Download, FileCode, FileText, Loader2, RefreshCw, Shield, ShieldCheck, Sparkles, X } from 'lucide-react';
+import {
+  Boxes,
+  Download,
+  FileCode,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +45,17 @@ import {
 import { DependencyDetail } from './DependencyDetail';
 import { DependencyTable } from './DependencyTable';
 import { FindingsPanel } from './FindingsPanel';
-import { COVERAGE_META, downloadReport, ECOSYSTEM_META, EcosystemIcon, ecosystemLabel, MetricCard, needsAttention, statusMeta, versionDrift } from './shared';
+import {
+  COVERAGE_META,
+  downloadReport,
+  ECOSYSTEM_META,
+  EcosystemIcon,
+  ecosystemLabel,
+  MetricCard,
+  needsAttention,
+  statusMeta,
+  versionDrift,
+} from './shared';
 import { type DependencySort, TechStackToolbar } from './TechStackToolbar';
 import { useAppTranslation } from '@/i18n';
 
@@ -349,7 +370,9 @@ export function TechStackView() {
         <div className="flex flex-wrap items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-base font-bold sm:text-lg">{t('activity:techStack.techstack')}</h1>
+              <h1 className="text-base font-bold sm:text-lg">
+                {t('activity:techStack.techstack')}
+              </h1>
               <span className="border border-info/35 bg-info/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-info">
                 {snapshot ? `${snapshot.workspaces.length} workspaces` : 'no scan yet'}
               </span>
@@ -381,7 +404,9 @@ export function TechStackView() {
               size="sm"
               onClick={() => void startJob('analyze')}
               disabled={jobRunning}
-              title={t('activity:techStack.checkRegistriesAndAdvisoriesThenInterpretTheResultsWithTheModel')}
+              title={t(
+                'activity:techStack.checkRegistriesAndAdvisoriesThenInterpretTheResultsWithTheModel',
+              )}
             >
               <Sparkles className="size-3.5" />
               {t('activity:techStack.analyze')}
@@ -696,7 +721,9 @@ function RemediationPanel({
           );
         })}
         {plan.items.length === 0 && (
-          <p className="p-8 text-center text-xs text-muted-foreground">{t('activity:techStack.noRemediationNeeded')}</p>
+          <p className="p-8 text-center text-xs text-muted-foreground">
+            {t('activity:techStack.noRemediationNeeded')}
+          </p>
         )}
       </div>
     </div>
@@ -719,7 +746,9 @@ function WorkspaceList({ snapshot }: { snapshot: TechStackSnapshot }) {
   if (snapshot.workspaces.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <p className="text-xs text-muted-foreground">{t('activity:techStack.noWorkspacesDetected')}</p>
+        <p className="text-xs text-muted-foreground">
+          {t('activity:techStack.noWorkspacesDetected')}
+        </p>
       </div>
     );
   }
@@ -739,7 +768,12 @@ function WorkspaceList({ snapshot }: { snapshot: TechStackSnapshot }) {
                   <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
                     <EcosystemIcon ecosystem={workspace.ecosystem} />
                     <span>{ecosystemLabel(workspace.ecosystem, t)}</span>
-                    {workspace.packageManager ? <><span aria-hidden="true">·</span><span>{workspace.packageManager}</span></> : null}
+                    {workspace.packageManager ? (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span>{workspace.packageManager}</span>
+                      </>
+                    ) : null}
                     <span aria-hidden="true">·</span>
                     <span>{counts.get(workspace.id) ?? 0} deps</span>
                   </p>
@@ -781,7 +815,9 @@ function LoadingState() {
     <div className="flex flex-1 items-center justify-center">
       <div className="flex flex-col items-center gap-2">
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">{t('activity:techStack.loadingSnapshot')}</span>
+        <span className="text-xs text-muted-foreground">
+          {t('activity:techStack.loadingSnapshot')}
+        </span>
       </div>
     </div>
   );
@@ -826,5 +862,3 @@ function tally(values: readonly string[]): Array<[string, number]> {
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
-
-

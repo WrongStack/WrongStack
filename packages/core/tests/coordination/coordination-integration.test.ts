@@ -148,9 +148,7 @@ describe('KnowledgeGraph + ChangeManager Integration', () => {
     // ChangeManager requires a ConsensusProtocol
     const consensus = new ConsensusProtocol({
       graph,
-      voters: [
-        { agentId: 'voter-1', agentName: 'Alice', weight: 1, role: 'reviewer' },
-      ],
+      voters: [{ agentId: 'voter-1', agentName: 'Alice', weight: 1, role: 'reviewer' }],
       rules: { quorumFraction: 0, vetoRoles: [], approvalFraction: 0.6 },
     });
 
@@ -160,9 +158,7 @@ describe('KnowledgeGraph + ChangeManager Integration', () => {
     const change = await changeManager.propose({
       title: 'Add memory leak test',
       description: 'Add test for session store memory leak',
-      files: [
-        { path: 'packages/core/tests/session-store.test.ts', action: 'create' },
-      ],
+      files: [{ path: 'packages/core/tests/session-store.test.ts', action: 'create' }],
       proposedBy: 'test-agent',
       satisfiesGoals: [],
       tags: ['test', 'memory'],
@@ -173,7 +169,7 @@ describe('KnowledgeGraph + ChangeManager Integration', () => {
 
     // Verify it exists in graph
     const changes = graph.getChanges({ status: 'proposed' });
-    expect(changes.some(c => c.id === change.id)).toBe(true);
+    expect(changes.some((c) => c.id === change.id)).toBe(true);
   });
 
   it('tracks change lifecycle in graph', async () => {
@@ -181,9 +177,7 @@ describe('KnowledgeGraph + ChangeManager Integration', () => {
 
     const consensus = new ConsensusProtocol({
       graph,
-      voters: [
-        { agentId: 'voter-1', agentName: 'Alice', weight: 1, role: 'reviewer' },
-      ],
+      voters: [{ agentId: 'voter-1', agentName: 'Alice', weight: 1, role: 'reviewer' }],
       rules: { quorumFraction: 0, vetoRoles: [], approvalFraction: 0.6 },
     });
 
@@ -193,9 +187,7 @@ describe('KnowledgeGraph + ChangeManager Integration', () => {
     const change = await changeManager.propose({
       title: 'Refactor auth module',
       description: 'Clean up authentication logic',
-      files: [
-        { path: 'packages/core/src/auth/session.ts', action: 'modify' },
-      ],
+      files: [{ path: 'packages/core/src/auth/session.ts', action: 'modify' }],
       proposedBy: 'architect',
       satisfiesGoals: [],
       tags: ['refactor', 'auth'],
@@ -203,7 +195,7 @@ describe('KnowledgeGraph + ChangeManager Integration', () => {
 
     // Verify it starts as proposed
     let changes = graph.getChanges({ status: 'proposed' });
-    expect(changes.some(c => c.id === change.id)).toBe(true);
+    expect(changes.some((c) => c.id === change.id)).toBe(true);
 
     // Simulate approval by updating directly in graph
     await graph.update(change.id, {
@@ -213,7 +205,7 @@ describe('KnowledgeGraph + ChangeManager Integration', () => {
 
     // Verify status changed
     changes = graph.getChanges({ status: 'approved' });
-    expect(changes.some(c => c.id === change.id)).toBe(true);
+    expect(changes.some((c) => c.id === change.id)).toBe(true);
   });
 });
 
@@ -319,7 +311,7 @@ describe('TaskDAG + KnowledgeGraph Integration', () => {
     // Check that 3 tasks are ready (task-4 is blocked)
     const readyTasks = dag.getReady();
     expect(readyTasks.length).toBe(3);
-    expect(readyTasks.some(t => t.id === 'task-4')).toBe(false);
+    expect(readyTasks.some((t) => t.id === 'task-4')).toBe(false);
 
     // Complete two tasks
     dag.start('task-1', 'agent-1');
@@ -377,11 +369,11 @@ describe('Error Recovery Integration', () => {
 
     // Task B should now be ready (skipped counts as done for deps)
     const ready = dag.getReady();
-    expect(ready.some(t => t.id === 'task-b')).toBe(true);
+    expect(ready.some((t) => t.id === 'task-b')).toBe(true);
 
     // Verify skipped task is in completed
     const completed = dag.getCompleted();
-    expect(completed.some(t => t.id === 'task-a')).toBe(true);
+    expect(completed.some((t) => t.id === 'task-a')).toBe(true);
   });
 
   it('handles failed dependency correctly', () => {
@@ -396,11 +388,11 @@ describe('Error Recovery Integration', () => {
 
     // Task B should still be pending (dependency failed)
     const pending = dag.getPending();
-    expect(pending.some(t => t.id === 'task-b')).toBe(true);
+    expect(pending.some((t) => t.id === 'task-b')).toBe(true);
 
     // Get blocked tasks
     const blocked = dag.getBlocked();
-    expect(blocked.some(t => t.id === 'task-b')).toBe(true);
+    expect(blocked.some((t) => t.id === 'task-b')).toBe(true);
   });
 });
 
@@ -461,9 +453,7 @@ describe('Full Coordination Workflow', () => {
     const fixChange = await changeManager.propose({
       title: 'Add null check in auth handler',
       description: `Fix for: ${(bugFact as FactNode).subject}`,
-      files: [
-        { path: 'packages/core/src/auth/session.ts', action: 'modify' },
-      ],
+      files: [{ path: 'packages/core/src/auth/session.ts', action: 'modify' }],
       proposedBy: 'fix-agent',
       satisfiesGoals: [fixGoal.id],
       tags: ['bug-fix'],
@@ -484,7 +474,7 @@ describe('Full Coordination Workflow', () => {
     expect(finalDagNode!.status).toBe('done');
 
     const changes = graph.getChanges({ status: 'proposed' });
-    expect(changes.some(c => c.id === fixChange.id)).toBe(true);
+    expect(changes.some((c) => c.id === fixChange.id)).toBe(true);
 
     // Verify DAG is done
     expect(dag.isDone()).toBe(true);

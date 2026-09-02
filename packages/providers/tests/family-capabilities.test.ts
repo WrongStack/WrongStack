@@ -1,9 +1,6 @@
 import type { WireFamily } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
-import {
-  CAPABILITIES_BY_FAMILY,
-  capabilitiesForFamily,
-} from '../src/family-capabilities.js';
+import { CAPABILITIES_BY_FAMILY, capabilitiesForFamily } from '../src/family-capabilities.js';
 
 describe('family-capabilities', () => {
   describe('CAPABILITIES_BY_FAMILY', () => {

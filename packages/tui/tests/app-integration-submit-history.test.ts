@@ -129,7 +129,9 @@ describe('Issue 005 — stable interaction coverage additions', () => {
     expect(enterCall, 'expected a plain Enter key event').toBeDefined();
 
     onKey('', makeKey({ return: true, shift: true }));
-    const shiftEnterCall = calls.find((call) => call.key.return === true && call.key.shift === true);
+    const shiftEnterCall = calls.find(
+      (call) => call.key.return === true && call.key.shift === true,
+    );
     expect(shiftEnterCall, 'expected a Shift+Enter-shaped key event').toBeDefined();
 
     unmount();

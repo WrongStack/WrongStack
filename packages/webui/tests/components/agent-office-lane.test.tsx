@@ -83,9 +83,7 @@ describe('AgentLane wait badge click routing', () => {
 
   it('mail-reply desk: clicking the badge opens the pending MAIL detail', () => {
     const onSelect = vi.fn();
-    const { container } = render(
-      <AgentLane model={model()} now={NOW} onSelect={onSelect} />,
-    );
+    const { container } = render(<AgentLane model={model()} now={NOW} onSelect={onSelect} />);
 
     const badge = container.querySelector<HTMLButtonElement>('.agent-office__wait-badge');
     expect(badge).not.toBeNull();
@@ -126,7 +124,11 @@ describe('AgentLane wait badge click routing', () => {
   it('no-work desk without a current task: clicking does nothing (no empty task panel)', () => {
     const onSelect = vi.fn();
     const { container } = render(
-      <AgentLane model={model({ mail: [], agent: agent({ currentTask: '' }) })} now={NOW} onSelect={onSelect} />,
+      <AgentLane
+        model={model({ mail: [], agent: agent({ currentTask: '' }) })}
+        now={NOW}
+        onSelect={onSelect}
+      />,
     );
 
     const badge = container.querySelector('.agent-office__wait-badge');

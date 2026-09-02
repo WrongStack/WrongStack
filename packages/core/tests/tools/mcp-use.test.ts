@@ -196,7 +196,10 @@ describe('createMcpUseTool', () => {
     // activations performed by THIS call are torn down in the finally.
     const activateServer = vi.fn();
     const deactivateServer = vi.fn();
-    const inner = mcpTool('mcp__github__ping', vi.fn(async () => 'pong'));
+    const inner = mcpTool(
+      'mcp__github__ping',
+      vi.fn(async () => 'pong'),
+    );
     const tool = createMcpUseTool({
       registry: fakeRegistry({
         activateServer,

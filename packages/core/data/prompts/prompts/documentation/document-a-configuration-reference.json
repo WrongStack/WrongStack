@@ -5,11 +5,7 @@
   "description": "Produce a complete, scannable config reference.",
   "content": "Document the configuration for: {{system}}\n\nFor each option: name, type, default, whether it's required, what it controls, and a realistic example. Note interactions between options and any that are dangerous to change. Group related options and mark deprecated ones. Make it scannable: a table or consistent block per option, not prose. Lead with the handful of options most people actually need to set.",
   "category": "documentation",
-  "tags": [
-    "config",
-    "reference",
-    "docs"
-  ],
+  "tags": ["config", "reference", "docs"],
   "source": "builtin",
   "favorite": false,
   "checksum": "da1728f7752a89f65a2488c2016e9c98926d1c6cde584f3ca8e09c4b60f9b528",

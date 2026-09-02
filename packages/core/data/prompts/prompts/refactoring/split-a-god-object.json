@@ -5,10 +5,7 @@
   "description": "Break an overgrown class or function into focused pieces.",
   "content": "This class or function does too many things:\n\n{{code}}\n\nIdentify the distinct responsibilities tangled inside it. Group the fields and methods that change together and propose how to split them into cohesive units, each with one reason to change. Show the new boundaries and how they collaborate. Sequence the refactor into safe steps. Flag any shared mutable state that makes the split harder than it looks.",
   "category": "refactoring",
-  "tags": [
-    "god-object",
-    "cohesion"
-  ],
+  "tags": ["god-object", "cohesion"],
   "source": "builtin",
   "favorite": false,
   "checksum": "dca06a8ca1e741865a580d2e8263fe5516adc6cf431ee9613020f6b64439c68e",

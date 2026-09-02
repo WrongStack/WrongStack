@@ -21,12 +21,8 @@
     ]
   },
   "expectations": {
-    "allowedDecisionTypes": [
-      "answer"
-    ],
-    "allowedOptionIds": [
-      "retry"
-    ],
+    "allowedDecisionTypes": ["answer"],
+    "allowedOptionIds": ["retry"],
     "requireOptionId": true
   },
   "expectTier": "heuristic"

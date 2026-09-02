@@ -70,7 +70,11 @@ export function FleetChatDrawer({
           ) : (
             <SquareTerminal className="size-3.5 shrink-0 text-muted-foreground" />
           )}
-          <span id={titleId} title={target.label} className="min-w-0 flex-1 truncate text-xs font-medium">
+          <span
+            id={titleId}
+            title={target.label}
+            className="min-w-0 flex-1 truncate text-xs font-medium"
+          >
             {target.label}
           </span>
           {target.status !== undefined && (

@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  deriveVibeState,
-  hasVibeTag,
-  stripVibeTag,
-} from '../src/index.js';
+import { deriveVibeState, hasVibeTag, stripVibeTag } from '../src/index.js';
 import { ALICE, makeHarness } from './helpers.js';
 
 describe('VIBE Protocol — Requirement Intake', () => {
@@ -29,7 +25,9 @@ describe('VIBE Protocol — Requirement Intake', () => {
 
   describe('stripVibeTag', () => {
     it('removes [VIBE] tag and cleans extra spaces', () => {
-      expect(stripVibeTag('[VIBE] butona basınca sepet artsın')).toBe('butona basınca sepet artsın');
+      expect(stripVibeTag('[VIBE] butona basınca sepet artsın')).toBe(
+        'butona basınca sepet artsın',
+      );
       expect(stripVibeTag('lütfen bunu   [VIBE]   yap')).toBe('lütfen bunu yap');
     });
 

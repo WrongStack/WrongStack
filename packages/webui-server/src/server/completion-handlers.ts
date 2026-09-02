@@ -180,8 +180,9 @@ export async function handleCompletionRequest(
   const query = buildSearchQuery(linePrefix, payload.filePath);
 
   const [lspItems, indexItems] = await Promise.all([
-    loadLspSuggestions(opts.lspCompletion, payload, resolved)
-      .catch(() => [] as CompletionSuggestion[]),
+    loadLspSuggestions(opts.lspCompletion, payload, resolved).catch(
+      () => [] as CompletionSuggestion[],
+    ),
     loadIndexSuggestions({
       projectRoot,
       indexDir: opts.indexDir,
@@ -191,16 +192,16 @@ export async function handleCompletionRequest(
 
   const llmResult = shouldUseLlm(payload, linePrefix, query)
     ? await loadLlmSuggestions({
-      provider: opts.provider,
-      model: opts.model,
-      payload,
-      prefix,
-      suffix,
-      linePrefix,
-      query,
-      relatedSymbols: indexItems,
-      timeoutMs: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-    }).catch((err) => ({ error: errMessage(err), items: [] as CompletionSuggestion[] }))
+        provider: opts.provider,
+        model: opts.model,
+        payload,
+        prefix,
+        suffix,
+        linePrefix,
+        query,
+        relatedSymbols: indexItems,
+        timeoutMs: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      }).catch((err) => ({ error: errMessage(err), items: [] as CompletionSuggestion[] }))
     : ([] as CompletionSuggestion[]);
 
   const llmItems = Array.isArray(llmResult) ? llmResult : llmResult.items;
@@ -244,7 +245,9 @@ export function createToolLspCompletionSource(
   };
 }
 
-function parsePayload(msg: unknown):
+function parsePayload(
+  msg: unknown,
+):
   | { ok: true; payload: CompletionRequestPayload }
   | { ok: false; error: string; requestId?: string | undefined; filePath?: string | undefined } {
   const payload = (msg as { payload?: Partial<CompletionRequestPayload> | undefined }).payload;
@@ -268,9 +271,10 @@ function parsePayload(msg: unknown):
   if (!isValidPositionValue(payload.lineNumber) || !isValidPositionValue(payload.column)) {
     return { ok: false, error: 'Invalid cursor position', requestId, filePath };
   }
-  const content = typeof payload.content === 'string' && payload.content.length <= MAX_CONTENT_CHARS
-    ? payload.content
-    : undefined;
+  const content =
+    typeof payload.content === 'string' && payload.content.length <= MAX_CONTENT_CHARS
+      ? payload.content
+      : undefined;
   return {
     ok: true,
     payload: {
@@ -282,9 +286,8 @@ function parsePayload(msg: unknown):
       content,
       prefix: payload.prefix,
       suffix: typeof payload.suffix === 'string' ? payload.suffix : undefined,
-      triggerCharacter: typeof payload.triggerCharacter === 'string'
-        ? payload.triggerCharacter
-        : undefined,
+      triggerCharacter:
+        typeof payload.triggerCharacter === 'string' ? payload.triggerCharacter : undefined,
       triggerKind: typeof payload.triggerKind === 'number' ? payload.triggerKind : undefined,
       allowLlm: typeof payload.allowLlm === 'boolean' ? payload.allowLlm : undefined,
     },
@@ -412,12 +415,16 @@ function buildCompletionPrompt(opts: {
   query: string;
   relatedSymbols: CompletionSuggestion[];
 }): string {
-  const related = opts.relatedSymbols.length > 0
-    ? opts.relatedSymbols
-      .slice(0, INDEX_LIMIT)
-      .map((item) => `- ${item.label}: ${item.detail ?? item.documentation ?? item.kind ?? 'symbol'}`)
-      .join('\n')
-    : '(none)';
+  const related =
+    opts.relatedSymbols.length > 0
+      ? opts.relatedSymbols
+          .slice(0, INDEX_LIMIT)
+          .map(
+            (item) =>
+              `- ${item.label}: ${item.detail ?? item.documentation ?? item.kind ?? 'symbol'}`,
+          )
+          .join('\n')
+      : '(none)';
 
   return [
     `File: ${opts.payload.filePath}`,
@@ -511,9 +518,8 @@ function parseLspToolJson(output: string): CompletionSuggestion[] | null {
         if (!value || typeof value !== 'object') return null;
         const raw = value as Record<string, unknown>;
         const label = typeof raw.label === 'string' ? raw.label.trim() : '';
-        const insertText = typeof raw.insertText === 'string' && raw.insertText
-          ? raw.insertText
-          : label;
+        const insertText =
+          typeof raw.insertText === 'string' && raw.insertText ? raw.insertText : label;
         if (!label || !insertText) return null;
         return {
           label,
@@ -626,9 +632,7 @@ function normalizeKind(value: unknown): CompletionItemKind | undefined {
     'file',
     'reference',
   ];
-  return allowed.includes(value as CompletionItemKind)
-    ? value as CompletionItemKind
-    : undefined;
+  return allowed.includes(value as CompletionItemKind) ? (value as CompletionItemKind) : undefined;
 }
 
 function mergeSuggestions(items: CompletionSuggestion[]): CompletionSuggestion[] {

@@ -65,9 +65,9 @@ describe('BrowserSessionManager.open() failure-path cleanup', () => {
     const fakes = makeFakes({ newPageThrows: true });
     const manager = makeManager(fakes);
     try {
-      await expect(
-        manager.open('owner', {}, new AbortController().signal),
-      ).rejects.toThrow('page creation failed');
+      await expect(manager.open('owner', {}, new AbortController().signal)).rejects.toThrow(
+        'page creation failed',
+      );
 
       // A failed open must not leak the created context (a full renderer).
       expect(fakes.context.close).toHaveBeenCalled();
@@ -82,9 +82,9 @@ describe('BrowserSessionManager.open() failure-path cleanup', () => {
     const fakes = makeFakes({ routeThrows: true });
     const manager = makeManager(fakes);
     try {
-      await expect(
-        manager.open('owner', {}, new AbortController().signal),
-      ).rejects.toThrow('route registration failed');
+      await expect(manager.open('owner', {}, new AbortController().signal)).rejects.toThrow(
+        'route registration failed',
+      );
 
       expect(fakes.context.close).toHaveBeenCalled();
       // No stale session may remain registered after a failed open.

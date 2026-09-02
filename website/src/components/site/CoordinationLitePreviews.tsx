@@ -53,7 +53,10 @@ function KanbanLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
           {columns.map((column, columnIndex) => {
             const hasActiveCard = columnIndex === visibleStage;
             return (
-              <div key={column.label} className="h-[296px] rounded-xl border border-white/[0.06] bg-white/[0.018] p-2">
+              <div
+                key={column.label}
+                className="h-[296px] rounded-xl border border-white/[0.06] bg-white/[0.018] p-2"
+              >
                 <div className="flex items-center justify-between gap-1">
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className={cn('size-1.5 shrink-0 rounded-full', column.dot)} />
@@ -70,7 +73,9 @@ function KanbanLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
                   {hasActiveCard && (
                     <motion.div
                       layoutId="home-kanban-active-task"
-                      transition={{ layout: { duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] } }}
+                      transition={{
+                        layout: { duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] },
+                      }}
                       className={cn(
                         'rounded-lg border bg-[#171b24] p-2 shadow-lg shadow-black/20',
                         visibleStage === 1 && 'border-brand-2/35',
@@ -89,7 +94,14 @@ function KanbanLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
                       <div className="mt-2 h-1.5 rounded-full bg-white/[0.07]" />
                       <div className="mt-1 h-1.5 w-2/3 rounded-full bg-white/[0.045]" />
                       <div className="mt-3 flex items-center justify-between">
-                        <span className={cn('size-4 rounded-full border', visibleStage === 3 ? 'border-emerald-300/30 bg-emerald-300/10' : 'border-brand-2/30 bg-brand-2/10')} />
+                        <span
+                          className={cn(
+                            'size-4 rounded-full border',
+                            visibleStage === 3
+                              ? 'border-emerald-300/30 bg-emerald-300/10'
+                              : 'border-brand-2/30 bg-brand-2/10',
+                          )}
+                        />
                         {visibleStage === 3 ? (
                           <CheckCircle2 className="size-3 text-emerald-300" />
                         ) : (
@@ -122,8 +134,31 @@ function KanbanLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
 
       <div className="pointer-events-none absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/[0.08] bg-[#11141c] px-3 py-1 font-mono text-xs">
         {[1, 2, 3].map((stage) => (
-          <span key={stage} className={cn('flex items-center gap-1.5', visibleStage === stage ? stage === 1 ? 'text-brand-2' : stage === 2 ? 'text-violet-300' : 'text-emerald-300' : 'text-zinc-700')}>
-            <span className={cn('size-1.5 rounded-full', visibleStage === stage ? stage === 1 ? 'bg-brand-2' : stage === 2 ? 'bg-violet-300' : 'bg-emerald-300' : 'bg-zinc-700')} />
+          <span
+            key={stage}
+            className={cn(
+              'flex items-center gap-1.5',
+              visibleStage === stage
+                ? stage === 1
+                  ? 'text-brand-2'
+                  : stage === 2
+                    ? 'text-violet-300'
+                    : 'text-emerald-300'
+                : 'text-zinc-700',
+            )}
+          >
+            <span
+              className={cn(
+                'size-1.5 rounded-full',
+                visibleStage === stage
+                  ? stage === 1
+                    ? 'bg-brand-2'
+                    : stage === 2
+                      ? 'bg-violet-300'
+                      : 'bg-emerald-300'
+                  : 'bg-zinc-700',
+              )}
+            />
             {stage === 1 ? 'running' : stage === 2 ? 'preview' : 'done'}
           </span>
         ))}
@@ -136,16 +171,47 @@ function BrainLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
   const [step, setStep] = useState(0);
   const visibleStep = reducedMotion ? 4 : step;
   const seats = [
-    { label: 'Executor', initials: 'EX', vote: 'GO', tone: 'border-cyan-300/30 bg-cyan-300/10 text-cyan-200', voteTone: 'bg-cyan-300', delay: 0 },
-    { label: 'Skeptic', initials: 'SK', vote: 'HOLD', tone: 'border-rose-300/30 bg-rose-300/10 text-rose-200', voteTone: 'bg-rose-300', delay: 0.15 },
-    { label: 'Auditor', initials: 'AU', vote: 'GO', tone: 'border-brand-2/30 bg-brand-2/10 text-brand-2', voteTone: 'bg-brand-2', delay: 0.3 },
-    { label: 'Strategist', initials: 'ST', vote: 'GO', tone: 'border-violet-300/30 bg-violet-300/10 text-violet-200', voteTone: 'bg-violet-300', delay: 0.45 },
+    {
+      label: 'Executor',
+      initials: 'EX',
+      vote: 'GO',
+      tone: 'border-cyan-300/30 bg-cyan-300/10 text-cyan-200',
+      voteTone: 'bg-cyan-300',
+      delay: 0,
+    },
+    {
+      label: 'Skeptic',
+      initials: 'SK',
+      vote: 'HOLD',
+      tone: 'border-rose-300/30 bg-rose-300/10 text-rose-200',
+      voteTone: 'bg-rose-300',
+      delay: 0.15,
+    },
+    {
+      label: 'Auditor',
+      initials: 'AU',
+      vote: 'GO',
+      tone: 'border-brand-2/30 bg-brand-2/10 text-brand-2',
+      voteTone: 'bg-brand-2',
+      delay: 0.3,
+    },
+    {
+      label: 'Strategist',
+      initials: 'ST',
+      vote: 'GO',
+      tone: 'border-violet-300/30 bg-violet-300/10 text-violet-200',
+      voteTone: 'bg-violet-300',
+      delay: 0.45,
+    },
   ];
   const stages = ['Risk', 'Votes', 'Quorum', 'Veto', 'Decision'];
 
   useEffect(() => {
     if (reducedMotion) return;
-    const timer = window.setTimeout(() => setStep((value) => (value + 1) % stages.length), step === 4 ? 2400 : 1400);
+    const timer = window.setTimeout(
+      () => setStep((value) => (value + 1) % stages.length),
+      step === 4 ? 2400 : 1400,
+    );
     return () => window.clearTimeout(timer);
   }, [reducedMotion, step, stages.length]);
 
@@ -160,7 +226,9 @@ function BrainLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
             <span className="block font-mono text-xs font-black uppercase tracking-[0.14em] text-zinc-200">
               Decision Council
             </span>
-            <span className="mt-0.5 block font-mono text-xs text-zinc-600">independent seats · sealed rationales</span>
+            <span className="mt-0.5 block font-mono text-xs text-zinc-600">
+              independent seats · sealed rationales
+            </span>
           </div>
         </div>
         <motion.span
@@ -219,19 +287,33 @@ function BrainLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
               key={seat.label}
               animate={
                 !reducedMotion && visibleStep === 1
-                  ? { y: [0, -2, 0], borderColor: ['rgba(255,255,255,.08)', 'rgba(34,211,238,.28)', 'rgba(255,255,255,.08)'] }
+                  ? {
+                      y: [0, -2, 0],
+                      borderColor: [
+                        'rgba(255,255,255,.08)',
+                        'rgba(34,211,238,.28)',
+                        'rgba(255,255,255,.08)',
+                      ],
+                    }
                   : undefined
               }
               transition={{ duration: 1.1, delay: seat.delay }}
               className="rounded-xl border border-white/[0.07] bg-[#141820] p-2.5"
             >
               <div className="flex items-center gap-2">
-                <span className={cn('grid size-7 shrink-0 place-items-center rounded-full border font-mono text-xs font-black', seat.tone)}>
+                <span
+                  className={cn(
+                    'grid size-7 shrink-0 place-items-center rounded-full border font-mono text-xs font-black',
+                    seat.tone,
+                  )}
+                >
                   {seat.initials}
                 </span>
                 <div className="min-w-0">
                   <strong className="block truncate text-xs text-zinc-300">{seat.label}</strong>
-                  <span className="font-mono text-xs text-zinc-700">weight {index === 1 ? '1.5' : '1.0'}</span>
+                  <span className="font-mono text-xs text-zinc-700">
+                    weight {index === 1 ? '1.5' : '1.0'}
+                  </span>
                 </div>
               </div>
               <motion.div
@@ -256,7 +338,10 @@ function BrainLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
             <span className={visibleStep >= 2 ? 'text-emerald-300' : 'text-zinc-700'}>4 / 4</span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-            <motion.div animate={{ width: visibleStep >= 2 ? '100%' : '0%' }} className="h-full rounded-full bg-emerald-300" />
+            <motion.div
+              animate={{ width: visibleStep >= 2 ? '100%' : '0%' }}
+              className="h-full rounded-full bg-emerald-300"
+            />
           </div>
         </motion.div>
 
@@ -274,7 +359,13 @@ function BrainLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
           </div>
           <div className="mt-2 flex gap-1">
             {[0, 1, 2, 3].map((item) => (
-              <span key={item} className={cn('h-1.5 flex-1 rounded-full', visibleStep >= 3 ? 'bg-emerald-300/70' : 'bg-white/[0.06]')} />
+              <span
+                key={item}
+                className={cn(
+                  'h-1.5 flex-1 rounded-full',
+                  visibleStep >= 3 ? 'bg-emerald-300/70' : 'bg-white/[0.06]',
+                )}
+              />
             ))}
           </div>
         </motion.div>
@@ -293,7 +384,10 @@ function BrainLiteMockup({ reducedMotion }: { reducedMotion: boolean }) {
             <span className="font-mono text-xs font-black text-emerald-300">3.0 / 4.5</span>
           </div>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-            <motion.div animate={{ width: visibleStep >= 4 ? '67%' : '0%' }} className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-brand-2 to-emerald-300" />
+            <motion.div
+              animate={{ width: visibleStep >= 4 ? '67%' : '0%' }}
+              className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-brand-2 to-emerald-300"
+            />
           </div>
         </div>
         <Scale className="size-4 shrink-0 text-emerald-300" />
@@ -340,7 +434,8 @@ export function CoordinationLitePreviews() {
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-7 text-zinc-400">
-            Two intentionally sparse previews—enough motion to show the operating model without turning the home page into a dashboard.
+            Two intentionally sparse previews—enough motion to show the operating model without
+            turning the home page into a dashboard.
           </p>
         </div>
 

@@ -18,7 +18,10 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import { resolveSendType } from '../../src/coordination/mailbox-message-codec.js';
-import { MAILBOX_TYPE_PROPERTIES, isMailboxMessageVisibleTo } from '../../src/coordination/mailbox-types.js';
+import {
+  MAILBOX_TYPE_PROPERTIES,
+  isMailboxMessageVisibleTo,
+} from '../../src/coordination/mailbox-types.js';
 import type { EventBus } from '../../src/kernel/events.js';
 import {
   FIXTURE_TIME,
@@ -183,7 +186,13 @@ describe('GM-P0.0 send-input fixture coverage', () => {
 
 describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
   it('sends and queries a direct message', async () => {
-    const msg = await mb.send({ from: 'a', to: 'b', type: 'note', subject: 'direct', body: 'body' });
+    const msg = await mb.send({
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 'direct',
+      body: 'body',
+    });
     const result = await mb.query({ to: 'b' });
     expect(result.map((m) => m.id)).toContain(msg.id);
     expect(result[0]!.subject).toBe('direct');
@@ -199,7 +208,11 @@ describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
 
   it('sends and queries a session-scoped message', async () => {
     await mb.send({
-      from: 'a', to: '@session', type: 'broadcast', subject: 'sess', body: 'body',
+      from: 'a',
+      to: '@session',
+      type: 'broadcast',
+      subject: 'sess',
+      body: 'body',
       senderSessionId: 'sess-1',
     });
     const scoped = await mb.query({ to: '@session:sess-1' });
@@ -216,7 +229,12 @@ describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
 
   it('acks a completion', async () => {
     const msg = await mb.send({ from: 'a', to: 'b', type: 'note', subject: 's', body: 'b' });
-    const acked = await mb.ack({ messageId: msg.id, readerId: 'b', completed: true, outcome: 'done' });
+    const acked = await mb.ack({
+      messageId: msg.id,
+      readerId: 'b',
+      completed: true,
+      outcome: 'done',
+    });
     expect(acked?.completed).toBe(true);
     expect(acked?.completedBy).toBe('b');
     expect(acked?.outcome).toBe('done');
@@ -240,7 +258,11 @@ describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
     await mb.send({ from: 'a', to: 'agent-a', type: 'note', subject: 'direct', body: 'b' });
     await mb.send({ from: 'a', to: '*', type: 'broadcast', subject: 'broadcast', body: 'b' });
     await mb.send({
-      from: 'a', to: '@session', type: 'broadcast', subject: 'session', body: 'b',
+      from: 'a',
+      to: '@session',
+      type: 'broadcast',
+      subject: 'session',
+      body: 'b',
       senderSessionId: 'sess-1',
     });
 
@@ -257,11 +279,34 @@ describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
   // drift between it and `isMessageCompletedForActor` /
   // `isMailboxMessageVisibleTo` is silent — the caller only sees a number.
   it('excludes read, per-actor-completed, soft-deleted and leaders-only mail', async () => {
-    const read = await mb.send({ from: 'a', to: 'agent-a', type: 'note', subject: 'read', body: 'b' });
-    const done = await mb.send({ from: 'a', to: 'agent-a', type: 'ask', subject: 'done', body: 'b' });
-    const trashed = await mb.send({ from: 'a', to: 'agent-a', type: 'note', subject: 'trash', body: 'b' });
+    const read = await mb.send({
+      from: 'a',
+      to: 'agent-a',
+      type: 'note',
+      subject: 'read',
+      body: 'b',
+    });
+    const done = await mb.send({
+      from: 'a',
+      to: 'agent-a',
+      type: 'ask',
+      subject: 'done',
+      body: 'b',
+    });
+    const trashed = await mb.send({
+      from: 'a',
+      to: 'agent-a',
+      type: 'note',
+      subject: 'trash',
+      body: 'b',
+    });
     await mb.send({
-      from: 'a', to: 'agent-a', type: 'note', subject: 'leaders', body: 'b', audience: 'leaders',
+      from: 'a',
+      to: 'agent-a',
+      type: 'note',
+      subject: 'leaders',
+      body: 'b',
+      audience: 'leaders',
     });
     await mb.send({ from: 'a', to: 'agent-a', type: 'note', subject: 'fresh', body: 'b' });
 
@@ -290,7 +335,12 @@ describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
 
   it('shows leaders-only mail to a leader identity', async () => {
     await mb.send({
-      from: 'a', to: 'leader', type: 'note', subject: 'leaders', body: 'b', audience: 'leaders',
+      from: 'a',
+      to: 'leader',
+      type: 'note',
+      subject: 'leaders',
+      body: 'b',
+      audience: 'leaders',
     });
     expect(await mb.unreadCount('leader@abc')).toBe(0); // addressed to the bare alias
     expect(await mb.unreadCount('leader')).toBe(1);
@@ -330,7 +380,11 @@ describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
   it('audience leaders filtering works', async () => {
     await mb.send({ from: 'a', to: 'leader', type: 'note', subject: 'public', body: 'b' });
     await mb.send({
-      from: 'a', to: 'leader', type: 'note', subject: 'private', body: 'b',
+      from: 'a',
+      to: 'leader',
+      type: 'note',
+      subject: 'private',
+      body: 'b',
       audience: 'leaders',
     });
 
@@ -345,9 +399,20 @@ describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
 
 describe('GM-P0.0 baseline: replyTo (documents current gap)', () => {
   it('persists replyTo on send', async () => {
-    const parent = await mb.send({ from: 'a', to: 'b', type: 'ask', subject: 'question', body: 'what?' });
+    const parent = await mb.send({
+      from: 'a',
+      to: 'b',
+      type: 'ask',
+      subject: 'question',
+      body: 'what?',
+    });
     const reply = await mb.send({
-      from: 'b', to: 'a', type: 'note', subject: 'answer', body: '42', replyTo: parent.id,
+      from: 'b',
+      to: 'a',
+      type: 'note',
+      subject: 'answer',
+      body: '42',
+      replyTo: parent.id,
     });
     expect(reply.replyTo).toBe(parent.id);
   });
@@ -356,8 +421,22 @@ describe('GM-P0.0 baseline: replyTo (documents current gap)', () => {
     const parent1 = await mb.send({ from: 'a', to: 'b', type: 'ask', subject: 'q1', body: '?' });
     const parent2 = await mb.send({ from: 'a', to: 'b', type: 'ask', subject: 'q2', body: '?' });
 
-    await mb.send({ from: 'b', to: 'a', type: 'note', subject: 'r1', body: 'a1', replyTo: parent1.id });
-    await mb.send({ from: 'b', to: 'a', type: 'note', subject: 'r2', body: 'a2', replyTo: parent2.id });
+    await mb.send({
+      from: 'b',
+      to: 'a',
+      type: 'note',
+      subject: 'r1',
+      body: 'a1',
+      replyTo: parent1.id,
+    });
+    await mb.send({
+      from: 'b',
+      to: 'a',
+      type: 'note',
+      subject: 'r2',
+      body: 'a2',
+      replyTo: parent2.id,
+    });
 
     const withFilter = await mb.query({ replyTo: parent1.id });
     // Now correctly returns ONLY the reply to parent1.
@@ -413,11 +492,13 @@ describe('GM-P0.0 baseline: migration fixture loads correctly', () => {
 
   it('purgeStale removes old completed and old incomplete messages', async () => {
     const oldCompleted = buildCompletedMessage('a', {
-      id: 'old-completed', timestamp: FIXTURE_TIME,
+      id: 'old-completed',
+      timestamp: FIXTURE_TIME,
       completedAt: FIXTURE_TIME,
     });
     const oldIncomplete = buildV1Message({
-      id: 'old-incomplete', timestamp: FIXTURE_TIME,
+      id: 'old-incomplete',
+      timestamp: FIXTURE_TIME,
     });
     // Use a timestamp far enough in the future that the 1ms cutoff won't purge it.
     const future = new Date(Date.now() + 86_400_000).toISOString();

@@ -28,7 +28,11 @@ export function playChime(): void {
 
     // Clean up after the sound finishes
     setTimeout(() => {
-      try { ctx.close(); } catch { /* best-effort */ }
+      try {
+        ctx.close();
+      } catch {
+        /* best-effort */
+      }
     }, 300);
   } catch {
     // Audio unavailable (e.g. no user gesture yet, privacy-restricted context)

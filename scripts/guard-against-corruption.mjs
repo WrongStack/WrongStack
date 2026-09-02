@@ -8,9 +8,31 @@ const CORRUPTION_FRAGMENT = "{ type: 'worktreeMonitorToggle' }";
 // action + reducer + dispatches) and it lives entirely in app.tsx. Treat the
 // pattern as legitimate there; flag it only if it reappears in OTHER files,
 // which is the actual corruption signature this guard was built to catch.
-const CORRUPTION_ALLOWLIST = new Set(['packages/tui/src/app.tsx', 'packages/tui/src/app-reducer.ts', 'packages/tui/src/app-state.ts']);
-const SCAN_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts', '.json', '.jsonc', '.md', '.yml', '.yaml', '.sh', '.ps1']);
-function log(...args) { if (VERBOSE) console.error('[guard]', ...args); }
+const CORRUPTION_ALLOWLIST = new Set([
+  'packages/tui/src/app.tsx',
+  'packages/tui/src/app-reducer.ts',
+  'packages/tui/src/app-state.ts',
+]);
+const SCAN_EXTS = new Set([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.mts',
+  '.cts',
+  '.json',
+  '.jsonc',
+  '.md',
+  '.yml',
+  '.yaml',
+  '.sh',
+  '.ps1',
+]);
+function log(...args) {
+  if (VERBOSE) console.error('[guard]', ...args);
+}
 function isScannable(filePath) {
   const base = filePath.split('/').pop() ?? filePath;
   const ext = '.' + (base.split('.').pop() ?? '');
@@ -22,9 +44,14 @@ function isScannable(filePath) {
 }
 function getStagedFiles() {
   try {
-    const out = execSync('git diff --cached --name-only --diff-filter=ACMR', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    const out = execSync('git diff --cached --name-only --diff-filter=ACMR', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
     return out.trim().split('\n').filter(Boolean);
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 /**
  * Scan only the staged DIFF (not the full file content) for the corruption
@@ -38,7 +65,10 @@ function findCorruptionInStagedFiles(stagedFiles) {
     if (CORRUPTION_ALLOWLIST.has(file)) continue;
     let diff;
     try {
-      diff = execFileSync('git', ['diff', '--cached', '--', file], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+      diff = execFileSync('git', ['diff', '--cached', '--', file], {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
     } catch {
       continue;
     }
@@ -69,8 +99,10 @@ function main() {
     console.error('============================================================');
     console.error('  BLOCKED  --  CORRUPTION PATTERN DETECTED');
     console.error('============================================================');
-    const uniqueFiles = new Set(corruption.map(c => c.file)).size;
-    console.error('  Found ' + corruption.length + ' infected line(s) across ' + uniqueFiles + ' file(s).');
+    const uniqueFiles = new Set(corruption.map((c) => c.file)).size;
+    console.error(
+      '  Found ' + corruption.length + ' infected line(s) across ' + uniqueFiles + ' file(s).',
+    );
     console.error('');
     for (const { file, line, snippet } of corruption.slice(0, 20)) {
       console.error('  ' + file + ':' + line);
@@ -85,9 +117,14 @@ function main() {
   }
   const totalChanged = (() => {
     try {
-      const out = execSync('git status --porcelain', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+      const out = execSync('git status --porcelain', {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
       return out.trim().split('\n').filter(Boolean).length;
-    } catch { return 0; }
+    } catch {
+      return 0;
+    }
   })();
   if (totalChanged > MAX_FILES && !FORCE_FLAG) {
     console.error('');

@@ -137,21 +137,19 @@ export function readConfig(raw: unknown): SessionRecapConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
   const rawPrefix = r['subjectPrefix'] ?? r['subject_prefix'] ?? r['prefix'];
-  const rawTail = r['includeTranscriptTail'] ?? r['include_transcript_tail'] ?? r['transcriptTail'] ?? r['transcript_tail'];
+  const rawTail =
+    r['includeTranscriptTail'] ??
+    r['include_transcript_tail'] ??
+    r['transcriptTail'] ??
+    r['transcript_tail'];
   const rawBody = r['maxBodyChars'] ?? r['max_body_chars'] ?? r['maxChars'] ?? r['max_chars'];
   const rawAi = r['aiSummary'] ?? r['ai_summary'] ?? r['useLlm'] ?? r['use_llm'];
   return {
     enabled: r['enabled'] !== false,
-    subjectPrefix:
-      typeof rawPrefix === 'string' ? rawPrefix : DEFAULTS.subjectPrefix,
+    subjectPrefix: typeof rawPrefix === 'string' ? rawPrefix : DEFAULTS.subjectPrefix,
     includeTranscriptTail:
-      typeof rawTail === 'number' && rawTail >= 0
-        ? rawTail
-        : DEFAULTS.includeTranscriptTail,
-    maxBodyChars:
-      typeof rawBody === 'number' && rawBody > 0
-        ? rawBody
-        : DEFAULTS.maxBodyChars,
+      typeof rawTail === 'number' && rawTail >= 0 ? rawTail : DEFAULTS.includeTranscriptTail,
+    maxBodyChars: typeof rawBody === 'number' && rawBody > 0 ? rawBody : DEFAULTS.maxBodyChars,
     aiSummary: rawAi === true,
   };
 }
@@ -482,7 +480,9 @@ const plugin: Plugin = {
         null;
       const cwd =
         (typeof input.cwd === 'string' ? input.cwd : undefined) ??
-        (typeof rawInput['workingDirectory'] === 'string' ? rawInput['workingDirectory'] : undefined) ??
+        (typeof rawInput['workingDirectory'] === 'string'
+          ? rawInput['workingDirectory']
+          : undefined) ??
         (typeof rawInput['dir'] === 'string' ? rawInput['dir'] : undefined) ??
         null;
 

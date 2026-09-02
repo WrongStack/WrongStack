@@ -28,8 +28,7 @@ for (const arg of args) {
 }
 
 const repoRoot = process.cwd();
-const { registry, exceptions, hotspots, testOnlyExports } =
-  await loadArchitectureInputs(repoRoot);
+const { registry, exceptions, hotspots, testOnlyExports } = await loadArchitectureInputs(repoRoot);
 const report = await buildArchitectureHealth({
   repoRoot,
   registry,
@@ -90,13 +89,7 @@ if (args.has('--write')) {
 }
 
 if (args.has('--print-hotspot-baseline')) {
-  console.log(
-    JSON.stringify(
-      hotspotBaseline,
-      null,
-      2,
-    ),
-  );
+  console.log(JSON.stringify(hotspotBaseline, null, 2));
 } else if (args.has('--json')) {
   console.log(JSON.stringify(report, null, 2));
 } else {
@@ -139,9 +132,7 @@ if (!maintenanceMode) {
     );
     process.exitCode = 1;
   } else if (freshness.status === 'skipped') {
-    console.warn(
-      `⚠️ Report freshness check skipped: ${freshness.detail ?? 'no git history'}`,
-    );
+    console.warn(`⚠️ Report freshness check skipped: ${freshness.detail ?? 'no git history'}`);
   }
 }
 
@@ -150,4 +141,5 @@ if (
   !args.has('--report-only') &&
   !args.has('--print-hotspot-baseline') &&
   !args.has('--write-hotspot-baseline')
-) process.exitCode = 1;
+)
+  process.exitCode = 1;

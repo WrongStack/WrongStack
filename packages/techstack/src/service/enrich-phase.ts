@@ -1,8 +1,17 @@
 import { queryOsvBatch } from '../advisory/osv.js';
 import { createLicenseFinding } from '../policy/license.js';
 import { detectWorkspaceMisalignments } from '../policy/misalignment.js';
-import { classifyStatus, type AdvisoryStatusData, type RegistryStatusData } from '../policy/status.js';
-import { lookupRegistry, RegistryAuthError, RegistryNotFoundError, type RegistryEntry } from '../registry/client.js';
+import {
+  classifyStatus,
+  type AdvisoryStatusData,
+  type RegistryStatusData,
+} from '../policy/status.js';
+import {
+  lookupRegistry,
+  RegistryAuthError,
+  RegistryNotFoundError,
+  type RegistryEntry,
+} from '../registry/client.js';
 import type { DependencyObservation, EcosystemId, Evidence, Finding, Snapshot } from '../types.js';
 import { createFindingForStatus } from './finding-factory.js';
 
@@ -12,11 +21,15 @@ export interface EnrichOptions {
   readonly forceRegistryRefresh?: boolean | undefined;
 }
 
-export async function runEnrichPhase(snapshot: Snapshot, options: EnrichOptions = {}): Promise<Snapshot> {
+export async function runEnrichPhase(
+  snapshot: Snapshot,
+  options: EnrichOptions = {},
+): Promise<Snapshot> {
   if (options.online === false || options.signal?.aborted) return snapshot;
   const grouped = new Map<EcosystemId, DependencyObservation[]>();
   for (const dependency of snapshot.dependencies) {
-    if (!dependency.purl || dependency.sourceType === 'path' || dependency.sourceType === 'git') continue;
+    if (!dependency.purl || dependency.sourceType === 'path' || dependency.sourceType === 'git')
+      continue;
     grouped.set(dependency.ecosystem, [...(grouped.get(dependency.ecosystem) ?? []), dependency]);
   }
   const enriched = new Map<string, DependencyObservation>();
@@ -32,25 +45,53 @@ export async function runEnrichPhase(snapshot: Snapshot, options: EnrichOptions 
           force: options.forceRegistryRefresh,
           strictErrors: true,
         });
-        registryStatus = registryEntry ? {
-          latestStable: registryEntry.latestStable,
-          deprecated: registryEntry.deprecated,
-          yanked: registryEntry.yanked,
-          evidence: [{ kind: 'registry', source: registryEntry.source, retrievedAt: registryEntry.retrievedAt, detail: `latestStable: ${registryEntry.latestStable ?? 'N/A'}, license: ${registryEntry.license ?? 'N/A'}` }],
-        } : { privateOrUnresolved: true };
+        registryStatus = registryEntry
+          ? {
+              latestStable: registryEntry.latestStable,
+              deprecated: registryEntry.deprecated,
+              yanked: registryEntry.yanked,
+              evidence: [
+                {
+                  kind: 'registry',
+                  source: registryEntry.source,
+                  retrievedAt: registryEntry.retrievedAt,
+                  detail: `latestStable: ${registryEntry.latestStable ?? 'N/A'}, license: ${registryEntry.license ?? 'N/A'}`,
+                },
+              ],
+            }
+          : { privateOrUnresolved: true };
       } catch (error) {
-        const unresolved = error instanceof RegistryNotFoundError || error instanceof RegistryAuthError;
-        registryStatus = unresolved ? {
-          privateOrUnresolved: true,
-          evidence: [{ kind: 'registry', source: `${ecosystem} registry for ${name}`, retrievedAt: new Date().toISOString(), detail: error.message }],
-        } : {
-          lookupFailed: true,
-          evidence: [{ kind: 'registry', source: `${ecosystem} registry for ${name}`, retrievedAt: new Date().toISOString(), detail: error instanceof Error ? error.message : 'Registry lookup failed' }],
-        };
+        const unresolved =
+          error instanceof RegistryNotFoundError || error instanceof RegistryAuthError;
+        registryStatus = unresolved
+          ? {
+              privateOrUnresolved: true,
+              evidence: [
+                {
+                  kind: 'registry',
+                  source: `${ecosystem} registry for ${name}`,
+                  retrievedAt: new Date().toISOString(),
+                  detail: error.message,
+                },
+              ],
+            }
+          : {
+              lookupFailed: true,
+              evidence: [
+                {
+                  kind: 'registry',
+                  source: `${ecosystem} registry for ${name}`,
+                  retrievedAt: new Date().toISOString(),
+                  detail: error instanceof Error ? error.message : 'Registry lookup failed',
+                },
+              ],
+            };
       }
       let advisoryStatus: AdvisoryStatusData | undefined;
       try {
-        const purls = dependencies.filter((dependency) => dependency.name === name).flatMap((dependency) => dependency.purl ? [dependency.purl] : []);
+        const purls = dependencies
+          .filter((dependency) => dependency.name === name)
+          .flatMap((dependency) => (dependency.purl ? [dependency.purl] : []));
         if (purls.length > 0) {
           const result = await queryOsvBatch(purls, { signal: options.signal });
           if ([...result.advisories.values()].some((items) => items.length > 0)) {
@@ -63,7 +104,11 @@ export async function runEnrichPhase(snapshot: Snapshot, options: EnrichOptions 
       for (const dependency of dependencies) {
         if (dependency.name !== name) continue;
         const status = classifyStatus(dependency, registryStatus, advisoryStatus);
-        const evidence: Evidence[] = [...dependency.evidence, ...(registryStatus?.evidence ?? []), ...(advisoryStatus?.evidence ?? [])];
+        const evidence: Evidence[] = [
+          ...dependency.evidence,
+          ...(registryStatus?.evidence ?? []),
+          ...(advisoryStatus?.evidence ?? []),
+        ];
         const license = registryEntry?.license ?? dependency.license;
         enriched.set(dependency.id, {
           ...dependency,
@@ -74,13 +119,16 @@ export async function runEnrichPhase(snapshot: Snapshot, options: EnrichOptions 
           status,
           evidence,
         });
-        if (status !== 'current' && status !== 'local_path' && status !== 'git_dependency') findings.push(createFindingForStatus(dependency.id, status));
+        if (status !== 'current' && status !== 'local_path' && status !== 'git_dependency')
+          findings.push(createFindingForStatus(dependency.id, status));
         const licenseFinding = createLicenseFinding(dependency.id, dependency.name, license);
         if (licenseFinding) findings.push(licenseFinding);
       }
     }
   }
-  const enrichedDeps = snapshot.dependencies.map((dependency) => enriched.get(dependency.id) ?? dependency);
+  const enrichedDeps = snapshot.dependencies.map(
+    (dependency) => enriched.get(dependency.id) ?? dependency,
+  );
   const misalignmentFindings = detectWorkspaceMisalignments(enrichedDeps, snapshot.workspaces);
   findings.push(...misalignmentFindings);
   return { ...snapshot, dependencies: enrichedDeps, findings };

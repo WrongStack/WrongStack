@@ -85,8 +85,7 @@ export function resolveCouncilVotes(input: CouncilResolutionInput): CouncilResol
   }
 
   const veto = validVotes.find(
-    (vote) =>
-      vote.optionId === input.refusalOptionId && seatById.get(vote.seatId)?.veto === true,
+    (vote) => vote.optionId === input.refusalOptionId && seatById.get(vote.seatId)?.veto === true,
   );
   if (veto) {
     return {
@@ -117,9 +116,7 @@ export function resolveCouncilVotes(input: CouncilResolutionInput): CouncilResol
   }
 
   const decisive =
-    winner !== undefined &&
-    !contested &&
-    winner.weight > input.approvalFraction * castWeight;
+    winner !== undefined && !contested && winner.weight > input.approvalFraction * castWeight;
 
   if (!decisive || !winner) {
     return {

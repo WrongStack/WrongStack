@@ -1,11 +1,7 @@
 import { Activity, Cpu, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { useAppTranslation } from '@/i18n';
-import {
-  effortLabelKey,
-  effortNotAdvertised,
-  resolveEffortOptions,
-} from '@/lib/reasoning-effort';
+import { effortLabelKey, effortNotAdvertised, resolveEffortOptions } from '@/lib/reasoning-effort';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useSessionStore } from '@/stores/session-store';
 import { ModelSelectDialog } from '../ModelSelectDialog';

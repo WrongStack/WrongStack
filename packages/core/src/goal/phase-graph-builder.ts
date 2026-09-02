@@ -47,7 +47,15 @@ export class PhaseGraphBuilder {
 
     // Create a PhaseNode from each phase template.
     for (let i = 0; i < this.opts.phases.length; i++) {
-      const tmpl = this.opts.phases[i] ?? { name: '', description: '', tasks: [], taskTemplates: [], parallelizable: false, priority: 'medium' as const, estimateHours: 0 };
+      const tmpl = this.opts.phases[i] ?? {
+        name: '',
+        description: '',
+        tasks: [],
+        taskTemplates: [],
+        parallelizable: false,
+        priority: 'medium' as const,
+        estimateHours: 0,
+      };
       const phaseId = crypto.randomUUID();
       phaseIds.push(phaseId);
 

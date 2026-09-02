@@ -77,7 +77,8 @@ describe('SecretScrubber', () => {
     // both leaked verbatim. The boundary now extends past the closing marker.
     const CHUNK = 64 * 1024;
     const pemLines = ['-----BEGIN RSA PRIVATE KEY-----'];
-    for (let i = 0; i < 40; i++) pemLines.push(`MIIEowIBAAKCAQEA${String(i).padStart(3, '0')}ABCDEFGHIJKLMNOPQRSTUVWXYZab`);
+    for (let i = 0; i < 40; i++)
+      pemLines.push(`MIIEowIBAAKCAQEA${String(i).padStart(3, '0')}ABCDEFGHIJKLMNOPQRSTUVWXYZab`);
     pemLines.push('-----END RSA PRIVATE KEY-----');
     const pem = pemLines.join('\n');
     const pemBodySample = 'MIIEowIBAAKCAQEA000';
@@ -109,7 +110,10 @@ describe('SecretScrubber', () => {
     // body (already covered), BEGIN line, and END line.
     const CHUNK = 64 * 1024;
     const pemLines = ['-----BEGIN EC PRIVATE KEY-----'];
-    for (let i = 0; i < 30; i++) pemLines.push(`MHcCAQEEII${String(i).padStart(3, '0')}ABCDEFGHIJKLMNOPQRSTUVabcdefghijklmnopqrstuvwxyz`);
+    for (let i = 0; i < 30; i++)
+      pemLines.push(
+        `MHcCAQEEII${String(i).padStart(3, '0')}ABCDEFGHIJKLMNOPQRSTUVabcdefghijklmnopqrstuvwxyz`,
+      );
     pemLines.push('-----END EC PRIVATE KEY-----');
     const pem = pemLines.join('\n');
     const bodySample = 'MHcCAQEEII007';
@@ -202,7 +206,9 @@ describe('SecretScrubber', () => {
     const out = s.scrub(`API_KEY=${v1} SESSION_TOKEN=${v2}`);
     expect(out).not.toContain(v1);
     expect(out).not.toContain(v2);
-    expect(out).toBe('API_KEY=[REDACTED:high_entropy_env] SESSION_TOKEN=[REDACTED:high_entropy_env]');
+    expect(out).toBe(
+      'API_KEY=[REDACTED:high_entropy_env] SESSION_TOKEN=[REDACTED:high_entropy_env]',
+    );
   });
 
   it('redacts newline-separated high-entropy env secrets (printenv/.env dump shape)', () => {

@@ -46,8 +46,9 @@ describe('WireAdapter — coverage of abstract base paths', () => {
   it('complete() yields empty text content from empty SSE stream', async () => {
     // Lines 59-62: complete() imports aggregateStream and calls it on stream()
     // Exercise stream() path when body yields no events
-    const fetchImpl = vi.fn(async () =>
-      new Response('', { status: 200, headers: { 'content-type': 'text/event-stream' } }),
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response('', { status: 200, headers: { 'content-type': 'text/event-stream' } }),
     ) as never as typeof fetch;
     const p = new OpenAIProvider({ apiKey: 'k', fetchImpl });
     const res = await p.complete(
@@ -87,7 +88,12 @@ describe('WireAdapter — coverage of abstract base paths', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ model: 'm', choices: [], usage: {} }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new OpenAIProvider({
       apiKey: 'k',
@@ -133,7 +139,12 @@ describe('WireAdapter — coverage of abstract base paths', () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ model: 'm', choices: [], usage: {} }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new OpenAIProvider({
       apiKey: 'k',

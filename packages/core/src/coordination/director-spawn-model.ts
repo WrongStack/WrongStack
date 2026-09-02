@@ -2,17 +2,9 @@ import type { Config } from '../types/config.js';
 import type { Logger } from '../types/logger.js';
 import type { SubagentConfig } from '../types/multi-agent.js';
 import type { ModelMatrixSource } from './model-matrix.js';
-import {
-  resolveModelMatrixResolution,
-  roleNeedsIndependentReviewModel,
-} from './model-matrix.js';
+import { resolveModelMatrixResolution, roleNeedsIndependentReviewModel } from './model-matrix.js';
 import type { ResolvedTierTarget } from './model-tier.js';
-import {
-  applyTierToSubagentConfig,
-  classifyTier,
-  listTierIds,
-  resolveTier,
-} from './model-tier.js';
+import { applyTierToSubagentConfig, classifyTier, listTierIds, resolveTier } from './model-tier.js';
 import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
 
 export interface ResolveDirectorSpawnModelOptions {

@@ -14,7 +14,11 @@ beforeEach(async () => {
 
 afterEach(async () => {
   for (const store of activeStores) {
-    try { store.close(); } catch { /* already closed */ }
+    try {
+      store.close();
+    } catch {
+      /* already closed */
+    }
   }
   await new Promise((r) => setTimeout(r, 10));
   await fs.promises.rm(tempDir, { recursive: true, force: true });
@@ -305,7 +309,10 @@ describe('executeUnifiedSearch — declared-field contract (2026-08-02)', () => 
     const store = trackStore(new SqliteSageStore({ projectRoot: tempDir, now: () => current }));
     await store.initialize();
     await fs.promises.mkdir(path.join(tempDir, 'src'), { recursive: true });
-    await fs.promises.writeFile(path.join(tempDir, 'src', 'verify-probe.ts'), 'export const probe = 1;\n');
+    await fs.promises.writeFile(
+      path.join(tempDir, 'src', 'verify-probe.ts'),
+      'export const probe = 1;\n',
+    );
     const memory = await store.rememberSage({
       text: 'verify probe memory alpha',
       kind: 'file_note',

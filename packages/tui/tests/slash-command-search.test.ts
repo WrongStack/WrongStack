@@ -22,7 +22,11 @@ describe('buildSlashCommandMatches', () => {
       owner: 'core',
       fullName: 'telegram-settings',
     },
-    { cmd: command({ name: 'session', aliases: ['resume'], category: 'Session' }), owner: 'core', fullName: 'session' },
+    {
+      cmd: command({ name: 'session', aliases: ['resume'], category: 'Session' }),
+      owner: 'core',
+      fullName: 'session',
+    },
     { cmd: command({ name: 'f1', hidden: true, category: 'App' }), owner: 'core', fullName: 'f1' },
   ];
 
@@ -41,17 +45,27 @@ describe('buildSlashCommandMatches', () => {
   it('matches aliases by prefix and marks the matched alias', () => {
     const matches = buildSlashCommandMatches(entries, 'tg');
 
-    expect(matches).toMatchObject([
-      { name: 'telegram-settings', matchedAlias: 'tg-settings' },
-    ]);
+    expect(matches).toMatchObject([{ name: 'telegram-settings', matchedAlias: 'tg-settings' }]);
   });
 
   it('orders exact aliases before name-prefix matches', () => {
     const matches = buildSlashCommandMatches(
       [
-        { cmd: command({ name: 'settings', aliases: ['set'] }), owner: 'core', fullName: 'settings' },
-        { cmd: command({ name: 'setmodel', category: 'Config' }), owner: 'core', fullName: 'setmodel' },
-        { cmd: command({ name: 'tool', aliases: ['settings-tool'] }), owner: 'core', fullName: 'tool' },
+        {
+          cmd: command({ name: 'settings', aliases: ['set'] }),
+          owner: 'core',
+          fullName: 'settings',
+        },
+        {
+          cmd: command({ name: 'setmodel', category: 'Config' }),
+          owner: 'core',
+          fullName: 'setmodel',
+        },
+        {
+          cmd: command({ name: 'tool', aliases: ['settings-tool'] }),
+          owner: 'core',
+          fullName: 'tool',
+        },
       ],
       'set',
     );

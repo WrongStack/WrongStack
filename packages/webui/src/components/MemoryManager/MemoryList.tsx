@@ -45,7 +45,10 @@ export function MemoryList({
     <>
       <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
         <span>
-          {t('activity:memoryManager.memoryCountSummary', { shown: filteredMemories.length, total: memories.length })}
+          {t('activity:memoryManager.memoryCountSummary', {
+            shown: filteredMemories.length,
+            total: memories.length,
+          })}
         </span>
         <span className="font-mono uppercase">{t('activity:memoryManager.updatedSortLabel')}</span>
       </div>
@@ -123,7 +126,9 @@ function MemoryListEmpty({ hasMemories, onOpenCreate, onClearFilters }: MemoryLi
         <Database className="size-5" />
       </span>
       <h2 className="mt-4 text-sm font-bold">
-        {hasMemories ? t('activity:memoryManager.noMatching') : t('activity:memoryManager.buildGraph')}
+        {hasMemories
+          ? t('activity:memoryManager.noMatching')
+          : t('activity:memoryManager.buildGraph')}
       </h2>
       <p className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
         {hasMemories
@@ -137,7 +142,9 @@ function MemoryListEmpty({ hasMemories, onOpenCreate, onClearFilters }: MemoryLi
         onClick={hasMemories ? onClearFilters : onOpenCreate}
       >
         {hasMemories ? <FilterX className="size-3.5" /> : <Plus className="size-3.5" />}
-        {hasMemories ? t('activity:memoryManager.clearFilters') : t('activity:memoryManager.createFirst')}
+        {hasMemories
+          ? t('activity:memoryManager.clearFilters')
+          : t('activity:memoryManager.createFirst')}
       </Button>
     </div>
   );

@@ -166,10 +166,7 @@ export async function pinPluginTrust(
 }
 
 /** Remove the pin for `name` (if present) and persist the store. */
-export async function unpinPluginTrust(
-  storePath: string,
-  name: string,
-): Promise<PluginTrustStore> {
+export async function unpinPluginTrust(storePath: string, name: string): Promise<PluginTrustStore> {
   const store = await readPluginTrustStore(storePath);
   if (store.pinned[name] !== undefined) {
     delete store.pinned[name];

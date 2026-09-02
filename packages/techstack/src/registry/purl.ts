@@ -227,11 +227,7 @@ export function ecosystemForPurlType(type: string): EcosystemId | undefined {
  * constructPurl('go', 'github.com/gorilla/mux', '1.8.1')
  *                                                // → 'pkg:golang/github.com/gorilla/mux@1.8.1'
  */
-export function constructPurl(
-  ecosystem: EcosystemId,
-  name: string,
-  version?: string,
-): string {
+export function constructPurl(ecosystem: EcosystemId, name: string, version?: string): string {
   const type = purlTypeForEcosystem(ecosystem);
   // Go module paths contain literal slashes that are part of the name, not
   // a namespace separator. `buildPurl` encodes `/` in segments per the PURL
@@ -307,10 +303,7 @@ export function parsePurlEcosystem(purl: string): ParsedEcosystemPurl | undefine
 function encodePurlSegment(segment: string): string {
   // The PURL spec says the value must be percent-encoded as per RFC 3986.
   // In practice, we need to encode: @ / % and other reserved chars.
-  return segment
-    .replace(/%/g, '%25')
-    .replace(/@/g, '%40')
-    .replace(/\//g, '%2F');
+  return segment.replace(/%/g, '%25').replace(/@/g, '%40').replace(/\//g, '%2F');
 }
 
 /**

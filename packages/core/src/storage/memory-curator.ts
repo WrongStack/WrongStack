@@ -219,7 +219,9 @@ export class SessionMemoryCurator implements AgentExtension {
     if (!provider?.complete && !this.oneShotOrchestrator) return;
 
     const projectRoot = ctx.projectRoot ?? ctx.cwd ?? '';
-    const writtenFiles = [...(ctx.writtenFiles ?? [])].slice(0, 6).map((f) => relativePath(projectRoot, f));
+    const writtenFiles = [...(ctx.writtenFiles ?? [])]
+      .slice(0, 6)
+      .map((f) => relativePath(projectRoot, f));
 
     // Phase 1: Deterministik Scope Toplama
     // Sadece oturum boyunca dosya yazılmışsa veya bekleyen candidate varsa çalışır.
@@ -292,7 +294,8 @@ export class SessionMemoryCurator implements AgentExtension {
       if (this.oneShotOrchestrator) {
         const oneShotResult = await this.oneShotOrchestrator.call({
           system: prompt,
-          userPrompt: 'Review candidate memories against session changes and return JSON operations.',
+          userPrompt:
+            'Review candidate memories against session changes and return JSON operations.',
           model: _model ?? 'deepseek-chat',
           maxTokens: 400,
           timeoutMs: 10_000,
@@ -383,7 +386,11 @@ export class SessionMemoryCurator implements AgentExtension {
               }
             }
             mergedCount++;
-          } else if (op.action === 'split' && typeof op.targetId === 'string' && Array.isArray(op.items)) {
+          } else if (
+            op.action === 'split' &&
+            typeof op.targetId === 'string' &&
+            Array.isArray(op.items)
+          ) {
             // 1. Her bir bölünmüş parçayı kaydet
             for (const item of op.items.slice(0, 4)) {
               if (!item.text?.trim()) continue;
@@ -408,10 +415,16 @@ export class SessionMemoryCurator implements AgentExtension {
             splitCount++;
           } else if (op.action === 'recalibrate' && typeof op.targetId === 'string') {
             const patch: Partial<CuratorSageRecord> = {};
-            if (typeof op.importance === 'number') patch.importance = Math.max(0, Math.min(1, op.importance));
-            if (typeof op.confidence === 'number') patch.confidence = Math.max(0, Math.min(1, op.confidence));
-            if (typeof op.freshness === 'number') patch.freshness = Math.max(0, Math.min(1, op.freshness));
-            if (typeof op.status === 'string' && ['active', 'stale', 'archived'].includes(op.status)) {
+            if (typeof op.importance === 'number')
+              patch.importance = Math.max(0, Math.min(1, op.importance));
+            if (typeof op.confidence === 'number')
+              patch.confidence = Math.max(0, Math.min(1, op.confidence));
+            if (typeof op.freshness === 'number')
+              patch.freshness = Math.max(0, Math.min(1, op.freshness));
+            if (
+              typeof op.status === 'string' &&
+              ['active', 'stale', 'archived'].includes(op.status)
+            ) {
               const target = targetMap.get(op.targetId);
               if (target?.persistence !== 'permanent' || op.status === 'active') {
                 patch.status = op.status;

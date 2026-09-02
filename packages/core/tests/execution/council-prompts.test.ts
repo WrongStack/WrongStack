@@ -94,14 +94,8 @@ describe('Council prompt builders', () => {
 
   it.each([
     [{ question: ' ' }, /question must not be empty/],
-    [
-      { question: 'Choose', options: [{ id: '', label: 'Empty' }] },
-      /non-empty `id`/,
-    ],
-    [
-      { question: 'Choose', options: [{ id: 'a', label: '' }] },
-      /must have a label/,
-    ],
+    [{ question: 'Choose', options: [{ id: '', label: 'Empty' }] }, /non-empty `id`/],
+    [{ question: 'Choose', options: [{ id: 'a', label: '' }] }, /must have a label/],
     [
       {
         question: 'Choose',

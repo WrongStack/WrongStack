@@ -73,9 +73,29 @@ describe('FileActivityDrawer model', () => {
       ...over,
     });
     const summary = summarizeLineage([
-      row({ occurredAt: '2026-07-20T10:00:00.000Z', sessionId: 's1', taskId: 't1', boardId: 'b1', toolName: 'edit', modelId: 'm1' }),
-      row({ occurredAt: '2026-07-22T10:00:00.000Z', sessionId: 's2', taskId: 't1', boardId: 'b1', toolName: 'write', modelId: 'm1' }),
-      row({ occurredAt: '2026-07-24T10:00:00.000Z', sessionId: 's2', taskId: 't2', toolName: 'edit', modelId: 'm2' }),
+      row({
+        occurredAt: '2026-07-20T10:00:00.000Z',
+        sessionId: 's1',
+        taskId: 't1',
+        boardId: 'b1',
+        toolName: 'edit',
+        modelId: 'm1',
+      }),
+      row({
+        occurredAt: '2026-07-22T10:00:00.000Z',
+        sessionId: 's2',
+        taskId: 't1',
+        boardId: 'b1',
+        toolName: 'write',
+        modelId: 'm1',
+      }),
+      row({
+        occurredAt: '2026-07-24T10:00:00.000Z',
+        sessionId: 's2',
+        taskId: 't2',
+        toolName: 'edit',
+        modelId: 'm2',
+      }),
     ]);
     expect(summary).toMatchObject({
       mutations: 3,

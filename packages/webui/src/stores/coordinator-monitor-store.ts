@@ -4,7 +4,13 @@ import { createSessionScopedStore } from './session-scoped-store';
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export type CoordinatorStatus = 'idle' | 'running' | 'draining' | 'stopped';
-export type BudgetKind = 'iterations' | 'tool_calls' | 'tokens' | 'timeout' | 'idle_timeout' | 'cost';
+export type BudgetKind =
+  | 'iterations'
+  | 'tool_calls'
+  | 'tokens'
+  | 'timeout'
+  | 'idle_timeout'
+  | 'cost';
 export type ConsensusResult = 'approved' | 'rejected' | 'vetoed' | 'quorum_not_met' | 'pending';
 export type VoteValue = 'approve' | 'reject' | 'abstain';
 
@@ -85,7 +91,7 @@ export interface BudgetAlert {
   level: 'warning' | 'danger';
   used: number;
   limit: number;
-  pct: number;       // used/limit as percentage
+  pct: number; // used/limit as percentage
   decision?: 'extend' | 'deny';
   newLimit?: number;
 }
@@ -93,7 +99,8 @@ export interface BudgetAlert {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function alertLevel(kind: BudgetKind, pct: number): 'warning' | 'danger' {
-  if (kind === 'cost' || kind === 'timeout' || kind === 'idle_timeout') return pct >= 100 ? 'danger' : 'warning';
+  if (kind === 'cost' || kind === 'timeout' || kind === 'idle_timeout')
+    return pct >= 100 ? 'danger' : 'warning';
   return pct >= 100 ? 'danger' : pct >= 85 ? 'warning' : 'warning';
 }
 
@@ -168,20 +175,50 @@ interface CoordinatorMonitorState {
   // Actions
   setCoordinatorStatus: (status: CoordinatorStatus, mode?: string) => void;
   updateCoordinatorStats: (p: {
-    total: number; running: number; idle: number; stopped: number;
-    inFlight: number; pending: number; completed: number;
+    total: number;
+    running: number;
+    idle: number;
+    stopped: number;
+    inFlight: number;
+    pending: number;
+    completed: number;
     subagentStatuses?: Array<{ id: string; name: string; status: string; currentTask?: string }>;
   }) => void;
   updateSubagentBudget: (subagentId: string, entry: Partial<SubagentEntry>) => void;
-  pushEvent: (type: string, payload: Record<string, unknown>, ts: number, subagentId?: string, taskId?: string) => void;
-  pushConsensusVote: (changeId: string, title: string, eligible: Array<{ agentId: string; agentName: string }>) => void;
-  recordConsensusVote: (changeId: string, voterId: string, agentName: string, value: VoteValue) => void;
-  resolveConsensusVote: (changeId: string, result: ConsensusResult, approveCount: number, rejectCount: number) => void;
+  pushEvent: (
+    type: string,
+    payload: Record<string, unknown>,
+    ts: number,
+    subagentId?: string,
+    taskId?: string,
+  ) => void;
+  pushConsensusVote: (
+    changeId: string,
+    title: string,
+    eligible: Array<{ agentId: string; agentName: string }>,
+  ) => void;
+  recordConsensusVote: (
+    changeId: string,
+    voterId: string,
+    agentName: string,
+    value: VoteValue,
+  ) => void;
+  resolveConsensusVote: (
+    changeId: string,
+    result: ConsensusResult,
+    approveCount: number,
+    rejectCount: number,
+  ) => void;
   pushTaskPending: (taskId: string, description: string, priority?: number) => void;
   startTask: (taskId: string, subagentId: string) => void;
   completeTask: (taskId: string, status: string, durationMs: number) => void;
   failTask: (taskId: string, error: string) => void;
-  recordBudgetDecision: (subagentId: string, kind: string, decision: 'extend' | 'deny', newLimit?: number) => void;
+  recordBudgetDecision: (
+    subagentId: string,
+    kind: string,
+    decision: 'extend' | 'deny',
+    newLimit?: number,
+  ) => void;
   recordBudgetAlert: (subagentId: string, kind: BudgetKind, used: number, limit: number) => void;
   recordBudgetExtended: (subagentId: string, kind: string, extendedTo?: number) => void;
   clear: () => void;
@@ -288,10 +325,16 @@ const coordinatorMonitorState: StateCreator<CoordinatorMonitorState, [], []> = (
           : undefined;
       const level: FleetEvent['level'] =
         pct !== undefined
-          ? pct >= 100 ? 'danger' : pct >= 85 ? 'warning' : 'info'
-          : type.includes('consensus.vote_resolved') ? 'info'
-          : type.includes('consensus.vote_initiated') ? 'warning'
-          : 'info';
+          ? pct >= 100
+            ? 'danger'
+            : pct >= 85
+              ? 'warning'
+              : 'info'
+          : type.includes('consensus.vote_resolved')
+            ? 'info'
+            : type.includes('consensus.vote_initiated')
+              ? 'warning'
+              : 'info';
 
       const event: FleetEvent = {
         id: `${ts}-${type}`,
@@ -352,14 +395,26 @@ const coordinatorMonitorState: StateCreator<CoordinatorMonitorState, [], []> = (
       const votes = new Map(s.consensusVotes);
       const vote = votes.get(changeId);
       if (!vote) return {};
-      votes.set(changeId, { ...vote, status: result, approveCount, rejectCount, resolvedAt: Date.now() });
+      votes.set(changeId, {
+        ...vote,
+        status: result,
+        approveCount,
+        rejectCount,
+        resolvedAt: Date.now(),
+      });
       return { consensusVotes: votes, lastUpdated: Date.now() };
     }),
 
   pushTaskPending: (taskId, description, priority) =>
     set((s) => {
       const tasks = new Map(s.tasks);
-      tasks.set(taskId, { id: taskId, description, status: 'pending', priority, queuedAt: Date.now() });
+      tasks.set(taskId, {
+        id: taskId,
+        description,
+        status: 'pending',
+        priority,
+        queuedAt: Date.now(),
+      });
       capMap(tasks, MAX_TASKS, (t) => t.status === 'completed' || t.status === 'failed');
       return {
         tasks,
@@ -373,13 +428,23 @@ const coordinatorMonitorState: StateCreator<CoordinatorMonitorState, [], []> = (
       const tasks = new Map(s.tasks);
       const task = tasks.get(taskId);
       if (!task) {
-        tasks.set(taskId, { id: taskId, description: '', status: 'running', subagentId, startedAt: Date.now() });
+        tasks.set(taskId, {
+          id: taskId,
+          description: '',
+          status: 'running',
+          subagentId,
+          startedAt: Date.now(),
+        });
       } else {
         tasks.set(taskId, { ...task, status: 'running', subagentId, startedAt: Date.now() });
       }
       return {
         tasks,
-        taskCounts: { ...s.taskCounts, pending: Math.max(0, s.taskCounts.pending - 1), running: s.taskCounts.running + 1 },
+        taskCounts: {
+          ...s.taskCounts,
+          pending: Math.max(0, s.taskCounts.pending - 1),
+          running: s.taskCounts.running + 1,
+        },
         lastUpdated: Date.now(),
       };
     }),
@@ -388,7 +453,13 @@ const coordinatorMonitorState: StateCreator<CoordinatorMonitorState, [], []> = (
     set((s) => {
       const tasks = new Map(s.tasks);
       const task = tasks.get(taskId);
-      if (task) tasks.set(taskId, { ...task, status: status as TaskEntry['status'], completedAt: Date.now(), durationMs });
+      if (task)
+        tasks.set(taskId, {
+          ...task,
+          status: status as TaskEntry['status'],
+          completedAt: Date.now(),
+          durationMs,
+        });
       capMap(tasks, MAX_TASKS, (t) => t.status === 'completed' || t.status === 'failed');
       return {
         tasks,
@@ -410,7 +481,11 @@ const coordinatorMonitorState: StateCreator<CoordinatorMonitorState, [], []> = (
       capMap(tasks, MAX_TASKS, (t) => t.status === 'completed' || t.status === 'failed');
       return {
         tasks,
-        taskCounts: { ...s.taskCounts, running: Math.max(0, s.taskCounts.running - 1), failed: s.taskCounts.failed + 1 },
+        taskCounts: {
+          ...s.taskCounts,
+          running: Math.max(0, s.taskCounts.running - 1),
+          failed: s.taskCounts.failed + 1,
+        },
         lastUpdated: Date.now(),
       };
     }),
@@ -441,7 +516,10 @@ const coordinatorMonitorState: StateCreator<CoordinatorMonitorState, [], []> = (
           level: decision === 'extend' ? 'warning' : 'danger',
         });
       }
-      return { budgetAlerts: Array.from(alerts.values()) as BudgetAlert[], lastUpdated: Date.now() };
+      return {
+        budgetAlerts: Array.from(alerts.values()) as BudgetAlert[],
+        lastUpdated: Date.now(),
+      };
     }),
 
   recordBudgetAlert: (subagentId, kind, used, limit) =>
@@ -473,7 +551,11 @@ const coordinatorMonitorState: StateCreator<CoordinatorMonitorState, [], []> = (
         if (kind === 'timeout' && extendedTo) updatedLimits.timeoutMs = extendedTo;
         if (kind === 'iterations') updatedLimits.maxIterations = extendedTo;
         if (kind === 'tool_calls') updatedLimits.maxToolCalls = extendedTo;
-        subagents.set(subagentId, { ...existing, budgetLimits: updatedLimits, lastSeen: Date.now() });
+        subagents.set(subagentId, {
+          ...existing,
+          budgetLimits: updatedLimits,
+          lastSeen: Date.now(),
+        });
       }
       return { subagents, lastUpdated: Date.now() };
     }),

@@ -90,7 +90,19 @@ const DEFAULTS: SecurityHotspotConfig = {
   enabled: false,
   severity: 'warn',
   maxFindings: 10,
-  scanOnChange: ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.py', '.java', '.go', '.rb', '.php'],
+  scanOnChange: [
+    '.js',
+    '.jsx',
+    '.ts',
+    '.tsx',
+    '.mjs',
+    '.cjs',
+    '.py',
+    '.java',
+    '.go',
+    '.rb',
+    '.php',
+  ],
 };
 
 // Module-scope cache, rebuilt by readConfig() for O(1) lookup in the PostToolUse hook.
@@ -102,22 +114,24 @@ function readConfig(raw: unknown): SecurityHotspotConfig {
     return { ...DEFAULTS };
   }
   const r = raw as Record<string, unknown>;
-  const rawScan = r['scanOnChange'] ?? r['scan_on_change'] ?? r['extensions'] ?? r['file_extensions'];
+  const rawScan =
+    r['scanOnChange'] ?? r['scan_on_change'] ?? r['extensions'] ?? r['file_extensions'];
   const scanOnChange = Array.isArray(rawScan)
     ? (rawScan as unknown[]).filter((x): x is string => typeof x === 'string')
     : DEFAULTS.scanOnChange;
   scanOnChangeSet = new Set(scanOnChange);
-  const rawSev = typeof (r['severity'] ?? r['mode'] ?? r['action']) === 'string'
-    ? String(r['severity'] ?? r['mode'] ?? r['action']).trim().toLowerCase()
-    : undefined;
+  const rawSev =
+    typeof (r['severity'] ?? r['mode'] ?? r['action']) === 'string'
+      ? String(r['severity'] ?? r['mode'] ?? r['action'])
+          .trim()
+          .toLowerCase()
+      : undefined;
   const rawMax = r['maxFindings'] ?? r['max_findings'] ?? r['limit'];
   return {
     enabled: r['enabled'] === true,
     severity: rawSev === 'block' ? 'block' : DEFAULTS.severity,
     maxFindings:
-      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 100
-        ? rawMax
-        : DEFAULTS.maxFindings,
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 100 ? rawMax : DEFAULTS.maxFindings,
     scanOnChange,
   };
 }
@@ -128,7 +142,11 @@ function readConfig(raw: unknown): SecurityHotspotConfig {
 
 const PATTERNS: { type: string; severity: 'high' | 'medium' | 'low'; regex: RegExp }[] = [
   { type: 'eval_call', severity: 'high', regex: /\beval\s*\(/i },
-  { type: 'function_constructor', severity: 'high', regex: /\bnew\s+Function\s*\(|\bFunction\s*\(/i },
+  {
+    type: 'function_constructor',
+    severity: 'high',
+    regex: /\bnew\s+Function\s*\(|\bFunction\s*\(/i,
+  },
   {
     type: 'unsafe_html',
     severity: 'high',
@@ -142,7 +160,8 @@ const PATTERNS: { type: string; severity: 'high' | 'medium' | 'low'; regex: RegE
   {
     type: 'hardcoded_http',
     severity: 'medium',
-    regex: /http:\/\/(?!(?:localhost|127\.0\.0\.1|0\.0\.0\.0|www\.w3\.org|schemas\.microsoft\.com)\b)[a-zA-Z0-9][^\s'")\\]*/i,
+    regex:
+      /http:\/\/(?!(?:localhost|127\.0\.0\.1|0\.0\.0\.0|www\.w3\.org|schemas\.microsoft\.com)\b)[a-zA-Z0-9][^\s'")\\]*/i,
   },
   {
     type: 'console_log_credentials',
@@ -320,7 +339,8 @@ const plugin: Plugin = {
         type: 'string',
         enum: ['warn', 'block'],
         default: 'warn',
-        description: 'warn = inject hotspots as additionalContext; block = refuse the mutating tool.',
+        description:
+          'warn = inject hotspots as additionalContext; block = refuse the mutating tool.',
       },
       maxFindings: {
         type: 'number',
@@ -359,13 +379,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['security-hotspot-scanner']);
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
       if (!cfg.enabled) return;
 
       // Skip if the write/edit itself errored.
@@ -438,7 +456,9 @@ const plugin: Plugin = {
       return { additionalContext: message };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- security_hotspot_scan tool ---
     api.tools.register({
@@ -450,7 +470,8 @@ const plugin: Plugin = {
         properties: {
           path: {
             type: 'string',
-            description: 'File or directory path to scan (relative or absolute, must be inside the project).',
+            description:
+              'File or directory path to scan (relative or absolute, must be inside the project).',
           },
         },
         required: ['path'],

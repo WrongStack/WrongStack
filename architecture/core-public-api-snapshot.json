@@ -1207,7 +1207,7 @@
         "export { CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS, CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION, type ChronicleMetricsRequest, type ChronicleMetricsResponse, type ChronicleMetricsView, type ChronicleProjectServerHealth, type ChronicleProjectServerInfo, type ChronicleServerOperationName, type ChronicleServerOperations, } from './project-server-protocol.js';",
         "export { CHRONICLE_SCHEMA_VERSION, type ChronicleCorrelation, type ChronicleEvent, type ChronicleEventInput, type ChronicleOutcome, type ChronicleResourceRef, type ChronicleRuntimeIdentity, type ChronicleScope, type ChronicleVerifyResult, } from './types.js';",
         "export { ChronicleCompactionBusyError, compactChronicleSqlite, type ChronicleSqliteCompactionOptions, type ChronicleSqliteCompactionResult, } from './sqlite-compaction.js';",
-        "export { ChronicleJournal, GENESIS_HASH, type ChronicleJournalOptions, type ChronicleJournalStats, type ChroniclePurgeOptions, type ChroniclePurgeResult } from './journal.js';",
+        "export { ChronicleJournal, GENESIS_HASH, type ChronicleJournalOptions, type ChronicleJournalStats, type ChroniclePurgeOptions, type ChroniclePurgeResult, } from './journal.js';",
         "export { ChronicleMetricsStore, isChronicleMetricsAvailable, type ChronicleMetricsRefreshResult, type ChronicleMetricsSummary, type ChronicleProviderDailyRow, type ChronicleTaskOutcomeRow, type ChronicleFileLineageRow, } from './metrics-store.js';",
         "export { ChroniclePartitionRangeCache, type ChroniclePartitionRange, } from './partition-range-cache.js';",
         "export { ChronicleProjectServerClient, ChronicleRemoteJournal, isChronicleProjectServerAvailable, type ChronicleProjectServerCallOptions, type ChronicleProjectServerClientOptions, } from './project-server-client.js';",
@@ -1218,13 +1218,13 @@
         "export { createChroniclePromptManifest, type ChroniclePromptManifest } from './prompt-manifest.js';",
         "export { resolveChronicleRuntimeLocation, type ChronicleRuntimeIdentityInput, type ChronicleRuntimeLocation, } from './identity.js';",
         "export { startChronicleFileObserver, type ChronicleFileObserver, type ChronicleFileObserverOptions, type ChronicleToolMutationHint, } from './file-observer.js';",
-        "export { startChronicleHealthMonitor, type ChronicleHealthMonitorOptions } from './health-monitor.js';",
-        "export { wireDecisionsToChronicle, type ChronicleDecisionAdapterOptions } from './decision-adapter.js';",
-        "export { wireDomainEventsToChronicle, type ChronicleDomainAdapterOptions } from './domain-adapter.js';",
+        "export { startChronicleHealthMonitor, type ChronicleHealthMonitorOptions, } from './health-monitor.js';",
+        "export { wireDecisionsToChronicle, type ChronicleDecisionAdapterOptions, } from './decision-adapter.js';",
+        "export { wireDomainEventsToChronicle, type ChronicleDomainAdapterOptions, } from './domain-adapter.js';",
         "export { wireProcessesToChronicle, type ChronicleProcessAdapterOptions, } from './process-adapter.js';",
         "export { wireProviderAttemptsToChronicle, type ChronicleProviderAdapterOptions, } from './provider-adapter.js';",
-        "export { wireProviderStreamsToChronicle, type ChronicleStreamAdapterOptions } from './stream-adapter.js';",
-        "export { wireReviewFindingsToChronicle, type ChronicleReviewAdapterOptions } from './review-adapter.js';",
+        "export { wireProviderStreamsToChronicle, type ChronicleStreamAdapterOptions, } from './stream-adapter.js';",
+        "export { wireReviewFindingsToChronicle, type ChronicleReviewAdapterOptions, } from './review-adapter.js';",
         "export { wireRollupsToChronicle, type ChronicleRollupAdapterOptions } from './rollup-adapter.js';",
         "export { wireToolsToChronicle, type ChronicleToolAdapterOptions } from './tool-adapter.js';"
       ]
@@ -1328,21 +1328,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 35,
-      "sourceLines": 10314
+      "sourceLines": 10650
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 174,
-      "sourceLines": 50988
+      "sourceLines": 51627
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 47,
-      "sourceLines": 12054
+      "sourceLines": 12077
     },
     {
       "directory": "design",
@@ -1356,21 +1356,21 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 18044
+      "sourceLines": 18118
     },
     {
       "directory": "extension",
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin/extension contract",
       "sourceFiles": 3,
-      "sourceLines": 439
+      "sourceLines": 445
     },
     {
       "directory": "goal",
       "classification": "storage/repository implementation",
       "intendedOwner": "repository behind persistence primitive",
       "sourceFiles": 14,
-      "sourceLines": 3461
+      "sourceLines": 3502
     },
     {
       "directory": "hooks",
@@ -1384,105 +1384,105 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8896
+      "sourceLines": 9012
     },
     {
       "directory": "infrastructure",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 1684
+      "sourceLines": 1693
     },
     {
       "directory": "kernel",
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3855
+      "sourceLines": 3891
     },
     {
       "directory": "models",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 11,
-      "sourceLines": 2465
+      "sourceLines": 2461
     },
     {
       "directory": "notifications",
       "classification": "host/application concern",
       "intendedOwner": "host adapter behind contract",
       "sourceFiles": 4,
-      "sourceLines": 469
+      "sourceLines": 461
     },
     {
       "directory": "observability",
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 13,
-      "sourceLines": 1821
+      "sourceLines": 1944
     },
     {
       "directory": "performance",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused performance package",
       "sourceFiles": 9,
-      "sourceLines": 1734
+      "sourceLines": 1731
     },
     {
       "directory": "plugin",
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 6,
-      "sourceLines": 2396
+      "sourceLines": 2390
     },
     {
       "directory": "plugins",
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 22,
-      "sourceLines": 8535
+      "sourceLines": 8628
     },
     {
       "directory": "prompts",
       "classification": "product feature",
       "intendedOwner": "plugin/runtime implementation",
       "sourceFiles": 4,
-      "sourceLines": 628
+      "sourceLines": 631
     },
     {
       "directory": "registry",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
       "sourceFiles": 4,
-      "sourceLines": 815
+      "sourceLines": 823
     },
     {
       "directory": "replay",
       "classification": "storage/repository implementation",
       "intendedOwner": "repository/runtime implementation",
       "sourceFiles": 3,
-      "sourceLines": 228
+      "sourceLines": 226
     },
     {
       "directory": "security",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6828
+      "sourceLines": 6927
     },
     {
       "directory": "session-catalog",
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 13,
-      "sourceLines": 4434
+      "sourceLines": 4439
     },
     {
       "directory": "skills",
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 11,
-      "sourceLines": 2363
+      "sourceLines": 2361
     },
     {
       "directory": "statusline",
@@ -1496,7 +1496,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 92,
-      "sourceLines": 21315
+      "sourceLines": 21452
     },
     {
       "directory": "tasking",
@@ -1510,28 +1510,28 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 20,
-      "sourceLines": 3603
+      "sourceLines": 3777
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 12876
+      "sourceLines": 12903
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10638
+      "sourceLines": 10626
     },
     {
       "directory": "wiring",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 1,
-      "sourceLines": 531
+      "sourceLines": 529
     },
     {
       "directory": "worktree",

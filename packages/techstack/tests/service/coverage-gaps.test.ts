@@ -9,7 +9,10 @@ import {
 import { runEnrichPhase } from '../../src/service/enrich-phase.js';
 import type { DependencyObservation, Snapshot, EcosystemId } from '../../src/types.js';
 
-function makeDep(name: string, overrides: Partial<DependencyObservation> = {}): DependencyObservation {
+function makeDep(
+  name: string,
+  overrides: Partial<DependencyObservation> = {},
+): DependencyObservation {
   return {
     id: `dep-${name}`,
     workspaceId: 'root',

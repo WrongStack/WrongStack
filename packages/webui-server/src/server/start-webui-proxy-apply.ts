@@ -45,9 +45,7 @@ interface WebuiProxyApplyOptions {
  * `@wrongstack/core` so both hosts share the identical change-detection
  * semantics (effective-URL comparison, serialized rebuilds).
  */
-export function setupWebuiProxyInstantApply(
-  options: WebuiProxyApplyOptions,
-): () => void {
+export function setupWebuiProxyInstantApply(options: WebuiProxyApplyOptions): () => void {
   const { state, deps, updateAutoCompactionMaxContext } = options;
 
   const instantApply = createProxyInstantApply({

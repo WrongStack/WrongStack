@@ -42,7 +42,7 @@ describe('buildUndoClearMessage', () => {
     });
   });
 
-  it('preserves the order of the input list (caller\'s order is the source of truth)', () => {
+  it("preserves the order of the input list (caller's order is the source of truth)", () => {
     const msg = buildUndoClearMessage('a', ['z', 'y', 'x']);
     expect(msg).toEqual({
       type: 'provider.undo_clear',

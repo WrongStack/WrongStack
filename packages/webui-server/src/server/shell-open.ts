@@ -56,9 +56,7 @@ export interface ShellOpenRequest {
  * (`'terminal' | 'file-manager'`), and ensures consistent behavior
  * across both the standalone and embedded WebUI routers.
  */
-export function normalizeShellOpenTarget(
-  target: string | undefined,
-): ShellOpenTarget {
+export function normalizeShellOpenTarget(target: string | undefined): ShellOpenTarget {
   return target === 'terminal' ? 'terminal' : 'file-manager';
 }
 
@@ -213,7 +211,12 @@ export async function handleShellOpen(
           launch('gnome-terminal', [`--working-directory=${target}`], () =>
             // Pass argv array so sh -c sees a literal string, not an interpolated one.
             // shellQuote() guards against paths that somehow slipped the METACHAR_REGEX.
-            launch('xterm', ['-e', 'sh', '-c', `cd ${shellQuote(target)} && ${process.env['SHELL'] ?? 'sh'}`]),
+            launch('xterm', [
+              '-e',
+              'sh',
+              '-c',
+              `cd ${shellQuote(target)} && ${process.env['SHELL'] ?? 'sh'}`,
+            ]),
           ),
         );
       }

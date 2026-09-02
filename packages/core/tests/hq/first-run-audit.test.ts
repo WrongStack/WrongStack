@@ -92,9 +92,7 @@ describe('ensureHqFirstRunAuthFile — first-run audit logging', () => {
       expect(result.clientToken?.expiresAt).toBeDefined();
 
       const entries = await readAuditEntries(dir);
-      const browser = entries.find(
-        (e) => e.kind === 'first-run' && e.scope === 'browser',
-      );
+      const browser = entries.find((e) => e.kind === 'first-run' && e.scope === 'browser');
       const client = entries.find((e) => e.kind === 'first-run' && e.scope === 'client');
 
       expect(browser?.capabilities).toEqual(['control.enqueue']);

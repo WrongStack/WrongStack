@@ -41,7 +41,10 @@ function makeHost(): MCPServerToolHost {
     listTools: () => [
       { name: 'echo', description: 'echo', inputSchema: { type: 'object', properties: {} } },
     ],
-    callTool: async (name, args) => ({ content: `${name}:${JSON.stringify(args)}`, isError: false }),
+    callTool: async (name, args) => ({
+      content: `${name}:${JSON.stringify(args)}`,
+      isError: false,
+    }),
   };
 }
 

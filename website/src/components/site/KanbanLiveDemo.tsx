@@ -248,7 +248,11 @@ const agentStateStyles: Record<AgentState, { label: string; dot: string; text: s
 };
 
 function cloneInitialTasks() {
-  return taskSeeds.map((task) => ({ ...task, labels: [...task.labels], crewIds: [...task.crewIds] }));
+  return taskSeeds.map((task) => ({
+    ...task,
+    labels: [...task.labels],
+    crewIds: [...task.crewIds],
+  }));
 }
 
 function taskProgress(task: DemoTask) {
@@ -464,15 +468,19 @@ export function KanbanLiveDemo() {
       if (candidates.length === 0) {
         const nextCycle = cycle + 1;
         setCycle(nextCycle);
-        setEvents((currentEvents) => ([
-          {
-            id: eventId.current++,
-            text: `Sprint ${cycle} archived`,
-            meta: `sample sprint ${nextCycle} seeded from backlog`,
-            tone: 'green',
-          },
-          ...currentEvents,
-        ] as DemoEvent[]).slice(0, 4));
+        setEvents((currentEvents) =>
+          (
+            [
+              {
+                id: eventId.current++,
+                text: `Sprint ${cycle} archived`,
+                meta: `sample sprint ${nextCycle} seeded from backlog`,
+                tone: 'green',
+              },
+              ...currentEvents,
+            ] as DemoEvent[]
+          ).slice(0, 4),
+        );
         setTasks(cloneInitialTasks().map((task) => ({ ...task, stage: Math.min(task.stage, 1) })));
         return;
       }
@@ -481,14 +489,11 @@ export function KanbanLiveDemo() {
       if (!selected) return;
       const nextStage = selected.stage + 1;
       const nextEvent = eventForMove(selected, nextStage);
-      setEvents((currentEvents) => [
-        { ...nextEvent, id: eventId.current++ },
-        ...currentEvents,
-      ].slice(0, 4));
+      setEvents((currentEvents) =>
+        [{ ...nextEvent, id: eventId.current++ }, ...currentEvents].slice(0, 4),
+      );
       setTasks((current) =>
-        current.map((task) =>
-          task.id === selected.id ? { ...task, stage: nextStage } : task,
-        ),
+        current.map((task) => (task.id === selected.id ? { ...task, stage: nextStage } : task)),
       );
     }, 2400);
 
@@ -514,15 +519,19 @@ export function KanbanLiveDemo() {
   const reset = () => {
     setTasks(cloneInitialTasks());
     setCycle(42);
-    setEvents((currentEvents) => ([
-      {
-        id: eventId.current++,
-        text: 'Demo board reset',
-        meta: 'sample assignments restored',
-        tone: 'brand',
-      },
-      ...currentEvents,
-    ] as DemoEvent[]).slice(0, 4));
+    setEvents((currentEvents) =>
+      (
+        [
+          {
+            id: eventId.current++,
+            text: 'Demo board reset',
+            meta: 'sample assignments restored',
+            tone: 'brand',
+          },
+          ...currentEvents,
+        ] as DemoEvent[]
+      ).slice(0, 4),
+    );
   };
 
   return (
@@ -577,7 +586,11 @@ export function KanbanLiveDemo() {
                   disabled={reducedMotion}
                   className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 font-mono text-[8px] font-black uppercase tracking-wider text-zinc-300 transition-colors hover:border-cyan-300/30 hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  {paused || reducedMotion ? <Play className="size-3" /> : <Pause className="size-3" />}
+                  {paused || reducedMotion ? (
+                    <Play className="size-3" />
+                  ) : (
+                    <Pause className="size-3" />
+                  )}
                   {reducedMotion ? 'Motion reduced' : paused ? 'Resume' : 'Pause'}
                 </button>
                 <button
@@ -600,7 +613,10 @@ export function KanbanLiveDemo() {
               ].map(([label, value, Icon, tone]) => {
                 const MetricIcon = Icon as typeof Users;
                 return (
-                  <div key={String(label)} className="flex items-center gap-2.5 bg-[#11141c] px-3 py-2.5">
+                  <div
+                    key={String(label)}
+                    className="flex items-center gap-2.5 bg-[#11141c] px-3 py-2.5"
+                  >
                     <MetricIcon className={cn('size-3.5', String(tone))} />
                     <strong className="font-mono text-xs text-zinc-200">{String(value)}</strong>
                     <span className="font-mono text-[7px] font-bold uppercase tracking-wider text-zinc-600">
@@ -660,7 +676,11 @@ export function KanbanLiveDemo() {
                         </div>
                         <div className="mt-2 flex items-center justify-between font-mono text-[7px] uppercase tracking-wider text-zinc-600">
                           <span>task / {column.taskStatus}</span>
-                          <span>{column.wip ? `WIP ${columnTasks.length}/${column.wip}` : `assignment / ${column.assignmentStatus}`}</span>
+                          <span>
+                            {column.wip
+                              ? `WIP ${columnTasks.length}/${column.wip}`
+                              : `assignment / ${column.assignmentStatus}`}
+                          </span>
                         </div>
                       </div>
                       <div className="space-y-2.5">
@@ -671,7 +691,9 @@ export function KanbanLiveDemo() {
                           <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-white/[0.07] text-center">
                             <div>
                               <CircleDot className="mx-auto size-4 text-zinc-700" />
-                              <p className="mt-2 font-mono text-[8px] text-zinc-700">waiting for task</p>
+                              <p className="mt-2 font-mono text-[8px] text-zinc-700">
+                                waiting for task
+                              </p>
                             </div>
                           </div>
                         )}
@@ -702,10 +724,17 @@ export function KanbanLiveDemo() {
                     className="rounded-lg border border-white/[0.07] bg-white/[0.025] p-3"
                   >
                     <div className="flex items-start gap-2">
-                      <span className={cn('mt-1 size-1.5 shrink-0 rounded-full', eventToneStyles[event.tone])} />
+                      <span
+                        className={cn(
+                          'mt-1 size-1.5 shrink-0 rounded-full',
+                          eventToneStyles[event.tone],
+                        )}
+                      />
                       <div>
                         <p className="text-xs font-bold leading-4 text-zinc-300">{event.text}</p>
-                        <p className="mt-1 font-mono text-[7px] leading-3 text-zinc-600">{event.meta}</p>
+                        <p className="mt-1 font-mono text-[7px] leading-3 text-zinc-600">
+                          {event.meta}
+                        </p>
                       </div>
                     </div>
                   </motion.div>
@@ -717,7 +746,8 @@ export function KanbanLiveDemo() {
                 <Sparkles className="size-3.5" /> Director queue
               </div>
               <p className="mt-2 text-xs leading-5 text-zinc-500">
-                Dependency-ready cards are claimed atomically, then routed by role, model, tools and capability policy.
+                Dependency-ready cards are claimed atomically, then routed by role, model, tools and
+                capability policy.
               </p>
               <code className="mt-3 rounded-lg border border-white/[0.07] bg-black/20 px-3 py-2 font-mono text-[8px] text-cyan-300">
                 kanban_queue · awaitCompletion=true

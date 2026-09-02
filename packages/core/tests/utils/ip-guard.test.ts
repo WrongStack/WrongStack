@@ -30,7 +30,14 @@ describe('isPrivateIPv4', () => {
   });
 
   it('allows public addresses', () => {
-    for (const addr of ['8.8.8.8', '1.1.1.1', '172.15.0.1', '172.32.0.1', '100.63.0.1', '93.184.216.34']) {
+    for (const addr of [
+      '8.8.8.8',
+      '1.1.1.1',
+      '172.15.0.1',
+      '172.32.0.1',
+      '100.63.0.1',
+      '93.184.216.34',
+    ]) {
       expect(isPrivateIPv4(addr), addr).toBe(false);
     }
   });
@@ -192,25 +199,21 @@ describe('assertNotPrivateHost', () => {
   });
 
   it('rejects a hostname that resolves to a private address', async () => {
-    
     lookupMock.mockResolvedValue([{ address: '10.0.0.5', family: 4 }] as never);
     await expect(assertNotPrivateHost('evil.example.com')).rejects.toThrow(/resolved to private/);
   });
 
   it('rejects a hostname that resolves to a private IPv6 address', async () => {
-    
     lookupMock.mockResolvedValue([{ address: 'fc00::1', family: 6 }] as never);
     await expect(assertNotPrivateHost('evil6.example.com')).rejects.toThrow(/resolved to private/);
   });
 
   it('allows a hostname that resolves to public addresses', async () => {
-    
     lookupMock.mockResolvedValue([{ address: '93.184.216.34', family: 4 }] as never);
     await expect(assertNotPrivateHost('example.com')).resolves.toBeUndefined();
   });
 
   it('swallows a DNS resolution failure (lets fetch surface it)', async () => {
-    
     lookupMock.mockRejectedValue(new Error('ENOTFOUND'));
     await expect(assertNotPrivateHost('nope.invalid')).resolves.toBeUndefined();
   });

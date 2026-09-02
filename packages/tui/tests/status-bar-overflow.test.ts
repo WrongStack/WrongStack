@@ -75,7 +75,10 @@ async function spansAt(
   await settle();
   const idsByLine = new Map<number, string[]>();
   for (const line of clickMapRef.current?.lines ?? []) {
-    idsByLine.set(line.line, line.spans.map((s) => s.id));
+    idsByLine.set(
+      line.line,
+      line.spans.map((s) => s.id),
+    );
   }
   view.unmount();
   return idsByLine;

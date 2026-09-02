@@ -95,12 +95,14 @@ describe('probeAcpAgents (bounded, phased)', () => {
     startMock.mockResolvedValue({ getAgentInfo: getAgentInfoMock, close: closeMock });
     const results = await probeAcpAgents({
       agentIds: ['opencode', 'nope', 'gemini-cli'],
-      resolveCmd: (id) =>
-        id === 'nope' ? null : { command: id, args: [], role: id },
+      resolveCmd: (id) => (id === 'nope' ? null : { command: id, args: [], role: id }),
       timeoutMs: 1000,
     });
     expect(results.map((r) => r.id)).toEqual(['opencode', 'nope', 'gemini-cli']);
-    expect(results.find((r) => r.id === 'nope')).toMatchObject({ ok: false, error: 'unknown agent' });
+    expect(results.find((r) => r.id === 'nope')).toMatchObject({
+      ok: false,
+      error: 'unknown agent',
+    });
     expect(results.find((r) => r.id === 'opencode')?.ok).toBe(true);
   });
 

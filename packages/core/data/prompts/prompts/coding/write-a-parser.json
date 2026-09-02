@@ -5,10 +5,7 @@
   "description": "Parse a structured text format into a usable structure.",
   "content": "Write a parser for this format: {{format}}\n\nDefine the grammar or structure first, then implement it in {{language}}. Decide between a hand-written recursive-descent parser and a regex/split approach, and justify it. Produce clear errors with position info on malformed input rather than silently misparsing. Cover the tricky cases: nesting, escaping, whitespace, and empty input. Include a couple of example inputs and their parsed output.",
   "category": "coding",
-  "tags": [
-    "parsing",
-    "format"
-  ],
+  "tags": ["parsing", "format"],
   "source": "builtin",
   "favorite": false,
   "checksum": "b0eeb0716fe3ae2f4f39b7b30d1f122362d8358f17ca2958db6905cb97ed82f9",

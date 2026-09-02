@@ -9,7 +9,9 @@ function mockWs() {
     sent,
     ws: {
       readyState: 1,
-      send(data: string) { sent.push(JSON.parse(data)); },
+      send(data: string) {
+        sent.push(JSON.parse(data));
+      },
     } as unknown as WebSocket,
   };
 }
@@ -30,9 +32,16 @@ describe('skills.export', () => {
 
   it('returns an explicit error when skills are disabled', async () => {
     const { ws, sent } = mockWs();
-    await handleSkillsExport(ws, { skillLoader: undefined, skillInstaller: undefined, projectRoot: '.' });
+    await handleSkillsExport(ws, {
+      skillLoader: undefined,
+      skillInstaller: undefined,
+      projectRoot: '.',
+    });
     expect(sent).toEqual([
-      expect.objectContaining({ type: 'skills.exported', payload: expect.objectContaining({ error: 'Skills not enabled' }) }),
+      expect.objectContaining({
+        type: 'skills.exported',
+        payload: expect.objectContaining({ error: 'Skills not enabled' }),
+      }),
     ]);
   });
 

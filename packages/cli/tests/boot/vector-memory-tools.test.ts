@@ -19,10 +19,7 @@ import { ToolRegistry } from '@wrongstack/core/registry';
 import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';
-import {
-  VectorMemoryStore,
-  type VectorMemoryStoreOptions,
-} from '@wrongstack/vector-memory';
+import { VectorMemoryStore, type VectorMemoryStoreOptions } from '@wrongstack/vector-memory';
 
 import { FakeEmbeddingProvider } from './fake-vector-embedding-provider.js';
 
@@ -99,11 +96,9 @@ describe('vector_memory tools — end-to-end smoke', () => {
       signal: new AbortController().signal,
     });
 
-    const result = await search.execute(
-      { query: 'apple banana', limit: 5 },
-      syntheticContext(),
-      { signal: new AbortController().signal },
-    );
+    const result = await search.execute({ query: 'apple banana', limit: 5 }, syntheticContext(), {
+      signal: new AbortController().signal,
+    });
     expect(result.hits.length).toBe(2);
     expect(result.hits[0]!.text).toContain('apple');
     // Scores should be sorted descending.

@@ -30,10 +30,7 @@ import { ToolRegistry } from '@wrongstack/core/registry';
 import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';
-import {
-  TransformersEmbeddingProvider,
-  VectorMemoryStore,
-} from '@wrongstack/vector-memory';
+import { TransformersEmbeddingProvider, VectorMemoryStore } from '@wrongstack/vector-memory';
 
 import { FakeEmbeddingProvider } from './fake-vector-embedding-provider.js';
 
@@ -114,30 +111,22 @@ describe('vector memory — CLI boot-to-teardown proof', () => {
     >;
 
     // Step 3a: agent writes three entries through the wired surface.
-    await remember.execute(
-      { text: 'apple banana cherry', tags: ['fruit'] },
-      syntheticContext(),
-      { signal: new AbortController().signal },
-    );
-    await remember.execute(
-      { text: 'apple mango pineapple', tags: ['fruit'] },
-      syntheticContext(),
-      { signal: new AbortController().signal },
-    );
-    await remember.execute(
-      { text: 'sports car engine', tags: ['vehicle'] },
-      syntheticContext(),
-      { signal: new AbortController().signal },
-    );
+    await remember.execute({ text: 'apple banana cherry', tags: ['fruit'] }, syntheticContext(), {
+      signal: new AbortController().signal,
+    });
+    await remember.execute({ text: 'apple mango pineapple', tags: ['fruit'] }, syntheticContext(), {
+      signal: new AbortController().signal,
+    });
+    await remember.execute({ text: 'sports car engine', tags: ['vehicle'] }, syntheticContext(), {
+      signal: new AbortController().signal,
+    });
 
     // Step 3b: agent reads — semantic search returns all three entries,
     // sorted by cosine similarity, and the entry closest to the query
     // (which shares the "apple banana" prefix) ranks first.
-    const result = await search.execute(
-      { query: 'apple banana', limit: 5 },
-      syntheticContext(),
-      { signal: new AbortController().signal },
-    );
+    const result = await search.execute({ query: 'apple banana', limit: 5 }, syntheticContext(), {
+      signal: new AbortController().signal,
+    });
     expect(result.hits.length).toBe(3);
     // The closest match shares the longest prefix with the query.
     expect(result.hits[0]!.text).toContain('apple banana');
@@ -151,22 +140,16 @@ describe('vector memory — CLI boot-to-teardown proof', () => {
     expect(s.modelId).toMatch(/^fake-/);
 
     // Step 3d: forget works and the entry disappears from search.
-    const written = await remember.execute(
-      { text: 'transient entry' },
-      syntheticContext(),
-      { signal: new AbortController().signal },
-    );
-    const forgetResult = await forget.execute(
-      { id: written.id },
-      syntheticContext(),
-      { signal: new AbortController().signal },
-    );
+    const written = await remember.execute({ text: 'transient entry' }, syntheticContext(), {
+      signal: new AbortController().signal,
+    });
+    const forgetResult = await forget.execute({ id: written.id }, syntheticContext(), {
+      signal: new AbortController().signal,
+    });
     expect(forgetResult.removed).toBe(true);
-    const afterForget = await search.execute(
-      { query: 'transient entry' },
-      syntheticContext(),
-      { signal: new AbortController().signal },
-    );
+    const afterForget = await search.execute({ query: 'transient entry' }, syntheticContext(), {
+      signal: new AbortController().signal,
+    });
     expect(afterForget.hits.find((h) => h.id === written.id)).toBeUndefined();
   });
 

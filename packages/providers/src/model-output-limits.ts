@@ -179,7 +179,10 @@ function indexPayload(payload: ModelsDevPayload): OutputLimitIndex {
   return index;
 }
 
-function providerCfgFor(config: Config | undefined, providerId: string): ProviderConfig | undefined {
+function providerCfgFor(
+  config: Config | undefined,
+  providerId: string,
+): ProviderConfig | undefined {
   return config?.providers?.[providerId];
 }
 
@@ -196,8 +199,7 @@ function overrideMaxOutput(
   const cfg = providerCfgFor(config, providerId);
   if (!cfg) return undefined;
   const custom = cfg.customModels?.[modelId];
-  const fromCustom =
-    positive(custom?.maxOutput) ?? positive(custom?.capabilities?.maxOutput);
+  const fromCustom = positive(custom?.maxOutput) ?? positive(custom?.capabilities?.maxOutput);
   if (fromCustom !== undefined) return fromCustom;
   return positive((cfg.capabilities as { maxOutput?: unknown } | undefined)?.maxOutput);
 }

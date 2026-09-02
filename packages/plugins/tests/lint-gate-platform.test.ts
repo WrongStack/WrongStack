@@ -273,44 +273,41 @@ describe('lint-gate local linter resolution', () => {
       ]),
       fixArgs: ['--fix'],
     },
-  ])('builds $name fix arguments from the resolved local entry', async ({
-    linter,
-    packageName,
-    relativeBin,
-    diagnostic,
-    fixArgs,
-  }) => {
-    const entry = await installFakeLinter(projectRoot, packageName, linter, relativeBin);
-    execFileMock
-      .mockImplementationOnce(() => {
-        queueMicrotask(() => completeExecCall(0, null, 'Version: 1.0.0'));
-        return {} as never;
-      })
-      .mockImplementationOnce(() => {
-        queueMicrotask(() => completeExecCall(1, null, diagnostic));
-        return {} as never;
-      })
-      .mockImplementationOnce(() => {
-        queueMicrotask(() => completeExecCall(2, null, ''));
-        return {} as never;
+  ])(
+    'builds $name fix arguments from the resolved local entry',
+    async ({ linter, packageName, relativeBin, diagnostic, fixArgs }) => {
+      const entry = await installFakeLinter(projectRoot, packageName, linter, relativeBin);
+      execFileMock
+        .mockImplementationOnce(() => {
+          queueMicrotask(() => completeExecCall(0, null, 'Version: 1.0.0'));
+          return {} as never;
+        })
+        .mockImplementationOnce(() => {
+          queueMicrotask(() => completeExecCall(1, null, diagnostic));
+          return {} as never;
+        })
+        .mockImplementationOnce(() => {
+          queueMicrotask(() => completeExecCall(2, null, ''));
+          return {} as never;
+        });
+
+      api = makeApi(projectRoot, { linter, mode: 'fix' });
+      lintGatePlugin.setup(api as never);
+      await getHook(api)({
+        toolName: 'write',
+        toolInput: { path: path.join(projectRoot, 'example.ts'), content: 'const x=1;\n' },
       });
 
-    api = makeApi(projectRoot, { linter, mode: 'fix' });
-    lintGatePlugin.setup(api as never);
-    await getHook(api)({
-      toolName: 'write',
-      toolInput: { path: path.join(projectRoot, 'example.ts'), content: 'const x=1;\n' },
-    });
-
-    const fixCall = execFileMock.mock.calls[2] as [
-      string,
-      string[],
-      { cwd: string; shell: boolean },
-    ];
-    expect(fixCall[0]).toBe(process.execPath);
-    expect(fixCall[1].slice(0, fixArgs.length + 1)).toEqual([entry, ...fixArgs]);
-    expect(fixCall[1][0]).not.toBe(linter);
-    expect(fixCall[1].at(-1)).toMatch(/lint-gate-fix-.*input\.ts$/);
-    expect(fixCall[2]).toEqual(expect.objectContaining({ cwd: projectRoot, shell: false }));
-  });
+      const fixCall = execFileMock.mock.calls[2] as [
+        string,
+        string[],
+        { cwd: string; shell: boolean },
+      ];
+      expect(fixCall[0]).toBe(process.execPath);
+      expect(fixCall[1].slice(0, fixArgs.length + 1)).toEqual([entry, ...fixArgs]);
+      expect(fixCall[1][0]).not.toBe(linter);
+      expect(fixCall[1].at(-1)).toMatch(/lint-gate-fix-.*input\.ts$/);
+      expect(fixCall[2]).toEqual(expect.objectContaining({ cwd: projectRoot, shell: false }));
+    },
+  );
 });

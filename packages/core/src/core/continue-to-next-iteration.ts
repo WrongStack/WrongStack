@@ -74,8 +74,7 @@ export function parseContinueDirective(text: string): ContinueDirective {
   // Strict: marker must be the only significant content on its line.
   // This regex uses a look-ahead to ensure the line contains nothing
   // meaningful besides the marker itself.
-  const LINE_MARKERS =
-    /^\s*\[(continue|next step|proceed|done)\]\s*$/gim;
+  const LINE_MARKERS = /^\s*\[(continue|next step|proceed|done)\]\s*$/gim;
 
   // M3: in practice the directive lives at the very end of the response —
   // models append `[continue]` or `[done]` as the last line. Scanning the
@@ -87,9 +86,7 @@ export function parseContinueDirective(text: string): ContinueDirective {
   // marker *before* that range is by definition not the directive
   // (the model is supposed to end its response with the marker).
   const tail =
-    text.length <= DIRECTIVE_SCAN_WINDOW
-      ? text
-      : text.slice(text.length - DIRECTIVE_SCAN_WINDOW);
+    text.length <= DIRECTIVE_SCAN_WINDOW ? text : text.slice(text.length - DIRECTIVE_SCAN_WINDOW);
 
   let match: RegExpExecArray | null;
   let lastDirective: ContinueDirective = 'none';

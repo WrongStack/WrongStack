@@ -84,7 +84,8 @@ function formatMessages(messages: Message[], maxTokens = 2048): string {
     usedTokens += line.tokens;
   }
   const omitted = Math.max(0, recentStart - head.length);
-  const marker = omitted > 0 ? [`[… ${omitted} middle message(s) omitted from selector preview …]`] : [];
+  const marker =
+    omitted > 0 ? [`[… ${omitted} middle message(s) omitted from selector preview …]`] : [];
   return [...head.map((line) => line.text), ...marker, ...tail.map((line) => line.text)].join('\n');
 }
 
@@ -246,7 +247,9 @@ export class LLMSelector implements MessageSelector {
     const keptRaw =
       (obj.kept as Array<{ from: number; to: number; importance: string }> | undefined) ?? [];
     const collapsedRaw =
-      (obj.collapsed as Array<{ from: number; to: number; summary?: string | undefined }> | undefined) ?? [];
+      (obj.collapsed as
+        | Array<{ from: number; to: number; summary?: string | undefined }>
+        | undefined) ?? [];
 
     // Validate kept ranges — must be within [0, messageCount), from <= to
     const kept: SelectorResult['kept'] = [];

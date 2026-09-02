@@ -173,9 +173,7 @@ describe('ThemePicker', () => {
             setSelected((s) => (s + 1) % THEME_OPTIONS.length);
           }
           if (key.upArrow) {
-            setSelected(
-              (s) => (s - 1 + THEME_OPTIONS.length) % THEME_OPTIONS.length,
-            );
+            setSelected((s) => (s - 1 + THEME_OPTIONS.length) % THEME_OPTIONS.length);
           }
         });
         return React.createElement(ThemePicker, {

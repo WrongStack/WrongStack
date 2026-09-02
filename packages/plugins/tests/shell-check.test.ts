@@ -3,7 +3,7 @@ import shellCheckPlugin from '../src/shell-check';
 
 const mockApi = {
   tools: {
-    register: vi.fn()
+    register: vi.fn(),
   },
   config: { extensions: {} },
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },

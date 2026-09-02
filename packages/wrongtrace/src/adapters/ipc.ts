@@ -19,7 +19,7 @@
  * the exact bug the legacy framing produced in `getAtlas()`.
  */
 
-import { connect } from "node:net";
+import { connect } from 'node:net';
 
 const CONNECT_TIMEOUT_MS = 2_000;
 const READ_TIMEOUT_MS = 5_000;
@@ -50,7 +50,7 @@ export interface IpcTransport {
 class TimeoutError extends Error {
   constructor(ms: number) {
     super(`IPC request exceeded ${ms}ms`);
-    this.name = "TimeoutError";
+    this.name = 'TimeoutError';
   }
 }
 
@@ -62,7 +62,7 @@ function once<T extends unknown[]>(
   return new Promise((resolve, reject) => {
     const onAny = (...args: unknown[]) => {
       if (predicate(...(args as T))) {
-        emitter.removeListener("error", onError);
+        emitter.removeListener('error', onError);
         emitter.removeListener(event, onAny);
         resolve(args as T);
       }
@@ -72,7 +72,7 @@ function once<T extends unknown[]>(
       reject(err);
     };
     emitter.once(event, onAny);
-    emitter.once("error", onError);
+    emitter.once('error', onError);
   });
 }
 
@@ -105,7 +105,7 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
       };
       try {
         await Promise.race([
-          once(sock, "connect"),
+          once(sock, 'connect'),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => reject(new TimeoutError(connectTimeoutMs)), connectTimeoutMs);
           }),
@@ -113,7 +113,7 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
         clearTimeout(timer);
         timer = undefined;
 
-        const payload = `${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`;
+        const payload = `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`;
         sock.write(payload);
 
         timer = setTimeout(() => sock.destroy(new TimeoutError(readTimeoutMs)), readTimeoutMs);
@@ -121,16 +121,20 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
         // Line-buffered frame reader: accumulate until the newline-delimited
         // frame carrying our response arrives. Junk/partial lines are skipped,
         // not fatal — the daemon is allowed to chatter before answering.
-        let buffer = "";
+        let buffer = '';
         for await (const chunk of sock) {
-          buffer += (chunk as Buffer).toString("utf8");
-          let newlineAt = buffer.indexOf("\n");
+          buffer += (chunk as Buffer).toString('utf8');
+          let newlineAt = buffer.indexOf('\n');
           while (newlineAt !== -1) {
             const line = buffer.slice(0, newlineAt).trim();
             buffer = buffer.slice(newlineAt + 1);
-            newlineAt = buffer.indexOf("\n");
+            newlineAt = buffer.indexOf('\n');
             if (line.length === 0) continue;
-            let envelope: { id?: number | null; result?: unknown; error?: { code: number; message: string } };
+            let envelope: {
+              id?: number | null;
+              result?: unknown;
+              error?: { code: number; message: string };
+            };
             try {
               envelope = JSON.parse(line);
             } catch {
@@ -155,6 +159,4 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
     },
   };
 }
-
 // Re-exporting for tests / advanced consumers that want the underlying timeout error.
-;

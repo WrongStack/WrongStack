@@ -142,19 +142,27 @@ describe('Mistral preset', () => {
     const events = await collectEvents(
       sseBody([
         JSON.stringify({
-          choices: [{ delta: { content: [{ type: 'thinking', thinking: [{ type: 'text', text: 'consider' }] }] } }],
+          choices: [
+            {
+              delta: {
+                content: [{ type: 'thinking', thinking: [{ type: 'text', text: 'consider' }] }],
+              },
+            },
+          ],
         }),
         JSON.stringify({ choices: [{ delta: { content: [{ type: 'text', text: 'result' }] } }] }),
         JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
         '[DONE]',
       ]),
     );
-    expect(events).toEqual(expect.arrayContaining([
-      { type: 'thinking_start' },
-      { type: 'thinking_delta', text: 'consider' },
-      { type: 'thinking_stop' },
-      { type: 'text_delta', text: 'result' },
-    ]));
+    expect(events).toEqual(
+      expect.arrayContaining([
+        { type: 'thinking_start' },
+        { type: 'thinking_delta', text: 'consider' },
+        { type: 'thinking_stop' },
+        { type: 'text_delta', text: 'result' },
+      ]),
+    );
   });
 
   it('parses streaming tool call with accumulated arguments', async () => {

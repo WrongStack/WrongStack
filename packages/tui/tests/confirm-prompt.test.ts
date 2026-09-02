@@ -61,7 +61,12 @@ describe('ConfirmPrompt helpers', () => {
     });
 
     it('filters out content, new_string, and diff keys', () => {
-      const result = stringifyInput({ content: 'big', new_string: 'stuff', diff: '--- a', path: 'a.ts' });
+      const result = stringifyInput({
+        content: 'big',
+        new_string: 'stuff',
+        diff: '--- a',
+        path: 'a.ts',
+      });
       expect(result).not.toContain('content');
       expect(result).not.toContain('new_string');
       expect(result).not.toContain('diff');

@@ -44,10 +44,7 @@ export function bulkInsertSymbolsWithStatement(
   for (const take of ladder) {
     const chunk = rows.slice(cursor, cursor + take);
     cursor += take;
-    const placeholders = getRowPlaceholders(
-      '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      chunk.length,
-    );
+    const placeholders = getRowPlaceholders('(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', chunk.length);
     const insert = stmt(
       `INSERT INTO symbols(id, lang, kind, name, file, line, col, signature, doc_comment, scope)
        VALUES ${placeholders}`,
@@ -126,10 +123,7 @@ export function bulkInsertRefsWithStatement(
   for (const take of ladder) {
     const chunk = refs.slice(cursor, cursor + take);
     cursor += take;
-    const placeholders = getRowPlaceholders(
-      '(?, ?, ?, ?, ?, ?, ?, ?)',
-      chunk.length,
-    );
+    const placeholders = getRowPlaceholders('(?, ?, ?, ?, ?, ?, ?, ?)', chunk.length);
     const insert = stmt(
       `INSERT INTO refs(from_id, to_name, to_id, call_type, line, lang, module, to_file)
        VALUES ${placeholders}`,

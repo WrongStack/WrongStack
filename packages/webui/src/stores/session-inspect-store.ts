@@ -76,7 +76,7 @@ export function ensureInspectHandlerInstalled(): void {
 
   const ws = getWSClient(wsUrl);
   ws.on('session.inspect', (msg) => {
-    const payload = msg.payload as SessionInspectData & { error?: string } | undefined;
+    const payload = msg.payload as (SessionInspectData & { error?: string }) | undefined;
     const store = useSessionInspectStore.getState();
     if (payload?.error) {
       store.setError(payload.error);

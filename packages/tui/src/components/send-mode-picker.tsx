@@ -51,7 +51,7 @@ export const SEND_MODE_OPTIONS: SendModeOption[] = [
  */
 export function nextSendModeIndex(selected: number, delta: number, len: number): number {
   if (len <= 0) return 0;
-  return ((selected + delta) % len + len) % len;
+  return (((selected + delta) % len) + len) % len;
 }
 
 /** A minimal structural view of the key event — keeps the helper pure/testable. */
@@ -140,11 +140,13 @@ export function SendModePicker({
           <Text color="white">{formatSendModeMessagePreview(messagePreview)}</Text>
         </Text>
       ) : null}
-      <Text dimColor>
-        q/b/s pick · ↑/↓ move · Enter select · Esc → back to input
-      </Text>
+      <Text dimColor>q/b/s pick · ↑/↓ move · Enter select · Esc → back to input</Text>
       {SEND_MODE_OPTIONS.map((opt, i) => (
-        <Text key={opt.mode} inverse={i === selected} {...(i === selected ? { color: opt.color } : {})}>
+        <Text
+          key={opt.mode}
+          inverse={i === selected}
+          {...(i === selected ? { color: opt.color } : {})}
+        >
           {i === selected ? '› ' : '  '}
           <Text bold color={opt.color}>
             [{opt.key}]

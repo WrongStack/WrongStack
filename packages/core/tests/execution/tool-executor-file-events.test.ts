@@ -150,7 +150,11 @@ describe('ToolExecutor — file event auto-emission', () => {
 
     const tool = fsReadTool();
     const reg = makeRegistry([tool]);
-    const exec = new ToolExecutor(reg, { events, secretScrubber: noopScrubber, permissionPolicy: autoApprovePolicy } as any);
+    const exec = new ToolExecutor(reg, {
+      events,
+      secretScrubber: noopScrubber,
+      permissionPolicy: autoApprovePolicy,
+    } as any);
     const ctx = makeFileEventCtx();
 
     const result = await exec.executeBatch(
@@ -266,7 +270,11 @@ describe('ToolExecutor — file event auto-emission', () => {
 
     const tool = fsWriteTool('edit');
     const reg = makeRegistry([tool]);
-    const exec = new ToolExecutor(reg, { events, secretScrubber: noopScrubber, permissionPolicy: autoApprovePolicy } as any);
+    const exec = new ToolExecutor(reg, {
+      events,
+      secretScrubber: noopScrubber,
+      permissionPolicy: autoApprovePolicy,
+    } as any);
     const ctx = makeFileEventCtx();
 
     await exec.executeBatch(
@@ -292,7 +300,11 @@ describe('ToolExecutor — file event auto-emission', () => {
 
     const tool = fsReadTool();
     const reg = makeRegistry([tool]);
-    const exec = new ToolExecutor(reg, { events, secretScrubber: noopScrubber, permissionPolicy: autoApprovePolicy } as any);
+    const exec = new ToolExecutor(reg, {
+      events,
+      secretScrubber: noopScrubber,
+      permissionPolicy: autoApprovePolicy,
+    } as any);
     const ctx = makeFileEventCtx({
       currentKanbanTaskId: 'task-42',
       currentKanbanBoardId: 'board-feature',
@@ -324,14 +336,14 @@ describe('ToolExecutor — file event auto-emission', () => {
 
     const tool = nonFsTool();
     const reg = makeRegistry([tool]);
-    const exec = new ToolExecutor(reg, { events, secretScrubber: noopScrubber, permissionPolicy: autoApprovePolicy } as any);
+    const exec = new ToolExecutor(reg, {
+      events,
+      secretScrubber: noopScrubber,
+      permissionPolicy: autoApprovePolicy,
+    } as any);
     const ctx = makeFileEventCtx();
 
-    await exec.executeBatch(
-      [makeToolUse('echo', 'tu-echo-1')],
-      ctx,
-      'sequential',
-    );
+    await exec.executeBatch([makeToolUse('echo', 'tu-echo-1')], ctx, 'sequential');
 
     expect(ctx.recordFileEvent).not.toHaveBeenCalled();
     expect(fileEvents.length).toBe(0);
@@ -344,7 +356,11 @@ describe('ToolExecutor — file event auto-emission', () => {
 
     const tool = fsReadTool();
     const reg = makeRegistry([tool]);
-    const exec = new ToolExecutor(reg, { events, secretScrubber: noopScrubber, permissionPolicy: autoApprovePolicy } as any);
+    const exec = new ToolExecutor(reg, {
+      events,
+      secretScrubber: noopScrubber,
+      permissionPolicy: autoApprovePolicy,
+    } as any);
     const ctx = makeFileEventCtx();
 
     // Tool has fs.read but input has no 'path' key
@@ -367,7 +383,11 @@ describe('ToolExecutor — file event auto-emission', () => {
     const tool2 = fsWriteTool('write');
     const tool3 = nonFsTool();
     const reg = makeRegistry([tool1, tool2, tool3]);
-    const exec = new ToolExecutor(reg, { events, secretScrubber: noopScrubber, permissionPolicy: autoApprovePolicy } as any);
+    const exec = new ToolExecutor(reg, {
+      events,
+      secretScrubber: noopScrubber,
+      permissionPolicy: autoApprovePolicy,
+    } as any);
     const ctx = makeFileEventCtx();
 
     await exec.executeBatch(

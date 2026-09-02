@@ -239,7 +239,12 @@ describe('WebUI codebase indexing', () => {
       currentFile: 0,
       totalFiles: 0,
       lastError: null,
-      circuit: { state: 'closed' as const, consecutiveFailures: 0, lastFailure: null, cooldownRemainingMs: 0 },
+      circuit: {
+        state: 'closed' as const,
+        consecutiveFailures: 0,
+        lastFailure: null,
+        cooldownRemainingMs: 0,
+      },
     };
     const busy = { ...idle, indexing: true, totalFiles: 4, currentFile: 1 };
     for (const listener of indexStateListeners) listener(busy);

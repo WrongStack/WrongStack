@@ -120,9 +120,7 @@ describe('readFileHead', () => {
     const file = await write('any.txt', 'irrelevant');
     spy.bytesRead.length = 0;
 
-    await expect(readFileHead(file, Number.MAX_SAFE_INTEGER)).rejects.toBeInstanceOf(
-      RangeError,
-    );
+    await expect(readFileHead(file, Number.MAX_SAFE_INTEGER)).rejects.toBeInstanceOf(RangeError);
     // No I/O should have happened on the rejection path.
     expect(spy.bytesRead.length).toBe(0);
   });

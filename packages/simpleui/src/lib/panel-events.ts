@@ -31,10 +31,7 @@ export function dispatchSimplePanel(event: SimplePanelEvent): void {
 }
 
 /** Subscribe to a panel event; returns an unsubscribe function. */
-export function onSimplePanel(
-  event: SimplePanelEvent,
-  listener: () => void,
-): () => void {
+export function onSimplePanel(event: SimplePanelEvent, listener: () => void): () => void {
   const name = eventName(event);
   window.addEventListener(name, listener);
   return () => window.removeEventListener(name, listener);
@@ -42,9 +39,7 @@ export function onSimplePanel(
 
 /** Open the right-side workspace launcher on a specific view. */
 export function dispatchOpenWorkspacePanel(view: WorkspacePanelView): void {
-  window.dispatchEvent(
-    new CustomEvent('simpleui:open-workspace-panel', { detail: { view } }),
-  );
+  window.dispatchEvent(new CustomEvent('simpleui:open-workspace-panel', { detail: { view } }));
 }
 
 /** Subscribe to workspace launcher opens; returns an unsubscribe function. */

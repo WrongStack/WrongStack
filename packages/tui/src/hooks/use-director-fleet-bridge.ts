@@ -5,10 +5,7 @@ import type { Action, State } from '../app-reducer.js';
 import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 import { formatToolSummary, type ToolAgg } from './fleet-chat-coalescer.js';
 import { useFleetGenerationGate } from './use-fleet-generation-gate.js';
-import {
-  MAX_ASSISTANT_STREAM_RETAINED_CHARS,
-  retainStreamTail,
-} from '../reducers/helpers.js';
+import { MAX_ASSISTANT_STREAM_RETAINED_CHARS, retainStreamTail } from '../reducers/helpers.js';
 
 // Fleet streams can produce deltas from many workers at once. A 150 ms flush
 // made a 10-agent run schedule several full App/Ink renders per second. Keep
@@ -356,7 +353,8 @@ export function useDirectorFleetBridge({
           const from = payload?.from;
           const to = payload?.to;
           if (to?.providerId && to.model) {
-            const fromLabel = from?.providerId && from.model ? `${from.providerId}/${from.model} ` : '';
+            const fromLabel =
+              from?.providerId && from.model ? `${from.providerId}/${from.model} ` : '';
             enqueue({
               type: 'addEntry',
               entry: {
@@ -399,18 +397,18 @@ export function useDirectorFleetBridge({
           });
           enqueue({ type: 'fleetToolEnd', id: event.subagentId });
           if (payload?.name && chatModeRef.current === 'full') {
-              const label = labelFor(labelsRef, event.subagentId);
-              enqueue({
-                type: 'addEntry',
-                entry: {
-                  kind: 'subagent',
-                  agentLabel: label.label,
-                  agentColor: label.color,
-                  icon: '🔧',
-                  text: `→ ${payload.name} ${payload.ok === false ? '✗' : '✓'}${payload.durationMs != null ? ` (${payload.durationMs}ms)` : ''}`,
-                },
-              });
-            }
+            const label = labelFor(labelsRef, event.subagentId);
+            enqueue({
+              type: 'addEntry',
+              entry: {
+                kind: 'subagent',
+                agentLabel: label.label,
+                agentColor: label.color,
+                icon: '🔧',
+                text: `→ ${payload.name} ${payload.ok === false ? '✗' : '✓'}${payload.durationMs != null ? ` (${payload.durationMs}ms)` : ''}`,
+              },
+            });
+          }
           break;
         }
         case 'provider.response':

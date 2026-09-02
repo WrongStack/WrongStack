@@ -5,11 +5,7 @@
   "description": "Capture an architecture decision in a clear, durable record.",
   "content": "Write an Architecture Decision Record for this decision: {{decision}}\n\nUse the standard structure:\n- Title and status (proposed/accepted).\n- Context: the forces and constraints that led here.\n- Decision: what we're doing, stated plainly.\n- Consequences: the good, the bad, and the newly-accepted risks.\n- Alternatives considered and why they lost.\n\nKeep it concise and honest — a future engineer should understand not just what we chose but why the obvious alternatives were rejected.",
   "category": "architecture",
-  "tags": [
-    "adr",
-    "documentation",
-    "decision-record"
-  ],
+  "tags": ["adr", "documentation", "decision-record"],
   "source": "builtin",
   "favorite": false,
   "checksum": "c998ccbc1c9dc383cc64407d83981f5839ff30d32cdfe348e1c98e2424a766b4",

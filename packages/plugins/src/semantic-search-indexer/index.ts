@@ -147,11 +147,7 @@ const DEFAULTS: SemanticSearchConfig = {
     '.scss',
     '.html',
   ],
-  excludePatterns: [
-    ...DEFAULT_WALK_IGNORE_DIRS.map(escapeRegex),
-    '\\.wrongstack',
-    '\\.temp_files',
-  ],
+  excludePatterns: [...DEFAULT_WALK_IGNORE_DIRS.map(escapeRegex), '\\.wrongstack', '\\.temp_files'],
   maxFileBytes: 1_000_000,
   defaultLimit: 10,
   minTokenLength: 2,
@@ -160,10 +156,16 @@ const DEFAULTS: SemanticSearchConfig = {
 };
 
 export function readConfig(raw: unknown): SemanticSearchConfig {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULTS, includeExtensions: [...DEFAULTS.includeExtensions], excludePatterns: [...DEFAULTS.excludePatterns] };
+  if (!raw || typeof raw !== 'object')
+    return {
+      ...DEFAULTS,
+      includeExtensions: [...DEFAULTS.includeExtensions],
+      excludePatterns: [...DEFAULTS.excludePatterns],
+    };
   const r = raw as Record<string, unknown>;
 
-  const rawExts = r['includeExtensions'] ?? r['include_extensions'] ?? r['extensions'] ?? r['file_extensions'];
+  const rawExts =
+    r['includeExtensions'] ?? r['include_extensions'] ?? r['extensions'] ?? r['file_extensions'];
   const includeExtensions = Array.isArray(rawExts)
     ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
     : [...DEFAULTS.includeExtensions];
@@ -526,7 +528,11 @@ function compareRankedCandidates(a: RankedCandidate, b: RankedCandidate): number
   return b.score - a.score || a.path.localeCompare(b.path);
 }
 
-function insertTopCandidate(top: RankedCandidate[], candidate: RankedCandidate, limit: number): void {
+function insertTopCandidate(
+  top: RankedCandidate[],
+  candidate: RankedCandidate,
+  limit: number,
+): void {
   if (limit <= 0) return;
   if (top.length === 0) {
     top.push(candidate);
@@ -608,10 +614,15 @@ function runQuery(query: string, limit: number, cfg: SemanticSearchConfig): Sear
 const plugin: Plugin = {
   name: 'semantic-search-indexer',
   version: '0.1.0',
-  description: 'Builds an in-memory keyword index over project source files and answers ranked search queries',
+  description:
+    'Builds an in-memory keyword index over project source files and answers ranked search queries',
   apiVersion: API_VERSION,
   capabilities: { tools: true },
-  defaultConfig: { ...DEFAULTS, includeExtensions: [...DEFAULTS.includeExtensions], excludePatterns: [...DEFAULTS.excludePatterns] },
+  defaultConfig: {
+    ...DEFAULTS,
+    includeExtensions: [...DEFAULTS.includeExtensions],
+    excludePatterns: [...DEFAULTS.excludePatterns],
+  },
   configSchema: {
     type: 'object',
     properties: {
@@ -804,7 +815,8 @@ const plugin: Plugin = {
     // --- semantic_index_status ---
     api.tools.register({
       name: 'semantic_index_status',
-      description: 'Reports semantic-search-indexer state: indexed path, file/term counts, and counters.',
+      description:
+        'Reports semantic-search-indexer state: indexed path, file/term counts, and counters.',
       inputSchema: { type: 'object', properties: {} },
       permission: 'auto',
       category: 'Diagnostics',

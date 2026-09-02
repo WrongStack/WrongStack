@@ -262,7 +262,11 @@ function needsDocComment(content: string, entity: ParsedEntity): boolean {
   if (lineIdx < 1) return true;
   /* v8 ignore next -- lineIdx >= 1 here, so lines[lineIdx - 1] is always defined; the ?? '' is defensive. */
   const prevLine = lines[lineIdx - 1]?.trim() ?? '';
-  if (/^\s*\*\/\s*$/.test(prevLine) || /^\s*\/\*\*.*?\*\/\s*$/.test(prevLine) || /^\s*\/\*\*/.test(prevLine)) {
+  if (
+    /^\s*\*\/\s*$/.test(prevLine) ||
+    /^\s*\/\*\*.*?\*\/\s*$/.test(prevLine) ||
+    /^\s*\/\*\*/.test(prevLine)
+  ) {
     return false;
   }
   return true;
@@ -301,7 +305,9 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
     rawInput['TargetFile'] ??
     rawInput['targetFile'];
   const files = Array.isArray(rawFiles)
-    ? rawFiles.filter((f): f is string => typeof f === 'string' && f.trim().length > 0).map((f) => f.trim())
+    ? rawFiles
+        .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+        .map((f) => f.trim())
     : typeof rawFiles === 'string' && rawFiles.trim().length > 0
       ? [rawFiles.trim()]
       : undefined;
@@ -326,8 +332,10 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
   const includeTypes = (extConfig['includeTypes'] as boolean) ?? false;
   // LLM prose is opt-in: per-call `use_llm` overrides the config flag.
   const useLlm =
-    (input.use_llm ?? (rawInput['useLlm'] as boolean | undefined) ?? (extConfig['useLlm'] as boolean | undefined) ?? false) === true &&
-    Boolean(api.llm);
+    (input.use_llm ??
+      (rawInput['useLlm'] as boolean | undefined) ??
+      (extConfig['useLlm'] as boolean | undefined) ??
+      false) === true && Boolean(api.llm);
   // Bound how many LLM calls one invocation makes so a huge file can't
   // trigger hundreds of completions; entities beyond the cap use the template.
   const maxLlmEntities =

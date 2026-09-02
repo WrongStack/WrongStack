@@ -64,9 +64,9 @@ export function makeTelegramSendTool(opts: {
 
       const res = opts.outbound
         ? await opts.outbound.sendManual(chatId, truncated)
-        : (toolOpts?.signal
-            ? await opts.bot.sendMessage(chatId, truncated, toolOpts.signal)
-            : await opts.bot.sendMessage(chatId, truncated));
+        : toolOpts?.signal
+          ? await opts.bot.sendMessage(chatId, truncated, toolOpts.signal)
+          : await opts.bot.sendMessage(chatId, truncated);
 
       return {
         ok: res.ok,

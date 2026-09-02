@@ -12,7 +12,6 @@ import {
 } from './monitor-shell.js';
 
 export { F_KEY_PANEL_ENTRIES as F_KEY_ENTRIES } from '../f-key-panels.js';
-;
 
 interface FKeyPickerProps {
   selected: number;

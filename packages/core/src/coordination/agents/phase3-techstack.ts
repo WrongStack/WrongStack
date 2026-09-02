@@ -23,7 +23,8 @@ export const TECHSTACK_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'build',
-      summary: 'Dependency version watchdog: monitors package manifests, looks up latest versions from registries, and warns authors about outdated packages.',
+      summary:
+        'Dependency version watchdog: monitors package manifests, looks up latest versions from registries, and warns authors about outdated packages.',
       keywords: [
         'tech-stack',
         'dependency',

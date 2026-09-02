@@ -98,6 +98,4 @@ export function isPerfModeId(value: string): value is PerfModeId {
 }
 
 /** Every builtin prompt slug the performance system depends on existing. */
-export const PERF_PROMPT_SLUGS: readonly string[] = PERF_MODE_IDS.map(
-  (id) => PERF_MODES[id].slug,
-);
+export const PERF_PROMPT_SLUGS: readonly string[] = PERF_MODE_IDS.map((id) => PERF_MODES[id].slug);

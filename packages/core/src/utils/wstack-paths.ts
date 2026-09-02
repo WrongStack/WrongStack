@@ -312,7 +312,12 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
       return path.join(globalRoot, 'profiles', safeProfileName(name), 'provider-status.json');
     },
     profileProviderAudit: (name: string) => {
-      return path.join(globalRoot, 'profiles', safeProfileName(name), 'provider-status-audit.jsonl');
+      return path.join(
+        globalRoot,
+        'profiles',
+        safeProfileName(name),
+        'provider-status-audit.jsonl',
+      );
     },
     profileUpdateCache: (name: string) => {
       return path.join(globalRoot, 'profiles', safeProfileName(name), 'update-cache.json');

@@ -5,7 +5,10 @@ import {
 } from '@wrongstack/core/wiring/proxy-rewrite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveProviderCfg } from '../src/wiring/provider-runtime.js';
-import { setupProviderRuntime, type ProviderRuntimeDeps } from '../src/wiring/provider-runtime-setup.js';
+import {
+  setupProviderRuntime,
+  type ProviderRuntimeDeps,
+} from '../src/wiring/provider-runtime-setup.js';
 
 // Keep the unit hermetic: the catalog overlay, storage watchers/snapshot
 // reader, fallback extension, and consolidator are all replaced with fakes.
@@ -13,10 +16,12 @@ import { setupProviderRuntime, type ProviderRuntimeDeps } from '../src/wiring/pr
 // this module owns). Credential-shaped strings are deliberately low-entropy
 // fixture tokens, never real secret material.
 vi.mock('@wrongstack/providers', () => ({
-  withCatalogCapabilities: vi.fn(async (_models: unknown, providerId: string, provider: Provider) => ({
-    ...provider,
-    id: `${providerId}-catalog`,
-  })),
+  withCatalogCapabilities: vi.fn(
+    async (_models: unknown, providerId: string, provider: Provider) => ({
+      ...provider,
+      id: `${providerId}-catalog`,
+    }),
+  ),
   makeProviderFromConfig: vi.fn(),
 }));
 
@@ -117,7 +122,9 @@ function makeDeps(overrides: Partial<ProviderRuntimeDeps> = {}) {
     resolveProviderCfgRuntime: vi.fn((c: Config, providerId: string) => ({
       cfg: { type: providerId, apiKey: c.apiKey } as ProviderConfig,
     })),
-    buildProviderForIdRuntime: vi.fn((_opts: unknown, providerId: string) => fakeProvider(providerId)),
+    buildProviderForIdRuntime: vi.fn((_opts: unknown, providerId: string) =>
+      fakeProvider(providerId),
+    ),
     statusTracker: {
       // switchProviderAndModel unblocks the (provider, model) pair before
       // rebuilding the provider; a bare object makes that call throw and
@@ -140,17 +147,15 @@ beforeEach(() => {
   configWatchCbs = [];
   snapshotByPath = {};
   delete process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'];
-  watchProviderConfig.mockImplementation(
-    ((path: string, _vault: unknown, cb: () => void) => {
-      const handle: WatcherHandle = { path, trigger: cb, close: vi.fn() };
-      createdWatchers.push(handle);
-      return handle as never;
-    }) as never,
-  );
-  readProviderSnapshot.mockImplementation(
-    ((path: string) =>
-      path in snapshotByPath ? Promise.resolve(snapshotByPath[path]) : Promise.resolve(undefined)) as never,
-  );
+  watchProviderConfig.mockImplementation(((path: string, _vault: unknown, cb: () => void) => {
+    const handle: WatcherHandle = { path, trigger: cb, close: vi.fn() };
+    createdWatchers.push(handle);
+    return handle as never;
+  }) as never);
+  readProviderSnapshot.mockImplementation(((path: string) =>
+    path in snapshotByPath
+      ? Promise.resolve(snapshotByPath[path])
+      : Promise.resolve(undefined)) as never);
 });
 
 afterEach(() => {
@@ -165,11 +170,9 @@ describe('setupProviderRuntime — returned runtime helpers', () => {
     expect(runtime.buildProviderForId('openai').id).toBe('openai');
     // The logger is threaded through so every build logs its proxy rewrite
     // decision into wrongstack.log.
-    expect(deps.resolveProviderCfgRuntime).toHaveBeenCalledWith(
-      deps.config,
-      'anthropic',
-      { logger: deps.logger },
-    );
+    expect(deps.resolveProviderCfgRuntime).toHaveBeenCalledWith(deps.config, 'anthropic', {
+      logger: deps.logger,
+    });
     expect(deps.buildProviderForIdRuntime).toHaveBeenCalledWith(
       expect.objectContaining({ config: deps.config, logger: deps.logger }),
       'openai',
@@ -185,7 +188,9 @@ describe('setupProviderRuntime — returned runtime helpers', () => {
 
   it('applies the catalog overlay when the models registry feature is on', async () => {
     const deps = makeDeps({
-      config: fakeConfig({ features: { mcp: true, plugins: true, memory: false, modelsRegistry: true, skills: true } }),
+      config: fakeConfig({
+        features: { mcp: true, plugins: true, memory: false, modelsRegistry: true, skills: true },
+      }),
     });
     const runtime = setupProviderRuntime(deps);
     const provider = await runtime.buildProviderForModel('anthropic', 'claude-3');
@@ -267,7 +272,10 @@ describe('setupProviderRuntime — extensions and consolidation', () => {
     const deps = makeDeps();
     setupProviderRuntime(deps);
     expect(deps.agent.extensions.register).toHaveBeenCalledTimes(1);
-    const ext = createFallbackModelExtension.mock.calls[0]?.[0] as unknown as Record<string, unknown>;
+    const ext = createFallbackModelExtension.mock.calls[0]?.[0] as unknown as Record<
+      string,
+      unknown
+    >;
     expect(ext['fallbackGateSeconds']).toBe(7);
     expect(ext['fallbackGate']).toBeDefined();
     expect(typeof ext['getConfig']).toBe('function');
@@ -275,7 +283,9 @@ describe('setupProviderRuntime — extensions and consolidation', () => {
 
   it('registers the session memory consolidator and curator when memory is enabled', () => {
     const deps = makeDeps({
-      config: fakeConfig({ features: { mcp: true, plugins: true, memory: true, modelsRegistry: false, skills: true } }),
+      config: fakeConfig({
+        features: { mcp: true, plugins: true, memory: true, modelsRegistry: false, skills: true },
+      }),
     });
     setupProviderRuntime(deps);
     expect(deps.agent.extensions.register).toHaveBeenCalledTimes(3);
@@ -284,7 +294,14 @@ describe('setupProviderRuntime — extensions and consolidation', () => {
   it('skips consolidation when memoryConsolidation is explicitly disabled', () => {
     const deps = makeDeps({
       config: fakeConfig({
-        features: { mcp: true, plugins: true, memory: true, modelsRegistry: false, skills: true, memoryConsolidation: false },
+        features: {
+          mcp: true,
+          plugins: true,
+          memory: true,
+          modelsRegistry: false,
+          skills: true,
+          memoryConsolidation: false,
+        },
       }),
     });
     setupProviderRuntime(deps);
@@ -294,7 +311,14 @@ describe('setupProviderRuntime — extensions and consolidation', () => {
   it('skips curator when memoryCurator is explicitly disabled', () => {
     const deps = makeDeps({
       config: fakeConfig({
-        features: { mcp: true, plugins: true, memory: true, modelsRegistry: false, skills: true, memoryCurator: false },
+        features: {
+          mcp: true,
+          plugins: true,
+          memory: true,
+          modelsRegistry: false,
+          skills: true,
+          memoryCurator: false,
+        },
       }),
     });
     setupProviderRuntime(deps);
@@ -392,7 +416,9 @@ describe('setupProviderRuntime — config watchers', () => {
     await flushAsync();
     expect(deps.configStore.update).toHaveBeenCalled();
     expect(deps.context.provider?.id).toBe('old-provider');
-    expect(deps.logger.info).not.toHaveBeenCalledWith(expect.stringContaining('credentials reloaded'));
+    expect(deps.logger.info).not.toHaveBeenCalledWith(
+      expect.stringContaining('credentials reloaded'),
+    );
   });
 
   it('rebuilds the active provider with the catalog overlay on credential changes', async () => {
@@ -401,13 +427,17 @@ describe('setupProviderRuntime — config watchers', () => {
       apiKey: TOKEN_ROTATED,
     };
     const deps = makeDeps({
-      config: fakeConfig({ features: { mcp: true, plugins: true, memory: false, modelsRegistry: true, skills: true } }),
+      config: fakeConfig({
+        features: { mcp: true, plugins: true, memory: false, modelsRegistry: true, skills: true },
+      }),
     });
     setupProviderRuntime(deps);
     createdWatchers[0]?.trigger();
     await flushAsync();
     expect(deps.context.provider?.id).toBe('anthropic-catalog');
-    expect(deps.logger.info).toHaveBeenCalledWith('Provider credentials reloaded from config (anthropic)');
+    expect(deps.logger.info).toHaveBeenCalledWith(
+      'Provider credentials reloaded from config (anthropic)',
+    );
   });
 
   it('warns when the credential rebuild fails instead of throwing', async () => {
@@ -503,9 +533,7 @@ describe('setupProviderRuntime — WrongProxy instant-apply', () => {
     // The live provider object was swapped (new instance with same id).
     expect(context.provider).not.toBe(originalProvider);
     expect(context.provider?.id).toBe('anthropic');
-    expect(deps.logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('live provider rebuilt'),
-    );
+    expect(deps.logger.info).toHaveBeenCalledWith(expect.stringContaining('live provider rebuilt'));
   });
 
   it('does NOT rebuild when the proxy config write is value-identical (probe tick)', async () => {

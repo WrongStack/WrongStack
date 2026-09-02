@@ -258,7 +258,12 @@ export function PromptLibraryModal() {
   }, [client, draft]);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) setOpen(false); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) setOpen(false);
+      }}
+    >
       <DialogContent
         className="max-w-4xl h-[80dvh] p-0 gap-0 overflow-hidden"
         showCloseButton={false}
@@ -268,372 +273,401 @@ export function PromptLibraryModal() {
         }}
       >
         <DialogTitle className="sr-only">{t('activity:promptLib.heading')}</DialogTitle>
-        <DialogDescription className="sr-only">{t('activity:promptLib.searchPlaceholder')}</DialogDescription>
+        <DialogDescription className="sr-only">
+          {t('activity:promptLib.searchPlaceholder')}
+        </DialogDescription>
         <div className="flex h-full min-h-0 min-w-0 w-full overflow-hidden">
-        {/* Left: search + categories + results */}
-        <div className="flex min-h-0 min-w-0 w-1/2 flex-col border-r border-border">
-          <div className="border-b border-border p-3">
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('activity:promptLib.searchPlaceholder')}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-            />
-            <button type="button"
-              onClick={() => {
-                setCreating(true);
-                setSelected(null);
-                setCreateError(null);
-                setDraft(emptyDraft);
-              }}
-              className="mt-2 w-full rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              {t('activity:promptLib.newPrompt')}
-            </button>
-            <div className="mt-2 flex flex-wrap gap-1">
-              <button type="button"
+          {/* Left: search + categories + results */}
+          <div className="flex min-h-0 min-w-0 w-1/2 flex-col border-r border-border">
+            <div className="border-b border-border p-3">
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t('activity:promptLib.searchPlaceholder')}
+                className="w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button
+                type="button"
                 onClick={() => {
-                  setActiveCat(null);
-                  setFavoritesOnly(false);
-                  setRecentOnly(false);
+                  setCreating(true);
+                  setSelected(null);
+                  setCreateError(null);
+                  setDraft(emptyDraft);
                 }}
-                className={`rounded px-2 py-0.5 text-xs ${activeCat === null && !favoritesOnly && !recentOnly ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                className="mt-2 w-full rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
               >
-                {t('activity:promptLib.all')}
+                {t('activity:promptLib.newPrompt')}
               </button>
-              <button type="button"
-                onClick={() => {
-                  setRecentOnly((v) => !v);
-                  setFavoritesOnly(false);
-                  setActiveCat(null);
-                }}
-                className={`rounded px-2 py-0.5 text-xs ${recentOnly ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
-              >
-                {t('activity:promptLib.recent')}
-              </button>
-              <button type="button"
-                onClick={() => {
-                  setFavoritesOnly((v) => !v);
-                  setRecentOnly(false);
-                  setActiveCat(null);
-                }}
-                className={`rounded px-2 py-0.5 text-xs ${favoritesOnly ? 'bg-warning text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
-              >
-                {t('activity:promptLib.favorites')}
-              </button>
-              {categories.map((c) => (
-                <button type="button"
-                  key={c.id}
+              <div className="mt-2 flex flex-wrap gap-1">
+                <button
+                  type="button"
                   onClick={() => {
-                    setActiveCat(c.id);
-                    setRecentOnly(false);
+                    setActiveCat(null);
                     setFavoritesOnly(false);
+                    setRecentOnly(false);
                   }}
-                  className={`rounded px-2 py-0.5 text-xs ${activeCat === c.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                  className={`rounded px-2 py-0.5 text-xs ${activeCat === null && !favoritesOnly && !recentOnly ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
                 >
-                  {c.label} ({c.count})
+                  {t('activity:promptLib.all')}
                 </button>
-              ))}
-            </div>
-          </div>
-          <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
-            {filtered.map((p) => (
-              <button type="button"
-                key={p.slug}
-                onClick={() => setSelected(p)}
-                className={`flex w-full flex-col items-start gap-0.5 border-b border-border/50 px-3 py-2 text-left hover:bg-accent ${selected?.slug === p.slug ? 'bg-accent' : ''}`}
-              >
-                <div className="flex w-full items-center gap-1 text-sm">
-                  <span>{SOURCE_GLYPH[p.source] ?? '•'}</span>
-                  <span className="font-medium">{p.title}</span>
-                  {p.favorite && <span className="text-warning">★</span>}
-                </div>
-                <div className="line-clamp-1 text-xs text-muted-foreground">{p.description}</div>
-              </button>
-            ))}
-            {filtered.length === 0 && (
-              <div className="p-4 text-sm text-muted-foreground">{t('activity:promptLib.noMatch')}</div>
-            )}
-          </div>
-        </div>
-
-        {/* Right: preview + variables + insert, OR the authoring form */}
-        <div className="flex min-h-0 min-w-0 w-1/2 flex-col">
-          {creating ? (
-            <>
-              <div className="flex items-center justify-between border-b border-border p-3">
-                <div className="text-sm font-semibold">{t('activity:promptLib.newPromptHeading')}</div>
-                <button type="button"
+                <button
+                  type="button"
                   onClick={() => {
-                    setCreating(false);
-                    setCreateError(null);
+                    setRecentOnly((v) => !v);
+                    setFavoritesOnly(false);
+                    setActiveCat(null);
                   }}
-                  className="text-xs text-muted-foreground hover:text-foreground"
+                  className={`rounded px-2 py-0.5 text-xs ${recentOnly ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
                 >
-                  {t('common:action.cancel')}
+                  {t('activity:promptLib.recent')}
                 </button>
-              </div>
-              <div className="min-h-0 min-w-0 flex-1 space-y-2 overflow-auto overscroll-contain p-3 text-xs">
-                <input
-                  value={draft.title}
-                  onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-                  placeholder={t('activity:promptLib.titlePlaceholder')}
-                  className="w-full rounded border border-border bg-background px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
-                />
-                <input
-                  value={draft.description}
-                  onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-                  placeholder={t('activity:promptLib.descPlaceholder')}
-                  className="w-full rounded border border-border bg-background px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
-                />
-                <div className="flex gap-2">
-                  <input
-                    list="prompt-category-list"
-                    value={draft.category}
-                    onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
-                    placeholder={t('activity:promptLib.categoryPlaceholder')}
-                    className="w-1/2 rounded border border-border bg-background px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
-                  />
-                  <datalist id="prompt-category-list">
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id} />
-                    ))}
-                  </datalist>
-                  <input
-                    value={draft.tagsCsv}
-                    onChange={(e) => setDraft((d) => ({ ...d, tagsCsv: e.target.value }))}
-                    placeholder={t('activity:promptLib.tagsPlaceholder')}
-                    className="w-1/2 rounded border border-border bg-background px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-                <textarea
-                  value={draft.content}
-                  onChange={(e) => setDraft((d) => ({ ...d, content: e.target.value }))}
-                  placeholder={t('activity:promptLib.contentPlaceholder')}
-                  rows={6}
-                  className="w-full resize-y rounded border border-border bg-background px-2 py-1 font-mono outline-none focus:ring-1 focus:ring-primary"
-                />
-                <div className="flex items-center justify-between pt-1">
-                  <span className="font-semibold text-muted-foreground">{t('activity:promptLib.variables')}</span>
-                  <button type="button"
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        vars: [
-                          ...d.vars,
-                          {
-                            name: '',
-                            description: '',
-                            required: true,
-                            multiline: false,
-                            enumCsv: '',
-                          },
-                        ],
-                      }))
-                    }
-                    className="rounded border border-border px-1.5 py-0.5 hover:bg-accent"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFavoritesOnly((v) => !v);
+                    setRecentOnly(false);
+                    setActiveCat(null);
+                  }}
+                  className={`rounded px-2 py-0.5 text-xs ${favoritesOnly ? 'bg-warning text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                >
+                  {t('activity:promptLib.favorites')}
+                </button>
+                {categories.map((c) => (
+                  <button
+                    type="button"
+                    key={c.id}
+                    onClick={() => {
+                      setActiveCat(c.id);
+                      setRecentOnly(false);
+                      setFavoritesOnly(false);
+                    }}
+                    className={`rounded px-2 py-0.5 text-xs ${activeCat === c.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
                   >
-                    {t('activity:promptLib.addVar')}
+                    {c.label} ({c.count})
                   </button>
-                </div>
-                {draft.vars.map((v, i) => (
-                  <div key={v.name || `var-${i}`} className="space-y-1 rounded border border-border/60 p-1.5">
-                    <div className="flex gap-1">
-                      <input
-                        value={v.name}
-                        onChange={(e) =>
-                          setDraft((d) => ({
-                            ...d,
-                            vars: d.vars.map((x, j) =>
-                              j === i ? { ...x, name: e.target.value } : x,
-                            ),
-                          }))
-                        }
-                        placeholder={t('activity:promptLib.varNamePlaceholder')}
-                        className="w-1/3 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
-                      />
-                      <input
-                        value={v.description}
-                        onChange={(e) =>
-                          setDraft((d) => ({
-                            ...d,
-                            vars: d.vars.map((x, j) =>
-                              j === i ? { ...x, description: e.target.value } : x,
-                            ),
-                          }))
-                        }
-                        placeholder={t('activity:promptLib.varDescPlaceholder')}
-                        className="flex-1 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
-                      />
-                      <button type="button"
-                        onClick={() =>
-                          setDraft((d) => ({ ...d, vars: d.vars.filter((_, j) => j !== i) }))
-                        }
-                        className="rounded border border-border px-1.5 text-muted-foreground hover:bg-accent"
-                        title={t('activity:promptLib.removeVarTitle')}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-1 text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          checked={v.required}
-                          onChange={(e) =>
-                            setDraft((d) => ({
-                              ...d,
-                              vars: d.vars.map((x, j) =>
-                                j === i ? { ...x, required: e.target.checked } : x,
-                              ),
-                            }))
-                          }
-                        />
-                        {t('activity:promptLib.required')}
-                      </label>
-                      <label className="flex items-center gap-1 text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          checked={v.multiline}
-                          onChange={(e) =>
-                            setDraft((d) => ({
-                              ...d,
-                              vars: d.vars.map((x, j) =>
-                                j === i ? { ...x, multiline: e.target.checked } : x,
-                              ),
-                            }))
-                          }
-                        />
-                        {t('activity:promptLib.multiline')}
-                      </label>
-                      <input
-                        value={v.enumCsv}
-                        onChange={(e) =>
-                          setDraft((d) => ({
-                            ...d,
-                            vars: d.vars.map((x, j) =>
-                              j === i ? { ...x, enumCsv: e.target.value } : x,
-                            ),
-                          }))
-                        }
-                        placeholder={t('activity:promptLib.enumPlaceholder')}
-                        className="flex-1 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                  </div>
                 ))}
               </div>
-              <div className="border-t border-border p-3">
-                {createError && <div className="mb-2 text-xs text-destructive">{createError}</div>}
-                <button type="button"
-                  onClick={submitCreate}
-                  disabled={!draft.title.trim() || !draft.content.trim()}
-                  className="w-full rounded bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+            </div>
+            <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
+              {filtered.map((p) => (
+                <button
+                  type="button"
+                  key={p.slug}
+                  onClick={() => setSelected(p)}
+                  className={`flex w-full flex-col items-start gap-0.5 border-b border-border/50 px-3 py-2 text-left hover:bg-accent ${selected?.slug === p.slug ? 'bg-accent' : ''}`}
                 >
-                  {t('activity:promptLib.savePrompt')}
-                </button>
-              </div>
-            </>
-          ) : selected ? (
-            <>
-              <div className="flex items-start justify-between border-b border-border p-3">
-                <div>
-                  <div className="text-sm font-semibold">{selected.title}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {selected.category} · {selected.slug}
+                  <div className="flex w-full items-center gap-1 text-sm">
+                    <span>{SOURCE_GLYPH[p.source] ?? '•'}</span>
+                    <span className="font-medium">{p.title}</span>
+                    {p.favorite && <span className="text-warning">★</span>}
                   </div>
-                </div>
-                <button type="button"
-                  onClick={() => toggleFavorite(selected)}
-                  className="text-lg"
-                  title={t('activity:promptLib.toggleFavoriteTitle')}
-                >
-                  {selected.favorite ? '★' : '☆'}
+                  <div className="line-clamp-1 text-xs text-muted-foreground">{p.description}</div>
                 </button>
-              </div>
-              <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain p-3">
-                <pre className="whitespace-pre-wrap break-words text-xs text-foreground">
-                  {content || '…'}
-                </pre>
-                {(selected.variables ?? []).length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    <div className="text-xs font-semibold text-muted-foreground">{t('activity:promptLib.variables')}</div>
-                    {selected.variables.map((v) => {
-                      const label = (
-                        <span className="text-xs text-muted-foreground">
-                          {v.name}
-                          {v.required ? ' *' : ''}
-                          {v.description ? ` — ${v.description}` : ''}
-                        </span>
-                      );
-                      const set = (val: string) =>
-                        setVarValues((prev) => ({ ...prev, [v.name]: val }));
-                      const fieldClass =
-                        'mt-0.5 w-full rounded border border-border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary';
-                      if (v.enum && v.enum.length > 0) {
+              ))}
+              {filtered.length === 0 && (
+                <div className="p-4 text-sm text-muted-foreground">
+                  {t('activity:promptLib.noMatch')}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: preview + variables + insert, OR the authoring form */}
+          <div className="flex min-h-0 min-w-0 w-1/2 flex-col">
+            {creating ? (
+              <>
+                <div className="flex items-center justify-between border-b border-border p-3">
+                  <div className="text-sm font-semibold">
+                    {t('activity:promptLib.newPromptHeading')}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreating(false);
+                      setCreateError(null);
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {t('common:action.cancel')}
+                  </button>
+                </div>
+                <div className="min-h-0 min-w-0 flex-1 space-y-2 overflow-auto overscroll-contain p-3 text-xs">
+                  <input
+                    value={draft.title}
+                    onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+                    placeholder={t('activity:promptLib.titlePlaceholder')}
+                    className="w-full rounded border border-border bg-background px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <input
+                    value={draft.description}
+                    onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                    placeholder={t('activity:promptLib.descPlaceholder')}
+                    className="w-full rounded border border-border bg-background px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      list="prompt-category-list"
+                      value={draft.category}
+                      onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
+                      placeholder={t('activity:promptLib.categoryPlaceholder')}
+                      className="w-1/2 rounded border border-border bg-background px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <datalist id="prompt-category-list">
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id} />
+                      ))}
+                    </datalist>
+                    <input
+                      value={draft.tagsCsv}
+                      onChange={(e) => setDraft((d) => ({ ...d, tagsCsv: e.target.value }))}
+                      placeholder={t('activity:promptLib.tagsPlaceholder')}
+                      className="w-1/2 rounded border border-border bg-background px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <textarea
+                    value={draft.content}
+                    onChange={(e) => setDraft((d) => ({ ...d, content: e.target.value }))}
+                    placeholder={t('activity:promptLib.contentPlaceholder')}
+                    rows={6}
+                    className="w-full resize-y rounded border border-border bg-background px-2 py-1 font-mono outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="font-semibold text-muted-foreground">
+                      {t('activity:promptLib.variables')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDraft((d) => ({
+                          ...d,
+                          vars: [
+                            ...d.vars,
+                            {
+                              name: '',
+                              description: '',
+                              required: true,
+                              multiline: false,
+                              enumCsv: '',
+                            },
+                          ],
+                        }))
+                      }
+                      className="rounded border border-border px-1.5 py-0.5 hover:bg-accent"
+                    >
+                      {t('activity:promptLib.addVar')}
+                    </button>
+                  </div>
+                  {draft.vars.map((v, i) => (
+                    <div
+                      key={v.name || `var-${i}`}
+                      className="space-y-1 rounded border border-border/60 p-1.5"
+                    >
+                      <div className="flex gap-1">
+                        <input
+                          value={v.name}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              vars: d.vars.map((x, j) =>
+                                j === i ? { ...x, name: e.target.value } : x,
+                              ),
+                            }))
+                          }
+                          placeholder={t('activity:promptLib.varNamePlaceholder')}
+                          className="w-1/3 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <input
+                          value={v.description}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              vars: d.vars.map((x, j) =>
+                                j === i ? { ...x, description: e.target.value } : x,
+                              ),
+                            }))
+                          }
+                          placeholder={t('activity:promptLib.varDescPlaceholder')}
+                          className="flex-1 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDraft((d) => ({ ...d, vars: d.vars.filter((_, j) => j !== i) }))
+                          }
+                          className="rounded border border-border px-1.5 text-muted-foreground hover:bg-accent"
+                          title={t('activity:promptLib.removeVarTitle')}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1 text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={v.required}
+                            onChange={(e) =>
+                              setDraft((d) => ({
+                                ...d,
+                                vars: d.vars.map((x, j) =>
+                                  j === i ? { ...x, required: e.target.checked } : x,
+                                ),
+                              }))
+                            }
+                          />
+                          {t('activity:promptLib.required')}
+                        </label>
+                        <label className="flex items-center gap-1 text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={v.multiline}
+                            onChange={(e) =>
+                              setDraft((d) => ({
+                                ...d,
+                                vars: d.vars.map((x, j) =>
+                                  j === i ? { ...x, multiline: e.target.checked } : x,
+                                ),
+                              }))
+                            }
+                          />
+                          {t('activity:promptLib.multiline')}
+                        </label>
+                        <input
+                          value={v.enumCsv}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              vars: d.vars.map((x, j) =>
+                                j === i ? { ...x, enumCsv: e.target.value } : x,
+                              ),
+                            }))
+                          }
+                          placeholder={t('activity:promptLib.enumPlaceholder')}
+                          className="flex-1 rounded border border-border bg-background px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-border p-3">
+                  {createError && (
+                    <div className="mb-2 text-xs text-destructive">{createError}</div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={submitCreate}
+                    disabled={!draft.title.trim() || !draft.content.trim()}
+                    className="w-full rounded bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+                  >
+                    {t('activity:promptLib.savePrompt')}
+                  </button>
+                </div>
+              </>
+            ) : selected ? (
+              <>
+                <div className="flex items-start justify-between border-b border-border p-3">
+                  <div>
+                    <div className="text-sm font-semibold">{selected.title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {selected.category} · {selected.slug}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleFavorite(selected)}
+                    className="text-lg"
+                    title={t('activity:promptLib.toggleFavoriteTitle')}
+                  >
+                    {selected.favorite ? '★' : '☆'}
+                  </button>
+                </div>
+                <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain p-3">
+                  <pre className="whitespace-pre-wrap break-words text-xs text-foreground">
+                    {content || '…'}
+                  </pre>
+                  {(selected.variables ?? []).length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        {t('activity:promptLib.variables')}
+                      </div>
+                      {selected.variables.map((v) => {
+                        const label = (
+                          <span className="text-xs text-muted-foreground">
+                            {v.name}
+                            {v.required ? ' *' : ''}
+                            {v.description ? ` — ${v.description}` : ''}
+                          </span>
+                        );
+                        const set = (val: string) =>
+                          setVarValues((prev) => ({ ...prev, [v.name]: val }));
+                        const fieldClass =
+                          'mt-0.5 w-full rounded border border-border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary';
+                        if (v.enum && v.enum.length > 0) {
+                          return (
+                            <div key={v.name}>
+                              {label}
+                              <select
+                                value={varValues[v.name] ?? ''}
+                                onChange={(e) => set(e.target.value)}
+                                className={fieldClass}
+                              >
+                                <option value="">{t('activity:promptLib.selectOption')}</option>
+                                {v.enum.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        }
+                        if (v.multiline) {
+                          return (
+                            <div key={v.name}>
+                              {label}
+                              <textarea
+                                value={varValues[v.name] ?? ''}
+                                onChange={(e) => set(e.target.value)}
+                                rows={4}
+                                className={`${fieldClass} resize-y font-mono`}
+                              />
+                            </div>
+                          );
+                        }
                         return (
                           <div key={v.name}>
                             {label}
-                            <select
+                            <input
                               value={varValues[v.name] ?? ''}
                               onChange={(e) => set(e.target.value)}
                               className={fieldClass}
-                            >
-                              <option value="">{t('activity:promptLib.selectOption')}</option>
-                              {v.enum.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        );
-                      }
-                      if (v.multiline) {
-                        return (
-                          <div key={v.name}>
-                            {label}
-                            <textarea
-                              value={varValues[v.name] ?? ''}
-                              onChange={(e) => set(e.target.value)}
-                              rows={4}
-                              className={`${fieldClass} resize-y font-mono`}
                             />
                           </div>
                         );
-                      }
-                      return (
-                        <div key={v.name}>
-                          {label}
-                          <input
-                            value={varValues[v.name] ?? ''}
-                            onChange={(e) => set(e.target.value)}
-                            className={fieldClass}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="border-t border-border p-3">
+                  <button
+                    type="button"
+                    onClick={doInsert}
+                    disabled={!content || missing.length > 0}
+                    className="w-full rounded bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+                  >
+                    {missing.length > 0
+                      ? t('activity:promptLib.fillMissing', { missing: missing.join(', ') })
+                      : t('activity:promptLib.insertIntoChat')}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-1 items-center justify-center p-4 text-sm text-muted-foreground">
+                {t('activity:promptLib.selectPromptHint')}
               </div>
-              <div className="border-t border-border p-3">
-                <button type="button"
-                  onClick={doInsert}
-                  disabled={!content || missing.length > 0}
-                  className="w-full rounded bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
-                >
-                  {missing.length > 0 ? t('activity:promptLib.fillMissing', { missing: missing.join(', ') }) : t('activity:promptLib.insertIntoChat')}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-4 text-sm text-muted-foreground">
-              {t('activity:promptLib.selectPromptHint')}
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
       </DialogContent>
     </Dialog>
   );

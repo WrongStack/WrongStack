@@ -4,7 +4,10 @@ const mocks = vi.hoisted(() => ({
   createChronicleProjectAccess: vi.fn(),
   checkCodebaseIndexServerHealth: vi.fn(),
   getIndexState: vi.fn(),
-  resolveProjectIndexDaemonAvailability: vi.fn(() => ({ kind: 'available', url: new URL('file:///dummy.js') })),
+  resolveProjectIndexDaemonAvailability: vi.fn(() => ({
+    kind: 'available',
+    url: new URL('file:///dummy.js'),
+  })),
   isSageProjectServerAvailable: vi.fn(),
   sageStatus: vi.fn(),
   sageClose: vi.fn(),

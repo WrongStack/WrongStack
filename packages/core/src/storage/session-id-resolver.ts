@@ -46,7 +46,9 @@ export function resolveSessionId(
   return { status: 'missing', query: trimmed };
 }
 
-export function sessionIdResolutionError(resolution: Exclude<SessionIdResolution, { status: 'resolved' }>): Error {
+export function sessionIdResolutionError(
+  resolution: Exclude<SessionIdResolution, { status: 'resolved' }>,
+): Error {
   if (resolution.status === 'ambiguous') {
     return new Error(
       `Ambiguous session id "${resolution.query}". Matches: ${resolution.candidates.join(', ')}`,

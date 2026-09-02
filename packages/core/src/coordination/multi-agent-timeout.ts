@@ -1,8 +1,4 @@
-import type {
-  SubagentRunContext,
-  SubagentRunner,
-  TaskSpec,
-} from '../types/multi-agent.js';
+import type { SubagentRunContext, SubagentRunner, TaskSpec } from '../types/multi-agent.js';
 import {
   BudgetExceededError,
   DECISION_TIMEOUT_MS,
@@ -125,31 +121,33 @@ export async function executeSubagentWithTimeout({
           if (!budget._events?.hasListenerFor('budget.threshold_reached')) {
             return Promise.resolve<'stop' | { extend: { timeoutMs?: number | undefined } }>('stop');
           }
-          return new Promise<'stop' | { extend: { timeoutMs?: number | undefined } }>((resolveDecision) => {
-            let settled = false;
-            const resolve = (d: 'stop' | { extend: { timeoutMs?: number | undefined } }) => {
-              if (settled) return;
-              settled = true;
-              resolveDecision(d);
-            };
-            const fallback = setTimeout(() => resolve('stop'), DECISION_TIMEOUT_MS);
-            const sessionId = currentSessionId();
-            budget._events?.emit('budget.threshold_reached', {
-              ...(sessionId ? { sessionId } : {}),
-              kind: 'timeout',
-              used,
-              limit,
-              timeoutMs: DECISION_TIMEOUT_MS,
-              extend: (extra) => {
-                clearTimeout(fallback);
-                queueMicrotask(() => resolve({ extend: extra }));
-              },
-              deny: () => {
-                clearTimeout(fallback);
-                resolve('stop');
-              },
-            });
-          });
+          return new Promise<'stop' | { extend: { timeoutMs?: number | undefined } }>(
+            (resolveDecision) => {
+              let settled = false;
+              const resolve = (d: 'stop' | { extend: { timeoutMs?: number | undefined } }) => {
+                if (settled) return;
+                settled = true;
+                resolveDecision(d);
+              };
+              const fallback = setTimeout(() => resolve('stop'), DECISION_TIMEOUT_MS);
+              const sessionId = currentSessionId();
+              budget._events?.emit('budget.threshold_reached', {
+                ...(sessionId ? { sessionId } : {}),
+                kind: 'timeout',
+                used,
+                limit,
+                timeoutMs: DECISION_TIMEOUT_MS,
+                extend: (extra) => {
+                  clearTimeout(fallback);
+                  queueMicrotask(() => resolve({ extend: extra }));
+                },
+                deny: () => {
+                  clearTimeout(fallback);
+                  resolve('stop');
+                },
+              });
+            },
+          );
         },
       });
       return typeof result === 'string' ? result : await result;
@@ -159,9 +157,9 @@ export async function executeSubagentWithTimeout({
       if (settled) return;
       const elapsed = Date.now() - start;
       const wallLimit =
-        initialTimeoutMs === undefined ? undefined : budget.limits.timeoutMs ?? initialTimeoutMs;
+        initialTimeoutMs === undefined ? undefined : (budget.limits.timeoutMs ?? initialTimeoutMs);
       const idleLimit =
-        idleLimitMs === undefined ? undefined : budget.limits.idleTimeoutMs ?? idleLimitMs;
+        idleLimitMs === undefined ? undefined : (budget.limits.idleTimeoutMs ?? idleLimitMs);
       const wallExceeded = wallLimit !== undefined && elapsed >= wallLimit;
       const idleExceeded = idleLimit !== undefined && budget.idleMs() >= idleLimit;
 

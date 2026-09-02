@@ -66,7 +66,10 @@ describe('createToolSearch', () => {
     vi.mocked(searchTool.execute).mockResolvedValue(searchOutput('test'));
     const search = createToolSearch({ numResults: 10 });
     await search('test', { signal: new AbortController().signal });
-    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<string, unknown>;
+    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<
+      string,
+      unknown
+    >;
     expect(callArgs.num_results).toBe(10);
   });
 
@@ -74,7 +77,10 @@ describe('createToolSearch', () => {
     vi.mocked(searchTool.execute).mockResolvedValue(searchOutput('test'));
     const search = createToolSearch();
     await search('test', { signal: new AbortController().signal });
-    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<string, unknown>;
+    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<
+      string,
+      unknown
+    >;
     expect(callArgs.num_results).toBe(5);
   });
 
@@ -82,7 +88,10 @@ describe('createToolSearch', () => {
     vi.mocked(searchTool.execute).mockResolvedValue(searchOutput('test'));
     const search = createToolSearch({ source: 'google' });
     await search('test', { signal: new AbortController().signal });
-    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<string, unknown>;
+    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<
+      string,
+      unknown
+    >;
     expect(callArgs.source).toBe('google');
   });
 
@@ -90,7 +99,10 @@ describe('createToolSearch', () => {
     vi.mocked(searchTool.execute).mockResolvedValue(searchOutput('test'));
     const search = createToolSearch();
     await search('test', { signal: new AbortController().signal });
-    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<string, unknown>;
+    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<
+      string,
+      unknown
+    >;
     expect(callArgs.source).toBeUndefined();
   });
 
@@ -98,7 +110,10 @@ describe('createToolSearch', () => {
     vi.mocked(searchTool.execute).mockResolvedValue(searchOutput('react hooks'));
     const search = createToolSearch();
     await search('react hooks', { signal: new AbortController().signal });
-    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<string, unknown>;
+    const callArgs = vi.mocked(searchTool.execute).mock.calls[0]![0] as unknown as Record<
+      string,
+      unknown
+    >;
     expect(callArgs.query).toBe('react hooks');
   });
 

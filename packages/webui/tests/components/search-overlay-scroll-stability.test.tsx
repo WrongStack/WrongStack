@@ -128,9 +128,7 @@ describe('SearchOverlay scroll stability', () => {
     expect(input).not.toBeNull();
     // Dispatch ArrowDown keydown to step to the next hit.
     await act(async () => {
-      input!.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
-      );
+      input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     });
 
     // The nonce should now increment because the active hit id changed.
@@ -141,9 +139,7 @@ describe('SearchOverlay scroll stability', () => {
   });
 
   it('does NOT re-scroll when a non-matching message is appended to the transcript', async () => {
-    const initialMessages = [
-      msg({ id: 'hit-a', content: 'find the needle here' }),
-    ];
+    const initialMessages = [msg({ id: 'hit-a', content: 'find the needle here' })];
 
     useChatStore.setState({ messages: initialMessages });
     useUIStore.setState({

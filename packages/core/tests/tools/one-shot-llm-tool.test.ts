@@ -6,7 +6,12 @@ import type { Provider, Request } from '../../src/types/provider.js';
 function fakeProvider(id: string): Provider {
   return {
     id,
-    capabilities: { maxContext: 128_000, supportsTools: true, supportsVision: false, supportsReasoning: false },
+    capabilities: {
+      maxContext: 128_000,
+      supportsTools: true,
+      supportsVision: false,
+      supportsReasoning: false,
+    },
     complete: vi.fn(async (_req: Request) => ({
       model: id,
       content: [{ type: 'text', text: `response from ${id}` }],
@@ -44,7 +49,9 @@ describe('createOneShotLLMTool', () => {
       fallbackProfileManager: new FallbackProfileManager(makeFakeConfig()),
     });
 
-    const result = await tool.execute({ system: 'hello', userPrompt: 'world' }, {} as never, { signal: new AbortController().signal });
+    const result = await tool.execute({ system: 'hello', userPrompt: 'world' }, {} as never, {
+      signal: new AbortController().signal,
+    });
 
     expect(result.text).toBe('');
     expect(result.error).toContain('provide `model`');
@@ -78,11 +85,9 @@ describe('createOneShotLLMTool', () => {
       defaultModel: 'default-model',
     });
 
-    const result = await tool.execute(
-      { system: 'test', userPrompt: 'hello' },
-      {} as never,
-      { signal: new AbortController().signal },
-    );
+    const result = await tool.execute({ system: 'test', userPrompt: 'hello' }, {} as never, {
+      signal: new AbortController().signal,
+    });
 
     expect(result.text).toContain('response from default-prov');
     expect(result.provider).toBe('default-prov');
@@ -107,11 +112,9 @@ describe('createOneShotLLMTool', () => {
     });
     const controller = new AbortController();
 
-    await tool.execute(
-      { system: 'test', userPrompt: 'hello' },
-      {} as never,
-      { signal: controller.signal },
-    );
+    await tool.execute({ system: 'test', userPrompt: 'hello' }, {} as never, {
+      signal: controller.signal,
+    });
 
     expect(observedSignal).toBeDefined();
     expect(observedSignal).not.toBe(controller.signal);
@@ -162,11 +165,9 @@ describe('createOneShotLLMTool', () => {
       } as never,
     });
 
-    const result = await tool.execute(
-      { userPrompt: 'hello', role: 'critic' },
-      {} as never,
-      { signal: new AbortController().signal },
-    );
+    const result = await tool.execute({ userPrompt: 'hello', role: 'critic' }, {} as never, {
+      signal: new AbortController().signal,
+    });
 
     expect(result.provider).toBe('routed-prov');
   });
@@ -186,11 +187,9 @@ describe('createOneShotLLMTool', () => {
       statusTracker: statusTracker as never,
     });
 
-    await tool.execute(
-      { userPrompt: 'hello' },
-      {} as never,
-      { signal: new AbortController().signal },
-    );
+    await tool.execute({ userPrompt: 'hello' }, {} as never, {
+      signal: new AbortController().signal,
+    });
 
     expect(statusTracker.recordSuccess).toHaveBeenCalledWith('default-prov', 'default-model');
   });
@@ -204,11 +203,9 @@ describe('createOneShotLLMTool', () => {
       defaultModel: 'default-model',
     });
 
-    const result = await tool.execute(
-      { userPrompt: 'hello', timeoutMs: 10_000_000 },
-      {} as never,
-      { signal: new AbortController().signal },
-    );
+    const result = await tool.execute({ userPrompt: 'hello', timeoutMs: 10_000_000 }, {} as never, {
+      signal: new AbortController().signal,
+    });
 
     expect(result.error).toBeUndefined();
     expect(result.text).toContain('response from default-prov');

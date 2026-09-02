@@ -80,8 +80,7 @@ export function ComposerButtonBar({
           }}
           className={cn(
             'h-[44px] w-[44px] shrink-0 rounded-md transition-colors',
-            enhanceEnabled &&
-              'bg-warning/20 hover:bg-warning/30 text-warning border-warning/50',
+            enhanceEnabled && 'bg-warning/20 hover:bg-warning/30 text-warning border-warning/50',
           )}
           title={
             enhanceEnabled
@@ -120,9 +119,7 @@ export function ComposerButtonBar({
         size="icon"
         variant="default"
         disabled={
-          topicCheckBusy ||
-          (!input.trim() && pendingImages.length === 0) ||
-          !clientConnected
+          topicCheckBusy || (!input.trim() && pendingImages.length === 0) || !clientConnected
         }
         className="h-[44px] w-[44px] shrink-0 rounded-md"
         title={t('chat:sendTitle')}
@@ -138,9 +135,7 @@ export function ComposerButtonBar({
             size="icon"
             variant="default"
             disabled={
-              topicCheckBusy ||
-              (!input.trim() && pendingImages.length === 0) ||
-              !clientConnected
+              topicCheckBusy || (!input.trim() && pendingImages.length === 0) || !clientConnected
             }
             onClick={handleBtw}
             className="h-[44px] w-[44px] shrink-0 rounded-md"
@@ -154,15 +149,11 @@ export function ComposerButtonBar({
             size="icon"
             variant="outline"
             disabled={
-              topicCheckBusy ||
-              (!input.trim() && pendingImages.length === 0) ||
-              !clientConnected
+              topicCheckBusy || (!input.trim() && pendingImages.length === 0) || !clientConnected
             }
             onClick={handleSteer}
             className="h-[44px] w-[44px] shrink-0 rounded-md border-warning/50 text-warning hover:bg-warning/10"
-            title={
-              isLoading ? t('chat:input.steerRunningTitle') : t('chat:input.steerIdleTitle')
-            }
+            title={isLoading ? t('chat:input.steerRunningTitle') : t('chat:input.steerIdleTitle')}
             data-testid="send-steer"
           >
             <RotateCw className="h-4 w-4" />
@@ -172,9 +163,7 @@ export function ComposerButtonBar({
             size="icon"
             variant="outline"
             disabled={
-              topicCheckBusy ||
-              (!input.trim() && pendingImages.length === 0) ||
-              !clientConnected
+              topicCheckBusy || (!input.trim() && pendingImages.length === 0) || !clientConnected
             }
             onClick={handleAddQueue}
             className="h-[44px] w-[44px] shrink-0 rounded-md border-info/50 text-info hover:bg-info/10"

@@ -129,7 +129,10 @@ function mergeDefinitions(
       const bn = (baseMd as Record<string, unknown>)?.[nestedKey];
       const pn = (patchMd as Record<string, unknown>)?.[nestedKey];
       if (bn || pn) {
-        result[nestedKey] = { ...(bn as Record<string, unknown> ?? {}), ...(pn as Record<string, unknown> ?? {}) };
+        result[nestedKey] = {
+          ...((bn as Record<string, unknown>) ?? {}),
+          ...((pn as Record<string, unknown>) ?? {}),
+        };
       }
     }
     return result as Omit<ModelsDevModel, 'id'>;

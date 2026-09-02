@@ -618,8 +618,7 @@ export function useTuiSlashCommands({
     };
     const liteCmd = {
       name: 'lite',
-      description:
-        'Minimal chrome: statusline density → minimum and the right sidebar hidden.',
+      description: 'Minimal chrome: statusline density → minimum and the right sidebar hidden.',
       help:
         'Switch to the lite layout.\n\n' +
         '  statusline density → minimum (single rail)\n' +
@@ -631,8 +630,7 @@ export function useTuiSlashCommands({
     };
     const fullCmd = {
       name: 'full',
-      description:
-        'Full chrome: statusline density → detailed and the right sidebar visible.',
+      description: 'Full chrome: statusline density → detailed and the right sidebar visible.',
       help:
         'Switch to the full layout.\n\n' +
         '  statusline density → detailed (multi-line bar)\n' +
@@ -799,7 +797,9 @@ export function useTuiSlashCommands({
             help: original?.help,
             async run(args: string, ctx) {
               if (args.trim()) {
-                return original?.run(args, ctx) ?? { message: `/${definition.name} is unavailable.` };
+                return (
+                  original?.run(args, ctx) ?? { message: `/${definition.name} is unavailable.` }
+                );
               }
               definition.open();
               return { message: undefined };

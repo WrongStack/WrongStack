@@ -34,10 +34,12 @@ import type { VectorMemoryStore } from './store.js';
 export interface VectorMemoryMirrorOptions {
   store: VectorMemoryStore;
   memoryStore: MemoryPort;
-  logger?: {
-    debug?(msg: string, ctx?: unknown): void | undefined;
-    warn?(msg: string, ctx?: unknown): void | undefined;
-  } | undefined;
+  logger?:
+    | {
+        debug?(msg: string, ctx?: unknown): void | undefined;
+        warn?(msg: string, ctx?: unknown): void | undefined;
+      }
+    | undefined;
   /**
    * Disable the listener (e.g. in tests where the bus is shared across
    * suites). Returns a no-op disposer.
@@ -90,9 +92,7 @@ export function subscribeVectorMemoryToSage(
     try {
       return await surface.getSage(memoryId);
     } catch (err) {
-      log?.warn?.(
-        `vector-memory mirror fetch failed for ${memoryId}: ${errMsg(err)}`,
-      );
+      log?.warn?.(`vector-memory mirror fetch failed for ${memoryId}: ${errMsg(err)}`);
       return null;
     }
   };
@@ -133,9 +133,7 @@ export function subscribeVectorMemoryToSage(
         },
       });
     } catch (err) {
-      log?.warn?.(
-        `vector-memory mirror remember failed for ${memoryId}: ${errMsg(err)}`,
-      );
+      log?.warn?.(`vector-memory mirror remember failed for ${memoryId}: ${errMsg(err)}`);
     }
   };
 
@@ -144,9 +142,7 @@ export function subscribeVectorMemoryToSage(
       const existing = store.findBySageId(memoryId);
       if (existing) await store.forget(existing.id);
     } catch (err) {
-      log?.warn?.(
-        `vector-memory mirror forget failed for ${memoryId}: ${errMsg(err)}`,
-      );
+      log?.warn?.(`vector-memory mirror forget failed for ${memoryId}: ${errMsg(err)}`);
     }
   };
 
@@ -230,9 +226,7 @@ export async function forgetStaleSageMirrors(
         await store.forget(entry.id);
         removed++;
       } catch (err) {
-        logger?.warn?.(
-          `vector-memory stale-mirror sweep failed for ${sageId}: ${errMsg(err)}`,
-        );
+        logger?.warn?.(`vector-memory stale-mirror sweep failed for ${sageId}: ${errMsg(err)}`);
       }
     }
     if (page.length < 1000) break;

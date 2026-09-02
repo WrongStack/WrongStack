@@ -43,7 +43,15 @@ const STATUS_LED: Record<SubagentView['status'], { led: string; pulse: boolean }
   stopped: { led: 'bg-muted-foreground', pulse: false },
 };
 
-export function AgentRosterCard({ agent, isLeader, isExpanded, isFocused, onToggle, onOpenInspector, now: externalNow }: AgentRosterCardProps) {
+export function AgentRosterCard({
+  agent,
+  isLeader,
+  isExpanded,
+  isFocused,
+  onToggle,
+  onOpenInspector,
+  now: externalNow,
+}: AgentRosterCardProps) {
   const { t } = useAppTranslation();
   // Self-ticking clock for live elapsed (only when running and no external now).
   const [localNow, setLocalNow] = useState(Date.now());
@@ -55,7 +63,9 @@ export function AgentRosterCard({ agent, isLeader, isExpanded, isFocused, onTogg
       return;
     }
     tickRef.current = setInterval(() => setLocalNow(Date.now()), 10_000);
-    return () => { if (tickRef.current) clearInterval(tickRef.current); };
+    return () => {
+      if (tickRef.current) clearInterval(tickRef.current);
+    };
   }, [externalNow, agent.status]);
 
   const now = externalNow ?? localNow;
@@ -92,12 +102,18 @@ export function AgentRosterCard({ agent, isLeader, isExpanded, isFocused, onTogg
       >
         {/* Row 1: LED + name + leader badge + cost + expand icon */}
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className={cn('led shrink-0', meta.led, meta.pulse && 'led-pulse')} aria-hidden="true" />
+          <span
+            className={cn('led shrink-0', meta.led, meta.pulse && 'led-pulse')}
+            aria-hidden="true"
+          />
           <span className="truncate text-[11px] font-semibold" title={agent.name}>
             {agent.name}
           </span>
           {isLeader && (
-            <Crown className="h-3 w-3 shrink-0 text-warning" aria-label={t('activity:fleet.leader')} />
+            <Crown
+              className="h-3 w-3 shrink-0 text-warning"
+              aria-label={t('activity:fleet.leader')}
+            />
           )}
           <span className="flex-1 min-w-0" />
           <span className="tabular-nums font-mono text-[10px] text-muted-foreground shrink-0">
@@ -123,49 +139,53 @@ export function AgentRosterCard({ agent, isLeader, isExpanded, isFocused, onTogg
             </span>
           )}
           <span className="tabular-nums text-[10px] text-muted-foreground">
-            {stats.iterationCount}{t('activity:agents.itSuffix')} · {stats.toolCount}{t('activity:agents.tcSuffix')}
+            {stats.iterationCount}
+            {t('activity:agents.itSuffix')} · {stats.toolCount}
+            {t('activity:agents.tcSuffix')}
           </span>
           <span className="ml-auto tabular-nums text-[10px] text-muted-foreground/70 shrink-0">
             {stats.elapsed}
           </span>
         </div>
 
-      {/* Row 3: Sparkline + context bar */}
-      <div className="flex items-center gap-2 min-w-0">
-        <SparklineChart bins={agent.sparklineBins} className="text-[9px] font-mono min-w-0" />
+        {/* Row 3: Sparkline + context bar */}
+        <div className="flex items-center gap-2 min-w-0">
+          <SparklineChart bins={agent.sparklineBins} className="text-[9px] font-mono min-w-0" />
 
-        <div className="flex-1 min-w-0">
-          <ContextFillBar
-            pct={stats.ctxClamped}
-            tokens={agent.ctxTokens}
-            maxTokens={agent.maxContext}
-            showTokens
-          />
+          <div className="flex-1 min-w-0">
+            <ContextFillBar
+              pct={stats.ctxClamped}
+              tokens={agent.ctxTokens}
+              maxTokens={agent.maxContext}
+              showTokens
+            />
+          </div>
+
+          {/* Budget warning badge */}
+          {agent.budgetWarning && (
+            <span
+              className="inline-flex items-center gap-0.5 rounded bg-warning/10 px-1.5 py-0.5 text-[10px] text-warning shrink-0"
+              title={t('activity:fleet.hittingLimitTitle', {
+                kind: agent.budgetWarning.kind,
+                used: agent.budgetWarning.used,
+                limit: agent.budgetWarning.limit,
+              })}
+            >
+              <Zap className="h-2.5 w-2.5" />
+              {agent.budgetWarning.kind}
+            </span>
+          )}
         </div>
 
-        {/* Budget warning badge */}
-        {agent.budgetWarning && (
-          <span
-            className="inline-flex items-center gap-0.5 rounded bg-warning/10 px-1.5 py-0.5 text-[10px] text-warning shrink-0"
-            title={t('activity:fleet.hittingLimitTitle', {
-              kind: agent.budgetWarning.kind,
-              used: agent.budgetWarning.used,
-              limit: agent.budgetWarning.limit,
-            })}
-          >
-            <Zap className="h-2.5 w-2.5" />
-            {agent.budgetWarning.kind}
-          </span>
+        {/* Row 4: Current/last tool */}
+        {hasTool && (
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground min-w-0">
+            <Wrench
+              className={cn('h-2.5 w-2.5 shrink-0', active && 'animate-pulse text-primary')}
+            />
+            <span className="truncate font-mono">{agent.currentTool ?? agent.lastTool}</span>
+          </div>
         )}
-      </div>
-
-      {/* Row 4: Current/last tool */}
-      {hasTool && (
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground min-w-0">
-          <Wrench className={cn('h-2.5 w-2.5 shrink-0', active && 'animate-pulse text-primary')} />
-          <span className="truncate font-mono">{agent.currentTool ?? agent.lastTool}</span>
-        </div>
-      )}
       </button>
 
       {/* Expandable detail section */}

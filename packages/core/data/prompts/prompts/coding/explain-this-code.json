@@ -5,11 +5,7 @@
   "description": "Get a clear, layered explanation of an unfamiliar piece of code.",
   "content": "Explain the following code:\n\n```\n{{code}}\n```\n\nStructure your answer as:\n1. One sentence: what it does overall.\n2. A step-by-step walk-through of the control flow.\n3. Any non-obvious details — performance characteristics, side effects, edge cases, or subtle bugs.\n4. What a caller needs to know to use it correctly.\n\nAssume I'm a competent engineer new to this specific code.",
   "category": "coding",
-  "tags": [
-    "explain",
-    "onboarding",
-    "comprehension"
-  ],
+  "tags": ["explain", "onboarding", "comprehension"],
   "source": "builtin",
   "favorite": false,
   "checksum": "fa4261898badbe467df047ed1f8b9a857a77311e13fce02bf6c8d1fbef2e547a",

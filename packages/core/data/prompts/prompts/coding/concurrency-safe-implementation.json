@@ -5,11 +5,7 @@
   "description": "Implement logic that is correct under concurrent access.",
   "content": "Implement the following with correct behavior under concurrency: {{task}}\n\nIn {{language}}:\n- Identify the shared state and the exact invariants that must hold.\n- Choose the simplest correct synchronization (immutability > message passing > locks).\n- Avoid deadlocks and races; explain why your choice is free of both.\n- Note the performance trade-off you made.\n\nProvide the code plus a short paragraph on how it behaves under contention.",
   "category": "coding",
-  "tags": [
-    "concurrency",
-    "threads",
-    "async"
-  ],
+  "tags": ["concurrency", "threads", "async"],
   "source": "builtin",
   "favorite": false,
   "checksum": "bb5209259e59f41c7d37007923582bbbdce835da71d35360db91d6dfe7ae0e30",

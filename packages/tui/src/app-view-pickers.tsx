@@ -67,14 +67,7 @@ export function AppViewPickers({
   routedToSidebar,
   panelPositions,
 }: AppViewPickersProps): React.ReactElement {
-  const {
-    agent,
-    events,
-    getSettings,
-    onYolo,
-    profileConfigPath,
-    saveSettings,
-  } = host;
+  const { agent, events, getSettings, onYolo, profileConfigPath, saveSettings } = host;
   const {
     state,
     dispatch,
@@ -477,15 +470,11 @@ export function AppViewPickers({
                   const t = setTimeout(resolve, 1500);
                   t.unref?.();
                 });
-                void Promise.race([
-                  escConfirmDir.terminateAll().catch(() => undefined),
-                  cap,
-                ]);
+                void Promise.race([escConfirmDir.terminateAll().catch(() => undefined), cap]);
               }
               const droppedCount = state.queue.length;
               if (droppedCount > 0) dispatch({ type: 'queueClear' });
-              const droppedTag =
-                droppedCount > 0 ? ` · dropped ${droppedCount} queued` : '';
+              const droppedTag = droppedCount > 0 ? ` · dropped ${droppedCount} queued` : '';
               const fleetTag =
                 snapshot.subagentsTerminated > 0
                   ? ` · stopped ${snapshot.subagentsTerminated} subagent${snapshot.subagentsTerminated === 1 ? '' : 's'}`
@@ -578,8 +567,7 @@ export function AppViewPickers({
                 seconds={info.seconds}
                 onDecision={onDecision}
                 providerId={
-                  refineProviderId ??
-                  (agent.ctx.provider as { id?: string } | undefined)?.id
+                  refineProviderId ?? (agent.ctx.provider as { id?: string } | undefined)?.id
                 }
                 model={refineModel ?? agent.ctx.model}
               />
@@ -589,13 +577,9 @@ export function AppViewPickers({
       {state.enhanceBusy && !state.enhance ? (
         <RefiningPanel
           original={enhanceOriginalRef.current}
-          elapsedMs={
-            enhanceStartedAt === null ? 0 : Math.max(0, Date.now() - enhanceStartedAt)
-          }
+          elapsedMs={enhanceStartedAt === null ? 0 : Math.max(0, Date.now() - enhanceStartedAt)}
           pulseFrame={enhanceDots}
-          providerId={
-            refineProviderId ?? (agent.ctx.provider as { id?: string } | undefined)?.id
-          }
+          providerId={refineProviderId ?? (agent.ctx.provider as { id?: string } | undefined)?.id}
           model={refineModel ?? agent.ctx.model}
         />
       ) : null}
@@ -621,8 +605,7 @@ export function AppViewPickers({
                 onDecision={onDecision}
                 onTick={(r) => setEnhanceCountdown(r > 0 ? r : null)}
                 providerId={
-                  refineProviderId ??
-                  (agent.ctx.provider as { id?: string } | undefined)?.id
+                  refineProviderId ?? (agent.ctx.provider as { id?: string } | undefined)?.id
                 }
                 model={refineModel ?? agent.ctx.model}
               />

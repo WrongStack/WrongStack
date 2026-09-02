@@ -54,7 +54,9 @@ describe('waitForKeyOperationResult', () => {
     await promise;
     expect(listenerCount('key.operation_result')).toBe(0);
     // A late duplicate must not throw or re-settle.
-    expect(() => emit('key.operation_result', { payload: { success: false, message: 'late' } })).not.toThrow();
+    expect(() =>
+      emit('key.operation_result', { payload: { success: false, message: 'late' } }),
+    ).not.toThrow();
     await expect(promise).resolves.toEqual({ success: true, message: 'first' });
   });
 

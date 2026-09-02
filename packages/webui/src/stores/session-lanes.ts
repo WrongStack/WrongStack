@@ -506,9 +506,7 @@ export function sessionLane(sessionId: string): SessionLaneActions {
           : lane.reasoningEffortLevels,
         // Same key-presence rule as the effort list: an omitted field must
         // not keep the previous model's tri-state alive across a switch.
-        effortSupported: env.hasEffortSupportedKey
-          ? env.effortSupported
-          : lane.effortSupported,
+        effortSupported: env.hasEffortSupportedKey ? env.effortSupported : lane.effortSupported,
         // Project-wide hint: process-wide, not per-model — refreshed via
         // key-presence on every session.start, never reset on route change.
         projectReasoningEffort: env.hasProjectEffortKey

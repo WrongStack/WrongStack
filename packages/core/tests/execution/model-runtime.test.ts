@@ -157,7 +157,11 @@ describe('mergeModelRuntime', () => {
   it('overlays scoped reasoning without dropping cache or parameters', () => {
     expect(
       mergeModelRuntime(
-        { reasoning: { mode: 'auto', effort: 'high' }, cache: { ttl: '1h' }, parameters: { user: 'leader' } },
+        {
+          reasoning: { mode: 'auto', effort: 'high' },
+          cache: { ttl: '1h' },
+          parameters: { user: 'leader' },
+        },
         { reasoning: { effort: 'low' } },
       ),
     ).toEqual({
@@ -186,19 +190,45 @@ describe('resolveCacheForRequest (isolated)', () => {
 
 describe('resolveParametersForRequest', () => {
   const anthropicCaps: Capabilities = {
-    tools: true, parallelTools: true, vision: true, streaming: true,
-    promptCache: true, systemPrompt: true, jsonMode: false, reasoning: false,
-    maxContext: 200_000, cacheControl: 'native',
-    topK: true, frequencyPenalty: false, presencePenalty: false, seed: false,
-    structuredOutput: false, logprobs: false, audio: false, multipleCompletions: false,
+    tools: true,
+    parallelTools: true,
+    vision: true,
+    streaming: true,
+    promptCache: true,
+    systemPrompt: true,
+    jsonMode: false,
+    reasoning: false,
+    maxContext: 200_000,
+    cacheControl: 'native',
+    topK: true,
+    frequencyPenalty: false,
+    presencePenalty: false,
+    seed: false,
+    structuredOutput: false,
+    logprobs: false,
+    audio: false,
+    multipleCompletions: false,
   };
 
   const openaiCaps: Capabilities = {
-    tools: true, parallelTools: true, vision: true, streaming: true,
-    promptCache: false, systemPrompt: true, jsonMode: true, reasoning: false,
-    maxContext: 128_000, cacheControl: 'auto',
-    topK: false, frequencyPenalty: true, presencePenalty: true, seed: true,
-    structuredOutput: true, logprobs: true, audio: true, multipleCompletions: true,
+    tools: true,
+    parallelTools: true,
+    vision: true,
+    streaming: true,
+    promptCache: false,
+    systemPrompt: true,
+    jsonMode: true,
+    reasoning: false,
+    maxContext: 128_000,
+    cacheControl: 'auto',
+    topK: false,
+    frequencyPenalty: true,
+    presencePenalty: true,
+    seed: true,
+    structuredOutput: true,
+    logprobs: true,
+    audio: true,
+    multipleCompletions: true,
   };
 
   it('returns undefined when params is undefined', () => {
@@ -269,7 +299,8 @@ describe('resolveParametersForRequest', () => {
   it('passes all params when caps is undefined (safe default)', () => {
     const r = resolveParametersForRequest(
       { topK: 40, frequencyPenalty: 0.5, seed: 42, user: 'abc', logprobs: true },
-      undefined, [],
+      undefined,
+      [],
     );
     expect(r?.topK).toBe(40);
     expect(r?.frequencyPenalty).toBe(0.5);

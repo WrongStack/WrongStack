@@ -127,7 +127,15 @@ export const scaffoldTool: Tool<ScaffoldInput, ScaffoldOutput> = {
 
     const builtIn = BUILT_IN_TEMPLATES[input.template];
     if (builtIn) {
-      return await handleBuiltIn(name, builtIn.files, cwd, ctx, input.dry_run ?? false, vars, signal);
+      return await handleBuiltIn(
+        name,
+        builtIn.files,
+        cwd,
+        ctx,
+        input.dry_run ?? false,
+        vars,
+        signal,
+      );
     }
 
     return {

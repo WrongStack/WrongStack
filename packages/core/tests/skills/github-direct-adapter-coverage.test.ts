@@ -46,6 +46,8 @@ describe('githubDirectAdapter', () => {
   });
 
   it('resolveInstallRef preserves complex refs with @', () => {
-    expect(githubDirectAdapter.resolveInstallRef('owner/repo@feature-branch')).toBe('owner/repo@feature-branch');
+    expect(githubDirectAdapter.resolveInstallRef('owner/repo@feature-branch')).toBe(
+      'owner/repo@feature-branch',
+    );
   });
 });

@@ -33,36 +33,37 @@ describe('zip', () => {
     });
 
     it('rejects entries with nested path traversal', () => {
-      expect(() => createZipBuffer([{ name: 'foo/../../etc/passwd', data: 'hack' }]))
-        .toThrow('Unsafe ZIP entry path');
+      expect(() => createZipBuffer([{ name: 'foo/../../etc/passwd', data: 'hack' }])).toThrow(
+        'Unsafe ZIP entry path',
+      );
     });
 
     it('rejects entries with direct path traversal', () => {
-      expect(() => createZipBuffer([{ name: '../outside.txt', data: 'hack' }]))
-        .toThrow('Unsafe ZIP entry path');
+      expect(() => createZipBuffer([{ name: '../outside.txt', data: 'hack' }])).toThrow(
+        'Unsafe ZIP entry path',
+      );
     });
 
     it('rejects entries with null byte', () => {
-      expect(() => createZipBuffer([{ name: 'safe\x00exploit.txt', data: 'hack' }]))
-        .toThrow('Unsafe ZIP entry path');
+      expect(() => createZipBuffer([{ name: 'safe\x00exploit.txt', data: 'hack' }])).toThrow(
+        'Unsafe ZIP entry path',
+      );
     });
 
     it('rejects entries with Windows drive letter', () => {
-      expect(() => createZipBuffer([{ name: 'C:config.txt', data: 'hack' }]))
-        .toThrow('Unsafe ZIP entry path');
+      expect(() => createZipBuffer([{ name: 'C:config.txt', data: 'hack' }])).toThrow(
+        'Unsafe ZIP entry path',
+      );
     });
 
     it('rejects empty entry name', () => {
-      expect(() => createZipBuffer([{ name: '', data: 'test' }]))
-        .toThrow('Unsafe ZIP entry path');
+      expect(() => createZipBuffer([{ name: '', data: 'test' }])).toThrow('Unsafe ZIP entry path');
     });
   });
 
   describe('readZipEntries', () => {
     it('reads entries from a valid ZIP archive', () => {
-      const buf = createZipBuffer([
-        { name: 'test.txt', data: 'hello world' },
-      ]);
+      const buf = createZipBuffer([{ name: 'test.txt', data: 'hello world' }]);
       const entries = readZipEntries(buf);
       expect(entries.size).toBe(1);
       expect(entries.get('test.txt')?.toString('utf8')).toBe('hello world');
@@ -96,11 +97,11 @@ describe('zip', () => {
 
       const local = Buffer.alloc(30);
       local.writeUInt32LE(0x04034b50, 0);
-      local.writeUInt16LE(20, 4);    // version needed
-      local.writeUInt16LE(0, 6);     // flags: none
-      local.writeUInt16LE(0, 8);     // method: stored (0)
-      local.writeUInt16LE(0, 10);    // time
-      local.writeUInt16LE(0, 12);    // date
+      local.writeUInt16LE(20, 4); // version needed
+      local.writeUInt16LE(0, 6); // flags: none
+      local.writeUInt16LE(0, 8); // method: stored (0)
+      local.writeUInt16LE(0, 10); // time
+      local.writeUInt16LE(0, 12); // date
       local.writeUInt32LE(crc, 14);
       local.writeUInt32LE(data.length, 18); // compressed size (same for stored)
       local.writeUInt32LE(data.length, 22); // uncompressed size
@@ -110,7 +111,7 @@ describe('zip', () => {
       central.writeUInt32LE(0x02014b50, 0);
       central.writeUInt16LE(0x031e, 4);
       central.writeUInt16LE(20, 6);
-      central.writeUInt16LE(0, 8);    // method: stored
+      central.writeUInt16LE(0, 8); // method: stored
       central.writeUInt16LE(0, 10);
       central.writeUInt16LE(0, 12);
       central.writeUInt32LE(crc, 16);
@@ -140,8 +141,8 @@ describe('zip', () => {
       const header = Buffer.alloc(30);
       header.writeUInt32LE(0x04034b50, 0);
       header.writeUInt16LE(20, 4);
-      header.writeUInt16LE(1, 6);   // flag bit 0 = encrypted
-      header.writeUInt16LE(8, 8);   // deflated
+      header.writeUInt16LE(1, 6); // flag bit 0 = encrypted
+      header.writeUInt16LE(8, 8); // deflated
       header.writeUInt16LE(0, 10);
       header.writeUInt16LE(0, 12);
       header.writeUInt32LE(crc, 14);
@@ -162,7 +163,7 @@ describe('zip', () => {
       const header = Buffer.alloc(30);
       header.writeUInt32LE(0x04034b50, 0);
       header.writeUInt16LE(20, 4);
-      header.writeUInt16LE(8, 6);   // flag bit 3 = data descriptor
+      header.writeUInt16LE(8, 6); // flag bit 3 = data descriptor
       header.writeUInt16LE(8, 8);
       header.writeUInt16LE(0, 10);
       header.writeUInt16LE(0, 12);
@@ -182,11 +183,11 @@ describe('zip', () => {
       const header = Buffer.alloc(30);
       header.writeUInt32LE(0x04034b50, 0);
       header.writeUInt16LE(20, 4);
-      header.writeUInt16LE(0, 6);   // no flags
-      header.writeUInt16LE(12, 8);  // method 12 = unsupported
+      header.writeUInt16LE(0, 6); // no flags
+      header.writeUInt16LE(12, 8); // method 12 = unsupported
       header.writeUInt16LE(0, 10);
       header.writeUInt16LE(0, 12);
-      header.writeUInt32LE(0, 14);  // crc
+      header.writeUInt32LE(0, 14); // crc
       header.writeUInt32LE(data.length, 18);
       header.writeUInt32LE(data.length, 22);
       header.writeUInt16LE(name.length, 26);
@@ -210,7 +211,7 @@ describe('zip', () => {
       header.writeUInt32LE(0x04034b50, 0);
       header.writeUInt16LE(20, 4);
       header.writeUInt16LE(0, 6);
-      header.writeUInt16LE(8, 8);   // deflated
+      header.writeUInt16LE(8, 8); // deflated
       header.writeUInt16LE(0, 10);
       header.writeUInt16LE(0, 12);
       header.writeUInt32LE(wrongCrc, 14); // wrong CRC
@@ -352,7 +353,7 @@ describe('zip', () => {
       header.writeUInt32LE(0x04034b50, 0);
       header.writeUInt16LE(20, 4);
       header.writeUInt16LE(0, 6);
-      header.writeUInt16LE(8, 8);   // deflated
+      header.writeUInt16LE(8, 8); // deflated
       header.writeUInt16LE(0, 10);
       header.writeUInt16LE(0, 12);
       header.writeUInt32LE(crc, 14);

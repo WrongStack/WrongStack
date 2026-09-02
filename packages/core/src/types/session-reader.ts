@@ -78,7 +78,11 @@ export interface SessionReader {
    * @param sessionQuery - Optional filter to apply to sessions before searching events.
    *                       Reduces I/O by loading events only from matching sessions.
    */
-  search(q: SessionSearchQuery, sessionId?: string | undefined, sessionQuery?: SessionQuery): Promise<SessionSearchHit[]> | undefined;
+  search(
+    q: SessionSearchQuery,
+    sessionId?: string | undefined,
+    sessionQuery?: SessionQuery,
+  ): Promise<SessionSearchHit[]> | undefined;
   /** Render a session for human or downstream-tool consumption. */
   export(sessionId: string, opts: SessionExportOptions): Promise<string>;
   /** Read the metadata header without loading the full event stream. */

@@ -163,7 +163,10 @@ export async function handleDesignUse(
     const loader = getDesignKitLoader(ctx.projectRoot);
     const kit = await loader.find(kitId);
     if (!kit) {
-      reply(ws, ctx, { type: 'design.use', payload: { ok: false, kit: kitId, error: 'Kit not found' } });
+      reply(ws, ctx, {
+        type: 'design.use',
+        payload: { ok: false, kit: kitId, error: 'Kit not found' },
+      });
       return;
     }
     const stackArg = typeof payload.stack === 'string' ? payload.stack : undefined;
@@ -248,7 +251,10 @@ export async function handleDesignTune(
       return;
     }
     if (ctx.agentMeta) setDesignOverrides(ctx.agentMeta, merged);
-    reply(ws, ctx, { type: 'design.tune', payload: { ok: true, resolved: patch, overrides: merged } });
+    reply(ws, ctx, {
+      type: 'design.tune',
+      payload: { ok: true, resolved: patch, overrides: merged },
+    });
   } catch (err) {
     reply(ws, ctx, { type: 'design.tune', payload: { ok: false, error: String(err) } });
   }
@@ -270,7 +276,10 @@ export async function handleDesignSwap(
     const loader = getDesignKitLoader(ctx.projectRoot);
     const kit = await loader.find(kitId);
     if (!kit) {
-      reply(ws, ctx, { type: 'design.swap', payload: { ok: false, kit: kitId, error: 'Kit not found' } });
+      reply(ws, ctx, {
+        type: 'design.swap',
+        payload: { ok: false, kit: kitId, error: 'Kit not found' },
+      });
       return;
     }
     const stackArg = typeof payload.stack === 'string' ? payload.stack : undefined;
@@ -311,7 +320,10 @@ export async function handleDesignMaterialize(
   try {
     const active = await loadActiveKit(ctx.projectRoot);
     if (!active) {
-      reply(ws, ctx, { type: 'design.materialize', payload: { ok: false, error: 'No active kit' } });
+      reply(ws, ctx, {
+        type: 'design.materialize',
+        payload: { ok: false, error: 'No active kit' },
+      });
       return;
     }
     const loader = getDesignKitLoader(ctx.projectRoot);
@@ -324,7 +336,10 @@ export async function handleDesignMaterialize(
           : 'web';
     const raw = await loader.readTokens(active.kit);
     if (!raw) {
-      reply(ws, ctx, { type: 'design.materialize', payload: { ok: false, error: 'Kit has no tokens' } });
+      reply(ws, ctx, {
+        type: 'design.materialize',
+        payload: { ok: false, error: 'Kit has no tokens' },
+      });
       return;
     }
     const tokens = applyTokenOverrides(raw, active.overrides);

@@ -26,9 +26,7 @@ export async function resolveProviderCatalogForModels(
 ): Promise<ResolvedProvider | undefined> {
   return (
     (await modelsRegistry.getProvider(providerId)) ??
-    (cfg?.type && cfg.type !== providerId
-      ? await modelsRegistry.getProvider(cfg.type)
-      : undefined)
+    (cfg?.type && cfg.type !== providerId ? await modelsRegistry.getProvider(cfg.type) : undefined)
   );
 }
 
@@ -38,10 +36,13 @@ export async function resolveProviderCatalogForModels(
  * supplies context/cost/capability metadata; fall back to cfg.type for aliases.
  */
 export async function resolveProviderModelMetadata(
-  modelsRegistry: Pick<ModelsRegistry, 'getModel' | 'getProvider'> & Partial<Pick<ModelsRegistry, 'listProviders'>>,
+  modelsRegistry: Pick<ModelsRegistry, 'getModel' | 'getProvider'> &
+    Partial<Pick<ModelsRegistry, 'listProviders'>>,
   providerId: string,
   modelId: string,
-  cfg: Pick<ProviderConfig, 'type' | 'family' | 'models' | 'customModels' | 'capabilities'> | undefined,
+  cfg:
+    | Pick<ProviderConfig, 'type' | 'family' | 'models' | 'customModels' | 'capabilities'>
+    | undefined,
 ): Promise<ResolvedModel | undefined> {
   const direct = await modelsRegistry.getModel(providerId, modelId).catch(() => undefined);
   if (direct) return overlayConfiguredCapabilities(direct, cfg);
@@ -87,7 +88,10 @@ async function findModelAcrossCatalog(
   modelsRegistry: Partial<Pick<ModelsRegistry, 'listProviders' | 'getModel'>>,
   modelId: string,
 ): Promise<ResolvedModel | undefined> {
-  if (typeof modelsRegistry.listProviders !== 'function' || typeof modelsRegistry.getModel !== 'function') {
+  if (
+    typeof modelsRegistry.listProviders !== 'function' ||
+    typeof modelsRegistry.getModel !== 'function'
+  ) {
     return undefined;
   }
   const providers = await modelsRegistry.listProviders().catch(() => []);
@@ -124,8 +128,13 @@ function syntheticModel(
     modelId,
     capabilities: {
       tools: readConfiguredBool(cfg, 'tools') ?? capabilities?.tools ?? customCaps?.tools ?? false,
-      vision: readConfiguredBool(cfg, 'vision') ?? capabilities?.vision ?? customCaps?.vision ?? false,
-      reasoning: readConfiguredBool(cfg, 'reasoning') ?? capabilities?.reasoning ?? customCaps?.reasoning ?? false,
+      vision:
+        readConfiguredBool(cfg, 'vision') ?? capabilities?.vision ?? customCaps?.vision ?? false,
+      reasoning:
+        readConfiguredBool(cfg, 'reasoning') ??
+        capabilities?.reasoning ??
+        customCaps?.reasoning ??
+        false,
       maxContext,
       maxOutput: custom?.maxOutput ?? customCaps?.maxOutput ?? capabilities?.maxOutput,
     },

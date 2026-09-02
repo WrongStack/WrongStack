@@ -116,12 +116,21 @@ export function KanbanBoundaryEditor({
             </select>
           </label>
         </div>
-        <BoundaryTextarea label={t('activity:kanban.allowSelectors')} value={allowText} onChange={setAllowText} />
-        <BoundaryTextarea label={t('activity:kanban.denySelectors')} value={denyText} onChange={setDenyText} />
+        <BoundaryTextarea
+          label={t('activity:kanban.allowSelectors')}
+          value={allowText}
+          onChange={setAllowText}
+        />
+        <BoundaryTextarea
+          label={t('activity:kanban.denySelectors')}
+          value={denyText}
+          onChange={setDenyText}
+        />
         <div className="text-[10px] text-muted-foreground">
           One per line: kind:access:path — for example directory:read_write:packages/webui or
           file:read:README.md. Kinds: file, directory, package, glob. If an access type has no allow
-          selector, it remains unrestricted except for deny rules. {t('activity:kanban.crossPathSelectors')}
+          selector, it remains unrestricted except for deny rules.{' '}
+          {t('activity:kanban.crossPathSelectors')}
         </div>
         {error && <div className="text-destructive">{error}</div>}
         <div className="flex gap-2">

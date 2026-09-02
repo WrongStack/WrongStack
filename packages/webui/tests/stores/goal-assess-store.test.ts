@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  type GoalAssessResultStore,
-  useGoalAssessStore,
-} from '../../src/stores/goal-assess-store';
+import { type GoalAssessResultStore, useGoalAssessStore } from '../../src/stores/goal-assess-store';
 
 function result(overrides: Partial<GoalAssessResultStore> = {}): GoalAssessResultStore {
   return {
@@ -93,9 +90,9 @@ describe('goal assess store', () => {
 
   it('stores parse failures verbatim so the UI can surface the parser error', () => {
     useGoalAssessStore.getState().nextSeq();
-    useGoalAssessStore.getState().setResult(
-      result({ reqSeq: 1, parseFailed: true, parseError: 'not JSON' }),
-    );
+    useGoalAssessStore
+      .getState()
+      .setResult(result({ reqSeq: 1, parseFailed: true, parseError: 'not JSON' }));
     const stored = useGoalAssessStore.getState().result;
     expect(stored?.parseFailed).toBe(true);
     expect(stored?.parseError).toBe('not JSON');

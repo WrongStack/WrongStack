@@ -5,11 +5,7 @@
   "description": "Review a diff for correctness, design, security, and maintainability.",
   "content": "Review the following change:\n\n```\n{{diff}}\n```\n\nGo in this order, reporting only real issues:\n1. Correctness — bugs, broken edge cases, wrong assumptions.\n2. Security — injection, authz, secrets, unsafe input.\n3. Design — coupling, naming, fit with existing patterns.\n4. Maintainability — clarity, tests, docs.\n\nFor each finding give: severity, the specific location, why it matters, and a concrete fix. Lead with the most important. If it's solid, say so plainly rather than inventing nits.",
   "category": "code-review",
-  "tags": [
-    "review",
-    "diff",
-    "quality"
-  ],
+  "tags": ["review", "diff", "quality"],
   "source": "builtin",
   "favorite": false,
   "checksum": "a573ff99a24222d844840754ddbefd05ed21d51a2f12e5eaf43b128c66dff4a5",

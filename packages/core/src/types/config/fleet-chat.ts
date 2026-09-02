@@ -17,9 +17,9 @@ export const FLEET_CHAT_VERBOSITY_VALUES: readonly FleetChatVerbosity[] = ['off'
  * Accepts a minimal structural shape rather than `Pick<AutonomyConfig, ...>`
  * to keep this module free of any `AutonomyConfig` import (cycle-safe).
  */
-export function resolveFleetChatVerbosity(
-  autonomy?: { fleetChatVerbosity?: FleetChatVerbosity | undefined },
-): FleetChatVerbosity {
+export function resolveFleetChatVerbosity(autonomy?: {
+  fleetChatVerbosity?: FleetChatVerbosity | undefined;
+}): FleetChatVerbosity {
   const explicit = autonomy?.fleetChatVerbosity;
   if (explicit && (FLEET_CHAT_VERBOSITY_VALUES as readonly string[]).includes(explicit)) {
     return explicit;

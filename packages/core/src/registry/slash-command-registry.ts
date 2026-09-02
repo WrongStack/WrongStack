@@ -12,7 +12,10 @@ export type { SlashCommand };
 import { toErrorMessage } from '../utils/error.js';
 
 export class SlashCommandRegistry {
-  private readonly cmds = new Map<string, { cmd: SlashCommand; owner: string; official: boolean }>();
+  private readonly cmds = new Map<
+    string,
+    { cmd: SlashCommand; owner: string; official: boolean }
+  >();
 
   /**
    * Register a command.
@@ -129,7 +132,12 @@ export class SlashCommandRegistry {
   async dispatch(
     line: string,
     ctx: Context,
-  ): Promise<{ exit?: boolean | undefined; message?: string | undefined; runText?: string | undefined; metadata?: Record<string, unknown> } | null> {
+  ): Promise<{
+    exit?: boolean | undefined;
+    message?: string | undefined;
+    runText?: string | undefined;
+    metadata?: Record<string, unknown>;
+  } | null> {
     if (!line.startsWith('/')) return null;
     const trimmed = line.slice(1);
     const spaceIdx = trimmed.indexOf(' ');

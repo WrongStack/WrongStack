@@ -10,10 +10,7 @@ import type {
   MailboxMessageProjection,
 } from '../../src/coordination/mailbox-types.js';
 import { makeMailboxTool, mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
-import {
-  createMailboxChecker,
-  buildMailboxBlock,
-} from '../../src/core/mailbox-loop.js';
+import { createMailboxChecker, buildMailboxBlock } from '../../src/core/mailbox-loop.js';
 import {
   makeDependencyWatcherConfig,
   DEPENDENCY_FILE_PATTERNS,
@@ -204,9 +201,30 @@ describe('SqliteMailbox', () => {
   });
 
   it('query filters by minPriority', async () => {
-    await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'low', body: 'b', priority: 'low' });
-    await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'normal', body: 'b', priority: 'normal' });
-    await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'high', body: 'b', priority: 'high' });
+    await mailbox.send({
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 'low',
+      body: 'b',
+      priority: 'low',
+    });
+    await mailbox.send({
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 'normal',
+      body: 'b',
+      priority: 'normal',
+    });
+    await mailbox.send({
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 'high',
+      body: 'b',
+      priority: 'high',
+    });
 
     const highOnly = await mailbox.query({ to: 'b', minPriority: 'high' });
     expect(highOnly.length).toBe(1);
@@ -237,7 +255,13 @@ describe('SqliteMailbox', () => {
   });
 
   it('ack marks message as read', async () => {
-    const msg = await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'test', body: 'b' });
+    const msg = await mailbox.send({
+      from: 'a',
+      to: 'b',
+      type: 'note',
+      subject: 'test',
+      body: 'b',
+    });
 
     const updated = await mailbox.ack({ messageId: msg.id, readerId: 'b', read: true });
     expect(updated).not.toBeNull();
@@ -249,7 +273,13 @@ describe('SqliteMailbox', () => {
   });
 
   it('ack marks message as completed with outcome', async () => {
-    const msg = await mailbox.send({ from: 'a', to: 'b', type: 'assign', subject: 'task', body: 'do this' });
+    const msg = await mailbox.send({
+      from: 'a',
+      to: 'b',
+      type: 'assign',
+      subject: 'task',
+      body: 'do this',
+    });
 
     const updated = await mailbox.ack({
       messageId: msg.id,
@@ -391,7 +421,10 @@ describe('makeMailboxTool', () => {
     toolForAgentB = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
     toolForAgentX = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-x' });
     toolForSender = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'sender' });
-    toolForBroadcaster = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'broadcaster' });
+    toolForBroadcaster = makeTypedMailboxTool({
+      resolveMailbox: () => mailbox,
+      agentId: 'broadcaster',
+    });
     toolForDirector = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'director' });
   });
 
@@ -410,10 +443,7 @@ describe('makeMailboxTool', () => {
 
     // Create tool inline AFTER messages are written — guarantees closure sees the set mailbox
     const tool = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
-    const result = await tool.execute(
-      { action: 'check' },
-      mockCtx() as any,
-    );
+    const result = await tool.execute({ action: 'check' }, mockCtx() as any);
     expect(result.ok).toBe(true);
     expect(result.count).toBe(2);
     // check auto-acks. Read receipts are recorded under the PROCESS-UNIQUE
@@ -475,13 +505,16 @@ describe('makeMailboxTool', () => {
   });
 
   it('send posts a message', async () => {
-    const result = await toolForSender.execute({
-      action: 'send',
-      to: 'receiver',
-      type: 'ask',
-      subject: 'Question',
-      body: 'Can you help?',
-    }, mockCtx() as any);
+    const result = await toolForSender.execute(
+      {
+        action: 'send',
+        to: 'receiver',
+        type: 'ask',
+        subject: 'Question',
+        body: 'Can you help?',
+      },
+      mockCtx() as any,
+    );
 
     expect(result.ok).toBe(true);
     expect(result.messageId).toBeDefined();
@@ -526,13 +559,16 @@ describe('makeMailboxTool', () => {
       meta: { agentId: 'sender', sessionId: 'session-a' },
       session: { id: 'session-a' },
     });
-    const result = await toolForSender.execute({
-      action: 'send',
-      to: '@session',
-      type: 'broadcast',
-      subject: 'Session notice',
-      body: 'Session only',
-    }, context as any);
+    const result = await toolForSender.execute(
+      {
+        action: 'send',
+        to: '@session',
+        type: 'broadcast',
+        subject: 'Session notice',
+        body: 'Session only',
+      },
+      context as any,
+    );
 
     expect(result).toMatchObject({ ok: true, to: '@session:session-a' });
     const queried = await toolForSender.execute(
@@ -558,13 +594,16 @@ describe('makeMailboxTool', () => {
   });
 
   it('send with broadcast goes to all', async () => {
-    await toolForBroadcaster.execute({
-      action: 'send',
-      to: '*',
-      type: 'broadcast',
-      subject: 'Everyone',
-      body: 'Hello all',
-    }, mockCtx() as any);
+    await toolForBroadcaster.execute(
+      {
+        action: 'send',
+        to: '*',
+        type: 'broadcast',
+        subject: 'Everyone',
+        body: 'Hello all',
+      },
+      mockCtx() as any,
+    );
 
     const forA = await mailbox.query({ to: 'agent-a' });
     expect(forA.length).toBe(1);
@@ -574,13 +613,22 @@ describe('makeMailboxTool', () => {
   });
 
   it('ack marks message as read and completed', async () => {
-    const msg = await mailbox.send({ from: 'a', to: 'b', type: 'assign', subject: 'task', body: 'body' });
-    const result = await toolForAgentB.execute({
-      action: 'ack',
-      messageId: msg.id,
-      completed: true,
-      outcome: 'Fixed!',
-    }, mockCtx() as any);
+    const msg = await mailbox.send({
+      from: 'a',
+      to: 'b',
+      type: 'assign',
+      subject: 'task',
+      body: 'body',
+    });
+    const result = await toolForAgentB.execute(
+      {
+        action: 'ack',
+        messageId: msg.id,
+        completed: true,
+        outcome: 'Fixed!',
+      },
+      mockCtx() as any,
+    );
 
     expect(result.ok).toBe(true);
 
@@ -594,7 +642,10 @@ describe('makeMailboxTool', () => {
   it('query filters by sender', async () => {
     await mailbox.send({ from: 'alice', to: 'b', type: 'note', subject: 'from alice', body: 'b' });
     await mailbox.send({ from: 'bob', to: 'b', type: 'note', subject: 'from bob', body: 'b' });
-    const result = await toolForAgentB.execute({ action: 'query', from: 'alice' }, mockCtx() as any);
+    const result = await toolForAgentB.execute(
+      { action: 'query', from: 'alice' },
+      mockCtx() as any,
+    );
     expect(result.ok).toBe(true);
     expect(result.count).toBe(1);
     expect(result.messages?.at(0)?.subject).toBe('from alice');
@@ -637,9 +688,30 @@ describe('mailbox-loop', () => {
   it('createMailboxChecker returns all unread message types', async () => {
     const check = createMailboxChecker({ mailbox, agentId: 'agent-b' });
 
-    await mailbox.send({ from: 'director', to: 'agent-b', type: 'steer', subject: 'Change approach', body: 'Use X instead', priority: 'high' });
-    await mailbox.send({ from: 'director', to: 'agent-b', type: 'btw', subject: 'FYI', body: 'Something changed', priority: 'high' });
-    await mailbox.send({ from: 'director', to: 'agent-b', type: 'ask', subject: 'Question', body: 'What?', priority: 'normal' });
+    await mailbox.send({
+      from: 'director',
+      to: 'agent-b',
+      type: 'steer',
+      subject: 'Change approach',
+      body: 'Use X instead',
+      priority: 'high',
+    });
+    await mailbox.send({
+      from: 'director',
+      to: 'agent-b',
+      type: 'btw',
+      subject: 'FYI',
+      body: 'Something changed',
+      priority: 'high',
+    });
+    await mailbox.send({
+      from: 'director',
+      to: 'agent-b',
+      type: 'ask',
+      subject: 'Question',
+      body: 'What?',
+      priority: 'normal',
+    });
 
     const msgs = await check();
     expect(msgs.length).toBe(3); // all types returned now, not just steer/btw
@@ -662,7 +734,13 @@ describe('mailbox-loop', () => {
     await mailbox.send({ from: 'a', to: 'leader#123', type: 'note', subject: 'direct', body: 'd' });
     await mailbox.send({ from: 'a', to: 'leader', type: 'note', subject: 'alias', body: 'al' });
     await mailbox.send({ from: 'a', to: '*', type: 'broadcast', subject: 'bcast', body: 'b' });
-    await mailbox.send({ from: 'a', to: 'someone-else', type: 'note', subject: 'other', body: 'o' });
+    await mailbox.send({
+      from: 'a',
+      to: 'someone-else',
+      type: 'note',
+      subject: 'other',
+      body: 'o',
+    });
 
     const msgs = await check();
     const subjects = msgs.map((m) => m.subject).sort();
@@ -681,7 +759,14 @@ describe('mailbox-loop', () => {
 
   it('createMailboxChecker does not return already-injected messages', async () => {
     const check = createMailboxChecker({ mailbox, agentId: 'agent-b' });
-    await mailbox.send({ from: 'd', to: 'agent-b', type: 'steer', subject: 's1', body: 'b', priority: 'high' });
+    await mailbox.send({
+      from: 'd',
+      to: 'agent-b',
+      type: 'steer',
+      subject: 's1',
+      body: 'b',
+      priority: 'high',
+    });
 
     const first = await check();
     expect(first.length).toBe(1);
@@ -693,9 +778,16 @@ describe('mailbox-loop', () => {
   it('buildMailboxBlock formats messages correctly', () => {
     const msgs: MailboxMessage[] = [
       {
-        id: '1', from: 'director', to: 'agent-b', type: 'steer',
-        subject: 'Use tool X', body: 'Switch to tool X for this task.',
-        priority: 'high', readBy: {}, completed: false, timestamp: new Date().toISOString(),
+        id: '1',
+        from: 'director',
+        to: 'agent-b',
+        type: 'steer',
+        subject: 'Use tool X',
+        body: 'Switch to tool X for this task.',
+        priority: 'high',
+        readBy: {},
+        completed: false,
+        timestamp: new Date().toISOString(),
       },
     ];
 
@@ -898,9 +990,7 @@ describe('SqliteMailbox — send racing ack does not lose messages', () => {
     const N = 20;
     const ops: Promise<unknown>[] = [];
     for (let i = 0; i < N; i++) {
-      ops.push(
-        mailbox.send({ from: 'a', to: 'b', type: 'note', subject: `m${i}`, body: `${i}` }),
-      );
+      ops.push(mailbox.send({ from: 'a', to: 'b', type: 'note', subject: `m${i}`, body: `${i}` }));
       ops.push(mailbox.ack({ messageId: seed.id, readerId: `reader-${i}` }));
     }
     await Promise.all(ops);
@@ -995,7 +1085,10 @@ describe('mail_send + mail_inbox tools', () => {
     const ctxA = mockCtx({ meta: { agentId: 'a' } });
     const ctxB = mockCtx({ meta: { agentId: 'b' } });
 
-    await send.execute({ to: `b@${mailboxSessionTag('default')}`, subject: 's', body: 'x' }, ctxA as never);
+    await send.execute(
+      { to: `b@${mailboxSessionTag('default')}`, subject: 's', body: 'x' },
+      ctxA as never,
+    );
     const peek = await inbox.execute({ markRead: false }, ctxB as never);
     expect(peek.count).toBe(1);
     const second = await inbox.execute({}, ctxB as never);
@@ -1028,7 +1121,13 @@ describe('recipient "all" normalizes to the broadcast address', () => {
   it('SqliteMailbox.send canonicalizes to:"all" (any casing) to "*"', async () => {
     const msg = await mailbox.send({ from: 'a', to: 'all', type: 'note', subject: 's', body: 'b' });
     expect(msg.to).toBe('*');
-    const upper = await mailbox.send({ from: 'a', to: ' ALL ', type: 'note', subject: 's2', body: 'b' });
+    const upper = await mailbox.send({
+      from: 'a',
+      to: ' ALL ',
+      type: 'note',
+      subject: 's2',
+      body: 'b',
+    });
     expect(upper.to).toBe('*');
     // Every agent receives it like any other broadcast.
     const forAnyone = await mailbox.query({ to: 'random-agent' });
@@ -1076,9 +1175,9 @@ describe('recipient "all" normalizes to the broadcast address', () => {
     );
     expect(res.ok).toBe(true);
 
-    const got = await (
-      await import('../../src/coordination/mail-tools.js')
-    ).makeMailInboxTool({ resolveMailbox: () => mailbox }).execute({}, ctxB as never);
+    const got = await (await import('../../src/coordination/mail-tools.js'))
+      .makeMailInboxTool({ resolveMailbox: () => mailbox })
+      .execute({}, ctxB as never);
     expect(got.count).toBe(1);
     expect(got.messages[0]).toMatchObject({
       from: `coder@${mailboxSessionTag('default')}`,

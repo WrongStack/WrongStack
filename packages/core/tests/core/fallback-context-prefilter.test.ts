@@ -98,15 +98,11 @@ describe('fallback-model context-window pre-filter', () => {
     );
     ctx.provider = makeProvider('primary', 4_000);
     let calls = 0;
-    await ext.wrapProviderRunner?.(
-      ctx,
-      request,
-      (async () => {
-        calls++;
-        if (calls === 1) throw new ProviderError('rate limited', 429, true, 'primary');
-        return okResponse;
-      }) as never,
-    );
+    await ext.wrapProviderRunner?.(ctx, request, (async () => {
+      calls++;
+      if (calls === 1) throw new ProviderError('rate limited', 429, true, 'primary');
+      return okResponse;
+    }) as never);
 
     expect(ctx.model).toBe('large-model');
     now = 100;

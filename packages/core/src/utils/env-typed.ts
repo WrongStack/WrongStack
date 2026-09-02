@@ -85,10 +85,7 @@ export function envFloat(
  * Read an environment variable as a trimmed string.
  * Returns `undefined` when unset or empty after trimming.
  */
-export function envString(
-  key: string,
-  env: NodeJS.ProcessEnv = process.env,
-): string | undefined {
+export function envString(key: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
   const raw = env[key];
   if (raw === undefined) return undefined;
   const trimmed = raw.trim();

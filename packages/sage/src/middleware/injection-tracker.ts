@@ -207,8 +207,7 @@ export class InjectionTracker {
       if (assistantTokens.size === 0) continue;
       // Also accept high containment of the memory's own normalized text when
       // the assistant paraphrases lightly but keeps a long distinctive phrase.
-      const phraseHit =
-        entry.textKey.length >= 24 && textKey.includes(entry.textKey.slice(0, 80));
+      const phraseHit = entry.textKey.length >= 24 && textKey.includes(entry.textKey.slice(0, 80));
       if (phraseHit) {
         matched.push(memoryId);
         this.entries.delete(memoryId);

@@ -1,8 +1,10 @@
 import { spawn } from 'node:child_process';
 import { statSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { assessCommitSafety } from '@wrongstack/core/coordination';
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import { COMMAND_OUTPUT_MAX_BYTES, normalizeCommandOutput } from './_util.js';
 
@@ -155,7 +157,19 @@ export const gitTool = {
     required: ['command'],
   },
   async execute(input: GitInput, ctx: GitContext, opts?: { signal: AbortSignal }) {
-    if (!input?.command) throw new Error('git: command is required');
+    if (!input?.command || typeof input.command !== 'string' || !input.command.trim()) {
+      throw new ToolValidationError({
+        message: 'git: command is required and cannot be empty',
+        field: 'command',
+      });
+    }
+
+    if (input.command.startsWith('-') || input.command.includes(' --')) {
+      throw new ToolValidationError({
+        message: `git: unsafe subcommand name "${input.command}"`,
+        field: 'command',
+      });
+    }
 
     if (input.command === 'commit' && !input.message) {
       return {
@@ -327,7 +341,11 @@ function findGitDir(cwd: string, projectRoot: string): string | null {
 }
 
 function buildArgs(input: GitInput): string[] {
-  const limit = input.limit ?? 20;
+  const rawLimit =
+    typeof input.limit === 'number' && Number.isFinite(input.limit) && input.limit > 0
+      ? Math.floor(input.limit)
+      : 20;
+  const limit = Math.max(1, rawLimit);
   const files = input.files
     ? (Array.isArray(input.files) ? input.files : input.files.split(','))
         .map((s: string) => s.trim().replace(/\\/g, '/'))
@@ -443,6 +461,9 @@ function runGit(args: string[], cwd: string, signal: AbortSignal): Promise<GitOu
     let stdoutBytes = 0;
     let stderrBytes = 0;
 
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
+
     const child = spawn('git', args, {
       cwd,
       signal,
@@ -454,30 +475,47 @@ function runGit(args: string[], cwd: string, signal: AbortSignal): Promise<GitOu
     child.stdout?.on('data', (chunk: Buffer) => {
       stdoutBytes += chunk.byteLength;
       if (stdout.length < MAX_OUTPUT) {
-        const text = chunk.toString();
-        stdout += text.slice(0, MAX_OUTPUT - stdout.length);
+        const text = stdoutDecoder.write(chunk);
+        if (text) stdout += text.slice(0, MAX_OUTPUT - stdout.length);
       }
     });
 
     child.stderr?.on('data', (chunk: Buffer) => {
       stderrBytes += chunk.byteLength;
       if (stderr.length < MAX_OUTPUT) {
-        const text = chunk.toString();
-        stderr += text.slice(0, MAX_OUTPUT - stderr.length);
+        const text = stderrDecoder.write(chunk);
+        if (text) stderr += text.slice(0, MAX_OUTPUT - stderr.length);
       }
     });
 
     child.on('error', (err) => {
+      const stdoutTail = stdoutDecoder.end();
+      if (stdoutTail && stdout.length < MAX_OUTPUT) {
+        stdout += stdoutTail.slice(0, MAX_OUTPUT - stdout.length);
+      }
+      const stderrTail = stderrDecoder.end();
+      if (stderrTail && stderr.length < MAX_OUTPUT) {
+        stderr += stderrTail.slice(0, MAX_OUTPUT - stderr.length);
+      }
       resolve({
         command: args[0] as GitSubcommand,
         stdout: normalizeCommandOutput(stdout),
         stderr: err.message,
         exitCode: 1,
-        truncated: stdoutBytes > MAX_OUTPUT || Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
+        truncated:
+          stdoutBytes > MAX_OUTPUT || Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
       });
     });
 
     child.on('close', (code) => {
+      const stdoutTail = stdoutDecoder.end();
+      if (stdoutTail && stdout.length < MAX_OUTPUT) {
+        stdout += stdoutTail.slice(0, MAX_OUTPUT - stdout.length);
+      }
+      const stderrTail = stderrDecoder.end();
+      if (stderrTail && stderr.length < MAX_OUTPUT) {
+        stderr += stderrTail.slice(0, MAX_OUTPUT - stderr.length);
+      }
       // `MAX_OUTPUT` already bounded the raw buffers in memory; normalize strips
       // ANSI / progress / duplicate noise and head+tail-truncates to the shared
       // command cap so only useful output reaches the model.

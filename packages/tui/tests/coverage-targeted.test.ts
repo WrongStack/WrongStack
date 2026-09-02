@@ -11,15 +11,22 @@ import React from 'react';
 import { detectLang, highlightLine, langFromPath } from '../src/highlight.js';
 import { Text } from '../src/ink.js';
 import { colorForFamily, dimColorForFamily } from '../src/components/provider-colors.js';
-import {
-  actionForFKeyPanel,
-} from '../src/f-key-panels.js';
+import { actionForFKeyPanel } from '../src/f-key-panels.js';
 import { createPanelOpenDispatcher, type PanelOpenDeps } from '../src/on-panel-open.js';
 import { handleQueueCommand, type QueueSlashDeps } from '../src/queue-slash.js';
 import { buildSlashCommandMatches } from '../src/slash-command-search.js';
 import { normalizeTuiThinkingWord } from '../src/thinking-word.js';
-import { authPanelRows, authMoveSelected, type AuthPanelState } from '../src/components/auth-panel-model.js';
-import { closePanels, firstSelectable, clampContextLoad, skipDivider } from '../src/reducers/helpers.js';
+import {
+  authPanelRows,
+  authMoveSelected,
+  type AuthPanelState,
+} from '../src/components/auth-panel-model.js';
+import {
+  closePanels,
+  firstSelectable,
+  clampContextLoad,
+  skipDivider,
+} from '../src/reducers/helpers.js';
 import type { ProjectPickerItem } from '../src/ui-contracts.js';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -83,9 +90,13 @@ describe('ink.tsx — branch gaps', () => {
   });
 
   it('Text renders with backgroundColor that resolves', () => {
-    const el = Text({ backgroundColor: 'blue', children: 'bg test' }) as NonNullable<ReturnType<typeof Text>>;
+    const el = Text({ backgroundColor: 'blue', children: 'bg test' }) as NonNullable<
+      ReturnType<typeof Text>
+    >;
     expect(el).toBeDefined();
-    expect((el as unknown as { props: Record<string, unknown> }).props.backgroundColor).toBe('#89b4fa');
+    expect((el as unknown as { props: Record<string, unknown> }).props.backgroundColor).toBe(
+      '#89b4fa',
+    );
   });
 
   it('Box component can be rendered via createElement', async () => {
@@ -182,30 +193,22 @@ describe('on-panel-open.ts — branch gaps', () => {
   });
 
   it('modePickerOpen falls back to false when openModePicker is absent', () => {
-    const dispatch = createPanelOpenDispatcher(
-      makeDeps({ openModePicker: undefined }),
-    );
+    const dispatch = createPanelOpenDispatcher(makeDeps({ openModePicker: undefined }));
     expect(dispatch('modePickerOpen')).toBe(false);
   });
 
   it('brainOpen falls back to false when openBrainPanel is absent', () => {
-    const dispatch = createPanelOpenDispatcher(
-      makeDeps({ openBrainPanel: undefined }),
-    );
+    const dispatch = createPanelOpenDispatcher(makeDeps({ openBrainPanel: undefined }));
     expect(dispatch('brainOpen')).toBe(false);
   });
 
   it('shadowOpen falls back to false when openShadowPanel is absent', () => {
-    const dispatch = createPanelOpenDispatcher(
-      makeDeps({ openShadowPanel: undefined }),
-    );
+    const dispatch = createPanelOpenDispatcher(makeDeps({ openShadowPanel: undefined }));
     expect(dispatch('shadowOpen')).toBe(false);
   });
 
   it('helpOpen falls back to false when openHelpPanel is absent', () => {
-    const dispatch = createPanelOpenDispatcher(
-      makeDeps({ openHelpPanel: undefined }),
-    );
+    const dispatch = createPanelOpenDispatcher(makeDeps({ openHelpPanel: undefined }));
     expect(dispatch('helpOpen')).toBe(false);
   });
 
@@ -216,9 +219,7 @@ describe('on-panel-open.ts — branch gaps', () => {
 
   it('pluginPickerOpen dispatches and returns true', () => {
     const actions: unknown[] = [];
-    const dispatch = createPanelOpenDispatcher(
-      makeDeps({ dispatch: (a) => actions.push(a) }),
-    );
+    const dispatch = createPanelOpenDispatcher(makeDeps({ dispatch: (a) => actions.push(a) }));
     expect(dispatch('pluginPickerOpen')).toBe(true);
     expect(actions).toEqual([{ type: 'pluginPickerOpen' }]);
   });
@@ -274,9 +275,7 @@ describe('queue-slash.ts — branch gaps', () => {
   it('delete with invalid and out-of-range positions reports them', () => {
     const deps: QueueSlashDeps = {
       ...emptyDeps,
-      getQueue: () => [
-        { id: 1, displayText: 'msg1', blocks: [{ type: 'text', text: 'msg1' }] },
-      ],
+      getQueue: () => [{ id: 1, displayText: 'msg1', blocks: [{ type: 'text', text: 'msg1' }] }],
     };
     const result = handleQueueCommand('delete abc 999', deps);
     expect(result).toContain('Invalid: abc');
@@ -399,7 +398,12 @@ describe('slash-command-search.ts — branch gaps', () => {
   it('buildSlashCommandMatches hides commands when query is empty and cmd is hidden', () => {
     const entries = [
       {
-        cmd: { name: 'hidden-cmd', description: '', hidden: true, run: async () => ({ message: '' }) },
+        cmd: {
+          name: 'hidden-cmd',
+          description: '',
+          hidden: true,
+          run: async () => ({ message: '' }),
+        },
         owner: 'core',
         fullName: 'hidden-cmd',
       },

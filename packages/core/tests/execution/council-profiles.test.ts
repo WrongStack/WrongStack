@@ -18,11 +18,7 @@ describe('Council profiles', () => {
     ]);
     const balanced = DEFAULT_COUNCIL_PROFILE_REGISTRY.require('balanced');
 
-    expect(balanced.seats.map((seat) => seat.persona)).toEqual([
-      'executor',
-      'skeptic',
-      'auditor',
-    ]);
+    expect(balanced.seats.map((seat) => seat.persona)).toEqual(['executor', 'skeptic', 'auditor']);
     expect(balanced.seats[1]).toMatchObject({ id: 'skeptic', weight: 1, veto: true });
     expect(balanced.judge).toEqual({ role: 'reviewer' });
     expect(JSON.stringify(BUILTIN_COUNCIL_PROFILES)).not.toMatch(/openai|anthropic|deepseek/i);
@@ -94,9 +90,9 @@ describe('Council profiles', () => {
     expect(resolveCouncilProfile(undefined).id).toBe('balanced');
     expect(resolveCouncilProfile(undefined, { defaultProfile: 'fast' }).id).toBe('fast');
     expect(resolveCouncilProfile('risk-review').id).toBe('risk-review');
-    expect(
-      resolveCouncilProfile({ id: 'adhoc', seats: [{ persona: 'executor' }] }).id,
-    ).toBe('adhoc');
+    expect(resolveCouncilProfile({ id: 'adhoc', seats: [{ persona: 'executor' }] }).id).toBe(
+      'adhoc',
+    );
   });
 
   it('extends registries without mutating built-ins', () => {
@@ -156,10 +152,7 @@ describe('Council profiles', () => {
       { id: 'approval', seats: [{ persona: 'executor' }], approvalFraction: 1.1 },
       /approvalFraction/,
     ],
-    [
-      { id: 'empty-target', seats: [{ persona: 'executor', target: {} }] },
-      /target is empty/,
-    ],
+    [{ id: 'empty-target', seats: [{ persona: 'executor', target: {} }] }, /target is empty/],
     [
       {
         id: 'timeout',
@@ -197,7 +190,9 @@ describe('Council profiles', () => {
   });
 
   it('rejects invalid budget values', () => {
-    const invalid: Array<[Partial<import('../../src/types/council.js').CouncilProfileConfig>, RegExp]> = [
+    const invalid: Array<
+      [Partial<import('../../src/types/council.js').CouncilProfileConfig>, RegExp]
+    > = [
       [{ seats: [{ persona: 'executor' }], voterMaxTokens: 0 }, /voterMaxTokens/],
       [{ seats: [{ persona: 'executor' }], voterMaxTokens: 1.5 }, /voterMaxTokens/],
       [{ seats: [{ persona: 'executor' }], judgeMaxTokens: -1 }, /judgeMaxTokens/],

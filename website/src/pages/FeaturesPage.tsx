@@ -1,6 +1,13 @@
 import { ArrowRight, Check, MoveRight } from 'lucide-react';
 import { PageHero, PageNext, Reveal, SectionIntro } from '@/components/site/primitives';
-import { capabilityIndex, PLUGIN_COUNT, primaryFeatureStories, SKILL_COUNT, systemSpotlightStories, TOOL_COUNT } from '@/data/content';
+import {
+  capabilityIndex,
+  PLUGIN_COUNT,
+  primaryFeatureStories,
+  SKILL_COUNT,
+  systemSpotlightStories,
+  TOOL_COUNT,
+} from '@/data/content';
 import { Link } from '@/lib/router';
 import { cn } from '@/lib/utils';
 

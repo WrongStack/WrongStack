@@ -189,12 +189,7 @@ describe('bucketActivity', () => {
     // 12 bins × 2000ms = 24000ms window
     // bin 0: at 76_000..78_000
     // bin 11: at 98_000..100_000
-    const result = bucketActivity(
-      [77_000, 95_000, 99_500],
-      now,
-      12,
-      2000,
-    );
+    const result = bucketActivity([77_000, 95_000, 99_500], now, 12, 2000);
     // bin 0 should have the 77_000 timestamp
     expect(result[0]).toBe(1);
     // bin 11 should have the 99_500 timestamp

@@ -731,11 +731,7 @@ describe('planMutations — regex-literal masking', () => {
 
 describe('planMutations — return-null endpoint containment', () => {
   it('never plans a return-null whose terminating semicolon is inside a string', () => {
-    const source = [
-      'export function quote(): string {',
-      "  return 'a;b';",
-      '}',
-    ].join('\n');
+    const source = ['export function quote(): string {', "  return 'a;b';", '}'].join('\n');
     const plan = planMutations('src/e1.ts', source);
     // Old behavior: token `return 'a;` planned; splicing it produced
     // `return null;b';` — invalid code, false kill risk.
@@ -743,21 +739,15 @@ describe('planMutations — return-null endpoint containment', () => {
   });
 
   it('still plans a clean return whose terminating semicolon is code', () => {
-    const source = [
-      'export function id(s: string): string {',
-      '  return s;',
-      '}',
-    ].join('\n');
+    const source = ['export function id(s: string): string {', '  return s;', '}'].join('\n');
     const plan = planMutations('src/e2.ts', source);
     expect(plan.some((m) => m.kind === 'return-null' && m.line === 2)).toBe(true);
   });
 
   it('skips a return-null call whose first semicolon hides in a string argument', () => {
-    const source = [
-      'export function pick2(): string {',
-      "  return pick('x;', 'y');",
-      '}',
-    ].join('\n');
+    const source = ['export function pick2(): string {', "  return pick('x;', 'y');", '}'].join(
+      '\n',
+    );
     const plan = planMutations('src/e3.ts', source);
     // The lazy match is `return pick('x;` — terminating `;` masked.
     expect(plan.filter((m) => m.kind === 'return-null')).toEqual([]);

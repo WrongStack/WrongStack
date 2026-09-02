@@ -104,9 +104,7 @@ function readConfig(raw: unknown): MigrationPlannerConfig {
         : DEFAULTS.maxChars,
     useLlm: rawUseLlm === true,
     maxLlmChars:
-      typeof rawMaxLlm === 'number' &&
-      rawMaxLlm >= 1_000 &&
-      rawMaxLlm <= 100_000
+      typeof rawMaxLlm === 'number' && rawMaxLlm >= 1_000 && rawMaxLlm <= 100_000
         ? rawMaxLlm
         : DEFAULTS.maxLlmChars,
   };

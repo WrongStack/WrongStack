@@ -30,7 +30,9 @@ export interface HttpRequestOptions {
 const DEFAULT_MAX_BODY_BYTES = 64 * 1024 * 1024;
 
 export function retryAfterMs(headers: IncomingHttpHeaders, now = Date.now()): number | undefined {
-  const value = Array.isArray(headers['retry-after']) ? headers['retry-after'][0] : headers['retry-after'];
+  const value = Array.isArray(headers['retry-after'])
+    ? headers['retry-after'][0]
+    : headers['retry-after'];
   if (!value) return undefined;
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1_000;
@@ -88,15 +90,18 @@ function requestOnce(options: HttpRequestOptions): Promise<HttpResponse> {
           );
         }
       });
-      response.on('end', () => resolve({
-        statusCode: response.statusCode ?? 0,
-        headers: response.headers,
-        body,
-      }));
+      response.on('end', () =>
+        resolve({
+          statusCode: response.statusCode ?? 0,
+          headers: response.headers,
+          body,
+        }),
+      );
     };
-    const request = method === 'GET'
-      ? (isHttp ? httpGet : httpsGet)(requestOptions, callback)
-      : (isHttp ? httpRequest : httpsRequest)(requestOptions, callback);
+    const request =
+      method === 'GET'
+        ? (isHttp ? httpGet : httpsGet)(requestOptions, callback)
+        : (isHttp ? httpRequest : httpsRequest)(requestOptions, callback);
     request.on('error', reject);
     request.on('timeout', () => {
       request.destroy();
@@ -116,13 +121,14 @@ export async function requestWithRetry(options: HttpRequestOptions): Promise<Htt
       const retryable = response.statusCode === 429 || response.statusCode >= 500;
       if (!retryable || attempt === maxAttempts - 1) return response;
       const serverDelay = retryAfterMs(response.headers);
-      const exponential = (options.baseBackoffMs ?? 1_000) * (2 ** attempt);
+      const exponential = (options.baseBackoffMs ?? 1_000) * 2 ** attempt;
       await delay(serverDelay ?? exponential, options.signal);
     } catch (error) {
-      if (options.signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) throw error;
+      if (options.signal?.aborted || (error instanceof DOMException && error.name === 'AbortError'))
+        throw error;
       lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt < maxAttempts - 1) {
-        await delay((options.baseBackoffMs ?? 1_000) * (2 ** attempt), options.signal);
+        await delay((options.baseBackoffMs ?? 1_000) * 2 ** attempt, options.signal);
       }
     }
   }

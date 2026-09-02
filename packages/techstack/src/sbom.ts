@@ -92,9 +92,7 @@ export function toCycloneDX(snapshot: Snapshot): CycloneDXBom {
       name: dep.name,
       version: dep.locked ?? dep.requested,
       ...(dep.purl ? { purl: dep.purl } : {}),
-      ...(dep.license
-        ? { licenses: [{ license: { id: dep.license } }] }
-        : {}),
+      ...(dep.license ? { licenses: [{ license: { id: dep.license } }] } : {}),
     })),
   };
 }

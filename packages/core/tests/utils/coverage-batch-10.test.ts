@@ -10,7 +10,10 @@ describe('InMemoryBridgeTransport', () => {
     const transport = new InMemoryBridgeTransport();
     const received: unknown[] = [];
     transport.subscribe('bob', (msg) => received.push(msg));
-    await transport.send({ from: 'alice', to: 'bob', type: 'note', subject: 'hi', body: 'hello' } as any, 'bob');
+    await transport.send(
+      { from: 'alice', to: 'bob', type: 'note', subject: 'hi', body: 'hello' } as any,
+      'bob',
+    );
     expect(received).toHaveLength(1);
   });
 
@@ -22,7 +25,10 @@ describe('InMemoryBridgeTransport', () => {
     transport.subscribe('alice', (msg) => a.push(msg));
     transport.subscribe('bob', (msg) => b.push(msg));
     transport.subscribe('carol', (msg) => c.push(msg));
-    await transport.send({ from: 'alice', to: '*', type: 'broadcast', subject: 'hey', body: 'all' } as any, '*');
+    await transport.send(
+      { from: 'alice', to: '*', type: 'broadcast', subject: 'hey', body: 'all' } as any,
+      '*',
+    );
     expect(a).toHaveLength(0); // sender excluded
     expect(b).toHaveLength(1);
     expect(c).toHaveLength(1);
@@ -33,7 +39,10 @@ describe('InMemoryBridgeTransport', () => {
     const received: unknown[] = [];
     const unsub = transport.subscribe('bob', (msg) => received.push(msg));
     unsub();
-    await transport.send({ from: 'alice', to: 'bob', type: 'note', subject: 'x', body: 'y' } as any, 'bob');
+    await transport.send(
+      { from: 'alice', to: 'bob', type: 'note', subject: 'x', body: 'y' } as any,
+      'bob',
+    );
     expect(received).toHaveLength(0);
   });
 
@@ -43,16 +52,24 @@ describe('InMemoryBridgeTransport', () => {
     transport.subscribe('bob', (msg) => received.push(msg));
     transport.subscribe('bob', (msg) => received.push(msg));
     await transport.close('bob');
-    await transport.send({ from: 'alice', to: 'bob', type: 'note', subject: 'x', body: 'y' } as any, 'bob');
+    await transport.send(
+      { from: 'alice', to: 'bob', type: 'note', subject: 'x', body: 'y' } as any,
+      'bob',
+    );
     expect(received).toHaveLength(0);
   });
 
   it('handler errors are swallowed (do not crash the transport)', async () => {
     const transport = new InMemoryBridgeTransport();
-    transport.subscribe('bob', () => { throw new Error('boom'); });
+    transport.subscribe('bob', () => {
+      throw new Error('boom');
+    });
     const received: unknown[] = [];
     transport.subscribe('bob', (msg) => received.push(msg));
-    await transport.send({ from: 'alice', to: 'bob', type: 'note', subject: 'x', body: 'y' } as any, 'bob');
+    await transport.send(
+      { from: 'alice', to: 'bob', type: 'note', subject: 'x', body: 'y' } as any,
+      'bob',
+    );
     expect(received).toHaveLength(1); // second handler still received
   });
 });
@@ -96,7 +113,9 @@ describe('MailboxEventEmitter', () => {
 
   it('listener errors are swallowed', () => {
     const emitter = new MailboxEventEmitter();
-    emitter.subscribe(() => { throw new Error('boom'); });
+    emitter.subscribe(() => {
+      throw new Error('boom');
+    });
     const events: unknown[] = [];
     emitter.subscribe((e) => events.push(e));
     emitter.emit({ type: 'message.acked', messageId: 'm1', timestamp: '2026-01-01T00:00:00Z' });

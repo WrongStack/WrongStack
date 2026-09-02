@@ -209,9 +209,7 @@ export interface SessionPersistence {
     state: SessionState,
     history?: Array<{ sessionUpdate: string; content: unknown }>,
   ): Promise<unknown>;
-  load(
-    sessionId: string,
-  ): Promise<
+  load(sessionId: string): Promise<
     | (Partial<SessionState> & {
         history?: Array<{ sessionUpdate: string; content: unknown }> | undefined;
       })

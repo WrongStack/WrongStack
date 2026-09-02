@@ -209,7 +209,11 @@ export function renderSageStats(
   return lines;
 }
 
-export function renderSageEntries(memories: SageLike[], compact?: boolean, now: number = Date.now()): string[] {
+export function renderSageEntries(
+  memories: SageLike[],
+  compact?: boolean,
+  now: number = Date.now(),
+): string[] {
   if (memories.length === 0) return [];
 
   const lines: string[] = [];
@@ -412,7 +416,11 @@ export function renderLegacyCompactList(entries: MemoryEntry[]): string[] {
   return lines;
 }
 
-export function renderLegacyScopeSection(scope: MemoryScope, entries: MemoryEntry[], now: number = Date.now()): string[] {
+export function renderLegacyScopeSection(
+  scope: MemoryScope,
+  entries: MemoryEntry[],
+  now: number = Date.now(),
+): string[] {
   if (entries.length === 0) return [];
 
   const lines: string[] = [];

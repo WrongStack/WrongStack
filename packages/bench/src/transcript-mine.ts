@@ -101,7 +101,10 @@ export async function mineTranscript(opts: {
   const sha256 = createHash('sha256').update(raw).digest('hex');
   const corpusDir = path.resolve(opts.outDir, 'corpus');
   await fs.mkdir(corpusDir, { recursive: true });
-  const copiedTranscriptPath = path.join(corpusDir, `${safeName(sessionId)}-${sha256.slice(0, 12)}.jsonl`);
+  const copiedTranscriptPath = path.join(
+    corpusDir,
+    `${safeName(sessionId)}-${sha256.slice(0, 12)}.jsonl`,
+  );
   await copyPinnedTranscript(copiedTranscriptPath, raw);
 
   const relativeTranscriptPath = `./corpus/${path.basename(copiedTranscriptPath)}`;
@@ -175,12 +178,15 @@ function buildCandidates(
       'Capture the full pre-edit worktree as templateDir and add deterministic grader assertions.',
     ];
     if (retrieval.length === 0) {
-      needsCuration.push('Choose a required retrieval evidence marker; no successful retrieval result preceded this edit.');
+      needsCuration.push(
+        'Choose a required retrieval evidence marker; no successful retrieval result preceded this edit.',
+      );
     }
     if (inputContains.length === 0) {
       needsCuration.push('Choose stable correct-intent input markers for the edit invocation.');
     }
-    if (!prompt) needsCuration.push('Provide the task prompt; no preceding user_input was recorded.');
+    if (!prompt)
+      needsCuration.push('Provide the task prompt; no preceding user_input was recorded.');
 
     candidates.push({
       id: `${safeName(sourceBase.sessionId)}-edit-${ordinal}`,
@@ -227,7 +233,8 @@ function suggestIntentMarkers(input: unknown): string[] {
   const leaves = stringLeaves(input);
   const paths = leaves.filter(({ key }) => /(?:path|file)/i.test(key));
   const edits = leaves.filter(
-    ({ key }) => /(?:new|replace|content|patch|insert|text|value)/i.test(key) && !/(?:old|search)/i.test(key),
+    ({ key }) =>
+      /(?:new|replace|content|patch|insert|text|value)/i.test(key) && !/(?:old|search)/i.test(key),
   );
   const selected = [...paths, ...edits, ...leaves]
     .map(({ value }) => conciseMarker(value))
@@ -255,7 +262,10 @@ function endIndexFor(events: ParsedEvent[], id: string, fallback: number): numbe
   return fallback;
 }
 
-function latestPrompt(prompts: Array<{ index: number; text: string }>, beforeIndex: number): { index: number; text: string } | undefined {
+function latestPrompt(
+  prompts: Array<{ index: number; text: string }>,
+  beforeIndex: number,
+): { index: number; text: string } | undefined {
   for (let index = prompts.length - 1; index >= 0; index--) {
     const prompt = prompts[index];
     if (prompt && prompt.index < beforeIndex) return prompt;
@@ -267,7 +277,9 @@ function contentText(content: unknown): string | undefined {
   if (typeof content === 'string') return content.trim() || undefined;
   if (!Array.isArray(content)) return undefined;
   const text = content
-    .flatMap((block) => (isRecord(block) && typeof block['text'] === 'string' ? [block['text']] : []))
+    .flatMap((block) =>
+      isRecord(block) && typeof block['text'] === 'string' ? [block['text']] : [],
+    )
     .join('\n')
     .trim();
   return text || undefined;
@@ -288,7 +300,8 @@ function parseEvents(raw: string): ParsedEvent[] {
     if (line.trim() === '') continue;
     try {
       const parsed = JSON.parse(line);
-      if (isRecord(parsed) && typeof parsed['type'] === 'string') events.push(parsed as ParsedEvent);
+      if (isRecord(parsed) && typeof parsed['type'] === 'string')
+        events.push(parsed as ParsedEvent);
     } catch {
       // Preserve the source copy verbatim but ignore a partial/corrupt line when mining.
     }

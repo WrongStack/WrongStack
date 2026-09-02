@@ -46,13 +46,10 @@ export function resolveConsoleControlTarget(
   // sockets. Prefer the exact session publisher when it can receive control;
   // otherwise promote the control-capable sibling from the same process.
   const client =
-    (exactClient?.capabilities.includes('control.receive') === true
-      ? exactClient
-      : undefined) ??
+    (exactClient?.capabilities.includes('control.receive') === true ? exactClient : undefined) ??
     candidates.find(
       (candidate) =>
-        candidate.kind === session.clientKind &&
-        candidate.capabilities.includes('control.receive'),
+        candidate.kind === session.clientKind && candidate.capabilities.includes('control.receive'),
     ) ??
     candidates.find((candidate) => candidate.capabilities.includes('control.receive')) ??
     exactClient ??

@@ -5,11 +5,7 @@
   "description": "Help users upgrade across a breaking change.",
   "content": "Write a migration guide from {{from}} to {{to}}.\n\nLead with why upgrading is worth it and roughly how much work it is. List the breaking changes, each with a concrete before/after and the exact edit to make. Order them so the reader can work top to bottom. Call out what can be automated, what must be done by hand, and how to verify the migration worked. Be honest about the painful parts rather than hiding them.",
   "category": "documentation",
-  "tags": [
-    "migration",
-    "upgrade",
-    "docs"
-  ],
+  "tags": ["migration", "upgrade", "docs"],
   "source": "builtin",
   "favorite": false,
   "checksum": "fea1e6e6f5903b224082c3d58b407a3714f6e86f65483b0c686a22b676bb8ae1",

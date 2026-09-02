@@ -238,8 +238,22 @@ describe('ToolAuditLog', () => {
   });
 
   it('isolates sessions — corrupting one does not affect the other', async () => {
-    await log.record({ sessionId: 's1', toolName: 'a', toolUseId: 'tu', input: {}, output: 1, isError: false });
-    await log.record({ sessionId: 's2', toolName: 'b', toolUseId: 'tu', input: {}, output: 2, isError: false });
+    await log.record({
+      sessionId: 's1',
+      toolName: 'a',
+      toolUseId: 'tu',
+      input: {},
+      output: 1,
+      isError: false,
+    });
+    await log.record({
+      sessionId: 's2',
+      toolName: 'b',
+      toolUseId: 'tu',
+      input: {},
+      output: 2,
+      isError: false,
+    });
     // Corrupt s2.
     const fp = path.join(dir, 's2.audit.jsonl');
     await fsp.writeFile(fp, '{not json\n', 'utf8');
@@ -293,12 +307,15 @@ describe('ToolAuditLog', () => {
     const fresh = new ToolAuditLog({ dir, events });
     const result = await fresh.verify('s1');
     expect(result).toEqual({ ok: true, entries: 1 });
-    expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-      store: 'audit',
-      operation: 'verify',
-      outcome: 'success',
-      sessionId: 's1',
-    }));
+    expect(events.emit).toHaveBeenCalledWith(
+      'storage.read',
+      expect.objectContaining({
+        store: 'audit',
+        operation: 'verify',
+        outcome: 'success',
+        sessionId: 's1',
+      }),
+    );
   });
 
   it('emits storage.read with outcome failure when verify() finds a broken chain', async () => {
@@ -323,12 +340,15 @@ describe('ToolAuditLog', () => {
     const fresh = new ToolAuditLog({ dir, events });
     const result = await fresh.verify('s1');
     expect(result.ok).toBe(false);
-    expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-      store: 'audit',
-      operation: 'verify',
-      outcome: 'failure',
-      sessionId: 's1',
-    }));
+    expect(events.emit).toHaveBeenCalledWith(
+      'storage.read',
+      expect.objectContaining({
+        store: 'audit',
+        operation: 'verify',
+        outcome: 'failure',
+        sessionId: 's1',
+      }),
+    );
   });
 
   it('emits storage.read with outcome failure when verify() encounters an unreadable file', async () => {
@@ -355,12 +375,15 @@ describe('ToolAuditLog', () => {
       const fresh = new ToolAuditLog({ dir, events });
       const result = await fresh.verify('s1');
       expect(result).toEqual({ ok: true, entries: 0 }); // graceful degradation
-      expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'audit',
-        operation: 'verify',
-        outcome: 'failure',
-        error: expect.stringContaining('EACCES'),
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'audit',
+          operation: 'verify',
+          outcome: 'failure',
+          error: expect.stringContaining('EACCES'),
+        }),
+      );
     } finally {
       vi.mocked(fsp.readFile).mockReset();
     }
@@ -378,12 +401,15 @@ describe('ToolAuditLog', () => {
       isError: false,
     });
     expect(entry.hash).toMatch(/^[a-f0-9]{64}$/);
-    expect(events.emit).toHaveBeenCalledWith('storage.write', expect.objectContaining({
-      store: 'audit',
-      operation: 'record',
-      outcome: 'success',
-      sessionId: 's1',
-    }));
+    expect(events.emit).toHaveBeenCalledWith(
+      'storage.write',
+      expect.objectContaining({
+        store: 'audit',
+        operation: 'record',
+        outcome: 'success',
+        sessionId: 's1',
+      }),
+    );
   });
 
   it('emits storage.error when record() encounters a write failure', async () => {
@@ -403,12 +429,15 @@ describe('ToolAuditLog', () => {
           isError: false,
         }),
       ).rejects.toThrow('ENOSPC');
-      expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-        store: 'audit',
-        operation: 'record',
-        outcome: 'failure',
-        error: expect.stringContaining('ENOSPC'),
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          store: 'audit',
+          operation: 'record',
+          outcome: 'failure',
+          error: expect.stringContaining('ENOSPC'),
+        }),
+      );
     } finally {
       vi.mocked(fsp.writeFile).mockReset();
     }

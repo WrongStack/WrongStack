@@ -95,18 +95,14 @@ function createMockDirector() {
   const assignCalls: { task: TaskSpec }[] = [];
 
   const director = {
-    spawn: vi.fn<Parameters<Director['spawn']>, ReturnType<Director['spawn']>>(
-      async (config) => {
-        spawnCalls.push({ config });
-        return `subagent-${config.name}-${spawnCalls.length}`;
-      },
-    ),
-    assign: vi.fn<Parameters<Director['assign']>, ReturnType<Director['assign']>>(
-      async (task) => {
-        assignCalls.push({ task });
-        return task.id;
-      },
-    ),
+    spawn: vi.fn<Parameters<Director['spawn']>, ReturnType<Director['spawn']>>(async (config) => {
+      spawnCalls.push({ config });
+      return `subagent-${config.name}-${spawnCalls.length}`;
+    }),
+    assign: vi.fn<Parameters<Director['assign']>, ReturnType<Director['assign']>>(async (task) => {
+      assignCalls.push({ task });
+      return task.id;
+    }),
     // Expose calls for assertion
     _spawnCalls: spawnCalls,
     _assignCalls: assignCalls,
@@ -212,7 +208,12 @@ describe('AutonomousCoordinator', () => {
 
       // Security goals should decompose into at least: audit secrets, check injection, dependency audit
       const added = goalAddedEvents as Array<{ type: 'goal:added'; title: string }>;
-      expect(added.some((e) => e.title.toLowerCase().includes('secret') || e.title.toLowerCase().includes('audit'))).toBe(true);
+      expect(
+        added.some(
+          (e) =>
+            e.title.toLowerCase().includes('secret') || e.title.toLowerCase().includes('audit'),
+        ),
+      ).toBe(true);
     });
 
     it('collects multiple event types in a single run', async () => {
@@ -451,8 +452,9 @@ describe('AutonomousCoordinator', () => {
       expect(ready!.taskId).toBe(ready!.goalId);
       expect(director._assignCalls).toHaveLength(1);
       expect(director._assignCalls[0]!.task.id).toBe(ready!.goalId);
-      expect(coordinator.auction.getTasksForAgent(director._assignCalls[0]!.task.subagentId!)[0]!.id)
-        .toBe(ready!.goalId);
+      expect(
+        coordinator.auction.getTasksForAgent(director._assignCalls[0]!.task.subagentId!)[0]!.id,
+      ).toBe(ready!.goalId);
     });
 
     it('treats subagent.completed status=success as task completion and marks the DAG node done', async () => {
@@ -489,18 +491,36 @@ describe('AutonomousCoordinator', () => {
         payload: { subagentId, taskId: assignedTask.id, status: 'success' },
       });
       await vi.waitFor(() => {
-        expect(events.some((event) => event.type === 'task:completed' && event.taskId === assignedTask.id)).toBe(true);
+        expect(
+          events.some(
+            (event) => event.type === 'task:completed' && event.taskId === assignedTask.id,
+          ),
+        ).toBe(true);
       });
 
-      expect(events.some((event) => event.type === 'goal:failed' && event.goalId === assignedTask.id)).toBe(false);
+      expect(
+        events.some((event) => event.type === 'goal:failed' && event.goalId === assignedTask.id),
+      ).toBe(false);
       expect(coordinator.dag.getNode(assignedTask.id)?.status).toBe('done');
-      expect(coordinator.graph.getGoals({ status: 'done' }).some((goal) => goal.id === assignedTask.id)).toBe(true);
-      expect(coordinator.graph.getFacts({ category: 'quality' }).some((fact) =>
-        fact.key === `task-result:${assignedTask.id}` &&
-        fact.detail === 'Subagent completed successfully' &&
-        fact.related.includes(assignedTask.id),
-      )).toBe(true);
-      expect(events.some((event) => event.type === 'knowledge:added' && event.text === 'Subagent completed successfully')).toBe(true);
+      expect(
+        coordinator.graph.getGoals({ status: 'done' }).some((goal) => goal.id === assignedTask.id),
+      ).toBe(true);
+      expect(
+        coordinator.graph
+          .getFacts({ category: 'quality' })
+          .some(
+            (fact) =>
+              fact.key === `task-result:${assignedTask.id}` &&
+              fact.detail === 'Subagent completed successfully' &&
+              fact.related.includes(assignedTask.id),
+          ),
+      ).toBe(true);
+      expect(
+        events.some(
+          (event) =>
+            event.type === 'knowledge:added' && event.text === 'Subagent completed successfully',
+        ),
+      ).toBe(true);
     });
 
     it('creates follow-up goals from NEXT/TODO markers in the subagent result', async () => {
@@ -538,7 +558,12 @@ describe('AutonomousCoordinator', () => {
 
       (fleet.emit as never as (type: string, event: unknown) => void)('subagent.completed', {
         subagentId: assignedTask.subagentId!,
-        payload: { subagentId: assignedTask.subagentId!, taskId: assignedTask.id, status: 'success', result },
+        payload: {
+          subagentId: assignedTask.subagentId!,
+          taskId: assignedTask.id,
+          status: 'success',
+          result,
+        },
       });
       // createGoal() publishes to the graph before _createFollowUpGoalsFromResult()
       // emits its event. Wait for the final event, not merely the first graph
@@ -546,21 +571,32 @@ describe('AutonomousCoordinator', () => {
       await vi.waitFor(() => {
         expect(
           events.some(
-            (event) =>
-              event.type === 'goal:added' && event.title === 'Check telemetry output',
+            (event) => event.type === 'goal:added' && event.title === 'Check telemetry output',
           ),
         ).toBe(true);
       });
 
-      const followUps = coordinator.graph.getGoals({}).filter((goal) => goal.tags.includes('follow-up'));
+      const followUps = coordinator.graph
+        .getGoals({})
+        .filter((goal) => goal.tags.includes('follow-up'));
       expect(followUps.map((goal) => goal.title)).toEqual([
         'Add regression coverage for retry path',
         'Document the retry behavior',
         'Check telemetry output',
       ]);
-      expect(followUps.every((goal) => goal.tags.includes('task-result') && goal.tags.includes(assignedTask.id))).toBe(true);
-      expect(events.filter((event) => event.type === 'goal:added').some((event) => event.title === 'Check telemetry output')).toBe(true);
-      expect(coordinator.graph.getFacts({ category: 'quality' }).some((fact) => fact.detail === result)).toBe(true);
+      expect(
+        followUps.every(
+          (goal) => goal.tags.includes('task-result') && goal.tags.includes(assignedTask.id),
+        ),
+      ).toBe(true);
+      expect(
+        events
+          .filter((event) => event.type === 'goal:added')
+          .some((event) => event.title === 'Check telemetry output'),
+      ).toBe(true);
+      expect(
+        coordinator.graph.getFacts({ category: 'quality' }).some((fact) => fact.detail === result),
+      ).toBe(true);
     });
   });
 
@@ -578,9 +614,13 @@ describe('AutonomousCoordinator', () => {
 
       const events: CoordinatorEvent[] = [];
       // Intercept events by providing a callback
-      const realCoordinator = Object.assign(Object.create(Object.getPrototypeOf(coordinator)), coordinator, {
-        onCoordinatorEvent: (e: CoordinatorEvent) => events.push(e),
-      });
+      const realCoordinator = Object.assign(
+        Object.create(Object.getPrototypeOf(coordinator)),
+        coordinator,
+        {
+          onCoordinatorEvent: (e: CoordinatorEvent) => events.push(e),
+        },
+      );
 
       await realCoordinator.run({ goal: 'audit security vulnerabilities', maxIterations: 1 });
 
@@ -608,9 +648,13 @@ describe('AutonomousCoordinator', () => {
       });
 
       const events: CoordinatorEvent[] = [];
-      const realCoordinator = Object.assign(Object.create(Object.getPrototypeOf(coordinator)), coordinator, {
-        onCoordinatorEvent: (e: CoordinatorEvent) => events.push(e),
-      });
+      const realCoordinator = Object.assign(
+        Object.create(Object.getPrototypeOf(coordinator)),
+        coordinator,
+        {
+          onCoordinatorEvent: (e: CoordinatorEvent) => events.push(e),
+        },
+      );
 
       await realCoordinator.run({ goal: 'fix null pointer bug', maxIterations: 1 });
 
@@ -641,7 +685,16 @@ describe('AutonomousCoordinator', () => {
     it('accepts all valid fact categories', async () => {
       const { coordinator } = createCoordinator();
 
-      const categories = ['bug', 'perf', 'security', 'refactor', 'test', 'architecture', 'deps', 'quality'] as const;
+      const categories = [
+        'bug',
+        'perf',
+        'security',
+        'refactor',
+        'test',
+        'architecture',
+        'deps',
+        'quality',
+      ] as const;
 
       for (const category of categories) {
         await expect(
@@ -783,7 +836,7 @@ describe('AutonomousCoordinator', () => {
       });
 
       // Advance past all 3 bid windows (100ms × 3 = 300ms) plus a small buffer
-      await vi.advanceTimersByTimeAsync((BID_WINDOW_MS * MAX_RETRIES) + 50);
+      await vi.advanceTimersByTimeAsync(BID_WINDOW_MS * MAX_RETRIES + 50);
 
       vi.useRealTimers();
 
@@ -818,7 +871,7 @@ describe('AutonomousCoordinator', () => {
       });
 
       // Advance past exactly 2 bid windows (should fail on 2nd evaluation)
-      await vi.advanceTimersByTimeAsync((BID_WINDOW_MS * MAX_RETRIES) + 30);
+      await vi.advanceTimersByTimeAsync(BID_WINDOW_MS * MAX_RETRIES + 30);
 
       vi.useRealTimers();
 
@@ -913,8 +966,8 @@ describe('AutonomousCoordinator', () => {
       }
 
       // Verify goal:failed was emitted to the TUI callback
-      expect(emittedEvents.some(e => e.type === 'goal:failed' && e.goalId === taskId)).toBe(true);
-      const failedEvent = emittedEvents.find(e => e.type === 'goal:failed')!;
+      expect(emittedEvents.some((e) => e.type === 'goal:failed' && e.goalId === taskId)).toBe(true);
+      const failedEvent = emittedEvents.find((e) => e.type === 'goal:failed')!;
       expect(failedEvent.text).toContain('No bids received');
     });
   });

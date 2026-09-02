@@ -5,10 +5,7 @@
   "description": "Turn repetitive tests into one table-driven test.",
   "content": "I have several near-identical tests for: {{behavior}}\n\nCollapse them into one parameterized (table-driven) test: a list of cases, each with inputs and expected output, run through one assertion. Keep each case readable and individually identifiable in the output when it fails. Make sure the cases cover the boundaries, not just the easy middle. Tell me when a case is different enough that it deserves its own named test instead.",
   "category": "testing",
-  "tags": [
-    "table-driven",
-    "parameterized"
-  ],
+  "tags": ["table-driven", "parameterized"],
   "source": "builtin",
   "favorite": false,
   "checksum": "f41616c444c99e6d981636d0d2d4d0573347c5ccef6539076e58160291ee5c45",

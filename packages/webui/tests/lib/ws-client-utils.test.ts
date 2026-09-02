@@ -68,7 +68,12 @@ describe('ws-client-utils', () => {
 
     it('carries the page token into the initial WS URL', () => {
       Object.defineProperty(window, 'location', {
-        value: { hostname: '192.168.1.100', port: '3456', protocol: 'http:', search: '?token=abc 123' },
+        value: {
+          hostname: '192.168.1.100',
+          port: '3456',
+          protocol: 'http:',
+          search: '?token=abc 123',
+        },
         writable: true,
       });
       expect(defaultWsUrl()).toBe('ws://192.168.1.100:3456?token=abc%20123');

@@ -28,13 +28,17 @@ export function parseBrainMarkdown(content: string): BrainDecisionData | null {
   const isIntervention = content.includes('Brain intervention');
   const isCheck = content.includes('Brain check');
   const isDenied = content.includes('Denied:') || content.includes('denied');
-  const isAskHuman = content.includes('needs human judgement') || content.includes('escalated this question');
+  const isAskHuman =
+    content.includes('needs human judgement') || content.includes('escalated this question');
 
   if (!isIntervention && !isCheck && !isDenied && !isAskHuman && !content.startsWith('🧠')) {
     return null;
   }
 
-  const lines = content.split('\n\n').map((l) => l.trim()).filter(Boolean);
+  const lines = content
+    .split('\n\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
   const headline = lines[0] ?? '';
   const question = lines.length > 1 ? lines[1] : undefined;
   const rationale = lines.length > 2 ? lines[2]?.replace(/^[_*]+|[_*]+$/g, '') : undefined;
@@ -80,8 +84,14 @@ export function parseBrainMarkdown(content: string): BrainDecisionData | null {
 const RISK_BADGES: Record<string, { label: string; badge: string }> = {
   low: { label: 'Low Risk', badge: 'border-success/30 bg-success/10 text-success' },
   medium: { label: 'Medium Risk', badge: 'border-warning/30 bg-warning/10 text-warning' },
-  high: { label: 'High Risk', badge: 'border-brand-orange/30 bg-brand-orange/10 text-brand-orange' },
-  critical: { label: 'Critical Risk', badge: 'border-destructive/30 bg-destructive/10 text-destructive animate-pulse' },
+  high: {
+    label: 'High Risk',
+    badge: 'border-brand-orange/30 bg-brand-orange/10 text-brand-orange',
+  },
+  critical: {
+    label: 'Critical Risk',
+    badge: 'border-destructive/30 bg-destructive/10 text-destructive animate-pulse',
+  },
 };
 
 interface BrainDecisionCardProps {
@@ -132,7 +142,9 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
       text ? `Directive: ${text}` : '',
       reason ? `Policy Reason: ${reason}` : '',
       rationale ? `Rationale: ${rationale}` : '',
-    ].filter(Boolean).join('\n\n');
+    ]
+      .filter(Boolean)
+      .join('\n\n');
 
     try {
       await navigator.clipboard.writeText(content);
@@ -207,14 +219,24 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
                   <h3 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-1.5">
                     <span>
                       {isIntervention
-                        ? t('activity:brainDecision.interventionTitle', { defaultValue: 'Brain Intervention' })
+                        ? t('activity:brainDecision.interventionTitle', {
+                            defaultValue: 'Brain Intervention',
+                          })
                         : isDenied
-                          ? t('activity:brainDecision.deniedTitle', { defaultValue: 'Brain Policy Guardrail' })
+                          ? t('activity:brainDecision.deniedTitle', {
+                              defaultValue: 'Brain Policy Guardrail',
+                            })
                           : isAskHuman
-                            ? t('activity:brainDecision.askHumanTitle', { defaultValue: 'Brain Human Escalation' })
+                            ? t('activity:brainDecision.askHumanTitle', {
+                                defaultValue: 'Brain Human Escalation',
+                              })
                             : isCheck
-                              ? t('activity:brainDecision.checkTitle', { defaultValue: 'Brain Distress Review' })
-                              : t('activity:brainDecision.title', { defaultValue: 'Brain Arbiter Decision' })}
+                              ? t('activity:brainDecision.checkTitle', {
+                                  defaultValue: 'Brain Distress Review',
+                                })
+                              : t('activity:brainDecision.title', {
+                                  defaultValue: 'Brain Arbiter Decision',
+                                })}
                     </span>
                   </h3>
                   {id ? (
@@ -225,8 +247,12 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {isIntervention
-                    ? t('activity:brainDecision.interventionSubtitle', { defaultValue: 'Autonomous steering signal injected to keep agent on track' })
-                    : t('activity:brainDecision.subtitle', { defaultValue: 'Cognitive reasoning & safety oversight layer' })}
+                    ? t('activity:brainDecision.interventionSubtitle', {
+                        defaultValue: 'Autonomous steering signal injected to keep agent on track',
+                      })
+                    : t('activity:brainDecision.subtitle', {
+                        defaultValue: 'Cognitive reasoning & safety oversight layer',
+                      })}
                 </p>
               </div>
             </div>
@@ -282,7 +308,12 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
 
               {/* Risk Level Badge */}
               {riskInfo ? (
-                <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border shadow-2xs', riskInfo.badge)}>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border shadow-2xs',
+                    riskInfo.badge,
+                  )}
+                >
                   <AlertOctagon className="h-3 w-3" />
                   <span>{riskInfo.label}</span>
                 </span>
@@ -303,7 +334,11 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
             <div className="rounded-xl border border-border/70 bg-surface-1/60 p-3.5 text-xs">
               <div className="flex items-center gap-1.5 font-semibold text-muted-foreground mb-1.5">
                 <HelpCircle className="h-3.5 w-3.5 text-primary" />
-                <span>{t('activity:brainDecision.evaluatedPrompt', { defaultValue: 'Context / Evaluated Trigger:' })}</span>
+                <span>
+                  {t('activity:brainDecision.evaluatedPrompt', {
+                    defaultValue: 'Context / Evaluated Trigger:',
+                  })}
+                </span>
               </div>
               <p className="text-foreground font-medium whitespace-pre-wrap leading-relaxed">
                 {question}
@@ -316,7 +351,11 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
             <div className="rounded-xl border border-warning/35 bg-gradient-to-r from-warning/[0.12] via-warning/[0.06] to-transparent p-4 space-y-2 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-semibold text-warning">
                 <Compass className="h-4 w-4 text-warning" />
-                <span>{t('activity:brainDecision.steeringGuidance', { defaultValue: 'Corrective Guidance Issued to Agent:' })}</span>
+                <span>
+                  {t('activity:brainDecision.steeringGuidance', {
+                    defaultValue: 'Corrective Guidance Issued to Agent:',
+                  })}
+                </span>
               </div>
               <p className="text-sm font-semibold text-foreground leading-relaxed pl-6">
                 {text || rationale || 'Agent distress signal caught and trajectory corrected.'}
@@ -326,36 +365,49 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
             <div className="rounded-xl border border-destructive/35 bg-gradient-to-r from-destructive/[0.12] via-destructive/[0.06] to-transparent p-4 space-y-2 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-semibold text-destructive">
                 <ShieldAlert className="h-4 w-4 text-destructive" />
-                <span>{t('activity:brainDecision.deniedReason', { defaultValue: 'Safety Policy Block:' })}</span>
+                <span>
+                  {t('activity:brainDecision.deniedReason', {
+                    defaultValue: 'Safety Policy Block:',
+                  })}
+                </span>
               </div>
               <p className="text-sm font-semibold text-foreground leading-relaxed pl-6">
-                {reason || text || 'Requested operation was vetoed or denied by Brain arbiter policy.'}
+                {reason ||
+                  text ||
+                  'Requested operation was vetoed or denied by Brain arbiter policy.'}
               </p>
             </div>
           ) : isAskHuman ? (
             <div className="rounded-xl border border-info/35 bg-gradient-to-r from-info/[0.12] via-info/[0.06] to-transparent p-4 space-y-2 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-semibold text-info">
                 <UserCheck className="h-4 w-4 text-info" />
-                <span>{t('activity:brainDecision.humanJudgement', { defaultValue: 'Escalated for Human Judgement:' })}</span>
+                <span>
+                  {t('activity:brainDecision.humanJudgement', {
+                    defaultValue: 'Escalated for Human Judgement:',
+                  })}
+                </span>
               </div>
               <p className="text-sm font-semibold text-foreground leading-relaxed pl-6">
-                {text || 'The Brain determined this decision exceeds autonomous authority and requires human input.'}
+                {text ||
+                  'The Brain determined this decision exceeds autonomous authority and requires human input.'}
               </p>
             </div>
           ) : text ? (
             <div className="rounded-xl border border-primary/35 bg-gradient-to-r from-primary/[0.1] via-primary/[0.05] to-transparent p-4 space-y-2 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-semibold text-primary">
                 <Lightbulb className="h-4 w-4 text-primary" />
-                <span>{t('activity:brainDecision.decisionResult', { defaultValue: 'Brain Strategy & Answer:' })}</span>
+                <span>
+                  {t('activity:brainDecision.decisionResult', {
+                    defaultValue: 'Brain Strategy & Answer:',
+                  })}
+                </span>
                 {optionId ? (
                   <span className="font-mono text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded border border-primary/25">
                     option: {optionId}
                   </span>
                 ) : null}
               </div>
-              <p className="text-sm font-medium text-foreground leading-relaxed pl-6">
-                {text}
-              </p>
+              <p className="text-sm font-medium text-foreground leading-relaxed pl-6">{text}</p>
             </div>
           ) : null}
 
@@ -365,7 +417,11 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 font-semibold text-muted-foreground">
                   <Activity className="h-3.5 w-3.5 text-primary" />
-                  <span>{t('activity:brainDecision.cognitiveRationale', { defaultValue: 'Cognitive Rationale & Policy Trace' })}</span>
+                  <span>
+                    {t('activity:brainDecision.cognitiveRationale', {
+                      defaultValue: 'Cognitive Rationale & Policy Trace',
+                    })}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -402,7 +458,9 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
                   />
                 </div>
               </div>
-              <span className="font-mono text-[11px] font-bold text-foreground">{(confidence * 100).toFixed(0)}%</span>
+              <span className="font-mono text-[11px] font-bold text-foreground">
+                {(confidence * 100).toFixed(0)}%
+              </span>
             </div>
           ) : null}
         </div>

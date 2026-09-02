@@ -73,7 +73,8 @@ export function createMcpControlTool(opts: CreateMcpControlToolOptions): Tool {
       action: {
         type: 'string',
         enum: ['list', 'search', 'enable', 'disable', 'restart', 'activate', 'deactivate'],
-        description: 'The management action to perform. activate/deactivate toggle tool registration ephemerally without disconnecting.',
+        description:
+          'The management action to perform. activate/deactivate toggle tool registration ephemerally without disconnecting.',
       },
       /** Filter for `search`. Matches server name or description case-insensitively. */
       query: {
@@ -106,7 +107,11 @@ export function createMcpControlTool(opts: CreateMcpControlToolOptions): Tool {
     capabilities: [ToolCapabilities.CONFIG_MUTATE],
     inputSchema,
     async execute(raw) {
-      const input = raw as { action: string; query?: string | undefined; server?: string | undefined };
+      const input = raw as {
+        action: string;
+        query?: string | undefined;
+        server?: string | undefined;
+      };
       return mcpControlDispatch(input, { getConfig, configPath, registry });
     },
   };
@@ -121,13 +126,20 @@ async function mcpControlDispatch(
   const { action, query, server } = input;
 
   switch (action) {
-    case 'list':  return renderList(deps);
-    case 'search': return renderSearch(query ?? '', deps);
-    case 'enable': return server ? runEnable(server, deps) : '`server` is required for enable.';
-    case 'disable': return server ? runDisable(server, deps) : '`server` is required for disable.';
-    case 'restart': return server ? runRestart(server, deps) : '`server` is required for restart.';
-    case 'activate': return server ? runActivate(server, deps) : '`server` is required for activate.';
-    case 'deactivate': return server ? runDeactivate(server, deps) : '`server` is required for deactivate.';
+    case 'list':
+      return renderList(deps);
+    case 'search':
+      return renderSearch(query ?? '', deps);
+    case 'enable':
+      return server ? runEnable(server, deps) : '`server` is required for enable.';
+    case 'disable':
+      return server ? runDisable(server, deps) : '`server` is required for disable.';
+    case 'restart':
+      return server ? runRestart(server, deps) : '`server` is required for restart.';
+    case 'activate':
+      return server ? runActivate(server, deps) : '`server` is required for activate.';
+    case 'deactivate':
+      return server ? runDeactivate(server, deps) : '`server` is required for deactivate.';
     default:
       return `Unknown action "${action}". Use one of: list, search, enable, disable, restart, activate, deactivate.`;
   }
@@ -135,7 +147,11 @@ async function mcpControlDispatch(
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
-async function renderList(deps: { getConfig: () => Config; configPath: string; registry: MCPRegistryHandle }): Promise<string> {
+async function renderList(deps: {
+  getConfig: () => Config;
+  configPath: string;
+  registry: MCPRegistryHandle;
+}): Promise<string> {
   const configured = await getConfiguredMcpServers(deps);
   const live = deps.registry.describe();
 
@@ -154,9 +170,7 @@ async function renderList(deps: { getConfig: () => Config; configPath: string; r
     const liveInfo = liveMap.get(name);
     const toolCount = liveInfo ? ` (${liveInfo.toolCount} tools)` : '';
     const stateStr = liveInfo ? badge(liveInfo.state) : dim('○ not loaded');
-    const enabled = cfg.enabled === false
-      ? `${dim('disabled')}  `
-      : `${green('● enabled')}  `;
+    const enabled = cfg.enabled === false ? `${dim('disabled')}  ` : `${green('● enabled')}  `;
     lines.push(`  ${bold(name)}  ${enabled}${stateStr}${toolCount}`);
     if (cfg.description) lines.push(`    ${dim(cfg.description)}`);
   }
@@ -180,16 +194,14 @@ async function renderSearch(
   // Match against configured servers first, then remaining presets
   const configuredEntries = Object.entries(configured).filter(
     ([name, cfg]) =>
-      name.toLowerCase().includes(q) ||
-      (cfg.description ?? '').toLowerCase().includes(q),
+      name.toLowerCase().includes(q) || (cfg.description ?? '').toLowerCase().includes(q),
   );
 
   const unconfiguredEntries = Object.entries(all)
     .filter(([name]) => !configuredNames.has(name))
     .filter(
       ([name, cfg]) =>
-        name.toLowerCase().includes(q) ||
-        (cfg.description ?? '').toLowerCase().includes(q),
+        name.toLowerCase().includes(q) || (cfg.description ?? '').toLowerCase().includes(q),
     );
 
   const lines: string[] = [];
@@ -216,7 +228,9 @@ async function renderSearch(
   }
 
   const total = configuredEntries.length + unconfiguredEntries.length;
-  lines.push(dim(`  ${total} server${total !== 1 ? 's' : ''} shown. Run \`enable\` on one to activate it.`));
+  lines.push(
+    dim(`  ${total} server${total !== 1 ? 's' : ''} shown. Run \`enable\` on one to activate it.`),
+  );
   return lines.join('\n');
 }
 
@@ -224,7 +238,8 @@ async function runEnable(
   name: string | undefined,
   deps: { getConfig: () => Config; configPath: string; registry: MCPRegistryHandle },
 ): Promise<string> {
-  if (!name) return '`server` is required for enable. Example: { action: "enable", server: "github" }';
+  if (!name)
+    return '`server` is required for enable. Example: { action: "enable", server: "github" }';
 
   const all = allServers();
   const configured = deps.getConfig().mcpServers ?? {};
@@ -271,7 +286,8 @@ async function runDisable(
   name: string | undefined,
   deps: { getConfig: () => Config; configPath: string; registry: MCPRegistryHandle },
 ): Promise<string> {
-  if (!name) return '`server` is required for disable. Example: { action: "disable", server: "github" }';
+  if (!name)
+    return '`server` is required for disable. Example: { action: "disable", server: "github" }';
 
   const configured = deps.getConfig().mcpServers ?? {};
   // Phase 3 truthiness sweep: hasOwn guard — `name` is agent-controlled, the
@@ -286,9 +302,7 @@ async function runDisable(
   // not satisfy the lookup (Phase 3 truthiness sweep).
   await updateJsonObjectFile(deps.configPath, (full) => {
     const current = isMcpServerRecord(full.mcpServers) ? full.mcpServers : {};
-    const existing = expectDefined(
-      Object.hasOwn(current, name) ? current[name] : undefined,
-    );
+    const existing = expectDefined(Object.hasOwn(current, name) ? current[name] : undefined);
     setJsonPath(full, ['mcpServers', name], { ...existing, enabled: false });
   });
 
@@ -305,7 +319,8 @@ async function runRestart(
   name: string | undefined,
   deps: { getConfig: () => Config; configPath: string; registry: MCPRegistryHandle },
 ): Promise<string> {
-  if (!name) return '`server` is required for restart. Example: { action: "restart", server: "github" }';
+  if (!name)
+    return '`server` is required for restart. Example: { action: "restart", server: "github" }';
 
   const configured = deps.getConfig().mcpServers ?? {};
   // Phase 3 truthiness sweep: hasOwn guard on the JSON-derived record.
@@ -373,7 +388,10 @@ async function runDeactivate(
 
 // ── Config helpers ──────────────────────────────────────────────────────────────
 
-async function getConfiguredMcpServers(deps: { getConfig: () => Config; configPath: string }): Promise<Record<string, MCPServerConfig>> {
+async function getConfiguredMcpServers(deps: {
+  getConfig: () => Config;
+  configPath: string;
+}): Promise<Record<string, MCPServerConfig>> {
   const diskConfig = await readJsonObjectFile(deps.configPath);
   if (isMcpServerRecord(diskConfig.mcpServers)) return diskConfig.mcpServers;
   return deps.getConfig().mcpServers ?? {};
@@ -389,19 +407,35 @@ function isMcpServerRecord(value: unknown): value is Record<string, MCPServerCon
 // former colour helpers are now plain pass-throughs kept only to preserve the
 // call-site structure. The unicode glyphs (● ○ ✓ ✗ ◐ ◑) carry the state.
 
-function bold(s: string)  { return s; }
-function dim(s: string)  { return s; }
-function green(s: string) { return s; }
-function yellow(s: string){ return s; }
-function red(s: string)   { return s; }
+function bold(s: string) {
+  return s;
+}
+function dim(s: string) {
+  return s;
+}
+function green(s: string) {
+  return s;
+}
+function yellow(s: string) {
+  return s;
+}
+function red(s: string) {
+  return s;
+}
 
 function badge(state: string): string {
   switch (state) {
-    case 'connected':    return '● connected';
-    case 'connecting':   return '◐ connecting';
-    case 'reconnecting': return '◑ reconnecting';
-    case 'disconnected': return '○ disconnected';
-    case 'failed':       return '✗ failed';
-    default:            return state;
+    case 'connected':
+      return '● connected';
+    case 'connecting':
+      return '◐ connecting';
+    case 'reconnecting':
+      return '◑ reconnecting';
+    case 'disconnected':
+      return '○ disconnected';
+    case 'failed':
+      return '✗ failed';
+    default:
+      return state;
   }
 }

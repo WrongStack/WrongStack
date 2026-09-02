@@ -1,9 +1,6 @@
 import type { MemoryPort, MemoryScope } from '@wrongstack/core/types';
 import { getSageSurface } from '@wrongstack/sage';
-import {
-  KIND_EMOJI,
-  SCOPE_LABEL,
-} from './memory-slash-format.js';
+import { KIND_EMOJI, SCOPE_LABEL } from './memory-slash-format.js';
 import {
   computeStats,
   type SageLike,
@@ -156,11 +153,13 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
         const kindMatch = remaining.match(/--kind\s+(\w+)/);
         const kindVal = kindMatch?.[1];
         const limitMatch = remaining.match(/--limit\s+(\d+)/);
-        const limitVal = limitMatch ? Math.min(MAX_MEMORY_LIMIT, Math.max(1, Number.parseInt(limitMatch[1]!, 10))) : DEFAULT_MEMORY_LIMIT;
+        const limitVal = limitMatch
+          ? Math.min(MAX_MEMORY_LIMIT, Math.max(1, Number.parseInt(limitMatch[1]!, 10)))
+          : DEFAULT_MEMORY_LIMIT;
         // Positional query: strip flags — use exact token matching for --relations,
         // regex for flags that carry a value argument
         const query = remainingTokens
-          .filter(t => t !== '--relations')
+          .filter((t) => t !== '--relations')
           .join(' ')
           .replace(/--status\s+\w+/g, '')
           .replace(/--kind\s+\w+/g, '')
@@ -168,13 +167,20 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
           .trim();
 
         // Runtime-validate --status against known SageStatus values
-        if (statusVal !== undefined && !(MEMORY_STATUS_VALUES as readonly string[]).includes(statusVal)) {
-          return { message: `Invalid --status "${statusVal}". Valid: ${MEMORY_STATUS_VALUES.join(', ')}` };
+        if (
+          statusVal !== undefined &&
+          !(MEMORY_STATUS_VALUES as readonly string[]).includes(statusVal)
+        ) {
+          return {
+            message: `Invalid --status "${statusVal}". Valid: ${MEMORY_STATUS_VALUES.join(', ')}`,
+          };
         }
         if (kindVal !== undefined && !(MEMORY_KIND_VALUES as readonly string[]).includes(kindVal)) {
-          return { message: `Invalid --kind "${kindVal}". Valid: ${MEMORY_KIND_VALUES.join(', ')}` };
+          return {
+            message: `Invalid --kind "${kindVal}". Valid: ${MEMORY_KIND_VALUES.join(', ')}`,
+          };
         }
-        const resolvedStatus = statusVal as typeof MEMORY_STATUS_VALUES[number] | undefined;
+        const resolvedStatus = statusVal as (typeof MEMORY_STATUS_VALUES)[number] | undefined;
 
         try {
           const page = await Sage.listSagePage({
@@ -230,12 +236,21 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
           for (const mem of page.memories) {
             const kindEmoji = KIND_EMOJI[mem.kind as keyof typeof KIND_EMOJI] ?? '•';
             const textPreview = mem.text.length > 120 ? `${mem.text.slice(0, 118)}…` : mem.text;
-            const tags = mem.tags.length > 0 ? ` 🏷️ ${mem.tags.map((t) => `\`${t}\``).join(' ')}` : '';
+            const tags =
+              mem.tags.length > 0 ? ` 🏷️ ${mem.tags.map((t) => `\`${t}\``).join(' ')}` : '';
             lines.push(`> ${kindEmoji} **${textPreview}**`);
-            lines.push(`> \`${mem.id}\` · ${mem.kind} · ${mem.status} · importance ${mem.importance} · confidence ${mem.confidence}`);
+            lines.push(
+              `> \`${mem.id}\` · ${mem.kind} · ${mem.status} · importance ${mem.importance} · confidence ${mem.confidence}`,
+            );
             if (tags) lines.push(`> ${tags.slice(1).trim()}`);
             // Anchor info
-            const anchor = mem.anchors?.find((a: { path?: string | undefined; symbol?: string | undefined; command?: string | undefined }) => a.path || a.symbol || a.command);
+            const anchor = mem.anchors?.find(
+              (a: {
+                path?: string | undefined;
+                symbol?: string | undefined;
+                command?: string | undefined;
+              }) => a.path || a.symbol || a.command,
+            );
             if (anchor) {
               lines.push(`> 📎 \`${anchor.path ?? anchor.symbol ?? anchor.command ?? ''}\``);
             }
@@ -255,7 +270,9 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
           // Footer
           const moreAvailable = page.total > page.memories.length;
           if (moreAvailable) {
-            lines.push(`*Showing ${page.memories.length} of ${page.total} — use \`/memory gather --limit ${Math.min(MAX_MEMORY_LIMIT, limitVal * 2)}\` for more*`);
+            lines.push(
+              `*Showing ${page.memories.length} of ${page.total} — use \`/memory gather --limit ${Math.min(MAX_MEMORY_LIMIT, limitVal * 2)}\` for more*`,
+            );
           }
 
           return { message: lines.join('\n') };

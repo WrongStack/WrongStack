@@ -121,10 +121,7 @@ beforeEach(() => {
 
 describe('formerly zero-statement CLI modules', () => {
   it('executes the inactive eternal-loop branch', async () => {
-    const result = await runReplEternalLoop(
-      { getAutonomy: () => 'auto' } as never,
-      vi.fn(),
-    );
+    const result = await runReplEternalLoop({ getAutonomy: () => 'auto' } as never, vi.fn());
     expect(result).toBe(false);
   });
 

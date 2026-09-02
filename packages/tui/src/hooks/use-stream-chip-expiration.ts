@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { isChipExpired, type ChipMeta, type StatuslineItem } from '../components/statusline-picker.js';
+import {
+  isChipExpired,
+  type ChipMeta,
+  type StatuslineItem,
+} from '../components/statusline-picker.js';
 
 type StreamChipAction =
   | { type: 'statuslineChipShow'; key: StatuslineItem; expiresIn: number }

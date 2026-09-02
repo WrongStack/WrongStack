@@ -19,11 +19,7 @@ interface SqliteRecoveryContext {
   emit(event: string, payload: Record<string, unknown>): void;
 }
 
-function backfillRecord(
-  memory: Sage,
-  reason: string,
-  newActiveId?: string,
-): SageBackfillRecord {
+function backfillRecord(memory: Sage, reason: string, newActiveId?: string): SageBackfillRecord {
   return {
     originalId: memory.id,
     ...(newActiveId ? { newActiveId } : {}),
@@ -61,9 +57,7 @@ export async function recoverSqliteSage(
   if (memory.status === 'superseded') {
     const head = followSupersededHead(ctx, memory);
     if (!head) {
-      throw new Error(
-        `SAGE "${id}" is superseded but its active chain head is unavailable.`,
-      );
+      throw new Error(`SAGE "${id}" is superseded but its active chain head is unavailable.`);
     }
     ctx.audit('memory.recover_noop', {
       memoryId: id,
@@ -74,9 +68,7 @@ export async function recoverSqliteSage(
     return head;
   }
   if (memory.status !== 'deleted') {
-    throw new Error(
-      `SAGE "${id}" has status "${memory.status}" and cannot be recovered.`,
-    );
+    throw new Error(`SAGE "${id}" has status "${memory.status}" and cannot be recovered.`);
   }
 
   return ctx.runMutation(() => {

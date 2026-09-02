@@ -47,27 +47,30 @@ function mkSkillLoader(
 ): SkillLoader {
   const byName = new Map(skills.map((s) => [s.name, s]));
   return {
-    list: async () => skills.map((s) => ({
-      name: s.name,
-      description: s.trigger ?? '',
-      path: `/mock/${s.name}`,
-      source: 'bundled' as const,
-    })),
-    listEntries: async () => skills.map((s) => ({
-      name: s.name,
-      trigger: s.trigger ?? '',
-      scope: s.scope ?? [],
-      source: 'bundled' as const,
-      path: `/mock/${s.name}`,
-    })),
-    find: async (name: string) => byName.has(name)
-      ? {
-          name,
-          description: byName.get(name)!.trigger ?? '',
-          path: `/mock/${name}`,
-          source: 'bundled' as const,
-        }
-      : undefined,
+    list: async () =>
+      skills.map((s) => ({
+        name: s.name,
+        description: s.trigger ?? '',
+        path: `/mock/${s.name}`,
+        source: 'bundled' as const,
+      })),
+    listEntries: async () =>
+      skills.map((s) => ({
+        name: s.name,
+        trigger: s.trigger ?? '',
+        scope: s.scope ?? [],
+        source: 'bundled' as const,
+        path: `/mock/${s.name}`,
+      })),
+    find: async (name: string) =>
+      byName.has(name)
+        ? {
+            name,
+            description: byName.get(name)!.trigger ?? '',
+            path: `/mock/${name}`,
+            source: 'bundled' as const,
+          }
+        : undefined,
     manifestText: async () => '',
     readBody: async (name: string) => byName.get(name)?.body ?? '',
     readSaveBody: async (name: string) => {
@@ -92,14 +95,7 @@ describe('DefaultSystemPromptBuilder — I-area skill injection', () => {
   });
 
   async function buildWithSkills(
-    mode:
-      | 'off'
-      | 'minimal'
-      | 'light'
-      | 'medium'
-      | 'aggressive'
-      | boolean
-      | undefined,
+    mode: 'off' | 'minimal' | 'light' | 'medium' | 'aggressive' | boolean | undefined,
     skills: SkillLoader,
     extra: Record<string, unknown> = {},
   ): Promise<string> {
@@ -215,7 +211,11 @@ describe('DefaultSystemPromptBuilder — I-area skill injection', () => {
     it('two skills with overlapping (not identical) triggers both appear', async () => {
       const loader = mkSkillLoader([
         { name: 'webui', trigger: 'Use when working with the webui tab.', body: 'webui body' },
-        { name: 'webui-tabs', trigger: 'Use when working with the webui tab and tabs.', body: 'tabs body' },
+        {
+          name: 'webui-tabs',
+          trigger: 'Use when working with the webui tab and tabs.',
+          body: 'tabs body',
+        },
       ]);
       const p = await buildWithSkills('off', loader);
       expect(p).toContain('**webui**');
@@ -247,10 +247,9 @@ describe('DefaultSystemPromptBuilder — I-area skill injection', () => {
     });
 
     it('long trigger is truncated by compactTrigger to ~72 chars', async () => {
-      const longTrigger = 'Use when doing something really really long that exceeds the seventy-two character truncation limit and needs to be shortened.';
-      const loader = mkSkillLoader([
-        { name: 'long-trigger', trigger: longTrigger, body: 'body' },
-      ]);
+      const longTrigger =
+        'Use when doing something really really long that exceeds the seventy-two character truncation limit and needs to be shortened.';
+      const loader = mkSkillLoader([{ name: 'long-trigger', trigger: longTrigger, body: 'body' }]);
       const p = await buildWithSkills('off', loader);
       // The compact form drops the "Use when " prefix and truncates with …
       expect(p).toContain('…');
@@ -314,10 +313,7 @@ describe('DefaultSystemPromptBuilder — I-area skill injection', () => {
         expect(p.split(s.body).length - 1).toBe(1);
       }
       // Total body content is roughly 5 × 10 KB = 50 KB
-      const totalBodyBytes = skills.reduce(
-        (n, s) => n + s.body.length,
-        0,
-      );
+      const totalBodyBytes = skills.reduce((n, s) => n + s.body.length, 0);
       // Prompt contains the body content but might be wrapped
       // (e.g. with `## Skill: name` headers). Just verify it's
       // there in aggregate.

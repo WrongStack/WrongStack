@@ -1,16 +1,10 @@
 import type * as http from 'node:http';
-import type {
-  HqTimeseriesSample,
-} from '@wrongstack/core/hq';
+import type { HqTimeseriesSample } from '@wrongstack/core/hq';
 import type { createHqPersistence } from '@wrongstack/core/hq';
 import type { WebSocket } from 'ws';
 import * as HqServerSnapshot from '../snapshot.js';
-import type {
-  ConnectedClient,
-} from '../types.js';
-import {
-  decodePathSegment,
-} from '../utils.js';
+import type { ConnectedClient } from '../types.js';
+import { decodePathSegment } from '../utils.js';
 
 export async function handleApiProjectDetail(
   _req: http.IncomingMessage,

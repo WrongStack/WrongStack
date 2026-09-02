@@ -52,9 +52,7 @@ export function initVectorSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS idx_entries_scope ON entries(scope)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_entries_kind ON entries(kind)');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_hash ON entries(content_hash)');
-  db.exec(
-    'CREATE INDEX IF NOT EXISTS idx_entries_updated ON entries(updated_at DESC)',
-  );
+  db.exec('CREATE INDEX IF NOT EXISTS idx_entries_updated ON entries(updated_at DESC)');
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS vectors (
@@ -147,15 +145,7 @@ export function upsertEmbeddingCache(
        last_used_at = excluded.last_used_at,
        use_count = embedding_cache.use_count + 1,
        vector = excluded.vector`,
-  ).run(
-    row.contentHash,
-    row.providerId,
-    row.dimensions,
-    row.vector,
-    row.text,
-    row.now,
-    row.now,
-  );
+  ).run(row.contentHash, row.providerId, row.dimensions, row.vector, row.text, row.now, row.now);
 }
 
 /**
@@ -175,9 +165,7 @@ export function lookupEmbeddingCache(
         WHERE content_hash = ? AND provider_id = ? AND dimensions = ?
         LIMIT 1`,
     )
-    .get(contentHash, providerId, dimensions) as
-    | { vector: Buffer | Uint8Array }
-    | undefined;
+    .get(contentHash, providerId, dimensions) as { vector: Buffer | Uint8Array } | undefined;
   if (!row) return undefined;
   // Best-effort: bump usage counter. Don't fail the read if the UPDATE
   // races with a cache eviction — the read result is already valid.

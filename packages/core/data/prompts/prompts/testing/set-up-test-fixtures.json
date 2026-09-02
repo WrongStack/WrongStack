@@ -5,10 +5,7 @@
   "description": "Build clean, reusable test setup and data.",
   "content": "My tests for {{subject}} need setup and test data.\n\nDesign the fixtures: what to build once versus per-test, how to keep each test isolated (no shared mutable state leaking between them), and how to make the data obvious rather than magic. Prefer builders or factories with sensible defaults over sprawling literals. Keep setup close to the test so a reader sees what matters. Flag any fixture that couples unrelated tests together.",
   "category": "testing",
-  "tags": [
-    "fixtures",
-    "setup"
-  ],
+  "tags": ["fixtures", "setup"],
   "source": "builtin",
   "favorite": false,
   "checksum": "6c39501e332490340c321e24c767c0d628407206ad2712aabc86cb4ef794236d",

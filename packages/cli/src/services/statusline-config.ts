@@ -138,9 +138,7 @@ function parseDocument(value: unknown): StatuslineDocument {
 }
 
 function isMissingKnownChips(value: unknown): boolean {
-  return (
-    !isRecord(value) || STATUSLINE_CONFIG_KEYS.some((key) => typeof value[key] !== 'boolean')
-  );
+  return !isRecord(value) || STATUSLINE_CONFIG_KEYS.some((key) => typeof value[key] !== 'boolean');
 }
 
 /**

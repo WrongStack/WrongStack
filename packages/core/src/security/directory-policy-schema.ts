@@ -43,7 +43,13 @@ export type DirectoryPolicyValidationResult =
   | { ok: true; policy: DirectoryPolicy; diagnostics: DirectoryPolicyDiagnostic[] }
   | { ok: false; diagnostics: DirectoryPolicyDiagnostic[] };
 
-const RULE_FIELDS = new Set(['directory', 'description', 'denyTools', 'denyProviders', 'allowOnlyTools']);
+const RULE_FIELDS = new Set([
+  'directory',
+  'description',
+  'denyTools',
+  'denyProviders',
+  'allowOnlyTools',
+]);
 const UNSAFE_PROPERTY_NAMES = new Set(['__proto__', 'prototype', 'constructor']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -82,7 +88,12 @@ function validateStringList(
     return undefined;
   }
   if (value.length > limits.maxItems) {
-    error(diagnostics, limits.tooManyCode, path, `must contain at most ${limits.maxItems} ${limits.itemLabel}s`);
+    error(
+      diagnostics,
+      limits.tooManyCode,
+      path,
+      `must contain at most ${limits.maxItems} ${limits.itemLabel}s`,
+    );
     return undefined;
   }
 
@@ -100,7 +111,12 @@ function validateStringList(
       continue;
     }
     if (UNSAFE_PROPERTY_NAMES.has(entry)) {
-      error(diagnostics, limits.itemErrorCode, itemPath, `reserved name "${entry}" is not a valid ${limits.itemLabel}`);
+      error(
+        diagnostics,
+        limits.itemErrorCode,
+        itemPath,
+        `reserved name "${entry}" is not a valid ${limits.itemLabel}`,
+      );
       continue;
     }
     if (seen.has(entry)) {
@@ -133,8 +149,17 @@ function validateRule(
   }
 
   const directory = value['directory'];
-  if (typeof directory !== 'string' || directory.length === 0 || directory.length > DIRECTORY_POLICY_LIMITS.maxDirectoryChars) {
-    error(diagnostics, 'invalid_directory', `${rulePath}.directory`, `must be a non-empty glob string up to ${DIRECTORY_POLICY_LIMITS.maxDirectoryChars} characters`);
+  if (
+    typeof directory !== 'string' ||
+    directory.length === 0 ||
+    directory.length > DIRECTORY_POLICY_LIMITS.maxDirectoryChars
+  ) {
+    error(
+      diagnostics,
+      'invalid_directory',
+      `${rulePath}.directory`,
+      `must be a non-empty glob string up to ${DIRECTORY_POLICY_LIMITS.maxDirectoryChars} characters`,
+    );
     return undefined;
   }
 
@@ -152,8 +177,16 @@ function validateRule(
   const description = value['description'];
   let normalizedDescription: string | undefined;
   if (description !== undefined) {
-    if (typeof description !== 'string' || description.length > DIRECTORY_POLICY_LIMITS.maxDescriptionChars) {
-      error(diagnostics, 'invalid_rule', `${rulePath}.description`, `must be a string up to ${DIRECTORY_POLICY_LIMITS.maxDescriptionChars} characters`);
+    if (
+      typeof description !== 'string' ||
+      description.length > DIRECTORY_POLICY_LIMITS.maxDescriptionChars
+    ) {
+      error(
+        diagnostics,
+        'invalid_rule',
+        `${rulePath}.description`,
+        `must be a string up to ${DIRECTORY_POLICY_LIMITS.maxDescriptionChars} characters`,
+      );
     } else {
       normalizedDescription = description;
     }
@@ -175,26 +208,36 @@ function validateRule(
   }
 
   if (value['denyProviders'] !== undefined) {
-    const denyProviders = validateStringList(value['denyProviders'], `${rulePath}.denyProviders`, diagnostics, {
-      maxItems: DIRECTORY_POLICY_LIMITS.maxDenyProvidersPerRule,
-      maxChars: DIRECTORY_POLICY_LIMITS.maxProviderIdChars,
-      itemLabel: 'provider id',
-      listErrorCode: 'invalid_deny_providers',
-      itemErrorCode: 'invalid_provider_id',
-      tooManyCode: 'too_many_deny_providers',
-    });
+    const denyProviders = validateStringList(
+      value['denyProviders'],
+      `${rulePath}.denyProviders`,
+      diagnostics,
+      {
+        maxItems: DIRECTORY_POLICY_LIMITS.maxDenyProvidersPerRule,
+        maxChars: DIRECTORY_POLICY_LIMITS.maxProviderIdChars,
+        itemLabel: 'provider id',
+        listErrorCode: 'invalid_deny_providers',
+        itemErrorCode: 'invalid_provider_id',
+        tooManyCode: 'too_many_deny_providers',
+      },
+    );
     if (denyProviders) rule.denyProviders = denyProviders;
   }
 
   if (value['allowOnlyTools'] !== undefined) {
-    const allowOnlyTools = validateStringList(value['allowOnlyTools'], `${rulePath}.allowOnlyTools`, diagnostics, {
-      maxItems: DIRECTORY_POLICY_LIMITS.maxAllowOnlyToolsPerRule,
-      maxChars: DIRECTORY_POLICY_LIMITS.maxToolNameChars,
-      itemLabel: 'tool name',
-      listErrorCode: 'invalid_allow_only_tools',
-      itemErrorCode: 'invalid_tool_name',
-      tooManyCode: 'too_many_allow_only_tools',
-    });
+    const allowOnlyTools = validateStringList(
+      value['allowOnlyTools'],
+      `${rulePath}.allowOnlyTools`,
+      diagnostics,
+      {
+        maxItems: DIRECTORY_POLICY_LIMITS.maxAllowOnlyToolsPerRule,
+        maxChars: DIRECTORY_POLICY_LIMITS.maxToolNameChars,
+        itemLabel: 'tool name',
+        listErrorCode: 'invalid_allow_only_tools',
+        itemErrorCode: 'invalid_tool_name',
+        tooManyCode: 'too_many_allow_only_tools',
+      },
+    );
     if (allowOnlyTools) rule.allowOnlyTools = allowOnlyTools;
   }
 
@@ -258,7 +301,12 @@ export function validateDirectoryPolicy(value: unknown): DirectoryPolicyValidati
   }
 
   if (rawRules.length > DIRECTORY_POLICY_LIMITS.maxRules) {
-    error(diagnostics, 'too_many_rules', '$.rules', `must contain at most ${DIRECTORY_POLICY_LIMITS.maxRules} rules`);
+    error(
+      diagnostics,
+      'too_many_rules',
+      '$.rules',
+      `must contain at most ${DIRECTORY_POLICY_LIMITS.maxRules} rules`,
+    );
   }
 
   const rules: DirectoryRule[] = [];
@@ -283,5 +331,9 @@ export function validateDirectoryPolicy(value: unknown): DirectoryPolicyValidati
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
-  return { ok: true, policy: { schemaVersion: DIRECTORY_POLICY_SCHEMA_VERSION, rules }, diagnostics };
+  return {
+    ok: true,
+    policy: { schemaVersion: DIRECTORY_POLICY_SCHEMA_VERSION, rules },
+    diagnostics,
+  };
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { createProviderStore, createConfigWriteLock, type ProviderStore } from '@wrongstack/webui-server';
+import {
+  createProviderStore,
+  createConfigWriteLock,
+  type ProviderStore,
+} from '@wrongstack/webui-server';
 import type { ProviderConfig } from '@wrongstack/core/types';
 
 // Hoisted so vi.mock can reference them at the top level
@@ -19,7 +23,7 @@ vi.mock('node:fs/promises', () => {
 });
 
 vi.mock('@wrongstack/core/utils', async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
     atomicWrite: (...args: unknown[]) => mockAtomicWrite(...args),
@@ -66,7 +70,9 @@ describe('createConfigWriteLock', () => {
 describe('ProviderStore', () => {
   const mockVault = {
     encrypt: vi.fn().mockImplementation((data) => ({ encrypted: data })),
-    decrypt: vi.fn().mockImplementation((data) => (data as { encrypted?: unknown }).encrypted ?? {}),
+    decrypt: vi
+      .fn()
+      .mockImplementation((data) => (data as { encrypted?: unknown }).encrypted ?? {}),
     isEncrypted: vi.fn().mockReturnValue(false),
     encryptSync: vi.fn(),
     decryptSync: vi.fn(),
@@ -81,7 +87,10 @@ describe('ProviderStore', () => {
   });
 
   const makeStore = (): ProviderStore =>
-    createProviderStore({ profileConfigPath: '/test/profiles/default/config.json', vault: mockVault });
+    createProviderStore({
+      profileConfigPath: '/test/profiles/default/config.json',
+      vault: mockVault,
+    });
 
   describe('normalizeKeys', () => {
     it('returns apiKeys array as-is (shallow copy)', () => {
@@ -197,9 +206,11 @@ describe('ProviderStore', () => {
     });
 
     it('decrypts and returns providers from file', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify({
-        providers: { anthropic: { type: 'anthropic', apiKey: 'sk-test' } },
-      }));
+      mockReadFile.mockResolvedValue(
+        JSON.stringify({
+          providers: { anthropic: { type: 'anthropic', apiKey: 'sk-test' } },
+        }),
+      );
       const store = makeStore();
       const result = await store.load();
       expect(mockVault.decrypt).toHaveBeenCalled();

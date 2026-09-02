@@ -5,11 +5,7 @@
   "description": "Document how to deploy and roll back a service safely.",
   "content": "Write a deployment runbook for: {{service}}\n\nInclude: pre-deploy checks, the exact deploy steps, how to verify success (and the specific signals to watch), the rollback procedure, and who to contact if it goes wrong. Write it so a tired on-call engineer can follow it at 3am without prior context. Note the one step most likely to be skipped under pressure.",
   "category": "devops",
-  "tags": [
-    "runbook",
-    "operations",
-    "rollback"
-  ],
+  "tags": ["runbook", "operations", "rollback"],
   "source": "builtin",
   "favorite": false,
   "checksum": "b7bfb9a8aa463cc6187d169976d785da12b2daea2d054e41ed065e53a08329a7",

@@ -143,18 +143,15 @@ const plugin: Plugin = {
       if (toolName !== 'bash' && toolName !== 'exec') return;
 
       const ti = (input.toolInput ?? {}) as Record<string, unknown>;
-      const rawCmd =
-        ti['command'] ??
-        ti['CommandLine'] ??
-        ti['cmd'] ??
-        ti['script'] ??
-        ti['input'];
+      const rawCmd = ti['command'] ?? ti['CommandLine'] ?? ti['cmd'] ?? ti['script'] ?? ti['input'];
       const command = typeof rawCmd === 'string' ? rawCmd : '';
 
       if (!command) return;
 
       // Fast sync check: commands containing known kill patterns
-      const isKillRelated = /\b(?:kill|taskkill|stop-process|tskill|pkill|killall|wmic)\b/i.test(command);
+      const isKillRelated = /\b(?:kill|taskkill|stop-process|tskill|pkill|killall|wmic)\b/i.test(
+        command,
+      );
 
       if (!isKillRelated) return;
 

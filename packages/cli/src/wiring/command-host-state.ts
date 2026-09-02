@@ -74,7 +74,13 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
   input.hqCommandController.terminateAgent = (subagentId) =>
     terminateAgent(input.getDirector(), subagentId);
   input.hqCommandController.spawnAgent = (role, task, maxIterations) =>
-    spawnAgent(input.getDirector(), input.sessionRef.current?.id ?? input.session.id, role, task, maxIterations);
+    spawnAgent(
+      input.getDirector(),
+      input.sessionRef.current?.id ?? input.session.id,
+      role,
+      task,
+      maxIterations,
+    );
 
   const enhanceController = createEnhanceController(input.getConfig());
   const statuslineConfigDeps = createStatuslineConfigDeps();

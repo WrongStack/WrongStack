@@ -5,11 +5,7 @@
   "description": "Build a command-line subcommand with argument parsing and good UX.",
   "content": "Create a CLI command `{{command}}` in {{language}} that: {{behavior}}\n\nRequirements:\n- Parse flags and positional args with clear `--help` output.\n- Validate arguments and exit with a non-zero code and a useful message on error.\n- Support `--json` for machine-readable output where it makes sense.\n- Be quiet on success by default; add `--verbose` for detail.\n- Handle Ctrl+C cleanly.",
   "category": "coding",
-  "tags": [
-    "cli",
-    "ux",
-    "tooling"
-  ],
+  "tags": ["cli", "ux", "tooling"],
   "source": "builtin",
   "favorite": false,
   "checksum": "f6a292e2f88ebae2c77791bdcf2fbb93a0be3994dc6f34eb620e809698172e9a",

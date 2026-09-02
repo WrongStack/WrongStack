@@ -26,12 +26,12 @@ describe('composerStatusFromState (descriptor mapping)', () => {
   });
 
   it('maps running/streaming to the animated working word', () => {
-    expect(composerStatusFromState({ ...base, status: 'running', thinkingWord: 'cooking' })).toEqual(
-      { kind: 'working', word: 'cooking' },
-    );
-    expect(composerStatusFromState({ ...base, status: 'streaming', thinkingWord: 'musing' })).toEqual(
-      { kind: 'working', word: 'musing' },
-    );
+    expect(
+      composerStatusFromState({ ...base, status: 'running', thinkingWord: 'cooking' }),
+    ).toEqual({ kind: 'working', word: 'cooking' });
+    expect(
+      composerStatusFromState({ ...base, status: 'streaming', thinkingWord: 'musing' }),
+    ).toEqual({ kind: 'working', word: 'musing' });
   });
 
   it('maps aborting ahead of a non-empty queue', () => {
@@ -41,7 +41,10 @@ describe('composerStatusFromState (descriptor mapping)', () => {
   });
 
   it('surfaces a queued count when idle with pending input', () => {
-    expect(composerStatusFromState({ ...base, queueCount: 5 })).toEqual({ kind: 'queued', count: 5 });
+    expect(composerStatusFromState({ ...base, queueCount: 5 })).toEqual({
+      kind: 'queued',
+      count: 5,
+    });
   });
 
   it('falls back to idle, carrying the background fleet count', () => {

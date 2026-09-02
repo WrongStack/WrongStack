@@ -5,11 +5,7 @@
   "description": "Define the terms a project keeps using.",
   "content": "Write a glossary for: {{domain}}\n\nList the terms that newcomers stumble on — domain jargon, project-specific words, and overloaded common words used in a special way here. Define each in one or two plain sentences, from the reader's point of view, with an example where it helps. Disambiguate terms that get confused with each other. Skip terms a competent reader already knows. Keep it alphabetical and scannable.",
   "category": "documentation",
-  "tags": [
-    "glossary",
-    "terminology",
-    "docs"
-  ],
+  "tags": ["glossary", "terminology", "docs"],
   "source": "builtin",
   "favorite": false,
   "checksum": "27351d1e61956fe82c989a1603fb7cfd02ca1706bd4c9f11195b5b661b5e478d",

@@ -65,9 +65,10 @@ function unescapeFenceBody(value: string): string {
     .replace(/&amp;/g, '&');
 }
 
-function parseMeta(
-  meta: string | undefined,
-): { relation?: string | undefined; tags?: string[] | undefined } {
+function parseMeta(meta: string | undefined): {
+  relation?: string | undefined;
+  tags?: string[] | undefined;
+} {
   if (!meta) return {};
   const relationMatch = /relation=([^;\]]+)/.exec(meta);
   const tagsMatch = /tags=([^;\]]+)/.exec(meta);

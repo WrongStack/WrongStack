@@ -11,7 +11,8 @@ const FAVORITE_MANAGE_SCHEMA: JSONSchema = {
     action: {
       type: 'string',
       enum: ['list', 'add', 'remove'],
-      description: 'Operation to perform: list (show all), add (add a favorite), remove (remove by index or ref).',
+      description:
+        'Operation to perform: list (show all), add (add a favorite), remove (remove by index or ref).',
     },
     model: {
       type: 'string',
@@ -49,7 +50,8 @@ export function createFavoriteManageTool(
       'Manage your favorite provider/model list. Favorites are the only models ' +
       'that can be added to fallback chains and profiles. The LLM uses this tool ' +
       'to curate which models are available for fallback and role assignment.',
-    usageHint: 'Start with "list" to see current favorites. Use "add <provider/model>" to add. Use "remove <index|ref>" to remove.',
+    usageHint:
+      'Start with "list" to see current favorites. Use "add <provider/model>" to add. Use "remove <index|ref>" to remove.',
     category: 'config',
     inputSchema: FAVORITE_MANAGE_SCHEMA,
     permission: 'auto',
@@ -64,13 +66,17 @@ export function createFavoriteManageTool(
         const msg =
           favorites.length === 0
             ? 'No favorites set. Add one with favorite_manage({ action: "add", model: "<provider/model>" }).'
-            : `Favorites (${favorites.length}):\n` + favorites.map((f, i) => `  ${i + 1}. ${f}`).join('\n');
+            : `Favorites (${favorites.length}):\n` +
+              favorites.map((f, i) => `  ${i + 1}. ${f}`).join('\n');
         return { status: 'ok', message: msg, favorites: [...favorites] };
       }
 
       if (input.action === 'add') {
         if (!input.model) {
-          return { status: 'error', message: 'Provide "model" (e.g. "anthropic/claude-haiku-3") to add a favorite.' };
+          return {
+            status: 'error',
+            message: 'Provide "model" (e.g. "anthropic/claude-haiku-3") to add a favorite.',
+          };
         }
         const ref = normalizeRef(input.model);
         const canonical = normalizeModelRef(ref, config.provider);
@@ -92,31 +98,53 @@ export function createFavoriteManageTool(
         if (input.index !== undefined) {
           const idx = input.index - 1;
           if (idx < 0 || idx >= favorites.length) {
-            return { status: 'error', message: `Index ${input.index} is out of range (1–${favorites.length}).` };
+            return {
+              status: 'error',
+              message: `Index ${input.index} is out of range (1–${favorites.length}).`,
+            };
           }
           const [removed] = favorites.splice(idx, 1);
           await opts.updateConfig((cfg) => {
             cfg.favoriteModels = favorites;
           });
-          return { status: 'ok', message: `✓ Removed favorite: ${removed}`, favorites: [...favorites] };
+          return {
+            status: 'ok',
+            message: `✓ Removed favorite: ${removed}`,
+            favorites: [...favorites],
+          };
         }
         if (input.model) {
           const ref = normalizeRef(input.model);
           const canonical = normalizeModelRef(ref, config.provider);
-          const idx = favorites.findIndex((f) => normalizeModelRef(f, config.provider) === canonical);
+          const idx = favorites.findIndex(
+            (f) => normalizeModelRef(f, config.provider) === canonical,
+          );
           if (idx === -1) {
-            return { status: 'error', message: `Favorite "${ref}" not found. Use "list" to see all favorites.` };
+            return {
+              status: 'error',
+              message: `Favorite "${ref}" not found. Use "list" to see all favorites.`,
+            };
           }
           const [removed] = favorites.splice(idx, 1);
           await opts.updateConfig((cfg) => {
             cfg.favoriteModels = favorites;
           });
-          return { status: 'ok', message: `✓ Removed favorite: ${removed}`, favorites: [...favorites] };
+          return {
+            status: 'ok',
+            message: `✓ Removed favorite: ${removed}`,
+            favorites: [...favorites],
+          };
         }
-        return { status: 'error', message: 'Provide either "model" or "index" to remove a favorite.' };
+        return {
+          status: 'error',
+          message: 'Provide either "model" or "index" to remove a favorite.',
+        };
       }
 
-      return { status: 'error', message: `Unknown action: "${input.action}". Use "list", "add", or "remove".` };
+      return {
+        status: 'error',
+        message: `Unknown action: "${input.action}". Use "list", "add", or "remove".`,
+      };
     },
   };
 }

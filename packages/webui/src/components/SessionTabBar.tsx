@@ -128,8 +128,7 @@ export function SessionTabBar() {
           defaultValue: 'Close this tab?',
         }),
         message: t('activity:sessions.closeHistoryTabMessage', {
-          defaultValue:
-            'This tab contains agent history. Are you sure you want to close it?',
+          defaultValue: 'This tab contains agent history. Are you sure you want to close it?',
         }),
         details: report.lines,
         confirmLabel: t('activity:sessions.closeTabAction', {

@@ -7,10 +7,7 @@ import {
   MIN_CONTAINS_LENGTH,
   MIN_RELATION_STRENGTH,
 } from './tool-call-memory-scoring.js';
-import type {
-  ExtractedTriggerContext,
-  MemoryToolTrigger,
-} from './tool-call-memory-triggers.js';
+import type { ExtractedTriggerContext, MemoryToolTrigger } from './tool-call-memory-triggers.js';
 import { isMutationTrigger } from './tool-call-memory-triggers.js';
 
 export interface RetrievedMemory {
@@ -245,7 +242,8 @@ export function visibleContextText(payload: ToolCallPipelinePayload): string {
   if (typeof payload.result?.content === 'string') {
     parts.push(payload.result.content.toLowerCase());
   }
-  const prompt = (payload.ctx as { systemPrompt?: Array<{ text?: string }> } | undefined)?.systemPrompt;
+  const prompt = (payload.ctx as { systemPrompt?: Array<{ text?: string }> } | undefined)
+    ?.systemPrompt;
   if (Array.isArray(prompt)) {
     for (const block of prompt) {
       if (typeof block?.text === 'string') parts.push(block.text.toLowerCase());

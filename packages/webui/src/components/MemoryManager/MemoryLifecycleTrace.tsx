@@ -23,7 +23,9 @@ export function MemoryLifecycleTrace() {
           {t('activity:memoryManager.lifecycleHeading')}
         </span>
         <span className="text-[10px] text-muted-foreground">
-          {items.length === 0 ? t('activity:memoryManager.statusWaiting') : t('activity:memoryManager.statusLive', { count: items.length })}
+          {items.length === 0
+            ? t('activity:memoryManager.statusWaiting')
+            : t('activity:memoryManager.statusLive', { count: items.length })}
         </span>
         {items.length > 0 && (
           <Button

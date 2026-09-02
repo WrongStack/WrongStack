@@ -26,10 +26,7 @@ import {
   SqliteMemoryPort,
 } from '@wrongstack/sage';
 
-import {
-  wrapMemoryPortWithVectorRecall,
-  VectorMemoryStore,
-} from '../src/index.js';
+import { wrapMemoryPortWithVectorRecall, VectorMemoryStore } from '../src/index.js';
 import { FakeEmbeddingProvider } from './fake-provider.js';
 
 const testRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -49,7 +46,10 @@ describeIfSqlite('SAGE × vector-memory end-to-end augmentation', () => {
   let vectorStore: VectorMemoryStore;
 
   beforeEach(async () => {
-    projectRoot = path.join(os.tmpdir(), `${SUITE_LABEL}-${Math.random().toString(36).slice(2, 8)}`);
+    projectRoot = path.join(
+      os.tmpdir(),
+      `${SUITE_LABEL}-${Math.random().toString(36).slice(2, 8)}`,
+    );
     sagePort = new SqliteMemoryPort({ projectRoot });
     await sagePort.initialize();
 

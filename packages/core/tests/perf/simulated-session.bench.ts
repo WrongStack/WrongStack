@@ -111,9 +111,10 @@ async function runSimulatedSession(
 
       // ── Append assistant response (simulate processResponse) ────────
       const hasTools = i % 3 !== 0; // ~67% of iterations have tool calls
-      const assistantContent: Array<{ type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: unknown }> = [
-        { type: 'text', text: `iteration ${i} response `.repeat(80) },
-      ];
+      const assistantContent: Array<
+        | { type: 'text'; text: string }
+        | { type: 'tool_use'; id: string; name: string; input: unknown }
+      > = [{ type: 'text', text: `iteration ${i} response `.repeat(80) }];
       if (hasTools) {
         for (let t = 0; t < toolsPerIteration; t++) {
           assistantContent.push({
@@ -178,7 +179,9 @@ async function runOldPathSession(
     for (let i = 0; i < iterations; i++) {
       // OLD B4: always scan adjacency regardless of dirty state
       const repaired = repairToolUseAdjacency(messages);
-      if (repaired.report.changed) { /* apply */ }
+      if (repaired.report.changed) {
+        /* apply */
+      }
 
       // OLD B3: two separate estimateRequestTokens calls
       const est1 = estimateRequestTokens(messages, SYSTEM, TOOLS).total;
@@ -241,9 +244,12 @@ async function runOldPathSession(
 }
 
 describe('Old path comparison (pre-B2/B3/B4)', () => {
-  bench('50 iter × 300 msgs × 5 tools (old — always scan, double estimate, sequential appends)', async () => {
-    await runOldPathSession(50, 300, 5);
-  });
+  bench(
+    '50 iter × 300 msgs × 5 tools (old — always scan, double estimate, sequential appends)',
+    async () => {
+      await runOldPathSession(50, 300, 5);
+    },
+  );
 
   bench('100 iter × 500 msgs × 10 tools (heavy, old path)', async () => {
     await runOldPathSession(100, 500, 10);

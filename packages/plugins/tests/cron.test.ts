@@ -80,10 +80,12 @@ describe('cron plugin', () => {
   it('cron_schedule should have correct properties', () => {
     cronPlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'cron_schedule'
+      ([tool]: any[]) => tool.name === 'cron_schedule',
     )?.[0];
 
-    expect(tool.description).toBe('Schedule a recurring action to fire at a fixed interval (in milliseconds). The action is emitted as a custom event for downstream handlers.');
+    expect(tool.description).toBe(
+      'Schedule a recurring action to fire at a fixed interval (in milliseconds). The action is emitted as a custom event for downstream handlers.',
+    );
     expect(tool.permission).toBe('confirm');
     expect(tool.mutating).toBe(false);
   });
@@ -91,7 +93,7 @@ describe('cron plugin', () => {
   it('cron_list should have correct properties', () => {
     cronPlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'cron_list'
+      ([tool]: any[]) => tool.name === 'cron_list',
     )?.[0];
 
     expect(tool.description).toBeDefined();
@@ -102,7 +104,7 @@ describe('cron plugin', () => {
   it('cron_cancel should have correct properties', () => {
     cronPlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([tool]: any[]) => tool.name === 'cron_cancel'
+      ([tool]: any[]) => tool.name === 'cron_cancel',
     )?.[0];
 
     expect(tool.description).toBe('Cancel and remove a cron job by name.');

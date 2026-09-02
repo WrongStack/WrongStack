@@ -141,10 +141,7 @@ describe('probeWrongProxyActive', () => {
     enableProxy('http://localhost:3444/');
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
     await probeWrongProxyActive();
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:3444/api/health',
-      expect.anything(),
-    );
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3444/api/health', expect.anything());
   });
 });
 
@@ -168,7 +165,11 @@ describe('bootstrapWrongProxyFromConfig', () => {
   });
 
   it('leaves the singleton disabled when config has no wrongProxy block', async () => {
-    await bootstrapWrongProxyFromConfig({ version: 1, provider: 'openai', model: 'gpt-4o' } as Config);
+    await bootstrapWrongProxyFromConfig({
+      version: 1,
+      provider: 'openai',
+      model: 'gpt-4o',
+    } as Config);
     expect(getProxyConfig().enabled).toBe(false);
     expect(getProxyConfig().active).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();

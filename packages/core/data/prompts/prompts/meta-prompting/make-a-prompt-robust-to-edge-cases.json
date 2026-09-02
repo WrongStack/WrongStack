@@ -5,10 +5,7 @@
   "description": "Harden a prompt against the inputs that break it.",
   "content": "This prompt works on normal input but I worry about edge cases:\n\n{{prompt}}\n\nList the inputs likely to break it: empty, huge, malformed, adversarial, ambiguous, or out-of-scope. For each, define the desired behavior (handle, clarify, or refuse) and add the instruction that produces it. Make sure the hardening doesn't degrade the common case. End with the one input you'd test first to know it's robust.",
   "category": "meta-prompting",
-  "tags": [
-    "robustness",
-    "edge-cases"
-  ],
+  "tags": ["robustness", "edge-cases"],
   "source": "builtin",
   "favorite": false,
   "checksum": "53f1fd7c2b6e8978678caa95e008bed90bdf27852f17ec37a7e47534388a9638",

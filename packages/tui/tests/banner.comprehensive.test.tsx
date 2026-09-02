@@ -10,8 +10,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 80,
         entry: {
-          id: 0, kind: 'banner', version: '1.0.0',
-          provider: 'openai', model: 'gpt-4',
+          id: 0,
+          kind: 'banner',
+          version: '1.0.0',
+          provider: 'openai',
+          model: 'gpt-4',
           cwd: '/home/user/project',
           family: 'gpt-4-family',
           keyTail: 'XYZ99',
@@ -34,8 +37,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 44,
         entry: {
-          id: 0, kind: 'banner', version: '0.1.0',
-          provider: 'test', model: 'test-model',
+          id: 0,
+          kind: 'banner',
+          version: '0.1.0',
+          provider: 'test',
+          model: 'test-model',
           cwd: '/tmp',
         } as const,
       }),
@@ -58,8 +64,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 80,
         entry: {
-          id: 0, kind: 'banner', version: '2.0.0',
-          provider: 'anthropic', model: 'claude',
+          id: 0,
+          kind: 'banner',
+          version: '2.0.0',
+          provider: 'anthropic',
+          model: 'claude',
           cwd: '/workspace',
           autonomyAgents: agents,
         } as const,
@@ -77,8 +86,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 80,
         entry: {
-          id: 0, kind: 'banner', version: '1.0.0',
-          provider: 'test', model: 'test',
+          id: 0,
+          kind: 'banner',
+          version: '1.0.0',
+          provider: 'test',
+          model: 'test',
           cwd: '/tmp',
           autonomyAgents: [],
         } as const,
@@ -87,7 +99,9 @@ describe('<Banner /> — additional coverage', () => {
     const frame = lastFrame() ?? '';
     unmount();
     // The agents section should be absent
-    expect(frame.split('\n').filter(l => l.includes('Brain') || l.includes('Shadow')).length).toBe(0);
+    expect(
+      frame.split('\n').filter((l) => l.includes('Brain') || l.includes('Shadow')).length,
+    ).toBe(0);
   });
 
   it('omits family keyTail sessionId profile when not provided (full layout)', () => {
@@ -95,8 +109,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 80,
         entry: {
-          id: 0, kind: 'banner', version: '1.0.0',
-          provider: 'minimal', model: 'provider',
+          id: 0,
+          kind: 'banner',
+          version: '1.0.0',
+          provider: 'minimal',
+          model: 'provider',
           cwd: '/workspace',
         } as const,
       }),
@@ -112,8 +129,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 0,
         entry: {
-          id: 0, kind: 'banner', version: '1.0.0',
-          provider: 'test', model: 'm',
+          id: 0,
+          kind: 'banner',
+          version: '1.0.0',
+          provider: 'test',
+          model: 'm',
           cwd: '/x',
         } as const,
       }),
@@ -131,8 +151,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 60,
         entry: {
-          id: 0, kind: 'banner', version: '1.0.0',
-          provider: 'p', model: 'm',
+          id: 0,
+          kind: 'banner',
+          version: '1.0.0',
+          provider: 'p',
+          model: 'm',
           cwd: longCwd,
         } as const,
       }),
@@ -150,8 +173,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 100,
         entry: {
-          id: 0, kind: 'banner', version: '1.0.0',
-          provider: 'openai', model: 'gpt-4',
+          id: 0,
+          kind: 'banner',
+          version: '1.0.0',
+          provider: 'openai',
+          model: 'gpt-4',
           cwd: '/home/user/project',
           profile: 'default',
           profileConfigPath: '~/.wrongstack/profiles/default/config.json',
@@ -171,8 +197,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 80,
         entry: {
-          id: 0, kind: 'banner', version: '1.0.0',
-          provider: 'openai', model: 'gpt-4',
+          id: 0,
+          kind: 'banner',
+          version: '1.0.0',
+          provider: 'openai',
+          model: 'gpt-4',
           cwd: '/home/user/project',
           profile: 'work-profile',
         } as const,
@@ -189,8 +218,11 @@ describe('<Banner /> — additional coverage', () => {
       React.createElement(Banner, {
         termWidth: 80,
         entry: {
-          id: 0, kind: 'banner', version: '1.0.0',
-          provider: 'openai', model: 'gpt-4',
+          id: 0,
+          kind: 'banner',
+          version: '1.0.0',
+          provider: 'openai',
+          model: 'gpt-4',
           cwd: '/home/user/project',
         } as const,
       }),

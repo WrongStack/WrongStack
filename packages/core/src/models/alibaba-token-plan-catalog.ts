@@ -127,8 +127,7 @@ export const ALIBABA_TOKEN_PLAN_MODELS: ReadonlyArray<AlibabaTokenPlanModelMeta>
   {
     id: 'deepseek-v4-pro',
     name: 'DeepSeek V4 Pro',
-    description:
-      'Frontier reasoning + text generation model. 1M context, always-thinking mode.',
+    description: 'Frontier reasoning + text generation model. 1M context, always-thinking mode.',
     capabilities: ['reasoning', 'text-generation'],
   },
 
@@ -174,8 +173,6 @@ const BY_ID: ReadonlyMap<string, AlibabaTokenPlanModelMeta> = new Map(
 );
 
 /** Look up the canonical metadata for a Token Plan model id, or `undefined`. */
-export function alibabaTokenPlanModelMeta(
-  id: string,
-): AlibabaTokenPlanModelMeta | undefined {
+export function alibabaTokenPlanModelMeta(id: string): AlibabaTokenPlanModelMeta | undefined {
   return BY_ID.get(id);
 }

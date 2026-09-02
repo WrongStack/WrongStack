@@ -77,7 +77,12 @@ describe('store constants', () => {
 describe('upsert', () => {
   it('creates new findings', async () => {
     const findings = [makeFinding()];
-    const result = await store.upsert(findings, { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
+    const result = await store.upsert(findings, {
+      sessionId: 's1',
+      reportId: 'r1',
+      agentId: 'a1',
+      model: 'm1',
+    });
     expect(result.created).toBe(1);
     expect(result.relinked).toBe(0);
     expect(result.reopened).toBe(0);
@@ -88,7 +93,12 @@ describe('upsert', () => {
     await store.upsert([f1], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
 
     const f2 = makeFinding({ fingerprint: 'same-fp' });
-    const result = await store.upsert([f2], { sessionId: 's2', reportId: 'r2', agentId: 'a2', model: 'm1' });
+    const result = await store.upsert([f2], {
+      sessionId: 's2',
+      reportId: 'r2',
+      agentId: 'a2',
+      model: 'm1',
+    });
     expect(result.created).toBe(0);
     expect(result.relinked).toBe(1);
     expect(result.reopened).toBe(0);
@@ -101,7 +111,12 @@ describe('upsert', () => {
     await store.transition(f1.id, 'resolved', { id: 'op', kind: 'operator' }, { outcome: 'fixed' });
 
     const f2 = makeFinding({ fingerprint: 'reopen-fp' });
-    const result = await store.upsert([f2], { sessionId: 's2', reportId: 'r2', agentId: 'a2', model: 'm1' });
+    const result = await store.upsert([f2], {
+      sessionId: 's2',
+      reportId: 'r2',
+      agentId: 'a2',
+      model: 'm1',
+    });
     expect(result.reopened).toBe(1);
 
     const reopened = await store.get(f1.id);
@@ -109,13 +124,28 @@ describe('upsert', () => {
   });
 
   it('is idempotent for empty input', async () => {
-    const result = await store.upsert([], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
+    const result = await store.upsert([], {
+      sessionId: 's1',
+      reportId: 'r1',
+      agentId: 'a1',
+      model: 'm1',
+    });
     expect(result.created).toBe(0);
   });
 
   it('survives multiple upserts', async () => {
-    await store.upsert([makeFinding()], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
-    await store.upsert([makeFinding()], { sessionId: 's1', reportId: 'r2', agentId: 'a1', model: 'm1' });
+    await store.upsert([makeFinding()], {
+      sessionId: 's1',
+      reportId: 'r1',
+      agentId: 'a1',
+      model: 'm1',
+    });
+    await store.upsert([makeFinding()], {
+      sessionId: 's1',
+      reportId: 'r2',
+      agentId: 'a1',
+      model: 'm1',
+    });
     const all = await store.list();
     expect(all.length).toBe(2);
   });
@@ -134,7 +164,12 @@ describe('transition', () => {
   it('transitions to resolved with outcome', async () => {
     const f = makeFinding();
     await store.upsert([f], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
-    const updated = await store.transition(f.id, 'resolved', { id: 'op', kind: 'operator' }, { outcome: 'fixed' });
+    const updated = await store.transition(
+      f.id,
+      'resolved',
+      { id: 'op', kind: 'operator' },
+      { outcome: 'fixed' },
+    );
     expect(updated.status).toBe('resolved');
     expect(updated.resolution?.outcome).toBe('fixed');
   });
@@ -170,18 +205,25 @@ describe('list and get', () => {
   });
 
   it('returns all findings without filters', async () => {
-    await store.upsert([makeFinding({ severity: 'critical' }), makeFinding({ severity: 'high' })],
-      { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
+    await store.upsert([makeFinding({ severity: 'critical' }), makeFinding({ severity: 'high' })], {
+      sessionId: 's1',
+      reportId: 'r1',
+      agentId: 'a1',
+      model: 'm1',
+    });
     const all = await store.list();
     expect(all.length).toBe(2);
   });
 
   it('filters by severity', async () => {
-    await store.upsert([
-      makeFinding({ severity: 'critical', fingerprint: 'fp-c' }),
-      makeFinding({ severity: 'high', fingerprint: 'fp-h' }),
-      makeFinding({ severity: 'low', fingerprint: 'fp-l' }),
-    ], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
+    await store.upsert(
+      [
+        makeFinding({ severity: 'critical', fingerprint: 'fp-c' }),
+        makeFinding({ severity: 'high', fingerprint: 'fp-h' }),
+        makeFinding({ severity: 'low', fingerprint: 'fp-l' }),
+      ],
+      { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' },
+    );
     const critical = await store.list({ severities: ['critical'] });
     expect(critical).toHaveLength(1);
     expect(critical[0]!.severity).toBe('critical');
@@ -190,16 +232,34 @@ describe('list and get', () => {
   it('filters by status', async () => {
     const f = makeFinding({ fingerprint: 'fp-1' });
     await store.upsert([f], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
-    await store.upsert([makeFinding({ fingerprint: 'fp-2' })], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
+    await store.upsert([makeFinding({ fingerprint: 'fp-2' })], {
+      sessionId: 's1',
+      reportId: 'r1',
+      agentId: 'a1',
+      model: 'm1',
+    });
     await store.transition(f.id, 'resolved', { id: 'op', kind: 'operator' }, { outcome: 'fixed' });
     const resolved = await store.list({ statuses: ['resolved'] });
     expect(resolved).toHaveLength(1);
   });
 
   it('sorts by severity then age', async () => {
-    const oldCritical = makeFinding({ severity: 'critical', fingerprint: 'fp-1', createdAt: '2026-01-01T00:00:00Z' });
-    const newHigh = makeFinding({ severity: 'high', fingerprint: 'fp-2', createdAt: '2026-06-01T00:00:00Z' });
-    await store.upsert([newHigh, oldCritical], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
+    const oldCritical = makeFinding({
+      severity: 'critical',
+      fingerprint: 'fp-1',
+      createdAt: '2026-01-01T00:00:00Z',
+    });
+    const newHigh = makeFinding({
+      severity: 'high',
+      fingerprint: 'fp-2',
+      createdAt: '2026-06-01T00:00:00Z',
+    });
+    await store.upsert([newHigh, oldCritical], {
+      sessionId: 's1',
+      reportId: 'r1',
+      agentId: 'a1',
+      model: 'm1',
+    });
     const all = await store.list();
     expect(all[0]!.severity).toBe('critical');
     expect(all[1]!.severity).toBe('high');

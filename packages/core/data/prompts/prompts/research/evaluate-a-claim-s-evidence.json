@@ -5,11 +5,7 @@
   "description": "Assess how well-supported a claim actually is.",
   "content": "Assess the evidence for this claim: {{claim}}\n\nSource/context: {{source}}\n\nEvaluate: what would have to be true for this to hold, how strong the actual support is, what's being assumed or omitted, and what alternative explanations exist. Distinguish what's demonstrated from what's asserted. Tell me how much confidence is warranted and what single piece of evidence would change your assessment most.",
   "category": "research",
-  "tags": [
-    "evidence",
-    "skepticism",
-    "verification"
-  ],
+  "tags": ["evidence", "skepticism", "verification"],
   "source": "builtin",
   "favorite": false,
   "checksum": "ddb9f094cb67d53f1cc96d21f0326431368b03bb862a7072befa12ab5ddd3be9",

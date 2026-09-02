@@ -39,7 +39,14 @@ describe('PhaseMonitor', () => {
     const view = render(
       React.createElement(PhaseMonitor, {
         phases: {
-          p1: { name: 'Research', status: 'running', completedTasks: 1, totalTasks: 5, startedAt: 1000, activeTasks: [] },
+          p1: {
+            name: 'Research',
+            status: 'running',
+            completedTasks: 1,
+            totalTasks: 5,
+            startedAt: 1000,
+            activeTasks: [],
+          },
           p2: { name: 'Write', status: 'completed', completedTasks: 3, totalTasks: 3 },
         },
         runningPhaseIds: ['p1'],
@@ -73,7 +80,10 @@ describe('PhaseMonitor', () => {
 
   it('renders phase with all status types', () => {
     const statuses = ['pending', 'ready', 'running', 'paused', 'completed', 'failed', 'skipped'];
-    const phases: Record<string, { name: string; status: string; completedTasks: number; totalTasks: number }> = {};
+    const phases: Record<
+      string,
+      { name: string; status: string; completedTasks: number; totalTasks: number }
+    > = {};
     for (const s of statuses) {
       phases[s] = { name: `Phase-${s}`, status: s, completedTasks: 0, totalTasks: 0 };
     }
@@ -113,7 +123,11 @@ describe('PhaseMonitor', () => {
       React.createElement(PhaseMonitor, {
         phases: {
           p1: {
-            name: 'Build', status: 'running', completedTasks: 2, totalTasks: 10, startedAt: 100,
+            name: 'Build',
+            status: 'running',
+            completedTasks: 2,
+            totalTasks: 10,
+            startedAt: 100,
             activeTasks: [{ taskId: 't1', title: 'Compile', agent: 'builder' }],
           },
         },
@@ -132,7 +146,14 @@ describe('PhaseMonitor', () => {
     const view = render(
       React.createElement(PhaseMonitor, {
         phases: {
-          p1: { name: 'Test', status: 'running', completedTasks: 0, totalTasks: 5, startedAt: 1000, activeTasks: [] },
+          p1: {
+            name: 'Test',
+            status: 'running',
+            completedTasks: 0,
+            totalTasks: 5,
+            startedAt: 1000,
+            activeTasks: [],
+          },
         },
         runningPhaseIds: ['p1'],
         elapsedMs: 5000,
@@ -148,7 +169,14 @@ describe('PhaseMonitor', () => {
     const view = render(
       React.createElement(PhaseMonitor, {
         phases: {
-          p1: { name: 'Code', status: 'running', completedTasks: 3, totalTasks: 10, startedAt: 100, activeTasks: [] },
+          p1: {
+            name: 'Code',
+            status: 'running',
+            completedTasks: 3,
+            totalTasks: 10,
+            startedAt: 100,
+            activeTasks: [],
+          },
         },
         runningPhaseIds: ['p1'],
         elapsedMs: 0,

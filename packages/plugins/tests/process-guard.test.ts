@@ -58,13 +58,16 @@ describe('issue #360 kill-defense regression matrix', () => {
     });
   });
 
-  it.runIf(isWin)('bash-path wmic ProcessId delete of own PID is blocked (issue #360)', async () => {
-    const { checkAndBlockKillCommand } = await import('../../tools/src/bash-kill-guard.js');
-    const result = await checkAndBlockKillCommand(
-      `wmic process where "ProcessId=${process.pid}" delete`,
-    );
-    expect(result.blocked).toBe(true);
-  });
+  it.runIf(isWin)(
+    'bash-path wmic ProcessId delete of own PID is blocked (issue #360)',
+    async () => {
+      const { checkAndBlockKillCommand } = await import('../../tools/src/bash-kill-guard.js');
+      const result = await checkAndBlockKillCommand(
+        `wmic process where "ProcessId=${process.pid}" delete`,
+      );
+      expect(result.blocked).toBe(true);
+    },
+  );
 
   it.runIf(!isWin)('bash-kill-guard parses POSIX kill', async () => {
     const { parseKillCommand } = await import('../../tools/src/bash-kill-guard.js');

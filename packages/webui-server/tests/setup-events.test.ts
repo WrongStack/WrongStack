@@ -255,7 +255,12 @@ describe('setupEvents worklist board pairing', () => {
       pendingConfirms: new Map(),
       sessionContext: (id) =>
         id === 'sess-b'
-          ? ({ session: { id: 'sess-b' }, todos: B_BOARD, sideEffects: [], meta: {} } as unknown as Context)
+          ? ({
+              session: { id: 'sess-b' },
+              todos: B_BOARD,
+              sideEffects: [],
+              meta: {},
+            } as unknown as Context)
           : undefined,
     });
     try {

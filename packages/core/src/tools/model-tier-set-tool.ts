@@ -101,7 +101,7 @@ export function createModelTierSetTool(opts: ModelTierSetToolOptions): Tool<Inpu
       'Inspect or change the leader\'s own cost tier (e.g. "budget" | "standard" | "premium"). ' +
       'Use "set" when the nature of the work has changed enough to justify a different class of ' +
       'model — dropping to a cheap tier for mechanical work, or asking for an expensive one when ' +
-      'a decision is genuinely hard. Every request is checked against the user\'s guard rails ' +
+      "a decision is genuinely hard. Every request is checked against the user's guard rails " +
       '(minimum dwell between switches, target context window, spend ceiling, and whether the ' +
       'saving covers the prompt-cache re-warm the switch causes). By default an allowed switch is ' +
       'PROPOSED to the user rather than applied.',
@@ -247,8 +247,7 @@ export function createModelTierSetTool(opts: ModelTierSetToolOptions): Tool<Inpu
         : ' (config updated — the live session keeps its current model until restart or /setmodel)';
       return {
         status: 'ok',
-        message:
-          `✓ Leader tier → ${input.tier} (${targetProvider}/${targetModel})${liveNote}\n  ${verdict.reason}`,
+        message: `✓ Leader tier → ${input.tier} (${targetProvider}/${targetModel})${liveNote}\n  ${verdict.reason}`,
       };
     },
   };

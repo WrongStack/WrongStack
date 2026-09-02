@@ -30,18 +30,10 @@ const SQLITE_WARNING_RE = /sqlite is an experimental feature/i;
 function installSqliteWarningFilter(): void {
   const originalEmit = process.emitWarning.bind(process);
   process.emitWarning = ((warning: unknown, ...rest: unknown[]): void => {
-    const msg =
-      typeof warning === 'string'
-        ? warning
-        : (warning as Error)?.message ?? '';
+    const msg = typeof warning === 'string' ? warning : ((warning as Error)?.message ?? '');
     const type =
-      typeof warning === 'string'
-        ? (rest[0] as string | undefined)
-        : (warning as Error)?.name;
-    if (
-      type === 'ExperimentalWarning' &&
-      SQLITE_WARNING_RE.test(msg)
-    ) {
+      typeof warning === 'string' ? (rest[0] as string | undefined) : (warning as Error)?.name;
+    if (type === 'ExperimentalWarning' && SQLITE_WARNING_RE.test(msg)) {
       return; // suppressed
     }
     (originalEmit as (w: unknown, ...args: unknown[]) => void)(warning, ...rest);
@@ -67,4 +59,3 @@ if (!process.env['WRONGSTACK_HOME']) {
 // process does — over IPC to the one detached owner for their project dir —
 // or they construct `SqliteMailbox` directly when the storage layer itself is
 // what is under test. Do not add a fallback back into this file.
-

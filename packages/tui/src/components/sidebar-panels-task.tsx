@@ -325,7 +325,10 @@ export function ProcessListPanelSidebar({
               <Text color={statusVisual.color}>{statusVisual.glyph}</Text>
               <Text color={theme.textPrimary}> </Text>
               <Text wrap="truncate">
-                {trunc(p.name, Math.max(4, bodyWidth - 2 - (showPid ? displayWidth(pidLabel) + 1 : 0)))}
+                {trunc(
+                  p.name,
+                  Math.max(4, bodyWidth - 2 - (showPid ? displayWidth(pidLabel) + 1 : 0)),
+                )}
               </Text>
               {showPid ? (
                 <>
@@ -423,7 +426,9 @@ export function GoalPanelSidebar({
               {glyphs.barFull.repeat(Math.round((progress / 100) * bodyWidth))}
             </Text>
             <Text color={theme.borderSubtle}>
-              {glyphs.barEmpty.repeat(Math.max(0, bodyWidth - Math.round((progress / 100) * bodyWidth)))}
+              {glyphs.barEmpty.repeat(
+                Math.max(0, bodyWidth - Math.round((progress / 100) * bodyWidth)),
+              )}
             </Text>
           </Box>
           <SidebarSectionHeader
@@ -519,7 +524,11 @@ export function SessionsPanelSidebar({
             return (
               <Box key={s.sessionId} flexDirection="row" width={bodyWidth}>
                 <Text color={color}>{icon}</Text>
-                <Text color={isCurrent ? theme.accent : theme.textPrimary} bold={isCurrent} wrap="truncate">
+                <Text
+                  color={isCurrent ? theme.accent : theme.textPrimary}
+                  bold={isCurrent}
+                  wrap="truncate"
+                >
                   {' '}
                   {trunc(s.projectName, Math.max(4, bodyWidth - (showAgentCount ? 6 : 2)))}
                 </Text>

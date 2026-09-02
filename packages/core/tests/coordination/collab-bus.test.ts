@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CollaborationBus, collabInjectMiddleware, collabPauseMiddleware } from '../../src/index.js';
+import {
+  CollaborationBus,
+  collabInjectMiddleware,
+  collabPauseMiddleware,
+} from '../../src/index.js';
 import type { ToolCallPipelinePayload } from '../../src/core/agent-types.js';
 import { Pipeline } from '../../src/kernel/index.js';
 
@@ -225,9 +229,27 @@ describe('CollaborationBus.injectToolResult', () => {
 
   it('keeps multiple injections for different toolUseIds independent', () => {
     const bus = new CollaborationBus();
-    bus.injectToolResult({ toolUseId: 'a', content: 1, isError: false, reason: 'r', authorId: 'p' });
-    bus.injectToolResult({ toolUseId: 'b', content: 2, isError: false, reason: 'r', authorId: 'p' });
-    bus.injectToolResult({ toolUseId: 'c', content: 3, isError: false, reason: 'r', authorId: 'p' });
+    bus.injectToolResult({
+      toolUseId: 'a',
+      content: 1,
+      isError: false,
+      reason: 'r',
+      authorId: 'p',
+    });
+    bus.injectToolResult({
+      toolUseId: 'b',
+      content: 2,
+      isError: false,
+      reason: 'r',
+      authorId: 'p',
+    });
+    bus.injectToolResult({
+      toolUseId: 'c',
+      content: 3,
+      isError: false,
+      reason: 'r',
+      authorId: 'p',
+    });
     expect(bus.pendingInjectionCount()).toBe(3);
     expect(bus.takeInjection('b')!.content).toBe(2);
     expect(bus.pendingInjectionCount()).toBe(2);

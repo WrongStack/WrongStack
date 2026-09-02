@@ -458,7 +458,8 @@ export function BrandPage() {
               <code>
                 <span className="text-brand-2">$</span> wstack --tui{`\n`}
                 <span className="text-brand">fleet</span>.status = ready{`\n`}
-                tools = {TOOL_COUNT}{`\n`}
+                tools = {TOOL_COUNT}
+                {`\n`}
                 policy = confirm
               </code>
             </pre>

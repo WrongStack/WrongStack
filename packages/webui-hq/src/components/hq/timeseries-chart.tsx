@@ -186,11 +186,7 @@ export function TimeseriesChart({
           data-testid="chart-tooltip"
           className="pointer-events-none absolute right-2 top-2 flex items-center gap-1.5 border border-border bg-popover px-2 py-1 text-[11px] shadow-md"
         >
-          <span
-            aria-hidden="true"
-            className="size-2 shrink-0"
-            style={{ backgroundColor: color }}
-          />
+          <span aria-hidden="true" className="size-2 shrink-0" style={{ backgroundColor: color }} />
           <span data-testid="chart-tooltip-value" className="tabular font-medium">
             {format(hoveredPoint.value)}
           </span>

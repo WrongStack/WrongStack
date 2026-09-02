@@ -7,7 +7,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfirmModalHost } from '../../src/components/ConfirmModal';
 import { SessionTabBar } from '../../src/components/SessionTabBar';
-import { useFleetStore, useHistoryStore, useSessionStore, useSessionTabStore } from '../../src/stores';
+import {
+  useFleetStore,
+  useHistoryStore,
+  useSessionStore,
+  useSessionTabStore,
+} from '../../src/stores';
 import { useChatLanes } from '../../src/stores/chat-lanes';
 import { SESSION_DEFAULT_LANE_ID, useSessionLanes } from '../../src/stores/session-lanes';
 import type { SubagentView } from '../../src/stores/types';
@@ -100,12 +105,8 @@ describe('tab close × real ConfirmModalHost', () => {
     fireEvent.click(screen.getAllByTitle('Close tab')[1]!);
 
     // The on-screen warning names the ongoing operation...
-    expect(
-      await screen.findByText('There is an ongoing operation in this session'),
-    ).toBeDefined();
-    expect(
-      screen.getByText('Are you sure you want to close this tab?'),
-    ).toBeDefined();
+    expect(await screen.findByText('There is an ongoing operation in this session')).toBeDefined();
+    expect(screen.getByText('Are you sure you want to close this tab?')).toBeDefined();
     expect(screen.getByText('worker-1 — running: the busy task')).toBeDefined();
     // ...and the foreground moved to the tab being closed.
     expect(useSessionLanes.getState().activeSessionId).toBe('sess-87654321');
@@ -138,9 +139,7 @@ describe('tab close × real ConfirmModalHost', () => {
 
     expect(await screen.findByText('Close this tab?')).toBeDefined();
     expect(
-      screen.getByText(
-        'This tab contains agent history. Are you sure you want to close it?',
-      ),
+      screen.getByText('This tab contains agent history. Are you sure you want to close it?'),
     ).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close Tab' }));
@@ -170,10 +169,7 @@ describe('tab close × real ConfirmModalHost', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(useSessionTabStore.getState().openTabIds).toEqual([
-      'sess-12345678',
-      'sess-87654321',
-    ]);
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['sess-12345678', 'sess-87654321']);
     expect(mockSendAbort).not.toHaveBeenCalled();
   });
 

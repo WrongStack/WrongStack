@@ -779,4 +779,3 @@ describe('grep tool — buffer overflow path (rg mode)', () => {
     expect(outWithSignal.count).toBeGreaterThanOrEqual(1);
   });
 });
-

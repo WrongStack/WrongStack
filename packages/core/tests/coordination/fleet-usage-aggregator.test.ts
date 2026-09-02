@@ -60,10 +60,7 @@ describe('FleetUsageAggregator (M2 cost accuracy)', () => {
 
   it('per-subagent isolation — two subagents accumulate independently', () => {
     const bus = new FleetBus();
-    const agg = new FleetUsageAggregator(
-      bus,
-      () => ({ input: 3, output: 15 }),
-    );
+    const agg = new FleetUsageAggregator(bus, () => ({ input: 3, output: 15 }));
 
     bus.emit({
       subagentId: 'a',

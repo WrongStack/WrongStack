@@ -135,33 +135,21 @@ describe('ReadOnlyPermissionPolicy', () => {
   it('allows writing .md to .temp_files/ when readOnly is true', async () => {
     const policy = new ReadOnlyPermissionPolicy(ALLOW_INNER, projectRoot);
     const ctx = makeCtx(true);
-    const result = await policy.evaluate(
-      writeTool(),
-      { path: '.temp_files/report.md' },
-      ctx,
-    );
+    const result = await policy.evaluate(writeTool(), { path: '.temp_files/report.md' }, ctx);
     expect(result.permission).toBe('auto');
   });
 
   it('blocks writing .ts to .temp_files/ when readOnly is true', async () => {
     const policy = new ReadOnlyPermissionPolicy(ALLOW_INNER, projectRoot);
     const ctx = makeCtx(true);
-    const result = await policy.evaluate(
-      writeTool(),
-      { path: '.temp_files/report.ts' },
-      ctx,
-    );
+    const result = await policy.evaluate(writeTool(), { path: '.temp_files/report.ts' }, ctx);
     expect(result.permission).toBe('deny');
   });
 
   it('blocks writing .md outside .temp_files/ when readOnly is true', async () => {
     const policy = new ReadOnlyPermissionPolicy(ALLOW_INNER, projectRoot);
     const ctx = makeCtx(true);
-    const result = await policy.evaluate(
-      writeTool(),
-      { path: 'docs/report.md' },
-      ctx,
-    );
+    const result = await policy.evaluate(writeTool(), { path: 'docs/report.md' }, ctx);
     expect(result.permission).toBe('deny');
   });
 
@@ -210,7 +198,15 @@ describe('ReadOnlyPermissionPolicy', () => {
       explain: async () => ({
         toolName: 'read',
         subject: null,
-        steps: [{ rule: 'test', matched: true, decision: 'auto' as const, source: 'trust', detail: 'test' }],
+        steps: [
+          {
+            rule: 'test',
+            matched: true,
+            decision: 'auto' as const,
+            source: 'trust',
+            detail: 'test',
+          },
+        ],
         winnerIndex: 0,
         decision: { permission: 'auto' as const, source: 'trust' as const },
       }),

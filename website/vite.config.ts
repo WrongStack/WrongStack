@@ -83,8 +83,8 @@ function parseWebsiteCommands(source: string): string[] {
   const names = [...commandBlock.matchAll(/^\s*\[\s*'\/([^']+)'\s*,/gm)].map(([, name]) => name);
   if (names.length === 0) {
     throw new Error(
-      'Slash-command row parser matched 0 rows in website/src/data/content-commands.ts. '
-        + 'Did `const commandRows` change shape, get renamed, or lose its tuple opener?',
+      'Slash-command row parser matched 0 rows in website/src/data/content-commands.ts. ' +
+        'Did `const commandRows` change shape, get renamed, or lose its tuple opener?',
     );
   }
   return names;
@@ -131,7 +131,10 @@ function assertSameCatalog(label: string, websiteValues: string[], runtimeValues
  */
 function validateProductCatalog() {
   const repoRoot = path.resolve(import.meta.dirname, '..');
-  const productSource = fs.readFileSync(path.resolve(websiteRoot, 'src/data/product-catalog.ts'), 'utf8');
+  const productSource = fs.readFileSync(
+    path.resolve(websiteRoot, 'src/data/product-catalog.ts'),
+    'utf8',
+  );
 
   const modeSource = fs.readFileSync(
     path.join(repoRoot, 'packages/core/src/types/mode.ts'),
@@ -276,8 +279,8 @@ function validateProductCatalog() {
         if (/^(export const|import|const|let|var)\s/.test(line.trim())) continue;
         throw new Error(
           `Hardcoded ${label} count drift in ${relPath}:${lineStart}. ` +
-          `Found "${stated}" but the canonical source has ${expected}. ` +
-          `Line: ${line.trim().slice(0, 120)}`,
+            `Found "${stated}" but the canonical source has ${expected}. ` +
+            `Line: ${line.trim().slice(0, 120)}`,
         );
       }
     }
@@ -341,8 +344,8 @@ function validateProductCatalog() {
   const websiteDetails = captures(detailsBlock, /'\/([^']+)': \{/gm);
   if (websiteDetails.length === 0) {
     throw new Error(
-      'Slash-command rich-detail parser matched 0 rows in website/src/data/command-details.ts. '
-        + 'Did `commandDetails` change shape, get renamed, or lose its `\'/<name>\': {` row opener?',
+      'Slash-command rich-detail parser matched 0 rows in website/src/data/command-details.ts. ' +
+        "Did `commandDetails` change shape, get renamed, or lose its `'/<name>': {` row opener?",
     );
   }
 
@@ -369,8 +372,8 @@ function validateProductCatalog() {
   );
   if (missingRichDetail.length) {
     throw new Error(
-      `Website command rows without rich-detail entries (one-directional guard: website → command-details.ts only). `
-        + `Commands without rich detail (slug ${missingRichDetail
+      `Website command rows without rich-detail entries (one-directional guard: website → command-details.ts only). ` +
+        `Commands without rich detail (slug ${missingRichDetail
           .map((name) => `/commands/${commandSlug(name)}`)
           .join(', ')}) — add entries to src/data/command-details.ts.`,
     );
@@ -405,10 +408,17 @@ function contentRoutes() {
   // Reuse the shared parser so drift-detection and route-generation stay on
   // one anchored regex. `parseWebsiteCommands()` throws on a zero-row match,
   // surfacing a `commandRows` shape change as a clean build error.
-  const commands = parseWebsiteCommands(commandSource).map((name) => `commands/${commandSlug(name)}`);
-  const features = [...featureSource.matchAll(/slug: '([^']+)'/g)].map(([, slug]) => `features/${slug}`);
+  const commands = parseWebsiteCommands(commandSource).map(
+    (name) => `commands/${commandSlug(name)}`,
+  );
+  const features = [...featureSource.matchAll(/slug: '([^']+)'/g)].map(
+    ([, slug]) => `features/${slug}`,
+  );
 
-  const runtimeSource = fs.readFileSync(path.resolve(websiteRoot, 'src/data/runtime-catalog.ts'), 'utf8');
+  const runtimeSource = fs.readFileSync(
+    path.resolve(websiteRoot, 'src/data/runtime-catalog.ts'),
+    'utf8',
+  );
   const pluginBlock = sourceSection(
     runtimeSource,
     'export const pluginCatalog',
@@ -417,13 +427,24 @@ function contentRoutes() {
   const plugins = captures(pluginBlock, /\bname:\s*'([^']+)'/g).map(
     (name) => `plugins/${name.replace(/^@/, '').replace(/\//g, '-')}`,
   );
-  const toolBlock = sourceSection(runtimeSource, 'export const toolCatalog', 'export const pluginSources');
+  const toolBlock = sourceSection(
+    runtimeSource,
+    'export const toolCatalog',
+    'export const pluginSources',
+  );
   const tools = captures(toolBlock, /\bname:\s*'([^']+)'/g).map(
     (name) => `tools/${name.replace(/_/g, '-')}`,
   );
 
-  const productSource = fs.readFileSync(path.resolve(websiteRoot, 'src/data/product-catalog.ts'), 'utf8');
-  const modeBlock = sourceSection(productSource, 'export const modeCatalog', 'export type RosterBudget');
+  const productSource = fs.readFileSync(
+    path.resolve(websiteRoot, 'src/data/product-catalog.ts'),
+    'utf8',
+  );
+  const modeBlock = sourceSection(
+    productSource,
+    'export const modeCatalog',
+    'export type RosterBudget',
+  );
   const modes = captures(modeBlock, /\bid:\s*'([^']+)'/g).map((id) => `modes/${id}`);
   const agents = captures(productSource, /\brole:\s*'([^']+)'/g).map(
     (role) => `agent-roster/${role}`,
@@ -436,13 +457,23 @@ function contentRoutes() {
   // the violation at the route source means a stray emoji or a space in a
   // future tool/slug name fails the build with a clear message instead of
   // silently producing a malformed sitemap entry.
-  const routes = [...new Set([...baseRoutes, ...commands, ...features, ...plugins, ...tools, ...modes, ...agents])];
+  const routes = [
+    ...new Set([
+      ...baseRoutes,
+      ...commands,
+      ...features,
+      ...plugins,
+      ...tools,
+      ...modes,
+      ...agents,
+    ]),
+  ];
   const unsafe = routes.filter((r) => /[^a-z0-9/_-]/.test(r));
   if (unsafe.length > 0) {
     throw new Error(
-      `contentRoutes() produced non-ASCII-safe routes: ${unsafe.join(', ')}. `
-        + 'Route segments must match [a-z0-9/_-]. Fix the offending source row in '
-        + 'content.ts, runtime-catalog.ts, or product-catalog.ts.',
+      `contentRoutes() produced non-ASCII-safe routes: ${unsafe.join(', ')}. ` +
+        'Route segments must match [a-z0-9/_-]. Fix the offending source row in ' +
+        'content.ts, runtime-catalog.ts, or product-catalog.ts.',
     );
   }
   return routes;
@@ -480,9 +511,9 @@ export default defineConfig({
         for (const route of ['', ...routes]) {
           if (!SAFE_ROUTE.test(route)) {
             throw new Error(
-              `Sitemap route contains characters outside [a-z0-9/_-]: ${JSON.stringify(route)}. `
-                + 'Check src/data/content.ts, src/data/runtime-catalog.ts and src/data/product-catalog.ts '
-                + 'for tool, plugin, mode or agent names that leak non-safe characters.',
+              `Sitemap route contains characters outside [a-z0-9/_-]: ${JSON.stringify(route)}. ` +
+                'Check src/data/content.ts, src/data/runtime-catalog.ts and src/data/product-catalog.ts ' +
+                'for tool, plugin, mode or agent names that leak non-safe characters.',
             );
           }
         }

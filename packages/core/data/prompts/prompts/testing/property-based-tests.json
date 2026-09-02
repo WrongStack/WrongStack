@@ -5,11 +5,7 @@
   "description": "Design property-based tests that assert invariants over generated inputs.",
   "content": "Design property-based tests for: {{code_or_function}}\n\nIdentify the invariants that must hold for ALL valid inputs (e.g. round-trip encode/decode equals identity, output is always sorted, length is preserved). For each property, specify the input generator and any shrinking concerns. Use {{framework}}. Note which properties caught real bugs in your experience with similar code.",
   "category": "testing",
-  "tags": [
-    "property-based",
-    "invariants",
-    "fuzzing"
-  ],
+  "tags": ["property-based", "invariants", "fuzzing"],
   "source": "builtin",
   "favorite": false,
   "checksum": "21d0c4508d7af66ca0d8d8bff4fe8e6a0a55dc3e534cfd3bded051b68f7d6811",

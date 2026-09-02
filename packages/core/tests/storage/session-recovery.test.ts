@@ -56,10 +56,28 @@ describe('SessionRecovery.detectStale', () => {
 
   it('flags an open marker even when provider/tool events follow it', async () => {
     await writeLog('s-open-with-tail', [
-      { type: 'session_start', ts: '2026-01-01T00:00:00Z', id: 's-open-with-tail', model: 'm', provider: 'p' },
+      {
+        type: 'session_start',
+        ts: '2026-01-01T00:00:00Z',
+        id: 's-open-with-tail',
+        model: 'm',
+        provider: 'p',
+      },
       { type: 'in_flight_start', ts: '2026-01-01T00:00:01Z', context: 'iteration 2' },
-      { type: 'llm_response', ts: '2026-01-01T00:00:02Z', content: [{ type: 'text', text: 'partial' }], stopReason: 'tool_use', usage: { input: 1, output: 1 } },
-      { type: 'tool_result', ts: '2026-01-01T00:00:03Z', id: 'tu-1', content: 'done', isError: false },
+      {
+        type: 'llm_response',
+        ts: '2026-01-01T00:00:02Z',
+        content: [{ type: 'text', text: 'partial' }],
+        stopReason: 'tool_use',
+        usage: { input: 1, output: 1 },
+      },
+      {
+        type: 'tool_result',
+        ts: '2026-01-01T00:00:03Z',
+        id: 'tu-1',
+        content: 'done',
+        isError: false,
+      },
     ]);
 
     const stale = await recovery.detectStale('s-open-with-tail');
@@ -71,7 +89,13 @@ describe('SessionRecovery.detectStale', () => {
   it('finds an open marker across a tool-result line larger than the old 8KB tail', async () => {
     await writeLog('s-large-tail', [
       { type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'large result' },
-      { type: 'tool_result', ts: '2026-01-01T00:00:01Z', id: 'tu-1', content: 'x'.repeat(80_000), isError: false },
+      {
+        type: 'tool_result',
+        ts: '2026-01-01T00:00:01Z',
+        id: 'tu-1',
+        content: 'x'.repeat(80_000),
+        isError: false,
+      },
     ]);
 
     const stale = await recovery.detectStale('s-large-tail');
@@ -83,7 +107,13 @@ describe('SessionRecovery.detectStale', () => {
   it('treats a later clean boundary as authoritative after ordinary events', async () => {
     await writeLog('s-clean-tail', [
       { type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'iteration 1' },
-      { type: 'tool_result', ts: '2026-01-01T00:00:01Z', id: 'tu-1', content: 'done', isError: false },
+      {
+        type: 'tool_result',
+        ts: '2026-01-01T00:00:01Z',
+        id: 'tu-1',
+        content: 'done',
+        isError: false,
+      },
       { type: 'in_flight_end', ts: '2026-01-01T00:00:02Z', reason: 'clean' },
       { type: 'session_end', ts: '2026-01-01T00:00:03Z', usage: { input: 1, output: 1 } },
     ]);
@@ -157,7 +187,13 @@ describe('SessionRecovery.listResumable', () => {
     ]);
     // s-legacy: no markers
     await writeLog('s-legacy', [
-      { type: 'session_start', ts: '2026-01-01T00:00:00Z', id: 's-legacy', model: 'm', provider: 'p' },
+      {
+        type: 'session_start',
+        ts: '2026-01-01T00:00:00Z',
+        id: 's-legacy',
+        model: 'm',
+        provider: 'p',
+      },
     ]);
     const resumable = await recovery.listResumable();
     expect(resumable.map((s) => s.sessionId).sort()).toEqual(['s-stale-1', 's-stale-2']);
@@ -226,7 +262,13 @@ describe('SessionRecovery.recover', () => {
       { type: 'user_input', ts: '2026-01-01T00:00:01Z', text: 'first' },
       { type: 'checkpoint', ts: '2026-01-01T00:00:02Z', promptIndex: 0, promptPreview: 'first' },
       { type: 'user_input', ts: '2026-01-01T00:00:03Z', text: 'second' },
-      { type: 'llm_response', ts: '2026-01-01T00:00:04Z', content: [], stopReason: 'end_turn', usage: { input: 10, output: 5 } },
+      {
+        type: 'llm_response',
+        ts: '2026-01-01T00:00:04Z',
+        content: [],
+        stopReason: 'end_turn',
+        usage: { input: 10, output: 5 },
+      },
     ]);
     const plan = await recovery.recover('s2');
     expect(plan).not.toBeNull();
@@ -258,8 +300,20 @@ describe('SessionRecovery.recover', () => {
     await writeLog('s3-tail', [
       { type: 'checkpoint', ts: '2026-01-01T00:00:00Z', promptIndex: 0, promptPreview: 'x' },
       { type: 'in_flight_start', ts: '2026-01-01T00:00:01Z', context: 'iteration 6' },
-      { type: 'llm_response', ts: '2026-01-01T00:00:02Z', content: [], stopReason: 'tool_use', usage: { input: 1, output: 1 } },
-      { type: 'tool_result', ts: '2026-01-01T00:00:03Z', id: 'tu-1', content: 'done', isError: false },
+      {
+        type: 'llm_response',
+        ts: '2026-01-01T00:00:02Z',
+        content: [],
+        stopReason: 'tool_use',
+        usage: { input: 1, output: 1 },
+      },
+      {
+        type: 'tool_result',
+        ts: '2026-01-01T00:00:03Z',
+        id: 'tu-1',
+        content: 'done',
+        isError: false,
+      },
     ]);
 
     const plan = await recovery.recover('s3-tail');
@@ -289,8 +343,19 @@ describe('SessionRecovery.recover', () => {
     await fs.writeFile(
       path.join(dir, 's5.jsonl'),
       [
-        JSON.stringify({ type: 'session_start', ts: '2026-01-01T00:00:00Z', id: 's5', model: 'm', provider: 'p' }),
-        JSON.stringify({ type: 'checkpoint', ts: '2026-01-01T00:00:01Z', promptIndex: 0, promptPreview: 'x' }),
+        JSON.stringify({
+          type: 'session_start',
+          ts: '2026-01-01T00:00:00Z',
+          id: 's5',
+          model: 'm',
+          provider: 'p',
+        }),
+        JSON.stringify({
+          type: 'checkpoint',
+          ts: '2026-01-01T00:00:01Z',
+          promptIndex: 0,
+          promptPreview: 'x',
+        }),
         '{not json',
         JSON.stringify({ type: 'in_flight_start', ts: '2026-01-01T00:00:02Z', context: 'crash' }),
       ].join('\n'),
@@ -305,7 +370,12 @@ describe('SessionRecovery.recover', () => {
     await fs.writeFile(
       path.join(dir, 's-nonobj.jsonl'),
       [
-        JSON.stringify({ type: 'checkpoint', ts: '2026-01-01T00:00:00Z', promptIndex: 0, promptPreview: 'x' }),
+        JSON.stringify({
+          type: 'checkpoint',
+          ts: '2026-01-01T00:00:00Z',
+          promptIndex: 0,
+          promptPreview: 'x',
+        }),
         '42',
         'null',
         '"a plain string"',
@@ -373,7 +443,8 @@ describe('SessionRecovery.detectStale — whitespace handling', () => {
   it('treats whitespace-only lines as non-events during reverse scan', async () => {
     await fs.writeFile(
       path.join(dir, 's-ws.jsonl'),
-      JSON.stringify({ type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'ws' }) + '\n   \n',
+      JSON.stringify({ type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'ws' }) +
+        '\n   \n',
       'utf8',
     );
     const stale = await recovery.detectStale('s-ws');

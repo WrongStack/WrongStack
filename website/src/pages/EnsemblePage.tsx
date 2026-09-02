@@ -33,7 +33,9 @@ export function EnsemblePage() {
           </>
         }
         description="Fan one task to multiple ACP-capable coding agents simultaneously. Claude Code, Gemini CLI, Codex CLI, and 9 more — each works independently with its own tools and model. Compare results side by side or surface consensus patterns."
-        aside={<ExternalDoc path="docs/acp-ensemble.md">Open ACP Ensemble architecture</ExternalDoc>}
+        aside={
+          <ExternalDoc path="docs/acp-ensemble.md">Open ACP Ensemble architecture</ExternalDoc>
+        }
       />
 
       {/* ── How it works ───────────────────────────────────────────────── */}
@@ -89,27 +91,63 @@ export function EnsemblePage() {
             description="Every agent uses its existing login — no extra configuration. WrongStack probes your `$PATH` to discover installed agents. The bundled catalog serves as offline fallback; a synced registry from the ACP project provides live updates."
           />
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {([
-              { name: 'Claude Code', vendor: 'Anthropic', id: 'claude-code', integration: 'adapter' },
-              { name: 'Gemini CLI', vendor: 'Google', id: 'gemini-cli', integration: 'native' },
-              { name: 'Codex CLI', vendor: 'OpenAI', id: 'codex-cli', integration: 'adapter' },
-              { name: 'GitHub Copilot', vendor: 'GitHub', id: 'copilot', integration: 'experimental' },
-              { name: 'Cline', vendor: 'Community', id: 'cline', integration: 'community' },
-              { name: 'Qwen Code', vendor: 'Community', id: 'qwen-code', integration: 'experimental' },
-              { name: 'OpenCode', vendor: 'Community', id: 'opencode', integration: 'native' },
-              { name: 'Kiro CLI', vendor: 'Community', id: 'kiro-cli', integration: 'experimental' },
-              { name: 'Cursor', vendor: 'Community', id: 'cursor', integration: 'experimental' },
-              { name: 'Goose', vendor: 'Community', id: 'goose', integration: 'experimental' },
-              { name: 'OpenHands', vendor: 'Community', id: 'openhands', integration: 'experimental' },
-              { name: 'Mistral Vibe', vendor: 'Community', id: 'mistral-vibe', integration: 'experimental' },
-            ] as { name: string; vendor: string; id: string; integration: string }[]).map(({ name, vendor, id, integration }) => (
+            {(
+              [
+                {
+                  name: 'Claude Code',
+                  vendor: 'Anthropic',
+                  id: 'claude-code',
+                  integration: 'adapter',
+                },
+                { name: 'Gemini CLI', vendor: 'Google', id: 'gemini-cli', integration: 'native' },
+                { name: 'Codex CLI', vendor: 'OpenAI', id: 'codex-cli', integration: 'adapter' },
+                {
+                  name: 'GitHub Copilot',
+                  vendor: 'GitHub',
+                  id: 'copilot',
+                  integration: 'experimental',
+                },
+                { name: 'Cline', vendor: 'Community', id: 'cline', integration: 'community' },
+                {
+                  name: 'Qwen Code',
+                  vendor: 'Community',
+                  id: 'qwen-code',
+                  integration: 'experimental',
+                },
+                { name: 'OpenCode', vendor: 'Community', id: 'opencode', integration: 'native' },
+                {
+                  name: 'Kiro CLI',
+                  vendor: 'Community',
+                  id: 'kiro-cli',
+                  integration: 'experimental',
+                },
+                { name: 'Cursor', vendor: 'Community', id: 'cursor', integration: 'experimental' },
+                { name: 'Goose', vendor: 'Community', id: 'goose', integration: 'experimental' },
+                {
+                  name: 'OpenHands',
+                  vendor: 'Community',
+                  id: 'openhands',
+                  integration: 'experimental',
+                },
+                {
+                  name: 'Mistral Vibe',
+                  vendor: 'Community',
+                  id: 'mistral-vibe',
+                  integration: 'experimental',
+                },
+              ] as { name: string; vendor: string; id: string; integration: string }[]
+            ).map(({ name, vendor, id, integration }) => (
               <div key={id} className="rounded-xl border border-line bg-card p-5">
                 <div className="flex items-center justify-between">
                   <h3 className="font-black text-sm text-fg">{name}</h3>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">{integration}</span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+                    {integration}
+                  </span>
                 </div>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="rounded bg-brand/10 px-1.5 py-0.5 font-mono text-[10px] text-brand">{vendor}</span>
+                  <span className="rounded bg-brand/10 px-1.5 py-0.5 font-mono text-[10px] text-brand">
+                    {vendor}
+                  </span>
                   <code className="font-mono text-[10px] text-faint">{id}</code>
                 </div>
               </div>
@@ -120,28 +158,50 @@ export function EnsemblePage() {
               <Radio className="size-5 text-brand" />
               <h2 className="mt-8 text-xl font-black text-fg">Live detection</h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                `/acp probe` runs all 12 catalog entries in parallel via `Promise.allSettled`. Results are cached for 5 seconds. Each entry carries a probe command (e.g. `claude --version`) and an ACP startup command.
+                `/acp probe` runs all 12 catalog entries in parallel via `Promise.allSettled`.
+                Results are cached for 5 seconds. Each entry carries a probe command (e.g. `claude
+                --version`) and an ACP startup command.
               </p>
               <div className="mt-5 rounded-lg border border-line bg-bg p-4 font-mono text-xs leading-6 text-zinc-400">
-                <span className="text-emerald-400">✓</span> claude-code &nbsp;(adapter)<br />
-                <span className="text-emerald-400">✓</span> gemini-cli &nbsp;&nbsp;(native)<br />
-                <span className="text-emerald-400">✓</span> codex-cli &nbsp;&nbsp;&nbsp;(adapter)<br />
-                <span className="text-emerald-400">✓</span> opencode &nbsp;&nbsp;&nbsp;&nbsp;(native)<br />
-                <span className="text-amber-400">—</span> goose &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;binary not found<br />
-                <span className="text-amber-400">—</span> cursor &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;binary not found
+                <span className="text-emerald-400">✓</span> claude-code &nbsp;(adapter)
+                <br />
+                <span className="text-emerald-400">✓</span> gemini-cli &nbsp;&nbsp;(native)
+                <br />
+                <span className="text-emerald-400">✓</span> codex-cli &nbsp;&nbsp;&nbsp;(adapter)
+                <br />
+                <span className="text-emerald-400">✓</span> opencode
+                &nbsp;&nbsp;&nbsp;&nbsp;(native)
+                <br />
+                <span className="text-amber-400">—</span> goose
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;binary not found
+                <br />
+                <span className="text-amber-400">—</span> cursor
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;binary not found
               </div>
             </div>
             <div className="rounded-2xl border border-line bg-card p-7">
               <Globe className="size-5 text-brand" />
               <h2 className="mt-8 text-xl font-black text-fg">Registry sync</h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                The bundled 12-agent catalog is the offline fallback. `/acp sync` fetches the official ACP registry (37+ agents, hourly-updated) and caches it at `~/.wrongstack/cache/acp-registry.json`. Resolution order: user override → synced registry → legacy map → bundled catalog.
+                The bundled 12-agent catalog is the offline fallback. `/acp sync` fetches the
+                official ACP registry (37+ agents, hourly-updated) and caches it at
+                `~/.wrongstack/cache/acp-registry.json`. Resolution order: user override → synced
+                registry → legacy map → bundled catalog.
               </p>
               <div className="mt-5 space-y-2">
                 {[
-                  { label: 'Bundled catalog', body: '12 agents shipped with @wrongstack/acp. Always available offline.' },
-                  { label: 'Synced registry', body: '37+ agents from agentclientprotocol/registry. Fetched on demand.' },
-                  { label: 'User overrides', body: 'config.acp.agents — highest priority. Add custom agents or override defaults.' },
+                  {
+                    label: 'Bundled catalog',
+                    body: '12 agents shipped with @wrongstack/acp. Always available offline.',
+                  },
+                  {
+                    label: 'Synced registry',
+                    body: '37+ agents from agentclientprotocol/registry. Fetched on demand.',
+                  },
+                  {
+                    label: 'User overrides',
+                    body: 'config.acp.agents — highest priority. Add custom agents or override defaults.',
+                  },
                 ].map(({ label, body }) => (
                   <div key={label} className="rounded-lg border border-line bg-bg p-3">
                     <span className="font-black text-xs text-fg">{label}</span>
@@ -205,10 +265,23 @@ export function EnsemblePage() {
               EnsembleResult shape
             </div>
             <div className="mt-5 font-mono text-sm leading-7 text-zinc-300">
-              <span className="text-zinc-500">task</span><span className="text-zinc-600">: </span><span className="text-amber-300">"review the auth module"</span><br />
-              <span className="text-zinc-500">requested</span><span className="text-zinc-600">: </span><span className="text-zinc-300">["claude-code", "gemini-cli"]</span><br />
-              <span className="text-zinc-500">summary</span><span className="text-zinc-600">: </span><span className="text-zinc-300">{'{ succeeded: 2, failed: 0, skipped: 0, cancelled: 0 }'}</span><br />
-              <span className="text-zinc-500">results[]</span><span className="text-zinc-600">: </span><span className="text-zinc-400">[agentId, status, result, durationMs]</span>
+              <span className="text-zinc-500">task</span>
+              <span className="text-zinc-600">: </span>
+              <span className="text-amber-300">"review the auth module"</span>
+              <br />
+              <span className="text-zinc-500">requested</span>
+              <span className="text-zinc-600">: </span>
+              <span className="text-zinc-300">["claude-code", "gemini-cli"]</span>
+              <br />
+              <span className="text-zinc-500">summary</span>
+              <span className="text-zinc-600">: </span>
+              <span className="text-zinc-300">
+                {'{ succeeded: 2, failed: 0, skipped: 0, cancelled: 0 }'}
+              </span>
+              <br />
+              <span className="text-zinc-500">results[]</span>
+              <span className="text-zinc-600">: </span>
+              <span className="text-zinc-400">[agentId, status, result, durationMs]</span>
             </div>
           </div>
           <div className="rounded-2xl border border-line bg-card p-7">
@@ -216,9 +289,18 @@ export function EnsemblePage() {
             <h2 className="mt-8 text-xl font-black text-fg">Three entry points</h2>
             <div className="mt-5 space-y-3">
               {[
-                { cmd: 'wstack acp parallel claude-code,gemini-cli "review auth"', desc: 'CLI. Formatted text block output. Pipe-friendly for scripting.' },
-                { cmd: '/ensemble claude-code,gemini-cli "review auth"', desc: 'TUI/REPL slash command. Same renderer, returned to chat history.' },
-                { cmd: 'import { runEnsemble } from \'@wrongstack/acp\'', desc: 'Programmatic. Any script or test. Full control over options and rendering.' },
+                {
+                  cmd: 'wstack acp parallel claude-code,gemini-cli "review auth"',
+                  desc: 'CLI. Formatted text block output. Pipe-friendly for scripting.',
+                },
+                {
+                  cmd: '/ensemble claude-code,gemini-cli "review auth"',
+                  desc: 'TUI/REPL slash command. Same renderer, returned to chat history.',
+                },
+                {
+                  cmd: "import { runEnsemble } from '@wrongstack/acp'",
+                  desc: 'Programmatic. Any script or test. Full control over options and rendering.',
+                },
               ].map(({ cmd, desc }) => (
                 <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                   <code className="font-mono text-sm font-black text-brand">{cmd}</code>
@@ -243,18 +325,53 @@ export function EnsemblePage() {
             <div className="rounded-2xl border border-line bg-card p-7">
               <h2 className="text-xl font-black text-fg">Client state machine</h2>
               <div className="mt-5 flex items-center gap-1.5 font-mono text-xs text-faint flex-wrap">
-                {['idle', '→', 'initializing', '→', 'ready', '→', 'prompting', '→', 'streaming', '→', 'done'].map((s, i) => (
-                  <span key={i} className={s === '→' ? 'text-zinc-600' : 'rounded bg-bg px-1.5 py-0.5'}>{s}</span>
+                {[
+                  'idle',
+                  '→',
+                  'initializing',
+                  '→',
+                  'ready',
+                  '→',
+                  'prompting',
+                  '→',
+                  'streaming',
+                  '→',
+                  'done',
+                ].map((s, i) => (
+                  <span
+                    key={i}
+                    className={s === '→' ? 'text-zinc-600' : 'rounded bg-bg px-1.5 py-0.5'}
+                  >
+                    {s}
+                  </span>
                 ))}
               </div>
               <div className="mt-6 space-y-3">
                 {[
-                  { step: '1. Initialize', body: 'Spawn agent process, send `initialize { protocolVersion: 1, clientCapabilities: {fs, terminal} }`, assert response.' },
-                  { step: '2. New session', body: 'Send `session/new { cwd, mcpServers: [] }`. Receive `sessionId`. Session is now ready for prompts.' },
-                  { step: '3. Prompt', body: 'Send `session/prompt { sessionId, prompt: [{type: "text", text: "..."}] }`. Stream pump begins.' },
-                  { step: '4. Stream', body: 'Listen for `session/update` notifications: agent_message_chunk, tool_call, tool_call_update, plan, usage_update.' },
-                  { step: '5. Serve requests', body: 'Answer fs/read_text_file, terminal/create, session/request_permission as they arrive mid-stream.' },
-                  { step: '6. Done', body: 'Agent returns `stopReason`. Possible values: end_turn, cancelled, refused, max_turns.' },
+                  {
+                    step: '1. Initialize',
+                    body: 'Spawn agent process, send `initialize { protocolVersion: 1, clientCapabilities: {fs, terminal} }`, assert response.',
+                  },
+                  {
+                    step: '2. New session',
+                    body: 'Send `session/new { cwd, mcpServers: [] }`. Receive `sessionId`. Session is now ready for prompts.',
+                  },
+                  {
+                    step: '3. Prompt',
+                    body: 'Send `session/prompt { sessionId, prompt: [{type: "text", text: "..."}] }`. Stream pump begins.',
+                  },
+                  {
+                    step: '4. Stream',
+                    body: 'Listen for `session/update` notifications: agent_message_chunk, tool_call, tool_call_update, plan, usage_update.',
+                  },
+                  {
+                    step: '5. Serve requests',
+                    body: 'Answer fs/read_text_file, terminal/create, session/request_permission as they arrive mid-stream.',
+                  },
+                  {
+                    step: '6. Done',
+                    body: 'Agent returns `stopReason`. Possible values: end_turn, cancelled, refused, max_turns.',
+                  },
                 ].map(({ step, body }) => (
                   <div key={step} className="rounded-lg border border-line bg-bg p-3">
                     <span className="font-black text-xs text-fg">{step}</span>
@@ -266,16 +383,41 @@ export function EnsemblePage() {
             <div className="rounded-2xl border border-line bg-card p-7">
               <h2 className="text-xl font-black text-fg">Server method set</h2>
               <p className="mt-3 text-sm leading-7 text-muted">
-                When an external editor drives WrongStack, it speaks the full v1 server method set. Concurrency is per-session — multiple sessions can run in parallel.
+                When an external editor drives WrongStack, it speaks the full v1 server method set.
+                Concurrency is per-session — multiple sessions can run in parallel.
               </p>
               <div className="mt-5 space-y-2">
                 {[
-                  { method: 'initialize', dir: 'req→res', desc: 'Negotiate protocolVersion, return agentCapabilities' },
-                  { method: 'session/new', dir: 'req→res', desc: 'Create session, emit current_mode_update, return sessionId + modes' },
-                  { method: 'session/prompt', dir: 'req→res', desc: 'Start turn, stream session/update notifications, return stopReason' },
-                  { method: 'session/cancel', dir: 'notif', desc: 'Cancel in-flight turn + active tool calls. No response.' },
-                  { method: 'session/set_mode', dir: 'req→res', desc: 'Switch active mode, emit current_mode_update' },
-                  { method: 'session/load', dir: 'req→res', desc: 'Resume a prior session (opt-in, loadSession capability)' },
+                  {
+                    method: 'initialize',
+                    dir: 'req→res',
+                    desc: 'Negotiate protocolVersion, return agentCapabilities',
+                  },
+                  {
+                    method: 'session/new',
+                    dir: 'req→res',
+                    desc: 'Create session, emit current_mode_update, return sessionId + modes',
+                  },
+                  {
+                    method: 'session/prompt',
+                    dir: 'req→res',
+                    desc: 'Start turn, stream session/update notifications, return stopReason',
+                  },
+                  {
+                    method: 'session/cancel',
+                    dir: 'notif',
+                    desc: 'Cancel in-flight turn + active tool calls. No response.',
+                  },
+                  {
+                    method: 'session/set_mode',
+                    dir: 'req→res',
+                    desc: 'Switch active mode, emit current_mode_update',
+                  },
+                  {
+                    method: 'session/load',
+                    dir: 'req→res',
+                    desc: 'Resume a prior session (opt-in, loadSession capability)',
+                  },
                 ].map(({ method, dir, desc }) => (
                   <div key={method} className="rounded-lg border border-line bg-bg p-3">
                     <div className="flex items-center gap-2">
@@ -289,8 +431,22 @@ export function EnsemblePage() {
               <div className="mt-5 rounded-lg border border-line bg-bg p-4">
                 <h3 className="font-black text-sm text-fg">Notifications emitted to client</h3>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {['agent_message_chunk', 'tool_call', 'tool_call_update', 'plan', 'usage_update', 'current_mode_update', 'config_option_update', 'available_commands_update'].map((n) => (
-                    <code key={n} className="rounded bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-faint">{n}</code>
+                  {[
+                    'agent_message_chunk',
+                    'tool_call',
+                    'tool_call_update',
+                    'plan',
+                    'usage_update',
+                    'current_mode_update',
+                    'config_option_update',
+                    'available_commands_update',
+                  ].map((n) => (
+                    <code
+                      key={n}
+                      className="rounded bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-faint"
+                    >
+                      {n}
+                    </code>
                   ))}
                 </div>
               </div>
@@ -349,7 +505,9 @@ export function EnsemblePage() {
             <div key={title} className="rounded-xl border border-line bg-card p-5">
               <div className="flex items-center justify-between">
                 <Icon className="size-4 text-brand" />
-                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">{severity}</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+                  {severity}
+                </span>
               </div>
               <h3 className="mt-4 font-black text-sm text-fg">{title}</h3>
               <p className="mt-2 text-xs leading-5 text-muted">{body}</p>
@@ -372,11 +530,26 @@ export function EnsemblePage() {
               <h2 className="text-xl font-black text-fg">Single agent</h2>
               <div className="mt-5 space-y-3">
                 {[
-                  { cmd: '/acp probe', desc: 'Test connectivity to all installed agents. Reports reachability and version.' },
-                  { cmd: '/acp gemini-cli "review this module"', desc: 'Send a task to a specific agent by name. Blocking call — waits for completion.' },
-                  { cmd: '/acp list', desc: 'Show live detection results with installed/not-found status for all 12 catalog entries.' },
-                  { cmd: '/acp sync', desc: 'Fetch the latest ACP registry (37+ agents) and cache it for offline use.' },
-                  { cmd: '/acp server', desc: 'Start WrongStack as an ACP server. External editors can connect and drive it.' },
+                  {
+                    cmd: '/acp probe',
+                    desc: 'Test connectivity to all installed agents. Reports reachability and version.',
+                  },
+                  {
+                    cmd: '/acp gemini-cli "review this module"',
+                    desc: 'Send a task to a specific agent by name. Blocking call — waits for completion.',
+                  },
+                  {
+                    cmd: '/acp list',
+                    desc: 'Show live detection results with installed/not-found status for all 12 catalog entries.',
+                  },
+                  {
+                    cmd: '/acp sync',
+                    desc: 'Fetch the latest ACP registry (37+ agents) and cache it for offline use.',
+                  },
+                  {
+                    cmd: '/acp server',
+                    desc: 'Start WrongStack as an ACP server. External editors can connect and drive it.',
+                  },
                 ].map(({ cmd, desc }) => (
                   <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                     <code className="font-mono text-sm font-black text-brand">{cmd}</code>
@@ -389,9 +562,18 @@ export function EnsemblePage() {
               <h2 className="text-xl font-black text-fg">Ensemble (parallel)</h2>
               <div className="mt-5 space-y-3">
                 {[
-                  { cmd: '/ensemble claude-code,gemini-cli "review auth"', desc: 'Fan out to multiple agents simultaneously. Comma-separated ids, deduped automatically.' },
-                  { cmd: 'wstack acp parallel claude,gemini,codex "task"', desc: 'Same engine from the CLI. Formatted text output, pipe-friendly.' },
-                  { cmd: '/ensemble claude-code,gemini-cli --timeout 300000 "task"', desc: 'Custom timeout per agent in ms. Default matches agent-specific budgets.' },
+                  {
+                    cmd: '/ensemble claude-code,gemini-cli "review auth"',
+                    desc: 'Fan out to multiple agents simultaneously. Comma-separated ids, deduped automatically.',
+                  },
+                  {
+                    cmd: 'wstack acp parallel claude,gemini,codex "task"',
+                    desc: 'Same engine from the CLI. Formatted text output, pipe-friendly.',
+                  },
+                  {
+                    cmd: '/ensemble claude-code,gemini-cli --timeout 300000 "task"',
+                    desc: 'Custom timeout per agent in ms. Default matches agent-specific budgets.',
+                  },
                 ].map(({ cmd, desc }) => (
                   <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                     <code className="font-mono text-sm font-black text-brand">{cmd}</code>
@@ -403,13 +585,29 @@ export function EnsemblePage() {
                 <h3 className="font-black text-sm text-zinc-300">When to ensemble vs. delegate</h3>
                 <div className="mt-3 space-y-2">
                   {[
-                    { use: 'Ensemble', when: 'You want independent perspectives from multiple agents on the same problem.' },
-                    { use: 'Delegate', when: 'You want to split work across agents — each does a different sub-task.' },
-                    { use: 'Ensemble', when: 'You are comparing agent quality or picking the best tool for a workflow.' },
-                    { use: 'Single /acp', when: 'You know which external agent you want and just need it to do one thing.' },
+                    {
+                      use: 'Ensemble',
+                      when: 'You want independent perspectives from multiple agents on the same problem.',
+                    },
+                    {
+                      use: 'Delegate',
+                      when: 'You want to split work across agents — each does a different sub-task.',
+                    },
+                    {
+                      use: 'Ensemble',
+                      when: 'You are comparing agent quality or picking the best tool for a workflow.',
+                    },
+                    {
+                      use: 'Single /acp',
+                      when: 'You know which external agent you want and just need it to do one thing.',
+                    },
                   ].map(({ use, when }) => (
                     <div key={when} className="flex items-start gap-2">
-                      <span className={`mt-0.5 shrink-0 font-mono text-[10px] font-black ${use === 'Ensemble' ? 'text-brand' : 'text-faint'}`}>{use}</span>
+                      <span
+                        className={`mt-0.5 shrink-0 font-mono text-[10px] font-black ${use === 'Ensemble' ? 'text-brand' : 'text-faint'}`}
+                      >
+                        {use}
+                      </span>
                       <p className="text-xs leading-5 text-zinc-400">{when}</p>
                     </div>
                   ))}

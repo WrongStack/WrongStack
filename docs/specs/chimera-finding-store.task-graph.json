@@ -44,9 +44,7 @@
           "phase": "storage",
           "requirementIds": ["R2", "R7"],
           "verificationCommand": "pnpm exec vitest run packages/core/tests/plugins/review-finding-store.test.ts --grep 'path|constant|lock'",
-          "expectedFiles": [
-            "packages/core/src/plugins/review-finding-store.ts"
-          ]
+          "expectedFiles": ["packages/core/src/plugins/review-finding-store.ts"]
         }
       }
     ],

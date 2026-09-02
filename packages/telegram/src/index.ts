@@ -411,22 +411,27 @@ const plugin: Plugin = {
             cacheRead: event.usage.cacheRead,
             cacheWrite: event.usage.cacheWrite,
           };
-          notifyChannel.deliver({
-            title: 'Session ended',
-            body: formatSessionEnded(payload),
-            level: 'info',
-            source: 'session.end',
-          }).then(r => {
-            if (!r.ok) log.warn(`session.ended notification delivery failed: ${r.error ?? 'unknown'}`);
-          }).catch((err: unknown) => {
-            log.debug(`session.ended notification delivery threw: ${(err as Error).message}`);
-          });
+          notifyChannel
+            .deliver({
+              title: 'Session ended',
+              body: formatSessionEnded(payload),
+              level: 'info',
+              source: 'session.end',
+            })
+            .then((r) => {
+              if (!r.ok)
+                log.warn(`session.ended notification delivery failed: ${r.error ?? 'unknown'}`);
+            })
+            .catch((err: unknown) => {
+              log.debug(`session.ended notification delivery threw: ${(err as Error).message}`);
+            });
         }),
       );
 
       cleanups.push(
         api.events.on('tool.executed', (event) => {
-          if (!runtimeCfg.notifyChatId || !notifyChannel || runtimeCfg.longToolThresholdMs <= 0) return;
+          if (!runtimeCfg.notifyChatId || !notifyChannel || runtimeCfg.longToolThresholdMs <= 0)
+            return;
           if (event.durationMs < runtimeCfg.longToolThresholdMs) return;
           const payload: ToolExecutedLike = {
             name: event.name,
@@ -435,16 +440,20 @@ const plugin: Plugin = {
             output:
               event.output === undefined ? undefined : scrubTelegramOutboundText(event.output),
           };
-          notifyChannel.deliver({
-            title: event.ok ? 'Tool completed' : 'Tool failed',
-            body: formatToolExecuted(payload),
-            level: event.ok ? 'info' : 'warning',
-            source: 'tool.exec',
-          }).then(r => {
-            if (!r.ok) log.warn(`tool.executed notification delivery failed: ${r.error ?? 'unknown'}`);
-          }).catch((err: unknown) => {
-            log.debug(`tool.executed notification delivery threw: ${(err as Error).message}`);
-          });
+          notifyChannel
+            .deliver({
+              title: event.ok ? 'Tool completed' : 'Tool failed',
+              body: formatToolExecuted(payload),
+              level: event.ok ? 'info' : 'warning',
+              source: 'tool.exec',
+            })
+            .then((r) => {
+              if (!r.ok)
+                log.warn(`tool.executed notification delivery failed: ${r.error ?? 'unknown'}`);
+            })
+            .catch((err: unknown) => {
+              log.debug(`tool.executed notification delivery threw: ${(err as Error).message}`);
+            });
         }),
       );
 
@@ -459,16 +468,24 @@ const plugin: Plugin = {
               event.status === undefined ? undefined : scrubTelegramOutboundText(event.status),
             summary: scrubTelegramOutboundText(event.summary),
           };
-          notifyChannel.deliver({
-            title: `Delegate: ${safeEvent.target}`,
-            body: formatDelegateCompleted(safeEvent),
-            level: event.ok ? 'info' : 'warning',
-            source: 'delegate.completed',
-          }).then(r => {
-            if (!r.ok) log.warn(`delegate.completed notification delivery failed: ${r.error ?? 'unknown'}`);
-          }).catch((err: unknown) => {
-            log.debug(`delegate.completed notification delivery threw: ${(err as Error).message}`);
-          });
+          notifyChannel
+            .deliver({
+              title: `Delegate: ${safeEvent.target}`,
+              body: formatDelegateCompleted(safeEvent),
+              level: event.ok ? 'info' : 'warning',
+              source: 'delegate.completed',
+            })
+            .then((r) => {
+              if (!r.ok)
+                log.warn(
+                  `delegate.completed notification delivery failed: ${r.error ?? 'unknown'}`,
+                );
+            })
+            .catch((err: unknown) => {
+              log.debug(
+                `delegate.completed notification delivery threw: ${(err as Error).message}`,
+              );
+            });
         }),
       );
 
@@ -488,8 +505,10 @@ const plugin: Plugin = {
         const nextTg = readTelegramConfigFromConfig(next);
         const prevTg = readTelegramConfigFromConfig(prev);
         const changedKeys = diffConfigKeys(prevTg, nextTg);
-        const hotKeys = changedKeys.filter(c => c.classification === 'hot').map(c => c.key);
-        const restartKeys = changedKeys.filter(c => c.classification === 'restart-required').map(c => c.key);
+        const hotKeys = changedKeys.filter((c) => c.classification === 'hot').map((c) => c.key);
+        const restartKeys = changedKeys
+          .filter((c) => c.classification === 'restart-required')
+          .map((c) => c.key);
 
         // Phase 1: Apply hot keys to the shared runtime config.
         // Only keys classified as hot-reload-safe are applied live.
@@ -503,18 +522,71 @@ const plugin: Plugin = {
         // to the runtime mutation to perform when that key changed.
         // Adding a new hot key here is a one-line change instead of a
         // duplicated `if (hotSet.has(...))` arm.
-        type HotApplier = (runtimeCfg: RuntimeConfig, fresh: ReturnType<typeof telegramFromConfig>) => void;
+        type HotApplier = (
+          runtimeCfg: RuntimeConfig,
+          fresh: ReturnType<typeof telegramFromConfig>,
+        ) => void;
         const HOT_APPLIERS: ReadonlyMap<string, HotApplier> = new Map<string, HotApplier>([
-          ['allowedOutboundChats', (r, f) => { r.allowedOutboundChats = f.allowedOutboundChats; }],
-          ['allowedUsers', (r, f) => { r.allowedUserIds = f.allowedUserIds; }],
-          ['notifyOnSessionEnd', (r, f) => { r.notifyOnSessionEnd = f.notifyOnSessionEnd; }],
-          ['notifyOnDelegate', (r, f) => { r.notifyOnDelegate = f.notifyOnDelegate; }],
-          ['longToolThresholdMs', (r, f) => { r.longToolThresholdMs = f.longToolThresholdMs; }],
-          ['maxMessageLength', (r, f) => { r.maxMessageLength = f.maxMessageLength; }],
-          ['allowGroupApprovals', (r, f) => { r.allowGroupApprovals = f.allowGroupApprovals; }],
-          ['rateLimitTokensPerSecond', (r, f) => { r.rateLimitTokensPerSecond = f.rateLimitTokensPerSecond; }],
-          ['rateLimitBurst', (r, f) => { r.rateLimitBurst = f.rateLimitBurst; }],
-          ['parseMode', (r, f) => { r.parseMode = f.parseMode; }],
+          [
+            'allowedOutboundChats',
+            (r, f) => {
+              r.allowedOutboundChats = f.allowedOutboundChats;
+            },
+          ],
+          [
+            'allowedUsers',
+            (r, f) => {
+              r.allowedUserIds = f.allowedUserIds;
+            },
+          ],
+          [
+            'notifyOnSessionEnd',
+            (r, f) => {
+              r.notifyOnSessionEnd = f.notifyOnSessionEnd;
+            },
+          ],
+          [
+            'notifyOnDelegate',
+            (r, f) => {
+              r.notifyOnDelegate = f.notifyOnDelegate;
+            },
+          ],
+          [
+            'longToolThresholdMs',
+            (r, f) => {
+              r.longToolThresholdMs = f.longToolThresholdMs;
+            },
+          ],
+          [
+            'maxMessageLength',
+            (r, f) => {
+              r.maxMessageLength = f.maxMessageLength;
+            },
+          ],
+          [
+            'allowGroupApprovals',
+            (r, f) => {
+              r.allowGroupApprovals = f.allowGroupApprovals;
+            },
+          ],
+          [
+            'rateLimitTokensPerSecond',
+            (r, f) => {
+              r.rateLimitTokensPerSecond = f.rateLimitTokensPerSecond;
+            },
+          ],
+          [
+            'rateLimitBurst',
+            (r, f) => {
+              r.rateLimitBurst = f.rateLimitBurst;
+            },
+          ],
+          [
+            'parseMode',
+            (r, f) => {
+              r.parseMode = f.parseMode;
+            },
+          ],
         ]);
         for (const [key, apply] of HOT_APPLIERS) {
           if (hotSet.has(key)) apply(runtimeCfg, fresh);

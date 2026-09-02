@@ -618,10 +618,16 @@ export function resolveSettingsFieldValue(
   if (field === 60) {
     const url = input.trim();
     if (url.length === 0) {
-      return { ok: false, error: `"${input}" is not a valid proxy URL. Use http://host:port or https://host:port.` };
+      return {
+        ok: false,
+        error: `"${input}" is not a valid proxy URL. Use http://host:port or https://host:port.`,
+      };
     }
     if (!/^https?:\/\//i.test(url)) {
-      return { ok: false, error: `"${input}" is not a valid proxy URL. Use http://host:port or https://host:port.` };
+      return {
+        ok: false,
+        error: `"${input}" is not a valid proxy URL. Use http://host:port or https://host:port.`,
+      };
     }
     return { ok: true, patch: { wrongProxyUrl: url }, label, displayValue: url };
   }

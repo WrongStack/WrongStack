@@ -5,11 +5,7 @@
   "description": "Tell an agent what it must never do, and when to stop.",
   "content": "My agent does: {{task}}\n\nWrite the guardrails. Define the hard limits — actions it must never take, data it must never touch, and the spend or scope ceiling. Specify what requires human confirmation versus what it can do autonomously, and the signals that mean stop and escalate (repeated failures, uncertainty, irreversibility). Make the rules concrete enough to follow and short enough to live in a system prompt. Flag the gap an adversarial input would exploit.",
   "category": "agentic-workflows",
-  "tags": [
-    "guardrails",
-    "safety",
-    "policy"
-  ],
+  "tags": ["guardrails", "safety", "policy"],
   "source": "builtin",
   "favorite": false,
   "checksum": "dc52837e3e900e15becfa28e8a167b21d3054ff9e78fbfd0f4a96d853345402f",

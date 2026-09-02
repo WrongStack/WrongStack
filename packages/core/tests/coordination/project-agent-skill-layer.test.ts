@@ -98,7 +98,10 @@ describe('learned buffer round-trip', () => {
       `*Last capture: ${at} · 1 entries*`,
       '',
     ].join('\n');
-    const entries = parseStructuredLearnedEntriesFromContent(corrupted, splitLearnedEntries(corrupted));
+    const entries = parseStructuredLearnedEntriesFromContent(
+      corrupted,
+      splitLearnedEntries(corrupted),
+    );
     expect(entries[0]?.how.split('\n')).toEqual([
       '`pnpm typecheck`',
       '`packages/core/tsconfig.json`',
@@ -174,9 +177,9 @@ describe('capture is never permanently blocked by buffer size', () => {
 
 describe('skill routing and the project skill layer', () => {
   it('honours an explicit [skill: x] tag', () => {
-    expect(routeDirectiveToSkill('Some rule [skill: testing] applies', ['testing', 'git-flow'])).toBe(
-      'testing',
-    );
+    expect(
+      routeDirectiveToSkill('Some rule [skill: testing] applies', ['testing', 'git-flow']),
+    ).toBe('testing');
   });
 
   it('routes by vocabulary when untagged, and declines when nothing matches', () => {
@@ -276,7 +279,11 @@ describe('optimization writes skill addenda and unblocks the buffer', () => {
 
 describe('prompt assembly', () => {
   it('injects only the post-consolidation delta, chosen by timestamp not list order', () => {
-    saveProjectAgentConsolidated('reviewer', '# Consolidated\n\n- Review the diff first.', projectRoot);
+    saveProjectAgentConsolidated(
+      'reviewer',
+      '# Consolidated\n\n- Review the diff first.',
+      projectRoot,
+    );
     captureLearnedFromAgentOutputDetailed(
       '## LEARNED\nAlways check that new state counters are reset in both setup and teardown paths.',
       'reviewer',

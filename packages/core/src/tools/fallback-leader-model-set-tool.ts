@@ -24,7 +24,8 @@ const LEADER_MODEL_SET_SCHEMA: JSONSchema = {
     },
     profile: {
       type: 'string',
-      description: 'Fallback profile name to derive the leader + chain from. Required for "profile".',
+      description:
+        'Fallback profile name to derive the leader + chain from. Required for "profile".',
     },
     toggle: {
       type: 'string',
@@ -53,7 +54,9 @@ interface LeaderModelSetOutput {
   message: string;
 }
 
-export function createLeaderModelSetTool(opts: FallbackManageToolOptions): Tool<LeaderModelSetInput, LeaderModelSetOutput> {
+export function createLeaderModelSetTool(
+  opts: FallbackManageToolOptions,
+): Tool<LeaderModelSetInput, LeaderModelSetOutput> {
   return {
     name: LEADER_MODEL_SET_TOOL_NAME,
     description:
@@ -126,7 +129,10 @@ export function createLeaderModelSetTool(opts: FallbackManageToolOptions): Tool<
         const provider = p.provider ?? config.provider;
         const model = p.model;
         if (!model) {
-          return { status: 'error', message: `Cannot parse "${first}" as a valid model reference.` };
+          return {
+            status: 'error',
+            message: `Cannot parse "${first}" as a valid model reference.`,
+          };
         }
         const rest = chain.slice(1);
         if (opts.switchProviderAndModel) {
@@ -148,7 +154,8 @@ export function createLeaderModelSetTool(opts: FallbackManageToolOptions): Tool<
           : '\n  (config updated — the live session keeps its current model until restart or /setmodel)';
         return {
           status: 'ok',
-          message: `✓ Leader → ${provider}/${model} (profile: ${input.profile})` +
+          message:
+            `✓ Leader → ${provider}/${model} (profile: ${input.profile})` +
             (rest.length > 0 ? `\n  Fallback chain: ${rest.join(' → ')}` : '') +
             profileLiveNote,
         };
@@ -156,7 +163,10 @@ export function createLeaderModelSetTool(opts: FallbackManageToolOptions): Tool<
 
       if (input.action === 'toggle') {
         if (!input.toggle || input.value === undefined) {
-          return { status: 'error', message: 'Provide "toggle" (fallbackAuto | favoriteModelsOnly) and "value" (boolean).' };
+          return {
+            status: 'error',
+            message: 'Provide "toggle" (fallbackAuto | favoriteModelsOnly) and "value" (boolean).',
+          };
         }
         await opts.updateConfig((cfg) => {
           if (input.toggle === 'fallbackAuto') {

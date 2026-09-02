@@ -128,7 +128,12 @@ describe('SessionAnalyzer', () => {
   it('creates and updates tasks across task_created + task_updated', () => {
     const events = [
       { type: 'task_created', ts: '2024-01-01T00:00:00Z', taskId: 't1', title: 'one' } as any,
-      { type: 'task_updated', ts: '2024-01-01T00:00:01Z', taskId: 't1', status: 'in_progress' } as any,
+      {
+        type: 'task_updated',
+        ts: '2024-01-01T00:00:01Z',
+        taskId: 't1',
+        status: 'in_progress',
+      } as any,
     ];
     const r = analyzer.analyze(events);
     expect(r.tasks).toHaveLength(1);
@@ -172,7 +177,12 @@ describe('SessionAnalyzer', () => {
 
   it('synthesizes orphan task entries on task_failed too', () => {
     const events = [
-      { type: 'task_failed', ts: '2024-01-01T00:00:00Z', taskId: 'orph', title: 'never-saw' } as any,
+      {
+        type: 'task_failed',
+        ts: '2024-01-01T00:00:00Z',
+        taskId: 'orph',
+        title: 'never-saw',
+      } as any,
     ];
     const r = analyzer.analyze(events);
     expect(r.tasks[0]).toMatchObject({ taskId: 'orph', status: 'failed', title: 'never-saw' });

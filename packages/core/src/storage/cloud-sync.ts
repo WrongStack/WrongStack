@@ -6,7 +6,13 @@ import { createHash } from 'node:crypto';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 import type { SyncCategory, SyncConfig } from '../types/config.js';
 import { FsError, WrongStackError, ERROR_CODES } from '../types/errors.js';
-export const ALL_SYNC_CATEGORIES: SyncCategory[] = ['settings', 'skills', 'prompts', 'memory', 'history'];
+export const ALL_SYNC_CATEGORIES: SyncCategory[] = [
+  'settings',
+  'skills',
+  'prompts',
+  'memory',
+  'history',
+];
 
 export interface SyncResult {
   ok: boolean;
@@ -52,8 +58,7 @@ export class CloudSync {
     // to that profile, so narrow embedders do not need to implement the named
     // profile resolver and can never silently jump to `default`.
     this.getSettingsConfigPath =
-      getSettingsConfigPath ??
-      (() => path.join(this.paths.configDir, 'config.json'));
+      getSettingsConfigPath ?? (() => path.join(this.paths.configDir, 'config.json'));
   }
 
   // ── Public API ─────────────────────────────────────────────────────
@@ -88,7 +93,8 @@ export class CloudSync {
 
   async push(token: string): Promise<SyncResult> {
     const cfg = this.getConfig();
-    if (!cfg?.enabled) return { ok: false, action: 'push', categories: [], message: 'Not enabled.' };
+    if (!cfg?.enabled)
+      return { ok: false, action: 'push', categories: [], message: 'Not enabled.' };
 
     const parts = cfg.repo.split('/');
     const owner = expectDefined(parts[0]);
@@ -111,7 +117,10 @@ export class CloudSync {
     let newTreeSha = await this.createGitTree(token, owner, repoName, treeEntries, baseTreeSha);
 
     let commitSha = await this.createCommit(
-      token, owner, repoName, newTreeSha,
+      token,
+      owner,
+      repoName,
+      newTreeSha,
       parentCommitSha,
       `Sync ${cfg.categories.join(', ')} — ${new Date().toISOString()}`,
     );
@@ -134,7 +143,10 @@ export class CloudSync {
         treeEntries = this.buildPushTree(localEntries, remoteEntries, cfg.categories);
         newTreeSha = await this.createGitTree(token, owner, repoName, treeEntries, baseTreeSha);
         commitSha = await this.createCommit(
-          token, owner, repoName, newTreeSha,
+          token,
+          owner,
+          repoName,
+          newTreeSha,
           parentCommitSha,
           `Sync ${cfg.categories.join(', ')} — ${new Date().toISOString()}`,
         );
@@ -165,7 +177,8 @@ export class CloudSync {
 
   async pull(token: string): Promise<SyncResult> {
     const cfg = this.getConfig();
-    if (!cfg?.enabled) return { ok: false, action: 'pull', categories: [], message: 'Not enabled.' };
+    if (!cfg?.enabled)
+      return { ok: false, action: 'pull', categories: [], message: 'Not enabled.' };
 
     const pullParts = cfg.repo.split('/');
     const owner = expectDefined(pullParts[0]);
@@ -294,7 +307,8 @@ export class CloudSync {
       if (err instanceof Error && err.message.includes('failed (404)')) return null;
       if (err instanceof Error && err.message.includes('failed (409)')) {
         throw new WrongStackError({
-          message: 'GitHub repository is empty. Initialize it with a README or first commit, then retry `/sync push`.',
+          message:
+            'GitHub repository is empty. Initialize it with a README or first commit, then retry `/sync push`.',
           code: ERROR_CODES.UNKNOWN,
           subsystem: 'general',
           context: { repo: `${owner}/${repo}`, ref },
@@ -348,8 +362,7 @@ export class CloudSync {
     };
     if (res.truncated) {
       throw new WrongStackError({
-        message:
-          'Sync tree is too large — GitHub truncated the result; refusing a partial pull.',
+        message: 'Sync tree is too large — GitHub truncated the result; refusing a partial pull.',
         code: ERROR_CODES.UNKNOWN,
         subsystem: 'general',
       });
@@ -358,17 +371,25 @@ export class CloudSync {
   }
 
   private async createCommit(
-    token: string, owner: string, repo: string,
-    treeSha: string, parentSha?: string | undefined, message = 'sync',
+    token: string,
+    owner: string,
+    repo: string,
+    treeSha: string,
+    parentSha?: string | undefined,
+    message = 'sync',
   ) {
     const body: Record<string, unknown> = { message, tree: treeSha };
     if (parentSha) body.parents = [parentSha];
-    const result = (await this.githubFetch(token, owner, repo, 'POST', '/git/commits', body)) as { sha: string };
+    const result = (await this.githubFetch(token, owner, repo, 'POST', '/git/commits', body)) as {
+      sha: string;
+    };
     return result.sha;
   }
 
   private async createGitTree(
-    token: string, owner: string, repo: string,
+    token: string,
+    owner: string,
+    repo: string,
     entries: GitTreeEntry[],
     baseTreeSha?: string | undefined,
   ): Promise<string> {
@@ -379,12 +400,16 @@ export class CloudSync {
     );
     const body: Record<string, unknown> = { tree };
     if (baseTreeSha) body.base_tree = baseTreeSha;
-    const result = (await this.githubFetch(token, owner, repo, 'POST', '/git/trees', body)) as { sha: string };
+    const result = (await this.githubFetch(token, owner, repo, 'POST', '/git/trees', body)) as {
+      sha: string;
+    };
     return result.sha;
   }
 
   private async getBlob(token: string, owner: string, repo: string, sha: string): Promise<string> {
-    const result = (await this.githubFetch(token, owner, repo, 'GET', `/git/blobs/${sha}`)) as { content: string };
+    const result = (await this.githubFetch(token, owner, repo, 'GET', `/git/blobs/${sha}`)) as {
+      content: string;
+    };
     return result.content;
   }
 
@@ -471,13 +496,19 @@ export class CloudSync {
 
   private categoryToPath(cat: SyncCategory): string | null {
     switch (cat) {
-      case 'settings': return this.getSettingsConfigPath();
-      case 'skills':   return this.paths.globalSkills;
-      case 'prompts':  return this.paths.globalPrompts;
-      case 'memory':   return this.paths.globalMemory;
-      case 'history':  return this.paths.historyFile;
+      case 'settings':
+        return this.getSettingsConfigPath();
+      case 'skills':
+        return this.paths.globalSkills;
+      case 'prompts':
+        return this.paths.globalPrompts;
+      case 'memory':
+        return this.paths.globalMemory;
+      case 'history':
+        return this.paths.historyFile;
       /* v8 ignore next -- unreachable: SyncCategory is exhaustively matched above */
-      default:         return null;
+      default:
+        return null;
     }
   }
 
@@ -528,7 +559,9 @@ async function preparePulledDestination(
   await fs.mkdir(path.dirname(destPath), { recursive: true });
 }
 
-async function lstatIfExists(filePath: string): Promise<Awaited<ReturnType<typeof fs.lstat>> | null> {
+async function lstatIfExists(
+  filePath: string,
+): Promise<Awaited<ReturnType<typeof fs.lstat>> | null> {
   try {
     return await fs.lstat(filePath);
   } catch (err) {
@@ -554,12 +587,13 @@ function resolvePulledCategoryPath(
 ): string {
   const directoryBacked = cat === 'skills' || cat === 'prompts';
   if (!directoryBacked) {
-    if (rel) throw new FsError({
-      message: `Refusing nested CloudSync path for file category: ${remotePath}`,
-      code: ERROR_CODES.FS_DELETE_FAILED,
-      path: remotePath,
-      context: { reason: 'nested_file_category', category: cat },
-    });
+    if (rel)
+      throw new FsError({
+        message: `Refusing nested CloudSync path for file category: ${remotePath}`,
+        code: ERROR_CODES.FS_DELETE_FAILED,
+        path: remotePath,
+        context: { reason: 'nested_file_category', category: cat },
+      });
     return localPath;
   }
 

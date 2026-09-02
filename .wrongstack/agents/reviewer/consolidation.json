@@ -7,8 +7,5 @@
   "model": "MiniMax-M3",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\reviewer\\archive\\learned-2026-08-09T21-16-33-600Z.md",
-  "skills": [
-    "chimera",
-    "testing"
-  ]
+  "skills": ["chimera", "testing"]
 }

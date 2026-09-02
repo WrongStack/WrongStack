@@ -57,7 +57,10 @@ describe('tool-format conversions', () => {
     ];
     const out = messagesToOpenAI(undefined, messages);
     const folded = out.find(
-      (m) => m.role === 'user' && typeof m.content === 'string' && m.content.includes('prior_turns_digest'),
+      (m) =>
+        m.role === 'user' &&
+        typeof m.content === 'string' &&
+        m.content.includes('prior_turns_digest'),
     );
     expect(folded).toBeDefined();
     // No stray system role leaks into the message list from the fold.
@@ -72,8 +75,7 @@ describe('tool-format conversions', () => {
     const out = messagesToResponsesInput(messages);
     const folded = out.find(
       (m) =>
-        m['role'] === 'user' &&
-        JSON.stringify(m['content'] ?? '').includes('prior_turns_digest'),
+        m['role'] === 'user' && JSON.stringify(m['content'] ?? '').includes('prior_turns_digest'),
     );
     expect(folded).toBeDefined();
   });

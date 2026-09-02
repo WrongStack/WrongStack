@@ -11,13 +11,7 @@ export interface AutonomyConfig {
    * round-trips through the persist layer without reverting on
    * restart, and so the standalone server matches the embedded
    * server's autocomplete parity (TUI settings picker). */
-  defaultMode?:
-    | 'off'
-    | 'suggest'
-    | 'auto'
-    | 'eternal'
-    | 'eternal-parallel'
-    | undefined;
+  defaultMode?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel' | undefined;
   /** ms to wait before auto-proceeding in 'auto' mode. Default: 45000. */
   autoProceedDelayMs?: number | undefined;
   /** Maximum consecutive auto-proceed turns before pausing. 0 = unlimited. Default: 50. */

@@ -22,9 +22,7 @@ vi.mock('node:fs/promises', async (orig) => {
     unlink: (...args: Parameters<typeof actual.unlink>) =>
       fsFailures.unlink ? Promise.reject(new Error('unlink failed')) : actual.unlink(...args),
     writeFile: (...args: Parameters<typeof actual.writeFile>) =>
-      fsFailures.writeFile
-        ? Promise.reject(new Error('write failed'))
-        : actual.writeFile(...args),
+      fsFailures.writeFile ? Promise.reject(new Error('write failed')) : actual.writeFile(...args),
   };
 });
 
@@ -282,8 +280,7 @@ describe('readClipboardImage', () => {
       ];
       spawnMock.spawn.mockImplementation((_cmd: string, args: string[]) => {
         const psCmd = (args[args.length - 1] as string) || '';
-        const filePath =
-          psCmd.match(/\$img\.Save\('([^']+)'/)?.[1]?.replace(/\\\\/g, '\\') ?? '';
+        const filePath = psCmd.match(/\$img\.Save\('([^']+)'/)?.[1]?.replace(/\\\\/g, '\\') ?? '';
         return mkChildSavingFile(() => filePath, contents.shift()!, 0, 'OK');
       });
 

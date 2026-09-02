@@ -17,7 +17,11 @@ describe('createSandbox', () => {
     const sandbox = await createSandbox({ baseDir: base, maxIterations: 25, yolo: true });
     expect(sandbox.root).toBe(base);
     const cfg = JSON.parse(await fs.readFile(path.join(sandbox.homeDir, 'config.json'), 'utf8'));
-    expect(cfg).toMatchObject({ yolo: true, tools: { maxIterations: 25 }, session: { auditLevel: 'standard' } });
+    expect(cfg).toMatchObject({
+      yolo: true,
+      tools: { maxIterations: 25 },
+      session: { auditLevel: 'standard' },
+    });
     await expect(fs.stat(sandbox.workRoot)).resolves.toBeDefined();
   });
 

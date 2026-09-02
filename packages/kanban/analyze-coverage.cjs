@@ -10,23 +10,25 @@ for (const [k, v] of Object.entries(c.coverageMap)) {
 // For each source file, find functions in source and check coverage
 for (const [rel, { v, source }] of Object.entries(sourceFiles)) {
   console.log(`\n=== ${rel} ===`);
-  
+
   const lines = source.split('\n');
   const stmtTotal = Object.keys(v.statementMap).length;
-  const stmtHit = Object.keys(v.statementMap).filter(i => v.s[i] && v.s[i] > 0).length;
+  const stmtHit = Object.keys(v.statementMap).filter((i) => v.s[i] && v.s[i] > 0).length;
   const branchTotal = Object.keys(v.branchMap || {}).length;
-  const branchHits = Object.keys(v.branchMap || {}).filter(i => {
+  const branchHits = Object.keys(v.branchMap || {}).filter((i) => {
     const bh = v.b[i] || {};
-    return Object.values(bh).some(x => x > 0);
+    return Object.values(bh).some((x) => x > 0);
   }).length;
   const fnTotal = Object.keys(v.fnMap || {}).length;
-  const fnHits = Object.keys(v.fnMap || {}).filter(i => v.f[i] && v.f[i] > 0).length;
-  
-  console.log(`  Coverage: stmts ${stmtHit}/${stmtTotal}, branches ${branchHits}/${branchTotal}, funcs ${fnHits}/${fnTotal}`);
-  
+  const fnHits = Object.keys(v.fnMap || {}).filter((i) => v.f[i] && v.f[i] > 0).length;
+
+  console.log(
+    `  Coverage: stmts ${stmtHit}/${stmtTotal}, branches ${branchHits}/${branchTotal}, funcs ${fnHits}/${fnTotal}`,
+  );
+
   // Show uncovered functions
   if (v.fnMap) {
-    const uncoveredFns = Object.keys(v.fnMap).filter(i => !v.f[i] || v.f[i] === 0);
+    const uncoveredFns = Object.keys(v.fnMap).filter((i) => !v.f[i] || v.f[i] === 0);
     if (uncoveredFns.length) {
       console.log('\n  UNCOVERED FUNCTIONS:');
       for (const fi of uncoveredFns) {
@@ -35,12 +37,12 @@ for (const [rel, { v, source }] of Object.entries(sourceFiles)) {
       }
     }
   }
-  
+
   // Show uncovered branches with line context
   if (v.branchMap) {
-    const uncoveredBranches = Object.keys(v.branchMap).filter(i => {
+    const uncoveredBranches = Object.keys(v.branchMap).filter((i) => {
       const bh = v.b[i] || {};
-      return Object.values(bh).every(x => x === 0);
+      return Object.values(bh).every((x) => x === 0);
     });
     if (uncoveredBranches.length) {
       console.log('\n  UNCOVERED BRANCHES:');

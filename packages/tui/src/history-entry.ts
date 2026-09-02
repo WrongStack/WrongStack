@@ -1,10 +1,6 @@
 /** Render-neutral conversation entry contracts retained by TUI state. */
 
-import {
-  DEFAULT_MIN_IMPORTANCE,
-  DEFAULT_MIN_SCORE,
-  MIN_RELATION_STRENGTH,
-} from '@wrongstack/sage';
+import { DEFAULT_MIN_IMPORTANCE, DEFAULT_MIN_SCORE, MIN_RELATION_STRENGTH } from '@wrongstack/sage';
 
 // ── Brain council trace — how a multi-LLM panel reached a verdict ─────────
 

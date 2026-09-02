@@ -3,14 +3,14 @@ import gitAutocommitPlugin from '../src/git-autocommit';
 
 const mockApi = {
   tools: {
-    register: vi.fn()
+    register: vi.fn(),
   },
   config: { extensions: {} },
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
   events: {
-    on: vi.fn()
-  }
+    on: vi.fn(),
+  },
 };
 
 describe('git-autocommit plugin', () => {
@@ -30,7 +30,7 @@ describe('git-autocommit plugin', () => {
   it('git_autocommit tool schema is correct', () => {
     gitAutocommitPlugin.setup(mockApi as any);
     const tool = mockApi.tools.register.mock.calls.find(
-      ([t]: any[]) => t.name === 'git_autocommit'
+      ([t]: any[]) => t.name === 'git_autocommit',
     )?.[0];
 
     expect(tool).toBeDefined();
@@ -39,6 +39,18 @@ describe('git-autocommit plugin', () => {
     expect(tool?.permission).toBe('confirm');
     expect(tool?.mutating).toBe(true);
     expect(tool?.inputSchema.type).toBe('object');
-    expect(tool?.inputSchema.properties?.type?.enum).toEqual(['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'perf', 'ci', 'build', 'revert']);
+    expect(tool?.inputSchema.properties?.type?.enum).toEqual([
+      'feat',
+      'fix',
+      'docs',
+      'style',
+      'refactor',
+      'test',
+      'chore',
+      'perf',
+      'ci',
+      'build',
+      'revert',
+    ]);
   });
 });

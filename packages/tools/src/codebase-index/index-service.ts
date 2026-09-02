@@ -13,13 +13,7 @@
  */
 
 import { runIndexerWithStore } from './indexer.js';
-import type {
-  CodeMapGraph,
-  IndexResult,
-  IndexStats,
-  SymbolKind,
-  SymbolLang,
-} from './schema.js';
+import type { CodeMapGraph, IndexResult, IndexStats, SymbolKind, SymbolLang } from './schema.js';
 import type {
   CallRefsOpArgs,
   IndexOpArgs,

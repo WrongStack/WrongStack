@@ -214,7 +214,11 @@ function runGit(args: string[], cwd?: string): Promise<GitCommandResult> {
   });
 }
 
-async function getGitDiff(filePath: string, contextLines: number, cwd?: string): Promise<DiffResult | null> {
+async function getGitDiff(
+  filePath: string,
+  contextLines: number,
+  cwd?: string,
+): Promise<DiffResult | null> {
   // First, check if the file is tracked by git. argv form ensures a
   // filePath with `"` or `;` cannot escape the command.
   const tracked = await runGit(['ls-files', '--error-unmatch', '--', filePath], cwd);
@@ -232,9 +236,8 @@ async function getGitDiff(filePath: string, contextLines: number, cwd?: string):
       // New/untracked file — diff against /dev/null.
       // git diff --no-index exits 1 when there ARE differences; stdout still
       // contains the desired diff, so the status is intentionally ignored.
-      rawDiff = (
-        await runGit(['diff', '--no-index', contextFlag, '/dev/null', filePath], cwd)
-      ).stdout;
+      rawDiff = (await runGit(['diff', '--no-index', contextFlag, '/dev/null', filePath], cwd))
+        .stdout;
     }
 
     // If diff is empty, the file might be staged but not modified,
@@ -390,16 +393,23 @@ const plugin: Plugin = {
       // hostile paths are still refused; they run BEFORE `git diff`
       // so we save the subprocess spawn.
       const oldStr = String(inp['old_string'] ?? inp['TargetContent'] ?? inp['oldContent'] ?? '');
-      const newStr = String(inp['new_string'] ?? inp['ReplacementContent'] ?? inp['newContent'] ?? '');
-      const contentStr = String(inp['content'] ?? inp['CodeContent'] ?? inp['code'] ?? inp['text'] ?? inp['contents'] ?? inp['body'] ?? '');
+      const newStr = String(
+        inp['new_string'] ?? inp['ReplacementContent'] ?? inp['newContent'] ?? '',
+      );
+      const contentStr = String(
+        inp['content'] ??
+          inp['CodeContent'] ??
+          inp['code'] ??
+          inp['text'] ??
+          inp['contents'] ??
+          inp['body'] ??
+          '',
+      );
       // Three-way shape: hash old/new when EITHER is present, else the
       // write-content. (Gating the old/new branch on `toolName === 'edit'`
       // collapsed every edit that populates other field aliases to the
       // constant `:::` fingerprint, defeating the dedupe for distinct edits.)
-      const toolInputForHash =
-        oldStr || newStr
-          ? `${oldStr}:::${newStr}`
-          : contentStr;
+      const toolInputForHash = oldStr || newStr ? `${oldStr}:::${newStr}` : contentStr;
       const now = Date.now();
       const memo = pathMemo.get(filePath);
       if (memo) {
@@ -467,7 +477,9 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- diff_summary_status tool ---
     api.tools.register({

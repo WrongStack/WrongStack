@@ -23,7 +23,10 @@ import {
 let dir: string;
 let cfgFile: string;
 
-function doc(chips: StatuslineDocument['chips'], lines: StatuslineDocument['lines'] = {}): StatuslineDocument {
+function doc(
+  chips: StatuslineDocument['chips'],
+  lines: StatuslineDocument['lines'] = {},
+): StatuslineDocument {
   return { version: STATUSLINE_CONFIG_VERSION, chips, lines };
 }
 
@@ -109,11 +112,7 @@ describe('statusline config (schema v2)', () => {
 
   it('rewrites a v2-shaped file whose version is missing or wrong', async () => {
     const chips = Object.fromEntries(STATUSLINE_CONFIG_KEYS.map((k) => [k, true]));
-    await fs.writeFile(
-      cfgFile,
-      JSON.stringify({ version: 1, chips, lines: {} }),
-      'utf8',
-    );
+    await fs.writeFile(cfgFile, JSON.stringify({ version: 1, chips, lines: {} }), 'utf8');
     const config = await ensureStatuslineConfig();
     expect(config.version).toBe(STATUSLINE_CONFIG_VERSION);
     expect(config.chips.state).toBe(true);
@@ -206,9 +205,7 @@ describe('statusline config (schema v2)', () => {
     const blocker = path.join(dir, 'blocker');
     await fs.writeFile(blocker, 'file in the way');
     process.env.WRONGSTACK_STATUSLINE_CONFIG = path.join(blocker, 'nested', 'cfg.json');
-    await expect(
-      saveStatuslineConfig(doc({ state: true })),
-    ).rejects.toMatchObject({
+    await expect(saveStatuslineConfig(doc({ state: true }))).rejects.toMatchObject({
       name: 'FsError',
       path: path.join(blocker, 'nested', 'cfg.json'),
     });
@@ -233,9 +230,7 @@ describe('statusline config (schema v2)', () => {
     // yields FS_ATOMIC_WRITE_FAILED, not FS_MKDIR_FAILED.
     process.env.WRONGSTACK_STATUSLINE_CONFIG = path.join(dir, 'is-a-dir');
     await fs.mkdir(path.join(dir, 'is-a-dir'), { recursive: true });
-    await expect(
-      saveStatuslineConfig(doc({ state: true })),
-    ).rejects.toMatchObject({
+    await expect(saveStatuslineConfig(doc({ state: true }))).rejects.toMatchObject({
       code: 'FS_ATOMIC_WRITE_FAILED',
     });
   });

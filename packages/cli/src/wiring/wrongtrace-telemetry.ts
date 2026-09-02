@@ -39,7 +39,9 @@ interface WrongTraceTelemetryInput {
  * ride along as extras (the payload allows free-form pass-through), so
  * downstream attribution keeps the full token picture.
  */
-export function buildWrongTraceTelemetryReport(input: WrongTraceTelemetryInput): WrongTraceTelemetryReport {
+export function buildWrongTraceTelemetryReport(
+  input: WrongTraceTelemetryInput,
+): WrongTraceTelemetryReport {
   return {
     run_id: input.sessionId,
     agent_name: input.agentName,
@@ -64,7 +66,12 @@ export function buildWrongTraceTelemetryReport(input: WrongTraceTelemetryInput):
  */
 export async function reportWrongTraceSessionTelemetry(
   input: WrongTraceTelemetryInput,
-  opts: { client?: { isAvailable: boolean; reportTelemetry: (r: WrongTraceTelemetryReport) => Promise<{ ok: boolean } | null> } } = {},
+  opts: {
+    client?: {
+      isAvailable: boolean;
+      reportTelemetry: (r: WrongTraceTelemetryReport) => Promise<{ ok: boolean } | null>;
+    };
+  } = {},
 ): Promise<void> {
   try {
     const wt = opts.client ?? (await getWrongTrace());

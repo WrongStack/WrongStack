@@ -841,9 +841,9 @@ describe('resolveAllConfigured through wrapProviderRunner', () => {
     const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
 
     // Every provider fails — chain should exhaust without ever reaching p6.
-    const inner = vi.fn().mockRejectedValue(
-      new ProviderError('rate limited', 429, true, 'primary'),
-    );
+    const inner = vi
+      .fn()
+      .mockRejectedValue(new ProviderError('rate limited', 429, true, 'primary'));
 
     await expect(ext.wrapProviderRunner?.(ctx, request, inner)).rejects.toThrow();
 
@@ -893,9 +893,9 @@ describe('resolveAllConfigured through wrapProviderRunner', () => {
     const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
 
     // Every provider fails — chain exhausts.
-    const inner = vi.fn().mockRejectedValue(
-      new ProviderError('rate limited', 429, true, 'primary'),
-    );
+    const inner = vi
+      .fn()
+      .mockRejectedValue(new ProviderError('rate limited', 429, true, 'primary'));
 
     await expect(ext.wrapProviderRunner?.(ctx, request, inner)).rejects.toThrow();
 

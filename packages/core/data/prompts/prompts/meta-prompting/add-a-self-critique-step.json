@@ -5,10 +5,7 @@
   "description": "Have the model check its own output before finishing.",
   "content": "I want the model to catch its own mistakes on: {{task}}\n\nAdd a self-critique step: after a first answer, have it review against explicit criteria (correctness, missed requirements, edge cases) and revise if needed. Specify what to check for — vague self-review does nothing. Decide whether the critique is shown or internal, and cap the loop so it doesn't second-guess forever. Tell me when self-critique genuinely helps versus when an independent check would catch more.",
   "category": "meta-prompting",
-  "tags": [
-    "self-critique",
-    "verification"
-  ],
+  "tags": ["self-critique", "verification"],
   "source": "builtin",
   "favorite": false,
   "checksum": "8676b5d53555d5731e1bb88bde2713e5f3cb31358a81f7686c7f437e275ae1de",

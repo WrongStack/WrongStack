@@ -13,12 +13,7 @@
  * (and indirectly `pushBrainLog`) for the duration of the session.
  */
 
-type BrainDecisionKind =
-  | 'answered'
-  | 'ask_human'
-  | 'denied'
-  | 'intervention'
-  | 'council_warn';
+type BrainDecisionKind = 'answered' | 'ask_human' | 'denied' | 'intervention' | 'council_warn';
 
 export interface BrainDecisionEntry {
   at: number;

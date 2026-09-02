@@ -104,7 +104,18 @@ describe('LLMSelector', () => {
     it('uses fallback when provider throws', async () => {
       const provider: Provider = {
         id: 'test',
-        capabilities: { tools: false, streaming: false, parallelTools: false, vision: false, promptCache: false, systemPrompt: false, jsonMode: false, reasoning: false, maxContext: 128_000, cacheControl: 'none' as const } satisfies Capabilities,
+        capabilities: {
+          tools: false,
+          streaming: false,
+          parallelTools: false,
+          vision: false,
+          promptCache: false,
+          systemPrompt: false,
+          jsonMode: false,
+          reasoning: false,
+          maxContext: 128_000,
+          cacheControl: 'none' as const,
+        } satisfies Capabilities,
         complete: vi.fn().mockRejectedValue(new Error('provider error')),
         stream: vi.fn(),
       };
@@ -173,7 +184,18 @@ describe('LLMSelector', () => {
     it('keeps recent messages that fit within budget', async () => {
       const provider: Provider = {
         id: 'test',
-        capabilities: { tools: false, streaming: false, parallelTools: false, vision: false, promptCache: false, systemPrompt: false, jsonMode: false, reasoning: false, maxContext: 128_000, cacheControl: 'none' as const } satisfies Capabilities,
+        capabilities: {
+          tools: false,
+          streaming: false,
+          parallelTools: false,
+          vision: false,
+          promptCache: false,
+          systemPrompt: false,
+          jsonMode: false,
+          reasoning: false,
+          maxContext: 128_000,
+          cacheControl: 'none' as const,
+        } satisfies Capabilities,
         complete: vi.fn().mockRejectedValue(new Error('fail')),
         stream: vi.fn(),
       };
@@ -190,7 +212,18 @@ describe('LLMSelector', () => {
     it('collapses all when budget is very small', async () => {
       const provider: Provider = {
         id: 'test',
-        capabilities: { tools: false, streaming: false, parallelTools: false, vision: false, promptCache: false, systemPrompt: false, jsonMode: false, reasoning: false, maxContext: 128_000, cacheControl: 'none' as const } satisfies Capabilities,
+        capabilities: {
+          tools: false,
+          streaming: false,
+          parallelTools: false,
+          vision: false,
+          promptCache: false,
+          systemPrompt: false,
+          jsonMode: false,
+          reasoning: false,
+          maxContext: 128_000,
+          cacheControl: 'none' as const,
+        } satisfies Capabilities,
         complete: vi.fn().mockRejectedValue(new Error('fail')),
         stream: vi.fn(),
       };
@@ -205,7 +238,18 @@ describe('LLMSelector', () => {
     it('keeps all when budget is large enough', async () => {
       const provider: Provider = {
         id: 'test',
-        capabilities: { tools: false, streaming: false, parallelTools: false, vision: false, promptCache: false, systemPrompt: false, jsonMode: false, reasoning: false, maxContext: 128_000, cacheControl: 'none' as const } satisfies Capabilities,
+        capabilities: {
+          tools: false,
+          streaming: false,
+          parallelTools: false,
+          vision: false,
+          promptCache: false,
+          systemPrompt: false,
+          jsonMode: false,
+          reasoning: false,
+          maxContext: 128_000,
+          cacheControl: 'none' as const,
+        } satisfies Capabilities,
         complete: vi.fn().mockRejectedValue(new Error('fail')),
         stream: vi.fn(),
       };
@@ -223,7 +267,18 @@ describe('LLMSelector', () => {
     it('estimates tokens for message with array content containing tool_use blocks', async () => {
       const provider: Provider = {
         id: 'test',
-        capabilities: { tools: false, streaming: false, parallelTools: false, vision: false, promptCache: false, systemPrompt: false, jsonMode: false, reasoning: false, maxContext: 128_000, cacheControl: 'none' as const } satisfies Capabilities,
+        capabilities: {
+          tools: false,
+          streaming: false,
+          parallelTools: false,
+          vision: false,
+          promptCache: false,
+          systemPrompt: false,
+          jsonMode: false,
+          reasoning: false,
+          maxContext: 128_000,
+          cacheControl: 'none' as const,
+        } satisfies Capabilities,
         complete: vi.fn().mockRejectedValue(new Error('fail')),
         stream: vi.fn(),
       };
@@ -234,7 +289,12 @@ describe('LLMSelector', () => {
           content: [
             { type: 'text', text: 'Hello world' },
             { type: 'tool_use', id: 'tool_1', name: 'ReadFile', input: { path: '/a/b/c' } },
-            { type: 'tool_use', id: 'tool_2', name: 'WriteFile', input: { path: '/x/y/z', content: 'hello' } },
+            {
+              type: 'tool_use',
+              id: 'tool_2',
+              name: 'WriteFile',
+              input: { path: '/x/y/z', content: 'hello' },
+            },
           ],
         },
       ];
@@ -249,7 +309,18 @@ describe('LLMSelector', () => {
     it('breaks early when total line length exceeds maxChars', async () => {
       const provider: Provider = {
         id: 'test',
-        capabilities: { tools: false, streaming: false, parallelTools: false, vision: false, promptCache: false, systemPrompt: false, jsonMode: false, reasoning: false, maxContext: 128_000, cacheControl: 'none' as const } satisfies Capabilities,
+        capabilities: {
+          tools: false,
+          streaming: false,
+          parallelTools: false,
+          vision: false,
+          promptCache: false,
+          systemPrompt: false,
+          jsonMode: false,
+          reasoning: false,
+          maxContext: 128_000,
+          cacheControl: 'none' as const,
+        } satisfies Capabilities,
         complete: vi.fn().mockRejectedValue(new Error('fail')),
         stream: vi.fn(),
       };
@@ -287,9 +358,13 @@ describe('LLMSelector', () => {
     it('parseSelectorOutput finds valid JSON but JSON.parse throws', async () => {
       // The raw response has { and } but the content between them isn't valid JSON
       // e.g. "{"kept": {...}}" would fail JSON.parse for some reason
-      const provider = mockProvider(['{"kept":[{invalid json here}],"collapsed":[],"reasoning":""}']);
+      const provider = mockProvider([
+        '{"kept":[{invalid json here}],"collapsed":[],"reasoning":""}',
+      ]);
       const selector = new LLMSelector({ provider });
-      const messages = Array(5).fill(null).map((_, i) => makeMessage('user', `msg ${i}`));
+      const messages = Array(5)
+        .fill(null)
+        .map((_, i) => makeMessage('user', `msg ${i}`));
       const result = await selector.select(messages, 1000);
       // Should fall back to recency selection
       expect(result.kept.length + result.collapsed.length).toBeGreaterThan(0);
@@ -298,7 +373,9 @@ describe('LLMSelector', () => {
     it('parseSelectorOutput with empty kept/collapsed arrays', async () => {
       const provider = mockProvider(['{"kept":[],"collapsed":[],"reasoning":"nothing kept"}']);
       const selector = new LLMSelector({ provider });
-      const messages = Array(5).fill(null).map((_, i) => makeMessage('user', `msg ${i}`));
+      const messages = Array(5)
+        .fill(null)
+        .map((_, i) => makeMessage('user', `msg ${i}`));
       const result = await selector.select(messages, 1000);
       expect(result.kept).toEqual([]);
       expect(result.collapsed).toEqual([]);
@@ -307,7 +384,9 @@ describe('LLMSelector', () => {
     it('parseSelectorOutput where kept[i].importance is missing → defaults to medium', async () => {
       const provider = mockProvider(['{"kept":[{"from":0,"to":2}],"collapsed":[],"reasoning":""}']);
       const selector = new LLMSelector({ provider });
-      const messages = Array(5).fill(null).map((_, i) => makeMessage('user', `msg ${i}`));
+      const messages = Array(5)
+        .fill(null)
+        .map((_, i) => makeMessage('user', `msg ${i}`));
       const result = await selector.select(messages, 1000);
       expect(result.kept[0]!.importance).toBe('medium');
     });
@@ -316,10 +395,12 @@ describe('LLMSelector', () => {
 
 describe('LLMSelector with OneShotOrchestrator', () => {
   function makeMessages(n = 5): Message[] {
-    return Array(n).fill(null).map((_, i) => ({
-      role: 'user' as const,
-      content: `msg ${i}`,
-    }));
+    return Array(n)
+      .fill(null)
+      .map((_, i) => ({
+        role: 'user' as const,
+        content: `msg ${i}`,
+      }));
   }
 
   it('calls orchestrator.call() when oneShotOrchestrator is set', async () => {

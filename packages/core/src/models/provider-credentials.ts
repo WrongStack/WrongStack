@@ -33,7 +33,8 @@ export interface ProviderCredentialConfig {
           string,
           | {
               readonly apiKey?: string | undefined;
-              readonly apiKeys?: readonly ({ readonly apiKey?: string | undefined } | undefined)[]
+              readonly apiKeys?:
+                | readonly ({ readonly apiKey?: string | undefined } | undefined)[]
                 | undefined;
             }
           | undefined

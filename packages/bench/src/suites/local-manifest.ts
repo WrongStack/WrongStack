@@ -65,10 +65,7 @@ interface LocalManifestTask {
 
 export function createLocalManifestSuite(opts: LocalSuiteOptions): BenchSuite {
   const suiteDir = path.resolve(opts.suiteDir);
-  const manifestFile = path.resolve(
-    suiteDir,
-    opts.manifestFile ?? DEFAULT_LOCAL_MANIFEST,
-  );
+  const manifestFile = path.resolve(suiteDir, opts.manifestFile ?? DEFAULT_LOCAL_MANIFEST);
 
   return {
     id: 'local',
@@ -209,9 +206,15 @@ function parseOptionalTraceEval(
   }
   const sourceValue = value['source'];
   if (!isRecord(sourceValue)) {
-    throw new Error(`${manifestFile}: ${field}.source must be an object describing a real session transcript`);
+    throw new Error(
+      `${manifestFile}: ${field}.source must be an object describing a real session transcript`,
+    );
   }
-  const sessionId = requiredString(sourceValue['sessionId'], `${field}.source.sessionId`, manifestFile);
+  const sessionId = requiredString(
+    sourceValue['sessionId'],
+    `${field}.source.sessionId`,
+    manifestFile,
+  );
   const transcriptPath = requiredString(
     sourceValue['transcriptPath'],
     `${field}.source.transcriptPath`,
@@ -319,7 +322,9 @@ async function resolveAndValidateTraceEval(
       event['id'] === spec.source.sessionId,
   );
   if (!hasSessionId) {
-    throw new Error(`traceEval source sessionId ${spec.source.sessionId} was not found in ${transcriptPath}`);
+    throw new Error(
+      `traceEval source sessionId ${spec.source.sessionId} was not found in ${transcriptPath}`,
+    );
   }
 
   return { ...spec, source: { ...spec.source, transcriptPath } };
@@ -400,10 +405,7 @@ function parseAssertion(value: unknown, field: string, manifestFile: string): Lo
   }
 }
 
-async function hashTemplateDir(
-  root: string,
-  exclude?: string[] | undefined,
-): Promise<string> {
+async function hashTemplateDir(root: string, exclude?: string[] | undefined): Promise<string> {
   const hash = createHash('sha256');
   const excludeSet = new Set(exclude ?? []);
 
@@ -506,7 +508,11 @@ function requiredNonEmptyStringArray(
   field: string,
   manifestFile: string,
 ): string[] {
-  if (!Array.isArray(value) || value.length === 0 || !value.every((item) => typeof item === 'string' && item !== '')) {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    !value.every((item) => typeof item === 'string' && item !== '')
+  ) {
     throw new Error(`${manifestFile}: ${field} must be a non-empty array of non-empty strings`);
   }
   return value;

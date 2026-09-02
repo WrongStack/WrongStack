@@ -2,7 +2,7 @@ import { ArrowLeft, ChevronRight, Home, Network, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LiveAgentPresence } from '@/stores/codemap-activity-store';
 import type { CodeMapGraphResponse, CodeMapScope } from './codemap-model';
-import { relativeFilePath, } from './codemap-model';
+import { relativeFilePath } from './codemap-model';
 import { useAppTranslation } from '@/i18n';
 
 interface CodeMapHeaderProps {
@@ -30,7 +30,9 @@ export function CodeMapHeader({
           <Network className="h-4 w-4" />
         </span>
         <div>
-          <h1 className="font-display text-sm font-semibold tracking-tight">{t('activity:codeMap.codeAtlas')}</h1>
+          <h1 className="font-display text-sm font-semibold tracking-tight">
+            {t('activity:codeMap.codeAtlas')}
+          </h1>
           <p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
             {t('activity:codeMap.architectureIntelligence')}
           </p>
@@ -113,7 +115,9 @@ export function CodeMapHeader({
         </div>
         <div className="text-right">
           <div className="font-mono text-sm font-semibold">{edgeWeight}</div>
-          <div className="text-[8px] uppercase tracking-wider text-muted-foreground">references</div>
+          <div className="text-[8px] uppercase tracking-wider text-muted-foreground">
+            references
+          </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-sm font-semibold">{connectedNodeCount}</div>

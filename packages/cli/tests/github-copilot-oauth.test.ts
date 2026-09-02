@@ -298,7 +298,9 @@ describe('sleep() abort-listener hygiene (RAM-leak audit 2026-08-16)', () => {
       vi.fn(async () => {
         calls++;
         return new Response(
-          JSON.stringify(calls < 4 ? { error: 'authorization_pending' } : { access_token: 'gho_T' }),
+          JSON.stringify(
+            calls < 4 ? { error: 'authorization_pending' } : { access_token: 'gho_T' },
+          ),
           { status: 200 },
         );
       }),

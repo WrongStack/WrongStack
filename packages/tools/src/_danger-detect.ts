@@ -130,7 +130,9 @@ const RULES: readonly DangerRule[] = [
     test: (cmd, args) => {
       if (cmd !== 'powershell' && cmd !== 'pwsh') return false;
       return args.some((a) =>
-        /^(?:Format-Volume|Clear-Disk|Initialize-Disk|Remove-Partition|Clear-Volume)(?:\s|$)/i.test(a),
+        /^(?:Format-Volume|Clear-Disk|Initialize-Disk|Remove-Partition|Clear-Volume)(?:\s|$)/i.test(
+          a,
+        ),
       );
     },
     reason: 'PowerShell disk/volume partition destruction',

@@ -219,12 +219,16 @@ describe('coordinator monitor store', () => {
     });
 
     it('prefers an explicit payload.kind over the event type', () => {
-      store().pushEvent('budget.threshold_reached', {
-        kind: 'tokens',
-        used: 5,
-        limit: 10,
-        subagentId: 'a1',
-      }, 1);
+      store().pushEvent(
+        'budget.threshold_reached',
+        {
+          kind: 'tokens',
+          used: 5,
+          limit: 10,
+          subagentId: 'a1',
+        },
+        1,
+      );
       expect(store().events[0]?.kind).toBe('tokens');
     });
 
@@ -258,7 +262,11 @@ describe('coordinator monitor store', () => {
     });
 
     it('treats a non-numeric limit as non-gradable', () => {
-      store().pushEvent('budget.decision', { subagentId: 'a1', kind: 'tokens', decision: 'deny', limit: 'x' }, 1);
+      store().pushEvent(
+        'budget.decision',
+        { subagentId: 'a1', kind: 'tokens', decision: 'deny', limit: 'x' },
+        1,
+      );
       expect(store().events[0]?.level).toBe('info');
     });
 
@@ -292,7 +300,12 @@ describe('coordinator monitor store', () => {
 
       it('renders 0% rather than NaN when the limit is zero', () => {
         expect(
-          msgFor('budget.threshold_reached', { subagentId: 'a1', kind: 'tokens', used: 5, limit: 0 }),
+          msgFor('budget.threshold_reached', {
+            subagentId: 'a1',
+            kind: 'tokens',
+            used: 5,
+            limit: 0,
+          }),
         ).toBe('a1 [tokens] 0% (5/0)');
       });
 
@@ -316,7 +329,11 @@ describe('coordinator monitor store', () => {
 
       it('renders consensus.vote_resolved with tallies', () => {
         expect(
-          msgFor('consensus.vote_resolved', { result: 'approved', approveCount: 3, rejectCount: 1 }),
+          msgFor('consensus.vote_resolved', {
+            result: 'approved',
+            approveCount: 3,
+            rejectCount: 1,
+          }),
         ).toBe('approved — ✅3 ❌1');
       });
 
@@ -343,7 +360,11 @@ describe('coordinator monitor store', () => {
 
       it('renders subagent.budget_extended', () => {
         expect(
-          msgFor('subagent.budget_extended', { subagentId: 'a1', kind: 'timeout', extendedTo: 5000 }),
+          msgFor('subagent.budget_extended', {
+            subagentId: 'a1',
+            kind: 'timeout',
+            extendedTo: 5000,
+          }),
         ).toBe('a1 [timeout] extended → 5000ms');
       });
 
@@ -390,7 +411,7 @@ describe('coordinator monitor store', () => {
       expect(vote?.votes).toHaveLength(3);
     });
 
-    it('replaces a voter\'s earlier ballot rather than duplicating the row', () => {
+    it("replaces a voter's earlier ballot rather than duplicating the row", () => {
       store().pushConsensusVote('c1', 'Ship it', eligible);
       store().recordConsensusVote('c1', 'a1', 'Alpha', 'approve');
       store().recordConsensusVote('c1', 'a1', 'Alpha', 'reject');
@@ -543,7 +564,13 @@ describe('coordinator monitor store', () => {
     it('records an alert with a computed percentage', () => {
       store().recordBudgetAlert('a1', 'tokens', 90, 100);
       const alert = store().budgetAlerts[0];
-      expect(alert).toMatchObject({ subagentId: 'a1', kind: 'tokens', used: 90, limit: 100, pct: 90 });
+      expect(alert).toMatchObject({
+        subagentId: 'a1',
+        kind: 'tokens',
+        used: 90,
+        limit: 100,
+        pct: 90,
+      });
     });
 
     it('reports 0% instead of NaN when the limit is zero', () => {

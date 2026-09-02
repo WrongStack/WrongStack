@@ -50,12 +50,18 @@ describe('Telegram manifest parity', () => {
 
     // Every manifest key must exist in the interface
     for (const key of manifestKeys) {
-      expect(expectedKeys.has(key), `manifest lists "${key}" but TelegramPluginConfig does not have it`).toBe(true);
+      expect(
+        expectedKeys.has(key),
+        `manifest lists "${key}" but TelegramPluginConfig does not have it`,
+      ).toBe(true);
     }
 
     // Every interface key must exist in the manifest
     for (const key of expectedKeys) {
-      expect(manifestKeys.has(key), `TelegramPluginConfig has "${key}" but manifest does not list it`).toBe(true);
+      expect(
+        manifestKeys.has(key),
+        `TelegramPluginConfig has "${key}" but manifest does not list it`,
+      ).toBe(true);
     }
   });
 
@@ -69,16 +75,14 @@ describe('Telegram manifest parity', () => {
     // The three tools are defined in src/tools/telegram-{send,read,approve}.ts
     // and registered in src/index.ts setup().  We verify the manifest lists
     // exactly those three.
-    expect(manifestToolNames).toEqual([
-      'telegram_approve',
-      'telegram_read',
-      'telegram_send',
-    ]);
+    expect(manifestToolNames).toEqual(['telegram_approve', 'telegram_read', 'telegram_send']);
   });
 
   it('every manifest tool has a non-empty description', () => {
     for (const tool of TELEGRAM_MANIFEST.tools) {
-      expect(tool.description.length, `tool "${tool.name}" has empty description`).toBeGreaterThan(0);
+      expect(tool.description.length, `tool "${tool.name}" has empty description`).toBeGreaterThan(
+        0,
+      );
     }
   });
 
@@ -91,11 +95,7 @@ describe('Telegram manifest parity', () => {
 
     // registerSlashCommands() in src/slash-commands/index.ts registers
     // exactly: telegram-health, send, chatid
-    expect(manifestCmdNames).toEqual([
-      'chatid',
-      'send',
-      'telegram-health',
-    ]);
+    expect(manifestCmdNames).toEqual(['chatid', 'send', 'telegram-health']);
   });
 
   it('telegram-health aliases match the registered aliases', () => {
@@ -106,7 +106,9 @@ describe('Telegram manifest parity', () => {
 
   it('every manifest slash command has a non-empty description', () => {
     for (const cmd of TELEGRAM_MANIFEST.slashCommands) {
-      expect(cmd.description.length, `command "${cmd.name}" has empty description`).toBeGreaterThan(0);
+      expect(cmd.description.length, `command "${cmd.name}" has empty description`).toBeGreaterThan(
+        0,
+      );
     }
   });
 

@@ -73,9 +73,9 @@ describe('port-utils', () => {
 
       try {
         // With maxTries=1, it should only try the occupied port
-        await expect(
-          findFreePort('127.0.0.1', occupyPort, { maxTries: 1 })
-        ).rejects.toThrow(/No free port found/);
+        await expect(findFreePort('127.0.0.1', occupyPort, { maxTries: 1 })).rejects.toThrow(
+          /No free port found/,
+        );
       } finally {
         await new Promise<void>((resolve) => server.close(() => resolve()));
       }
@@ -157,9 +157,9 @@ describe('port-utils', () => {
       // the promise executor converts the throw into a rejection, and the
       // retry loop must NOT treat it as a retryable EADDRINUSE.
       const server = net.createServer();
-      await expect(
-        listenWithRetry(server, '127.0.0.1', 70_000, { maxTries: 5 }),
-      ).rejects.toThrow(/Port/i);
+      await expect(listenWithRetry(server, '127.0.0.1', 70_000, { maxTries: 5 })).rejects.toThrow(
+        /Port/i,
+      );
       expect(server.listening).toBe(false);
     });
 

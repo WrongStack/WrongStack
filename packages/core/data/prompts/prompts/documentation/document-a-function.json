@@ -5,10 +5,7 @@
   "description": "Write clear API documentation for a function or method.",
   "content": "Write documentation for this function:\n\n```\n{{code}}\n```\n\nCover: what it does (one sentence), each parameter and its constraints, the return value, errors/exceptions it can raise, and a short usage example. Document the non-obvious: side effects, performance characteristics, and any gotcha a caller would hit. Match the docstring style of {{language}}.",
   "category": "documentation",
-  "tags": [
-    "api-docs",
-    "docstring"
-  ],
+  "tags": ["api-docs", "docstring"],
   "source": "builtin",
   "favorite": false,
   "checksum": "d0b7369c56967c6f4698177135ff636b624b09c6f19ed1c73cd639065d828bfe",

@@ -43,7 +43,8 @@ export function AgentRunPanel({
   const rows: Array<{ label: string; value: ReactNode }> = [];
   if (agentName) rows.push({ label: t('activity:kanbanRun.agent'), value: agentName });
   if (role) rows.push({ label: t('activity:kanbanRun.role'), value: role });
-  if (assignment.modelRouting) rows.push({ label: t('activity:kanbanRun.modelSource'), value: assignment.modelRouting });
+  if (assignment.modelRouting)
+    rows.push({ label: t('activity:kanbanRun.modelSource'), value: assignment.modelRouting });
   if (provider || model) {
     rows.push({
       label: t('activity:kanbanRun.model'),
@@ -62,7 +63,10 @@ export function AgentRunPanel({
     });
   }
   if (elapsed) {
-    rows.push({ label: assignment.completedAt ? t('activity:kanban.duration') : t('activity:kanban.elapsed'), value: elapsed });
+    rows.push({
+      label: assignment.completedAt ? t('activity:kanban.duration') : t('activity:kanban.elapsed'),
+      value: elapsed,
+    });
   }
   if (typeof assignment.attempt === 'number') {
     rows.push({
@@ -71,17 +75,27 @@ export function AgentRunPanel({
     });
   }
   if (assignment.costCeilingUsd) {
-    rows.push({ label: t('activity:kanbanRun.costCeiling'), value: `$${assignment.costCeilingUsd.toFixed(2)}` });
+    rows.push({
+      label: t('activity:kanbanRun.costCeiling'),
+      value: `$${assignment.costCeilingUsd.toFixed(2)}`,
+    });
   }
   if (assignment.fallbackProfile) {
-    rows.push({ label: t('activity:kanbanRun.fallbackProfile'), value: assignment.fallbackProfile });
+    rows.push({
+      label: t('activity:kanbanRun.fallbackProfile'),
+      value: assignment.fallbackProfile,
+    });
   }
   if (assignment.fallbackModels?.length) {
-    rows.push({ label: t('activity:kanbanRun.fallbacks'), value: assignment.fallbackModels.join(' → ') });
+    rows.push({
+      label: t('activity:kanbanRun.fallbacks'),
+      value: assignment.fallbackModels.join(' → '),
+    });
   }
   if (assignment.skills?.length)
     rows.push({ label: t('activity:kanbanRun.skills'), value: assignment.skills.join(', ') });
-  if (assignment.tools?.length) rows.push({ label: t('activity:kanbanRun.tools'), value: assignment.tools.join(', ') });
+  if (assignment.tools?.length)
+    rows.push({ label: t('activity:kanbanRun.tools'), value: assignment.tools.join(', ') });
   if (assignment.leaseExpiresAt) {
     rows.push({
       label: t('activity:kanbanRun.leaseExpires'),
@@ -119,7 +133,9 @@ export function AgentRunPanel({
       )}
       {assignment.lastResult && (
         <div className="mt-2">
-          <div className="mb-1 text-[10px] uppercase text-muted-foreground">{t('activity:kanban.lastResult')}</div>
+          <div className="mb-1 text-[10px] uppercase text-muted-foreground">
+            {t('activity:kanban.lastResult')}
+          </div>
           <div className="max-h-24 overflow-y-auto whitespace-pre-wrap rounded bg-muted px-2 py-1 text-[11px] leading-relaxed text-foreground">
             {assignment.lastResult}
           </div>

@@ -5,10 +5,7 @@
   "description": "Model a process as an explicit finite state machine.",
   "content": "Model this as a state machine: {{process}}\n\nDefine the states, the events/transitions between them, and the actions on each transition. Make illegal transitions impossible to represent. Implement it in {{language}} with a clear transition table or typed states. Call out the states that are easy to forget: error, timeout, cancelled.",
   "category": "coding",
-  "tags": [
-    "state-machine",
-    "modeling"
-  ],
+  "tags": ["state-machine", "modeling"],
   "source": "builtin",
   "favorite": false,
   "checksum": "14d80a6bba316f8224ccfdfd45087de2540a20d369faacbb0d924018e8679590",

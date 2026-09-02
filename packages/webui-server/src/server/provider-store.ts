@@ -21,11 +21,15 @@ interface ProviderStoreDeps {
 export function createConfigWriteLock() {
   let lock: Promise<void> = Promise.resolve();
   return {
-    get current() { return lock; },
+    get current() {
+      return lock;
+    },
     acquire() {
       const prev = lock;
       let release: () => void = () => undefined;
-      lock = new Promise<void>((resolve) => { release = resolve; });
+      lock = new Promise<void>((resolve) => {
+        release = resolve;
+      });
       return { prev, release };
     },
   };

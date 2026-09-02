@@ -5,11 +5,7 @@
   "description": "Pressure-test an idea by arguing both sides well.",
   "content": "Here's an idea/claim: {{claim}}\n\nFirst, steelman it: make the strongest honest case FOR it. Then critique it: the strongest case against, the hidden assumptions, and the conditions under which it fails. Finally, give your balanced judgment: is it right, and under what circumstances? Don't strawman either side.",
   "category": "research",
-  "tags": [
-    "critical-thinking",
-    "steelman",
-    "debate"
-  ],
+  "tags": ["critical-thinking", "steelman", "debate"],
   "source": "builtin",
   "favorite": false,
   "checksum": "88ee3a2c3779e1112783f14a5a5f27372932bdb8128594e89966ad5609071385",

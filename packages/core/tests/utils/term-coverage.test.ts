@@ -68,7 +68,9 @@ describe('onResize', () => {
     const stream = new EventEmitter() as unknown as NodeJS.WriteStream;
     Object.assign(stream, { rows: 24, columns: 80 });
     let callCount = 0;
-    const cleanup = onResize(() => { callCount++; }, stream);
+    const cleanup = onResize(() => {
+      callCount++;
+    }, stream);
     cleanup();
     stream.emit('resize');
     expect(callCount).toBe(0);

@@ -92,8 +92,9 @@ describe('split memory slash modules', () => {
       importance: 0.9,
       errors: [],
     });
-    expect(renderSageEntries([memory], false, Date.parse('2026-08-15T00:00:00.000Z')).join('\n'))
-      .toContain('split memory modules');
+    expect(
+      renderSageEntries([memory], false, Date.parse('2026-08-15T00:00:00.000Z')).join('\n'),
+    ).toContain('split memory modules');
     expect(sparkbar(1, 2)).toBe('█████');
     expect(memErr(new Error('boom'))).toBe('boom');
   });
@@ -142,10 +143,17 @@ describe('split memory slash modules', () => {
       { from: 'mem-1', to: 'mem-2', relation: 'supports', weight: 1 },
     ]);
 
-    const result = await handleGatherSubcommand(
-      sagePort({ listSagePage, graphFor }),
-      ['gather', 'split', '--status', 'active', '--kind', 'decision', '--limit', '1', '--relations'],
-    );
+    const result = await handleGatherSubcommand(sagePort({ listSagePage, graphFor }), [
+      'gather',
+      'split',
+      '--status',
+      'active',
+      '--kind',
+      'decision',
+      '--limit',
+      '1',
+      '--relations',
+    ]);
 
     expect(listSagePage).toHaveBeenCalledWith({
       statuses: ['active'],

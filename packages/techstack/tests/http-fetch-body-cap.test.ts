@@ -53,12 +53,21 @@ describe('requestWithRetry body cap', () => {
         // before that; emit it anyway to prove resolve-after-reject is a no-op.
         res._emit('end');
       }, 0);
-      const req: Partial<ClientRequest> = { on: vi.fn(() => req as ClientRequest), end: vi.fn(), write: vi.fn() };
+      const req: Partial<ClientRequest> = {
+        on: vi.fn(() => req as ClientRequest),
+        end: vi.fn(),
+        write: vi.fn(),
+      };
       return req as ClientRequest;
     }) as typeof httpsGet);
 
     await expect(
-      requestWithRetry({ hostname: 'registry.example', path: '/big', maxAttempts: 1, maxBodyBytes: 500 }),
+      requestWithRetry({
+        hostname: 'registry.example',
+        path: '/big',
+        maxAttempts: 1,
+        maxBodyBytes: 500,
+      }),
     ).rejects.toThrow(/exceeded 500 bytes/);
     expect(res.destroyed).toBe(true);
   });
@@ -71,11 +80,20 @@ describe('requestWithRetry body cap', () => {
         res._emit('data', 'hello');
         res._emit('end');
       }, 0);
-      const req: Partial<ClientRequest> = { on: vi.fn(() => req as ClientRequest), end: vi.fn(), write: vi.fn() };
+      const req: Partial<ClientRequest> = {
+        on: vi.fn(() => req as ClientRequest),
+        end: vi.fn(),
+        write: vi.fn(),
+      };
       return req as ClientRequest;
     }) as typeof httpsGet);
 
-    const out = await requestWithRetry({ hostname: 'registry.example', path: '/small', maxAttempts: 1, maxBodyBytes: 500 });
+    const out = await requestWithRetry({
+      hostname: 'registry.example',
+      path: '/small',
+      maxAttempts: 1,
+      maxBodyBytes: 500,
+    });
     expect(out.body).toBe('hello');
     expect(res.destroyed).toBe(false);
   });

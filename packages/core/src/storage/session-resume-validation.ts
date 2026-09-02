@@ -30,7 +30,10 @@ function errno(err: unknown): string | undefined {
     : undefined;
 }
 
-function latestObservations(events: readonly SessionEvent[], projectRoot: string): FileObservation[] {
+function latestObservations(
+  events: readonly SessionEvent[],
+  projectRoot: string,
+): FileObservation[] {
   const latest = new Map<string, FileObservation>();
   for (const event of events) {
     if (
@@ -119,10 +122,8 @@ export async function validateResumeFileObservations(
   const lexicalRoot = path.resolve(projectRoot);
   const realRoot = await fsp.realpath(lexicalRoot).catch(() => lexicalRoot);
   const observations = latestObservations(events, lexicalRoot);
-  const results = await mapWithConcurrency(
-    observations,
-    VALIDATION_CONCURRENCY,
-    (observation) => validateOne(observation, lexicalRoot, realRoot),
+  const results = await mapWithConcurrency(observations, VALIDATION_CONCURRENCY, (observation) =>
+    validateOne(observation, lexicalRoot, realRoot),
   );
   return {
     checkedAt: new Date().toISOString(),
@@ -183,12 +184,11 @@ export function formatCrashRecoveryNotice(
  * the headers matches, so a user or model quoting a notice back is never
  * mistaken for one.
  */
-export function isResumeNoticeMessage(message: {
-  role: string;
-  content: unknown;
-}): boolean {
+export function isResumeNoticeMessage(message: { role: string; content: unknown }): boolean {
   if (message.role !== 'system' || typeof message.content !== 'string') return false;
-  return RESUME_NOTICE_HEADERS.some((header) => message.content === header || (message.content as string).startsWith(`${header}\n`));
+  return RESUME_NOTICE_HEADERS.some(
+    (header) => message.content === header || (message.content as string).startsWith(`${header}\n`),
+  );
 }
 
 /** Build the ephemeral system message injected into the first resumed turn. */

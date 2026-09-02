@@ -5,10 +5,7 @@
   "description": "Find what's known about a topic systematically.",
   "content": "I need to find out what's known about: {{topic}}\n\nPlan the search so I don't miss the important work or drown in noise. Suggest the search terms and their synonyms, the places to look, and how to follow citation trails both backward and forward. Tell me how to recognize the seminal sources and the current state of the debate. Define when I've searched enough to stop, and the bias that would make me stop too early.",
   "category": "research",
-  "tags": [
-    "search",
-    "literature"
-  ],
+  "tags": ["search", "literature"],
   "source": "builtin",
   "favorite": false,
   "checksum": "28a1a1a5feb17dddcc0cea6c7e849accd5aa2af0486cafb9edf601735d2831cd",

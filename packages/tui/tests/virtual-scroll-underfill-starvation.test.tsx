@@ -32,10 +32,12 @@ function makeCollapsingEntries(count: number): HistoryEntry[] {
 }
 
 function contentRowCount(lines: string[], viewportRows: number): number {
-  return lines
-    .slice(0, viewportRows)
-    // Strip trailing Ink frame-padding chars that survive cleanFrame
-    .filter((line) => line.slice(0, -2).trim().length > 0).length;
+  return (
+    lines
+      .slice(0, viewportRows)
+      // Strip trailing Ink frame-padding chars that survive cleanFrame
+      .filter((line) => line.slice(0, -2).trim().length > 0).length
+  );
 }
 
 function maxHistoryBlankRun(lines: string[], viewportRows: number): number {
@@ -120,10 +122,9 @@ describe('underfill starvation (estimate ≫ actual)', () => {
     await settle(400);
 
     const lines = tty.lines();
-    expect(
-      contentRowCount(lines, VP),
-      'page after PageDown should be full',
-    ).toBeGreaterThan(VP - 6);
+    expect(contentRowCount(lines, VP), 'page after PageDown should be full').toBeGreaterThan(
+      VP - 6,
+    );
     tty.unmount();
   }, 30_000);
 

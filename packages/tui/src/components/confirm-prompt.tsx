@@ -69,13 +69,15 @@ export function confirmButtonSegments(
 function stringifyInput(input: unknown): string {
   if (!input || typeof input !== 'object') return '';
   const obj = input as Record<string, unknown>;
-  return Object.entries(obj)
-    // `content`/`new_string` are bulky payloads; `diff` is rendered as a
-    // proper DiffBlock below the summary — repeating its raw text here
-    // would just be noise.
-    .filter(([k]) => k !== 'content' && k !== 'new_string' && k !== 'diff')
-    .map(([k, v]) => `${k}: ${truncate(JSON.stringify(v), 80)}`)
-    .join('  ');
+  return (
+    Object.entries(obj)
+      // `content`/`new_string` are bulky payloads; `diff` is rendered as a
+      // proper DiffBlock below the summary — repeating its raw text here
+      // would just be noise.
+      .filter(([k]) => k !== 'content' && k !== 'new_string' && k !== 'diff')
+      .map(([k, v]) => `${k}: ${truncate(JSON.stringify(v), 80)}`)
+      .join('  ')
+  );
 }
 
 function truncate(s: string, max: number): string {

@@ -5,11 +5,7 @@
   "description": "Design a safe, incremental migration path.",
   "content": "I need to migrate from {{current}} to {{target}}.\n\nDesign an incremental, reversible path: the sequence of steps, how to run old and new in parallel (and reconcile them), how to migrate data safely, and the rollback plan at each stage. Identify the riskiest step and how to de-risk it. Avoid any big-bang cutover unless you can justify it.",
   "category": "architecture",
-  "tags": [
-    "migration",
-    "incremental",
-    "rollout"
-  ],
+  "tags": ["migration", "incremental", "rollout"],
   "source": "builtin",
   "favorite": false,
   "checksum": "0a2bcfc3f25eb03308a414ab2ea5845fb763c8eb78cfb60553cf92243d30e962",

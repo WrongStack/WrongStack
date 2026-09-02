@@ -76,7 +76,9 @@ export function withReDoSGuard(
   return new Promise<ReDoSResult>((resolve) => {
     let settled = false;
 
-    const onMessage = (msg: { ok: true; match: RegExpExecArray | null } | { ok: false; error: string }) => {
+    const onMessage = (
+      msg: { ok: true; match: RegExpExecArray | null } | { ok: false; error: string },
+    ) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);

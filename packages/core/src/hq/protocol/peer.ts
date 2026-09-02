@@ -18,11 +18,7 @@
  * @module hq/protocol/peer
  */
 
-export type HqPeerRehydrateReason =
-  | 'graceful'
-  | 'crash'
-  | 'heartbeat-timeout'
-  | 'auth-revoked';
+export type HqPeerRehydrateReason = 'graceful' | 'crash' | 'heartbeat-timeout' | 'auth-revoked';
 
 export const HQ_PEER_REHYDRATE_REASONS = new Set<HqPeerRehydrateReason>([
   'graceful',
@@ -76,11 +72,17 @@ export function isHqPeerRehydratePayload(x: unknown): x is HqPeerRehydratePayloa
   if (typeof v.projectId !== 'string' || v.projectId.length === 0) return false;
   if (typeof v.machineId !== 'string' || v.machineId.length === 0) return false;
   if (typeof v.leaderClientId !== 'string' || v.leaderClientId.length === 0) return false;
-  if (typeof v.previousLeaderHandle !== 'string' || v.previousLeaderHandle.length === 0) return false;
-  if (typeof v.reason !== 'string' || !HQ_PEER_REHYDRATE_REASONS.has(v.reason as HqPeerRehydrateReason)) return false;
+  if (typeof v.previousLeaderHandle !== 'string' || v.previousLeaderHandle.length === 0)
+    return false;
+  if (
+    typeof v.reason !== 'string' ||
+    !HQ_PEER_REHYDRATE_REASONS.has(v.reason as HqPeerRehydrateReason)
+  )
+    return false;
   if (typeof v.detectedAt !== 'string' || !Number.isFinite(Date.parse(v.detectedAt))) return false;
   if (!isStringOrUndefined(v.rehydrateHint)) return false;
-  if (v.rehydrateHint !== undefined && v.rehydrateHint.length > HQ_PEER_REHYDRATE_HINT_MAX_CHARS) return false;
+  if (v.rehydrateHint !== undefined && v.rehydrateHint.length > HQ_PEER_REHYDRATE_HINT_MAX_CHARS)
+    return false;
   if (!isStringOrUndefined(v.rehydrateCommandId)) return false;
   return true;
 }
@@ -91,8 +93,13 @@ export function isHqPeerLostPayload(x: unknown): x is HqPeerLostPayload {
   if (typeof v.projectId !== 'string' || v.projectId.length === 0) return false;
   if (typeof v.machineId !== 'string' || v.machineId.length === 0) return false;
   if (typeof v.leaderClientId !== 'string' || v.leaderClientId.length === 0) return false;
-  if (typeof v.previousLeaderHandle !== 'string' || v.previousLeaderHandle.length === 0) return false;
-  if (typeof v.reason !== 'string' || !HQ_PEER_REHYDRATE_REASONS.has(v.reason as HqPeerRehydrateReason)) return false;
+  if (typeof v.previousLeaderHandle !== 'string' || v.previousLeaderHandle.length === 0)
+    return false;
+  if (
+    typeof v.reason !== 'string' ||
+    !HQ_PEER_REHYDRATE_REASONS.has(v.reason as HqPeerRehydrateReason)
+  )
+    return false;
   if (typeof v.detectedAt !== 'string' || !Number.isFinite(Date.parse(v.detectedAt))) return false;
   return true;
 }

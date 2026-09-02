@@ -154,7 +154,8 @@ function resolveGlobSelectors(input: unknown, ctx: Context): Set<string> {
     for (const item of values) {
       if (typeof item !== 'string') continue;
       const trimmed = item.trim();
-      if (trimmed.length > 0 && /[*?[\]]/.test(trimmed)) selectors.push(resolveRawTargetPath(trimmed, ctx));
+      if (trimmed.length > 0 && /[*?[\]]/.test(trimmed))
+        selectors.push(resolveRawTargetPath(trimmed, ctx));
     }
   }
   return new Set(selectors);
@@ -162,7 +163,10 @@ function resolveGlobSelectors(input: unknown, ctx: Context): Set<string> {
 
 function literalGlobPrefix(pattern: string): string {
   const wildcardIndex = pattern.search(/[*?[\]]/);
-  const prefix = (wildcardIndex < 0 ? pattern : pattern.slice(0, wildcardIndex)).replace(/\/+$/, '');
+  const prefix = (wildcardIndex < 0 ? pattern : pattern.slice(0, wildcardIndex)).replace(
+    /\/+$/,
+    '',
+  );
   return prefix === '.' ? '' : prefix;
 }
 

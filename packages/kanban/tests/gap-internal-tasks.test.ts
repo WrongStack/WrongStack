@@ -8,9 +8,14 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  findTask, existingColumnId, selectRecoveryMode,
-  normalizeDependencyIds, reconcileTaskColumns, columnIdForTaskGraphStatus,
-  isTaskReadyForWork, addDependencyToTask,
+  findTask,
+  existingColumnId,
+  selectRecoveryMode,
+  normalizeDependencyIds,
+  reconcileTaskColumns,
+  columnIdForTaskGraphStatus,
+  isTaskReadyForWork,
+  addDependencyToTask,
   assertNoDependencyCycles,
 } from '../src/manager/_internal.js';
 import type { KanbanBoard, KanbanTask, KanbanRecoveryMode } from '../src/types.js';
@@ -23,8 +28,26 @@ describe('findTask - prefix matching', () => {
       title: 'Test',
       columns: [{ id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 }],
       tasks: [
-        { id: 'abc-111', title: 'Task 1', columnId: 'backlog', order: 0, status: 'pending', priority: 'medium', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
-        { id: 'abc-222', title: 'Task 2', columnId: 'backlog', order: 1, status: 'pending', priority: 'medium', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+        {
+          id: 'abc-111',
+          title: 'Task 1',
+          columnId: 'backlog',
+          order: 0,
+          status: 'pending',
+          priority: 'medium',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'abc-222',
+          title: 'Task 2',
+          columnId: 'backlog',
+          order: 1,
+          status: 'pending',
+          priority: 'medium',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
       ],
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
@@ -145,7 +168,11 @@ describe('selectRecoveryMode - rule edges', () => {
           lastFailureKind: 'timeout',
         },
       } as KanbanTask,
-      policy: { releaseOnFailureKinds: ['timeout'], failWhenCostCeilingSet: false, releaseOnHeartbeatDue: false },
+      policy: {
+        releaseOnFailureKinds: ['timeout'],
+        failWhenCostCeilingSet: false,
+        releaseOnHeartbeatDue: false,
+      },
     });
     expect(result).toBe('release');
   });
@@ -197,21 +224,43 @@ describe('selectRecoveryMode - rule edges', () => {
 describe('addDependencyToTask - cycle detection', () => {
   function simpleBoard(): KanbanBoard {
     return {
-      id: 'b1', title: 'Test',
+      id: 'b1',
+      title: 'Test',
       columns: [{ id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 }],
       tasks: [
-        { id: 't1', title: 'Task 1', columnId: 'backlog', order: 0, status: 'pending', priority: 'medium', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
-        { id: 't2', title: 'Task 2', columnId: 'backlog', order: 1, status: 'pending', priority: 'medium', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+        {
+          id: 't1',
+          title: 'Task 1',
+          columnId: 'backlog',
+          order: 0,
+          status: 'pending',
+          priority: 'medium',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 't2',
+          title: 'Task 2',
+          columnId: 'backlog',
+          order: 1,
+          status: 'pending',
+          priority: 'medium',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
       ],
       createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z', version: 1, revision: 0,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      version: 1,
+      revision: 0,
     } as KanbanBoard;
   }
 
   it('throws on self-dependency', () => {
     const board = simpleBoard();
-    expect(() => addDependencyToTask(board, board.tasks[0]!, board.tasks[0]!))
-      .toThrow('cannot depend on itself');
+    expect(() => addDependencyToTask(board, board.tasks[0]!, board.tasks[0]!)).toThrow(
+      'cannot depend on itself',
+    );
   });
 
   it('throws on circular dependency', () => {
@@ -219,8 +268,9 @@ describe('addDependencyToTask - cycle detection', () => {
     // t1 depends on t2
     addDependencyToTask(board, board.tasks[0]!, board.tasks[1]!);
     // t2 depending on t1 would create a cycle
-    expect(() => addDependencyToTask(board, board.tasks[1]!, board.tasks[0]!))
-      .toThrow('dependency cycle');
+    expect(() => addDependencyToTask(board, board.tasks[1]!, board.tasks[0]!)).toThrow(
+      'dependency cycle',
+    );
   });
 });
 
@@ -228,13 +278,25 @@ describe('addDependencyToTask - cycle detection', () => {
 describe('reconcileTaskColumns', () => {
   it('reassigns tasks in non-existent columns to fallback', () => {
     const board = {
-      id: 'b1', title: 'Test',
+      id: 'b1',
+      title: 'Test',
       columns: [{ id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 }],
       tasks: [
-        { id: 't1', title: 'Orphaned', columnId: 'deleted-col', order: 0, status: 'pending', priority: 'medium', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+        {
+          id: 't1',
+          title: 'Orphaned',
+          columnId: 'deleted-col',
+          order: 0,
+          status: 'pending',
+          priority: 'medium',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
       ],
       createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z', version: 1, revision: 0,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      version: 1,
+      revision: 0,
     } as KanbanBoard;
     reconcileTaskColumns(board, '2026-06-01T00:00:00.000Z');
     expect(board.tasks[0]!.columnId).toBe('backlog');
@@ -246,11 +308,14 @@ describe('reconcileTaskColumns', () => {
 describe('columnIdForTaskGraphStatus fallback', () => {
   it('uses first column when no preferred match found', () => {
     const board = {
-      id: 'b1', title: 'Test',
+      id: 'b1',
+      title: 'Test',
       columns: [{ id: 'sprint-backlog', title: 'Sprint Backlog', order: 0, wipLimit: 0 }],
       tasks: [],
       createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z', version: 1, revision: 0,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      version: 1,
+      revision: 0,
     } as KanbanBoard;
     // completed status looks for 'done' or 'completed' - both absent
     const colId = columnIdForTaskGraphStatus(board, 'completed');
@@ -262,13 +327,26 @@ describe('columnIdForTaskGraphStatus fallback', () => {
 describe('assertNoDependencyCycles', () => {
   it('throws on self-referencing dependency', () => {
     const board = {
-      id: 'b1', title: 'Test',
+      id: 'b1',
+      title: 'Test',
       columns: [{ id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 }],
       tasks: [
-        { id: 't1', title: 'Self-dep', columnId: 'backlog', order: 0, status: 'pending', priority: 'medium', dependsOn: ['t1'], createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+        {
+          id: 't1',
+          title: 'Self-dep',
+          columnId: 'backlog',
+          order: 0,
+          status: 'pending',
+          priority: 'medium',
+          dependsOn: ['t1'],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
       ],
       createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z', version: 1, revision: 0,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      version: 1,
+      revision: 0,
     } as KanbanBoard;
     expect(() => assertNoDependencyCycles(board)).toThrow('cannot depend on itself');
   });
@@ -277,18 +355,24 @@ describe('assertNoDependencyCycles', () => {
 // ── isTaskReadyForWork edges ────────────────────────────────────
 describe('isTaskReadyForWork edges', () => {
   const baseTask = {
-    id: 't1', title: 'Task', columnId: 'backlog', order: 0,
+    id: 't1',
+    title: 'Task',
+    columnId: 'backlog',
+    order: 0,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   } as KanbanTask;
 
   function board(task: KanbanTask): KanbanBoard {
     return {
-      id: 'b1', title: 'Test',
+      id: 'b1',
+      title: 'Test',
       columns: [{ id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 }],
       tasks: [task],
       createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z', version: 1, revision: 0,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      version: 1,
+      revision: 0,
     } as KanbanBoard;
   }
 
@@ -307,25 +391,48 @@ describe('isTaskReadyForWork edges', () => {
 describe('normalizeDependencyIds', () => {
   function simpleBoard(): KanbanBoard {
     return {
-      id: 'b1', title: 'Test',
+      id: 'b1',
+      title: 'Test',
       columns: [{ id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 }],
       tasks: [
-        { id: 't1', title: 'Task 1', columnId: 'backlog', order: 0, status: 'pending', priority: 'medium', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
-        { id: 't2', title: 'Task 2', columnId: 'backlog', order: 1, status: 'pending', priority: 'medium', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+        {
+          id: 't1',
+          title: 'Task 1',
+          columnId: 'backlog',
+          order: 0,
+          status: 'pending',
+          priority: 'medium',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 't2',
+          title: 'Task 2',
+          columnId: 'backlog',
+          order: 1,
+          status: 'pending',
+          priority: 'medium',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
       ],
       createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z', version: 1, revision: 0,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      version: 1,
+      revision: 0,
     } as KanbanBoard;
   }
 
   it('throws when dependency not found', () => {
-    expect(() => normalizeDependencyIds(simpleBoard(), 't1', ['nonexistent']))
-      .toThrow('Dependency task not found');
+    expect(() => normalizeDependencyIds(simpleBoard(), 't1', ['nonexistent'])).toThrow(
+      'Dependency task not found',
+    );
   });
 
   it('throws on self-dependency', () => {
-    expect(() => normalizeDependencyIds(simpleBoard(), 't1', ['t1']))
-      .toThrow('cannot depend on itself');
+    expect(() => normalizeDependencyIds(simpleBoard(), 't1', ['t1'])).toThrow(
+      'cannot depend on itself',
+    );
   });
 
   it('throws on cycle', () => {
@@ -334,7 +441,6 @@ describe('normalizeDependencyIds', () => {
     board.tasks[0]!.dependsOn = ['t2'];
     // Now trying to make t2 depend on t1 creates a cycle
     // (t2 would depend on t1, which depends on t2)
-    expect(() => normalizeDependencyIds(board, 't2', ['t1']))
-      .toThrow('dependency cycle');
+    expect(() => normalizeDependencyIds(board, 't2', ['t1'])).toThrow('dependency cycle');
   });
 });

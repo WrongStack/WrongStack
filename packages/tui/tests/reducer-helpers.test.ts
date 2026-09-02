@@ -83,7 +83,21 @@ describe('closePanels', () => {
   });
 
   it('sets authPanel.busy to false when closing', () => {
-    const state = stubState({ authPanel: { open: true, view: 'list', busy: true, providers: [], presets: [], catalog: [], selected: 0, filter: '', flowTitle: '', log: [], flowDone: false } });
+    const state = stubState({
+      authPanel: {
+        open: true,
+        view: 'list',
+        busy: true,
+        providers: [],
+        presets: [],
+        catalog: [],
+        selected: 0,
+        filter: '',
+        flowTitle: '',
+        log: [],
+        flowDone: false,
+      },
+    });
     const result = closePanels(state);
     expect(result.authPanel.open).toBe(false);
     expect(result.authPanel.busy).toBe(false);
@@ -222,16 +236,12 @@ describe('firstSelectable', () => {
   });
 
   it('returns 0 when all items are dividers', () => {
-    const items = [
-      { key: '__divider__', label: '--', kind: 'action' as const },
-    ];
+    const items = [{ key: '__divider__', label: '--', kind: 'action' as const }];
     expect(firstSelectable(items)).toBe(0);
   });
 
   it('returns 0 when first item is selectable', () => {
-    const items = [
-      { key: 'proj-a', label: 'A', kind: 'project' as const },
-    ];
+    const items = [{ key: 'proj-a', label: 'A', kind: 'project' as const }];
     expect(firstSelectable(items)).toBe(0);
   });
 });

@@ -5,10 +5,7 @@
   "description": "Break a big, fuzzy question into answerable sub-questions.",
   "content": "I'm trying to answer this hard question: {{question}}\n\nDecompose it into the specific sub-questions I'd need to answer first, ordered so that earlier answers inform later ones. For each, note what kind of evidence would settle it and how hard it is to get. Identify the one sub-question that's the crux — where the overall answer most hinges.",
   "category": "research",
-  "tags": [
-    "decomposition",
-    "analysis"
-  ],
+  "tags": ["decomposition", "analysis"],
   "source": "builtin",
   "favorite": false,
   "checksum": "38bcf5c5c52a0320d556f4f334185086be09d31504d3f794007eb97fa54afe07",

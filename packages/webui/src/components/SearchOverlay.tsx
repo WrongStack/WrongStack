@@ -19,11 +19,7 @@ export function messageSearchText(m: ChatMessage): string {
     return [m.content, m.thinkingLog.text].filter(Boolean).join('\n');
   }
   if (m.role === 'tool') {
-    return [
-      m.toolName ?? '',
-      m.toolResult ?? '',
-      JSON.stringify(m.toolInput ?? ''),
-    ].join('\n');
+    return [m.toolName ?? '', m.toolResult ?? '', JSON.stringify(m.toolInput ?? '')].join('\n');
   }
   return m.content;
 }
@@ -80,9 +76,7 @@ export function SearchOverlay() {
   const hits = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [] as string[];
-    return messages
-      .filter((m) => messageSearchText(m).toLowerCase().includes(q))
-      .map((m) => m.id);
+    return messages.filter((m) => messageSearchText(m).toLowerCase().includes(q)).map((m) => m.id);
   }, [messages, query]);
 
   useEffect(() => {

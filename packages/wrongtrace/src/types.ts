@@ -232,10 +232,7 @@ export interface WrongTraceClient {
   getFileHealth(path: string): Promise<WrongTraceFileHealth | null>;
   /** `GET /api/symbol/history?path=...` — all symbol events for a file; add a
    *  daemon-format signature (`function:file.go::Name`) to narrow to one symbol. */
-  getSymbolLineage(
-    path: string,
-    signature?: string,
-  ): Promise<WrongTraceSymbolEvent[]>;
+  getSymbolLineage(path: string, signature?: string): Promise<WrongTraceSymbolEvent[]>;
   /** `GET /api/metrics/friction?limit=50`. */
   getFrictionMatrix(limit?: number): Promise<WrongTraceFrictionRow[]>;
   /** `GET /api/atlas` — full or summary mode, optional workspace filter. */
@@ -249,13 +246,9 @@ export interface WrongTraceClient {
   /** `POST /api/guardrail/unlock`. */
   unlockFile(path: string): Promise<WrongTraceLockResult | null>;
   /** `POST /api/telemetry`. */
-  reportTelemetry(
-    report: WrongTraceTelemetryReport,
-  ): Promise<{ ok: boolean } | null>;
+  reportTelemetry(report: WrongTraceTelemetryReport): Promise<{ ok: boolean } | null>;
   /** `GET /api/events/recent` — chronological event feed (daemon 2026-08-24+). */
-  getRecentEvents(
-    query?: WrongTraceRecentEventsQuery,
-  ): Promise<WrongTraceRecentEvent[]>;
+  getRecentEvents(query?: WrongTraceRecentEventsQuery): Promise<WrongTraceRecentEvent[]>;
   /** `GET /api/guardrail/locks` — active locks (daemon 2026-08-24+). */
   listLocks(): Promise<WrongTraceLockInfo[]>;
 }

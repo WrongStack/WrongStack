@@ -100,10 +100,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Tail the durable block/open audit trail (JSONL), newest first. Torn or
  * corrupt lines are skipped — the audit trail is best-effort by design. */
-async function readAuditTail(
-  file: string,
-  count: number,
-): Promise<Array<Record<string, unknown>>> {
+async function readAuditTail(file: string, count: number): Promise<Array<Record<string, unknown>>> {
   let raw = '';
   try {
     raw = await fs.readFile(file, 'utf8');
@@ -151,7 +148,13 @@ const CUSTOM_MODEL_BOOLEAN_CAPS = new Set([
   'streaming',
   'jsonMode',
 ]);
-const INLINE_DEFINITION_KEYS = new Set(['name', 'maxOutput', 'capabilities', 'provider', 'modelsDev']);
+const INLINE_DEFINITION_KEYS = new Set([
+  'name',
+  'maxOutput',
+  'capabilities',
+  'provider',
+  'modelsDev',
+]);
 
 function optionalCustomModels(
   payload: Record<string, unknown>,
@@ -427,7 +430,14 @@ export async function handleProviderRoute(
       const envVars = payload ? optionalStringArray(payload, 'envVars') : null;
       const models = payload ? optionalStringArray(payload, 'models') : null;
       const customModels = payload ? optionalCustomModels(payload) : null;
-      if (!payload || !id || !SAFE_CONFIG_KEY.test(id) || envVars === null || models === null || customModels === null)
+      if (
+        !payload ||
+        !id ||
+        !SAFE_CONFIG_KEY.test(id) ||
+        envVars === null ||
+        models === null ||
+        customModels === null
+      )
         return invalidPayload(ws, msg.type);
       for (const key of ['family', 'baseUrl'] as const) {
         if (payload[key] !== undefined && typeof payload[key] !== 'string')

@@ -11,16 +11,8 @@ export interface ClearSessionHistoryParams {
   sessionPath: (id: string, ext: '.jsonl' | '.summary.json') => string;
 }
 
-export async function executeClearSessionHistory(
-  params: ClearSessionHistoryParams,
-): Promise<void> {
-  const {
-    canonical,
-    catalogClient,
-    maintenanceHolderId,
-    ensureShardDir,
-    sessionPath,
-  } = params;
+export async function executeClearSessionHistory(params: ClearSessionHistoryParams): Promise<void> {
+  const { canonical, catalogClient, maintenanceHolderId, ensureShardDir, sessionPath } = params;
 
   const maintenance = catalogClient
     ? await catalogClient.call('acquire_maintenance', {

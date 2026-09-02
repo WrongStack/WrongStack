@@ -8,11 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  decodeProtocolFrame,
-  decodeProtocolMessage,
-  SERVER_MESSAGE_TYPES,
-} from '../src/index.js';
+import { decodeProtocolFrame, decodeProtocolMessage, SERVER_MESSAGE_TYPES } from '../src/index.js';
 
 describe('decodeProtocolMessage', () => {
   it('rejects non-object envelopes', () => {
@@ -68,18 +64,12 @@ describe('decodeProtocolMessage', () => {
   });
 
   it('accepts kanban.* extension types', () => {
-    const result = decodeProtocolMessage(
-      { type: 'kanban.move_card', payload: {} },
-      'server',
-    );
+    const result = decodeProtocolMessage({ type: 'kanban.move_card', payload: {} }, 'server');
     expect(result.ok).toBe(true);
   });
 
   it('accepts agent-roster.* extension types', () => {
-    const result = decodeProtocolMessage(
-      { type: 'agent-roster.update', payload: {} },
-      'server',
-    );
+    const result = decodeProtocolMessage({ type: 'agent-roster.update', payload: {} }, 'server');
     expect(result.ok).toBe(true);
   });
 
@@ -118,10 +108,7 @@ describe('decodeProtocolMessage', () => {
   it('rejects payloads deeper than MAX_PAYLOAD_DEPTH', () => {
     let payload: unknown = { leaf: 1 };
     for (let i = 0; i < 40; i++) payload = { nested: payload };
-    const result = decodeProtocolMessage(
-      { type: 'session.start', payload },
-      'server',
-    );
+    const result = decodeProtocolMessage({ type: 'session.start', payload }, 'server');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.issue.code).toBe('too_deep');
   });
@@ -159,10 +146,7 @@ describe('decodeProtocolFrame', () => {
   });
 
   it('rejects a JSON server frame without payload', () => {
-    const result = decodeProtocolFrame(
-      JSON.stringify({ type: 'session.start' }),
-      'server',
-    );
+    const result = decodeProtocolFrame(JSON.stringify({ type: 'session.start' }), 'server');
     expect(result.ok).toBe(false);
   });
 });

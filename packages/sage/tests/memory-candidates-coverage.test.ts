@@ -78,7 +78,10 @@ describe('memory candidates branch coverage', () => {
       { action: 'reject', candidate_id: 'cand-no-opts' },
       ctx,
     ]);
-    expect(memory.rejectCandidate).toHaveBeenCalledWith('cand-no-opts', 'Rejected by user or agent.');
+    expect(memory.rejectCandidate).toHaveBeenCalledWith(
+      'cand-no-opts',
+      'Rejected by user or agent.',
+    );
 
     const ac = new AbortController();
     ac.abort();

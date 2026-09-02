@@ -44,12 +44,36 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /** Pool of creative agent names — assigned round-robin when no explicit name
  *  or task is available. Each agent keeps its assigned name for life. */
 const NAME_POOL: readonly string[] = [
-  'Einstein', 'Tesla', 'Curie', 'Turing', 'Feynman',
-  'Hopper', 'Neumann', 'Lovelace', 'Babbage', 'Knuth',
-  'Ritchie', 'Torvalds', 'Berners', 'Cerf', 'Lamport',
-  'Dijkstra', 'Shannon', 'McCarthy', 'Backus', 'Engelbart',
-  'Borg', 'Clarke', 'Asimov', 'Sagan', 'Hawking',
-  'Darwin', 'Newton', 'Galileo', 'Kepler', 'Copernicus',
+  'Einstein',
+  'Tesla',
+  'Curie',
+  'Turing',
+  'Feynman',
+  'Hopper',
+  'Neumann',
+  'Lovelace',
+  'Babbage',
+  'Knuth',
+  'Ritchie',
+  'Torvalds',
+  'Berners',
+  'Cerf',
+  'Lamport',
+  'Dijkstra',
+  'Shannon',
+  'McCarthy',
+  'Backus',
+  'Engelbart',
+  'Borg',
+  'Clarke',
+  'Asimov',
+  'Sagan',
+  'Hawking',
+  'Darwin',
+  'Newton',
+  'Galileo',
+  'Kepler',
+  'Copernicus',
 ];
 
 /** Stable name assignments — an agent keeps its name forever once assigned. */
@@ -95,15 +119,15 @@ function nextPoolName(): string {
  *
  *  Once assigned, the name is cached per agent id — reordering the agent list
  *  or re-rendering never changes an existing agent's display name. */
-function assignName(
-  id: string,
-  name: string,
-  task?: string | undefined,
-): string {
+function assignName(id: string, name: string, task?: string | undefined): string {
   if (nameCache.has(id)) return nameCache.get(id)!;
 
   const explicitName = name.trim();
-  if (explicitName && !UUID_RE.test(explicitName) && explicitName.toLowerCase() !== id.toLowerCase()) {
+  if (
+    explicitName &&
+    !UUID_RE.test(explicitName) &&
+    explicitName.toLowerCase() !== id.toLowerCase()
+  ) {
     nameCache.set(id, explicitName);
     return explicitName;
   }

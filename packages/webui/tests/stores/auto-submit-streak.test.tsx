@@ -59,7 +59,9 @@ describe('useAutoSubmitStreak loop guard', () => {
       { id: 't2', content: 'Task 2', status: 'pending' },
     ];
     // First grounded feed — ok.
-    expect(result.current.recordGroundedPrompt('Continue with plan: Task 1', todos).canFeed).toBe(true);
+    expect(result.current.recordGroundedPrompt('Continue with plan: Task 1', todos).canFeed).toBe(
+      true,
+    );
     // Second feed (same prompt) — repetitions should return advancement.
     const response = result.current.recordGroundedPrompt('Continue with plan: Task 1', todos);
     // After the first grounded feed -> steer (second feed tries steer first).

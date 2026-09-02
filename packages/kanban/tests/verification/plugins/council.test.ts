@@ -94,7 +94,9 @@ describe('CouncilVerifierPlugin — dispatched', () => {
 
   it('passes with diff-backed refs when the panel says the criterion is met', async () => {
     const plugin = new CouncilVerifierPlugin({
-      runner: { ask: async () => ({ status: 'decided', optionId: 'criterion_met', resolution: 'majority' }) },
+      runner: {
+        ask: async () => ({ status: 'decided', optionId: 'criterion_met', resolution: 'majority' }),
+      },
     });
 
     const result = await plugin.verify(check, contextWith(oneFile));

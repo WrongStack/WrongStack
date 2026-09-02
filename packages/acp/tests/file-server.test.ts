@@ -20,9 +20,7 @@ import type { FileServerOperations } from '../src/client/file-server.js';
 let projectRoot: string;
 let server: FileServer;
 
-function fakeOperations(
-  overrides: Partial<FileServerOperations> = {},
-): FileServerOperations {
+function fakeOperations(overrides: Partial<FileServerOperations> = {}): FileServerOperations {
   return {
     stat: async () => ({ size: 0 }),
     readFile: async () => '',

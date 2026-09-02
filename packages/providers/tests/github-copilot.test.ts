@@ -148,9 +148,7 @@ describe('GitHubCopilotProvider token refresh', () => {
     expect(refreshFn).toHaveBeenCalledOnce();
     expect(captured.url).toBe('https://api.business.githubcopilot.com/chat/completions');
     expect(captured.init?.headers?.['authorization']).toBe(`Bearer ${newToken}`);
-    expect(onRefresh).toHaveBeenCalledWith(
-      expect.objectContaining({ accessToken: newToken }),
-    );
+    expect(onRefresh).toHaveBeenCalledWith(expect.objectContaining({ accessToken: newToken }));
   });
 
   it('refreshes once and retries on a 401', async () => {

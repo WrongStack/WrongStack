@@ -13,9 +13,7 @@ describe('resolveFleetChatVerbosity', () => {
   });
 
   it('falls through an invalid enum value to off default', () => {
-    expect(
-      resolveFleetChatVerbosity({ fleetChatVerbosity: 'loud' as never }),
-    ).toBe('off');
+    expect(resolveFleetChatVerbosity({ fleetChatVerbosity: 'loud' as never })).toBe('off');
     expect(resolveFleetChatVerbosity({ fleetChatVerbosity: '' as never })).toBe('off');
   });
 });

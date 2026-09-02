@@ -52,7 +52,9 @@ function makeApi(maxFiles: number): MockApi {
 }
 
 function getSearchTool(api: MockApi): (input: unknown) => Promise<unknown> {
-  const call = api.tools.register.mock.calls.find((c) => (c[0] as { name: string }).name === 'semantic_search');
+  const call = api.tools.register.mock.calls.find(
+    (c) => (c[0] as { name: string }).name === 'semantic_search',
+  );
   if (!call) throw new Error('semantic_search tool not registered');
   return (call[0] as { execute: (input: unknown) => Promise<unknown> }).execute;
 }

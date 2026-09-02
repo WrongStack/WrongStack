@@ -1,4 +1,13 @@
-import { ArrowDown, Bot, Check, Gauge, GraduationCap, Search, Sparkles, Workflow } from 'lucide-react';
+import {
+  ArrowDown,
+  Bot,
+  Check,
+  Gauge,
+  GraduationCap,
+  Search,
+  Sparkles,
+  Workflow,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   ExternalDoc,
@@ -323,10 +332,16 @@ export function AgentRosterPage() {
         <div className="mt-8 rounded-2xl border border-line bg-bg p-7">
           <h2 className="text-xl font-black text-fg">Explore more coordination tools</h2>
           <div className="mt-4 flex flex-wrap gap-4">
-            <Link href="/collab" className="rounded-full border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/10 transition-colors">
+            <Link
+              href="/collab"
+              className="rounded-full border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/10 transition-colors"
+            >
               Collab debugging: BugHunter + RefactorPlanner + Critic →
             </Link>
-            <Link href="/ensemble" className="rounded-full border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/10 transition-colors">
+            <Link
+              href="/ensemble"
+              className="rounded-full border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/10 transition-colors"
+            >
               Ensemble: multi-agent reviews →
             </Link>
           </div>

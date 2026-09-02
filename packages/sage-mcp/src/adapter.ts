@@ -85,9 +85,7 @@ export function createSageMcpToolHost(
     // The same gate as `packages/runtime/src/container.ts:139-144` —
     // SAGE requires Node >= 22.5 with `node:sqlite`. Fail loudly here
     // instead of letting the first `Tool.execute` crash mid-protocol.
-    throw new Error(
-      'SAGE MCP: node:sqlite is unavailable; SAGE requires Node >= 22.5',
-    );
+    throw new Error('SAGE MCP: node:sqlite is unavailable; SAGE requires Node >= 22.5');
   }
 
   const service = requireSageService(port);

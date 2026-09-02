@@ -61,7 +61,10 @@ function formatNextRun(intervalMs: number): string {
 function buildSnapshot(
   s: CronState,
   maxConcurrent: number,
-): { count: number; maxConcurrent: number; jobs: Array<{
+): {
+  count: number;
+  maxConcurrent: number;
+  jobs: Array<{
     name: string;
     intervalMs: number;
     action: string;
@@ -70,7 +73,8 @@ function buildSnapshot(
     nextRun: string;
     runCount: number;
     overdue: boolean;
-  }> } {
+  }>;
+} {
   const jobs = Array.from(s.jobs.values()).map((j) => ({
     name: j.name,
     intervalMs: j.intervalMs,
@@ -131,7 +135,10 @@ const plugin: Plugin = {
     clearCronResources();
     state.createdAt = new Date().toISOString();
 
-    const maxConcurrent = (api.config.extensions?.['cron'] as Record<string, unknown>)?.['maxConcurrentJobs'] as number ?? 5;
+    const maxConcurrent =
+      ((api.config.extensions?.['cron'] as Record<string, unknown>)?.[
+        'maxConcurrentJobs'
+      ] as number) ?? 5;
 
     function scheduleNextRun(name: string): void {
       const job = state.jobs.get(name);
@@ -237,13 +244,20 @@ const plugin: Plugin = {
     // --- cron_schedule ---
     api.tools.register({
       name: 'cron_schedule',
-      description: 'Schedule a recurring action to fire at a fixed interval (in milliseconds). The action is emitted as a custom event for downstream handlers.',
+      description:
+        'Schedule a recurring action to fire at a fixed interval (in milliseconds). The action is emitted as a custom event for downstream handlers.',
       inputSchema: {
         type: 'object',
         properties: {
           name: { type: 'string', description: 'Unique name for this cron job' },
-          intervalMs: { type: 'number', description: 'Interval between runs in milliseconds (minimum 1000)' },
-          action: { type: 'string', description: 'Action identifier or description of what to run' },
+          intervalMs: {
+            type: 'number',
+            description: 'Interval between runs in milliseconds (minimum 1000)',
+          },
+          action: {
+            type: 'string',
+            description: 'Action identifier or description of what to run',
+          },
           enabled: { type: 'boolean', default: true },
         },
         required: ['name', 'intervalMs', 'action'],
@@ -253,7 +267,11 @@ const plugin: Plugin = {
       mutating: false,
       capabilities: [COORDINATION_CRON_CAPABILITY],
       async execute(input: Record<string, unknown>) {
-        const name = (input['name'] ?? input['jobName'] ?? input['job_name'] ?? input['job'] ?? input['id']) as string;
+        const name = (input['name'] ??
+          input['jobName'] ??
+          input['job_name'] ??
+          input['job'] ??
+          input['id']) as string;
         const rawInterval =
           input['intervalMs'] ??
           input['interval_ms'] ??
@@ -261,7 +279,10 @@ const plugin: Plugin = {
           input['every'] ??
           input['period'];
         const intervalMs = Math.max(1000, Number(rawInterval));
-        const action = (input['action'] ?? input['task'] ?? input['command'] ?? input['run']) as string;
+        const action = (input['action'] ??
+          input['task'] ??
+          input['command'] ??
+          input['run']) as string;
         const enabled = (input['enabled'] as boolean | undefined) ?? true;
 
         if (!name || typeof name !== 'string' || name.trim() === '') {
@@ -310,7 +331,8 @@ const plugin: Plugin = {
     // --- cron_list ---
     api.tools.register({
       name: 'cron_list',
-      description: 'List all registered cron jobs with their intervals, next run times, and execution counts.',
+      description:
+        'List all registered cron jobs with their intervals, next run times, and execution counts.',
       inputSchema: { type: 'object', properties: {} },
       permission: 'auto',
       mutating: false,
@@ -351,7 +373,11 @@ const plugin: Plugin = {
       mutating: false,
       capabilities: [COORDINATION_CRON_CAPABILITY],
       async execute(input: Record<string, unknown>) {
-        const name = (input['name'] ?? input['jobName'] ?? input['job_name'] ?? input['job'] ?? input['id']) as string;
+        const name = (input['name'] ??
+          input['jobName'] ??
+          input['job_name'] ??
+          input['job'] ??
+          input['id']) as string;
 
         if (!name || typeof name !== 'string' || !state.jobs.has(name)) {
           return { ok: false, error: `No cron job named '${name}'` };

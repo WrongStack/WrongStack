@@ -26,7 +26,9 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 
 const VERBOSE = process.argv.includes('--verbose') || process.argv.includes('-v');
-const log = (...a) => { if (VERBOSE) console.error('[mailbox-script-guard]', ...a); };
+const log = (...a) => {
+  if (VERBOSE) console.error('[mailbox-script-guard]', ...a);
+};
 
 const SCRIPT_PATH = 'scripts/install-mailbox-bridge-skills.sh';
 
@@ -39,7 +41,8 @@ function fail(msg) {
 function getStagedFiles() {
   try {
     const out = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {
-      encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     return out.trim().split('\n').filter(Boolean);
   } catch {
@@ -61,15 +64,16 @@ if (!deleted && !modified) {
 if (deleted) {
   // `git diff --cached --diff-filter=D` gives the path; --name-status
   // tells us the status letter.
-  const statusOut = execFileSync(
-    'git',
-    ['diff', '--cached', '--name-status'],
-    { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-  );
+  const statusOut = execFileSync('git', ['diff', '--cached', '--name-status'], {
+    encoding: 'utf-8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
   const lines = statusOut.split('\n');
   const deletedLines = lines.filter((l) => l.startsWith(`D\t${SCRIPT_PATH}`));
   if (deletedLines.length > 0) {
-    fail(`${SCRIPT_PATH} is being deleted. The external-agent install path is part of the bridge contract — if this is intentional, update scripts/guard-mailbox-bridge-scripts.mjs instead of removing it.`);
+    fail(
+      `${SCRIPT_PATH} is being deleted. The external-agent install path is part of the bridge contract — if this is intentional, update scripts/guard-mailbox-bridge-scripts.mjs instead of removing it.`,
+    );
   }
 }
 
@@ -111,7 +115,9 @@ try {
 //   an early `cd` failure will silently leave the script running
 //   with stale state. Catching the removal here is cheap.
 if (content && !/^set\s+-[a-z]*e[a-z]*\b/m.test(content)) {
-  fail(`${SCRIPT_PATH} is missing 'set -e' in its options — early failures will be silently ignored.`);
+  fail(
+    `${SCRIPT_PATH} is missing 'set -e' in its options — early failures will be silently ignored.`,
+  );
 }
 
 // 3. Required header: shebang must be `#!/usr/bin/env bash` (POSIX-portable
@@ -127,12 +133,16 @@ if (content && !/^#!(\/usr\/bin\/env bash|\/bin\/bash)\b/m.test(content)) {
 //   renames the bundled skill without updating the helper, the
 //   install will fail at runtime.
 if (content && !content.includes('packages/core/skills/wrongstack-mailbox/SKILL.md')) {
-  fail(`${SCRIPT_PATH} does not reference the expected bundled-skill source path. Update it to point to 'packages/core/skills/wrongstack-mailbox/SKILL.md'.`);
+  fail(
+    `${SCRIPT_PATH} does not reference the expected bundled-skill source path. Update it to point to 'packages/core/skills/wrongstack-mailbox/SKILL.md'.`,
+  );
 }
 
 if (failures > 0) {
   console.error(`[mailbox-script-guard] ${failures} mailbox-bridge script check(s) failed.`);
-  console.error('[mailbox-script-guard] See scripts/guard-mailbox-bridge-scripts.mjs for the invariants.');
+  console.error(
+    '[mailbox-script-guard] See scripts/guard-mailbox-bridge-scripts.mjs for the invariants.',
+  );
   process.exit(1);
 }
 log('mailbox-bridge script integrity check passed');

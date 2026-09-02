@@ -56,11 +56,14 @@ describe('isClearlyDestructiveBashCommand — state-root write detection', () =>
       ['cp src/a.txt src/b.txt'],
       ['echo "x" | tee src/output.txt'],
       ['echo "x" > ~/.cache/something.json'],
-    ])('%j → destructive=false (for state-root detector; may be caught by other detectors)', (cmd) => {
-      // We only assert the state-root detector does not fire on these.
-      // Other detectors (project-escape rm, etc.) might still flag, so
-      // we check that these specific in-project / non-protected paths pass.
-      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(false);
-    });
+    ])(
+      '%j → destructive=false (for state-root detector; may be caught by other detectors)',
+      (cmd) => {
+        // We only assert the state-root detector does not fire on these.
+        // Other detectors (project-escape rm, etc.) might still flag, so
+        // we check that these specific in-project / non-protected paths pass.
+        expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(false);
+      },
+    );
   });
 });

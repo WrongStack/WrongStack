@@ -55,7 +55,18 @@ function makeFakeProvider(responses: string[]): Provider {
   let idx = 0;
   return {
     id: 'test',
-    capabilities: { tools: false, streaming: false, parallelTools: false, vision: false, promptCache: false, systemPrompt: false, jsonMode: false, reasoning: false, maxContext: 128_000, cacheControl: 'none' as const } satisfies Capabilities,
+    capabilities: {
+      tools: false,
+      streaming: false,
+      parallelTools: false,
+      vision: false,
+      promptCache: false,
+      systemPrompt: false,
+      jsonMode: false,
+      reasoning: false,
+      maxContext: 128_000,
+      cacheControl: 'none' as const,
+    } satisfies Capabilities,
     complete: vi.fn().mockImplementation(async () => ({
       content: [makeTextBlock(responses[idx++] ?? 'summarized')],
       stopReason: 'end_turn',
@@ -437,7 +448,10 @@ describe('SelectiveCompactor', () => {
     });
 
     it('reuses cached summaries for identical collapsed ranges', async () => {
-      const provider = makeFakeProvider(['cached selective summary', 'unexpected selective summary']);
+      const provider = makeFakeProvider([
+        'cached selective summary',
+        'unexpected selective summary',
+      ]);
       const summaryCache = new CompactionSummaryCache();
       const makeMessages = (): Message[] => [
         makeMessage('user', [makeTextBlock('msg1')]),
@@ -524,12 +538,14 @@ describe('SelectiveCompactor', () => {
         makeMessage('assistant', [
           { type: 'tool_use', id: 't1', name: 'read', input: { path: 'src/old.ts' } },
         ]),
-        makeMessage('user', [{
-          type: 'tool_result',
-          tool_use_id: 't1',
-          content: 'Error: parse failed at src/old.ts',
-          is_error: true,
-        }]),
+        makeMessage('user', [
+          {
+            type: 'tool_result',
+            tool_use_id: 't1',
+            content: 'Error: parse failed at src/old.ts',
+            is_error: true,
+          },
+        ]),
         makeMessage('user', 'current question'),
         makeMessage('assistant', 'current answer'),
       ];
@@ -588,9 +604,7 @@ describe('SelectiveCompactor', () => {
     it('grows with message content', () => {
       const provider = makeFakeProvider([]);
       const compactor = new SelectiveCompactor({ provider });
-      const small = (compactor as any).estimateTokens([
-        makeMessage('user', [makeTextBlock('hi')]),
-      ]);
+      const small = (compactor as any).estimateTokens([makeMessage('user', [makeTextBlock('hi')])]);
       const large = (compactor as any).estimateTokens([
         makeMessage('user', [makeTextBlock('hi'.repeat(500))]),
       ]);

@@ -5,5 +5,9 @@
   "description": "Example third-party WrongStack plugin — word-count tool + PostToolUse observer + custom event + config schema",
   "type": "module",
   "main": "./index.js",
-  "keywords": ["wrongstack", "wrongstack-plugin", "example"]
+  "keywords": [
+    "wrongstack",
+    "wrongstack-plugin",
+    "example"
+  ]
 }

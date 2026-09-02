@@ -150,7 +150,9 @@ function isDiscard(memory: Sage): string[] {
 
   // 1. Empty or ultra-short text
   if (!memory.text || memory.text.trim().length < MIN_MEANINGFUL_TEXT_LENGTH) {
-    reasons.push(`text too short (${memory.text?.length ?? 0} chars, minimum ${MIN_MEANINGFUL_TEXT_LENGTH})`);
+    reasons.push(
+      `text too short (${memory.text?.length ?? 0} chars, minimum ${MIN_MEANINGFUL_TEXT_LENGTH})`,
+    );
   }
 
   // 2. Transient content markers
@@ -172,14 +174,12 @@ function isDiscard(memory: Sage): string[] {
   }
 
   // 4. Stale and abandoned — already stale, long-unverified, low importance
-  if (
-    memory.status === 'stale' &&
-    memory.importance < 0.6 &&
-    memory.lastVerifiedAt
-  ) {
+  if (memory.status === 'stale' && memory.importance < 0.6 && memory.lastVerifiedAt) {
     const verifiedAge = daysSince(memory.lastVerifiedAt);
     if (verifiedAge > 90) {
-      reasons.push(`stale + unverified ${verifiedAge}d (importance ${memory.importance}, threshold 0.6)`);
+      reasons.push(
+        `stale + unverified ${verifiedAge}d (importance ${memory.importance}, threshold 0.6)`,
+      );
     }
   }
 

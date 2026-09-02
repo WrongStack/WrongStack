@@ -31,7 +31,13 @@ describe('ModelPicker', () => {
   it('shows + fires the reset row only when onReset is provided', () => {
     const onReset = vi.fn();
     const { rerender } = render(
-      <ModelPicker candidates={CANDIDATES} value="gpt-5" provider="openai" onPick={vi.fn()} onReset={onReset} />,
+      <ModelPicker
+        candidates={CANDIDATES}
+        value="gpt-5"
+        provider="openai"
+        onPick={vi.fn()}
+        onReset={onReset}
+      />,
     );
     fireEvent.click(screen.getByText('openai/gpt-5'));
     fireEvent.click(screen.getByText('Use run default'));
@@ -47,7 +53,11 @@ describe('FallbackEditor', () => {
   it('removes an entry without mutating the others', () => {
     const onChange = vi.fn();
     render(
-      <FallbackEditor value={['anthropic/claude-opus-4-8', 'openai/gpt-5']} candidates={CANDIDATES} onChange={onChange} />,
+      <FallbackEditor
+        value={['anthropic/claude-opus-4-8', 'openai/gpt-5']}
+        candidates={CANDIDATES}
+        onChange={onChange}
+      />,
     );
     // Two remove buttons (title="Remove"); click the first one.
     const removes = screen.getAllByTitle('Remove');
@@ -58,7 +68,11 @@ describe('FallbackEditor', () => {
   it('reorders an entry up', () => {
     const onChange = vi.fn();
     render(
-      <FallbackEditor value={['anthropic/claude-opus-4-8', 'openai/gpt-5']} candidates={CANDIDATES} onChange={onChange} />,
+      <FallbackEditor
+        value={['anthropic/claude-opus-4-8', 'openai/gpt-5']}
+        candidates={CANDIDATES}
+        onChange={onChange}
+      />,
     );
     const ups = screen.getAllByTitle('Move up');
     fireEvent.click(ups[1]!); // move the 2nd entry up
@@ -125,7 +139,13 @@ describe('SddTaskDrawer controls', () => {
   it('Delete (not-started task) confirms then fires onDelete', () => {
     const onDelete = vi.fn();
     render(
-      <SddTaskDrawer {...baseProps} task={makeTask()} onSetModel={noop} onCancel={noop} onDelete={onDelete} />,
+      <SddTaskDrawer
+        {...baseProps}
+        task={makeTask()}
+        onSetModel={noop}
+        onCancel={noop}
+        onDelete={onDelete}
+      />,
     );
     fireEvent.click(screen.getByText('Delete'));
     fireEvent.click(screen.getByText('Delete', { selector: 'button' }));
@@ -135,7 +155,14 @@ describe('SddTaskDrawer controls', () => {
   it('Split parses the textarea into sub-tasks and fires onSplit', () => {
     const onSplit = vi.fn();
     render(
-      <SddTaskDrawer {...baseProps} task={makeTask()} onSetModel={noop} onCancel={noop} onDelete={noop} onSplit={onSplit} />,
+      <SddTaskDrawer
+        {...baseProps}
+        task={makeTask()}
+        onSetModel={noop}
+        onCancel={noop}
+        onDelete={noop}
+        onSplit={onSplit}
+      />,
     );
     fireEvent.click(screen.getByText('Split'));
     const box = screen.getByPlaceholderText(/add the repository/i);
@@ -162,7 +189,13 @@ describe('SddTaskDrawer controls', () => {
 
   it('does not offer Stop on a pending task or Delete on a running task', () => {
     const { rerender } = render(
-      <SddTaskDrawer {...baseProps} task={makeTask()} onSetModel={noop} onCancel={noop} onDelete={noop} />,
+      <SddTaskDrawer
+        {...baseProps}
+        task={makeTask()}
+        onSetModel={noop}
+        onCancel={noop}
+        onDelete={noop}
+      />,
     );
     expect(screen.queryByText('Stop')).toBeNull();
     expect(screen.getByText('Delete')).toBeTruthy();
@@ -183,7 +216,13 @@ describe('SddTaskDrawer controls', () => {
   it('assigns a per-task model via the picker', () => {
     const onSetModel = vi.fn();
     render(
-      <SddTaskDrawer {...baseProps} task={makeTask()} onSetModel={onSetModel} onCancel={noop} onDelete={noop} />,
+      <SddTaskDrawer
+        {...baseProps}
+        task={makeTask()}
+        onSetModel={onSetModel}
+        onCancel={noop}
+        onDelete={noop}
+      />,
     );
     // The drawer's ModelPicker trigger shows the run-default placeholder.
     fireEvent.click(screen.getByText('Run default'));

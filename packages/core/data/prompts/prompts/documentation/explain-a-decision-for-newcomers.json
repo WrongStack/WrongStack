@@ -5,11 +5,7 @@
   "description": "Write down why something is the way it is.",
   "content": "New engineers keep being surprised by: {{thing}}\n\nWrite a short doc that explains WHY it's this way. Cover the context and constraints that led to it, the alternatives that were rejected and why, and what would have to change for the decision to be revisited. The goal is to stop the recurring why-is-this-weird question and prevent someone from naively undoing a deliberate choice. Be honest about the trade-offs.",
   "category": "documentation",
-  "tags": [
-    "onboarding",
-    "rationale",
-    "docs"
-  ],
+  "tags": ["onboarding", "rationale", "docs"],
   "source": "builtin",
   "favorite": false,
   "checksum": "db9a1a71dc3f8436ea6d0ced9356492152ddd9a9900c854e1f066ef82ac93592",

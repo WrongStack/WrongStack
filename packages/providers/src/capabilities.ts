@@ -244,13 +244,9 @@ export async function capabilitiesFor(
   const rawProvider = bestRawProvider(provider, siblingProvider);
   const rawModel = rawProvider?.models.find((m) => m.id === modelId);
   const catalogMaxContext =
-    model?.capabilities.maxContext ||
-    rawModel?.limit?.context ||
-    base.maxContext;
+    model?.capabilities.maxContext || rawModel?.limit?.context || base.maxContext;
   const catalogMaxOutput =
-    model?.capabilities.maxOutput ||
-    rawModel?.limit?.output ||
-    base.maxOutput;
+    model?.capabilities.maxOutput || rawModel?.limit?.output || base.maxOutput;
 
   // Per-field priority: customCaps (if set) → model facts AND-ed with base → base.
   // AND-ing with base is conservative: a model can't have a capability the

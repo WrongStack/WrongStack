@@ -90,7 +90,9 @@ function renderRow(c: CellResult, hasTraceEval: boolean): string {
     .trim();
 }
 
-function conditionalPct(metric: { passed: number; eligible: number; rate: number | undefined } | undefined): string {
+function conditionalPct(
+  metric: { passed: number; eligible: number; rate: number | undefined } | undefined,
+): string {
   if (!metric || metric.rate === undefined) return '—';
   return `${pct(metric.rate)} (${metric.passed}/${metric.eligible})`;
 }

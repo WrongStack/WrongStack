@@ -94,9 +94,7 @@ export async function decomposeNonAtomicTasks(
   }
   // Snapshot the candidate list before any split so children created by this
   // pass are never re-decomposed (no recursion).
-  const candidates = nodes.filter(
-    (node) => node.status === 'pending' && !childCounts.get(node.id),
-  );
+  const candidates = nodes.filter((node) => node.status === 'pending' && !childCounts.get(node.id));
 
   let spent = 0;
   for (const node of candidates) {

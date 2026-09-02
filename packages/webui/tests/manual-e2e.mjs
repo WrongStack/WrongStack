@@ -76,7 +76,10 @@ async function main() {
             console.log(`References label visible: ${refsVisible}`);
           } else {
             // Log all visible text to debug
-            const bodyText = await page.locator('body').textContent().catch(() => '');
+            const bodyText = await page
+              .locator('body')
+              .textContent()
+              .catch(() => '');
             console.log(`Page text (first 500 chars): ${bodyText.slice(0, 500)}`);
           }
         }
@@ -86,7 +89,10 @@ async function main() {
       await page.screenshot({ path: 'e2e-screenshot-01b-state.png', fullPage: false });
       console.log('Fallback screenshot saved.');
 
-      const bodyText = await page.locator('body').textContent().catch(() => '');
+      const bodyText = await page
+        .locator('body')
+        .textContent()
+        .catch(() => '');
       console.log(`Page text (first 500 chars): ${bodyText.slice(0, 500)}`);
     }
 

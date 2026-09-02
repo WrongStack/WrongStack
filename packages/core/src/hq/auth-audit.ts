@@ -102,10 +102,7 @@ export function hqAuthAuditPath(dataDir: string): string {
  * Returns entries newest-first. If the file doesn't exist or is empty,
  * returns an empty array.
  */
-export function readHqAuthAuditTail(
-  dataDir: string,
-  maxEntries = 50,
-): HqAuthAuditEntry[] {
+export function readHqAuthAuditTail(dataDir: string, maxEntries = 50): HqAuthAuditEntry[] {
   const filePath = hqAuthAuditPath(dataDir);
   let content: string;
   try {
@@ -162,7 +159,7 @@ export function logHqAuthAudit(
   partial: Omit<HqAuthAuditEntry, 'at'> & { at?: number },
   options?: { onError?: (err: Error) => void; now?: () => number },
 ): void {
-  const at = partial.at ?? (options?.now?.() ?? Date.now());
+  const at = partial.at ?? options?.now?.() ?? Date.now();
   const { at: _omit, ...rest } = partial;
   void _omit;
   appendHqAuthAudit(dataDir, { at, ...rest } as HqAuthAuditEntry, options);

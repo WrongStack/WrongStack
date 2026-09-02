@@ -498,9 +498,9 @@ describe('webuiPrefsChangedSchema', () => {
 
 describe('webuiCommandAckSchema', () => {
   it('should accept valid ack', () => {
-    expect(
-      webuiCommandAckSchema.safeParse({ requestId: 'req-123', handled: true }).success,
-    ).toBe(true);
+    expect(webuiCommandAckSchema.safeParse({ requestId: 'req-123', handled: true }).success).toBe(
+      true,
+    );
   });
 
   it('should accept ack with optional message', () => {
@@ -632,8 +632,8 @@ describe('Edge cases', () => {
 
   it('should accept nested object prefs', () => {
     // z.record accepts nested objects
-    expect(
-      webuiPrefsChangedSchema.safeParse({ prefs: { nested: { value: true } } }).success,
-    ).toBe(true);
+    expect(webuiPrefsChangedSchema.safeParse({ prefs: { nested: { value: true } } }).success).toBe(
+      true,
+    );
   });
 });

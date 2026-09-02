@@ -74,7 +74,9 @@ export function parsePrefs(payload: unknown, previous: SimplePrefs = DEFAULT_PRE
     chime: bool(raw['chime'], previous.chime),
     confirmExit: bool(raw['confirmExit'], previous.confirmExit),
     refinerProvider:
-      typeof raw['refinerProvider'] === 'string' ? raw['refinerProvider'] : previous.refinerProvider,
+      typeof raw['refinerProvider'] === 'string'
+        ? raw['refinerProvider']
+        : previous.refinerProvider,
     refinerModel:
       typeof raw['refinerModel'] === 'string' ? raw['refinerModel'] : previous.refinerModel,
     refinerFallbackProfile:
@@ -83,7 +85,7 @@ export function parsePrefs(payload: unknown, previous: SimplePrefs = DEFAULT_PRE
         : previous.refinerFallbackProfile,
     fallbackProfiles:
       raw['fallbackProfiles'] && typeof raw['fallbackProfiles'] === 'object'
-        ? raw['fallbackProfiles'] as Record<string, string[]>
+        ? (raw['fallbackProfiles'] as Record<string, string[]>)
         : previous.fallbackProfiles,
   };
 }

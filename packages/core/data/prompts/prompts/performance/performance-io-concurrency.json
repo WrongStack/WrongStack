@@ -5,13 +5,7 @@
   "description": "Map every boundary crossing for N+1 calls, blocking work, missing timeouts, pool saturation, and serialisation points.",
   "content": "# ROLE: I/O, Network and Concurrency Bottleneck Analysis\n\nAnalyse this codebase for I/O and concurrency bottlenecks. Assume the CPU is not the problem until proven otherwise — in most systems it is not.\n\n## Map every boundary crossing\n\nDatabase, HTTP/RPC, filesystem, cache, message broker, subprocess. For each, report:\n\n- **Call site** (`file:line`) and how many times it runs per unit of work. Flag anything that scales with item count instead of being constant: N+1 queries, per-item HTTP calls, per-row file opens.\n- **What it blocks**: synchronous I/O in an async handler, a network call inside a lock, filesystem access during request handling.\n- **Batching and parallelism**: whether it is batched or pipelined, and whether it could be.\n- **Timeouts, retries, backoff**: a missing timeout is unbounded latency; retry without backoff and jitter is self-inflicted overload.\n- **Connection handling**: pool size and saturation, reuse versus per-call creation, keep-alive.\n- **Payload cost**: serialisation format, over-fetching fields or columns, compression, streaming versus loading whole payloads into memory.\n- **Serialisation points**: mutexes, single-writer queues, and global semaphores that turn parallel work sequential. Name the critical section and how long it is held.\n\n## Deliver\n\nA ranked list with the expected win from each fix — latency, throughput, or resource — and **the one measurement that would confirm or refute each hypothesis**. One measurement per item, not a menu.\n\nSeparate what you observed in the code from what you are inferring, and label the inferences SPECULATIVE. Do not change code in this pass.",
   "category": "performance",
-  "tags": [
-    "io",
-    "network",
-    "concurrency",
-    "n-plus-one",
-    "latency"
-  ],
+  "tags": ["io", "network", "concurrency", "n-plus-one", "latency"],
   "source": "builtin",
   "favorite": false,
   "checksum": "33721c12487504bd4dfd240b5e05c26b4b9b12a708b8117f2f41b495439ee905",

@@ -23,7 +23,13 @@ interface MistralStreamState {
   // OpenAI-style tool_call accumulators keyed by `index`
   toolCalls: Map<
     number,
-    { id?: string | undefined; name?: string | undefined; partial: string; emittedStart: boolean; emittedArgLength: number }
+    {
+      id?: string | undefined;
+      name?: string | undefined;
+      partial: string;
+      emittedStart: boolean;
+      emittedArgLength: number;
+    }
   >;
 }
 

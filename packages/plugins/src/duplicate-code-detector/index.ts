@@ -179,9 +179,7 @@ function readConfig(raw: unknown): DuplicateCodeDetectorConfig {
   return {
     enabled: r['enabled'] === true,
     minLines:
-      typeof rawMin === 'number' && rawMin >= 2 && rawMin <= 100
-        ? rawMin
-        : DEFAULTS.minLines,
+      typeof rawMin === 'number' && rawMin >= 2 && rawMin <= 100 ? rawMin : DEFAULTS.minLines,
     threshold:
       typeof r['threshold'] === 'number' && r['threshold'] > 0 && r['threshold'] <= 1
         ? r['threshold']
@@ -191,9 +189,7 @@ function readConfig(raw: unknown): DuplicateCodeDetectorConfig {
       ? (rawExclude as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.excludeDirs,
     maxFindings:
-      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
-        ? rawMax
-        : DEFAULTS.maxFindings,
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500 ? rawMax : DEFAULTS.maxFindings,
   };
 }
 

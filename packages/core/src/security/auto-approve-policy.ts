@@ -22,11 +22,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type {
-  PermissionDecision,
-  PermissionPolicy,
-  PermissionTrace,
-} from '../types/permission.js';
+import type { PermissionDecision, PermissionPolicy, PermissionTrace } from '../types/permission.js';
 import type { Tool } from '../types/tool.js';
 import { matchGlob } from '../utils/glob-match.js';
 import { safeParse } from '../utils/safe-json.js';
@@ -91,11 +87,7 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
     return name.startsWith('mcp__');
   }
 
-  async evaluate(
-    tool: Tool,
-    input?: unknown,
-    ctx?: SubagentContext,
-  ): Promise<PermissionDecision> {
+  async evaluate(tool: Tool, input?: unknown, ctx?: SubagentContext): Promise<PermissionDecision> {
     // `input` used to be absent from this signature entirely, so the sensitive
     // read check the leader applies could not run here. A subagent therefore
     // read `~/.aws/credentials` unprompted where the leader would have asked —
@@ -227,11 +219,7 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
   }
 
   /** Port of DefaultPermissionPolicy.hasAgentStateWriteTarget (leader). */
-  private hasAgentStateWriteTarget(
-    tool: Tool,
-    input: unknown,
-    ctx?: SubagentContext,
-  ): boolean {
+  private hasAgentStateWriteTarget(tool: Tool, input: unknown, ctx?: SubagentContext): boolean {
     if (!hasCapability(tool, ToolCapabilities.FS_WRITE)) return false;
     const base = ctx?.workingDir ?? ctx?.cwd;
     for (const targetPath of fsWriteTargetPaths(input)) {
@@ -320,11 +308,7 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
     return undefined;
   }
 
-  async explain(
-    tool: Tool,
-    input?: unknown,
-    ctx?: SubagentContext,
-  ): Promise<PermissionTrace> {
+  async explain(tool: Tool, input?: unknown, ctx?: SubagentContext): Promise<PermissionTrace> {
     const decision = await this.evaluate(tool, input, ctx);
     return {
       toolName: tool.name,

@@ -10,9 +10,7 @@ interface MockSession extends TeardownSession {
   flushSync: Mock<() => void>;
 }
 
-function makeSession(
-  overrides: Partial<TeardownSession> = {},
-): MockSession {
+function makeSession(overrides: Partial<TeardownSession> = {}): MockSession {
   return {
     close: vi.fn().mockResolvedValue(undefined) as unknown as Mock<() => Promise<void>>,
     flushSync: vi.fn() as unknown as Mock<() => void>,
@@ -81,7 +79,9 @@ describe('createDurableTeardown', () => {
   });
 
   it('shutdownViaSignal: exits after the bounded budget when close hangs forever', async () => {
-    const session = makeSession({ close: vi.fn(() => new Promise<void>(() => {})) as unknown as Mock<() => Promise<void>> });
+    const session = makeSession({
+      close: vi.fn(() => new Promise<void>(() => {})) as unknown as Mock<() => Promise<void>>,
+    });
     const { teardown, exit } = makeOpts(session, 25);
 
     const done = teardown.shutdownViaSignal(143);
@@ -93,7 +93,11 @@ describe('createDurableTeardown', () => {
   });
 
   it('shutdownViaSignal: a rejecting close still reaches exit (and does not throw)', async () => {
-    const session = makeSession({ close: vi.fn().mockRejectedValue(new Error('datasync failed')) as unknown as Mock<() => Promise<void>> });
+    const session = makeSession({
+      close: vi.fn().mockRejectedValue(new Error('datasync failed')) as unknown as Mock<
+        () => Promise<void>
+      >,
+    });
     const { teardown, exit } = makeOpts(session);
 
     await expect(teardown.shutdownViaSignal(1)).resolves.toBeUndefined();
@@ -113,7 +117,11 @@ describe('createDurableTeardown', () => {
   });
 
   it('salvageSync: calls flushSync through getSession and swallows its failures', () => {
-    const throwing = makeSession({ flushSync: vi.fn(() => { throw new Error('fd closed'); }) as unknown as Mock<() => void> });
+    const throwing = makeSession({
+      flushSync: vi.fn(() => {
+        throw new Error('fd closed');
+      }) as unknown as Mock<() => void>,
+    });
     const { teardown } = makeOpts(throwing);
     expect(() => teardown.salvageSync()).not.toThrow();
 

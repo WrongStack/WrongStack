@@ -90,7 +90,13 @@ describe('SqliteMutationQueue error recovery', () => {
 
     // First runLocked that rejects
     await queue
-      .runLocked({ db, lockPath, work: () => { throw new Error('boom'); } })
+      .runLocked({
+        db,
+        lockPath,
+        work: () => {
+          throw new Error('boom');
+        },
+      })
       .catch(() => {});
 
     // Second runLocked should still work

@@ -18,8 +18,11 @@ describe('VISUAL DUMP', () => {
         label: 'CASE 1: profileConfigPath present',
         termWidth: 100,
         entry: {
-          id: 0, kind: 'banner' as const, version: '0.285.0',
-          provider: 'deepseek', model: 'deepseek-v4-flash',
+          id: 0,
+          kind: 'banner' as const,
+          version: '0.285.0',
+          provider: 'deepseek',
+          model: 'deepseek-v4-flash',
           cwd: '/home/user/myproject',
           profile: 'default',
           profileConfigPath: '~/.wrongstack/profiles/default/config.json',
@@ -29,8 +32,11 @@ describe('VISUAL DUMP', () => {
         label: 'CASE 2: custom profile name',
         termWidth: 100,
         entry: {
-          id: 0, kind: 'banner' as const, version: '0.285.0',
-          provider: 'anthropic', model: 'claude-sonnet-4',
+          id: 0,
+          kind: 'banner' as const,
+          version: '0.285.0',
+          provider: 'anthropic',
+          model: 'claude-sonnet-4',
           cwd: '/home/user/work',
           profile: 'work-claude',
           profileConfigPath: '~/.wrongstack/profiles/work-claude/config.json',
@@ -40,8 +46,11 @@ describe('VISUAL DUMP', () => {
         label: 'CASE 3: bare profile only (fallback)',
         termWidth: 80,
         entry: {
-          id: 0, kind: 'banner' as const, version: '0.285.0',
-          provider: 'openai', model: 'gpt-4o',
+          id: 0,
+          kind: 'banner' as const,
+          version: '0.285.0',
+          provider: 'openai',
+          model: 'gpt-4o',
           cwd: '/home/user/project',
           profile: 'my-profile',
         },
@@ -50,8 +59,11 @@ describe('VISUAL DUMP', () => {
         label: 'CASE 4: narrow terminal (truncation)',
         termWidth: 60,
         entry: {
-          id: 0, kind: 'banner' as const, version: '0.285.0',
-          provider: 'anthropic', model: 'claude-sonnet-4',
+          id: 0,
+          kind: 'banner' as const,
+          version: '0.285.0',
+          provider: 'anthropic',
+          model: 'claude-sonnet-4',
           cwd: '/home/user/deep/nested/project',
           profile: 'default',
           profileConfigPath: '~/.wrongstack/profiles/default/config.json',
@@ -86,8 +98,11 @@ describe('VISUAL DUMP', () => {
       React.createElement(Banner, {
         termWidth: 100,
         entry: {
-          id: 0, kind: 'banner' as const, version: '0.285.0',
-          provider: 'deepseek', model: 'deepseek-v4-flash',
+          id: 0,
+          kind: 'banner' as const,
+          version: '0.285.0',
+          provider: 'deepseek',
+          model: 'deepseek-v4-flash',
           cwd: '/home/user/myproject',
           profile: 'default',
           profileConfigPath: '~/.wrongstack/profiles/default/config.json',
@@ -97,9 +112,15 @@ describe('VISUAL DUMP', () => {
     const raw1 = lf1() ?? '';
 
     console.log('\n━━━ COLOR CODE CHECK ━━━');
-    console.log(`ORANGE_ANSI (${ORANGE_ANSI.replace(/\x1b/g, '⟦')}) present: ${raw1.includes(ORANGE_ANSI)}`);
-    console.log(`MUTED_ANSI  (${MUTED_ANSI.replace(/\x1b/g, '⟦')}) present: ${raw1.includes(MUTED_ANSI)}`);
-    console.log(`Profile row segment "default" preceded by orange bold: ${raw1.includes(`${ORANGE_ANSI}\x1b[1mdefault`)}`);
+    console.log(
+      `ORANGE_ANSI (${ORANGE_ANSI.replace(/\x1b/g, '⟦')}) present: ${raw1.includes(ORANGE_ANSI)}`,
+    );
+    console.log(
+      `MUTED_ANSI  (${MUTED_ANSI.replace(/\x1b/g, '⟦')}) present: ${raw1.includes(MUTED_ANSI)}`,
+    );
+    console.log(
+      `Profile row segment "default" preceded by orange bold: ${raw1.includes(`${ORANGE_ANSI}\x1b[1mdefault`)}`,
+    );
 
     // Find the profile row in raw output and show its escape-sequence breakdown.
     const profileLineIdx = raw1.indexOf('profile');

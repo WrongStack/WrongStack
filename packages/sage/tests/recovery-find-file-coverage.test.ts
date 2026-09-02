@@ -27,8 +27,11 @@ describe('SqliteSageStore recovery', () => {
 
   it('recoverSage returns active memory as-is', async () => {
     const m = await store.rememberSage({
-      text: 'active memory', scope: 'project', kind: 'fact',
-      importance: 0.8, confidence: 0.8,
+      text: 'active memory',
+      scope: 'project',
+      kind: 'fact',
+      importance: 0.8,
+      confidence: 0.8,
     });
     const recovered = await store.recoverSage(m.id);
     expect(recovered.status).toBe('active');
@@ -36,8 +39,11 @@ describe('SqliteSageStore recovery', () => {
 
   it('recoverSage restores a force-deleted memory', async () => {
     const m = await store.rememberSage({
-      text: 'to be deleted and recovered', scope: 'project', kind: 'fact',
-      importance: 0.8, confidence: 0.8,
+      text: 'to be deleted and recovered',
+      scope: 'project',
+      kind: 'fact',
+      importance: 0.8,
+      confidence: 0.8,
     });
     await store.deleteSage(m.id, 'test', { force: true });
     const afterDelete = await store.getSage(m.id);
@@ -63,8 +69,11 @@ describe('SqliteSageStore findMemoriesForFile', () => {
 
   it('matches memories anchored to a file', async () => {
     await store.rememberSage({
-      text: 'memory about src/index.ts', scope: 'project', kind: 'fact',
-      importance: 0.8, confidence: 0.8,
+      text: 'memory about src/index.ts',
+      scope: 'project',
+      kind: 'fact',
+      importance: 0.8,
+      confidence: 0.8,
       anchors: [{ type: 'file', path: 'src/index.ts' }],
     });
     const result = await store.findMemoriesForFile('src/index.ts');
@@ -73,8 +82,11 @@ describe('SqliteSageStore findMemoriesForFile', () => {
 
   it('does not match memories anchored to a different file', async () => {
     await store.rememberSage({
-      text: 'memory about src/other.ts', scope: 'project', kind: 'fact',
-      importance: 0.8, confidence: 0.8,
+      text: 'memory about src/other.ts',
+      scope: 'project',
+      kind: 'fact',
+      importance: 0.8,
+      confidence: 0.8,
       anchors: [{ type: 'file', path: 'src/other.ts' }],
     });
     const result = await store.findMemoriesForFile('src/different.ts');
@@ -84,8 +96,11 @@ describe('SqliteSageStore findMemoriesForFile', () => {
   it('respects limit option', async () => {
     for (let i = 0; i < 5; i++) {
       await store.rememberSage({
-        text: `memory ${i} about src/batch.ts`, scope: 'project', kind: 'fact',
-        importance: 0.8, confidence: 0.8,
+        text: `memory ${i} about src/batch.ts`,
+        scope: 'project',
+        kind: 'fact',
+        importance: 0.8,
+        confidence: 0.8,
         anchors: [{ type: 'file', path: 'src/batch.ts' }],
       });
     }
@@ -95,8 +110,11 @@ describe('SqliteSageStore findMemoriesForFile', () => {
 
   it('includes deleted memories when includeDeleted is true', async () => {
     const m = await store.rememberSage({
-      text: 'deleted memory about src/del.ts', scope: 'project', kind: 'fact',
-      importance: 0.8, confidence: 0.8,
+      text: 'deleted memory about src/del.ts',
+      scope: 'project',
+      kind: 'fact',
+      importance: 0.8,
+      confidence: 0.8,
       anchors: [{ type: 'file', path: 'src/del.ts' }],
     });
     await store.deleteSage(m.id, 'test', { force: true });
@@ -106,8 +124,11 @@ describe('SqliteSageStore findMemoriesForFile', () => {
 
   it('excludes deleted memories by default', async () => {
     const m = await store.rememberSage({
-      text: 'deleted memory about src/exc.ts', scope: 'project', kind: 'fact',
-      importance: 0.8, confidence: 0.8,
+      text: 'deleted memory about src/exc.ts',
+      scope: 'project',
+      kind: 'fact',
+      importance: 0.8,
+      confidence: 0.8,
       anchors: [{ type: 'file', path: 'src/exc.ts' }],
     });
     await store.deleteSage(m.id, 'test', { force: true });

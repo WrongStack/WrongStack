@@ -17,7 +17,9 @@ function mockReaddirSync(p: string, options?: { withFileTypes?: boolean }) {
   const entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[] = [];
   for (const [path, entry] of Object.entries(mockFs)) {
     const normalized = normalizePath(path).replace(/\/$/, '') || '/';
-    const parent = normalized.includes('/') ? normalized.slice(0, normalized.lastIndexOf('/')) || '/' : '/';
+    const parent = normalized.includes('/')
+      ? normalized.slice(0, normalized.lastIndexOf('/')) || '/'
+      : '/';
     if (parent === dir) {
       const name = normalized.split('/').pop()!;
       entries.push({
@@ -85,7 +87,11 @@ const plugin = (await import('../src/code-metrics')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
 }
@@ -163,7 +169,9 @@ describe('code-metrics plugin shape', () => {
     const api = makeApi();
     plugin.setup(api as never);
     expect(api.tools.register).toHaveBeenCalledTimes(2);
-    const names = api.tools.register.mock.calls.map(([t]: unknown[]) => (t as { name: string }).name);
+    const names = api.tools.register.mock.calls.map(
+      ([t]: unknown[]) => (t as { name: string }).name,
+    );
     expect(names).toContain('measure_code_metrics');
     expect(names).toContain('metrics_status');
     const [event, matcher] = api.registerHook.mock.calls[0]!;
@@ -189,7 +197,13 @@ describe('measure_code_metrics tool', () => {
     const measure = getTool(api, 'measure_code_metrics');
     const result = (await measure({ path: 'src/util.ts' })) as {
       ok: boolean;
-      files: Array<{ file: string; lines: number; codeLines: number; functionCount: number; complexity: number }>;
+      files: Array<{
+        file: string;
+        lines: number;
+        codeLines: number;
+        functionCount: number;
+        complexity: number;
+      }>;
     };
     expect(result.ok).toBe(true);
     expect(result.files).toHaveLength(1);
@@ -359,7 +373,10 @@ describe('teardown + counters', () => {
     const api = makeApi();
     plugin.setup(api as never);
     plugin.teardown!(api as never);
-    expect(api.log.info).toHaveBeenCalledWith('code-metrics: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'code-metrics: teardown complete',
+      expect.any(Object),
+    );
     const health = (await plugin.health!()) as { counters: Record<string, number> };
     expect(health.counters['measures']).toBe(0);
     expect(health.counters['files']).toBe(0);
@@ -385,7 +402,9 @@ describe('config parsing', () => {
 
   it('falls back to defaults for invalid values', async () => {
     const api = makeApi({
-      extensions: { 'code-metrics': { maxFiles: -1, extensions: 'not-an-array' as unknown as string[] } },
+      extensions: {
+        'code-metrics': { maxFiles: -1, extensions: 'not-an-array' as unknown as string[] },
+      },
     });
     plugin.setup(api as never);
     const status = getTool(api, 'metrics_status');

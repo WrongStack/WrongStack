@@ -5,7 +5,10 @@ const cfg = (over: Partial<RouterConfig['config']> = {}): RouterConfig['config']
   provider: 'anthropic',
   model: 'anthropic-test-model',
   providers: {
-    anthropic: { apiKey: 'sk-ant', models: ['claude-opus-4-8', 'anthropic-test-model', 'claude-haiku-4-5'] },
+    anthropic: {
+      apiKey: 'sk-ant',
+      models: ['claude-opus-4-8', 'anthropic-test-model', 'claude-haiku-4-5'],
+    },
     openai: { apiKeys: [{ apiKey: 'sk-oai' }], models: ['gpt-5', 'gpt-4o-mini'] },
     google: { apiKey: '', models: ['gemini-2.5-pro'] }, // no key
   } as never,
@@ -27,7 +30,10 @@ describe('ModelRouter.pickForTask', () => {
       config: cfg(),
       matrix: { planner: { model: 'claude-opus-4-8' } } as never,
     });
-    expect(r.pickForTask('planner', 'x')).toMatchObject({ provider: 'anthropic', fromMatrix: true });
+    expect(r.pickForTask('planner', 'x')).toMatchObject({
+      provider: 'anthropic',
+      fromMatrix: true,
+    });
   });
 
   it('resolves a matrix entry via the role→phase map', () => {
@@ -68,7 +74,11 @@ describe('ModelRouter.pickForTask', () => {
       config: { provider: 'cohere', model: 'command-r', providers: {} } as never,
     });
     const pick = r.pickForTask('executor', 'general work');
-    expect(pick).toMatchObject({ provider: 'cohere', model: 'command-r', reason: 'leader fallback' });
+    expect(pick).toMatchObject({
+      provider: 'cohere',
+      model: 'command-r',
+      reason: 'leader fallback',
+    });
   });
 
   it('uses the general role/category fallback for an unknown role + description', () => {

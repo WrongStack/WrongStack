@@ -21,9 +21,21 @@ import { PluginPicker, type PluginPickerItem } from '../src/components/plugin-pi
 
 const ROWS: PluginPickerItem[] = [
   { name: 'cost-tracker', enabled: true, risk: 'low', summary: 'Tracks cost', lockable: true },
-  { name: 'legacy-core', enabled: true, risk: 'high', summary: 'Synthetic locked row', lockable: false },
+  {
+    name: 'legacy-core',
+    enabled: true,
+    risk: 'high',
+    summary: 'Synthetic locked row',
+    lockable: false,
+  },
   { name: 'format-on-save', enabled: false, risk: 'low', summary: 'Auto-format', lockable: true },
-  { name: 'external-guard', enabled: true, risk: 'high', summary: 'Synthetic guard', lockable: false },
+  {
+    name: 'external-guard',
+    enabled: true,
+    risk: 'high',
+    summary: 'Synthetic guard',
+    lockable: false,
+  },
 ];
 
 function frame(items: PluginPickerItem[], selected: number, hint?: string): string {

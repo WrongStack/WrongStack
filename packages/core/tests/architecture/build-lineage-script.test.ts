@@ -96,9 +96,9 @@ describe('build lineage', () => {
       excludedPaths: ['website'],
     });
     await expect(validateBuildManifest(root, manifest, files)).resolves.toEqual([]);
-    await expect(
-      validateBuildManifest(root, { files: undefined } as never, []),
-    ).resolves.toEqual([]);
+    await expect(validateBuildManifest(root, { files: undefined } as never, [])).resolves.toEqual(
+      [],
+    );
   });
 
   it('handles unreadable or deleted files gracefully during validation', async () => {
@@ -114,8 +114,8 @@ describe('build lineage', () => {
     // Simulate file deletion right before fingerprinting during validation
     await rm(targetFile);
 
-    await expect(
-      validateBuildManifest(root, manifest, [relativePath]),
-    ).resolves.toEqual(['packages/core/dist/temp.js: missing build artifact']);
+    await expect(validateBuildManifest(root, manifest, [relativePath])).resolves.toEqual([
+      'packages/core/dist/temp.js: missing build artifact',
+    ]);
   });
 });

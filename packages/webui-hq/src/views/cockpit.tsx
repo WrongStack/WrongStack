@@ -272,12 +272,15 @@ export function CockpitView(): React.ReactElement {
    * channels, and showing it twice makes the fleet look worse than it is.
    */
   const alertDigest = useMemo<AlertDigestEntry[]>(() => {
-    const fromLive = alerts.slice(-30).reverse().map<AlertDigestEntry>((alert) => ({
-      severity: alert.severity,
-      ruleId: alert.type ?? 'hq.alert',
-      message: alert.message,
-      timestamp: alert.timestamp,
-    }));
+    const fromLive = alerts
+      .slice(-30)
+      .reverse()
+      .map<AlertDigestEntry>((alert) => ({
+        severity: alert.severity,
+        ruleId: alert.type ?? 'hq.alert',
+        message: alert.message,
+        timestamp: alert.timestamp,
+      }));
     const fromApi = [...activeAlerts, ...alertHistory]
       .slice(-30)
       .reverse()
@@ -319,7 +322,10 @@ export function CockpitView(): React.ReactElement {
   }, [sessions]);
 
   const topProjects = useMemo(
-    () => [...projects].sort((left, right) => right.totalCostUsd - left.totalCostUsd).slice(0, TOP_PROJECTS),
+    () =>
+      [...projects]
+        .sort((left, right) => right.totalCostUsd - left.totalCostUsd)
+        .slice(0, TOP_PROJECTS),
     [projects],
   );
 
@@ -423,7 +429,9 @@ export function CockpitView(): React.ReactElement {
                 : 'Awaiting first snapshot'}
             </Mono>
             <Mono>{controllableClients.length} command-ready clients</Mono>
-            {activeAlerts.length > 0 && <Badge tone="error">{activeAlerts.length} active alerts</Badge>}
+            {activeAlerts.length > 0 && (
+              <Badge tone="error">{activeAlerts.length} active alerts</Badge>
+            )}
             {governanceWarnings.length > 0 && (
               <Badge tone="error">{governanceWarnings.length} governance advisories</Badge>
             )}
@@ -555,7 +563,11 @@ export function CockpitView(): React.ReactElement {
               tone={agents.activeSessions > 0 ? 'active' : 'idle'}
             />
             <StatTile label="agents" value={agents.total} />
-            <StatTile label="busy" value={agents.busy} tone={agents.busy > 0 ? 'running' : 'idle'} />
+            <StatTile
+              label="busy"
+              value={agents.busy}
+              tone={agents.busy > 0 ? 'running' : 'idle'}
+            />
             <StatTile
               label="waiting"
               value={agents.waiting}
@@ -660,14 +672,15 @@ export function CockpitView(): React.ReactElement {
           className="xl:col-span-2"
         >
           {topProjects.length === 0 ? (
-            <EmptyState title="No cost data yet" hint="Connect a client to start reporting spend." />
+            <EmptyState
+              title="No cost data yet"
+              hint="Connect a client to start reporting spend."
+            />
           ) : (
             <div className="space-y-2.5">
               {topProjects.map((project) => {
                 const share =
-                  (totals?.totalCostUsd ?? 0) > 0
-                    ? project.totalCostUsd / totals!.totalCostUsd
-                    : 0;
+                  (totals?.totalCostUsd ?? 0) > 0 ? project.totalCostUsd / totals!.totalCostUsd : 0;
                 return (
                   <div key={project.projectId} className="space-y-1">
                     <div className="flex items-baseline gap-2 text-xs">

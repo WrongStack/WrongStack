@@ -113,9 +113,7 @@ describe('Chimera passive report integration', () => {
     return cwd;
   }
 
-  const REVIEW_FILES = (content: string) => [
-    { path: 'src/a.ts', status: 'modified', content },
-  ];
+  const REVIEW_FILES = (content: string) => [{ path: 'src/a.ts', status: 'modified', content }];
 
   it('publishes an actionable report without waking the session leader', async () => {
     // Longest token of 'Broken guard → Validate before returning.' is

@@ -229,10 +229,7 @@ function everyFlagAllowed(allowed: ReadonlySet<string> | null, args: readonly st
  * canonical absolute path on success, `null` on rejection (empty,
  * outside the project, leading-dash, or longer than 4096 bytes).
  */
-export function sanitizeRunnerPath(
-  value: string,
-  options: ResolveOptions = {},
-): string | null {
+export function sanitizeRunnerPath(value: string, options: ResolveOptions = {}): string | null {
   if (!value || hasLeadingDash(value)) return null;
   const projectRoot = resolve(options.projectRoot ?? process.cwd());
   if (!withinProjectPath(projectRoot, value)) return null;
@@ -272,7 +269,12 @@ export function resolveRunnerCommand(
     // bare-executable spellings, a positional argument. We pass the entire
     // tail through everyFlagAllowed; positional args are exempt from the
     // allowlist check.
-    if (!everyFlagAllowed(runtime.allowedFlags, [second, ...rest].filter((v): v is string => Boolean(v)))) {
+    if (
+      !everyFlagAllowed(
+        runtime.allowedFlags,
+        [second, ...rest].filter((v): v is string => Boolean(v)),
+      )
+    ) {
       return null;
     }
     return {
@@ -325,10 +327,7 @@ export function resolveRunnerCommand(
  * `maxBuffer`, and respects `signal` + `timeoutMs`. Plugins can layer
  * language-specific output parsing on top of `RunResult`.
  */
-export function runRunnerCommand(
-  argv: readonly string[],
-  options: RunOptions,
-): Promise<RunResult> {
+export function runRunnerCommand(argv: readonly string[], options: RunOptions): Promise<RunResult> {
   if (argv.length === 0) {
     return Promise.resolve({
       code: null,
@@ -580,10 +579,7 @@ export function withinProject(p: string): boolean {
  * Convenience: locate the runner binary on disk inside the project.
  * Returns the absolute path or `null`.
  */
-export function locateRunnerEntry(
-  runtime: LanguageRuntime,
-  projectRoot: string,
-): string | null {
+export function locateRunnerEntry(runtime: LanguageRuntime, projectRoot: string): string | null {
   const root = resolve(projectRoot);
   const candidates = [
     resolve(root, 'node_modules', '.bin', runtime.executable),
@@ -680,7 +676,7 @@ export async function collectSourceFilesAsync(
 ): Promise<string[]> {
   const { readdir, stat } = await import('node:fs/promises');
   const files: string[] = [];
-  
+
   try {
     const s = await stat(root);
     if (s.isFile()) {

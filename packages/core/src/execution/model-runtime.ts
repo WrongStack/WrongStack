@@ -53,10 +53,7 @@ export function mergeModelRuntime(
       base.reasoning || override.reasoning
         ? { ...base.reasoning, ...override.reasoning }
         : undefined,
-    cache:
-      base.cache || override.cache
-        ? { ...base.cache, ...override.cache }
-        : undefined,
+    cache: base.cache || override.cache ? { ...base.cache, ...override.cache } : undefined,
     parameters:
       base.parameters || override.parameters
         ? { ...base.parameters, ...override.parameters }
@@ -113,7 +110,9 @@ export function resolveReasoningForRequest(
   // actionable response, and the resolver already omits the value to avoid
   // provider errors. Surfacing a warning every request would be pure noise.
   const capKnown = rc !== undefined;
-  const supportsReasoning = rc ? rc.default !== 'disabled' || rc.disableSupported || rc.effortSupported !== false : false;
+  const supportsReasoning = rc
+    ? rc.default !== 'disabled' || rc.disableSupported || rc.effortSupported !== false
+    : false;
 
   const out: ReasoningRequest = {};
 
@@ -125,14 +124,18 @@ export function resolveReasoningForRequest(
         'reasoning "off" requested, but this model has thinking always on; the disable field was omitted to avoid a provider error.',
       );
     } else if (capKnown && rc && !rc.disableSupported) {
-      warnings.push('reasoning "off" requested, but this model does not support disabling thinking; the setting was omitted.');
+      warnings.push(
+        'reasoning "off" requested, but this model does not support disabling thinking; the setting was omitted.',
+      );
     }
     // capKnown === false: silently omit; field is dropped to avoid 400s.
   } else if (cfg.mode === 'on') {
     if (!capKnown) {
       // Silently omit; cannot verify the model accepts an explicit "on".
     } else if (!supportsReasoning && rc?.default === 'disabled') {
-      warnings.push('reasoning "on" requested, but this model has reasoning disabled by default and does not advertise support; the setting was omitted.');
+      warnings.push(
+        'reasoning "on" requested, but this model has reasoning disabled by default and does not advertise support; the setting was omitted.',
+      );
     } else {
       out.enabled = true;
     }
@@ -174,7 +177,9 @@ export function resolveReasoningForRequest(
       // cannot preserve thinking. Only an enabled request is unsupported and
       // actionable; warning for an explicit `false` would be both misleading
       // and noisy because this resolver runs for every model request.
-      warnings.push('reasoning preserve requested, but this model does not support preserved thinking; the setting was omitted.');
+      warnings.push(
+        'reasoning preserve requested, but this model does not support preserved thinking; the setting was omitted.',
+      );
     }
     // Unknown capabilities: preserve is a soft, widely-supported field, so we
     // drop it rather than guess — provider behaviour varies too much.
@@ -286,10 +291,7 @@ function withConversationReasoning(
   } as ModelRuntimeConfig;
 }
 
-export function applyModelRuntime(
-  req: Request,
-  opts: ModelRuntimeMiddlewareOptions,
-): Request {
+export function applyModelRuntime(req: Request, opts: ModelRuntimeMiddlewareOptions): Request {
   // Reasoning is a PER-CONVERSATION preference — the WebUI writes it to the
   // asking tab's meta — but this middleware only ever read the project config,
   // so whichever tab last changed its effort silently changed everyone's next

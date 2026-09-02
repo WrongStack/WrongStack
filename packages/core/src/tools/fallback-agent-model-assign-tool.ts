@@ -56,7 +56,9 @@ interface AgentModelAssignOutput {
   role?: string;
 }
 
-export function createAgentModelAssignTool(opts: FallbackManageToolOptions): Tool<AgentModelAssignInput, AgentModelAssignOutput> {
+export function createAgentModelAssignTool(
+  opts: FallbackManageToolOptions,
+): Tool<AgentModelAssignInput, AgentModelAssignOutput> {
   return {
     name: AGENT_MODEL_ASSIGN_TOOL_NAME,
     description:
@@ -78,11 +80,16 @@ export function createAgentModelAssignTool(opts: FallbackManageToolOptions): Too
     async execute(input) {
       const config = opts.getConfig();
 
-      const modes = [input.clear ? 'clear' : null, input.profile ? 'profile' : null, input.model ? 'model' : null].filter(Boolean);
+      const modes = [
+        input.clear ? 'clear' : null,
+        input.profile ? 'profile' : null,
+        input.model ? 'model' : null,
+      ].filter(Boolean);
       if (modes.length > 1) {
         return {
           status: 'error',
-          message: `Conflicting assignment modes: ${modes.join(' + ')}. ` +
+          message:
+            `Conflicting assignment modes: ${modes.join(' + ')}. ` +
             'Use exactly one: clear=true, profile="name", or model="name" (optionally with provider).',
         };
       }
@@ -91,9 +98,15 @@ export function createAgentModelAssignTool(opts: FallbackManageToolOptions): Too
         const matrix = (config.modelMatrix ?? {}) as Record<string, unknown>;
         const keys = Object.keys(matrix);
         if (keys.length === 0) {
-          return { status: 'ok', message: 'No matrix assignments. All roles use the leader model.' };
+          return {
+            status: 'ok',
+            message: 'No matrix assignments. All roles use the leader model.',
+          };
         }
-        const msg = keys.sort().map((k) => `  ${k} → ${JSON.stringify(matrix[k])}`).join('\n');
+        const msg = keys
+          .sort()
+          .map((k) => `  ${k} → ${JSON.stringify(matrix[k])}`)
+          .join('\n');
         return { status: 'ok', message: `Model matrix (${keys.length} entries):\n${msg}` };
       }
 
@@ -122,7 +135,10 @@ export function createAgentModelAssignTool(opts: FallbackManageToolOptions): Too
         const matrix = (config.modelMatrix ?? {}) as Record<string, unknown>;
         const entry = matrix[input.role];
         if (!entry) {
-          return { status: 'ok', message: `No specific assignment for "${input.role}". It uses the leader model or phase/* fallback.` };
+          return {
+            status: 'ok',
+            message: `No specific assignment for "${input.role}". It uses the leader model or phase/* fallback.`,
+          };
         }
         return { status: 'ok', message: `"${input.role}" → ${JSON.stringify(entry)}` };
       }
@@ -130,7 +146,10 @@ export function createAgentModelAssignTool(opts: FallbackManageToolOptions): Too
       if (input.profile && !input.model) {
         const profiles = profileList(config);
         if (!profiles[input.profile]) {
-          return { status: 'error', message: `Profile "${input.profile}" not found. Create it with fallback_profile_manage first.` };
+          return {
+            status: 'error',
+            message: `Profile "${input.profile}" not found. Create it with fallback_profile_manage first.`,
+          };
         }
         const matrix = { ...((config.modelMatrix ?? {}) as Record<string, unknown>) };
         matrix[input.role] = { fallbackProfile: input.profile };
@@ -149,16 +168,25 @@ export function createAgentModelAssignTool(opts: FallbackManageToolOptions): Too
         const matrix = { ...((config.modelMatrix ?? {}) as Record<string, unknown>) };
         const previousRuntime = (matrix[input.role] as Record<string, unknown>)?.modelRuntime;
         matrix[input.role] = input.provider
-          ? { provider: input.provider, model: input.model, ...(previousRuntime ? { modelRuntime: previousRuntime } : {}) }
+          ? {
+              provider: input.provider,
+              model: input.model,
+              ...(previousRuntime ? { modelRuntime: previousRuntime } : {}),
+            }
           : { model: input.model, ...(previousRuntime ? { modelRuntime: previousRuntime } : {}) };
         await opts.updateConfig((cfg) => {
           cfg.modelMatrix = matrix;
         });
-        const display = input.provider ? `${input.provider}/${input.model}` : `${input.model} (leader provider)`;
+        const display = input.provider
+          ? `${input.provider}/${input.model}`
+          : `${input.model} (leader provider)`;
         return { status: 'ok', message: `✓ "${input.role}" → ${display}` };
       }
 
-      return { status: 'error', message: 'Provide model, profile, or clear=true for the role assignment.' };
+      return {
+        status: 'error',
+        message: 'Provide model, profile, or clear=true for the role assignment.',
+      };
     },
   };
 }

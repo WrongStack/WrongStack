@@ -5,11 +5,7 @@
   "description": "Let a long agent task survive interruption.",
   "content": "This long-running agent task needs to survive interruption: {{task}}\n\nDesign checkpointing. Decide what state must be persisted to resume correctly (progress, partial results, position in the work) and what can be recomputed. Pick the checkpoint points — frequent enough to limit lost work, not so frequent they dominate cost. Make resume idempotent so a crash mid-step doesn't double-apply. Flag the state that is easy to forget and would make a resumed run silently wrong.",
   "category": "agentic-workflows",
-  "tags": [
-    "checkpoint",
-    "resume",
-    "durability"
-  ],
+  "tags": ["checkpoint", "resume", "durability"],
   "source": "builtin",
   "favorite": false,
   "checksum": "e62e16a3991e0fe41e0140c482f4b294891d0f89414d75a1f58be06c5862d08b",

@@ -5,10 +5,7 @@
   "description": "Sequence the work to ship and land a launch.",
   "content": "Help me plan the launch of: {{feature}}\n\nWork backward from the goal. Define what success looks like and how it is measured. Sequence the work: readiness (the thing actually works and is supportable), the rollout (flag, gradual, or big bang) matched to the risk, and the announcement and enablement. Identify the riskiest assumption to de-risk before launch. List what could go wrong on launch day and the plan for each. Keep it honest about what is must-have versus nice-to-have.",
   "category": "product",
-  "tags": [
-    "launch",
-    "go-to-market"
-  ],
+  "tags": ["launch", "go-to-market"],
   "source": "builtin",
   "favorite": false,
   "checksum": "0968aba6bff814cd27c507a5267306dbb32805402ae860f07b1a9ffddb9e6282",

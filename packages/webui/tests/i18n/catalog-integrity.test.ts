@@ -77,31 +77,27 @@ const english = Object.fromEntries(NAMESPACES.map((ns) => [ns, readCatalog('en',
 >;
 
 describe('locale catalogs — key parity', () => {
-  it.each(SUPPORTED_LNGS.filter((l) => l !== 'en'))(
-    '%s has exactly the English key set',
-    (lng) => {
-      const missing: string[] = [];
-      const extra: string[] = [];
-      for (const ns of NAMESPACES) {
-        const translated = readCatalog(lng, ns);
-        for (const key of Object.keys(english[ns])) {
-          if (!(key in translated)) missing.push(`${ns}:${key}`);
-        }
-        for (const key of Object.keys(translated)) {
-          if (!(key in english[ns])) extra.push(`${ns}:${key}`);
-        }
+  it.each(SUPPORTED_LNGS.filter((l) => l !== 'en'))('%s has exactly the English key set', (lng) => {
+    const missing: string[] = [];
+    const extra: string[] = [];
+    for (const ns of NAMESPACES) {
+      const translated = readCatalog(lng, ns);
+      for (const key of Object.keys(english[ns])) {
+        if (!(key in translated)) missing.push(`${ns}:${key}`);
       }
-      expect({ missing, extra }).toEqual({ missing: [], extra: [] });
-    },
-  );
+      for (const key of Object.keys(translated)) {
+        if (!(key in english[ns])) extra.push(`${ns}:${key}`);
+      }
+    }
+    expect({ missing, extra }).toEqual({ missing: [], extra: [] });
+  });
 
   it('ships a catalog file for every namespace in every locale', () => {
     for (const lng of SUPPORTED_LNGS) {
       for (const ns of NAMESPACES) {
-        expect(
-          fs.existsSync(path.join(LOCALES, lng, `${ns}.json`)),
-          `${lng}/${ns}.json`,
-        ).toBe(true);
+        expect(fs.existsSync(path.join(LOCALES, lng, `${ns}.json`)), `${lng}/${ns}.json`).toBe(
+          true,
+        );
       }
     }
   });

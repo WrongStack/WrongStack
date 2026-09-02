@@ -93,7 +93,11 @@ export const ChimeraReportCard = memo(function ChimeraReportCard({
                 : 'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
             )}
           >
-            {sent ? 'Prompt sent ✓' : laneBusy ? 'Leader is running…' : 'Take action — have the leader review it'}
+            {sent
+              ? 'Prompt sent ✓'
+              : laneBusy
+                ? 'Leader is running…'
+                : 'Take action — have the leader review it'}
           </button>
           <button
             type="button"

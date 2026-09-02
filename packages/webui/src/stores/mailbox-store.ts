@@ -31,7 +31,10 @@ const SESSION_RECIPIENT_PREFIX = '@session:';
  * WebUI can color messages consistently even when the server payload is
  * stale or missing the scope field.
  */
-export function classifyMailboxRecipient(to: string): { scope: MailboxMessageScope; recipientSessionId?: string } {
+export function classifyMailboxRecipient(to: string): {
+  scope: MailboxMessageScope;
+  recipientSessionId?: string;
+} {
   if (to === '*' || to === 'all') return { scope: 'project' };
   if (to.startsWith(SESSION_RECIPIENT_PREFIX)) {
     const recipientSessionId = to.slice(SESSION_RECIPIENT_PREFIX.length);

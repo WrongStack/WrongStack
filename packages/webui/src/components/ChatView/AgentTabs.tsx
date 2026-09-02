@@ -228,7 +228,9 @@ export function AgentTabs() {
                       aria-hidden="true"
                     />
                     <span className="max-w-[12rem] flex-1 truncate">{a.name}</span>
-                    {active && <Check className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />}
+                    {active && (
+                      <Check className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+                    )}
                     {a.status !== 'running' && (
                       <span
                         role="button"

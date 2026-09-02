@@ -16,8 +16,12 @@ describe('VIBE Three-Stage Verification Protocol — SDD Engine', () => {
 
       expect(spec.coreIntent).toContain('butona basınca sepet artsın');
       expect(spec.sensibleDefaults.length).toBeGreaterThan(0);
-      expect(spec.sensibleDefaults.some((d) => d.includes('role-based') || d.includes('permission'))).toBe(true);
-      expect(spec.sensibleDefaults.some((d) => d.includes('deletion') || d.includes('sil'))).toBe(true);
+      expect(
+        spec.sensibleDefaults.some((d) => d.includes('role-based') || d.includes('permission')),
+      ).toBe(true);
+      expect(spec.sensibleDefaults.some((d) => d.includes('deletion') || d.includes('sil'))).toBe(
+        true,
+      );
       expect(spec.acceptanceCriteria.length).toBeGreaterThan(0);
       expect(spec.scopeBoundaries.excluded).toContain('Unrelated UI refactors');
       expect(spec.formattedSpecMarkdown).toContain('## 🌊 VIBE Synthesized Specification');
@@ -31,7 +35,11 @@ describe('VIBE Three-Stage Verification Protocol — SDD Engine', () => {
 
       expect(contract.specSummary).toBe(spec.coreIntent);
       expect(contract.targetFiles).toEqual(['src/cart.ts', 'src/cart-button.tsx']);
-      expect(contract.instructions.some((ins) => ins.includes('DO NOT introduce: Unrelated UI refactors'))).toBe(true);
+      expect(
+        contract.instructions.some((ins) =>
+          ins.includes('DO NOT introduce: Unrelated UI refactors'),
+        ),
+      ).toBe(true);
     });
   });
 

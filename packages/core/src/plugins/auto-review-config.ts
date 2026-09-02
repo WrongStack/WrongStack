@@ -166,9 +166,7 @@ export interface ParsedSeverities {
   medium: number;
 }
 
-export function severitiesFromFindings(
-  findings: readonly ChimeraFinding[],
-): ParsedSeverities {
+export function severitiesFromFindings(findings: readonly ChimeraFinding[]): ParsedSeverities {
   const severities: ParsedSeverities = { critical: 0, high: 0, medium: 0 };
   for (const finding of findings) {
     if (finding.severity === 'critical') severities.critical++;

@@ -21,9 +21,7 @@ export const PLACEHOLDER_SUMMARIES = Object.freeze({
   emptySummary: '(empty summary)',
 });
 
-const placeholderSummaryValues: ReadonlySet<string> = new Set(
-  Object.values(PLACEHOLDER_SUMMARIES),
-);
+const placeholderSummaryValues: ReadonlySet<string> = new Set(Object.values(PLACEHOLDER_SUMMARIES));
 
 export function isPlaceholderSummary(value: string): boolean {
   const summary = value.trim();
@@ -47,7 +45,9 @@ export class CompactionSummaryCache {
   constructor(opts: CompactionSummaryCacheOptions = {}) {
     const capacity = opts.capacity ?? 32;
     if (!Number.isSafeInteger(capacity) || capacity <= 0) {
-      throw new Error(`CompactionSummaryCache capacity must be a positive integer, got ${capacity}`);
+      throw new Error(
+        `CompactionSummaryCache capacity must be a positive integer, got ${capacity}`,
+      );
     }
     this.entries = new LruCache(capacity);
     if (opts.ttlMs !== undefined && (!Number.isFinite(opts.ttlMs) || opts.ttlMs <= 0)) {

@@ -47,9 +47,7 @@ export function isBlockedResolved(
   markers: RegExp = BLOCKED_RESOLVED_MARKERS,
 ): boolean {
   return (
-    question.includes('blocked') &&
-    !COMPETING_ALTERNATIVE.test(question) &&
-    markers.test(context)
+    question.includes('blocked') && !COMPETING_ALTERNATIVE.test(question) && markers.test(context)
   );
 }
 

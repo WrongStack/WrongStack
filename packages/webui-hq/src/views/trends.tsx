@@ -260,11 +260,7 @@ export function TrendsView(): React.ReactElement {
           </Section>
           {view.byProvider.length > 1 && (
             <Section eyebrow="Provider split" title="By provider">
-              <BreakdownRows
-                rows={view.byProvider}
-                totalCost={view.totalCost}
-                showTokens={false}
-              />
+              <BreakdownRows rows={view.byProvider} totalCost={view.totalCost} showTokens={false} />
             </Section>
           )}
         </div>

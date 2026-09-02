@@ -32,12 +32,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const SERVER_DIR = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'src',
-  'server',
-);
+const SERVER_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'server');
 
 const STANDALONE = 'message-dispatcher.ts';
 const EMBEDDED = 'embedded-message-router.ts';

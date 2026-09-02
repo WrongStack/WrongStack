@@ -204,8 +204,11 @@ export async function handlePrefsUpdate(
     if (SESSION_SCOPED_PREF_KEYS.has(key)) sessionMeta[key] = value;
     else ctx.meta[key] = value;
   }
-  const { subagentsAllowed: _sessionPolicy, subagentsPolicyLocked: _locked, ...durablePayload } =
-    payload;
+  const {
+    subagentsAllowed: _sessionPolicy,
+    subagentsPolicyLocked: _locked,
+    ...durablePayload
+  } = payload;
   if (Object.keys(durablePayload).length > 0) void ctx.persist(durablePayload);
 
   // Mirror `autonomy.switch`: an `autonomy` payload arriving through

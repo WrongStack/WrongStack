@@ -6,7 +6,12 @@ import type { FleetEntry } from '../src/app-state-fleet.js';
 
 const WIDTH = 40;
 
-function makeEntry(id: string, name: string, status: FleetEntry['status'], opts?: Partial<FleetEntry>): FleetEntry {
+function makeEntry(
+  id: string,
+  name: string,
+  status: FleetEntry['status'],
+  opts?: Partial<FleetEntry>,
+): FleetEntry {
   return {
     id,
     name,
@@ -24,10 +29,15 @@ describe('Sidebar 12+ subagent visual snapshot', () => {
       currentTool: { name: 'edit' } as never,
     });
     for (let i = 1; i <= 12; i++) {
-      entries[`sub-${i}`] = makeEntry(`sub-${i}`, `agent-${String(i).padStart(2, '0')}`, 'running', {
-        ctxPct: 0.05 + (i * 0.03),
-        currentTool: { name: i % 3 === 0 ? 'grep' : i % 3 === 1 ? 'read' : 'bash' } as never,
-      });
+      entries[`sub-${i}`] = makeEntry(
+        `sub-${i}`,
+        `agent-${String(i).padStart(2, '0')}`,
+        'running',
+        {
+          ctxPct: 0.05 + i * 0.03,
+          currentTool: { name: i % 3 === 0 ? 'grep' : i % 3 === 1 ? 'read' : 'bash' } as never,
+        },
+      );
     }
 
     const { lastFrame } = render(
@@ -51,7 +61,9 @@ describe('Sidebar 12+ subagent visual snapshot', () => {
     expect(leaderLines[0]).toContain('55%');
 
     // Verify: leader's second line shows tool
-    const leaderToolLine = frame.split('\n').filter((l) => l.includes('running') && l.includes('edit'));
+    const leaderToolLine = frame
+      .split('\n')
+      .filter((l) => l.includes('running') && l.includes('edit'));
     expect(leaderToolLine.length).toBeGreaterThanOrEqual(1);
 
     // Verify: 11 subagents visible (cap = 12 - 1 leader = 11)
@@ -63,14 +75,22 @@ describe('Sidebar 12+ subagent visual snapshot', () => {
     expect(frame).toContain('+1 more');
 
     // Verify: each visible agent has a status line
-    const statusLines = frame.split('\n').filter((l) => l.includes('▎') && l.includes('running') && !l.includes('LIVE') && !l.includes('running active'));
+    const statusLines = frame
+      .split('\n')
+      .filter(
+        (l) =>
+          l.includes('▎') &&
+          l.includes('running') &&
+          !l.includes('LIVE') &&
+          !l.includes('running active'),
+      );
     // 1 leader + 11 subagents = 12 aligned, accent-railed status lines
     expect(statusLines.length).toBe(12);
   });
 
   it('renders 20 subagents with correct cap and +N more count', () => {
     const entries: Record<string, FleetEntry> = {};
-    entries['leader'] = makeEntry('leader', 'Leader Agent', 'running', { ctxPct: 0.80 });
+    entries['leader'] = makeEntry('leader', 'Leader Agent', 'running', { ctxPct: 0.8 });
     for (let i = 1; i <= 20; i++) {
       entries[`sub-${i}`] = makeEntry(`sub-${i}`, `worker-${i}`, 'running', {
         ctxPct: 0.1,

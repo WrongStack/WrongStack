@@ -131,8 +131,7 @@ async function bundle(entry, outfile) {
             namespace: 'tui-heap-soak',
           }));
           builder.onLoad({ filter: /.*/, namespace: 'tui-heap-soak' }, () => ({
-            contents:
-              'export default { initialize() {}, connectToDevTools() {} };',
+            contents: 'export default { initialize() {}, connectToDevTools() {} };',
             loader: 'js',
           }));
         },
@@ -230,16 +229,26 @@ async function main() {
       await runNode(
         worker,
         [
-          '--width', String(width),
-          '--viewport-rows', String(options.viewportRows),
-          '--entries', String(options.entries),
-          '--steps', String(options.steps),
-          '--plateau-samples', String(options.plateauSamples),
-          '--gc-passes', String(options.gcPasses),
-          '--seed', String(options.seed),
-          '--output', scenarioPath,
-          '--snapshot', mountedSnapshot,
-          '--unmounted-snapshot', unmountedSnapshot,
+          '--width',
+          String(width),
+          '--viewport-rows',
+          String(options.viewportRows),
+          '--entries',
+          String(options.entries),
+          '--steps',
+          String(options.steps),
+          '--plateau-samples',
+          String(options.plateauSamples),
+          '--gc-passes',
+          String(options.gcPasses),
+          '--seed',
+          String(options.seed),
+          '--output',
+          scenarioPath,
+          '--snapshot',
+          mountedSnapshot,
+          '--unmounted-snapshot',
+          unmountedSnapshot,
         ],
         options.maxOldSpaceMb,
       );

@@ -67,7 +67,10 @@ function toPreview(text: string): string {
  * the head is what arrives first.
  */
 export function setQueuedMessagesSnapshot(ctx: Context, texts: string[]): void {
-  const items = texts.map(toPreview).filter((t) => t.length > 0).slice(0, MAX_ITEMS);
+  const items = texts
+    .map(toPreview)
+    .filter((t) => t.length > 0)
+    .slice(0, MAX_ITEMS);
   const prev = read(ctx);
   if (items.length === 0 && (!prev || prev.seen.length === 0)) {
     // Nothing pending and the model never saw anything — keep meta clean.

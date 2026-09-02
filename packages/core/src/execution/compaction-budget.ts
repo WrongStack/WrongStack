@@ -105,7 +105,10 @@ export function enforceHardBudget(
   messages: readonly Message[],
   budgetTokens: number,
   opts: { preserveK: number },
-  findPreserveStartFn: (messages: readonly Message[], preserveK: number) => number = findPreserveStart,
+  findPreserveStartFn: (
+    messages: readonly Message[],
+    preserveK: number,
+  ) => number = findPreserveStart,
 ): HardBudgetResult {
   const target = Math.max(1, Math.floor(budgetTokens));
   const perMsg: number[] = messages.map((m) =>
@@ -230,7 +233,10 @@ export function dedupStaleReads(
   messages: readonly Message[],
   repeatedReads: readonly { file: string; count: number }[],
   opts: { preserveK: number },
-  findPreserveStartFn: (messages: readonly Message[], preserveK: number) => number = findPreserveStart,
+  findPreserveStartFn: (
+    messages: readonly Message[],
+    preserveK: number,
+  ) => number = findPreserveStart,
 ): DedupResult {
   const unchanged: DedupResult = {
     messages: messages as Message[],

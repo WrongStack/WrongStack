@@ -336,9 +336,7 @@ describe('BaseHTTPTransport helpers', () => {
       status: 200,
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    expect(seen[0]!.get('Authorization')).toBe(
-      ['Bearer', 'fixture-token'].join(' '),
-    );
+    expect(seen[0]!.get('Authorization')).toBe(['Bearer', 'fixture-token'].join(' '));
     expect(seen[1]!.get('Authorization')).toBeNull();
   });
 

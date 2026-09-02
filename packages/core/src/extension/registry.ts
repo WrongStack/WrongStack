@@ -192,7 +192,10 @@ export class ExtensionRegistry {
   async runOnError(
     ...args: Parameters<OnErrorHook>
   ): Promise<
-    { action: 'retry'; model?: string | undefined } | { action: 'fail' } | { action: 'continue' } | void
+    | { action: 'retry'; model?: string | undefined }
+    | { action: 'fail' }
+    | { action: 'continue' }
+    | void
   > {
     const snapshot = [...this.extensions];
     for (const ext of snapshot) {

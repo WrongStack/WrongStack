@@ -116,10 +116,8 @@ function valueHasEmbeddedCredential(value: string): boolean {
  * Code-injection directives that turn `NODE_OPTIONS` into an RCE channel by
  * preloading an arbitrary module into every node child process (WS-02).
  */
-const NODE_OPTIONS_INJECTION_FLAG =
-  /^(?:--require|-r|--import|--loader|--experimental-loader)$/;
-const NODE_OPTIONS_INJECTION_FLAG_EQ =
-  /^(?:--require|-r|--import|--loader|--experimental-loader)=/;
+const NODE_OPTIONS_INJECTION_FLAG = /^(?:--require|-r|--import|--loader|--experimental-loader)$/;
+const NODE_OPTIONS_INJECTION_FLAG_EQ = /^(?:--require|-r|--import|--loader|--experimental-loader)=/;
 
 /**
  * Strip module-preload directives from a `NODE_OPTIONS` value while preserving
@@ -189,9 +187,7 @@ export function getChildEnvGitIdentity(): Readonly<GitIdentity> | null {
  */
 export function buildChildEnv(optsOrSessionId?: BuildChildEnvOptions | string): NodeJS.ProcessEnv {
   const opts: BuildChildEnvOptions =
-    typeof optsOrSessionId === 'string'
-      ? { sessionId: optsOrSessionId }
-      : (optsOrSessionId ?? {});
+    typeof optsOrSessionId === 'string' ? { sessionId: optsOrSessionId } : (optsOrSessionId ?? {});
 
   // WRONGSTACK_CHILD_ENV_PASSTHROUGH may NOT be set via config file.
   // It is a privileged override that opt-outs the entire credential filter
@@ -202,13 +198,14 @@ export function buildChildEnv(optsOrSessionId?: BuildChildEnvOptions | string): 
   // is sufficient to exclude config-driven values.
   const hasOwn = Object.hasOwn(process.env, 'WRONGSTACK_CHILD_ENV_PASSTHROUGH');
   const legacyHasOwn = Object.hasOwn(process.env, 'WRONGSTACK_BASH_ENV_PASSTHROUGH');
-  const passthrough = (hasOwn && process.env['WRONGSTACK_CHILD_ENV_PASSTHROUGH'] === '1')
-    || (legacyHasOwn && process.env['WRONGSTACK_BASH_ENV_PASSTHROUGH'] === '1');
+  const passthrough =
+    (hasOwn && process.env['WRONGSTACK_CHILD_ENV_PASSTHROUGH'] === '1') ||
+    (legacyHasOwn && process.env['WRONGSTACK_BASH_ENV_PASSTHROUGH'] === '1');
   if (passthrough && !process.env['CI']) {
     console.warn(
       '[agent] WARNING: WRONGSTACK_*_ENV_PASSTHROUGH=1 is active —\n' +
-      '  all parent env vars (including API keys) forwarded to child processes.\n' +
-      '  Do not use on shared or multi-tenant systems.'
+        '  all parent env vars (including API keys) forwarded to child processes.\n' +
+        '  Do not use on shared or multi-tenant systems.',
     );
   }
   const out: NodeJS.ProcessEnv = {};

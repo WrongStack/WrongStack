@@ -5,7 +5,7 @@
 import type { ToolDetail } from './tool-detail-types';
 
 export const toolDetailsPart1: Record<string, ToolDetail> = {
-  'browser_open': {
+  browser_open: {
     longDescription:
       'Open an isolated first-party Playwright browser session, optionally navigating to a URL.',
     params: [
@@ -29,19 +29,18 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_status': {
+  browser_status: {
     longDescription:
       'Check whether first-party Playwright Chromium is installed and ready to launch.',
     params: [],
   },
-  'browser_list': {
+  browser_list: {
     longDescription:
       'List browser sessions owned by the current agent without exposing other agents sessions.',
     params: [],
   },
-  'browser_navigate': {
-    longDescription:
-      'Navigate an owned browser session to an approved http(s) URL.',
+  browser_navigate: {
+    longDescription: 'Navigate an owned browser session to an approved http(s) URL.',
     params: [
       {
         name: 'sessionId',
@@ -56,7 +55,7 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_snapshot': {
+  browser_snapshot: {
     longDescription:
       'Return bounded accessibility state plus redacted console and network summaries.',
     params: [
@@ -68,7 +67,7 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_screenshot': {
+  browser_screenshot: {
     longDescription:
       'Capture a page or element PNG and return sensitive artifact metadata with integrity hash.',
     params: [
@@ -88,9 +87,8 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_click': {
-    longDescription:
-      'Click an element in an owned browser session.',
+  browser_click: {
+    longDescription: 'Click an element in an owned browser session.',
     params: [
       {
         name: 'sessionId',
@@ -105,7 +103,7 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_type': {
+  browser_type: {
     longDescription:
       'Fill an input in an owned browser session. Use secretEnv instead of text for credentials so values stay out of tool arguments and session audit.',
     params: [
@@ -131,9 +129,8 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_select': {
-    longDescription:
-      'Select an option in an owned browser session.',
+  browser_select: {
+    longDescription: 'Select an option in an owned browser session.',
     params: [
       {
         name: 'sessionId',
@@ -153,9 +150,8 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_press': {
-    longDescription:
-      'Press a keyboard key in an owned browser session.',
+  browser_press: {
+    longDescription: 'Press a keyboard key in an owned browser session.',
     params: [
       {
         name: 'sessionId',
@@ -170,9 +166,8 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_hover': {
-    longDescription:
-      'Hover an element in an owned browser session.',
+  browser_hover: {
+    longDescription: 'Hover an element in an owned browser session.',
     params: [
       {
         name: 'sessionId',
@@ -187,9 +182,8 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_drag': {
-    longDescription:
-      'Drag one element to another in an owned browser session.',
+  browser_drag: {
+    longDescription: 'Drag one element to another in an owned browser session.',
     params: [
       {
         name: 'sessionId',
@@ -209,9 +203,8 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_wait': {
-    longDescription:
-      'Wait for an element or a bounded duration in an owned browser session.',
+  browser_wait: {
+    longDescription: 'Wait for an element or a bounded duration in an owned browser session.',
     params: [
       {
         name: 'sessionId',
@@ -229,7 +222,7 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_evaluate': {
+  browser_evaluate: {
     longDescription:
       'Evaluate bounded JavaScript in the page. Requires confirmation because page code is arbitrary.',
     params: [
@@ -246,9 +239,8 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       },
     ],
   },
-  'browser_upload': {
-    longDescription:
-      'Upload project-local files through a file input in an owned browser session.',
+  browser_upload: {
+    longDescription: 'Upload project-local files through a file input in an owned browser session.',
     params: [
       {
         name: 'sessionId',

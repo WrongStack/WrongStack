@@ -72,30 +72,27 @@ describe('DefaultPermissionPolicy', () => {
     expect(decision.permission).toBe('confirm');
   });
 
-    it('deny is absolute even when allowed', async () => {
-      await fs.writeFile(
-        trustFile,
-        JSON.stringify({ edit: { allow: ['**/*'], deny: ['**/.env*'] } }),
+  it('deny is absolute even when allowed', async () => {
+    await fs.writeFile(
+      trustFile,
+      JSON.stringify({ edit: { allow: ['**/*'], deny: ['**/.env*'] } }),
     );
     const p = new DefaultPermissionPolicy({ trustFile });
     const d = await p.evaluate(tool('edit'), { path: '.env.production' }, {} as Context);
-      expect(d.permission).toBe('deny');
-    });
+    expect(d.permission).toBe('deny');
+  });
 
-    it('trust allow still auto-approves destructive-classified calls before YOLO source', async () => {
-      await fs.writeFile(
-        trustFile,
-        JSON.stringify({ bash: { allow: ['rm -rf /'] } }),
-      );
-      const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
-      const d = await p.evaluate(
-        tool('bash', 'confirm', 'destructive', true, ['shell.arbitrary']),
-        { command: 'rm -rf /' },
-        { projectRoot: process.cwd() } as Context,
-      );
-      expect(d.permission).toBe('auto');
-      expect(d.source).toBe('trust');
-    });
+  it('trust allow still auto-approves destructive-classified calls before YOLO source', async () => {
+    await fs.writeFile(trustFile, JSON.stringify({ bash: { allow: ['rm -rf /'] } }));
+    const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
+    const d = await p.evaluate(
+      tool('bash', 'confirm', 'destructive', true, ['shell.arbitrary']),
+      { command: 'rm -rf /' },
+      { projectRoot: process.cwd() } as Context,
+    );
+    expect(d.permission).toBe('auto');
+    expect(d.source).toBe('trust');
+  });
 
   it('allow matches glob', async () => {
     await fs.writeFile(trustFile, JSON.stringify({ edit: { allow: ['src/**'] } }));
@@ -250,11 +247,9 @@ describe('DefaultPermissionPolicy', () => {
 
     it('yolo still confirms a root filesystem wipe', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
-      const d = await p.evaluate(
-        tool('bash', 'confirm', 'destructive'),
-        { command: 'rm -rf /' },
-        { projectRoot: process.cwd() } as Context,
-      );
+      const d = await p.evaluate(tool('bash', 'confirm', 'destructive'), { command: 'rm -rf /' }, {
+        projectRoot: process.cwd(),
+      } as Context);
       expect(d.permission).toBe('confirm');
       expect(d.source).toBe('yolo_destructive');
       expect(d.riskTier).toBe('destructive');
@@ -284,11 +279,9 @@ describe('DefaultPermissionPolicy', () => {
 
     it('yoloDestructive opts back in to auto-approving destructive operations', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true, yoloDestructive: true });
-      const d = await p.evaluate(
-        tool('bash', 'confirm', 'destructive'),
-        { command: 'rm -rf /' },
-        { projectRoot: process.cwd() } as Context,
-      );
+      const d = await p.evaluate(tool('bash', 'confirm', 'destructive'), { command: 'rm -rf /' }, {
+        projectRoot: process.cwd(),
+      } as Context);
       expect(d.permission).toBe('auto');
       expect(d.source).toBe('yolo');
     });
@@ -298,14 +291,14 @@ describe('DefaultPermissionPolicy', () => {
       expect(p.getYoloDestructive()).toBe(false);
       const ctx = { projectRoot: process.cwd() } as Context;
       const input = { command: 'rm -rf /' };
-      expect((await p.evaluate(tool('bash', 'confirm', 'destructive'), input, ctx)).permission).toBe(
-        'confirm',
-      );
+      expect(
+        (await p.evaluate(tool('bash', 'confirm', 'destructive'), input, ctx)).permission,
+      ).toBe('confirm');
       p.setYoloDestructive(true);
       expect(p.getYoloDestructive()).toBe(true);
-      expect((await p.evaluate(tool('bash', 'confirm', 'destructive'), input, ctx)).permission).toBe(
-        'auto',
-      );
+      expect(
+        (await p.evaluate(tool('bash', 'confirm', 'destructive'), input, ctx)).permission,
+      ).toBe('auto');
     });
 
     it('returns confirm for a destructive YOLO call even with a prompt delegate set', async () => {
@@ -317,11 +310,9 @@ describe('DefaultPermissionPolicy', () => {
         yolo: true,
         promptDelegate: delegate,
       });
-      const d = await p.evaluate(
-        tool('bash', 'confirm', 'destructive'),
-        { command: 'rm -rf /' },
-        { projectRoot: process.cwd() } as Context,
-      );
+      const d = await p.evaluate(tool('bash', 'confirm', 'destructive'), { command: 'rm -rf /' }, {
+        projectRoot: process.cwd(),
+      } as Context);
       expect(d.permission).toBe('confirm');
       expect(d.source).toBe('yolo_destructive');
     });
@@ -332,11 +323,9 @@ describe('DefaultPermissionPolicy', () => {
         ...tool('custom-shell', 'confirm', 'destructive'),
         capabilities: ['shell.arbitrary'],
       } as unknown as Parameters<typeof p.evaluate>[0];
-      const d = await p.evaluate(
-        shellTool,
-        { command: 'rm -rf /' },
-        { projectRoot: process.cwd() } as Context,
-      );
+      const d = await p.evaluate(shellTool, { command: 'rm -rf /' }, {
+        projectRoot: process.cwd(),
+      } as Context);
       expect(d.permission).toBe('confirm');
       expect(d.source).toBe('yolo_destructive');
     });
@@ -540,153 +529,140 @@ describe('DefaultPermissionPolicy', () => {
     });
   });
 
-describe('DefaultPermissionPolicy explain()', () => {
-  it('returns a trace with steps for a confirm tool', async () => {
-    const p = new DefaultPermissionPolicy({ trustFile });
-    const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
-    expect(trace.toolName).toBe('edit');
-    expect(trace.steps.length).toBeGreaterThanOrEqual(5);
-    const last = trace.steps[trace.winnerIndex]!;
-    expect(last.rule).toBe('mutating default confirm');
-    expect(last.decision).toBe('confirm');
-    expect(trace.decision.permission).toBe('confirm');
-    expect(trace.decision.source).toBe('default');
-  });
-
-  it('returns yolo as winner when YOLO is active', async () => {
-    const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
-    const trace = await p.explain(
-      tool('bash', 'confirm', 'destructive', true, ['shell.arbitrary']),
-      { command: 'ls -la' },
-      { projectRoot: process.cwd() } as Context,
-    );
-    const yoloStep = trace.steps.find(s => s.rule === 'yolo');
-    expect(yoloStep).toBeDefined();
-    expect(yoloStep!.matched).toBe(true);
-    expect(trace.steps[trace.winnerIndex]!.rule).toBe('yolo');
-    expect(trace.decision.permission).toBe('auto');
-    expect(trace.decision.source).toBe('yolo');
-  });
-
-  it('returns trust deny as winner when deny pattern matches', async () => {
-    await fs.writeFile(
-      trustFile,
-      JSON.stringify({ edit: { deny: ['**/.env*'] } }),
-    );
-    const p = new DefaultPermissionPolicy({ trustFile });
-    const trace = await p.explain(tool('edit'), { path: '.env' }, {} as Context);
-    const denyStep = trace.steps.find(s => s.rule === 'trust deny');
-    expect(denyStep).toBeDefined();
-    expect(denyStep!.matched).toBe(true);
-    expect(trace.decision.permission).toBe('deny');
-    expect(trace.decision.source).toBe('deny');
-  });
-
-  it('returns trust allow as winner when allow pattern matches', async () => {
-    await fs.writeFile(
-      trustFile,
-      JSON.stringify({ edit: { allow: ['src/**'] } }),
-    );
-    const p = new DefaultPermissionPolicy({ trustFile });
-    const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
-    const allowStep = trace.steps.find(s => s.rule === 'trust allow');
-    expect(allowStep).toBeDefined();
-    expect(allowStep!.matched).toBe(true);
-    expect(trace.decision.permission).toBe('auto');
-    expect(trace.decision.source).toBe('trust');
-  });
-
-  it('returns trust auto as winner when auto flag is set', async () => {
-    await fs.writeFile(
-      trustFile,
-      JSON.stringify({ edit: { auto: true } }),
-    );
-    const p = new DefaultPermissionPolicy({ trustFile });
-    const trace = await p.explain(tool('edit'), { path: 'ignored.ts' }, {} as Context);
-    const autoStep = trace.steps.find(s => s.rule === 'trust auto');
-    expect(autoStep).toBeDefined();
-    expect(autoStep!.matched).toBe(true);
-    expect(trace.decision.permission).toBe('auto');
-    expect(trace.decision.source).toBe('trust');
-  });
-
-  it('returns sensitive read as winner for sensitive files outside YOLO', async () => {
-    const p = new DefaultPermissionPolicy({ trustFile });
-    const trace = await p.explain(
-      tool('read', 'auto', 'safe', false, ['fs.read']),
-      { path: '.env' },
-      { projectRoot: process.cwd() } as Context,
-    );
-    const sensStep = trace.steps.find(s => s.rule === 'sensitive read');
-    expect(sensStep).toBeDefined();
-    expect(sensStep!.matched).toBe(true);
-    expect(trace.decision.permission).toBe('confirm');
-    expect(trace.decision.reason).toContain('sensitive file read');
-  });
-
-  it('returns safe default auto for non-mutating auto tools', async () => {
-    const p = new DefaultPermissionPolicy({ trustFile });
-    const trace = await p.explain(
-      tool('read', 'auto', 'safe', false, ['fs.read']),
-      { path: 'src/a.ts' },
-      {} as Context,
-    );
-    const safeStep = trace.steps.find(s => s.rule === 'safe default auto');
-    expect(safeStep).toBeDefined();
-    expect(safeStep!.matched).toBe(true);
-    expect(trace.decision.permission).toBe('auto');
-    expect(trace.decision.source).toBe('default');
-  });
-
-  it('returns mutating default confirm for mutating auto tools', async () => {
-    const p = new DefaultPermissionPolicy({ trustFile });
-    const trace = await p.explain(
-      tool('search', 'auto', 'standard', true),
-      {},
-      {} as Context,
-    );
-    const confirmStep = trace.steps.find(s => s.rule === 'mutating default confirm');
-    expect(confirmStep).toBeDefined();
-    expect(confirmStep!.matched).toBe(true);
-    expect(trace.decision.permission).toBe('confirm');
-    expect(trace.decision.source).toBe('default');
-  });
-
-  it('does not mutate sessionDenied, sessionAllowed, or evalCache', async () => {
-    const p = new DefaultPermissionPolicy({ trustFile });
-    const trace1 = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
-    const trace2 = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
-    expect(trace1.winnerIndex).toBe(trace2.winnerIndex);
-    expect(trace1.decision.permission).toBe(trace2.decision.permission);
-    let trustExists = true;
-    try {
-      await fs.access(trustFile);
-    } catch {
-      trustExists = false;
-    }
-    expect(trustExists).toBe(false);
-  });
-
-  it('does not invoke promptDelegate', async () => {
-    const delegate = vi.fn(async () => 'always' as const);
-    const p = new DefaultPermissionPolicy({
-      trustFile,
-      promptDelegate: delegate,
+  describe('DefaultPermissionPolicy explain()', () => {
+    it('returns a trace with steps for a confirm tool', async () => {
+      const p = new DefaultPermissionPolicy({ trustFile });
+      const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
+      expect(trace.toolName).toBe('edit');
+      expect(trace.steps.length).toBeGreaterThanOrEqual(5);
+      const last = trace.steps[trace.winnerIndex]!;
+      expect(last.rule).toBe('mutating default confirm');
+      expect(last.decision).toBe('confirm');
+      expect(trace.decision.permission).toBe('confirm');
+      expect(trace.decision.source).toBe('default');
     });
-    const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
-    expect(delegate).not.toHaveBeenCalled();
-    expect(trace.decision.permission).toBe('confirm');
-  });
 
-  it('handles malformed trust policy gracefully', async () => {
-    await fs.writeFile(trustFile, 'not valid json');
-    const p = new DefaultPermissionPolicy({ trustFile });
-    const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
-    expect(trace.decision.permission).toBe('deny');
-    expect(trace.decision.source).toBe('deny');
-    expect(trace.steps[0]!.rule).toBe('policy invalid');
+    it('returns yolo as winner when YOLO is active', async () => {
+      const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
+      const trace = await p.explain(
+        tool('bash', 'confirm', 'destructive', true, ['shell.arbitrary']),
+        { command: 'ls -la' },
+        { projectRoot: process.cwd() } as Context,
+      );
+      const yoloStep = trace.steps.find((s) => s.rule === 'yolo');
+      expect(yoloStep).toBeDefined();
+      expect(yoloStep!.matched).toBe(true);
+      expect(trace.steps[trace.winnerIndex]!.rule).toBe('yolo');
+      expect(trace.decision.permission).toBe('auto');
+      expect(trace.decision.source).toBe('yolo');
+    });
+
+    it('returns trust deny as winner when deny pattern matches', async () => {
+      await fs.writeFile(trustFile, JSON.stringify({ edit: { deny: ['**/.env*'] } }));
+      const p = new DefaultPermissionPolicy({ trustFile });
+      const trace = await p.explain(tool('edit'), { path: '.env' }, {} as Context);
+      const denyStep = trace.steps.find((s) => s.rule === 'trust deny');
+      expect(denyStep).toBeDefined();
+      expect(denyStep!.matched).toBe(true);
+      expect(trace.decision.permission).toBe('deny');
+      expect(trace.decision.source).toBe('deny');
+    });
+
+    it('returns trust allow as winner when allow pattern matches', async () => {
+      await fs.writeFile(trustFile, JSON.stringify({ edit: { allow: ['src/**'] } }));
+      const p = new DefaultPermissionPolicy({ trustFile });
+      const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
+      const allowStep = trace.steps.find((s) => s.rule === 'trust allow');
+      expect(allowStep).toBeDefined();
+      expect(allowStep!.matched).toBe(true);
+      expect(trace.decision.permission).toBe('auto');
+      expect(trace.decision.source).toBe('trust');
+    });
+
+    it('returns trust auto as winner when auto flag is set', async () => {
+      await fs.writeFile(trustFile, JSON.stringify({ edit: { auto: true } }));
+      const p = new DefaultPermissionPolicy({ trustFile });
+      const trace = await p.explain(tool('edit'), { path: 'ignored.ts' }, {} as Context);
+      const autoStep = trace.steps.find((s) => s.rule === 'trust auto');
+      expect(autoStep).toBeDefined();
+      expect(autoStep!.matched).toBe(true);
+      expect(trace.decision.permission).toBe('auto');
+      expect(trace.decision.source).toBe('trust');
+    });
+
+    it('returns sensitive read as winner for sensitive files outside YOLO', async () => {
+      const p = new DefaultPermissionPolicy({ trustFile });
+      const trace = await p.explain(
+        tool('read', 'auto', 'safe', false, ['fs.read']),
+        { path: '.env' },
+        { projectRoot: process.cwd() } as Context,
+      );
+      const sensStep = trace.steps.find((s) => s.rule === 'sensitive read');
+      expect(sensStep).toBeDefined();
+      expect(sensStep!.matched).toBe(true);
+      expect(trace.decision.permission).toBe('confirm');
+      expect(trace.decision.reason).toContain('sensitive file read');
+    });
+
+    it('returns safe default auto for non-mutating auto tools', async () => {
+      const p = new DefaultPermissionPolicy({ trustFile });
+      const trace = await p.explain(
+        tool('read', 'auto', 'safe', false, ['fs.read']),
+        { path: 'src/a.ts' },
+        {} as Context,
+      );
+      const safeStep = trace.steps.find((s) => s.rule === 'safe default auto');
+      expect(safeStep).toBeDefined();
+      expect(safeStep!.matched).toBe(true);
+      expect(trace.decision.permission).toBe('auto');
+      expect(trace.decision.source).toBe('default');
+    });
+
+    it('returns mutating default confirm for mutating auto tools', async () => {
+      const p = new DefaultPermissionPolicy({ trustFile });
+      const trace = await p.explain(tool('search', 'auto', 'standard', true), {}, {} as Context);
+      const confirmStep = trace.steps.find((s) => s.rule === 'mutating default confirm');
+      expect(confirmStep).toBeDefined();
+      expect(confirmStep!.matched).toBe(true);
+      expect(trace.decision.permission).toBe('confirm');
+      expect(trace.decision.source).toBe('default');
+    });
+
+    it('does not mutate sessionDenied, sessionAllowed, or evalCache', async () => {
+      const p = new DefaultPermissionPolicy({ trustFile });
+      const trace1 = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
+      const trace2 = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
+      expect(trace1.winnerIndex).toBe(trace2.winnerIndex);
+      expect(trace1.decision.permission).toBe(trace2.decision.permission);
+      let trustExists = true;
+      try {
+        await fs.access(trustFile);
+      } catch {
+        trustExists = false;
+      }
+      expect(trustExists).toBe(false);
+    });
+
+    it('does not invoke promptDelegate', async () => {
+      const delegate = vi.fn(async () => 'always' as const);
+      const p = new DefaultPermissionPolicy({
+        trustFile,
+        promptDelegate: delegate,
+      });
+      const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
+      expect(delegate).not.toHaveBeenCalled();
+      expect(trace.decision.permission).toBe('confirm');
+    });
+
+    it('handles malformed trust policy gracefully', async () => {
+      await fs.writeFile(trustFile, 'not valid json');
+      const p = new DefaultPermissionPolicy({ trustFile });
+      const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
+      expect(trace.decision.permission).toBe('deny');
+      expect(trace.decision.source).toBe('deny');
+      expect(trace.steps[0]!.rule).toBe('policy invalid');
+    });
   });
-});
 });
 
 describe('AutoApprovePermissionPolicy', () => {
@@ -748,10 +724,10 @@ describe('AutoApprovePermissionPolicy', () => {
 
     it('denies clearly destructive shell even with shell.arbitrary granted (C-1)', async () => {
       const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES);
-      const d = await p.evaluate(
-        tool('exec', 'confirm', 'standard', true, ['shell.arbitrary']),
-        { command: 'rm', args: ['-rf', '/'] },
-      );
+      const d = await p.evaluate(tool('exec', 'confirm', 'standard', true, ['shell.arbitrary']), {
+        command: 'rm',
+        args: ['-rf', '/'],
+      });
       expect(d.permission).toBe('deny');
       expect(d.source).toBe('subagent_guard');
       expect(d.reason).toContain('destructive');
@@ -759,10 +735,10 @@ describe('AutoApprovePermissionPolicy', () => {
 
     it('still auto-approves non-destructive shell with the capability granted', async () => {
       const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES);
-      const d = await p.evaluate(
-        tool('exec', 'confirm', 'standard', true, ['shell.arbitrary']),
-        { command: 'echo', args: ['hello'] },
-      );
+      const d = await p.evaluate(tool('exec', 'confirm', 'standard', true, ['shell.arbitrary']), {
+        command: 'echo',
+        args: ['hello'],
+      });
       expect(d.permission).toBe('auto');
     });
 
@@ -778,10 +754,9 @@ describe('AutoApprovePermissionPolicy', () => {
 
     it('denies writes into the agent state root even with fs.write granted (C-2)', async () => {
       const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES);
-      const d = await p.evaluate(
-        tool('write', 'confirm', undefined, true, ['fs.write']),
-        { path: path.join(fakeHome, 'trust.json') },
-      );
+      const d = await p.evaluate(tool('write', 'confirm', undefined, true, ['fs.write']), {
+        path: path.join(fakeHome, 'trust.json'),
+      });
       expect(d.permission).toBe('deny');
       expect(d.source).toBe('subagent_guard');
       expect(d.reason).toContain('agent state');
@@ -789,20 +764,18 @@ describe('AutoApprovePermissionPolicy', () => {
 
     it('auto-approves ordinary writes with fs.write granted', async () => {
       const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES);
-      const d = await p.evaluate(
-        tool('write', 'confirm', undefined, true, ['fs.write']),
-        { path: path.join(dir, 'src', 'a.ts') },
-      );
+      const d = await p.evaluate(tool('write', 'confirm', undefined, true, ['fs.write']), {
+        path: path.join(dir, 'src', 'a.ts'),
+      });
       expect(d.permission).toBe('auto');
     });
 
     it('propagates leader deny rules to subagents (H-3)', async () => {
       await fs.writeFile(trustFile, JSON.stringify({ bash: { deny: ['git status'] } }));
       const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES, { trustFile });
-      const d = await p.evaluate(
-        tool('bash', 'confirm', 'standard', true, ['shell.arbitrary']),
-        { command: 'git status' },
-      );
+      const d = await p.evaluate(tool('bash', 'confirm', 'standard', true, ['shell.arbitrary']), {
+        command: 'git status',
+      });
       expect(d.permission).toBe('deny');
       expect(d.source).toBe('subagent_guard');
       expect(d.reason).toContain('leader deny rule');
@@ -811,10 +784,9 @@ describe('AutoApprovePermissionPolicy', () => {
     it('does not widen: leader allow/auto rules never auto-approve a subagent call', async () => {
       await fs.writeFile(trustFile, JSON.stringify({ edit: { auto: true, allow: ['**'] } }));
       const p = new AutoApprovePermissionPolicy(undefined, { trustFile });
-      const d = await p.evaluate(
-        tool('edit', 'confirm', undefined, true, ['fs.write']),
-        { path: 'src/a.ts' },
-      );
+      const d = await p.evaluate(tool('edit', 'confirm', undefined, true, ['fs.write']), {
+        path: 'src/a.ts',
+      });
       expect(d.permission).toBe('deny');
       expect(d.source).toBe('subagent_guard');
     });
@@ -822,10 +794,9 @@ describe('AutoApprovePermissionPolicy', () => {
     it('fails closed when the leader trust file is invalid JSON', async () => {
       await fs.writeFile(trustFile, '{not json');
       const p = new AutoApprovePermissionPolicy(undefined, { trustFile });
-      const d = await p.evaluate(
-        tool('read', 'auto', undefined, false, ['fs.read']),
-        { path: 'a.ts' },
-      );
+      const d = await p.evaluate(tool('read', 'auto', undefined, false, ['fs.read']), {
+        path: 'a.ts',
+      });
       expect(d.permission).toBe('deny');
       expect(d.reason).toContain('not valid JSON');
     });
@@ -841,25 +812,22 @@ describe('AutoApprovePermissionPolicy', () => {
     { name: 'patch', caps: ['fs.write'] },
     { name: 'install', caps: ['package.install'] },
     { name: 'exec', caps: ['shell.restricted'] },
-  ])(
-    'denies non-allowed builtin "%s" for subagents via capabilities',
-    async ({ name, caps }) => {
-      const p = new AutoApprovePermissionPolicy();
-      const d = await p.evaluate({
-        name,
-        description: '',
-        inputSchema: { type: 'object' },
-        permission: 'confirm',
-        mutating: true,
-        capabilities: caps,
-        async execute() {
-          return 'x';
-        },
-      } as Tool);
-      expect(d.permission).toBe('deny');
-      expect(d.source).toBe('subagent_guard');
-    },
-  );
+  ])('denies non-allowed builtin "%s" for subagents via capabilities', async ({ name, caps }) => {
+    const p = new AutoApprovePermissionPolicy();
+    const d = await p.evaluate({
+      name,
+      description: '',
+      inputSchema: { type: 'object' },
+      permission: 'confirm',
+      mutating: true,
+      capabilities: caps,
+      async execute() {
+        return 'x';
+      },
+    } as Tool);
+    expect(d.permission).toBe('deny');
+    expect(d.source).toBe('subagent_guard');
+  });
 
   it('denies MCP tools (mcp__*) for subagents by default', async () => {
     const p = new AutoApprovePermissionPolicy();
@@ -910,7 +878,7 @@ describe('AutoApprovePermissionPolicy', () => {
   it('denies tools that declare non-allowed capabilities even if name is safe', async () => {
     const p = new AutoApprovePermissionPolicy();
     const d = await p.evaluate(
-      tool('my-custom-shell', 'confirm', undefined, true, ['shell.arbitrary'])
+      tool('my-custom-shell', 'confirm', undefined, true, ['shell.arbitrary']),
     );
     expect(d.permission).toBe('deny');
     // shell.arbitrary is a dangerous capability not in the allowlist, so the
@@ -921,37 +889,29 @@ describe('AutoApprovePermissionPolicy', () => {
   it('denies tools with fs.write.outside-project capability', async () => {
     const p = new AutoApprovePermissionPolicy();
     const d = await p.evaluate(
-      tool('dangerous-scaffold', 'confirm', undefined, true, ['fs.write.outside-project'])
+      tool('dangerous-scaffold', 'confirm', undefined, true, ['fs.write.outside-project']),
     );
     expect(d.permission).toBe('deny');
   });
 
   it('auto-approves tools with only safe capabilities', async () => {
     const p = new AutoApprovePermissionPolicy();
-    const decision = await p.evaluate(
-      tool('safe-read', 'confirm', undefined, false, ['fs.read'])
-    );
+    const decision = await p.evaluate(tool('safe-read', 'confirm', undefined, false, ['fs.read']));
     expect(decision.permission).toBe('auto');
   });
 
   it('auto-approves tools with net.outbound capability', async () => {
     const p = new AutoApprovePermissionPolicy();
-    const d = await p.evaluate(
-      tool('fetch', 'confirm', undefined, false, ['net.outbound'])
-    );
+    const d = await p.evaluate(tool('fetch', 'confirm', undefined, false, ['net.outbound']));
     expect(d.permission).toBe('auto');
   });
 
   it('custom allowlist constructor overrides defaults', async () => {
     const p = new AutoApprovePermissionPolicy(['fs.write']);
-    const d = await p.evaluate(
-      tool('write', 'confirm', undefined, true, ['fs.write'])
-    );
+    const d = await p.evaluate(tool('write', 'confirm', undefined, true, ['fs.write']));
     expect(d.permission).toBe('auto');
     // fs.read is no longer allowed with custom allowlist
-    const d2 = await p.evaluate(
-      tool('read', 'confirm', undefined, false, ['fs.read'])
-    );
+    const d2 = await p.evaluate(tool('read', 'confirm', undefined, false, ['fs.read']));
     expect(d2.permission).toBe('deny');
   });
 
@@ -1072,12 +1032,16 @@ describe('Capability helpers', () => {
     expect(hasDangerousCapabilityForSubagents(['shell.exec'])).toBe(true);
     expect(hasDangerousCapabilityForSubagents(['tool.mutate.any'])).toBe(true);
     expect(hasDangerousCapabilityForSubagents(['fs.read'])).toBe(false);
-    expect(hasDangerousCapabilityForSubagents({ capabilities: ['fs.write.outside-project'] })).toBe(true);
+    expect(hasDangerousCapabilityForSubagents({ capabilities: ['fs.write.outside-project'] })).toBe(
+      true,
+    );
   });
 
   it('hasCapability works with single and multiple', () => {
     expect(hasCapability(['fs.read', 'net.outbound'], ToolCapabilities.FS_READ)).toBe(true);
-    expect(hasCapability(['fs.read'], [ToolCapabilities.FS_WRITE, ToolCapabilities.NET_OUTBOUND])).toBe(false);
+    expect(
+      hasCapability(['fs.read'], [ToolCapabilities.FS_WRITE, ToolCapabilities.NET_OUTBOUND]),
+    ).toBe(false);
   });
 
   it('getDangerousCapabilities extracts correctly', () => {

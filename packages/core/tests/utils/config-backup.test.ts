@@ -2,11 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import {
-  backupConfigFile,
-  configHistoryDir,
-  configSlug,
-} from '../../src/utils/config-backup.js';
+import { backupConfigFile, configHistoryDir, configSlug } from '../../src/utils/config-backup.js';
 
 describe('config-backup', () => {
   let tmpDir: string;
@@ -33,7 +29,10 @@ describe('config-backup', () => {
     });
 
     it('sanitizes Windows drive letters and colons across drives', () => {
-      const slug = configSlug('D:\\Codebox\\PROJECTS\\.wrongstack\\config.json', 'C:\\Users\\admin\\.wrongstack');
+      const slug = configSlug(
+        'D:\\Codebox\\PROJECTS\\.wrongstack\\config.json',
+        'C:\\Users\\admin\\.wrongstack',
+      );
       expect(slug).not.toContain(':');
       expect(slug).not.toContain('\\');
       expect(slug).not.toContain('/');

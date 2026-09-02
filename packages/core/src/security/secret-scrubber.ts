@@ -59,7 +59,11 @@ const PATTERNS: Pattern[] = [
     regex: /(?<![A-Za-z0-9])sk-ant-api\d+-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
     anchor: 'sk-ant-',
   },
-  { type: 'openai_key', regex: /(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g, anchor: 'sk-' },
+  {
+    type: 'openai_key',
+    regex: /(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
+    anchor: 'sk-',
+  },
   {
     // `xai` is a first-class provider in this codebase, but its key shape was
     // absent here — so the one credential format WrongStack itself hands users
@@ -68,18 +72,39 @@ const PATTERNS: Pattern[] = [
     regex: /(?<![A-Za-z0-9])xai-[A-Za-z0-9]{20,}(?![A-Za-z0-9])/g,
     anchor: 'xai-',
   },
-  { type: 'github_pat', regex: /(?<![A-Za-z0-9])ghp_[A-Za-z0-9]{36,}(?![A-Za-z0-9])/g, anchor: 'ghp_' },
-  { type: 'github_pat_v2', regex: /(?<![A-Za-z0-9])github_pat_[A-Za-z0-9_]{50,}(?![A-Za-z0-9])/g, anchor: 'github_pat_' },
-  { type: 'aws_access_key', regex: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g, anchor: 'AKIA' },
-  { type: 'gcp_key', regex: /(?<![A-Za-z0-9])AIza[0-9A-Za-z_-]{35}(?![A-Za-z0-9])/g, anchor: 'AIza' },
-  { type: 'slack_token', regex: /(?<![A-Za-z0-9-])xox[abpos]-[A-Za-z0-9-]{10,}(?![A-Za-z0-9-])/g, anchor: 'xox' },
+  {
+    type: 'github_pat',
+    regex: /(?<![A-Za-z0-9])ghp_[A-Za-z0-9]{36,}(?![A-Za-z0-9])/g,
+    anchor: 'ghp_',
+  },
+  {
+    type: 'github_pat_v2',
+    regex: /(?<![A-Za-z0-9])github_pat_[A-Za-z0-9_]{50,}(?![A-Za-z0-9])/g,
+    anchor: 'github_pat_',
+  },
+  {
+    type: 'aws_access_key',
+    regex: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g,
+    anchor: 'AKIA',
+  },
+  {
+    type: 'gcp_key',
+    regex: /(?<![A-Za-z0-9])AIza[0-9A-Za-z_-]{35}(?![A-Za-z0-9])/g,
+    anchor: 'AIza',
+  },
+  {
+    type: 'slack_token',
+    regex: /(?<![A-Za-z0-9-])xox[abpos]-[A-Za-z0-9-]{10,}(?![A-Za-z0-9-])/g,
+    anchor: 'xox',
+  },
   {
     type: 'stripe_key',
     regex: /(?<![A-Za-z0-9])sk_(?:live|test)_[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g,
     anchor: 'sk_',
   },
   {
-    type: 'twilio_sid', regex: /(?<![A-Za-z0-9])AC[a-f0-9]{32}(?![A-Za-z0-9])/g,
+    type: 'twilio_sid',
+    regex: /(?<![A-Za-z0-9])AC[a-f0-9]{32}(?![A-Za-z0-9])/g,
     anchor: 'AC',
   },
   {
@@ -159,7 +184,8 @@ const PATTERNS: Pattern[] = [
     // replacement so the separator between adjacent secrets is preserved
     // rather than collapsed. Capture groups are therefore: 1=leading
     // delimiter, 2=key name, 3=value.
-    regex: /(^|\s)([A-Z_]{4,}(?:KEY|TOKEN|SECRET|PASSWORD|PWD|PASSPHRASE))\s*[:=]\s*['"]?([A-Za-z0-9_/+=-]{20,512})['"]?(?=\s|$)/g,
+    regex:
+      /(^|\s)([A-Z_]{4,}(?:KEY|TOKEN|SECRET|PASSWORD|PWD|PASSPHRASE))\s*[:=]\s*['"]?([A-Za-z0-9_/+=-]{20,512})['"]?(?=\s|$)/g,
     anchor: ['KEY', 'TOKEN', 'SECRET', 'PASSWORD', 'PWD', 'PASSPHRASE'],
   },
   {
@@ -379,11 +405,7 @@ const PEM_END_LINE_TOLERANCE = 64;
  * shrinks a boundary: when the block already ends inside the head, the
  * whitespace-snapped boundary is kept as-is.
  */
-function extendChunkBoundaryPastPem(
-  text: string,
-  chunkStart: number,
-  proposedEnd: number,
-): number {
+function extendChunkBoundaryPastPem(text: string, chunkStart: number, proposedEnd: number): number {
   const head = text.slice(chunkStart, proposedEnd);
   const lastBegin = head.lastIndexOf('-----BEGIN ');
   if (lastBegin === -1) return proposedEnd;

@@ -35,7 +35,12 @@ export function SparklineChart({ bins, className }: SparklineChartProps) {
   // Don't render anything for a truly idle agent — avoids "▁▁▁" sparkles
   if (isEmpty) {
     return (
-      <span role="img" className={className} aria-label={t('common:sparkline.noActivity')} title={t('common:sparkline.noActivityYet')}>
+      <span
+        role="img"
+        className={className}
+        aria-label={t('common:sparkline.noActivity')}
+        title={t('common:sparkline.noActivityYet')}
+      >
         {'—'}
       </span>
     );

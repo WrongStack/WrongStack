@@ -11,10 +11,7 @@ import type {
   HqPeerRehydrateReason,
   HqPersistence,
 } from '@wrongstack/core/hq';
-import {
-  HQ_BROWSER_PEER_RESUME_CLIENT_ID,
-  HQ_PROTOCOL_VERSION,
-} from '@wrongstack/core/hq';
+import { HQ_BROWSER_PEER_RESUME_CLIENT_ID, HQ_PROTOCOL_VERSION } from '@wrongstack/core/hq';
 import type { WebSocket } from 'ws';
 import { broadcastEvent, sendGuarded } from './snapshot.js';
 import type { ConnectedClient } from './types.js';

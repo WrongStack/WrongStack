@@ -27,10 +27,7 @@ export function sqliteRowToMemory(row: { data: string }): Sage {
  */
 function validateMemoryShape(value: unknown, rawData: string): void {
   if (!value || typeof value !== 'object') {
-    throw new CorruptMemoryError(
-      'Memory record is not an object',
-      rawData,
-    );
+    throw new CorruptMemoryError('Memory record is not an object', rawData);
   }
   const m = value as Record<string, unknown>;
   const required: Array<[string, string]> = [

@@ -86,8 +86,9 @@ function hydration(
 }
 
 function cardReportIds(sessionId: string): string[] {
-  return readLane(sessionId)
-    .messages.flatMap((m) => (m.chimeraReport ? [m.chimeraReport.reportId] : []));
+  return readLane(sessionId).messages.flatMap((m) =>
+    m.chimeraReport ? [m.chimeraReport.reportId] : [],
+  );
 }
 
 describe('chimera.report_available — surfacing in the session lane', () => {
@@ -155,11 +156,41 @@ describe('chimera.reports — hydration fills the registry, never the transcript
   it('registers pending reports and skips terminal ones, without carding any', () => {
     handleChimeraReports(
       hydration([
-        { reportId: 'report-a', reviewedAt: '2026-08-28T00:00:00Z', lifecycleStatus: 'open', totalFindings: 2, hasActionableFindings: true },
-        { reportId: 'report-b', reviewedAt: '2026-08-27T00:00:00Z', lifecycleStatus: 'completed', totalFindings: 4, hasActionableFindings: false },
-        { reportId: 'report-c', reviewedAt: '2026-08-26T00:00:00Z', lifecycleStatus: 'skipped', totalFindings: 1, hasActionableFindings: false },
-        { reportId: 'report-d', reviewedAt: '2026-08-25T00:00:00Z', lifecycleStatus: 'open', totalFindings: 0, hasActionableFindings: false },
-        { reportId: 'report-e', reviewedAt: '2026-08-24T00:00:00Z', lifecycleStatus: 'open', totalFindings: 3, hasActionableFindings: false },
+        {
+          reportId: 'report-a',
+          reviewedAt: '2026-08-28T00:00:00Z',
+          lifecycleStatus: 'open',
+          totalFindings: 2,
+          hasActionableFindings: true,
+        },
+        {
+          reportId: 'report-b',
+          reviewedAt: '2026-08-27T00:00:00Z',
+          lifecycleStatus: 'completed',
+          totalFindings: 4,
+          hasActionableFindings: false,
+        },
+        {
+          reportId: 'report-c',
+          reviewedAt: '2026-08-26T00:00:00Z',
+          lifecycleStatus: 'skipped',
+          totalFindings: 1,
+          hasActionableFindings: false,
+        },
+        {
+          reportId: 'report-d',
+          reviewedAt: '2026-08-25T00:00:00Z',
+          lifecycleStatus: 'open',
+          totalFindings: 0,
+          hasActionableFindings: false,
+        },
+        {
+          reportId: 'report-e',
+          reviewedAt: '2026-08-24T00:00:00Z',
+          lifecycleStatus: 'open',
+          totalFindings: 3,
+          hasActionableFindings: false,
+        },
       ]),
     );
 
@@ -177,8 +208,20 @@ describe('chimera.reports — hydration fills the registry, never the transcript
   it('leaves a live card alone and adds none of its own, however often it replays', () => {
     handleChimeraReportAvailable(event({ reportId: 'report-live' }));
     const payload = [
-      { reportId: 'report-live', reviewedAt: '2026-08-28T00:00:00Z', lifecycleStatus: 'open', totalFindings: 2, hasActionableFindings: true },
-      { reportId: 'report-new', reviewedAt: '2026-08-28T01:00:00Z', lifecycleStatus: 'open', totalFindings: 1, hasActionableFindings: true },
+      {
+        reportId: 'report-live',
+        reviewedAt: '2026-08-28T00:00:00Z',
+        lifecycleStatus: 'open',
+        totalFindings: 2,
+        hasActionableFindings: true,
+      },
+      {
+        reportId: 'report-new',
+        reviewedAt: '2026-08-28T01:00:00Z',
+        lifecycleStatus: 'open',
+        totalFindings: 1,
+        hasActionableFindings: true,
+      },
     ];
 
     // A report that arrived while this session was open keeps its card — it is
@@ -194,7 +237,9 @@ describe('chimera.reports — hydration fills the registry, never the transcript
   });
 
   it('ignores a response that names no session', () => {
-    handleChimeraReports(hydration([{ reportId: 'report-a', lifecycleStatus: 'open', totalFindings: 1 }], ''));
+    handleChimeraReports(
+      hydration([{ reportId: 'report-a', lifecycleStatus: 'open', totalFindings: 1 }], ''),
+    );
     expect(useChimeraReportsStore.getState().bySession['sess-1']).toBeUndefined();
   });
 });

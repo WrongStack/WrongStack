@@ -16,9 +16,12 @@ describe('getTokenFromPageUrl — catch branch (line 132)', () => {
   it('returns null when URLSearchParams constructor throws', async () => {
     // Make URLSearchParams throw to exercise the catch block
     const orig = globalThis.URLSearchParams;
-    vi.stubGlobal('URLSearchParams', vi.fn().mockImplementation(() => {
-      throw new Error('parse error');
-    }));
+    vi.stubGlobal(
+      'URLSearchParams',
+      vi.fn().mockImplementation(() => {
+        throw new Error('parse error');
+      }),
+    );
 
     const { getTokenFromPageUrl } = await import('../../src/lib/ws-client-utils');
     expect(getTokenFromPageUrl()).toBeNull();

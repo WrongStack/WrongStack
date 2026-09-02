@@ -95,7 +95,9 @@ describe('AnthropicOAuthProvider request shape', () => {
     }));
     await p.complete({ ...baseReq, system }, { signal: new AbortController().signal });
     const body = JSON.parse(captured.init?.body ?? '{}');
-    const markers = (body.system as Array<Record<string, unknown>>).filter((b) => b['cache_control']);
+    const markers = (body.system as Array<Record<string, unknown>>).filter(
+      (b) => b['cache_control'],
+    );
     expect(markers.length).toBe(4);
     // Identity block is still prepended and carries no breakpoint of its own.
     expect(body.system[0]).toEqual({ type: 'text', text: CLAUDE_CODE_SYSTEM_PROMPT });

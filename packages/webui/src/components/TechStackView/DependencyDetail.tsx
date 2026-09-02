@@ -94,13 +94,27 @@ export function DependencyDetail({
 
       <div className="min-h-0 flex-1 overflow-auto p-3">
         <dl className="grid grid-cols-2 gap-px border border-border/70 bg-border/60">
-          <Field label={t('activity:techStack.constraint')} value={dependency.requested ?? '—'} mono />
+          <Field
+            label={t('activity:techStack.constraint')}
+            value={dependency.requested ?? '—'}
+            mono
+          />
           <Field label={t('activity:techStack.locked')} value={dependency.locked ?? '—'} mono />
-          <Field label={t('activity:techStack.latestStable')} value={dependency.latestStable ?? '—'} mono />
+          <Field
+            label={t('activity:techStack.latestStable')}
+            value={dependency.latestStable ?? '—'}
+            mono
+          />
           <Field label={t('activity:techStack.license')} value={dependency.license ?? '—'} />
-          {dependency.wanted && <Field label={t('activity:techStack.wanted')} value={dependency.wanted} mono />}
-          {dependency.resolvable && <Field label={t('activity:techStack.resolvable')} value={dependency.resolvable} mono />}
-          {dependency.purl && <Field label={t('activity:techStack.purl')} value={dependency.purl} mono />}
+          {dependency.wanted && (
+            <Field label={t('activity:techStack.wanted')} value={dependency.wanted} mono />
+          )}
+          {dependency.resolvable && (
+            <Field label={t('activity:techStack.resolvable')} value={dependency.resolvable} mono />
+          )}
+          {dependency.purl && (
+            <Field label={t('activity:techStack.purl')} value={dependency.purl} mono />
+          )}
           <Field
             label={t('activity:techStack.registryFlags')}
             value={
@@ -152,7 +166,9 @@ export function DependencyDetail({
                       {t(SEVERITY_META[finding.severity].labelKey)}
                     </Badge>
                     <Badge className="border-border/70 bg-muted text-muted-foreground">
-                      {ACTION_LABELS[finding.action] ? t(ACTION_LABELS[finding.action]) : finding.action}
+                      {ACTION_LABELS[finding.action]
+                        ? t(ACTION_LABELS[finding.action])
+                        : finding.action}
                     </Badge>
                     {isInterpretation(finding) && (
                       <Badge className="border-info/35 bg-info/10 text-info">
@@ -181,7 +197,9 @@ export function DependencyDetail({
             {t('activity:techStack.evidence')}
           </h3>
           {dependency.evidence.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground">{t('activity:techStack.noEvidenceRecorded')}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {t('activity:techStack.noEvidenceRecorded')}
+            </p>
           ) : (
             <ul className="flex flex-col gap-1">
               {dependency.evidence.map((evidence, index) => (

@@ -3,12 +3,7 @@ import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { EventBus } from '../../src/kernel/events.js';
 import { isSessionError } from '../../src/types/errors.js';
-import {
-  emptyTaskFile,
-  loadTasks,
-  mutateTasks,
-  saveTasks,
-} from '../../src/storage/task-store.js';
+import { emptyTaskFile, loadTasks, mutateTasks, saveTasks } from '../../src/storage/task-store.js';
 
 // vi.mock is hoisted above imports.  We use vi.importActual inside the factory
 // to lazily get the real module, avoiding TDZ issues.  The returned plain object
@@ -35,17 +30,30 @@ vi.mock('node:fs/promises', async () => {
     }),
     writeFile: vi.fn(async (filepath: string, data: string) => {
       store[filepath] = data;
-      try { await real.writeFile(filepath, data, 'utf8'); } catch { /* best-effort */ }
+      try {
+        await real.writeFile(filepath, data, 'utf8');
+      } catch {
+        /* best-effort */
+      }
     }),
     rename: real.rename,
     access: vi.fn(async (filepath: string) => {
       if (store[filepath] !== undefined) return;
-      try { await real.access(filepath); } catch { /* fall through */ }
-      if (store[filepath] === undefined) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      try {
+        await real.access(filepath);
+      } catch {
+        /* fall through */
+      }
+      if (store[filepath] === undefined)
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
     }),
     unlink: vi.fn(async (filepath: string) => {
       delete store[filepath];
-      try { await real.unlink(filepath); } catch { /* best-effort */ }
+      try {
+        await real.unlink(filepath);
+      } catch {
+        /* best-effort */
+      }
     }),
     mkdir: real.mkdir,
     readdir: real.readdir,
@@ -57,7 +65,11 @@ vi.mock('node:fs/promises', async () => {
       } else {
         delete store[filepath];
       }
-      try { await real.rm(filepath, opts); } catch { /* best-effort */ }
+      try {
+        await real.rm(filepath, opts);
+      } catch {
+        /* best-effort */
+      }
     }),
     chmod: real.chmod,
   };
@@ -66,7 +78,9 @@ vi.mock('node:fs/promises', async () => {
 
 import * as fsp from 'node:fs/promises';
 
-function makeTask(overrides: Partial<import('../../src/utils/task-format.js').TaskItem> = {}): import('../../src/utils/task-format.js').TaskItem {
+function makeTask(
+  overrides: Partial<import('../../src/utils/task-format.js').TaskItem> = {},
+): import('../../src/utils/task-format.js').TaskItem {
   return {
     id: 't1',
     title: 'Test task',
@@ -114,7 +128,16 @@ describe('task-store', () => {
     const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-tasks-'));
     const fp = path.join(dir, 'bad.json');
     try {
-      await fsp.writeFile(fp, JSON.stringify({ version: 999, sessionId: 'sess', updatedAt: new Date().toISOString(), tasks: [] }), 'utf8');
+      await fsp.writeFile(
+        fp,
+        JSON.stringify({
+          version: 999,
+          sessionId: 'sess',
+          updatedAt: new Date().toISOString(),
+          tasks: [],
+        }),
+        'utf8',
+      );
       expect(await loadTasks(fp)).toBeNull();
     } finally {
       await fsp.rm(dir, { recursive: true, force: true });
@@ -151,7 +174,10 @@ describe('task-store', () => {
     const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-tasks-'));
     const fp = path.join(dir, 'sess.tasks.json');
     try {
-      await saveTasks(fp, { ...emptyTaskFile('sess'), tasks: [makeTask({ id: 't1', title: 'original' })] });
+      await saveTasks(fp, {
+        ...emptyTaskFile('sess'),
+        tasks: [makeTask({ id: 't1', title: 'original' })],
+      });
       const result = await mutateTasks(fp, 'sess', (file) => {
         file.tasks[0]!.title = 'updated';
         return file;
@@ -170,9 +196,9 @@ describe('task-store', () => {
         ...emptyTaskFile('sess'),
         tasks: [makeTask({ id: 'open-task', status: 'pending' })],
       });
-      await expect(
-        mutateTasks(fp, 'sess', (file) => ({ ...file, tasks: [] })),
-      ).rejects.toThrow('unfinished tasks cannot be omitted');
+      await expect(mutateTasks(fp, 'sess', (file) => ({ ...file, tasks: [] }))).rejects.toThrow(
+        'unfinished tasks cannot be omitted',
+      );
       expect((await loadTasks(fp))?.tasks.map((task) => task.id)).toEqual(['open-task']);
     } finally {
       await fsp.rm(dir, { recursive: true, force: true });
@@ -209,14 +235,26 @@ describe('task-store', () => {
     const fp = path.join(dir, 'sess.tasks.json');
     const events: EventBus = { emit: vi.fn() } as never;
     try {
-      await fsp.writeFile(fp, JSON.stringify({ version: 1, sessionId: 'sess', updatedAt: new Date().toISOString(), tasks: [makeTask()] }), 'utf8');
+      await fsp.writeFile(
+        fp,
+        JSON.stringify({
+          version: 1,
+          sessionId: 'sess',
+          updatedAt: new Date().toISOString(),
+          tasks: [makeTask()],
+        }),
+        'utf8',
+      );
       await loadTasks(fp, events);
-      expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'tasks',
-        operation: 'load',
-        outcome: 'success',
-        sessionId: '~boot~',
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'tasks',
+          operation: 'load',
+          outcome: 'success',
+          sessionId: '~boot~',
+        }),
+      );
     } finally {
       await fsp.rm(dir, { recursive: true, force: true });
     }
@@ -227,14 +265,26 @@ describe('task-store', () => {
     const fp = path.join(dir, 'bad.tasks.json');
     const events: EventBus = { emit: vi.fn() } as never;
     try {
-      await fsp.writeFile(fp, JSON.stringify({ version: 999, sessionId: 'sess', updatedAt: new Date().toISOString(), tasks: [] }), 'utf8');
+      await fsp.writeFile(
+        fp,
+        JSON.stringify({
+          version: 999,
+          sessionId: 'sess',
+          updatedAt: new Date().toISOString(),
+          tasks: [],
+        }),
+        'utf8',
+      );
       await loadTasks(fp, events);
-      expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'tasks',
-        operation: 'load',
-        outcome: 'failure',
-        error: 'invalid_schema',
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'tasks',
+          operation: 'load',
+          outcome: 'failure',
+          error: 'invalid_schema',
+        }),
+      );
     } finally {
       await fsp.rm(dir, { recursive: true, force: true });
     }
@@ -247,12 +297,15 @@ describe('task-store', () => {
     try {
       await fsp.writeFile(fp, 'not-json{', 'utf8');
       await loadTasks(fp, events);
-      expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'tasks',
-        operation: 'load',
-        outcome: 'failure',
-        error: 'parse_failed',
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'tasks',
+          operation: 'load',
+          outcome: 'failure',
+          error: 'parse_failed',
+        }),
+      );
     } finally {
       await fsp.rm(dir, { recursive: true, force: true });
     }
@@ -263,19 +316,31 @@ describe('task-store', () => {
     const fp = path.join(dir, 'io-error.tasks.json');
     const events: EventBus = { emit: vi.fn() } as never;
     // First ensure the file exists (so the error is a read error, not ENOENT)
-    await fsp.writeFile(fp, JSON.stringify({ version: 1, sessionId: 'sess', updatedAt: new Date().toISOString(), tasks: [] }), 'utf8');
+    await fsp.writeFile(
+      fp,
+      JSON.stringify({
+        version: 1,
+        sessionId: 'sess',
+        updatedAt: new Date().toISOString(),
+        tasks: [],
+      }),
+      'utf8',
+    );
     try {
       vi.mocked(fsp.readFile).mockRejectedValueOnce(
         Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' }),
       );
       const result = await loadTasks(fp, events);
       expect(result).toBeNull();
-      expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-        store: 'tasks',
-        operation: 'load',
-        outcome: 'failure',
-        error: expect.stringContaining('EACCES'),
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          store: 'tasks',
+          operation: 'load',
+          outcome: 'failure',
+          error: expect.stringContaining('EACCES'),
+        }),
+      );
     } finally {
       vi.mocked(fsp.readFile).mockReset();
       await fsp.rm(dir, { recursive: true, force: true });
@@ -288,12 +353,15 @@ describe('task-store', () => {
     const events: EventBus = { emit: vi.fn() } as never;
     try {
       await saveTasks(fp, { ...emptyTaskFile('sess'), tasks: [makeTask()] }, events);
-      expect(events.emit).toHaveBeenCalledWith('storage.write', expect.objectContaining({
-        store: 'tasks',
-        operation: 'save',
-        outcome: 'success',
-        sessionId: '~boot~',
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.write',
+        expect.objectContaining({
+          store: 'tasks',
+          operation: 'save',
+          outcome: 'success',
+          sessionId: '~boot~',
+        }),
+      );
     } finally {
       await fsp.rm(dir, { recursive: true, force: true });
     }
@@ -308,12 +376,15 @@ describe('task-store', () => {
         Object.assign(new Error('ENOSPC no space left'), { code: 'ENOSPC' }),
       );
       await saveTasks(fp, { ...emptyTaskFile('sess'), tasks: [makeTask()] }, events);
-      expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-        store: 'tasks',
-        operation: 'save',
-        outcome: 'failure',
-        error: expect.stringContaining('ENOSPC'),
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          store: 'tasks',
+          operation: 'save',
+          outcome: 'failure',
+          error: expect.stringContaining('ENOSPC'),
+        }),
+      );
     } finally {
       vi.mocked(fsp.writeFile).mockReset();
       await fsp.rm(dir, { recursive: true, force: true });
@@ -325,12 +396,21 @@ describe('task-store', () => {
     const fp = path.join(dir, 'sess.tasks.json');
     const events: EventBus = { emit: vi.fn() } as never;
     try {
-      await saveTasks(fp, { ...emptyTaskFile('sess'), tasks: [makeTask({ id: 't1', title: 'before' })] }, events);
+      await saveTasks(
+        fp,
+        { ...emptyTaskFile('sess'), tasks: [makeTask({ id: 't1', title: 'before' })] },
+        events,
+      );
       events.emit = vi.fn(); // reset after save's emissions
-      await mutateTasks(fp, 'sess', (file) => {
-        file.tasks[0]!.title = 'after';
-        return file;
-      }, events);
+      await mutateTasks(
+        fp,
+        'sess',
+        (file) => {
+          file.tasks[0]!.title = 'after';
+          return file;
+        },
+        events,
+      );
       const reads = (events.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
         ([ev]) => ev === 'storage.read',
       );
@@ -340,7 +420,11 @@ describe('task-store', () => {
       expect(reads).toHaveLength(1);
       expect(reads[0]![1]).toMatchObject({ store: 'tasks', operation: 'load', outcome: 'success' });
       expect(writes).toHaveLength(1);
-      expect(writes[0]![1]).toMatchObject({ store: 'tasks', operation: 'save', outcome: 'success' });
+      expect(writes[0]![1]).toMatchObject({
+        store: 'tasks',
+        operation: 'save',
+        outcome: 'success',
+      });
     } finally {
       await fsp.rm(dir, { recursive: true, force: true });
     }

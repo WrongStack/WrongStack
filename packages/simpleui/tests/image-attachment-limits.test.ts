@@ -45,9 +45,7 @@ function literal(name: string, text = source): string {
 }
 
 function productValue(expression: string): number {
-  expect(expression, 'byte cap must be a plain product of integers').toMatch(
-    /^\d+(\s*\*\s*\d+)*$/,
-  );
+  expect(expression, 'byte cap must be a plain product of integers').toMatch(/^\d+(\s*\*\s*\d+)*$/);
   return expression.split('*').reduce((acc, part) => acc * Number(part.trim()), 1);
 }
 

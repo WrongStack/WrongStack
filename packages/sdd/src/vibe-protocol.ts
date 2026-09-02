@@ -96,13 +96,17 @@ export function synthesizeVibeSpec(
   ];
 
   if (/admin|role|auth|yetki/i.test(cleanPrompt)) {
-    sensibleDefaults.push('Enforce role-based permission checks before executing privileged actions');
+    sensibleDefaults.push(
+      'Enforce role-based permission checks before executing privileged actions',
+    );
   }
   if (/sil|delete|remove|uçur/i.test(cleanPrompt)) {
     sensibleDefaults.push('Confirm deletion intent and handle non-existent resource gracefully');
   }
   if (/sepet|cart|ekle|add|art/i.test(cleanPrompt)) {
-    sensibleDefaults.push('Ensure idempotency and optimistic UI updates for cart/counter operations');
+    sensibleDefaults.push(
+      'Ensure idempotency and optimistic UI updates for cart/counter operations',
+    );
   }
 
   // Derive acceptance criteria

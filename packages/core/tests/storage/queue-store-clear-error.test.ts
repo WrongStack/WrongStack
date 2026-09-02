@@ -59,9 +59,11 @@ describe('QueueStore — clear + read coverage', () => {
     await store.write([ITEM]);
     const items = await store.read();
     expect(items).toHaveLength(1);
-    expect(events.emit.mock.calls.some(
-      (c) => c[0] === 'storage.read' && (c[1] as { outcome?: string }).outcome === 'success',
-    )).toBe(true);
+    expect(
+      events.emit.mock.calls.some(
+        (c) => c[0] === 'storage.read' && (c[1] as { outcome?: string }).outcome === 'success',
+      ),
+    ).toBe(true);
   });
 
   it('read() returns [] and emits invalid_schema for a non-array payload', async () => {
@@ -69,8 +71,10 @@ describe('QueueStore — clear + read coverage', () => {
     const store = new QueueStore({ dir, events: events as never });
     await fs.writeFile(path.join(dir, 'queue.json'), JSON.stringify({ not: 'an array' }), 'utf8');
     expect(await store.read()).toEqual([]);
-    expect(events.emit.mock.calls.some(
-      (c) => c[0] === 'storage.read' && (c[1] as { error?: string }).error === 'invalid_schema',
-    )).toBe(true);
+    expect(
+      events.emit.mock.calls.some(
+        (c) => c[0] === 'storage.read' && (c[1] as { error?: string }).error === 'invalid_schema',
+      ),
+    ).toBe(true);
   });
 });

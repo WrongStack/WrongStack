@@ -22,15 +22,37 @@ function fixtureSnapshot(): unknown {
       edge_count: 3,
     },
     nodes: [
-      0, 0, 1, 0, 2, // root; two edges
-      1, 1, 2, 10, 1, // A; one edge
-      1, 2, 3, 20, 0, // B
-      1, 3, 4, 40, 0, // C; weak-only, unreachable
+      0,
+      0,
+      1,
+      0,
+      2, // root; two edges
+      1,
+      1,
+      2,
+      10,
+      1, // A; one edge
+      1,
+      2,
+      3,
+      20,
+      0, // B
+      1,
+      3,
+      4,
+      40,
+      0, // C; weak-only, unreachable
     ],
     edges: [
-      0, 4, 5, // root --property--> A
-      1, 5, 15, // root --weak--> C
-      0, 6, 10, // A --property--> B
+      0,
+      4,
+      5, // root --property--> A
+      1,
+      5,
+      15, // root --weak--> C
+      0,
+      6,
+      10, // A --property--> B
     ],
     strings: ['(root)', 'A', 'B', 'C', 'a', 'weakC', 'b'],
   };
@@ -55,12 +77,8 @@ describe('TUI heap-soak workload', () => {
     const otherSeed = buildHeapSoakWorkload({ entryCount: 40, seed: HEAP_SOAK_SEED + 1 });
     const otherSize = buildHeapSoakWorkload({ entryCount: 41, seed: HEAP_SOAK_SEED });
 
-    expect(heapSoakWorkloadFingerprint(otherSeed)).not.toBe(
-      heapSoakWorkloadFingerprint(baseline),
-    );
-    expect(heapSoakWorkloadFingerprint(otherSize)).not.toBe(
-      heapSoakWorkloadFingerprint(baseline),
-    );
+    expect(heapSoakWorkloadFingerprint(otherSeed)).not.toBe(heapSoakWorkloadFingerprint(baseline));
+    expect(heapSoakWorkloadFingerprint(otherSize)).not.toBe(heapSoakWorkloadFingerprint(baseline));
   });
 
   it('rejects invalid sizes instead of producing a partial workload', () => {
@@ -82,8 +100,20 @@ describe('heap snapshot dominators', () => {
       ignoredWeakEdges: 1,
     });
     expect(report.dominators.slice(0, 2)).toEqual([
-      expect.objectContaining({ rank: 1, name: 'A', selfSize: 10, retainedSize: 30, dominatedNodes: 2 }),
-      expect.objectContaining({ rank: 2, name: 'B', selfSize: 20, retainedSize: 20, dominatedNodes: 1 }),
+      expect.objectContaining({
+        rank: 1,
+        name: 'A',
+        selfSize: 10,
+        retainedSize: 30,
+        dominatedNodes: 2,
+      }),
+      expect.objectContaining({
+        rank: 2,
+        name: 'B',
+        selfSize: 20,
+        retainedSize: 20,
+        dominatedNodes: 1,
+      }),
     ]);
     expect(report.dominators.some((entry) => entry.name === 'C')).toBe(false);
   });
@@ -101,17 +131,28 @@ describe('heap snapshot dominators', () => {
         edge_count: 4,
       },
       nodes: [
-        0, 0, 1, 0, 2, // root -> left, right
-        1, 1, 2, 10, 1, // left -> join
-        1, 2, 3, 20, 1, // right -> join
-        1, 3, 4, 40, 0, // join
+        0,
+        0,
+        1,
+        0,
+        2, // root -> left, right
+        1,
+        1,
+        2,
+        10,
+        1, // left -> join
+        1,
+        2,
+        3,
+        20,
+        1, // right -> join
+        1,
+        3,
+        4,
+        40,
+        0, // join
       ],
-      edges: [
-        0, 4, 5,
-        0, 5, 10,
-        0, 6, 15,
-        0, 6, 15,
-      ],
+      edges: [0, 4, 5, 0, 5, 10, 0, 6, 15, 0, 6, 15],
       strings: ['(root)', 'left', 'right', 'join', 'leftEdge', 'rightEdge', 'joinEdge'],
     };
 

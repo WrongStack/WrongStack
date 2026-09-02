@@ -83,7 +83,9 @@ function readConfig(raw: unknown): DocSyncGuardConfig {
       ? (r['docNames'] as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.docNames,
     maxTrackedFiles:
-      typeof r['maxTrackedFiles'] === 'number' && r['maxTrackedFiles'] >= 1 && r['maxTrackedFiles'] <= 200
+      typeof r['maxTrackedFiles'] === 'number' &&
+      r['maxTrackedFiles'] >= 1 &&
+      r['maxTrackedFiles'] <= 200
         ? r['maxTrackedFiles']
         : DEFAULTS.maxTrackedFiles,
   };
@@ -226,13 +228,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['doc-sync-guard']);
 
-    const hook = (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
+    const hook = (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
       if (!cfg.enabled) return;
 
       // Skip if the write/edit itself errored.
@@ -259,7 +259,9 @@ const plugin: Plugin = {
         }
         if (!content || state.changedFiles.length === 0) return;
 
-        const missing = state.changedFiles.filter((changedPath) => !isReferenced(changedPath, content));
+        const missing = state.changedFiles.filter(
+          (changedPath) => !isReferenced(changedPath, content),
+        );
         if (missing.length === 0) return;
 
         state.warningsIssued += 1;
@@ -272,7 +274,9 @@ const plugin: Plugin = {
       }
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- doc_sync_status tool ---
     api.tools.register({

@@ -27,11 +27,7 @@ describe('tokenize', () => {
 
   it('handles numbers (filters tokens shorter than 3 characters)', () => {
     // '2' and 'of' are filtered (length < 3), '4096' survives
-    expect(tokenize('version 2 of 4096 chars')).toEqual([
-      'version',
-      '4096',
-      'chars',
-    ]);
+    expect(tokenize('version 2 of 4096 chars')).toEqual(['version', '4096', 'chars']);
   });
 
   it('deduplicates repeated tokens', () => {
@@ -66,7 +62,9 @@ describe('overlapCoefficient', () => {
 
   it('returns 1 when every query token appears in a longer text', () => {
     // Query is a subset of text — overlap coefficient = intersection / min(|A|,|B|) = 3/3
-    expect(overlapCoefficient('run lifecycle tests', 'always run lifecycle tests before deploy')).toBe(1);
+    expect(
+      overlapCoefficient('run lifecycle tests', 'always run lifecycle tests before deploy'),
+    ).toBe(1);
   });
 
   it('returns 1 when every text token appears in a longer query', () => {
@@ -103,7 +101,9 @@ describe('overlapCoefficient', () => {
     // text tokens: {memory, injection, scoring, pipeline} (4)
     // intersection: {memory, scoring} = 2
     // min(3, 4) = 3 → 2/3
-    expect(overlapCoefficient('memory retrieval scoring', 'memory injection scoring pipeline')).toBeCloseTo(2 / 3, 10);
+    expect(
+      overlapCoefficient('memory retrieval scoring', 'memory injection scoring pipeline'),
+    ).toBeCloseTo(2 / 3, 10);
   });
 
   it('handles single-token query that matches', () => {

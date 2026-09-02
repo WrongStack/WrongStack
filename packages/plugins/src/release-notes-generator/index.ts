@@ -135,7 +135,11 @@ interface Commit {
   description: string;
 }
 
-function parseConventionalCommit(subject: string): { type: CommitType | 'uncategorized'; scope: string | null; description: string } {
+function parseConventionalCommit(subject: string): {
+  type: CommitType | 'uncategorized';
+  scope: string | null;
+  description: string;
+} {
   const match = subject.match(/^([a-zA-Z][a-zA-Z0-9_-]*)(?:\(([^)]+)\))?!?:\s*(.+)$/);
   if (!match) {
     return { type: 'uncategorized', scope: null, description: subject };
@@ -143,7 +147,9 @@ function parseConventionalCommit(subject: string): { type: CommitType | 'uncateg
   const rawType = match[1]!.toLowerCase();
   const scope = match[2] ?? null;
   const description = match[3]!;
-  const type = CONVENTIONAL_TYPES.includes(rawType as CommitType) ? (rawType as CommitType) : 'uncategorized';
+  const type = CONVENTIONAL_TYPES.includes(rawType as CommitType)
+    ? (rawType as CommitType)
+    : 'uncategorized';
   return { type, scope, description };
 }
 
@@ -174,7 +180,11 @@ function runGit(args: string[], signal?: AbortSignal): Promise<string> {
   });
 }
 
-async function resolveFromRef(defaultFrom: string, inputFrom?: string, signal?: AbortSignal): Promise<string> {
+async function resolveFromRef(
+  defaultFrom: string,
+  inputFrom?: string,
+  signal?: AbortSignal,
+): Promise<string> {
   if (inputFrom) return inputFrom;
   if (defaultFrom === 'latest-tag') {
     try {
@@ -334,7 +344,8 @@ const plugin: Plugin = {
       defaultFrom: {
         type: 'string',
         default: 'latest-tag',
-        description: 'Default starting ref when `from` is omitted. Use "latest-tag" to discover the most recent tag.',
+        description:
+          'Default starting ref when `from` is omitted. Use "latest-tag" to discover the most recent tag.',
       },
       useLlm: {
         type: 'boolean',
@@ -370,7 +381,8 @@ const plugin: Plugin = {
         properties: {
           from: {
             type: 'string',
-            description: 'Starting git ref (tag, commit, branch). Defaults to the configured defaultFrom.',
+            description:
+              'Starting git ref (tag, commit, branch). Defaults to the configured defaultFrom.',
           },
           to: {
             type: 'string',
@@ -406,10 +418,12 @@ const plugin: Plugin = {
 
         const raw = (input ?? {}) as Record<string, unknown>;
         const rawTo = input.to ?? raw['to_ref'] ?? raw['toRef'] ?? raw['until'] ?? raw['end'];
-        const rawFrom = input.from ?? raw['from_ref'] ?? raw['fromRef'] ?? raw['since'] ?? raw['start'];
+        const rawFrom =
+          input.from ?? raw['from_ref'] ?? raw['fromRef'] ?? raw['since'] ?? raw['start'];
         const rawUseLlm = input.use_llm ?? raw['useLlm'] ?? raw['use_ai'] ?? raw['useAi'];
         const toRef = typeof rawTo === 'string' && rawTo.trim() ? rawTo.trim() : 'HEAD';
-        const fromInput = typeof rawFrom === 'string' && rawFrom.trim() ? rawFrom.trim() : undefined;
+        const fromInput =
+          typeof rawFrom === 'string' && rawFrom.trim() ? rawFrom.trim() : undefined;
         const fromRef = await resolveFromRef(cfg.defaultFrom, fromInput, execOpts?.signal);
 
         state.generateCount += 1;
@@ -425,7 +439,8 @@ const plugin: Plugin = {
 
         const deterministicNotes = generateNotes(commits, cfg.includeScope);
         const requested =
-          ((typeof rawUseLlm === 'boolean' ? rawUseLlm : undefined) ?? cfg.useLlm) && commits.length > 0;
+          ((typeof rawUseLlm === 'boolean' ? rawUseLlm : undefined) ?? cfg.useLlm) &&
+          commits.length > 0;
         const audience = readAudience(input.audience ?? cfg.audience);
         const llm = await runOptionalPluginLlm({
           requested,

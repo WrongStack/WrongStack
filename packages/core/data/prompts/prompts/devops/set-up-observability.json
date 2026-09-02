@@ -5,11 +5,7 @@
   "description": "Instrument a service with metrics, logs, and traces that matter.",
   "content": "Help me make this service observable: {{service}}\n\nDefine: the handful of metrics that actually indicate health (think RED/USE), what to log at each level, where tracing spans add value, and the 3-5 alerts worth paging on (symptom-based, not cause-based). Avoid alert noise and vanity metrics. Tell me what 'good' looks like for each signal.",
   "category": "devops",
-  "tags": [
-    "observability",
-    "monitoring",
-    "metrics"
-  ],
+  "tags": ["observability", "monitoring", "metrics"],
   "source": "builtin",
   "favorite": false,
   "checksum": "61dde105b6604a58cd1632b1de84c2fc61aeaf3ae64a4bda0712f059695960e2",

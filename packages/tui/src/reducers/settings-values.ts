@@ -663,8 +663,11 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
       //   fleet:'bottom'  → showAgentSwarmPanel stays as-is (could be 'off')
       // An explicit showAgentSwarmPanel in the patch (e.g. resetSettingsFieldValue
       // for field 40) takes priority and is not overridden.
-      const { panelPositions: panelPositionsPatch, showAgentSwarmPanel: swarmPatch, ...restPatch } =
-        action.patch;
+      const {
+        panelPositions: panelPositionsPatch,
+        showAgentSwarmPanel: swarmPatch,
+        ...restPatch
+      } = action.patch;
       const mergedPanelPositions =
         panelPositionsPatch !== undefined
           ? { ...state.settingsPicker.panelPositions, ...panelPositionsPatch }

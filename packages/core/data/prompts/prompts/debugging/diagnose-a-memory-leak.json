@@ -5,11 +5,7 @@
   "description": "Find what is retaining memory that should be freed.",
   "content": "Memory keeps growing in: {{context}}\n\nHelp me find the leak. Tell me what to capture (heap snapshots, retained-size comparison over time) and how to read it. The usual suspects: unbounded caches or maps, event listeners never removed, closures capturing large scopes, growing arrays. For each, how to confirm and fix. Give me the next concrete measurement to take.",
   "category": "debugging",
-  "tags": [
-    "memory",
-    "leak",
-    "profiling"
-  ],
+  "tags": ["memory", "leak", "profiling"],
   "source": "builtin",
   "favorite": false,
   "checksum": "f0b235ec5027dbc41659fb0b876632adf0be4e2b90eccd47a4dafa16b0cfda66",

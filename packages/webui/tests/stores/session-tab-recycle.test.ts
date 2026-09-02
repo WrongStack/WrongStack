@@ -28,10 +28,7 @@ vi.mock('../../src/components/Toaster', () => ({ toast: toasts }));
 import { useFleetStore } from '../../src/stores/fleet-store.js';
 import { useHistoryStore } from '../../src/stores/history-store.js';
 import { useSessionLanes } from '../../src/stores/session-lanes.js';
-import {
-  useSessionTabStore,
-  type OpenTabResult,
-} from '../../src/stores/session-tab-store.js';
+import { useSessionTabStore, type OpenTabResult } from '../../src/stores/session-tab-store.js';
 import type { SubagentView } from '../../src/stores/types.js';
 
 /** A live subagent owned by `sessionId` — makes that slot busy for isTabBusy. */

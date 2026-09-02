@@ -230,7 +230,13 @@ export function ReviewQueue({
             {t('activity:memoryManager.reviewBulkKeep')}
             {selectedCount > 0 ? ` (${selectedCount})` : ''}
           </Button>
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => load()} disabled={loading}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7"
+            onClick={() => load()}
+            disabled={loading}
+          >
             <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
           </Button>
         </div>

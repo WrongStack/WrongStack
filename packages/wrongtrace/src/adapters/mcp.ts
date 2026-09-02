@@ -12,18 +12,18 @@
  * failure paths.
  */
 
-import { DEFAULT_TRANSPORT_TIMEOUT_MS } from "../constants.js";
-import type { WrongTraceHealth, WrongTraceLockResult } from "../types.js";
+import { DEFAULT_TRANSPORT_TIMEOUT_MS } from '../constants.js';
+import type { WrongTraceHealth, WrongTraceLockResult } from '../types.js';
 
 export type McpToolName =
-  | "check_guardrail"
-  | "get_file_health_score"
-  | "get_symbol_lineage"
-  | "get_friction_matrix"
-  | "get_atlas"
-  | "lock_file"
-  | "unlock_file"
-  | "report_telemetry";
+  | 'check_guardrail'
+  | 'get_file_health_score'
+  | 'get_symbol_lineage'
+  | 'get_friction_matrix'
+  | 'get_atlas'
+  | 'lock_file'
+  | 'unlock_file'
+  | 'report_telemetry';
 
 export type McpToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 
@@ -48,8 +48,11 @@ export interface McpTransport {
  * own. Callers are bounded regardless; the outlived promise is garbage once
  * nothing references it.
  */
-export function createMcpTransport(tools: McpToolBag = {}, timeoutMs = DEFAULT_TRANSPORT_TIMEOUT_MS): McpTransport {
-  const entries = Object.entries(tools).filter(([, v]) => typeof v === "function") as Array<
+export function createMcpTransport(
+  tools: McpToolBag = {},
+  timeoutMs = DEFAULT_TRANSPORT_TIMEOUT_MS,
+): McpTransport {
+  const entries = Object.entries(tools).filter(([, v]) => typeof v === 'function') as Array<
     [McpToolName, McpToolHandler]
   >;
   return {

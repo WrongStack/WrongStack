@@ -32,7 +32,9 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setOpen(false); }
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -53,7 +55,10 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
     setLoading(true);
     setError(null);
     const socket = socketRef.current;
-    if (!socket) { setLoading(false); return; }
+    if (!socket) {
+      setLoading(false);
+      return;
+    }
 
     pendingSearchRef.current?.cancel();
     const handle = socketRequest({
@@ -94,7 +99,9 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
         ? (payload!['relatedMatches'] as Record<string, unknown>[])
         : [];
       const matches = [...primary, ...symbol, ...related];
-      const rawMemories = matches.map((m) => (m['memory'] as Record<string, unknown> | undefined) ?? m) as unknown as MemoryEntry[];
+      const rawMemories = matches.map(
+        (m) => (m['memory'] as Record<string, unknown> | undefined) ?? m,
+      ) as unknown as MemoryEntry[];
       const uniqueMemories = Array.from(
         new Map(rawMemories.filter((m) => m?.id).map((m) => [m.id, m])).values(),
       );
@@ -118,7 +125,12 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
 
   return (
     <>
-      <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
+      <button
+        type="button"
+        className="settings-overlay"
+        tabIndex={-1}
+        onClick={() => setOpen(false)}
+      />
       <aside
         className="memory-drawer"
         role="dialog"
@@ -128,7 +140,9 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
         tabIndex={-1}
       >
         <header className="memory-drawer-head">
-          <span><Brain size={13} aria-hidden="true" /> MEMORY</span>
+          <span>
+            <Brain size={13} aria-hidden="true" /> MEMORY
+          </span>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}>
             <X size={14} />
           </button>
@@ -140,7 +154,9 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
             placeholder="File path to search memories for…"
             value={path}
             onChange={(e) => setPath(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') search(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') search();
+            }}
           />
           <button type="button" onClick={search} disabled={loading || !path.trim()}>
             {loading ? '…' : 'Search'}
@@ -170,9 +186,13 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
                 <div className="memory-card-anchors">
                   {mem.anchors.slice(0, 3).map((a, i) => (
                     <span key={i} className="memory-anchor">
-                      {a.type === 'file' ? <FileText size={10} aria-hidden="true" /> :
-                       a.type === 'symbol' ? <Hash size={10} aria-hidden="true" /> :
-                       <Link2 size={10} aria-hidden="true" />}
+                      {a.type === 'file' ? (
+                        <FileText size={10} aria-hidden="true" />
+                      ) : a.type === 'symbol' ? (
+                        <Hash size={10} aria-hidden="true" />
+                      ) : (
+                        <Link2 size={10} aria-hidden="true" />
+                      )}
                       {a.symbol ?? a.path ?? a.type}
                     </span>
                   ))}

@@ -6,10 +6,30 @@ import type { TaskGraph, TaskNode, TaskStore } from '@wrongstack/core/types/task
 function makeFakeStore(): TaskStore {
   const graphs = new Map<string, TaskGraph>();
   return {
-    async saveGraph(g: TaskGraph) { graphs.set(g.id, { ...g, nodes: new Map(g.nodes), edges: [...g.edges], rootNodes: [...g.rootNodes] }); },
-    async loadGraph(id: string) { const g = graphs.get(id); return g ? { ...g, nodes: new Map(g.nodes), edges: [...g.edges], rootNodes: [...g.rootNodes] } : null; },
-    async listGraphs() { return [...graphs.values()].map((g) => ({ id: g.id, title: g.title, updatedAt: g.updatedAt })); },
-    async deleteGraph(id: string) { graphs.delete(id); },
+    async saveGraph(g: TaskGraph) {
+      graphs.set(g.id, {
+        ...g,
+        nodes: new Map(g.nodes),
+        edges: [...g.edges],
+        rootNodes: [...g.rootNodes],
+      });
+    },
+    async loadGraph(id: string) {
+      const g = graphs.get(id);
+      return g
+        ? { ...g, nodes: new Map(g.nodes), edges: [...g.edges], rootNodes: [...g.rootNodes] }
+        : null;
+    },
+    async listGraphs() {
+      return [...graphs.values()].map((g) => ({
+        id: g.id,
+        title: g.title,
+        updatedAt: g.updatedAt,
+      }));
+    },
+    async deleteGraph(id: string) {
+      graphs.delete(id);
+    },
   };
 }
 
@@ -17,7 +37,13 @@ async function harness() {
   const tracker = new TaskTracker({ store: makeFakeStore() });
   await tracker.createGraph('spec', 'Decomp');
   const add = (title: string, priority: TaskNode['priority'] = 'medium') =>
-    tracker.addNode({ title, description: '', type: 'feature', priority, status: 'pending' } as never);
+    tracker.addNode({
+      title,
+      description: '',
+      type: 'feature',
+      priority,
+      status: 'pending',
+    } as never);
   return { tracker, add };
 }
 
@@ -25,8 +51,14 @@ describe('SddTaskDecomposer', () => {
   it('clamps parallel slots into 1..16', async () => {
     const { tracker } = await harness();
     const graph = { nodes: new Map(), edges: [] } as never as TaskGraph;
-    expect((new SddTaskDecomposer(tracker, graph, { parallelSlots: 100 }) as never as { slots: number }).slots).toBe(16);
-    expect((new SddTaskDecomposer(tracker, graph, { parallelSlots: 0 }) as never as { slots: number }).slots).toBe(1);
+    expect(
+      (new SddTaskDecomposer(tracker, graph, { parallelSlots: 100 }) as never as { slots: number })
+        .slots,
+    ).toBe(16);
+    expect(
+      (new SddTaskDecomposer(tracker, graph, { parallelSlots: 0 }) as never as { slots: number })
+        .slots,
+    ).toBe(1);
     expect((new SddTaskDecomposer(tracker, graph) as never as { slots: number }).slots).toBe(4);
   });
 
@@ -49,7 +81,8 @@ describe('SddTaskDecomposer', () => {
     const first = add('first', 'high');
     const second = add('second', 'high');
     // force a later createdAt on the second node
-    (tracker.getAllNodes().find((n) => n.id === second.id) as TaskNode).createdAt = first.createdAt + 1000;
+    (tracker.getAllNodes().find((n) => n.id === second.id) as TaskNode).createdAt =
+      first.createdAt + 1000;
     const d = new SddTaskDecomposer(tracker, {} as TaskGraph, { parallelSlots: 5 });
     expect(d.nextBatch().tasks.map((t) => t.title)).toEqual(['first', 'second']);
   });

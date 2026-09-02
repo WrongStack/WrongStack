@@ -5,10 +5,7 @@
   "description": "Make a performance-critical piece of code faster.",
   "content": "This code is on a hot path and too slow:\n\n{{code}}\n\nProfile it in your head first: what is the dominant cost (allocations, repeated work, I/O, bad complexity)? Propose the change with the highest payoff, not micro-tweaks. Show the optimized version, state the new complexity or the work removed, and confirm behavior is unchanged. Warn me if the speedup trades away readability or correctness, and tell me how to measure that it actually helped.",
   "category": "coding",
-  "tags": [
-    "performance",
-    "optimization"
-  ],
+  "tags": ["performance", "optimization"],
   "source": "builtin",
   "favorite": false,
   "checksum": "6e23843574c079c55a0a20c3fb481bb909d0228c518f08b4994c70717fa940a5",

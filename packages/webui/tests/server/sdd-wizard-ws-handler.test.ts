@@ -15,7 +15,10 @@ function fakeWs() {
   } as never;
 }
 
-function lastOfType(ws: { sent: Array<{ type: string; payload: Record<string, unknown> }> }, type: string) {
+function lastOfType(
+  ws: { sent: Array<{ type: string; payload: Record<string, unknown> }> },
+  type: string,
+) {
   const m = ws.sent.filter((x) => x.type === type);
   return m[m.length - 1];
 }
@@ -33,7 +36,13 @@ const SPEC_OUTPUT = [
     overview: 'Add OAuth login with session management.',
     sections: [{ type: 'overview', title: 'Overview', content: 'flow', level: 1 }],
     requirements: [
-      { id: 'REQ-1', type: 'security', priority: 'critical', description: 'Verify tokens', acceptanceCriteria: [] },
+      {
+        id: 'REQ-1',
+        type: 'security',
+        priority: 'critical',
+        description: 'Verify tokens',
+        acceptanceCriteria: [],
+      },
     ],
   }),
   '```',
@@ -143,7 +152,10 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     handler.addClient(ws);
 
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
-    await handler.handleMessage({ type: 'sdd.spec.message', payload: { text: 'Google and GitHub' } });
+    await handler.handleMessage({
+      type: 'sdd.spec.message',
+      payload: { text: 'Google and GitHub' },
+    });
     await handler.handleMessage({ type: 'sdd.spec.approve', payload: {} });
 
     // Start with explicit parallel slots + worktrees disabled + plan decompose on.
@@ -178,7 +190,9 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     expect(discarded.discarded).toBe(true);
     await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'New feature' } });
     expect(turnPrompts.length).toBeGreaterThan(turnsBefore);
-    expect((lastOfType(ws, 'sdd.spec.snapshot').payload as { title: string }).title).toMatch(/New feature/);
+    expect((lastOfType(ws, 'sdd.spec.snapshot').payload as { title: string }).title).toMatch(
+      /New feature/,
+    );
   });
 
   it('starts a run from a graph id when startRunFromGraphId is wired', async () => {
@@ -279,6 +293,8 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
       { question: 'Q1: providers?', answer: 'Google + GitHub' },
       { question: 'Q2: session store?', answer: 'Redis' },
     ]);
-    expect((lastOfType(ws, 'sdd.spec.snapshot').payload as { phase: string }).phase).toBe('spec_review');
+    expect((lastOfType(ws, 'sdd.spec.snapshot').payload as { phase: string }).phase).toBe(
+      'spec_review',
+    );
   });
 });

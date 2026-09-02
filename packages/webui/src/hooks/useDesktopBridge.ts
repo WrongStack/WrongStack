@@ -18,11 +18,7 @@ import {
   useUIStore,
 } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
-import {
-  navigateToView,
-  openMainView,
-  showPanel,
-} from '@/components/activity-bar/nav';
+import { navigateToView, openMainView, showPanel } from '@/components/activity-bar/nav';
 import { PANEL_ORDER } from '@/components/activity-bar';
 import { downloadChatAsMarkdown } from '@/components/CommandPalette';
 import { toast } from '@/components/Toaster';

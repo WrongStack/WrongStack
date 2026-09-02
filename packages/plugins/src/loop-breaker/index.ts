@@ -154,9 +154,9 @@ function readConfig(raw: unknown): LoopBreakerConfig {
   }
   const r = raw as Record<string, unknown>;
   const rawWarn = r['warnAfter'] ?? r['warn_after'] ?? r['warnThreshold'] ?? r['warn_threshold'];
-  const warnAfter =
-    typeof rawWarn === 'number' && rawWarn >= 2 ? rawWarn : DEFAULTS.warnAfter;
-  const rawBlock = r['blockAfter'] ?? r['block_after'] ?? r['blockThreshold'] ?? r['block_threshold'];
+  const warnAfter = typeof rawWarn === 'number' && rawWarn >= 2 ? rawWarn : DEFAULTS.warnAfter;
+  const rawBlock =
+    r['blockAfter'] ?? r['block_after'] ?? r['blockThreshold'] ?? r['block_threshold'];
   const blockAfter =
     typeof rawBlock === 'number' && rawBlock > warnAfter
       ? rawBlock
@@ -169,9 +169,12 @@ function readConfig(raw: unknown): LoopBreakerConfig {
   // Update the module-scope Set for O(1) lookup in the hook.
   ignoreToolsSet = new Set(ignoreTools);
 
-  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
-    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
-    : undefined;
+  const rawMode =
+    typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+      ? String(r['mode'] ?? r['action'] ?? r['behavior'])
+          .trim()
+          .toLowerCase()
+      : undefined;
   const mode = rawMode === 'warn' ? 'warn' : 'block';
 
   const rawOsc = r['oscillationWindow'] ?? r['oscillation_window'] ?? r['window'];
@@ -183,9 +186,7 @@ function readConfig(raw: unknown): LoopBreakerConfig {
     warnAfter,
     blockAfter,
     oscillationWindow:
-      typeof rawOsc === 'number' && rawOsc >= 4
-        ? rawOsc
-        : DEFAULTS.oscillationWindow,
+      typeof rawOsc === 'number' && rawOsc >= 4 ? rawOsc : DEFAULTS.oscillationWindow,
     maxSteps:
       typeof rawMaxSteps === 'number' && rawMaxSteps >= 0
         ? Math.floor(rawMaxSteps)

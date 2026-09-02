@@ -28,16 +28,9 @@ import * as path from 'node:path';
 import { generateProjectSlug } from './projects-manifest.js';
 import type { FileWatcherMetrics } from './setup-events.js';
 import type { TechStackEvent } from './techstack-handlers.js';
-import {
-  httpRequestOriginOk,
-  isLoopbackBind,
-  tokenMatches,
-} from './ws-auth.js';
+import { httpRequestOriginOk, isLoopbackBind, tokenMatches } from './ws-auth.js';
 import { handleApiRoutes } from './http-server/api-router.js';
-import {
-  handleSpaFallback,
-  handleStaticFileRequest,
-} from './http-server/static-file-handler.js';
+import { handleSpaFallback, handleStaticFileRequest } from './http-server/static-file-handler.js';
 import {
   buildCspHeader,
   decodeSessionId,
@@ -159,7 +152,9 @@ export interface CreateHttpServerOptions {
    * non-CLI webui-server host stays on its existing surface with zero
    * behavior change.
    */
-  getVectorMemoryStore?: (() => import('@wrongstack/vector-memory').VectorMemoryStore | undefined) | undefined;
+  getVectorMemoryStore?:
+    | (() => import('@wrongstack/vector-memory').VectorMemoryStore | undefined)
+    | undefined;
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
 }
@@ -174,7 +169,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
   const distDir = path.resolve(opts.distDir);
   const requireAccessToken = Boolean(opts.requireToken) || !isLoopbackBind(opts.host);
   const secureCookies =
-    opts.secureCookies ?? (opts.publicWsUrl?.trim().toLowerCase().startsWith('wss:') ?? false);
+    opts.secureCookies ?? opts.publicWsUrl?.trim().toLowerCase().startsWith('wss:') ?? false;
   const trustedHostnames: readonly string[] = (() => {
     const names = [...(opts.allowedHostnames ?? [])];
     if (opts.publicWsUrl) {

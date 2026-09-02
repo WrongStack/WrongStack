@@ -61,7 +61,11 @@ describe('slash-command - edge coverage', () => {
   // ── Boolean flag parsing (--flag with no value) → line 241 ────────────────
   it('treats --flag without value as boolean true in parseArgs', async () => {
     orchestratorMocks.run.mockResolvedValue({
-      scanResult: { summary: { critical: 0, high: 0, medium: 0, low: 0, total: 0 }, scannedFiles: 0, scanDurationMs: 0 },
+      scanResult: {
+        summary: { critical: 0, high: 0, medium: 0, low: 0, total: 0 },
+        scannedFiles: 0,
+        scanDurationMs: 0,
+      },
       detectionResult: { detectedStacks: [] },
       synthesizedReport: 'x',
       reportPath: '',

@@ -87,9 +87,7 @@ describe('PlanPanel session isolation', () => {
           payload: {
             sessionId: 's2',
             plan: {
-              items: [
-                { id: 'p3', title: 'S2 Task in progress', status: 'in_progress' },
-              ],
+              items: [{ id: 'p3', title: 'S2 Task in progress', status: 'in_progress' }],
             },
           },
         });
@@ -111,9 +109,7 @@ describe('PlanPanel session isolation', () => {
           payload: {
             sessionId: 's1',
             plan: {
-              items: [
-                { id: 'p1', title: 'Task 1 in progress', status: 'in_progress' },
-              ],
+              items: [{ id: 'p1', title: 'Task 1 in progress', status: 'in_progress' }],
             },
           },
         });
@@ -142,9 +138,7 @@ describe('PlanPanel session isolation', () => {
           payload: {
             sessionId: 's1',
             plan: {
-              items: [
-                { id: 'p1', title: 'Task 1 in progress', status: 'in_progress' },
-              ],
+              items: [{ id: 'p1', title: 'Task 1 in progress', status: 'in_progress' }],
             },
           },
         });

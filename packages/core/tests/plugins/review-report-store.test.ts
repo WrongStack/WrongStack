@@ -13,20 +13,29 @@ import {
   InvalidReportTransitionError,
   validateReportTransition,
 } from '../../src/plugins/review-report-types.js';
-import { resolveChimeraConfig, type ChimeraReviewCompletePayload } from '../../src/plugins/chimera-plugin.js';
-import { persistReviewReport, syncReportCompletion, syncReportReopen } from '../../src/plugins/review-report-integration.js';
+import {
+  resolveChimeraConfig,
+  type ChimeraReviewCompletePayload,
+} from '../../src/plugins/chimera-plugin.js';
+import {
+  persistReviewReport,
+  syncReportCompletion,
+  syncReportReopen,
+} from '../../src/plugins/review-report-integration.js';
 import { executeFindingCommand } from '../../src/plugins/review-finding-commands.js';
 import { JsonlFindingStore } from '../../src/plugins/review-finding-store.js';
 import { integrateFindings } from '../../src/plugins/review-finding-integration.js';
 
 let dir: string;
 
-function makePayload(opts: {
-  reviewText?: string;
-  status?: string;
-  cascadeDepth?: number;
-  cascadeOn?: 'off' | 'critical' | 'high';
-} = {}): ChimeraReviewCompletePayload {
+function makePayload(
+  opts: {
+    reviewText?: string;
+    status?: string;
+    cascadeDepth?: number;
+    cascadeOn?: 'off' | 'critical' | 'high';
+  } = {},
+): ChimeraReviewCompletePayload {
   return {
     bundle: {
       config: resolveChimeraConfig({}, 'test-provider', 'test-model'),
@@ -77,11 +86,15 @@ describe('validateReportTransition', () => {
   });
 
   it('rejects completed → actioned', () => {
-    expect(() => validateReportTransition('completed', 'actioned')).toThrow(InvalidReportTransitionError);
+    expect(() => validateReportTransition('completed', 'actioned')).toThrow(
+      InvalidReportTransitionError,
+    );
   });
 
   it('rejects skipped → completed', () => {
-    expect(() => validateReportTransition('skipped', 'completed')).toThrow(InvalidReportTransitionError);
+    expect(() => validateReportTransition('skipped', 'completed')).toThrow(
+      InvalidReportTransitionError,
+    );
   });
 
   it('treats same-status as idempotent', () => {
@@ -240,13 +253,24 @@ describe('JsonlReportStore.transition', () => {
     const store = new JsonlReportStore(dir);
     await store.persist({
       id: 't1',
-      sessionId: 's', agentId: 'a', reviewerModel: 'm',
-      source: 'chimera', reviewStatus: 'success',
-      files: [], counts: { critical: 0, high: 0, medium: 0, low: 0 },
-      totalFindings: 0, unparseableCount: 0, rawText: '',
+      sessionId: 's',
+      agentId: 'a',
+      reviewerModel: 'm',
+      source: 'chimera',
+      reviewStatus: 'success',
+      files: [],
+      counts: { critical: 0, high: 0, medium: 0, low: 0 },
+      totalFindings: 0,
+      unparseableCount: 0,
+      rawText: '',
     });
 
-    const updated = await store.transition('t1', 'completed', { id: 'leader', kind: 'operator' }, { reason: 'All fixed' });
+    const updated = await store.transition(
+      't1',
+      'completed',
+      { id: 'leader', kind: 'operator' },
+      { reason: 'All fixed' },
+    );
     expect(updated.lifecycle).toBe('completed');
 
     const fetched = await store.get('t1');
@@ -264,10 +288,16 @@ describe('JsonlReportStore.transition', () => {
     const store = new JsonlReportStore(dir);
     await store.persist({
       id: 't2',
-      sessionId: 's', agentId: 'a', reviewerModel: 'm',
-      source: 'chimera', reviewStatus: 'success',
-      files: [], counts: { critical: 0, high: 0, medium: 0, low: 0 },
-      totalFindings: 0, unparseableCount: 0, rawText: '',
+      sessionId: 's',
+      agentId: 'a',
+      reviewerModel: 'm',
+      source: 'chimera',
+      reviewStatus: 'success',
+      files: [],
+      counts: { critical: 0, high: 0, medium: 0, low: 0 },
+      totalFindings: 0,
+      unparseableCount: 0,
+      rawText: '',
     });
     await store.transition('t2', 'completed', { id: 'op', kind: 'operator' });
 
@@ -280,13 +310,24 @@ describe('JsonlReportStore.transition', () => {
     const store = new JsonlReportStore(dir);
     await store.persist({
       id: 't3',
-      sessionId: 's', agentId: 'a', reviewerModel: 'm',
-      source: 'chimera', reviewStatus: 'success',
-      files: [], counts: { critical: 0, high: 0, medium: 0, low: 0 },
-      totalFindings: 0, unparseableCount: 0, rawText: '',
+      sessionId: 's',
+      agentId: 'a',
+      reviewerModel: 'm',
+      source: 'chimera',
+      reviewStatus: 'success',
+      files: [],
+      counts: { critical: 0, high: 0, medium: 0, low: 0 },
+      totalFindings: 0,
+      unparseableCount: 0,
+      rawText: '',
     });
     await store.transition('t3', 'completed', { id: 'op', kind: 'operator' });
-    const reopened = await store.transition('t3', 'open', { id: 'op', kind: 'operator' }, { reason: 'Resurfaced' });
+    const reopened = await store.transition(
+      't3',
+      'open',
+      { id: 'op', kind: 'operator' },
+      { reason: 'Resurfaced' },
+    );
     expect(reopened.lifecycle).toBe('open');
   });
 
@@ -305,10 +346,16 @@ describe('JsonlReportStore.addNote', () => {
     const store = new JsonlReportStore(dir);
     await store.persist({
       id: 'n1',
-      sessionId: 's', agentId: 'a', reviewerModel: 'm',
-      source: 'chimera', reviewStatus: 'success',
-      files: [], counts: { critical: 0, high: 0, medium: 0, low: 0 },
-      totalFindings: 0, unparseableCount: 0, rawText: '',
+      sessionId: 's',
+      agentId: 'a',
+      reviewerModel: 'm',
+      source: 'chimera',
+      reviewStatus: 'success',
+      files: [],
+      counts: { critical: 0, high: 0, medium: 0, low: 0 },
+      totalFindings: 0,
+      unparseableCount: 0,
+      rawText: '',
     });
 
     await store.addNote('n1', { id: 'leader', kind: 'operator' }, 'Reviewing tomorrow');
@@ -337,10 +384,17 @@ describe('JsonlReportStore.list', () => {
       ['l4', 'chimera', 'skipped'],
     ] as const) {
       await store.persist({
-        id, sessionId: 's', agentId: 'a', reviewerModel: 'm',
-        source, reviewStatus: 'success',
-        files: [], counts: { critical: 0, high: 0, medium: 0, low: 0 },
-        totalFindings: 0, unparseableCount: 0, rawText: '',
+        id,
+        sessionId: 's',
+        agentId: 'a',
+        reviewerModel: 'm',
+        source,
+        reviewStatus: 'success',
+        files: [],
+        counts: { critical: 0, high: 0, medium: 0, low: 0 },
+        totalFindings: 0,
+        unparseableCount: 0,
+        rawText: '',
       });
       if (lifecycle !== 'open') {
         await store.transition(id, lifecycle, { id: 'op', kind: 'operator' });
@@ -390,10 +444,16 @@ describe('JsonlReportStore.compact', () => {
     const store = new JsonlReportStore(dir);
     await store.persist({
       id: 'c1',
-      sessionId: 's', agentId: 'a', reviewerModel: 'm',
-      source: 'chimera', reviewStatus: 'success',
-      files: [], counts: { critical: 0, high: 0, medium: 0, low: 0 },
-      totalFindings: 0, unparseableCount: 0, rawText: '',
+      sessionId: 's',
+      agentId: 'a',
+      reviewerModel: 'm',
+      source: 'chimera',
+      reviewStatus: 'success',
+      files: [],
+      counts: { critical: 0, high: 0, medium: 0, low: 0 },
+      totalFindings: 0,
+      unparseableCount: 0,
+      rawText: '',
     });
     await store.transition('c1', 'completed', { id: 'op', kind: 'operator' });
 
@@ -409,10 +469,16 @@ describe('JsonlReportStore.compact', () => {
     const store = new JsonlReportStore(dir);
     await store.persist({
       id: 'c2',
-      sessionId: 's', agentId: 'a', reviewerModel: 'm',
-      source: 'chimera', reviewStatus: 'success',
-      files: [], counts: { critical: 0, high: 0, medium: 0, low: 0 },
-      totalFindings: 0, unparseableCount: 0, rawText: '',
+      sessionId: 's',
+      agentId: 'a',
+      reviewerModel: 'm',
+      source: 'chimera',
+      reviewStatus: 'success',
+      files: [],
+      counts: { critical: 0, high: 0, medium: 0, low: 0 },
+      totalFindings: 0,
+      unparseableCount: 0,
+      rawText: '',
     });
 
     const result = await store.compact({ maxAgeMs: 0 });
@@ -483,11 +549,7 @@ describe('persistReviewReport', () => {
   });
 
   it('classifies source as cascade when cascadeDepth > 0', async () => {
-    await persistReviewReport(
-      makePayload({ reviewText: '', cascadeDepth: 1 }),
-      'int-3',
-      dir,
-    );
+    await persistReviewReport(makePayload({ reviewText: '', cascadeDepth: 1 }), 'int-3', dir);
 
     const store = new JsonlReportStore(dir);
     const report = await store.get('int-3');
@@ -496,11 +558,7 @@ describe('persistReviewReport', () => {
   });
 
   it('classifies source as auto when cascadeOn is active', async () => {
-    await persistReviewReport(
-      makePayload({ reviewText: '', cascadeOn: 'high' }),
-      'int-4',
-      dir,
-    );
+    await persistReviewReport(makePayload({ reviewText: '', cascadeOn: 'high' }), 'int-4', dir);
 
     const store = new JsonlReportStore(dir);
     const report = await store.get('int-4');
@@ -543,10 +601,14 @@ describe('/review report commands', () => {
     const store = new JsonlReportStore(dir);
     await store.transition('cmd-1', 'completed', { id: 'op', kind: 'operator' });
 
-    const openOutput = await executeFindingCommand(['reports', '--status', 'open'], { projectDir: dir });
+    const openOutput = await executeFindingCommand(['reports', '--status', 'open'], {
+      projectDir: dir,
+    });
     expect(openOutput).toContain('No reports found');
 
-    const completedOutput = await executeFindingCommand(['reports', '--status', 'completed'], { projectDir: dir });
+    const completedOutput = await executeFindingCommand(['reports', '--status', 'completed'], {
+      projectDir: dir,
+    });
     expect(completedOutput).toContain('completed');
   });
 
@@ -599,11 +661,15 @@ describe('syncReportCompletion', () => {
     reportId: string,
     findings: { severity: string; file: string; line: number; title: string }[],
   ): Promise<void> {
-    const reportText = findings.length > 0
-      ? findings.map((f, i) =>
-          `${i === 0 ? `### ${f.severity.charAt(0).toUpperCase() + f.severity.slice(1)} (${findings.filter(x => x.severity === f.severity).length})\n` : ''}${i + 1}. ${f.file}:${f.line} — ${f.title}`,
-        ).join('\n')
-      : '';
+    const reportText =
+      findings.length > 0
+        ? findings
+            .map(
+              (f, i) =>
+                `${i === 0 ? `### ${f.severity.charAt(0).toUpperCase() + f.severity.slice(1)} (${findings.filter((x) => x.severity === f.severity).length})\n` : ''}${i + 1}. ${f.file}:${f.line} — ${f.title}`,
+            )
+            .join('\n')
+        : '';
 
     // Persist report first, then findings (matching chimera-plugin order).
     await persistReviewReport(makePayload({ reviewText: reportText }), reportId, dir);
@@ -622,7 +688,12 @@ describe('syncReportCompletion', () => {
 
     // Resolve both
     for (const f of findings) {
-      await findingStore.transition(f.id, 'resolved', { id: 'operator', kind: 'operator' }, { outcome: 'fixed' });
+      await findingStore.transition(
+        f.id,
+        'resolved',
+        { id: 'operator', kind: 'operator' },
+        { outcome: 'fixed' },
+      );
     }
 
     const result = await syncReportCompletion('auto-1', dir, { id: 'operator', kind: 'operator' });
@@ -646,7 +717,12 @@ describe('syncReportCompletion', () => {
     const findings = await findingStore.list({ reportId: 'auto-2', limit: 100 });
 
     // Resolve only the first two; leave the third open
-    await findingStore.transition(findings[0]!.id, 'resolved', { id: 'op', kind: 'operator' }, { outcome: 'fixed' });
+    await findingStore.transition(
+      findings[0]!.id,
+      'resolved',
+      { id: 'op', kind: 'operator' },
+      { outcome: 'fixed' },
+    );
     await findingStore.transition(findings[1]!.id, 'ignored', { id: 'op', kind: 'operator' });
 
     const result = await syncReportCompletion('auto-2', dir, { id: 'operator', kind: 'operator' });
@@ -668,7 +744,12 @@ describe('syncReportCompletion', () => {
     const findingStore = new JsonlFindingStore(dir);
     const findings = await findingStore.list({ reportId: 'auto-3', limit: 100 });
 
-    await findingStore.transition(findings[0]!.id, 'resolved', { id: 'op', kind: 'operator' }, { outcome: 'fixed' });
+    await findingStore.transition(
+      findings[0]!.id,
+      'resolved',
+      { id: 'op', kind: 'operator' },
+      { outcome: 'fixed' },
+    );
     await findingStore.transition(findings[1]!.id, 'ignored', { id: 'op', kind: 'operator' });
 
     const result = await syncReportCompletion('auto-3', dir, { id: 'operator', kind: 'operator' });
@@ -685,7 +766,12 @@ describe('syncReportCompletion', () => {
     const findings = await findingStore.list({ reportId: 'auto-4', limit: 100 });
 
     // Resolve → auto-complete
-    await findingStore.transition(findings[0]!.id, 'resolved', { id: 'op', kind: 'operator' }, { outcome: 'fixed' });
+    await findingStore.transition(
+      findings[0]!.id,
+      'resolved',
+      { id: 'op', kind: 'operator' },
+      { outcome: 'fixed' },
+    );
     await syncReportCompletion('auto-4', dir, { id: 'op', kind: 'operator' });
 
     const reportStore = new JsonlReportStore(dir);
@@ -697,7 +783,12 @@ describe('syncReportCompletion', () => {
     // syncReportCompletion doesn't auto-reopen (only auto-completes), but a reopened
     // report means the next completion check will find remaining > 0.
     // Verify the report can be manually reopened then re-completed.
-    await reportStore.transition('auto-4', 'open', { id: 'op', kind: 'operator' }, { reason: 'Finding reopened' });
+    await reportStore.transition(
+      'auto-4',
+      'open',
+      { id: 'op', kind: 'operator' },
+      { reason: 'Finding reopened' },
+    );
 
     const result = await syncReportCompletion('auto-4', dir, { id: 'op', kind: 'operator' });
     expect(result.completed).toBe(false);
@@ -708,7 +799,11 @@ describe('syncReportCompletion', () => {
   });
 
   it('auto-completes a successful all-clear report with zero findings', async () => {
-    await persistReviewReport(makePayload({ reviewText: '## 🦂 Chimera Review — all clear ✅\n\nNo issues found.' }), 'auto-5', dir);
+    await persistReviewReport(
+      makePayload({ reviewText: '## 🦂 Chimera Review — all clear ✅\n\nNo issues found.' }),
+      'auto-5',
+      dir,
+    );
 
     const result = await syncReportCompletion('auto-5', dir, { id: 'operator', kind: 'operator' });
     expect(result.completed).toBe(false);
@@ -720,7 +815,10 @@ describe('syncReportCompletion', () => {
   });
 
   it('returns not-found for unknown reportId', async () => {
-    const result = await syncReportCompletion('nonexistent', dir, { id: 'operator', kind: 'operator' });
+    const result = await syncReportCompletion('nonexistent', dir, {
+      id: 'operator',
+      kind: 'operator',
+    });
     expect(result.completed).toBe(false);
     expect(result.totalFindings).toBe(0);
   });
@@ -732,7 +830,12 @@ describe('syncReportCompletion', () => {
 
     const findingStore = new JsonlFindingStore(dir);
     const findings = await findingStore.list({ reportId: 'auto-7', limit: 100 });
-    await findingStore.transition(findings[0]!.id, 'resolved', { id: 'op', kind: 'operator' }, { outcome: 'fixed' });
+    await findingStore.transition(
+      findings[0]!.id,
+      'resolved',
+      { id: 'op', kind: 'operator' },
+      { outcome: 'fixed' },
+    );
 
     // First call completes it
     await syncReportCompletion('auto-7', dir, { id: 'op', kind: 'operator' });
@@ -746,10 +849,7 @@ describe('syncReportCompletion', () => {
 
 describe('/review finding <id> resolve|ignore with auto-completion', () => {
   it('auto-completes report when last finding is resolved via command', async () => {
-    const text = [
-      '### Critical (1)',
-      '1. [BUG] src/app.ts:42 — Null dereference',
-    ].join('\n');
+    const text = ['### Critical (1)', '1. [BUG] src/app.ts:42 — Null dereference'].join('\n');
 
     await persistReviewReport(makePayload({ reviewText: text }), 'cmd-auto-1', dir);
     await integrateFindings(makePayload({ reviewText: text }), dir, 'cmd-auto-1');
@@ -758,10 +858,9 @@ describe('/review finding <id> resolve|ignore with auto-completion', () => {
     const findings = await findingStore.list({ reportId: 'cmd-auto-1', limit: 100 });
     expect(findings).toHaveLength(1);
 
-    const output = await executeFindingCommand(
-      ['finding', findings[0]!.id, 'resolve'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['finding', findings[0]!.id, 'resolve'], {
+      projectDir: dir,
+    });
 
     expect(output).toContain('marked as **resolved**');
     expect(output).toContain('auto-completed');
@@ -785,10 +884,9 @@ describe('/review finding <id> resolve|ignore with auto-completion', () => {
     expect(findings).toHaveLength(2);
 
     // Resolve only the first — report should stay open
-    const output = await executeFindingCommand(
-      ['finding', findings[0]!.id, 'resolve'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['finding', findings[0]!.id, 'resolve'], {
+      projectDir: dir,
+    });
 
     expect(output).toContain('marked as **resolved**');
     expect(output).toContain('still open');
@@ -799,10 +897,9 @@ describe('/review finding <id> resolve|ignore with auto-completion', () => {
   });
 
   it('handles finding not found gracefully', async () => {
-    const output = await executeFindingCommand(
-      ['finding', 'nonexistent-id', 'resolve'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['finding', 'nonexistent-id', 'resolve'], {
+      projectDir: dir,
+    });
     expect(output).toContain('Finding not found');
   });
 });
@@ -815,11 +912,15 @@ describe('syncReportReopen', () => {
     reportId: string,
     findings: { severity: string; file: string; line: number; title: string }[],
   ): Promise<void> {
-    const reportText = findings.length > 0
-      ? findings.map((f, i) =>
-          `${i === 0 ? `### ${f.severity.charAt(0).toUpperCase() + f.severity.slice(1)} (${findings.filter(x => x.severity === f.severity).length})\n` : ''}${i + 1}. ${f.file}:${f.line} — ${f.title}`,
-        ).join('\n')
-      : '';
+    const reportText =
+      findings.length > 0
+        ? findings
+            .map(
+              (f, i) =>
+                `${i === 0 ? `### ${f.severity.charAt(0).toUpperCase() + f.severity.slice(1)} (${findings.filter((x) => x.severity === f.severity).length})\n` : ''}${i + 1}. ${f.file}:${f.line} — ${f.title}`,
+            )
+            .join('\n')
+        : '';
 
     await persistReviewReport(makePayload({ reviewText: reportText }), reportId, dir);
     await integrateFindings(makePayload({ reviewText: reportText }), dir, reportId);
@@ -835,7 +936,12 @@ describe('syncReportReopen', () => {
     const findings = await findingStore.list({ reportId: 'reopen-1', limit: 100 });
 
     // Resolve → auto-complete
-    await findingStore.transition(findings[0]!.id, 'resolved', { id: 'op', kind: 'operator' }, { outcome: 'fixed' });
+    await findingStore.transition(
+      findings[0]!.id,
+      'resolved',
+      { id: 'op', kind: 'operator' },
+      { outcome: 'fixed' },
+    );
     await syncReportCompletion('reopen-1', dir, { id: 'op', kind: 'operator' });
     expect((await reportStore.get('reopen-1'))!.lifecycle).toBe('completed');
 
@@ -858,7 +964,12 @@ describe('syncReportReopen', () => {
     const reportStore = new JsonlReportStore(dir);
 
     // Skip the report directly from open (don't resolve findings first)
-    await reportStore.transition('reopen-2', 'skipped', { id: 'op', kind: 'operator' }, { reason: 'deferred' });
+    await reportStore.transition(
+      'reopen-2',
+      'skipped',
+      { id: 'op', kind: 'operator' },
+      { reason: 'deferred' },
+    );
 
     // Reopen the finding (it was never resolved, so this tests the reopen
     // on a finding that's already active — the key is the report was skipped)
@@ -919,10 +1030,7 @@ describe('syncReportReopen', () => {
 
 describe('/review finding <id> reopen with auto-reopen', () => {
   it('auto-reopens completed report when finding is reopened via command', async () => {
-    const text = [
-      '### Critical (1)',
-      '1. [BUG] src/app.ts:42 — Null dereference',
-    ].join('\n');
+    const text = ['### Critical (1)', '1. [BUG] src/app.ts:42 — Null dereference'].join('\n');
 
     await persistReviewReport(makePayload({ reviewText: text }), 'cmd-reopen-1', dir);
     await integrateFindings(makePayload({ reviewText: text }), dir, 'cmd-reopen-1');
@@ -932,18 +1040,16 @@ describe('/review finding <id> reopen with auto-reopen', () => {
     const findings = await findingStore.list({ reportId: 'cmd-reopen-1', limit: 100 });
 
     // Resolve → auto-complete
-    const resolveOutput = await executeFindingCommand(
-      ['finding', findings[0]!.id, 'resolve'],
-      { projectDir: dir },
-    );
+    const resolveOutput = await executeFindingCommand(['finding', findings[0]!.id, 'resolve'], {
+      projectDir: dir,
+    });
     expect(resolveOutput).toContain('auto-completed');
     expect((await reportStore.get('cmd-reopen-1'))!.lifecycle).toBe('completed');
 
     // Now reopen via command
-    const reopenOutput = await executeFindingCommand(
-      ['finding', findings[0]!.id, 'reopen'],
-      { projectDir: dir },
-    );
+    const reopenOutput = await executeFindingCommand(['finding', findings[0]!.id, 'reopen'], {
+      projectDir: dir,
+    });
 
     expect(reopenOutput).toContain('reopened as **active**');
     expect(reopenOutput).toContain('auto-reopened');
@@ -954,10 +1060,7 @@ describe('/review finding <id> reopen with auto-reopen', () => {
   });
 
   it('reopen on already-open report shows no auto-reopen message', async () => {
-    const text = [
-      '### Critical (1)',
-      '1. [BUG] src/app.ts:42 — Null dereference',
-    ].join('\n');
+    const text = ['### Critical (1)', '1. [BUG] src/app.ts:42 — Null dereference'].join('\n');
 
     await persistReviewReport(makePayload({ reviewText: text }), 'cmd-reopen-2', dir);
     await integrateFindings(makePayload({ reviewText: text }), dir, 'cmd-reopen-2');
@@ -966,20 +1069,16 @@ describe('/review finding <id> reopen with auto-reopen', () => {
     const findings = await findingStore.list({ reportId: 'cmd-reopen-2', limit: 100 });
 
     // Report starts as open — reopening finding should not show auto-reopen
-    const output = await executeFindingCommand(
-      ['finding', findings[0]!.id, 'reopen'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['finding', findings[0]!.id, 'reopen'], {
+      projectDir: dir,
+    });
 
     expect(output).toContain('reopened as **active**');
     expect(output).not.toContain('auto-reopened');
   });
 
   it('rejects --outcome on reopen', async () => {
-    const text = [
-      '### Critical (1)',
-      '1. [BUG] src/app.ts:42 — Null dereference',
-    ].join('\n');
+    const text = ['### Critical (1)', '1. [BUG] src/app.ts:42 — Null dereference'].join('\n');
 
     await persistReviewReport(makePayload({ reviewText: text }), 'cmd-reopen-3', dir);
     await integrateFindings(makePayload({ reviewText: text }), dir, 'cmd-reopen-3');
@@ -1001,15 +1100,18 @@ describe('/review finding <id> reopen with auto-reopen', () => {
 describe('/review report <id> complete|skip|action', () => {
   beforeEach(async () => {
     // Create a couple of reports for the tests.
-    await persistReviewReport(makePayload({ reviewText: '### High (1)\n1. src/a.ts:1 — Bug' }), 'rpt-1', dir);
+    await persistReviewReport(
+      makePayload({ reviewText: '### High (1)\n1. src/a.ts:1 — Bug' }),
+      'rpt-1',
+      dir,
+    );
     await persistReviewReport(makePayload({ reviewText: '', status: 'failed' }), 'rpt-2', dir);
   });
 
   it('completes an open report', async () => {
-    const output = await executeFindingCommand(
-      ['report', 'rpt-1', 'complete'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'rpt-1', 'complete'], {
+      projectDir: dir,
+    });
     expect(output).toContain('completed');
 
     const store = new JsonlReportStore(dir);
@@ -1018,10 +1120,7 @@ describe('/review report <id> complete|skip|action', () => {
   });
 
   it('skips an open report', async () => {
-    const output = await executeFindingCommand(
-      ['report', 'rpt-1', 'skip'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'rpt-1', 'skip'], { projectDir: dir });
     expect(output).toContain('skipped');
 
     const store = new JsonlReportStore(dir);
@@ -1030,10 +1129,7 @@ describe('/review report <id> complete|skip|action', () => {
   });
 
   it('actions an open report', async () => {
-    const output = await executeFindingCommand(
-      ['report', 'rpt-1', 'action'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'rpt-1', 'action'], { projectDir: dir });
     expect(output).toContain('actioned');
 
     const store = new JsonlReportStore(dir);
@@ -1058,10 +1154,9 @@ describe('/review report <id> complete|skip|action', () => {
     const store = new JsonlReportStore(dir);
     await store.transition('rpt-1', 'actioned', { id: 'op', kind: 'operator' });
 
-    const output = await executeFindingCommand(
-      ['report', 'rpt-1', 'complete'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'rpt-1', 'complete'], {
+      projectDir: dir,
+    });
     expect(output).toContain('completed');
     expect((await store.get('rpt-1'))!.lifecycle).toBe('completed');
   });
@@ -1071,26 +1166,21 @@ describe('/review report <id> complete|skip|action', () => {
     await store.transition('rpt-1', 'completed', { id: 'op', kind: 'operator' });
 
     // completed → actioned is not allowed
-    const output = await executeFindingCommand(
-      ['report', 'rpt-1', 'action'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'rpt-1', 'action'], { projectDir: dir });
     expect(output).toContain('Could not transition');
   });
 
   it('returns not-found for unknown report ID', async () => {
-    const output = await executeFindingCommand(
-      ['report', 'nonexistent-id', 'complete'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'nonexistent-id', 'complete'], {
+      projectDir: dir,
+    });
     expect(output).toContain('Report not found');
   });
 
   it('resolves short-ID prefix', async () => {
-    const output = await executeFindingCommand(
-      ['report', 'rpt-1', 'complete'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'rpt-1', 'complete'], {
+      projectDir: dir,
+    });
     expect(output).toContain('completed');
     expect(output).toContain('rpt-1');
   });
@@ -1114,10 +1204,9 @@ describe('/review finding <id> triage', () => {
     const findingStore = new JsonlFindingStore(dir);
     const findings = await findingStore.list({ reportId: 'tri-1', limit: 100 });
 
-    const output = await executeFindingCommand(
-      ['finding', findings[0]!.id, 'triage'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['finding', findings[0]!.id, 'triage'], {
+      projectDir: dir,
+    });
 
     expect(output).toContain('triaged');
 
@@ -1169,10 +1258,9 @@ describe('/review finding <id> triage', () => {
     const reportStore = new JsonlReportStore(dir);
     const findings = await findingStore.list({ reportId: 'tri-4', limit: 100 });
 
-    const output = await executeFindingCommand(
-      ['finding', findings[0]!.id, 'triage'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['finding', findings[0]!.id, 'triage'], {
+      projectDir: dir,
+    });
 
     expect(output).not.toContain('auto-completed');
     expect((await reportStore.get('tri-4'))!.lifecycle).toBe('open');
@@ -1252,10 +1340,9 @@ describe('/review finding <id> start', () => {
     // Triage first, then start
     await findingStore.transition(findings[0]!.id, 'triaged', { id: 'operator', kind: 'operator' });
 
-    const output = await executeFindingCommand(
-      ['finding', findings[0]!.id, 'start'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['finding', findings[0]!.id, 'start'], {
+      projectDir: dir,
+    });
 
     expect(output).toContain('in_progress');
 
@@ -1311,10 +1398,9 @@ describe('/review finding <id> start', () => {
 
     await findingStore.transition(findings[0]!.id, 'triaged', { id: 'operator', kind: 'operator' });
 
-    const output = await executeFindingCommand(
-      ['finding', findings[0]!.id, 'start'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['finding', findings[0]!.id, 'start'], {
+      projectDir: dir,
+    });
 
     expect(output).not.toContain('auto-completed');
     expect((await reportStore.get('start-4'))!.lifecycle).toBe('open');
@@ -1353,7 +1439,11 @@ describe('/review finding <id> start', () => {
 
 describe('/review report <id> note', () => {
   beforeEach(async () => {
-    await persistReviewReport(makePayload({ reviewText: '### High (1)\n1. src/a.ts:1 — Bug' }), 'note-1', dir);
+    await persistReviewReport(
+      makePayload({ reviewText: '### High (1)\n1. src/a.ts:1 — Bug' }),
+      'note-1',
+      dir,
+    );
   });
 
   it('adds a note without changing lifecycle status', async () => {
@@ -1389,18 +1479,14 @@ describe('/review report <id> note', () => {
   });
 
   it('returns usage message for empty note', async () => {
-    const output = await executeFindingCommand(
-      ['report', 'note-1', 'note'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'note-1', 'note'], { projectDir: dir });
     expect(output).toContain('Usage: /review report <id> note');
   });
 
   it('returns usage message for whitespace-only note', async () => {
-    const output = await executeFindingCommand(
-      ['report', 'note-1', 'note', '   '],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'note-1', 'note', '   '], {
+      projectDir: dir,
+    });
     expect(output).toContain('Usage: /review report <id> note');
   });
 
@@ -1413,15 +1499,11 @@ describe('/review report <id> note', () => {
   });
 
   it('note shows in /review report <id> lifecycle events', async () => {
-    await executeFindingCommand(
-      ['report', 'note-1', 'note', 'Deferred to next release'],
-      { projectDir: dir },
-    );
+    await executeFindingCommand(['report', 'note-1', 'note', 'Deferred to next release'], {
+      projectDir: dir,
+    });
 
-    const output = await executeFindingCommand(
-      ['report', 'note-1'],
-      { projectDir: dir },
-    );
+    const output = await executeFindingCommand(['report', 'note-1'], { projectDir: dir });
     expect(output).toContain('note_added');
     expect(output).toContain('Deferred to next release');
   });

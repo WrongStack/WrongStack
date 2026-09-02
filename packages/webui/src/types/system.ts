@@ -32,20 +32,18 @@ export interface WSStatsGet {
       cacheRead?: number | undefined;
       cacheWrite?: number | undefined;
     };
-    cache:
-      | {
-          readTokens: number;
-          writeTokens: number;
-          hitRatio: number;
-          providers?: Array<{
-            provider: string;
-            input: number;
-            cacheRead: number;
-            cacheWrite: number;
-            hitRatio: number;
-          }>;
-        }
-      | null;
+    cache: {
+      readTokens: number;
+      writeTokens: number;
+      hitRatio: number;
+      providers?: Array<{
+        provider: string;
+        input: number;
+        cacheRead: number;
+        cacheWrite: number;
+        hitRatio: number;
+      }>;
+    } | null;
     currentRequest?: { input: number; cacheRead: number; cacheWrite: number } | undefined;
     cost: number;
     messages: number;
@@ -115,7 +113,9 @@ export interface WSSessionInspect {
     compactionCount?: number | undefined;
     toolBreakdown?: Record<string, number> | undefined;
     events?: Array<{ ts: string; type: string; label: string; detail: string }> | undefined;
-    fileEvents?: Array<{ operation: string; filePath: string; toolName: string; ts: string }> | undefined;
+    fileEvents?:
+      | Array<{ operation: string; filePath: string; toolName: string; ts: string }>
+      | undefined;
     lastUserMessage?: string | undefined;
     error?: string | undefined;
   };
@@ -193,19 +193,21 @@ export interface WSSavedProviders {
             {
               name?: string | undefined;
               maxOutput?: number | undefined;
-              capabilities?: Partial<{
-                tools: boolean;
-                parallelTools: boolean;
-                vision: boolean;
-                streaming: boolean;
-                promptCache: boolean;
-                systemPrompt: boolean;
-                jsonMode: boolean;
-                reasoning: boolean;
-                maxContext: number;
-                maxOutput: number;
-                cacheControl: string;
-              }> | undefined;
+              capabilities?:
+                | Partial<{
+                    tools: boolean;
+                    parallelTools: boolean;
+                    vision: boolean;
+                    streaming: boolean;
+                    promptCache: boolean;
+                    systemPrompt: boolean;
+                    jsonMode: boolean;
+                    reasoning: boolean;
+                    maxContext: number;
+                    maxOutput: number;
+                    cacheControl: string;
+                  }>
+                | undefined;
               modelsDev?: Record<string, unknown> | undefined;
             }
           >
@@ -362,16 +364,16 @@ export interface WSCompletionResult {
 export interface WSTodosUpdated {
   type: 'todos.updated';
   payload: SessionScopedPayload & {
-      todos: Array<{
-        id: string;
-        content: string;
-        status: 'pending' | 'in_progress' | 'completed';
-        activeForm?: string | undefined;
-        /** Board-derived titles of the unfinished work this row waits on. */
-        blockedBy?: string[] | undefined;
-        kanbanBoardId?: string | undefined;
-        kanbanTaskId?: string | undefined;
-      }>;
+    todos: Array<{
+      id: string;
+      content: string;
+      status: 'pending' | 'in_progress' | 'completed';
+      activeForm?: string | undefined;
+      /** Board-derived titles of the unfinished work this row waits on. */
+      blockedBy?: string[] | undefined;
+      kanbanBoardId?: string | undefined;
+      kanbanTaskId?: string | undefined;
+    }>;
   };
 }
 

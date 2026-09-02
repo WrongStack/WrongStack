@@ -466,4 +466,3 @@ describe('search cache, dedup, and ranking', () => {
     expect(resultWithSignal.results.length).toBeGreaterThan(0);
   });
 });
-

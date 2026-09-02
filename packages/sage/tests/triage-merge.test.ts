@@ -129,7 +129,7 @@ describe('merge detection — verdict parsing', () => {
 
     expect(result.merges).toHaveLength(1);
     expect(result.merges[0]!.supersededId).toBe('a'); // older gets superseded
-    expect(result.merges[0]!.keeperId).toBe('b');     // newer survives
+    expect(result.merges[0]!.keeperId).toBe('b'); // newer survives
   });
 
   it('OVERLAP → proposal', async () => {
@@ -386,18 +386,34 @@ describe('merge detection — quality-based keeper selection', () => {
 
 describe('merge detection — summary', () => {
   it('summary reflects actual counts', async () => {
-    const m1 = makeMem('id_m1', 'Session timeout is exactly 30 minutes', { anchors: [{ type: 'file', path: 'src/x.ts' }], createdAt: '2026-01-01T00:00:00.000Z' });
-    const m2 = makeMem('id_m2', 'Session timeout is set to 30 minutes', { anchors: [{ type: 'file', path: 'src/x.ts' }], createdAt: '2026-06-01T00:00:00.000Z' });
-    const m3 = makeMem('id_m3', 'JWT refresh window and token lifecycle', { anchors: [{ type: 'file', path: 'src/x.ts' }] });
-    const m4 = makeMem('id_m4', 'Completely unrelated configuration flag', { anchors: [{ type: 'file', path: 'src/x.ts' }] });
+    const m1 = makeMem('id_m1', 'Session timeout is exactly 30 minutes', {
+      anchors: [{ type: 'file', path: 'src/x.ts' }],
+      createdAt: '2026-01-01T00:00:00.000Z',
+    });
+    const m2 = makeMem('id_m2', 'Session timeout is set to 30 minutes', {
+      anchors: [{ type: 'file', path: 'src/x.ts' }],
+      createdAt: '2026-06-01T00:00:00.000Z',
+    });
+    const m3 = makeMem('id_m3', 'JWT refresh window and token lifecycle', {
+      anchors: [{ type: 'file', path: 'src/x.ts' }],
+    });
+    const m4 = makeMem('id_m4', 'Completely unrelated configuration flag', {
+      anchors: [{ type: 'file', path: 'src/x.ts' }],
+    });
 
     let callIdx = 0;
     const mockLlm: LlmCallFn = async (_sys, _prompt) => {
       // First call: m1↔m2 → YES
       // Second call: m1↔m3 → OVERLAP
       // Remaining calls: NO
-      if (callIdx === 0) { callIdx++; return 'YES'; }
-      if (callIdx === 1) { callIdx++; return 'OVERLAP'; }
+      if (callIdx === 0) {
+        callIdx++;
+        return 'YES';
+      }
+      if (callIdx === 1) {
+        callIdx++;
+        return 'OVERLAP';
+      }
       callIdx++;
       return 'NO';
     };

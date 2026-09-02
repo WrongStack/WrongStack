@@ -14,7 +14,12 @@ export { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib
 
 // File mention — @file picker protocol
 export type { FileMention } from './lib/file-mention.js';
-export { composePromptWithFileReferences, detectFileMention, fileBasename, removeFileMention } from './lib/file-mention.js';
+export {
+  composePromptWithFileReferences,
+  detectFileMention,
+  fileBasename,
+  removeFileMention,
+} from './lib/file-mention.js';
 
 // Message projection — next-steps parsing
 export type { AssistantMessageProjection } from './lib/message-projection.js';
@@ -22,7 +27,11 @@ export { projectAssistantMessage } from './lib/message-projection.js';
 
 // Session model — summaries & display names
 export type { SimpleSessionSummary } from './types.js';
-export { parseSessionSummaries, relativeSessionTime, sessionDisplayName } from './lib/session-model.js';
+export {
+  parseSessionSummaries,
+  relativeSessionTime,
+  sessionDisplayName,
+} from './lib/session-model.js';
 
 // Status notices — transient composer bar messages
 export type { StatusNoticeProjection } from './lib/status-notice.js';
@@ -32,13 +41,31 @@ export { projectStatusNotice } from './lib/status-notice.js';
 export { ErrorBoundary } from './error-boundary.js';
 
 // Correlated socket requests — request/reply over the shared WebSocket
-export type { ServerFrame, SocketRequestConfig, SocketRequestHandle } from './lib/socket-request.js';
+export type {
+  ServerFrame,
+  SocketRequestConfig,
+  SocketRequestHandle,
+} from './lib/socket-request.js';
 export { socketRequest } from './lib/socket-request.js';
 
 // Versioned localStorage persistence with quota reporting
-export type { PersistedStorage, PersistedWriteFailureReason, PersistedWriteFailureListener } from './lib/persisted.js';
-export { onPersistedWriteFailure, readPersisted, removePersisted, writePersisted } from './lib/persisted.js';
+export type {
+  PersistedStorage,
+  PersistedWriteFailureReason,
+  PersistedWriteFailureListener,
+} from './lib/persisted.js';
+export {
+  onPersistedWriteFailure,
+  readPersisted,
+  removePersisted,
+  writePersisted,
+} from './lib/persisted.js';
 
 // Typed panel open/close events
 export type { SimplePanelEvent, WorkspacePanelView } from './lib/panel-events.js';
-export { dispatchOpenWorkspacePanel, dispatchSimplePanel, onOpenWorkspacePanel, onSimplePanel } from './lib/panel-events.js';
+export {
+  dispatchOpenWorkspacePanel,
+  dispatchSimplePanel,
+  onOpenWorkspacePanel,
+  onSimplePanel,
+} from './lib/panel-events.js';

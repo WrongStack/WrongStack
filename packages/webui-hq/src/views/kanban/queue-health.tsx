@@ -2,7 +2,14 @@
  * Queue health strip. Only the buckets that are non-zero are rendered, so the
  * row reads as "what is true right now" rather than a table of mostly zeroes.
  */
-import { Activity, CircleCheck, CirclePause, CirclePlay, Clock3, TriangleAlert } from 'lucide-react';
+import {
+  Activity,
+  CircleCheck,
+  CirclePause,
+  CirclePlay,
+  Clock3,
+  TriangleAlert,
+} from 'lucide-react';
 import type * as React from 'react';
 import { Badge, type BadgeTone } from '../../components/ui/badge.js';
 import type { HqKanbanBoardView } from '../../domain/kanban-model.js';
@@ -11,14 +18,43 @@ import { computeQueueCounts, isQueueHealthy } from '../../domain/kanban-queue-he
 export function KanbanQueueHealth({ board }: { board: HqKanbanBoardView }): React.ReactElement {
   const counts = computeQueueCounts(board);
 
-  const buckets: { key: string; count: number; tone: BadgeTone; icon: typeof Activity; title: string }[] =
-    [
-      { key: 'ready', count: counts.startable, tone: 'info', icon: CirclePlay, title: 'Claimable tasks' },
-      { key: 'running', count: counts.running, tone: 'running', icon: Activity, title: 'Running assignments' },
-      { key: 'review', count: counts.review, tone: 'warn', icon: Clock3, title: 'In review' },
-      { key: 'blocked', count: counts.blocked, tone: 'warn', icon: CirclePause, title: 'Manually blocked' },
-      { key: 'failed', count: counts.failed, tone: 'error', icon: TriangleAlert, title: 'Failed tasks' },
-    ];
+  const buckets: {
+    key: string;
+    count: number;
+    tone: BadgeTone;
+    icon: typeof Activity;
+    title: string;
+  }[] = [
+    {
+      key: 'ready',
+      count: counts.startable,
+      tone: 'info',
+      icon: CirclePlay,
+      title: 'Claimable tasks',
+    },
+    {
+      key: 'running',
+      count: counts.running,
+      tone: 'running',
+      icon: Activity,
+      title: 'Running assignments',
+    },
+    { key: 'review', count: counts.review, tone: 'warn', icon: Clock3, title: 'In review' },
+    {
+      key: 'blocked',
+      count: counts.blocked,
+      tone: 'warn',
+      icon: CirclePause,
+      title: 'Manually blocked',
+    },
+    {
+      key: 'failed',
+      count: counts.failed,
+      tone: 'error',
+      icon: TriangleAlert,
+      title: 'Failed tasks',
+    },
+  ];
 
   return (
     <div

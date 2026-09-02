@@ -5,11 +5,7 @@
   "description": "Rank competing work by value and cost transparently.",
   "content": "Help me prioritize these items: {{items}}\n\nGiven my goal: {{goal}}\n\nFor each, estimate value (impact on the goal) and cost (effort/risk), then rank them. Surface dependencies and any quick wins. Be explicit about the trade-off you're making and what you're deprioritizing. Recommend what to do next sprint and what to consciously NOT do.",
   "category": "product",
-  "tags": [
-    "prioritization",
-    "backlog",
-    "roadmap"
-  ],
+  "tags": ["prioritization", "backlog", "roadmap"],
   "source": "builtin",
   "favorite": false,
   "checksum": "7f488935f8eb734f2cfbd6a2fea413adabe09e830b1839f26b74b6af550980ce",

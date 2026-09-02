@@ -223,9 +223,7 @@ function buildTagClusters(memories: Sage[]): MemoryCluster[] {
         seen.add(key);
 
         // Find all other memories sharing these same tags
-        const members = memories.filter((m) =>
-          shared.every((t) => m.tags.includes(t)),
-        );
+        const members = memories.filter((m) => shared.every((t) => m.tags.includes(t)));
         if (members.length >= 2 && members.length <= MAX_CLUSTER_SIZE) {
           clusters.push({
             key,
@@ -271,10 +269,7 @@ const MERGE_SYSTEM_PROMPT =
   'Do these two project memories describe the same fact? Reply: YES | NO | OVERLAP. OVERLAP means related but distinct — do not merge.';
 
 function buildMergePrompt(a: Sage, b: Sage): string {
-  return [
-    `A: "${truncate(a.text, 250)}"`,
-    `B: "${truncate(b.text, 250)}"`,
-  ].join('\n');
+  return [`A: "${truncate(a.text, 250)}"`, `B: "${truncate(b.text, 250)}"`].join('\n');
 }
 
 async function evaluateMergePairs(

@@ -256,7 +256,11 @@ async function verifyCommandAnchor(
   }
   const found = await commandExists(projectRoot, executable, signal);
   if (found) {
-    return { anchor, status: 'verified', reason: `Command executable "${executable}" is available.` };
+    return {
+      anchor,
+      status: 'verified',
+      reason: `Command executable "${executable}" is available.`,
+    };
   }
   if (resolved.skippedFlag) {
     // An UNKNOWN flag was skipped during resolution, so `executable` may be
@@ -276,7 +280,11 @@ async function verifyCommandAnchor(
       reason: `Command "${executable}" is not installed; "${resolved.wrapper}" installs it on demand, so absence is not staleness.`,
     };
   }
-  return { anchor, status: 'stale', reason: `Command executable "${executable}" was not found on PATH.` };
+  return {
+    anchor,
+    status: 'stale',
+    reason: `Command executable "${executable}" was not found on PATH.`,
+  };
 }
 
 /**
@@ -359,15 +367,16 @@ function isShellBuiltin(executable: string): boolean {
   return SHELL_BUILTINS.has(key);
 }
 
-function isExecutableFile(
-  stat: { isFile(): boolean; mode: number },
-  isWin32: boolean,
-): boolean {
+function isExecutableFile(stat: { isFile(): boolean; mode: number }, isWin32: boolean): boolean {
   // Existence is not executability: on POSIX require the execute bit.
   return stat.isFile() && (isWin32 || (stat.mode & 0o111) !== 0);
 }
 
-async function commandExists(projectRoot: string, executable: string, signal?: AbortSignal): Promise<boolean> {
+async function commandExists(
+  projectRoot: string,
+  executable: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
   signal?.throwIfAborted();
   const isWin32 = process.platform === 'win32';
   if (executable.includes('/') || executable.includes('\\')) {

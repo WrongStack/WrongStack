@@ -1,7 +1,11 @@
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { MailboxPanel, type MailboxMessageEntry, type MailboxAgentEntry } from '../src/components/mailbox-panel.js';
+import {
+  MailboxPanel,
+  type MailboxMessageEntry,
+  type MailboxAgentEntry,
+} from '../src/components/mailbox-panel.js';
 
 function msg(overrides: Partial<MailboxMessageEntry> = {}): MailboxMessageEntry {
   return {

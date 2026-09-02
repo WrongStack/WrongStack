@@ -2,10 +2,7 @@
  * Unit tests for the navigation policy used by the production WebUI controller.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  allowedExternalProtocol,
-  sameOrigin,
-} from '../src/main/webui/navigation.js';
+import { allowedExternalProtocol, sameOrigin } from '../src/main/webui/navigation.js';
 import { OPEN_EXTERNAL_ALLOWED_PROTOCOLS } from '../src/main/state/constants.js';
 
 // ============================================================================

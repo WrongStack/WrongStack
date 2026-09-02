@@ -140,14 +140,9 @@
 .signal-line {
   height: 2px;
   background:
-    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent) -30% 0 / 22%
-      100% no-repeat,
-    linear-gradient(
-      90deg,
-      var(--color-brand) 0 16%,
-      var(--color-brand-2) 16% 21%,
-      transparent 21%
-    );
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent) -30% 0 / 22% 100%
+    no-repeat,
+    linear-gradient(90deg, var(--color-brand) 0 16%, var(--color-brand-2) 16% 21%, transparent 21%);
   animation: signal-sweep 9s ease-in-out infinite;
 }
 

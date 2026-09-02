@@ -23,7 +23,16 @@ function task(id = 't1', overrides: Record<string, unknown> = {}) {
 }
 
 function summary(id = 'b1', overrides: Record<string, unknown> = {}) {
-  return { id, title: `Board ${id}`, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', columnCount: 1, taskCount: 0, completedTaskCount: 0, ...overrides };
+  return {
+    id,
+    title: `Board ${id}`,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    columnCount: 1,
+    taskCount: 0,
+    completedTaskCount: 0,
+    ...overrides,
+  };
 }
 
 function result(type: string, data: unknown, success = true) {

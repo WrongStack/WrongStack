@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createToolOutputSerializer, truncateForEvent, sizeSignals } from '../../src/utils/tool-output-serializer.js';
+import {
+  createToolOutputSerializer,
+  truncateForEvent,
+  sizeSignals,
+} from '../../src/utils/tool-output-serializer.js';
 import { expandGlob } from '../../src/utils/glob-expand.js';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -44,16 +48,26 @@ describe('createToolOutputSerializer', () => {
 
   it('falls back when tool.serialize throws', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ x: 1 }, {
-      tool: { serialize: () => { throw new Error('boom'); } },
-      toolName: 'read',
-    });
+    const result = s.serialize(
+      { x: 1 },
+      {
+        tool: {
+          serialize: () => {
+            throw new Error('boom');
+          },
+        },
+        toolName: 'read',
+      },
+    );
     expect(result).toBeDefined();
   });
 
   it('renders read tool output with header', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ text: 'file content', total_lines: 5 }, { toolName: 'read', input: { path: '/a.ts' } });
+    const result = s.serialize(
+      { text: 'file content', total_lines: 5 },
+      { toolName: 'read', input: { path: '/a.ts' } },
+    );
     expect(result).toContain('read: /a.ts');
     expect(result).toContain('total_lines=5');
     expect(result).toContain('file content');
@@ -61,14 +75,20 @@ describe('createToolOutputSerializer', () => {
 
   it('renders grep tool output', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ matches: ['file.ts:10:match'], count: 1 }, { toolName: 'grep', input: { pattern: 'foo', output_mode: 'content' } });
+    const result = s.serialize(
+      { matches: ['file.ts:10:match'], count: 1 },
+      { toolName: 'grep', input: { pattern: 'foo', output_mode: 'content' } },
+    );
     expect(result).toContain('grep: foo');
     expect(result).toContain('file.ts');
   });
 
   it('renders glob tool output with file list', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ files: ['a.ts', 'b.ts'] }, { toolName: 'glob', input: { pattern: '*.ts' } });
+    const result = s.serialize(
+      { files: ['a.ts', 'b.ts'] },
+      { toolName: 'glob', input: { pattern: '*.ts' } },
+    );
     expect(result).toContain('glob: *.ts');
     expect(result).toContain('a.ts');
     expect(result).toContain('b.ts');
@@ -83,59 +103,83 @@ describe('createToolOutputSerializer', () => {
 
   it('renders diff field for edit tool', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({
-      diff: '--- a\n+++ b\n@@ -1 +1 @@\n-old\n+new',
-      path: 'test.ts',
-      replacements: 1,
-      bytes_written: 100,
-    }, { toolName: 'edit' });
+    const result = s.serialize(
+      {
+        diff: '--- a\n+++ b\n@@ -1 +1 @@\n-old\n+new',
+        path: 'test.ts',
+        replacements: 1,
+        bytes_written: 100,
+      },
+      { toolName: 'edit' },
+    );
     expect(result).toContain('edit');
     expect(result).toContain('path=test.ts');
   });
 
   it('renders fetch tool output', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ content: '<html></html>', status: 200 }, { toolName: 'fetch', input: { url: 'https://example.com' } });
+    const result = s.serialize(
+      { content: '<html></html>', status: 200 },
+      { toolName: 'fetch', input: { url: 'https://example.com' } },
+    );
     expect(result).toContain('fetch: https://example.com');
     expect(result).toContain('status=200');
   });
 
   it('renders tree tool output', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ tree: 'dir/', total_files: 1, total_dirs: 2 }, { toolName: 'tree', input: { path: '.' } });
+    const result = s.serialize(
+      { tree: 'dir/', total_files: 1, total_dirs: 2 },
+      { toolName: 'tree', input: { path: '.' } },
+    );
     expect(result).toContain('tree: .');
     expect(result).toContain('total_files=1');
   });
 
   it('renders json tool output', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ formatted: '{ "a": 1 }', type: 'object', keys: ['a'] }, { toolName: 'json', input: { query: 'a' } });
+    const result = s.serialize(
+      { formatted: '{ "a": 1 }', type: 'object', keys: ['a'] },
+      { toolName: 'json', input: { query: 'a' } },
+    );
     expect(result).toContain('json');
     expect(result).toContain('query=a');
   });
 
   it('renders test output on success', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ output: 'all passed', exit_code: 0, runner: 'vitest', passed: 5, failed: 0, tests_run: 5 }, { toolName: 'test' });
+    const result = s.serialize(
+      { output: 'all passed', exit_code: 0, runner: 'vitest', passed: 5, failed: 0, tests_run: 5 },
+      { toolName: 'test' },
+    );
     expect(result).toContain('status=passed');
     expect(result).toContain('tests_run=5');
   });
 
   it('renders test output on failure', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ output: '1 failed', exit_code: 1, runner: 'vitest', passed: 4, failed: 1, tests_run: 5 }, { toolName: 'test' });
+    const result = s.serialize(
+      { output: '1 failed', exit_code: 1, runner: 'vitest', passed: 4, failed: 1, tests_run: 5 },
+      { toolName: 'test' },
+    );
     expect(result).toContain('error_context');
   });
 
   it('renders typecheck output on success', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ output: 'clean', exit_code: 0, errors: 0, warnings: 0 }, { toolName: 'typecheck' });
+    const result = s.serialize(
+      { output: 'clean', exit_code: 0, errors: 0, warnings: 0 },
+      { toolName: 'typecheck' },
+    );
     expect(result).toContain('status=passed');
   });
 
   it('renders command output (stdout/stderr shape)', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({ stdout: 'out', stderr: 'err', exit_code: 0 }, { toolName: 'bash' });
+    const result = s.serialize(
+      { stdout: 'out', stderr: 'err', exit_code: 0 },
+      { toolName: 'bash' },
+    );
     expect(result).toContain('bash');
     expect(result).toContain('stdout');
     expect(result).toContain('out');
@@ -143,31 +187,42 @@ describe('createToolOutputSerializer', () => {
 
   it('renders audit output header', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({
-      vulnerabilities: [{ severity: 'high', package: 'foo', title: 'XSS', url: 'https://x' }],
-      total: 1,
-      exit_code: 1,
-    }, { toolName: 'audit' });
+    const result = s.serialize(
+      {
+        vulnerabilities: [{ severity: 'high', package: 'foo', title: 'XSS', url: 'https://x' }],
+        total: 1,
+        exit_code: 1,
+      },
+      { toolName: 'audit' },
+    );
     expect(result).toContain('audit');
     expect(result).toContain('exit_code=1');
   });
 
   it('renders logs output', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({
-      entries: [{ timestamp: '12:00', level: 'error', message: 'boom' }],
-      total: 1,
-    }, { toolName: 'logs' });
+    const result = s.serialize(
+      {
+        entries: [{ timestamp: '12:00', level: 'error', message: 'boom' }],
+        total: 1,
+      },
+      { toolName: 'logs' },
+    );
     expect(result).toContain('logs');
     expect(result).toContain('boom');
   });
 
   it('renders outdated output', () => {
     const s = createToolOutputSerializer();
-    const result = s.serialize({
-      packages: [{ name: 'foo', current: '1.0', wanted: '1.1', latest: '2.0', type: 'dependencies' }],
-      total: 1,
-    }, { toolName: 'outdated' });
+    const result = s.serialize(
+      {
+        packages: [
+          { name: 'foo', current: '1.0', wanted: '1.1', latest: '2.0', type: 'dependencies' },
+        ],
+        total: 1,
+      },
+      { toolName: 'outdated' },
+    );
     expect(result).toContain('outdated');
     expect(result).toContain('foo');
     expect(result).toContain('current=1.0');

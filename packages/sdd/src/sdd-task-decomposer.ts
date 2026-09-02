@@ -123,7 +123,9 @@ export class SddTaskDecomposer {
    */
   isSettled(): boolean {
     const nodes = this.tracker.getAllNodes();
-    return nodes.length > 0 && nodes.every((n) => n.status === 'completed' || n.status === 'failed');
+    return (
+      nodes.length > 0 && nodes.every((n) => n.status === 'completed' || n.status === 'failed')
+    );
   }
 
   // -------------------------------------------------------------------

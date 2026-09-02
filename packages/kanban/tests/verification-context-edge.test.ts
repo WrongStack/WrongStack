@@ -87,12 +87,14 @@ describe('validateCommand', () => {
   const defaultAllow = new Set(DEFAULT_ALLOWED_COMMANDS.map((c) => normalizeBaseCommand(c)));
   const defaultBlock = new Set(DEFAULT_BLOCKED_COMMANDS.map((c) => normalizeBaseCommand(c)));
 
-  function makeConfig(overrides: Partial<{
-    allow: Set<string>;
-    block: Set<string>;
-    allowAll: boolean;
-    allowShellOperators: boolean;
-  }> = {}) {
+  function makeConfig(
+    overrides: Partial<{
+      allow: Set<string>;
+      block: Set<string>;
+      allowAll: boolean;
+      allowShellOperators: boolean;
+    }> = {},
+  ) {
     return {
       allow: overrides.allow ?? defaultAllow,
       block: overrides.block ?? defaultBlock,
@@ -121,7 +123,9 @@ describe('validateCommand', () => {
   });
 
   it('rejects commands not in allowlist when allowAll is false', () => {
-    expect(validateCommand('some_custom_tool', makeConfig())).toContain('not in the verifier allowlist');
+    expect(validateCommand('some_custom_tool', makeConfig())).toContain(
+      'not in the verifier allowlist',
+    );
   });
 
   it('allows commands not in blocklist when allowAll is true', () => {
@@ -267,7 +271,10 @@ describe('parseGitNumstat', () => {
   });
 
   it('uses name-status operations when provided', () => {
-    const operations = new Map([['src/new.ts', 'create' as const], ['src/deleted.ts', 'delete' as const]]);
+    const operations = new Map([
+      ['src/new.ts', 'create' as const],
+      ['src/deleted.ts', 'delete' as const],
+    ]);
     const result = parseGitNumstat('3\t0\tsrc/new.ts\n0\t9\tsrc/deleted.ts\n', operations);
     expect(result).toEqual([
       { path: 'src/new.ts', operation: 'create', linesAdded: 3, linesRemoved: 0 },

@@ -5,10 +5,7 @@
   "description": "Make complex conditional logic readable and correct.",
   "content": "This condition is hard to reason about:\n\n{{expression}}\n\nSimplify it without changing its truth table. Apply De Morgan laws, extract well-named intermediate booleans, and remove double negatives. Show the before and after and confirm they are equivalent for all inputs. If a bug is hiding in the complexity, point it out.",
   "category": "refactoring",
-  "tags": [
-    "boolean-logic",
-    "conditionals"
-  ],
+  "tags": ["boolean-logic", "conditionals"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2e7d99a0d99ceb1f5ac1fc0add02d531163c522c68e5fd2c522b161843eff879",

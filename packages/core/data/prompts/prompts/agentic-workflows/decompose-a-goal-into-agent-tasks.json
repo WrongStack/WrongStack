@@ -5,11 +5,7 @@
   "description": "Break a goal into tasks an agent fleet can execute.",
   "content": "Decompose this goal into agent-executable tasks: {{goal}}\n\nProduce a task list where each task has a single clear outcome, the inputs it needs, and how its result is verified. Mark which tasks are independent (parallelizable) and which depend on others, and name the dependency. Identify the task most likely to fail or need a human, and put a checkpoint there. Keep tasks small enough to verify but large enough to be worth a separate context.",
   "category": "agentic-workflows",
-  "tags": [
-    "decomposition",
-    "planning",
-    "multi-agent"
-  ],
+  "tags": ["decomposition", "planning", "multi-agent"],
   "source": "builtin",
   "favorite": false,
   "checksum": "a4f41812e226baf7ef3f2d9d20f34fcc9ba6e38874be6d6e23e8a8e0c60c2907",

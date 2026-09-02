@@ -38,7 +38,7 @@ const TS_EXTS = new Set(['.ts', '.tsx', '.mts', '.cts']);
 
 function isTypeScript(filePath) {
   const base = filePath.split('/').pop() ?? filePath;
-  const ext = '.' + (base.split('.').slice(1).join('.'));
+  const ext = '.' + base.split('.').slice(1).join('.');
   return TS_EXTS.has(ext);
 }
 
@@ -60,11 +60,7 @@ function getAllTrackedFiles() {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    return out
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .filter(isTypeScript);
+    return out.trim().split('\n').filter(Boolean).filter(isTypeScript);
   } catch {
     return [];
   }
@@ -90,7 +86,11 @@ function scanFile(filePath) {
 
   // Exclude test files — ad-hoc patterns in tests are expected
   // (spying on console.warn with string matchers).
-  if (filePath.includes('.test.') || filePath.includes('/tests/') || filePath.includes('\\tests\\')) {
+  if (
+    filePath.includes('.test.') ||
+    filePath.includes('/tests/') ||
+    filePath.includes('\\tests\\')
+  ) {
     return findings;
   }
 
@@ -125,7 +125,8 @@ for (const file of files) {
 }
 
 if (allFindings.length === 0) {
-  if (VERBOSE) console.error('[lint-console] ✅ No ad-hoc console.warn/error string literals found.');
+  if (VERBOSE)
+    console.error('[lint-console] ✅ No ad-hoc console.warn/error string literals found.');
   process.exit(0);
 }
 

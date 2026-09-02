@@ -2,7 +2,10 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { InputHistoryStore, INPUT_HISTORY_DEFAULT_MAX } from '../../src/storage/input-history-store.js';
+import {
+  InputHistoryStore,
+  INPUT_HISTORY_DEFAULT_MAX,
+} from '../../src/storage/input-history-store.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import type { SecretScrubber } from '../../src/types/secret-scrubber.js';
 
@@ -49,7 +52,11 @@ describe('InputHistoryStore', () => {
     it('returns the persisted entries (newest first)', async () => {
       await fs.writeFile(
         file,
-        JSON.stringify({ version: 1, updatedAt: '2026-01-01', entries: ['newest', 'older', 'oldest'] }),
+        JSON.stringify({
+          version: 1,
+          updatedAt: '2026-01-01',
+          entries: ['newest', 'older', 'oldest'],
+        }),
       );
       const store = new InputHistoryStore(file, fakeScrubber);
       expect(await store.load()).toEqual(['newest', 'older', 'oldest']);

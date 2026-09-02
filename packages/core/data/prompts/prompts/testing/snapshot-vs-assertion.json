@@ -5,11 +5,7 @@
   "description": "Choose the right testing technique for an output.",
   "content": "I want to test this output: {{output}}\n\nShould I use a snapshot test or explicit assertions? Advise based on the nature of the output: snapshots for large stable structures where any change is suspicious; explicit assertions for behavior I can name and that has clear correctness. Warn about snapshot rot (blindly updating). Show what the better choice looks like for my case.",
   "category": "testing",
-  "tags": [
-    "snapshot",
-    "assertions",
-    "test-design"
-  ],
+  "tags": ["snapshot", "assertions", "test-design"],
   "source": "builtin",
   "favorite": false,
   "checksum": "560a6e7fd18201d2ca8793973f14d33eedcc6f180c1c3aee492e68fc7b442523",

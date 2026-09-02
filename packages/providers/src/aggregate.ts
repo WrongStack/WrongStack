@@ -1,5 +1,11 @@
 import { expectDefined } from '@wrongstack/core/utils';
-import type { ContentBlock, Response, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
+import type {
+  ContentBlock,
+  Response,
+  StopReason,
+  StreamEvent,
+  Usage,
+} from '@wrongstack/core/types';
 import { parseToolInput } from './_tool-input.js';
 /**
  * Consume an `AsyncIterable<StreamEvent>` and reduce it to a non-streaming
@@ -73,7 +79,9 @@ export async function aggregateStream(
         if (b) {
           if (ev.input === undefined) {
             // No upstream input — parse from the accumulated chunk buffer.
-            b.input = parseToolInput(b.chunks.length === 1 ? (b.chunks[0] ?? '') : b.chunks.join(''));
+            b.input = parseToolInput(
+              b.chunks.length === 1 ? (b.chunks[0] ?? '') : b.chunks.join(''),
+            );
           } else if (typeof ev.input === 'string') {
             // Upstream gave us a raw JSON string; route through the validator.
             b.input = parseToolInput(ev.input);

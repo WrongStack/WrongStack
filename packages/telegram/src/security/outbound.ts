@@ -55,8 +55,7 @@ export function resolveTelegramOutboundTarget(
   if (!allowed.has(normalizeChatId(target))) {
     throw new ToolValidationError({
       field: 'chat_id',
-      message:
-        'Telegram outbound target is not paired or included in allowedOutboundChats.',
+      message: 'Telegram outbound target is not paired or included in allowedOutboundChats.',
     });
   }
 

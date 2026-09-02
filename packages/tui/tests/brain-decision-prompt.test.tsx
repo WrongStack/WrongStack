@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
-import { BrainDecisionPrompt, type BrainDecisionPromptOption } from '../src/components/brain-decision-prompt.js';
+import {
+  BrainDecisionPrompt,
+  type BrainDecisionPromptOption,
+} from '../src/components/brain-decision-prompt.js';
 
 describe('BrainDecisionPrompt', () => {
   const options: BrainDecisionPromptOption[] = [
@@ -99,9 +102,7 @@ describe('BrainDecisionPrompt', () => {
         source: 'test',
         risk: 'low',
         question: 'Low risk?',
-        options: [
-          { id: 'safe', label: 'Safe option', risk: 'low' },
-        ],
+        options: [{ id: 'safe', label: 'Safe option', risk: 'low' }],
       }),
     );
     const frame = lastFrame() ?? '';
@@ -116,9 +117,7 @@ describe('BrainDecisionPrompt', () => {
         source: 'test',
         risk: 'critical',
         question: 'Critical!',
-        options: [
-          { id: 'crit', label: 'Critical option', risk: 'critical' },
-        ],
+        options: [{ id: 'crit', label: 'Critical option', risk: 'critical' }],
       }),
     );
     const frame = lastFrame() ?? '';
@@ -266,9 +265,7 @@ describe('BrainDecisionPrompt', () => {
         source: 'test',
         risk: 'medium',
         question: 'Fallback risk?',
-        options: [
-          { id: 'no-risk', label: 'No risk specified' },
-        ],
+        options: [{ id: 'no-risk', label: 'No risk specified' }],
       }),
     );
     const frame = lastFrame() ?? '';

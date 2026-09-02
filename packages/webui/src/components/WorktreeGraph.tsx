@@ -78,8 +78,17 @@ export function WorktreeGraph({
       >
         <title>{t('activity:worktree.graphAria', { base: baseBranch || 'HEAD' })}</title>
         {/* trunk */}
-        <line x1={trunkX} y1={20} x2={trunkX} y2={height - 10} stroke={TOKEN_COLOR.primary} strokeWidth={3} />
-        <text x={trunkX - 4} y={14} fontSize={11} fill={TOKEN_COLOR.muted}>{baseBranch || 'HEAD'}</text>
+        <line
+          x1={trunkX}
+          y1={20}
+          x2={trunkX}
+          y2={height - 10}
+          stroke={TOKEN_COLOR.primary}
+          strokeWidth={3}
+        />
+        <text x={trunkX - 4} y={14} fontSize={11} fill={TOKEN_COLOR.muted}>
+          {baseBranch || 'HEAD'}
+        </text>
         <circle cx={trunkX} cy={20} r={5} fill={TOKEN_COLOR.primary} />
 
         {nodes.map((n) => {
@@ -107,8 +116,19 @@ export function WorktreeGraph({
                   opacity={0.9}
                 />
               ) : null}
-              <circle cx={branchX} cy={n.y} r={5} fill={conflict ? TOKEN_COLOR.destructive : n.color} />
-              <text x={branchX + 12} y={n.y - 6} fontSize={12} fill={TOKEN_COLOR.foreground} fontFamily="monospace">
+              <circle
+                cx={branchX}
+                cy={n.y}
+                r={5}
+                fill={conflict ? TOKEN_COLOR.destructive : n.color}
+              />
+              <text
+                x={branchX + 12}
+                y={n.y - 6}
+                fontSize={12}
+                fill={TOKEN_COLOR.foreground}
+                fontFamily="monospace"
+              >
                 {shortBranch(n.handle.branch)}
               </text>
               <text x={branchX + 12} y={n.y + 10} fontSize={10} fill={TOKEN_COLOR.muted}>

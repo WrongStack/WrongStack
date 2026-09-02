@@ -96,11 +96,15 @@ function readConfig(raw: unknown): LintGateConfig {
   const r = raw as Record<string, unknown>;
   const rawLinter = typeof r['linter'] === 'string' ? r['linter'].trim().toLowerCase() : undefined;
   const linter = rawLinter === 'biome' || rawLinter === 'eslint' ? rawLinter : 'auto';
-  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
-    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
-    : undefined;
+  const rawMode =
+    typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+      ? String(r['mode'] ?? r['action'] ?? r['behavior'])
+          .trim()
+          .toLowerCase()
+      : undefined;
   const mode = rawMode === 'block' ? 'block' : rawMode === 'fix' ? 'fix' : 'warn';
-  const rawSeverity = typeof r['severity'] === 'string' ? r['severity'].trim().toLowerCase() : undefined;
+  const rawSeverity =
+    typeof r['severity'] === 'string' ? r['severity'].trim().toLowerCase() : undefined;
   const severity = rawSeverity === 'warning' ? 'warning' : 'error';
   const rawTimeout = r['timeoutMs'] ?? r['timeout_ms'] ?? r['timeout'];
   const rawRules = r['fixRules'] ?? r['fix_rules'] ?? r['rules'];
@@ -239,7 +243,7 @@ async function detectLinter(requested: Linter, cwd: string): Promise<ResolvedLin
       return linter;
     }
   }
-  
+
   linterCache.set(cacheKey, null);
   return null;
 }
@@ -451,7 +455,7 @@ const plugin: Plugin = {
     state.linterErrorCount = 0;
     state.hookUnregister = releaseHandle(state.hookUnregister);
     state.lastResult = null;
-    
+
     // Clear linter detection cache to ensure fresh detection after config changes.
     linterCache.clear();
 

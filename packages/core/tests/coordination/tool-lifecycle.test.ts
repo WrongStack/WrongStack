@@ -213,7 +213,11 @@ describe('Tool lifecycle — executeStream', () => {
     ctx.traceId = 'trace-abc';
 
     const executor = makeExecutor([tool], events);
-    await executor.executeBatch([makeUse('classic', { command: 'secret input' })], ctx, 'sequential');
+    await executor.executeBatch(
+      [makeUse('classic', { command: 'secret input' })],
+      ctx,
+      'sequential',
+    );
 
     expect(completed).toHaveLength(1);
     expect(completed[0]).toMatchObject({
@@ -244,7 +248,11 @@ describe('Tool lifecycle — executeStream', () => {
     };
 
     const executor = makeExecutor([tool], events);
-    await executor.executeBatch([makeUse('classic', { command: 'secret input' })], makeCtx(), 'sequential');
+    await executor.executeBatch(
+      [makeUse('classic', { command: 'secret input' })],
+      makeCtx(),
+      'sequential',
+    );
 
     expect(failed).toHaveLength(1);
     expect(failed[0]).toMatchObject({

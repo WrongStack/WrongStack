@@ -70,16 +70,16 @@ describe('/sessions rename and delete guards', () => {
   });
 
   it('honours a declined delete confirmation', async () => {
-    const out = await buildLoadCommand(
-      makeOpts({ confirm: vi.fn(async () => false) }),
-    ).run('delete other-session');
+    const out = await buildLoadCommand(makeOpts({ confirm: vi.fn(async () => false) })).run(
+      'delete other-session',
+    );
     expect(stripAnsi(out?.message ?? '')).toContain('Delete cancelled.');
   });
 
   it('deletes sessions after confirmation and reports failures', async () => {
-    const ok = await buildLoadCommand(
-      makeOpts({ confirm: vi.fn(async () => true) }),
-    ).run('delete doomed');
+    const ok = await buildLoadCommand(makeOpts({ confirm: vi.fn(async () => true) })).run(
+      'delete doomed',
+    );
     expect(stripAnsi(ok?.message ?? '')).toContain('Deleted session doomed');
 
     const failing = await buildLoadCommand(

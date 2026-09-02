@@ -47,9 +47,9 @@ describe('sessionEventToMarker', () => {
   });
 
   it('drops the phase prefix when the phase is empty', () => {
-    expect(
-      sessionEventToMarker({ type: 'error', ts: TS, message: 'boom', phase: '' })?.text,
-    ).toBe('boom');
+    expect(sessionEventToMarker({ type: 'error', ts: TS, message: 'boom', phase: '' })?.text).toBe(
+      'boom',
+    );
   });
 
   it('renders a provider retry as a warning, with sub-second precision under 1s', () => {
@@ -124,17 +124,25 @@ describe('sessionEventToMarker', () => {
       sessionEventToMarker({ type: 'agent_stopped', ts: TS, agentId: 'agt_123' }),
     ).toMatchObject({ level: 'info', text: 'stopped', agentId: 'agt_123' });
     expect(
-      sessionEventToMarker({ type: 'agent_error', ts: TS, agentId: 'agt_123', error: 'x'.repeat(100) }),
+      sessionEventToMarker({
+        type: 'agent_error',
+        ts: TS,
+        agentId: 'agt_123',
+        error: 'x'.repeat(100),
+      }),
     ).toMatchObject({ level: 'error', text: `error: ${'x'.repeat(80)}`, agentId: 'agt_123' });
   });
 
   it('formats mode and skill transitions', () => {
-    expect(sessionEventToMarker({ type: 'mode_changed', ts: TS, from: 'plan', to: 'build' })?.text)
-      .toBe('mode: plan → build');
-    expect(sessionEventToMarker({ type: 'skill_activated', ts: TS, skillName: 'commit' })?.text)
-      .toBe('skill activated: commit');
-    expect(sessionEventToMarker({ type: 'skill_deactivated', ts: TS, skillName: 'commit' })?.text)
-      .toBe('skill deactivated: commit');
+    expect(
+      sessionEventToMarker({ type: 'mode_changed', ts: TS, from: 'plan', to: 'build' })?.text,
+    ).toBe('mode: plan → build');
+    expect(
+      sessionEventToMarker({ type: 'skill_activated', ts: TS, skillName: 'commit' })?.text,
+    ).toBe('skill activated: commit');
+    expect(
+      sessionEventToMarker({ type: 'skill_deactivated', ts: TS, skillName: 'commit' })?.text,
+    ).toBe('skill deactivated: commit');
   });
 
   it('reports truncation as a before→after transition, or a cap when it did not shrink', () => {

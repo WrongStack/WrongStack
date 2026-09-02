@@ -77,7 +77,11 @@ describe('SessionHealthPanel', () => {
     // Query fresh each iteration: the panel remounts on every reopen, so a
     // NodeList captured once would hold detached buttons that no longer
     // bubble through React's root listener.
-    const labels = ['Open session uptime details', 'Open context breakdown', 'Open message breakdown'];
+    const labels = [
+      'Open session uptime details',
+      'Open context breakdown',
+      'Open message breakdown',
+    ];
     for (const label of labels) {
       const button = host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
       expect(button).not.toBeNull();

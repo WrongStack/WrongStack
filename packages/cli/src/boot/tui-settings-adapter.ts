@@ -94,7 +94,15 @@ interface SettingsAdapter {
   saveSettings: (s: LiveSettingsInput) => Promise<string | null>;
 }
 
-const ANIMATION_STYLES = ['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'static', 'cycle'] as const;
+const ANIMATION_STYLES = [
+  'rainbow',
+  'wave',
+  'pulse',
+  'dots',
+  'breathe',
+  'static',
+  'cycle',
+] as const;
 type AnimationStyleValue = (typeof ANIMATION_STYLES)[number];
 
 /** Widen an untyped config value to the animation-style union; default 'rainbow'. */
@@ -268,8 +276,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       // (single object with two fields, not two top-level keys). The
       // canonical type is `ToolsConfig.wrongProxy?: WrongProxyToolConfig`
       // — no index-signature widening cast needed.
-      wrongProxyEnabled:
-        cfg.tools?.wrongProxy?.enabled === true,
+      wrongProxyEnabled: cfg.tools?.wrongProxy?.enabled === true,
       wrongProxyUrl: cfg.tools?.wrongProxy?.url,
     };
   }

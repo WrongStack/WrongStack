@@ -15,7 +15,10 @@ function mockWs() {
 }
 
 function sentMessages(ws: ReturnType<typeof mockWs>) {
-  return ws.send.mock.calls.map(([raw]) => JSON.parse(String(raw)) as { type: string; payload: { success?: boolean; message?: string } });
+  return ws.send.mock.calls.map(
+    ([raw]) =>
+      JSON.parse(String(raw)) as { type: string; payload: { success?: boolean; message?: string } },
+  );
 }
 
 function provider(id: string, modelIds: string[]): ResolvedProvider {
@@ -58,7 +61,9 @@ describe('handleProviderRoute malformed payload characterization', () => {
     const ws = mockWs();
     const deps = routes();
 
-    await expect(handleProviderRoute(ws, { type: 'sessions.list', payload: {} }, deps)).resolves.toBe(false);
+    await expect(
+      handleProviderRoute(ws, { type: 'sessions.list', payload: {} }, deps),
+    ).resolves.toBe(false);
 
     expect(ws.send).not.toHaveBeenCalled();
   });
@@ -122,11 +127,9 @@ describe('resolveProviderCatalogForModels', () => {
       return undefined;
     });
 
-    const resolved = await resolveProviderCatalogForModels(
-      { getProvider },
-      'omniroute',
-      { type: 'openai-compatible' },
-    );
+    const resolved = await resolveProviderCatalogForModels({ getProvider }, 'omniroute', {
+      type: 'openai-compatible',
+    });
 
     expect(resolved?.id).toBe('omniroute');
     expect(resolved?.models.map((m) => m.id)).toEqual(['omni/large', 'omni/small']);
@@ -140,11 +143,9 @@ describe('resolveProviderCatalogForModels', () => {
       return undefined;
     });
 
-    const resolved = await resolveProviderCatalogForModels(
-      { getProvider },
-      'custom-gateway',
-      { type: 'openai-compatible' },
-    );
+    const resolved = await resolveProviderCatalogForModels({ getProvider }, 'custom-gateway', {
+      type: 'openai-compatible',
+    });
 
     expect(resolved?.id).toBe('openai-compatible');
     expect(resolved?.models.map((m) => m.id)).toEqual(['generic']);
@@ -174,12 +175,9 @@ describe('resolveProviderModelMetadata', () => {
       return undefined;
     });
 
-    const resolved = await resolveProviderModelMetadata(
-      { getModel },
-      'omniroute',
-      'omni/large',
-      { type: 'openai-compatible' },
-    );
+    const resolved = await resolveProviderModelMetadata({ getModel }, 'omniroute', 'omni/large', {
+      type: 'openai-compatible',
+    });
 
     expect(resolved?.providerId).toBe('omniroute');
     expect(resolved?.capabilities.maxContext).toBe(262144);
@@ -199,12 +197,9 @@ describe('resolveProviderModelMetadata', () => {
       return undefined;
     });
 
-    const resolved = await resolveProviderModelMetadata(
-      { getModel },
-      'custom-gateway',
-      'generic',
-      { type: 'openai-compatible' },
-    );
+    const resolved = await resolveProviderModelMetadata({ getModel }, 'custom-gateway', 'generic', {
+      type: 'openai-compatible',
+    });
 
     expect(resolved?.providerId).toBe('openai-compatible');
     expect(resolved?.capabilities.maxContext).toBe(8192);

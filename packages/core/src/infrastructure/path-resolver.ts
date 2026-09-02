@@ -85,8 +85,12 @@ export class DefaultPathResolver implements PathResolver {
       const err = new Error(`Path "${display}" resolves outside the project root`);
       // Keep the full information available to programmatic callers; only
       // the user-facing `message` is sanitized.
-      (err as Error & { fullPath?: string | undefined; projectRoot?: string | undefined }).fullPath = absPath;
-      (err as Error & { fullPath?: string | undefined; projectRoot?: string | undefined }).projectRoot = this.projectRoot;
+      (
+        err as Error & { fullPath?: string | undefined; projectRoot?: string | undefined }
+      ).fullPath = absPath;
+      (
+        err as Error & { fullPath?: string | undefined; projectRoot?: string | undefined }
+      ).projectRoot = this.projectRoot;
       throw err;
     }
     return resolved;

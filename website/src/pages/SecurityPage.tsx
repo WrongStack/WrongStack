@@ -146,8 +146,8 @@ export function SecurityPage() {
               <p className="text-lg leading-8 text-zinc-400">
                 The allow-list strips provider endpoints, keys, MCP servers, hooks, plugins, sync,
                 YOLO, extensions, HQ, ACP and fleet settings from checked-in config. Nested
-                dangerous fields are stripped too. This does not sandbox trusted user config:
-                shell and HTTP hooks remain privileged operator code.
+                dangerous fields are stripped too. This does not sandbox trusted user config: shell
+                and HTTP hooks remain privileged operator code.
               </p>
               <div className="mt-6 flex items-center gap-3 text-sm font-semibold text-emerald-400">
                 <Check className="size-4" /> New config fields are denied until classified
@@ -163,13 +163,32 @@ export function SecurityPage() {
         </div>
       </section>
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
-        <SectionIntro index="05" eyebrow="Secret vault" title="Encrypted at rest. Decrypted on demand." description="SecretVault stores credentials (API keys, tokens, passwords) in an encrypted file. New secrets written from the environment are encrypted before landing on disk. The vault walks config fields matching known key patterns for auto-encryption." />
+        <SectionIntro
+          index="05"
+          eyebrow="Secret vault"
+          title="Encrypted at rest. Decrypted on demand."
+          description="SecretVault stores credentials (API keys, tokens, passwords) in an encrypted file. New secrets written from the environment are encrypted before landing on disk. The vault walks config fields matching known key patterns for auto-encryption."
+        />
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
           {[
-            { title: 'Encryption', body: 'scrypt-based key derivation with random salt. Secrets are opaque blobs — never plaintext on disk.' },
-            { title: 'Auto-detection', body: 'Field names matching secret patterns (token, key, secret, password) are auto-encrypted on write.' },
-            { title: 'Scrubbing', body: 'SecretScrubber removes credential-like patterns from tool output, session logs, and telemetry before they leave the agent.' },
-          ].map(({ title, body }) => (<div key={title} className="rounded-xl border border-line bg-card p-5"><h3 className="font-black text-sm text-fg">{title}</h3><p className="mt-2 text-xs leading-5 text-muted">{body}</p></div>))}
+            {
+              title: 'Encryption',
+              body: 'scrypt-based key derivation with random salt. Secrets are opaque blobs — never plaintext on disk.',
+            },
+            {
+              title: 'Auto-detection',
+              body: 'Field names matching secret patterns (token, key, secret, password) are auto-encrypted on write.',
+            },
+            {
+              title: 'Scrubbing',
+              body: 'SecretScrubber removes credential-like patterns from tool output, session logs, and telemetry before they leave the agent.',
+            },
+          ].map(({ title, body }) => (
+            <div key={title} className="rounded-xl border border-line bg-card p-5">
+              <h3 className="font-black text-sm text-fg">{title}</h3>
+              <p className="mt-2 text-xs leading-5 text-muted">{body}</p>
+            </div>
+          ))}
         </div>
       </section>
       <PageNext

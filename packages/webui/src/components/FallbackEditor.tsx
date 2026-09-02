@@ -63,9 +63,7 @@ export function FallbackEditor({
                 key={`${ref}-${i}`}
                 className={cn(
                   'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs',
-                  state.active
-                    ? 'border-border bg-muted'
-                    : 'border-warning/60 bg-warning/10',
+                  state.active ? 'border-border bg-muted' : 'border-warning/60 bg-warning/10',
                 )}
                 title={inactiveTitle ?? undefined}
                 data-testid={`fallback-row-${i}`}
@@ -73,9 +71,7 @@ export function FallbackEditor({
                 data-inactive-reason={state.active ? undefined : state.reason}
               >
                 <span className="font-mono text-[10px] text-muted-foreground">{i + 1}</span>
-                <span className="min-w-0 flex-1 break-words font-mono text-foreground">
-                  {ref}
-                </span>
+                <span className="min-w-0 flex-1 break-words font-mono text-foreground">{ref}</span>
                 {!state.active && (
                   <span
                     className="flex items-center gap-1 rounded-sm bg-warning/15 px-1 py-0.5 text-[10px] font-medium text-foreground"

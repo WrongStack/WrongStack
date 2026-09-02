@@ -462,7 +462,12 @@ describe('groupMailboxEvents', () => {
     const events: HqEventEnvelope[] = [
       mailboxEvent(
         'read-msg',
-        messageSummary({ mailId: 'read-msg', messageId: 'read-msg', completed: false, readCount: 2 }),
+        messageSummary({
+          mailId: 'read-msg',
+          messageId: 'read-msg',
+          completed: false,
+          readCount: 2,
+        }),
         'demo',
         1,
       ),

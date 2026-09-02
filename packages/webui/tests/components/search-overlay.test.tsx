@@ -16,26 +16,30 @@ function msg(overrides: Partial<ChatMessage>): ChatMessage {
 
 describe('messageSearchText', () => {
   it('includes archived thinking log text', () => {
-    const text = messageSearchText(msg({
-      role: 'system',
-      thinkingLog: {
-        iteration: 3,
-        text: 'hidden reasoning needle',
-        startedAt: 1_700_000_000_000,
-        durationMs: 500,
-      },
-    }));
+    const text = messageSearchText(
+      msg({
+        role: 'system',
+        thinkingLog: {
+          iteration: 3,
+          text: 'hidden reasoning needle',
+          startedAt: 1_700_000_000_000,
+          durationMs: 500,
+        },
+      }),
+    );
 
     expect(text).toContain('hidden reasoning needle');
   });
 
   it('keeps tool name, input, and output searchable', () => {
-    const text = messageSearchText(msg({
-      role: 'tool',
-      toolName: 'bash',
-      toolInput: { command: 'pnpm test' },
-      toolResult: 'passed',
-    }));
+    const text = messageSearchText(
+      msg({
+        role: 'tool',
+        toolName: 'bash',
+        toolInput: { command: 'pnpm test' },
+        toolResult: 'passed',
+      }),
+    );
 
     expect(text).toContain('bash');
     expect(text).toContain('pnpm test');

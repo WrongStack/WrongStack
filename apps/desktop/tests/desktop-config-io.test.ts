@@ -117,10 +117,7 @@ describe('readUiLocale', () => {
   });
 
   it('should return undefined when locale is not a string', async () => {
-    mockFileStore.set(
-      desktopConfigPaths.profileConfigPath,
-      JSON.stringify({ uiLocale: 42 }),
-    );
+    mockFileStore.set(desktopConfigPaths.profileConfigPath, JSON.stringify({ uiLocale: 42 }));
     const result = await readUiLocale();
     expect(result).toBeUndefined();
   });

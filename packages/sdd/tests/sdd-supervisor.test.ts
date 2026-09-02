@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { SddSupervisor } from '../src/sdd-supervisor.js';
-import { DefaultBrainArbiter, type BrainArbiter, type BrainDecision } from '@wrongstack/core/coordination/brain.js';
+import {
+  DefaultBrainArbiter,
+  type BrainArbiter,
+  type BrainDecision,
+} from '@wrongstack/core/coordination/brain.js';
 import type { TaskNode } from '@wrongstack/core/types/task-graph.js';
 
 const task = (): TaskNode => ({
@@ -89,8 +93,18 @@ describe('SddSupervisor', () => {
     expect(await failSup.superviseFailure({ task: task(), error: 'e', attempts: 0 })).toEqual({
       action: 'fail',
     });
-    const denyBrain: BrainArbiter = { async decide() { return { type: 'deny', reason: 'no' }; } };
-    expect(await new SddSupervisor({ brain: denyBrain }).superviseFailure({ task: task(), error: 'e', attempts: 0 })).toEqual({
+    const denyBrain: BrainArbiter = {
+      async decide() {
+        return { type: 'deny', reason: 'no' };
+      },
+    };
+    expect(
+      await new SddSupervisor({ brain: denyBrain }).superviseFailure({
+        task: task(),
+        error: 'e',
+        attempts: 0,
+      }),
+    ).toEqual({
       action: 'fail',
     });
   });
@@ -119,7 +133,11 @@ describe('SddSupervisor', () => {
         return { type: 'answer', text: 'continue' };
       },
     };
-    await new SddSupervisor({ brain: plain }).superviseFailure({ task: task(), error: 'e', attempts: 0 });
+    await new SddSupervisor({ brain: plain }).superviseFailure({
+      task: task(),
+      error: 'e',
+      attempts: 0,
+    });
     expect(seenFallback).toBe('continue');
   });
 

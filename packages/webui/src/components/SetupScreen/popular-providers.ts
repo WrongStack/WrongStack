@@ -22,9 +22,7 @@ export async function loadPopularProviders(
     }
     const valid = (data as PopularProvider[]).filter(
       (p): p is PopularProvider =>
-        typeof p.id === 'string' &&
-        typeof p.name === 'string' &&
-        typeof p.family === 'string',
+        typeof p.id === 'string' && typeof p.name === 'string' && typeof p.family === 'string',
     );
     return valid.length > 0 ? valid : DEFAULT_POPULAR_PROVIDERS;
   } catch {

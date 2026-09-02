@@ -71,10 +71,7 @@ interface Harness {
   signals: string[];
 }
 
-function makeHarness(
-  brain: BrainArbiter,
-  config: Record<string, unknown> = {},
-): Harness {
+function makeHarness(brain: BrainArbiter, config: Record<string, unknown> = {}): Harness {
   const events = new EventBus();
   const fleet = new FleetBus();
   const clock = { now: 1_000_000 };
@@ -109,13 +106,21 @@ function makeHarness(
   return { supervisor, actions, events, fleet, state, clock, signals };
 }
 
-const sub = (id: string, status: SupervisedSubagent['status'], task?: string): SupervisedSubagent => ({
+const sub = (
+  id: string,
+  status: SupervisedSubagent['status'],
+  task?: string,
+): SupervisedSubagent => ({
   id,
   name: id,
   status,
   currentTask: task,
 });
-const task = (id: string, subagentId?: string): TaskSpec => ({ id, description: `desc ${id}`, subagentId });
+const task = (id: string, subagentId?: string): TaskSpec => ({
+  id,
+  description: `desc ${id}`,
+  subagentId,
+});
 
 describe('FleetSupervisor', () => {
   it('rebalances a starved pinned task: retarget + steer the loser + notify leader', async () => {

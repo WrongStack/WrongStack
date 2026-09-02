@@ -40,13 +40,15 @@ export class RunController {
     this.errorSink =
       opts.errorSink ??
       ((err, where) => {
-        console.warn(JSON.stringify({
-          level: 'warn',
-          event: 'run.cleanup_hook_failed',
-          where,
-          message: toErrorMessage(err),
-          timestamp: new Date().toISOString(),
-        }));
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'run.cleanup_hook_failed',
+            where,
+            message: toErrorMessage(err),
+            timestamp: new Date().toISOString(),
+          }),
+        );
       });
     if (opts.parentSignal) {
       const parent = opts.parentSignal;

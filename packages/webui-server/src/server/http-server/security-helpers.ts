@@ -1,9 +1,6 @@
 import type * as http from 'node:http';
 import * as path from 'node:path';
-import {
-  extractTokenFromCookie,
-  isLoopbackHostname,
-} from '../ws-auth.js';
+import { extractTokenFromCookie, isLoopbackHostname } from '../ws-auth.js';
 
 export const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',

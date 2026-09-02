@@ -99,7 +99,13 @@ describe('startWorktreeTelemetryBridge', () => {
     const spy = vi.fn();
     const publisher = fakePublisher(spy);
     startWorktreeTelemetryBridge({ events, publisher });
-    events.emit('worktree.merged', { handleId: 'h1', ownerId: 'p1', branch: 'b', baseBranch: 'main', squash: true });
+    events.emit('worktree.merged', {
+      handleId: 'h1',
+      ownerId: 'p1',
+      branch: 'b',
+      baseBranch: 'main',
+      squash: true,
+    });
     events.emit('worktree.released', { handleId: 'h1', ownerId: 'p1', branch: 'b', kept: false });
     expect(spy).toHaveBeenCalledTimes(2);
     expect(spy.mock.calls[0]![0].payload.kind).toBe('merged');

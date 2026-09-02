@@ -43,11 +43,7 @@ import {
   scrubProviderErrorBody,
 } from './error-parse.js';
 import { extractAccountId } from './openai-codex-account.js';
-import {
-  CODEX_BASE_URL,
-  type CodexTokens,
-  refreshCodexTokens,
-} from './oauth/codex-protocol.js';
+import { CODEX_BASE_URL, type CodexTokens, refreshCodexTokens } from './oauth/codex-protocol.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
 import { applyPromptCacheKey } from './prompt-cache-key.js';
@@ -242,12 +238,15 @@ export class OpenAICodexProvider extends WireAdapter {
     this.refresh = opts.credentials.refreshToken;
     this.accountId = opts.credentials.accountId ?? extractAccountId(this.access) ?? undefined;
     this.refreshFn = opts.refreshFn ?? refreshCodexAccessToken;
-    this.refreshCoordinator = new OAuthRefreshCoordinator<CodexOAuthTokens, {
-      accessToken: string;
-      refreshToken: string;
-      expiresAt: number;
-      accountId: string | undefined;
-    }>({
+    this.refreshCoordinator = new OAuthRefreshCoordinator<
+      CodexOAuthTokens,
+      {
+        accessToken: string;
+        refreshToken: string;
+        expiresAt: number;
+        accountId: string | undefined;
+      }
+    >({
       initialRefreshKey: opts.credentials.refreshToken,
       initialExpiresAt: opts.credentials.expiresAt,
       label: 'Codex OAuth',
@@ -363,7 +362,7 @@ export class OpenAICodexProvider extends WireAdapter {
 
   override async *stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
     await this.ensureFreshToken(opts.signal);
-    try { 
+    try {
       yield* super.stream(req, opts);
     } catch (err) {
       // A 401 means the token went stale between the pre-flight check and the
@@ -703,7 +702,10 @@ export async function* parseOpenAIResponsesStream(
           yield { type: 'thinking_stop' };
         } else if (item.type === 'function_call') {
           const id = item.call_id ?? toolCallId ?? `call_${Math.random().toString(36).slice(2)}`;
-          const raw = item.arguments && item.arguments.length > 0 ? item.arguments : joinArgBuffer(toolArgBuf);
+          const raw =
+            item.arguments && item.arguments.length > 0
+              ? item.arguments
+              : joinArgBuffer(toolArgBuf);
           yield { type: 'tool_use_stop', id, input: parseToolInput(raw || '{}') };
           toolCallId = undefined;
           toolArgBuf = { chunks: [], length: 0 };

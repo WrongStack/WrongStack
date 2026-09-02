@@ -77,7 +77,9 @@ export function useStatuslineState(opts: UseStatuslineStateOptions): UseStatusli
   // CLI resolves the startup model's catalog limit, but /model can switch to a
   // different model without remounting App. Keep the denominator mutable so the
   // status bar follows the active model instead of a stale launch-time prop.
-  const [activeMaxContext, setActiveMaxContext] = useState<number | undefined>(opts.effectiveMaxContext);
+  const [activeMaxContext, setActiveMaxContext] = useState<number | undefined>(
+    opts.effectiveMaxContext,
+  );
   const [yoloLive, setYoloLive] = useState<boolean>(opts.yolo);
   const [autonomyLive, setAutonomyLive] = useState<AutonomyStage>(opts.getAutonomy?.() ?? 'off');
   // Reactive mirror of the active agent mode so the status bar chip
@@ -92,14 +94,23 @@ export function useStatuslineState(opts: UseStatuslineStateOptions): UseStatusli
   const [sessionCount, setSessionCount] = useState<number>(0);
 
   return {
-    liveModel, setLiveModel,
-    liveProvider, setLiveProvider,
-    activeMaxContext, setActiveMaxContext,
-    yoloLive, setYoloLive,
-    autonomyLive, setAutonomyLive,
-    liveModeLabel, setLiveModeLabel,
-    hiddenItems, setHiddenItems,
-    lines, setLines,
-    sessionCount, setSessionCount,
+    liveModel,
+    setLiveModel,
+    liveProvider,
+    setLiveProvider,
+    activeMaxContext,
+    setActiveMaxContext,
+    yoloLive,
+    setYoloLive,
+    autonomyLive,
+    setAutonomyLive,
+    liveModeLabel,
+    setLiveModeLabel,
+    hiddenItems,
+    setHiddenItems,
+    lines,
+    setLines,
+    sessionCount,
+    setSessionCount,
   };
 }

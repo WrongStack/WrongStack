@@ -14,7 +14,8 @@ export const DOMAIN_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'domain',
-      summary: 'Schema design, query optimization, and safe reversible migrations for SQL databases.',
+      summary:
+        'Schema design, query optimization, and safe reversible migrations for SQL databases.',
       keywords: [
         'database',
         'schema',
@@ -41,7 +42,8 @@ export const DOMAIN_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'domain',
-      summary: 'REST + GraphQL API design and implementation: contracts, HTTP/GraphQL semantics, versioning.',
+      summary:
+        'REST + GraphQL API design and implementation: contracts, HTTP/GraphQL semantics, versioning.',
       keywords: [
         'api',
         'rest',
@@ -68,7 +70,8 @@ export const DOMAIN_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'domain',
-      summary: 'Authentication and authorization: identity, sessions/tokens, RBAC/ABAC, OAuth/OIDC, done securely.',
+      summary:
+        'Authentication and authorization: identity, sessions/tokens, RBAC/ABAC, OAuth/OIDC, done securely.',
       keywords: [
         'auth',
         'authentication',
@@ -96,7 +99,8 @@ export const DOMAIN_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'domain',
-      summary: 'Data engineering: ETL/ELT pipelines, data-quality validation, idempotent transforms, reconciliation.',
+      summary:
+        'Data engineering: ETL/ELT pipelines, data-quality validation, idempotent transforms, reconciliation.',
       keywords: [
         'etl',
         'elt',
@@ -123,7 +127,8 @@ export const DOMAIN_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'domain',
-      summary: 'UI implementation: components, client state, data fetching, responsive and accessible by default.',
+      summary:
+        'UI implementation: components, client state, data fetching, responsive and accessible by default.',
       keywords: [
         'frontend',
         'component',
@@ -150,7 +155,8 @@ export const DOMAIN_AGENTS: AgentDefinition[] = [
     budget: HEAVY_BUDGET,
     capability: {
       phase: 'domain',
-      summary: 'Server-side logic: services, business rules, persistence/queue wiring, concurrency and transactions.',
+      summary:
+        'Server-side logic: services, business rules, persistence/queue wiring, concurrency and transactions.',
       keywords: [
         'backend',
         'server',
@@ -177,7 +183,8 @@ export const DOMAIN_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'domain',
-      summary: 'UI/UX design: user flows, layout/wireframes, interaction states, and design-system decisions.',
+      summary:
+        'UI/UX design: user flows, layout/wireframes, interaction states, and design-system decisions.',
       keywords: [
         'design',
         'ux',

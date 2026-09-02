@@ -202,7 +202,11 @@ function readConfig(raw: unknown): NotifyHubConfig {
   }
   const rawUrl = r['webhookUrl'] ?? r['webhook_url'] ?? r['url'];
   const rawTimeout = r['timeoutMs'] ?? r['timeout_ms'] ?? r['timeout'];
-  const rawFailures = r['maxConsecutiveFailures'] ?? r['max_consecutive_failures'] ?? r['maxFailures'] ?? r['max_failures'];
+  const rawFailures =
+    r['maxConsecutiveFailures'] ??
+    r['max_consecutive_failures'] ??
+    r['maxFailures'] ??
+    r['max_failures'];
   return {
     enabled: r['enabled'] !== false,
     webhookUrl: normalizeWebhookUrl(rawUrl),
@@ -486,7 +490,10 @@ const plugin: Plugin = {
         const message = typeof rawMsg === 'string' && rawMsg.trim().length > 0 ? rawMsg.trim() : '';
         if (!message) return { ok: false, error: 'message is required' };
         const rawTitle = inp['title'] ?? inp['subject'] ?? inp['header'];
-        const title = typeof rawTitle === 'string' && rawTitle.trim() ? rawTitle.trim() : 'WrongStack notification';
+        const title =
+          typeof rawTitle === 'string' && rawTitle.trim()
+            ? rawTitle.trim()
+            : 'WrongStack notification';
 
         const result = await deliverViaChannel(ch, 'manual', {
           title: truncateText(title, 200),

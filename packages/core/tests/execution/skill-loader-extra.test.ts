@@ -173,7 +173,10 @@ describe('DefaultSkillLoader — extra', () => {
       const loader = new DefaultSkillLoader({ paths });
 
       await loader.readBody('alpha');
-      await fs.writeFile(path.join(alphaDir, 'SKILL.md'), `---\nname: alpha\ndescription: test\n---\n# modified`);
+      await fs.writeFile(
+        path.join(alphaDir, 'SKILL.md'),
+        `---\nname: alpha\ndescription: test\n---\n# modified`,
+      );
 
       loader.invalidateCache();
       const body = await loader.readBody('alpha');

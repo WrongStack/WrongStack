@@ -10,10 +10,7 @@ import { isConversationAction, reduceConversation } from './reducers/conversatio
 import { isPanelPickerAction, reducePanelPickers } from './reducers/panel-pickers.js';
 import { isSettingsPanelAction, reduceSettingsPanel } from './reducers/settings-panel.js';
 import { isSettingsValueAction, reduceSettingsValues } from './reducers/settings-values.js';
-import {
-  isWorkspacePanelAction,
-  reduceWorkspacePanels,
-} from './reducers/workspace-panels.js';
+import { isWorkspacePanelAction, reduceWorkspacePanels } from './reducers/workspace-panels.js';
 
 // Re-export types from app-state.ts for backward compatibility.
 export type {

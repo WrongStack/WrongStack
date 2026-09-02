@@ -97,8 +97,5 @@ export function useFleetPolling(enabled = true): FleetPollingResult {
 
   const refreshNow = () => setNow(Date.now());
 
-  return useMemo(
-    () => ({ summary, agentList, now, refreshNow }),
-    [summary, agentList, now],
-  );
+  return useMemo(() => ({ summary, agentList, now, refreshNow }), [summary, agentList, now]);
 }

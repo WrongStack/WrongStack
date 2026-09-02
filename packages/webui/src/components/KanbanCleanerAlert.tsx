@@ -44,7 +44,8 @@ export function KanbanCleanerAlert({
               {audit.issues.length === 1 ? 'issue' : 'issues'}
             </h2>
             <p className="truncate text-[10px] text-muted-foreground">
-              {audit.affectedTaskCount} {audit.affectedTaskCount === 1 ? 'card needs' : 'cards need'} attention
+              {audit.affectedTaskCount}{' '}
+              {audit.affectedTaskCount === 1 ? 'card needs' : 'cards need'} attention
             </p>
           </div>
         </div>
@@ -75,7 +76,10 @@ export function KanbanCleanerAlert({
       </div>
 
       {expanded && (
-        <ul id={contentId} className="grid max-h-36 gap-1 overflow-y-auto px-3 pb-2 sm:grid-cols-2 sm:px-4 xl:grid-cols-3">
+        <ul
+          id={contentId}
+          className="grid max-h-36 gap-1 overflow-y-auto px-3 pb-2 sm:grid-cols-2 sm:px-4 xl:grid-cols-3"
+        >
           {grouped.map(({ taskId, taskTitle, issues }) => (
             <li key={taskId}>
               <button
@@ -115,7 +119,10 @@ function groupByTask(issues: readonly KanbanAuditIssue[]): Array<{
   taskTitle: string;
   issues: KanbanAuditIssue[];
 }> {
-  const groups = new Map<string, { taskId: string; taskTitle: string; issues: KanbanAuditIssue[] }>();
+  const groups = new Map<
+    string,
+    { taskId: string; taskTitle: string; issues: KanbanAuditIssue[] }
+  >();
   for (const issue of issues) {
     const existing = groups.get(issue.taskId);
     if (existing) {

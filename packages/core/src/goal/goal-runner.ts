@@ -159,10 +159,20 @@ export class GoalRunner {
     this.maxRunTimer = setTimeout(
       () => {
         this.opts.onProgress?.({
-          totalPhases: 0, pending: 0, ready: 0, running: 0, paused: 0,
-          completed: 0, failed: 0, skipped: 0, percentComplete: 0,
-          totalTasks: 0, completedTasks: 0, failedTasks: 0,
-          estimatedHours: 0, actualHours: 0,
+          totalPhases: 0,
+          pending: 0,
+          ready: 0,
+          running: 0,
+          paused: 0,
+          completed: 0,
+          failed: 0,
+          skipped: 0,
+          percentComplete: 0,
+          totalTasks: 0,
+          completedTasks: 0,
+          failedTasks: 0,
+          estimatedHours: 0,
+          actualHours: 0,
         });
         this.stop();
       },

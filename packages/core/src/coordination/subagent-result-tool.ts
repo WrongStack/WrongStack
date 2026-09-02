@@ -60,9 +60,7 @@ export function normalizeSubagentStructuredReport(
     ...(completion === 'complete' || completion === 'partial' ? { completion } : {}),
     ...(remainingWork ? { remaining_work: remainingWork } : {}),
   };
-  return JSON.stringify(report).length <= MAX_SUBAGENT_STRUCTURED_REPORT_CHARS
-    ? report
-    : undefined;
+  return JSON.stringify(report).length <= MAX_SUBAGENT_STRUCTURED_REPORT_CHARS ? report : undefined;
 }
 
 export function readSubagentStructuredReport(

@@ -71,7 +71,12 @@ describe('setConfig', () => {
 
   it('handles reconnecting status', () => {
     useConfigStore.getState().setConfig({
-      wsStatus: { state: 'reconnecting', attempt: 3, nextRetryAt: Date.now(), lastError: 'timeout' },
+      wsStatus: {
+        state: 'reconnecting',
+        attempt: 3,
+        nextRetryAt: Date.now(),
+        lastError: 'timeout',
+      },
     });
     expect(useConfigStore.getState().wsConnected).toBe(false);
   });

@@ -13,14 +13,13 @@ interface TelegramReadInput {
   ack_last?: number | undefined;
 }
 
-export function makeTelegramReadTool(opts: {
-  bot: TelegramBot;
-}): Tool<TelegramReadInput> {
+export function makeTelegramReadTool(opts: { bot: TelegramBot }): Tool<TelegramReadInput> {
   return {
     name: 'telegram_read',
     description:
       'Read recent incoming Telegram messages the bot has received, newest first. Returns messages with sender, text, and timestamp. After reading, acknowledge them with ack_last so they are cleared. When responding to a user via telegram_send, format your reply as natural prose — summarize findings, report outcomes clearly, do not paste raw data.',
-    usageHint: 'telegram_read(chat_id: "123456789", limit: 5, ack_last: 42) — read messages, then ack the highest message_id to clear them.',
+    usageHint:
+      'telegram_read(chat_id: "123456789", limit: 5, ack_last: 42) — read messages, then ack the highest message_id to clear them.',
     category: 'Telegram',
     inputSchema: {
       type: 'object',
@@ -67,9 +66,10 @@ export function makeTelegramReadTool(opts: {
           ts: new Date(m.timestamp).toISOString(),
         })),
         acked,
-        hint: acked > 0
-          ? undefined
-          : 'Use ack_last with the highest message_id to clear processed messages.',
+        hint:
+          acked > 0
+            ? undefined
+            : 'Use ack_last with the highest message_id to clear processed messages.',
       };
     },
   };

@@ -104,9 +104,11 @@ describe('/agent-improve optimize', () => {
     );
     const systems: string[] = [];
     const run = dispatcher(
-      makeOpts(stubLlm('# Consolidated\n\n- Verify from the repo root.', (req) => {
-        systems.push(req.system?.[0]?.text ?? '');
-      })),
+      makeOpts(
+        stubLlm('# Consolidated\n\n- Verify from the repo root.', (req) => {
+          systems.push(req.system?.[0]?.text ?? '');
+        }),
+      ),
     );
     const res = await run('/agent-improve verifier optimize');
 
@@ -122,7 +124,11 @@ describe('/agent-improve optimize', () => {
   });
 
   it('`consolidate` remains an alias for `optimize`', async () => {
-    await seed('executor', 'Always rebase onto the latest main before opening a pull request.', 'git-flow');
+    await seed(
+      'executor',
+      'Always rebase onto the latest main before opening a pull request.',
+      'git-flow',
+    );
     const res = await dispatcher(makeOpts(stubLlm('# Consolidated')))(
       '/agent-improve executor consolidate',
     );
@@ -130,7 +136,11 @@ describe('/agent-improve optimize', () => {
   });
 
   it('still develops the skill layer with no model configured', async () => {
-    await seed('executor', 'Always rebase onto the latest main before opening a pull request.', 'git-flow');
+    await seed(
+      'executor',
+      'Always rebase onto the latest main before opening a pull request.',
+      'git-flow',
+    );
     const res = await dispatcher(makeOpts())('/agent-improve executor optimize');
     // Falls back to routing the role document through the chat agent…
     expect(res?.message).toContain('No active model');

@@ -58,7 +58,7 @@ describe('runBenchmark — coverage gap', () => {
       toolNames: ['read'],
       nodeBin: process.execPath,
       wstackEntry: fakeWstack,
-      keepSandbox: true,  // exercises the `!opts.keepSandbox` false branch in finally
+      keepSandbox: true, // exercises the `!opts.keepSandbox` false branch in finally
       now: () => '2026-07-04T00:00:00.000Z',
     });
     expect(report.results).toHaveLength(1);

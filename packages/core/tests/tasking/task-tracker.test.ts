@@ -9,10 +9,14 @@ import type { TaskStore } from '../../src/tasking/task-tracker.js';
 function makeStore(): TaskStore {
   const graphs = new Map<string, unknown>();
   return {
-    saveGraph: vi.fn(async (g: { id: string }) => { graphs.set(g.id, g); }),
+    saveGraph: vi.fn(async (g: { id: string }) => {
+      graphs.set(g.id, g);
+    }),
     loadGraph: vi.fn(async (id: string) => (graphs.get(id) as never) ?? null),
     listGraphs: vi.fn(async () => []),
-    deleteGraph: vi.fn(async (id: string) => { graphs.delete(id); }),
+    deleteGraph: vi.fn(async (id: string) => {
+      graphs.delete(id);
+    }),
   };
 }
 
@@ -359,7 +363,9 @@ describe('TaskTracker — subscribe', () => {
 
   it('a throwing listener does not break mutations', async () => {
     const t = await withGraph();
-    t.subscribe(() => { throw new Error('listener boom'); });
+    t.subscribe(() => {
+      throw new Error('listener boom');
+    });
     // Should not throw
     const node = t.addNode(makeNode());
     expect(node.id).toBeDefined();
@@ -391,7 +397,9 @@ describe('TaskTracker — persist error handling', () => {
 
   it('createGraph propagates store errors directly', async () => {
     const store: TaskStore = {
-      saveGraph: vi.fn(async () => { throw new Error('disk full'); }),
+      saveGraph: vi.fn(async () => {
+        throw new Error('disk full');
+      }),
       loadGraph: vi.fn(async () => null),
       listGraphs: vi.fn(async () => []),
       deleteGraph: vi.fn(async () => {}),
@@ -499,7 +507,11 @@ describe('TaskTracker — cascade observability (BIZ-003)', () => {
       // On c's CASCADE notification (guard active), mutate b. Without the
       // guard this completion would cascade d -> pending here; with it, the
       // nested cascade is suppressed and d stays blocked.
-      if (change.type === 'status_changed' && change.nodeId === c.id && change.node.status === 'pending') {
+      if (
+        change.type === 'status_changed' &&
+        change.nodeId === c.id &&
+        change.node.status === 'pending'
+      ) {
         t.updateNodeStatus(b.id, 'completed');
       }
     });

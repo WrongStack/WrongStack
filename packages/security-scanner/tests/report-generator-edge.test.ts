@@ -111,9 +111,7 @@ describe('ReportGenerator - edge coverage', () => {
     const gen = new ReportGenerator({ outputDir: path.join(tmp, 'r'), groupBySeverity: true });
     const file = await gen.generate(
       mkScanResult({
-        findings: [
-          mkFinding({ severity: 'gibberish' as never, title: 'Unknown Sev' }),
-        ],
+        findings: [mkFinding({ severity: 'gibberish' as never, title: 'Unknown Sev' })],
         summary: { critical: 0, high: 0, medium: 0, low: 0, total: 1 } as never,
       }),
     );

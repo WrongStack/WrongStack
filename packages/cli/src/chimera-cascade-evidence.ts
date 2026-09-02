@@ -186,11 +186,7 @@ interface RunCommandResult {
   exitCode: number;
 }
 
-type RunCommandFn = (
-  command: string,
-  cwd: string,
-  timeoutMs: number,
-) => Promise<RunCommandResult>;
+type RunCommandFn = (command: string, cwd: string, timeoutMs: number) => Promise<RunCommandResult>;
 
 /**
  * Validate a claimed command against the safety contract: first token must be

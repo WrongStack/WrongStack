@@ -397,9 +397,7 @@ export function QuickModelSwitcher() {
             </span>
           )}
           {autoHint && (
-            <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-              {autoHint}
-            </span>
+            <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{autoHint}</span>
           )}
         </div>
         <div className="max-h-[50dvh] overflow-y-auto py-1">
@@ -451,7 +449,9 @@ export function QuickModelSwitcher() {
                     <div className="text-[10px] text-muted-foreground font-mono break-words">
                       {c.model}
                       {c.contextWindow ? ` · ctx ${c.contextWindow.toLocaleString()}` : ''}
-                      {c.reasoningEffortLevels ? ` · effort ${c.reasoningEffortLevels.join('/')}` : ''}
+                      {c.reasoningEffortLevels
+                        ? ` · effort ${c.reasoningEffortLevels.join('/')}`
+                        : ''}
                     </div>
                   )}
                 </div>

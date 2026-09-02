@@ -1,12 +1,40 @@
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { PromptPicker, type PromptPickEntry, filterPromptPicker } from '../src/components/prompt-picker.js';
+import {
+  PromptPicker,
+  type PromptPickEntry,
+  filterPromptPicker,
+} from '../src/components/prompt-picker.js';
 
 const entries: PromptPickEntry[] = [
-  { slug: 'test', title: 'Write tests', description: 'Create unit tests', category: 'testing', source: 'project', content: 'Write tests for...', favorite: false },
-  { slug: 'fix', title: 'Fix bug', description: 'Debug and fix', category: 'debug', source: 'user', content: 'Fix the bug...', favorite: true },
-  { slug: 'refactor', title: 'Refactor', description: 'Clean up code', category: 'testing', source: 'synced', content: 'Refactor...', favorite: false },
+  {
+    slug: 'test',
+    title: 'Write tests',
+    description: 'Create unit tests',
+    category: 'testing',
+    source: 'project',
+    content: 'Write tests for...',
+    favorite: false,
+  },
+  {
+    slug: 'fix',
+    title: 'Fix bug',
+    description: 'Debug and fix',
+    category: 'debug',
+    source: 'user',
+    content: 'Fix the bug...',
+    favorite: true,
+  },
+  {
+    slug: 'refactor',
+    title: 'Refactor',
+    description: 'Clean up code',
+    category: 'testing',
+    source: 'synced',
+    content: 'Refactor...',
+    favorite: false,
+  },
 ];
 
 describe('filterPromptPicker', () => {
@@ -142,10 +170,42 @@ describe('PromptPicker', () => {
 
   it('shows correct source glyphs', () => {
     const allSources: PromptPickEntry[] = [
-      { slug: 'a', title: 'Proj', description: 'x', category: 'test', source: 'project', content: 'x', favorite: false },
-      { slug: 'b', title: 'User', description: 'x', category: 'test', source: 'user', content: 'x', favorite: false },
-      { slug: 'c', title: 'Sync', description: 'x', category: 'test', source: 'synced', content: 'x', favorite: false },
-      { slug: 'd', title: 'Def', description: 'x', category: 'test', source: 'other', content: 'x', favorite: false },
+      {
+        slug: 'a',
+        title: 'Proj',
+        description: 'x',
+        category: 'test',
+        source: 'project',
+        content: 'x',
+        favorite: false,
+      },
+      {
+        slug: 'b',
+        title: 'User',
+        description: 'x',
+        category: 'test',
+        source: 'user',
+        content: 'x',
+        favorite: false,
+      },
+      {
+        slug: 'c',
+        title: 'Sync',
+        description: 'x',
+        category: 'test',
+        source: 'synced',
+        content: 'x',
+        favorite: false,
+      },
+      {
+        slug: 'd',
+        title: 'Def',
+        description: 'x',
+        category: 'test',
+        source: 'other',
+        content: 'x',
+        favorite: false,
+      },
     ];
     const view = render(
       React.createElement(PromptPicker, {
@@ -165,8 +225,13 @@ describe('PromptPicker', () => {
 
   it('handles many entries with window scrolling', () => {
     const many = Array.from({ length: 20 }, (_, i) => ({
-      slug: `e${i}`, title: `Entry ${i}`, description: `desc ${i}`,
-      category: 'test', source: 'project' as const, content: 'x', favorite: false,
+      slug: `e${i}`,
+      title: `Entry ${i}`,
+      description: `desc ${i}`,
+      category: 'test',
+      source: 'project' as const,
+      content: 'x',
+      favorite: false,
     }));
     const view = render(
       React.createElement(PromptPicker, {

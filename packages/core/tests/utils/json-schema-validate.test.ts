@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { JSONSchema } from '../../src/types/tool.js';
-import { coerceAgainstSchema, validateAgainstSchema } from '../../src/utils/json-schema-validate.js';
+import {
+  coerceAgainstSchema,
+  validateAgainstSchema,
+} from '../../src/utils/json-schema-validate.js';
 
 describe('json-schema-validate / validateAgainstSchema', () => {
   describe('primitive types', () => {

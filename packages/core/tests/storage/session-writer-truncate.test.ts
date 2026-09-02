@@ -30,8 +30,7 @@ const linked = (transcriptPath: string): string =>
   JSON.stringify({ type: 'agent_session_linked', transcriptPath });
 const checkpoint = (promptIndex: number): string =>
   JSON.stringify({ type: 'checkpoint', promptIndex });
-const userLine = (content: string): string =>
-  JSON.stringify({ type: 'user_input', content });
+const userLine = (content: string): string => JSON.stringify({ type: 'user_input', content });
 
 describe('findSessionCheckpointTruncatePlan', () => {
   it('keeps transcripts still referenced by the retained history (outside-window binding)', async () => {

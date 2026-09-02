@@ -119,14 +119,10 @@ describe('tall-terminal stress', () => {
       controllerRef.current?.scrollPage('down');
       await settle(150);
       const lines = tty.lines();
-      expect(
-        contentRowCount(lines, VP),
-        `page-down #${page + 1}: partial page`,
-      ).toBeGreaterThan(VP - 10);
-      expect(
-        maxBlankRun(lines, VP),
-        `page-down #${page + 1}: blank band`,
-      ).toBeLessThanOrEqual(3);
+      expect(contentRowCount(lines, VP), `page-down #${page + 1}: partial page`).toBeGreaterThan(
+        VP - 10,
+      );
+      expect(maxBlankRun(lines, VP), `page-down #${page + 1}: blank band`).toBeLessThanOrEqual(3);
     }
     tty.unmount();
   }, 60_000);
@@ -176,14 +172,12 @@ describe('tall-terminal stress', () => {
       tty.rerender(view(entries, vp, controllerRef));
       await settle(200);
       const lines = tty.lines();
-      expect(
-        contentRowCount(lines, vp),
-        `after resize to ${vp} rows: underfilled`,
-      ).toBeGreaterThan(vp - 10);
-      expect(
-        maxBlankRun(lines, vp),
-        `after resize to ${vp} rows: blank band`,
-      ).toBeLessThanOrEqual(3);
+      expect(contentRowCount(lines, vp), `after resize to ${vp} rows: underfilled`).toBeGreaterThan(
+        vp - 10,
+      );
+      expect(maxBlankRun(lines, vp), `after resize to ${vp} rows: blank band`).toBeLessThanOrEqual(
+        3,
+      );
     }
     tty.unmount();
   }, 60_000);

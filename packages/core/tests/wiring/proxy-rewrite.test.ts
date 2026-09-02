@@ -46,9 +46,7 @@ describe('rewriteBaseUrl', () => {
     expect(rewriteBaseUrl('https://api.openai.com/v1', undefined)).toBe(
       'https://api.openai.com/v1',
     );
-    expect(rewriteBaseUrl('https://api.openai.com/v1', '')).toBe(
-      'https://api.openai.com/v1',
-    );
+    expect(rewriteBaseUrl('https://api.openai.com/v1', '')).toBe('https://api.openai.com/v1');
   });
 
   it('rewrites a standard base URL through the proxy', () => {
@@ -73,9 +71,9 @@ describe('rewriteBaseUrl', () => {
   });
 
   it('does NOT double-wrap when the original already starts with the proxy path', () => {
-    expect(rewriteBaseUrl('http://localhost:3444/proxy/api.openai.com/v1', 'http://localhost:3444')).toBe(
-      'http://localhost:3444/proxy/api.openai.com/v1',
-    );
+    expect(
+      rewriteBaseUrl('http://localhost:3444/proxy/api.openai.com/v1', 'http://localhost:3444'),
+    ).toBe('http://localhost:3444/proxy/api.openai.com/v1');
   });
 
   it('does NOT rewrite a base URL that already targets localhost with a port', () => {
@@ -455,13 +453,17 @@ describe('deactivateProxyOnConnectionFailure', () => {
 
   it('returns false when proxy is not enabled or not active', () => {
     applyProxyConfig({ enabled: false, url: 'http://localhost:3444', active: false });
-    expect(deactivateProxyOnConnectionFailure(new Error('connect ECONNREFUSED 127.0.0.1:3444'))).toBe(false);
+    expect(
+      deactivateProxyOnConnectionFailure(new Error('connect ECONNREFUSED 127.0.0.1:3444')),
+    ).toBe(false);
     expect(getProxyConfig().active).toBe(false);
   });
 
   it('immediately deactivates proxy on ECONNREFUSED or proxy connection errors', () => {
     applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
-    const err = new Error('request to http://localhost:3444/proxy/api.openai.com/v1 failed, reason: connect ECONNREFUSED 127.0.0.1:3444');
+    const err = new Error(
+      'request to http://localhost:3444/proxy/api.openai.com/v1 failed, reason: connect ECONNREFUSED 127.0.0.1:3444',
+    );
     expect(deactivateProxyOnConnectionFailure(err)).toBe(true);
     expect(getProxyConfig().active).toBe(false);
   });

@@ -38,7 +38,7 @@ export function DesignPicker({ kits, selected, stack }: DesignPickerProps): Reac
         <Text dimColor>No design kits installed.</Text>
       ) : (
         <>
-          {hasAbove ? <Text dimColor>  … {start} more above</Text> : null}
+          {hasAbove ? <Text dimColor> … {start} more above</Text> : null}
           {visibleKits.map((kit, j) => {
             const i = start + j;
             return (
@@ -51,9 +51,7 @@ export function DesignPicker({ kits, selected, stack }: DesignPickerProps): Reac
               </Box>
             );
           })}
-          {hasBelow ? (
-            <Text dimColor>  … {kits.length - end} more below</Text>
-          ) : null}
+          {hasBelow ? <Text dimColor> … {kits.length - end} more below</Text> : null}
         </>
       )}
     </Box>

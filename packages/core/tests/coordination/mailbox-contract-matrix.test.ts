@@ -58,7 +58,11 @@ async function runFixture(fix: MatrixFixture): Promise<Record<string, unknown>> 
     }
     case 'ack-valid': {
       const msg = await mb.send({
-        from: 'a', to: 'b', type: 'note', subject: 's', body: 'b',
+        from: 'a',
+        to: 'b',
+        type: 'note',
+        subject: 's',
+        body: 'b',
       });
       const updated = await mb.ack({
         messageId: msg.id,
@@ -73,8 +77,8 @@ async function runFixture(fix: MatrixFixture): Promise<Record<string, unknown>> 
 }
 
 describe('mailbox contract matrix — core surface', () => {
-  const all = allMatrixFixtures().filter((f) =>
-    f.surfaces.includes(TARGET_SURFACE) && !f.unsupported?.includes(TARGET_SURFACE),
+  const all = allMatrixFixtures().filter(
+    (f) => f.surfaces.includes(TARGET_SURFACE) && !f.unsupported?.includes(TARGET_SURFACE),
   );
 
   for (const fix of all) {

@@ -5,10 +5,7 @@
   "description": "Stress-test a position by steelmanning the other side.",
   "content": "My position is: {{claim}}\n\nSteelman the strongest case AGAINST it, the version a smart, informed opponent would actually make, not a strawman. Identify the assumption of mine it attacks and what evidence would settle the disagreement. Then tell me honestly whether my position survives, needs qualification, or should change. Don't be agreeable for its own sake.",
   "category": "research",
-  "tags": [
-    "critical-thinking",
-    "steelman"
-  ],
+  "tags": ["critical-thinking", "steelman"],
   "source": "builtin",
   "favorite": false,
   "checksum": "8d64d118bf2dba24b062950c14ec5c98427a0577a989083090b682173607fa14",

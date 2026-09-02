@@ -160,19 +160,19 @@ interface EcosystemMeta {
  * for the UI to display a human-readable label.
  */
 export const ECOSYSTEM_META: Record<string, EcosystemMeta> = {
-  npm:     { label: 'npm / Node.js', icon: Package },
-  python:  { label: 'Python',        icon: Code2 },
-  rust:    { label: 'Rust',          icon: Shield },
-  go:      { label: 'Go',            icon: Rocket },
-  dotnet:  { label: '.NET',          icon: Monitor },
-  php:     { label: 'PHP',           icon: Terminal },
-  dart:    { label: 'Dart / Flutter',icon: Component },
-  maven:   { label: 'Maven',         icon: Archive },
-  gradle:  { label: 'Gradle',        icon: Box },
-  ruby:    { label: 'Ruby',          icon: Gem },
-  swift:   { label: 'Swift',         icon: Zap },
-  elixir:  { label: 'Elixir',        icon: Terminal },
-  cpp:     { label: 'C / C++',       icon: Code },
+  npm: { label: 'npm / Node.js', icon: Package },
+  python: { label: 'Python', icon: Code2 },
+  rust: { label: 'Rust', icon: Shield },
+  go: { label: 'Go', icon: Rocket },
+  dotnet: { label: '.NET', icon: Monitor },
+  php: { label: 'PHP', icon: Terminal },
+  dart: { label: 'Dart / Flutter', icon: Component },
+  maven: { label: 'Maven', icon: Archive },
+  gradle: { label: 'Gradle', icon: Box },
+  ruby: { label: 'Ruby', icon: Gem },
+  swift: { label: 'Swift', icon: Zap },
+  elixir: { label: 'Elixir', icon: Terminal },
+  cpp: { label: 'C / C++', icon: Code },
 };
 
 // Real ecosystems are proper nouns (npm, Python, Rust…) and stay untranslated;
@@ -222,13 +222,29 @@ export const SEVERITY_ORDER: readonly TechStackFindingSeverity[] = [
   'info',
 ];
 
-export const SEVERITY_META: Record<TechStackFindingSeverity, { labelKey: string; badge: string }> = {
-  critical: { labelKey: 'activity:techStackSeverity.critical', badge: 'border-destructive/45 bg-destructive/15 text-destructive' },
-  high: { labelKey: 'activity:techStackSeverity.high', badge: 'border-destructive/35 bg-destructive/10 text-destructive' },
-  medium: { labelKey: 'activity:techStackSeverity.medium', badge: 'border-warning/35 bg-warning/10 text-warning' },
-  low: { labelKey: 'activity:techStackSeverity.low', badge: 'border-info/35 bg-info/10 text-info' },
-  info: { labelKey: 'activity:techStackSeverity.info', badge: 'border-border/70 bg-muted text-muted-foreground' },
-};
+export const SEVERITY_META: Record<TechStackFindingSeverity, { labelKey: string; badge: string }> =
+  {
+    critical: {
+      labelKey: 'activity:techStackSeverity.critical',
+      badge: 'border-destructive/45 bg-destructive/15 text-destructive',
+    },
+    high: {
+      labelKey: 'activity:techStackSeverity.high',
+      badge: 'border-destructive/35 bg-destructive/10 text-destructive',
+    },
+    medium: {
+      labelKey: 'activity:techStackSeverity.medium',
+      badge: 'border-warning/35 bg-warning/10 text-warning',
+    },
+    low: {
+      labelKey: 'activity:techStackSeverity.low',
+      badge: 'border-info/35 bg-info/10 text-info',
+    },
+    info: {
+      labelKey: 'activity:techStackSeverity.info',
+      badge: 'border-border/70 bg-muted text-muted-foreground',
+    },
+  };
 
 export const ACTION_LABELS: Record<string, string> = {
   none: 'activity:techStackAction.none',
@@ -250,7 +266,11 @@ interface CoverageMeta {
 }
 
 export const COVERAGE_META: Record<TechStackCoverage, CoverageMeta> = {
-  full: { labelKey: 'activity:techStackCoverage.full', badge: 'border-success/35 bg-success/10 text-success', noteKey: undefined },
+  full: {
+    labelKey: 'activity:techStackCoverage.full',
+    badge: 'border-success/35 bg-success/10 text-success',
+    noteKey: undefined,
+  },
   partial: {
     labelKey: 'activity:techStackCoverage.partial',
     badge: 'border-warning/35 bg-warning/10 text-warning',
@@ -436,16 +456,31 @@ export function downloadReport(
     mimeType = 'application/json';
   } else {
     const lines = [
-      '# TechStack Report', '', `**Generated:** ${snapshot.createdAt}`, `**Target:** ${snapshot.targetRoot}`,
-      `**Fingerprint:** ${snapshot.fingerprint}`, `**Workspaces:** ${snapshot.workspaces.length}`,
-      `**Dependencies:** ${snapshot.dependencies.length}`, `**Findings:** ${snapshot.findings.length}`,
-      `**Coverage:** ${snapshot.coverage}`, '',
+      '# TechStack Report',
+      '',
+      `**Generated:** ${snapshot.createdAt}`,
+      `**Target:** ${snapshot.targetRoot}`,
+      `**Fingerprint:** ${snapshot.fingerprint}`,
+      `**Workspaces:** ${snapshot.workspaces.length}`,
+      `**Dependencies:** ${snapshot.dependencies.length}`,
+      `**Findings:** ${snapshot.findings.length}`,
+      `**Coverage:** ${snapshot.coverage}`,
+      '',
     ];
     if (snapshot.workspaces.length > 0) {
-      lines.push('## Workspaces', '', '| Workspace | Ecosystem | Coverage | Deps |', '|---|---|---|---|');
+      lines.push(
+        '## Workspaces',
+        '',
+        '| Workspace | Ecosystem | Coverage | Deps |',
+        '|---|---|---|---|',
+      );
       for (const workspace of snapshot.workspaces) {
-        const count = snapshot.dependencies.filter((dependency) => dependency.workspaceId === workspace.id).length;
-        lines.push(`| ${workspace.relativeRoot} | ${workspace.ecosystem} | ${workspace.coverage} | ${count} |`);
+        const count = snapshot.dependencies.filter(
+          (dependency) => dependency.workspaceId === workspace.id,
+        ).length;
+        lines.push(
+          `| ${workspace.relativeRoot} | ${workspace.ecosystem} | ${workspace.coverage} | ${count} |`,
+        );
       }
       lines.push('');
     }
@@ -458,16 +493,28 @@ export function downloadReport(
       for (const severity of ['critical', 'high', 'medium', 'low', 'info']) {
         const findings = bySeverity.get(severity);
         if (!findings?.length) continue;
-        lines.push(`### ${severity.charAt(0).toUpperCase() + severity.slice(1)} (${findings.length})`, '');
+        lines.push(
+          `### ${severity.charAt(0).toUpperCase() + severity.slice(1)} (${findings.length})`,
+          '',
+        );
         for (const finding of findings) {
-          const dependency = snapshot.dependencies.find((candidate) => candidate.id === finding.dependencyId);
-          lines.push(`- **${dependency?.name ?? finding.dependencyId}** — ${finding.type} — ${finding.rationale}`);
+          const dependency = snapshot.dependencies.find(
+            (candidate) => candidate.id === finding.dependencyId,
+          );
+          lines.push(
+            `- **${dependency?.name ?? finding.dependencyId}** — ${finding.type} — ${finding.rationale}`,
+          );
         }
         lines.push('');
       }
     }
     if (snapshot.dependencies.length > 0) {
-      lines.push('## Dependencies', '', '| Name | Ecosystem | Status | Locked | Latest |', '|---|---|---|---|---|');
+      lines.push(
+        '## Dependencies',
+        '',
+        '| Name | Ecosystem | Status | Locked | Latest |',
+        '|---|---|---|---|---|',
+      );
       for (const dependency of snapshot.dependencies) {
         lines.push(
           `| ${dependency.name} | ${dependency.ecosystem} | ${dependency.status} | ${dependency.locked ?? '—'} | ${dependency.latestStable ?? '—'} |`,
@@ -487,4 +534,3 @@ export function downloadReport(
   anchor.click();
   URL.revokeObjectURL(url);
 }
-

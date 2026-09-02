@@ -46,7 +46,15 @@ describe('process WebSocket handlers', () => {
   describe('handleProcessList', () => {
     it('projects the registry list into the wire shape', async () => {
       registry.list.mockReturnValue([
-        { pid: 10, command: 'bash -c x', name: 'bash', startedAt: 5, killed: false, protected: true, background: true },
+        {
+          pid: 10,
+          command: 'bash -c x',
+          name: 'bash',
+          startedAt: 5,
+          killed: false,
+          protected: true,
+          background: true,
+        },
         { pid: 11, command: 'rg foo', name: 'grep', startedAt: 6, killed: true, protected: false },
       ]);
       const ws = createMockWs();
@@ -56,8 +64,23 @@ describe('process WebSocket handlers', () => {
         type: 'process.list',
         payload: {
           processes: [
-            { pid: 10, command: 'bash -c x', tool: 'bash', startedAt: 5, status: 'running', protected: true, background: true },
-            { pid: 11, command: 'rg foo', tool: 'grep', startedAt: 6, status: 'killed', protected: false },
+            {
+              pid: 10,
+              command: 'bash -c x',
+              tool: 'bash',
+              startedAt: 5,
+              status: 'running',
+              protected: true,
+              background: true,
+            },
+            {
+              pid: 11,
+              command: 'rg foo',
+              tool: 'grep',
+              startedAt: 6,
+              status: 'killed',
+              protected: false,
+            },
           ],
         },
       });

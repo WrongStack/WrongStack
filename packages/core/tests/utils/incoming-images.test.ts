@@ -66,9 +66,7 @@ describe('parseIncomingImages', () => {
 
   it('rejects empty and non-base64 data', () => {
     expect(() => parseIncomingImages([{ data: '' }])).toThrow(/empty image data/);
-    expect(() => parseIncomingImages([{ data: 'not valid base64!!' }])).toThrow(
-      /not valid base64/,
-    );
+    expect(() => parseIncomingImages([{ data: 'not valid base64!!' }])).toThrow(/not valid base64/);
   });
 
   it('rejects oversized images', () => {

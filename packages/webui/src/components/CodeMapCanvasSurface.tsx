@@ -11,11 +11,7 @@ import {
 } from '@xyflow/react';
 import { Loader2, Network } from 'lucide-react';
 import type React from 'react';
-import {
-  type CodeMapNodeData,
-  EDGE_COLOR,
-  nodeTypes,
-} from './CodeMapVisuals';
+import { type CodeMapNodeData, EDGE_COLOR, nodeTypes } from './CodeMapVisuals';
 import { MINIMAP_NODE_LIMIT } from './CodeMapConfig';
 import type { CodeMapGraphResponse, GraphRefType } from './codemap-model';
 import { useAppTranslation } from '@/i18n';

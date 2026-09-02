@@ -5,10 +5,7 @@
   "description": "Critique a test suite for what it actually guarantees.",
   "content": "Review these tests for quality, not quantity:\n\n```\n{{tests}}\n```\n\nFor each test ask: does it test behavior or implementation? Would it fail if the code broke? Would it pass for the wrong reasons? Flag tautological assertions, over-mocking, missing edge cases, and tests that just restate the code. Recommend which to keep, fix, or delete.",
   "category": "testing",
-  "tags": [
-    "test-review",
-    "assertions"
-  ],
+  "tags": ["test-review", "assertions"],
   "source": "builtin",
   "favorite": false,
   "checksum": "b67fcd4d09432f89714a013c26ef651588b8fc2cacf15a2ca1401816b6b77854",

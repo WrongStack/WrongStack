@@ -91,9 +91,7 @@ export interface HqRedactionResult<T> {
 
 const defaultScrubber = new DefaultSecretScrubber();
 
-export function resolveHqRedactionPolicy(
-  policy?: Partial<HqRedactionPolicy>,
-): HqRedactionPolicy {
+export function resolveHqRedactionPolicy(policy?: Partial<HqRedactionPolicy>): HqRedactionPolicy {
   return {
     ...DEFAULT_HQ_REDACTION_POLICY,
     ...policy,
@@ -297,10 +295,7 @@ function redactHqValueInternal<T>(
   return { value: result.value as T, redacted: result.redacted };
 }
 
-export function redactHqValue<T>(
-  value: T,
-  options: HqRedactOptions = {},
-): HqRedactionResult<T> {
+export function redactHqValue<T>(value: T, options: HqRedactOptions = {}): HqRedactionResult<T> {
   return redactHqValueInternal(value, options, false);
 }
 

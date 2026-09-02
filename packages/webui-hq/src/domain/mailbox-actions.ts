@@ -50,9 +50,7 @@ async function postAction(input: HqMailboxActionInput): Promise<MailboxActionRes
       const body = (await res.json()) as unknown;
       if (isServerError(body)) {
         detail =
-          typeof body.error === 'string'
-            ? body.error
-            : `${body.error.code}: ${body.error.message}`;
+          typeof body.error === 'string' ? body.error : `${body.error.code}: ${body.error.message}`;
       }
     } catch {
       // ignore JSON parse errors; the status line is enough

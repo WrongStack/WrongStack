@@ -745,7 +745,13 @@ describe('PhaseOrchestrator — interactive board mutations', () => {
           estimateHours: 1,
           parallelizable: false,
           taskTemplates: [
-            { title: 'B1', description: 'b1', type: 'feature', priority: 'medium', estimateHours: 1 },
+            {
+              title: 'B1',
+              description: 'b1',
+              type: 'feature',
+              priority: 'medium',
+              estimateHours: 1,
+            },
           ],
         },
       ],
@@ -829,7 +835,9 @@ describe('PhaseOrchestrator — interactive board mutations', () => {
     graph.failedPhaseIds.push(alpha.id);
     const tracker = (
       orch as never as {
-        getTrackerForPhase: (p: typeof alpha) => { updateNodeStatus: (id: string, s: string) => void };
+        getTrackerForPhase: (p: typeof alpha) => {
+          updateNodeStatus: (id: string, s: string) => void;
+        };
       }
     ).getTrackerForPhase(alpha);
     tracker.updateNodeStatus(a1.id, 'failed');

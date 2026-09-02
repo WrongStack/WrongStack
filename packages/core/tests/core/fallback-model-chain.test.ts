@@ -18,7 +18,11 @@ function makeConfig(overrides: Record<string, unknown> = {}): Config {
       'test-provider': { type: 'openai', apiKey: 'sk-test', models: ['test-model', 'other-model'] },
       'backup-provider': { type: 'anthropic', apiKey: 'sk-backup', models: ['claude-3'] },
     },
-    favoriteModels: ['test-provider/test-model', 'test-provider/other-model', 'backup-provider/claude-3'],
+    favoriteModels: [
+      'test-provider/test-model',
+      'test-provider/other-model',
+      'backup-provider/claude-3',
+    ],
     fallbackModels: [],
     fallbackAuto: true,
     ...overrides,

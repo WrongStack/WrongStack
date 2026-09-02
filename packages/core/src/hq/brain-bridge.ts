@@ -39,7 +39,10 @@ function extractRequestFields(req: BrainDecisionRequest | undefined): {
   return out;
 }
 
-function extractDecisionFields(dec: BrainDecision | undefined): { decision?: string; detail?: string } {
+function extractDecisionFields(dec: BrainDecision | undefined): {
+  decision?: string;
+  detail?: string;
+} {
   if (dec === undefined) return {};
   const out: { decision?: string; detail?: string } = {};
   // BrainDecision is a discriminated union on `type` (answer | ask_human | deny).
@@ -82,46 +85,66 @@ export function startBrainTelemetryBridge(opts: BrainTelemetryBridgeOptions): ()
   );
   ctx.track(
     events.on('brain.decision_answered', (p) => {
-      publish('decision_answered', {
-        ...extractRequestFields(p.request),
-        ...extractDecisionFields(p.decision),
-      }, p.at);
+      publish(
+        'decision_answered',
+        {
+          ...extractRequestFields(p.request),
+          ...extractDecisionFields(p.decision),
+        },
+        p.at,
+      );
     }),
   );
   ctx.track(
     events.on('brain.decision_ask_human', (p) => {
-      publish('decision_ask_human', {
-        ...extractRequestFields(p.request),
-        ...extractDecisionFields(p.decision),
-      }, p.at);
+      publish(
+        'decision_ask_human',
+        {
+          ...extractRequestFields(p.request),
+          ...extractDecisionFields(p.decision),
+        },
+        p.at,
+      );
     }),
   );
   ctx.track(
     events.on('brain.decision_denied', (p) => {
-      publish('decision_denied', {
-        ...extractRequestFields(p.request),
-        ...extractDecisionFields(p.decision),
-      }, p.at);
+      publish(
+        'decision_denied',
+        {
+          ...extractRequestFields(p.request),
+          ...extractDecisionFields(p.decision),
+        },
+        p.at,
+      );
     }),
   );
   ctx.track(
     events.on('brain.human_answered', (p) => {
       const detail = typeof p.text === 'string' ? p.text : p.optionId;
-      publish('human_answered', {
-        requestId: p.id,
-        ...(detail !== undefined ? { detail } : {}),
-        ...(p.deny === true ? { decision: 'deny' } : {}),
-      }, p.at);
+      publish(
+        'human_answered',
+        {
+          requestId: p.id,
+          ...(detail !== undefined ? { detail } : {}),
+          ...(p.deny === true ? { decision: 'deny' } : {}),
+        },
+        p.at,
+      );
     }),
   );
   ctx.track(
     events.on('brain.intervention', (p) => {
-      publish('intervention', {
-        ...extractRequestFields(p.request),
-        ...extractDecisionFields(p.decision),
-        interventionKind: p.kind,
-        intervened: p.intervened,
-      }, p.at);
+      publish(
+        'intervention',
+        {
+          ...extractRequestFields(p.request),
+          ...extractDecisionFields(p.decision),
+          interventionKind: p.kind,
+          intervened: p.intervened,
+        },
+        p.at,
+      );
     }),
   );
 

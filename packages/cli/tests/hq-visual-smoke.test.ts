@@ -491,9 +491,9 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       expect(await todoCard.locator('[data-testid="todo"]').count()).toBe(3);
 
       await scrollTranscript(-6000);
-      expect(
-        await page.locator('[data-testid="markdown-code-lang"]').first().textContent(),
-      ).toBe('ts');
+      expect(await page.locator('[data-testid="markdown-code-lang"]').first().textContent()).toBe(
+        'ts',
+      );
 
       await shoot('brain', '05-brain');
       expect(await page.locator('[data-testid="brain-entry"]').count()).toBeGreaterThan(0);
@@ -521,17 +521,17 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       await openAppearance();
       await page.click('[role="menuitemradio"]:has-text("Light")');
       await page.waitForTimeout(350);
-      expect(
-        await page.evaluate(() => document.documentElement.classList.contains('dark')),
-      ).toBe(false);
+      expect(await page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(
+        false,
+      );
       await shoot('cockpit', '14-cockpit-light');
 
       await openAppearance();
       await page.click('[role="menuitemradio"]:has-text("Emerald / Gold")');
       await page.waitForTimeout(350);
-      expect(
-        await page.evaluate(() => document.documentElement.getAttribute('data-palette')),
-      ).toBe('emerald-gold');
+      expect(await page.evaluate(() => document.documentElement.getAttribute('data-palette'))).toBe(
+        'emerald-gold',
+      );
       await page.screenshot({ path: path.join(shots, '15-cockpit-light-emerald.png') });
 
       await openAppearance();
@@ -550,9 +550,9 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       await page.waitForTimeout(400);
       // Narrowing must fold the rail away rather than leave it covering the
       // content behind a scrim.
-      expect(
-        await page.locator('[data-testid="nav-sidebar"]').getAttribute('data-open'),
-      ).toBe('false');
+      expect(await page.locator('[data-testid="nav-sidebar"]').getAttribute('data-open')).toBe(
+        'false',
+      );
       await page.screenshot({ path: path.join(shots, '16-narrow-collapsed.png') });
       await page.keyboard.press('Control+b');
       await page.waitForTimeout(400);
@@ -562,9 +562,9 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       await page.screenshot({ path: path.join(shots, '17-narrow-rail-open.png') });
       await page.click('[data-testid="nav-scrim"]');
       await page.waitForTimeout(300);
-      expect(
-        await page.locator('[data-testid="nav-sidebar"]').getAttribute('data-open'),
-      ).toBe('false');
+      expect(await page.locator('[data-testid="nav-sidebar"]').getAttribute('data-open')).toBe(
+        'false',
+      );
       await page.setViewportSize({ width: 1440, height: 900 });
 
       expect(consoleErrors.join(' | ')).toBe('');

@@ -65,7 +65,7 @@ export function AutonomyPicker({
         ━━ Autonomy Mode ━━
       </Text>
       <Text dimColor>↑/↓ navigate · Enter select · Esc cancel · Ctrl+C exit</Text>
-      {hasAbove ? <Text dimColor>  … {start} more above</Text> : null}
+      {hasAbove ? <Text dimColor> … {start} more above</Text> : null}
       {visibleOptions.map((opt, j) => {
         const i = start + j;
         return (
@@ -80,9 +80,7 @@ export function AutonomyPicker({
           </Text>
         );
       })}
-      {hasBelow ? (
-        <Text dimColor>  … {options.length - end} more below</Text>
-      ) : null}
+      {hasBelow ? <Text dimColor> … {options.length - end} more below</Text> : null}
       {hint ? <Text color="yellow">{hint}</Text> : null}
     </Box>
   );

@@ -46,7 +46,9 @@ export function CodeMapRelationInspector({
   return (
     <aside className="flex w-[326px] shrink-0 flex-col border-l bg-card/80">
       <div className="flex h-10 items-center justify-between border-b px-3">
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">{t('activity:codeMap.relationInspector')}</h2>
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">
+          {t('activity:codeMap.relationInspector')}
+        </h2>
         {selectedNode && (
           <button
             type="button"

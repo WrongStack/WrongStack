@@ -148,10 +148,7 @@ describe('context editor url image source (WS-032)', () => {
   });
 
   it('rejects public URL sources because provider-side fetches cannot be DNS-pinned here', () => {
-    for (const url of [
-      'https://example.com/photo.png',
-      'https://internal.example.com/a.png',
-    ]) {
+    for (const url of ['https://example.com/photo.png', 'https://internal.example.com/a.png']) {
       const out = rejected(url);
       expect(out.accepted, url).toBe(false);
       expect(out.codes, url).toContain('UNSAFE_IMAGE_URL');

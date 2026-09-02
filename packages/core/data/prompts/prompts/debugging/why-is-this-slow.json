@@ -5,10 +5,7 @@
   "description": "Diagnose a performance problem before optimizing.",
   "content": "This is slow: {{what}}\n\nBefore changing anything, help me locate the bottleneck:\n1. What to measure and how (profiler, timing, counters).\n2. The usual suspects for this kind of workload, ranked.\n3. How to confirm the bottleneck is what we think before optimizing.\n\nOnce we've measured, propose the highest-leverage fix and predict its impact. Don't guess-optimize.",
   "category": "debugging",
-  "tags": [
-    "performance",
-    "profiling"
-  ],
+  "tags": ["performance", "profiling"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2c94c5cc070dd32c922f9ae9e1c010c627790a0d9c121cbd1ff0300a143ed866",

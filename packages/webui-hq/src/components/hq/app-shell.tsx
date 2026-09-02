@@ -8,14 +8,7 @@
  *  - the auth gate, so a rejected credential replaces the whole surface
  *    rather than leaving twelve views to each render an empty pane
  */
-import {
-  ArrowUpCircle,
-  LogOut,
-  PanelLeftOpen,
-  Search,
-  Wifi,
-  WifiOff,
-} from 'lucide-react';
+import { ArrowUpCircle, LogOut, PanelLeftOpen, Search, Wifi, WifiOff } from 'lucide-react';
 import type * as React from 'react';
 import { Suspense, useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';

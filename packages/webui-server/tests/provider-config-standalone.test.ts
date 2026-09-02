@@ -17,9 +17,7 @@ import {
 describe('provider-config-standalone', () => {
   it('uses the shared root vault key for profile configs', () => {
     const profileConfig = path.join('/tmp', '.wrongstack', 'profiles', 'work', 'config.json');
-    expect(vaultKeyFileForConfigPath(profileConfig)).toBe(
-      path.join('/tmp', '.wrongstack', '.key'),
-    );
+    expect(vaultKeyFileForConfigPath(profileConfig)).toBe(path.join('/tmp', '.wrongstack', '.key'));
   });
 
   describe('createProviderConfigIO', () => {

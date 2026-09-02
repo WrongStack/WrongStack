@@ -16,7 +16,9 @@ for (const arg of args) {
 }
 
 const repoRoot = process.cwd();
-const registry = JSON.parse(await readFile(path.join(repoRoot, 'architecture/registry.json'), 'utf8'));
+const registry = JSON.parse(
+  await readFile(path.join(repoRoot, 'architecture/registry.json'), 'utf8'),
+);
 const tscEntry = path.join(repoRoot, 'node_modules/typescript/bin/tsc');
 
 function toPosix(value) {
@@ -41,7 +43,12 @@ async function discoverProjects() {
       if (!entry.isDirectory()) continue;
       const packageDir = path.join(root, entry.name);
       const packageRelative = toPosix(path.relative(repoRoot, packageDir));
-      if (registry.scope.excludedPaths.some((excluded) => packageRelative === excluded || packageRelative.startsWith(`${excluded}/`))) continue;
+      if (
+        registry.scope.excludedPaths.some(
+          (excluded) => packageRelative === excluded || packageRelative.startsWith(`${excluded}/`),
+        )
+      )
+        continue;
       const config = path.join(packageDir, 'tsconfig.test.json');
       if (!(await pathExists(config))) continue;
       const testDir = path.join(packageDir, 'tests');
@@ -71,7 +78,8 @@ async function loadBaselineCounts() {
     if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
     const document = JSON.parse(await readFile(path.join(baselineDir, entry.name), 'utf8'));
     for (const [id, count] of Object.entries(document.diagnostics ?? {})) {
-      if (counts.has(id)) throw new Error(`Duplicate test-type diagnostic id '${id}' in ${entry.name}`);
+      if (counts.has(id))
+        throw new Error(`Duplicate test-type diagnostic id '${id}' in ${entry.name}`);
       counts.set(id, count);
     }
   }
@@ -89,10 +97,18 @@ function runTsc(project) {
     let stderr = '';
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => { stdout += chunk; });
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
-    child.on('error', (error) => resolve({ project, exitCode: -1, output: `${stdout}\n${stderr}\n${error.message}` }));
-    child.on('close', (exitCode) => resolve({ project, exitCode: exitCode ?? -1, output: `${stdout}\n${stderr}` }));
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', (error) =>
+      resolve({ project, exitCode: -1, output: `${stdout}\n${stderr}\n${error.message}` }),
+    );
+    child.on('close', (exitCode) =>
+      resolve({ project, exitCode: exitCode ?? -1, output: `${stdout}\n${stderr}` }),
+    );
   });
 }
 
@@ -184,7 +200,11 @@ for (const diagnostic of rawDiagnostics) {
 const diagnostics = [...diagnosticMap.values()].sort((a, b) => a.key.localeCompare(b.key));
 const unparsedFailures = results
   .filter((result) => result.exitCode !== 0 && parseDiagnostics(result).length === 0)
-  .map((result) => ({ project: result.project.id, exitCode: result.exitCode, output: result.output.trim() }));
+  .map((result) => ({
+    project: result.project.id,
+    exitCode: result.exitCode,
+    output: result.output.trim(),
+  }));
 
 const baselineCounts = await loadBaselineCounts();
 const currentCounts = new Map(diagnostics.map((item) => [item.id, item.count]));
@@ -196,8 +216,12 @@ const resolvedDiagnostics = [...baselineCounts]
   .map(([id, count]) => ({ id, count, resolved: count - (currentCounts.get(id) ?? 0) }));
 const byProject = projects.map((project) => ({
   project: project.id,
-  diagnostics: diagnostics.filter((item) => item.project === project.id).reduce((total, item) => total + item.count, 0),
-  newDiagnostics: newDiagnostics.filter((item) => item.project === project.id).reduce((total, item) => total + item.added, 0),
+  diagnostics: diagnostics
+    .filter((item) => item.project === project.id)
+    .reduce((total, item) => total + item.count, 0),
+  newDiagnostics: newDiagnostics
+    .filter((item) => item.project === project.id)
+    .reduce((total, item) => total + item.added, 0),
 }));
 
 const report = {
@@ -214,8 +238,11 @@ const report = {
 
 if (args.has('--print-baseline')) {
   if (unparsedFailures.length > 0) {
-    console.error('Refusing to print an incomplete baseline because a project failed without parseable diagnostics.');
-    for (const failure of unparsedFailures) console.error(`  ${failure.project}: exit ${failure.exitCode}\n${failure.output}`);
+    console.error(
+      'Refusing to print an incomplete baseline because a project failed without parseable diagnostics.',
+    );
+    for (const failure of unparsedFailures)
+      console.error(`  ${failure.project}: exit ${failure.exitCode}\n${failure.output}`);
     process.exit(1);
   }
   const projectEntries = {};
@@ -224,7 +251,10 @@ if (args.has('--print-baseline')) {
     projectEntries[item.project][item.id] = item.count;
   }
   const baselines = Object.entries(projectEntries).map(([project, diags]) => ({
-    schemaVersion: 1, project, hashAlgorithm: 'sha256-64bit', diagnostics: diags,
+    schemaVersion: 1,
+    project,
+    hashAlgorithm: 'sha256-64bit',
+    diagnostics: diags,
   }));
   console.log(JSON.stringify(baselines, null, 2));
 } else if (args.has('--json')) {
@@ -232,18 +262,27 @@ if (args.has('--print-baseline')) {
 } else {
   console.log(`Test TypeScript projects: ${projects.length}`);
   console.log(`Current diagnostics: ${rawDiagnostics.length} (${diagnostics.length} unique)`);
-  console.log(`Baseline diagnostics: ${[...baselineCounts.values()].reduce((total, count) => total + count, 0)}`);
+  console.log(
+    `Baseline diagnostics: ${[...baselineCounts.values()].reduce((total, count) => total + count, 0)}`,
+  );
   console.log(`New diagnostics: ${newDiagnostics.reduce((total, item) => total + item.added, 0)}`);
-  console.log(`Resolved baseline diagnostics: ${resolvedDiagnostics.reduce((total, item) => total + item.resolved, 0)}`);
+  console.log(
+    `Resolved baseline diagnostics: ${resolvedDiagnostics.reduce((total, item) => total + item.resolved, 0)}`,
+  );
   for (const item of byProject.filter((entry) => entry.diagnostics > 0)) {
     console.log(`  ${item.project}: ${item.diagnostics} (${item.newDiagnostics} new)`);
   }
   if (unparsedFailures.length > 0) {
     console.error('TypeScript projects failed without parseable diagnostics:');
-    for (const failure of unparsedFailures) console.error(`  ${failure.project}: exit ${failure.exitCode}\n${failure.output}`);
+    for (const failure of unparsedFailures)
+      console.error(`  ${failure.project}: exit ${failure.exitCode}\n${failure.output}`);
   }
 }
 
-if ((newDiagnostics.length > 0 || unparsedFailures.length > 0) && !args.has('--report-only') && !args.has('--print-baseline')) {
+if (
+  (newDiagnostics.length > 0 || unparsedFailures.length > 0) &&
+  !args.has('--report-only') &&
+  !args.has('--print-baseline')
+) {
   process.exitCode = 1;
 }

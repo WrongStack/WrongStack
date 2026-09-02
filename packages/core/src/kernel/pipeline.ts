@@ -84,9 +84,7 @@ export class Pipeline<T> {
    * Set the operational logger used by the swallow error-boundary path.
    * Without this, a swallowed middleware crash is completely silent.
    */
-  setLogger(
-    logger: { warn: (msg: string, ctx?: unknown) => void | undefined } | undefined,
-  ): this {
+  setLogger(logger: { warn: (msg: string, ctx?: unknown) => void | undefined } | undefined): this {
     this.logger = logger;
     return this;
   }

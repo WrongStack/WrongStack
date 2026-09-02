@@ -13,22 +13,11 @@
         "priority": "critical",
         "status": "pending",
         "estimateHours": 10,
-        "tags": [
-          "kanban",
-          "types",
-          "lifecycle",
-          "attempt",
-          "dependency",
-          "p0"
-        ],
+        "tags": ["kanban", "types", "lifecycle", "attempt", "dependency", "p0"],
         "specRequirementId": "R1,R3,R11",
         "metadata": {
           "phase": "contract",
-          "requirementIds": [
-            "R1",
-            "R3",
-            "R11"
-          ],
+          "requirementIds": ["R1", "R3", "R11"],
           "expectedFiles": [
             "packages/kanban/src/types/command.ts",
             "packages/kanban/src/types/profile.ts",
@@ -50,18 +39,11 @@
         "priority": "critical",
         "status": "pending",
         "estimateHours": 8,
-        "tags": [
-          "kanban",
-          "test",
-          "conformance",
-          "p0"
-        ],
+        "tags": ["kanban", "test", "conformance", "p0"],
         "specRequirementId": "R2",
         "metadata": {
           "phase": "contract",
-          "requirementIds": [
-            "R2"
-          ],
+          "requirementIds": ["R2"],
           "expectedFiles": [
             "packages/kanban/tests/shared/conformance-harness.ts",
             "packages/kanban/tests/shared/conformance-fixtures.ts"
@@ -79,28 +61,16 @@
         "priority": "critical",
         "status": "pending",
         "estimateHours": 4,
-        "tags": [
-          "kanban",
-          "gate",
-          "acceptance",
-          "p0"
-        ],
+        "tags": ["kanban", "gate", "acceptance", "p0"],
         "specRequirementId": "R1,R2",
         "metadata": {
           "phase": "gate",
-          "requirementIds": [
-            "R1",
-            "R2",
-            "R3",
-            "R11"
-          ],
+          "requirementIds": ["R1", "R2", "R3", "R11"],
           "expectedFiles": [
             "docs/specs/kanban-agent-evolution-sdd.md",
             "docs/specs/kanban-agent-evolution.task-graph.json"
           ],
-          "requiredReviewers": [
-            "critic"
-          ]
+          "requiredReviewers": ["critic"]
         }
       }
     ],
@@ -114,21 +84,11 @@
         "priority": "critical",
         "status": "completed",
         "estimateHours": 12,
-        "tags": [
-          "kanban",
-          "command",
-          "profile",
-          "gate",
-          "p1"
-        ],
+        "tags": ["kanban", "command", "profile", "gate", "p1"],
         "specRequirementId": "R1,R3",
         "metadata": {
           "phase": "lifecycle",
-          "requirementIds": [
-            "R1",
-            "R3",
-            "R5"
-          ],
+          "requirementIds": ["R1", "R3", "R5"],
           "expectedFiles": [
             "packages/kanban/src/command/command-context.ts",
             "packages/kanban/src/command/command-service.ts"
@@ -148,20 +108,11 @@
         "priority": "critical",
         "status": "completed",
         "estimateHours": 16,
-        "tags": [
-          "kanban",
-          "attempt",
-          "lifecycle",
-          "leases",
-          "p1"
-        ],
+        "tags": ["kanban", "attempt", "lifecycle", "leases", "p1"],
         "specRequirementId": "R4",
         "metadata": {
           "phase": "lifecycle",
-          "requirementIds": [
-            "R4",
-            "R5"
-          ],
+          "requirementIds": ["R4", "R5"],
           "expectedFiles": [
             "packages/kanban/src/command/reserve-attempt.ts",
             "packages/kanban/src/command/start-attempt.ts"
@@ -181,19 +132,11 @@
         "priority": "critical",
         "status": "completed",
         "estimateHours": 12,
-        "tags": [
-          "kanban",
-          "fencing",
-          "leases",
-          "security",
-          "p1"
-        ],
+        "tags": ["kanban", "fencing", "leases", "security", "p1"],
         "specRequirementId": "R5",
         "metadata": {
           "phase": "lifecycle",
-          "requirementIds": [
-            "R5"
-          ],
+          "requirementIds": ["R5"],
           "expectedFiles": [
             "packages/kanban/src/command/heartbeat-attempt.ts",
             "packages/kanban/src/command/submit-attempt.ts",
@@ -214,19 +157,11 @@
         "priority": "critical",
         "status": "completed",
         "estimateHours": 14,
-        "tags": [
-          "kanban",
-          "recovery",
-          "leases",
-          "lifecycle",
-          "p1"
-        ],
+        "tags": ["kanban", "recovery", "leases", "lifecycle", "p1"],
         "specRequirementId": "R6",
         "metadata": {
           "phase": "lifecycle",
-          "requirementIds": [
-            "R6"
-          ],
+          "requirementIds": ["R6"],
           "expectedFiles": [
             "packages/kanban/src/command/expire-attempt.ts",
             "packages/kanban/src/command/release-attempt.ts"
@@ -246,20 +181,11 @@
         "priority": "high",
         "status": "completed",
         "estimateHours": 12,
-        "tags": [
-          "kanban",
-          "dispatch",
-          "director",
-          "webui",
-          "leases",
-          "p1"
-        ],
+        "tags": ["kanban", "dispatch", "director", "webui", "leases", "p1"],
         "specRequirementId": "R7",
         "metadata": {
           "phase": "lifecycle",
-          "requirementIds": [
-            "R7"
-          ],
+          "requirementIds": ["R7"],
           "expectedFiles": [
             "packages/kanban/src/queue/dispatch-service.ts",
             "packages/core/src/coordination/director-kanban-queue.ts",
@@ -280,29 +206,13 @@
         "priority": "critical",
         "status": "completed",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "gate",
-          "managed-lifecycle",
-          "fencing",
-          "p1"
-        ],
+        "tags": ["kanban", "gate", "managed-lifecycle", "fencing", "p1"],
         "specRequirementId": "R4,R5,R6,R7",
         "metadata": {
           "phase": "gate",
-          "requirementIds": [
-            "R4",
-            "R5",
-            "R6",
-            "R7"
-          ],
-          "requiredReviewers": [
-            "critic",
-            "security-scanner"
-          ],
-          "expectedFiles": [
-            "packages/kanban/tests/gates/p1-gate.test.ts"
-          ],
+          "requirementIds": ["R4", "R5", "R6", "R7"],
+          "requiredReviewers": ["critic", "security-scanner"],
+          "expectedFiles": ["packages/kanban/tests/gates/p1-gate.test.ts"],
           "gatedAt": "2026-07-26"
         }
       }
@@ -317,20 +227,11 @@
         "priority": "critical",
         "status": "pending",
         "estimateHours": 14,
-        "tags": [
-          "kanban",
-          "verification",
-          "attempt",
-          "baseline",
-          "p2"
-        ],
+        "tags": ["kanban", "verification", "attempt", "baseline", "p2"],
         "specRequirementId": "R8,R9",
         "metadata": {
           "phase": "verification",
-          "requirementIds": [
-            "R8",
-            "R9"
-          ],
+          "requirementIds": ["R8", "R9"],
           "expectedFiles": [
             "packages/kanban/src/command/capture-baseline.ts",
             "packages/kanban/src/command/record-verification.ts",
@@ -349,18 +250,11 @@
         "priority": "critical",
         "status": "pending",
         "estimateHours": 10,
-        "tags": [
-          "kanban",
-          "verification",
-          "immutability",
-          "p2"
-        ],
+        "tags": ["kanban", "verification", "immutability", "p2"],
         "specRequirementId": "R9",
         "metadata": {
           "phase": "verification",
-          "requirementIds": [
-            "R9"
-          ],
+          "requirementIds": ["R9"],
           "expectedFiles": [
             "packages/kanban/src/verification/verification-report.ts",
             "packages/kanban/src/manager/_internal.ts"
@@ -378,19 +272,11 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "verification",
-          "file-scope",
-          "child-verification",
-          "p2"
-        ],
+        "tags": ["kanban", "verification", "file-scope", "child-verification", "p2"],
         "specRequirementId": "R9",
         "metadata": {
           "phase": "verification",
-          "requirementIds": [
-            "R9"
-          ],
+          "requirementIds": ["R9"],
           "expectedFiles": [
             "packages/kanban/src/verification/verification-report.ts",
             "packages/kanban/src/verification/completion-protocol.ts"
@@ -408,18 +294,11 @@
         "priority": "critical",
         "status": "pending",
         "estimateHours": 14,
-        "tags": [
-          "kanban",
-          "decomposition",
-          "atomicity",
-          "p2"
-        ],
+        "tags": ["kanban", "decomposition", "atomicity", "p2"],
         "specRequirementId": "R10",
         "metadata": {
           "phase": "decomposition",
-          "requirementIds": [
-            "R10"
-          ],
+          "requirementIds": ["R10"],
           "expectedFiles": [
             "packages/kanban/src/command/approve-decomposition.ts",
             "packages/kanban/src/manager/decomposition.ts",
@@ -438,27 +317,13 @@
         "priority": "critical",
         "status": "pending",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "gate",
-          "verification",
-          "decomposition",
-          "p2"
-        ],
+        "tags": ["kanban", "gate", "verification", "decomposition", "p2"],
         "specRequirementId": "R8,R9,R10",
         "metadata": {
           "phase": "gate",
-          "requirementIds": [
-            "R8",
-            "R9",
-            "R10"
-          ],
-          "requiredReviewers": [
-            "critic"
-          ],
-          "expectedFiles": [
-            "packages/kanban/tests/gates/p2-gate.test.ts"
-          ]
+          "requirementIds": ["R8", "R9", "R10"],
+          "requiredReviewers": ["critic"],
+          "expectedFiles": ["packages/kanban/tests/gates/p2-gate.test.ts"]
         }
       }
     ],
@@ -472,19 +337,11 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 10,
-        "tags": [
-          "kanban",
-          "core",
-          "sdd",
-          "dependencies",
-          "p3"
-        ],
+        "tags": ["kanban", "core", "sdd", "dependencies", "p3"],
         "specRequirementId": "R11",
         "metadata": {
           "phase": "scheduler",
-          "requirementIds": [
-            "R11"
-          ],
+          "requirementIds": ["R11"],
           "expectedFiles": [
             "packages/core/src/tasking/task-tracker.ts",
             "packages/core/src/coordination/task-dag.ts",
@@ -503,18 +360,11 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 24,
-        "tags": [
-          "kanban",
-          "scheduler",
-          "continuous",
-          "p3"
-        ],
+        "tags": ["kanban", "scheduler", "continuous", "p3"],
         "specRequirementId": "R12",
         "metadata": {
           "phase": "scheduler",
-          "requirementIds": [
-            "R12"
-          ],
+          "requirementIds": ["R12"],
           "expectedFiles": [
             "packages/kanban/src/scheduler/scheduler-port.ts",
             "packages/kanban/src/scheduler/continuous-scheduler.ts"
@@ -532,22 +382,12 @@
         "priority": "medium",
         "status": "pending",
         "estimateHours": 14,
-        "tags": [
-          "kanban",
-          "scheduler",
-          "worktree",
-          "rollback",
-          "p3"
-        ],
+        "tags": ["kanban", "scheduler", "worktree", "rollback", "p3"],
         "specRequirementId": "R12",
         "metadata": {
           "phase": "scheduler",
-          "requirementIds": [
-            "R12"
-          ],
-          "expectedFiles": [
-            "packages/kanban/src/scheduler/worktree-orchestrator.ts"
-          ]
+          "requirementIds": ["R12"],
+          "expectedFiles": ["packages/kanban/src/scheduler/worktree-orchestrator.ts"]
         }
       }
     ],
@@ -561,21 +401,12 @@
         "priority": "medium",
         "status": "pending",
         "estimateHours": 8,
-        "tags": [
-          "kanban",
-          "scheduler",
-          "dispatch",
-          "p3"
-        ],
+        "tags": ["kanban", "scheduler", "dispatch", "p3"],
         "specRequirementId": "R12",
         "metadata": {
           "phase": "scheduler",
-          "requirementIds": [
-            "R12"
-          ],
-          "expectedFiles": [
-            "packages/core/src/coordination/director-tools.ts"
-          ]
+          "requirementIds": ["R12"],
+          "expectedFiles": ["packages/core/src/coordination/director-tools.ts"]
         }
       }
     ],
@@ -589,26 +420,13 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "gate",
-          "scheduler",
-          "dependencies",
-          "p3"
-        ],
+        "tags": ["kanban", "gate", "scheduler", "dependencies", "p3"],
         "specRequirementId": "R11,R12",
         "metadata": {
           "phase": "gate",
-          "requirementIds": [
-            "R11",
-            "R12"
-          ],
-          "requiredReviewers": [
-            "critic"
-          ],
-          "expectedFiles": [
-            "packages/kanban/tests/gates/p3-gate.test.ts"
-          ]
+          "requirementIds": ["R11", "R12"],
+          "requiredReviewers": ["critic"],
+          "expectedFiles": ["packages/kanban/tests/gates/p3-gate.test.ts"]
         }
       }
     ],
@@ -622,19 +440,11 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 12,
-        "tags": [
-          "kanban",
-          "review",
-          "verification",
-          "repair",
-          "p4"
-        ],
+        "tags": ["kanban", "review", "verification", "repair", "p4"],
         "specRequirementId": "R13",
         "metadata": {
           "phase": "review",
-          "requirementIds": [
-            "R13"
-          ],
+          "requirementIds": ["R13"],
           "expectedFiles": [
             "packages/kanban/src/command/request-review.ts",
             "packages/kanban/src/command/decide-review.ts",
@@ -654,21 +464,12 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 8,
-        "tags": [
-          "kanban",
-          "director",
-          "quality-gate",
-          "p4"
-        ],
+        "tags": ["kanban", "director", "quality-gate", "p4"],
         "specRequirementId": "R13",
         "metadata": {
           "phase": "review",
-          "requirementIds": [
-            "R13"
-          ],
-          "expectedFiles": [
-            "packages/core/src/coordination/director-quality-gate-adapter.ts"
-          ]
+          "requirementIds": ["R13"],
+          "expectedFiles": ["packages/core/src/coordination/director-quality-gate-adapter.ts"]
         }
       }
     ],
@@ -682,18 +483,11 @@
         "priority": "medium",
         "status": "pending",
         "estimateHours": 4,
-        "tags": [
-          "kanban",
-          "review",
-          "independence",
-          "p4"
-        ],
+        "tags": ["kanban", "review", "independence", "p4"],
         "specRequirementId": "R13",
         "metadata": {
           "phase": "review",
-          "requirementIds": [
-            "R13"
-          ],
+          "requirementIds": ["R13"],
           "expectedFiles": [
             "packages/kanban/src/command/decide-review.ts",
             "packages/kanban/src/types/policy.ts"
@@ -711,21 +505,12 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "review",
-          "transition",
-          "p4"
-        ],
+        "tags": ["kanban", "review", "transition", "p4"],
         "specRequirementId": "R13",
         "metadata": {
           "phase": "review",
-          "requirementIds": [
-            "R13"
-          ],
-          "expectedFiles": [
-            "packages/kanban/src/command/request-review.ts"
-          ]
+          "requirementIds": ["R13"],
+          "expectedFiles": ["packages/kanban/src/command/request-review.ts"]
         }
       }
     ],
@@ -739,25 +524,13 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "gate",
-          "review",
-          "quality",
-          "p4"
-        ],
+        "tags": ["kanban", "gate", "review", "quality", "p4"],
         "specRequirementId": "R13",
         "metadata": {
           "phase": "gate",
-          "requirementIds": [
-            "R13"
-          ],
-          "requiredReviewers": [
-            "critic"
-          ],
-          "expectedFiles": [
-            "packages/kanban/tests/gates/p4-gate.test.ts"
-          ]
+          "requirementIds": ["R13"],
+          "requiredReviewers": ["critic"],
+          "expectedFiles": ["packages/kanban/tests/gates/p4-gate.test.ts"]
         }
       }
     ],
@@ -771,19 +544,11 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "profile",
-          "board-creation",
-          "p5"
-        ],
+        "tags": ["kanban", "profile", "board-creation", "p5"],
         "specRequirementId": "R3,R14",
         "metadata": {
           "phase": "source-authority",
-          "requirementIds": [
-            "R3",
-            "R14"
-          ],
+          "requirementIds": ["R3", "R14"],
           "expectedFiles": [
             "packages/kanban/src/types/profile.ts",
             "packages/kanban/src/manager/boards.ts"
@@ -801,19 +566,11 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 8,
-        "tags": [
-          "kanban",
-          "mirror",
-          "sync",
-          "source-authority",
-          "p5"
-        ],
+        "tags": ["kanban", "mirror", "sync", "source-authority", "p5"],
         "specRequirementId": "R14",
         "metadata": {
           "phase": "source-authority",
-          "requirementIds": [
-            "R14"
-          ],
+          "requirementIds": ["R14"],
           "expectedFiles": [
             "packages/kanban/src/command/set-board-profile.ts",
             "packages/kanban/src/manager/task-graph-bridge.ts"
@@ -831,21 +588,12 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 8,
-        "tags": [
-          "kanban",
-          "promotion",
-          "profile",
-          "p5"
-        ],
+        "tags": ["kanban", "promotion", "profile", "p5"],
         "specRequirementId": "R14",
         "metadata": {
           "phase": "source-authority",
-          "requirementIds": [
-            "R14"
-          ],
-          "expectedFiles": [
-            "packages/kanban/src/command/set-board-profile.ts"
-          ]
+          "requirementIds": ["R14"],
+          "expectedFiles": ["packages/kanban/src/command/set-board-profile.ts"]
         }
       }
     ],
@@ -859,21 +607,12 @@
         "priority": "medium",
         "status": "pending",
         "estimateHours": 8,
-        "tags": [
-          "kanban",
-          "session",
-          "projection",
-          "p5"
-        ],
+        "tags": ["kanban", "session", "projection", "p5"],
         "specRequirementId": "R14",
         "metadata": {
           "phase": "source-authority",
-          "requirementIds": [
-            "R14"
-          ],
-          "expectedFiles": [
-            "packages/tools/src/session-kanban.ts"
-          ]
+          "requirementIds": ["R14"],
+          "expectedFiles": ["packages/tools/src/session-kanban.ts"]
         }
       }
     ],
@@ -887,26 +626,13 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "gate",
-          "profile",
-          "mirror",
-          "p5"
-        ],
+        "tags": ["kanban", "gate", "profile", "mirror", "p5"],
         "specRequirementId": "R14",
         "metadata": {
           "phase": "gate",
-          "requirementIds": [
-            "R3",
-            "R14"
-          ],
-          "requiredReviewers": [
-            "critic"
-          ],
-          "expectedFiles": [
-            "packages/kanban/tests/gates/p5-gate.test.ts"
-          ]
+          "requirementIds": ["R3", "R14"],
+          "requiredReviewers": ["critic"],
+          "expectedFiles": ["packages/kanban/tests/gates/p5-gate.test.ts"]
         }
       }
     ],
@@ -920,19 +646,11 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 16,
-        "tags": [
-          "kanban",
-          "idempotency",
-          "outbox",
-          "events",
-          "p6"
-        ],
+        "tags": ["kanban", "idempotency", "outbox", "events", "p6"],
         "specRequirementId": "R15",
         "metadata": {
           "phase": "reliability",
-          "requirementIds": [
-            "R15"
-          ],
+          "requirementIds": ["R15"],
           "expectedFiles": [
             "packages/kanban/src/storage/outbox.ts",
             "packages/kanban/src/storage/idempotency-registry.ts"
@@ -950,19 +668,11 @@
         "priority": "medium",
         "status": "pending",
         "estimateHours": 10,
-        "tags": [
-          "kanban",
-          "schema",
-          "migration",
-          "versioning",
-          "p6"
-        ],
+        "tags": ["kanban", "schema", "migration", "versioning", "p6"],
         "specRequirementId": "R16",
         "metadata": {
           "phase": "reliability",
-          "requirementIds": [
-            "R16"
-          ],
+          "requirementIds": ["R16"],
           "expectedFiles": [
             "packages/kanban/src/storage/migration.ts",
             "packages/kanban/src/storage/version-fence.ts"
@@ -980,19 +690,11 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 12,
-        "tags": [
-          "kanban",
-          "supervisor",
-          "controller-lease",
-          "health",
-          "p6"
-        ],
+        "tags": ["kanban", "supervisor", "controller-lease", "health", "p6"],
         "specRequirementId": "R17",
         "metadata": {
           "phase": "reliability",
-          "requirementIds": [
-            "R17"
-          ],
+          "requirementIds": ["R17"],
           "expectedFiles": [
             "packages/kanban/src/scheduler/controller-lease.ts",
             "packages/kanban/src/health/why-not-ready.ts"
@@ -1010,19 +712,11 @@
         "priority": "medium",
         "status": "pending",
         "estimateHours": 4,
-        "tags": [
-          "kanban",
-          "watcher",
-          "projection-repair",
-          "observability",
-          "p6"
-        ],
+        "tags": ["kanban", "watcher", "projection-repair", "observability", "p6"],
         "specRequirementId": "R17",
         "metadata": {
           "phase": "reliability",
-          "requirementIds": [
-            "R17"
-          ],
+          "requirementIds": ["R17"],
           "expectedFiles": [
             "packages/webui-server/src/server/kanban-board-watcher.ts",
             "packages/kanban/src/manager/lifecycle.ts"
@@ -1040,21 +734,12 @@
         "priority": "medium",
         "status": "pending",
         "estimateHours": 10,
-        "tags": [
-          "kanban",
-          "learning",
-          "advisory",
-          "p6"
-        ],
+        "tags": ["kanban", "learning", "advisory", "p6"],
         "specRequirementId": "R18",
         "metadata": {
           "phase": "reliability",
-          "requirementIds": [
-            "R18"
-          ],
-          "expectedFiles": [
-            "packages/kanban/src/learning/advisory-recorder.ts"
-          ]
+          "requirementIds": ["R18"],
+          "expectedFiles": ["packages/kanban/src/learning/advisory-recorder.ts"]
         }
       }
     ],
@@ -1068,29 +753,13 @@
         "priority": "high",
         "status": "pending",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "gate",
-          "reliability",
-          "observability",
-          "p6"
-        ],
+        "tags": ["kanban", "gate", "reliability", "observability", "p6"],
         "specRequirementId": "R15,R16,R17,R18",
         "metadata": {
           "phase": "gate",
-          "requirementIds": [
-            "R15",
-            "R16",
-            "R17",
-            "R18"
-          ],
-          "requiredReviewers": [
-            "critic",
-            "security-scanner"
-          ],
-          "expectedFiles": [
-            "packages/kanban/tests/gates/p6-gate.test.ts"
-          ]
+          "requirementIds": ["R15", "R16", "R17", "R18"],
+          "requiredReviewers": ["critic", "security-scanner"],
+          "expectedFiles": ["packages/kanban/tests/gates/p6-gate.test.ts"]
         }
       }
     ],
@@ -1104,19 +773,11 @@
         "priority": "low",
         "status": "pending",
         "estimateHours": 20,
-        "tags": [
-          "kanban",
-          "sqlite",
-          "storage",
-          "port",
-          "p7"
-        ],
+        "tags": ["kanban", "sqlite", "storage", "port", "p7"],
         "specRequirementId": "R19",
         "metadata": {
           "phase": "storage",
-          "requirementIds": [
-            "R19"
-          ],
+          "requirementIds": ["R19"],
           "expectedFiles": [
             "packages/kanban/src/store/kanban-store-port.ts",
             "packages/kanban/src/store/sqlite-schema.ts"
@@ -1134,22 +795,12 @@
         "priority": "low",
         "status": "pending",
         "estimateHours": 16,
-        "tags": [
-          "kanban",
-          "sqlite",
-          "shadow",
-          "parity",
-          "p7"
-        ],
+        "tags": ["kanban", "sqlite", "shadow", "parity", "p7"],
         "specRequirementId": "R19",
         "metadata": {
           "phase": "storage",
-          "requirementIds": [
-            "R19"
-          ],
-          "expectedFiles": [
-            "packages/kanban/tests/shadow/shadow-parity.test.ts"
-          ]
+          "requirementIds": ["R19"],
+          "expectedFiles": ["packages/kanban/tests/shadow/shadow-parity.test.ts"]
         }
       }
     ],
@@ -1163,19 +814,11 @@
         "priority": "low",
         "status": "pending",
         "estimateHours": 12,
-        "tags": [
-          "kanban",
-          "sqlite",
-          "cutover",
-          "migration",
-          "p7"
-        ],
+        "tags": ["kanban", "sqlite", "cutover", "migration", "p7"],
         "specRequirementId": "R19",
         "metadata": {
           "phase": "storage",
-          "requirementIds": [
-            "R19"
-          ],
+          "requirementIds": ["R19"],
           "expectedFiles": [
             "packages/kanban/src/store/read-cutover.ts",
             "packages/kanban/src/store/json-export.ts",
@@ -1194,26 +837,13 @@
         "priority": "low",
         "status": "pending",
         "estimateHours": 6,
-        "tags": [
-          "kanban",
-          "gate",
-          "storage",
-          "sqlite",
-          "cutover",
-          "p7"
-        ],
+        "tags": ["kanban", "gate", "storage", "sqlite", "cutover", "p7"],
         "specRequirementId": "R19",
         "metadata": {
           "phase": "gate",
-          "requirementIds": [
-            "R19"
-          ],
-          "requiredReviewers": [
-            "critic"
-          ],
-          "expectedFiles": [
-            "packages/kanban/tests/gates/p7-gate.test.ts"
-          ]
+          "requirementIds": ["R19"],
+          "requiredReviewers": ["critic"],
+          "expectedFiles": ["packages/kanban/tests/gates/p7-gate.test.ts"]
         }
       }
     ]
@@ -1526,10 +1156,7 @@
       "type": "depends_on"
     }
   ],
-  "rootNodes": [
-    "KAE-P0.1",
-    "KAE-P0.2"
-  ],
+  "rootNodes": ["KAE-P0.1", "KAE-P0.2"],
   "createdAt": 1785100000000,
   "updatedAt": 1785100000000
 }

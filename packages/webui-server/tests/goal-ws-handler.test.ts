@@ -87,10 +87,12 @@ vi.mock('@wrongstack/core/worktree', () => {
 });
 
 vi.mock('@wrongstack/core/utils', async () => {
-  const actual = await vi.importActual<typeof import('@wrongstack/core/utils')>('@wrongstack/core/utils');
+  const actual =
+    await vi.importActual<typeof import('@wrongstack/core/utils')>('@wrongstack/core/utils');
   return {
     ...actual,
-    toErrorMessage: actual.toErrorMessage ?? ((e: unknown) => (e instanceof Error ? e.message : String(e))),
+    toErrorMessage:
+      actual.toErrorMessage ?? ((e: unknown) => (e instanceof Error ? e.message : String(e))),
   };
 });
 
@@ -117,7 +119,9 @@ function makeMockLogger() {
     error: vi.fn(noop),
     debug: vi.fn(noop),
     trace: vi.fn(noop),
-    child: vi.fn(function (this: any) { return this; }),
+    child: vi.fn(function (this: any) {
+      return this;
+    }),
   } as any;
 }
 
@@ -283,7 +287,10 @@ describe('GoalWebSocketHandler', () => {
       const handler = new GoalWebSocketHandler(agent, context, logger, '/tmp/store');
       const ws = makeMockWs();
       handler.addClient(ws);
-      await handler.handleMessage(ws, { type: 'goal.moveTask', payload: { taskId: 't1', toPhaseId: 'p2' } });
+      await handler.handleMessage(ws, {
+        type: 'goal.moveTask',
+        payload: { taskId: 't1', toPhaseId: 'p2' },
+      });
       expect(ws.send).not.toHaveBeenCalled();
     });
 
@@ -299,7 +306,10 @@ describe('GoalWebSocketHandler', () => {
       const handler = new GoalWebSocketHandler(agent, context, logger, '/tmp/store');
       const ws = makeMockWs();
       handler.addClient(ws);
-      await handler.handleMessage(ws, { type: 'goal.addTask', payload: { phaseId: 'p1', title: 'x' } });
+      await handler.handleMessage(ws, {
+        type: 'goal.addTask',
+        payload: { phaseId: 'p1', title: 'x' },
+      });
       expect(ws.send).not.toHaveBeenCalled();
     });
 
@@ -307,7 +317,10 @@ describe('GoalWebSocketHandler', () => {
       const handler = new GoalWebSocketHandler(agent, context, logger, '/tmp/store');
       const ws = makeMockWs();
       handler.addClient(ws);
-      await handler.handleMessage(ws, { type: 'goal.addTask', payload: { phaseId: 'p1', title: '   ' } });
+      await handler.handleMessage(ws, {
+        type: 'goal.addTask',
+        payload: { phaseId: 'p1', title: '   ' },
+      });
       expect(ws.send).not.toHaveBeenCalled();
     });
 
@@ -331,7 +344,10 @@ describe('GoalWebSocketHandler', () => {
       const handler = new GoalWebSocketHandler(agent, context, logger, '/tmp/store');
       const ws = makeMockWs();
       handler.addClient(ws);
-      await handler.handleMessage(ws, { type: 'goal.toggleAutonomous', payload: { autonomous: false } });
+      await handler.handleMessage(ws, {
+        type: 'goal.toggleAutonomous',
+        payload: { autonomous: false },
+      });
       expect(ws.send).not.toHaveBeenCalled();
     });
 
@@ -347,7 +363,10 @@ describe('GoalWebSocketHandler', () => {
       const handler = new GoalWebSocketHandler(agent, context, logger, '/tmp/store');
       const ws = makeMockWs();
       handler.addClient(ws);
-      await handler.handleMessage(ws, { type: 'goal.taskStatus', payload: { taskId: 't1', status: 'completed' } });
+      await handler.handleMessage(ws, {
+        type: 'goal.taskStatus',
+        payload: { taskId: 't1', status: 'completed' },
+      });
       expect(ws.send).not.toHaveBeenCalled();
     });
   });
@@ -368,12 +387,17 @@ describe('GoalWebSocketHandler', () => {
 
     it('non-empty goal sends an assessment derived from the agent', async () => {
       // Build a fresh agent stub so we control run() deterministically.
-      const stubAgent = { run: vi.fn(async () => ({ status: 'done', finalText: 'verdict text' })) } as any;
+      const stubAgent = {
+        run: vi.fn(async () => ({ status: 'done', finalText: 'verdict text' })),
+      } as any;
       const handler = new GoalWebSocketHandler(stubAgent, context, logger, '/tmp/store');
       const ws = makeMockWs();
       handler.addClient(ws);
 
-      await handler.handleMessage(ws, { type: 'goal.assess', payload: { goal: 'Write 100 tests by tomorrow', seq: 3 } });
+      await handler.handleMessage(ws, {
+        type: 'goal.assess',
+        payload: { goal: 'Write 100 tests by tomorrow', seq: 3 },
+      });
 
       const sent = (ws.send as any).mock.calls.map((c: any[]) => c[0]).join('\n');
       // The handler must have emitted a goal.assess.result frame on the wire
@@ -383,7 +407,11 @@ describe('GoalWebSocketHandler', () => {
     });
 
     it('agent throwing does not crash the handler', async () => {
-      const failingAgent = { run: vi.fn(async () => { throw new Error('LLM down'); }) } as any;
+      const failingAgent = {
+        run: vi.fn(async () => {
+          throw new Error('LLM down');
+        }),
+      } as any;
       const handler = new GoalWebSocketHandler(failingAgent, context, logger, '/tmp/store');
       const ws = makeMockWs();
       handler.addClient(ws);

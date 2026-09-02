@@ -191,9 +191,7 @@ describe('CodeMap component', () => {
     } as Response);
     render(<CodeMap />);
 
-    await waitFor(() =>
-      expect(screen.getByText(/Authentication required/)).toBeDefined(),
-    );
+    await waitFor(() => expect(screen.getByText(/Authentication required/)).toBeDefined());
     expect(screen.queryByText(/codebase-index/)).toBeNull();
   });
 

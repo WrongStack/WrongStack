@@ -23,10 +23,7 @@ import {
 } from 'electron';
 import { drainPendingOpenFilePath, firstOpenFileArg, initMacOS } from './macos-platform.js';
 import type { DesktopWebuiPrefs } from '../shared/types.js';
-import type {
-  IpcHandlerContext,
-  IRuntimeManager,
-} from './state/types.js';
+import type { IpcHandlerContext, IRuntimeManager } from './state/types.js';
 import { DesktopAgentBridge } from './agent-bridge.js';
 import {
   authorizeDesktopAction,
@@ -40,11 +37,7 @@ import {
   resolveActiveProfileConfigPath,
   writeUiLocale,
 } from './desktop-config-io.js';
-import {
-  DesktopRuntimeManager,
-  preloadPath,
-  rendererIndexPath,
-} from './runtime-manager.js';
+import { DesktopRuntimeManager, preloadPath, rendererIndexPath } from './runtime-manager.js';
 import { watchProviderConfig } from '@wrongstack/core/storage';
 import { DesktopWebuiController } from './webui/controller.js';
 import { allowedExternalProtocol } from './webui/navigation.js';
@@ -73,10 +66,7 @@ import type { MenuBuilderContext } from './menu/types.js';
 import { registerIpcHandlers as registerExtractedIpcHandlers } from './ipc-handlers/index.js';
 
 // Constants — centralized in state/constants.ts to avoid duplication
-import {
-  MIN_WINDOW_HEIGHT,
-  MIN_WINDOW_WIDTH,
-} from './state/constants.js';
+import { MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH } from './state/constants.js';
 
 // macOS initialisation — must run before app.whenReady to ensure
 // activation policy, open-file queuing, and Dock menu are registered
@@ -164,21 +154,21 @@ function revealInExplorer(root: string): void {
   }).then((authorization) => {
     if (!authorization.allowed) return;
     return shell.openPath(root).catch((err) => {
-    if (process.platform === 'darwin') {
-      // macOS may fail if the path contains characters Finder can't
-      // resolve (e.g., certain Unicode normalizations). Fall back to
-      // the parent directory.
-      void shell.openPath(path.dirname(root)).catch(() => undefined);
-    }
-    console.error(
-      JSON.stringify({
-        level: 'warn',
-        event: 'desktop.reveal_in_explorer_failed',
-        root,
-        message: err instanceof Error ? err.message : String(err),
-        timestamp: new Date().toISOString(),
-      }),
-    );
+      if (process.platform === 'darwin') {
+        // macOS may fail if the path contains characters Finder can't
+        // resolve (e.g., certain Unicode normalizations). Fall back to
+        // the parent directory.
+        void shell.openPath(path.dirname(root)).catch(() => undefined);
+      }
+      console.error(
+        JSON.stringify({
+          level: 'warn',
+          event: 'desktop.reveal_in_explorer_failed',
+          root,
+          message: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        }),
+      );
     });
   });
 }
@@ -305,18 +295,40 @@ function createMenuContext(): MenuBuilderContext {
     getWebuiViews: () => webuiController.views,
     dispatchWebuiCommand: (command) => webuiController.dispatch(command),
     reloadActiveWebuiView: () => webuiController.reload(),
-    activateRuntime: async (id) => { await activateRuntime(id); },
-    openProject: async () => { await openProject(); },
-    registerProject: async () => { await registerProject(); },
-    openSettings: async () => { await openSettings(); },
-    openProjectSession: async (id) => { await openProjectSession(id); },
-    closeRuntime: async (id) => { await closeRuntime(id); },
-    unregisterProject: async (root) => { await unregisterProject(root); },
+    activateRuntime: async (id) => {
+      await activateRuntime(id);
+    },
+    openProject: async () => {
+      await openProject();
+    },
+    registerProject: async () => {
+      await registerProject();
+    },
+    openSettings: async () => {
+      await openSettings();
+    },
+    openProjectSession: async (id) => {
+      await openProjectSession(id);
+    },
+    closeRuntime: async (id) => {
+      await closeRuntime(id);
+    },
+    unregisterProject: async (root) => {
+      await unregisterProject(root);
+    },
     getActiveRuntimeId: () => webuiController.activeRuntimeId,
-    setShellSidebarCollapsed: (collapsed) => { setShellSidebarCollapsed(collapsed); },
-    restoreLastWorkspace: async () => { await restoreLastWorkspace(); },
-    openExternal: (url) => { safeOpenExternal(url); },
-    revealInExplorer: (root) => { revealInExplorer(root); },
+    setShellSidebarCollapsed: (collapsed) => {
+      setShellSidebarCollapsed(collapsed);
+    },
+    restoreLastWorkspace: async () => {
+      await restoreLastWorkspace();
+    },
+    openExternal: (url) => {
+      safeOpenExternal(url);
+    },
+    revealInExplorer: (root) => {
+      revealInExplorer(root);
+    },
   };
 }
 
@@ -367,7 +379,9 @@ function buildIpcHandlerContext(): IpcHandlerContext {
     sendMessage: (id, wsUrl, content) => bridge.sendMessage(id, wsUrl, content),
     abortRuntime: (id, wsUrl) => bridge.abort(id, wsUrl),
     openExternal: (url) => safeOpenExternal(url),
-    revealInExplorer: (root) => { revealInExplorer(root); },
+    revealInExplorer: (root) => {
+      revealInExplorer(root);
+    },
     findWebuiEntryBySenderId: (senderId) => webuiController.findBySenderId(senderId),
     getPendingWebuiCommandAcks: () => webuiController.pendingAcks,
     settlePendingWebuiCommandAck: (requestId, handled) =>
@@ -477,21 +491,17 @@ async function boot(): Promise<void> {
 
   let lastWatchedLocale: string | undefined;
   const activeProfileConfigPath = await resolveActiveProfileConfigPath();
-  watchProviderConfig(
-    activeProfileConfigPath,
-    desktopConfigPaths.vault,
-    (snapshot) => {
-      const updated = snapshot.uiLocale;
-      if (!updated || updated === lastWatchedLocale) return;
-      lastWatchedLocale = updated;
-      setMainLocale(updated);
-      configureApplicationMenu();
-      webuiController.broadcastLocale(updated);
-      if (shellView && !shellView.webContents.isDestroyed()) {
-        shellView.webContents.send(IPC.localeChanged, updated);
-      }
-    },
-  );
+  watchProviderConfig(activeProfileConfigPath, desktopConfigPaths.vault, (snapshot) => {
+    const updated = snapshot.uiLocale;
+    if (!updated || updated === lastWatchedLocale) return;
+    lastWatchedLocale = updated;
+    setMainLocale(updated);
+    configureApplicationMenu();
+    webuiController.broadcastLocale(updated);
+    if (shellView && !shellView.webContents.isDestroyed()) {
+      shellView.webContents.send(IPC.localeChanged, updated);
+    }
+  });
 
   mainWindow.on('close', (event) => {
     if (quittingAfterCleanup) return;

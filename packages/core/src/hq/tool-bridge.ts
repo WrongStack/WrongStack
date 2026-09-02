@@ -17,9 +17,18 @@
  * @module hq/tool-bridge
  */
 import type { EventBus } from '../kernel/events.js';
-import { resolveHqRedactionPolicy, scrubAndTruncateHqPreview, summarizeHqToolArgs } from './redaction.js';
+import {
+  resolveHqRedactionPolicy,
+  scrubAndTruncateHqPreview,
+  summarizeHqToolArgs,
+} from './redaction.js';
 import { HQ_TRANSCRIPT_TEXT_CAP } from './protocol.js';
-import type { HqEventEnvelope, HqRedactionPolicy, HqToolCompletedPayload, HqToolStartedPayload } from './protocol.js';
+import type {
+  HqEventEnvelope,
+  HqRedactionPolicy,
+  HqToolCompletedPayload,
+  HqToolStartedPayload,
+} from './protocol.js';
 import { createBridgeContext, type BridgeContextOptions } from './bridge-context.js';
 
 export interface ToolTelemetryBridgeOptions extends BridgeContextOptions {
@@ -110,7 +119,11 @@ export function startToolTelemetryBridge(opts: ToolTelemetryBridgeOptions): () =
   };
 }
 
-function truncateForSummary(output: string, policy?: Partial<HqRedactionPolicy>, max = 280): unknown {
+function truncateForSummary(
+  output: string,
+  policy?: Partial<HqRedactionPolicy>,
+  max = 280,
+): unknown {
   const resolved = resolveHqRedactionPolicy(policy);
   // WS-007: `rawContent` widens how much is shown, never whether secrets are
   // stripped. The previous early return handed tool output through unscrubbed

@@ -244,7 +244,11 @@ describe('useBrainEvents — council tier', () => {
       durationMs: 1200,
     });
     expect(entry.council.seats).toHaveLength(2);
-    expect(entry.council.seats[1]).toMatchObject({ persona: 'skeptic', veto: true, model: 'gpt-5' });
+    expect(entry.council.seats[1]).toMatchObject({
+      persona: 'skeptic',
+      veto: true,
+      model: 'gpt-5',
+    });
     expect(entry.council.warnings).toHaveLength(1);
     unmount();
   });

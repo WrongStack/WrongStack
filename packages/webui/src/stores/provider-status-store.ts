@@ -31,15 +31,17 @@ export interface ProviderHealthEntry {
   lastErrorKind?: string | undefined;
   lastErrorStatus?: number | undefined;
   /** Recent error history from the full snapshot (when available). */
-  recentErrors?: readonly {
-    timestamp: number;
-    kind: string;
-    status: number;
-    message: string;
-    sessionId?: string | undefined;
-    agentId?: string | undefined;
-    retryAfterMs?: number | undefined;
-  }[] | undefined;
+  recentErrors?:
+    | readonly {
+        timestamp: number;
+        kind: string;
+        status: number;
+        message: string;
+        sessionId?: string | undefined;
+        agentId?: string | undefined;
+        retryAfterMs?: number | undefined;
+      }[]
+    | undefined;
   lastSessionId?: string | undefined;
   lastAgentId?: string | undefined;
   lastFailureAt?: number | null | undefined;
@@ -143,10 +145,8 @@ export const useProviderStatusStore = create<ProviderStatusStore>((set) => ({
         providerId,
         model,
         state,
-        reason:
-          (typeof item['lastErrorKind'] === 'string' ? item['lastErrorKind'] : '') || state,
-        updatedAt:
-          typeof item['lastFailureAt'] === 'number' ? item['lastFailureAt'] : Date.now(),
+        reason: (typeof item['lastErrorKind'] === 'string' ? item['lastErrorKind'] : '') || state,
+        updatedAt: typeof item['lastFailureAt'] === 'number' ? item['lastFailureAt'] : Date.now(),
         ...(typeof item['stateExpiresAt'] === 'number'
           ? { stateExpiresAt: item['stateExpiresAt'] as number }
           : {}),
@@ -170,15 +170,17 @@ export const useProviderStatusStore = create<ProviderStatusStore>((set) => ({
           : {}),
         ...(Array.isArray(item['recentErrors'])
           ? {
-              recentErrors: (item['recentErrors'] as readonly {
-                timestamp: number;
-                kind: string;
-                status: number;
-                message: string;
-                sessionId?: string | undefined;
-                agentId?: string | undefined;
-                retryAfterMs?: number | undefined;
-              }[]).slice(0, 20),
+              recentErrors: (
+                item['recentErrors'] as readonly {
+                  timestamp: number;
+                  kind: string;
+                  status: number;
+                  message: string;
+                  sessionId?: string | undefined;
+                  agentId?: string | undefined;
+                  retryAfterMs?: number | undefined;
+                }[]
+              ).slice(0, 20),
             }
           : {}),
         ...(typeof item['lastSessionId'] === 'string'

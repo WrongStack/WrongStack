@@ -341,13 +341,18 @@ async function detectRunner(requested: Runner): Promise<RunnerConfig | null> {
     try {
       await new Promise<void>((resolve, reject) => {
         const ex = resolveExec('npx', [`${match.name}`, '--version']);
-        execFile(ex.cmd, ex.args, {
-          encoding: 'utf-8',
-          timeout: 5_000,
-          cwd: process.cwd(),
-          windowsHide: true,
-          ...(ex.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
-        }, (err) => (err ? reject(err) : resolve()));
+        execFile(
+          ex.cmd,
+          ex.args,
+          {
+            encoding: 'utf-8',
+            timeout: 5_000,
+            cwd: process.cwd(),
+            windowsHide: true,
+            ...(ex.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+          },
+          (err) => (err ? reject(err) : resolve()),
+        );
       });
       return match;
     } catch {
@@ -360,13 +365,18 @@ async function detectRunner(requested: Runner): Promise<RunnerConfig | null> {
     try {
       await new Promise<void>((resolve, reject) => {
         const ex = resolveExec('npx', [`${candidate.name}`, '--version']);
-        execFile(ex.cmd, ex.args, {
-          encoding: 'utf-8',
-          timeout: 5_000,
-          cwd: process.cwd(),
-          windowsHide: true,
-          ...(ex.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
-        }, (err) => (err ? reject(err) : resolve()));
+        execFile(
+          ex.cmd,
+          ex.args,
+          {
+            encoding: 'utf-8',
+            timeout: 5_000,
+            cwd: process.cwd(),
+            windowsHide: true,
+            ...(ex.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+          },
+          (err) => (err ? reject(err) : resolve()),
+        );
       });
       return candidate;
     } catch {
@@ -463,13 +473,16 @@ async function runTests(
         // the promise here and the catch below turns it into a skip, so the
         // dynamic testFile can never inject a command through the Windows shim.
         const ex = resolveExec(cmd, fullArgs);
-        execFile(ex.cmd, ex.args, {
-          encoding: 'utf-8',
-          timeout: timeoutMs,
-          cwd: process.cwd(),
-          windowsHide: true,
-          ...(ex.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
-        },
+        execFile(
+          ex.cmd,
+          ex.args,
+          {
+            encoding: 'utf-8',
+            timeout: timeoutMs,
+            cwd: process.cwd(),
+            windowsHide: true,
+            ...(ex.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+          },
           (err, out, stderr) => {
             if (err) reject(Object.assign(err, { stdout: out, stderr }));
             else resolve({ stdout: out, stderr });
@@ -759,7 +772,9 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- test_gate_status tool ---
     api.tools.register({

@@ -30,18 +30,21 @@ export class DoneConditionChecker {
       if (!result.ok) {
         // Log warning but don't throw — the done condition simply won't match
         if (this.logger) {
-          this.logger.warn(
-            'Done condition has invalid regex — will never match',
-            { event: 'autonomous.done_condition_invalid_regex', pattern: condition.pattern, reason: result.reason },
-          );
-        } else {
-          console.warn(JSON.stringify({
-            level: 'warn',
+          this.logger.warn('Done condition has invalid regex — will never match', {
             event: 'autonomous.done_condition_invalid_regex',
             pattern: condition.pattern,
             reason: result.reason,
-            timestamp: new Date().toISOString(),
-          }));
+          });
+        } else {
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              event: 'autonomous.done_condition_invalid_regex',
+              pattern: condition.pattern,
+              reason: result.reason,
+              timestamp: new Date().toISOString(),
+            }),
+          );
         }
       }
     } else {
@@ -49,7 +52,11 @@ export class DoneConditionChecker {
     }
   }
 
-  check(state: { iterations: number; toolCalls: number; lastOutput?: string | undefined }): DoneCheckResult {
+  check(state: {
+    iterations: number;
+    toolCalls: number;
+    lastOutput?: string | undefined;
+  }): DoneCheckResult {
     switch (this.condition.type) {
       case 'iterations':
         if (
@@ -96,13 +103,21 @@ export class DoneConditionChecker {
           this.condition.maxIterations !== undefined &&
           state.iterations >= this.condition.maxIterations
         ) {
-          return { done: true, reason: `max iterations (${this.condition.maxIterations}) reached`, ...state };
+          return {
+            done: true,
+            reason: `max iterations (${this.condition.maxIterations}) reached`,
+            ...state,
+          };
         }
         if (
           this.condition.maxToolCalls !== undefined &&
           state.toolCalls >= this.condition.maxToolCalls
         ) {
-          return { done: true, reason: `max tool calls (${this.condition.maxToolCalls}) reached`, ...state };
+          return {
+            done: true,
+            reason: `max tool calls (${this.condition.maxToolCalls}) reached`,
+            ...state,
+          };
         }
         break;
 
@@ -128,7 +143,7 @@ export interface AutonomousRunnerOptions {
   doneCondition: DoneCondition;
   iterationTimeoutMs?: number | undefined;
   onIteration?: (state: { iteration: number | undefined; toolCalls: number }) => void;
-  onDone?: (((result: AutonomousResult) => void)) | undefined;
+  onDone?: ((result: AutonomousResult) => void) | undefined;
   /**
    * When true and `doneCondition.type === 'directive'`, the runner
    * runs the agent with `autonomousContinue: true` so the agent loop
@@ -215,8 +230,7 @@ export class AutonomousRunner {
         // The runner provides iteration caps and timeouts; the agent handles
         // the continuation decision within each agent.run() call.
         const isDirectiveMode =
-          this.opts.doneCondition.type === 'directive' &&
-          this.opts.enableAutonomousContinue;
+          this.opts.doneCondition.type === 'directive' && this.opts.enableAutonomousContinue;
 
         const result = await this.opts.agent.run('', {
           signal: ctrl.signal,

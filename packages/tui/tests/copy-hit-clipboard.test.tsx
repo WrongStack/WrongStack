@@ -47,25 +47,23 @@ const writeClipboardTextMock = writeClipboardText as unknown as ReturnType<typeo
 /** Multi-KB markdown payload — large enough that the pre-F1 CopyHit would
  *  have pinned a ~2 KB reference per mounted card. Used here only to assert
  *  round-trip fidelity (no truncation), not residency. */
-const BIG_MARKDOWN = Array.from(
-  { length: 4 },
-  () =>
-    [
-      '## Cycle 17 — virtual scroll RAM investigation',
-      '',
-      "The CopyHit registry was pinning every mounted copyable card's full text",
-      'for the duration of the mounted window. At a 20-card viewport averaging',
-      '~8 KB/assistant text this was a steady-state ~160 KB cost.',
-      '',
-      '```ts',
-      'const hit: CopyHit = { entryId, startRow, endRow, iconCol };',
-      'const text = copyableTextForEntry(entriesById.get(hit.entryId));',
-      '```',
-      '',
-      'The fix stores entryId only and resolves text at click time.',
-      '---',
-      '',
-    ].join('\n'),
+const BIG_MARKDOWN = Array.from({ length: 4 }, () =>
+  [
+    '## Cycle 17 — virtual scroll RAM investigation',
+    '',
+    "The CopyHit registry was pinning every mounted copyable card's full text",
+    'for the duration of the mounted window. At a 20-card viewport averaging',
+    '~8 KB/assistant text this was a steady-state ~160 KB cost.',
+    '',
+    '```ts',
+    'const hit: CopyHit = { entryId, startRow, endRow, iconCol };',
+    'const text = copyableTextForEntry(entriesById.get(hit.entryId));',
+    '```',
+    '',
+    'The fix stores entryId only and resolves text at click time.',
+    '---',
+    '',
+  ].join('\n'),
 ).join('\n');
 
 const ASSISTANT_BIG: HistoryEntry = { id: 1, kind: 'assistant', text: BIG_MARKDOWN };
@@ -245,9 +243,7 @@ describe('CopyHit entryId-only (F1 regression)', () => {
   });
 
   it('copies every member of a compact tool-group box in original order', async () => {
-    const hits: CopyHit[] = [
-      { entryId: 4, entryIds: [4, 5], startRow: 0, endRow: 1, iconCol: 57 },
-    ];
+    const hits: CopyHit[] = [{ entryId: 4, entryIds: [4, 5], startRow: 0, endRow: 1, iconCol: 57 }];
     const entriesById = new Map<number, HistoryEntry>([
       [4, TOOL_ENTRY],
       [5, TOOL_ENTRY_TWO],
@@ -263,9 +259,7 @@ describe('CopyHit entryId-only (F1 regression)', () => {
   });
 
   it('returns null instead of copying a partial compact tool-group payload', async () => {
-    const hits: CopyHit[] = [
-      { entryId: 4, entryIds: [4, 5], startRow: 0, endRow: 1, iconCol: 57 },
-    ];
+    const hits: CopyHit[] = [{ entryId: 4, entryIds: [4, 5], startRow: 0, endRow: 1, iconCol: 57 }];
     const entriesById = new Map<number, HistoryEntry>([[4, TOOL_ENTRY]]);
     writeClipboardTextMock.mockClear();
 
@@ -275,9 +269,7 @@ describe('CopyHit entryId-only (F1 regression)', () => {
   });
 
   it('returns null without writing when every entryIds entry has been evicted', async () => {
-    const hits: CopyHit[] = [
-      { entryId: 5, entryIds: [5, 6], startRow: 0, endRow: 1, iconCol: 57 },
-    ];
+    const hits: CopyHit[] = [{ entryId: 5, entryIds: [5, 6], startRow: 0, endRow: 1, iconCol: 57 }];
     const entriesById = new Map<number, HistoryEntry>([[1, ASSISTANT_BIG]]);
     writeClipboardTextMock.mockClear();
 

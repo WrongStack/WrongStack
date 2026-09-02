@@ -28,7 +28,11 @@ const plugin = (await import('../src/api-compatibility-gate/index.js')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
 }
@@ -61,7 +65,7 @@ function getStatusTool(api: MockApi): { execute: (input: unknown) => Promise<unk
     ([t]: unknown[]) => (t as { name: string }).name === 'api_compat_status',
   );
   if (!call) throw new Error('api_compat_status not registered');
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
 beforeEach(() => {
@@ -84,7 +88,9 @@ describe('api-compatibility-gate coverage', () => {
       vi.mocked(readFile).mockResolvedValue('export const a = 1;\n');
       vi.mocked(existsSync).mockReturnValue(false); // Not a package entry point
 
-      const api = makeApi({ 'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] } });
+      const api = makeApi({
+        'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] },
+      });
       plugin.setup(api as never);
       const hook = getHook(api);
 
@@ -107,15 +113,21 @@ describe('api-compatibility-gate coverage', () => {
       vi.mocked(readFile).mockResolvedValue('export const a = 1;\n');
       vi.mocked(existsSync).mockReturnValue(false);
 
-      const api = makeApi({ 'api-compatibility-gate': { enabled: true, severity: 'block', entryPointPatterns: ['**/*.ts'] } });
+      const api = makeApi({
+        'api-compatibility-gate': {
+          enabled: true,
+          severity: 'block',
+          entryPointPatterns: ['**/*.ts'],
+        },
+      });
       plugin.setup(api as never);
       const hook = getHook(api);
 
-      const result = await hook({
+      const result = (await hook({
         toolName: 'write',
         toolInput: { path: 'src/index.ts' },
         toolResult: { content: '', isError: false },
-      }) as Record<string, unknown>;
+      })) as Record<string, unknown>;
 
       expect(result.decision).toBe('block');
       expect(result.reason).toContain('breaking');
@@ -132,7 +144,9 @@ describe('api-compatibility-gate coverage', () => {
       vi.mocked(readFile).mockResolvedValue('export const a = 1;\n');
       vi.mocked(existsSync).mockReturnValue(false);
 
-      const api = makeApi({ 'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] } });
+      const api = makeApi({
+        'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] },
+      });
       plugin.setup(api as never);
       const hook = getHook(api);
 
@@ -155,7 +169,9 @@ describe('api-compatibility-gate coverage', () => {
       });
       vi.mocked(existsSync).mockReturnValue(false);
 
-      const api = makeApi({ 'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] } });
+      const api = makeApi({
+        'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] },
+      });
       plugin.setup(api as never);
       const hook = getHook(api);
 
@@ -165,7 +181,7 @@ describe('api-compatibility-gate coverage', () => {
         toolResult: { content: '', isError: false },
       });
 
-      const status = await getStatusTool(api).execute({}) as Record<string, unknown>;
+      const status = (await getStatusTool(api).execute({})) as Record<string, unknown>;
       expect((status.counters as Record<string, number>).skipped).toBe(1);
     });
   });
@@ -180,7 +196,9 @@ describe('api-compatibility-gate coverage', () => {
       vi.mocked(readFile).mockRejectedValue(new Error('file not found'));
       vi.mocked(existsSync).mockReturnValue(false);
 
-      const api = makeApi({ 'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] } });
+      const api = makeApi({
+        'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] },
+      });
       plugin.setup(api as never);
       const hook = getHook(api);
 
@@ -190,7 +208,7 @@ describe('api-compatibility-gate coverage', () => {
         toolResult: { content: '', isError: false },
       });
 
-      const status = await getStatusTool(api).execute({}) as Record<string, unknown>;
+      const status = (await getStatusTool(api).execute({})) as Record<string, unknown>;
       expect((status.counters as Record<string, number>).errors).toBe(1);
     });
   });
@@ -199,7 +217,7 @@ describe('api-compatibility-gate coverage', () => {
     it('returns expected fields', async () => {
       const api = makeApi({});
       plugin.setup(api as never);
-      const status = await getStatusTool(api).execute({}) as Record<string, unknown>;
+      const status = (await getStatusTool(api).execute({})) as Record<string, unknown>;
       expect(status).toHaveProperty('ok');
       expect(status).toHaveProperty('enabled');
       expect(status).toHaveProperty('severity');
@@ -219,7 +237,9 @@ describe('api-compatibility-gate coverage', () => {
       vi.mocked(readFile).mockResolvedValue('export const a = 1;\n');
       vi.mocked(existsSync).mockReturnValue(false);
 
-      const api = makeApi({ 'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] } });
+      const api = makeApi({
+        'api-compatibility-gate': { enabled: true, entryPointPatterns: ['**/*.ts'] },
+      });
       plugin.setup(api as never);
       const hook = getHook(api);
 
@@ -229,7 +249,7 @@ describe('api-compatibility-gate coverage', () => {
         toolResult: { content: '', isError: false },
       });
 
-      const h = await plugin.health!() as { ok: boolean; message: string };
+      const h = (await plugin.health!()) as { ok: boolean; message: string };
       expect(h.message).toContain('BREAKING');
     });
   });

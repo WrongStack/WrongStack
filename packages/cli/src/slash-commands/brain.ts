@@ -18,11 +18,7 @@ import type {
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { compactEntry, handleBrainCouncilSubcommand, parseRefEntry } from './brain-council.js';
-import {
-  formatBrainStats,
-  formatBrainStatus,
-  readLedgerEntries,
-} from './brain-status.js';
+import { formatBrainStats, formatBrainStatus, readLedgerEntries } from './brain-status.js';
 import type { SlashCommandContext } from './command-context.js';
 
 const RISK_LEVELS: ReadonlySet<string> = new Set(['off', 'low', 'medium', 'high', 'all']);

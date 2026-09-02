@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BudgetExceededError, SubagentBudget, BudgetThresholdSignal } from '../../src/coordination/subagent-budget.js';
+import {
+  BudgetExceededError,
+  SubagentBudget,
+  BudgetThresholdSignal,
+} from '../../src/coordination/subagent-budget.js';
 import { EventBus } from '../../src/kernel/events.js';
 
 describe('SubagentBudget', () => {
@@ -225,7 +229,9 @@ describe('SubagentBudget', () => {
     const bus = new EventBus();
     bus.onPattern('*', (type, payload) => {
       if (type === 'budget.threshold_reached') {
-        (payload as { extend: (e: { maxIterations: number }) => void }).extend({ maxIterations: 999 });
+        (payload as { extend: (e: { maxIterations: number }) => void }).extend({
+          maxIterations: 999,
+        });
       }
     });
     const b = new SubagentBudget({ maxIterations: 2 }, 'auto');
@@ -253,11 +259,7 @@ describe('SubagentBudget', () => {
       seen.push(payload.sessionId);
       payload.extend({ maxIterations: 999 });
     });
-    const b = new SubagentBudget(
-      { maxIterations: 2 },
-      'auto',
-      { sessionId: () => sessionId },
-    );
+    const b = new SubagentBudget({ maxIterations: 2 }, 'auto', { sessionId: () => sessionId });
     (b as never as { _events: EventBus })._events = bus;
     b.onThreshold = ({ requestDecision }) => requestDecision();
     b.recordIteration();
@@ -279,8 +281,10 @@ describe('SubagentBudget', () => {
     const b = new SubagentBudget({ timeoutMs: 50 });
     b.start();
     // Even with a handler set, timeout always throws synchronously
-    b.onThreshold = () => { throw new Error('handler should not be called'); };
-    await new Promise(r => setTimeout(r, 60));
+    b.onThreshold = () => {
+      throw new Error('handler should not be called');
+    };
+    await new Promise((r) => setTimeout(r, 60));
     expect(() => b.checkTimeout()).toThrow(BudgetExceededError);
     expect(() => b.checkTimeout()).toThrow(/timeout/);
   });
@@ -370,9 +374,9 @@ describe('SubagentBudget', () => {
 
   it('BudgetThresholdSignal constructor sets all fields', async () => {
     const decision = Promise.resolve('stop');
-    const signal = new (await import('../../src/coordination/subagent-budget.js')).BudgetThresholdSignal(
-      'iterations', 10, 11, decision,
-    );
+    const signal = new (
+      await import('../../src/coordination/subagent-budget.js')
+    ).BudgetThresholdSignal('iterations', 10, 11, decision);
     expect(signal.kind).toBe('iterations');
     expect(signal.limit).toBe(10);
     expect(signal.used).toBe(11);

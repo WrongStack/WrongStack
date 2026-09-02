@@ -52,8 +52,7 @@ describe('hygiene contradiction detection (v1, 2026-08-02)', () => {
     const pending = await store.listCandidates(false);
     const candidate = pending.find(
       (c) =>
-        c.targetMemoryId === newer.id &&
-        c.reviewReason?.startsWith('Possible contradiction with'),
+        c.targetMemoryId === newer.id && c.reviewReason?.startsWith('Possible contradiction with'),
     );
     expect(candidate).toBeDefined();
     expect(candidate?.suggestedAction).toBe('investigate');

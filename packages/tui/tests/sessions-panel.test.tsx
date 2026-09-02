@@ -14,7 +14,14 @@ function session(overrides: Partial<LiveSessionEntry> = {}): LiveSessionEntry {
     startedAt: new Date().toISOString(),
     agentCount: 2,
     agents: [
-      { id: 'a1', name: 'Leader', status: 'running', iterations: 5, toolCalls: 12, lastActivityAt: new Date().toISOString() },
+      {
+        id: 'a1',
+        name: 'Leader',
+        status: 'running',
+        iterations: 5,
+        toolCalls: 12,
+        lastActivityAt: new Date().toISOString(),
+      },
     ],
     ...overrides,
   };
@@ -145,7 +152,20 @@ describe('SessionsPanel', () => {
   it('shows agent list for selected session', () => {
     const view = render(
       React.createElement(SessionsPanel, {
-        sessions: [session({ agents: [{ id: 'a1', name: 'Worker', status: 'running', iterations: 3, toolCalls: 7, lastActivityAt: new Date().toISOString() }] })],
+        sessions: [
+          session({
+            agents: [
+              {
+                id: 'a1',
+                name: 'Worker',
+                status: 'running',
+                iterations: 3,
+                toolCalls: 7,
+                lastActivityAt: new Date().toISOString(),
+              },
+            ],
+          }),
+        ],
         busy: false,
         selected: 0,
       }),
@@ -175,7 +195,21 @@ describe('SessionsPanel', () => {
   it('shows agent with current tool', () => {
     const view = render(
       React.createElement(SessionsPanel, {
-        sessions: [session({ agents: [{ id: 'a1', name: 'Agent', status: 'running', currentTool: 'grep', iterations: 1, toolCalls: 2, lastActivityAt: new Date().toISOString() }] })],
+        sessions: [
+          session({
+            agents: [
+              {
+                id: 'a1',
+                name: 'Agent',
+                status: 'running',
+                currentTool: 'grep',
+                iterations: 1,
+                toolCalls: 2,
+                lastActivityAt: new Date().toISOString(),
+              },
+            ],
+          }),
+        ],
         busy: false,
         selected: 0,
       }),
@@ -186,7 +220,9 @@ describe('SessionsPanel', () => {
   });
 
   it('shows scroll indicators when many sessions', () => {
-    const many = Array.from({ length: 15 }, (_, i) => session({ sessionId: `sess-${i}`, projectName: `proj-${i}` }));
+    const many = Array.from({ length: 15 }, (_, i) =>
+      session({ sessionId: `sess-${i}`, projectName: `proj-${i}` }),
+    );
     const view = render(
       React.createElement(SessionsPanel, {
         sessions: many,

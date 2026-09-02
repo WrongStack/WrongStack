@@ -44,7 +44,10 @@ describe('CollabSession', () => {
         const taskId = `task-${assigned.length}`;
         assigned.push({ subagentId: task.subagentId, description: task.description });
         // Auto-resolve after a tick so awaitTasks doesn't hang.
-        const { promise, resolve } = Promise.withResolvers<{ status: 'success'; result: unknown }>();
+        const { promise, resolve } = Promise.withResolvers<{
+          status: 'success';
+          result: unknown;
+        }>();
         taskResolvers.set(task.subagentId, resolve);
         void promise.then((r) => {
           taskResolvers.delete(task.subagentId);
@@ -77,7 +80,11 @@ describe('CollabSession', () => {
   function emitFleetEvent(fleetBus: FleetBus, subagentId: string, type: string, payload: unknown) {
     // FleetBus.emit is normally called by the Director for fleet-wide events.
     // Cast to access it for test injection.
-    (fleetBus as never as { emit: (e: { subagentId: string; ts: number; type: string; payload: unknown }) => void }).emit({
+    (
+      fleetBus as never as {
+        emit: (e: { subagentId: string; ts: number; type: string; payload: unknown }) => void;
+      }
+    ).emit({
       subagentId,
       ts: Date.now(),
       type,
@@ -154,15 +161,17 @@ describe('CollabSession', () => {
     const TIMEOUT = 987_654;
     let sessionTimer: ReturnType<typeof setTimeout> | undefined;
     const realSetTimeout = globalThis.setTimeout;
-    const setSpy = vi
-      .spyOn(globalThis, 'setTimeout')
-      .mockImplementation(((fn: (...a: unknown[]) => void, ms?: number, ...rest: unknown[]) => {
-        const handle = (
-          realSetTimeout as never as (...a: unknown[]) => ReturnType<typeof setTimeout>
-        )(fn, ms as number, ...rest);
-        if (ms === TIMEOUT) sessionTimer = handle;
-        return handle;
-      }) as never as typeof setTimeout);
+    const setSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      fn: (...a: unknown[]) => void,
+      ms?: number,
+      ...rest: unknown[]
+    ) => {
+      const handle = (
+        realSetTimeout as never as (...a: unknown[]) => ReturnType<typeof setTimeout>
+      )(fn, ms as number, ...rest);
+      if (ms === TIMEOUT) sessionTimer = handle;
+      return handle;
+    }) as never as typeof setTimeout);
     const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
 
     try {
@@ -376,7 +385,10 @@ describe('CollabSession', () => {
 
     // Create a session with more file paths than the default limit.
     // expandGlob is called first; the count is checked before any reading.
-    const manyFiles = Array.from({ length: DEFAULT_MAX_TARGET_FILES + 1 }, (_, i) => `src/file${i}.ts`);
+    const manyFiles = Array.from(
+      { length: DEFAULT_MAX_TARGET_FILES + 1 },
+      (_, i) => `src/file${i}.ts`,
+    );
     const session = new CollabSession(mockDirector as never, fleetBus, {
       targetPaths: manyFiles,
       timeoutMs: 5000,

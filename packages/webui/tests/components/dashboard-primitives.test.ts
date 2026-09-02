@@ -166,7 +166,10 @@ describe('dashboard-primitives', () => {
     });
 
     it('respects custom width', () => {
-      const result = sparkline(Array.from({ length: 100 }, (_, i) => i), 10);
+      const result = sparkline(
+        Array.from({ length: 100 }, (_, i) => i),
+        10,
+      );
       expect(result.length).toBeLessThanOrEqual(10);
     });
 

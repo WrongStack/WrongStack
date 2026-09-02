@@ -21,9 +21,19 @@ const FLEET_ROW_STATUS_META: Record<
 > = {
   running: { led: 'bg-success', labelKey: 'statusRunning', pulse: true, color: 'text-success' },
   completed: { led: 'bg-success', labelKey: 'statusDone', pulse: false, color: 'text-success' },
-  failed: { led: 'bg-destructive', labelKey: 'statusFailed', pulse: false, color: 'text-destructive' },
+  failed: {
+    led: 'bg-destructive',
+    labelKey: 'statusFailed',
+    pulse: false,
+    color: 'text-destructive',
+  },
   timeout: { led: 'bg-warning', labelKey: 'statusTimeout', pulse: false, color: 'text-warning' },
-  stopped: { led: 'bg-muted-foreground', labelKey: 'statusStopped', pulse: false, color: 'text-muted-foreground' },
+  stopped: {
+    led: 'bg-muted-foreground',
+    labelKey: 'statusStopped',
+    pulse: false,
+    color: 'text-muted-foreground',
+  },
 };
 
 interface FleetAgentRowProps {
@@ -54,12 +64,20 @@ export function FleetAgentRow({ agent, isSelected, isLeader, onClick }: FleetAge
         <span className={cn('led shrink-0', meta.led, meta.pulse && 'led-pulse')} />
         <span className="truncate font-medium">{agent.name}</span>
         {isLeader && (
-          <Crown className="h-3 w-3 shrink-0 text-warning" aria-label={t('activity:fleet.leader')} />
+          <Crown
+            className="h-3 w-3 shrink-0 text-warning"
+            aria-label={t('activity:fleet.leader')}
+          />
         )}
       </div>
 
       {/* Status */}
-      <span className={cn('text-[10px] tabular-nums', active ? 'text-success' : 'text-muted-foreground')}>
+      <span
+        className={cn(
+          'text-[10px] tabular-nums',
+          active ? 'text-success' : 'text-muted-foreground',
+        )}
+      >
         {t(`activity:fleet.${meta.labelKey}`)}
       </span>
 
@@ -83,19 +101,13 @@ export function FleetAgentRow({ agent, isSelected, isLeader, onClick }: FleetAge
       </div>
 
       {/* Iterations */}
-      <span className="tabular-nums text-muted-foreground text-[10px]">
-        {agent.iteration}it
-      </span>
+      <span className="tabular-nums text-muted-foreground text-[10px]">{agent.iteration}it</span>
 
       {/* Tool calls */}
-      <span className="tabular-nums text-muted-foreground text-[10px]">
-        {agent.toolCalls}tc
-      </span>
+      <span className="tabular-nums text-muted-foreground text-[10px]">{agent.toolCalls}tc</span>
 
       {/* Cost */}
-      <span className="tabular-nums font-mono text-[10px]">
-        {fmtCost(agent.costUsd)}
-      </span>
+      <span className="tabular-nums font-mono text-[10px]">{fmtCost(agent.costUsd)}</span>
 
       {/* Context */}
       <div className="flex flex-col gap-0.5 min-w-0">

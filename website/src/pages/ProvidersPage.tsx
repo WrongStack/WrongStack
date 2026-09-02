@@ -169,7 +169,10 @@ export function ProvidersPage() {
               </div>
               <div className="mt-5 space-y-4">
                 {oauthProviders.map((provider) => (
-                  <div key={provider.id} className="border-t border-line pt-4 first:border-t-0 first:pt-0">
+                  <div
+                    key={provider.id}
+                    className="border-t border-line pt-4 first:border-t-0 first:pt-0"
+                  >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <strong className="text-sm font-black text-fg">{provider.name}</strong>
                       <code className="font-mono text-xs text-brand">{provider.command}</code>
@@ -186,7 +189,10 @@ export function ProvidersPage() {
               </div>
               <div className="mt-5 space-y-4">
                 {localProviders.map((provider) => (
-                  <div key={provider.id} className="border-t border-line pt-4 first:border-t-0 first:pt-0">
+                  <div
+                    key={provider.id}
+                    className="border-t border-line pt-4 first:border-t-0 first:pt-0"
+                  >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <strong className="text-sm font-black text-fg">{provider.name}</strong>
                       <span className="font-mono text-xs font-black uppercase tracking-[0.08em] text-faint">

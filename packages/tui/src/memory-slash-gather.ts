@@ -62,18 +62,12 @@ export async function handleGatherSubcommand(
     .replace(/--limit\s+\d+/g, '')
     .trim();
 
-  if (
-    statusVal !== undefined &&
-    !(MEMORY_STATUS_VALUES as readonly string[]).includes(statusVal)
-  ) {
+  if (statusVal !== undefined && !(MEMORY_STATUS_VALUES as readonly string[]).includes(statusVal)) {
     return {
       message: `Invalid --status "${statusVal}". Valid: ${MEMORY_STATUS_VALUES.join(', ')}`,
     };
   }
-  if (
-    kindVal !== undefined &&
-    !(MEMORY_KIND_VALUES as readonly string[]).includes(kindVal)
-  ) {
+  if (kindVal !== undefined && !(MEMORY_KIND_VALUES as readonly string[]).includes(kindVal)) {
     return {
       message: `Invalid --kind "${kindVal}". Valid: ${MEMORY_KIND_VALUES.join(', ')}`,
     };
@@ -128,16 +122,18 @@ export async function handleGatherSubcommand(
     for (const mem of page.memories) {
       const kindEmoji = KIND_EMOJI[mem.kind as keyof typeof KIND_EMOJI] ?? '•';
       const textPreview = mem.text.length > 120 ? `${mem.text.slice(0, 118)}…` : mem.text;
-      const tags =
-        mem.tags.length > 0 ? ` 🏷️ ${mem.tags.map((t) => `\`${t}\``).join(' ')}` : '';
+      const tags = mem.tags.length > 0 ? ` 🏷️ ${mem.tags.map((t) => `\`${t}\``).join(' ')}` : '';
       lines.push(`> ${kindEmoji} **${textPreview}**`);
       lines.push(
         `> \`${mem.id}\` · ${mem.kind} · ${mem.status} · importance ${mem.importance} · confidence ${mem.confidence}`,
       );
       if (tags) lines.push(`> ${tags.slice(1).trim()}`);
       const anchor = mem.anchors?.find(
-        (a: { path?: string | undefined; symbol?: string | undefined; command?: string | undefined }) =>
-          a.path || a.symbol || a.command,
+        (a: {
+          path?: string | undefined;
+          symbol?: string | undefined;
+          command?: string | undefined;
+        }) => a.path || a.symbol || a.command,
       );
       if (anchor) {
         lines.push(`> 📎 \`${anchor.path ?? anchor.symbol ?? anchor.command ?? ''}\``);

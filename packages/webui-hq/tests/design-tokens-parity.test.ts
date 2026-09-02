@@ -48,7 +48,10 @@ function extractTokenMap(css: string): Map<string, string> {
     const separator = declaration.indexOf(':');
     if (separator === -1) return;
     const name = declaration.slice(0, separator).trim();
-    const value = declaration.slice(separator + 1).replace(/\s+/g, ' ').trim();
+    const value = declaration
+      .slice(separator + 1)
+      .replace(/\s+/g, ' ')
+      .trim();
     const selector = scope();
     if (!TOKEN_SELECTOR.test(selector)) return;
     tokens.set(`${selector}|${name}`, value);

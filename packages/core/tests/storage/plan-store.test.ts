@@ -213,7 +213,11 @@ describe('plan-store', () => {
   it('attachPlanCheckpoint returns a noop function', async () => {
     const { attachPlanCheckpoint } = await import('../../src/storage/plan-store.js');
     // attachPlanCheckpoint takes a ConversationState, filePath, sessionId but just returns noop
-    const noop = attachPlanCheckpoint({} as import('../../src/core/conversation-state.js').ConversationState, '/tmp/plan.json', 'session-1');
+    const noop = attachPlanCheckpoint(
+      {} as import('../../src/core/conversation-state.js').ConversationState,
+      '/tmp/plan.json',
+      'session-1',
+    );
     expect(typeof noop).toBe('function');
     expect(noop()).toBeUndefined();
   });

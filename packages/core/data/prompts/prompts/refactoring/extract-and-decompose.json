@@ -5,10 +5,7 @@
   "description": "Break a large function or class into well-named, focused units.",
   "content": "This unit is too big and does too much:\n\n```\n{{code}}\n```\n\nDecompose it. Identify the distinct responsibilities, propose a set of smaller functions/types with clear names and single responsibilities, and show how they compose back into the original behavior. Keep coupling low and avoid leaking internals. Flag any responsibility that probably belongs in a different module entirely.",
   "category": "refactoring",
-  "tags": [
-    "decomposition",
-    "srp"
-  ],
+  "tags": ["decomposition", "srp"],
   "source": "builtin",
   "favorite": false,
   "checksum": "d9ad91490b5463914e48df426303cb11316b3c5ea0490d126c2863644a5e98cb",

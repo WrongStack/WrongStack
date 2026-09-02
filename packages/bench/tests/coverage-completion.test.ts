@@ -4,18 +4,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { gradeLocalManifest } from '../src/graders/local-manifest-grader.js';
-import {
-  createLocalManifestSuite,
-  type LocalTaskMeta,
-} from '../src/suites/local-manifest.js';
+import { createLocalManifestSuite, type LocalTaskMeta } from '../src/suites/local-manifest.js';
 import type { BenchTask } from '../src/types.js';
 
 const tempDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(
-    tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
-  );
+  await Promise.all(tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
 async function makeSuiteDir(): Promise<string> {

@@ -32,13 +32,20 @@ export async function collectSessionFiles(
     if (entry.isDirectory()) {
       dirEntries.push(entry);
     } else if (entry.isFile() && isSessionJsonlFileName(entry.name)) {
-      files.push({ id: sessionIdForFile(prefix, entry.name), filePath: path.join(dir, entry.name) });
+      files.push({
+        id: sessionIdForFile(prefix, entry.name),
+        filePath: path.join(dir, entry.name),
+      });
     }
   }
 
   const childFileArrays = await Promise.all(
     dirEntries.map((entry) =>
-      collectSessionFiles(path.join(dir, entry.name), childPrefixFor(entry, prefix, depth), depth + 1),
+      collectSessionFiles(
+        path.join(dir, entry.name),
+        childPrefixFor(entry, prefix, depth),
+        depth + 1,
+      ),
     ),
   );
 
@@ -66,7 +73,11 @@ export async function collectSessionIds(dir: string, prefix = '', depth = 0): Pr
 
   const childIdArrays = await Promise.all(
     dirEntries.map((entry) =>
-      collectSessionIds(path.join(dir, entry.name), childPrefixFor(entry, prefix, depth), depth + 1),
+      collectSessionIds(
+        path.join(dir, entry.name),
+        childPrefixFor(entry, prefix, depth),
+        depth + 1,
+      ),
     ),
   );
 

@@ -5,11 +5,7 @@
   "description": "Convert a fuzzy ask into a precise, answerable prompt.",
   "content": "I want to ask an AI to: {{vague_request}}\n\nHelp me turn this into a precise prompt. Identify what's underspecified — the missing inputs, constraints, format, and success criteria — and ask me the 2-4 questions whose answers matter most. Then assemble a clear, complete prompt from my answers. Don't pad it with boilerplate the model doesn't need.",
   "category": "meta-prompting",
-  "tags": [
-    "specification",
-    "clarify",
-    "prompt-engineering"
-  ],
+  "tags": ["specification", "clarify", "prompt-engineering"],
   "source": "builtin",
   "favorite": false,
   "checksum": "8fa697dd9459b0c841b2beacecdee48241d4545bf7ff83480137205e94b62c90",

@@ -8,7 +8,9 @@ import {
 import type { WSClientMessage } from '@wrongstack/webui-server';
 
 function mockWs(): WebSocket & { send: ReturnType<typeof vi.fn> } {
-  return { readyState: 1, send: vi.fn() } as never as WebSocket & { send: ReturnType<typeof vi.fn> };
+  return { readyState: 1, send: vi.fn() } as never as WebSocket & {
+    send: ReturnType<typeof vi.fn>;
+  };
 }
 
 function sentMessages(ws: { send: ReturnType<typeof vi.fn> }): unknown[] {
@@ -32,7 +34,9 @@ describe('handleMailboxRoute', () => {
     const ws = mockWs();
     const h = handlers();
 
-    await expect(handleMailboxRoute(ws, { type: 'chat.ready', payload: {} } as WSClientMessage, h)).resolves.toBe(false);
+    await expect(
+      handleMailboxRoute(ws, { type: 'chat.ready', payload: {} } as WSClientMessage, h),
+    ).resolves.toBe(false);
 
     expect(h.messages).not.toHaveBeenCalled();
     expect(h.agents).not.toHaveBeenCalled();
@@ -62,7 +66,10 @@ describe('handleMailboxRoute', () => {
   it('forwards the original message object to payload-bearing handlers', async () => {
     const ws = mockWs();
     const h = handlers();
-    const msg = { type: 'mailbox.purge', payload: { completedMaxAgeMs: 1 } } as never as WSClientMessage;
+    const msg = {
+      type: 'mailbox.purge',
+      payload: { completedMaxAgeMs: 1 },
+    } as never as WSClientMessage;
 
     await expect(handleMailboxRoute(ws, msg, h)).resolves.toBe(true);
 

@@ -5,11 +5,7 @@
   "description": "Reason through building something yourself versus adopting it.",
   "content": "I'm deciding whether to build or buy: {{capability}}\n\nReason it through honestly. Cover the total cost of building (not just v1, but maintenance, edge cases, and opportunity cost) versus buying (price, lock-in, fit, and the gaps you'll still have to fill). Decide whether this is core to us — something we should own — or undifferentiated plumbing better bought. Name the hidden cost each side conveniently ignores, and recommend one with the condition that would flip it.",
   "category": "product",
-  "tags": [
-    "build-vs-buy",
-    "decision",
-    "tradeoffs"
-  ],
+  "tags": ["build-vs-buy", "decision", "tradeoffs"],
   "source": "builtin",
   "favorite": false,
   "checksum": "df20ea2f6d46785980131647ffa9a439efa0d963d839934e1721bc6fd731e921",

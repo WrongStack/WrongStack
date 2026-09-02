@@ -4,7 +4,9 @@ import { handleGoalRoute, type GoalRouteHandlers } from '@wrongstack/webui-serve
 import type { WSClientMessage } from '@wrongstack/webui-server';
 
 function mockWs(): WebSocket & { send: ReturnType<typeof vi.fn> } {
-  return { readyState: 1, send: vi.fn() } as never as WebSocket & { send: ReturnType<typeof vi.fn> };
+  return { readyState: 1, send: vi.fn() } as never as WebSocket & {
+    send: ReturnType<typeof vi.fn>;
+  };
 }
 
 function sentMessages(ws: { send: ReturnType<typeof vi.fn> }): unknown[] {
@@ -22,7 +24,9 @@ describe('handleGoalRoute', () => {
     const ws = mockWs();
     const h = handlers();
 
-    await expect(handleGoalRoute(ws, { type: 'chat.ready', payload: {} } as WSClientMessage, h)).resolves.toBe(false);
+    await expect(
+      handleGoalRoute(ws, { type: 'chat.ready', payload: {} } as WSClientMessage, h),
+    ).resolves.toBe(false);
 
     expect(h.handleMessage).not.toHaveBeenCalled();
     expect(sentMessages(ws)).toEqual([]);

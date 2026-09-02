@@ -34,12 +34,8 @@ vi.mock('node:fs/promises', () => ({
 // Plugin under test (imported after mocks are installed).
 // ---------------------------------------------------------------------------
 const plugin = (await import('../src/gitignore-guard/index.js')).default;
-const {
-  DEFAULT_ARTIFACT_PATTERNS,
-  classifyArtifact,
-  matchGitignorePattern,
-  readConfig,
-} = await import('../src/gitignore-guard/index.js');
+const { DEFAULT_ARTIFACT_PATTERNS, classifyArtifact, matchGitignorePattern, readConfig } =
+  await import('../src/gitignore-guard/index.js');
 
 const ROOT = process.cwd();
 const rootGitignore = join(ROOT, '.gitignore');
@@ -78,9 +74,7 @@ function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): Mock
   };
 }
 
-type HookFn = (
-  input: unknown,
-) => Promise<{ additionalContext?: string } | void>;
+type HookFn = (input: unknown) => Promise<{ additionalContext?: string } | void>;
 
 function getHook(api: MockApi): HookFn {
   const call = api.registerHook.mock.calls[0];
@@ -107,7 +101,12 @@ function seedGitignore(path: string, content: string): void {
 }
 
 function writeInput(path: string): Record<string, unknown> {
-  return { toolName: 'write', toolInput: { path }, cwd: ROOT, toolResult: { content: '', isError: false } };
+  return {
+    toolName: 'write',
+    toolInput: { path },
+    cwd: ROOT,
+    toolResult: { content: '', isError: false },
+  };
 }
 
 beforeEach(() => {
@@ -197,7 +196,11 @@ describe('readConfig', () => {
   });
 
   it('falls back to defaults on invalid values', () => {
-    const cfg = readConfig({ mode: 'delete-everything', artifactPatterns: [], maxAppendPerCall: 0 });
+    const cfg = readConfig({
+      mode: 'delete-everything',
+      artifactPatterns: [],
+      maxAppendPerCall: 0,
+    });
     expect(cfg.mode).toBe('suggest');
     expect(cfg.artifactPatterns).toEqual([...DEFAULT_ARTIFACT_PATTERNS]);
     expect(cfg.maxAppendPerCall).toBe(5);

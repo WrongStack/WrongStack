@@ -14,7 +14,10 @@ import {
   readBrainTrace,
   sanitizeRequest,
 } from '../../src/coordination/brain-trace.js';
-import { brainTraceToEvaluationCase, runBrainEvaluation } from '../../src/execution/brain-evaluation.js';
+import {
+  brainTraceToEvaluationCase,
+  runBrainEvaluation,
+} from '../../src/execution/brain-evaluation.js';
 import { EventBus } from '../../src/kernel/events.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
@@ -290,7 +293,12 @@ describe('brainTraceToEvaluationCase', () => {
     const recorder = new BrainTraceRecorder({ events, filePath: file });
     recorder.start();
 
-    const request = req({ options: [{ id: 'extend', label: 'Extend' }, { id: 'stop', label: 'Stop' }] });
+    const request = req({
+      options: [
+        { id: 'extend', label: 'Extend' },
+        { id: 'stop', label: 'Stop' },
+      ],
+    });
     events.emit('brain.decision_requested', { request, at: 1 });
     events.emit('brain.decision_answered', {
       request,

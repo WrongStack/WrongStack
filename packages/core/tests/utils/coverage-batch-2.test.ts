@@ -1,21 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { compileGlob, matchGlob, matchAny } from '../../src/utils/glob-match.js';
-import {
-  detectNewlineStyle,
-  toStyle,
-  normalizeToLf,
-} from '../../src/utils/newline-normalize.js';
+import { detectNewlineStyle, toStyle, normalizeToLf } from '../../src/utils/newline-normalize.js';
 import {
   safeParse,
   safeStringify,
   sanitizeJsonString,
   stripCodeFences,
 } from '../../src/utils/safe-json.js';
-import {
-  deepMerge,
-  isPrimitiveArray,
-  FORBIDDEN_PROTO_KEYS,
-} from '../../src/utils/deep-merge.js';
+import { deepMerge, isPrimitiveArray, FORBIDDEN_PROTO_KEYS } from '../../src/utils/deep-merge.js';
 
 // ── glob-match ─────────────────────────────────────────────────────────
 
@@ -280,11 +272,7 @@ describe('deepMerge', () => {
   });
 
   it('concatenates primitive arrays with concat-primitives mode', () => {
-    const result = deepMerge(
-      { arr: [1, 2] },
-      { arr: [2, 3] },
-      { arrayMode: 'concat-primitives' },
-    );
+    const result = deepMerge({ arr: [1, 2] }, { arr: [2, 3] }, { arrayMode: 'concat-primitives' });
     expect(result).toEqual({ arr: [1, 2, 3] }); // deduped via Set
   });
 
@@ -325,7 +313,9 @@ describe('deepMerge', () => {
       { arr: [{ x: 1 }] },
       {
         arrayMode: 'concat-primitives',
-        onNonPrimitiveArrayReplace: () => { called = true; },
+        onNonPrimitiveArrayReplace: () => {
+          called = true;
+        },
       },
     );
     expect(called).toBe(true);

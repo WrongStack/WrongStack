@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
-import {
-  handleWorklistMessage,
-  type WorklistContext,
-} from '@wrongstack/webui-server';
+import { handleWorklistMessage, type WorklistContext } from '@wrongstack/webui-server';
 
 function createMockWs() {
   const ws = {

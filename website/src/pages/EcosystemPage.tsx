@@ -94,9 +94,7 @@ export function EcosystemPage() {
                   key={need}
                   className="grid gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4 sm:grid-cols-[32px_1fr_110px_110px] sm:items-center"
                 >
-                  <span className="font-mono text-xs font-black text-brand-2">
-                    0{index + 1}
-                  </span>
+                  <span className="font-mono text-xs font-black text-brand-2">0{index + 1}</span>
                   <span className="text-sm text-zinc-300">{need}</span>
                   <strong className="text-sm">{choice}</strong>
                   <code className="font-mono text-xs text-zinc-500">{command}</code>
@@ -180,13 +178,35 @@ export function EcosystemPage() {
         <SectionIntro index="05" eyebrow="Related" title="Explore more ecosystem features." />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { href: '/skills', label: 'Skills', desc: 'Installable knowledge packages that auto-activate on trigger words.' },
-            { href: '/prompts', label: 'Prompts', desc: 'Reusable steering templates with variables and layered resolution.' },
-            { href: '/design-studio', label: 'Design Studio', desc: '48+ curated UI kits. Materialize CSS tokens and verify palette.' },
-            { href: '/sync', label: 'GitHub Sync', desc: 'Sync settings, skills, prompts, and memory across machines.' },
+            {
+              href: '/skills',
+              label: 'Skills',
+              desc: 'Installable knowledge packages that auto-activate on trigger words.',
+            },
+            {
+              href: '/prompts',
+              label: 'Prompts',
+              desc: 'Reusable steering templates with variables and layered resolution.',
+            },
+            {
+              href: '/design-studio',
+              label: 'Design Studio',
+              desc: '48+ curated UI kits. Materialize CSS tokens and verify palette.',
+            },
+            {
+              href: '/sync',
+              label: 'GitHub Sync',
+              desc: 'Sync settings, skills, prompts, and memory across machines.',
+            },
           ].map(({ href, label, desc }) => (
-            <Link key={href} href={href} className="group rounded-xl border border-line bg-card p-5 hover:border-brand/40 transition-colors">
-              <h3 className="font-black text-base text-fg group-hover:text-brand transition-colors">{label}</h3>
+            <Link
+              key={href}
+              href={href}
+              className="group rounded-xl border border-line bg-card p-5 hover:border-brand/40 transition-colors"
+            >
+              <h3 className="font-black text-base text-fg group-hover:text-brand transition-colors">
+                {label}
+              </h3>
               <p className="mt-2 text-xs leading-5 text-muted">{desc}</p>
               <span className="mt-3 inline-block text-xs font-bold text-brand">Explore →</span>
             </Link>
@@ -194,13 +214,32 @@ export function EcosystemPage() {
         </div>
       </section>
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
-        <SectionIntro index="04" eyebrow="Plugin development" title="Build once. Publish anywhere." description="Plugins follow a standard structure: a manifest, a setup function, and optional slash commands, hooks, or tool providers. The plugin SDK handles registration, versioning, and lifecycle." />
+        <SectionIntro
+          index="04"
+          eyebrow="Plugin development"
+          title="Build once. Publish anywhere."
+          description="Plugins follow a standard structure: a manifest, a setup function, and optional slash commands, hooks, or tool providers. The plugin SDK handles registration, versioning, and lifecycle."
+        />
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
           {[
-            { title: 'Manifest', body: 'name, version, apiVersion, description, capabilities. Declare what your plugin provides without implementing it.' },
-            { title: 'Setup & teardown', body: 'setup(api) registers commands, hooks, and providers. teardown(api) cleans up. Both receive a typed API surface.' },
-            { title: 'Distribution', body: 'Publish to npm, ship as a local project plugin, or install from GitHub. Plugins auto-discover from the config.' },
-          ].map(({ title, body }) => (<div key={title} className="rounded-xl border border-line bg-card p-5"><h3 className="font-black text-sm text-fg">{title}</h3><p className="mt-2 text-xs leading-5 text-muted">{body}</p></div>))}
+            {
+              title: 'Manifest',
+              body: 'name, version, apiVersion, description, capabilities. Declare what your plugin provides without implementing it.',
+            },
+            {
+              title: 'Setup & teardown',
+              body: 'setup(api) registers commands, hooks, and providers. teardown(api) cleans up. Both receive a typed API surface.',
+            },
+            {
+              title: 'Distribution',
+              body: 'Publish to npm, ship as a local project plugin, or install from GitHub. Plugins auto-discover from the config.',
+            },
+          ].map(({ title, body }) => (
+            <div key={title} className="rounded-xl border border-line bg-card p-5">
+              <h3 className="font-black text-sm text-fg">{title}</h3>
+              <p className="mt-2 text-xs leading-5 text-muted">{body}</p>
+            </div>
+          ))}
         </div>
       </section>
       <PageNext

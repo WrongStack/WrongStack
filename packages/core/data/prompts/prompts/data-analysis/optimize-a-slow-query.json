@@ -5,11 +5,7 @@
   "description": "Diagnose and speed up a slow SQL query.",
   "content": "This query is slow:\n\n```\n{{query}}\n```\n\nDiagnose it: what would the query plan likely show, and where's the cost (full scans, missing indexes, bad join order, sorting, functions on indexed columns)? Propose specific fixes — indexes, rewrites, or schema changes — and predict their effect. Tell me what to measure with EXPLAIN before and after.",
   "category": "data-analysis",
-  "tags": [
-    "sql",
-    "performance",
-    "indexing"
-  ],
+  "tags": ["sql", "performance", "indexing"],
   "source": "builtin",
   "favorite": false,
   "checksum": "4684686fb0d718db2f0e7e45ebb1cfcbb64366ff8a797ba165de69ab421e3b3e",

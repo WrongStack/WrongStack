@@ -1,12 +1,6 @@
 import { type Activity, useUIStore } from '@/stores/ui-store';
 
-export type PanelMainView =
-  | 'chat'
-  | 'files'
-  | 'skill'
-  | 'changes'
-  | 'mailbox'
-  | 'design-gallery';
+export type PanelMainView = 'chat' | 'files' | 'skill' | 'changes' | 'mailbox' | 'design-gallery';
 
 export type MainView =
   | 'goal'

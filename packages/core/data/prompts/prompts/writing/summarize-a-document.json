@@ -5,10 +5,7 @@
   "description": "Produce a faithful, useful summary at the right altitude.",
   "content": "Summarize the following for someone who needs to {{purpose}}:\n\n{{text}}\n\nGive: a one-sentence TL;DR, then the key points as a short list, then anything that requires action or a decision. Stay faithful — don't add claims that aren't in the source, and flag where the source is vague or contradicts itself. Match the length to the purpose, not the input.",
   "category": "writing",
-  "tags": [
-    "summary",
-    "tldr"
-  ],
+  "tags": ["summary", "tldr"],
   "source": "builtin",
   "favorite": false,
   "checksum": "61ac70c14f36c2a742ffc8fe513a02187a29ccd8e80d3bc4a66c1a1233532537",

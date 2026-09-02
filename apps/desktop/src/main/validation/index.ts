@@ -8,9 +8,7 @@ import type { ZodSchema, ZodError } from 'zod';
  * Result type for validation operations.
  * Success contains the validated data, Failure contains the error.
  */
-type ValidationResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+type ValidationResult<T> = { success: true; data: T } | { success: false; error: string };
 
 /**
  * Validate data against a Zod schema.
@@ -45,11 +43,7 @@ export function validateOrThrow<T>(schema: ZodSchema<T>, data: unknown, context?
  * Validate with a fallback value.
  * Returns the validated data or a default on failure.
  */
-export function validateOrDefault<T>(
-  schema: ZodSchema<T>,
-  data: unknown,
-  defaultValue: T,
-): T {
+export function validateOrDefault<T>(schema: ZodSchema<T>, data: unknown, defaultValue: T): T {
   const result = validate(schema, data);
   return result.success ? result.data : defaultValue;
 }
@@ -58,10 +52,7 @@ export function validateOrDefault<T>(
  * Validate optional input.
  * Returns undefined for undefined/null input, validated data otherwise.
  */
-export function validateOptional<T>(
-  schema: ZodSchema<T>,
-  data: unknown,
-): T | undefined {
+export function validateOptional<T>(schema: ZodSchema<T>, data: unknown): T | undefined {
   if (data === undefined || data === null) return undefined;
   const result = validate(schema, data);
   return result.success ? result.data : undefined;
@@ -71,9 +62,7 @@ export function validateOptional<T>(
  * Format Zod error into a human-readable string.
  */
 function formatZodError(error: ZodError): string {
-  return error.issues
-    .map((e) => `${e.path.join('.')}: ${e.message}`)
-    .join('; ');
+  return error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
 }
 
 /**

@@ -78,15 +78,16 @@ export function isLoopbackHost(host: string): boolean {
   if (family === 6) {
     // ::1 is the IPv6 loopback address. Also accept the IPv4-mapped
     // form ::ffff:127.x.x.x which resolves to loopback on dual-stack.
-    return normalized === '::1'
-      || /^::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized);
+    return normalized === '::1' || /^::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized);
   }
   return false;
 }
 
 /** True when HQ would serve every request unauthenticated. Mirrors the
  *  `(inBrowserTokenMode || inPasswordMode) && !auth` gate in hq-server. */
-export function isOpenMode(input: Pick<HqExposureInput, 'hasBrowserTokens' | 'hasPassword'>): boolean {
+export function isOpenMode(
+  input: Pick<HqExposureInput, 'hasBrowserTokens' | 'hasPassword'>,
+): boolean {
   return !input.hasBrowserTokens && !input.hasPassword;
 }
 

@@ -66,7 +66,10 @@
       "cwd": ".",
       "includePrefixes": ["packages/", "apps/"],
       "excludePrefixes": ["packages/webui/tests/"],
-      "excludeFiles": ["packages/cli/tests/hq-dashboard.test.ts", "packages/tui/tests/status-bar-sgr.test.ts"]
+      "excludeFiles": [
+        "packages/cli/tests/hq-dashboard.test.ts",
+        "packages/tui/tests/status-bar-sgr.test.ts"
+      ]
     },
     {
       "id": "tui-status-bar-sgr",

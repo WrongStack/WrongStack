@@ -83,10 +83,7 @@ async function sequentialAppends(
   await w.close();
 }
 
-async function batchAppend(
-  store: DefaultSessionStore,
-  events: SessionEvent[],
-): Promise<void> {
+async function batchAppend(store: DefaultSessionStore, events: SessionEvent[]): Promise<void> {
   const w = await store.create({ id: 'batch', model: 'm', provider: 'p' });
   await w.appendBatch(events);
   await w.close();
@@ -165,7 +162,12 @@ describe('B3 — preFlight token estimate reuse', () => {
     bench(`${n} messages — double call (old)`, () => {
       // Old pattern: two separate calls
       const est1 = estimateRequestTokens(messages, systemPrompt, tools).total;
-      const est2 = estimateRequestTokensCalibrated(messages, systemPrompt, tools, 'bench/probe').total;
+      const est2 = estimateRequestTokensCalibrated(
+        messages,
+        systemPrompt,
+        tools,
+        'bench/probe',
+      ).total;
       return est1 + est2; // prevent dead-code elimination
     });
 

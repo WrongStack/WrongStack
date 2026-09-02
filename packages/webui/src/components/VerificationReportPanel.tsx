@@ -80,7 +80,9 @@ function VerdictBadge({ verdict }: { verdict: KanbanVerificationReport['verdict'
   const cfg = VERDICT_CONFIG[verdict];
   const Icon = cfg.icon;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.className}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.className}`}
+    >
       <Icon size={13} />
       {t(cfg.labelKey)}
     </span>
@@ -214,10 +216,16 @@ function SubtaskCard({ subtasks }: { subtasks: KanbanVerificationSubtasks }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>{t('activity:verifyReport.total')} <strong>{subtasks.total}</strong></span>
-        <span className="text-success">{t('activity:verifyReport.completed')} <strong>{subtasks.completed}</strong></span>
+        <span>
+          {t('activity:verifyReport.total')} <strong>{subtasks.total}</strong>
+        </span>
+        <span className="text-success">
+          {t('activity:verifyReport.completed')} <strong>{subtasks.completed}</strong>
+        </span>
         {subtasks.failed > 0 && (
-          <span className="text-destructive">{t('activity:verifyReport.failed')} <strong>{subtasks.failed}</strong></span>
+          <span className="text-destructive">
+            {t('activity:verifyReport.failed')} <strong>{subtasks.failed}</strong>
+          </span>
         )}
       </div>
       <div className="space-y-1">
@@ -244,7 +252,10 @@ function AttachmentCard({ attachments }: { attachments: KanbanVerificationAttach
   return (
     <div className="space-y-1">
       {attachments.map((att, i) => (
-        <div key={i} className="flex items-start gap-2 rounded border bg-muted/30 px-2 py-1.5 text-xs">
+        <div
+          key={i}
+          className="flex items-start gap-2 rounded border bg-muted/30 px-2 py-1.5 text-xs"
+        >
           <FileText size={12} className="mt-0.5 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
             <div className="font-medium">{att.label}</div>
@@ -298,7 +309,11 @@ export function VerificationReportPanel({ report }: VerificationReportPanelProps
 
       {/* Per-Check Results */}
       {report.checks.length > 0 && (
-        <CollapsibleSection title={t('activity:verifyReport.checkResults')} icon={ListTree} defaultOpen={report.verdict !== 'passed'}>
+        <CollapsibleSection
+          title={t('activity:verifyReport.checkResults')}
+          icon={ListTree}
+          defaultOpen={report.verdict !== 'passed'}
+        >
           {report.checks.map((check) => (
             <CheckResultRow key={check.checkId} check={check} />
           ))}
@@ -307,7 +322,11 @@ export function VerificationReportPanel({ report }: VerificationReportPanelProps
 
       {/* File Scope */}
       {report.fileScope && (
-        <CollapsibleSection title={t('activity:verifyReport.fileScope')} icon={FileCode2} defaultOpen={!report.fileScope.scopeMatches}>
+        <CollapsibleSection
+          title={t('activity:verifyReport.fileScope')}
+          icon={FileCode2}
+          defaultOpen={!report.fileScope.scopeMatches}
+        >
           <FileScopeCard fileScope={report.fileScope} />
         </CollapsibleSection>
       )}

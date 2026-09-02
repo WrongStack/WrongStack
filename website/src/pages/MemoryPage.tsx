@@ -24,9 +24,7 @@ export function MemoryPage() {
         }
         description="Sessions reconstruct what happened. SAGE preserves verified project knowledge. Checkpoints capture reversible file state. Compaction keeps the model window healthy without deleting history."
         aside={
-          <ExternalDoc path="docs/plans/sage-architecture.md">
-            Open SAGE architecture
-          </ExternalDoc>
+          <ExternalDoc path="docs/plans/sage-architecture.md">Open SAGE architecture</ExternalDoc>
         }
       />
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
@@ -64,9 +62,7 @@ export function MemoryPage() {
                 <ItemIcon className="size-5 text-brand" />
                 <h2 className="mt-8 text-xl font-black text-fg">{String(title)}</h2>
                 <p className="mt-3 text-sm leading-6 text-muted">{String(body)}</p>
-                <code className="mt-6 block font-mono text-xs text-faint">
-                  {String(storage)}
-                </code>
+                <code className="mt-6 block font-mono text-xs text-faint">{String(storage)}</code>
               </article>
             );
           })}
@@ -213,11 +209,25 @@ export function MemoryPage() {
           </div>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {[
-              { href: '/checkpoints', label: 'Checkpoints', desc: 'File state snapshots before risky edits. Roll back to the last known-good state.' },
-              { href: '/commit-workflow', label: 'Commit workflow', desc: 'Auto-generated conventional commits from your diff. Stage, review, commit.' },
+              {
+                href: '/checkpoints',
+                label: 'Checkpoints',
+                desc: 'File state snapshots before risky edits. Roll back to the last known-good state.',
+              },
+              {
+                href: '/commit-workflow',
+                label: 'Commit workflow',
+                desc: 'Auto-generated conventional commits from your diff. Stage, review, commit.',
+              },
             ].map(({ href, label, desc }) => (
-              <Link key={href} href={href} className="group rounded-xl border border-white/10 bg-white/[0.035] p-5 hover:border-brand/40 transition-colors">
-                <h3 className="font-black text-base group-hover:text-brand transition-colors">{label}</h3>
+              <Link
+                key={href}
+                href={href}
+                className="group rounded-xl border border-white/10 bg-white/[0.035] p-5 hover:border-brand/40 transition-colors"
+              >
+                <h3 className="font-black text-base group-hover:text-brand transition-colors">
+                  {label}
+                </h3>
                 <p className="mt-2 text-xs leading-5 text-zinc-500">{desc}</p>
                 <span className="mt-3 inline-block text-xs font-bold text-brand">Explore →</span>
               </Link>
@@ -226,13 +236,32 @@ export function MemoryPage() {
         </div>
       </section>
       <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
-        <SectionIntro index="05" eyebrow="Session reconstruction" title="Replay an entire session from JSONL." description="Session logs are date-sharded JSONL files under `~/.wrongstack/sessions/`. Every event — message, tool call, tool result, error — is an append-only immutable line. The session writer guarantees clean finalization." />
+        <SectionIntro
+          index="05"
+          eyebrow="Session reconstruction"
+          title="Replay an entire session from JSONL."
+          description="Session logs are date-sharded JSONL files under `~/.wrongstack/sessions/`. Every event — message, tool call, tool result, error — is an append-only immutable line. The session writer guarantees clean finalization."
+        />
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
           {[
-            { title: 'Event types', body: 'message, thinking, tool_use, tool_result, error, status, system. Each carries timestamp, iteration, and optional cost metadata.' },
-            { title: 'Replay', body: '/session replay <id> reconstructs the full conversation. Useful for debugging past runs, auditing decisions, or continuing from a checkpoint.' },
-            { title: 'Retention', body: 'Configurable. Sessions auto-prune based on age and count. Critical sessions can be pinned to prevent deletion.' },
-          ].map(({ title, body }) => (<div key={title} className="rounded-xl border border-line bg-card p-5"><h3 className="font-black text-sm text-fg">{title}</h3><p className="mt-2 text-xs leading-5 text-muted">{body}</p></div>))}
+            {
+              title: 'Event types',
+              body: 'message, thinking, tool_use, tool_result, error, status, system. Each carries timestamp, iteration, and optional cost metadata.',
+            },
+            {
+              title: 'Replay',
+              body: '/session replay <id> reconstructs the full conversation. Useful for debugging past runs, auditing decisions, or continuing from a checkpoint.',
+            },
+            {
+              title: 'Retention',
+              body: 'Configurable. Sessions auto-prune based on age and count. Critical sessions can be pinned to prevent deletion.',
+            },
+          ].map(({ title, body }) => (
+            <div key={title} className="rounded-xl border border-line bg-card p-5">
+              <h3 className="font-black text-sm text-fg">{title}</h3>
+              <p className="mt-2 text-xs leading-5 text-muted">{body}</p>
+            </div>
+          ))}
         </div>
       </section>
       <PageNext

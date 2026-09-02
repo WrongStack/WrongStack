@@ -19,14 +19,17 @@ interface MockApi {
   };
 }
 
-function makeApi(overrides: { extensions?: Record<string, unknown>; mailbox?: boolean } = {}): MockApi {
+function makeApi(
+  overrides: { extensions?: Record<string, unknown>; mailbox?: boolean } = {},
+): MockApi {
   return {
     tools: { register: vi.fn() },
     config: { extensions: overrides.extensions ?? {} },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn() },
     onEvent: vi.fn(() => vi.fn()),
-    mailbox: overrides.mailbox !== false ? { send: vi.fn(async () => ({ id: 'msg-1' })) } : undefined,
+    mailbox:
+      overrides.mailbox !== false ? { send: vi.fn(async () => ({ id: 'msg-1' })) } : undefined,
   };
 }
 

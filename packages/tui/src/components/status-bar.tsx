@@ -13,16 +13,8 @@ import { theme } from '../theme.js';
 import type { AnimationStyle } from './animation-style.js';
 import { computeRailSpans, PowerlineRail } from './powerline-rail.js';
 import { ThinkingChip } from './status-bar-chips.js';
-import {
-  hasTokenDisplay,
-  stateChip,
-  tokenDisplayTotals,
-} from './status-bar-format.js';
-import {
-  countdownColor,
-  hasMailboxActivity,
-  isStreamChipVisible,
-} from './status-bar-helpers.js';
+import { hasTokenDisplay, stateChip, tokenDisplayTotals } from './status-bar-format.js';
+import { countdownColor, hasMailboxActivity, isStreamChipVisible } from './status-bar-helpers.js';
 import {
   COMPACT_THRESHOLD,
   LINE_BG_COLORS,
@@ -56,7 +48,12 @@ export {
   truncateChip,
 } from './status-bar-format.js';
 
-export { chipColor, SPINNER_INTERVAL_MS, STACK_ORANGE, STATUSLINE_ICONS } from './status-bar-icons.js';;
+export {
+  chipColor,
+  SPINNER_INTERVAL_MS,
+  STACK_ORANGE,
+  STATUSLINE_ICONS,
+} from './status-bar-icons.js';
 
 export type {
   BrainStatusChip,

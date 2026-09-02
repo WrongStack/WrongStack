@@ -52,7 +52,9 @@ describe('materializeTokens', () => {
     const r = materializeTokens({ tokens, stack: 'swiftui', kitId: 'test' });
     expect(r.path).toMatch(/\.swift$/);
     expect(r.content).toContain('import SwiftUI');
-    expect(r.content).toMatch(/static let primary = Color\(red: 1\.0000, green: 0\.0000, blue: 0\.0000/);
+    expect(r.content).toMatch(
+      /static let primary = Color\(red: 1\.0000, green: 0\.0000, blue: 0\.0000/,
+    );
   });
 
   it('compose → Color(0xAARRGGBB)', () => {

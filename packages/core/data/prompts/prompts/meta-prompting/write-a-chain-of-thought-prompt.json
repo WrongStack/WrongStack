@@ -5,10 +5,7 @@
   "description": "Get a model to reason step by step before answering.",
   "content": "I want the model to reason carefully before answering: {{task}}\n\nWrite a prompt that elicits explicit step-by-step reasoning where it actually helps (multi-step logic, math, planning) — and tell me where it just wastes tokens. Specify the structure: think first, then give a clearly separated final answer the caller can extract. Avoid letting the reasoning leak into or contaminate the final output. Note how to keep the answer parseable when you also want the reasoning visible.",
   "category": "meta-prompting",
-  "tags": [
-    "chain-of-thought",
-    "reasoning"
-  ],
+  "tags": ["chain-of-thought", "reasoning"],
   "source": "builtin",
   "favorite": false,
   "checksum": "749755f981bd1915a1ffb4fb6147b6fab27f9546470d1bf92f2af7a9a374e9ed",

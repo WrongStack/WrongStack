@@ -34,8 +34,8 @@ import { tokenSpanAt } from './input-tokens.js';
  * Kept as a single string + Set lookup for O(1) per-character checks.
  */
 const WORD_SEPARATORS = new Set<string>(
+  // dashes
   (
-    // dashes
     '-' +
     // path / namespace separators
     '/\\' +
@@ -44,7 +44,7 @@ const WORD_SEPARATORS = new Set<string>(
     // brackets and parens
     '()[]{}<>' +
     // quotes
-    "\"'`" +
+    '"\'`' +
     // math / sigils
     '+=*^%|~' +
     // shell / ref punctuation
@@ -161,7 +161,9 @@ export function deleteWordForward(buffer: string, cursor: number): WordDeleteRes
   const chip = tokenSpanAt(buffer, cursor);
   const deleteStart = chip && cursor > chip.start && cursor < chip.end ? chip.start : cursor;
   const deleteEnd =
-    chip && cursor > chip.start && cursor < chip.end ? chip.end : nextInputWordStart(buffer, cursor);
+    chip && cursor > chip.start && cursor < chip.end
+      ? chip.end
+      : nextInputWordStart(buffer, cursor);
   if (deleteStart === deleteEnd) return null;
   return {
     buffer: buffer.slice(0, deleteStart) + buffer.slice(deleteEnd),

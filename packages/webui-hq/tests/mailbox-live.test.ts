@@ -312,7 +312,9 @@ describe('buildLiveFeed', () => {
       completed: false,
       subject: 'unrelated',
     });
-    const flat = [matches, wrongType, wrongPriority, wrongCompleted, wrongQuery].map((m) => flatOf(m));
+    const flat = [matches, wrongType, wrongPriority, wrongCompleted, wrongQuery].map((m) =>
+      flatOf(m),
+    );
     const r = buildLiveFeed(flat, {
       types: ['ask'],
       priorities: ['high'],

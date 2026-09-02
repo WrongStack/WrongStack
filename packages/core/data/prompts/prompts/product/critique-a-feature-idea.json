@@ -5,11 +5,7 @@
   "description": "Stress-test a product idea before committing to it.",
   "content": "Here's a feature idea: {{idea}}\n\nPlay skeptical PM. Ask: what user problem does this actually solve, and how do we know it's real? Who's it for, and is that a big enough group? What's the simplest version that would validate it? What are we NOT building if we build this? What would make this fail? End with: is this worth a cheap experiment, a full build, or a pass — and why.",
   "category": "product",
-  "tags": [
-    "critique",
-    "product-sense",
-    "validation"
-  ],
+  "tags": ["critique", "product-sense", "validation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "39f6d63a6c1eedcd19106e5e5ef463d47c7e145699420bf83e0cac02f789a9db",

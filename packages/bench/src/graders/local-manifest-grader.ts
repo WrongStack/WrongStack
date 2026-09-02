@@ -27,7 +27,10 @@ export async function gradeLocalManifest(opts: {
       return { passed: false, detail: `command timed out: ${meta.grader.command}` };
     }
     if (result.truncated) {
-      return { passed: false, detail: `command output exceeded capture limit: ${meta.grader.command}` };
+      return {
+        passed: false,
+        detail: `command output exceeded capture limit: ${meta.grader.command}`,
+      };
     }
     if (result.exitCode !== 0) {
       return {
@@ -50,7 +53,10 @@ export async function gradeLocalManifest(opts: {
   return { passed: true };
 }
 
-async function checkAssertion(workdir: string, assertion: LocalAssertion): Promise<string | undefined> {
+async function checkAssertion(
+  workdir: string,
+  assertion: LocalAssertion,
+): Promise<string | undefined> {
   const target = resolveInside(workdir, assertion.path);
   if (!target.ok) return target.error;
 
@@ -89,7 +95,9 @@ async function pathExists(file: string): Promise<boolean> {
   }
 }
 
-async function readText(file: string): Promise<{ ok: true; value: string } | { ok: false; error: string }> {
+async function readText(
+  file: string,
+): Promise<{ ok: true; value: string } | { ok: false; error: string }> {
   try {
     return { ok: true, value: await fs.readFile(file, 'utf8') };
   } catch (err) {
@@ -97,7 +105,10 @@ async function readText(file: string): Promise<{ ok: true; value: string } | { o
   }
 }
 
-function resolveInside(root: string, rel: string): { ok: true; path: string } | { ok: false; error: string } {
+function resolveInside(
+  root: string,
+  rel: string,
+): { ok: true; path: string } | { ok: false; error: string } {
   if (path.isAbsolute(rel)) {
     return { ok: false, error: `absolute assertion paths are not allowed: ${rel}` };
   }

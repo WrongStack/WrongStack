@@ -102,9 +102,7 @@ describe('WorkbenchTopbar responsive component', () => {
   it('title-area trigger keeps the agent count visible even with zero agents', () => {
     renderTopbar();
 
-    const counts = screen
-      .getAllByTestId('inspector-trigger')
-      .map((el) => el.textContent ?? '');
+    const counts = screen.getAllByTestId('inspector-trigger').map((el) => el.textContent ?? '');
     // The desktop title-row placement passes showCountWhenZero, so one of the
     // two triggers renders a muted 0 badge instead of hiding the count.
     expect(counts.some((text) => text.includes('0'))).toBe(true);
@@ -119,9 +117,7 @@ describe('WorkbenchTopbar responsive component', () => {
     });
     renderTopbar();
 
-    const counts = screen
-      .getAllByTestId('inspector-trigger')
-      .map((el) => el.textContent ?? '');
+    const counts = screen.getAllByTestId('inspector-trigger').map((el) => el.textContent ?? '');
     expect(counts.every((text) => text.includes('1'))).toBe(true);
   });
 
@@ -169,4 +165,3 @@ describe('WorkbenchTopbar responsive component', () => {
     expect(onSettings).toHaveBeenCalledTimes(2);
   });
 });
-

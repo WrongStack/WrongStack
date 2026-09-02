@@ -15,7 +15,13 @@ import { relativeTime, shortId } from '../../domain/control-format.js';
 import { commandAckTone, commandAuditTone } from '../../domain/status-tone.js';
 import { cn } from '../../lib/utils.js';
 
-function MetaItem({ label, children }: { label: string; children: React.ReactNode }): React.ReactElement {
+function MetaItem({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}): React.ReactElement {
   return (
     <span>
       <strong className="font-medium text-foreground">{label}</strong> {children}
@@ -58,8 +64,7 @@ export function CommandAuditRail({
       ) : (
         <div className="divide-y divide-border">
           {entries.map((entry) => {
-            const isOtherClient =
-              selectedClientId !== null && entry.clientId !== selectedClientId;
+            const isOtherClient = selectedClientId !== null && entry.clientId !== selectedClientId;
             return (
               <div
                 key={entry.commandId}

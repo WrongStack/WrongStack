@@ -2,21 +2,35 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { LANGUAGE_RUNNERS, createPolyglotSuite, type PolyglotMeta } from '../src/suites/polyglot.js';
+import {
+  LANGUAGE_RUNNERS,
+  createPolyglotSuite,
+  type PolyglotMeta,
+} from '../src/suites/polyglot.js';
 
 let root: string;
 
 async function writeExercise(
   lang: string,
   slug: string,
-  opts: { solution?: string[]; test?: string[]; config?: boolean; docs?: Record<string, string> } = {},
+  opts: {
+    solution?: string[];
+    test?: string[];
+    config?: boolean;
+    docs?: Record<string, string>;
+  } = {},
 ): Promise<void> {
   const dir = path.join(root, lang, 'exercises', 'practice', slug);
   await fs.mkdir(path.join(dir, '.meta'), { recursive: true });
   if (opts.config !== false) {
     await fs.writeFile(
       path.join(dir, '.meta', 'config.json'),
-      JSON.stringify({ files: { solution: opts.solution ?? [`${slug}.py`], test: opts.test ?? [`${slug}_test.py`] } }),
+      JSON.stringify({
+        files: {
+          solution: opts.solution ?? [`${slug}.py`],
+          test: opts.test ?? [`${slug}_test.py`],
+        },
+      }),
     );
   }
   const docs = opts.docs ?? { 'instructions.md': `Solve ${slug}.` };
@@ -38,7 +52,11 @@ describe('createPolyglotSuite.loadTasks', () => {
     await writeExercise('python', 'bowling', {
       solution: ['bowling.py'],
       test: ['bowling_test.py'],
-      docs: { 'introduction.md': 'Intro.', 'instructions.md': 'Do it.', 'instructions.append.md': 'Extra.' },
+      docs: {
+        'introduction.md': 'Intro.',
+        'instructions.md': 'Do it.',
+        'instructions.append.md': 'Extra.',
+      },
     });
     const suite = createPolyglotSuite({ polyglotDir: root, languages: ['python'] });
     const tasks = await suite.loadTasks({});
@@ -53,7 +71,10 @@ describe('createPolyglotSuite.loadTasks', () => {
     expect(t.prompt).toMatch(/bowling_test\.py/);
     const meta = t.meta as never as PolyglotMeta;
     expect(meta.language).toBe('python');
-    expect(meta.testCommand).toEqual({ command: 'python', args: ['-m', 'pytest', '-q', 'bowling_test.py'] });
+    expect(meta.testCommand).toEqual({
+      command: 'python',
+      args: ['-m', 'pytest', '-q', 'bowling_test.py'],
+    });
   });
 
   it('sorts slugs and respects the limit', async () => {
@@ -124,6 +145,9 @@ describe('LANGUAGE_RUNNERS', () => {
       expect(typeof cmd.command).toBe('string');
       expect(Array.isArray(cmd.args)).toBe(true);
     }
-    expect(LANGUAGE_RUNNERS.javascript!.setup).toEqual({ command: 'npm', args: ['install', '--no-audit', '--no-fund'] });
+    expect(LANGUAGE_RUNNERS.javascript!.setup).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit', '--no-fund'],
+    });
   });
 });

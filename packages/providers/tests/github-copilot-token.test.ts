@@ -1,14 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  copilotBaseUrlFromToken,
-  refreshCopilotToken,
-} from '../src/github-copilot-token.js';
+import { copilotBaseUrlFromToken, refreshCopilotToken } from '../src/github-copilot-token.js';
 
 describe('copilotBaseUrlFromToken', () => {
   it('returns default base URL for undefined token', () => {
-    expect(copilotBaseUrlFromToken(undefined)).toBe(
-      'https://api.individual.githubcopilot.com',
-    );
+    expect(copilotBaseUrlFromToken(undefined)).toBe('https://api.individual.githubcopilot.com');
   });
 
   it('returns default base URL for token without proxy-ep', () => {
@@ -19,30 +14,22 @@ describe('copilotBaseUrlFromToken', () => {
 
   it('derives API base from proxy-ep in token', () => {
     const token = 'foo;proxy-ep=proxy.individual.githubcopilot.com;bar';
-    expect(copilotBaseUrlFromToken(token)).toBe(
-      'https://api.individual.githubcopilot.com',
-    );
+    expect(copilotBaseUrlFromToken(token)).toBe('https://api.individual.githubcopilot.com');
   });
 
   it('rejects private hostnames (SSRF guard) and falls back to default', () => {
     const token = 'proxy-ep=proxy.internal.corp';
-    expect(copilotBaseUrlFromToken(token)).toBe(
-      'https://api.individual.githubcopilot.com',
-    );
+    expect(copilotBaseUrlFromToken(token)).toBe('https://api.individual.githubcopilot.com');
   });
 
   it('rejects proxy-ep with port number and falls back to default', () => {
     const token = 'proxy-ep=proxy.individual.githubcopilot.com:9999';
-    expect(copilotBaseUrlFromToken(token)).toBe(
-      'https://api.individual.githubcopilot.com',
-    );
+    expect(copilotBaseUrlFromToken(token)).toBe('https://api.individual.githubcopilot.com');
   });
 
   it('rejects backslash suffix bypass attempts (SEC-005) and falls back to default', () => {
     const token = 'proxy-ep=api.evil.com\\x.githubcopilot.com';
-    expect(copilotBaseUrlFromToken(token)).toBe(
-      'https://api.individual.githubcopilot.com',
-    );
+    expect(copilotBaseUrlFromToken(token)).toBe('https://api.individual.githubcopilot.com');
   });
 
   it('rejects userinfo, query params and path injection in proxy-ep', () => {
@@ -64,9 +51,7 @@ describe('refreshCopilotToken', () => {
     }) as never as typeof fetch;
     vi.stubGlobal('fetch', fetchImpl);
     try {
-      await expect(refreshCopilotToken('gh_token')).rejects.toThrow(
-        /Copilot token request failed/,
-      );
+      await expect(refreshCopilotToken('gh_token')).rejects.toThrow(/Copilot token request failed/);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -131,13 +116,13 @@ describe('refreshCopilotToken', () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
-      text: async () => { throw new Error('text failed'); },
+      text: async () => {
+        throw new Error('text failed');
+      },
     }) as never as typeof fetch;
     vi.stubGlobal('fetch', fetchImpl);
     try {
-      await expect(refreshCopilotToken('gh_token')).rejects.toThrow(
-        /Copilot token request failed/,
-      );
+      await expect(refreshCopilotToken('gh_token')).rejects.toThrow(/Copilot token request failed/);
     } finally {
       vi.unstubAllGlobals();
     }

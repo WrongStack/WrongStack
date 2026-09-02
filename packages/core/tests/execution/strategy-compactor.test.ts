@@ -64,7 +64,7 @@ function manyTurns(): Message[] {
 }
 
 describe('createStrategyCompactor', () => {
-  it("defaults to lossless hybrid that preserves earlier text and needs no provider", async () => {
+  it('defaults to lossless hybrid that preserves earlier text and needs no provider', async () => {
     const messages = manyTurns();
     const ctx = fakeContext(messages); // no provider
     const compactor = createStrategyCompactor({ preserveK: 3 });

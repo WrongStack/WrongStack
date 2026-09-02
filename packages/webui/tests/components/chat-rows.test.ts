@@ -73,7 +73,10 @@ describe('buildChatRows', () => {
     const nonDay = rows.filter((r) => r.kind !== 'day');
     expect(nonDay.map((r) => r.kind)).toEqual(['user', 'agent', 'user', 'agent']);
     // last agent turn flagged
-    const agents = nonDay.filter((r) => r.kind === 'agent') as Extract<ChatRow, { kind: 'agent' }>[];
+    const agents = nonDay.filter((r) => r.kind === 'agent') as Extract<
+      ChatRow,
+      { kind: 'agent' }
+    >[];
     expect(agents[0]?.isLastTurn).toBe(false);
     expect(agents[1]?.isLastTurn).toBe(true);
   });
@@ -130,7 +133,9 @@ describe('buildChatRows', () => {
 
     const agent = rows.find((r) => r.kind === 'agent') as Extract<ChatRow, { kind: 'agent' }>;
     expect(agent.items).toHaveLength(2);
-    expect(agent.items[1]?.kind === 'msg' && agent.items[1].message.thinkingLog?.text).toBe('reasoning trace');
+    expect(agent.items[1]?.kind === 'msg' && agent.items[1].message.thinkingLog?.text).toBe(
+      'reasoning trace',
+    );
     expect(agent.items[1]?.kind === 'msg' && agent.items[1].isContinuation).toBe(true);
   });
 });

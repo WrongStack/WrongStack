@@ -147,9 +147,7 @@ describe('ShadowPanel', () => {
       model: 'test',
       intervalMs: 5000,
     };
-    const { lastFrame, unmount } = render(
-      React.createElement(ShadowPanel, { shadow }),
-    );
+    const { lastFrame, unmount } = render(React.createElement(ShadowPanel, { shadow }));
     const frame = lastFrame() ?? '';
     // Should truncate to 12 chars + …
     expect(frame).toContain(longId.slice(0, 12));

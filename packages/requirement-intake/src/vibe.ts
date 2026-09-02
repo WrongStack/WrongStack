@@ -44,7 +44,10 @@ export function hasVibeTag(text: string | undefined | null): boolean {
  * preserving all other content and trimming extraneous whitespace.
  */
 export function stripVibeTag(text: string): string {
-  return text.replace(/\[VIBE\]/gi, '').replace(/[ \t]{2,}/g, ' ').trim();
+  return text
+    .replace(/\[VIBE\]/gi, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
 }
 
 /**

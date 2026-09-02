@@ -111,7 +111,10 @@ describe('createContextManagerTool', () => {
       { role: 'user', content: 'a' },
       { role: 'user', content: 'b' },
     ]);
-    const _result = await tool.execute({ action: 'add_note', text: 'inserted', afterIndex: 1 }, ctx);
+    const _result = await tool.execute(
+      { action: 'add_note', text: 'inserted', afterIndex: 1 },
+      ctx,
+    );
     expect(ctx.messages[1].content).toContain('inserted');
   });
 

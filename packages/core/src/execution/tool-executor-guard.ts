@@ -114,8 +114,7 @@ export async function validateToolInputAndHooks(
         type: 'tool_result',
         tool_use_id: use.id,
         content:
-          `Invalid arguments for tool "${tool.name}".\n\n` +
-          `Validation errors:\n${errorDetails}`,
+          `Invalid arguments for tool "${tool.name}".\n\n` + `Validation errors:\n${errorDetails}`,
         is_error: true,
       };
       return { ok: false, use, errorResult };

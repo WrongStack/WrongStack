@@ -59,12 +59,12 @@ function renderWith(opts: { text?: string; timestamp?: number } = {}) {
 const continueButton = () => screen.getByRole('button', { name: /Continue/ });
 
 beforeEach(() => {
-    vi.useFakeTimers();
-    // Fresh lanes: a prior test's setLoading(true) must not block this
-    // suite's fire() paths (they early-return on a live isLoading).
-    useChatLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
-    sendMessage.mockClear();
-  });
+  vi.useFakeTimers();
+  // Fresh lanes: a prior test's setLoading(true) must not block this
+  // suite's fire() paths (they early-return on a live isLoading).
+  useChatLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
+  sendMessage.mockClear();
+});
 
 afterEach(() => {
   vi.useRealTimers();

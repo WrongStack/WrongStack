@@ -16,10 +16,7 @@ import type { MailboxMessageType } from '../../src/coordination/mailbox-types.js
 export type MailboxSurface = 'core' | 'tool' | 'http' | 'ws' | 'slash';
 
 /** Category of the test case. */
-export type MatrixCaseCategory =
-  | 'send-valid' | 'send-invalid'
-  | 'query-valid'
-  | 'ack-valid';
+export type MatrixCaseCategory = 'send-valid' | 'send-invalid' | 'query-valid' | 'ack-valid';
 
 /**
  * A single contract-matrix row.
@@ -42,7 +39,15 @@ export interface MatrixFixture {
 /** Every valid send type with a direct recipient. */
 export function allValidDirectSends(): MatrixFixture[] {
   const types: MailboxMessageType[] = [
-    'note', 'ask', 'assign', 'steer', 'btw', 'broadcast', 'status', 'result', 'review',
+    'note',
+    'ask',
+    'assign',
+    'steer',
+    'btw',
+    'broadcast',
+    'status',
+    'result',
+    'review',
   ];
   return types.map((type) => ({
     label: `send-${type}-direct`,
@@ -56,9 +61,7 @@ export function allValidDirectSends(): MatrixFixture[] {
 
 /** Valid send to broadcast. */
 export function allValidBroadcastSends(): MatrixFixture[] {
-  const types: MailboxMessageType[] = [
-    'note', 'btw', 'broadcast', 'status', 'result', 'review',
-  ];
+  const types: MailboxMessageType[] = ['note', 'btw', 'broadcast', 'status', 'result', 'review'];
   return types.map((type) => ({
     label: `send-${type}-broadcast`,
     input: { to: '*', subject: 'Broadcast', body: 'Hello all', type },

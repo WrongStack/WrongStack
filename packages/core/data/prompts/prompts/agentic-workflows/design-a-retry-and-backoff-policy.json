@@ -5,11 +5,7 @@
   "description": "Decide how an agent or system retries failures.",
   "content": "This step can fail transiently: {{operation}}\n\nDesign its retry policy. Decide what is worth retrying (transient: timeouts, rate limits, 5xx) versus what must NOT be retried (deterministic failures, non-idempotent writes without a guard). Specify the backoff (exponential + jitter), the max attempts, and the give-up behavior. Ensure retries can't duplicate side effects. Flag the failure mode where blind retries amplify an outage (retry storms) and how to avoid it.",
   "category": "agentic-workflows",
-  "tags": [
-    "retry",
-    "backoff",
-    "resilience"
-  ],
+  "tags": ["retry", "backoff", "resilience"],
   "source": "builtin",
   "favorite": false,
   "checksum": "2336c06494e66f352f36bab8b96ecc795eb65e4dc54563eba619d5fb69cca329",

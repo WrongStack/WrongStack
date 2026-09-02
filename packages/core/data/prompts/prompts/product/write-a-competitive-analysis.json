@@ -5,10 +5,7 @@
   "description": "Size up alternatives honestly to find your angle.",
   "content": "Analyze the competitive landscape for: {{product}}\n\nMap the real alternatives — including do-nothing and homegrown, not just direct competitors. For each, what they do well, where they fall short, and who they serve. Find the gap or angle we can credibly own, and be honest about where they beat us. Avoid the trap of listing features; focus on the job the user is hiring a product to do. End with the one differentiator worth betting on.",
   "category": "product",
-  "tags": [
-    "competition",
-    "strategy"
-  ],
+  "tags": ["competition", "strategy"],
   "source": "builtin",
   "favorite": false,
   "checksum": "dc432a62a6e4fc1c34c6e89212368b96a4396c3a25bf50aa530275a3711a40a8",

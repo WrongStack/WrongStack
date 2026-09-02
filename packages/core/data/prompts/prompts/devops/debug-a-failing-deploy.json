@@ -5,11 +5,7 @@
   "description": "Systematically diagnose a deployment that won't come up.",
   "content": "My deployment is failing: {{symptom}}\n\nWalk me through diagnosis in order of likelihood:\n1. What to check first (logs, events, health, config, resources).\n2. How to tell apart a config error, a resource limit, a dependency outage, and a code bug.\n3. The exact commands/queries to run at each step.\n\nGuide me iteratively based on what I report. Prioritize getting it back up (rollback?) over root cause if this is production.",
   "category": "devops",
-  "tags": [
-    "deploy",
-    "incident",
-    "troubleshooting"
-  ],
+  "tags": ["deploy", "incident", "troubleshooting"],
   "source": "builtin",
   "favorite": false,
   "checksum": "cd30d0d7aff2f466bd84174b5685177e5a35a1825629c7a248bf6a6c931dd262",

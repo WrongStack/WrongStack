@@ -49,7 +49,7 @@ function parseAudienceFlags(tokens: string[]): ParsedAudienceFlags {
 }
 
 function hasAudienceSelector(parsed: ParsedAudienceFlags): boolean {
-  return !(!(parsed.roles?.length || parsed.taskTypes?.length || parsed.modes?.length));
+  return !!(parsed.roles?.length || parsed.taskTypes?.length || parsed.modes?.length);
 }
 
 function formatAudienceSelector(audience: MemoryAudienceSelector): string {
@@ -60,7 +60,10 @@ function formatAudienceSelector(audience: MemoryAudienceSelector): string {
   return parts.join(' · ');
 }
 
-export async function runAudienceMemory(store: SageSurface, rest: string[]): Promise<{ message: string }> {
+export async function runAudienceMemory(
+  store: SageSurface,
+  rest: string[],
+): Promise<{ message: string }> {
   const sub = rest[0]?.toLowerCase() ?? 'list';
 
   // /memory audience list [--role <r>] [--task-type <t>] [--mode <m>]

@@ -164,5 +164,13 @@ export interface PermissionPolicy {
   /** Compatibility setter; current default policy no longer confirms in YOLO mode. */
   setConfirmDestructive?(enabled: boolean): void;
   /** Set the prompt delegate (optional). */
-  setPromptDelegate?(delegate: ((tool: Tool, input: unknown, suggestedPattern: string) => Promise<'yes' | 'no' | 'always' | 'deny'>) | undefined): void;
+  setPromptDelegate?(
+    delegate:
+      | ((
+          tool: Tool,
+          input: unknown,
+          suggestedPattern: string,
+        ) => Promise<'yes' | 'no' | 'always' | 'deny'>)
+      | undefined,
+  ): void;
 }

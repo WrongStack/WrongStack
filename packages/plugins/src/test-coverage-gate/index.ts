@@ -171,8 +171,7 @@ function overallPercent(summary: CoverageSummary): number | null {
 const plugin: Plugin = {
   name: 'test-coverage-gate',
   version: '0.1.0',
-  description:
-    'PostToolUse hook that detects test coverage regressions after source-file edits',
+  description: 'PostToolUse hook that detects test coverage regressions after source-file edits',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -231,13 +230,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['test-coverage-gate']);
 
-    const hook = (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
+    const hook = (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
       if (!cfg.enabled) return;
 
       if (input.toolResult?.isError) return;

@@ -114,13 +114,12 @@ function readConfig(raw: unknown): LlmCacheConfig {
   const rawMax = r['maxEntries'] ?? r['max_entries'] ?? r['limit'];
   const rawTtl = r['ttlMs'] ?? r['ttl_ms'] ?? r['ttl'];
   const rawDet = r['onlyDeterministic'] ?? r['only_deterministic'];
-  const rawZero = r['zeroUsageOnHit'] ?? r['zero_usage_on_hit'] ?? r['zeroUsage'] ?? r['zero_usage'];
+  const rawZero =
+    r['zeroUsageOnHit'] ?? r['zero_usage_on_hit'] ?? r['zeroUsage'] ?? r['zero_usage'];
   return {
     enabled: r['enabled'] === true,
     maxEntries:
-      typeof rawMax === 'number' && rawMax >= 1
-        ? Math.floor(rawMax)
-        : DEFAULTS.maxEntries,
+      typeof rawMax === 'number' && rawMax >= 1 ? Math.floor(rawMax) : DEFAULTS.maxEntries,
     ttlMs: typeof rawTtl === 'number' && rawTtl >= 0 ? rawTtl : DEFAULTS.ttlMs,
     onlyDeterministic: rawDet !== false,
     zeroUsageOnHit: rawZero === true,
@@ -198,13 +197,13 @@ export function fingerprintRequest(request: Record<string, unknown>): string {
 function lruGet(key: string, ttlMs: number): CacheEntry | undefined {
   const entry = state.cache.get(key);
   if (!entry) return undefined;
-  
+
   // TTL check: evict expired entries immediately.
   if (ttlMs > 0 && Date.now() - entry.storedAt > ttlMs) {
     state.cache.delete(key);
     return undefined;
   }
-  
+
   // Bump recency: delete + re-insert moves it to the end of the Map.
   // Map maintains insertion order, so this is O(1) amortized.
   state.cache.delete(key);
@@ -217,9 +216,9 @@ function lruSet(key: string, response: CachedResponse, maxEntries: number): void
   if (state.cache.has(key)) {
     state.cache.delete(key);
   }
-  
+
   state.cache.set(key, { response, storedAt: Date.now(), hits: 0 });
-  
+
   // Evict oldest entries (first inserted) when over capacity.
   // Map.keys().next() is O(1) — no need to iterate the whole map.
   while (state.cache.size > maxEntries) {

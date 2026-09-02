@@ -57,10 +57,7 @@ interface CouncilLogState {
 
 // ── Pure mappers (exported for tests) ────────────────────────────────────
 
-export function toCouncilSeatVote(
-  payload: Record<string, unknown>,
-  now: number,
-): CouncilSeatVote {
+export function toCouncilSeatVote(payload: Record<string, unknown>, now: number): CouncilSeatVote {
   return {
     seatId: str(payload.seatId) ?? 'seat',
     persona: str(payload.persona) ?? 'voter',

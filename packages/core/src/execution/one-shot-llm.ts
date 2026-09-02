@@ -153,7 +153,14 @@ export class OneShotOrchestrator {
         tracker?.recordSuccess(target.providerId, target.model);
         servingProviderId = provider.id;
         servingModel = target.model;
-        return this.buildResult(result, servingProviderId, servingModel, false, startedAt, attempts);
+        return this.buildResult(
+          result,
+          servingProviderId,
+          servingModel,
+          false,
+          startedAt,
+          attempts,
+        );
       }
 
       if (!fallbackEligible || chain.length === 0) {
@@ -406,12 +413,7 @@ export class OneShotOrchestrator {
       // waiting room and marked the error. Counting it again would halve
       // every consecutive-failure threshold. Mirrors the contract the
       // agent-loop path honours in fallback-model.ts.
-      if (
-        err instanceof ProviderError &&
-        providerId &&
-        model &&
-        !isProviderFailureTracked(err)
-      ) {
+      if (err instanceof ProviderError && providerId && model && !isProviderFailureTracked(err)) {
         this.opts.statusTracker?.recordFailure(
           providerId,
           model,

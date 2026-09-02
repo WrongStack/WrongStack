@@ -98,9 +98,8 @@ function topoSort(metas) {
     if (visited.has(m.name)) return;
     if (onStack.has(m.name)) {
       const cycleStart = ancestors.indexOf(m.name);
-      const cyclePath = cycleStart >= 0
-        ? [...ancestors.slice(cycleStart), m.name].join(' → ')
-        : m.name;
+      const cyclePath =
+        cycleStart >= 0 ? [...ancestors.slice(cycleStart), m.name].join(' → ') : m.name;
       if (!cycles.includes(cyclePath)) cycles.push(cyclePath);
       return;
     }

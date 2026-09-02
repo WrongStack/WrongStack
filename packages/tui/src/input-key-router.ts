@@ -211,7 +211,8 @@ export async function routeInputKey(
   }
   if (key.ctrl && (input === 'd' || input === 'k')) {
     if (cursor < buffer.length) {
-      const end = input === 'd' ? cursor + (tokenLengthForward(buffer, cursor) || 1) : buffer.length;
+      const end =
+        input === 'd' ? cursor + (tokenLengthForward(buffer, cursor) || 1) : buffer.length;
       host.nextSteps.cancel();
       host.setDraft(buffer.slice(0, cursor) + buffer.slice(end), cursor);
     }
@@ -229,7 +230,10 @@ export async function routeInputKey(
     ) {
       host.dispatch({
         type: 'addEntry',
-        entry: { kind: 'info', text: 'Input locked — wait for the agent to finish before pasting.' },
+        entry: {
+          kind: 'info',
+          text: 'Input locked — wait for the agent to finish before pasting.',
+        },
       });
     } else {
       await host.pasteClipboardText();

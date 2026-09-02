@@ -5,10 +5,7 @@
   "description": "Compress a long document into what a decider needs.",
   "content": "Write an executive summary of:\n\n{{document}}\n\nLead with the conclusion and the decision or action it implies — a busy reader should get the point in the first two sentences. Include only what changes their thinking: the key findings, the recommendation, and the cost or risk. Cut the methodology and the narrative; link to the detail. Keep it to a few tight paragraphs. Make sure it stands alone for someone who will never read the full document.",
   "category": "writing",
-  "tags": [
-    "executive-summary",
-    "concision"
-  ],
+  "tags": ["executive-summary", "concision"],
   "source": "builtin",
   "favorite": false,
   "checksum": "cf09a4f4304be9fc6c6348fe149fa1e21b290880d2d7a754ad0bf5db4189f9f3",

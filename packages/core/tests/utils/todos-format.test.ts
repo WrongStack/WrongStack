@@ -131,23 +131,17 @@ describe('hasOpenTodos', () => {
   });
 
   it('returns false when all todos are completed', () => {
-    const todos: TodoItem[] = [
-      { id: '1', content: 'done', status: 'completed' },
-    ];
+    const todos: TodoItem[] = [{ id: '1', content: 'done', status: 'completed' }];
     expect(hasOpenTodos(todos)).toBe(false);
   });
 
   it('returns true when there is a pending todo', () => {
-    const todos: TodoItem[] = [
-      { id: '1', content: 'do it', status: 'pending' },
-    ];
+    const todos: TodoItem[] = [{ id: '1', content: 'do it', status: 'pending' }];
     expect(hasOpenTodos(todos)).toBe(true);
   });
 
   it('returns true when there is an in-progress todo', () => {
-    const todos: TodoItem[] = [
-      { id: '1', content: 'doing it', status: 'in_progress' },
-    ];
+    const todos: TodoItem[] = [{ id: '1', content: 'doing it', status: 'in_progress' }];
     expect(hasOpenTodos(todos)).toBe(true);
   });
 
@@ -160,9 +154,7 @@ describe('hasOpenTodos', () => {
   });
 
   it('accepts readonly arrays', () => {
-    const todos: readonly TodoItem[] = [
-      { id: '1', content: 'task', status: 'pending' },
-    ];
+    const todos: readonly TodoItem[] = [{ id: '1', content: 'task', status: 'pending' }];
     expect(hasOpenTodos(todos)).toBe(true);
   });
 });

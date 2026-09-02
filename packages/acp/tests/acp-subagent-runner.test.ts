@@ -15,17 +15,33 @@ interface MockSession {
 }
 
 const hoisted = vi.hoisted(() => ({
-  startCalls: [] as Array<{ command: string; args?: readonly string[]; env?: Record<string, string>; cwd?: string; projectRoot: string; timeoutMs: number }>,
+  startCalls: [] as Array<{
+    command: string;
+    args?: readonly string[];
+    env?: Record<string, string>;
+    cwd?: string;
+    projectRoot: string;
+    timeoutMs: number;
+  }>,
   session: undefined as MockSession | undefined,
   errorKind: undefined as undefined | string,
   errorMessage: undefined as undefined | string,
   startError: undefined as unknown,
   closeError: undefined as unknown,
-  agentInfo: undefined as
-    | { name: string; title?: string; version: string }
-    | undefined,
+  agentInfo: undefined as { name: string; title?: string; version: string } | undefined,
   progressEvent: undefined as unknown,
-  promptResult: undefined as { text: string; stopReason: string; hasText: boolean; toolCalls: unknown[]; diffs: unknown[]; thoughts: string; plan?: unknown[]; usage?: { used: number; size: number } } | undefined,
+  promptResult: undefined as
+    | {
+        text: string;
+        stopReason: string;
+        hasText: boolean;
+        toolCalls: unknown[];
+        diffs: unknown[];
+        thoughts: string;
+        plan?: unknown[];
+        usage?: { used: number; size: number };
+      }
+    | undefined,
   promptError: undefined as unknown,
 }));
 
@@ -39,43 +55,43 @@ vi.mock('../src/client/acp-session.js', () => {
     }
   }
   class ACPSession {
-    prompt = vi.fn(async (
-      _content: unknown,
-      _signal: AbortSignal,
-      onProgress?: (event: unknown) => void,
-    ) => {
-      if (hoisted.progressEvent !== undefined) onProgress?.(hoisted.progressEvent);
-      if (hoisted.promptError) throw hoisted.promptError;
-      return hoisted.promptResult;
-    });
+    prompt = vi.fn(
+      async (_content: unknown, _signal: AbortSignal, onProgress?: (event: unknown) => void) => {
+        if (hoisted.progressEvent !== undefined) onProgress?.(hoisted.progressEvent);
+        if (hoisted.promptError) throw hoisted.promptError;
+        return hoisted.promptResult;
+      },
+    );
     close = vi.fn(async () => {
       if (hoisted.closeError !== undefined) throw hoisted.closeError;
     });
     getAgentInfo = vi.fn(() => hoisted.agentInfo);
-    static start = vi.fn(async (opts: {
-      command: string;
-      args?: readonly string[];
-      env?: Record<string, string>;
-      cwd?: string;
-      projectRoot: string;
-      timeoutMs: number;
-    }) => {
-      hoisted.startCalls.push({
-        command: opts.command,
-        ...(opts.args !== undefined ? { args: opts.args } : {}),
-        ...(opts.env !== undefined ? { env: opts.env } : {}),
-        ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
-        projectRoot: opts.projectRoot,
-        timeoutMs: opts.timeoutMs,
-      });
-      if (hoisted.errorKind) {
-        throw new ACPSessionError(hoisted.errorKind, hoisted.errorMessage ?? 'mock error');
-      }
-      if (hoisted.startError !== undefined) throw hoisted.startError;
-      const session = new ACPSession();
-      hoisted.session = session;
-      return session;
-    });
+    static start = vi.fn(
+      async (opts: {
+        command: string;
+        args?: readonly string[];
+        env?: Record<string, string>;
+        cwd?: string;
+        projectRoot: string;
+        timeoutMs: number;
+      }) => {
+        hoisted.startCalls.push({
+          command: opts.command,
+          ...(opts.args !== undefined ? { args: opts.args } : {}),
+          ...(opts.env !== undefined ? { env: opts.env } : {}),
+          ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
+          projectRoot: opts.projectRoot,
+          timeoutMs: opts.timeoutMs,
+        });
+        if (hoisted.errorKind) {
+          throw new ACPSessionError(hoisted.errorKind, hoisted.errorMessage ?? 'mock error');
+        }
+        if (hoisted.startError !== undefined) throw hoisted.startError;
+        const session = new ACPSession();
+        hoisted.session = session;
+        return session;
+      },
+    );
   }
   return { ACPSession, ACPSessionError, textContent: (t: string) => ({ type: 'text', text: t }) };
 });
@@ -127,7 +143,14 @@ beforeEach(() => {
   hoisted.agentInfo = undefined;
   hoisted.progressEvent = undefined;
   hoisted.promptError = undefined;
-  hoisted.promptResult = { text: 'ok', stopReason: 'end_turn', hasText: true, toolCalls: [], diffs: [], thoughts: '' };
+  hoisted.promptResult = {
+    text: 'ok',
+    stopReason: 'end_turn',
+    hasText: true,
+    toolCalls: [],
+    diffs: [],
+    thoughts: '',
+  };
 });
 
 describe('describeAgent', () => {
@@ -291,7 +314,10 @@ describe('makeACPSubagentRunnerWithStop', () => {
   });
 
   it('respects the explicit timeoutMs option', async () => {
-    const { runner } = await makeACPSubagentRunnerWithStop({ command: 'gemini', timeoutMs: 12_345 });
+    const { runner } = await makeACPSubagentRunnerWithStop({
+      command: 'gemini',
+      timeoutMs: 12_345,
+    });
     await runner(TASK, makeCtx(5000).ctx);
     expect(hoisted.startCalls[0]?.timeoutMs).toBe(12_345);
   });
@@ -414,9 +440,7 @@ describe('runOneAcpTask', () => {
   it('throws SubagentError when the session fails to start', async () => {
     hoisted.errorKind = 'spawn_failed';
     hoisted.errorMessage = 'ENOENT';
-    await expect(
-      runOneAcpTask({ command: 'missing', task: 'x' }),
-    ).rejects.toThrow();
+    await expect(runOneAcpTask({ command: 'missing', task: 'x' })).rejects.toThrow();
   });
 });
 
@@ -445,15 +469,16 @@ describe('resolveAcpAgentCommand — Kimi', () => {
       env: { TOKEN: 'x' },
       role: 'custom',
     });
-    expect(
-      resolveAcpAgentCommand('plain', { plain: { command: 'plain-bin' } }),
-    ).toMatchObject({ command: 'plain-bin', args: [] });
+    expect(resolveAcpAgentCommand('plain', { plain: { command: 'plain-bin' } })).toMatchObject({
+      command: 'plain-bin',
+      args: [],
+    });
   });
 
   it('ignores an invalid override and uses the catalog', () => {
-    expect(
-      resolveAcpAgentCommand('kimi', { kimi: { command: '', args: ['bad'] } }),
-    ).toMatchObject({ command: 'kimi' });
+    expect(resolveAcpAgentCommand('kimi', { kimi: { command: '', args: ['bad'] } })).toMatchObject({
+      command: 'kimi',
+    });
   });
 
   it('copies catalog env when present', () => {
@@ -557,17 +582,17 @@ describe('probeAcpAgent', () => {
     await expect(probeAcpAgent('kimi')).resolves.toMatchObject({ id: 'kimi', ok: true });
   });
 
-  it.each([
-    new Error('start failed'),
-    'non-error failure',
-  ])('returns a probe failure for %s', async (failure) => {
-    hoisted.startError = failure;
-    const result = await probeAcpAgent({ command: 'agent' });
-    expect(result).toMatchObject({
-      ok: false,
-      error: failure instanceof Error ? failure.message : failure,
-    });
-  });
+  it.each([new Error('start failed'), 'non-error failure'])(
+    'returns a probe failure for %s',
+    async (failure) => {
+      hoisted.startError = failure;
+      const result = await probeAcpAgent({ command: 'agent' });
+      expect(result).toMatchObject({
+        ok: false,
+        error: failure instanceof Error ? failure.message : failure,
+      });
+    },
+  );
 
   it('tolerates a close error after a successful probe', async () => {
     hoisted.closeError = new Error('close failed');
@@ -619,9 +644,7 @@ describe('probeAcpAgents', () => {
 
   it('handles an empty list without invoking the resolver', async () => {
     const resolveCmd = vi.fn(() => null);
-    await expect(
-      probeAcpAgents({ agentIds: [], resolveCmd }),
-    ).resolves.toEqual([]);
+    await expect(probeAcpAgents({ agentIds: [], resolveCmd })).resolves.toEqual([]);
     expect(resolveCmd).not.toHaveBeenCalled();
   });
 

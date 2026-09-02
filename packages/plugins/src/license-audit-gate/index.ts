@@ -78,7 +78,15 @@ interface LicenseAuditConfig {
 
 const DEFAULTS: LicenseAuditConfig = {
   enabled: true,
-  allowedLicenses: ['MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', '0BSD', 'Unlicense'],
+  allowedLicenses: [
+    'MIT',
+    'Apache-2.0',
+    'BSD-2-Clause',
+    'BSD-3-Clause',
+    'ISC',
+    '0BSD',
+    'Unlicense',
+  ],
   block: true,
 };
 
@@ -112,7 +120,11 @@ function extractLicenseStrings(pkg: unknown): string[] {
   const push = (v: unknown) => {
     if (typeof v === 'string' && v.trim()) {
       out.push(v.trim());
-    } else if (v && typeof v === 'object' && typeof (v as Record<string, unknown>).type === 'string') {
+    } else if (
+      v &&
+      typeof v === 'object' &&
+      typeof (v as Record<string, unknown>).type === 'string'
+    ) {
       const t = (v as Record<string, unknown>).type as string;
       if (t.trim()) out.push(t.trim());
     }
@@ -132,7 +144,9 @@ function extractLicenseStrings(pkg: unknown): string[] {
 
 export function parsePackageNames(command: string): string[] {
   return [
-    ...new Set(parseInstallCommands(command).flatMap((entry) => entry.packages.map((pkg) => pkg.name))),
+    ...new Set(
+      parseInstallCommands(command).flatMap((entry) => entry.packages.map((pkg) => pkg.name)),
+    ),
   ];
 }
 
@@ -207,7 +221,10 @@ function isLicenseAllowed(licenseStr: string, normalizedAllowed: Set<string>): b
   return normalizedAllowed.has(expr.toLowerCase());
 }
 
-function auditPackages(names: string[], allowedLicenses: string[]): {
+function auditPackages(
+  names: string[],
+  allowedLicenses: string[],
+): {
   ok: boolean;
   results: PackageAuditResult[];
   errors: string[];
@@ -226,7 +243,8 @@ function auditPackages(names: string[], allowedLicenses: string[]): {
       errors.push(name);
     }
 
-    const allowed = licenses.length > 0 && licenses.every((l) => isLicenseAllowed(l, normalizedAllowed));
+    const allowed =
+      licenses.length > 0 && licenses.every((l) => isLicenseAllowed(l, normalizedAllowed));
     results.push({ name, licenses, allowed });
   }
 
@@ -263,7 +281,8 @@ const plugin: Plugin = {
       block: {
         type: 'boolean',
         default: true,
-        description: 'true = block the install when a disallowed license is found; false = inject a warning note.',
+        description:
+          'true = block the install when a disallowed license is found; false = inject a warning note.',
       },
     },
   },
@@ -289,13 +308,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['license-audit-gate']);
 
-    const hook = (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
+    const hook = (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
       if (!cfg.enabled) return;
       // Skip if the install command itself errored.
       if (input.toolResult?.isError) return;

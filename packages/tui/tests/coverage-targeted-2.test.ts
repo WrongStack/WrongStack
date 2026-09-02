@@ -210,7 +210,11 @@ describe('rehydrate-history.ts — branch gaps', () => {
   it('rehydrateHistory handles orphan tool_call_end (no matching tool_use)', async () => {
     const { rehydrateHistory } = await import('../src/rehydrate-history.js');
     const messages: Message[] = [
-      { role: 'assistant', content: [{ type: 'text', text: 'hi' }], ts: '2026-01-01T00:00:00.000Z' },
+      {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'hi' }],
+        ts: '2026-01-01T00:00:00.000Z',
+      },
     ];
     const calls = [{ name: 'read', id: 'tu-orphan', durationMs: 10, ok: true }];
     const entries = rehydrateHistory(messages, 1, calls);
@@ -240,9 +244,7 @@ describe('rehydrate-history.ts — branch gaps', () => {
     const messages: Message[] = [
       {
         role: 'assistant',
-        content: [
-          { type: 'tool_use', id: 'tu-1', name: 'read', input: {} },
-        ],
+        content: [{ type: 'tool_use', id: 'tu-1', name: 'read', input: {} }],
         ts: '2026-01-01T00:00:00.000Z',
       },
     ];
@@ -423,7 +425,9 @@ describe('heap-watchdog.ts — branch gaps', () => {
     const stop = startHeapWatchdog({
       sampleEveryMs: 100000,
       logEveryMs: 100000,
-      collectStats: () => { throw new Error('stats error'); },
+      collectStats: () => {
+        throw new Error('stats error');
+      },
     });
     expect(typeof stop).toBe('function');
     stop();

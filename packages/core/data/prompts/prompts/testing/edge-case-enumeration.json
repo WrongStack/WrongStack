@@ -5,10 +5,7 @@
   "description": "Brainstorm the edge cases a piece of functionality must handle.",
   "content": "For this functionality, enumerate the edge cases worth testing: {{functionality}}\n\nThink across categories: empty/zero/one/many, boundaries and off-by-one, null/undefined/missing, very large inputs, duplicates, ordering, concurrency, time zones/locales, encoding, and malformed input. For each, state the expected behavior. Flag any where the correct behavior is genuinely unclear and needs a product decision.",
   "category": "testing",
-  "tags": [
-    "edge-cases",
-    "boundaries"
-  ],
+  "tags": ["edge-cases", "boundaries"],
   "source": "builtin",
   "favorite": false,
   "checksum": "dbf460f30429663d9923a30a06b5fff4b85f39d304ac8f8dee09caada4524f6b",

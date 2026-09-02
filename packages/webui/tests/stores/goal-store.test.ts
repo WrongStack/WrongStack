@@ -23,7 +23,13 @@ function makeGoal(overrides: Record<string, unknown> = {}): Record<string, unkno
       { id: 'd2', text: '✅ Done deliverable', status: 'done' },
     ],
     journal: [
-      { iteration: 1, task: 'First task', status: 'completed', progress: 0.5, timestamp: '2024-01-01T00:00:00Z' },
+      {
+        iteration: 1,
+        task: 'First task',
+        status: 'completed',
+        progress: 0.5,
+        timestamp: '2024-01-01T00:00:00Z',
+      },
     ],
     lastTask: 'Current task',
     lastStatus: 'running',
@@ -125,19 +131,27 @@ describe('parseGoalState', () => {
   });
 
   it('parses string deliverables', () => {
-    const result = parseGoalState(makeGoal({
-      deliverables: ['Task 1', '✅ Done task', '  [x] partial  '] as unknown[],
-    }));
+    const result = parseGoalState(
+      makeGoal({
+        deliverables: ['Task 1', '✅ Done task', '  [x] partial  '] as unknown[],
+      }),
+    );
     expect(result?.deliverables).toHaveLength(3);
     expect(result?.deliverables?.[0]).toEqual({ id: 'd0', text: 'Task 1', status: 'pending' });
     expect(result?.deliverables?.[1]).toEqual({ id: 'd1', text: '✅ Done task', status: 'done' });
-    expect(result?.deliverables?.[2]).toEqual({ id: 'd2', text: '  [x] partial  ', status: 'pending' });
+    expect(result?.deliverables?.[2]).toEqual({
+      id: 'd2',
+      text: '  [x] partial  ',
+      status: 'pending',
+    });
   });
 
   it('preserves object deliverables', () => {
-    const result = parseGoalState(makeGoal({
-      deliverables: [{ id: 'custom', text: 'Custom', status: 'done' }],
-    }));
+    const result = parseGoalState(
+      makeGoal({
+        deliverables: [{ id: 'custom', text: 'Custom', status: 'done' }],
+      }),
+    );
     expect(result?.deliverables?.[0]).toEqual({ id: 'custom', text: 'Custom', status: 'done' });
   });
 

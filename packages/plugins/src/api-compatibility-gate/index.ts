@@ -218,7 +218,8 @@ function extractExports(source: string): Set<string> {
   const exports = new Set<string>();
 
   // export const/function/class/interface/type/enum name
-  const declRegex = /export\s+(?:async\s+)?(?:const|let|var|function|class|interface|type|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
+  const declRegex =
+    /export\s+(?:async\s+)?(?:const|let|var|function|class|interface|type|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
   for (const match of source.matchAll(declRegex)) {
     exports.add(match[1]!);
   }
@@ -226,7 +227,10 @@ function extractExports(source: string): Set<string> {
   // export { a, b as c }
   const namedRegex = /export\s*\{([^}]*)\}/g;
   for (const match of source.matchAll(namedRegex)) {
-    const clauses = match[1]!.split(',').map((s) => s.trim()).filter(Boolean);
+    const clauses = match[1]!
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     for (const clause of clauses) {
       const parts = clause.split(/\s+as\s+/);
       const exportedName = parts.length > 1 ? parts[parts.length - 1]!.trim() : parts[0]!.trim();
@@ -248,7 +252,10 @@ function extractExports(source: string): Set<string> {
   // CommonJS: module.exports = { a, b: c }
   const cjsRegex = /module\.exports\s*=\s*\{([^}]*)\}/g;
   for (const match of source.matchAll(cjsRegex)) {
-    const clauses = match[1]!.split(',').map((s) => s.trim()).filter(Boolean);
+    const clauses = match[1]!
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     for (const clause of clauses) {
       const key = clause.split(':')[0]!.trim().replace(/['"]/g, '');
       if (key) exports.add(key);
@@ -365,13 +372,11 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['api-compatibility-gate']);
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{ decision?: 'block'; reason?: string; additionalContext?: string } | void> => {
       if (!cfg.enabled) return;
 
       // Skip if the write/edit itself errored.
@@ -438,7 +443,9 @@ const plugin: Plugin = {
       return { additionalContext: message };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- api_compat_status tool ---
     api.tools.register({

@@ -49,7 +49,9 @@ interface PluginManagementDeps {
   /** Override `~/.wrongstack` for tests. Defaults to the real home dir. */
   globalRoot?: string | undefined;
   /** Injectable package-manager runner for tests. */
-  runPackageManager?: ((pm: string, args: readonly string[], cwd: string) => Promise<PackageManagerRunResult>) | undefined;
+  runPackageManager?:
+    | ((pm: string, args: readonly string[], cwd: string) => Promise<PackageManagerRunResult>)
+    | undefined;
 }
 
 interface PackageManagerRunResult {
@@ -802,7 +804,8 @@ async function runPluginTrustCommand(
       message: [
         `Pinned external plugins (${entries.length}):`,
         ...entries.map(
-          ([entry, pin]) => `  ${entry}\n      pinned ${pin.pinnedAt}${pin.spec ? ` from ${pin.spec}` : ''}`,
+          ([entry, pin]) =>
+            `  ${entry}\n      pinned ${pin.pinnedAt}${pin.spec ? ` from ${pin.spec}` : ''}`,
         ),
       ].join('\n'),
     };
@@ -907,15 +910,7 @@ function buildInstallArgs(
     case 'bun':
       return ['add', '--cwd', targetDir, ...ignoreScripts, spec];
     default:
-      return [
-        'install',
-        '--prefix',
-        targetDir,
-        '--no-audit',
-        '--no-fund',
-        ...ignoreScripts,
-        spec,
-      ];
+      return ['install', '--prefix', targetDir, '--no-audit', '--no-fund', ...ignoreScripts, spec];
   }
 }
 

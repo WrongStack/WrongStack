@@ -20,16 +20,21 @@ const STORAGE_KEY = 'wrongstack.desktop.locale';
  *  shared config). No-op outside the desktop shell. */
 function pushLocaleToMain(locale: DesktopLocale): void {
   try {
-    (window as unknown as { wrongstackDesktop?: { setLocale?: (l: string) => void } })
-      .wrongstackDesktop?.setLocale?.(locale);
-  } catch { /* bridge not available (e.g. unit tests) */ }
+    (
+      window as unknown as { wrongstackDesktop?: { setLocale?: (l: string) => void } }
+    ).wrongstackDesktop?.setLocale?.(locale);
+  } catch {
+    /* bridge not available (e.g. unit tests) */
+  }
 }
 
 function readLocale(): DesktopLocale {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && stored in CATALOGS) return stored as DesktopLocale;
-  } catch { /* localStorage unavailable */ }
+  } catch {
+    /* localStorage unavailable */
+  }
   return 'en';
 }
 
@@ -43,7 +48,11 @@ let currentLocale: DesktopLocale = readLocale();
 export function setLocale(locale: DesktopLocale, opts: { propagate?: boolean } = {}): void {
   if (locale === currentLocale) return;
   currentLocale = locale;
-  try { localStorage.setItem(STORAGE_KEY, locale); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(STORAGE_KEY, locale);
+  } catch {
+    /* ignore */
+  }
   if (opts.propagate !== false) pushLocaleToMain(locale);
   for (const cb of localeChangeListeners) cb();
 }
@@ -136,8 +145,10 @@ const en: Catalog = {
   gs: 'GS',
   sessions: 'Sessions',
   runtimes: 'Runtimes',
-  launcherError: 'The active WebUI did not handle that launcher command. Try Reload if the view is still starting.',
-  sessionLauncherError: 'That session WebUI did not handle the command yet. Try Reload if it is still starting.',
+  launcherError:
+    'The active WebUI did not handle that launcher command. Try Reload if the view is still starting.',
+  sessionLauncherError:
+    'That session WebUI did not handle the command yet. Try Reload if it is still starting.',
   operationFailed: 'Operation failed.',
 };
 

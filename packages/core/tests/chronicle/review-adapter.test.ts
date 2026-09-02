@@ -9,7 +9,15 @@ import type { ChronicleEventSink } from '../../src/chronicle/sink.js';
 function makePayload(overrides: Record<string, unknown> = {}) {
   return {
     bundle: {
-      config: { provider: 'anthropic', model: 'claude-sonnet-4-20250514', maxFiles: 15, autoFix: 'off', cascadeOn: 'off', maxCascadeDepth: 2, enabled: true },
+      config: {
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-20250514',
+        maxFiles: 15,
+        autoFix: 'off',
+        cascadeOn: 'off',
+        maxCascadeDepth: 2,
+        enabled: true,
+      },
       cwd: '/test/project',
       files: [{ path: 'src/auth.ts', status: 'modified' }],
       fileProvenance: [{ path: 'src/auth.ts', agentId: 'test-agent' }],
@@ -39,7 +47,11 @@ Duration: 12s`,
 
 describe('wireReviewFindingsToChronicle', () => {
   let appended: ChronicleEventInput[];
-  let journal: { append: ReturnType<typeof vi.fn>; flush: ReturnType<typeof vi.fn>; stats: ReturnType<typeof vi.fn> };
+  let journal: {
+    append: ReturnType<typeof vi.fn>;
+    flush: ReturnType<typeof vi.fn>;
+    stats: ReturnType<typeof vi.fn>;
+  };
   let unsubscribe: (() => void) | undefined;
 
   beforeEach(() => {
@@ -47,7 +59,16 @@ describe('wireReviewFindingsToChronicle', () => {
     journal = {
       append: vi.fn((input: ChronicleEventInput) => {
         appended.push(input);
-        return Promise.resolve({ ...input, schemaVersion: 1, eventId: 'evt-1', observedAt: '', persistedAt: '', sequence: 0, previousHash: '', hash: '' });
+        return Promise.resolve({
+          ...input,
+          schemaVersion: 1,
+          eventId: 'evt-1',
+          observedAt: '',
+          persistedAt: '',
+          sequence: 0,
+          previousHash: '',
+          hash: '',
+        });
       }),
       flush: vi.fn().mockResolvedValue(undefined),
       stats: vi.fn().mockReturnValue({ pendingEvents: 0, rejectedEvents: 0 }),
@@ -73,7 +94,10 @@ describe('wireReviewFindingsToChronicle', () => {
       // `vi.fn()` widens the mock's call signature, so the object does not
       // structurally satisfy the sink; the bodies above return the right shape.
       journal: journal as unknown as ChronicleEventSink,
-      context: { scope: { installationId: 'inst-1', machineId: 'm-1', projectId: 'proj-1' }, correlation: { traceId: 'trace-1', spanId: 'span-1' } },
+      context: {
+        scope: { installationId: 'inst-1', machineId: 'm-1', projectId: 'proj-1' },
+        correlation: { traceId: 'trace-1', spanId: 'span-1' },
+      },
       onPersistError: vi.fn(),
     });
     return (payload: Record<string, unknown>) => {
@@ -103,9 +127,17 @@ describe('wireReviewFindingsToChronicle', () => {
       source: 'chimera',
     });
     expect(critical!.resource).toMatchObject({ kind: 'file', path: 'src/auth.ts', lineStart: 42 });
-    expect(critical!.scope).toMatchObject({ sessionId: 'sess-123', agentId: 'test-agent', taskId: 'task-42' });
+    expect(critical!.scope).toMatchObject({
+      sessionId: 'sess-123',
+      agentId: 'test-agent',
+      taskId: 'task-42',
+    });
 
-    const highFinding = findings.find((e) => e.eventType === 'finding.high' && (e.attributes as Record<string, unknown>).file === 'src/api.ts');
+    const highFinding = findings.find(
+      (e) =>
+        e.eventType === 'finding.high' &&
+        (e.attributes as Record<string, unknown>).file === 'src/api.ts',
+    );
     expect(highFinding).toBeDefined();
     expect(highFinding!.attributes).toMatchObject({ line: 10, file: 'src/api.ts' });
 
@@ -180,8 +212,9 @@ describe('wireReviewFindingsToChronicle', () => {
 
   it('skips unparseable items but still emits parseable ones', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      reviewText: `### Critical (2)
+    trigger(
+      makePayload({
+        reviewText: `### Critical (2)
 1. [BUG] src/auth.ts:42 — Null dereference
    → Add guard
 garbage line that doesn't match any pattern
@@ -190,7 +223,8 @@ blah blah nonsense
 
 ### High (1)
 1. [BUG] src/api.ts:5 — Valid high finding`,
-    }));
+      }),
+    );
 
     // 3 parseable findings (critical:2 from items 1 and 2, high:1) + 1 summary = 4 events
     expect(appended.length).toBe(4);
@@ -209,10 +243,12 @@ blah blah nonsense
 
   it('handles findings without file:line references', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      reviewText: `### Low (1)
+    trigger(
+      makePayload({
+        reviewText: `### Low (1)
 1. [STYLE] — General code style inconsistency noticed`,
-    }));
+      }),
+    );
 
     // 1 finding + 1 summary = 2 events
     expect(appended.length).toBe(2);
@@ -226,10 +262,12 @@ blah blah nonsense
 
   it('extracts file from path patterns with space before description', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      reviewText: `### High (1)
+    trigger(
+      makePayload({
+        reviewText: `### High (1)
 1. [BUG] src/helper.ts:25 - Potential overflow in calculation`,
-    }));
+      }),
+    );
 
     const finding = appended.find((e) => e.eventType.startsWith('finding.'));
     expect(finding).toBeDefined();
@@ -240,8 +278,9 @@ blah blah nonsense
 
   it('handles all severity levels', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      reviewText: `### critical (1)
+    trigger(
+      makePayload({
+        reviewText: `### critical (1)
 1. [BUG] — Critical issue
 
 ### HIGH (1)
@@ -252,26 +291,45 @@ blah blah nonsense
 
 ### LOW (1)
 1. [BUG] - Low issue`,
-    }));
+      }),
+    );
 
-    const eventTypes = appended.filter((e) => e.eventType.startsWith('finding.')).map((e) => e.eventType).sort();
-    expect(eventTypes).toEqual(['finding.critical', 'finding.high', 'finding.low', 'finding.medium']);
+    const eventTypes = appended
+      .filter((e) => e.eventType.startsWith('finding.'))
+      .map((e) => e.eventType)
+      .sort();
+    expect(eventTypes).toEqual([
+      'finding.critical',
+      'finding.high',
+      'finding.low',
+      'finding.medium',
+    ]);
   });
 
   // ── Cascade depth propagation ─────────────────────────────────
 
   it('propagates cascade depth into finding attributes', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      bundle: {
-        config: { provider: 'anthropic', model: 'claude-sonnet-4-20250514', maxFiles: 15, autoFix: 'off', cascadeOn: 'high', maxCascadeDepth: 2, enabled: true },
-        cwd: '/test/project',
-        files: [],
-        cascadeDepth: 2,
-        maxCascadeDepth: 2,
-      },
-      reviewText: `### Critical (1)\n1. [BUG] x.ts:1 — Finding at depth 2`,
-    }));
+    trigger(
+      makePayload({
+        bundle: {
+          config: {
+            provider: 'anthropic',
+            model: 'claude-sonnet-4-20250514',
+            maxFiles: 15,
+            autoFix: 'off',
+            cascadeOn: 'high',
+            maxCascadeDepth: 2,
+            enabled: true,
+          },
+          cwd: '/test/project',
+          files: [],
+          cascadeDepth: 2,
+          maxCascadeDepth: 2,
+        },
+        reviewText: `### Critical (1)\n1. [BUG] x.ts:1 — Finding at depth 2`,
+      }),
+    );
 
     const finding = appended.find((e) => e.eventType.startsWith('finding.'));
     expect(finding).toBeDefined();
@@ -282,15 +340,25 @@ blah blah nonsense
 
   it('handles missing fileProvenance gracefully', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      bundle: {
-        config: { provider: 'anthropic', model: 'claude-sonnet-4-20250514', maxFiles: 15, autoFix: 'off', cascadeOn: 'off', maxCascadeDepth: 2, enabled: true },
-        cwd: '/test/project',
-        files: [{ path: 'src/auth.ts', status: 'modified' }],
-        fileProvenance: [],
-      },
-      reviewText: `### High (1)\n1. [BUG] x.ts:5 — Missing check`,
-    }));
+    trigger(
+      makePayload({
+        bundle: {
+          config: {
+            provider: 'anthropic',
+            model: 'claude-sonnet-4-20250514',
+            maxFiles: 15,
+            autoFix: 'off',
+            cascadeOn: 'off',
+            maxCascadeDepth: 2,
+            enabled: true,
+          },
+          cwd: '/test/project',
+          files: [{ path: 'src/auth.ts', status: 'modified' }],
+          fileProvenance: [],
+        },
+        reviewText: `### High (1)\n1. [BUG] x.ts:5 — Missing check`,
+      }),
+    );
 
     const finding = appended.find((e) => e.eventType.startsWith('finding.'));
     expect(finding).toBeDefined();
@@ -318,7 +386,10 @@ blah blah nonsense
     wireReviewFindingsToChronicle({
       events,
       journal: failJournal,
-      context: { scope: { installationId: 'i', machineId: 'm' }, correlation: { traceId: 't', spanId: 's' } },
+      context: {
+        scope: { installationId: 'i', machineId: 'm' },
+        correlation: { traceId: 't', spanId: 's' },
+      },
       onPersistError,
     });
     handler!('chimera.review_complete', makePayload());
@@ -332,10 +403,12 @@ blah blah nonsense
 
   it('parses items without — separator via PATH_REF fallback', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      reviewText: `### High (1)
+    trigger(
+      makePayload({
+        reviewText: `### High (1)
 1. [BUG] src/helper.ts:25 error text without separator`,
-    }));
+      }),
+    );
 
     const finding = appended.find((e) => e.eventType.startsWith('finding.'));
     expect(finding).toBeDefined();
@@ -345,10 +418,12 @@ blah blah nonsense
 
   it('handles file paths containing hyphens', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      reviewText: `### Critical (1)
+    trigger(
+      makePayload({
+        reviewText: `### Critical (1)
 1. [BUG] src/my-file.ts:5 — Null deref in edge case`,
-    }));
+      }),
+    );
 
     const finding = appended.find((e) => e.eventType === 'finding.critical');
     expect(finding).toBeDefined();
@@ -357,10 +432,12 @@ blah blah nonsense
 
   it('handles descriptions containing colons', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      reviewText: `### Medium (1)
+    trigger(
+      makePayload({
+        reviewText: `### Medium (1)
 1. [BUG] src/file.ts:10 — error: something failed`,
-    }));
+      }),
+    );
 
     const finding = appended.find((e) => e.eventType.startsWith('finding.'));
     expect(finding).toBeDefined();
@@ -370,10 +447,12 @@ blah blah nonsense
 
   it('handles item with file:line and no trailing description separator', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      reviewText: `### Low (1)
+    trigger(
+      makePayload({
+        reviewText: `### Low (1)
 1. [BUG] src/file.ts:15 A description without dash`,
-    }));
+      }),
+    );
 
     const finding = appended.find((e) => e.eventType.startsWith('finding.'));
     expect(finding).toBeDefined();
@@ -382,10 +461,12 @@ blah blah nonsense
 
   it('handles item with file path but no line number', () => {
     const trigger = wireAndCapture();
-    trigger(makePayload({
-      reviewText: `### High (1)
+    trigger(
+      makePayload({
+        reviewText: `### High (1)
 1. [BUG] src/file.ts — Description without line number`,
-    }));
+      }),
+    );
 
     const finding = appended.find((e) => e.eventType.startsWith('finding.'));
     expect(finding).toBeDefined();

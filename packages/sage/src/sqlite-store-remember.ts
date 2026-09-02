@@ -78,7 +78,9 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
     const sessionMatchClause =
       scope === 'session' && input.ownerSessionId ? ' AND owner_session_id = ?' : '';
     const sessionMatchParams =
-      scope === 'session' && input.ownerSessionId ? [input.ownerSessionId] as const : [] as const;
+      scope === 'session' && input.ownerSessionId
+        ? ([input.ownerSessionId] as const)
+        : ([] as const);
     const exactRow = ctx
       .stmt(
         `SELECT data FROM memories
@@ -127,9 +129,7 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
           ...new Map([...existing.sources, ...sources].map((s) => [JSON.stringify(s), s])).values(),
         ],
         supersedes: [...new Set([...(existing.supersedes ?? []), ...(input.supersedes ?? [])])],
-        contradicts: [
-          ...new Set([...(existing.contradicts ?? []), ...(input.contradicts ?? [])]),
-        ],
+        contradicts: [...new Set([...(existing.contradicts ?? []), ...(input.contradicts ?? [])])],
         importance: Math.max(existing.importance, importance),
         confidence: Math.max(existing.confidence, confidence),
         freshness: Math.max(existing.freshness, freshness),

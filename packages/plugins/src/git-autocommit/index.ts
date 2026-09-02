@@ -632,14 +632,18 @@ const plugin: Plugin = {
         try {
           let type = input['type'] as ConventionalType | undefined;
           let scope = input['scope'] as string | undefined;
-          let summary = ((input['message'] ?? input['summary'] ?? input['msg'] ?? input['description']) as string | undefined) ?? '';
+          let summary =
+            ((input['message'] ?? input['summary'] ?? input['msg'] ?? input['description']) as
+              | string
+              | undefined) ?? '';
           let body = input['body'] as string | undefined;
-          const dryRun = (input['dry_run'] ?? input['dryRun'] as boolean) ?? false;
+          const dryRun = input['dry_run'] ?? (input['dryRun'] as boolean) ?? false;
 
           // LLM message generation is opt-in and only runs when the host
           // wired `api.llm`: an explicit `generate: true`, or the `useLlm`
           // config flag when the caller supplied neither type nor message.
-          const explicitAsk = (input['generate'] ?? input['autoGenerate'] ?? input['auto_generate']) === true;
+          const explicitAsk =
+            (input['generate'] ?? input['autoGenerate'] ?? input['auto_generate']) === true;
           const autoAsk =
             opts.useLlm && !input['type'] && !(input['message'] as string | undefined);
           const wantGenerate = (explicitAsk || autoAsk) && Boolean(api.llm);
@@ -652,11 +656,17 @@ const plugin: Plugin = {
               return { ok: false, error: 'files must be an array of file paths' };
             }
             files = rawFiles;
-          } else if (typeof (input['file'] ?? input['file_path']) === 'string' && String(input['file'] ?? input['file_path']).trim().length > 0) {
+          } else if (
+            typeof (input['file'] ?? input['file_path']) === 'string' &&
+            String(input['file'] ?? input['file_path']).trim().length > 0
+          ) {
             files = [String(input['file'] ?? input['file_path']).trim()];
           } else if (typeof input['filePath'] === 'string' && input['filePath'].trim().length > 0) {
             files = [input['filePath'].trim()];
-          } else if (typeof (input['TargetFile'] ?? input['targetFile']) === 'string' && String(input['TargetFile'] ?? input['targetFile']).trim().length > 0) {
+          } else if (
+            typeof (input['TargetFile'] ?? input['targetFile']) === 'string' &&
+            String(input['TargetFile'] ?? input['targetFile']).trim().length > 0
+          ) {
             files = [String(input['TargetFile'] ?? input['targetFile']).trim()];
           }
 
@@ -710,8 +720,7 @@ const plugin: Plugin = {
             if (staged.length === 0) {
               return {
                 ok: false,
-                error:
-                  'No changed files match the given paths — refusing to commit anything else.',
+                error: 'No changed files match the given paths — refusing to commit anything else.',
               };
             }
             commitScope = staged;
@@ -849,8 +858,7 @@ const plugin: Plugin = {
             const foreign = staged.filter((f) => !scopedSet.has(f));
             if (foreign.length > 0) {
               const preview = foreign.slice(0, 10).join(', ');
-              const suffix =
-                foreign.length > 10 ? ` and ${foreign.length - 10} more` : '';
+              const suffix = foreign.length > 10 ? ` and ${foreign.length - 10} more` : '';
               scopeWarning =
                 `⚠ Scope guard: ${foreign.length} staged file(s) outside the requested scope ` +
                 `(${preview}${suffix}) were left uncommitted and remain staged for their owner.`;

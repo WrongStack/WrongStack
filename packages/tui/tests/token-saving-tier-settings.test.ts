@@ -133,7 +133,9 @@ describe('token-saving tier in settings picker', () => {
 
   it('settingsValueChange wraps aggressive → auto on forward delta', () => {
     const s = reducer(
-      { ...settingsBase({ tokenSavingTier: 'aggressive' }) } as never as Parameters<typeof reducer>[0],
+      { ...settingsBase({ tokenSavingTier: 'aggressive' }) } as never as Parameters<
+        typeof reducer
+      >[0],
       { type: 'settingsValueChange', delta: 1 },
     );
     expect(s.settingsPicker.tokenSavingTier).toBe('auto');
@@ -156,14 +158,7 @@ describe('token-saving tier in settings picker', () => {
   });
 
   it('TOKEN_SAVING_TIERS exports auto and all five concrete tiers', () => {
-    expect(TOKEN_SAVING_TIERS).toEqual([
-      'auto',
-      'off',
-      'minimal',
-      'light',
-      'medium',
-      'aggressive',
-    ]);
+    expect(TOKEN_SAVING_TIERS).toEqual(['auto', 'off', 'minimal', 'light', 'medium', 'aggressive']);
   });
 
   it('field 13 is the token-saving tier field', () => {

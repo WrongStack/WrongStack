@@ -5,11 +5,7 @@
   "description": "Stress-test a design by enumerating how it breaks.",
   "content": "Here's my design/system: {{design}}\n\nDo a failure-mode analysis. For each component and dependency, ask: what happens when it's slow, unavailable, returns garbage, or partially fails? Identify single points of failure, cascading-failure risks, and missing timeouts/retries/backpressure. Rank the failure modes by likelihood x impact and tell me the top three to address first.",
   "category": "architecture",
-  "tags": [
-    "resilience",
-    "failure-modes",
-    "reliability"
-  ],
+  "tags": ["resilience", "failure-modes", "reliability"],
   "source": "builtin",
   "favorite": false,
   "checksum": "cc3a25850edf5de46c6772227089a38d827b95b41404c1e8362030512d6a9f22",

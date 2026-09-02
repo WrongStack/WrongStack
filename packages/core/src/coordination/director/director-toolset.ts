@@ -18,22 +18,21 @@ import {
   makeWorkCompleteTool,
 } from '../director-tools.js';
 
-type DirectorToolsetHost =
-  & Parameters<typeof makeSpawnTool>[0]
-  & Parameters<typeof makeAssignTool>[0]
-  & Parameters<typeof makeKanbanQueueTool>[0]
-  & Parameters<typeof makeAwaitTasksTool>[0]
-  & Parameters<typeof makeAskTool>[0]
-  & Parameters<typeof makeAskResultTool>[0]
-  & Parameters<typeof makeRollUpTool>[0]
-  & Parameters<typeof makeQualityGateTool>[0]
-  & Parameters<typeof makeMutationTestTool>[0]
-  & Parameters<typeof makeTerminateTool>[0]
-  & Parameters<typeof makeTerminateAllTool>[0]
-  & Parameters<typeof makeFleetTool>[0]
-  & Parameters<typeof makeCollabDebugTool>[0]
-  & Parameters<typeof makeFleetEmitTool>[0]
-  & Parameters<typeof makeWorkCompleteTool>[0];
+type DirectorToolsetHost = Parameters<typeof makeSpawnTool>[0] &
+  Parameters<typeof makeAssignTool>[0] &
+  Parameters<typeof makeKanbanQueueTool>[0] &
+  Parameters<typeof makeAwaitTasksTool>[0] &
+  Parameters<typeof makeAskTool>[0] &
+  Parameters<typeof makeAskResultTool>[0] &
+  Parameters<typeof makeRollUpTool>[0] &
+  Parameters<typeof makeQualityGateTool>[0] &
+  Parameters<typeof makeMutationTestTool>[0] &
+  Parameters<typeof makeTerminateTool>[0] &
+  Parameters<typeof makeTerminateAllTool>[0] &
+  Parameters<typeof makeFleetTool>[0] &
+  Parameters<typeof makeCollabDebugTool>[0] &
+  Parameters<typeof makeFleetEmitTool>[0] &
+  Parameters<typeof makeWorkCompleteTool>[0];
 
 export function buildDirectorToolset(
   director: DirectorToolsetHost,

@@ -114,9 +114,7 @@ function SidebarFooter({
   if (!focused) {
     return (
       <Box width={width} flexShrink={0}>
-        <Text color={theme.borderSubtle}>
-          {glyphs.dividerDash.repeat(Math.max(0, width))}
-        </Text>
+        <Text color={theme.borderSubtle}>{glyphs.dividerDash.repeat(Math.max(0, width))}</Text>
       </Box>
     );
   }

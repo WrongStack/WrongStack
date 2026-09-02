@@ -31,17 +31,30 @@ vi.mock('node:fs/promises', async () => {
     }),
     writeFile: vi.fn(async (filepath: string, data: string) => {
       store[filepath] = data;
-      try { await real.writeFile(filepath, data, 'utf8'); } catch { /* best-effort */ }
+      try {
+        await real.writeFile(filepath, data, 'utf8');
+      } catch {
+        /* best-effort */
+      }
     }),
     rename: real.rename,
     access: vi.fn(async (filepath: string) => {
       if (store[filepath] !== undefined) return;
-      try { await real.access(filepath); } catch { /* fall through */ }
-      if (store[filepath] === undefined) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      try {
+        await real.access(filepath);
+      } catch {
+        /* fall through */
+      }
+      if (store[filepath] === undefined)
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
     }),
     unlink: vi.fn(async (filepath: string) => {
       delete store[filepath];
-      try { await real.unlink(filepath); } catch { /* best-effort */ }
+      try {
+        await real.unlink(filepath);
+      } catch {
+        /* best-effort */
+      }
     }),
     mkdir: real.mkdir,
     readdir: real.readdir,
@@ -53,7 +66,11 @@ vi.mock('node:fs/promises', async () => {
       } else {
         delete store[filepath];
       }
-      try { await real.rm(filepath, opts); } catch { /* best-effort */ }
+      try {
+        await real.rm(filepath, opts);
+      } catch {
+        /* best-effort */
+      }
     }),
     chmod: real.chmod,
   };
@@ -145,9 +162,7 @@ describe('todos-checkpoint', () => {
     try {
       const ctx = makeContext();
       const detach = attachTodosCheckpoint(ctx.state, file, 'sess');
-      ctx.state.replaceTodos([
-        { id: 'a', content: 'alpha', status: 'pending' },
-      ]);
+      ctx.state.replaceTodos([{ id: 'a', content: 'alpha', status: 'pending' }]);
       // The save is debounced 150ms — wait then verify.
       const loaded = await waitForTodosCheckpoint(file);
       expect(loaded).toEqual([{ id: 'a', content: 'alpha', status: 'pending' }]);
@@ -205,28 +220,37 @@ describe('todos-checkpoint', () => {
     const file = path.join(dir, 'sess.todos.json');
     const events: EventBus = { emit: vi.fn() } as never;
     try {
-      await fs.writeFile(file, JSON.stringify({
-        version: 1,
-        sessionId: 'sess',
-        updatedAt: new Date().toISOString(),
-        todos: [{ id: 't1', content: 'first', status: 'pending' }],
-      }));
+      await fs.writeFile(
+        file,
+        JSON.stringify({
+          version: 1,
+          sessionId: 'sess',
+          updatedAt: new Date().toISOString(),
+          todos: [{ id: 't1', content: 'first', status: 'pending' }],
+        }),
+      );
       await loadTodosCheckpoint(file, events);
-      expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'todos',
-        operation: 'load',
-        outcome: 'success',
-        sessionId: 'sess',
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'todos',
+          operation: 'load',
+          outcome: 'success',
+          sessionId: 'sess',
+        }),
+      );
 
       await loadTodosCheckpoint(file, events, 'trace-load', 'sess-explicit');
-      expect(events.emit).toHaveBeenLastCalledWith('storage.read', expect.objectContaining({
-        store: 'todos',
-        operation: 'load',
-        outcome: 'success',
-        sessionId: 'sess-explicit',
-        traceId: 'trace-load',
-      }));
+      expect(events.emit).toHaveBeenLastCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'todos',
+          operation: 'load',
+          outcome: 'success',
+          sessionId: 'sess-explicit',
+          traceId: 'trace-load',
+        }),
+      );
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
     }
@@ -238,19 +262,25 @@ describe('todos-checkpoint', () => {
     const events: EventBus = { emit: vi.fn() } as never;
     try {
       // version 999 is not valid — filter rejects it
-      await fs.writeFile(file, JSON.stringify({
-        version: 999,
-        sessionId: 'sess',
-        updatedAt: new Date().toISOString(),
-        todos: [],
-      }));
+      await fs.writeFile(
+        file,
+        JSON.stringify({
+          version: 999,
+          sessionId: 'sess',
+          updatedAt: new Date().toISOString(),
+          todos: [],
+        }),
+      );
       await loadTodosCheckpoint(file, events);
-      expect(events.emit).toHaveBeenCalledWith('storage.read', expect.objectContaining({
-        store: 'todos',
-        operation: 'load',
-        outcome: 'failure',
-        error: 'invalid_schema',
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.read',
+        expect.objectContaining({
+          store: 'todos',
+          operation: 'load',
+          outcome: 'failure',
+          error: 'invalid_schema',
+        }),
+      );
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
     }
@@ -287,26 +317,32 @@ describe('todos-checkpoint', () => {
     const file = path.join(dir, 'io-error.todos.json');
     const events: EventBus = { emit: vi.fn() } as never;
     // Create the file so it exists, then make readFile fail
-    await fs.writeFile(file, JSON.stringify({
-      version: 1,
-      sessionId: 'sess',
-      updatedAt: new Date().toISOString(),
-      todos: [],
-    }));
+    await fs.writeFile(
+      file,
+      JSON.stringify({
+        version: 1,
+        sessionId: 'sess',
+        updatedAt: new Date().toISOString(),
+        todos: [],
+      }),
+    );
     try {
       vi.mocked(fs.readFile).mockRejectedValueOnce(
         Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' }),
       );
       const result = await loadTodosCheckpoint(file, events, 'trace-load', 'sess-load');
       expect(result).toBeNull();
-      expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-        sessionId: 'sess-load',
-        traceId: 'trace-load',
-        store: 'todos',
-        operation: 'load',
-        outcome: 'failure',
-        error: expect.stringContaining('EACCES'),
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          sessionId: 'sess-load',
+          traceId: 'trace-load',
+          store: 'todos',
+          operation: 'load',
+          outcome: 'failure',
+          error: expect.stringContaining('EACCES'),
+        }),
+      );
     } finally {
       vi.mocked(fs.readFile).mockReset();
       await fs.rm(dir, { recursive: true, force: true });
@@ -324,12 +360,15 @@ describe('todos-checkpoint', () => {
         [{ id: 't1', content: 'first', status: 'pending' }],
         events,
       );
-      expect(events.emit).toHaveBeenCalledWith('storage.write', expect.objectContaining({
-        store: 'todos',
-        operation: 'save',
-        outcome: 'success',
-        sessionId: 'sess',
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.write',
+        expect.objectContaining({
+          store: 'todos',
+          operation: 'save',
+          outcome: 'success',
+          sessionId: 'sess',
+        }),
+      );
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
     }
@@ -350,14 +389,17 @@ describe('todos-checkpoint', () => {
         events,
         'trace-save',
       );
-      expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-        sessionId: 'sess',
-        traceId: 'trace-save',
-        store: 'todos',
-        operation: 'save',
-        outcome: 'failure',
-        error: expect.stringContaining('ENOSPC'),
-      }));
+      expect(events.emit).toHaveBeenCalledWith(
+        'storage.error',
+        expect.objectContaining({
+          sessionId: 'sess',
+          traceId: 'trace-save',
+          store: 'todos',
+          operation: 'save',
+          outcome: 'failure',
+          error: expect.stringContaining('ENOSPC'),
+        }),
+      );
     } finally {
       vi.mocked(fs.writeFile).mockReset();
       await fs.rm(dir, { recursive: true, force: true });

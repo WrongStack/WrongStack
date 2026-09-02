@@ -89,8 +89,17 @@ describe('GitDiffPlugin', () => {
       const result = await plugin.verify(
         mockCheck(),
         mockContext({
-          diffSince: async () => [{ path: 'src/test.ts', operation: 'modify', linesAdded: 5, linesRemoved: 0 }],
-          gitStatus: async () => ({ clean: false, untracked: 0, unstaged: 0, staged: 0, files: [], error: 'Not a git repository' }),
+          diffSince: async () => [
+            { path: 'src/test.ts', operation: 'modify', linesAdded: 5, linesRemoved: 0 },
+          ],
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 0,
+            unstaged: 0,
+            staged: 0,
+            files: [],
+            error: 'Not a git repository',
+          }),
         }),
       );
       expect(result.status).toBe('failed');
@@ -102,7 +111,14 @@ describe('GitDiffPlugin', () => {
         mockCheck(),
         mockContext({
           diffSince: async () => [],
-          gitStatus: async () => ({ clean: true, untracked: 0, unstaged: 0, staged: 0, files: [], error: undefined }),
+          gitStatus: async () => ({
+            clean: true,
+            untracked: 0,
+            unstaged: 0,
+            staged: 0,
+            files: [],
+            error: undefined,
+          }),
         }),
       );
       expect(result.status).toBe('failed');
@@ -111,10 +127,20 @@ describe('GitDiffPlugin', () => {
 
     it('fails when expected files are missing from diff', async () => {
       const result = await plugin.verify(
-        mockCheck({ notes: JSON.stringify({ expectedFiles: ['src/missing.ts', 'src/also-missing.tsx'] }) }),
+        mockCheck({
+          notes: JSON.stringify({ expectedFiles: ['src/missing.ts', 'src/also-missing.tsx'] }),
+        }),
         mockContext({
-          diffSince: async () => [{ path: 'src/unrelated.ts', operation: 'modify', linesAdded: 1, linesRemoved: 0 }],
-          gitStatus: async () => ({ clean: false, untracked: 0, unstaged: 1, staged: 0, files: ['src/unrelated.ts'] }),
+          diffSince: async () => [
+            { path: 'src/unrelated.ts', operation: 'modify', linesAdded: 1, linesRemoved: 0 },
+          ],
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 0,
+            unstaged: 1,
+            staged: 0,
+            files: ['src/unrelated.ts'],
+          }),
         }),
       );
       expect(result.status).toBe('failed');
@@ -127,8 +153,16 @@ describe('GitDiffPlugin', () => {
       const result = await plugin.verify(
         mockCheck({ notes: JSON.stringify({ expectedFiles: ['src/expected.ts'] }) }),
         mockContext({
-          diffSince: async () => [{ path: 'src/expected.ts', operation: 'modify', linesAdded: 10, linesRemoved: 2 }],
-          gitStatus: async () => ({ clean: false, untracked: 0, unstaged: 1, staged: 0, files: ['src/expected.ts'] }),
+          diffSince: async () => [
+            { path: 'src/expected.ts', operation: 'modify', linesAdded: 10, linesRemoved: 2 },
+          ],
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 0,
+            unstaged: 1,
+            staged: 0,
+            files: ['src/expected.ts'],
+          }),
         }),
       );
       expect(result.status).toBe('passed');
@@ -138,8 +172,16 @@ describe('GitDiffPlugin', () => {
       const result = await plugin.verify(
         mockCheck({ notes: JSON.stringify({ minChanges: 10 }) }),
         mockContext({
-          diffSince: async () => [{ path: 'src/test.ts', operation: 'modify', linesAdded: 3, linesRemoved: 2 }],
-          gitStatus: async () => ({ clean: false, untracked: 0, unstaged: 1, staged: 0, files: ['src/test.ts'] }),
+          diffSince: async () => [
+            { path: 'src/test.ts', operation: 'modify', linesAdded: 3, linesRemoved: 2 },
+          ],
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 0,
+            unstaged: 1,
+            staged: 0,
+            files: ['src/test.ts'],
+          }),
         }),
       );
       expect(result.status).toBe('failed');
@@ -150,8 +192,16 @@ describe('GitDiffPlugin', () => {
       const result = await plugin.verify(
         mockCheck({ notes: JSON.stringify({ maxChanges: 5 }) }),
         mockContext({
-          diffSince: async () => [{ path: 'src/test.ts', operation: 'modify', linesAdded: 6, linesRemoved: 0 }],
-          gitStatus: async () => ({ clean: false, untracked: 0, unstaged: 1, staged: 0, files: ['src/test.ts'] }),
+          diffSince: async () => [
+            { path: 'src/test.ts', operation: 'modify', linesAdded: 6, linesRemoved: 0 },
+          ],
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 0,
+            unstaged: 1,
+            staged: 0,
+            files: ['src/test.ts'],
+          }),
         }),
       );
       expect(result.status).toBe('failed');
@@ -162,8 +212,16 @@ describe('GitDiffPlugin', () => {
       const result = await plugin.verify(
         mockCheck({ notes: JSON.stringify({ minChanges: 3, maxChanges: 20 }) }),
         mockContext({
-          diffSince: async () => [{ path: 'src/test.ts', operation: 'modify', linesAdded: 5, linesRemoved: 3 }],
-          gitStatus: async () => ({ clean: false, untracked: 0, unstaged: 1, staged: 0, files: ['src/test.ts'] }),
+          diffSince: async () => [
+            { path: 'src/test.ts', operation: 'modify', linesAdded: 5, linesRemoved: 3 },
+          ],
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 0,
+            unstaged: 1,
+            staged: 0,
+            files: ['src/test.ts'],
+          }),
         }),
       );
       expect(result.status).toBe('passed');
@@ -173,8 +231,16 @@ describe('GitDiffPlugin', () => {
       const result = await plugin.verify(
         mockCheck({ notes: 'not-json' }),
         mockContext({
-          diffSince: async () => [{ path: 'src/test.ts', operation: 'modify', linesAdded: 1, linesRemoved: 0 }],
-          gitStatus: async () => ({ clean: false, untracked: 0, unstaged: 1, staged: 0, files: ['src/test.ts'] }),
+          diffSince: async () => [
+            { path: 'src/test.ts', operation: 'modify', linesAdded: 1, linesRemoved: 0 },
+          ],
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 0,
+            unstaged: 1,
+            staged: 0,
+            files: ['src/test.ts'],
+          }),
         }),
       );
       // Should not crash, should pass since there are changes
@@ -185,8 +251,16 @@ describe('GitDiffPlugin', () => {
       const result = await plugin.verify(
         mockCheck({ notes: '' }),
         mockContext({
-          diffSince: async () => [{ path: 'src/test.ts', operation: 'modify', linesAdded: 1, linesRemoved: 0 }],
-          gitStatus: async () => ({ clean: false, untracked: 0, unstaged: 1, staged: 0, files: ['src/test.ts'] }),
+          diffSince: async () => [
+            { path: 'src/test.ts', operation: 'modify', linesAdded: 1, linesRemoved: 0 },
+          ],
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 0,
+            unstaged: 1,
+            staged: 0,
+            files: ['src/test.ts'],
+          }),
         }),
       );
       expect(result.status).toBe('passed');
@@ -196,8 +270,16 @@ describe('GitDiffPlugin', () => {
       const result = await plugin.verify(
         mockCheck(),
         mockContext({
-          diffSince: async () => [{ path: 'src/test.ts', operation: 'modify', linesAdded: 1, linesRemoved: 0 }],
-          gitStatus: async () => ({ clean: false, untracked: 2, unstaged: 3, staged: 1, files: ['src/test.ts', 'other.ts'] }),
+          diffSince: async () => [
+            { path: 'src/test.ts', operation: 'modify', linesAdded: 1, linesRemoved: 0 },
+          ],
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 2,
+            unstaged: 3,
+            staged: 1,
+            files: ['src/test.ts', 'other.ts'],
+          }),
         }),
       );
       expect(result.evidence).toHaveProperty('workingTree');
@@ -215,10 +297,26 @@ describe('GitDiffPlugin', () => {
         mockContext({
           diffSince: async () => [
             { path: 'src/new.ts', operation: 'create' as const, linesAdded: 10, linesRemoved: 0 },
-            { path: 'src/changed.ts', operation: 'modify' as const, linesAdded: 5, linesRemoved: 3 },
-            { path: 'src/removed.ts', operation: 'delete' as const, linesAdded: 0, linesRemoved: 8 },
+            {
+              path: 'src/changed.ts',
+              operation: 'modify' as const,
+              linesAdded: 5,
+              linesRemoved: 3,
+            },
+            {
+              path: 'src/removed.ts',
+              operation: 'delete' as const,
+              linesAdded: 0,
+              linesRemoved: 8,
+            },
           ],
-          gitStatus: async () => ({ clean: false, untracked: 0, unstaged: 3, staged: 0, files: [] }),
+          gitStatus: async () => ({
+            clean: false,
+            untracked: 0,
+            unstaged: 3,
+            staged: 0,
+            files: [],
+          }),
         }),
       );
       expect(result.evidence['filesChanged']).toBe(3);

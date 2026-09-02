@@ -76,14 +76,13 @@ export function ThemePreview({
             <Text color={preset.user} bold>
               USER:
             </Text>
-            <Text color={preset.textPrimary}>  Summarize the changes in this session.</Text>
+            <Text color={preset.textPrimary}> Summarize the changes in this session.</Text>
             <Text color={preset.assistant} bold>
               ASSISTANT:
             </Text>
-            <Text color={preset.textPrimary}>  I reviewed the diff and updated the picker.</Text>
+            <Text color={preset.textPrimary}> I reviewed the diff and updated the picker.</Text>
             <Text color={preset.tool}>
-              {'  '}✳ tool: read · edit · test{' '}
-              <Text color={preset.success}>✓ passed</Text>
+              {'  '}✳ tool: read · edit · test <Text color={preset.success}>✓ passed</Text>
             </Text>
           </Box>
         </Box>
@@ -115,7 +114,8 @@ export function ThemePreview({
           <Text color={preset.textPrimary}>
             {'  '}
             <Text color={syntaxKeyword}>const</Text> <Text color={preset.textPrimary}>name</Text>{' '}
-            <Text color={preset.textSecondary}>=</Text> <Text color={syntaxString}>'catppuccin'</Text>
+            <Text color={preset.textSecondary}>=</Text>{' '}
+            <Text color={syntaxString}>'catppuccin'</Text>
             <Text color={preset.textSecondary}>;</Text>
           </Text>
         </Box>
@@ -142,13 +142,13 @@ export function ThemePreview({
         <Box flexDirection="column">
           <Text dimColor>palette</Text>
           <Box flexDirection="row">
-            <Text backgroundColor={preset.accent}>  </Text>
-            <Text backgroundColor={preset.brandPrimary}>  </Text>
-            <Text backgroundColor={preset.brandAccent}>  </Text>
-            <Text backgroundColor={preset.surface}>  </Text>
-            <Text backgroundColor={preset.surfaceRaised}>  </Text>
-            <Text backgroundColor={preset.diffAddBg}>  </Text>
-            <Text backgroundColor={preset.diffDelBg}>  </Text>
+            <Text backgroundColor={preset.accent}> </Text>
+            <Text backgroundColor={preset.brandPrimary}> </Text>
+            <Text backgroundColor={preset.brandAccent}> </Text>
+            <Text backgroundColor={preset.surface}> </Text>
+            <Text backgroundColor={preset.surfaceRaised}> </Text>
+            <Text backgroundColor={preset.diffAddBg}> </Text>
+            <Text backgroundColor={preset.diffDelBg}> </Text>
           </Box>
         </Box>
       ),

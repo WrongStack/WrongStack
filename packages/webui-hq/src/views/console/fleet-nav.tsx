@@ -24,7 +24,10 @@ const ROW =
 function Caret({ open }: { open: boolean }): React.ReactElement {
   return (
     <ChevronRight
-      className={cn('size-3 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')}
+      className={cn(
+        'size-3 shrink-0 text-muted-foreground transition-transform',
+        open && 'rotate-90',
+      )}
     />
   );
 }
@@ -127,9 +130,7 @@ export function FleetNav({
                                 )}
                                 disabled={client.synthetic}
                                 title={
-                                  client.synthetic
-                                    ? 'waiting for session telemetry'
-                                    : client.label
+                                  client.synthetic ? 'waiting for session telemetry' : client.label
                                 }
                                 onClick={() => {
                                   if (client.synthetic) return;
@@ -171,9 +172,7 @@ export function FleetNav({
                                       agentSelected && 'bg-accent/60 font-medium text-foreground',
                                     )}
                                     onClick={() => {
-                                      useHqStore
-                                        .getState()
-                                        .selectAgent(client.sessionId, agent.id);
+                                      useHqStore.getState().selectAgent(client.sessionId, agent.id);
                                       if (client.clientId !== undefined) {
                                         useHqStore.getState().selectClient(client.clientId);
                                       }

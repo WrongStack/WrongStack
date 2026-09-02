@@ -5,11 +5,7 @@
   "description": "Write an effective system/role prompt for a recurring task.",
   "content": "I want an AI to reliably act as: {{role}}\n\nFor this kind of task: {{task_type}}\n\nWrite a system/role prompt that sets the right expertise, behavior, output style, and boundaries. Make it specific enough to change behavior but not so rigid it breaks on variation. Include what the role should refuse or escalate. Explain each instruction's purpose so I can tune it.",
   "category": "meta-prompting",
-  "tags": [
-    "system-prompt",
-    "role",
-    "persona"
-  ],
+  "tags": ["system-prompt", "role", "persona"],
   "source": "builtin",
   "favorite": false,
   "checksum": "5edda97ee531e3c77318c9cf067b5e753ffcecd98508cdc995fc7f728f9e3ee1",

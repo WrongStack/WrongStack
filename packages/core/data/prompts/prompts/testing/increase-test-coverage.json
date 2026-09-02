@@ -5,10 +5,7 @@
   "description": "Find untested branches and add the tests that matter.",
   "content": "Here's code with weak test coverage:\n\n```\n{{code}}\n```\n\nIdentify the branches, conditions, and error paths that aren't exercised. Prioritize them by risk, not by coverage percentage. Write tests for the high-risk gaps first. Explicitly call out any code that doesn't need a test (trivial, generated, or better covered by an integration test).",
   "category": "testing",
-  "tags": [
-    "coverage",
-    "gaps"
-  ],
+  "tags": ["coverage", "gaps"],
   "source": "builtin",
   "favorite": false,
   "checksum": "f6a03585aa4dc96ac57bf614edba381bde63183c0cc177caf85d1cb9ea9231cf",

@@ -5,10 +5,7 @@
   "description": "Find the implicit dependencies a change introduces.",
   "content": "Review this change for hidden coupling:\n\n{{diff}}\n\nLook past the obvious: does it reach into another module's internals, depend on call order, share mutable global state, or assume something about a caller it shouldn't? Identify the implicit contracts that, if broken elsewhere, would break this. For each, say why it is risky and how to decouple. Distinguish acceptable coupling from the kind that will cause spooky action at a distance.",
   "category": "code-review",
-  "tags": [
-    "coupling",
-    "review"
-  ],
+  "tags": ["coupling", "review"],
   "source": "builtin",
   "favorite": false,
   "checksum": "cd6223fbf395c51d96f11ab9d14615538f645ea53b1f5a6ad89596e20c695639",

@@ -84,7 +84,7 @@ describe('file handlers integration', () => {
 
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { tree: unknown[] } };
-      const names = (response.payload.tree as { name: string }[]).map(n => n.name);
+      const names = (response.payload.tree as { name: string }[]).map((n) => n.name);
       expect(names).not.toContain('.hidden');
       expect(names).toContain('visible.txt');
     });
@@ -107,7 +107,11 @@ describe('file handlers integration', () => {
     it('returns error for path traversal', async () => {
       const ws = createMockWs();
 
-      await handleFilesRead(ws, { type: 'files.read', payload: { filePath: '../etc/passwd' } }, tempDir);
+      await handleFilesRead(
+        ws,
+        { type: 'files.read', payload: { filePath: '../etc/passwd' } },
+        tempDir,
+      );
 
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { error: string } };
@@ -117,7 +121,11 @@ describe('file handlers integration', () => {
     it('returns error for non-existent file', async () => {
       const ws = createMockWs();
 
-      await handleFilesRead(ws, { type: 'files.read', payload: { filePath: 'nonexistent.txt' } }, tempDir);
+      await handleFilesRead(
+        ws,
+        { type: 'files.read', payload: { filePath: 'nonexistent.txt' } },
+        tempDir,
+      );
 
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { error: string } };
@@ -210,7 +218,7 @@ describe('file handlers integration', () => {
       await handleFilesWrite(
         ws,
         { type: 'files.write', payload: { filePath: '../evil.txt', content: 'hack' } },
-        tempDir
+        tempDir,
       );
 
       expect(ws.sent).toHaveLength(1);
@@ -243,7 +251,10 @@ describe('file handlers integration', () => {
         await fsPromises.symlink(outsideDir, linkPath, 'dir');
         return linkPath;
       } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'EPERM' || (err as NodeJS.ErrnoException).code === 'ENOSYS') {
+        if (
+          (err as NodeJS.ErrnoException).code === 'EPERM' ||
+          (err as NodeJS.ErrnoException).code === 'ENOSYS'
+        ) {
           return null;
         }
         throw err;
@@ -281,7 +292,10 @@ describe('file handlers integration', () => {
 
       await handleFilesWrite(
         ws,
-        { type: 'files.write', payload: { filePath: 'outside-link/pwned.txt', content: 'overwritten' } },
+        {
+          type: 'files.write',
+          payload: { filePath: 'outside-link/pwned.txt', content: 'overwritten' },
+        },
         projectDir,
       );
 
@@ -300,14 +314,12 @@ describe('file handlers integration', () => {
       await fsPromises.writeFile(path.join(outsideDir, 'leaked.txt'), 'leaked');
       const ws = createMockWs();
 
-      await handleFilesTree(
-        ws,
-        { type: 'files.tree', payload: {} },
-        projectDir,
-      );
+      await handleFilesTree(ws, { type: 'files.tree', payload: {} }, projectDir);
 
       expect(ws.sent).toHaveLength(1);
-      const response = ws.sent[0] as { payload: { tree: { name: string; children?: { name: string }[] }[] } };
+      const response = ws.sent[0] as {
+        payload: { tree: { name: string; children?: { name: string }[] }[] };
+      };
       const names = collectNames(response.payload.tree);
       expect(names).not.toContain('outside-link');
       expect(names).not.toContain('leaked.txt');
@@ -338,11 +350,7 @@ describe('file handlers integration', () => {
       await fsPromises.writeFile(path.join(outsideDir, 'leaked.txt'), 'leaked');
       const ws = createMockWs();
 
-      await handleFilesList(
-        ws,
-        { type: 'files.list', payload: {} },
-        projectDir,
-      );
+      await handleFilesList(ws, { type: 'files.list', payload: {} }, projectDir);
 
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { files: string[] } };

@@ -16,7 +16,9 @@ describe('useProviderEventBridge', () => {
 
       const { result, unmount } = renderHook(() => {
         const streamingTextRef = useRef('');
-        const streamSegmentsRef = useRef<Array<{ kind: 'assistant' | 'thinking'; text: string }>>([]);
+        const streamSegmentsRef = useRef<Array<{ kind: 'assistant' | 'thinking'; text: string }>>(
+          [],
+        );
         const pendingDeltaRef = useRef('');
         const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
         const sessionGenerationRef = useRef(1);
@@ -54,7 +56,11 @@ describe('useProviderEventBridge', () => {
       act(() => {
         vi.advanceTimersByTime(200);
       });
-      expect(dispatch.mock.calls.some(([action]) => action.type === 'streamDelta' && action.delta === 'helloreasoning')).toBe(true);
+      expect(
+        dispatch.mock.calls.some(
+          ([action]) => action.type === 'streamDelta' && action.delta === 'helloreasoning',
+        ),
+      ).toBe(true);
       expect(result.current.flushTimerRef.current).toBeNull();
 
       act(() => {

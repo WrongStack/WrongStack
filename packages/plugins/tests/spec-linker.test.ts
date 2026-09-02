@@ -463,15 +463,13 @@ describe('spec-linker plugin', () => {
       api.config.extensions = { 'spec-linker': { autoFix: true } };
       specLinkerPlugin.setup(api as never);
       const hook = getHook(api, 'PreToolUse');
-      const result = await hook({
+      const result = (await hook({
         toolName: 'write',
         toolInput: {
           path: '/tmp/alias.md',
           text: 'See secret-scanner for the details.',
         },
-      }) as
-        | { decision?: 'allow' | 'block'; modifiedInput?: Record<string, unknown> }
-        | undefined;
+      })) as { decision?: 'allow' | 'block'; modifiedInput?: Record<string, unknown> } | undefined;
       expect(result?.decision).toBe('allow');
       const text = result?.modifiedInput?.['text'];
       expect(typeof text).toBe('string');

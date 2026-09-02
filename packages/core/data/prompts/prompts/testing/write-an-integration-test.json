@@ -5,10 +5,7 @@
   "description": "Test how components work together against real-ish dependencies.",
   "content": "Write an integration test for this flow: {{flow}}\n\nDecide what to use real vs. faked: prefer real for the components under test, fakes/containers for slow or external systems. Cover the success path and at least one realistic failure (timeout, partial write, bad response). Ensure the test sets up and tears down its own state so it's repeatable and isolated.",
   "category": "testing",
-  "tags": [
-    "integration",
-    "e2e"
-  ],
+  "tags": ["integration", "e2e"],
   "source": "builtin",
   "favorite": false,
   "checksum": "7ad4d7bbd68ef1af35b827bdad1305d60b6c407b9260b9e22de26ce15868444b",

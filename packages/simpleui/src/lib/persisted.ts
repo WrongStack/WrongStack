@@ -27,7 +27,10 @@ interface PersistedEnvelope {
 
 export type PersistedWriteFailureReason = 'quota' | 'error';
 
-export type PersistedWriteFailureListener = (key: string, reason: PersistedWriteFailureReason) => void;
+export type PersistedWriteFailureListener = (
+  key: string,
+  reason: PersistedWriteFailureReason,
+) => void;
 
 const writeFailureListeners = new Set<PersistedWriteFailureListener>();
 

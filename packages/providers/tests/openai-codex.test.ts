@@ -202,10 +202,9 @@ describe('OpenAICodexProvider live context limit', () => {
     // The probe must return the discounted send ceiling so preflight
     // compaction triggers before the backend rejects the request.
     const fetchImpl = (async () =>
-      new Response(
-        JSON.stringify({ models: [{ slug: 'gpt-5.6-sol', context_window: 272_000 }] }),
-        { status: 200 },
-      )) as typeof fetch;
+      new Response(JSON.stringify({ models: [{ slug: 'gpt-5.6-sol', context_window: 272_000 }] }), {
+        status: 200,
+      })) as typeof fetch;
     const provider = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
       fetchImpl,
@@ -274,24 +273,24 @@ describe('OpenAICodexProvider request shape', () => {
     expect(body.prompt_cache_key).toBe('ws-codexkey');
   });
 
-  it.each([
-    'xhigh',
-    'max',
-  ] as const)('forwards request-level %s reasoning effort', async (effort) => {
-    const captured: Captured = {};
-    const p = new OpenAICodexProvider({
-      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: capturingFetch(COMPLETED_SSE, captured),
-    });
+  it.each(['xhigh', 'max'] as const)(
+    'forwards request-level %s reasoning effort',
+    async (effort) => {
+      const captured: Captured = {};
+      const p = new OpenAICodexProvider({
+        credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+        fetchImpl: capturingFetch(COMPLETED_SSE, captured),
+      });
 
-    await p.complete(
-      { ...baseReq, model: 'gpt-5.6-sol', reasoning: { effort } },
-      { signal: new AbortController().signal },
-    );
+      await p.complete(
+        { ...baseReq, model: 'gpt-5.6-sol', reasoning: { effort } },
+        { signal: new AbortController().signal },
+      );
 
-    const body = JSON.parse(captured.init?.body ?? '{}');
-    expect(body.reasoning).toEqual({ effort, summary: 'auto' });
-  });
+      const body = JSON.parse(captured.init?.body ?? '{}');
+      expect(body.reasoning).toEqual({ effort, summary: 'auto' });
+    },
+  );
 
   it('omits reasoning when request-level reasoning is disabled', async () => {
     const captured: Captured = {};
@@ -339,8 +338,7 @@ describe('OpenAICodexProvider stream parsing', () => {
 
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
     const res = await p.complete(baseReq, { signal: new AbortController().signal });
 
@@ -360,8 +358,7 @@ describe('OpenAICodexProvider stream parsing', () => {
     ].join('\n');
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
 
     let caught: unknown;
@@ -397,8 +394,7 @@ describe('OpenAICodexProvider stream parsing', () => {
     ].join('\n');
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
 
     await expect(
@@ -438,8 +434,7 @@ describe('OpenAICodexProvider stream parsing', () => {
     ].join('\n');
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
 
     await expect(
@@ -462,8 +457,7 @@ describe('OpenAICodexProvider stream parsing', () => {
     ].join('\n');
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
 
     await expect(
@@ -483,8 +477,7 @@ describe('OpenAICodexProvider stream parsing', () => {
     ].join('\n');
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
 
     await expect(
@@ -551,8 +544,7 @@ describe('OpenAICodexProvider stream parsing', () => {
     ].join('\n');
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
     let caught: unknown;
     try {
@@ -581,8 +573,7 @@ describe('OpenAICodexProvider stream parsing', () => {
 
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
     const res = await p.complete(baseReq, { signal: new AbortController().signal });
 
@@ -608,8 +599,7 @@ describe('OpenAICodexProvider stream parsing', () => {
 
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
     const res = await p.complete(baseReq, { signal: new AbortController().signal });
 
@@ -632,8 +622,7 @@ describe('OpenAICodexProvider stream parsing', () => {
 
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
     const res = await p.complete(baseReq, { signal: new AbortController().signal });
 
@@ -655,8 +644,7 @@ describe('OpenAICodexProvider stream parsing', () => {
 
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
     const res = await p.complete(baseReq, { signal: new AbortController().signal });
 
@@ -683,8 +671,7 @@ describe('OpenAICodexProvider stream parsing', () => {
 
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
     const res = await p.complete(baseReq, { signal: new AbortController().signal });
 
@@ -709,8 +696,7 @@ describe('OpenAICodexProvider stream parsing', () => {
 
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
-      fetchImpl: (async () =>
-        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+      fetchImpl: (async () => new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
     });
     const res = await p.complete(baseReq, { signal: new AbortController().signal });
 
@@ -824,16 +810,7 @@ describe('OpenAICodexProvider token refresh', () => {
 
 describe('Codex output cap', () => {
   it('omits every cap because the ChatGPT Codex backend rejects the field', () => {
-    for (const n of [
-      undefined,
-      0,
-      -1,
-      Number.NaN,
-      Number.POSITIVE_INFINITY,
-      80,
-      1024,
-      16_384,
-    ]) {
+    for (const n of [undefined, 0, -1, Number.NaN, Number.POSITIVE_INFINITY, 80, 1024, 16_384]) {
       expect(codexOutputCap(n), String(n)).toBeUndefined();
     }
   });
@@ -844,14 +821,17 @@ describe('Codex output cap', () => {
       credentials: { accessToken: fakeJwt('acc_1'), expiresAt: Date.now() + 3_600_000 },
       fetchImpl: capturingFetch(COMPLETED_SSE, captured),
     });
-    await p.complete({ ...baseReq, maxTokens: undefined }, { signal: new AbortController().signal });
+    await p.complete(
+      { ...baseReq, maxTokens: undefined },
+      { signal: new AbortController().signal },
+    );
     const body = JSON.parse(captured.init?.body ?? '{}');
     // Absent, NOT the catalog ceiling: the backend default is the same number
     // without the risk of us sending a stale one.
     expect(body).not.toHaveProperty('max_output_tokens');
   });
 
-  it("omits max_output_tokens even when the caller sets a cap", async () => {
+  it('omits max_output_tokens even when the caller sets a cap', async () => {
     const captured: Captured = {};
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('acc_1'), expiresAt: Date.now() + 3_600_000 },

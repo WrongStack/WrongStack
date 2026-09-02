@@ -103,7 +103,10 @@ describe('ChronicleRemoteJournal', { retry: 1 }, () => {
 
   it('batches events and flushes after the batch window', async () => {
     const client = makeMockClient();
-    const journal = new ChronicleRemoteJournal(makeJournalOpts({ batchWindowMs: 10 }), client as never);
+    const journal = new ChronicleRemoteJournal(
+      makeJournalOpts({ batchWindowMs: 10 }),
+      client as never,
+    );
 
     journal.append(makeEventInput({ eventType: 'event.1' }));
     journal.append(makeEventInput({ eventType: 'event.2' }));
@@ -125,7 +128,10 @@ describe('ChronicleRemoteJournal', { retry: 1 }, () => {
 
   it('tracks accepted event count', async () => {
     const client = makeMockClient();
-    const journal = new ChronicleRemoteJournal(makeJournalOpts({ batchWindowMs: 5 }), client as never);
+    const journal = new ChronicleRemoteJournal(
+      makeJournalOpts({ batchWindowMs: 5 }),
+      client as never,
+    );
 
     journal.append(makeEventInput());
     journal.append(makeEventInput());
@@ -139,7 +145,10 @@ describe('ChronicleRemoteJournal', { retry: 1 }, () => {
 
   it('dispose flushes remaining pending events', async () => {
     const client = makeMockClient();
-    const journal = new ChronicleRemoteJournal(makeJournalOpts({ batchWindowMs: 1000 }), client as never);
+    const journal = new ChronicleRemoteJournal(
+      makeJournalOpts({ batchWindowMs: 1000 }),
+      client as never,
+    );
 
     journal.append(makeEventInput());
     journal.append(makeEventInput());
@@ -172,7 +181,10 @@ describe('ChronicleRemoteJournal', { retry: 1 }, () => {
 
   it('reports batch size in stats after flush', async () => {
     const client = makeMockClient();
-    const journal = new ChronicleRemoteJournal(makeJournalOpts({ batchWindowMs: 5 }), client as never);
+    const journal = new ChronicleRemoteJournal(
+      makeJournalOpts({ batchWindowMs: 5 }),
+      client as never,
+    );
 
     journal.append(makeEventInput());
     journal.append(makeEventInput());

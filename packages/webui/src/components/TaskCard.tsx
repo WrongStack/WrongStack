@@ -20,10 +20,7 @@ export interface TaskItem {
 }
 
 // Token-driven so every state reads correctly in both light and dark.
-const TASK_STATUS_CONFIG: Record<
-  TaskItem['status'],
-  { icon: React.ReactNode; color: string }
-> = {
+const TASK_STATUS_CONFIG: Record<TaskItem['status'], { icon: React.ReactNode; color: string }> = {
   pending: { icon: <Circle className="w-4 h-4" />, color: 'text-muted-foreground' },
   in_progress: { icon: <Clock className="w-4 h-4 animate-spin" />, color: 'text-primary' },
   blocked: { icon: <Pause className="w-4 h-4" />, color: 'text-warning' },
@@ -107,14 +104,27 @@ export function TaskCard({
     >
       {/* Header */}
       <div className="flex items-start gap-2">
-        <span className={cn('mt-0.5', status.color)} role="img" aria-label={running ? t('common:status.inProgress') : undefined}>{status.icon}</span>
+        <span
+          className={cn('mt-0.5', status.color)}
+          role="img"
+          aria-label={running ? t('common:status.inProgress') : undefined}
+        >
+          {status.icon}
+        </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium">{task.title}</span>
-            <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', PRIORITY_BADGE[task.priority])}>
+            <span
+              className={cn(
+                'px-1.5 py-0.5 rounded text-[10px] font-medium',
+                PRIORITY_BADGE[task.priority],
+              )}
+            >
               {task.priority}
             </span>
-            <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', TYPE_BADGE[task.type])}>
+            <span
+              className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', TYPE_BADGE[task.type])}
+            >
               {task.type}
             </span>
           </div>
@@ -132,7 +142,9 @@ export function TaskCard({
             running ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
           )}
         >
-          {running && <Clock className="w-3 h-3 animate-spin" aria-label={t('common:status.working')} />}
+          {running && (
+            <Clock className="w-3 h-3 animate-spin" aria-label={t('common:status.working')} />
+          )}
           <span>{task.assignee}</span>
         </div>
       )}
@@ -148,7 +160,10 @@ export function TaskCard({
       {task.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
           {task.tags.map((tag) => (
-            <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground">
+            <span
+              key={tag}
+              className="px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground"
+            >
               {tag}
             </span>
           ))}
@@ -185,8 +200,10 @@ export function TaskCard({
               <RotateCcw className="w-3 h-3" /> {t('activity:task.retry')}
             </button>
           )}
-          {onAssign && agents && agents.length > 0 && (
-            assigning ? (
+          {onAssign &&
+            agents &&
+            agents.length > 0 &&
+            (assigning ? (
               <select
                 defaultValue={task.assignee ?? ''}
                 onChange={(e) => {
@@ -212,8 +229,7 @@ export function TaskCard({
               >
                 <UserCog className="w-3 h-3" /> {t('activity:task.assign')}
               </button>
-            )
-          )}
+            ))}
         </div>
       )}
     </div>

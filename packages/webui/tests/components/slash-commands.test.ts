@@ -31,8 +31,15 @@ describe('SLASH_COMMANDS', () => {
   it('only advertises commands with WebUI behavior', () => {
     const names = new Set(SLASH_COMMANDS.flatMap((c) => [c.name, ...(c.aliases ?? [])]));
     for (const command of [
-      '/agents', '/compact!', '/enhance', '/load',
-      '/next', '/enxt', '/repair', '/resume', '/suggest',
+      '/agents',
+      '/compact!',
+      '/enhance',
+      '/load',
+      '/next',
+      '/enxt',
+      '/repair',
+      '/resume',
+      '/suggest',
     ]) {
       expect(names.has(command)).toBe(true);
     }

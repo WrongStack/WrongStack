@@ -39,7 +39,8 @@ export function ErrorBodyWithStack({ text }: { text: string }) {
         onClick={() => setOpen((v) => !v)}
         className="inline-flex items-center gap-1 text-xs text-destructive hover:text-destructive/80 font-medium"
       >
-        {open ? '▾' : '▸'} {open
+        {open ? '▾' : '▸'}{' '}
+        {open
           ? t('activity:errorBody.hideStack', { count: frameCount })
           : t('activity:errorBody.showStack', { count: frameCount })}
       </button>

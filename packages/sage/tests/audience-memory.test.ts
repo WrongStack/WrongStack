@@ -63,16 +63,20 @@ describe('project agent memory audiences', () => {
       },
     });
 
-    expect(await store.retrieveForAudience({
-      role: 'refactor-planner',
-      taskType: 'refactor',
-      mode: 'strict-review',
-    })).toHaveLength(1);
-    expect(await store.retrieveForAudience({
-      role: 'reviewer',
-      taskType: 'bugfix',
-      mode: 'strict-review',
-    })).toEqual([]);
+    expect(
+      await store.retrieveForAudience({
+        role: 'refactor-planner',
+        taskType: 'refactor',
+        mode: 'strict-review',
+      }),
+    ).toHaveLength(1);
+    expect(
+      await store.retrieveForAudience({
+        role: 'reviewer',
+        taskType: 'bugfix',
+        mode: 'strict-review',
+      }),
+    ).toEqual([]);
     expect(await store.retrieveForAudience({ role: 'reviewer', taskType: 'refactor' })).toEqual([]);
   });
 

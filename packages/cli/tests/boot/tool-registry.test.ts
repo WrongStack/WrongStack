@@ -65,17 +65,9 @@ function makeFakeToolRegistry() {
  * not persisted, and always available so an agent can reach its leader
  * without the durable cross-session channel.
  */
-const COORDINATION_TOOLS = [
-  'mailbox',
-  'mail_send',
-  'mail_inbox',
-  'fleet_status',
-  'session_note',
-];
+const COORDINATION_TOOLS = ['mailbox', 'mail_send', 'mail_inbox', 'fleet_status', 'session_note'];
 
-function coordinationNames(
-  calls: ReadonlyArray<{ kind: string; toolName: string }>,
-): string[] {
+function coordinationNames(calls: ReadonlyArray<{ kind: string; toolName: string }>): string[] {
   return calls.filter((c) => c.kind === 'single').map((c) => c.toolName);
 }
 

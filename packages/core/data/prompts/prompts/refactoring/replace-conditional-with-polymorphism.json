@@ -5,10 +5,7 @@
   "description": "Turn a sprawling type-switch into polymorphic dispatch, or leave it.",
   "content": "This code switches on a type or kind in several places:\n\n{{code}}\n\nWould polymorphism (or a strategy map) be cleaner? If yes, show the refactor: one place decides the type, each behavior lives beside its variant. If the switch is in ONE place and small, say so and leave it, since polymorphism would scatter the logic. Justify your call.",
   "category": "refactoring",
-  "tags": [
-    "polymorphism",
-    "conditionals"
-  ],
+  "tags": ["polymorphism", "conditionals"],
   "source": "builtin",
   "favorite": false,
   "checksum": "d8ea156d8bc7ac4192270694b77ad992b33e363e959aaacb3387099a1af81d47",

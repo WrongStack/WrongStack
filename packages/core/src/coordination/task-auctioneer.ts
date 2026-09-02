@@ -140,7 +140,9 @@ export class TaskAuctioneer {
     // coordinator stop/restart can detach them instead of leaking a handler
     // (and its captured `this`) on every cycle.
     const offBid = this.fleet?.filter('task:bid', (e) => this._onBidEvent(e));
-    const offClaimed = this.fleet?.filter('task:claimed', (e) => this._onClaimedEvent(e as { payload: { taskId: string } }));
+    const offClaimed = this.fleet?.filter('task:claimed', (e) =>
+      this._onClaimedEvent(e as { payload: { taskId: string } }),
+    );
     if (offBid) this.unsubs.push(offBid);
     if (offClaimed) this.unsubs.push(offClaimed);
   }
@@ -190,7 +192,7 @@ export class TaskAuctioneer {
       blockedBy.length > 0 &&
       blockedBy.some((id) => (this.graph.get(id) as GoalNode | undefined)?.status !== 'done');
     // Create the goal node
-    const goal = await this.graph.add({
+    const goal = (await this.graph.add({
       type: 'goal',
       title: input.title,
       description: input.description,
@@ -205,7 +207,7 @@ export class TaskAuctioneer {
       tags: input.tags ?? [],
       children: [],
       parentGoal: input.parentGoal,
-    } as Omit<GoalNode, 'id'>) as GoalNode;
+    } as Omit<GoalNode, 'id'>)) as GoalNode;
 
     // Update parent goal's children list
     if (input.parentGoal) {
@@ -252,11 +254,15 @@ export class TaskAuctioneer {
    * Submit a bid for a task. Called by agents who want to work on it.
    * Returns true if the bid was accepted, false if the task was already claimed.
    */
-  async bid(taskId: string, agent: {
-    agentId: string;
-    agentName: string;
-    agentRole: string;
-  }, rationale: string): Promise<boolean> {
+  async bid(
+    taskId: string,
+    agent: {
+      agentId: string;
+      agentName: string;
+      agentRole: string;
+    },
+    rationale: string,
+  ): Promise<boolean> {
     const goal = this.graph.get(taskId) as GoalNode | undefined;
     if (goal?.type !== 'goal') return false;
     if (goal.status !== 'pending') return false;
@@ -399,7 +405,10 @@ export class TaskAuctioneer {
           return blocked?.status === 'done';
         });
         if (allUnblocked) {
-          await this.graph.update(childId, { status: 'pending', updatedAt: new Date().toISOString() });
+          await this.graph.update(childId, {
+            status: 'pending',
+            updatedAt: new Date().toISOString(),
+          });
           // Broadcast the newly unblocked task so agents know it's available
           const unblockedGoal = this.graph.get(childId) as GoalNode;
           await this._broadcastTask(unblockedGoal);
@@ -456,11 +465,17 @@ export class TaskAuctioneer {
    * Find the best available tasks for an agent based on its capabilities.
    * Returns tasks sorted by match score (best first).
    */
-  async findWork(_agentId: string, agentRole: string, limit = 5): Promise<{
-    task: GoalNode;
-    score: number;
-    bids: number;
-  }[]> {
+  async findWork(
+    _agentId: string,
+    agentRole: string,
+    limit = 5,
+  ): Promise<
+    {
+      task: GoalNode;
+      score: number;
+      bids: number;
+    }[]
+  > {
     const pending = this.graph.getGoals({ status: 'pending' });
     const scored: { task: GoalNode; score: number; bids: number }[] = [];
 
@@ -582,15 +597,20 @@ export class TaskAuctioneer {
         body: msg.body,
         priority: 'normal',
       });
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
   }
 
-  private async _notifyAgent(agentId: string, msg: {
-    type: 'assign' | 'note';
-    subject: string;
-    body: string;
-    taskContext?: Record<string, unknown>;
-  }): Promise<void> {
+  private async _notifyAgent(
+    agentId: string,
+    msg: {
+      type: 'assign' | 'note';
+      subject: string;
+      body: string;
+      taskContext?: Record<string, unknown>;
+    },
+  ): Promise<void> {
     if (!this.mailbox) return;
     try {
       await this.mailbox.send({
@@ -602,7 +622,9 @@ export class TaskAuctioneer {
         priority: 'high',
         taskContext: msg.taskContext as Parameters<typeof this.mailbox.send>[0]['taskContext'],
       });
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
   }
 
   private _startBidWindow(taskId: string): void {

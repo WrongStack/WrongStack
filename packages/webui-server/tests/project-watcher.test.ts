@@ -83,10 +83,7 @@ describe('project-watcher', () => {
     });
 
     // Write inside node_modules — should be ignored.
-    fs.writeFileSync(
-      path.join(tmpDir, 'node_modules', 'pkg.json'),
-      '{}',
-    );
+    fs.writeFileSync(path.join(tmpDir, 'node_modules', 'pkg.json'), '{}');
 
     await new Promise((resolve) => setTimeout(resolve, 800));
 

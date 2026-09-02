@@ -4,7 +4,10 @@ import * as os from 'node:os';
 import { SpecStore } from '../src/spec-store.js';
 
 function tmpDir(): string {
-  return path.join(os.tmpdir(), `spec-store-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  return path.join(
+    os.tmpdir(),
+    `spec-store-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
 }
 
 describe('SpecStore', () => {

@@ -5,16 +5,7 @@
  * before/after content through the shared DiffView.
  */
 
-import {
-  Columns2,
-  FileDiff,
-  Loader2,
-  Minus,
-  Plus,
-  RefreshCw,
-  Rows3,
-  Undo2,
-} from 'lucide-react';
+import { Columns2, FileDiff, Loader2, Minus, Plus, RefreshCw, Rows3, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -122,7 +113,9 @@ export function ChangesView({ className }: { className?: string }) {
                   <button
                     type="button"
                     onClick={() => {
-                      if (window.confirm(`Discard changes in ${selectedPath}? This cannot be undone.`)) {
+                      if (
+                        window.confirm(`Discard changes in ${selectedPath}? This cannot be undone.`)
+                      ) {
                         discardGit?.(selectedPath);
                       }
                     }}

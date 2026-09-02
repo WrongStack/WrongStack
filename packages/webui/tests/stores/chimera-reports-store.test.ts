@@ -33,7 +33,7 @@ describe('chimera-reports-store', () => {
     expect(list?.[0]?.reportId).toBe('report-1');
   });
 
-  it('keeps sessions isolated — one tab never sees another tab\'s report', () => {
+  it("keeps sessions isolated — one tab never sees another tab's report", () => {
     const store = useChimeraReportsStore.getState();
     expect(store.recordReport(notice())).toBe(true);
     expect(store.recordReport(notice({ reportId: 'report-2', sessionId: 'sess-2' }))).toBe(true);
@@ -75,7 +75,7 @@ describe('chimera-reports-store', () => {
     expect(list?.[1]?.reportId).toBe('report-2');
   });
 
-  it('forgetSession drops only that session\'s list', () => {
+  it("forgetSession drops only that session's list", () => {
     const store = useChimeraReportsStore.getState();
     store.recordReport(notice());
     store.recordReport(notice({ reportId: 'report-2', sessionId: 'sess-2' }));

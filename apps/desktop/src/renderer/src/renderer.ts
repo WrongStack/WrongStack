@@ -23,10 +23,7 @@ import {
   runtimeGroupIsOpen,
   type RuntimeGroupRenderContext,
 } from './renderer-runtime-groups.js';
-import {
-  renderProjectPicker,
-  type ProjectPickerRenderContext,
-} from './renderer-project-picker.js';
+import { renderProjectPicker, type ProjectPickerRenderContext } from './renderer-project-picker.js';
 import './styles.css';
 
 /** Locale code → endonym (shown untranslated so a user finds their language in
@@ -193,7 +190,11 @@ function renderSidebarPane(active: DesktopRuntimeRecord | undefined): string {
 
 function renderPaneHeader(active: DesktopRuntimeRecord | undefined): string {
   const title =
-    desktopPanel === 'projects' ? t('projects') : desktopPanel === 'quick' ? t('quick') : t('workspace');
+    desktopPanel === 'projects'
+      ? t('projects')
+      : desktopPanel === 'quick'
+        ? t('quick')
+        : t('workspace');
   const subtitle =
     desktopPanel === 'projects'
       ? `${projectCountLabel()} projects`
@@ -299,11 +300,7 @@ function renderActiveProject(active: DesktopRuntimeRecord | undefined): string {
           <span>WS ${active.wsPort}</span>
         </div>
         ${renderWebuiStatus(active)}
-        ${
-          active.error
-            ? `<div class="runtime-error">${escapeHtml(active.error)}</div>`
-            : ''
-        }
+        ${active.error ? `<div class="runtime-error">${escapeHtml(active.error)}</div>` : ''}
         ${renderRuntimeLogs(active)}
       </div>
       <div class="action-row project-action-row ${active.kind === 'project' ? '' : 'compact-actions'}">
@@ -335,7 +332,14 @@ function renderWebuiStatus(active: DesktopRuntimeRecord): string {
       ? ` · ${webuiStatus.pendingCommands} queued`
       : '';
   const prefs = renderWebuiPrefBadges(active);
-  const label = status === 'ready' ? t('webuiReady') : status === 'loading' ? t('webuiLoading') : status === 'error' ? t('webuiError') : t('webuiIdle');
+  const label =
+    status === 'ready'
+      ? t('webuiReady')
+      : status === 'loading'
+        ? t('webuiLoading')
+        : status === 'error'
+          ? t('webuiError')
+          : t('webuiIdle');
   return `
     <div class="webui-state">
       <span class="status-dot status-${status === 'ready' ? 'running' : status === 'error' ? 'error' : status === 'loading' ? 'starting' : 'stopped'}"></span>
@@ -386,7 +390,13 @@ function renderLauncher(active: DesktopRuntimeRecord | undefined): string {
           renderShortcut(t('prompt'), 'cursor', { action: 'focus-chat' }, disabled),
           renderShortcut(t('terminal'), 'terminal', { terminal: true }, disabled),
           renderShortcut(t('newTerm'), 'plus', { terminal: 'new' }, disabled),
-          renderShortcut(t('yolo'), 'shield', { pref: { key: 'yolo', toggle: true } }, disabled, yoloActive),
+          renderShortcut(
+            t('yolo'),
+            'shield',
+            { pref: { key: 'yolo', toggle: true } },
+            disabled,
+            yoloActive,
+          ),
         ].join('')}
       </div>
     </section>
@@ -442,7 +452,8 @@ function renderShortcut(
   active = false,
 ): string {
   const commandKey = launcherCommandKey(command);
-  const pending = launcherFeedback?.state === 'pending' && launcherFeedback.commandKey === commandKey;
+  const pending =
+    launcherFeedback?.state === 'pending' && launcherFeedback.commandKey === commandKey;
   const disabledAttr = disabled || pending ? 'disabled' : '';
   return `
     <button
@@ -481,7 +492,9 @@ function renderRuntimeList(): string {
 }
 
 function renderProjectSessionTree(): string {
-  const groups = groupRuntimesByProject(state.runtimes, t).filter((group) => group.kind === 'project');
+  const groups = groupRuntimesByProject(state.runtimes, t).filter(
+    (group) => group.kind === 'project',
+  );
   const runtimeCtx = runtimeRenderContext();
   return `
     <section class="panel runtime-panel project-sessions-panel">
@@ -753,7 +766,10 @@ appRoot.addEventListener('click', (event) => {
     if (!key) return;
     const group = groupRuntimesByProject(state.runtimes, t).find((item) => item.key === key);
     if (!group) return;
-    runtimeGroupState = { ...runtimeGroupState, [key]: !runtimeGroupIsOpen(group, runtimeRenderContext()) };
+    runtimeGroupState = {
+      ...runtimeGroupState,
+      [key]: !runtimeGroupIsOpen(group, runtimeRenderContext()),
+    };
     writeRuntimeGroupState();
     render();
     return;
@@ -905,11 +921,9 @@ function launcherCommandKey(command: DesktopWebuiCommand): string {
 }
 
 function runtimeInitials(runtime: DesktopRuntimeRecord): string {
-  const source = runtime.kind === 'global-settings' ? t('gs') : runtime.name || basenameFromPath(runtime.root);
-  const words = source
-    .replace(/[_-]+/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
+  const source =
+    runtime.kind === 'global-settings' ? t('gs') : runtime.name || basenameFromPath(runtime.root);
+  const words = source.replace(/[_-]+/g, ' ').split(/\s+/).filter(Boolean);
   const initials =
     words.length >= 2 ? `${words[0]?.[0] ?? ''}${words[1]?.[0] ?? ''}` : source.slice(0, 2);
   return initials.toUpperCase();
@@ -925,11 +939,14 @@ function setLauncherFeedback(next: Omit<LauncherFeedback, 'id'>): void {
   launcherFeedback = { id, ...next };
   render();
   if (next.state === 'pending') return;
-  window.setTimeout(() => {
-    if (launcherFeedback?.id !== id) return;
-    launcherFeedback = null;
-    render();
-  }, next.state === 'success' ? 1_250 : 3_000);
+  window.setTimeout(
+    () => {
+      if (launcherFeedback?.id !== id) return;
+      launcherFeedback = null;
+      render();
+    },
+    next.state === 'success' ? 1_250 : 3_000,
+  );
 }
 
 function focusProjectSearch(cursor: number): void {

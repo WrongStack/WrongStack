@@ -38,7 +38,8 @@ export const DEFAULT_MODES: Mode[] = [
   {
     id: 'default',
     name: 'Default',
-    description: 'Balanced general-purpose mode; use when no special token/coverage trade-off is needed',
+    description:
+      'Balanced general-purpose mode; use when no special token/coverage trade-off is needed',
     prompt: '',
     tags: ['general', 'balanced'],
   },
@@ -117,7 +118,8 @@ export const DEFAULT_MODES: Mode[] = [
   {
     id: 'code-reviewer',
     name: 'Review Deep',
-    description: 'Comprehensive code review across contracts, edge cases, lifecycle, errors, concurrency',
+    description:
+      'Comprehensive code review across contracts, edge cases, lifecycle, errors, concurrency',
     prompt: modePrompt('code-reviewer'),
     tags: ['deep', 'review', 'quality', 'security'],
     toolPreferences: ['read', 'grep', 'git', 'diff', 'test'],
@@ -144,7 +146,8 @@ export const DEFAULT_MODES: Mode[] = [
   {
     id: 'debugger',
     name: 'Debug Deep',
-    description: 'Comprehensive root-cause analysis with traces, logs, assumptions, and verification',
+    description:
+      'Comprehensive root-cause analysis with traces, logs, assumptions, and verification',
     prompt: modePrompt('debugger'),
     tags: ['deep', 'debug', 'investigation', 'error-resolution'],
     toolPreferences: ['read', 'grep', 'bash', 'logs', 'test'],
@@ -171,7 +174,8 @@ export const DEFAULT_MODES: Mode[] = [
   {
     id: 'refactorer',
     name: 'Refactor Deep',
-    description: 'Comprehensive modernization/refactor mode with contracts and verification discipline',
+    description:
+      'Comprehensive modernization/refactor mode with contracts and verification discipline',
     prompt: modePrompt('refactorer'),
     tags: ['deep', 'refactor', 'modernization', 'improvement'],
     toolPreferences: ['read', 'edit', 'test', 'git', 'grep'],
@@ -180,7 +184,8 @@ export const DEFAULT_MODES: Mode[] = [
   {
     id: 'ui-design',
     name: 'UI Design Deep',
-    description: 'Comprehensive design-first frontend/mobile UI work with kit, tokens, and accessibility',
+    description:
+      'Comprehensive design-first frontend/mobile UI work with kit, tokens, and accessibility',
     prompt: modePrompt('ui-design'),
     tags: ['deep', 'ui', 'frontend', 'mobile', 'design'],
     toolPreferences: ['design', 'write', 'edit', 'read', 'scaffold'],
@@ -202,6 +207,12 @@ export const DEFAULT_MODES: Mode[] = [
     prompt: modePrompt('research-web'),
     tags: ['deep', 'research', 'web', 'current-data', 'up-to-date'],
     toolPreferences: ['search', 'fetch', 'context_manager'],
-    suggestedSkills: ['research-web', 'tech-stack', 'node-modern', 'security-scanner', 'react-modern'],
+    suggestedSkills: [
+      'research-web',
+      'tech-stack',
+      'node-modern',
+      'security-scanner',
+      'react-modern',
+    ],
   },
 ];

@@ -116,7 +116,7 @@ export function projectRefineResult(
   }
   const refinedWith =
     payload.refinedWith && typeof payload.refinedWith === 'object'
-      ? payload.refinedWith as Record<string, unknown>
+      ? (payload.refinedWith as Record<string, unknown>)
       : undefined;
   return {
     kind: 'panel',

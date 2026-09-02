@@ -95,9 +95,9 @@ test.describe('Vector Memory panel', () => {
     const seed = await page.evaluate(
       async ({ text, tag, query }) => {
         for (let round = 0; round < 10; round += 1) {
-          const s = (await fetch(`/api/vector-memory/search?q=${encodeURIComponent(query)}&limit=20`).then(
-            (r) => r.json(),
-          )) as { hits: Array<{ id: string; text: string }> };
+          const s = (await fetch(
+            `/api/vector-memory/search?q=${encodeURIComponent(query)}&limit=20`,
+          ).then((r) => r.json())) as { hits: Array<{ id: string; text: string }> };
           const stale = s.hits.filter((h) => h.text.includes(tag));
           if (stale.length === 0) break;
           for (const h of stale) {

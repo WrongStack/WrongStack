@@ -28,10 +28,15 @@ export function SessionHealthPanel({
   useEffect(() => {
     if (!open) return;
     closeRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('keydown', onKey);
     const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => { document.removeEventListener('keydown', onKey); clearInterval(timer); };
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      clearInterval(timer);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -39,7 +44,8 @@ export function SessionHealthPanel({
     return onSimplePanel('open-session-health', onOpen);
   }, []);
 
-  const ctxPct = context.maxContext > 0 ? Math.round((context.tokens / context.maxContext) * 100) : 0;
+  const ctxPct =
+    context.maxContext > 0 ? Math.round((context.tokens / context.maxContext) * 100) : 0;
 
   const drillIntoBreakdown = () => {
     // Close the panel so the centered details modal is unobstructed.
@@ -49,8 +55,13 @@ export function SessionHealthPanel({
 
   if (!open) {
     return (
-      <button type="button" className="health-panel-trigger" title="Session health"
-        aria-label="Open session health panel" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="health-panel-trigger"
+        title="Session health"
+        aria-label="Open session health panel"
+        onClick={() => setOpen(true)}
+      >
         <Activity size={13} aria-hidden="true" />
         <span className="health-pct">{ctxPct}%</span>
       </button>
@@ -73,7 +84,12 @@ export function SessionHealthPanel({
 
   return (
     <>
-      <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
+      <button
+        type="button"
+        className="settings-overlay"
+        tabIndex={-1}
+        onClick={() => setOpen(false)}
+      />
       <aside
         className="health-panel"
         role="dialog"
@@ -83,8 +99,12 @@ export function SessionHealthPanel({
         tabIndex={-1}
       >
         <header className="health-panel-head">
-          <span><Activity size={13} aria-hidden="true" /> HEALTH</span>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}><X size={14} /></button>
+          <span>
+            <Activity size={13} aria-hidden="true" /> HEALTH
+          </span>
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}>
+            <X size={14} />
+          </button>
         </header>
         <div className="health-panel-body">
           <button
@@ -111,7 +131,10 @@ export function SessionHealthPanel({
             <Cpu size={14} aria-hidden="true" />
             <div>
               <strong>Context</strong>
-              <span>{(context.tokens ?? 0).toLocaleString()} / {(context.maxContext ?? 0).toLocaleString()} tokens ({ctxPct}%)</span>
+              <span>
+                {(context.tokens ?? 0).toLocaleString()} /{' '}
+                {(context.maxContext ?? 0).toLocaleString()} tokens ({ctxPct}%)
+              </span>
             </div>
             <ChevronRight size={12} className="health-stat-chevron" aria-hidden="true" />
           </button>
@@ -125,7 +148,9 @@ export function SessionHealthPanel({
             <Activity size={14} aria-hidden="true" />
             <div>
               <strong>Messages</strong>
-              <span>{userMsgs} user · {assistantMsgs} assistant · {thinkingMsgs} thinking</span>
+              <span>
+                {userMsgs} user · {assistantMsgs} assistant · {thinkingMsgs} thinking
+              </span>
             </div>
             <ChevronRight size={12} className="health-stat-chevron" aria-hidden="true" />
           </button>

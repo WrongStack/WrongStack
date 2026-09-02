@@ -17,9 +17,7 @@ describe('beginOAuthLogin — routing', () => {
   } as any;
 
   it('rejects an unknown provider kind', async () => {
-    await expect(
-      beginOAuthLogin(mockDeps),
-    ).rejects.toThrow();
+    await expect(beginOAuthLogin(mockDeps)).rejects.toThrow();
   });
 
   it('OAUTH_PROVIDER_IDS maps known OAuth kinds to provider IDs', () => {

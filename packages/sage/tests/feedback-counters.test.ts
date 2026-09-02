@@ -108,8 +108,7 @@ describe('InjectionTracker', () => {
     const tracker = new InjectionTracker({ minTokens: 4 });
     const fullText =
       'Authentication middleware validates bearer tokens before every protected route';
-    const rendered =
-      '--- SAGE ---\n- [fact] Authentication middleware validates bearer tokens…';
+    const rendered = '--- SAGE ---\n- [fact] Authentication middleware validates bearer tokens…';
     tracker.record('mem_truncated', fullText, 1_000, 'session-a', rendered);
 
     expect(tracker.snapshotContext(rendered, 'session-a', 1_001)).toEqual({
@@ -124,9 +123,9 @@ describe('InjectionTracker', () => {
     // are independent maps — consumeMatches must not erase context presence.
     const tracker = new InjectionTracker();
     tracker.record('mem_a', TEXT, 1_000, 'sess');
-    expect(tracker.consumeMatches('I will use pnpm for installing dependencies now.', 1_200)).toEqual(
-      ['mem_a'],
-    );
+    expect(
+      tracker.consumeMatches('I will use pnpm for installing dependencies now.', 1_200),
+    ).toEqual(['mem_a']);
     expect(tracker.snapshotContext(TEXT, 'sess', 1_300).activeMemoryIds).toEqual(['mem_a']);
   });
 });
@@ -304,7 +303,9 @@ describe.skipIf(!isSqliteAvailable())('SqliteSageStore feedback counters', () =>
       'broken',
     );
 
-    await expect(store.recordInjection(['corrupt-counter-row'], 'turn_context')).resolves.toBeUndefined();
+    await expect(
+      store.recordInjection(['corrupt-counter-row'], 'turn_context'),
+    ).resolves.toBeUndefined();
   });
 
   it('SQLite hygiene currently does NOT auto-archive — report fields reflect zero', async () => {
@@ -381,8 +382,8 @@ describe.skipIf(!isSqliteAvailable())('SqliteSageStore feedback counters', () =>
     );
 
     // No sessionId → matches any entry regardless of session ownership.
-    expect(
-      tracker.consumeMatches('I will use pnpm for installing dependencies now.'),
-    ).toEqual(['mem_a']);
+    expect(tracker.consumeMatches('I will use pnpm for installing dependencies now.')).toEqual([
+      'mem_a',
+    ]);
   });
 });

@@ -58,7 +58,7 @@ import type { AuthMenuDeps } from './types.js';
 // provider picker can import them without pulling in the probe/config
 // machinery this file depends on. Re-exported here to keep the public
 // import path (`@wrongstack/cli` barrel, tests) stable.
-export { LOCAL_LLM_PRESETS, type ProbeOptions, type ProbeResult, probeLocalLlm };;
+export { LOCAL_LLM_PRESETS, type ProbeOptions, type ProbeResult, probeLocalLlm };
 
 const PRESET_BY_ID = new Map(LOCAL_LLM_PRESETS.map((p) => [p.id, p]));
 

@@ -10,7 +10,9 @@ import {
 import { handleBrainAsk, type BrainHandlerContext } from '../src/server/brain-handlers.js';
 
 function mockWs(): WebSocket & { send: ReturnType<typeof vi.fn> } {
-  return { readyState: 1, send: vi.fn() } as never as WebSocket & { send: ReturnType<typeof vi.fn> };
+  return { readyState: 1, send: vi.fn() } as never as WebSocket & {
+    send: ReturnType<typeof vi.fn>;
+  };
 }
 
 function sentMessages(ws: { send: ReturnType<typeof vi.fn> }): unknown[] {
@@ -30,7 +32,9 @@ describe('handleBrainRoute', () => {
     const ws = mockWs();
     const h = handlers();
 
-    await expect(handleBrainRoute(ws, { type: 'chat.ready', payload: {} } as WSClientMessage, h)).resolves.toBe(false);
+    await expect(
+      handleBrainRoute(ws, { type: 'chat.ready', payload: {} } as WSClientMessage, h),
+    ).resolves.toBe(false);
 
     expect(h.status).not.toHaveBeenCalled();
     expect(h.risk).not.toHaveBeenCalled();
@@ -71,8 +75,7 @@ describe('handleBrainAsk payload shape', () => {
       decide: vi.fn(async () => decision),
     } as never as BrainArbiter;
     return {
-      send: (target: WebSocket, message: WSServerMessage) =>
-        target.send(JSON.stringify(message)),
+      send: (target: WebSocket, message: WSServerMessage) => target.send(JSON.stringify(message)),
       brainSettings: undefined,
       getBrainLog: undefined,
       resolveArbiter: () => arbiter,
@@ -80,9 +83,9 @@ describe('handleBrainAsk payload shape', () => {
     } as never as BrainHandlerContext;
   }
 
-  function findBrainAnswer(ws: { send: ReturnType<typeof vi.fn> }):
-    | { payload?: Record<string, unknown> }
-    | undefined {
+  function findBrainAnswer(ws: {
+    send: ReturnType<typeof vi.fn>;
+  }): { payload?: Record<string, unknown> } | undefined {
     return sentMessages(ws).find(
       (message) => (message as { type?: string }).type === 'brain.answer',
     ) as { payload?: Record<string, unknown> } | undefined;
@@ -94,7 +97,11 @@ describe('handleBrainAsk payload shape', () => {
   // isActiveSessionMessage gate is fail-closed on present-but-empty).
   it('omits the sessionId key when getSessionId returns empty', async () => {
     const ws = mockWs();
-    await handleBrainAsk(makeCtx(() => ''), ws, 'What next?');
+    await handleBrainAsk(
+      makeCtx(() => ''),
+      ws,
+      'What next?',
+    );
     const answer = findBrainAnswer(ws);
     expect(answer).toBeDefined();
     expect(Object.prototype.hasOwnProperty.call(answer?.payload, 'sessionId')).toBe(false);
@@ -102,7 +109,11 @@ describe('handleBrainAsk payload shape', () => {
 
   it('stamps sessionId when a session is bound', async () => {
     const ws = mockWs();
-    await handleBrainAsk(makeCtx(() => 'sess-1'), ws, 'What next?');
+    await handleBrainAsk(
+      makeCtx(() => 'sess-1'),
+      ws,
+      'What next?',
+    );
     const answer = findBrainAnswer(ws);
     expect(answer).toBeDefined();
     expect(Object.prototype.hasOwnProperty.call(answer?.payload, 'sessionId')).toBe(true);

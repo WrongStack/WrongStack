@@ -133,9 +133,10 @@ export function recordToolOutputEvidence(
   // so the first 10KB captures them. Without this cap, matchAll() runs over
   // the full output — e.g. a 50KB file read triggers ~100KB of regex scanning
   // across two patterns in extractSymbols plus the extractFiles pass.
-  const scanContent = input.content.length > EXTRACT_CONTENT_CAP_CHARS
-    ? input.content.slice(0, EXTRACT_CONTENT_CAP_CHARS)
-    : input.content;
+  const scanContent =
+    input.content.length > EXTRACT_CONTENT_CAP_CHARS
+      ? input.content.slice(0, EXTRACT_CONTENT_CAP_CHARS)
+      : input.content;
   const files = extractFiles(ctx, input.toolName, input.input, scanContent);
   const symbols = extractSymbols(scanContent, input.input);
   const commands = extractCommands(input.toolName, input.input);
@@ -192,9 +193,10 @@ export function markAssistantReferencedEvidence(ctx: AgentContext, text: string)
   // worst case: 80 × (files + symbols) includes() calls per iteration,
   // each O(responseText.length), which degrades as the conversation grows.
   // The last 20 captures the realistic reference window at ¼ the cost.
-  const recent = state.toolCalls.length > RECENT_TOOL_CALL_SCAN_LIMIT
-    ? state.toolCalls.slice(-RECENT_TOOL_CALL_SCAN_LIMIT)
-    : state.toolCalls;
+  const recent =
+    state.toolCalls.length > RECENT_TOOL_CALL_SCAN_LIMIT
+      ? state.toolCalls.slice(-RECENT_TOOL_CALL_SCAN_LIMIT)
+      : state.toolCalls;
   for (const tool of recent) {
     if (!metadataReferencedByText(tool, haystack)) continue;
     tool.status = 'referenced';
@@ -235,7 +237,7 @@ export function buildContextEvidenceDigest(ctx: AgentContext): string {
   }
 
   const files = Object.values(state.fileGraph)
-    .sort((a, b) => (b.writes - a.writes) || (b.reads - a.reads) || a.path.localeCompare(b.path))
+    .sort((a, b) => b.writes - a.writes || b.reads - a.reads || a.path.localeCompare(b.path))
     .slice(0, 12);
   if (files.length > 0) {
     lines.push('dependency_graph:');
@@ -243,26 +245,25 @@ export function buildContextEvidenceDigest(ctx: AgentContext): string {
       const actions = [
         file.reads > 0 ? `read ${file.reads}x` : '',
         file.writes > 0 ? `write ${file.writes}x` : '',
-      ].filter(Boolean).join(', ');
+      ]
+        .filter(Boolean)
+        .join(', ');
       const refs = file.referenced ? '; referenced by assistant' : '';
       const via = file.lastToolUseId ? `; last via ${file.lastToolUseId}` : '';
       lines.push(`- ${file.path} (${actions || 'seen'}${refs}${via})`);
     }
   }
 
-  const referenced = state.toolCalls
-    .filter((tool) => tool.status === 'referenced')
-    .slice(-10);
-  const recentSeen = state.toolCalls
-    .filter((tool) => tool.status === 'seen')
-    .slice(-5);
+  const referenced = state.toolCalls.filter((tool) => tool.status === 'referenced').slice(-10);
+  const recentSeen = state.toolCalls.filter((tool) => tool.status === 'seen').slice(-5);
   const trail = [...referenced, ...recentSeen];
   if (trail.length > 0) {
     lines.push('tool_trail:');
     for (const tool of trail) {
       const size = tool.outputTokens ? `; ~${tool.outputTokens} tokens` : '';
       const filesText = tool.files.length > 0 ? `; files=${tool.files.slice(0, 4).join(', ')}` : '';
-      const symbolsText = tool.symbols.length > 0 ? `; symbols=${tool.symbols.slice(0, 4).join(', ')}` : '';
+      const symbolsText =
+        tool.symbols.length > 0 ? `; symbols=${tool.symbols.slice(0, 4).join(', ')}` : '';
       lines.push(
         `- ${tool.toolUseId} ${tool.toolName} ${tool.status}: ${tool.summary}${filesText}${symbolsText}${size}`,
       );
@@ -484,7 +485,9 @@ export function syncCompletedWorkLedgerBlock(_ctx: AgentContext): void {
 }
 
 function isGoalish(text: string): boolean {
-  return /\b(goal|objective|task|need|want|implement|fix|improve|refactor|add|remove|hedef|amac|istiyorum|gerekiyor|iyilestir|duzelt|ekle|kaldir)\b/i.test(text);
+  return /\b(goal|objective|task|need|want|implement|fix|improve|refactor|add|remove|hedef|amac|istiyorum|gerekiyor|iyilestir|duzelt|ekle|kaldir)\b/i.test(
+    text,
+  );
 }
 
 function normalizeWhitespace(text: string): string {
@@ -567,9 +570,8 @@ function extractSymbols(content: string, input: unknown): string[] {
     }
   }
 
-  const pattern = input && typeof input === 'object'
-    ? (input as Record<string, unknown>)['pattern']
-    : undefined;
+  const pattern =
+    input && typeof input === 'object' ? (input as Record<string, unknown>)['pattern'] : undefined;
   if (typeof pattern === 'string' && /^[A-Za-z_$][\w$]*$/.test(pattern)) {
     out.add(pattern);
   }
@@ -591,12 +593,18 @@ function extractErrors(content: string): string[] {
   // bottom of tool output. Scanning all lines means one regex test per line,
   // so a 2000-line file read costs 2000 regex evaluations for no gain since
   // the interesting errors are always at the tail.
-  const lines = allLines.length > EXTRACT_ERROR_TAIL_LINES
-    ? allLines.slice(-EXTRACT_ERROR_TAIL_LINES)
-    : allLines;
+  const lines =
+    allLines.length > EXTRACT_ERROR_TAIL_LINES
+      ? allLines.slice(-EXTRACT_ERROR_TAIL_LINES)
+      : allLines;
   const errors: string[] = [];
   for (const line of lines) {
-    if (!/\b(error|exception|failed|failure|fatal|panic|timeout|denied|enoent|eacces|eperm|typeerror|syntaxerror)\b/i.test(line)) continue;
+    if (
+      !/\b(error|exception|failed|failure|fatal|panic|timeout|denied|enoent|eacces|eperm|typeerror|syntaxerror)\b/i.test(
+        line,
+      )
+    )
+      continue;
     errors.push(normalizeWhitespace(line).slice(0, 260));
     if (errors.length >= 5) break;
   }
@@ -623,9 +631,10 @@ function summarizeToolOutput(
   if (!opts.ok && opts.errors.length > 0) return opts.errors[0] ?? `${toolName} failed`;
   if (toolName === 'read' && opts.files[0]) return `read ${opts.files[0]}`;
   if (toolName === 'grep') {
-    const pattern = input && typeof input === 'object'
-      ? (input as Record<string, unknown>)['pattern']
-      : undefined;
+    const pattern =
+      input && typeof input === 'object'
+        ? (input as Record<string, unknown>)['pattern']
+        : undefined;
     return `searched ${typeof pattern === 'string' ? pattern : 'pattern'} (${opts.files.length} file hint(s))`;
   }
   if ((toolName === 'edit' || toolName === 'write') && opts.files[0]) {
@@ -637,9 +646,8 @@ function summarizeToolOutput(
 
 function updateFileGraph(state: ContextEvidenceState, metadata: ToolOutputMetadata): void {
   const writes = WRITE_TOOLS.has(metadata.toolName) ? 1 : 0;
-  const reads = writes === 0 && (READ_TOOLS.has(metadata.toolName) || metadata.files.length > 0)
-    ? 1
-    : 0;
+  const reads =
+    writes === 0 && (READ_TOOLS.has(metadata.toolName) || metadata.files.length > 0) ? 1 : 0;
   for (const file of metadata.files) {
     const existing = state.fileGraph[file] ?? {
       path: file,
@@ -656,7 +664,10 @@ function updateFileGraph(state: ContextEvidenceState, metadata: ToolOutputMetada
   }
 }
 
-function updateRepeatedReadSignals(state: ContextEvidenceState, metadata: ToolOutputMetadata): void {
+function updateRepeatedReadSignals(
+  state: ContextEvidenceState,
+  metadata: ToolOutputMetadata,
+): void {
   if (metadata.toolName !== 'read' || metadata.files.length === 0) {
     state.lastReadPath = undefined;
     return;
@@ -676,7 +687,8 @@ function updateRepeatedReadSignals(state: ContextEvidenceState, metadata: ToolOu
 }
 
 function implicitFactFor(metadata: ToolOutputMetadata): string | undefined {
-  if (metadata.errors.length > 0) return `${metadata.toolName}#${metadata.toolUseId} exposed error: ${metadata.errors[0]}`;
+  if (metadata.errors.length > 0)
+    return `${metadata.toolName}#${metadata.toolUseId} exposed error: ${metadata.errors[0]}`;
   if (metadata.toolName === 'read' && metadata.files[0]) {
     const size = metadata.outputLines ? ` (${metadata.outputLines} line(s) returned)` : '';
     return `read ${metadata.files[0]}${size}`;
@@ -684,7 +696,8 @@ function implicitFactFor(metadata: ToolOutputMetadata): string | undefined {
   if ((metadata.toolName === 'edit' || metadata.toolName === 'write') && metadata.files[0]) {
     return `${metadata.toolName} changed ${metadata.files[0]}`;
   }
-  if (metadata.status === 'referenced') return `${metadata.toolName}#${metadata.toolUseId} was referenced`;
+  if (metadata.status === 'referenced')
+    return `${metadata.toolName}#${metadata.toolUseId} was referenced`;
   return undefined;
 }
 

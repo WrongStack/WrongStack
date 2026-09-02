@@ -5,11 +5,7 @@
   "description": "Critique the names and public interface of a module.",
   "content": "Critique the naming and public API of this code:\n\n```\n{{code}}\n```\n\nFor names: are they accurate, consistent, and at the right level of abstraction? For the API: is it hard to misuse, minimal, and consistent with the rest of the codebase? Suggest better names and signatures where warranted, and explain the principle behind each suggestion. Flag any name that lies about what it does.",
   "category": "code-review",
-  "tags": [
-    "naming",
-    "api-design",
-    "ergonomics"
-  ],
+  "tags": ["naming", "api-design", "ergonomics"],
   "source": "builtin",
   "favorite": false,
   "checksum": "bee0e93315f04577310d69b7ac365615183743c50bfe5bc92df72de94f1f44d0",

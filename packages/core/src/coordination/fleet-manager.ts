@@ -26,10 +26,12 @@ export interface FleetManagerOptions {
   sessionWriter?: SessionWriter | undefined;
   manifestDebounceMs?: number | undefined;
   checkpointDebounceMs?: number | undefined;
-  directorBudget?: {
-    maxCostUsd?: number | undefined;
-    maxTokens?: number | undefined;
-  } | undefined;
+  directorBudget?:
+    | {
+        maxCostUsd?: number | undefined;
+        maxTokens?: number | undefined;
+      }
+    | undefined;
   /**
    * Maximum context load (as a fraction of maxContext) the leader agent
    * is allowed to reach before a new spawn is rejected. Default: 0.85.
@@ -231,12 +233,7 @@ export class FleetManager implements IFleetManager {
    * how to surface the rejection.
    */
   canSpawn(config: SubagentConfig): {
-    kind:
-      | 'max_spawns'
-      | 'max_spawn_depth'
-      | 'max_cost_usd'
-      | 'max_tokens'
-      | 'max_context_load';
+    kind: 'max_spawns' | 'max_spawn_depth' | 'max_cost_usd' | 'max_tokens' | 'max_context_load';
     limit: number;
     observed: number;
   } | null {
@@ -363,7 +360,9 @@ export class FleetManager implements IFleetManager {
     if (this.stateCheckpoint) {
       // Full snapshot re-attach when possible; otherwise only counters matter.
       if (snapshot.version === 1 && snapshot.directorRunId && snapshot.updatedAt) {
-        this.stateCheckpoint.resume(snapshot as import('../storage/director-state.js').DirectorStateSnapshot);
+        this.stateCheckpoint.resume(
+          snapshot as import('../storage/director-state.js').DirectorStateSnapshot,
+        );
         this.stateCheckpoint.reconcileCrashedState();
       }
       this.stateCheckpoint.applyLiveMaxSpawns(

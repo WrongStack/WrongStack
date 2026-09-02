@@ -35,7 +35,13 @@ describe('PhasePanel', () => {
     const view = render(
       React.createElement(PhasePanel, {
         phases: {
-          p1: { name: 'Build', status: 'running', completedTasks: 1, totalTasks: 5, startedAt: 100 },
+          p1: {
+            name: 'Build',
+            status: 'running',
+            completedTasks: 1,
+            totalTasks: 5,
+            startedAt: 100,
+          },
         },
         nowTick: 1000,
       } as never),
@@ -92,7 +98,13 @@ describe('PhasePanel', () => {
     const view = render(
       React.createElement(PhasePanel, {
         phases: {
-          p1: { name: 'Coding', status: 'running', completedTasks: 2, totalTasks: 10, startedAt: 500 },
+          p1: {
+            name: 'Coding',
+            status: 'running',
+            completedTasks: 2,
+            totalTasks: 10,
+            startedAt: 500,
+          },
         },
         nowTick: 2000,
       } as never),
@@ -106,7 +118,13 @@ describe('PhasePanel', () => {
     const view = render(
       React.createElement(PhasePanel, {
         phases: {
-          p1: { name: 'Testing', status: 'running', completedTasks: 1, totalTasks: 8, startedAt: 1000 },
+          p1: {
+            name: 'Testing',
+            status: 'running',
+            completedTasks: 1,
+            totalTasks: 8,
+            startedAt: 1000,
+          },
         },
         nowTick: 4000,
       } as never),
@@ -118,7 +136,10 @@ describe('PhasePanel', () => {
 
   it('renders all phase status types', () => {
     const statuses = ['pending', 'ready', 'running', 'paused', 'completed', 'failed', 'skipped'];
-    const phases: Record<string, { name: string; status: string; completedTasks: number; totalTasks: number }> = {};
+    const phases: Record<
+      string,
+      { name: string; status: string; completedTasks: number; totalTasks: number }
+    > = {};
     for (const s of statuses) {
       phases[s] = { name: `Phase-${s}`, status: s, completedTasks: 0, totalTasks: 0 };
     }
@@ -174,7 +195,13 @@ describe('PhasePanel', () => {
     const view = render(
       React.createElement(PhasePanel, {
         phases: {
-          p1: { name: 'Active', status: 'running', completedTasks: 0, totalTasks: 5, startedAt: 100 },
+          p1: {
+            name: 'Active',
+            status: 'running',
+            completedTasks: 0,
+            totalTasks: 5,
+            startedAt: 100,
+          },
         },
         nowTick: 500,
       } as never),

@@ -5,10 +5,7 @@
   "description": "Works locally, fails in production — find the difference.",
   "content": "This works locally but fails in production: {{symptom}}\n\nThe bug is almost certainly an environment difference. Walk me through the usual suspects: config and env vars, data volume and shape, concurrency and load, versions, timezones and locales, network and permissions, and resource limits. For each, how to check it quickly. Help me find the smallest difference that reproduces it, so I am not debugging blind against prod.",
   "category": "debugging",
-  "tags": [
-    "production",
-    "environment"
-  ],
+  "tags": ["production", "environment"],
   "source": "builtin",
   "favorite": false,
   "checksum": "be49e928a3c4de1938f30d30dc47ca51ba022e0a50af2ba2baeea2b4425b50ea",

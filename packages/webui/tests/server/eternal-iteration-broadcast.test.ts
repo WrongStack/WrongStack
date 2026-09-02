@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createEternalSubscription, type EternalBroadcast, type EternalSubscribe } from '@wrongstack/webui-server';
+import {
+  createEternalSubscription,
+  type EternalBroadcast,
+  type EternalSubscribe,
+} from '@wrongstack/webui-server';
 
 /**
  * PR 4 of Phase 2: extract the eternal-iteration observer wiring into
@@ -45,10 +49,10 @@ describe('createEternalSubscription', () => {
     const entry = { kind: 'autonomy.step', id: 'a1', payload: { ok: true } };
     observer!(entry);
     expect(f.broadcast).toHaveBeenCalledTimes(1);
-    expect(f.broadcast).toHaveBeenCalledWith(
-      f.clientsRef(),
-      { type: 'eternal.iteration', payload: { entry } },
-    );
+    expect(f.broadcast).toHaveBeenCalledWith(f.clientsRef(), {
+      type: 'eternal.iteration',
+      payload: { entry },
+    });
   });
 
   it('dispose() tears down the underlying subscription (no more broadcasts)', () => {
@@ -82,7 +86,10 @@ describe('createEternalSubscription', () => {
     // first arg, as long as the map keys are WebSockets. This test
     // pins that pattern so the generic stays `Map<WebSocket, C>` and
     // doesn't accidentally get tightened back to `ConnectedClient`.
-    interface CliConnectedClient { ws: unknown; sessionId: string | null }
+    interface CliConnectedClient {
+      ws: unknown;
+      sessionId: string | null;
+    }
     const cliClients = new Map<unknown, CliConnectedClient>();
     const cliClientsRef = () => cliClients;
     const sentTo: unknown[] = [];
@@ -90,7 +97,10 @@ describe('createEternalSubscription', () => {
       sentTo.push(msg);
     };
     const sub = createEternalSubscription(
-      (fn) => { fn({ kind: 'cli' }); return () => {}; },
+      (fn) => {
+        fn({ kind: 'cli' });
+        return () => {};
+      },
       cliBroadcast,
       cliClientsRef,
     );

@@ -327,9 +327,7 @@ describe('setupProviderStatus', () => {
     const rowFile = JSON.stringify({
       statuses: [{ providerId: 'busy', model: 'm', state: 'blocked', lastFailureAt: 1 }],
     });
-    mocks.readFile
-      .mockRejectedValueOnce(missingError())
-      .mockImplementation(async () => rowFile);
+    mocks.readFile.mockRejectedValueOnce(missingError()).mockImplementation(async () => rowFile);
     await setupProviderStatus(state.input as never);
     const tracker = mocks.trackerInstances[0]!;
 

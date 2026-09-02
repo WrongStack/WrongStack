@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../../src/coordination/brain.js';
+import type {
+  BrainArbiter,
+  BrainDecision,
+  BrainDecisionRequest,
+} from '../../src/coordination/brain.js';
 import {
   BrainDecisionCache,
   brainCacheKey,
@@ -48,9 +52,24 @@ describe('brainCacheKey', () => {
   });
 
   it('is insensitive to option ORDER but not to option membership', () => {
-    const a = req({ options: [{ id: 'x', label: 'X' }, { id: 'y', label: 'Y' }] });
-    const b = req({ options: [{ id: 'y', label: 'Y' }, { id: 'x', label: 'X' }] });
-    const c = req({ options: [{ id: 'x', label: 'X' }, { id: 'z', label: 'Z' }] });
+    const a = req({
+      options: [
+        { id: 'x', label: 'X' },
+        { id: 'y', label: 'Y' },
+      ],
+    });
+    const b = req({
+      options: [
+        { id: 'y', label: 'Y' },
+        { id: 'x', label: 'X' },
+      ],
+    });
+    const c = req({
+      options: [
+        { id: 'x', label: 'X' },
+        { id: 'z', label: 'Z' },
+      ],
+    });
     expect(brainCacheKey(a)).toBe(brainCacheKey(b));
     expect(brainCacheKey(a)).not.toBe(brainCacheKey(c));
   });

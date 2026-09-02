@@ -12,14 +12,16 @@ export interface ModelEntry {
   id: string;
   name?: string | undefined;
   maxOutput?: number | undefined;
-  capabilities?: {
-    maxContext?: number | undefined;
-    tools?: boolean | undefined;
-    vision?: boolean | undefined;
-    reasoning?: boolean | undefined;
-    streaming?: boolean | undefined;
-    jsonMode?: boolean | undefined;
-  } | undefined;
+  capabilities?:
+    | {
+        maxContext?: number | undefined;
+        tools?: boolean | undefined;
+        vision?: boolean | undefined;
+        reasoning?: boolean | undefined;
+        streaming?: boolean | undefined;
+        jsonMode?: boolean | undefined;
+      }
+    | undefined;
 }
 
 export function ModelEditor({
@@ -49,7 +51,8 @@ export function ModelEditor({
       setSearching(true);
       const client = getWSClient(wsUrl);
       const off = client.on('provider.models.search_result', (msg: unknown) => {
-        const p = (msg as { payload?: { query?: string; matches?: ProviderCatalogModelMatch[] } }).payload;
+        const p = (msg as { payload?: { query?: string; matches?: ProviderCatalogModelMatch[] } })
+          .payload;
         if (!p || p.query !== rawQuery.trim()) return;
         setMatches(p.matches ?? []);
         setSearching(false);
@@ -162,7 +165,9 @@ export function ModelEditor({
               className="text-sm pl-8"
               autoFocus
             />
-            {searching && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            {searching && (
+              <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            )}
           </div>
 
           {/* Catalog match results */}
@@ -183,7 +188,9 @@ export function ModelEditor({
                     <span className="font-medium block truncate">{match.name}</span>
                     <span className="text-muted-foreground block">
                       {match.providerName} · {match.modelId}
-                      {match.contextWindow ? ` · ${(match.contextWindow / 1000).toFixed(0)}K ctx` : ''}
+                      {match.contextWindow
+                        ? ` · ${(match.contextWindow / 1000).toFixed(0)}K ctx`
+                        : ''}
                       {match.maxOutput ? ` · ${match.maxOutput.toLocaleString()} out` : ''}
                     </span>
                   </div>
@@ -263,7 +270,10 @@ export function ModelEditor({
       {/* Summary metadata tooltip */}
       {models.length > 0 && (
         <p className="text-[10px] text-muted-foreground">
-          {models.length} {models.length === 1 ? t('setup:screen.custom.modelSingular') : t('setup:screen.custom.modelPlural')}
+          {models.length}{' '}
+          {models.length === 1
+            ? t('setup:screen.custom.modelSingular')
+            : t('setup:screen.custom.modelPlural')}
         </p>
       )}
     </div>

@@ -167,7 +167,10 @@ describe('defaultProbe timeout', () => {
       id: 'timeout-test',
       displayName: 'Timeout Test',
       vendor: 'community',
-      probe: { command: isWin ? 'ping' : 'sleep', args: isWin ? ['-n', '60', '127.0.0.1'] : ['60'] },
+      probe: {
+        command: isWin ? 'ping' : 'sleep',
+        args: isWin ? ['-n', '60', '127.0.0.1'] : ['60'],
+      },
       acp: { command: 'node', args: [] },
       supports: { loadSession: true, promptImages: false, terminal: false, fs: false },
       integration: 'experimental',
@@ -217,20 +220,20 @@ describe('defaultProbe timeout', () => {
 });
 
 describe('defaultProbe event handling', () => {
-  it.each([
-    new Error('synchronous failure'),
-    'non-error failure',
-  ])('turns a synchronous spawn throw into data', async (thrown) => {
-    const spawnProcess = vi.fn(() => {
-      throw thrown;
-    }) as unknown as typeof spawn;
+  it.each([new Error('synchronous failure'), 'non-error failure'])(
+    'turns a synchronous spawn throw into data',
+    async (thrown) => {
+      const spawnProcess = vi.fn(() => {
+        throw thrown;
+      }) as unknown as typeof spawn;
 
-    const result = await defaultProbe(CLAUDE, 100, spawnProcess, 'linux');
-    expect(result).toMatchObject({
-      ok: false,
-      reason: `spawn failed: ${thrown instanceof Error ? thrown.message : thrown}`,
-    });
-  });
+      const result = await defaultProbe(CLAUDE, 100, spawnProcess, 'linux');
+      expect(result).toMatchObject({
+        ok: false,
+        reason: `spawn failed: ${thrown instanceof Error ? thrown.message : thrown}`,
+      });
+    },
+  );
 
   it('handles the child error event', async () => {
     const result = await defaultProbe(
@@ -410,7 +413,7 @@ describe('live probe (opt-in via RUN_LIVE_PROBE=1)', () => {
       console.log('\n--- EnsembleRegistry live probe ---');
       for (const a of all) {
         const mark = a.installed ? 'OK ' : '   ';
-        const detail = a.installed ? a.version ?? '?' : a.reason ?? '?';
+        const detail = a.installed ? (a.version ?? '?') : (a.reason ?? '?');
         // eslint-disable-next-line no-console
         console.log(`${mark} ${a.id.padEnd(14)} ${detail}`);
       }

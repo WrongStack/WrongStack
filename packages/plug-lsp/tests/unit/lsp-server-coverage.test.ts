@@ -200,9 +200,9 @@ describe('LSP server completion coverage', () => {
     }
     expect(value.diagnostics.size).toBe(LSPServer.MAX_DIAGNOSTICS_ENTRIES);
     expect(value.diagnostics.has('file:///doc-0.ts')).toBe(false);
-    expect(
-      value.diagnostics.has(`file:///doc-${LSPServer.MAX_DIAGNOSTICS_ENTRIES + 9}.ts`),
-    ).toBe(true);
+    expect(value.diagnostics.has(`file:///doc-${LSPServer.MAX_DIAGNOSTICS_ENTRIES + 9}.ts`)).toBe(
+      true,
+    );
   });
 
   it('eviction loop tolerates a broken map iterator (defensive guard at lsp-server.ts:332)', () => {

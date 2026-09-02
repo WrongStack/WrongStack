@@ -69,7 +69,9 @@ describe('parseHookOutcome', () => {
   });
 
   it('parses deny with additionalContext', () => {
-    const result = parseHookOutcome('{"action": "deny", "reason": "no", "additionalContext": "ctx"}');
+    const result = parseHookOutcome(
+      '{"action": "deny", "reason": "no", "additionalContext": "ctx"}',
+    );
     expect(result).toEqual({ action: 'deny', reason: 'no', additionalContext: 'ctx' });
   });
 

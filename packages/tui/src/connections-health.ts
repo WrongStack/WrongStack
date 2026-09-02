@@ -23,12 +23,7 @@ import {
   resolveProjectIndexDaemonAvailability,
 } from '@wrongstack/tools';
 
-export type ConnectionHealthStatus =
-  | 'healthy'
-  | 'degraded'
-  | 'offline'
-  | 'unavailable'
-  | 'error';
+export type ConnectionHealthStatus = 'healthy' | 'degraded' | 'offline' | 'unavailable' | 'error';
 
 export interface ConnectionHealthService {
   id: 'chronicle' | 'codebase-index' | 'sage' | 'kanban' | 'mailbox';
@@ -55,7 +50,9 @@ export interface ConnectionsHealthReport {
   services: ConnectionHealthService[];
 }
 
-export async function collectConnectionsHealth(projectRoot: string): Promise<ConnectionsHealthReport> {
+export async function collectConnectionsHealth(
+  projectRoot: string,
+): Promise<ConnectionsHealthReport> {
   const services = await Promise.all([
     chronicleHealth(projectRoot),
     codebaseIndexHealth(projectRoot),
@@ -112,7 +109,14 @@ async function chronicleHealth(projectRoot: string): Promise<ConnectionHealthSer
           : {}),
     };
   } catch (error) {
-    return failureService('chronicle', 'Chronicle telemetry', true, access?.mode ?? 'unavailable', error, Date.now() - startedAt);
+    return failureService(
+      'chronicle',
+      'Chronicle telemetry',
+      true,
+      access?.mode ?? 'unavailable',
+      error,
+      Date.now() - startedAt,
+    );
   } finally {
     await access?.close();
   }
@@ -137,7 +141,9 @@ async function codebaseIndexHealth(projectRoot: string): Promise<ConnectionHealt
     };
   }
   try {
-    const health = await checkCodebaseIndexServerHealth(projectRoot, undefined, { timeoutMs: 2_000 });
+    const health = await checkCodebaseIndexServerHealth(projectRoot, undefined, {
+      timeoutMs: 2_000,
+    });
     const connection = getIndexState().server;
     return {
       id: 'codebase-index',
@@ -163,12 +169,26 @@ async function codebaseIndexHealth(projectRoot: string): Promise<ConnectionHealt
   } catch (error) {
     if (isOfflineConnectionError(error)) {
       return {
-        ...failureService('codebase-index', 'Codebase index', false, 'on-demand project-server', error, Date.now() - startedAt),
+        ...failureService(
+          'codebase-index',
+          'Codebase index',
+          false,
+          'on-demand project-server',
+          error,
+          Date.now() - startedAt,
+        ),
         status: 'offline',
         detail: 'Not running for this project; it starts on demand when indexing is used.',
       };
     }
-    return failureService('codebase-index', 'Codebase index', false, 'project-server', error, Date.now() - startedAt);
+    return failureService(
+      'codebase-index',
+      'Codebase index',
+      false,
+      'project-server',
+      error,
+      Date.now() - startedAt,
+    );
   }
 }
 
@@ -220,7 +240,14 @@ async function sageHealth(projectRoot: string): Promise<ConnectionHealthService>
       activeRequests: status.pendingRequests,
     };
   } catch (error) {
-    return failureService('sage', 'SAGE memory', false, 'project-server', error, Date.now() - startedAt);
+    return failureService(
+      'sage',
+      'SAGE memory',
+      false,
+      'project-server',
+      error,
+      Date.now() - startedAt,
+    );
   } finally {
     connection.close();
   }
@@ -242,7 +269,14 @@ async function kanbanHealth(projectRoot: string): Promise<ConnectionHealthServic
   try {
     connection = await getKanbanServerConnection(projectRoot);
   } catch (error) {
-    return failureService('kanban', 'Kanban IPC', false, 'project-server', error, Date.now() - startedAt);
+    return failureService(
+      'kanban',
+      'Kanban IPC',
+      false,
+      'project-server',
+      error,
+      Date.now() - startedAt,
+    );
   }
   if (!connection) {
     return {
@@ -272,7 +306,14 @@ async function kanbanHealth(projectRoot: string): Promise<ConnectionHealthServic
       uptimeMs: Date.now() - new Date(status.startedAt).getTime(),
     };
   } catch (error) {
-    return failureService('kanban', 'Kanban IPC', true, 'project-server', error, Date.now() - startedAt);
+    return failureService(
+      'kanban',
+      'Kanban IPC',
+      true,
+      'project-server',
+      error,
+      Date.now() - startedAt,
+    );
   }
 }
 
@@ -322,7 +363,14 @@ async function mailboxHealth(projectRoot: string): Promise<ConnectionHealthServi
       uptimeMs: Date.now() - new Date(status.startedAt).getTime(),
     };
   } catch (error) {
-    return failureService('mailbox', 'Mailbox IPC', true, 'project-server', error, Date.now() - startedAt);
+    return failureService(
+      'mailbox',
+      'Mailbox IPC',
+      true,
+      'project-server',
+      error,
+      Date.now() - startedAt,
+    );
   } finally {
     connection.close();
   }

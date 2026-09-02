@@ -226,14 +226,17 @@ export function BrainCouncilDemo() {
 
   useEffect(() => {
     if (paused || reducedMotion) return;
-    const timer = window.setTimeout(() => {
-      if (stepIndex < sequence.length - 1) {
-        setStepIndex((value) => value + 1);
-        return;
-      }
-      setScenarioIndex((value) => (value + 1) % scenarios.length);
-      setStepIndex(0);
-    }, activeStage === 'resolved' ? 3600 : 1550);
+    const timer = window.setTimeout(
+      () => {
+        if (stepIndex < sequence.length - 1) {
+          setStepIndex((value) => value + 1);
+          return;
+        }
+        setScenarioIndex((value) => (value + 1) % scenarios.length);
+        setStepIndex(0);
+      },
+      activeStage === 'resolved' ? 3600 : 1550,
+    );
     return () => window.clearTimeout(timer);
   }, [activeStage, paused, reducedMotion, sequence.length, stepIndex]);
 
@@ -300,7 +303,11 @@ export function BrainCouncilDemo() {
                 disabled={reducedMotion}
                 className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 font-mono text-xs font-black uppercase tracking-wider text-zinc-300 transition-colors hover:border-brand/30 hover:text-brand disabled:cursor-not-allowed disabled:opacity-45"
               >
-                {paused || reducedMotion ? <Play className="size-3" /> : <Pause className="size-3" />}
+                {paused || reducedMotion ? (
+                  <Play className="size-3" />
+                ) : (
+                  <Pause className="size-3" />
+                )}
                 {reducedMotion ? 'Motion reduced' : paused ? 'Resume' : 'Pause'}
               </button>
               <button
@@ -374,7 +381,8 @@ export function BrainCouncilDemo() {
                   <Sparkles className="size-3.5" /> Decision ledger digest
                 </div>
                 <p className="mt-2 text-xs leading-5 text-zinc-500">
-                  Similar changes: 3 · successful canaries: 2 · one rollback after latency regression.
+                  Similar changes: 3 · successful canaries: 2 · one rollback after latency
+                  regression.
                 </p>
               </div>
             </div>
@@ -385,7 +393,9 @@ export function BrainCouncilDemo() {
                   <span className="font-mono text-xs font-black uppercase tracking-[0.16em] text-zinc-500">
                     Independent voting seats
                   </span>
-                  <p className="mt-1 text-xs text-zinc-600">Rationales remain sealed until every seat settles.</p>
+                  <p className="mt-1 text-xs text-zinc-600">
+                    Rationales remain sealed until every seat settles.
+                  </p>
                 </div>
                 <span className="flex items-center gap-1.5 font-mono text-xs text-zinc-600">
                   <Users className="size-3" /> {castVotes}/{seats.length} returned
@@ -406,16 +416,24 @@ export function BrainCouncilDemo() {
                       className="rounded-xl border border-white/[0.08] bg-[#151821] p-3.5"
                     >
                       <div className="flex items-start gap-3">
-                        <span className={cn('grid size-9 shrink-0 place-items-center rounded-full border font-mono text-xs font-black', seat.tone)}>
+                        <span
+                          className={cn(
+                            'grid size-9 shrink-0 place-items-center rounded-full border font-mono text-xs font-black',
+                            seat.tone,
+                          )}
+                        >
                           {seat.initials}
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <strong className="text-sm text-zinc-200">{seat.persona}</strong>
-                            <span className="font-mono text-xs text-zinc-600">weight {seat.weight.toFixed(2)}</span>
+                            <span className="font-mono text-xs text-zinc-600">
+                              weight {seat.weight.toFixed(2)}
+                            </span>
                           </div>
                           <div className="mt-0.5 truncate font-mono text-xs text-zinc-600">
-                            {seat.provider} / {seat.model}{seat.veto ? ' · VETO SEAT' : ''}
+                            {seat.provider} / {seat.model}
+                            {seat.veto ? ' · VETO SEAT' : ''}
                           </div>
                         </div>
                       </div>
@@ -425,14 +443,23 @@ export function BrainCouncilDemo() {
                           <div className="flex items-center gap-2 font-mono text-xs text-zinc-600">
                             <motion.span
                               animate={reducedMotion ? undefined : { opacity: [0.25, 1, 0.25] }}
-                              transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.2, delay: index * 0.1 }}
+                              transition={{
+                                repeat: Number.POSITIVE_INFINITY,
+                                duration: 1.2,
+                                delay: index * 0.1,
+                              }}
                               className="size-1.5 rounded-full bg-cyan-300"
                             />
                             evaluating independently…
                           </div>
                         ) : returned && vote ? (
                           <>
-                            <span className={cn('inline-flex rounded-full border px-2 py-1 font-mono text-xs font-black uppercase tracking-wider', voteStyles[vote])}>
+                            <span
+                              className={cn(
+                                'inline-flex rounded-full border px-2 py-1 font-mono text-xs font-black uppercase tracking-wider',
+                                voteStyles[vote],
+                              )}
+                            >
                               {voteLabels[vote]}
                             </span>
                             <p className="mt-2 text-xs leading-4 text-zinc-500">{rationale}</p>
@@ -456,7 +483,14 @@ export function BrainCouncilDemo() {
                 <span className="font-mono text-xs font-black uppercase tracking-[0.16em] text-zinc-500">
                   Resolution math
                 </span>
-                <span className={cn('rounded-full border px-2 py-1 font-mono text-xs font-black uppercase', quorumMet ? 'border-emerald-300/20 text-emerald-300' : 'border-brand-2/20 text-brand-2')}>
+                <span
+                  className={cn(
+                    'rounded-full border px-2 py-1 font-mono text-xs font-black uppercase',
+                    quorumMet
+                      ? 'border-emerald-300/20 text-emerald-300'
+                      : 'border-brand-2/20 text-brand-2',
+                  )}
+                >
                   quorum {castVotes}/{seats.length}
                 </span>
               </div>
@@ -475,7 +509,14 @@ export function BrainCouncilDemo() {
                           initial={false}
                           animate={{ width: votesVisible ? `${width}%` : '0%' }}
                           transition={{ duration: reducedMotion ? 0 : 0.5, ease: 'easeOut' }}
-                          className={cn('h-full rounded-full', option === 'canary' ? 'bg-emerald-300' : option === 'hold' ? 'bg-brand-2' : 'bg-rose-300')}
+                          className={cn(
+                            'h-full rounded-full',
+                            option === 'canary'
+                              ? 'bg-emerald-300'
+                              : option === 'hold'
+                                ? 'bg-brand-2'
+                                : 'bg-rose-300',
+                          )}
                         />
                       </div>
                     </div>
@@ -483,9 +524,40 @@ export function BrainCouncilDemo() {
                 })}
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 font-mono text-xs uppercase tracking-wider text-zinc-600">
-                <span className={cn('rounded-lg border p-2 text-center', stageReached('quorum') ? quorumMet ? 'border-emerald-300/15 text-emerald-300' : 'border-brand-2/20 text-brand-2' : 'border-white/[0.07]')}>quorum</span>
-                <span className={cn('rounded-lg border p-2 text-center', stageReached('veto') ? scenario.outcome === 'vetoed' ? 'border-rose-300/20 text-rose-300' : 'border-emerald-300/15 text-emerald-300' : 'border-white/[0.07]')}>veto</span>
-                <span className={cn('rounded-lg border p-2 text-center', stageReached('tally') ? 'border-violet-300/20 text-violet-300' : 'border-white/[0.07]')}>majority</span>
+                <span
+                  className={cn(
+                    'rounded-lg border p-2 text-center',
+                    stageReached('quorum')
+                      ? quorumMet
+                        ? 'border-emerald-300/15 text-emerald-300'
+                        : 'border-brand-2/20 text-brand-2'
+                      : 'border-white/[0.07]',
+                  )}
+                >
+                  quorum
+                </span>
+                <span
+                  className={cn(
+                    'rounded-lg border p-2 text-center',
+                    stageReached('veto')
+                      ? scenario.outcome === 'vetoed'
+                        ? 'border-rose-300/20 text-rose-300'
+                        : 'border-emerald-300/15 text-emerald-300'
+                      : 'border-white/[0.07]',
+                  )}
+                >
+                  veto
+                </span>
+                <span
+                  className={cn(
+                    'rounded-lg border p-2 text-center',
+                    stageReached('tally')
+                      ? 'border-violet-300/20 text-violet-300'
+                      : 'border-white/[0.07]',
+                  )}
+                >
+                  majority
+                </span>
               </div>
             </div>
 
@@ -500,9 +572,12 @@ export function BrainCouncilDemo() {
                     <Gavel className="size-4" />
                   </span>
                   <div>
-                    <div className="font-mono text-xs font-black uppercase tracking-wider text-violet-300">Judge round</div>
+                    <div className="font-mono text-xs font-black uppercase tracking-wider text-violet-300">
+                      Judge round
+                    </div>
                     <p className="mt-1.5 text-xs leading-5 text-zinc-400">
-                      A separate model receives all sealed rationales because no option exceeded the approval threshold.
+                      A separate model receives all sealed rationales because no option exceeded the
+                      approval threshold.
                     </p>
                   </div>
                 </motion.div>
@@ -510,20 +585,35 @@ export function BrainCouncilDemo() {
 
               <motion.div
                 animate={{ opacity: resolutionVisible ? 1 : 0.38 }}
-                className={cn('flex min-h-36 items-center gap-4 rounded-xl border p-4 sm:p-5', resultStyle.frame)}
+                className={cn(
+                  'flex min-h-36 items-center gap-4 rounded-xl border p-4 sm:p-5',
+                  resultStyle.frame,
+                )}
               >
-                <span className={cn('grid size-11 shrink-0 place-items-center rounded-full border border-current/20 bg-black/10', resultStyle.iconTone)}>
+                <span
+                  className={cn(
+                    'grid size-11 shrink-0 place-items-center rounded-full border border-current/20 bg-black/10',
+                    resultStyle.iconTone,
+                  )}
+                >
                   <ResultIcon className="size-5" />
                 </span>
                 <div>
-                  <div className={cn('font-mono text-xs font-black uppercase tracking-[0.16em]', resultStyle.iconTone)}>
+                  <div
+                    className={cn(
+                      'font-mono text-xs font-black uppercase tracking-[0.16em]',
+                      resultStyle.iconTone,
+                    )}
+                  >
                     {resolutionVisible ? resultStyle.label : `evaluating / ${activeStage}`}
                   </div>
                   <h3 className="mt-2 text-lg font-black tracking-[-0.025em] text-zinc-100">
                     {resolutionVisible ? scenario.verdict : 'Council decision pending'}
                   </h3>
                   <p className="mt-1.5 text-xs leading-5 text-zinc-500">
-                    {resolutionVisible ? scenario.rationale : 'The resolution ladder stops at the first decisive boundary.'}
+                    {resolutionVisible
+                      ? scenario.rationale
+                      : 'The resolution ladder stops at the first decisive boundary.'}
                   </p>
                 </div>
               </motion.div>

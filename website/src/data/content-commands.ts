@@ -53,7 +53,7 @@ const commandRows: Array<[string, string]> = [
   ['/spawn', 'Create an isolated specialist subagent.'],
   [
     '/agent-improve',
-    "Inspect and develop a roster agent for this project: captured directives, per-skill project addenda, skill affinity and the optimization pass.",
+    'Inspect and develop a roster agent for this project: captured directives, per-skill project addenda, skill affinity and the optimization pass.',
   ],
   ['/agents', 'Monitor agents, timeline events and per-agent transcripts.'],
   ['/director', '(Obsolete) Director Mode is permanently on — fleet tools always available.'],

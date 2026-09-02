@@ -6,10 +6,7 @@ import type { ChronicleEventInput } from './types.js';
 
 export interface ChronicleReviewAdapterOptions {
   events: {
-    onPattern(
-      pattern: string,
-      handler: (event: unknown, payload: unknown) => void,
-    ): () => void;
+    onPattern(pattern: string, handler: (event: unknown, payload: unknown) => void): () => void;
   };
   journal: ChronicleEventSink;
   context: ChronicleContext | (() => ChronicleContext);
@@ -26,9 +23,7 @@ export interface ChronicleReviewAdapterOptions {
  * severity-count aggregates so review-level analytics (frequency, model
  * usage, cascade depth) are self-contained in Chronicle.
  */
-export function wireReviewFindingsToChronicle(
-  options: ChronicleReviewAdapterOptions,
-): () => void {
+export function wireReviewFindingsToChronicle(options: ChronicleReviewAdapterOptions): () => void {
   const unsubscribe = options.events.onPattern(
     'chimera.review_complete',
     (_event: unknown, raw: unknown) => {
@@ -36,14 +31,9 @@ export function wireReviewFindingsToChronicle(
       if (!payload?.reviewText) return;
       if (payload.status !== 'success') return;
 
-      const context =
-        typeof options.context === 'function'
-          ? options.context()
-          : options.context;
-      const sessionId =
-        payload.sessionId ?? payload.bundle?.cwd;
-      const agentId =
-        payload.bundle?.fileProvenance?.find((e) => e.agentId)?.agentId;
+      const context = typeof options.context === 'function' ? options.context() : options.context;
+      const sessionId = payload.sessionId ?? payload.bundle?.cwd;
+      const agentId = payload.bundle?.fileProvenance?.find((e) => e.agentId)?.agentId;
       const taskId = payload.bundle?.kanbanCard?.id;
       const provider = payload.bundle?.config?.provider;
       const model = payload.bundle?.config?.model;
@@ -74,9 +64,7 @@ export function wireReviewFindingsToChronicle(
                 kind: 'file',
                 id: `finding:${finding.fingerprint}`,
                 path: finding.file,
-                ...(finding.line !== undefined
-                  ? { lineStart: finding.line }
-                  : {}),
+                ...(finding.line !== undefined ? { lineStart: finding.line } : {}),
               }
             : undefined,
           outcome: 'success',
@@ -98,9 +86,7 @@ export function wireReviewFindingsToChronicle(
             severity: finding.severity,
           },
         };
-        options.journal
-          .append(input)
-          .catch((error) => options.onPersistError?.(error, input));
+        options.journal.append(input).catch((error) => options.onPersistError?.(error, input));
       }
 
       // No findings → no summary either
@@ -243,11 +229,7 @@ function parseFindings(reviewText: string): ParsedFinding[] {
   return findings;
 }
 
-function computeFingerprint(
-  file: string,
-  line: number | null,
-  title: string,
-): string {
+function computeFingerprint(file: string, line: number | null, title: string): string {
   const normalizedFile = file.replace(/\\/g, '/').trim().toLowerCase();
   const lineStr = line != null && line >= 0 ? String(line) : '0';
   const normalizedTitle = title
@@ -261,9 +243,7 @@ function computeFingerprint(
   return hash.digest('hex');
 }
 
-function aggregateSeverities(
-  findings: ParsedFinding[],
-): Record<string, number> {
+function aggregateSeverities(findings: ParsedFinding[]): Record<string, number> {
   const counts: Record<string, number> = {
     critical: 0,
     high: 0,

@@ -12,7 +12,10 @@ import type { AutonomousCoordinatorOptions } from '../../src/coordination/autono
 let tempDir: string;
 
 beforeEach(async () => {
-  tempDir = path.join(os.tmpdir(), `wstack-coord-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  tempDir = path.join(
+    os.tmpdir(),
+    `wstack-coord-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   await fs.mkdir(tempDir, { recursive: true });
 });
 
@@ -30,7 +33,9 @@ afterEach(async () => {
   }
 });
 
-function makeCoordinator(overrides: Partial<AutonomousCoordinatorOptions> = {}): AutonomousCoordinator {
+function makeCoordinator(
+  overrides: Partial<AutonomousCoordinatorOptions> = {},
+): AutonomousCoordinator {
   return new AutonomousCoordinator({
     selfAgentId: 'test-agent',
     selfAgentName: 'test-agent',

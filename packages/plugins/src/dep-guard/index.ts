@@ -151,8 +151,9 @@ export function parseInstallCommands(command: string): ParsedInstall[] {
       // pip-style: name==ver / name>=ver.
       let name = cleaned;
       let version: string | null = null;
-      const pipMatch =
-        /^([A-Za-z0-9_.-]+(?:\[[^\]]+\])?)\s*(==|>=|<=|~=|!=|>|<)\s*(.+)$/.exec(cleaned);
+      const pipMatch = /^([A-Za-z0-9_.-]+(?:\[[^\]]+\])?)\s*(==|>=|<=|~=|!=|>|<)\s*(.+)$/.exec(
+        cleaned,
+      );
       if (pipMatch?.[1]) {
         name = pipMatch[1];
         const op = pipMatch[2] ?? '';
@@ -335,12 +336,7 @@ const plugin: Plugin = {
       if (!cfg.enabled) return;
       state.invocations += 1;
       const ti = (input.toolInput ?? {}) as Record<string, unknown>;
-      const rawCmd =
-        ti['command'] ??
-        ti['CommandLine'] ??
-        ti['cmd'] ??
-        ti['script'] ??
-        ti['input'];
+      const rawCmd = ti['command'] ?? ti['CommandLine'] ?? ti['cmd'] ?? ti['script'] ?? ti['input'];
       const command = typeof rawCmd === 'string' ? rawCmd : '';
       if (!command) return;
 

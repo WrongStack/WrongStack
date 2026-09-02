@@ -24,7 +24,8 @@ export function parseAgentRegistryEntry(value: unknown): RegisteredAgent | null 
     name: typeof v.name === 'string' ? v.name : v.agentId,
     registeredAt: typeof v.registeredAt === 'string' ? v.registeredAt : new Date(0).toISOString(),
     lastSeenAt: typeof v.lastSeenAt === 'string' ? v.lastSeenAt : new Date(0).toISOString(),
-    iterations: typeof v.iterations === 'number' && Number.isFinite(v.iterations) ? v.iterations : 0,
+    iterations:
+      typeof v.iterations === 'number' && Number.isFinite(v.iterations) ? v.iterations : 0,
     toolCalls: typeof v.toolCalls === 'number' && Number.isFinite(v.toolCalls) ? v.toolCalls : 0,
     pid: typeof v.pid === 'number' && Number.isFinite(v.pid) ? v.pid : 0,
     status,

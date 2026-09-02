@@ -119,8 +119,10 @@ function readConfig(raw: unknown): KnowledgeGraphConfig {
             ? r['file']
             : DEFAULTS.filePath;
   const rawMaxFacts = r['maxFacts'] ?? r['max_facts'] ?? r['limit'];
-  const rawMaxFactChars = r['maxFactChars'] ?? r['max_fact_chars'] ?? r['maxChars'] ?? r['max_chars'];
-  const rawContribute = r['contributeToSystemPrompt'] ?? r['contribute_to_system_prompt'] ?? r['contribute'];
+  const rawMaxFactChars =
+    r['maxFactChars'] ?? r['max_fact_chars'] ?? r['maxChars'] ?? r['max_chars'];
+  const rawContribute =
+    r['contributeToSystemPrompt'] ?? r['contribute_to_system_prompt'] ?? r['contribute'];
   const rawContributeMax = r['contributeMaxChars'] ?? r['contribute_max_chars'];
   return {
     enabled: r['enabled'] !== false,
@@ -279,9 +281,10 @@ const plugin: Plugin = {
           '[project_knowledge]\n' +
           'Recorded facts about this project (most recent, medium/high confidence):\n' +
           lines.join('\n');
-        const truncated = text.length > cfg.contributeMaxChars
-          ? text.slice(0, cfg.contributeMaxChars) + '\n[truncated]'
-          : text;
+        const truncated =
+          text.length > cfg.contributeMaxChars
+            ? text.slice(0, cfg.contributeMaxChars) + '\n[truncated]'
+            : text;
         return [{ type: 'text' as const, text: truncated }];
       });
     }
@@ -334,33 +337,34 @@ const plugin: Plugin = {
         const raw = input as Record<string, unknown>;
         const subject = trim(
           input.subject ??
-          raw['entity'] ??
-          raw['topic'] ??
-          raw['sub'] ??
-          raw['name'] ??
-          raw['sourceEntity'],
+            raw['entity'] ??
+            raw['topic'] ??
+            raw['sub'] ??
+            raw['name'] ??
+            raw['sourceEntity'],
         );
         const relation = trim(
           input.relation ??
-          raw['predicate'] ??
-          raw['rel'] ??
-          raw['verb'] ??
-          raw['relationship'] ??
-          raw['action'],
+            raw['predicate'] ??
+            raw['rel'] ??
+            raw['verb'] ??
+            raw['relationship'] ??
+            raw['action'],
         );
         const object = trim(
           input.object ??
-          raw['target'] ??
-          raw['val'] ??
-          raw['value'] ??
-          raw['obj'] ??
-          raw['targetEntity'],
+            raw['target'] ??
+            raw['val'] ??
+            raw['value'] ??
+            raw['obj'] ??
+            raw['targetEntity'],
         );
         if (!subject || !relation || !object) {
           return { ok: false, error: 'subject, relation, and object are required' };
         }
 
-        const rawConf = typeof input.confidence === 'string' ? input.confidence.trim().toLowerCase() : '';
+        const rawConf =
+          typeof input.confidence === 'string' ? input.confidence.trim().toLowerCase() : '';
         const confidence: 'low' | 'medium' | 'high' =
           rawConf === 'low' || rawConf === 'high' || rawConf === 'medium' ? rawConf : 'medium';
 
@@ -413,7 +417,8 @@ const plugin: Plugin = {
           (typeof raw['query'] === 'string' ? raw['query'] : undefined) ??
           (typeof raw['q'] === 'string' ? raw['q'] : undefined);
         const q = rawQ?.toLowerCase();
-        const rawFilterConf = typeof input.confidence === 'string' ? input.confidence.trim().toLowerCase() : undefined;
+        const rawFilterConf =
+          typeof input.confidence === 'string' ? input.confidence.trim().toLowerCase() : undefined;
         const filterConf =
           rawFilterConf === 'low' || rawFilterConf === 'medium' || rawFilterConf === 'high'
             ? rawFilterConf
@@ -428,9 +433,12 @@ const plugin: Plugin = {
               f.object.toLowerCase().includes(q);
             if (!hasMatch) return false;
           }
-          if (input.subject && !f.subject.toLowerCase().includes(input.subject.toLowerCase())) return false;
-          if (input.relation && !f.relation.toLowerCase().includes(input.relation.toLowerCase())) return false;
-          if (input.object && !f.object.toLowerCase().includes(input.object.toLowerCase())) return false;
+          if (input.subject && !f.subject.toLowerCase().includes(input.subject.toLowerCase()))
+            return false;
+          if (input.relation && !f.relation.toLowerCase().includes(input.relation.toLowerCase()))
+            return false;
+          if (input.object && !f.object.toLowerCase().includes(input.object.toLowerCase()))
+            return false;
           if (filterConf && f.confidence.toLowerCase() !== filterConf) return false;
           return true;
         });
@@ -463,8 +471,12 @@ const plugin: Plugin = {
         const before = state.facts.length;
         const raw = (input ?? {}) as Record<string, unknown>;
         const rawId = String(input.id ?? raw['factId'] ?? raw['fact_id'] ?? '').trim();
-        const normalized = rawId.toLowerCase().startsWith('kg-') ? rawId.toLowerCase() : `kg-${rawId.toLowerCase()}`;
-        state.facts = state.facts.filter((f) => f.id.toLowerCase() !== normalized && f.id !== rawId);
+        const normalized = rawId.toLowerCase().startsWith('kg-')
+          ? rawId.toLowerCase()
+          : `kg-${rawId.toLowerCase()}`;
+        state.facts = state.facts.filter(
+          (f) => f.id.toLowerCase() !== normalized && f.id !== rawId,
+        );
         const removed = before - state.facts.length;
         if (removed === 0) return { ok: false, error: `no fact matches "${input.id ?? rawId}"` };
         state.removals += removed;

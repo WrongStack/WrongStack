@@ -1,7 +1,11 @@
 /**
  * Menu builder types and interfaces.
  */
-import type { DesktopRuntimeRecord, DesktopWebuiCommand, DesktopWebuiPrefs } from '../../shared/types.js';
+import type {
+  DesktopRuntimeRecord,
+  DesktopWebuiCommand,
+  DesktopWebuiPrefs,
+} from '../../shared/types.js';
 
 // ============================================================================
 // Menu Action Callbacks

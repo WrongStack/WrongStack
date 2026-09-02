@@ -246,7 +246,11 @@ describe('detectQuantifiedAmbiguity — property test vs brute-force oracle', ()
       return out;
     };
     const expr = (d: number): string =>
-      rand() < 0.55 ? `${seq(d)}|${seq(d)}` : rand() < 0.3 ? `${seq(d)}|${seq(d)}|${seq(d)}` : seq(d);
+      rand() < 0.55
+        ? `${seq(d)}|${seq(d)}`
+        : rand() < 0.3
+          ? `${seq(d)}|${seq(d)}|${seq(d)}`
+          : seq(d);
     return expr(depth);
   }
 
@@ -436,7 +440,9 @@ describe('detectQuantifiedAmbiguity — property test vs brute-force oracle', ()
               i = j + 1;
               continue; // lookaround — assertions, not consuming branches
             }
-            const m = /^\?(?::|<[=!]|<[$_\p{ID_Start}][$_\p{ID_Continue}\u200C\u200D]*>)/u.exec(inner);
+            const m = /^\?(?::|<[=!]|<[$_\p{ID_Start}][$_\p{ID_Continue}\u200C\u200D]*>)/u.exec(
+              inner,
+            );
             if (!m) {
               i = j + 1;
               continue;
@@ -497,8 +503,7 @@ describe('detectQuantifiedAmbiguity — property test vs brute-force oracle', ()
         // Soundness: the layer must NEVER flag what the oracles prove clean.
         // Deep pass covers long SP witnesses; parse pass covers same-word
         // branch equivalence the decomposition oracles cannot see.
-        const verified =
-          oracle || oracleAmbiguousDeep(content) || oracleAmbiguousParse(content);
+        const verified = oracle || oracleAmbiguousDeep(content) || oracleAmbiguousParse(content);
         expect(verified, `false positive on ${content}`).toBe(true);
       } else {
         // Completeness within the oracle bound: no misses on decided cases.
@@ -511,7 +516,10 @@ describe('detectQuantifiedAmbiguity — property test vs brute-force oracle', ()
 
 describe('detectQuantifiedAmbiguity — checker cost sanity', () => {
   it('decides a large alternation well under 50ms', () => {
-    const content = Array.from({ length: 40 }, (_, i) => `x{1,2}${String.fromCharCode(97 + (i % 26))}`).join('|');
+    const content = Array.from(
+      { length: 40 },
+      (_, i) => `x{1,2}${String.fromCharCode(97 + (i % 26))}`,
+    ).join('|');
     const t0 = performance.now();
     const r = detectQuantifiedAmbiguity(content);
     const dt = performance.now() - t0;

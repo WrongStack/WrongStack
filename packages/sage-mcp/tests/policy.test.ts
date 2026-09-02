@@ -36,9 +36,7 @@ describe('selectAllowedTools', () => {
   });
 
   it('refuses tools with permission: deny (always)', () => {
-    const tools: Tool[] = [
-      makeTool({ name: 'banned', permission: 'deny', riskTier: 'safe' }),
-    ];
+    const tools: Tool[] = [makeTool({ name: 'banned', permission: 'deny', riskTier: 'safe' })];
     const allowed = selectAllowedTools(tools, { writable: true });
     expect(allowed).toEqual([]);
   });
@@ -61,16 +59,11 @@ describe('selectAllowedTools', () => {
       makeTool({ name: 'confirm_standard', permission: 'confirm', riskTier: 'standard' }),
     ];
     const allowed = selectAllowedTools(tools, { writable: true });
-    expect(allowed.map((entry) => entry.name).sort()).toEqual([
-      'confirm_safe',
-      'confirm_standard',
-    ]);
+    expect(allowed.map((entry) => entry.name).sort()).toEqual(['confirm_safe', 'confirm_standard']);
   });
 
   it('refuses destructive-tier tools unconditionally', () => {
-    const tools: Tool[] = [
-      makeTool({ name: 'nuke', permission: 'auto', riskTier: 'destructive' }),
-    ];
+    const tools: Tool[] = [makeTool({ name: 'nuke', permission: 'auto', riskTier: 'destructive' })];
     const allowed = selectAllowedTools(tools, { writable: true });
     expect(allowed).toEqual([]);
   });

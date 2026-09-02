@@ -65,7 +65,11 @@ describe('eligibility', () => {
   });
 
   it('becomes eligible once enough directives await a skill they have not reached', () => {
-    learn('verifier', 'Always run `pnpm vitest run` from the repository root, never per package.', 'testing');
+    learn(
+      'verifier',
+      'Always run `pnpm vitest run` from the repository root, never per package.',
+      'testing',
+    );
     expect(evaluateAutoOptimize('verifier', projectRoot, policy())).toEqual({
       eligible: true,
       reason: 'pending-skills',
@@ -149,7 +153,11 @@ describe('scheduler', () => {
   }
 
   it('runs a pass after a capture and writes the skill addendum', async () => {
-    learn('verifier', 'Always run `pnpm vitest run` from the repository root, never per package.', 'testing');
+    learn(
+      'verifier',
+      'Always run `pnpm vitest run` from the repository root, never per package.',
+      'testing',
+    );
     const { scheduler, events } = makeScheduler();
     scheduler.notifyCaptured('verifier');
     await scheduler.idle();
@@ -172,8 +180,16 @@ describe('scheduler', () => {
   });
 
   it('serializes passes instead of running them concurrently', async () => {
-    learn('verifier', 'Always run `pnpm vitest run` from the repository root, never per package.', 'testing');
-    learn('executor', 'Always rebase onto the latest main before opening a pull request.', 'git-flow');
+    learn(
+      'verifier',
+      'Always run `pnpm vitest run` from the repository root, never per package.',
+      'testing',
+    );
+    learn(
+      'executor',
+      'Always rebase onto the latest main before opening a pull request.',
+      'git-flow',
+    );
     let concurrent = 0;
     let peak = 0;
     const { scheduler } = makeScheduler({
@@ -192,7 +208,11 @@ describe('scheduler', () => {
   });
 
   it('still develops the skill layer when no model is available', async () => {
-    learn('verifier', 'Always run `pnpm vitest run` from the repository root, never per package.', 'testing');
+    learn(
+      'verifier',
+      'Always run `pnpm vitest run` from the repository root, never per package.',
+      'testing',
+    );
     const { scheduler, events } = makeScheduler({ getLlm: () => undefined });
     scheduler.notifyCaptured('verifier');
     await scheduler.idle();
@@ -202,7 +222,11 @@ describe('scheduler', () => {
   });
 
   it('backs off after a failure instead of retrying in a loop', async () => {
-    learn('verifier', 'Always run `pnpm vitest run` from the repository root, never per package.', 'testing');
+    learn(
+      'verifier',
+      'Always run `pnpm vitest run` from the repository root, never per package.',
+      'testing',
+    );
     let calls = 0;
     const { scheduler } = makeScheduler({
       getLlm: () => {
@@ -221,7 +245,11 @@ describe('scheduler', () => {
   });
 
   it('sweeps roles that became eligible before the session started', async () => {
-    learn('verifier', 'Always run `pnpm vitest run` from the repository root, never per package.', 'testing');
+    learn(
+      'verifier',
+      'Always run `pnpm vitest run` from the repository root, never per package.',
+      'testing',
+    );
     const { scheduler, events } = makeScheduler();
     scheduler.sweep(['verifier', 'nonexistent-role']);
     await scheduler.idle();
@@ -230,7 +258,11 @@ describe('scheduler', () => {
   });
 
   it('stops scheduling once disposed', async () => {
-    learn('verifier', 'Always run `pnpm vitest run` from the repository root, never per package.', 'testing');
+    learn(
+      'verifier',
+      'Always run `pnpm vitest run` from the repository root, never per package.',
+      'testing',
+    );
     const { scheduler, events } = makeScheduler();
     scheduler.dispose();
     scheduler.notifyCaptured('verifier');

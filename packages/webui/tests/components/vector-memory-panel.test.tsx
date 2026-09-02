@@ -91,7 +91,10 @@ function routeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respo
   return Promise.resolve(jsonResponse(404, { error: 'unexpected route' }));
 }
 
-vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => routeFetch(input, init)));
+vi.stubGlobal(
+  'fetch',
+  vi.fn((input: RequestInfo | URL, init?: RequestInit) => routeFetch(input, init)),
+);
 
 import { VectorMemoryPanel } from '../../src/components/vector-memory-panel/index.js';
 import { previewText } from '../../src/components/vector-memory-panel/model.js';
@@ -136,9 +139,7 @@ describe('VectorMemoryPanel inline expand', () => {
 
     fireEvent.click(alphaToggle());
 
-    expect(
-      screen.getByText(hitsPayload.hits[0]!.text, { exact: true, trim: false }),
-    ).toBeTruthy();
+    expect(screen.getByText(hitsPayload.hits[0]!.text, { exact: true, trim: false })).toBeTruthy();
     expect(screen.getByText('vm_alpha')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Forget' })).toBeTruthy();
   });

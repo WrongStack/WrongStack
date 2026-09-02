@@ -54,7 +54,8 @@ function installFetch() {
       if (body === undefined) return Promise.resolve({ ok: false, status: 404 });
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
     }
-    if (url.includes('/message')) return Promise.resolve(routes.message ?? { ok: true, status: 200 });
+    if (url.includes('/message'))
+      return Promise.resolve(routes.message ?? { ok: true, status: 200 });
     if (url.includes('/interrupt'))
       return Promise.resolve(routes.interrupt ?? { ok: true, status: 200 });
     return Promise.resolve({ ok: false, status: 404 });
@@ -73,7 +74,14 @@ function events(entries: Array<Record<string, unknown>>, extra: Record<string, u
 }
 
 function agent(overrides: Record<string, unknown> = {}) {
-  return { id: 'leader', name: 'Leader', status: 'idle', toolCalls: 0, iterations: 0, ...overrides };
+  return {
+    id: 'leader',
+    name: 'Leader',
+    status: 'idle',
+    toolCalls: 0,
+    iterations: 0,
+    ...overrides,
+  };
 }
 
 function liveSession(overrides: Record<string, unknown> = {}) {

@@ -16,7 +16,9 @@ export async function deleteWebUISession(
   ctx: SessionDeletionContext,
   sessionId: string,
 ): Promise<void> {
-  const activeIds = ctx.getActiveSessionIds ? ctx.getActiveSessionIds() : [ctx.getActiveSessionId()];
+  const activeIds = ctx.getActiveSessionIds
+    ? ctx.getActiveSessionIds()
+    : [ctx.getActiveSessionId()];
   if (activeIds.includes(sessionId)) {
     throw new Error(`Cannot delete active session ${sessionId}`);
   }

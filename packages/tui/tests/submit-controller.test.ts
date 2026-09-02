@@ -26,22 +26,24 @@ function makeBuilder() {
   };
 }
 
-function makeHost(overrides: {
-  state?: Partial<State>;
-  statusRef?: State['status'];
-  slashResult?: Record<string, unknown>;
-  capabilities?: Record<string, unknown>;
-  live?: Record<string, unknown>;
-  todos?: Array<Record<string, unknown>>;
-  suggestions?: string[];
-  enhanceEnabled?: boolean;
-  midRunPicker?: boolean;
-  autonomy?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel';
-  nextStepsTimer?: ReturnType<typeof setInterval> | undefined;
-  settings?: Record<string, unknown>;
-  sddContext?: string;
-  director?: unknown;
-} = {}) {
+function makeHost(
+  overrides: {
+    state?: Partial<State>;
+    statusRef?: State['status'];
+    slashResult?: Record<string, unknown>;
+    capabilities?: Record<string, unknown>;
+    live?: Record<string, unknown>;
+    todos?: Array<Record<string, unknown>>;
+    suggestions?: string[];
+    enhanceEnabled?: boolean;
+    midRunPicker?: boolean;
+    autonomy?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel';
+    nextStepsTimer?: ReturnType<typeof setInterval> | undefined;
+    settings?: Record<string, unknown>;
+    sddContext?: string;
+    director?: unknown;
+  } = {},
+) {
   const actions: CapturedAction[] = [];
   const builder = makeBuilder();
   const state = {
@@ -61,7 +63,9 @@ function makeHost(overrides: {
       stateRef.current = { ...stateRef.current, status: 'idle' } as State;
     }
   });
-  const attachments = { expand: vi.fn(async (token: string) => [{ type: 'text', text: `expanded ${token}` }]) };
+  const attachments = {
+    expand: vi.fn(async (token: string) => [{ type: 'text', text: `expanded ${token}` }]),
+  };
   const ctx = {
     model: 'model-live',
     provider: { id: 'provider-live', capabilities: { maxContext: 8_000 } },
@@ -93,16 +97,14 @@ function makeHost(overrides: {
       saveSettings: vi.fn(async () => null),
       getYolo: vi.fn(() => false),
       getAutonomy: vi.fn(() => overrides.autonomy ?? 'off'),
-      getEternalEngine: vi.fn(() => (overrides.autonomy === 'eternal' ? { currentState: 'running' } : null)),
+      getEternalEngine: vi.fn(() =>
+        overrides.autonomy === 'eternal' ? { currentState: 'running' } : null,
+      ),
       getParallelEngine: vi.fn(() =>
         overrides.autonomy === 'eternal-parallel' ? { currentState: 'running' } : null,
       ),
       getModeLabel: vi.fn(() => 'plan'),
-      getToolsItems: vi.fn(() => [
-        { enabled: true },
-        { enabled: false },
-        { enabled: true },
-      ]),
+      getToolsItems: vi.fn(() => [{ enabled: true }, { enabled: false }, { enabled: true }]),
       onExit: vi.fn(),
       clearTerminal: vi.fn(),
       onClearHistory: vi.fn(),
@@ -169,7 +171,9 @@ function makeHost(overrides: {
       runBlocks: vi.fn(async () => {}),
       liveDirector: vi.fn(() => overrides.director ?? null),
       setMemoryContextMonitor: vi.fn(),
-      runSteerSequence: vi.fn((direction: string) => ({ preamble: `STEER-PREAMBLE(${direction})` })),
+      runSteerSequence: vi.fn((direction: string) => ({
+        preamble: `STEER-PREAMBLE(${direction})`,
+      })),
       setEnhanceStartedAt: vi.fn(),
       setEnhanceDuration: vi.fn(),
       setRefineProvider: vi.fn(),
@@ -192,9 +196,9 @@ function makeHost(overrides: {
     parallelLoop,
     submit: createSubmitController(host),
     capabilities: host.capabilities as unknown as Record<string, ReturnType<typeof vi.fn>>,
-    liveSetters: (host.live as unknown as Record<string, ReturnType<typeof vi.fn>>),
-    actionFns: (host.actions as unknown as Record<string, ReturnType<typeof vi.fn>>),
-    refs: (host.refs as unknown as Record<string, { current: unknown }>),
+    liveSetters: host.live as unknown as Record<string, ReturnType<typeof vi.fn>>,
+    actionFns: host.actions as unknown as Record<string, ReturnType<typeof vi.fn>>,
+    refs: host.refs as unknown as Record<string, { current: unknown }>,
   };
 }
 
@@ -281,9 +285,11 @@ describe('createSubmitController — !<shell> bang commands', () => {
     expect(resolve).toBeDefined();
     resolve?.('dont-show-again');
     await pending;
-    expect(h.actions.some((a) => a.entry?.kind === 'warn' && a.entry?.text === 'could not persist settings')).toBe(
-      true,
-    );
+    expect(
+      h.actions.some(
+        (a) => a.entry?.kind === 'warn' && a.entry?.text === 'could not persist settings',
+      ),
+    ).toBe(true);
     expect(h.slashRegistry.dispatch).toHaveBeenCalled();
   });
 });
@@ -304,7 +310,9 @@ describe('createSubmitController — slash commands', () => {
     await h.submit('/model gpt-x');
     expect(h.slashRegistry.dispatch).toHaveBeenCalledWith('/model gpt-x', h.ctx);
     expect(h.actionFns['refreshGoalSummary']).toHaveBeenCalled();
-    expect(h.actions.some((a) => a.entry?.kind === 'info' && a.entry?.text === 'switched to gpt-x')).toBe(true);
+    expect(
+      h.actions.some((a) => a.entry?.kind === 'info' && a.entry?.text === 'switched to gpt-x'),
+    ).toBe(true);
     expect(findAction(h, 'historyPush')?.text).toBe('/model gpt-x');
     expect(h.actionFns['clearDraft']).toHaveBeenCalled();
   });
@@ -377,26 +385,40 @@ describe('createSubmitController — slash commands', () => {
       throw new Error('registry exploded');
     });
     await h.submit('/boom');
-    expect(h.actions.some((a) => a.entry?.kind === 'error' && a.entry?.text === 'registry exploded')).toBe(true);
+    expect(
+      h.actions.some((a) => a.entry?.kind === 'error' && a.entry?.text === 'registry exploded'),
+    ).toBe(true);
   });
 });
 
 describe('createSubmitController — /mouse metadata', () => {
   it('applies the on/off/toggle/native intents and persists the change', async () => {
-    const on = makeHost({ slashResult: { metadata: { mouseToggle: 'on' } }, live: { mouseMode: false } });
+    const on = makeHost({
+      slashResult: { metadata: { mouseToggle: 'on' } },
+      live: { mouseMode: false },
+    });
     await on.submit('/mouse on');
     expect(on.liveSetters['setMouseMode']).toHaveBeenCalledWith(true);
     expect(on.actions.some((a) => a.entry?.text.includes('Mouse mode: ON'))).toBe(true);
 
-    const off = makeHost({ slashResult: { metadata: { mouseToggle: 'off' } }, live: { mouseMode: true } });
+    const off = makeHost({
+      slashResult: { metadata: { mouseToggle: 'off' } },
+      live: { mouseMode: true },
+    });
     await off.submit('/mouse off');
     expect(off.liveSetters['setMouseMode']).toHaveBeenCalledWith(false);
 
-    const toggle = makeHost({ slashResult: { metadata: { mouseToggle: 'toggle' } }, live: { mouseMode: false } });
+    const toggle = makeHost({
+      slashResult: { metadata: { mouseToggle: 'toggle' } },
+      live: { mouseMode: false },
+    });
     await toggle.submit('/mouse toggle');
     expect(toggle.liveSetters['setMouseMode']).toHaveBeenCalledWith(true);
 
-    const native = makeHost({ slashResult: { metadata: { mouseToggle: 'native' } }, live: { nativeMouse: false } });
+    const native = makeHost({
+      slashResult: { metadata: { mouseToggle: 'native' } },
+      live: { nativeMouse: false },
+    });
     await native.submit('/mouse native');
     expect(native.liveSetters['setNativeMouse']).toHaveBeenCalledWith(true);
     expect(native.actions.some((a) => a.entry?.text.includes('NATIVE'))).toBe(true);
@@ -404,7 +426,10 @@ describe('createSubmitController — /mouse metadata', () => {
   });
 
   it('reports the current state for a query without changing anything', async () => {
-    const h = makeHost({ slashResult: { metadata: { mouseToggle: 'query' } }, live: { mouseMode: true } });
+    const h = makeHost({
+      slashResult: { metadata: { mouseToggle: 'query' } },
+      live: { mouseMode: true },
+    });
     await h.submit('/mouse');
     expect(h.liveSetters['setMouseMode']).not.toHaveBeenCalled();
     expect(h.liveSetters['setNativeMouse']).not.toHaveBeenCalled();
@@ -448,7 +473,10 @@ describe('createSubmitController — /clear cascade', () => {
 
   it('terminates live subagents before clearing when a director exists', async () => {
     const terminateAll = vi.fn(async () => {});
-    const h = makeHost({ slashResult: { metadata: { cleared: true } }, director: { terminateAll } });
+    const h = makeHost({
+      slashResult: { metadata: { cleared: true } },
+      director: { terminateAll },
+    });
     await h.submit('/clear');
     expect(terminateAll).toHaveBeenCalled();
   });
@@ -499,10 +527,7 @@ describe('createSubmitController — plain messages', () => {
   it('builds paste previews limited to six content lines', async () => {
     const h = makeHost();
     const previews = h.refs['tokenPreviews']?.current as Map<string, string> | undefined;
-    previews?.set(
-      '[pasted #1 note]',
-      ['l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7', 'l8'].join('\n'),
-    );
+    previews?.set('[pasted #1 note]', ['l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7', 'l8'].join('\n'));
     await h.submit('check this [pasted #1 note]');
     const user = h.actions.find((a) => a.entry?.kind === 'user');
     expect(user?.entry?.pasteContent).toContain('  l6');
@@ -521,7 +546,12 @@ describe('createSubmitController — plain messages', () => {
 
 describe('createSubmitController — bare continue', () => {
   const todos = [
-    { id: 't1', content: 'Write the docs', status: 'pending' as const, activeForm: 'Writing the docs' },
+    {
+      id: 't1',
+      content: 'Write the docs',
+      status: 'pending' as const,
+      activeForm: 'Writing the docs',
+    },
   ];
 
   function continueHost(extra: Parameters<typeof makeHost>[0] = {}) {
@@ -545,7 +575,9 @@ describe('createSubmitController — bare continue', () => {
     await resolveContinue(h, 'proceed');
     await pending;
     expect(h.ctx.todos[0]?.status).toBe('in_progress');
-    expect(h.builder.appendText).toHaveBeenLastCalledWith(expect.stringContaining('Write the docs'));
+    expect(h.builder.appendText).toHaveBeenLastCalledWith(
+      expect.stringContaining('Write the docs'),
+    );
     expect(h.actionFns['runBlocks']).toHaveBeenCalled();
     const user = h.actions.find((a) => a.entry?.kind === 'user');
     expect(user?.entry?.text).not.toBe('continue');
@@ -609,7 +641,11 @@ describe('createSubmitController — busy agent', () => {
     expect(resolve).toBeDefined();
     resolve?.('btw');
     await pending;
-    expect(h.actions.some((a) => a.entry?.kind === 'info' && a.entry?.text.includes('Noted (1 pending)'))).toBe(true);
+    expect(
+      h.actions.some(
+        (a) => a.entry?.kind === 'info' && a.entry?.text.includes('Noted (1 pending)'),
+      ),
+    ).toBe(true);
     expect(h.actionFns['runBlocks']).not.toHaveBeenCalled();
   });
 
@@ -642,7 +678,12 @@ describe('createSubmitController — busy agent', () => {
 
   it('switches autonomy off when an auto countdown is interrupted by input', async () => {
     const timer = setInterval(() => {}, 10_000);
-    const h = makeHost({ statusRef: 'running', autonomy: 'auto', nextStepsTimer: timer, midRunPicker: false });
+    const h = makeHost({
+      statusRef: 'running',
+      autonomy: 'auto',
+      nextStepsTimer: timer,
+      midRunPicker: false,
+    });
     await h.submit('manual correction');
     expect(h.capabilities['switchAutonomy']).toHaveBeenCalledWith('off');
     clearInterval(timer);

@@ -230,14 +230,16 @@ describe('RemoteMailbox single-owner IPC', () => {
         outcome: 'one done',
       });
 
-      expect((await mailbox.query({ incompleteOnly: true })).map((message) => message.id))
-        .toContain(sent.id);
-      expect((await mailbox.query({ limit: 10 })).find((message) => message.id === sent.id))
-        .toMatchObject({ completed: false });
       expect(
-        (
-          await mailbox.query({ limit: 10, includeReceiptState: true })
-        ).find((message) => message.id === sent.id),
+        (await mailbox.query({ incompleteOnly: true })).map((message) => message.id),
+      ).toContain(sent.id);
+      expect(
+        (await mailbox.query({ limit: 10 })).find((message) => message.id === sent.id),
+      ).toMatchObject({ completed: false });
+      expect(
+        (await mailbox.query({ limit: 10, includeReceiptState: true })).find(
+          (message) => message.id === sent.id,
+        ),
       ).toMatchObject({
         completed: false,
         recipientState: {
@@ -248,8 +250,9 @@ describe('RemoteMailbox single-owner IPC', () => {
         },
       });
       expect(
-        (await mailbox.query({ unreadBy: 'worker@two', incompleteOnly: true }))
-          .map((message) => message.id),
+        (await mailbox.query({ unreadBy: 'worker@two', incompleteOnly: true })).map(
+          (message) => message.id,
+        ),
       ).toContain(sent.id);
 
       await mailbox.ack({
@@ -258,10 +261,12 @@ describe('RemoteMailbox single-owner IPC', () => {
         completed: true,
         outcome: 'two done',
       });
-      expect((await mailbox.query({ incompleteOnly: true })).map((message) => message.id))
-        .not.toContain(sent.id);
-      expect((await mailbox.query({ limit: 10 })).find((message) => message.id === sent.id))
-        .toMatchObject({ completed: true });
+      expect(
+        (await mailbox.query({ incompleteOnly: true })).map((message) => message.id),
+      ).not.toContain(sent.id);
+      expect(
+        (await mailbox.query({ limit: 10 })).find((message) => message.id === sent.id),
+      ).toMatchObject({ completed: true });
     } finally {
       await mailbox.close();
       const control = new MailboxProjectServerConnection(projectDir);
@@ -594,10 +599,7 @@ describe('WS-025 credential verifier redaction at the IPC boundary', () => {
         capabilities: ['mail.read.self'],
         ttlMs: 60_000,
       });
-      const valid = await mailbox.credentialVerify(
-        issued2.credential.credentialId,
-        issued2.secret,
-      );
+      const valid = await mailbox.credentialVerify(issued2.credential.credentialId, issued2.secret);
       expect(valid.valid).toBe(true);
       expect(valid.credential).toBeDefined();
       expect(valid.credential?.credentialId).toBe(issued2.credential.credentialId);

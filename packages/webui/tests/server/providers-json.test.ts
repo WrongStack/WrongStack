@@ -39,14 +39,14 @@ describe('providers.json static file serving', () => {
       });
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toBe('application/json');
-      
+
       const providers = await res.json();
       const expectedProviders = JSON.parse(
         await fs.readFile(path.join(distDir, 'providers.json'), 'utf8'),
       );
       expect(Array.isArray(providers)).toBe(true);
       expect(providers).toEqual(expectedProviders);
-      
+
       // Check referral data is present
       const minimax = providers.find(
         (p: { id: string; referral?: { code: string; reward: string; url: string } }) =>
@@ -65,7 +65,7 @@ describe('providers.json static file serving', () => {
     const providersPath = path.join(distDir, 'providers.json');
     const content = await fs.readFile(providersPath, 'utf8');
     const providers = JSON.parse(content);
-    
+
     for (const provider of providers) {
       expect(provider).toHaveProperty('id');
       expect(provider).toHaveProperty('name');
@@ -77,7 +77,7 @@ describe('providers.json static file serving', () => {
       expect(typeof provider.id).toBe('string');
       expect(typeof provider.name).toBe('string');
       expect(typeof provider.family).toBe('string');
-      
+
       // If referral exists, validate its structure
       if (provider.referral) {
         expect(provider.referral).toHaveProperty('code');

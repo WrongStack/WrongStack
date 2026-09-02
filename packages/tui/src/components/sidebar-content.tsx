@@ -515,134 +515,129 @@ export function SidebarContent({
       <Card innerWidth={innerWidth} accent={ctxColor}>
         {(bodyWidth) => (
           <>
-              {/* Stage banner: rail glyph + MODEL CORE */}
-              <Box width={bodyWidth} justifyContent="space-between">
-                <Box>
-                  <Text color={theme.accent} bold>
-                    {glyphs.railHeavy}
-                  </Text>
-                  <Text color={theme.brand} bold wrap="truncate">
-                    {` ${glyphs.star4} MODEL CORE`}
-                  </Text>
-                </Box>
-                {bodyWidth >= 28 && (themeName || getActiveThemeName()) ? (
-                  <Text color={theme.textSecondary} wrap="truncate">
-                    {`${glyphs.palette} ${themeName ?? getActiveThemeName()}`}
-                  </Text>
-                ) : null}
+            {/* Stage banner: rail glyph + MODEL CORE */}
+            <Box width={bodyWidth} justifyContent="space-between">
+              <Box>
+                <Text color={theme.accent} bold>
+                  {glyphs.railHeavy}
+                </Text>
+                <Text color={theme.brand} bold wrap="truncate">
+                  {` ${glyphs.star4} MODEL CORE`}
+                </Text>
               </Box>
-              {modelIdentity ? (
-                <Box flexDirection="column" marginTop={1}>
-                  <Text color={theme.textMuted} wrap="truncate">
-                    {provider
-                      ? `${glyphs.diamondOpen} ${trunc(provider.toUpperCase(), Math.max(1, bodyWidth - 2))}`
-                      : `${glyphs.diamondOpen} ACTIVE`}
-                  </Text>
-                  <Text color={theme.textPrimary} bold wrap="truncate">
-                    {trunc(modelIdentity, bodyWidth)}
+              {bodyWidth >= 28 && (themeName || getActiveThemeName()) ? (
+                <Text color={theme.textSecondary} wrap="truncate">
+                  {`${glyphs.palette} ${themeName ?? getActiveThemeName()}`}
+                </Text>
+              ) : null}
+            </Box>
+            {modelIdentity ? (
+              <Box flexDirection="column" marginTop={1}>
+                <Text color={theme.textMuted} wrap="truncate">
+                  {provider
+                    ? `${glyphs.diamondOpen} ${trunc(provider.toUpperCase(), Math.max(1, bodyWidth - 2))}`
+                    : `${glyphs.diamondOpen} ACTIVE`}
+                </Text>
+                <Text color={theme.textPrimary} bold wrap="truncate">
+                  {trunc(modelIdentity, bodyWidth)}
+                </Text>
+              </Box>
+            ) : null}
+            {contextWindow ? (
+              <>
+                {(() => {
+                  const tokensLabel = `${fmtTok(contextWindow.used)} / ${fmtTok(contextWindow.max)}`;
+                  const pctLabel = `${ctxPct} `;
+                  const availableForMeter = bodyWidth - pctLabel.length - tokensLabel.length - 2;
+                  const meterInner = Math.min(10, availableForMeter - 2);
+                  const dynamicMeter = meterInner >= 3 ? renderMeter(ctxRatio, meterInner) : null;
+                  return (
+                    <Box width={bodyWidth} flexDirection="row" justifyContent="space-between">
+                      <Box flexDirection="row">
+                        <Text color={ctxColor} bold>
+                          {pctLabel}
+                        </Text>
+                        {dynamicMeter ? <Text color={ctxColor}>{dynamicMeter}</Text> : null}
+                      </Box>
+                      <Text color={theme.textMuted} wrap="truncate">
+                        {tokensLabel}
+                      </Text>
+                    </Box>
+                  );
+                })()}
+                <Box width={bodyWidth} flexDirection="row">
+                  <Text wrap="truncate">
+                    {contextSpectrum(contextBreakdown, contextWindow, bodyWidth).map((segment) => (
+                      <Text key={segment.shortLabel} color={segment.color}>
+                        {(segment.shortLabel === 'FREE' ? '·' : '━').repeat(segment.cells)}
+                      </Text>
+                    ))}
                   </Text>
                 </Box>
-              ) : null}
-              {contextWindow ? (
-                <>
-                  {(() => {
-                    const tokensLabel = `${fmtTok(contextWindow.used)} / ${fmtTok(contextWindow.max)}`;
-                    const pctLabel = `${ctxPct} `;
-                    const availableForMeter = bodyWidth - pctLabel.length - tokensLabel.length - 2;
-                    const meterInner = Math.min(10, availableForMeter - 2);
-                    const dynamicMeter =
-                      meterInner >= 3 ? renderMeter(ctxRatio, meterInner) : null;
-                    return (
-                      <Box width={bodyWidth} flexDirection="row" justifyContent="space-between">
-                        <Box flexDirection="row">
-                          <Text color={ctxColor} bold>
-                            {pctLabel}
-                          </Text>
-                          {dynamicMeter ? <Text color={ctxColor}>{dynamicMeter}</Text> : null}
-                        </Box>
-                        <Text color={theme.textMuted} wrap="truncate">
-                          {tokensLabel}
-                        </Text>
-                      </Box>
-                    );
-                  })()}
-                  <Box width={bodyWidth} flexDirection="row">
-                    <Text wrap="truncate">
-                      {contextSpectrum(contextBreakdown, contextWindow, bodyWidth).map((segment) => (
-                        <Text key={segment.shortLabel} color={segment.color}>
-                          {(segment.shortLabel === 'FREE' ? '·' : '━').repeat(segment.cells)}
-                        </Text>
-                      ))}
-                    </Text>
-                  </Box>
-                  {(() => {
-                    const activeSegments = contextSpectrum(
-                      contextBreakdown,
-                      contextWindow,
-                      bodyWidth,
-                    ).filter((s) => s.tokens > 0 || s.shortLabel === 'FREE');
-                    if (bodyWidth >= 28) {
-                      const rows: Array<
-                        [typeof activeSegments[0], typeof activeSegments[0] | undefined]
-                      > = [];
-                      for (let i = 0; i < activeSegments.length; i += 2) {
-                        rows.push([activeSegments[i]!, activeSegments[i + 1]]);
-                      }
-                      return rows.map(([left, right]) => {
-                        const leftPct = fmtRatioPct(
-                          left.tokens / Math.max(1, contextWindow.max),
-                        );
-                        const rightPct = right
-                          ? fmtRatioPct(right.tokens / Math.max(1, contextWindow.max))
-                          : '0%';
-                        return (
-                          <Box
-                            key={left.shortLabel}
-                            flexDirection="row"
-                            width={bodyWidth}
-                            justifyContent="space-between"
-                          >
-                            <Text color={left.color} wrap="truncate">
-                              {left.glyph} {left.shortLabel} {fmtTok(left.tokens)}
-                              <Text color={theme.textMuted}> {leftPct}</Text>
-                            </Text>
-                            {right ? (
-                              <Text color={right.color} wrap="truncate">
-                                {right.glyph} {right.shortLabel} {fmtTok(right.tokens)}
-                                <Text color={theme.textMuted}> {rightPct}</Text>
-                              </Text>
-                            ) : null}
-                          </Box>
-                        );
-                      });
+                {(() => {
+                  const activeSegments = contextSpectrum(
+                    contextBreakdown,
+                    contextWindow,
+                    bodyWidth,
+                  ).filter((s) => s.tokens > 0 || s.shortLabel === 'FREE');
+                  if (bodyWidth >= 28) {
+                    const rows: Array<
+                      [(typeof activeSegments)[0], (typeof activeSegments)[0] | undefined]
+                    > = [];
+                    for (let i = 0; i < activeSegments.length; i += 2) {
+                      rows.push([activeSegments[i]!, activeSegments[i + 1]]);
                     }
-                    return activeSegments.map((segment) => {
-                      const pct = fmtRatioPct(
-                        segment.tokens / Math.max(1, contextWindow.max),
-                      );
+                    return rows.map(([left, right]) => {
+                      const leftPct = fmtRatioPct(left.tokens / Math.max(1, contextWindow.max));
+                      const rightPct = right
+                        ? fmtRatioPct(right.tokens / Math.max(1, contextWindow.max))
+                        : '0%';
                       return (
                         <Box
-                          key={segment.shortLabel}
+                          key={left.shortLabel}
                           flexDirection="row"
                           width={bodyWidth}
                           justifyContent="space-between"
                         >
-                          <Text color={segment.color} wrap="truncate">
-                            {segment.glyph} {segment.shortLabel}
+                          <Text color={left.color} wrap="truncate">
+                            {left.glyph} {left.shortLabel} {fmtTok(left.tokens)}
+                            <Text color={theme.textMuted}> {leftPct}</Text>
                           </Text>
-                          <Text color={segment.color} wrap="truncate">
-                            {fmtTok(segment.tokens)} <Text color={theme.textMuted}>{pct}</Text>
-                          </Text>
+                          {right ? (
+                            <Text color={right.color} wrap="truncate">
+                              {right.glyph} {right.shortLabel} {fmtTok(right.tokens)}
+                              <Text color={theme.textMuted}> {rightPct}</Text>
+                            </Text>
+                          ) : null}
                         </Box>
                       );
                     });
-                  })()}
-                </>
-              ) : (
-                <Text color={theme.textMuted}>{glyphs.dividerDot} awaiting telemetry</Text>
-              )}
-            </>
-          )}
+                  }
+                  return activeSegments.map((segment) => {
+                    const pct = fmtRatioPct(segment.tokens / Math.max(1, contextWindow.max));
+                    return (
+                      <Box
+                        key={segment.shortLabel}
+                        flexDirection="row"
+                        width={bodyWidth}
+                        justifyContent="space-between"
+                      >
+                        <Text color={segment.color} wrap="truncate">
+                          {segment.glyph} {segment.shortLabel}
+                        </Text>
+                        <Text color={segment.color} wrap="truncate">
+                          {fmtTok(segment.tokens)} <Text color={theme.textMuted}>{pct}</Text>
+                        </Text>
+                      </Box>
+                    );
+                  });
+                })()}
+              </>
+            ) : (
+              <Text color={theme.textMuted}>{glyphs.dividerDot} awaiting telemetry</Text>
+            )}
+          </>
+        )}
       </Card>
 
       {/* ── Prompt cache card: hit ratio + coverage ── */}
@@ -670,10 +665,16 @@ export function SidebarContent({
                   {bodyWidth >= 28 ? (
                     <Box flexDirection="row" width={bodyWidth} justifyContent="space-between">
                       <Text color={theme.textSecondary} wrap="truncate">
-                        read <Text color={theme.textPrimary} bold>{fmtTok(cs.readTokens)}</Text>
+                        read{' '}
+                        <Text color={theme.textPrimary} bold>
+                          {fmtTok(cs.readTokens)}
+                        </Text>
                         {cs.writeTokens > 0 ? (
                           <>
-                            {' · '}write <Text color={theme.textPrimary} bold>{fmtTok(cs.writeTokens)}</Text>
+                            {' · '}write{' '}
+                            <Text color={theme.textPrimary} bold>
+                              {fmtTok(cs.writeTokens)}
+                            </Text>
                           </>
                         ) : null}
                         {cs.savedUsd > 0 ? (
@@ -690,11 +691,17 @@ export function SidebarContent({
                     <>
                       <Box flexDirection="row" width={bodyWidth} justifyContent="space-between">
                         <Text color={theme.textSecondary} wrap="truncate">
-                          read <Text color={theme.textPrimary} bold>{fmtTok(cs.readTokens)}</Text>
+                          read{' '}
+                          <Text color={theme.textPrimary} bold>
+                            {fmtTok(cs.readTokens)}
+                          </Text>
                         </Text>
                         {cs.writeTokens > 0 ? (
                           <Text color={theme.textSecondary} wrap="truncate">
-                            write <Text color={theme.textPrimary} bold>{fmtTok(cs.writeTokens)}</Text>
+                            write{' '}
+                            <Text color={theme.textPrimary} bold>
+                              {fmtTok(cs.writeTokens)}
+                            </Text>
                           </Text>
                         ) : null}
                       </Box>
@@ -816,8 +823,7 @@ export function SidebarContent({
                 const isLast = idx === shownAgents.length - 1;
                 const treePrefix = isLeader ? '♛ ' : isLast ? glyphs.treeLast : glyphs.treeBranch;
                 const name = trunc(entry.name || entry.id, bodyWidth - (isLeader ? 8 : 10));
-                const ctxPctAgent =
-                  entry.ctxPct != null ? fmtRatioPct(entry.ctxPct) : '';
+                const ctxPctAgent = entry.ctxPct != null ? fmtRatioPct(entry.ctxPct) : '';
                 const statusLabel =
                   entry.status === 'running'
                     ? 'running'

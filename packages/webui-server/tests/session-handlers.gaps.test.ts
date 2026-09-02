@@ -3,7 +3,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSessionHandlers, type SessionHandlersContext } from '../src/server/session-handlers.js';
+import {
+  createSessionHandlers,
+  type SessionHandlersContext,
+} from '../src/server/session-handlers.js';
 
 interface SentMessage {
   type: string;
@@ -174,10 +177,13 @@ afterEach(async () => {
 describe('createSessionHandlers — context handlers', () => {
   it('rejects requests that target a different session', async () => {
     const h = makeHarness();
-    await h.routes.clearContext(h.ws as never, {
-      type: 'context.clear',
-      payload: { sessionId: 'sess_other' },
-    } as never);
+    await h.routes.clearContext(
+      h.ws as never,
+      {
+        type: 'context.clear',
+        payload: { sessionId: 'sess_other' },
+      } as never,
+    );
     const error = h.sent.find((m) => m.type === 'error');
     expect(error).toBeDefined();
     expect(error?.payload['message']).toContain(
@@ -193,7 +199,9 @@ describe('createSessionHandlers — context handlers', () => {
     expect(h.context.state.deleteMeta).toHaveBeenCalledWith('lastRequestTokensAt');
     expect(h.context.clearMemoryEvidence).toHaveBeenCalled();
     expect(h.tokenCounter.reset).toHaveBeenCalled();
-    expect(h.sent.some((m) => m.type === 'key.operation_result' && m.payload['success'] === true)).toBe(true);
+    expect(
+      h.sent.some((m) => m.type === 'key.operation_result' && m.payload['success'] === true),
+    ).toBe(true);
     expect(h.broadcasts.some((m) => m.type === 'session.start')).toBe(true);
   });
 
@@ -222,10 +230,13 @@ describe('createSessionHandlers — context handlers', () => {
       repaired: true,
     }));
     const h = makeHarness({ compactor: { compact } });
-    await h.routes.compactContext(h.ws as never, {
-      type: 'context.compact',
-      payload: { aggressive: true },
-    } as never);
+    await h.routes.compactContext(
+      h.ws as never,
+      {
+        type: 'context.compact',
+        payload: { aggressive: true },
+      } as never,
+    );
     expect(compact).toHaveBeenCalledWith(expect.anything(), { aggressive: true });
     const compacted = h.sent.find((m) => m.type === 'context.compacted');
     expect(compacted?.payload).toMatchObject({ before: 100, after: 40, saved: 60, repaired: true });
@@ -266,10 +277,13 @@ describe('createSessionHandlers — context handlers', () => {
 
   it('validates context editor proposals with a typed validation payload', async () => {
     const h = makeHarness();
-    await h.routes.validateContextEditor(h.ws as never, {
-      type: 'context.editor.validate',
-      payload: { baseRevision: 'not-a-real-revision', messages: [], removals: [] },
-    } as never);
+    await h.routes.validateContextEditor(
+      h.ws as never,
+      {
+        type: 'context.editor.validate',
+        payload: { baseRevision: 'not-a-real-revision', messages: [], removals: [] },
+      } as never,
+    );
     const validation = h.sent.find((m) => m.type === 'context.editor.validation');
     expect(validation).toBeDefined();
     expect(validation?.payload['sessionId']).toBe('sess_current');
@@ -290,10 +304,13 @@ describe('createSessionHandlers — context mode handlers', () => {
 
   it('rejects mode switches with an invalid payload', async () => {
     const h = makeHarness();
-    await h.routes.switchContextMode(h.ws as never, {
-      type: 'context.mode.switch',
-      payload: { nope: true },
-    } as never);
+    await h.routes.switchContextMode(
+      h.ws as never,
+      {
+        type: 'context.mode.switch',
+        payload: { nope: true },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(false);
     expect(String(res?.payload['message'])).toContain('context.mode.switch');
@@ -301,10 +318,13 @@ describe('createSessionHandlers — context mode handlers', () => {
 
   it('switches to a valid mode and resolves the policy', async () => {
     const h = makeHarness();
-    await h.routes.switchContextMode(h.ws as never, {
-      type: 'context.mode.switch',
-      payload: { id: 'frugal' },
-    } as never);
+    await h.routes.switchContextMode(
+      h.ws as never,
+      {
+        type: 'context.mode.switch',
+        payload: { id: 'frugal' },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(true);
     expect(res?.payload['message']).toBe('Context mode switched to frugal');
@@ -318,27 +338,39 @@ describe('createSessionHandlers — context mode handlers', () => {
 
   it('rejects custom mode CRUD with malformed payloads', async () => {
     const h = makeHarness();
-    await h.routes.createContextMode(h.ws as never, {
-      type: 'context.mode.create',
-      payload: { id: '' },
-    } as never);
-    expect(h.sent.some((m) => m.type === 'key.operation_result' && m.payload['success'] === false)).toBe(true);
+    await h.routes.createContextMode(
+      h.ws as never,
+      {
+        type: 'context.mode.create',
+        payload: { id: '' },
+      } as never,
+    );
+    expect(
+      h.sent.some((m) => m.type === 'key.operation_result' && m.payload['success'] === false),
+    ).toBe(true);
 
-    await h.routes.updateContextMode(h.ws as never, {
-      type: 'context.mode.update',
-      payload: 'garbage',
-    } as never);
+    await h.routes.updateContextMode(
+      h.ws as never,
+      {
+        type: 'context.mode.update',
+        payload: 'garbage',
+      } as never,
+    );
     const failures = h.sent.filter(
       (m) => m.type === 'key.operation_result' && m.payload['success'] === false,
     );
     expect(failures.length).toBeGreaterThanOrEqual(2);
 
-    await h.routes.deleteContextMode(h.ws as never, {
-      type: 'context.mode.delete',
-      payload: {},
-    } as never);
+    await h.routes.deleteContextMode(
+      h.ws as never,
+      {
+        type: 'context.mode.delete',
+        payload: {},
+      } as never,
+    );
     expect(
-      h.sent.filter((m) => m.type === 'key.operation_result' && m.payload['success'] === false).length,
+      h.sent.filter((m) => m.type === 'key.operation_result' && m.payload['success'] === false)
+        .length,
     ).toBeGreaterThanOrEqual(3);
   });
 });
@@ -351,7 +383,11 @@ describe('createSessionHandlers — session list, rename, delete', () => {
     expect(Array.isArray(ok?.payload['sessions'])).toBe(true);
 
     const broken = makeHarness({
-      store: { list: async () => { throw new Error('store down'); } },
+      store: {
+        list: async () => {
+          throw new Error('store down');
+        },
+      },
     });
     await broken.routes.listSessions(broken.ws as never, { type: 'sessions.list' } as never);
     const err = broken.sent.find((m) => m.type === 'sessions.list');
@@ -360,41 +396,57 @@ describe('createSessionHandlers — session list, rename, delete', () => {
 
   it('requires a session id for renames', async () => {
     const h = makeHarness();
-    await h.routes.renameSession(h.ws as never, {
-      type: 'session.rename',
-      payload: { name: 'no id' },
-    } as never);
+    await h.routes.renameSession(
+      h.ws as never,
+      {
+        type: 'session.rename',
+        payload: { name: 'no id' },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['message']).toBe('Session id is required');
   });
 
   it('renames and broadcasts the refreshed list', async () => {
     const h = makeHarness();
-    await h.routes.renameSession(h.ws as never, {
-      type: 'session.rename',
-      payload: { id: 'sess_current', name: 'Fresh Name' },
-    } as never);
+    await h.routes.renameSession(
+      h.ws as never,
+      {
+        type: 'session.rename',
+        payload: { id: 'sess_current', name: 'Fresh Name' },
+      } as never,
+    );
     expect(h.store['rename']).toHaveBeenCalledWith('sess_current', 'Fresh Name');
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['message']).toBe('Renamed session to "Fresh Name"');
     expect(h.broadcasts.some((m) => m.type === 'sessions.list')).toBe(true);
 
-    await h.routes.renameSession(h.ws as never, {
-      type: 'session.rename',
-      payload: { id: 'sess_current', name: '' },
-    } as never);
+    await h.routes.renameSession(
+      h.ws as never,
+      {
+        type: 'session.rename',
+        payload: { id: 'sess_current', name: '' },
+      } as never,
+    );
     const cleared = h.sent.filter((m) => m.type === 'key.operation_result').at(-1);
     expect(cleared?.payload['message']).toBe('Cleared session name');
   });
 
   it('surfaces rename failures', async () => {
     const h = makeHarness({
-      store: { rename: async () => { throw new Error('readonly store'); } },
+      store: {
+        rename: async () => {
+          throw new Error('readonly store');
+        },
+      },
     });
-    await h.routes.renameSession(h.ws as never, {
-      type: 'session.rename',
-      payload: { id: 'x', name: 'y' },
-    } as never);
+    await h.routes.renameSession(
+      h.ws as never,
+      {
+        type: 'session.rename',
+        payload: { id: 'x', name: 'y' },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(false);
     expect(res?.payload['message']).toContain('readonly store');
@@ -402,10 +454,13 @@ describe('createSessionHandlers — session list, rename, delete', () => {
 
   it('deletes a session and refreshes the list broadcast', async () => {
     const h = makeHarness();
-    await h.routes.deleteSession(h.ws as never, {
-      type: 'session.delete',
-      payload: { id: 'sess_other' },
-    } as never);
+    await h.routes.deleteSession(
+      h.ws as never,
+      {
+        type: 'session.delete',
+        payload: { id: 'sess_other' },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(true);
     expect(res?.payload['message']).toBe('Session sess_other deleted');
@@ -421,10 +476,13 @@ describe('createSessionHandlers — session list, rename, delete', () => {
         },
       },
     });
-    await h.routes.deleteSession(h.ws as never, {
-      type: 'session.delete',
-      payload: { id: 'sess_other' },
-    } as never);
+    await h.routes.deleteSession(
+      h.ws as never,
+      {
+        type: 'session.delete',
+        payload: { id: 'sess_other' },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(false);
     expect(res?.payload['message']).toContain('cannot delete');
@@ -434,30 +492,39 @@ describe('createSessionHandlers — session list, rename, delete', () => {
 describe('createSessionHandlers — resume, save, inspect', () => {
   it('refuses to resume when session swapping is unavailable', async () => {
     const h = makeHarness({ canSwapSessions: () => false });
-    await h.routes.resumeSession(h.ws as never, {
-      type: 'session.resume',
-      payload: { id: 'sess_other' },
-    } as never);
+    await h.routes.resumeSession(
+      h.ws as never,
+      {
+        type: 'session.resume',
+        payload: { id: 'sess_other' },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['message']).toBe('Session store not available');
   });
 
   it('refuses to resume the already-active session', async () => {
     const h = makeHarness();
-    await h.routes.resumeSession(h.ws as never, {
-      type: 'session.resume',
-      payload: { id: 'sess_current' },
-    } as never);
+    await h.routes.resumeSession(
+      h.ws as never,
+      {
+        type: 'session.resume',
+        payload: { id: 'sess_current' },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['message']).toBe('Session is already active');
   });
 
   it('resumes a session, restores todos, and broadcasts the replay payload', async () => {
     const h = makeHarness();
-    await h.routes.resumeSession(h.ws as never, {
-      type: 'session.resume',
-      payload: { id: 'sess_resumed' },
-    } as never);
+    await h.routes.resumeSession(
+      h.ws as never,
+      {
+        type: 'session.resume',
+        payload: { id: 'sess_resumed' },
+      } as never,
+    );
     expect(h.current().id).toBe('sess_resumed');
     expect(h.context.session).toBe(h.current());
     expect(h.claimSession).toHaveBeenCalledWith('sess_resumed');
@@ -478,10 +545,13 @@ describe('createSessionHandlers — resume, save, inspect', () => {
       },
     });
     h.claimSession.mockImplementation(async () => release);
-    await h.routes.resumeSession(h.ws as never, {
-      type: 'session.resume',
-      payload: { id: 'sess_broken' },
-    } as never);
+    await h.routes.resumeSession(
+      h.ws as never,
+      {
+        type: 'session.resume',
+        payload: { id: 'sess_broken' },
+      } as never,
+    );
     expect(release).toHaveBeenCalled();
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(false);
@@ -497,30 +567,46 @@ describe('createSessionHandlers — resume, save, inspect', () => {
 
   it('requires an id for inspection and reports load failures', async () => {
     const h = makeHarness();
-    await h.routes.inspectSession(h.ws as never, {
-      type: 'session.inspect',
-      payload: { id: '' },
-    } as never);
+    await h.routes.inspectSession(
+      h.ws as never,
+      {
+        type: 'session.inspect',
+        payload: { id: '' },
+      } as never,
+    );
     expect(h.sent.find((m) => m.type === 'session.inspect')?.payload['error']).toBe(
       'Session id is required',
     );
 
     const broken = makeHarness({
-      store: { list: async () => [], load: async () => { throw new Error('ENOENT'); } },
+      store: {
+        list: async () => [],
+        load: async () => {
+          throw new Error('ENOENT');
+        },
+      },
     });
-    await broken.routes.inspectSession(broken.ws as never, {
-      type: 'session.inspect',
-      payload: { id: 'missing' },
-    } as never);
-    expect(broken.sent.find((m) => m.type === 'session.inspect')?.payload['error']).toContain('ENOENT');
+    await broken.routes.inspectSession(
+      broken.ws as never,
+      {
+        type: 'session.inspect',
+        payload: { id: 'missing' },
+      } as never,
+    );
+    expect(broken.sent.find((m) => m.type === 'session.inspect')?.payload['error']).toContain(
+      'ENOENT',
+    );
   });
 
   it('inspects a session with its metadata', async () => {
     const h = makeHarness();
-    await h.routes.inspectSession(h.ws as never, {
-      type: 'session.inspect',
-      payload: { id: 'sess_other' },
-    } as never);
+    await h.routes.inspectSession(
+      h.ws as never,
+      {
+        type: 'session.inspect',
+        payload: { id: 'sess_other' },
+      } as never,
+    );
     const payload = h.sent.find((m) => m.type === 'session.inspect')?.payload;
     expect(payload?.['error']).toBeUndefined();
     expect(payload?.['id']).toBe('sess_other');
@@ -530,10 +616,13 @@ describe('createSessionHandlers — resume, save, inspect', () => {
 describe('createSessionHandlers — checkpoints and rewind', () => {
   it('lists checkpoints (empty for a fresh directory)', async () => {
     const h = makeHarness();
-    await h.routes.listCheckpoints(h.ws as never, {
-      type: 'session.checkpoints',
-      payload: {},
-    } as never);
+    await h.routes.listCheckpoints(
+      h.ws as never,
+      {
+        type: 'session.checkpoints',
+        payload: {},
+      } as never,
+    );
     const message = h.sent.find((m) => m.type === 'session.checkpoints');
     expect(message).toBeDefined();
     const checkpoints = (message as SentMessage).payload['checkpoints'];
@@ -543,10 +632,13 @@ describe('createSessionHandlers — checkpoints and rewind', () => {
 
   it('reports rewind failures for unknown checkpoints', async () => {
     const h = makeHarness();
-    await h.routes.rewindSession(h.ws as never, {
-      type: 'session.rewind',
-      payload: { checkpointIndex: 3 },
-    } as never);
+    await h.routes.rewindSession(
+      h.ws as never,
+      {
+        type: 'session.rewind',
+        payload: { checkpointIndex: 3 },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(false);
   });
@@ -570,10 +662,13 @@ describe('createSessionHandlers — checkpoints and rewind', () => {
     await live.writeFileSnapshot(0, []);
     await live.writeCheckpoint(1, 'second prompt');
     await live.flush();
-    await h.routes.rewindSession(h.ws as never, {
-      type: 'session.rewind',
-      payload: { checkpointIndex: 0 },
-    } as never);
+    await h.routes.rewindSession(
+      h.ws as never,
+      {
+        type: 'session.rewind',
+        payload: { checkpointIndex: 0 },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(false);
     expect(res?.payload['message']).toBe(
@@ -597,10 +692,13 @@ describe('createSessionHandlers — checkpoints and rewind', () => {
     await live.writeFileSnapshot(0, []);
     await live.writeCheckpoint(1, 'second prompt');
     await live.flush();
-    await h.routes.rewindSession(h.ws as never, {
-      type: 'session.rewind',
-      payload: { checkpointIndex: 0 },
-    } as never);
+    await h.routes.rewindSession(
+      h.ws as never,
+      {
+        type: 'session.rewind',
+        payload: { checkpointIndex: 0 },
+      } as never,
+    );
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(true);
     expect(h.context.session.truncateToCheckpoint).toHaveBeenCalled();

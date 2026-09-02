@@ -23,7 +23,10 @@ const TREND_ICON: Record<string, ReactNode> = {
   stable: <Minus className="h-3.5 w-3.5 text-warning" />,
 };
 
-const STATE_CONFIG: Record<GoalState['goalState'], { color: string; bg: string; labelKey: string }> = {
+const STATE_CONFIG: Record<
+  GoalState['goalState'],
+  { color: string; bg: string; labelKey: string }
+> = {
   active: {
     color: 'text-success',
     bg: 'bg-success/10',
@@ -76,7 +79,12 @@ export function GoalPanel({ goal, className }: GoalPanelProps): React.ReactEleme
   // Auto-collapse when goal state changes (e.g. completed → null).
   // Must come BEFORE any early returns — hook count must be stable.
   useEffect(() => {
-    if (!goal || goal.goalState === 'completed' || goal.goalState === 'failed' || goal.goalState === 'abandoned') {
+    if (
+      !goal ||
+      goal.goalState === 'completed' ||
+      goal.goalState === 'failed' ||
+      goal.goalState === 'abandoned'
+    ) {
       setCollapsed(true);
     }
   }, [goal]);
@@ -87,11 +95,15 @@ export function GoalPanel({ goal, className }: GoalPanelProps): React.ReactEleme
   // Hide the panel when there's no goal, or when the goal is terminal
   // (completed / failed) — it's served its purpose and shouldn't linger.
   if (!goal) return null;
-  if (goal.goalState === 'completed' || goal.goalState === 'failed' || goal.goalState === 'abandoned') return null;
+  if (
+    goal.goalState === 'completed' ||
+    goal.goalState === 'failed' ||
+    goal.goalState === 'abandoned'
+  )
+    return null;
 
   const stateCfg = STATE_CONFIG[goal.goalState];
-  const completedDeliverables =
-    goal.deliverables?.filter((d) => d.status === 'done').length ?? 0;
+  const completedDeliverables = goal.deliverables?.filter((d) => d.status === 'done').length ?? 0;
   const totalDeliverables = goal.deliverables?.length ?? 0;
   const trendIcon = goal.progressTrend ? TREND_ICON[goal.progressTrend] : null;
 

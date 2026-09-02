@@ -12,7 +12,7 @@ import { test, expect } from '@playwright/test';
  *    ports so the injected meta tag and the actual WS port may briefly mismatch
  */
 const IGNORED_ERRORS = [
-  "violates the following Content Security Policy",
+  'violates the following Content Security Policy',
   '[object Event]', // internal ws-client error during handshake
 ];
 
@@ -33,9 +33,7 @@ test.describe('WebUI smoke', () => {
     });
     await page.goto('/');
     await page.waitForLoadState('networkidle');
-    const critical = errors.filter(
-      (e) => !e.includes('favicon') && !isIgnoredError(e),
-    );
+    const critical = errors.filter((e) => !e.includes('favicon') && !isIgnoredError(e));
     expect(critical).toHaveLength(0);
   });
 });

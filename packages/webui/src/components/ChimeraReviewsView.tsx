@@ -64,13 +64,25 @@ function fmtRelative(iso: string): string {
 
 const LIFECYCLE_BADGE: Record<string, { label: string; cls: string; icon: typeof CheckCircle2 }> = {
   open: { label: 'Open', cls: 'border-primary/30 bg-primary/10 text-primary', icon: AlertCircle },
-  actioned: { label: 'Actioned', cls: 'border-warning/30 bg-warning/10 text-warning', icon: RotateCw },
-  completed: { label: 'Completed', cls: 'border-success/30 bg-success/10 text-success', icon: CheckCircle2 },
+  actioned: {
+    label: 'Actioned',
+    cls: 'border-warning/30 bg-warning/10 text-warning',
+    icon: RotateCw,
+  },
+  completed: {
+    label: 'Completed',
+    cls: 'border-success/30 bg-success/10 text-success',
+    icon: CheckCircle2,
+  },
   skipped: { label: 'Skipped', cls: 'border-border bg-muted text-muted-foreground', icon: XCircle },
 };
 
 const SEVERITY_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  critical: { bg: 'bg-destructive/10 border-destructive/30', text: 'text-destructive', dot: 'bg-destructive' },
+  critical: {
+    bg: 'bg-destructive/10 border-destructive/30',
+    text: 'text-destructive',
+    dot: 'bg-destructive',
+  },
   high: { bg: 'bg-warning/15 border-warning/40', text: 'text-warning', dot: 'bg-warning' },
   medium: { bg: 'bg-warning/10 border-warning/30', text: 'text-warning', dot: 'bg-warning' },
   low: { bg: 'bg-muted border-border', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
@@ -163,7 +175,9 @@ export function ChimeraReviewsView() {
       {/* Top Header / Filter Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card/40 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2">
-          <span className="text-xl" aria-hidden>🦂</span>
+          <span className="text-xl" aria-hidden>
+            🦂
+          </span>
           <div>
             <h1 className="text-base font-semibold leading-none">Chimera Review Hub & Journal</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -291,7 +305,9 @@ export function ChimeraReviewsView() {
                       {r.counts && total > 0 && (
                         <div className="flex items-center gap-1 font-mono text-[10px]">
                           {r.counts.critical > 0 && (
-                            <span className="text-destructive font-semibold">{r.counts.critical} critical</span>
+                            <span className="text-destructive font-semibold">
+                              {r.counts.critical} critical
+                            </span>
                           )}
                           {r.counts.high > 0 && (
                             <span className="text-warning">{r.counts.high} high</span>
@@ -323,11 +339,18 @@ export function ChimeraReviewsView() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-lg font-bold">
-                        Review Report <span className="font-mono text-sm text-muted-foreground">({detail.report.id})</span>
+                        Review Report{' '}
+                        <span className="font-mono text-sm text-muted-foreground">
+                          ({detail.report.id})
+                        </span>
                       </h2>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Session <span className="font-mono font-medium text-foreground">{detail.report.sessionId}</span> • Reviewed at {fmtTime(detail.report.reviewedAt)}
+                      Session{' '}
+                      <span className="font-mono font-medium text-foreground">
+                        {detail.report.sessionId}
+                      </span>{' '}
+                      • Reviewed at {fmtTime(detail.report.reviewedAt)}
                     </p>
                   </div>
 
@@ -335,7 +358,9 @@ export function ChimeraReviewsView() {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => transitionReport(detail.report!.id, 'actioned', 'Manual action status')}
+                      onClick={() =>
+                        transitionReport(detail.report!.id, 'actioned', 'Manual action status')
+                      }
                       disabled={detail.report.lifecycle === 'actioned'}
                       className="inline-flex items-center gap-1 rounded-lg border border-warning/30 bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning/20 disabled:opacity-40 transition-colors"
                     >
@@ -344,7 +369,9 @@ export function ChimeraReviewsView() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => transitionReport(detail.report!.id, 'completed', 'Manual completion')}
+                      onClick={() =>
+                        transitionReport(detail.report!.id, 'completed', 'Manual completion')
+                      }
                       disabled={detail.report.lifecycle === 'completed'}
                       className="inline-flex items-center gap-1 rounded-lg border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-medium text-success hover:bg-success/20 disabled:opacity-40 transition-colors"
                     >
@@ -367,19 +394,27 @@ export function ChimeraReviewsView() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border/60 text-xs">
                   <div>
                     <span className="text-muted-foreground block text-[11px]">Reviewer Model</span>
-                    <span className="font-mono font-medium text-foreground">{detail.report.reviewerModel || 'default'}</span>
+                    <span className="font-mono font-medium text-foreground">
+                      {detail.report.reviewerModel || 'default'}
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[11px]">Reviewed Files</span>
-                    <span className="font-medium text-foreground">{detail.report.files.length} file(s)</span>
+                    <span className="font-medium text-foreground">
+                      {detail.report.files.length} file(s)
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[11px]">Total Findings</span>
-                    <span className="font-semibold text-foreground">{detail.report.totalFindings}</span>
+                    <span className="font-semibold text-foreground">
+                      {detail.report.totalFindings}
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[11px]">Cascade Depth</span>
-                    <span className="font-medium text-foreground">{detail.report.cascadeDepth ?? 0}</span>
+                    <span className="font-medium text-foreground">
+                      {detail.report.cascadeDepth ?? 0}
+                    </span>
                   </div>
                 </div>
 
@@ -481,7 +516,9 @@ export function ChimeraReviewsView() {
 
                             {/* Finding Status and Actions */}
                             <div className="flex items-center gap-1.5 text-xs">
-                              <span className="font-semibold text-muted-foreground mr-1">Status:</span>
+                              <span className="font-semibold text-muted-foreground mr-1">
+                                Status:
+                              </span>
                               <span
                                 className={cn(
                                   'px-2 py-0.5 rounded-full text-[11px] font-medium capitalize border',
@@ -498,7 +535,14 @@ export function ChimeraReviewsView() {
                               {finding.status !== 'resolved' && (
                                 <button
                                   type="button"
-                                  onClick={() => transitionFinding(finding.id, 'resolved', 'fixed', 'Resolved by operator in WebUI')}
+                                  onClick={() =>
+                                    transitionFinding(
+                                      finding.id,
+                                      'resolved',
+                                      'fixed',
+                                      'Resolved by operator in WebUI',
+                                    )
+                                  }
                                   className="ml-2 rounded px-2 py-0.5 text-[11px] font-medium bg-success/10 text-success hover:bg-success/20 border border-success/30"
                                 >
                                   Resolve (Fixed)
@@ -507,7 +551,14 @@ export function ChimeraReviewsView() {
                               {finding.status !== 'ignored' && finding.status !== 'resolved' && (
                                 <button
                                   type="button"
-                                  onClick={() => transitionFinding(finding.id, 'ignored', undefined, 'Ignored by operator')}
+                                  onClick={() =>
+                                    transitionFinding(
+                                      finding.id,
+                                      'ignored',
+                                      undefined,
+                                      'Ignored by operator',
+                                    )
+                                  }
                                   className="rounded px-2 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground hover:bg-muted/80 border border-border"
                                 >
                                   Ignore
@@ -516,7 +567,14 @@ export function ChimeraReviewsView() {
                               {(finding.status === 'resolved' || finding.status === 'ignored') && (
                                 <button
                                   type="button"
-                                  onClick={() => transitionFinding(finding.id, 'active', undefined, 'Reopened in WebUI')}
+                                  onClick={() =>
+                                    transitionFinding(
+                                      finding.id,
+                                      'active',
+                                      undefined,
+                                      'Reopened in WebUI',
+                                    )
+                                  }
                                   className="rounded px-2 py-0.5 text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 border border-primary/30"
                                 >
                                   Reopen
@@ -526,12 +584,16 @@ export function ChimeraReviewsView() {
                           </div>
 
                           <h4 className="text-sm font-semibold text-foreground">{finding.title}</h4>
-                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">{finding.description}</p>
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                            {finding.description}
+                          </p>
 
                           {/* Suggested fix */}
                           {finding.suggestedFix && (
                             <div className="rounded-lg bg-muted/40 border border-border/80 p-3 space-y-1 text-xs">
-                              <span className="font-semibold text-primary block">Suggested Fix:</span>
+                              <span className="font-semibold text-primary block">
+                                Suggested Fix:
+                              </span>
                               <pre className="font-mono text-[11px] text-foreground overflow-x-auto whitespace-pre-wrap">
                                 {finding.suggestedFix}
                               </pre>
@@ -577,7 +639,11 @@ export function ChimeraReviewsView() {
                     className="flex w-full items-center justify-between px-4 py-3 text-xs font-semibold text-muted-foreground hover:bg-muted/50 transition-colors"
                   >
                     <span>Raw Report Markdown</span>
-                    {showRawText ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    {showRawText ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
                   </button>
                   {showRawText && (
                     <div className="border-t border-border p-4 bg-muted/20">
@@ -600,22 +666,30 @@ export function ChimeraReviewsView() {
               {/* Chronological Timeline */}
               <div className="space-y-3 flex-1 overflow-y-auto">
                 {detail.events.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">No journal events recorded yet.</p>
+                  <p className="text-xs text-muted-foreground italic">
+                    No journal events recorded yet.
+                  </p>
                 ) : (
                   <div className="relative pl-4 space-y-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
                     {detail.events.map((ev) => (
                       <div key={ev.id} className="relative space-y-1 text-xs">
                         <div className="absolute -left-4 top-1 h-2 w-2 rounded-full bg-primary ring-4 ring-card" />
                         <div className="flex items-center justify-between gap-1 text-[11px] text-muted-foreground">
-                          <span className="font-semibold text-foreground capitalize">{ev.eventType.replace('_', ' ')}</span>
+                          <span className="font-semibold text-foreground capitalize">
+                            {ev.eventType.replace('_', ' ')}
+                          </span>
                           <span>{fmtRelative(ev.timestamp)}</span>
                         </div>
                         <div className="text-[11px] text-muted-foreground">
-                          Actor: <span className="font-medium text-foreground">{ev.actorId}</span> ({ev.actorKind})
+                          Actor: <span className="font-medium text-foreground">{ev.actorId}</span> (
+                          {ev.actorKind})
                         </div>
                         {ev.fromLifecycle && ev.toLifecycle && (
                           <div className="text-[11px] text-muted-foreground">
-                            Status: <span className="text-foreground">{ev.fromLifecycle} ➔ {ev.toLifecycle}</span>
+                            Status:{' '}
+                            <span className="text-foreground">
+                              {ev.fromLifecycle} ➔ {ev.toLifecycle}
+                            </span>
                           </div>
                         )}
                         {ev.reason && (

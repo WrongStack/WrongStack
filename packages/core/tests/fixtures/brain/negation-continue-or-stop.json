@@ -11,9 +11,7 @@
     "fallback": "continue"
   },
   "expectations": {
-    "allowedDecisionTypes": [
-      "answer"
-    ]
+    "allowedDecisionTypes": ["answer"]
   },
   "expectTier": "policy"
 }

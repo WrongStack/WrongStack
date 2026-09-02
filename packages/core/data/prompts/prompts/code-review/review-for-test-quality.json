@@ -5,10 +5,7 @@
   "description": "Assess whether a change is adequately tested.",
   "content": "Review the test coverage of this change:\n\n{{diff}}\n\nDo the tests actually exercise the new behavior, including its edge cases and failure modes? Would they fail if the code regressed? Flag missing tests for risky paths, tautological assertions, and over-mocking that tests nothing. Distinguish code that genuinely needs more tests from code that's fine as-is. Be specific about what test to add.",
   "category": "code-review",
-  "tags": [
-    "tests",
-    "review"
-  ],
+  "tags": ["tests", "review"],
   "source": "builtin",
   "favorite": false,
   "checksum": "22b889f28d2bdb836f3c101d15c7e0cc343086d35769e0f869127dc9e682818e",

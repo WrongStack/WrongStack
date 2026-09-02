@@ -58,11 +58,22 @@ interface FakePluginAPI {
   };
   pipelines: Record<string, { use: (h: unknown) => void; get: (n: string) => unknown }>;
   config: { extensions?: Record<string, unknown> };
-  log: { info: (msg: string, meta?: unknown) => void; warn: (msg: string, meta?: unknown) => void; error: (msg: string, meta?: unknown) => void };
-  metrics: { counter: (name: string, val?: number, labels?: Record<string, string>) => void; histogram: (name: string, val?: number, labels?: Record<string, string>) => void; gauge: (name: string, val?: number) => void };
+  log: {
+    info: (msg: string, meta?: unknown) => void;
+    warn: (msg: string, meta?: unknown) => void;
+    error: (msg: string, meta?: unknown) => void;
+  };
+  metrics: {
+    counter: (name: string, val?: number, labels?: Record<string, string>) => void;
+    histogram: (name: string, val?: number, labels?: Record<string, string>) => void;
+    gauge: (name: string, val?: number) => void;
+  };
   session: { append: (ev: unknown) => Promise<void>; transcriptPath?: string };
   extensions: { register(name: string, hook: unknown): { unregister(): void } };
-  registerSystemPromptContributor(c: { id: string; contribute(): Array<{ type: string; content: string }> }): () => void;
+  registerSystemPromptContributor(c: {
+    id: string;
+    contribute(): Array<{ type: string; content: string }>;
+  }): () => void;
   onEvent(event: string, handler: unknown): () => void;
   onPattern(pattern: string, handler: (event: string, payload: unknown) => void): () => void;
   emitCustom(event: string, payload: unknown): void;
@@ -79,22 +90,36 @@ function createMockAPI(): FakePluginAPI {
 
   return {
     tools: {
-      register(t: FakeTool) { tools.push(t); },
+      register(t: FakeTool) {
+        tools.push(t);
+      },
       unregister(_n: string) {},
       wrap(_n: string, _w: unknown) {},
-      get(n: string) { return tools.find((t) => t.name === n); },
-      list() { return [...tools]; },
+      get(n: string) {
+        return tools.find((t) => t.name === n);
+      },
+      list() {
+        return [...tools];
+      },
     },
     slashCommands: {
-      register(cmd: unknown) { commands.push(cmd); },
-      unregister(_n: string) { return false; },
-      get(_n: string) { return undefined; },
-      list() { return [...commands]; },
+      register(cmd: unknown) {
+        commands.push(cmd);
+      },
+      unregister(_n: string) {
+        return false;
+      },
+      get(_n: string) {
+        return undefined;
+      },
+      list() {
+        return [...commands];
+      },
     },
     pipelines: {
-      request:   { use: vi.fn(), get: vi.fn() } as never,
-      response:  { use: vi.fn(), get: vi.fn() } as never,
-      toolCall:  { use: vi.fn(), get: vi.fn() } as never,
+      request: { use: vi.fn(), get: vi.fn() } as never,
+      response: { use: vi.fn(), get: vi.fn() } as never,
+      toolCall: { use: vi.fn(), get: vi.fn() } as never,
       userInput: { use: vi.fn(), get: vi.fn() } as never,
       assistantOutput: { use: vi.fn(), get: vi.fn() } as never,
       contextWindow: { use: vi.fn(), get: vi.fn() } as never,
@@ -117,18 +142,17 @@ function createMockAPI(): FakePluginAPI {
 // ---------------------------------------------------------------------------
 
 const PLUGIN_FILES = [
-  ['auto-doc',         '../src/auto-doc/index.ts'],
-  ['git-autocommit',   '../src/git-autocommit/index.ts'],
-  ['shell-check',      '../src/shell-check/index.ts'],
-  ['cost-tracker',    '../src/cost-tracker/index.ts'],
-  ['file-watcher',     '../src/file-watcher/index.ts'],
-  ['cron',             '../src/cron/index.ts'],
-  ['template-engine',  '../src/template-engine/index.ts'],
-  ['semver-bump',      '../src/semver-bump/index.ts'],
+  ['auto-doc', '../src/auto-doc/index.ts'],
+  ['git-autocommit', '../src/git-autocommit/index.ts'],
+  ['shell-check', '../src/shell-check/index.ts'],
+  ['cost-tracker', '../src/cost-tracker/index.ts'],
+  ['file-watcher', '../src/file-watcher/index.ts'],
+  ['cron', '../src/cron/index.ts'],
+  ['template-engine', '../src/template-engine/index.ts'],
+  ['semver-bump', '../src/semver-bump/index.ts'],
 ] as const;
 
 describe('@wrongstack/plugins — smoke tests', () => {
-
   for (const [pluginName, filePath] of PLUGIN_FILES) {
     describe(pluginName, () => {
       it('imports as a default export', async () => {

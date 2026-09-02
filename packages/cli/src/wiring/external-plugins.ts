@@ -91,9 +91,7 @@ type ExternalSource =
   | { kind: 'path'; spec: string; entryPath: string; label: string }
   | { kind: 'discovery'; spec: string; entryPath: string; label: string };
 
-function validateExternalPluginModule(
-  mod: unknown,
-): { plugin: Plugin } | { error: string } {
+function validateExternalPluginModule(mod: unknown): { plugin: Plugin } | { error: string } {
   const candidate = (mod as { default?: unknown } | null | undefined)?.default;
   if (candidate === null || typeof candidate !== 'object') {
     return {
@@ -209,9 +207,7 @@ export async function loadExternalPlugins(
     });
     if (!enabled) {
       if (enablementSource !== 'default') {
-        log.info(
-          `[plugins] discovered plugin "${candidate.name}" disabled by ${enablementSource}`,
-        );
+        log.info(`[plugins] discovered plugin "${candidate.name}" disabled by ${enablementSource}`);
       }
       continue;
     }

@@ -30,7 +30,7 @@ describe('ComposerButtonBar component', () => {
     handleSteer: vi.fn(),
     handleAddQueue: vi.fn(),
     updatePrefs: vi.fn(),
-    t: (k: string, opts?: any) => (opts?.defaultValue ?? k),
+    t: (k: string, opts?: any) => opts?.defaultValue ?? k,
     isListening: false,
     isSpeechSupported: true,
     onToggleSpeech: mockToggleSpeech,

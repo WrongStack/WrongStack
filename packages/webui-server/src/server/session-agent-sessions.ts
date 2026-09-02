@@ -109,9 +109,7 @@ export async function buildAgentSessionsPayload(
       startedAt: agent.spawnedAt,
       endedAt: agent.endedAt,
       ...(body?.task !== undefined ? { task: body.task } : {}),
-      ...(body?.transcript && body.transcript.length > 0
-        ? { transcript: body.transcript }
-        : {}),
+      ...(body?.transcript && body.transcript.length > 0 ? { transcript: body.transcript } : {}),
     };
   });
 }

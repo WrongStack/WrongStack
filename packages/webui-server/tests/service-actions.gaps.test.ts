@@ -67,7 +67,10 @@ function fakeWs(): WebSocket {
 }
 
 /** Non-null accessor: noUncheckedIndexedAccess makes Record lookups optional. */
-function mockOf(record: Record<string, ReturnType<typeof vi.fn>>, key: string): ReturnType<typeof vi.fn> {
+function mockOf(
+  record: Record<string, ReturnType<typeof vi.fn>>,
+  key: string,
+): ReturnType<typeof vi.fn> {
   return record[key] as ReturnType<typeof vi.fn>;
 }
 
@@ -81,16 +84,20 @@ async function dispatch(
   trustBoundary?: { evaluate: () => Promise<{ kind: string; reason: string }> },
 ): Promise<{ handled: boolean; sent: Sent[] }> {
   const sent: Sent[] = [];
-  const handled = await handleConnectionsServiceAction(fakeWs(), {
-    type: 'connections.service_action',
-    payload,
-  } as never, {
-    getProjectRoot: () => '/proj',
-    getIndexDir: () => '/idx',
-    backend: 'cli-embedded',
-    send: (_ws: unknown, message: unknown) => sent.push(message as Sent),
-    trustBoundary,
-  } as never);
+  const handled = await handleConnectionsServiceAction(
+    fakeWs(),
+    {
+      type: 'connections.service_action',
+      payload,
+    } as never,
+    {
+      getProjectRoot: () => '/proj',
+      getIndexDir: () => '/idx',
+      backend: 'cli-embedded',
+      send: (_ws: unknown, message: unknown) => sent.push(message as Sent),
+      trustBoundary,
+    } as never,
+  );
   return { handled, sent };
 }
 
@@ -106,14 +113,18 @@ afterEach(() => {
 describe('handleConnectionsServiceAction — request guards', () => {
   it('does not claim unrelated messages', async () => {
     const sent: Sent[] = [];
-    const handled = await handleConnectionsServiceAction(fakeWs(), {
-      type: 'something.else',
-    } as never, {
-      getProjectRoot: () => '/proj',
-      getIndexDir: () => undefined,
-      backend: 'cli-embedded',
-      send: (_ws: unknown, message: unknown) => sent.push(message as Sent),
-    } as never);
+    const handled = await handleConnectionsServiceAction(
+      fakeWs(),
+      {
+        type: 'something.else',
+      } as never,
+      {
+        getProjectRoot: () => '/proj',
+        getIndexDir: () => undefined,
+        backend: 'cli-embedded',
+        send: (_ws: unknown, message: unknown) => sent.push(message as Sent),
+      } as never,
+    );
     expect(handled).toBe(false);
     expect(sent).toHaveLength(0);
   });
@@ -138,17 +149,24 @@ describe('handleConnectionsServiceAction — request guards', () => {
 
   it('refuses to shut down or restart the WebUI transport itself', async () => {
     const shutdown = await dispatch({ serviceId: 'webui', action: 'shutdown' }, allowAllBoundary());
-    expect((shutdown.sent[0] as Sent).payload['message']).toBe('Cannot shut down the WebUI transport itself');
+    expect((shutdown.sent[0] as Sent).payload['message']).toBe(
+      'Cannot shut down the WebUI transport itself',
+    );
 
     const restart = await dispatch({ serviceId: 'webui', action: 'restart' }, allowAllBoundary());
-    expect((restart.sent[0] as Sent).payload['message']).toBe('Cannot restart the WebUI transport itself');
+    expect((restart.sent[0] as Sent).payload['message']).toBe(
+      'Cannot restart the WebUI transport itself',
+    );
   });
 
   it('relays a confirmed kanban shutdown through the action result', async () => {
     mockOf(kanbanMock, 'getKanbanServerConnection').mockResolvedValue({
       request: vi.fn(async () => ({ stopping: true })),
     });
-    const { handled, sent } = await dispatch({ serviceId: 'kanban', action: 'shutdown' }, allowAllBoundary());
+    const { handled, sent } = await dispatch(
+      { serviceId: 'kanban', action: 'shutdown' },
+      allowAllBoundary(),
+    );
     expect(handled).toBe(true);
     expect((sent[0] as Sent).payload).toMatchObject({
       serviceId: 'kanban',
@@ -178,7 +196,12 @@ describe('executeServiceAction dispatch', () => {
     expect(governance.success).toBe(false);
     expect(governance.message).toContain('Governance health is read-only');
 
-    const unknown = await executeServiceAction('time-machine' as never, 'shutdown', '/proj', undefined);
+    const unknown = await executeServiceAction(
+      'time-machine' as never,
+      'shutdown',
+      '/proj',
+      undefined,
+    );
     expect(unknown.success).toBe(false);
     expect(unknown.message).toBe('Unknown service: time-machine');
   });
@@ -267,9 +290,11 @@ describe('killSageServer', () => {
 
   function sageConnection(methods: Record<string, unknown>) {
     mockOf(sageMock, 'isSageProjectServerAvailable').mockReturnValue(true);
-    (mockOf(sageMock, 'SageProjectServerConnection') as unknown as { mockImplementation: (impl: unknown) => void }).mockImplementation(
-      classStub(methods) as never,
-    );
+    (
+      mockOf(sageMock, 'SageProjectServerConnection') as unknown as {
+        mockImplementation: (impl: unknown) => void;
+      }
+    ).mockImplementation(classStub(methods) as never);
   }
 
   it('fails when the server does not confirm the shutdown', async () => {
@@ -286,7 +311,10 @@ describe('killSageServer', () => {
       call: vi.fn(async () => ({})),
     });
     const shutdown = await killSageServer('/proj', 'shutdown');
-    expect(shutdown).toMatchObject({ success: true, message: 'SAGE memory server shutdown requested' });
+    expect(shutdown).toMatchObject({
+      success: true,
+      message: 'SAGE memory server shutdown requested',
+    });
 
     const restart = await killSageServer('/proj', 'restart');
     expect(restart).toMatchObject({
@@ -322,9 +350,11 @@ describe('killSageServer', () => {
 
 describe('killChronicleServer', () => {
   function chronicleClient(methods: Record<string, unknown>) {
-    (mockOf(chronicleMock, 'ChronicleProjectServerClient') as unknown as { mockImplementation: (impl: unknown) => void }).mockImplementation(
-      classStub({ endpoint: 'pipe', ...methods }) as never,
-    );
+    (
+      mockOf(chronicleMock, 'ChronicleProjectServerClient') as unknown as {
+        mockImplementation: (impl: unknown) => void;
+      }
+    ).mockImplementation(classStub({ endpoint: 'pipe', ...methods }) as never);
   }
 
   it('fails when the server does not confirm the shutdown', async () => {
@@ -386,7 +416,10 @@ describe('killChronicleServer', () => {
 
 describe('killCodebaseIndexServer', () => {
   it('fails when the shutdown is not confirmed', async () => {
-    mockOf(toolsMock, 'shutdownCodebaseIndexServer').mockResolvedValue({ stopped: false, reason: 'busy' });
+    mockOf(toolsMock, 'shutdownCodebaseIndexServer').mockResolvedValue({
+      stopped: false,
+      reason: 'busy',
+    });
     const out = await killCodebaseIndexServer('/proj', undefined, 'shutdown');
     expect(out.success).toBe(false);
     expect(out.message).toBe('Codebase index server shutdown failed: busy');
@@ -422,7 +455,9 @@ describe('killCodebaseIndexServer', () => {
 
   it('rejects an unresponsive restart', async () => {
     mockOf(toolsMock, 'shutdownCodebaseIndexServer').mockResolvedValue({ stopped: true });
-    mockOf(toolsMock, 'checkCodebaseIndexServerHealth').mockResolvedValue({ status: 'unresponsive' });
+    mockOf(toolsMock, 'checkCodebaseIndexServerHealth').mockResolvedValue({
+      status: 'unresponsive',
+    });
     const out = await killCodebaseIndexServer('/proj', undefined, 'restart');
     expect(out.success).toBe(false);
     expect(out.message).toBe('Codebase index server restarted but is unresponsive');
@@ -446,9 +481,11 @@ describe('killMailboxServer', () => {
 
   function mailboxConnection(methods: Record<string, unknown>) {
     mockOf(coordinationMock, 'isMailboxProjectServerAvailable').mockReturnValue(true);
-    (mockOf(coordinationMock, 'MailboxProjectServerConnection') as unknown as { mockImplementation: (impl: unknown) => void }).mockImplementation(
-      classStub({ probeStatus: vi.fn(async () => null), ...methods }) as never,
-    );
+    (
+      mockOf(coordinationMock, 'MailboxProjectServerConnection') as unknown as {
+        mockImplementation: (impl: unknown) => void;
+      }
+    ).mockImplementation(classStub({ probeStatus: vi.fn(async () => null), ...methods }) as never);
   }
 
   it('fails when the shutdown is not confirmed', async () => {

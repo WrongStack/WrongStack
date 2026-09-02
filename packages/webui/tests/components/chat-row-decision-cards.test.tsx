@@ -20,8 +20,22 @@ describe('ChatRowView decision widgets', () => {
       validVoteCount: 2,
       distinctTargetCount: 2,
       seats: [
-        { seatId: 's1', persona: 'executor', status: 'valid', optionId: 'approve', model: 'gpt-4o', at: 1000 },
-        { seatId: 's2', persona: 'skeptic', status: 'valid', optionId: 'approve', model: 'claude-3-5-sonnet', at: 1000 },
+        {
+          seatId: 's1',
+          persona: 'executor',
+          status: 'valid',
+          optionId: 'approve',
+          model: 'gpt-4o',
+          at: 1000,
+        },
+        {
+          seatId: 's2',
+          persona: 'skeptic',
+          status: 'valid',
+          optionId: 'approve',
+          model: 'claude-3-5-sonnet',
+          at: 1000,
+        },
       ],
     };
 
@@ -113,6 +127,8 @@ describe('ChatRowView decision widgets', () => {
 
     expect(screen.getByText('Brain Intervention')).toBeTruthy();
     expect(screen.getByText('High token budget consumption detected')).toBeTruthy();
-    expect(screen.getByText(/Apply summary compaction before continuing exploration/i)).toBeTruthy();
+    expect(
+      screen.getByText(/Apply summary compaction before continuing exploration/i),
+    ).toBeTruthy();
   });
 });

@@ -55,7 +55,9 @@ describe('buildControlDraft — message types', () => {
     expect(buildControlDraft(form({ type: 'steer', steerBody: 'x' })).payload.priority).toBe(
       'high',
     );
-    expect(buildControlDraft(form({ type: 'btw', steerBody: 'x' })).payload.priority).toBe('normal');
+    expect(buildControlDraft(form({ type: 'btw', steerBody: 'x' })).payload.priority).toBe(
+      'normal',
+    );
     expect(buildControlDraft(form({ type: 'queue', steerBody: 'x' })).payload.priority).toBe(
       'normal',
     );
@@ -103,9 +105,9 @@ describe('buildControlDraft — run-command', () => {
   });
 
   it('omits cwd entirely rather than sending an empty one', () => {
-    expect(buildControlDraft(form({ type: 'run-command', runCommand: 'pnpm test' })).payload).toEqual(
-      { command: 'pnpm test' },
-    );
+    expect(
+      buildControlDraft(form({ type: 'run-command', runCommand: 'pnpm test' })).payload,
+    ).toEqual({ command: 'pnpm test' });
     expect(
       buildControlDraft(form({ type: 'run-command', runCommand: 'pnpm test', runCwd: '  ' }))
         .payload,

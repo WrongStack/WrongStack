@@ -18,9 +18,7 @@ function occupy(port: number): Promise<net.Server> {
 }
 
 afterEach(async () => {
-  await Promise.all(
-    servers.splice(0).map((s) => new Promise<void>((r) => s.close(() => r()))),
-  );
+  await Promise.all(servers.splice(0).map((s) => new Promise<void>((r) => s.close(() => r()))));
 });
 
 describe('isPortFree', () => {

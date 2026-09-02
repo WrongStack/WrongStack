@@ -333,7 +333,8 @@ for (let i = 0; i < args.length; i++) {
         .map((s) => s.trim())
         .filter(Boolean),
     );
-  } else fail(`unknown flag "${a}" (supported: --list, --only <ids>, --tail <n>, --profile <name>)`);
+  } else
+    fail(`unknown flag "${a}" (supported: --list, --only <ids>, --tail <n>, --profile <name>)`);
 }
 
 const profileGates = gatesForProfile(profile);

@@ -98,7 +98,9 @@ describe('VerificationContext command security', () => {
     roots.push(root);
     const executable = process.platform === 'win32' ? 'where.exe' : 'printf';
     const command = process.platform === 'win32' ? 'where.exe git' : "printf '%s' 'hello world'";
-    const result = await (await context(root, { allowedCommands: [executable] })).runCommand(command);
+    const result = await (await context(root, { allowedCommands: [executable] })).runCommand(
+      command,
+    );
 
     expect(result.rejected).not.toBe(true);
     expect(result.exitCode).toBe(0);
@@ -180,8 +182,8 @@ describe('VerificationContext command security', () => {
     await writeFile(
       join(runnerDir, 'vitest.mjs'),
       [
-        "console.log(JSON.stringify({ unrelated: true }));",
-        "console.log(JSON.stringify({ numPassedTests: 4, numFailedTests: 1, numSkippedTests: 2 }));",
+        'console.log(JSON.stringify({ unrelated: true }));',
+        'console.log(JSON.stringify({ numPassedTests: 4, numFailedTests: 1, numSkippedTests: 2 }));',
         'process.exitCode = 1;',
       ].join('\n'),
     );

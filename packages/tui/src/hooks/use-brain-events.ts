@@ -44,7 +44,10 @@ export function useBrainEvents(
     // Buffer them here and attach the panel summary to the entry that decision
     // produces — a council verdict then shows WHO voted and whether the panel
     // was actually diverse, instead of looking like any other one-line answer.
-    const councilTraces = new Map<string, NonNullable<Extract<HistoryEntry, { kind: 'brain' }>['council']>>();
+    const councilTraces = new Map<
+      string,
+      NonNullable<Extract<HistoryEntry, { kind: 'brain' }>['council']>
+    >();
     const councilVotes = new Map<
       string,
       NonNullable<Extract<HistoryEntry, { kind: 'brain' }>['council']>['seats']
@@ -67,14 +70,27 @@ export function useBrainEvents(
       payload: unknown,
     ) => {
       const p = payload as {
-        request: { id: string; source: string; risk: Extract<HistoryEntry, { kind: 'brain' }>['risk']; question: string; context?: string | undefined; options?: NonNullable<State['brainPrompt']>['options'] | undefined };
+        request: {
+          id: string;
+          source: string;
+          risk: Extract<HistoryEntry, { kind: 'brain' }>['risk'];
+          question: string;
+          context?: string | undefined;
+          options?: NonNullable<State['brainPrompt']>['options'] | undefined;
+        };
         decision: BrainDecision;
       };
       const council = councilTraces.get(p.request.id);
       councilTraces.delete(p.request.id);
       councilVotes.delete(p.request.id);
       const decision = decisionSummary(p.decision);
-      dispatch({ type: 'brainStatus', state: status, source: p.request.source, risk: p.request.risk, summary: decision });
+      dispatch({
+        type: 'brainStatus',
+        state: status,
+        source: p.request.source,
+        risk: p.request.risk,
+        summary: decision,
+      });
       if (status === 'ask_human') {
         const prompt: NonNullable<State['brainPrompt']> = {
           requestId: p.request.id,
@@ -89,7 +105,19 @@ export function useBrainEvents(
         dispatch({ type: 'brainPromptClear' });
       }
       const rationale = p.decision.type === 'deny' ? undefined : p.decision.rationale;
-      dispatch({ type: 'addEntry', entry: { kind: 'brain', status, source: p.request.source, risk: p.request.risk, question: p.request.question, decision, rationale, ...(council ? { council } : {}) } });
+      dispatch({
+        type: 'addEntry',
+        entry: {
+          kind: 'brain',
+          status,
+          source: p.request.source,
+          risk: p.request.risk,
+          question: p.request.question,
+          decision,
+          rationale,
+          ...(council ? { council } : {}),
+        },
+      });
     };
 
     const pendingMonitorAnswers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -107,7 +135,13 @@ export function useBrainEvents(
     };
     const offRequested = events.on('brain.decision_requested', ({ sessionId, request }) => {
       if (!isCurrentSession(sessionId)) return;
-      dispatch({ type: 'brainStatus', state: 'deciding', source: request.source, risk: request.risk, summary: requestSummary(request) });
+      dispatch({
+        type: 'brainStatus',
+        state: 'deciding',
+        source: request.source,
+        risk: request.risk,
+        summary: requestSummary(request),
+      });
     });
     const offAnswered = events.on('brain.decision_answered', (payload) => {
       if (!isCurrentSession(payload.sessionId)) return;
@@ -193,8 +227,7 @@ export function useBrainEvents(
       const outcome = payload.intervened
         ? `steered the agent (${payload.kind.replace(/_/g, ' ')})`
         : 'observed — no action needed';
-      const rationale =
-        payload.decision.type === 'answer' ? payload.decision.rationale : undefined;
+      const rationale = payload.decision.type === 'answer' ? payload.decision.rationale : undefined;
       const decision = decisionSummary(payload.decision);
       dispatch({
         type: 'addEntry',

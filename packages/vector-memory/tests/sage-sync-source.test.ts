@@ -66,7 +66,14 @@ describe('createSageSurfaceSyncSource', () => {
   it('maps fields and folds sage metadata', async () => {
     const surface = fakeSurface([
       {
-        memories: [sageRow('a', 'the text', { summary: 'short', tags: ['x', 'y'], kind: 'fact', scope: 'user' })],
+        memories: [
+          sageRow('a', 'the text', {
+            summary: 'short',
+            tags: ['x', 'y'],
+            kind: 'fact',
+            scope: 'user',
+          }),
+        ],
         nextCursor: null,
       },
     ]);

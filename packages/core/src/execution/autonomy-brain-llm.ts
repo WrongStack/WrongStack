@@ -19,10 +19,7 @@ export interface BrainLlmCallResult {
 
 export const DEFAULT_BRAIN_MAX_TOKENS = 200;
 
-export type BrainLlmDenyKind =
-  | 'unavailable'
-  | 'unparseable'
-  | 'refused';
+export type BrainLlmDenyKind = 'unavailable' | 'unparseable' | 'refused';
 
 const denyKinds = new WeakMap<object, BrainLlmDenyKind>();
 

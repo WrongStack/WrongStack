@@ -398,9 +398,9 @@ describe('codebase call-graph tool gates', () => {
     const ctrl = new AbortController();
     ctrl.abort();
     const abortedCtx = { ...ctx(), signal: ctrl.signal };
-    await expect(
-      codebaseSearchTool.execute({ query: 'Target' }, abortedCtx),
-    ).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(codebaseSearchTool.execute({ query: 'Target' }, abortedCtx)).rejects.toMatchObject(
+      { name: 'AbortError' },
+    );
   });
 
   it('codebaseSearchTool honors execOpts.signal when pre-aborted', async () => {
@@ -411,4 +411,3 @@ describe('codebase call-graph tool gates', () => {
     ).rejects.toMatchObject({ name: 'AbortError' });
   });
 });
-

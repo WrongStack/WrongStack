@@ -2,17 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { PhaseGraphBuilder } from '../../src/goal/phase-graph-builder.js';
 import type { TaskGraph, TaskNode } from '../../src/types/task-graph.js';
 
-function node(id: string, title: string, priority: TaskNode['priority'] = 'medium', estimateHours?: number): TaskNode {
+function node(
+  id: string,
+  title: string,
+  priority: TaskNode['priority'] = 'medium',
+  estimateHours?: number,
+): TaskNode {
   return {
-    id, title, description: `desc ${title}`, type: 'feature', priority, status: 'pending',
-    createdAt: 0, updatedAt: 0, ...(estimateHours !== undefined ? { estimateHours } : {}),
+    id,
+    title,
+    description: `desc ${title}`,
+    type: 'feature',
+    priority,
+    status: 'pending',
+    createdAt: 0,
+    updatedAt: 0,
+    ...(estimateHours !== undefined ? { estimateHours } : {}),
   } as TaskNode;
 }
 
 function taskGraphOf(nodes: TaskNode[]): TaskGraph {
   return {
-    id: 'g', specId: 's', title: 'TG', nodes: new Map(nodes.map((n) => [n.id, n])),
-    edges: [], rootNodes: [], createdAt: 0, updatedAt: 0,
+    id: 'g',
+    specId: 's',
+    title: 'TG',
+    nodes: new Map(nodes.map((n) => [n.id, n])),
+    edges: [],
+    rootNodes: [],
+    createdAt: 0,
+    updatedAt: 0,
   };
 }
 
@@ -27,7 +45,10 @@ describe('PhaseGraphBuilder.fromTaskGraph', () => {
       node('n6', 'Extra one'),
       node('n7', 'Extra two'),
     ];
-    const graph = await PhaseGraphBuilder.fromTaskGraph(taskGraphOf(nodes), { title: 'My Plan', tasksPerPhase: 5 });
+    const graph = await PhaseGraphBuilder.fromTaskGraph(taskGraphOf(nodes), {
+      title: 'My Plan',
+      tasksPerPhase: 5,
+    });
     const phases = Array.from(graph.phases.values());
     expect(phases).toHaveLength(2); // 7 tasks / 5 per phase → 2 groups
     // First group contains the critical task (sorted first) → critical priority

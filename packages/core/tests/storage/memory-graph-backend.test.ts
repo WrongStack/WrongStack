@@ -57,7 +57,11 @@ describe('GraphMemoryBackend.remember', () => {
 
   it('creates edges from shared tags', async () => {
     await backend.remember(scope, entry('alpha note', { tags: ['x', 'y'] }), memFile);
-    await backend.remember(scope, entry('totally unrelated words zzz', { tags: ['x', 'y'] }), memFile);
+    await backend.remember(
+      scope,
+      entry('totally unrelated words zzz', { tags: ['x', 'y'] }),
+      memFile,
+    );
     const edges = backend.getGraph().edges;
     expect(edges.some((e) => e.relation === 'same_turn' || e.relation === 'similar')).toBe(true);
   });
@@ -65,8 +69,20 @@ describe('GraphMemoryBackend.remember', () => {
 
 describe('GraphMemoryBackend.list / search', () => {
   beforeEach(async () => {
-    await backend.remember(scope, entry('pnpm install is the setup step', { type: 'fact', priority: 'high', tags: ['build'] }), memFile);
-    await backend.remember(scope, entry('use conventional commits always', { type: 'convention', priority: 'critical', tags: ['git'] }), memFile);
+    await backend.remember(
+      scope,
+      entry('pnpm install is the setup step', { type: 'fact', priority: 'high', tags: ['build'] }),
+      memFile,
+    );
+    await backend.remember(
+      scope,
+      entry('use conventional commits always', {
+        type: 'convention',
+        priority: 'critical',
+        tags: ['git'],
+      }),
+      memFile,
+    );
   });
 
   it('lists entries enriched with graph metadata, newest first', async () => {
@@ -134,7 +150,11 @@ describe('GraphMemoryBackend.findRelated + persistence', () => {
   it('finds related memories via graph edges ordered by weight', async () => {
     await backend.remember(scope, entry('react component renders the list view'), memFile);
     await backend.remember(scope, entry('react component renders the grid view'), memFile);
-    const related = await backend.findRelated(scope, memFile, 'react component renders the list view');
+    const related = await backend.findRelated(
+      scope,
+      memFile,
+      'react component renders the list view',
+    );
     expect(related.some((e) => e.text.includes('grid view'))).toBe(true);
   });
 

@@ -84,7 +84,8 @@ function readConfig(raw: unknown): FlakeDetectConfig {
   const r = raw as Record<string, unknown>;
   return {
     enabled: r['enabled'] !== false,
-    defaultCommand: typeof r['defaultCommand'] === 'string' ? r['defaultCommand'] : DEFAULTS.defaultCommand,
+    defaultCommand:
+      typeof r['defaultCommand'] === 'string' ? r['defaultCommand'] : DEFAULTS.defaultCommand,
     maxRuns:
       typeof r['maxRuns'] === 'number' && r['maxRuns'] >= 1 && r['maxRuns'] <= 100
         ? Math.floor(r['maxRuns'])
@@ -214,7 +215,11 @@ function resolveTestCommand(
   } else if (head === 'npx' && TEST_RUNNERS.has(second ?? '')) {
     runner = second!;
     runnerArgs = tokens.slice(2);
-  } else if (head === 'pnpm' && (second === 'exec' || second === 'dlx') && TEST_RUNNERS.has(third ?? '')) {
+  } else if (
+    head === 'pnpm' &&
+    (second === 'exec' || second === 'dlx') &&
+    TEST_RUNNERS.has(third ?? '')
+  ) {
     runner = third!;
     runnerArgs = rest;
   } else if (head === 'pnpm' && TEST_RUNNERS.has(second ?? '')) {
@@ -241,7 +246,7 @@ function resolveTestCommand(
     const relativeBin =
       typeof packageJson.bin === 'string'
         ? packageJson.bin
-        : packageJson.bin?.[runner] ?? Object.values(packageJson.bin ?? {})[0];
+        : (packageJson.bin?.[runner] ?? Object.values(packageJson.bin ?? {})[0]);
     if (!relativeBin) return null;
     const packageDir = dirname(packagePath);
     const candidate = resolve(packageDir, relativeBin);
@@ -305,7 +310,8 @@ function runOnce(
 const plugin: Plugin = {
   name: 'test-flake-detector',
   version: '0.1.0',
-  description: 'Runs a test command multiple times and reports tests that fail non-deterministically',
+  description:
+    'Runs a test command multiple times and reports tests that fail non-deterministically',
   apiVersion: API_VERSION,
   capabilities: { tools: true },
   defaultConfig: { ...DEFAULTS },
@@ -395,27 +401,23 @@ const plugin: Plugin = {
           raw['TargetFile'] ??
           raw['targetFile'];
         const testPattern =
-          typeof rawPattern === 'string' && rawPattern.trim().length > 0 ? rawPattern.trim() : undefined;
+          typeof rawPattern === 'string' && rawPattern.trim().length > 0
+            ? rawPattern.trim()
+            : undefined;
 
-        const rawCommand =
-          input.command ??
-          raw['cmd'] ??
-          raw['CommandLine'] ??
-          raw['script'];
+        const rawCommand = input.command ?? raw['cmd'] ?? raw['CommandLine'] ?? raw['script'];
         const commandString =
           typeof rawCommand === 'string' && rawCommand.trim().length > 0
             ? rawCommand.trim()
             : cfg.defaultCommand;
 
-        const rawRuns = input.runs ?? raw['runsRequested'] ?? raw['count'] ?? raw['repeat'] ?? raw['times'];
+        const rawRuns =
+          input.runs ?? raw['runsRequested'] ?? raw['count'] ?? raw['repeat'] ?? raw['times'];
         const requestedRuns =
           typeof rawRuns === 'number' && rawRuns >= 1
             ? Math.min(Math.floor(rawRuns), cfg.maxRuns)
             : 5;
-        const command = resolveTestCommand(
-          commandString,
-          testPattern,
-        );
+        const command = resolveTestCommand(commandString, testPattern);
         if (!command) {
           return {
             ok: false,

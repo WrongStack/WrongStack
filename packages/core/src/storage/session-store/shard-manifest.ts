@@ -2,11 +2,7 @@ import * as fsp from 'node:fs/promises';
 import { atomicWrite } from '../../utils/atomic-write.js';
 import { compareSessionSummaries } from '../session-summary.js';
 import { mapWithConcurrency } from '../storage-concurrency.js';
-import type {
-  DirectorySummaryCandidate,
-  SessionFileRef,
-  ShardManifestEntry,
-} from './types.js';
+import type { DirectorySummaryCandidate, SessionFileRef, ShardManifestEntry } from './types.js';
 import type { SessionSummary } from '../../types/session.js';
 
 export interface ReadOrBuildShardManifestOptions {

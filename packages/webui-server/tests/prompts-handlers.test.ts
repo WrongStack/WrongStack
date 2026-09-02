@@ -163,7 +163,11 @@ describe('handlePromptsUsed', () => {
     const { ws, messages } = openWs();
     const recorded: string[] = [];
     const promptUsage = { record: async (slug: string) => recorded.push(slug) } as never;
-    await handlePromptsUsed(ws, { promptLoader: fakeLoader([]), promptUsage }, { payload: { slug: 'x' } });
+    await handlePromptsUsed(
+      ws,
+      { promptLoader: fakeLoader([]), promptUsage },
+      { payload: { slug: 'x' } },
+    );
     expect(recorded).toEqual(['x']);
     expect(payloadOf(messages, 'prompts.used')).toMatchObject({ success: true, slug: 'x' });
   });
@@ -227,10 +231,7 @@ describe('handlePromptsJournal', () => {
       const entries = p['entries'] as { sessionId: string; category: string; timestamp: string }[];
       expect(entries).toHaveLength(2);
       expect(entries.map((e) => e.sessionId).sort()).toEqual(['sess_auth', 'sess_billing']);
-      expect(entries.map((e) => e.category).sort()).toEqual([
-        'autonomous_next_step',
-        'raw_user',
-      ]);
+      expect(entries.map((e) => e.category).sort()).toEqual(['autonomous_next_step', 'raw_user']);
       // getPromptJournalEntries sorts chronologically (ascending); the two
       // records were written sequentially so timestamps must be ordered.
       const timestamps = entries.map((e) => e.timestamp);

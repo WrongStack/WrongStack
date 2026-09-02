@@ -91,8 +91,8 @@ describe('ContextMemoryMonitor', () => {
     });
     const mem = useMemoryInjectorTraceStore.getState().contextMemories['mem_auth_contract'];
     expect(mem?.text.length).toBeLessThanOrEqual(300);
-    expect(useMemoryInjectorTraceStore.getState().traces[0]?.injected[0]?.text.length).toBeLessThanOrEqual(
-      300,
-    );
+    expect(
+      useMemoryInjectorTraceStore.getState().traces[0]?.injected[0]?.text.length,
+    ).toBeLessThanOrEqual(300);
   });
 });

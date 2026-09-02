@@ -23,10 +23,7 @@ export function listCompatSage(
   return sqliteRowsToMemories(rows);
 }
 
-export function getCompatSage(
-  ctx: SqliteCompatContext,
-  id: string,
-): Sage | null {
+export function getCompatSage(ctx: SqliteCompatContext, id: string): Sage | null {
   const row = ctx.stmt('SELECT data FROM memories WHERE id = ?').get(id) as
     | { data: string }
     | undefined;

@@ -2,17 +2,7 @@ import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useMonitorStore } from '@/stores';
 import type { VizEvent } from '@/stores/viz-store';
-import {
-  Activity,
-  Bot,
-  Cpu,
-  DollarSign,
-  Hash,
-  Monitor,
-  Terminal,
-  Users,
-  Zap,
-} from 'lucide-react';
+import { Activity, Bot, Cpu, DollarSign, Hash, Monitor, Terminal, Users, Zap } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { feedColor } from './resolve.js';
 

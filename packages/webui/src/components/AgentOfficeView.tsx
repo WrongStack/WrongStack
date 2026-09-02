@@ -261,7 +261,10 @@ function ClientOfficeHeader({ office, now }: { office: ClientOfficeModel; now: n
           </span>
         </div>
       </div>
-      <fieldset className="agent-office__client-stats" aria-label={t('activity:agentOffice.sessionActivityTotals')}>
+      <fieldset
+        className="agent-office__client-stats"
+        aria-label={t('activity:agentOffice.sessionActivityTotals')}
+      >
         <span title={t('activity:agentOffice.uniqueFilesTouched')}>
           <FolderOpen /> <strong>{stats.files}</strong> {t('activity:agentOffice.files')}
         </span>
@@ -274,7 +277,10 @@ function ClientOfficeHeader({ office, now }: { office: ClientOfficeModel; now: n
         <span title={t('activity:agentOffice.filesEdited')}>
           <FilePenLine /> <strong>{stats.edits}</strong> {t('activity:agentOffice.edit')}
         </span>
-        <span className="agent-office__client-delta" title={t('activity:agentOffice.linesAddedAndRemoved')}>
+        <span
+          className="agent-office__client-delta"
+          title={t('activity:agentOffice.linesAddedAndRemoved')}
+        >
           <strong>+{stats.linesAdded}</strong> / <b>−{stats.linesRemoved}</b>
         </span>
         <span title={t('activity:agentOffice.terminalCommands')}>
@@ -756,27 +762,16 @@ export function AgentLane({
           <strong>{fmtCost(agent.costUsd)}</strong>
           <small>COST</small>
         </span>
-        <span
-          className="agent-office__metric"
-          title={t('activity:agentOffice.contextUsed')}
-        >
+        <span className="agent-office__metric" title={t('activity:agentOffice.contextUsed')}>
           <strong>{agent.ctxPct !== undefined ? `${Math.round(agent.ctxPct)}%` : '—'}</strong>
           <small>CTX</small>
           {agent.ctxPct !== undefined && (
-            <i
-              className={cn(
-                'agent-office__ctx-bar',
-                agent.ctxPct >= 80 && 'is-high',
-              )}
-            >
+            <i className={cn('agent-office__ctx-bar', agent.ctxPct >= 80 && 'is-high')}>
               <b style={{ width: `${Math.min(100, Math.max(0, agent.ctxPct))}%` }} />
             </i>
           )}
         </span>
-        <span
-          className="agent-office__metric agent-office__metric-action"
-          title={actionLine}
-        >
+        <span className="agent-office__metric agent-office__metric-action" title={actionLine}>
           <Activity aria-hidden="true" />
           <small>{actionLine}</small>
         </span>
@@ -805,10 +800,7 @@ function BreakRoom({
 }) {
   const { t } = useAppTranslation();
   return (
-    <section
-      className="agent-office__lounge"
-      aria-label={t('activity:agentOffice.breakRoom')}
-    >
+    <section className="agent-office__lounge" aria-label={t('activity:agentOffice.breakRoom')}>
       <header className="agent-office__lounge-heading">
         <Coffee aria-hidden="true" />
         <strong>{t('activity:agentOffice.breakRoom')}</strong>

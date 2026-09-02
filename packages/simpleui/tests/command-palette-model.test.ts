@@ -48,14 +48,25 @@ describe('command palette model', () => {
 
   it('filters by title, section, hint, and keywords', () => {
     const items = commandPaletteItems(readyContext);
-    expect(filterCommandPaletteItems(items, 'memory').map((item) => item.id).sort()).toEqual([
-      'open-memory',
+    expect(
+      filterCommandPaletteItems(items, 'memory')
+        .map((item) => item.id)
+        .sort(),
+    ).toEqual(['open-memory', 'open-vector-memory']);
+    expect(filterCommandPaletteItems(items, 'vector').map((item) => item.id)).toEqual([
       'open-vector-memory',
     ]);
-    expect(filterCommandPaletteItems(items, 'vector').map((item) => item.id)).toEqual(['open-vector-memory']);
-    expect(filterCommandPaletteItems(items, 'ctrl+l').map((item) => item.id)).toEqual(['new-session']);
-    expect(filterCommandPaletteItems(items, 'workspace plan').map((item) => item.id)).toEqual(['open-plan']);
-    expect(filterCommandPaletteItems(items, 'breakdown').map((item) => item.id)).toEqual(['open-context-breakdown']);
-    expect(filterCommandPaletteItems(items, 'token distribution').map((item) => item.id)).toEqual(['open-context-breakdown']);
+    expect(filterCommandPaletteItems(items, 'ctrl+l').map((item) => item.id)).toEqual([
+      'new-session',
+    ]);
+    expect(filterCommandPaletteItems(items, 'workspace plan').map((item) => item.id)).toEqual([
+      'open-plan',
+    ]);
+    expect(filterCommandPaletteItems(items, 'breakdown').map((item) => item.id)).toEqual([
+      'open-context-breakdown',
+    ]);
+    expect(filterCommandPaletteItems(items, 'token distribution').map((item) => item.id)).toEqual([
+      'open-context-breakdown',
+    ]);
   });
 });

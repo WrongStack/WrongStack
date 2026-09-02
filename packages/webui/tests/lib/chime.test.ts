@@ -92,7 +92,9 @@ describe('chime helpers', () => {
     Object.defineProperty(window, 'AudioContext', {
       configurable: true,
       value: class ThrowsAudioContext {
-        constructor() { throw new Error('AudioContext unavailable'); }
+        constructor() {
+          throw new Error('AudioContext unavailable');
+        }
       },
     });
     vi.resetModules();

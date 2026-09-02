@@ -1,10 +1,5 @@
 import { cn } from '@/lib/utils';
-import type {
-  SageAnchor,
-  SageEntry,
-  SageScope,
-  SageStatus,
-} from '@/types';
+import type { SageAnchor, SageEntry, SageScope, SageStatus } from '@/types';
 
 export const MEMORY_KINDS = [
   'fact',

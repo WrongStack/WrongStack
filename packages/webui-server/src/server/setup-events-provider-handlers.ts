@@ -4,10 +4,7 @@ import type { SetupEventProjection } from './setup-event-projection.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
 type SetupEventOn = <E extends EventName>(event: E, listener: Listener<E>) => void;
-type SetupEventBroadcast = (
-  clients: Map<WebSocket, ConnectedClient>,
-  msg: WSServerMessage,
-) => void;
+type SetupEventBroadcast = (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
 type SessionPayload = <T extends Record<string, unknown>>(payload: T) => T & { sessionId: string };
 
 interface SetupEventsProviderHandlersDeps {
@@ -71,9 +68,7 @@ export function registerSetupEventsProviderHandlers({
         providerId: e.providerId,
         modelId: e.modelId,
         maxContext: e.maxContext,
-        ...(e.previousMaxContext !== undefined
-          ? { previousMaxContext: e.previousMaxContext }
-          : {}),
+        ...(e.previousMaxContext !== undefined ? { previousMaxContext: e.previousMaxContext } : {}),
         ...(e.source !== undefined ? { source: e.source } : {}),
         ...(e.decreased !== undefined ? { decreased: e.decreased } : {}),
       }),

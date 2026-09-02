@@ -1,8 +1,4 @@
-import {
-  PERF_METRIC_IDS,
-  PERF_MODE_IDS,
-  PERF_MODES,
-} from '@wrongstack/core/performance';
+import { PERF_METRIC_IDS, PERF_MODE_IDS, PERF_MODES } from '@wrongstack/core/performance';
 import { describe, expect, it } from 'vitest';
 import {
   buildPerfRunMessage,

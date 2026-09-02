@@ -22,8 +22,20 @@ describe('PhaseStore', () => {
     const builder = new PhaseGraphBuilder({
       title: 'Store Test',
       phases: [
-        { name: 'Phase A', description: 'A', priority: 'high', estimateHours: 2, parallelizable: false },
-        { name: 'Phase B', description: 'B', priority: 'medium', estimateHours: 1, parallelizable: false },
+        {
+          name: 'Phase A',
+          description: 'A',
+          priority: 'high',
+          estimateHours: 2,
+          parallelizable: false,
+        },
+        {
+          name: 'Phase B',
+          description: 'B',
+          priority: 'medium',
+          estimateHours: 1,
+          parallelizable: false,
+        },
       ],
     });
 
@@ -41,7 +53,13 @@ describe('PhaseStore', () => {
     const builder = new PhaseGraphBuilder({
       title: 'List Test',
       phases: [
-        { name: 'P1', description: 'P1', priority: 'high', estimateHours: 1, parallelizable: false },
+        {
+          name: 'P1',
+          description: 'P1',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+        },
       ],
     });
 
@@ -57,7 +75,13 @@ describe('PhaseStore', () => {
     const builder = new PhaseGraphBuilder({
       title: 'Delete Test',
       phases: [
-        { name: 'P1', description: 'P1', priority: 'high', estimateHours: 1, parallelizable: false },
+        {
+          name: 'P1',
+          description: 'P1',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+        },
       ],
     });
 

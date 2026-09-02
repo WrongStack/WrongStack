@@ -165,7 +165,10 @@ export function relativeToInvocationCwd(path: string, invocationCwd?: string): s
   return normalized;
 }
 
-export function effectiveToolCwd(toolInputCwd: unknown, invocationCwd?: string): string | undefined {
+export function effectiveToolCwd(
+  toolInputCwd: unknown,
+  invocationCwd?: string,
+): string | undefined {
   if (typeof toolInputCwd !== 'string' || toolInputCwd.length === 0) return invocationCwd;
   if (!invocationCwd || isAbsolutePath(normalizePath(toolInputCwd))) return toolInputCwd;
   return resolveTargetPath(toolInputCwd, invocationCwd);

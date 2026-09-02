@@ -2,7 +2,10 @@
  * Coverage for core/src/storage/config-loader/validation.ts
  */
 import { describe, expect, it } from 'vitest';
-import { validateConfigBehavior, validateConfigIdentity } from '../../src/storage/config-loader/validation.js';
+import {
+  validateConfigBehavior,
+  validateConfigIdentity,
+} from '../../src/storage/config-loader/validation.js';
 import { ConfigError } from '../../src/types/errors.js';
 import type { ContextConfig } from '../../src/types/config/context.js';
 
@@ -26,7 +29,9 @@ describe('validateConfigBehavior', () => {
   });
 
   it('throws on unsupported version', () => {
-    expect(() => validateConfigBehavior({ ...validConfig(), version: 2 } as any, () => {})).toThrow(ConfigError);
+    expect(() => validateConfigBehavior({ ...validConfig(), version: 2 } as any, () => {})).toThrow(
+      ConfigError,
+    );
   });
 
   it('throws on missing context section', () => {
@@ -90,10 +95,14 @@ describe('validateConfigIdentity', () => {
   });
 
   it('throws when no model configured', () => {
-    expect(() => validateConfigIdentity({ version: 1, provider: { id: 'openai' } } as any)).toThrow(ConfigError);
+    expect(() => validateConfigIdentity({ version: 1, provider: { id: 'openai' } } as any)).toThrow(
+      ConfigError,
+    );
   });
 
   it('does not throw when provider and model are set', () => {
-    expect(() => validateConfigIdentity({ version: 1, provider: { id: 'openai' }, model: 'gpt-4o' } as any)).not.toThrow();
+    expect(() =>
+      validateConfigIdentity({ version: 1, provider: { id: 'openai' }, model: 'gpt-4o' } as any),
+    ).not.toThrow();
   });
 });

@@ -5,10 +5,7 @@
   "description": "Define how to judge whether an AI output is good.",
   "content": "I need to judge outputs for this task: {{task}}\n\nDesign a rubric. List the dimensions that actually matter (correctness, completeness, format, tone, safety), each with concrete pass/fail or scored criteria a second person would apply the same way. Separate must-haves from nice-to-haves. Include an example of a passing and a failing output. Make it usable both for human review and as an LLM-as-judge prompt. Flag any criterion too vague to score consistently.",
   "category": "meta-prompting",
-  "tags": [
-    "evaluation",
-    "rubric"
-  ],
+  "tags": ["evaluation", "rubric"],
   "source": "builtin",
   "favorite": false,
   "checksum": "29b1971db28843dbfa3fe9b3e6931fe92929f4e609e262f6b39f741f82ddeeeb",

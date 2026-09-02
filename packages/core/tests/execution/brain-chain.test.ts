@@ -57,11 +57,7 @@ describe('assembleBrainTiers', () => {
       ),
       resolveProvider,
     });
-    expect(tiers.poolLabels).toEqual([
-      'prov-a/model-a',
-      'prov-b/model-b',
-      'session-prov/model-c',
-    ]);
+    expect(tiers.poolLabels).toEqual(['prov-a/model-a', 'prov-b/model-b', 'session-prov/model-c']);
     // Council auto-derives from a ≥2-model pool with default personas.
     expect(tiers.council).toBeDefined();
     expect(tiers.councilLabels).toEqual([
@@ -100,10 +96,7 @@ describe('assembleBrainTiers', () => {
       ...baseOpts(
         {
           council: {
-            voters: [
-              'a/x',
-              { provider: 'b', model: 'y', persona: 'security', veto: true },
-            ],
+            voters: ['a/x', { provider: 'b', model: 'y', persona: 'security', veto: true }],
             minRisk: 'critical',
           },
         },

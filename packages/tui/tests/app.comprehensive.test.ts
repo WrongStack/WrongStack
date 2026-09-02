@@ -63,9 +63,7 @@ describe('renderRunningTools', () => {
 
   it('returns the oldest running tool name and elapsed seconds', () => {
     const now = Date.now();
-    const map = new Map([
-      ['a', { name: 'read', startedAt: now - 5_000 }],
-    ]);
+    const map = new Map([['a', { name: 'read', startedAt: now - 5_000 }]]);
     const result = renderRunningTools(map);
     expect(result).toMatch(/^running: read \d+\.\ds$/);
     expect(result).not.toContain('+');
@@ -103,14 +101,18 @@ describe('renderRunningTools', () => {
 describe('selectedSlashCommandLine', () => {
   it('returns null when picker is closed', () => {
     expect(
-      selectedSlashCommandLine({ open: false, matches: [{ name: 'help', description: 'Show help', category: 'App', isBuiltin: true }] as never as never, selected: 0 }),
+      selectedSlashCommandLine({
+        open: false,
+        matches: [
+          { name: 'help', description: 'Show help', category: 'App', isBuiltin: true },
+        ] as never as never,
+        selected: 0,
+      }),
     ).toBeNull();
   });
 
   it('returns null when there are no matches', () => {
-    expect(
-      selectedSlashCommandLine({ open: true, matches: [] as never, selected: 0 }),
-    ).toBeNull();
+    expect(selectedSlashCommandLine({ open: true, matches: [] as never, selected: 0 })).toBeNull();
   });
 
   it('returns /name for the selected match', () => {
@@ -166,9 +168,7 @@ describe('buildSteeringPreamble', () => {
   it('includes subagent info when subagents were terminated', () => {
     const snapshot = {
       runningTools: [],
-      subagents: [
-        { label: 'scout', status: 'running', tool: 'read' },
-      ],
+      subagents: [{ label: 'scout', status: 'running', tool: 'read' }],
       subagentsTerminated: 1,
       partialAssistantText: '',
     };
@@ -314,7 +314,9 @@ describe('reducer', () => {
     it('empties the queue', () => {
       const state = {
         ...emptyState(),
-        queue: [{ id: 1, displayText: 'task 1', blocks: [{ type: 'text' as const, text: 'task 1' }] }],
+        queue: [
+          { id: 1, displayText: 'task 1', blocks: [{ type: 'text' as const, text: 'task 1' }] },
+        ],
       };
       const next = reducer(state, { type: 'queueClear' });
       expect(next.queue).toEqual([]);
@@ -350,7 +352,11 @@ describe('reducer', () => {
         provider: 'new-provider',
       });
       expect(next.entries).toHaveLength(1);
-      expect(next.entries[0]).toMatchObject({ kind: 'banner', model: 'new-model', provider: 'new-provider' });
+      expect(next.entries[0]).toMatchObject({
+        kind: 'banner',
+        model: 'new-model',
+        provider: 'new-provider',
+      });
       expect(next.historyGen).toBe(6);
     });
 
@@ -372,7 +378,12 @@ describe('reducer', () => {
         status: 'running' as const,
         interrupts: 3,
         steeringPending: true,
-        steerSnapshot: { runningTools: [], subagents: [], subagentsTerminated: 0, partialAssistantText: '' },
+        steerSnapshot: {
+          runningTools: [],
+          subagents: [],
+          subagentsTerminated: 0,
+          partialAssistantText: '',
+        },
         queue: [{ id: 1, displayText: 'q', blocks: [{ type: 'text' as const, text: 'q' }] }],
       };
       const next = reducer(state, { type: 'clearHistory', model: 'm', provider: 'p' });
@@ -403,7 +414,10 @@ describe('reducer', () => {
   describe('enqueue', () => {
     it('appends an item to the queue and advances nextQueueId', () => {
       const state = { ...emptyState(), queue: [], nextQueueId: 1 };
-      const item = { displayText: 'test task', blocks: [{ type: 'text' as const, text: 'test task' }] };
+      const item = {
+        displayText: 'test task',
+        blocks: [{ type: 'text' as const, text: 'test task' }],
+      };
       const next = reducer(state, { type: 'enqueue', item });
       expect(next.queue).toHaveLength(1);
       expect(next.queue[0]).toMatchObject({ displayText: 'test task', id: 1 });

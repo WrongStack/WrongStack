@@ -5,11 +5,7 @@
   "description": "Write a typed client for a REST or RPC API from its docs.",
   "content": "Write a {{language}} client for this API:\n\n{{api_description}}\n\nRequirements:\n- Strong types for every request and response shape.\n- Centralized error handling that distinguishes network, 4xx, and 5xx failures.\n- Timeouts and a single, configurable retry policy for idempotent calls.\n- No secrets in code — read credentials from configuration/env.\n- A short usage example for the two most common calls.",
   "category": "coding",
-  "tags": [
-    "api",
-    "http",
-    "client"
-  ],
+  "tags": ["api", "http", "client"],
   "source": "builtin",
   "favorite": false,
   "checksum": "112e3423e866ee6837c654e535bdd801ed65ffb8dd998703480413fc6983780e",

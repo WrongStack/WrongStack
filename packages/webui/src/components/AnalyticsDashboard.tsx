@@ -253,7 +253,7 @@ export function AnalyticsDashboard() {
   }, [fetchSummary, fetchEvents, fetchSessions, fetchStats]);
 
   // Compute derived stats. Memoized to avoid redoing the reduce/sort work on
-// every render — the inputs (sessions, summary) only change once per 10s poll.
+  // every render — the inputs (sessions, summary) only change once per 10s poll.
   const { totalAgents, activeAgents, totalToolCalls, totalIterations } = useMemo(() => {
     let agents = 0;
     let active = 0;
@@ -267,14 +267,21 @@ export function AnalyticsDashboard() {
         iters += a.iterations;
       }
     }
-    return { totalAgents: agents, activeAgents: active, totalToolCalls: tools, totalIterations: iters };
+    return {
+      totalAgents: agents,
+      activeAgents: active,
+      totalToolCalls: tools,
+      totalIterations: iters,
+    };
   }, [sessions]);
 
   // Top event categories for the breakdown (sorted by count)
   const categoryEntries = useMemo(
     () =>
       summary
-        ? Object.entries(summary.categoryBreakdown).sort((a, b) => b[1] - a[1]).slice(0, 8)
+        ? Object.entries(summary.categoryBreakdown)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
         : [],
     [summary],
   );
@@ -283,7 +290,9 @@ export function AnalyticsDashboard() {
   const eventEntries = useMemo(
     () =>
       summary
-        ? Object.entries(summary.eventBreakdown).sort((a, b) => b[1] - a[1]).slice(0, 10)
+        ? Object.entries(summary.eventBreakdown)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
         : [],
     [summary],
   );
@@ -324,263 +333,322 @@ export function AnalyticsDashboard() {
   }
 
   return (
-    <div ref={useScrollPosition('analytics')} className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-[hsl(var(--surface-2)/0.45)] p-4 sm:p-6">
+    <div
+      ref={useScrollPosition('analytics')}
+      className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-[hsl(var(--surface-2)/0.45)] p-4 sm:p-6"
+    >
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      {/* ── Header ── */}
-      <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-primary" />
-            <h1 className="truncate text-base font-semibold">
-              {t('activity:analytics.heading')}
-            </h1>
-          </div>
-          <span className="text-xs text-muted-foreground">{t('activity:analytics.autoRefresh')}</span>
-        </div>
-      </div>
-
-      {/* ── Scrollable content ── */}
-      <div className="min-w-0 space-y-5">
-        {/* ── Row 1: Overview cards ── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard
-            icon={<Activity className="h-4 w-4" />}
-            label={t('activity:analytics.liveSessions')}
-            value={sessions.length}
-            color="text-primary"
-          />
-          <StatCard
-            icon={<Users className="h-4 w-4" />}
-            label={t('activity:analytics.agents')}
-            value={`${activeAgents}/${totalAgents}`}
-            sub={activeAgents > 0 ? t('activity:analytics.agentsActive', { count: activeAgents }) : undefined}
-            color="text-success"
-          />
-          <StatCard
-            icon={<MessageSquare className="h-4 w-4" />}
-            label={t('activity:analytics.totalEvents')}
-            value={summary?.totalEvents ?? 0}
-            sub={t('activity:analytics.categoriesSub', { count: summary?.uniqueCategories ?? 0 })}
-            color="text-warning"
-          />
-          <StatCard
-            icon={<Terminal className="h-4 w-4" />}
-            label={t('activity:analytics.toolCalls')}
-            value={totalToolCalls}
-            sub={t('activity:analytics.iterationsSub', { count: totalIterations })}
-            color="text-success"
-          />
-          <StatCard
-            icon={<DollarSign className="h-4 w-4" />}
-            label={t('activity:analytics.sessionCost')}
-            value={stats ? fmtCost(stats.cost) : '—'}
-            sub={stats ? t('activity:analytics.tokensSub', { input: fmtTokens(stats.usage.input), output: fmtTokens(stats.usage.output) }) : undefined}
-            color="text-primary"
-          />
-          <StatCard
-            icon={<Cpu className="h-4 w-4" />}
-            label={t('activity:analytics.sessionDuration')}
-            value={stats ? fmtDuration(stats.elapsedMs) : '—'}
-            sub={stats ? t('activity:analytics.messagesSub', { count: stats.messages }) : undefined}
-            color="text-muted-foreground"
-          />
-        </div>
-
-        {/* ── Row 2: Breakdowns ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Category breakdown */}
-          <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
-            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-              <TrendingUp className="h-3.5 w-3.5 text-primary" />
-              {t('activity:analytics.eventsByCategory')}
-            </h3>
-            {categoryEntries.length === 0 ? (
-              <p className="text-xs text-muted-foreground">{t('activity:analytics.noEvents')}</p>
-            ) : (
-              <div className="space-y-1.5">
-                {categoryEntries.map(([cat, count]) => {
-                  const maxCount = categoryEntries[0]?.[1] ?? 1;
-                  const pct = Math.round((count / maxCount) * 100);
-                  return (
-                    <div key={cat} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_2.5rem] items-center gap-2 text-xs">
-                      <span className="min-w-0 truncate text-foreground">{cat}</span>
-                      <div className="h-4 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary/70 transition-all"
-                          style={{ width: `${Math.max(pct, 4)}%` }}
-                        />
-                      </div>
-                      <span className="text-right tabular-nums text-muted-foreground">{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Tool usage / Event breakdown */}
-          <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
-            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-              <BarChart3 className="h-3.5 w-3.5 text-warning" />
-              {t('activity:analytics.topEvents')}
-            </h3>
-            {eventEntries.length === 0 ? (
-              <p className="text-xs text-muted-foreground">{t('activity:analytics.noEvents')}</p>
-            ) : (
-              <div className="space-y-1.5">
-                {eventEntries.map(([evt, count]) => {
-                  const maxCount = eventEntries[0]?.[1] ?? 1;
-                  const pct = Math.round((count / maxCount) * 100);
-                  return (
-                    <div key={evt} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_2.5rem] items-center gap-2 text-xs">
-                      <span className={`min-w-0 truncate ${eventColor(evt)}`}>{evt}</span>
-                      <div className="h-4 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-warning/70 transition-all"
-                          style={{ width: `${Math.max(pct, 4)}%` }}
-                        />
-                      </div>
-                      <span className="text-right tabular-nums text-muted-foreground">{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+        {/* ── Header ── */}
+        <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h1 className="truncate text-base font-semibold">
+                {t('activity:analytics.heading')}
+              </h1>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {t('activity:analytics.autoRefresh')}
+            </span>
           </div>
         </div>
 
-        {/* ── Row 3: Current session stats & error alert ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Session usage detail */}
-          <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
-            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-              <DollarSign className="h-3.5 w-3.5 text-primary" />
-              {t('activity:analytics.activeSessionUsage')}
-            </h3>
-            {stats ? (
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="min-w-0 rounded-lg border border-border/70 bg-background/50 px-3 py-2">
-                  <span className="text-muted-foreground">{t('activity:analytics.provider')}</span>
-                  <p className="mt-0.5 truncate font-mono text-foreground">{stats.provider}</p>
-                </div>
-                <div className="min-w-0 rounded-lg border border-border/70 bg-background/50 px-3 py-2">
-                  <span className="text-muted-foreground">{t('activity:analytics.model')}</span>
-                  <p className="mt-0.5 truncate font-mono text-foreground">{stats.model}</p>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
-                  <span className="text-muted-foreground">{t('activity:analytics.inputTokens')}</span>
-                  <p className="mt-0.5 tabular-nums text-foreground">{fmtTokens(stats.usage.input)}</p>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
-                  <span className="text-muted-foreground">{t('activity:analytics.outputTokens')}</span>
-                  <p className="mt-0.5 tabular-nums text-foreground">{fmtTokens(stats.usage.output)}</p>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
-                  <span className="text-muted-foreground">{t('activity:analytics.cacheRatio')}</span>
-                  <p className="mt-0.5 tabular-nums text-foreground">
-                    {(stats.cache.hitRatio * 100).toFixed(1)}%
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
-                  <span className="text-muted-foreground">{t('activity:analytics.filesRead')}</span>
-                  <p className="mt-0.5 tabular-nums text-foreground">{stats.readFiles}</p>
-                </div>
-                {(stats.cache.providers?.length ?? 0) > 0 ? (
-                  <div className="col-span-2 rounded-lg border border-border/70 bg-background/50 px-3 py-2">
-                    <span className="text-muted-foreground">Provider cache breakdown</span>
-                    <div className="mt-1.5 space-y-1">
-                      {stats.cache.providers?.map((provider) => (
-                        <div
-                          key={provider.provider}
-                          className="flex flex-wrap items-center justify-between gap-x-3 font-mono"
-                        >
-                          <span className="text-foreground">{provider.provider}</span>
-                          <span className="tabular-nums text-success">
-                            {(provider.hitRatio * 100).toFixed(1)}% hit
-                          </span>
-                          <span className="tabular-nums text-muted-foreground">
-                            {fmtTokens(provider.cacheRead)} read · {fmtTokens(provider.cacheWrite)} write
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">{t('activity:analytics.noSession')}</p>
-            )}
+        {/* ── Scrollable content ── */}
+        <div className="min-w-0 space-y-5">
+          {/* ── Row 1: Overview cards ── */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <StatCard
+              icon={<Activity className="h-4 w-4" />}
+              label={t('activity:analytics.liveSessions')}
+              value={sessions.length}
+              color="text-primary"
+            />
+            <StatCard
+              icon={<Users className="h-4 w-4" />}
+              label={t('activity:analytics.agents')}
+              value={`${activeAgents}/${totalAgents}`}
+              sub={
+                activeAgents > 0
+                  ? t('activity:analytics.agentsActive', { count: activeAgents })
+                  : undefined
+              }
+              color="text-success"
+            />
+            <StatCard
+              icon={<MessageSquare className="h-4 w-4" />}
+              label={t('activity:analytics.totalEvents')}
+              value={summary?.totalEvents ?? 0}
+              sub={t('activity:analytics.categoriesSub', { count: summary?.uniqueCategories ?? 0 })}
+              color="text-warning"
+            />
+            <StatCard
+              icon={<Terminal className="h-4 w-4" />}
+              label={t('activity:analytics.toolCalls')}
+              value={totalToolCalls}
+              sub={t('activity:analytics.iterationsSub', { count: totalIterations })}
+              color="text-success"
+            />
+            <StatCard
+              icon={<DollarSign className="h-4 w-4" />}
+              label={t('activity:analytics.sessionCost')}
+              value={stats ? fmtCost(stats.cost) : '—'}
+              sub={
+                stats
+                  ? t('activity:analytics.tokensSub', {
+                      input: fmtTokens(stats.usage.input),
+                      output: fmtTokens(stats.usage.output),
+                    })
+                  : undefined
+              }
+              color="text-primary"
+            />
+            <StatCard
+              icon={<Cpu className="h-4 w-4" />}
+              label={t('activity:analytics.sessionDuration')}
+              value={stats ? fmtDuration(stats.elapsedMs) : '—'}
+              sub={
+                stats ? t('activity:analytics.messagesSub', { count: stats.messages }) : undefined
+              }
+              color="text-muted-foreground"
+            />
           </div>
 
-          {/* Error/warning indicator */}
-          <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
-            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-              <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-              {t('activity:analytics.healthErrors')}
-            </h3>
-            <div className="space-y-2 text-xs">
-              {summary ? (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('activity:analytics.errorEvents')}</span>
-                    <span className="tabular-nums text-destructive">{errorCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('activity:analytics.warningEvents')}</span>
-                    <span className="tabular-nums text-warning">{warningCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('activity:analytics.cacheHitRate')}</span>
-                    <span className="tabular-nums text-success">
-                      {stats ? `${(stats.cache.hitRatio * 100).toFixed(1)}%` : '—'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('activity:analytics.totalCategories')}</span>
-                    <span className="tabular-nums text-foreground">{summary.uniqueCategories}</span>
-                  </div>
-                </>
+          {/* ── Row 2: Breakdowns ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Category breakdown */}
+            <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                {t('activity:analytics.eventsByCategory')}
+              </h3>
+              {categoryEntries.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t('activity:analytics.noEvents')}</p>
               ) : (
-                <p className="text-muted-foreground">{t('activity:analytics.waitingData')}</p>
+                <div className="space-y-1.5">
+                  {categoryEntries.map(([cat, count]) => {
+                    const maxCount = categoryEntries[0]?.[1] ?? 1;
+                    const pct = Math.round((count / maxCount) * 100);
+                    return (
+                      <div
+                        key={cat}
+                        className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_2.5rem] items-center gap-2 text-xs"
+                      >
+                        <span className="min-w-0 truncate text-foreground">{cat}</span>
+                        <div className="h-4 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-primary/70 transition-all"
+                            style={{ width: `${Math.max(pct, 4)}%` }}
+                          />
+                        </div>
+                        <span className="text-right tabular-nums text-muted-foreground">
+                          {count}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Tool usage / Event breakdown */}
+            <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <BarChart3 className="h-3.5 w-3.5 text-warning" />
+                {t('activity:analytics.topEvents')}
+              </h3>
+              {eventEntries.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t('activity:analytics.noEvents')}</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {eventEntries.map(([evt, count]) => {
+                    const maxCount = eventEntries[0]?.[1] ?? 1;
+                    const pct = Math.round((count / maxCount) * 100);
+                    return (
+                      <div
+                        key={evt}
+                        className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_2.5rem] items-center gap-2 text-xs"
+                      >
+                        <span className={`min-w-0 truncate ${eventColor(evt)}`}>{evt}</span>
+                        <div className="h-4 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-warning/70 transition-all"
+                            style={{ width: `${Math.max(pct, 4)}%` }}
+                          />
+                        </div>
+                        <span className="text-right tabular-nums text-muted-foreground">
+                          {count}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* ── Row 4: Recent events stream ── */}
-        <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
-          <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-            <Activity className="h-3.5 w-3.5 text-primary" />
-            {t('activity:analytics.recentEvents')}
-          </h3>
-          {events.length === 0 ? (
-            <p className="text-xs text-muted-foreground">{t('activity:analytics.noRecentEvents')}</p>
-          ) : (
-            <div className="max-h-64 space-y-1 overflow-y-auto">
-              {eventPage.pageItems.map((evt, i) => (
-                <div
-                  key={`${evt.timestamp}-${i}`}
-                  className="grid grid-cols-[4rem_minmax(0,7rem)_minmax(0,6rem)_minmax(0,1fr)] items-start gap-2 rounded px-2 py-1 text-xs hover:bg-muted/60"
-                >
-                  <span className="tabular-nums text-muted-foreground/70">{fmtTime(evt.timestamp)}</span>
-                  <span className={`min-w-0 truncate ${eventColor(evt.event)}`}>{evt.event}</span>
-                  <span className="min-w-0 truncate text-muted-foreground">{evt.category}</span>
-                  <span className="min-w-0 truncate text-foreground/80">{evt.label ?? evt.sessionId ?? ''}</span>
+          {/* ── Row 3: Current session stats & error alert ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Session usage detail */}
+            <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <DollarSign className="h-3.5 w-3.5 text-primary" />
+                {t('activity:analytics.activeSessionUsage')}
+              </h3>
+              {stats ? (
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="min-w-0 rounded-lg border border-border/70 bg-background/50 px-3 py-2">
+                    <span className="text-muted-foreground">
+                      {t('activity:analytics.provider')}
+                    </span>
+                    <p className="mt-0.5 truncate font-mono text-foreground">{stats.provider}</p>
+                  </div>
+                  <div className="min-w-0 rounded-lg border border-border/70 bg-background/50 px-3 py-2">
+                    <span className="text-muted-foreground">{t('activity:analytics.model')}</span>
+                    <p className="mt-0.5 truncate font-mono text-foreground">{stats.model}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
+                    <span className="text-muted-foreground">
+                      {t('activity:analytics.inputTokens')}
+                    </span>
+                    <p className="mt-0.5 tabular-nums text-foreground">
+                      {fmtTokens(stats.usage.input)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
+                    <span className="text-muted-foreground">
+                      {t('activity:analytics.outputTokens')}
+                    </span>
+                    <p className="mt-0.5 tabular-nums text-foreground">
+                      {fmtTokens(stats.usage.output)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
+                    <span className="text-muted-foreground">
+                      {t('activity:analytics.cacheRatio')}
+                    </span>
+                    <p className="mt-0.5 tabular-nums text-foreground">
+                      {(stats.cache.hitRatio * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
+                    <span className="text-muted-foreground">
+                      {t('activity:analytics.filesRead')}
+                    </span>
+                    <p className="mt-0.5 tabular-nums text-foreground">{stats.readFiles}</p>
+                  </div>
+                  {(stats.cache.providers?.length ?? 0) > 0 ? (
+                    <div className="col-span-2 rounded-lg border border-border/70 bg-background/50 px-3 py-2">
+                      <span className="text-muted-foreground">Provider cache breakdown</span>
+                      <div className="mt-1.5 space-y-1">
+                        {stats.cache.providers?.map((provider) => (
+                          <div
+                            key={provider.provider}
+                            className="flex flex-wrap items-center justify-between gap-x-3 font-mono"
+                          >
+                            <span className="text-foreground">{provider.provider}</span>
+                            <span className="tabular-nums text-success">
+                              {(provider.hitRatio * 100).toFixed(1)}% hit
+                            </span>
+                            <span className="tabular-nums text-muted-foreground">
+                              {fmtTokens(provider.cacheRead)} read ·{' '}
+                              {fmtTokens(provider.cacheWrite)} write
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              ))}
+              ) : (
+                <p className="text-xs text-muted-foreground">{t('activity:analytics.noSession')}</p>
+              )}
             </div>
-          )}
-          <Pagination
-            page={eventPage.page}
-            pageSize={eventPage.pageSize}
-            totalItems={eventPage.totalItems}
-            onPageChange={eventPage.setPage}
-            compact
-            itemLabel="events"
-            className="mt-3 rounded-lg border"
-          />
+
+            {/* Error/warning indicator */}
+            <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                {t('activity:analytics.healthErrors')}
+              </h3>
+              <div className="space-y-2 text-xs">
+                {summary ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {t('activity:analytics.errorEvents')}
+                      </span>
+                      <span className="tabular-nums text-destructive">{errorCount}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {t('activity:analytics.warningEvents')}
+                      </span>
+                      <span className="tabular-nums text-warning">{warningCount}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {t('activity:analytics.cacheHitRate')}
+                      </span>
+                      <span className="tabular-nums text-success">
+                        {stats ? `${(stats.cache.hitRatio * 100).toFixed(1)}%` : '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {t('activity:analytics.totalCategories')}
+                      </span>
+                      <span className="tabular-nums text-foreground">
+                        {summary.uniqueCategories}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">{t('activity:analytics.waitingData')}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Row 4: Recent events stream ── */}
+          <div className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+              <Activity className="h-3.5 w-3.5 text-primary" />
+              {t('activity:analytics.recentEvents')}
+            </h3>
+            {events.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {t('activity:analytics.noRecentEvents')}
+              </p>
+            ) : (
+              <div className="max-h-64 space-y-1 overflow-y-auto">
+                {eventPage.pageItems.map((evt, i) => (
+                  <div
+                    key={`${evt.timestamp}-${i}`}
+                    className="grid grid-cols-[4rem_minmax(0,7rem)_minmax(0,6rem)_minmax(0,1fr)] items-start gap-2 rounded px-2 py-1 text-xs hover:bg-muted/60"
+                  >
+                    <span className="tabular-nums text-muted-foreground/70">
+                      {fmtTime(evt.timestamp)}
+                    </span>
+                    <span className={`min-w-0 truncate ${eventColor(evt.event)}`}>{evt.event}</span>
+                    <span className="min-w-0 truncate text-muted-foreground">{evt.category}</span>
+                    <span className="min-w-0 truncate text-foreground/80">
+                      {evt.label ?? evt.sessionId ?? ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Pagination
+              page={eventPage.page}
+              pageSize={eventPage.pageSize}
+              totalItems={eventPage.totalItems}
+              onPageChange={eventPage.setPage}
+              compact
+              itemLabel="events"
+              className="mt-3 rounded-lg border"
+            />
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );

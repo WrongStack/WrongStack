@@ -195,10 +195,7 @@ function applyPerplexity(body: Record<string, unknown>, req: Request): void {
   const model = req.model.toLowerCase();
   if (!model.includes('reasoning-pro') && !model.includes('deep-research')) return;
   const effort = req.reasoning?.effort;
-  if (
-    req.reasoning?.enabled !== false &&
-    isOneOf(effort, ['minimal', 'low', 'medium', 'high'])
-  ) {
+  if (req.reasoning?.enabled !== false && isOneOf(effort, ['minimal', 'low', 'medium', 'high'])) {
     body['reasoning_effort'] = effort;
   }
 }

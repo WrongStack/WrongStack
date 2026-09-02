@@ -37,7 +37,7 @@ export interface CompactorOptions {
    * `compaction-core`/`token-estimate` so all compactors and the context-pressure
    * monitor agree on one number. Kept only for backward-compatible call sites.
    */
-  estimator?: (((text: string) => number)) | undefined;
+  estimator?: ((text: string) => number) | undefined;
   /** Structured logger. Defaults to noOpLogger (silent). */
   logger?: Logger | undefined;
 }
@@ -50,7 +50,11 @@ export interface CompactorOptions {
  * @deprecated Import from '../types/default-config.js' instead.
  *             This re-export exists for backward compatibility.
  */
-export { DEFAULT_TOOLS_CONFIG, DEFAULT_CONTEXT_CONFIG, DEFAULT_AUTONOMY_CONFIG } from '../types/default-config.js';
+export {
+  DEFAULT_TOOLS_CONFIG,
+  DEFAULT_CONTEXT_CONFIG,
+  DEFAULT_AUTONOMY_CONFIG,
+} from '../types/default-config.js';
 
 export class HybridCompactor implements Compactor {
   private readonly preserveK: number;
@@ -66,7 +70,10 @@ export class HybridCompactor implements Compactor {
     setCompactionDebugLogger(this.logger);
   }
 
-  async compact(ctx: Context, opts: { aggressive?: boolean | undefined } = {}): Promise<CompactReport> {
+  async compact(
+    ctx: Context,
+    opts: { aggressive?: boolean | undefined } = {},
+  ): Promise<CompactReport> {
     const beforeTokens = estimateMessages(ctx.messages);
     const beforeFull = this.estimateFullRequest(ctx);
     const reductions: CompactReport['reductions'] = [];
@@ -177,12 +184,11 @@ export class HybridCompactor implements Compactor {
     const removed = messages.slice(0, boundary);
     const removedTokens = estimateMessages(removed);
 
-    const historyDigest =
-      this.smart
-        ? buildSmartDigest(removed) ||
-          `${removed.length} earlier turns (no textual content; tool I/O omitted; see session log)`
-        : buildLosslessDigest(removed) ||
-          `${removed.length} earlier turns (no textual content; tool I/O omitted; see session log)`;
+    const historyDigest = this.smart
+      ? buildSmartDigest(removed) ||
+        `${removed.length} earlier turns (no textual content; tool I/O omitted; see session log)`
+      : buildLosslessDigest(removed) ||
+        `${removed.length} earlier turns (no textual content; tool I/O omitted; see session log)`;
 
     const evidenceDigest = buildContextEvidenceDigest(ctx);
     const digest = evidenceDigest
@@ -209,10 +215,7 @@ function readContextWindowPolicy(ctx: Context): ContextWindowPolicy | null {
   const policy = ctx.meta?.['contextWindowPolicy'];
   if (!policy || typeof policy !== 'object') return null;
   const candidate = policy as Partial<ContextWindowPolicy>;
-  if (
-    typeof candidate.preserveK !== 'number' ||
-    typeof candidate.eliseThreshold !== 'number'
-  ) {
+  if (typeof candidate.preserveK !== 'number' || typeof candidate.eliseThreshold !== 'number') {
     return null;
   }
   return candidate as ContextWindowPolicy;

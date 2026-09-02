@@ -20,9 +20,7 @@ describe('SQLite recovery and file memory operations', () => {
   afterEach(async () => {
     await Promise.all(stores.splice(0).map((store) => store.close()));
     await Promise.all(
-      directories.splice(0).map((directory) =>
-        fs.rm(directory, { recursive: true, force: true }),
-      ),
+      directories.splice(0).map((directory) => fs.rm(directory, { recursive: true, force: true })),
     );
   });
 

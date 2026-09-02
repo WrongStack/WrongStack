@@ -223,9 +223,7 @@ describe('installCrashShield — default options', () => {
     try {
       const target = new EventEmitter();
       vi.mocked(writeErr).mockClear();
-      const exitSpy = vi
-        .spyOn(process, 'exit')
-        .mockImplementation((() => undefined) as never);
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
       const cleanup = installCrashShield({ target: target as never });
 

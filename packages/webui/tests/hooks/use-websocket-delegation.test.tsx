@@ -134,7 +134,11 @@ describe('memory and sage delegation', () => {
     (ws.listSageMemories as (o?: unknown) => void)(options);
     (ws.listSageMemoriesPage as (p?: unknown, o?: unknown) => void)({ limit: 10 }, options);
     (ws.getSage as (a: string, o?: unknown) => void)('m1', options);
-    (ws.getSageGraph as (a: string, p?: unknown, o?: unknown) => void)('auth', { limit: 5 }, options);
+    (ws.getSageGraph as (a: string, p?: unknown, o?: unknown) => void)(
+      'auth',
+      { limit: 5 },
+      options,
+    );
     (ws.updateSage as (a: string, p: unknown, o?: unknown) => void)('m1', { tags: [] }, options);
     (ws.deleteSage as (a: string, r?: string) => void)('m1', 'obsolete');
     (ws.rememberSage as (o: unknown, x?: unknown) => void)({ text: 'x' }, options);

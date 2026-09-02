@@ -102,6 +102,9 @@ export function launchBuiltinRound(options: LaunchBuiltinRoundOptions): void {
   options.setPrefs({ subagentsAllowed: false });
   client.send({
     type: 'prefs.update',
-    payload: { subagentsAllowed: false, ...(options.sessionId ? { sessionId: options.sessionId } : {}) },
+    payload: {
+      subagentsAllowed: false,
+      ...(options.sessionId ? { sessionId: options.sessionId } : {}),
+    },
   });
 }

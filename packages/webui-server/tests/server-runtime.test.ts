@@ -12,13 +12,22 @@ vi.mock('../src/server/port-utils.js', () => ({
   // default false keeps the mocked findFreePort path active as before.
   isStrictPort: vi.fn(() => false),
 }));
-vi.mock('../src/server/http-server.js', () => ({ createHttpServer: vi.fn(() => ({ on: vi.fn(), listen: vi.fn(), close: vi.fn() })) }));
+vi.mock('../src/server/http-server.js', () => ({
+  createHttpServer: vi.fn(() => ({ on: vi.fn(), listen: vi.fn(), close: vi.fn() })),
+}));
 vi.mock('../src/server/lifecycle.js', () => ({
   registerShutdownHandlers: vi.fn(() => () => undefined),
 }));
-vi.mock('../src/server/model-catalog.js', () => ({ resolveProviderModelMetadata: vi.fn(async () => ({ capabilities: { maxContext: 128000 } })) }));
-vi.mock('../src/server/usage-cost.js', () => ({ getCostRates: vi.fn(() => ({ input: 0, output: 0, cacheRead: 0 })) }));
-vi.mock('../src/server/setup-events.js', () => ({ setupEvents: vi.fn(() => () => undefined), FileWatcherMetrics: {} }));
+vi.mock('../src/server/model-catalog.js', () => ({
+  resolveProviderModelMetadata: vi.fn(async () => ({ capabilities: { maxContext: 128000 } })),
+}));
+vi.mock('../src/server/usage-cost.js', () => ({
+  getCostRates: vi.fn(() => ({ input: 0, output: 0, cacheRead: 0 })),
+}));
+vi.mock('../src/server/setup-events.js', () => ({
+  setupEvents: vi.fn(() => () => undefined),
+  FileWatcherMetrics: {},
+}));
 
 import { registerShutdownHandlers } from '../src/server/lifecycle.js';
 import {
@@ -109,7 +118,16 @@ describe('server-runtime', () => {
   describe('createSessionStartPayload', () => {
     it('builds a session.start payload with model metadata', async () => {
       const factory = createSessionStartPayload({
-        getConfig: () => ({ provider: 'openai', model: 'gpt-4o', providers: {}, context: {}, features: {}, brain: {}, fallbackModels: [] } as any),
+        getConfig: () =>
+          ({
+            provider: 'openai',
+            model: 'gpt-4o',
+            providers: {},
+            context: {},
+            features: {},
+            brain: {},
+            fallbackModels: [],
+          }) as any,
         getSessionId: () => 'sess-1',
         getProjectRoot: () => '/tmp/myproject',
         getWorkingDir: () => '/tmp/myproject',
@@ -117,7 +135,9 @@ describe('server-runtime', () => {
         getContextMode: () => 'standard',
         getNeedsSetup: () => false,
         modelsRegistry: {
-          getProvider: vi.fn(async () => ({ models: [{ id: 'gpt-4o', limit: { context: 128000 } }] })),
+          getProvider: vi.fn(async () => ({
+            models: [{ id: 'gpt-4o', limit: { context: 128000 } }],
+          })),
         } as any,
       });
       const payload = await factory();
@@ -130,7 +150,16 @@ describe('server-runtime', () => {
 
     it('includes needsSetup when true', async () => {
       const factory = createSessionStartPayload({
-        getConfig: () => ({ provider: 'openai', model: 'gpt-4o', providers: {}, context: {}, features: {}, brain: {}, fallbackModels: [] } as any),
+        getConfig: () =>
+          ({
+            provider: 'openai',
+            model: 'gpt-4o',
+            providers: {},
+            context: {},
+            features: {},
+            brain: {},
+            fallbackModels: [],
+          }) as any,
         getSessionId: () => 'sess-1',
         getProjectRoot: () => '/tmp/p',
         getWorkingDir: () => '/tmp/p',
@@ -149,7 +178,16 @@ describe('server-runtime', () => {
       // rejects — the catch-all in the factory swallows the error and returns
       // whatever maxContext it could resolve (128000 from the mocked metadata).
       const factory = createSessionStartPayload({
-        getConfig: () => ({ provider: 'bad', model: 'unknown', providers: {}, context: {}, features: {}, brain: {}, fallbackModels: [] } as any),
+        getConfig: () =>
+          ({
+            provider: 'bad',
+            model: 'unknown',
+            providers: {},
+            context: {},
+            features: {},
+            brain: {},
+            fallbackModels: [],
+          }) as any,
         getSessionId: () => 'sess-1',
         getProjectRoot: () => '/tmp/p',
         getWorkingDir: () => '/tmp/p',
@@ -157,7 +195,9 @@ describe('server-runtime', () => {
         getContextMode: () => 'standard',
         getNeedsSetup: () => false,
         modelsRegistry: {
-          getProvider: vi.fn(async () => { throw new Error('net'); }),
+          getProvider: vi.fn(async () => {
+            throw new Error('net');
+          }),
         } as any,
       });
       const payload = await factory();

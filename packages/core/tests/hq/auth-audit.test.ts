@@ -114,11 +114,15 @@ describe('HQ auth-audit — JSONL append-only log', () => {
 
     let captured: Error | undefined;
     expect(() => {
-      logHqAuthAudit(blockedDir, { kind: 'create', scope: 'browser', tokenId: 'x' }, {
-        onError: (err) => {
-          captured = err;
+      logHqAuthAudit(
+        blockedDir,
+        { kind: 'create', scope: 'browser', tokenId: 'x' },
+        {
+          onError: (err) => {
+            captured = err;
+          },
         },
-      });
+      );
     }).not.toThrow();
     // The callback is invoked with the underlying error.
     expect(captured).toBeInstanceOf(Error);

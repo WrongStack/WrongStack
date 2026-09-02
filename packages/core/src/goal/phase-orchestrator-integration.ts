@@ -13,7 +13,14 @@ import type { Logger } from '../types/logger.js';
 import { toErrorMessage } from '../utils/error.js';
 import type { WorktreeHandle, WorktreeManager } from '../worktree/worktree-manager.js';
 import { setIntegrationMetadata } from './phase-orchestrator-queries.js';
-import type { PhaseEventMap, PhaseEventName, PhaseExecutionContext, PhaseGraph, PhaseNode, PhaseStatus } from './types.js';
+import type {
+  PhaseEventMap,
+  PhaseEventName,
+  PhaseExecutionContext,
+  PhaseGraph,
+  PhaseNode,
+  PhaseStatus,
+} from './types.js';
 
 /** Orchestrator state the integration steps operate on. */
 export interface IntegrationContext {

@@ -156,7 +156,7 @@ const fr: Catalog = {
   registerProject: 'Enregistrer le projet',
   openProjectEllipsis: 'Ouvrir un projet…',
   registerProjectEllipsis: 'Enregistrer le projet…',
-  removeActiveFromRegistry: "Retirer le projet actif du registre",
+  removeActiveFromRegistry: 'Retirer le projet actif du registre',
   newSessionForActive: 'Nouvelle session pour le projet actif',
   settings: 'Paramètres',
   closeActiveRuntime: "Fermer l'exécution active",

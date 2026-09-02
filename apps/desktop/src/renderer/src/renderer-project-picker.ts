@@ -133,7 +133,9 @@ function renderProjectTab(
 
 function renderProjectItem(project: DesktopProjectEntry, ctx: ProjectPickerRenderContext): string {
   const openRuntime = ctx.runtimes.find((runtime) => sameProjectRoot(runtime.root, project.root));
-  const registered = ctx.registeredProjects.some((item) => sameProjectRoot(item.root, project.root));
+  const registered = ctx.registeredProjects.some((item) =>
+    sameProjectRoot(item.root, project.root),
+  );
   const recent = ctx.recentProjects.some((item) => sameProjectRoot(item.root, project.root));
   const title = project.name || basenameFromPath(project.root) || project.root;
   const subtitle = project.lastWorkingDir || project.root;

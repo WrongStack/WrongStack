@@ -129,7 +129,12 @@ describe('DefaultLogger', () => {
 
   it('rotates the file to <file>.1 once it exceeds maxFileBytes', async () => {
     const logFile = path.join(tmp, 'rotate.log');
-    const log = new DefaultLogger({ level: 'info', stderr: false, file: logFile, maxFileBytes: 2_000 });
+    const log = new DefaultLogger({
+      level: 'info',
+      stderr: false,
+      file: logFile,
+      maxFileBytes: 2_000,
+    });
     // Size is checked on the first write and every 100 writes after — write
     // past one check interval with lines that overshoot the cap well before.
     for (let i = 0; i < 101; i++) {

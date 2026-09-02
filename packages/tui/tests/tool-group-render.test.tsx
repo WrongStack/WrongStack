@@ -19,7 +19,11 @@ const injectedMemory = [
 
 describe('SAGE output separation and grouping', () => {
   it('leaves ordinary SAGE-like output untouched', () => {
-    const output = ['command output', '--- SAGE: example from a fixture', 'still ordinary output'].join('\n');
+    const output = [
+      'command output',
+      '--- SAGE: example from a fixture',
+      'still ordinary output',
+    ].join('\n');
     expect(extractSageBlock(output)).toEqual({ cleanOutput: output, sageLines: [] });
   });
 
@@ -34,10 +38,20 @@ describe('SAGE output separation and grouping', () => {
     const groups = groupEntries([
       { id: 1, kind: 'tool', name: 'read', durationMs: 1, ok: true, output: 'first' },
       { id: 2, kind: 'tool', name: 'read', durationMs: 1, ok: true, output: 'second' },
-      { id: 3, kind: 'tool', name: 'read', durationMs: 1, ok: true, output: `third\n\n${injectedMemory}` },
+      {
+        id: 3,
+        kind: 'tool',
+        name: 'read',
+        durationMs: 1,
+        ok: true,
+        output: `third\n\n${injectedMemory}`,
+      },
     ]);
     expect(groups).toHaveLength(2);
-    expect(groups[0]).toMatchObject({ type: 'tool-group', data: { entries: [{ id: 1 }, { id: 2 }] } });
+    expect(groups[0]).toMatchObject({
+      type: 'tool-group',
+      data: { entries: [{ id: 1 }, { id: 2 }] },
+    });
     expect(groups[1]).toMatchObject({ type: 'single', entry: { id: 3 } });
   });
 
@@ -45,7 +59,14 @@ describe('SAGE output separation and grouping', () => {
     const base = estimateRenderGroupRows(
       {
         type: 'single',
-        entry: { id: 1, kind: 'tool', name: 'write', durationMs: 1, ok: true, resultRenderMode: 'simple' },
+        entry: {
+          id: 1,
+          kind: 'tool',
+          name: 'write',
+          durationMs: 1,
+          ok: true,
+          resultRenderMode: 'simple',
+        },
       },
       80,
     );

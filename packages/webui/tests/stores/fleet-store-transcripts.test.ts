@@ -345,9 +345,13 @@ describe('applyEvent transcript synthesis', () => {
 
     const entries = transcript('sa-w2');
     expect(entries.length).toBe(3);
-    expect(entries.some((e) => e.kind === 'status' && e.content.includes('Analyze performance'))).toBe(true);
+    expect(
+      entries.some((e) => e.kind === 'status' && e.content.includes('Analyze performance')),
+    ).toBe(true);
     expect(entries.some((e) => e.kind === 'tool_result' && e.toolName === 'read_file')).toBe(true);
-    expect(entries.some((e) => e.kind === 'text' && e.content.includes('Summary of fix'))).toBe(true);
+    expect(entries.some((e) => e.kind === 'text' && e.content.includes('Summary of fix'))).toBe(
+      true,
+    );
   });
 });
 
@@ -386,4 +390,3 @@ describe('hydrateAgentSessions', () => {
     expect(entries[0]?.content).toBe('Historical message from disk');
   });
 });
-

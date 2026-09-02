@@ -60,11 +60,7 @@ function familyColor(family: ModeOption['family']): 'green' | 'magenta' | 'blue'
   }
 }
 
-export function ModePicker({
-  modes,
-  selected,
-  hint,
-}: ModePickerProps): React.ReactElement {
+export function ModePicker({ modes, selected, hint }: ModePickerProps): React.ReactElement {
   const activeMode = modes.find((mode) => mode.isActive);
   const modeMeta = `${modes.length} mode${modes.length === 1 ? '' : 's'}`;
 
@@ -89,9 +85,7 @@ export function ModePicker({
             <Text bold>{opt.name.padEnd(18)}</Text>
             <Text color={familyColor(opt.family)}>[{familyLabel(opt.family)}]</Text>
             <Text dimColor> {opt.description}</Text>
-            {opt.isActive ? (
-              <Text color="green"> ● active</Text>
-            ) : null}
+            {opt.isActive ? <Text color="green"> ● active</Text> : null}
           </Text>
         ))
       )}

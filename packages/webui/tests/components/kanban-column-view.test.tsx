@@ -159,7 +159,12 @@ describe('KanbanColumnView intelligence cache', () => {
       vi.setSystemTime(Date.parse('2026-07-21T12:00:00.000Z'));
       const { rerender, props } = renderColumn({
         tasks: [
-          task({ id: 'task-1', title: 'Fix lease', status: 'ready', dueDate: '2026-07-21T12:01:00.000Z' }),
+          task({
+            id: 'task-1',
+            title: 'Fix lease',
+            status: 'ready',
+            dueDate: '2026-07-21T12:01:00.000Z',
+          }),
         ],
       });
       // Not overdue yet — no critical-risk chip.

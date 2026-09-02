@@ -460,9 +460,7 @@ export class FallbackProfileManager {
           // already in the chain (bridge, primary, smart default, default
           // profile). Without this, the cap would silently consume slots
           // on models already in the chain, producing zero new depth.
-          const usedKeys = new Set(
-            candidates.map((c) => `${c.providerId}/${c.model}`),
-          );
+          const usedKeys = new Set(candidates.map((c) => `${c.providerId}/${c.model}`));
           const lastResort = this.smartDefault(current, Number.POSITIVE_INFINITY)
             .filter((c) => !usedKeys.has(`${c.providerId}/${c.model}`))
             .slice(0, cap);

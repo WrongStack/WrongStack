@@ -30,7 +30,9 @@ describe('classifyToolError — WrongStackError subclasses', () => {
   });
 
   it('routes ToolValidationError as VALIDATION', () => {
-    const result = classifyToolError(new ToolValidationError({ message: 'bad input', field: 'path' }));
+    const result = classifyToolError(
+      new ToolValidationError({ message: 'bad input', field: 'path' }),
+    );
     expect(result.category).toBe(ToolErrorCategory.VALIDATION);
     expect(result.retryable).toBe(false);
   });
@@ -43,7 +45,9 @@ describe('classifyToolError — WrongStackError subclasses', () => {
   });
 
   it('routes FsError(FS_READ_FAILED) as FATAL (severity: error)', () => {
-    const result = classifyToolError(new FsError({ message: 'ENOENT', code: 'FS_READ_FAILED', path: '/x' }));
+    const result = classifyToolError(
+      new FsError({ message: 'ENOENT', code: 'FS_READ_FAILED', path: '/x' }),
+    );
     expect(result.category).toBe(ToolErrorCategory.FATAL);
     expect(result.retryable).toBe(false);
   });
@@ -73,9 +77,7 @@ describe('classifyToolError — WrongStackError subclasses', () => {
   });
 
   it('routes AgentError(AGENT_ABORTED) as TRANSIENT (severity: warning)', () => {
-    const result = classifyToolError(
-      new AgentError({ message: 'aborted', code: 'AGENT_ABORTED' }),
-    );
+    const result = classifyToolError(new AgentError({ message: 'aborted', code: 'AGENT_ABORTED' }));
     expect(result.category).toBe(ToolErrorCategory.TRANSIENT);
     expect(result.retryable).toBe(false);
   });

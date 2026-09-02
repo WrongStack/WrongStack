@@ -116,9 +116,7 @@ function readConfig(raw: unknown): ContextPinsConfig {
         ? rawMaxPins
         : DEFAULTS.maxPins,
     maxPinChars:
-      typeof rawMaxChars === 'number' && rawMaxChars >= 20
-        ? rawMaxChars
-        : DEFAULTS.maxPinChars,
+      typeof rawMaxChars === 'number' && rawMaxChars >= 20 ? rawMaxChars : DEFAULTS.maxPinChars,
   };
 }
 
@@ -147,9 +145,7 @@ function loadPins(filePath: string): { pins: Pin[]; nextId: number } {
       return Number.isFinite(num) && num > max ? num : max;
     }, 0);
     const nextId =
-      typeof raw.nextId === 'number' && raw.nextId > maxExistingId
-        ? raw.nextId
-        : maxExistingId + 1;
+      typeof raw.nextId === 'number' && raw.nextId > maxExistingId ? raw.nextId : maxExistingId + 1;
     return { pins, nextId };
   } catch {
     return { pins: [], nextId: 1 };
@@ -166,7 +162,10 @@ async function persistPins(filePath: string): Promise<boolean> {
     // concurrent reader holds the destination open, and the pin write was
     // simply lost. The shared helper retries across ~4s first.
     await ensureDir(dirname(filePath));
-    await atomicWrite(filePath, JSON.stringify({ pins: state.pins, nextId: state.nextId }, null, 2));
+    await atomicWrite(
+      filePath,
+      JSON.stringify({ pins: state.pins, nextId: state.nextId }, null, 2),
+    );
     return true;
   } catch {
     /* v8 ignore start */
@@ -318,12 +317,12 @@ const plugin: Plugin = {
         const raw = (input ?? {}) as Record<string, unknown>;
         const key = String(
           input.id ??
-          input.label ??
-          raw['pinId'] ??
-          raw['pin_id'] ??
-          raw['name'] ??
-          raw['key'] ??
-          '',
+            input.label ??
+            raw['pinId'] ??
+            raw['pin_id'] ??
+            raw['name'] ??
+            raw['key'] ??
+            '',
         ).trim();
         if (!key) return { ok: false, error: 'id or label is required' };
         const before = state.pins.length;

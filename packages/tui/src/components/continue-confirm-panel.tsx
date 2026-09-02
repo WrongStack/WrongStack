@@ -129,7 +129,9 @@ export function ContinueConfirmPanel({
             [Enter]
           </Text>
           <Text dimColor>
-            {autoProceedSecs != null ? ` proceed (auto ${autoProceedSecs}s) · ` : ' proceed anyway · '}
+            {autoProceedSecs != null
+              ? ` proceed (auto ${autoProceedSecs}s) · `
+              : ' proceed anyway · '}
           </Text>
           <Text bold color="cyan">
             [e]

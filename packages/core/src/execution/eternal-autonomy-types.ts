@@ -56,7 +56,7 @@ export interface EternalAutonomyOptions {
    */
   brainstormDoneStopThreshold?: number | undefined;
   /** Side-channel notifications (logging, UI updates). */
-  onIteration?: (((entry: JournalEntry) => void)) | undefined;
+  onIteration?: ((entry: JournalEntry) => void) | undefined;
   onError?: (err: Error | undefined, iteration: number) => void;
   /**
    * Per-iteration phase notifications for live UI updates (TUI status bar,
@@ -64,16 +64,16 @@ export interface EternalAutonomyOptions {
    * reflect → (sleep | paused | stopped). Fire-and-forget — the engine
    * does not await the callback.
    */
-  onStage?: (((stage: IterationStage) => void)) | undefined;
+  onStage?: ((stage: IterationStage) => void) | undefined;
   /**
    * Optional injected git status reader — production code uses git, tests
    * stub this out so they don't shell out.
    */
-  gitStatusReader?: ((() => Promise<string>)) | undefined;
+  gitStatusReader?: (() => Promise<string>) | undefined;
   /**
    * Optional clock — tests stub for deterministic timestamps.
    */
-  now?: ((() => Date)) | undefined;
+  now?: (() => Date) | undefined;
   /** Logger for structured warnings/errors. Falls back to console.error when omitted. */
   logger?: Logger | undefined;
   /**
@@ -114,7 +114,7 @@ export interface EternalAutonomyOptions {
   /** Ceiling for the exponential backoff. Default 60_000 (60 s). */
   transientBackoffMaxMs?: number | undefined;
   /** Called when the eternal loop stops for any reason (manual stop, goal complete, etc.). */
-  onEternalStop?: ((() => void)) | undefined;
+  onEternalStop?: (() => void) | undefined;
   /**
    * Optional brain arbiter for autonomous decision-making. When wired,
    * the engine consults the brain instead of auto-stopping on:
@@ -138,7 +138,11 @@ export type IterationStage =
   | { phase: 'idle' }
   | { phase: 'decide'; reason: string }
   | { phase: 'execute'; task: string }
-  | { phase: 'reflect'; status: 'success' | 'failure' | 'aborted' | 'skipped'; note?: string | undefined }
+  | {
+      phase: 'reflect';
+      status: 'success' | 'failure' | 'aborted' | 'skipped';
+      note?: string | undefined;
+    }
   | { phase: 'sleep'; ms: number }
   | { phase: 'paused' }
   | { phase: 'stopped' }

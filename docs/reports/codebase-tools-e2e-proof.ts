@@ -100,7 +100,7 @@ async function writeFixture(root: string): Promise<void> {
       "import { add, total } from './calc.js';",
       '',
       'export function runBatch(): number {',
-      "  return add(1, total([2, 3]));",
+      '  return add(1, total([2, 3]));',
       '}',
       '',
     ].join('\n'),
@@ -299,7 +299,8 @@ async function run(): Promise<void> {
       record({
         tool: 'codebase-impact-analysis',
         registeredInBuiltin: names.has('codebase-impact-analysis'),
-        ok: out.status === 'ok' && out.totalCallSites >= 1 && out.affectedProductionFiles.length >= 1,
+        ok:
+          out.status === 'ok' && out.totalCallSites >= 1 && out.affectedProductionFiles.length >= 1,
         evidence: {
           status: out.status,
           riskLevel: out.riskLevel,
@@ -461,11 +462,18 @@ async function run(): Promise<void> {
         ctx,
         { signal: signal() },
       );
-      const discovered = out.discoveredSuites.some((s) => s.replace(/\\/g, '/').includes('calc.test.ts'));
+      const discovered = out.discoveredSuites.some((s) =>
+        s.replace(/\\/g, '/').includes('calc.test.ts'),
+      );
       record({
         tool: 'codebase-targeted-test',
         registeredInBuiltin: names.has('codebase-targeted-test'),
-        ok: discovered && (out.status === 'passed' || out.status === 'failed' || out.status === 'no_tests_found' || out.status === 'error'),
+        ok:
+          discovered &&
+          (out.status === 'passed' ||
+            out.status === 'failed' ||
+            out.status === 'no_tests_found' ||
+            out.status === 'error'),
         evidence: {
           status: out.status,
           discoveredSuites: out.discoveredSuites,
@@ -578,7 +586,8 @@ async function run(): Promise<void> {
         evidence: {
           listed,
           searchError: search.isError,
-          searchPreview: typeof search.content === 'string' ? search.content.slice(0, 300) : searchContent,
+          searchPreview:
+            typeof search.content === 'string' ? search.content.slice(0, 300) : searchContent,
           statsPreview:
             typeof stats.content === 'string'
               ? stats.content.slice(0, 300)

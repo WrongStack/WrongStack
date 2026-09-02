@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  addTool,
-  formatToolSummary,
-  newToolAgg,
-} from '../src/hooks/fleet-chat-coalescer.js';
+import { addTool, formatToolSummary, newToolAgg } from '../src/hooks/fleet-chat-coalescer.js';
 
 describe('fleet-chat-coalescer', () => {
   it('empty aggregate formats to the empty string', () => {

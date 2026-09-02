@@ -5,10 +5,7 @@
   "description": "Critique and rewrite a prompt to get better results.",
   "content": "Improve this prompt:\n\n{{prompt}}\n\nDiagnose what's weak: vague instructions, missing context, no output format, ambiguous success criteria, or conflicting asks. Then rewrite it to be specific, well-structured, and unambiguous. Explain the key changes so I learn the pattern. Keep my intent intact — sharpen it, don't replace it.",
   "category": "meta-prompting",
-  "tags": [
-    "prompt-engineering",
-    "improve"
-  ],
+  "tags": ["prompt-engineering", "improve"],
   "source": "builtin",
   "favorite": false,
   "checksum": "a872c602d71ccd993a356a0c9ea67f6d17cab1852f6514e732e16c3c94a3bd9e",

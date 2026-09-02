@@ -26,14 +26,19 @@ describe('plugin-stack-observer', () => {
 
     pluginStackObserver.setup(api as never);
 
-    expect(api.tools.register).toHaveBeenCalledWith(expect.objectContaining({ name: 'plugin_stack_status' }));
+    expect(api.tools.register).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'plugin_stack_status' }),
+    );
     expect(api.onPattern).toHaveBeenCalledWith('provider.wrap:loaded', expect.any(Function));
   });
 
   it('records provider wrap announcements in status output', async () => {
     const api = makeApi();
     pluginStackObserver.setup(api as never);
-    const listener = api.onPattern.mock.calls[0]?.[1] as (eventName: string, payload: unknown) => void;
+    const listener = api.onPattern.mock.calls[0]?.[1] as (
+      eventName: string,
+      payload: unknown,
+    ) => void;
 
     listener('provider.wrap:loaded', {
       plugin: 'llm-cache',
@@ -41,7 +46,10 @@ describe('plugin-stack-observer', () => {
       wraps: ['request'],
     });
 
-    const status = (await getStatusTool(api).execute()) as { wrapCount: number; wraps: Array<{ plugin: string }> };
+    const status = (await getStatusTool(api).execute()) as {
+      wrapCount: number;
+      wraps: Array<{ plugin: string }>;
+    };
     expect(status.wrapCount).toBe(1);
     expect(status.wraps[0]?.plugin).toBe('llm-cache');
   });
@@ -51,8 +59,15 @@ describe('plugin-stack-observer', () => {
     const api = makeApi();
     api.onPattern.mockReturnValueOnce(unregister);
     pluginStackObserver.setup(api as never);
-    const listener = api.onPattern.mock.calls[0]?.[1] as (eventName: string, payload: unknown) => void;
-    listener('provider.wrap:loaded', { plugin: 'model-router', kind: 'provider-runner', wraps: ['request'] });
+    const listener = api.onPattern.mock.calls[0]?.[1] as (
+      eventName: string,
+      payload: unknown,
+    ) => void;
+    listener('provider.wrap:loaded', {
+      plugin: 'model-router',
+      kind: 'provider-runner',
+      wraps: ['request'],
+    });
 
     pluginStackObserver.teardown?.(api as never);
 

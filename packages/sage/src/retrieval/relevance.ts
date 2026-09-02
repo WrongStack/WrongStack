@@ -131,7 +131,10 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
     return { strength: answersTheQuery ? 0.78 : 0.7, evidence };
   }
   if (matched.length >= 3) {
-    return { strength: answersTheQuery ? Math.min(0.86, 0.76 + matched.length * 0.02) : 0.72, evidence };
+    return {
+      strength: answersTheQuery ? Math.min(0.86, 0.76 + matched.length * 0.02) : 0.72,
+      evidence,
+    };
   }
   if (matched.length === 2) return { strength: answersTheQuery ? 0.72 : 0.68, evidence };
   // One shared word out of a one- or two-word query. Real evidence when a

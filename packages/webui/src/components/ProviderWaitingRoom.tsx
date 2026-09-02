@@ -32,9 +32,7 @@ const SIBLING_TRIGGER_RE = /Sibling quarantine:.*?\bon\s+([^\s/]+\/\S+)/;
  * caused the block (parsed from the tracker's sibling-quarantine message),
  * so the room can show which pair actually tripped the fan-out.
  */
-export function siblingTriggerOf(entry: {
-  lastErrorMessage?: string | undefined;
-}): string | null {
+export function siblingTriggerOf(entry: { lastErrorMessage?: string | undefined }): string | null {
   return SIBLING_TRIGGER_RE.exec(entry.lastErrorMessage ?? '')?.[1] ?? null;
 }
 
@@ -52,9 +50,7 @@ export function ProviderWaitingRoom() {
 
   const entries = useMemo(
     () =>
-      Object.values(entriesByKey).sort(
-        (a, b) => (a.stateExpiresAt ?? 0) - (b.stateExpiresAt ?? 0),
-      ),
+      Object.values(entriesByKey).sort((a, b) => (a.stateExpiresAt ?? 0) - (b.stateExpiresAt ?? 0)),
     [entriesByKey],
   );
   // Full snapshots may retain healthy rows for summary consistency; the room
@@ -119,7 +115,9 @@ export function ProviderWaitingRoom() {
         aria-expanded={expanded}
       >
         <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-        <span className="font-medium text-foreground">{t('activity:providerWait.providerModelAvailability')}</span>
+        <span className="font-medium text-foreground">
+          {t('activity:providerWait.providerModelAvailability')}
+        </span>
         <span className="text-muted-foreground">
           {blocked} blocked · {degraded} degraded · {activeRules.length} scheduled
         </span>
@@ -176,7 +174,9 @@ export function ProviderWaitingRoom() {
                   <div className="ml-6 mb-2 rounded border border-border/50 bg-background/50 p-2">
                     {entry.lastErrorMessage && (
                       <div className="mb-1.5 text-destructive">
-                        <span className="text-muted-foreground">{t('activity:providerWait.lastError')} </span>
+                        <span className="text-muted-foreground">
+                          {t('activity:providerWait.lastError')}{' '}
+                        </span>
                         {entry.lastErrorMessage.slice(0, 300)}
                       </div>
                     )}
@@ -196,12 +196,8 @@ export function ProviderWaitingRoom() {
                       {entry.lastSessionId && (
                         <span>session: {entry.lastSessionId.slice(0, 12)}…</span>
                       )}
-                      {entry.lastAgentId && (
-                        <span>agent: {entry.lastAgentId.slice(0, 16)}…</span>
-                      )}
-                      {entry.lastFailureAt && (
-                        <span>{formatAgo(entry.lastFailureAt, now)}</span>
-                      )}
+                      {entry.lastAgentId && <span>agent: {entry.lastAgentId.slice(0, 16)}…</span>}
+                      {entry.lastFailureAt && <span>{formatAgo(entry.lastFailureAt, now)}</span>}
                     </div>
 
                     {/* Recent error log */}
@@ -284,7 +280,9 @@ export function ProviderWaitingRoom() {
                 audit.map((entry, idx) => {
                   const opened = entry.to !== 'blocked';
                   const who = [entry.error?.sessionId, entry.error?.agentId]
-                    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+                    .filter(
+                      (value): value is string => typeof value === 'string' && value.length > 0,
+                    )
                     .map((value) => `${value.slice(0, 12)}…`)
                     .join(' / ');
                   return (

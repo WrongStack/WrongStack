@@ -24,8 +24,8 @@ export interface DAGNode {
   role?: string;
   priority: number; // lower = higher priority
   status: DAGNodeStatus;
-  deps: string[];       // task ids this waits on (incoming edges)
-  dependents: string[];  // task ids that wait on this (outgoing edges)
+  deps: string[]; // task ids this waits on (incoming edges)
+  dependents: string[]; // task ids that wait on this (outgoing edges)
   result?: unknown;
   error?: string;
   spawnedAt?: string;
@@ -68,24 +68,33 @@ export class TaskDAG {
    * Add a task node. Dependencies are validated for cycles.
    * Throws if adding a dep would create a cycle.
    */
-  addNode(id: string, description: string, deps: string[] = [], opts: {
-    role?: string;
-    priority?: number;
-    tags?: string[];
-  } = {}): void {
+  addNode(
+    id: string,
+    description: string,
+    deps: string[] = [],
+    opts: {
+      role?: string;
+      priority?: number;
+      tags?: string[];
+    } = {},
+  ): void {
     if (this.nodes.has(id)) return; // idempotent
 
     // Validate: all deps exist
     for (const depId of deps) {
       if (!this.nodes.has(depId)) {
-        throw new Error(`TaskDAG.addNode: unknown dependency "${depId}" for task "${id}". Add the dep first.`);
+        throw new Error(
+          `TaskDAG.addNode: unknown dependency "${depId}" for task "${id}". Add the dep first.`,
+        );
       }
     }
 
     // Cycle detection: would adding this edge create a cycle?
     /* v8 ignore start -- unreachable: a brand-new id has no dependents, so adding it can never close a cycle */
     if (this._wouldCycle(id, deps)) {
-      throw new Error(`TaskDAG.addNode: adding deps [${deps.join(', ')}] to "${id}" would create a cycle.`);
+      throw new Error(
+        `TaskDAG.addNode: adding deps [${deps.join(', ')}] to "${id}" would create a cycle.`,
+      );
     }
     /* v8 ignore stop */
 
@@ -304,7 +313,9 @@ export class TaskDAG {
   }
 
   getCompleted(): DAGNode[] {
-    return Array.from(this.nodes.values()).filter((n) => n.status === 'done' || n.status === 'skipped');
+    return Array.from(this.nodes.values()).filter(
+      (n) => n.status === 'done' || n.status === 'skipped',
+    );
   }
 
   isDone(): boolean {
@@ -397,7 +408,11 @@ export class TaskDAG {
 
   private _emit(event: DAGEdgeEvent): void {
     for (const h of this.handlers) {
-      try { h(event); } catch { /* swallow handler errors */ }
+      try {
+        h(event);
+      } catch {
+        /* swallow handler errors */
+      }
     }
   }
 
@@ -410,7 +425,11 @@ export class TaskDAG {
     }
     if (runnable.length > 0) {
       for (const h of this.runnablesHandlers) {
-        try { h(runnable); } catch { /* swallow */ }
+        try {
+          h(runnable);
+        } catch {
+          /* swallow */
+        }
       }
     }
   }

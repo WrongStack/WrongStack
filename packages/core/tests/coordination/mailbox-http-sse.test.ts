@@ -1,10 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  MailboxEventEmitter,
-  type MailboxEvent,
-} from '../../src/coordination/mailbox-events.js';
+import { MailboxEventEmitter, type MailboxEvent } from '../../src/coordination/mailbox-events.js';
 import {
   handleSse,
   MAX_PENDING_SSE_OPERATIONS,

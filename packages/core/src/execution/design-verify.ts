@@ -45,7 +45,8 @@ const FUNC_COLOR_RE = /\b(?:oklch|rgb|rgba|hsl|hsla)\([^)]*\)/gi;
 // `p-[13px]`, `mt-[5px]`, `gap-[10px]`. Utilities like `rounded-lg` / `p-4`
 // resolve to the kit's `@theme` scale, so they are NOT flagged.
 const ARBITRARY_RADIUS_RE = /\brounded(?:-[a-z]+)?-\[[^\]]+\]/g;
-const ARBITRARY_SPACING_RE = /\b(?:p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap(?:-[xy])?|space-[xy])-\[[^\]]+\]/g;
+const ARBITRARY_SPACING_RE =
+  /\b(?:p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap(?:-[xy])?|space-[xy])-\[[^\]]+\]/g;
 // Raw hardcoded `border-radius:` length (CSS/inline style) that isn't a token
 // var or a trivial value (0, 50%, 9999px, full-round).
 const RAW_RADIUS_RE = /border-radius:\s*([^;{}]+)/gi;
@@ -127,7 +128,11 @@ export function verifyFiles(
       // a pure palette-adherence ratio); consumers break down by `axis`.
       ARBITRARY_RADIUS_RE.lastIndex = 0;
       for (const m of lineText.matchAll(ARBITRARY_RADIUS_RE)) {
-        flag(m[0], 'arbitrary radius — use a kit radius scale token (rounded-sm…rounded-full)', 'radius');
+        flag(
+          m[0],
+          'arbitrary radius — use a kit radius scale token (rounded-sm…rounded-full)',
+          'radius',
+        );
       }
       ARBITRARY_SPACING_RE.lastIndex = 0;
       for (const m of lineText.matchAll(ARBITRARY_SPACING_RE)) {
@@ -138,7 +143,11 @@ export function verifyFiles(
         const val = (m[1] ?? '').trim();
         if (!val || val.startsWith('var(')) continue;
         if (/^(0|0px|9999px|50%|inherit|initial|unset|full)$/i.test(val)) continue;
-        flag(`border-radius: ${val}`, 'hardcoded radius — use var(--radius-*) / a kit radius token', 'radius');
+        flag(
+          `border-radius: ${val}`,
+          'hardcoded radius — use var(--radius-*) / a kit radius token',
+          'radius',
+        );
       }
 
       // Count token-name usages as on-palette signals (var(--primary), bg-primary…).

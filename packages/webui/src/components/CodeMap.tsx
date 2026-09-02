@@ -60,12 +60,7 @@ import {
 } from './CodeMapConfig';
 import { preserveFlowEdges, preserveFlowNodes } from './CodeMapFlowState';
 import { LiveAgentsHud, LiveControlBar } from './CodeMapLiveOverlay';
-import {
-  agentInitials,
-  agentTrailColor,
-  type CodeMapNodeData,
-  EDGE_COLOR,
-} from './CodeMapVisuals';
+import { agentInitials, agentTrailColor, type CodeMapNodeData, EDGE_COLOR } from './CodeMapVisuals';
 import {
   buildDirectoryTree,
   type CodeMapGraphResponse,

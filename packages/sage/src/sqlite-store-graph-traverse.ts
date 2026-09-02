@@ -1,10 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ulid } from '@wrongstack/core/utils';
 
-import {
-  sqliteRowToGraphEdge,
-  type SqliteGraphEdgeRow,
-} from './sqlite-store-graph-helpers.js';
+import { sqliteRowToGraphEdge, type SqliteGraphEdgeRow } from './sqlite-store-graph-helpers.js';
 import type { MemoryGraphEdge } from './types.js';
 
 interface SqliteGraphTraverseContext {

@@ -44,7 +44,10 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
     type: 'anthropic_key',
     regex: /(?<![A-Za-z0-9])sk-ant-api\d+-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
   },
-  { type: 'openai_key', regex: /(?<![A-Za-z0-9])sk-(?!ant)(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g },
+  {
+    type: 'openai_key',
+    regex: /(?<![A-Za-z0-9])sk-(?!ant)(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
+  },
   // GitHub. `ghp_` is only the personal-access-token prefix — the OAuth
   // (`gho_`), user-to-server (`ghu_`), server-to-server (`ghs_`) and
   // refresh (`ghr_`) tokens grant the same or broader access and were
@@ -76,7 +79,8 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   { type: 'slack_app_token', regex: /(?<![A-Za-z0-9-])xapp-\d-[A-Za-z0-9-]{10,}(?![A-Za-z0-9-])/g },
   {
     type: 'slack_webhook',
-    regex: /https:\/\/hooks\.slack\.com\/services\/T[A-Za-z0-9_-]+\/B[A-Za-z0-9_-]+\/[A-Za-z0-9]{16,}/g,
+    regex:
+      /https:\/\/hooks\.slack\.com\/services\/T[A-Za-z0-9_-]+\/B[A-Za-z0-9_-]+\/[A-Za-z0-9]{16,}/g,
   },
   // Stripe
   {
@@ -88,7 +92,8 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   // Telegram
   {
     type: 'telegram_bot_token',
-    regex: /(?:(?<![A-Za-z0-9_])|(?<=(?:^|[^A-Za-z0-9_])bot))\d+:[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    regex:
+      /(?:(?<![A-Za-z0-9_])|(?<=(?:^|[^A-Za-z0-9_])bot))\d+:[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
   },
   // JWT
   {
@@ -109,14 +114,29 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   { type: 'groq_key', regex: /(?<![A-Za-z0-9])gsk_[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g },
   // SaaS / infrastructure tokens — each grants API access on the user's
   // account, and each was previously invisible to this gate.
-  { type: 'sendgrid_key', regex: /(?<![A-Za-z0-9])SG\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g },
+  {
+    type: 'sendgrid_key',
+    regex: /(?<![A-Za-z0-9])SG\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+  },
   { type: 'digitalocean_token', regex: /(?<![A-Za-z0-9])dop_v1_[a-f0-9]{64}(?![A-Za-z0-9])/g },
-  { type: 'doppler_token', regex: /(?<![A-Za-z0-9])dp\.(?:pt|st|sa|scim|audit)\.[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g },
-  { type: 'shopify_token', regex: /(?<![A-Za-z0-9])shp(?:at|ca|pa|ss)_[a-fA-F0-9]{32}(?![A-Za-z0-9])/g },
+  {
+    type: 'doppler_token',
+    regex: /(?<![A-Za-z0-9])dp\.(?:pt|st|sa|scim|audit)\.[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g,
+  },
+  {
+    type: 'shopify_token',
+    regex: /(?<![A-Za-z0-9])shp(?:at|ca|pa|ss)_[a-fA-F0-9]{32}(?![A-Za-z0-9])/g,
+  },
   { type: 'docker_pat', regex: /(?<![A-Za-z0-9])dckr_pat_[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g },
   { type: 'linear_key', regex: /(?<![A-Za-z0-9])lin_api_[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g },
-  { type: 'atlassian_token', regex: /(?<![A-Za-z0-9])ATATT3[A-Za-z0-9_\-=]{40,}(?![A-Za-z0-9_\-=])/g },
-  { type: 'square_token', regex: /(?<![A-Za-z0-9])(?:sq0(?:atp|csp)-|EAAA)[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g },
+  {
+    type: 'atlassian_token',
+    regex: /(?<![A-Za-z0-9])ATATT3[A-Za-z0-9_\-=]{40,}(?![A-Za-z0-9_\-=])/g,
+  },
+  {
+    type: 'square_token',
+    regex: /(?<![A-Za-z0-9])(?:sq0(?:atp|csp)-|EAAA)[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+  },
   {
     type: 'azure_storage_key',
     regex: /AccountKey=[A-Za-z0-9+/]{80,}={0,2}/g,

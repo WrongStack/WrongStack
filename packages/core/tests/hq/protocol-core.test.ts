@@ -25,7 +25,13 @@ describe('parseHqFrame', { retry: 1 }, () => {
       payload: {
         protocolVersion: 1,
         client: { clientId: 'c1', kind: 'cli', machineId: 'm1', startedAt: '2026-01-01T00:00:00Z' },
-        project: { projectId: 'p1', projectName: 'test', projectRoot: '/test', machineId: 'm1', workspaceKind: 'git' },
+        project: {
+          projectId: 'p1',
+          projectName: 'test',
+          projectRoot: '/test',
+          machineId: 'm1',
+          workspaceKind: 'git',
+        },
         capabilities: [],
       },
     });
@@ -50,7 +56,10 @@ describe('parseHqFrame', { retry: 1 }, () => {
   });
 
   it('rejects unknown frame type', () => {
-    expect(parseHqFrame('{"type": "client.unknown"}')).toEqual({ ok: false, reason: 'unknown-type' });
+    expect(parseHqFrame('{"type": "client.unknown"}')).toEqual({
+      ok: false,
+      reason: 'unknown-type',
+    });
     expect(parseHqFrame('{"type": "server.hello"}')).toEqual({ ok: false, reason: 'unknown-type' });
   });
 
@@ -62,7 +71,13 @@ describe('parseHqFrame', { retry: 1 }, () => {
       payload: {
         protocolVersion: HQ_PROTOCOL_VERSION,
         client: { clientId: 'c1', kind: 'cli', machineId: 'm1', startedAt: '2026-01-01T00:00:00Z' },
-        project: { projectId: 'p1', projectName: 'Test Project', projectRoot: '/test', machineId: 'm1', workspaceKind: 'git' },
+        project: {
+          projectId: 'p1',
+          projectName: 'Test Project',
+          projectRoot: '/test',
+          machineId: 'm1',
+          workspaceKind: 'git',
+        },
         capabilities: [],
       },
     };
@@ -84,7 +99,13 @@ describe('parseHqFrame', { retry: 1 }, () => {
       payload: {
         protocolVersion: 1,
         client: { clientId: 'c1' }, // missing kind, machineId, startedAt
-        project: { projectId: 'p1', projectName: 'test', projectRoot: '/test', machineId: 'm1', workspaceKind: 'git' },
+        project: {
+          projectId: 'p1',
+          projectName: 'test',
+          projectRoot: '/test',
+          machineId: 'm1',
+          workspaceKind: 'git',
+        },
         capabilities: [],
       },
     };
@@ -97,8 +118,19 @@ describe('parseHqFrame', { retry: 1 }, () => {
       type: 'client.hello',
       payload: {
         protocolVersion: 1,
-        client: { clientId: 'c1', kind: 'invalid-kind', machineId: 'm1', startedAt: '2026-01-01T00:00:00Z' },
-        project: { projectId: 'p1', projectName: 'test', projectRoot: '/test', machineId: 'm1', workspaceKind: 'git' },
+        client: {
+          clientId: 'c1',
+          kind: 'invalid-kind',
+          machineId: 'm1',
+          startedAt: '2026-01-01T00:00:00Z',
+        },
+        project: {
+          projectId: 'p1',
+          projectName: 'test',
+          projectRoot: '/test',
+          machineId: 'm1',
+          workspaceKind: 'git',
+        },
         capabilities: [],
       },
     };
@@ -112,7 +144,13 @@ describe('parseHqFrame', { retry: 1 }, () => {
       payload: {
         protocolVersion: 1,
         client: { clientId: 'c1', kind: 'tui', machineId: 'm1', startedAt: '2026-01-01T00:00:00Z' },
-        project: { projectId: 'p1', projectName: 'test', projectRoot: '/test', machineId: 'm1', workspaceKind: 'git' },
+        project: {
+          projectId: 'p1',
+          projectName: 'test',
+          projectRoot: '/test',
+          machineId: 'm1',
+          workspaceKind: 'git',
+        },
         capabilities: [],
       },
     };
@@ -125,8 +163,19 @@ describe('parseHqFrame', { retry: 1 }, () => {
       type: 'client.hello',
       payload: {
         protocolVersion: 1,
-        client: { clientId: 'c1', kind: 'webui', machineId: 'm1', startedAt: '2026-01-01T00:00:00Z' },
-        project: { projectId: 'p1', projectName: 'test', projectRoot: '/test', machineId: 'm1', workspaceKind: 'directory' },
+        client: {
+          clientId: 'c1',
+          kind: 'webui',
+          machineId: 'm1',
+          startedAt: '2026-01-01T00:00:00Z',
+        },
+        project: {
+          projectId: 'p1',
+          projectName: 'test',
+          projectRoot: '/test',
+          machineId: 'm1',
+          workspaceKind: 'directory',
+        },
         capabilities: [],
       },
     };

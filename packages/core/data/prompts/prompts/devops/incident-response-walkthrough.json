@@ -5,11 +5,7 @@
   "description": "Run a calm, structured response to a live incident.",
   "content": "I have a live incident: {{incident}}\n\nHelp me respond methodically:\n1. Stabilize first — what's the fastest safe mitigation (rollback, scale, feature-flag off)?\n2. What to communicate, to whom, and how often.\n3. What signals to watch to confirm we're recovering.\n4. What to capture now for the postmortem.\n\nPrioritize stopping customer pain over understanding root cause. Tell me the immediate next action.",
   "category": "devops",
-  "tags": [
-    "incident",
-    "sre",
-    "mitigation"
-  ],
+  "tags": ["incident", "sre", "mitigation"],
   "source": "builtin",
   "favorite": false,
   "checksum": "c702f2dff5d83bc10d83d91c6b98f336be745564342c7387f458bb455da0f2e9",

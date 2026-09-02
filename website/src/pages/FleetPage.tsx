@@ -278,13 +278,22 @@ export function FleetPage() {
           <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.035] p-7">
             <h2 className="text-xl font-black">Explore more fleet topics</h2>
             <div className="mt-4 flex flex-wrap gap-4">
-              <Link href="/shadow-agent" className="rounded-full border border-brand/40 bg-brand/10 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/20 transition-colors">
+              <Link
+                href="/shadow-agent"
+                className="rounded-full border border-brand/40 bg-brand/10 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/20 transition-colors"
+              >
                 Shadow Agent: background fleet monitor →
               </Link>
-              <Link href="/supervisor" className="rounded-full border border-brand/40 bg-brand/10 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/20 transition-colors">
+              <Link
+                href="/supervisor"
+                className="rounded-full border border-brand/40 bg-brand/10 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/20 transition-colors"
+              >
                 Supervisor: Brain-gated safety layer →
               </Link>
-              <Link href="/acp" className="rounded-full border border-brand/40 bg-brand/10 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/20 transition-colors">
+              <Link
+                href="/acp"
+                className="rounded-full border border-brand/40 bg-brand/10 px-4 py-2 text-sm font-bold text-brand hover:bg-brand/20 transition-colors"
+              >
                 ACP: drive external agents →
               </Link>
             </div>

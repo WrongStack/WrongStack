@@ -1,10 +1,5 @@
 import { toErrorMessage } from '@wrongstack/core/utils';
-import {
-  type Dispatch,
-  type MutableRefObject,
-  useEffect,
-  useRef,
-} from 'react';
+import { type Dispatch, type MutableRefObject, useEffect, useRef } from 'react';
 import type { AppProps } from '../app-props.js';
 import type { Action } from '../app-action-type.js';
 import type { AutonomyStage } from './use-statusline-state.js';

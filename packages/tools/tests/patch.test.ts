@@ -260,4 +260,3 @@ describe('patchTool — bookkeeping on every outcome', () => {
     expect(resultWithSignal).toHaveProperty('dry_run');
   });
 });
-

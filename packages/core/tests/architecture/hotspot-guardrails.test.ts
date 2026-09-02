@@ -34,12 +34,14 @@ const HOTSPOTS: readonly Hotspot[] = [
   {
     file: 'packages/webui/src/App.tsx',
     maxLines: 1100,
-    rationale: 'Desktop/bridge hooks extracted to useDesktopBridge.ts (1028 lines after extraction). Keep under 1100 by extracting new concerns into their own modules.',
+    rationale:
+      'Desktop/bridge hooks extracted to useDesktopBridge.ts (1028 lines after extraction). Keep under 1100 by extracting new concerns into their own modules.',
   },
   {
     file: 'packages/webui/src/components/SettingsPanel/index.tsx',
     maxLines: 1220,
-    rationale: 'Settings panel must decompose into sections/hooks, not grow further. Cap re-tightened 1500 → 1200 after the model-routing section extracted into RoutingSection.tsx; extract further sections rather than raising this again.',
+    rationale:
+      'Settings panel must decompose into sections/hooks, not grow further. Cap re-tightened 1500 → 1200 after the model-routing section extracted into RoutingSection.tsx; extract further sections rather than raising this again.',
   },
   {
     file: 'packages/webui/src/components/SetupScreen.tsx',
@@ -194,8 +196,6 @@ describe('architecture guardrails', () => {
       if (specs.length > 0) actualViolators.add(relPath);
     }
 
-    expect([...actualViolators].sort()).toEqual(
-      [...temporaryAllowlist].sort(),
-    );
+    expect([...actualViolators].sort()).toEqual([...temporaryAllowlist].sort());
   });
 });

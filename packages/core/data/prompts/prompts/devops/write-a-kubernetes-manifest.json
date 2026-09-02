@@ -5,11 +5,7 @@
   "description": "Produce a sound Kubernetes deployment for a service.",
   "content": "Write Kubernetes manifests for a {{stack}} service that: {{requirements}}\n\nInclude: a Deployment with resource requests and limits, liveness and readiness probes, a Service, and config via ConfigMap or Secret (no secrets inline). Run as non-root. Set a sensible replica count and a rolling-update strategy. Explain the probe and resource choices, and what would make this production-ready versus a starting point.",
   "category": "devops",
-  "tags": [
-    "kubernetes",
-    "k8s",
-    "deploy"
-  ],
+  "tags": ["kubernetes", "k8s", "deploy"],
   "source": "builtin",
   "favorite": false,
   "checksum": "d2aa7d2431f271cdb611f5717ad6542bdd47f1f8b2328f562a87bb334f7e85e2",

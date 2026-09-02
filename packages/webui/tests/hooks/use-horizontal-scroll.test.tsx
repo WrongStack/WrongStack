@@ -19,10 +19,9 @@ function scroller({ scrollWidth = 1000, clientWidth = 400 } = {}): HTMLElement {
 function mount(el: HTMLElement | null, enabled?: boolean) {
   const ref = createRef<HTMLElement | null>() as React.RefObject<HTMLElement | null>;
   ref.current = el;
-  const hook = renderHook(
-    ({ on }: { on: boolean | undefined }) => useHorizontalScroll(ref, on),
-    { initialProps: { on: enabled } },
-  );
+  const hook = renderHook(({ on }: { on: boolean | undefined }) => useHorizontalScroll(ref, on), {
+    initialProps: { on: enabled },
+  });
   return { ref, ...hook };
 }
 

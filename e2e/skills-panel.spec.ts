@@ -28,7 +28,7 @@ test.describe('SkillsPanel', () => {
     // Skills panel requires WS connection to load skills from server.
     // This test checks the UI structure exists even without live data.
     const panel = page.locator('[class*="skill"], [class*="panel"]').first();
-    const hasPanel = await panel.count() > 0;
+    const hasPanel = (await panel.count()) > 0;
     expect(hasPanel).toBeTruthy();
   });
 

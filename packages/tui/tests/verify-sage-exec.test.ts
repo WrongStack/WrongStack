@@ -22,12 +22,13 @@ describe('SAGE stripping for exec output (empirical verification)', () => {
   });
 
   it('formatToolOutputSage returns sageLines + clean outLines for exec', () => {
-    const execResult = JSON.stringify({
-      exit_code: 0,
-      stdout: 'hello\nworld',
-      stderr: '',
-      danger: { level: 'safe' },
-    }) + `\n\n${SAGE_BLOCK}`;
+    const execResult =
+      JSON.stringify({
+        exit_code: 0,
+        stdout: 'hello\nworld',
+        stderr: '',
+        danger: { level: 'safe' },
+      }) + `\n\n${SAGE_BLOCK}`;
 
     const { cleanOutput, outLines, sageLines } = formatToolOutputSage(
       'exec',
@@ -46,11 +47,12 @@ describe('SAGE stripping for exec output (empirical verification)', () => {
   });
 
   it('formatToolVisualOutput does NOT leak SAGE lines for exec (after pre-strip)', () => {
-    const execResult = JSON.stringify({
-      exit_code: 0,
-      stdout: 'hello',
-      stderr: '',
-    }) + `\n\n${SAGE_BLOCK}`;
+    const execResult =
+      JSON.stringify({
+        exit_code: 0,
+        stdout: 'hello',
+        stderr: '',
+      }) + `\n\n${SAGE_BLOCK}`;
 
     // entry.tsx pre-strips with extractSageBlock, then passes cleanOutput
     const { cleanOutput } = extractSageBlock(execResult);
@@ -68,23 +70,28 @@ describe('SAGE stripping for exec output (empirical verification)', () => {
     // What happens if the JSON has trailing SAGE text?
     // JSON.parse will fail on the trailing non-JSON text.
     // This test just observes — no assertions on pass/fail.
-    const execResult = JSON.stringify({
-      exit_code: 0,
-      stdout: 'hello',
-      stderr: '',
-    }) + `\n\n${SAGE_BLOCK}`;
+    const execResult =
+      JSON.stringify({
+        exit_code: 0,
+        stdout: 'hello',
+        stderr: '',
+      }) + `\n\n${SAGE_BLOCK}`;
 
     const visual = formatToolVisualOutput('exec', execResult, true);
     // Log what the visual formatter produces from contaminated input
     // so we understand the failure mode.
-    console.log('[NEGATIVE CONTROL] exec visual from contaminated input:', JSON.stringify(visual, null, 2));
+    console.log(
+      '[NEGATIVE CONTROL] exec visual from contaminated input:',
+      JSON.stringify(visual, null, 2),
+    );
   });
 
   it('also works for grep output with SAGE block', () => {
-    const grepResult = JSON.stringify({
-      matches: ['src/foo.ts:42:const x = 1'],
-      count: 1,
-    }) + `\n\n${SAGE_BLOCK}`;
+    const grepResult =
+      JSON.stringify({
+        matches: ['src/foo.ts:42:const x = 1'],
+        count: 1,
+      }) + `\n\n${SAGE_BLOCK}`;
 
     const { cleanOutput, outLines, sageLines } = formatToolOutputSage(
       'grep',

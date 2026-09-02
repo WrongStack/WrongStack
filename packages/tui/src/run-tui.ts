@@ -224,8 +224,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
 
   const durableTeardown = createDurableTeardown({
     getSession: () => opts.agent.ctx.session,
-    killChildren: () =>
-      getProcessRegistry().killAll({ force: true, preserveBackground: true }),
+    killChildren: () => getProcessRegistry().killAll({ force: true, preserveBackground: true }),
     cleanup,
     // Resolve the host instead of process.exit so CLI teardown (plugin
     // stop, Telegram lock.release, vector-memory close) still runs.

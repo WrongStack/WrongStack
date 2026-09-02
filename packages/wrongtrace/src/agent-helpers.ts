@@ -13,11 +13,7 @@
  * a typed "no-op" shape that the caller can wire unconditionally.
  */
 
-import type {
-  WrongTraceAtlasSummary,
-  WrongTraceClient,
-  WrongTraceFrictionRow,
-} from "./types.js";
+import type { WrongTraceAtlasSummary, WrongTraceClient, WrongTraceFrictionRow } from './types.js';
 
 /* ------------------------------------------------------------------ *
  * 1. Cross-agent edit risk for a single file path.                   *
@@ -47,7 +43,7 @@ import type {
 export interface CrossAgentRisk {
   path: string;
   risk: number;
-  band: "safe" | "caution" | "fragile" | "locked" | "unknown";
+  band: 'safe' | 'caution' | 'fragile' | 'locked' | 'unknown';
   reasons: string[];
 }
 
@@ -61,7 +57,12 @@ export async function getCrossAgentRisk(
   selfOwner?: string,
 ): Promise<CrossAgentRisk> {
   if (!wt.isAvailable) {
-    return { path, risk: 0, band: "unknown", reasons: ["WrongTrace offline — no signal available"] };
+    return {
+      path,
+      risk: 0,
+      band: 'unknown',
+      reasons: ['WrongTrace offline — no signal available'],
+    };
   }
 
   const health = await wt.getFileHealth(path);
@@ -92,15 +93,15 @@ export async function getCrossAgentRisk(
       return base;
     }
 
-    const ownerNote = health.lock_owner ? ` by ${health.lock_owner}` : "";
-    const reasonNote = health.lock_reason ? `: ${health.lock_reason}` : "";
+    const ownerNote = health.lock_owner ? ` by ${health.lock_owner}` : '';
+    const reasonNote = health.lock_reason ? `: ${health.lock_reason}` : '';
     const expiryNote = hasExpiry
       ? `, expires ${new Date(expiresAt).toISOString()}`
-      : " (no expiry — daemon TTL missing, treat as held)";
+      : ' (no expiry — daemon TTL missing, treat as held)';
     return {
       path,
       risk: 100,
-      band: "locked",
+      band: 'locked',
       reasons: [`file is locked${ownerNote}${reasonNote}${expiryNote}`],
     };
   }
@@ -109,13 +110,13 @@ export async function getCrossAgentRisk(
     return scoreFromHealth(path, health, friction);
   }
 
-  return { path, risk: 50, band: "unknown", reasons: ["file health endpoint unreachable"] };
+  return { path, risk: 50, band: 'unknown', reasons: ['file health endpoint unreachable'] };
 }
 
 /** Shared scoring used both directly and after a stale-lock fallthrough. */
 async function scoreFromHealth(
   path: string,
-  health: NonNullable<Awaited<ReturnType<WrongTraceClient["getFileHealth"]>>>,
+  health: NonNullable<Awaited<ReturnType<WrongTraceClient['getFileHealth']>>>,
   friction: WrongTraceFrictionRow[],
 ): Promise<CrossAgentRisk> {
   const reasons: string[] = [];
@@ -132,20 +133,22 @@ async function scoreFromHealth(
   if (health.recent_thrashing_count > 3) {
     const thrashPenalty = Math.min(25, (health.recent_thrashing_count - 3) * 5);
     risk = Math.min(100, risk + thrashPenalty);
-    reasons.push(`${health.recent_thrashing_count} recent write/delete cycles in last 24h (+${thrashPenalty})`);
+    reasons.push(
+      `${health.recent_thrashing_count} recent write/delete cycles in last 24h (+${thrashPenalty})`,
+    );
   }
 
   // Path-aware friction lookup: best-effort, daemon schema may not carry file_path.
   const fileFriction = friction.filter((row) => {
     const r = row as WrongTraceFrictionRow & { file_path?: string; files?: string[] };
-    if (typeof r.file_path === "string") return r.file_path === path;
+    if (typeof r.file_path === 'string') return r.file_path === path;
     if (Array.isArray(r.files)) return r.files.includes(path);
     return false;
   });
   if (fileFriction.length > 0) {
     const totalConflicts = fileFriction.reduce((acc, r) => {
       const raw = (r as { conflict_count?: unknown }).conflict_count;
-      return acc + (typeof raw === "number" ? raw : 0);
+      return acc + (typeof raw === 'number' ? raw : 0);
     }, 0);
     if (totalConflicts >= 3) {
       risk = Math.min(100, risk + 20);
@@ -153,13 +156,10 @@ async function scoreFromHealth(
     }
   }
 
-  const band: CrossAgentRisk["band"] =
-    risk >= 80 ? "fragile" :
-    risk >= 50 ? "caution" :
-    risk > 0 ? "safe" :
-    "safe";
+  const band: CrossAgentRisk['band'] =
+    risk >= 80 ? 'fragile' : risk >= 50 ? 'caution' : risk > 0 ? 'safe' : 'safe';
 
-  if (reasons.length === 0) reasons.push("no risk signals — file is healthy");
+  if (reasons.length === 0) reasons.push('no risk signals — file is healthy');
 
   return { path, risk, band, reasons };
 }
@@ -198,20 +198,20 @@ export function summarizeFriction(friction: unknown): FrictionSummary {
     crossAgentRatioPct: 0,
     selfThrashRatioPct: 0,
     totalCollisions: 0,
-    prose: "",
+    prose: '',
   };
-  if (!friction || typeof friction !== "object") return empty;
+  if (!friction || typeof friction !== 'object') return empty;
   const r = friction as FrictionReport;
   const edges = Array.isArray(r.edges) ? r.edges : [];
-  const total = typeof r.total_collisions === "number" ? r.total_collisions : edges.length;
+  const total = typeof r.total_collisions === 'number' ? r.total_collisions : edges.length;
   if (total === 0) return empty;
 
   // Find top pair by total conflict_count across both directions.
   const pairTotals = new Map<string, { count: number; a: string; b: string }>();
   for (const e of edges) {
-    const key = [e.author_model, e.overwriter_model].sort().join("|");
+    const key = [e.author_model, e.overwriter_model].sort().join('|');
     const raw = (e as { conflict_count?: unknown }).conflict_count;
-    const c = typeof raw === "number" ? raw : 0;
+    const c = typeof raw === 'number' ? raw : 0;
     const cur = pairTotals.get(key);
     if (cur) cur.count = cur.count + c;
     else pairTotals.set(key, { count: c, a: e.author_model, b: e.overwriter_model });
@@ -229,19 +229,19 @@ export function summarizeFriction(friction: unknown): FrictionSummary {
   // correct unit. Percentages are clamped to [0,100] so a self-thrash
   // collision sum bigger than the daemon's windowed total renders 100%,
   // never 1433%.
-  const collisionUnits = typeof r.total_collisions === "number";
+  const collisionUnits = typeof r.total_collisions === 'number';
   const selfThrash = edges.reduce((acc, e) => {
     if (!e.is_self_thrash) return acc;
     if (!collisionUnits) return acc + 1;
     const raw = (e as { conflict_count?: unknown }).conflict_count;
-    return acc + (typeof raw === "number" ? raw : 1);
+    return acc + (typeof raw === 'number' ? raw : 1);
   }, 0);
   const crossAgent = Math.max(0, total - selfThrash);
   const crossAgentRatioPct = total > 0 ? Math.min(100, Math.round((crossAgent / total) * 100)) : 0;
   const selfThrashRatioPct = total > 0 ? Math.min(100, Math.round((selfThrash / total) * 100)) : 0;
 
   const prose =
-    (topPair ? `Top friction pair: ${topPair}. ` : "") +
+    (topPair ? `Top friction pair: ${topPair}. ` : '') +
     `Cross-agent ratio: ${crossAgentRatioPct}% of ${total} collisions. ` +
     `Self-thrash: ${selfThrashRatioPct}%.`;
 
@@ -300,13 +300,13 @@ export async function getRecentActivity(
   const all = [...events, ...collisions];
   const matched: RecentActivityEntry[] = [];
   for (const ev of all) {
-    if (typeof ev.file_path !== "string" || ev.file_path !== filePath) continue;
-    const at = ev.overwriter_time ?? ev.author_time ?? "";
+    if (typeof ev.file_path !== 'string' || ev.file_path !== filePath) continue;
+    const at = ev.overwriter_time ?? ev.author_time ?? '';
     if (!at) continue;
     const entry: RecentActivityEntry = {
       at,
-      actor: ev.overwriter_model ?? ev.author_model ?? "unknown",
-      action: ev.action ?? "MODIFIED",
+      actor: ev.overwriter_model ?? ev.author_model ?? 'unknown',
+      action: ev.action ?? 'MODIFIED',
     };
     const runId = ev.overwriter_run_id ?? ev.author_run_id;
     if (runId) entry.runId = runId;
@@ -386,8 +386,8 @@ export function digestAtlas(atlas: WrongTraceAtlasSummary | AtlasShape | null): 
     `Atlas: ${workspaces.length || packages.length} workspaces, ` +
     `${fragileFileCount} fragile files, ` +
     (selfThrashWorkspaces.length > 0
-      ? `self-thrash hotspots: ${selfThrashWorkspaces.join(", ")}.`
-      : "no self-thrash hotspots.");
+      ? `self-thrash hotspots: ${selfThrashWorkspaces.join(', ')}.`
+      : 'no self-thrash hotspots.');
 
   return {
     workspaceCount: workspaces.length || packages.length,

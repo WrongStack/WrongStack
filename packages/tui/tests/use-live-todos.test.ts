@@ -24,7 +24,11 @@ function makeContext(): Context {
 
 function Harness({ context }: { context: Context }): React.ReactElement {
   const todos = useLiveTodos(context);
-  return React.createElement(Text, null, todos.map((todo) => `${todo.id}:${todo.content}`).join('|'));
+  return React.createElement(
+    Text,
+    null,
+    todos.map((todo) => `${todo.id}:${todo.content}`).join('|'),
+  );
 }
 
 describe('useLiveTodos', () => {

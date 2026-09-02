@@ -37,7 +37,10 @@ export function validateRefusalCollision(question: CouncilQuestion, refusalOptio
   }
 }
 
-export function optionLabel(question: CouncilQuestion, optionId: string | undefined): string | undefined {
+export function optionLabel(
+  question: CouncilQuestion,
+  optionId: string | undefined,
+): string | undefined {
   if (!optionId) return undefined;
   return question.options?.find((option) => option.id.trim() === optionId)?.label.trim();
 }

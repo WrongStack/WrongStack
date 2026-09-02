@@ -8,11 +8,7 @@ const REFUSE = 'refuse';
 
 function resolve(overrides: Partial<CouncilResolutionInput> = {}) {
   return resolveCouncilVotes({
-    seats: [
-      { id: 'executor' },
-      { id: 'skeptic', veto: true },
-      { id: 'auditor' },
-    ],
+    seats: [{ id: 'executor' }, { id: 'skeptic', veto: true }, { id: 'auditor' }],
     votes: [
       { seatId: 'executor', optionId: 'merge' },
       { seatId: 'skeptic', optionId: 'hold' },
@@ -39,11 +35,7 @@ describe('resolveCouncilVotes', () => {
   it('lets weight overrule seat count', () => {
     expect(
       resolve({
-        seats: [
-          { id: 'executor', weight: 3 },
-          { id: 'skeptic' },
-          { id: 'auditor' },
-        ],
+        seats: [{ id: 'executor', weight: 3 }, { id: 'skeptic' }, { id: 'auditor' }],
         votes: [
           { seatId: 'executor', optionId: 'hold' },
           { seatId: 'skeptic', optionId: 'merge' },

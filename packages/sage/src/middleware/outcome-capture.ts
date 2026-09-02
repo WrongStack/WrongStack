@@ -76,9 +76,7 @@ export function createSageOutcomeCaptureMiddleware(
               importance: 0.55,
               confidence: 0.6,
               tags: ['auto-capture', 'error_pattern', name],
-              anchors: command
-                ? [{ type: 'command', command: String(command).slice(0, 200) }]
-                : [],
+              anchors: command ? [{ type: 'command', command: String(command).slice(0, 200) }] : [],
               sources: [{ type: 'tool_result' }],
             });
           }

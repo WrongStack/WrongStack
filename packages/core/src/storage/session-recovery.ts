@@ -269,8 +269,7 @@ export class SessionRecovery {
       pendingSizes.push(bytes);
       pendingBytes += bytes;
     }
-    const inFlightStart =
-      latestBoundary?.type === 'in_flight_start' ? latestBoundary : null;
+    const inFlightStart = latestBoundary?.type === 'in_flight_start' ? latestBoundary : null;
     return {
       sessionId,
       stale: inFlightStart !== null,
@@ -382,7 +381,7 @@ export class SessionRecovery {
               pendingBytes + bytes > SessionRecovery.MAX_PENDING_BYTES
             ) {
               pendingEvents.shift();
-              pendingBytes = Math.max(0, pendingBytes - (pendingSizes.shift()!));
+              pendingBytes = Math.max(0, pendingBytes - pendingSizes.shift()!);
             }
             pendingEvents.push(event);
             pendingSizes.push(bytes);

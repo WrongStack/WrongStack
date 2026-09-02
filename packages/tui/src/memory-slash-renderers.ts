@@ -1,4 +1,10 @@
-import type { MemoryEntry, MemoryPort, MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/core/types';
+import type {
+  MemoryEntry,
+  MemoryPort,
+  MemoryPriority,
+  MemoryScope,
+  MemoryType,
+} from '@wrongstack/core/types';
 import { MEMORY_TYPE_LABELS } from '@wrongstack/core/types';
 import { getSageSurface } from '@wrongstack/sage';
 import {
@@ -433,7 +439,8 @@ export function parseMemoryFlags(tokens: string[]): ParsedMemoryFlags {
         else errors.push(`--scope must be one of: ${MEMORY_SCOPE_VALUES.join(', ')}.`);
         break;
       case 'status':
-        if (value && (MEMORY_STATUS_VALUES as readonly string[]).includes(value)) out.status = value;
+        if (value && (MEMORY_STATUS_VALUES as readonly string[]).includes(value))
+          out.status = value;
         else errors.push(`--status must be one of: ${MEMORY_STATUS_VALUES.join(', ')}.`);
         break;
       case 'tag':

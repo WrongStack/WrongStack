@@ -7,7 +7,13 @@ const log = new DefaultLogger({ level: 'error' });
 
 function fakeApi(): PluginAPI {
   return {
-    tools: { register: vi.fn(), unregister: vi.fn(), wrap: vi.fn(), get: () => undefined, list: () => [] },
+    tools: {
+      register: vi.fn(),
+      unregister: vi.fn(),
+      wrap: vi.fn(),
+      get: () => undefined,
+      list: () => [],
+    },
     registerHook: vi.fn(),
   } as unknown as PluginAPI;
 }
@@ -28,10 +34,7 @@ describe('loadPlugins enforceCapabilities predicate', () => {
     });
 
     const { loaded, failed } = await loadPlugins(
-      [
-        plugin('external-one', externalSetup),
-        plugin('first-party', firstPartySetup),
-      ],
+      [plugin('external-one', externalSetup), plugin('first-party', firstPartySetup)],
       {
         apiFactory: fakeApi,
         log: softLog,

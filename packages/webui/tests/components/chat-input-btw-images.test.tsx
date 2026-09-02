@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => {
     bytes: 123,
     name: 'test.png',
   };
-  const pendingImagesRef: { current: typeof testImage[] } = { current: [testImage] };
+  const pendingImagesRef: { current: (typeof testImage)[] } = { current: [testImage] };
   const clearPendingImages = () => {
     pendingImagesRef.current = [];
   };

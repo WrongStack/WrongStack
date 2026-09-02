@@ -16,7 +16,12 @@ interface BrainDecisionPromptProps {
   question: string;
   context?: string | undefined;
   options?: BrainDecisionPromptOption[] | undefined;
-  onAnswer?: (answer: { id: string; optionId?: string | undefined; deny?: boolean | undefined; text?: string | undefined }) => void;
+  onAnswer?: (answer: {
+    id: string;
+    optionId?: string | undefined;
+    deny?: boolean | undefined;
+    text?: string | undefined;
+  }) => void;
 }
 
 function riskColor(risk: string): string {
@@ -94,9 +99,7 @@ export function BrainDecisionPrompt({
               {line}
             </Text>
           ))}
-          {dropped > 0 ? (
-            <Text dimColor>… ({dropped} more)</Text>
-          ) : null}
+          {dropped > 0 ? <Text dimColor>… ({dropped} more)</Text> : null}
         </Box>
       ) : null}
       {options.length > 0 ? (

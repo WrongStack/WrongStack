@@ -30,9 +30,7 @@ describe('WrongStackWebSocketClient permission confirmations', () => {
       ).pendingConfirms.has('confirm_1'),
     ).toBe(true);
     expect(seen).toHaveLength(1);
-    expect((seen[0] as { payload: Record<string, unknown> }).payload).not.toHaveProperty(
-      'resolve',
-    );
+    expect((seen[0] as { payload: Record<string, unknown> }).payload).not.toHaveProperty('resolve');
   });
 
   it('always sends confirm_result when resolving a prompt', () => {

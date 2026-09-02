@@ -37,7 +37,9 @@
 import { execFileSync } from 'node:child_process';
 
 const VERBOSE = process.argv.includes('--verbose') || process.argv.includes('-v');
-const log = (...a) => { if (VERBOSE) console.error('[mailbox-guard]', ...a); };
+const log = (...a) => {
+  if (VERBOSE) console.error('[mailbox-guard]', ...a);
+};
 
 const _MAILBOX_BRIDGE_FILES = [
   'packages/cli/src/subcommands/handlers/mailbox-serve.ts',
@@ -69,23 +71,26 @@ const REQUIRED_ROUTES = [
 // URL appended to the route; if the guard ever rejects a router change
 // that drops either literal, the staleness filter has been broken at
 // the wire.
-const REQUIRED_QUERY_PARAM_LITERALS = [
-  "'sinceMs'",
-  "MAILBOX_HTTP_MAX_AGE_CEILING_MS",
-];
+const REQUIRED_QUERY_PARAM_LITERALS = ["'sinceMs'", 'MAILBOX_HTTP_MAX_AGE_CEILING_MS'];
 
 const REQUIRED_SOURCE_LITERALS = [
   // Each file must contain its respective 'http' source literal. We
   // require the literal in the file (not in the diff) so renaming a
   // file or moving the literal elsewhere trips the guard.
   { file: 'packages/core/src/coordination/mailbox-types.ts', literal: "'http'" },
-  { file: 'packages/core/src/coordination/mailbox-types.ts', literal: "'cli' | 'webui' | 'mcp' | 'acp' | 'http'" },
+  {
+    file: 'packages/core/src/coordination/mailbox-types.ts',
+    literal: "'cli' | 'webui' | 'mcp' | 'acp' | 'http'",
+  },
   // The shared router still tags external registrations as 'http'.
   // After extraction, the literal lives in mailbox-http-validation.ts.
   { file: 'packages/core/src/coordination/mailbox-http-validation.ts', literal: "source: 'http'" },
   // Moved from hq/protocol.ts into the hq/protocol/ domain split (R12): the
   // HQ mailbox source union now lives with the HqMailbox* types in mailbox.ts.
-  { file: 'packages/core/src/hq/protocol/mailbox.ts', literal: "'cli' | 'webui' | 'mcp' | 'acp' | 'http'" },
+  {
+    file: 'packages/core/src/hq/protocol/mailbox.ts',
+    literal: "'cli' | 'webui' | 'mcp' | 'acp' | 'http'",
+  },
 ];
 
 const REQUIRED_HEALTHZ_UNAUTHENTICATED = {
@@ -106,7 +111,8 @@ const REQUIRED_SUBCOMMAND_WIRING = {
 function getStagedFiles() {
   try {
     const out = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {
-      encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     return out.trim().split('\n').filter(Boolean);
   } catch {
@@ -117,7 +123,8 @@ function getStagedFiles() {
 async function readFileAtHEAD(path) {
   try {
     return execFileSync('git', ['show', `HEAD:${path}`], {
-      encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
   } catch {
     return null;
@@ -182,18 +189,22 @@ async function checkHealthzBeforeAuth() {
   const healthzIdx = content.indexOf(REQUIRED_HEALTHZ_UNAUTHENTICATED.marker);
   const authIdx = content.indexOf(REQUIRED_HEALTHZ_UNAUTHENTICATED.mustComeBefore);
   if (healthzIdx === -1) {
-    fail(`missing ${REQUIRED_HEALTHZ_UNAUTHENTICATED.marker} in ${REQUIRED_HEALTHZ_UNAUTHENTICATED.file}`);
+    fail(
+      `missing ${REQUIRED_HEALTHZ_UNAUTHENTICATED.marker} in ${REQUIRED_HEALTHZ_UNAUTHENTICATED.file}`,
+    );
     return;
   }
   if (authIdx === -1) {
-    fail(`cannot find authorize() step in ${REQUIRED_HEALTHZ_UNAUTHENTICATED.file} — healthz ordering check skipped`);
+    fail(
+      `cannot find authorize() step in ${REQUIRED_HEALTHZ_UNAUTHENTICATED.file} — healthz ordering check skipped`,
+    );
     return;
   }
   if (healthzIdx > authIdx) {
     fail(
       `/healthz must be served BEFORE authorize() — otherwise liveness probes need a token.\n` +
-      `        healthz at offset ${healthzIdx}, authorize() at ${authIdx}.\n` +
-      `        See /healthz handling in mailbox-http-router.ts.`,
+        `        healthz at offset ${healthzIdx}, authorize() at ${authIdx}.\n` +
+        `        See /healthz handling in mailbox-http-router.ts.`,
     );
   }
 }
@@ -266,7 +277,9 @@ async function checkSubcommandWiring() {
     content = await fs.readFile(REQUIRED_SUBCOMMAND_WIRING.file, 'utf-8');
   }
   if (!content?.includes(REQUIRED_SUBCOMMAND_WIRING.marker)) {
-    fail(`missing "${REQUIRED_SUBCOMMAND_WIRING.marker}" wiring in ${REQUIRED_SUBCOMMAND_WIRING.file} — subcommand will not be registered`);
+    fail(
+      `missing "${REQUIRED_SUBCOMMAND_WIRING.marker}" wiring in ${REQUIRED_SUBCOMMAND_WIRING.file} — subcommand will not be registered`,
+    );
   }
 }
 

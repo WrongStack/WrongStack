@@ -51,28 +51,19 @@ describe('isSecretField', () => {
 describe('encryptConfigSecrets', () => {
   it('encrypts secret-named string fields only', () => {
     const vault = makeVault();
-    const out = encryptConfigSecrets(
-      { apiKey: 'sk-abc', endpoint: 'https://x', port: 443 },
-      vault,
-    );
+    const out = encryptConfigSecrets({ apiKey: 'sk-abc', endpoint: 'https://x', port: 443 }, vault);
     expect(out).toEqual({ apiKey: 'enc:sk-abc', endpoint: 'https://x', port: 443 });
   });
 
   it('walks nested objects', () => {
     const vault = makeVault();
-    const out = encryptConfigSecrets(
-      { provider: { name: 'anthropic', apiKey: 'sk-abc' } },
-      vault,
-    );
+    const out = encryptConfigSecrets({ provider: { name: 'anthropic', apiKey: 'sk-abc' } }, vault);
     expect(out).toEqual({ provider: { name: 'anthropic', apiKey: 'enc:sk-abc' } });
   });
 
   it('walks arrays', () => {
     const vault = makeVault();
-    const out = encryptConfigSecrets(
-      { providers: [{ apiKey: 'one' }, { apiKey: 'two' }] },
-      vault,
-    );
+    const out = encryptConfigSecrets({ providers: [{ apiKey: 'one' }, { apiKey: 'two' }] }, vault);
     expect(out).toEqual({ providers: [{ apiKey: 'enc:one' }, { apiKey: 'enc:two' }] });
   });
 

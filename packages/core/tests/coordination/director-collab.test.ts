@@ -287,11 +287,7 @@ describe('DirectorCollabController', () => {
     ).rejects.toThrow(/simulated assignment rejection/);
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    expect(stoppedAgents.sort()).toEqual([
-      'bug-hunter-sub',
-      'critic-sub',
-      'refactor-planner-sub',
-    ]);
+    expect(stoppedAgents.sort()).toEqual(['bug-hunter-sub', 'critic-sub', 'refactor-planner-sub']);
     expect(controller.activeSessionIds()).toHaveLength(0);
   });
 });

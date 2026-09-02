@@ -27,7 +27,12 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { BoundedMap, collectSourceFilesAsync, matchesExtension, withinProject } from '../runtime/index.js';
+import {
+  BoundedMap,
+  collectSourceFilesAsync,
+  matchesExtension,
+  withinProject,
+} from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -112,14 +117,13 @@ const DEFAULTS: RefactorSuggesterConfig = {
 function readRules(raw: unknown): RefactorRules {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS.rules };
   const r = raw as Record<string, unknown>;
-  const rawLong = r['longFunctionLines'] ?? r['long_function_lines'] ?? r['maxLines'] ?? r['max_lines'];
+  const rawLong =
+    r['longFunctionLines'] ?? r['long_function_lines'] ?? r['maxLines'] ?? r['max_lines'];
   const rawParams = r['maxParams'] ?? r['max_params'];
   const rawNesting = r['maxNesting'] ?? r['max_nesting'] ?? r['nesting'];
   return {
     longFunctionLines:
-      typeof rawLong === 'number' && rawLong >= 1
-        ? rawLong
-        : DEFAULTS.rules.longFunctionLines,
+      typeof rawLong === 'number' && rawLong >= 1 ? rawLong : DEFAULTS.rules.longFunctionLines,
     maxParams:
       typeof rawParams === 'number' && rawParams >= 1 ? rawParams : DEFAULTS.rules.maxParams,
     maxNesting:
@@ -138,9 +142,7 @@ function readConfig(raw: unknown): RefactorSuggesterConfig {
       ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.extensions,
     maxSuggestions:
-      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
-        ? rawMax
-        : DEFAULTS.maxSuggestions,
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500 ? rawMax : DEFAULTS.maxSuggestions,
     rules: readRules(r['rules']),
   };
 }
@@ -197,7 +199,11 @@ function leadingIndentLevel(line: string): number {
   return tabs + Math.floor(spaces / 2);
 }
 
-function detectSmells(filePath: string, content: string, rules: RefactorRules): RefactorSuggestion[] {
+function detectSmells(
+  filePath: string,
+  content: string,
+  rules: RefactorRules,
+): RefactorSuggestion[] {
   const suggestions: RefactorSuggestion[] = [];
   const lines = content.split(/\r?\n/);
   const stripped = content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ' ');
@@ -397,21 +403,16 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['refactor-suggester']);
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<
-      | {
-          decision?: 'block';
-          reason?: string;
-          additionalContext?: string;
-          contextAs?: 'inline' | 'separate';
-        }
-      | void
-    > => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{
+      decision?: 'block';
+      reason?: string;
+      additionalContext?: string;
+      contextAs?: 'inline' | 'separate';
+    } | void> => {
       if (!cfg.enabled) return;
       if (input.toolResult?.isError) return;
 
@@ -462,7 +463,9 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- suggest_refactors tool ---
     api.tools.register({
@@ -483,7 +486,9 @@ const plugin: Plugin = {
 
         const raw = (input ?? {}) as Record<string, unknown>;
         const rawPath =
-          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof input.path === 'string' && input.path.trim().length > 0
+            ? input.path.trim()
+            : undefined) ??
           (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
           (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
           (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??

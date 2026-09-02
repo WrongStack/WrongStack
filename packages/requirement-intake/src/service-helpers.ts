@@ -13,14 +13,9 @@ import {
   type IntakePriority,
   type IntakeQuestionTemplate,
 } from './constants.js';
-import {
-  IntakeValidationError,
-  type IntakeValidationIssue,
-} from './errors.js';
+import { IntakeValidationError, type IntakeValidationIssue } from './errors.js';
 import { buildInitialQuestions, upsertQuestion } from './questions.js';
-import {
-  assertSuggestionString,
-} from './suggestions.js';
+import { assertSuggestionString } from './suggestions.js';
 import { newIntakeId } from './store.js';
 import type {
   AddAnswerInput,
@@ -33,11 +28,7 @@ import type {
   RelatedResource,
   RequirementIntakeRecord,
 } from './types.js';
-import {
-  deterministicSummary,
-  deterministicTitle,
-  normalizeRequestType,
-} from './validation.js';
+import { deterministicSummary, deterministicTitle, normalizeRequestType } from './validation.js';
 import { deriveVibeState } from './vibe.js';
 
 export function appendItems(target: string[], raw: string): void {
@@ -141,7 +132,8 @@ export function buildNewIntakeRecord(
 
   const vibeState = deriveVibeState(
     input.originalRequest,
-    input.vibeProtocol ?? (input.isVibeMode ? { isVibeMode: true, detectedAt: now, stage: 'synthesizer' } : undefined),
+    input.vibeProtocol ??
+      (input.isVibeMode ? { isVibeMode: true, detectedAt: now, stage: 'synthesizer' } : undefined),
     now,
   );
 
@@ -264,11 +256,7 @@ export function applySuggestionProposal(
       break;
     }
     case 'target_user': {
-      const value = assertSuggestionString(
-        proposal.value,
-        'target_user',
-        MAX_STRING_FIELD_LENGTH,
-      );
+      const value = assertSuggestionString(proposal.value, 'target_user', MAX_STRING_FIELD_LENGTH);
       appendItems(record.targetUsers, value);
       record.fieldSources.target_users = 'llm';
       break;
@@ -332,7 +320,11 @@ export function markUserSources(record: RequirementIntakeRecord, changedKeys: st
   }
 }
 
-export function markQuestionAnswered(record: RequirementIntakeRecord, field: string, value: string): void {
+export function markQuestionAnswered(
+  record: RequirementIntakeRecord,
+  field: string,
+  value: string,
+): void {
   const question = record.questions.find((candidate) => candidate.field === field);
   if (question && question.status === 'unanswered') {
     question.status = 'answered';
@@ -346,7 +338,9 @@ export function applyAnswerToRecord(
   actorId: string,
   now: number,
 ): IntakeAnswer {
-  const matchingQuestion = record.questions.find((candidate) => candidate.field === validated.field);
+  const matchingQuestion = record.questions.find(
+    (candidate) => candidate.field === validated.field,
+  );
   const answer: IntakeAnswer = {
     id: `${ANSWER_ID_PREFIX}${ulid()}`,
     field: validated.field,

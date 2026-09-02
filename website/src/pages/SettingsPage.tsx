@@ -124,9 +124,7 @@ export function SettingsPage() {
                       className="grid gap-2 border-b border-line px-5 py-4 last:border-b-0 sm:grid-cols-[1fr_110px] sm:px-6"
                     >
                       <div>
-                        <code className="font-mono text-xs font-bold text-brand">
-                          {field.key}
-                        </code>
+                        <code className="font-mono text-xs font-bold text-brand">{field.key}</code>
                         <p className="mt-1 text-xs leading-5 text-muted">{field.explanation}</p>
                       </div>
                       <code className="h-fit w-fit rounded-md bg-bg px-2 py-1 font-mono text-xs text-faint sm:justify-self-end">
@@ -274,12 +272,30 @@ export function SettingsPage() {
         <SectionIntro index="08" eyebrow="Related" title="Explore more configuration options." />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { href: '/telegram', label: 'Telegram', desc: 'Push notifications, approval prompts, and remote commands.' },
-            { href: '/sync', label: 'GitHub Sync', desc: 'Sync settings, skills, prompts, and memory across machines.' },
-            { href: '/checkpoints', label: 'Checkpoints', desc: 'File state snapshots. Roll back after risky edits.' },
+            {
+              href: '/telegram',
+              label: 'Telegram',
+              desc: 'Push notifications, approval prompts, and remote commands.',
+            },
+            {
+              href: '/sync',
+              label: 'GitHub Sync',
+              desc: 'Sync settings, skills, prompts, and memory across machines.',
+            },
+            {
+              href: '/checkpoints',
+              label: 'Checkpoints',
+              desc: 'File state snapshots. Roll back after risky edits.',
+            },
           ].map(({ href, label, desc }) => (
-            <Link key={href} href={href} className="group rounded-xl border border-line bg-card p-5 hover:border-brand/40 transition-colors">
-              <h3 className="font-black text-base text-fg group-hover:text-brand transition-colors">{label}</h3>
+            <Link
+              key={href}
+              href={href}
+              className="group rounded-xl border border-line bg-card p-5 hover:border-brand/40 transition-colors"
+            >
+              <h3 className="font-black text-base text-fg group-hover:text-brand transition-colors">
+                {label}
+              </h3>
               <p className="mt-2 text-xs leading-5 text-muted">{desc}</p>
               <span className="mt-3 inline-block text-xs font-bold text-brand">Explore →</span>
             </Link>

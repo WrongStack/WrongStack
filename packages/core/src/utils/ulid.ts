@@ -36,7 +36,10 @@ function encodeRandom(len: number): string {
  * The codebase convention is "IDs are ULIDs"; use this for any new store key.
  */
 export function ulid(seedTime: number = Date.now()): string {
-  const safeTime = typeof seedTime === 'number' && Number.isFinite(seedTime) && seedTime > 0 ? seedTime : Date.now();
+  const safeTime =
+    typeof seedTime === 'number' && Number.isFinite(seedTime) && seedTime > 0
+      ? seedTime
+      : Date.now();
   return encodeTime(safeTime, TIME_LEN) + encodeRandom(RANDOM_LEN);
 }
 

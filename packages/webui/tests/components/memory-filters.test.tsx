@@ -16,9 +16,7 @@ const threeTags: Array<[string, number]> = [
   ['testing', 1],
 ];
 
-function renderFilters(
-  overrides: Partial<React.ComponentProps<typeof MemoryFilters>> = {},
-) {
+function renderFilters(overrides: Partial<React.ComponentProps<typeof MemoryFilters>> = {}) {
   const onSearchChange = vi.fn();
   const onStatusFilterChange = vi.fn();
   const onKindFilterChange = vi.fn();
@@ -132,9 +130,9 @@ describe('MemoryFilters · tag-chip collapse', () => {
     // chip stays in its pressed state.
     fireEvent.click(toggle);
     expectExpanded(getToggle(), true);
-    expect(
-      screen.getByRole('button', { name: /webui/i }).getAttribute('aria-pressed'),
-    ).toBe('true');
+    expect(screen.getByRole('button', { name: /webui/i }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
   });
 
   it('routes chip clicks through onTagFilterChange', () => {

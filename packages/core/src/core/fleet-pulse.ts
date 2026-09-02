@@ -94,7 +94,14 @@ export function buildFleetPulseBlock(
   if (peers.length === 0) return null;
 
   // Running peers first — they are what a reader coordinates around.
-  const order: Record<string, number> = { running: 0, streaming: 0, waiting_user: 1, idle: 2, error: 3, offline: 4 };
+  const order: Record<string, number> = {
+    running: 0,
+    streaming: 0,
+    waiting_user: 1,
+    idle: 2,
+    error: 3,
+    offline: 4,
+  };
   const sorted = [...peers].sort(
     (x, y) =>
       (order[x.status] ?? 5) - (order[y.status] ?? 5) ||
@@ -121,9 +128,7 @@ export function buildFleetPulseBlock(
     i += run;
   }
   if (hidden > 0) parts.push(`… +${hidden} more`);
-  parts.push(
-    '[END FLEET PULSE] (FYI — coordinate via mail_send; avoid duplicating peers\' work)',
-  );
+  parts.push("[END FLEET PULSE] (FYI — coordinate via mail_send; avoid duplicating peers' work)");
 
   let text = parts.join('\n');
   if (text.length > maxChars) {

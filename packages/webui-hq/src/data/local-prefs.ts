@@ -178,10 +178,7 @@ function mergeWithDefaults(input: unknown): HqLocalPrefs {
         : 'signal',
     },
     fleet: {
-      scope:
-        fleet['scope'] === 'machine' || fleet['scope'] === 'project'
-          ? fleet['scope']
-          : 'all',
+      scope: fleet['scope'] === 'machine' || fleet['scope'] === 'project' ? fleet['scope'] : 'all',
       layout: fleet['layout'] === 'compact' ? 'compact' : 'map',
       machineId: typeof fleet['machineId'] === 'string' ? fleet['machineId'] : '',
       projectId: typeof fleet['projectId'] === 'string' ? fleet['projectId'] : '',

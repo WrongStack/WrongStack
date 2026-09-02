@@ -5,10 +5,7 @@
   "description": "Make a prompt ground its answers and admit uncertainty.",
   "content": "This prompt sometimes makes things up:\n\n{{prompt}}\n\nHarden it against hallucination. Add instructions to ground answers in the provided context, to say I don't know rather than guess, and to cite or quote the source for factual claims where possible. Decide what the model should do when the context doesn't contain the answer. Distinguish tasks where invention is the bug from creative tasks where it is the point. Keep the prompt from becoming so cautious it refuses easy questions.",
   "category": "meta-prompting",
-  "tags": [
-    "hallucination",
-    "grounding"
-  ],
+  "tags": ["hallucination", "grounding"],
   "source": "builtin",
   "favorite": false,
   "checksum": "5132da66e2920d51bf60bb3949e3c74e2834f5eabe4673c5ee0b2b678c414624",

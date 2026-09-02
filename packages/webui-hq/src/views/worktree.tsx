@@ -7,15 +7,7 @@
  * event log so a fresh browser sees history, then fed live.
  */
 import type { HqEventEnvelope, HqWorktreeEventPayload } from '@wrongstack/core/hq';
-import {
-  Check,
-  GitBranch,
-  GitMerge,
-  Package,
-  Trash2,
-  TriangleAlert,
-  XCircle,
-} from 'lucide-react';
+import { Check, GitBranch, GitMerge, Package, Trash2, TriangleAlert, XCircle } from 'lucide-react';
 import type * as React from 'react';
 import { useMemo } from 'react';
 import { EmptyState, Mono, toneText } from '../components/hq/primitives.js';

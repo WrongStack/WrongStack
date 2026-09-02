@@ -37,11 +37,7 @@ function assertVisualNoSage(label: string, visual: ReturnType<typeof formatToolV
 // ── Helper: run stripping for a tool and check all outputs ──
 
 function checkTool(toolName: string, output: string, ok = true) {
-  const { cleanOutput, outLines, sageLines } = formatToolOutputSage(
-    toolName,
-    output,
-    ok,
-  );
+  const { cleanOutput, outLines, sageLines } = formatToolOutputSage(toolName, output, ok);
   assertNoSage(`${toolName} cleanOutput`, cleanOutput);
   for (let i = 0; i < outLines.length; i++) {
     assertNoSage(`${toolName} outLines[${i}]`, outLines[i]);
@@ -58,17 +54,32 @@ function checkTool(toolName: string, output: string, ok = true) {
 
 describe('SAGE stripping — JSON output format (per tool)', () => {
   it('exec (JSON, safe)', () => {
-    const out = JSON.stringify({ exit_code: 0, stdout: 'hello\nworld', stderr: '', danger: { level: 'safe' } });
+    const out = JSON.stringify({
+      exit_code: 0,
+      stdout: 'hello\nworld',
+      stderr: '',
+      danger: { level: 'safe' },
+    });
     checkTool('exec', `${out}\n\n${SAGE_BLOCK}`);
   });
 
   it('exec (JSON, destructive)', () => {
-    const out = JSON.stringify({ exit_code: 0, stdout: 'done', stderr: '', danger: { level: 'destructive', reasons: ['rm -rf'] } });
+    const out = JSON.stringify({
+      exit_code: 0,
+      stdout: 'done',
+      stderr: '',
+      danger: { level: 'destructive', reasons: ['rm -rf'] },
+    });
     checkTool('exec', `${out}\n\n${SAGE_BLOCK}`);
   });
 
   it('bash (JSON)', () => {
-    const out = JSON.stringify({ exit_code: 0, stdout: 'hello\nworld', stderr: '', timed_out: false });
+    const out = JSON.stringify({
+      exit_code: 0,
+      stdout: 'hello\nworld',
+      stderr: '',
+      timed_out: false,
+    });
     checkTool('bash', `${out}\n\n${SAGE_BLOCK}`);
   });
 
@@ -83,7 +94,10 @@ describe('SAGE stripping — JSON output format (per tool)', () => {
   });
 
   it('grep (JSON)', () => {
-    const out = JSON.stringify({ matches: [{ file: 'src/a.ts', line: 10, text: 'const x' }], count: 1 });
+    const out = JSON.stringify({
+      matches: [{ file: 'src/a.ts', line: 10, text: 'const x' }],
+      count: 1,
+    });
     checkTool('grep', `${out}\n\n${SAGE_BLOCK}`);
   });
 
@@ -93,7 +107,13 @@ describe('SAGE stripping — JSON output format (per tool)', () => {
   });
 
   it('lint (JSON)', () => {
-    const out = JSON.stringify({ linter: 'biome', files_checked: 5, errors: 0, warnings: 2, fix_applied: false });
+    const out = JSON.stringify({
+      linter: 'biome',
+      files_checked: 5,
+      errors: 0,
+      warnings: 2,
+      fix_applied: false,
+    });
     checkTool('lint', `${out}\n\n${SAGE_BLOCK}`);
   });
 
@@ -103,7 +123,13 @@ describe('SAGE stripping — JSON output format (per tool)', () => {
   });
 
   it('test (JSON)', () => {
-    const out = JSON.stringify({ runner: 'vitest', tests_run: 10, passed: 10, failed: 0, duration_ms: 500 });
+    const out = JSON.stringify({
+      runner: 'vitest',
+      tests_run: 10,
+      passed: 10,
+      failed: 0,
+      duration_ms: 500,
+    });
     checkTool('test', `${out}\n\n${SAGE_BLOCK}`);
   });
 
@@ -113,7 +139,12 @@ describe('SAGE stripping — JSON output format (per tool)', () => {
   });
 
   it('fetch (JSON)', () => {
-    const out = JSON.stringify({ status: 200, content_type: 'text/html', url: 'https://example.com', content: '<html>...' });
+    const out = JSON.stringify({
+      status: 200,
+      content_type: 'text/html',
+      url: 'https://example.com',
+      content: '<html>...',
+    });
     checkTool('fetch', `${out}\n\n${SAGE_BLOCK}`);
   });
 
@@ -123,7 +154,10 @@ describe('SAGE stripping — JSON output format (per tool)', () => {
   });
 
   it('outdated (JSON)', () => {
-    const out = JSON.stringify({ total: 2, packages: [{ name: 'react', current: '18.0.0', latest: '19.0.0' }] });
+    const out = JSON.stringify({
+      total: 2,
+      packages: [{ name: 'react', current: '18.0.0', latest: '19.0.0' }],
+    });
     checkTool('outdated', `${out}\n\n${SAGE_BLOCK}`);
   });
 
@@ -174,7 +208,8 @@ describe('SAGE stripping — JSON output format (per tool)', () => {
 
 describe('SAGE stripping — serialized text format (per tool)', () => {
   it('read (numbered lines)', () => {
-    const out = 'read (path=src/foo.ts, total_lines=3)\n  1→const x = 1;\n  2→const y = 2;\n  3→const z = 3;';
+    const out =
+      'read (path=src/foo.ts, total_lines=3)\n  1→const x = 1;\n  2→const y = 2;\n  3→const z = 3;';
     checkTool('read', `${out}\n\n${SAGE_BLOCK}`);
   });
 
@@ -261,7 +296,10 @@ describe('SAGE stripping — edge cases', () => {
       '- [bug_root_cause][high] <memory id="01KY5MC7W2ZP8YE4GG4M0NVZCV">TUI dist artifacts wiped</memory> (packages/tui) [relation=about_package; tags=tui,build]',
       '- [workflow][high] <memory id="01KY8PDAFGFMPBH3BBS6NK7ZRY">bash tool cannot launch TUI</memory> (packages/tui) [relation=about_package; tags=tui,bash,ci]',
     ].join('\n');
-    const grepOutput = JSON.stringify({ matches: [{ file: 'a.ts', line: 1, text: 'x' }], count: 1 });
+    const grepOutput = JSON.stringify({
+      matches: [{ file: 'a.ts', line: 1, text: 'x' }],
+      count: 1,
+    });
     const result = checkTool('grep', `${grepOutput}\n\n${realBlock}`);
     expect(result.sageLines.length).toBe(4);
   });

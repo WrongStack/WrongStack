@@ -5,10 +5,7 @@
   "description": "Make specialist text accessible without dumbing it down.",
   "content": "Rewrite this to be understandable by {{audience}} without losing accuracy:\n\n{{text}}\n\nReplace jargon with plain language or define it on first use. Keep the technical claims correct — simplify the words, not the truth. Where a concept genuinely requires a term of art, introduce it gently. Return the rewrite and list any term you chose to keep and why.",
   "category": "writing",
-  "tags": [
-    "plain-language",
-    "accessibility"
-  ],
+  "tags": ["plain-language", "accessibility"],
   "source": "builtin",
   "favorite": false,
   "checksum": "dfbce6c2486efc2be4d626c2d88e05ec757fe18820e49a79b599c8d4220c90d3",

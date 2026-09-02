@@ -37,8 +37,7 @@ const localPrefsState = {
   yolo: false,
 };
 vi.mock('@/stores/local-prefs', () => ({
-  useLocalPrefs: (selector: (s: typeof localPrefsState) => unknown) =>
-    selector(localPrefsState),
+  useLocalPrefs: (selector: (s: typeof localPrefsState) => unknown) => selector(localPrefsState),
 }));
 
 const updatePrefsMock = vi.fn();

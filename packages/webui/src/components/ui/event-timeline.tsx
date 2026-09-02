@@ -18,8 +18,10 @@ interface EventTimelineProps {
 function relTime(ts: number): string {
   const delta = Date.now() - ts;
   if (delta < 5_000) return i18n.t('common:time.justNow');
-  if (delta < 60_000) return i18n.t('common:time.compactSecondsAgo', { count: Math.floor(delta / 1_000) });
-  if (delta < 3_600_000) return i18n.t('common:time.compactMinutesAgo', { count: Math.floor(delta / 60_000) });
+  if (delta < 60_000)
+    return i18n.t('common:time.compactSecondsAgo', { count: Math.floor(delta / 1_000) });
+  if (delta < 3_600_000)
+    return i18n.t('common:time.compactMinutesAgo', { count: Math.floor(delta / 60_000) });
   return i18n.t('common:time.compactHoursAgo', { count: Math.floor(delta / 3_600_000) });
 }
 

@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import type { Snapshot, TechStackJob, TechStackJobStatus, TechStackJobProgress } from '../src/types.js';
+import type {
+  Snapshot,
+  TechStackJob,
+  TechStackJobStatus,
+  TechStackJobProgress,
+} from '../src/types.js';
 import { TechStackEngine } from '../src/service.js';
 
 // ── Mock the registry + OSV so analyze() stays hermetic ────────────────

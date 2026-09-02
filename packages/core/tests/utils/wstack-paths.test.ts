@@ -55,8 +55,14 @@ describe('wstack-paths', () => {
       expect(projectHash(linked)).toBe(projectHash(main));
       expect(projectSlug(linked)).toBe(projectSlug(main));
 
-      const mainPaths = resolveWstackPaths({ projectRoot: main, globalRoot: path.join(tmp, 'home') });
-      const linkedPaths = resolveWstackPaths({ projectRoot: linked, globalRoot: path.join(tmp, 'home') });
+      const mainPaths = resolveWstackPaths({
+        projectRoot: main,
+        globalRoot: path.join(tmp, 'home'),
+      });
+      const linkedPaths = resolveWstackPaths({
+        projectRoot: linked,
+        globalRoot: path.join(tmp, 'home'),
+      });
       expect(linkedPaths.projectDir).toBe(mainPaths.projectDir);
       expect(linkedPaths.inProjectAgentsFile).not.toBe(mainPaths.inProjectAgentsFile);
     } finally {
@@ -88,9 +94,7 @@ describe('wstack-paths', () => {
     });
     expect(paths.globalRoot).toBe(path.join('/home/dev', '.wrongstack'));
     expect(paths.profileName).toBe('default');
-    expect(paths.profileDir).toBe(
-      path.join('/home/dev', '.wrongstack', 'profiles', 'default'),
-    );
+    expect(paths.profileDir).toBe(path.join('/home/dev', '.wrongstack', 'profiles', 'default'));
     expect(paths.globalSkills).toBe(
       path.join('/home/dev', '.wrongstack', 'profiles', 'default', 'skills'),
     );

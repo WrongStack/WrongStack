@@ -47,17 +47,14 @@ describe('OpenAI preset buildBody — prompt_cache_key', () => {
   });
 
   it('omits prompt_cache_key when no key is present', () => {
-    const body = openaiWireFormat.buildBody(
-      { ...baseReq() },
-      { capabilities: caps('auto') },
-    );
+    const body = openaiWireFormat.buildBody({ ...baseReq() }, { capabilities: caps('auto') });
     expect(body).not.toHaveProperty('prompt_cache_key');
   });
 
   it('does not throw when called without a ctx (one-arg test convention)', () => {
-    const body = openaiWireFormat.buildBody(
-      { ...baseReq({ key: 'ws-x' }) } as Parameters<typeof openaiWireFormat.buildBody>[0],
-    );
+    const body = openaiWireFormat.buildBody({ ...baseReq({ key: 'ws-x' }) } as Parameters<
+      typeof openaiWireFormat.buildBody
+    >[0]);
     expect(body).not.toHaveProperty('prompt_cache_key'); // no caps → skipped
   });
 });
@@ -65,7 +62,13 @@ describe('OpenAI preset buildBody — prompt_cache_key', () => {
 describe('Anthropic preset buildBody — ignores prompt_cache_key', () => {
   it('never sets prompt_cache_key even when req.cache.key is present', () => {
     const body = anthropicWireFormat.buildBody(
-      { model: 'm', maxTokens: 8, messages: [], system: [{ type: 'text', text: 'x' }], cache: { key: 'ws-x' } } as Parameters<typeof anthropicWireFormat.buildBody>[0],
+      {
+        model: 'm',
+        maxTokens: 8,
+        messages: [],
+        system: [{ type: 'text', text: 'x' }],
+        cache: { key: 'ws-x' },
+      } as Parameters<typeof anthropicWireFormat.buildBody>[0],
       { capabilities: caps('native') },
     );
     expect(body).not.toHaveProperty('prompt_cache_key');
@@ -75,7 +78,9 @@ describe('Anthropic preset buildBody — ignores prompt_cache_key', () => {
 describe('Google preset buildBody — ignores prompt_cache_key', () => {
   it('never sets prompt_cache_key (Gemini uses cachedContent, not a routing key)', () => {
     const body = googleWireFormat.buildBody(
-      { model: 'm', maxTokens: 8, messages: [], cache: { key: 'ws-x' } } as Parameters<typeof googleWireFormat.buildBody>[0],
+      { model: 'm', maxTokens: 8, messages: [], cache: { key: 'ws-x' } } as Parameters<
+        typeof googleWireFormat.buildBody
+      >[0],
       { capabilities: caps('none') },
     );
     expect(body).not.toHaveProperty('prompt_cache_key');
@@ -87,7 +92,10 @@ describe('Google preset buildBody — ignores prompt_cache_key', () => {
       model: 'gemini-2.5-pro',
       maxTokens: 8,
       messages: [],
-      system: [{ type: 'text', text: 'stable identity' }, { type: 'text', text: 'tools' }],
+      system: [
+        { type: 'text', text: 'stable identity' },
+        { type: 'text', text: 'tools' },
+      ],
     } as Parameters<typeof googleWireFormat.buildBody>[0];
     const a = googleWireFormat.buildBody({ ...req }, { capabilities: caps('none') });
     const b = googleWireFormat.buildBody({ ...req }, { capabilities: caps('none') });

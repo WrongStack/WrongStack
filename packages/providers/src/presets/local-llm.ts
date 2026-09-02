@@ -153,8 +153,7 @@ export function createLocalLlmPreset(opts: LocalLlmPresetOptions) {
         body['tools'] = toolsToOpenAI(req.tools);
         if (req.toolChoice) {
           if (typeof req.toolChoice === 'string') {
-            body['tool_choice'] =
-              req.toolChoice === 'required' ? 'required' : req.toolChoice;
+            body['tool_choice'] = req.toolChoice === 'required' ? 'required' : req.toolChoice;
           } else {
             body['tool_choice'] = {
               type: 'function',
@@ -258,7 +257,11 @@ export function createLocalLlmPreset(opts: LocalLlmPresetOptions) {
             entry.id &&
             entry.emittedChunkIndex < entry.argBuf.chunks.length
           ) {
-            for (; entry.emittedChunkIndex < entry.argBuf.chunks.length; entry.emittedChunkIndex++) {
+            for (
+              ;
+              entry.emittedChunkIndex < entry.argBuf.chunks.length;
+              entry.emittedChunkIndex++
+            ) {
               out.push({
                 type: 'tool_use_input_delta',
                 id: entry.id,

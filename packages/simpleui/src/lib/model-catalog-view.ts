@@ -100,7 +100,11 @@ export function searchModelRows(
         continue;
       }
       const name = (entry.name ?? entry.id).toLowerCase();
-      if (name.includes(needle) || entry.id.toLowerCase().includes(needle) || label.includes(needle)) {
+      if (
+        name.includes(needle) ||
+        entry.id.toLowerCase().includes(needle) ||
+        label.includes(needle)
+      ) {
         rows.push({ provider, providerLabel: providerLabels[provider] ?? provider, entry });
       }
     }
@@ -121,6 +125,9 @@ export function readRecentModels(): string[] {
 /** Record a pick: moves it to the front, caps the list, best-effort persist. */
 export function pushRecentModel(provider: string, model: string): void {
   const value = `${provider}\t${model}`;
-  const next = [value, ...readRecentModels().filter((x) => x !== value)].slice(0, MAX_RECENT_MODELS);
+  const next = [value, ...readRecentModels().filter((x) => x !== value)].slice(
+    0,
+    MAX_RECENT_MODELS,
+  );
   writePersisted(RECENT_MODELS_KEY, RECENT_MODELS_VERSION, next);
 }

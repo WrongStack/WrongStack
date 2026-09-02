@@ -16,14 +16,8 @@
 import { describe, expect, it } from 'vitest';
 import React from 'react';
 import { renderRealTty, settle } from './helpers/real-tty.js';
-import {
-  DEFAULT_PANEL_POSITIONS,
-  SETTINGS_PICKER_MAX_HEIGHT,
-} from '../src/ui-contracts.js';
-import {
-  SettingsPicker,
-  settingsPickerJumpByName,
-} from '../src/components/settings-picker.js';
+import { DEFAULT_PANEL_POSITIONS, SETTINGS_PICKER_MAX_HEIGHT } from '../src/ui-contracts.js';
+import { SettingsPicker, settingsPickerJumpByName } from '../src/components/settings-picker.js';
 import type { SettingsPickerProps } from '../src/components/settings-picker.js';
 import {
   buildVisibleSectionHeaders,
@@ -90,10 +84,10 @@ function baseProps(over: Partial<SettingsPickerProps> = {}): SettingsPickerProps
 
 describe('settings picker overflow at 24×80', () => {
   it('frame never exceeds terminal rows when focused at top', async () => {
-    const view = renderRealTty(
-      React.createElement(SettingsPicker, baseProps({ field: 0 })),
-      { columns: COLS, rows: ROWS },
-    );
+    const view = renderRealTty(React.createElement(SettingsPicker, baseProps({ field: 0 })), {
+      columns: COLS,
+      rows: ROWS,
+    });
     await settle();
     const lines = view.lines();
     expect(lines.length).toBeLessThanOrEqual(ROWS);
@@ -119,10 +113,10 @@ describe('settings picker overflow at 24×80', () => {
 
   it('does not duplicate the title or garble content across re-renders', async () => {
     // Simulate scrolling: focus moves from field 0 → mid → last → back.
-    const view = renderRealTty(
-      React.createElement(SettingsPicker, baseProps({ field: 0 })),
-      { columns: COLS, rows: ROWS },
-    );
+    const view = renderRealTty(React.createElement(SettingsPicker, baseProps({ field: 0 })), {
+      columns: COLS,
+      rows: ROWS,
+    });
     await settle();
 
     const midField = settingsPickerJumpByName('Max iterations');
@@ -167,10 +161,10 @@ describe('settings picker overflow at 24×80', () => {
   it('never overflows at ultra-narrow terminal (60 cols × 24 rows)', async () => {
     // At 60 cols, detail text wraps to ~4 lines per field — the old
     // linesPerField=2 undercount caused overflow.
-    const view = renderRealTty(
-      React.createElement(SettingsPicker, baseProps({ field: 0 })),
-      { columns: 60, rows: 24 },
-    );
+    const view = renderRealTty(React.createElement(SettingsPicker, baseProps({ field: 0 })), {
+      columns: 60,
+      rows: 24,
+    });
     await settle();
     const lines = view.lines();
     expect(lines.length).toBeLessThanOrEqual(24);
@@ -196,7 +190,12 @@ describe('settings picker overflow at 24×80', () => {
         <Box flexDirection="column" height={ROWS} overflowY="hidden" justifyContent="flex-end">
           <Box flexDirection="column" flexShrink={0}>
             {/* History viewport — shrinks to give the bottom region space */}
-            <Box flexDirection="column" height={Math.max(0, historyRows)} overflowY="hidden" flexShrink={0}>
+            <Box
+              flexDirection="column"
+              height={Math.max(0, historyRows)}
+              overflowY="hidden"
+              flexShrink={0}
+            >
               <Text>{'history placeholder'}</Text>
             </Box>
             {/* Bottom region: Input + SettingsPicker + StatusBar + KeyHintBar */}
@@ -416,9 +415,7 @@ describe('settings picker section-header accounting contract', () => {
           return sectionStart < end && sectionEnd > start ? [headerRows[index] ?? -1] : [];
         }),
       );
-      expect(buildVisibleSectionHeaders(rows, fieldRowIndex, start, end)).toEqual(
-        expectedHeaders,
-      );
+      expect(buildVisibleSectionHeaders(rows, fieldRowIndex, start, end)).toEqual(expectedHeaders);
     }
   });
 });

@@ -580,7 +580,10 @@ describe('useGlobalKeyboardShortcuts', () => {
       body.className = 'markdown-content';
       Object.defineProperty(body, 'innerText', { value: 'just the body', configurable: true });
       b.appendChild(body);
-      Object.defineProperty(b, 'innerText', { value: 'chrome + just the body', configurable: true });
+      Object.defineProperty(b, 'innerText', {
+        value: 'chrome + just the body',
+        configurable: true,
+      });
       mount();
       press('c');
       expect(writeText).toHaveBeenCalledWith('just the body');

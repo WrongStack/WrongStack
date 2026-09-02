@@ -46,7 +46,8 @@ export function startCliHeapWatchdog(params: CliHeapWatchdogParams): void {
         sessionId: context.session.id,
         messages: context.state.messages.length,
         messageEstimatedTokens: context.state.messages.reduce(
-          (sum: number, message: { _estTokens?: number | undefined }) => sum + (message._estTokens ?? 0),
+          (sum: number, message: { _estTokens?: number | undefined }) =>
+            sum + (message._estTokens ?? 0),
           0,
         ),
         metricsDroppedObservations: metricsSink?.droppedObservations() ?? 0,

@@ -44,7 +44,7 @@
  * never add latency surprises to the edit path.
  */
 
-import { getWrongTrace, preflightFileEdit } from "./gate.js";
+import { getWrongTrace, preflightFileEdit } from './gate.js';
 
 /**
  * Structural subset of the host's `HookInput` this hook actually reads.
@@ -59,8 +59,8 @@ export interface WrongTraceHookInput {
 
 /** Mutually-exclusive pre-flight verdict, mirroring core's contract. */
 export type WrongTracePreToolUseOutcome =
-  | { action: "allow"; additionalContext?: string | undefined }
-  | { action: "deny"; reason: string };
+  | { action: 'allow'; additionalContext?: string | undefined }
+  | { action: 'deny'; reason: string };
 
 /**
  * Typed gate-decision events emitted by the hooks when a host supplies an
@@ -70,20 +70,14 @@ export type WrongTracePreToolUseOutcome =
  * adapter itself stays transport-agnostic.
  */
 export type WrongTraceGateDecisionEvent =
-  | { kind: "deny"; path: string; reason: string }
-  | { kind: "allow-fragile"; path: string; reasons: readonly string[] }
-  | { kind: "lock-acquired"; path: string; owner: string }
-  | { kind: "lock-conflict-race"; path: string }
-  | { kind: "lock-released"; path: string };
+  | { kind: 'deny'; path: string; reason: string }
+  | { kind: 'allow-fragile'; path: string; reasons: readonly string[] }
+  | { kind: 'lock-acquired'; path: string; owner: string }
+  | { kind: 'lock-conflict-race'; path: string }
+  | { kind: 'lock-released'; path: string };
 
 /** Tools that mutate a single target file and must pass the gate. */
-const EDIT_TOOLS = new Set([
-  "edit",
-  "write",
-  "replace",
-  "patch",
-  "codebase-ast-replace",
-]);
+const EDIT_TOOLS = new Set(['edit', 'write', 'replace', 'patch', 'codebase-ast-replace']);
 
 /**
  * Extract the target file path from a mutating tool's input, if present.
@@ -97,23 +91,23 @@ const EDIT_TOOLS = new Set([
  * `undefined` → gate allows without a claim.
  */
 function targetPathOf(toolInput: unknown): string | undefined {
-  if (!toolInput || typeof toolInput !== "object") return undefined;
+  if (!toolInput || typeof toolInput !== 'object') return undefined;
   const t = toolInput as Record<string, unknown>;
   // Single-file keys: edit/write → `path`, codebase-ast-replace → `file`.
-  for (const key of ["path", "file_path", "file"]) {
+  for (const key of ['path', 'file_path', 'file']) {
     const v = t[key];
-    if (typeof v === "string" && v.length > 0) return v;
+    if (typeof v === 'string' && v.length > 0) return v;
   }
   // `replace` accepts files: string | string[].
-  const files = t["files"];
-  if (typeof files === "string" && files.length > 0) return files;
+  const files = t['files'];
+  if (typeof files === 'string' && files.length > 0) return files;
   if (Array.isArray(files) && files.length > 0) {
     const first = files[0];
-    if (typeof first === "string" && first.length > 0) return first;
+    if (typeof first === 'string' && first.length > 0) return first;
   }
   // `patch` accepts an optional directory.
-  const dir = t["directory"];
-  if (typeof dir === "string" && dir.length > 0) return dir;
+  const dir = t['directory'];
+  if (typeof dir === 'string' && dir.length > 0) return dir;
   return undefined;
 }
 
@@ -197,11 +191,7 @@ function acquireLock(counters: Map<string, number>, path: string): void {
   counters.set(path, (counters.get(path) ?? 0) + 1);
 }
 
-function releaseLock(
-  counters: Map<string, number>,
-  path: string,
-  onZero: () => void,
-): void {
+function releaseLock(counters: Map<string, number>, path: string, onZero: () => void): void {
   const next = (counters.get(path) ?? 1) - 1;
   if (next > 0) {
     counters.set(path, next);
@@ -228,7 +218,7 @@ export function createWrongTraceHookPair(
 
   return {
     async preToolUse(input, _runtime) {
-      if (!EDIT_TOOLS.has(input.toolName ?? "")) return undefined;
+      if (!EDIT_TOOLS.has(input.toolName ?? '')) return undefined;
       const path = targetPathOf(input.toolInput);
       if (!path) return undefined;
 
@@ -238,17 +228,17 @@ export function createWrongTraceHookPair(
         // the daemon's file-health response is compared against this pair's
         // owner identity by preflightFileEdit.
         const verdict = await preflightFileEdit(path, `wrongstack:${sessionId()}`);
-        if (verdict.kind === "blocked") {
-          const owner = verdict.risk.reasons.join("; ");
-          emitSafe(emit, { kind: "deny", path, reason: `WrongTrace lock: ${owner}` });
-          return { action: "deny", reason: `WrongTrace lock: ${owner}` };
+        if (verdict.kind === 'blocked') {
+          const owner = verdict.risk.reasons.join('; ');
+          emitSafe(emit, { kind: 'deny', path, reason: `WrongTrace lock: ${owner}` });
+          return { action: 'deny', reason: `WrongTrace lock: ${owner}` };
         }
 
         // Allow — and claim the lock so peers see this edit in flight.
         const wt = await getWrongTrace();
         if (wt.isAvailable) {
           const owner = `wrongstack:${sessionId()}`;
-          const res = await wt.lockFile(path, "WrongStack edit in progress", {
+          const res = await wt.lockFile(path, 'WrongStack edit in progress', {
             owner,
             ttlSeconds: 900,
           });
@@ -258,7 +248,7 @@ export function createWrongTraceHookPair(
             // the release-side owner-guard needs it (legacy post hooks are
             // built with an empty session identity and cannot re-derive it).
             claimedOwnerSetFor(counters).set(path, owner);
-            emitSafe(emit, { kind: "lock-acquired", path, owner });
+            emitSafe(emit, { kind: 'lock-acquired', path, owner });
           } else {
             // Peer grabbed it between the pre-flight and the claim (or our
             // own earlier leak still holds it — the exemption let us through).
@@ -270,18 +260,18 @@ export function createWrongTraceHookPair(
             // contract: only the LAST finisher releases).
             acquireLock(counters, path);
             racedSetFor(counters).add(path);
-            emitSafe(emit, { kind: "lock-conflict-race", path });
+            emitSafe(emit, { kind: 'lock-conflict-race', path });
           }
         }
 
-        if (verdict.risk && verdict.risk.band === "fragile") {
-          emitSafe(emit, { kind: "allow-fragile", path, reasons: verdict.risk.reasons });
+        if (verdict.risk && verdict.risk.band === 'fragile') {
+          emitSafe(emit, { kind: 'allow-fragile', path, reasons: verdict.risk.reasons });
           return {
-            action: "allow",
-            additionalContext: `WrongTrace: ${path} is fragile (${verdict.risk.reasons.join("; ")}). Prefer surgical AST diffs over rewrites.`,
+            action: 'allow',
+            additionalContext: `WrongTrace: ${path} is fragile (${verdict.risk.reasons.join('; ')}). Prefer surgical AST diffs over rewrites.`,
           };
         }
-        return { action: "allow" };
+        return { action: 'allow' };
       } catch {
         // Fail-open: coordination must never break the edit path.
         return undefined;
@@ -289,7 +279,7 @@ export function createWrongTraceHookPair(
     },
 
     async postToolUse(input) {
-      if (!EDIT_TOOLS.has(input.toolName ?? "")) return;
+      if (!EDIT_TOOLS.has(input.toolName ?? '')) return;
       const path = targetPathOf(input.toolInput);
       // Only release a lock THIS pair claimed — a shared (module-level) map
       // would let one executor free another's active lock. Reference counts:
@@ -327,7 +317,7 @@ export function createWrongTraceHookPair(
             // unlock (daemon offline mid-flight, HTTP 5xx/4xx, IPC
             // unreachable → null) must not record a release the daemon never
             // performed; the TTL backstop reaps the lock instead.
-            emitSafe(emit, { kind: "lock-released", path });
+            emitSafe(emit, { kind: 'lock-released', path });
           }
           if (racerInvolved) racedSetFor(counters).delete(path);
         }
@@ -358,5 +348,5 @@ export function createWrongTracePreToolUseHook(
 }
 
 export function createWrongTracePostToolUseHook(opts?: WrongTraceHookOptions) {
-  return createWrongTraceHookPair(() => "", opts, legacyLocks).postToolUse;
+  return createWrongTraceHookPair(() => '', opts, legacyLocks).postToolUse;
 }

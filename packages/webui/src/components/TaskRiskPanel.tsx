@@ -129,7 +129,7 @@ export function analyzeTaskRisk(
       // The server's error text is DATA, not UI copy — surface it verbatim and
       // only translate the wrapper. With no reason at all, fall back to a
       // fully-translated sentence.
-      ...(assignment.error ?? assignment.lastFailureKind
+      ...((assignment.error ?? assignment.lastFailureKind)
         ? {
             detailKey: 'activity:taskRisk.assignmentFailedDetail',
             detailParams: {
@@ -167,7 +167,10 @@ export function analyzeTaskRisk(
       category: 'operational',
       titleKey: 'activity:taskRisk.leaseExpiredTitle',
       detailKey: 'activity:taskRisk.leaseExpiredDetail',
-      detailParams: { expiresAt: String(assignment.leaseExpiresAt), status: String(assignment.status) },
+      detailParams: {
+        expiresAt: String(assignment.leaseExpiresAt),
+        status: String(assignment.status),
+      },
       remediationKey: 'activity:taskRisk.leaseExpiredFix',
     });
   }
@@ -407,7 +410,9 @@ export function TaskRiskPanel({
             [t('activity:taskRisk.covReasons'), `${assessment.coverage.reasonPercent}%`],
             [
               t('activity:taskRisk.covRoute'),
-              assessment.coverage.hasExecutionRoute ? t('common:action.yes') : t('common:action.no'),
+              assessment.coverage.hasExecutionRoute
+                ? t('common:action.yes')
+                : t('common:action.no'),
             ],
             [
               t('activity:taskRisk.covOutcome'),
@@ -424,7 +429,8 @@ export function TaskRiskPanel({
         </div>
         {assessment.findings.length === 0 ? (
           <div className="flex items-center gap-2 rounded border border-success/30 bg-success/5 px-2.5 py-2 text-[11px] text-success">
-            <CheckCircle2 className="size-4" /> {t('activity:taskRisk.noDeterministicTaskRisksDetected')}
+            <CheckCircle2 className="size-4" />{' '}
+            {t('activity:taskRisk.noDeterministicTaskRisksDetected')}
           </div>
         ) : (
           <div className="space-y-1.5">

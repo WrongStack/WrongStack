@@ -38,7 +38,11 @@ export interface ICoordinator {
    * Assign a task to a subagent (or to the fleet for auto-routing).
    * Returns the assigned task id.
    */
-  assign(task: { id: string; description: string; subagentId?: string | undefined }): Promise<string>;
+  assign(task: {
+    id: string;
+    description: string;
+    subagentId?: string | undefined;
+  }): Promise<string>;
 
   /**
    * Synchronously ask a subagent something via the in-memory bridge.
@@ -47,7 +51,11 @@ export interface ICoordinator {
    *
    * Only available in director mode — raw coordinator has no bridge.
    */
-  ask<T = unknown>(subagentId: string, payload: unknown, timeoutMs?: number): Promise<T> | undefined;
+  ask<T = unknown>(
+    subagentId: string,
+    payload: unknown,
+    timeoutMs?: number,
+  ): Promise<T> | undefined;
 
   /**
    * Wait for one or more tasks to complete and return their results.

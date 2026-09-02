@@ -54,9 +54,9 @@ describe('ErrorBoundary', () => {
     expect(container.textContent).toContain('Something went wrong in this section');
     expect(container.textContent).toContain('kaboom');
     // Structured log line includes the section name.
-    const logged = warn.mock.calls.map((call) => String(call[0])).find((line) =>
-      line.includes('simpleui.error_boundary'),
-    );
+    const logged = warn.mock.calls
+      .map((call) => String(call[0]))
+      .find((line) => line.includes('simpleui.error_boundary'));
     expect(logged).toContain('"section":"test"');
   });
 

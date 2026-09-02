@@ -341,9 +341,10 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
         const args = rawArgs as ChronicleServerOperations['metrics']['args'];
         const store = ChronicleMetricsStore.open(this.chronicleDirectory);
         try {
-          const refreshed = args.refresh === false
-            ? { ingestedEvents: 0, ingestedBytes: 0, sourceFiles: 0, invalidLines: 0 }
-            : await store.refresh();
+          const refreshed =
+            args.refresh === false
+              ? { ingestedEvents: 0, ingestedBytes: 0, sourceFiles: 0, invalidLines: 0 }
+              : await store.refresh();
           const data =
             args.view === 'providers'
               ? store.providerDaily(args.providers)

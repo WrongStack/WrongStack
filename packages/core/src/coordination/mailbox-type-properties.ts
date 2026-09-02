@@ -29,31 +29,34 @@ export type MailboxTypeCategory =
  * This is the single source of truth - every type in the union appears
  * here, so adding a new type requires a corresponding entry.
  */
-export const MAILBOX_TYPE_PROPERTIES: Record<MailboxMessageType, {
-  category: MailboxTypeCategory;
-  /** Is the sender expected to get a substantive response? */
-  expectsReply: boolean;
-  /**
-   * Should this message type trigger the "Action required" acknowledgement
-   * footer in the rendered mailbox block?
-   *
-   * This is SEPARATE from `expectsReply`:
-   * - `review` expects no reply but still requires inspection -> `requiresAction: true`
-   * - `ask` requires both a reply AND action -> `requiresAction: true, expectsReply: true`
-   * - `result` provides evidence but expects nothing back -> both false
-   */
-  requiresAction: boolean;
-  /** Should this type be injected inline in background delivery mode? */
-  backgroundEligible: boolean;
-  /** Should this type be excluded from the folded conversation block? */
-  outOfBand: boolean;
-  /** Render priority (lower = rendered first). */
-  renderPriority: number;
-  /** Human-readable description of the recipient's obligation. */
-  recipientObligation: string;
-  /** Human-readable description of when a sender should use this type. */
-  senderGuidance: string;
-}> = {
+export const MAILBOX_TYPE_PROPERTIES: Record<
+  MailboxMessageType,
+  {
+    category: MailboxTypeCategory;
+    /** Is the sender expected to get a substantive response? */
+    expectsReply: boolean;
+    /**
+     * Should this message type trigger the "Action required" acknowledgement
+     * footer in the rendered mailbox block?
+     *
+     * This is SEPARATE from `expectsReply`:
+     * - `review` expects no reply but still requires inspection -> `requiresAction: true`
+     * - `ask` requires both a reply AND action -> `requiresAction: true, expectsReply: true`
+     * - `result` provides evidence but expects nothing back -> both false
+     */
+    requiresAction: boolean;
+    /** Should this type be injected inline in background delivery mode? */
+    backgroundEligible: boolean;
+    /** Should this type be excluded from the folded conversation block? */
+    outOfBand: boolean;
+    /** Render priority (lower = rendered first). */
+    renderPriority: number;
+    /** Human-readable description of the recipient's obligation. */
+    recipientObligation: string;
+    /** Human-readable description of when a sender should use this type. */
+    senderGuidance: string;
+  }
+> = {
   note: {
     category: 'informational',
     expectsReply: false,
@@ -122,7 +125,8 @@ export const MAILBOX_TYPE_PROPERTIES: Record<MailboxMessageType, {
     outOfBand: false,
     renderPriority: 40,
     recipientObligation: 'Use to avoid redundant work; never act on as a task or question.',
-    senderGuidance: 'Agent/system status update. Machine-generated, not for human-originated messages.',
+    senderGuidance:
+      'Agent/system status update. Machine-generated, not for human-originated messages.',
   },
   result: {
     category: 'informational',
@@ -151,7 +155,8 @@ export const MAILBOX_TYPE_PROPERTIES: Record<MailboxMessageType, {
     backgroundEligible: false,
     outOfBand: true,
     renderPriority: 999, // Never rendered
-    recipientObligation: 'Handled by the agent loop, NOT folded into conversation. "interrupt" causes cooperative halt.',
+    recipientObligation:
+      'Handled by the agent loop, NOT folded into conversation. "interrupt" causes cooperative halt.',
     senderGuidance: 'RESERVED for runtime use. Agents must NOT send control messages.',
   },
 };

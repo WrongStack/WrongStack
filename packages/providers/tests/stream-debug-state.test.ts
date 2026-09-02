@@ -46,12 +46,14 @@ describe('stream-debug-state', () => {
       pushDebugChunkStats(100, 50);
       vi.advanceTimersByTime(250); // past THROTTLE_MS (200)
       expect(cb).toHaveBeenCalledTimes(1);
-      expect(cb).toHaveBeenCalledWith(expect.objectContaining({
-        chunkCount: 1,
-        lastChunkSize: 100,
-        lastDeltaMs: 50,
-        totalBytes: 100,
-      }));
+      expect(cb).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chunkCount: 1,
+          lastChunkSize: 100,
+          lastDeltaMs: 50,
+          totalBytes: 100,
+        }),
+      );
     });
 
     it('flushes pending stats before swapping callback', () => {
@@ -64,7 +66,7 @@ describe('stream-debug-state', () => {
       setDebugStreamCallback(cb2);
       vi.advanceTimersByTime(300);
       expect(cb1).toHaveBeenCalledTimes(1); // cb1 got the pending flush
-      expect(cb2).not.toHaveBeenCalled();    // cb2 got nothing (no new chunks)
+      expect(cb2).not.toHaveBeenCalled(); // cb2 got nothing (no new chunks)
     });
 
     it('accumulates stats across multiple pushDebugChunkStats calls', () => {
@@ -75,12 +77,14 @@ describe('stream-debug-state', () => {
       pushDebugChunkStats(200, 100);
       vi.advanceTimersByTime(250);
       expect(cb).toHaveBeenCalledTimes(1);
-      expect(cb).toHaveBeenCalledWith(expect.objectContaining({
-        chunkCount: 2,
-        lastChunkSize: 200,
-        lastDeltaMs: 100,
-        totalBytes: 300,
-      }));
+      expect(cb).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chunkCount: 2,
+          lastChunkSize: 200,
+          lastDeltaMs: 100,
+          totalBytes: 300,
+        }),
+      );
     });
 
     it('returns early when disabled without calling callback', () => {
@@ -115,15 +119,9 @@ describe('stream-debug-state', () => {
       };
       defaultDebugStreamCallback(stats);
       expect(write).toHaveBeenCalledTimes(1);
-      expect(write).toHaveBeenCalledWith(
-        expect.stringContaining('[DEBUG-STREAM]'),
-      );
-      expect(write).toHaveBeenCalledWith(
-        expect.stringContaining('chunk #3'),
-      );
-      expect(write).toHaveBeenCalledWith(
-        expect.stringContaining('4.0KB'),
-      );
+      expect(write).toHaveBeenCalledWith(expect.stringContaining('[DEBUG-STREAM]'));
+      expect(write).toHaveBeenCalledWith(expect.stringContaining('chunk #3'));
+      expect(write).toHaveBeenCalledWith(expect.stringContaining('4.0KB'));
     });
 
     it('formats bytes under 1024 as B', () => {

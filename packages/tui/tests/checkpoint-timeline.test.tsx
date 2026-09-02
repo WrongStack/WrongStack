@@ -5,9 +5,24 @@ import { CheckpointTimeline } from '../src/components/checkpoint-timeline.js';
 
 describe('CheckpointTimeline', () => {
   const checkpoints = [
-    { promptIndex: 0, promptPreview: 'Initial prompt', ts: '2026-07-19T10:00:00.000Z', fileCount: 0 },
-    { promptIndex: 1, promptPreview: 'Second iteration', ts: '2026-07-19T10:05:00.000Z', fileCount: 3 },
-    { promptIndex: 2, promptPreview: 'Third step with more context', ts: '2026-07-19T10:10:00.000Z', fileCount: 1 },
+    {
+      promptIndex: 0,
+      promptPreview: 'Initial prompt',
+      ts: '2026-07-19T10:00:00.000Z',
+      fileCount: 0,
+    },
+    {
+      promptIndex: 1,
+      promptPreview: 'Second iteration',
+      ts: '2026-07-19T10:05:00.000Z',
+      fileCount: 3,
+    },
+    {
+      promptIndex: 2,
+      promptPreview: 'Third step with more context',
+      ts: '2026-07-19T10:10:00.000Z',
+      fileCount: 1,
+    },
   ];
 
   it('renders the header', () => {
@@ -143,7 +158,14 @@ describe('CheckpointTimeline', () => {
     const longPreview = 'A'.repeat(100);
     const { lastFrame, unmount } = render(
       React.createElement(CheckpointTimeline, {
-        checkpoints: [{ promptIndex: 5, promptPreview: longPreview, ts: '2026-07-19T12:00:00.000Z', fileCount: 0 }],
+        checkpoints: [
+          {
+            promptIndex: 5,
+            promptPreview: longPreview,
+            ts: '2026-07-19T12:00:00.000Z',
+            fileCount: 0,
+          },
+        ],
         selected: 0,
         onSelect: vi.fn(),
         onConfirm: vi.fn(),

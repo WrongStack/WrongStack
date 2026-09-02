@@ -26,7 +26,12 @@ function sage(overrides: Partial<Sage> = {}): Sage {
 }
 
 interface Recorded {
-  listSagePage: Array<{ statuses?: string[]; limit?: number; cursor?: unknown; includeAllSessions?: boolean }>;
+  listSagePage: Array<{
+    statuses?: string[];
+    limit?: number;
+    cursor?: unknown;
+    includeAllSessions?: boolean;
+  }>;
   updateSage: Array<{ id: string; patch: Record<string, unknown> }>;
   createCandidate: Array<Record<string, unknown>>;
 }
@@ -36,11 +41,19 @@ interface Page {
   nextCursor?: string | undefined;
 }
 
-function makeSurface(pages: Page[], opts: { updateSageImpl?: (id: string, patch: Record<string, unknown>) => Promise<unknown> } = {}) {
+function makeSurface(
+  pages: Page[],
+  opts: { updateSageImpl?: (id: string, patch: Record<string, unknown>) => Promise<unknown> } = {},
+) {
   const recorded: Recorded = { listSagePage: [], updateSage: [], createCandidate: [] };
   let call = 0;
   const surface = {
-    listSagePage: async (options: { statuses?: string[]; limit?: number; cursor?: unknown; includeAllSessions?: boolean }) => {
+    listSagePage: async (options: {
+      statuses?: string[];
+      limit?: number;
+      cursor?: unknown;
+      includeAllSessions?: boolean;
+    }) => {
       recorded.listSagePage.push(options);
       const page = pages[Math.min(call, pages.length - 1)] ?? { memories: [] };
       call += 1;
@@ -80,7 +93,10 @@ describe('runTriageCommand', () => {
   });
 
   it('reports when the store exposes no SAGE surface capability', async () => {
-    const out = await runTriageCommand({ memoryStore: { getCapability: () => undefined } } as never, []);
+    const out = await runTriageCommand(
+      { memoryStore: { getCapability: () => undefined } } as never,
+      [],
+    );
     expect(out.message).toBe('No SAGE surface available.');
   });
 
@@ -131,10 +147,14 @@ describe('runTriageCommand', () => {
 
     it('accepts explicit numeric values for all numeric flags', async () => {
       const { surface } = makeSurface([{ memories: [sage()] }]);
-      const out = await runTriageCommand(
-        ctxWith(surface),
-        ['--limit', '5', '--max-phase3', '2', '--max-phase4-pairs', '3'],
-      );
+      const out = await runTriageCommand(ctxWith(surface), [
+        '--limit',
+        '5',
+        '--max-phase3',
+        '2',
+        '--max-phase4-pairs',
+        '3',
+      ]);
       expect(out.message).toContain('# Triage Report');
     });
   });

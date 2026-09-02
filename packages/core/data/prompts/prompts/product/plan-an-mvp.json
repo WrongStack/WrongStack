@@ -5,11 +5,7 @@
   "description": "Scope the smallest version that tests the core bet.",
   "content": "I want to build: {{product}}\n\nHelp me scope an MVP. What's the core hypothesis we're testing? What's the absolute minimum that tests it honestly with real users? Ruthlessly cut everything that isn't essential to that test, and list what we're deferring. Define what result would tell us to double down vs. pivot vs. kill. Resist gold-plating.",
   "category": "product",
-  "tags": [
-    "mvp",
-    "scope",
-    "lean"
-  ],
+  "tags": ["mvp", "scope", "lean"],
   "source": "builtin",
   "favorite": false,
   "checksum": "e7d08fd48f1c8a09d88201b75fe4f2756ee513a59672ef827bed9c53e7bf3fbf",

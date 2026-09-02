@@ -80,9 +80,9 @@ describe('resolveWorkingDirInsideProject', () => {
     await fs.mkdir(projectRoot, { recursive: true });
 
     try {
-      await expect(
-        resolveWorkingDirInsideProject(projectRoot, './nonexistent')
-      ).rejects.toThrow(/Directory not found/);
+      await expect(resolveWorkingDirInsideProject(projectRoot, './nonexistent')).rejects.toThrow(
+        /Directory not found/,
+      );
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
@@ -96,9 +96,9 @@ describe('resolveWorkingDirInsideProject', () => {
     await fs.writeFile(filePath, 'hello');
 
     try {
-      await expect(
-        resolveWorkingDirInsideProject(projectRoot, './file.txt')
-      ).rejects.toThrow(/Directory not found/);
+      await expect(resolveWorkingDirInsideProject(projectRoot, './file.txt')).rejects.toThrow(
+        /Directory not found/,
+      );
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
@@ -112,9 +112,9 @@ describe('resolveWorkingDirInsideProject', () => {
     await fs.mkdir(outside, { recursive: true });
 
     try {
-      await expect(
-        resolveWorkingDirInsideProject(projectRoot, `../outside`)
-      ).rejects.toThrow(/Path must stay inside the project root/);
+      await expect(resolveWorkingDirInsideProject(projectRoot, `../outside`)).rejects.toThrow(
+        /Path must stay inside the project root/,
+      );
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
@@ -140,9 +140,9 @@ describe('resolveWorkingDirInsideProject', () => {
 
     const driveLetter = cwdRoot.replace(/[\\/]/g, '');
     try {
-      await expect(
-        resolveWorkingDirInsideProject(projectRoot, driveLetter),
-      ).rejects.toThrow(/Path must stay inside the project root/);
+      await expect(resolveWorkingDirInsideProject(projectRoot, driveLetter)).rejects.toThrow(
+        /Path must stay inside the project root/,
+      );
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }

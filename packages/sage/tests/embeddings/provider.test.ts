@@ -8,10 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { HashingEmbeddingProvider } from '../../src/embeddings/hashing.js';
-import {
-  type EmbeddingProvider,
-  cosineSimilarity,
-} from '../../src/embeddings/provider.js';
+import { type EmbeddingProvider, cosineSimilarity } from '../../src/embeddings/provider.js';
 
 describe('EmbeddingProvider interface contract', () => {
   it('HashingEmbeddingProvider satisfies EmbeddingProvider', () => {

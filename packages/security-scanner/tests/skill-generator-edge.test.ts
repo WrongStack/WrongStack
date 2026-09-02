@@ -21,28 +21,42 @@ describe('SkillGenerator - edge coverage', () => {
     return {
       stack,
       packageManager:
-        stack === 'nodejs' ? 'npm' :
-        stack === 'python' ? 'pip' :
-        stack === 'php' ? 'composer' :
-        stack === 'ruby' ? 'bundler' :
-        stack === 'cpp' ? 'cmake' :
-        stack === 'c' ? 'cmake' :
-        stack === 'kotlin' ? 'gradle' :
-        stack === 'swift' ? 'swiftpm' :
-        'unknown',
+        stack === 'nodejs'
+          ? 'npm'
+          : stack === 'python'
+            ? 'pip'
+            : stack === 'php'
+              ? 'composer'
+              : stack === 'ruby'
+                ? 'bundler'
+                : stack === 'cpp'
+                  ? 'cmake'
+                  : stack === 'c'
+                    ? 'cmake'
+                    : stack === 'kotlin'
+                      ? 'gradle'
+                      : stack === 'swift'
+                        ? 'swiftpm'
+                        : 'unknown',
       manifestFile:
-        stack === 'nodejs' ? 'package.json' :
-        stack === 'python' ? 'pyproject.toml' :
-        stack === 'php' ? 'composer.json' :
-        stack === 'ruby' ? 'Gemfile' :
-        stack === 'cpp' ? 'CMakeLists.txt' :
-        stack === 'c' ? 'CMakeLists.txt' :
-        stack === 'kotlin' ? 'build.gradle.kts' :
-        stack === 'swift' ? 'Package.swift' :
-        '',
-      dependencies: deps
-        ? [{ name: 'test-pkg', version: '1.0.0', isDev: false }]
-        : [],
+        stack === 'nodejs'
+          ? 'package.json'
+          : stack === 'python'
+            ? 'pyproject.toml'
+            : stack === 'php'
+              ? 'composer.json'
+              : stack === 'ruby'
+                ? 'Gemfile'
+                : stack === 'cpp'
+                  ? 'CMakeLists.txt'
+                  : stack === 'c'
+                    ? 'CMakeLists.txt'
+                    : stack === 'kotlin'
+                      ? 'build.gradle.kts'
+                      : stack === 'swift'
+                        ? 'Package.swift'
+                        : '',
+      dependencies: deps ? [{ name: 'test-pkg', version: '1.0.0', isDev: false }] : [],
       projectPath: '/test',
     };
   }

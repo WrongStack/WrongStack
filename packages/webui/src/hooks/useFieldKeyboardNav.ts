@@ -33,10 +33,9 @@ export function useFieldKeyboardNav() {
 
   /** Returns a ref-callback that registers `el` at position `index`. */
   const setFieldRef = useCallback(
-    (index: number) =>
-      (el: HTMLElement | null) => {
-        fieldRefs.current[index] = el;
-      },
+    (index: number) => (el: HTMLElement | null) => {
+      fieldRefs.current[index] = el;
+    },
     [],
   );
 

@@ -118,7 +118,9 @@ export class CollaborationBus {
     // (via pauseResolve), never rejects — the .catch() is technically redundant
     // but silences the TypeScript promise rejection warning and documents the
     // intentional no-reject guarantee.
-    const resumedPromise = this.pausePromise.then(() => 'resumed' as const).catch(() => 'resumed' as const);
+    const resumedPromise = this.pausePromise
+      .then(() => 'resumed' as const)
+      .catch(() => 'resumed' as const);
     const winner = await Promise.race([resumedPromise, timeoutPromise]);
     if (timer) clearTimeout(timer);
     if (winner === 'timeout') {

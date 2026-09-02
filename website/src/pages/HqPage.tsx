@@ -133,11 +133,27 @@ export function HqPage() {
               </span>
             </div>
             <div className="p-6 font-mono text-sm leading-7 text-zinc-300">
-              <span className="text-zinc-500">protocolVersion</span><span className="text-zinc-600">: </span><span className="text-amber-300">1</span><br />
-              <span className="text-zinc-500">client.kind</span><span className="text-zinc-600">: </span><span className="text-amber-300">cli</span><br />
-              <span className="text-zinc-500">client.machineId</span><span className="text-zinc-600">: </span><span className="text-zinc-300">a1b2c3d4</span><br />
-              <span className="text-zinc-500">project.projectRoot</span><span className="text-zinc-600">: </span><span className="text-zinc-300">~/code/my-project</span><br />
-              <span className="text-zinc-500">capabilities</span><span className="text-zinc-600">: </span><span className="text-zinc-300">[telemetry.publish, fleet.summary, control.receive]</span>
+              <span className="text-zinc-500">protocolVersion</span>
+              <span className="text-zinc-600">: </span>
+              <span className="text-amber-300">1</span>
+              <br />
+              <span className="text-zinc-500">client.kind</span>
+              <span className="text-zinc-600">: </span>
+              <span className="text-amber-300">cli</span>
+              <br />
+              <span className="text-zinc-500">client.machineId</span>
+              <span className="text-zinc-600">: </span>
+              <span className="text-zinc-300">a1b2c3d4</span>
+              <br />
+              <span className="text-zinc-500">project.projectRoot</span>
+              <span className="text-zinc-600">: </span>
+              <span className="text-zinc-300">~/code/my-project</span>
+              <br />
+              <span className="text-zinc-500">capabilities</span>
+              <span className="text-zinc-600">: </span>
+              <span className="text-zinc-300">
+                [telemetry.publish, fleet.summary, control.receive]
+              </span>
             </div>
           </div>
         </div>
@@ -210,49 +226,53 @@ export function HqPage() {
             description="HQ operators can steer, inform, queue, abort, spawn, broadcast, and execute shell commands on connected machines. Each command type has its own security gate."
           />
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {([
-              {
-                cmd: 'steer',
-                desc: 'Inject a directive into a target agent\'s conversation. The agent changes course immediately.',
-                gate: 'routes through mailbox',
-              },
-              {
-                cmd: 'btw',
-                desc: 'Post a non-urgent FYI to an agent\'s mailbox. Absorbed as context — no course change demanded.',
-                gate: 'routes through mailbox',
-              },
-              {
-                cmd: 'queue',
-                desc: 'Queue a prompt for the agent to pick up before its next step. Waits its turn behind current work.',
-                gate: 'routes through mailbox',
-              },
-              {
-                cmd: 'abort',
-                desc: 'Abort a running session leader, a specific subagent, or the entire fleet immediately.',
-                gate: 'routes through mailbox',
-              },
-              {
-                cmd: 'spawn',
-                desc: 'Spawn a subagent of a given role with an optional task description for dispatch routing.',
-                gate: 'routes through mailbox',
-              },
-              {
-                cmd: 'broadcast',
-                desc: 'Send a mailbox broadcast to every agent on the target project.',
-                gate: 'routes through mailbox',
-              },
-              {
-                cmd: 'run-command',
-                desc: 'Execute a raw shell command on the target machine. Double-gated by capability + operator opt-in.',
-                gate: 'control.execute + opt-in',
-              },
-            ] as { cmd: string; desc: string; gate: string }[]).map(({ cmd, desc, gate }) => (
+            {(
+              [
+                {
+                  cmd: 'steer',
+                  desc: "Inject a directive into a target agent's conversation. The agent changes course immediately.",
+                  gate: 'routes through mailbox',
+                },
+                {
+                  cmd: 'btw',
+                  desc: "Post a non-urgent FYI to an agent's mailbox. Absorbed as context — no course change demanded.",
+                  gate: 'routes through mailbox',
+                },
+                {
+                  cmd: 'queue',
+                  desc: 'Queue a prompt for the agent to pick up before its next step. Waits its turn behind current work.',
+                  gate: 'routes through mailbox',
+                },
+                {
+                  cmd: 'abort',
+                  desc: 'Abort a running session leader, a specific subagent, or the entire fleet immediately.',
+                  gate: 'routes through mailbox',
+                },
+                {
+                  cmd: 'spawn',
+                  desc: 'Spawn a subagent of a given role with an optional task description for dispatch routing.',
+                  gate: 'routes through mailbox',
+                },
+                {
+                  cmd: 'broadcast',
+                  desc: 'Send a mailbox broadcast to every agent on the target project.',
+                  gate: 'routes through mailbox',
+                },
+                {
+                  cmd: 'run-command',
+                  desc: 'Execute a raw shell command on the target machine. Double-gated by capability + operator opt-in.',
+                  gate: 'control.execute + opt-in',
+                },
+              ] as { cmd: string; desc: string; gate: string }[]
+            ).map(({ cmd, desc, gate }) => (
               <div key={cmd} className="rounded-xl border border-line bg-card p-5">
                 <code className="font-mono text-sm font-black text-brand">{cmd}</code>
                 <p className="mt-2 text-xs leading-5 text-muted">{desc}</p>
                 <div className="mt-3 flex items-center gap-1.5">
                   <ShieldCheck className="size-3 text-faint" />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">{gate}</span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+                    {gate}
+                  </span>
                 </div>
               </div>
             ))}
@@ -274,19 +294,34 @@ export function HqPage() {
               icon: KeyRound,
               title: 'auth.json',
               body: 'Persistent credential store at `~/.wrongstack/hq/auth.json` (mode 0600, atomic write). Contains separate lists for browser tokens and client tokens, plus an operator-configurable redaction policy.',
-              items: ['Schema versioned (v1)', 'Atomic tmp+rename writes', 'Missing file = empty (recoverable)', 'Live-reload watcher for runtime changes'],
+              items: [
+                'Schema versioned (v1)',
+                'Atomic tmp+rename writes',
+                'Missing file = empty (recoverable)',
+                'Live-reload watcher for runtime changes',
+              ],
             },
             {
               icon: Fingerprint,
               title: 'Two token classes',
               body: 'Browser tokens authenticate dashboard sessions on `/ws/browser`. Client tokens authenticate agent sessions on `/ws/client`. Neither can cross channels — a stolen browser token cannot send commands.',
-              items: ['Browser tokens: dashboard only', 'Client tokens: telemetry + commands', 'Both support capability scoping', 'Tokens hashed with scrypt for storage'],
+              items: [
+                'Browser tokens: dashboard only',
+                'Client tokens: telemetry + commands',
+                'Both support capability scoping',
+                'Tokens hashed with scrypt for storage',
+              ],
             },
             {
               icon: DoorOpen,
               title: 'Capability gates',
               body: 'Each token carries an optional capability list. When present, only the listed capabilities are granted. The `run-command` type requires both `control.execute` capability AND operator opt-in.',
-              items: ['control.enqueue — send commands', 'control.execute — run shell commands', 'telemetry.publish — stream telemetry', 'session/fleet/mailbox.summary'],
+              items: [
+                'control.enqueue — send commands',
+                'control.execute — run shell commands',
+                'telemetry.publish — stream telemetry',
+                'session/fleet/mailbox.summary',
+              ],
             },
           ].map(({ icon: Icon, title, body, items }) => (
             <article key={title} className="rounded-2xl border border-line bg-card p-7">
@@ -307,19 +342,47 @@ export function HqPage() {
         <div className="mt-8 rounded-2xl border border-line bg-card p-7">
           <h2 className="text-xl font-black text-fg">Redaction policy</h2>
           <p className="mt-3 text-sm leading-7 text-muted">
-            Every client declares a publisher-side redaction policy in its Hello. The server also applies a server-side policy as a second pass. Together they control what leaves your machine.
+            Every client declares a publisher-side redaction policy in its Hello. The server also
+            applies a server-side policy as a second pass. Together they control what leaves your
+            machine.
           </p>
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
             {[
-              { label: 'Tool arguments', levels: ['none — never send', 'summary — tool name only', 'redacted — scrubbed args', 'full — all arguments'] },
-              { label: 'File paths', levels: ['none — never send', 'project-relative — strip prefix', 'redacted — path segments only', 'full — absolute paths'] },
-              { label: 'Raw content', levels: ['false — redact everything', 'true — send full content (default)', '', 'Transcript text capped at 16 000 chars'] },
+              {
+                label: 'Tool arguments',
+                levels: [
+                  'none — never send',
+                  'summary — tool name only',
+                  'redacted — scrubbed args',
+                  'full — all arguments',
+                ],
+              },
+              {
+                label: 'File paths',
+                levels: [
+                  'none — never send',
+                  'project-relative — strip prefix',
+                  'redacted — path segments only',
+                  'full — absolute paths',
+                ],
+              },
+              {
+                label: 'Raw content',
+                levels: [
+                  'false — redact everything',
+                  'true — send full content (default)',
+                  '',
+                  'Transcript text capped at 16 000 chars',
+                ],
+              },
             ].map(({ label, levels }) => (
               <div key={label} className="rounded-lg border border-line bg-bg p-4">
                 <h3 className="font-black text-sm text-fg">{label}</h3>
                 <ul className="mt-2 space-y-1">
                   {levels.filter(Boolean).map((lvl) => (
-                    <li key={lvl} className="text-xs leading-5 text-muted">{lvl}</li>
+                    <li key={lvl} className="text-xs leading-5 text-muted">
+                      {lvl}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -339,11 +402,36 @@ export function HqPage() {
           />
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {[
-              { icon: Network, label: 'Fleet', event: 'coordinator.stats', desc: 'Active subagents, queued/completed/failed tasks, per-agent status.' },
-              { icon: Activity, label: 'Agent', event: 'agent.timeline.*', desc: 'Messages, tool calls, status changes with iteration and cost metadata.' },
-              { icon: Code2, label: 'Session', event: 'session.*', desc: 'Session lifecycle, transcript appends, snapshot updates, session end events.' },
-              { icon: Wallet, label: 'Cost', event: 'token.accounted', desc: 'Per-call token counts and USD cost. Time-bucketed into trend series.' },
-              { icon: BrainCircuit, label: 'Brain', event: 'brain.*', desc: 'Decision requests, answers, denials, ask-human escalations.' },
+              {
+                icon: Network,
+                label: 'Fleet',
+                event: 'coordinator.stats',
+                desc: 'Active subagents, queued/completed/failed tasks, per-agent status.',
+              },
+              {
+                icon: Activity,
+                label: 'Agent',
+                event: 'agent.timeline.*',
+                desc: 'Messages, tool calls, status changes with iteration and cost metadata.',
+              },
+              {
+                icon: Code2,
+                label: 'Session',
+                event: 'session.*',
+                desc: 'Session lifecycle, transcript appends, snapshot updates, session end events.',
+              },
+              {
+                icon: Wallet,
+                label: 'Cost',
+                event: 'token.accounted',
+                desc: 'Per-call token counts and USD cost. Time-bucketed into trend series.',
+              },
+              {
+                icon: BrainCircuit,
+                label: 'Brain',
+                event: 'brain.*',
+                desc: 'Decision requests, answers, denials, ask-human escalations.',
+              },
             ].map(({ icon: Icon, label, event, desc }) => (
               <div key={label} className="rounded-xl border border-line bg-card p-5">
                 <Icon className="size-4 text-brand" />
@@ -369,10 +457,22 @@ export function HqPage() {
             <h2 className="text-xl font-black text-fg">Server commands</h2>
             <div className="mt-5 space-y-3">
               {[
-                { cmd: 'wstack --hq', desc: 'Start the HQ server. Prints the bind URL and dashboard address. Token is written to auth.json.' },
-                { cmd: 'wstack --hq --port 8080', desc: 'Bind to a specific port instead of OS-assigned. Use with --strict-port to fail if occupied.' },
-                { cmd: 'wstack --hq --data-dir /path', desc: 'Override the default HQ data directory (~/.wrongstack/hq). Useful for sandboxed runs.' },
-                { cmd: 'wstack --hq --host 0.0.0.0', desc: 'Expose on all interfaces. Requires a reverse proxy with its own auth and rate limiting.' },
+                {
+                  cmd: 'wstack --hq',
+                  desc: 'Start the HQ server. Prints the bind URL and dashboard address. Token is written to auth.json.',
+                },
+                {
+                  cmd: 'wstack --hq --port 8080',
+                  desc: 'Bind to a specific port instead of OS-assigned. Use with --strict-port to fail if occupied.',
+                },
+                {
+                  cmd: 'wstack --hq --data-dir /path',
+                  desc: 'Override the default HQ data directory (~/.wrongstack/hq). Useful for sandboxed runs.',
+                },
+                {
+                  cmd: 'wstack --hq --host 0.0.0.0',
+                  desc: 'Expose on all interfaces. Requires a reverse proxy with its own auth and rate limiting.',
+                },
               ].map(({ cmd, desc }) => (
                 <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                   <code className="font-mono text-sm font-black text-brand">{cmd}</code>
@@ -385,10 +485,22 @@ export function HqPage() {
             <h2 className="text-xl font-black text-fg">Client commands</h2>
             <div className="mt-5 space-y-3">
               {[
-                { cmd: '/hq connect <url>', desc: 'Link this session to an HQ server. The client sends its Hello and begins publishing telemetry.' },
-                { cmd: '/hq status', desc: 'Detailed view: connection state, active sessions, event throughput, uptime, and pending commands.' },
-                { cmd: '/hq disconnect', desc: 'Sever the HQ connection. Telemetry stops and the session continues locally. Reconnect later.' },
-                { cmd: '/hq', desc: 'Quick status: connection URL, session count, and whether the client channel is open.' },
+                {
+                  cmd: '/hq connect <url>',
+                  desc: 'Link this session to an HQ server. The client sends its Hello and begins publishing telemetry.',
+                },
+                {
+                  cmd: '/hq status',
+                  desc: 'Detailed view: connection state, active sessions, event throughput, uptime, and pending commands.',
+                },
+                {
+                  cmd: '/hq disconnect',
+                  desc: 'Sever the HQ connection. Telemetry stops and the session continues locally. Reconnect later.',
+                },
+                {
+                  cmd: '/hq',
+                  desc: 'Quick status: connection URL, session count, and whether the client channel is open.',
+                },
               ].map(({ cmd, desc }) => (
                 <div key={cmd} className="rounded-lg border border-line bg-bg p-4">
                   <code className="font-mono text-sm font-black text-brand">{cmd}</code>

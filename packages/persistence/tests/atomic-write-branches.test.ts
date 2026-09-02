@@ -33,10 +33,7 @@ vi.mock('node:crypto', () => ({ randomBytes: doubles.randomBytes }));
 vi.mock('node:fs', () => ({ watch: doubles.watch }));
 vi.mock('node:fs/promises', () => doubles.fs);
 
-import {
-  createPersistencePrimitives,
-  PersistenceFsError,
-} from '../src/atomic-write.js';
+import { createPersistencePrimitives, PersistenceFsError } from '../src/atomic-write.js';
 
 function errorWithCode(code?: string): NodeJS.ErrnoException {
   const error = new Error(code ?? 'without-code') as NodeJS.ErrnoException;
@@ -98,9 +95,7 @@ describe('persistence primitive edge branches', () => {
     usePlatform('win32');
     const primitives = createPersistencePrimitives();
     doubles.fs.stat.mockResolvedValue({ mode: 0o100600 });
-    doubles.fs.chmod
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(errorWithCode('EPERM'));
+    doubles.fs.chmod.mockResolvedValueOnce(undefined).mockRejectedValueOnce(errorWithCode('EPERM'));
     doubles.fs.rename
       .mockRejectedValueOnce(errorWithCode('EPERM'))
       .mockResolvedValueOnce(undefined);
@@ -404,13 +399,10 @@ describe('persistence primitive edge branches', () => {
       close: vi.fn(async () => undefined),
     };
     doubles.fs.open.mockResolvedValue(handle);
-    const written = await primitives.atomicReplaceWithWriter(
-      '/tmp/rotated.log',
-      async (h) => {
-        await h.write(Buffer.from('new tail'));
-        return 'result-1';
-      },
-    );
+    const written = await primitives.atomicReplaceWithWriter('/tmp/rotated.log', async (h) => {
+      await h.write(Buffer.from('new tail'));
+      return 'result-1';
+    });
     expect(written).toBe('result-1');
     expect(handle.write).toHaveBeenCalledWith(Buffer.from('new tail'));
     expect(handle.close).toHaveBeenCalled();
@@ -468,4 +460,3 @@ describe('persistence primitive edge branches', () => {
     ).resolves.toBe(42);
   });
 });
-

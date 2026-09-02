@@ -86,10 +86,10 @@ describe('debug dump', () => {
       memoryContext: emptyMemoryContextMonitor(),
     };
     for (const columns of [80, 60] as const) {
-      const view = renderRealTty(
-        <ContextPanel data={ctxData as never} onClose={() => {}} />,
-        { columns, rows: 40 },
-      );
+      const view = renderRealTty(<ContextPanel data={ctxData as never} onClose={() => {}} />, {
+        columns,
+        rows: 40,
+      });
       await settle();
       out.push(`=== CONTEXT ${columns} cols ===`);
       for (const [i, line] of view.lines().entries()) {

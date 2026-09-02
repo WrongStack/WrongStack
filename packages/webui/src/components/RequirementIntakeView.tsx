@@ -228,7 +228,10 @@ export function RequirementIntakeView(): React.ReactElement {
               {/\[VIBE\]/i.test(request) ? (
                 <div className="mt-1.5 flex items-center gap-1.5 rounded bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
                   <span>🌊</span>
-                  <span><strong>VIBE Protocol Detected:</strong> Three-Stage Verification (Spec-Synthesizer → Coder → Auditor) is active.</span>
+                  <span>
+                    <strong>VIBE Protocol Detected:</strong> Three-Stage Verification
+                    (Spec-Synthesizer → Coder → Auditor) is active.
+                  </span>
                 </div>
               ) : null}
               <p className="mt-1 text-[11px] text-muted-foreground">
@@ -362,7 +365,10 @@ export function RequirementIntakeView(): React.ReactElement {
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                       {intake.isVibeMode ? (
-                        <Badge variant="outline" className="border-primary/40 bg-primary/10 text-[10px] text-primary">
+                        <Badge
+                          variant="outline"
+                          className="border-primary/40 bg-primary/10 text-[10px] text-primary"
+                        >
                           🌊 VIBE
                         </Badge>
                       ) : null}

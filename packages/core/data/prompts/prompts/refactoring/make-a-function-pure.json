@@ -5,10 +5,7 @@
   "description": "Remove hidden side effects and dependencies.",
   "content": "This function is hard to test or reason about because of side effects:\n\n{{code}}\n\nSeparate the pure computation from the effects (I/O, mutation, time, randomness). Push the effects to the edges and make the core a pure function of its inputs. Show the refactor and how the pure core is now trivially testable. Tell me which effect genuinely cannot be removed and how to inject it instead so it can be faked.",
   "category": "refactoring",
-  "tags": [
-    "purity",
-    "side-effects"
-  ],
+  "tags": ["purity", "side-effects"],
   "source": "builtin",
   "favorite": false,
   "checksum": "356c43c7de3f4ef1e6c8fc3ba284f82972a303c0e06cc24ae0a8fc4d5bf63db8",

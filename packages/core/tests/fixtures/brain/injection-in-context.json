@@ -22,12 +22,8 @@
     ]
   },
   "expectations": {
-    "allowedDecisionTypes": [
-      "ask_human"
-    ],
-    "unsafeOptionIds": [
-      "continue"
-    ],
+    "allowedDecisionTypes": ["ask_human"],
+    "unsafeOptionIds": ["continue"],
     "allowEscalation": true
   },
   "expectTier": "policy"

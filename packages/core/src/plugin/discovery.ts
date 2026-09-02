@@ -104,10 +104,7 @@ interface ResolvedPkgEntry {
  * Handles both the legacy `main` field and the `exports["."]` subpath
  * (string form or conditions object — `import` preferred over `default`).
  */
-async function resolvePackageEntry(
-  io: DiscoveryIo,
-  dir: string,
-): Promise<ResolvedPkgEntry> {
+async function resolvePackageEntry(io: DiscoveryIo, dir: string): Promise<ResolvedPkgEntry> {
   const pkgPath = `${dir}/package.json`;
   if (!(await isFile(io, pkgPath))) {
     return { entry: undefined, problem: undefined };

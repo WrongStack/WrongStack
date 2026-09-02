@@ -599,9 +599,12 @@ export function readConfig(raw: unknown): PromptFirewallConfig {
           }
         })
     : [];
-  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
-    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
-    : undefined;
+  const rawMode =
+    typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+      ? String(r['mode'] ?? r['action'] ?? r['behavior'])
+          .trim()
+          .toLowerCase()
+      : undefined;
   const mode = rawMode === 'warn' ? 'warn' : rawMode === 'block' ? 'block' : 'redact';
   const rawScan = r['scanResponse'] ?? r['scan_response'];
   return {
@@ -657,9 +660,12 @@ function surfaceScanTrips(api: PluginAPI, tripped: ReadonlySet<string>): void {
   }
   state.timeoutCount += 1;
   api.metrics.counter('redos_skips', 1);
-  api.log.warn('prompt-firewall: scan-pass budget exceeded — patterns skipped mid-pass (issue #370)', {
-    skipped: [...tripped],
-  });
+  api.log.warn(
+    'prompt-firewall: scan-pass budget exceeded — patterns skipped mid-pass (issue #370)',
+    {
+      skipped: [...tripped],
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -799,7 +805,14 @@ const plugin: Plugin = {
             if (cfg.mode === 'redact') {
               const counter = { n: 0 };
               const deadline = createScanDeadline();
-              const redactedReq = redactDeep(req, cfg.allow, counter, skipSet, undefined, deadline) as Record<string, unknown>;
+              const redactedReq = redactDeep(
+                req,
+                cfg.allow,
+                counter,
+                skipSet,
+                undefined,
+                deadline,
+              ) as Record<string, unknown>;
               state.requestRedactions += counter.n;
               api.metrics.counter('request_redactions', counter.n);
               if (deadline.tripped.size > 0) surfaceScanTrips(api, deadline.tripped);
@@ -822,7 +835,11 @@ const plugin: Plugin = {
     // function-calling trace cannot unbind the walk, and by the request-side
     // skip set so a pattern that blew its ReDoS budget is never run
     // unguarded on response text either (chimera review finding).
-    function redactResponse(response: unknown, allow: RegExp[], skip?: ReadonlySet<string>): unknown {
+    function redactResponse(
+      response: unknown,
+      allow: RegExp[],
+      skip?: ReadonlySet<string>,
+    ): unknown {
       if (!response || typeof response !== 'object') return response;
       const counter = { n: 0 };
       const budget: ScanBudget = { remaining: RESPONSE_SCAN_BUDGET, truncated: false };

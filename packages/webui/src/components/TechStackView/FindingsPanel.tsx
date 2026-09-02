@@ -31,7 +31,9 @@ export function FindingsPanel({
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-center">
         <p className="max-w-sm text-xs text-muted-foreground">
-          {t('activity:techStack.noFindingsRun')} <span className="font-mono text-foreground">{t('activity:techStack.analyze')}</span> {t('activity:techStack.toCheckVersionsAndAdvisoriesAgainst')}
+          {t('activity:techStack.noFindingsRun')}{' '}
+          <span className="font-mono text-foreground">{t('activity:techStack.analyze')}</span>{' '}
+          {t('activity:techStack.toCheckVersionsAndAdvisoriesAgainst')}
         </p>
       </div>
     );
@@ -45,31 +47,37 @@ export function FindingsPanel({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-auto p-3">
         <div className="flex flex-col gap-4">
-        {grouped.map(([severity, items]) => (
-          <section key={severity}>
-            <div className="mb-1.5 flex items-center gap-2">
-              <Badge className={SEVERITY_META[severity].badge}>
-                {t(SEVERITY_META[severity].labelKey)}
-              </Badge>
-              <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
-                {items.length}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {items.map((finding) => (
-                <FindingCard
-                  key={finding.id}
-                  finding={finding}
-                  dependency={dependenciesById.get(finding.dependencyId)}
-                  onSelectDependency={onSelectDependency}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
+          {grouped.map(([severity, items]) => (
+            <section key={severity}>
+              <div className="mb-1.5 flex items-center gap-2">
+                <Badge className={SEVERITY_META[severity].badge}>
+                  {t(SEVERITY_META[severity].labelKey)}
+                </Badge>
+                <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                  {items.length}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {items.map((finding) => (
+                  <FindingCard
+                    key={finding.id}
+                    finding={finding}
+                    dependency={dependenciesById.get(finding.dependencyId)}
+                    onSelectDependency={onSelectDependency}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
-      <Pagination page={findingPage.page} pageSize={findingPage.pageSize} totalItems={findingPage.totalItems} onPageChange={findingPage.setPage} itemLabel="findings" />
+      <Pagination
+        page={findingPage.page}
+        pageSize={findingPage.pageSize}
+        totalItems={findingPage.totalItems}
+        onPageChange={findingPage.setPage}
+        itemLabel="findings"
+      />
     </div>
   );
 }
@@ -134,9 +142,7 @@ function FindingCard({
                   {evidence.detail ?? evidence.source}
                 </a>
               ) : (
-                <span className="text-muted-foreground">
-                  {evidence.detail ?? evidence.source}
-                </span>
+                <span className="text-muted-foreground">{evidence.detail ?? evidence.source}</span>
               )}
             </li>
           ))}

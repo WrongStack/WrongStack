@@ -42,9 +42,7 @@ export function useStatusSyncInterval({
   runEternalLoopRef,
   runParallelLoopRef,
 }: UseStatusSyncIntervalOptions) {
-  const staleGuardRef = useRef(
-    JSON.stringify({ a: '', y: false, m: '', model: '', provider: '' }),
-  );
+  const staleGuardRef = useRef(JSON.stringify({ a: '', y: false, m: '', model: '', provider: '' }));
 
   useEffect(() => {
     const poll = () => {
@@ -52,8 +50,7 @@ export function useStatusSyncInterval({
       const y = getYolo?.() ?? false;
       const m = getModeLabel?.() ?? '';
       const curModel = agent.ctx.model;
-      const curProvider =
-        (agent.ctx.provider as { id?: string | undefined } | undefined)?.id ?? '';
+      const curProvider = (agent.ctx.provider as { id?: string | undefined } | undefined)?.id ?? '';
       const snap = JSON.stringify({ a, y, m, model: curModel, provider: curProvider });
       if (snap !== staleGuardRef.current) {
         staleGuardRef.current = snap;

@@ -124,9 +124,7 @@ export function formatTaskProgress(tasks: TaskItem[]): string {
   return [
     `${color.bold('Tasks')} [${bar}] ${p.percentComplete}%`,
     `  ${color.green('●')} ${p.completed} done │ ${color.yellow('◐')} ${p.inProgress} active │ ${color.dim('○')} ${p.pending} pending │ ⊘ ${p.blocked} blocked │ ✗ ${p.failed} failed`,
-    p.estimatedHours > 0
-      ? `  ${color.dim(`est. ${p.estimatedHours}h`)}`
-      : '',
+    p.estimatedHours > 0 ? `  ${color.dim(`est. ${p.estimatedHours}h`)}` : '',
   ]
     .filter(Boolean)
     .join('\n');
@@ -136,7 +134,14 @@ export function formatTaskList(tasks: TaskItem[]): string {
   if (tasks.length === 0) return 'No tasks.';
 
   // Group by status
-  const order: TaskStatus[] = ['in_progress', 'blocked', 'review', 'pending', 'failed', 'completed'];
+  const order: TaskStatus[] = [
+    'in_progress',
+    'blocked',
+    'review',
+    'pending',
+    'failed',
+    'completed',
+  ];
   const groups = new Map<TaskStatus, TaskItem[]>();
   for (const t of tasks) {
     const list = groups.get(t.status) ?? [];

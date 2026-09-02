@@ -46,7 +46,9 @@ describe('HQ publisher factory env config', () => {
       await writeHqAuthFile(dir, {
         version: HQ_AUTH_FILE_VERSION,
         updatedAt: new Date().toISOString(),
-        clientTokens: [{ id: 'ct-1', token: 'auth-file-token', createdAt: new Date().toISOString() }],
+        clientTokens: [
+          { id: 'ct-1', token: 'auth-file-token', createdAt: new Date().toISOString() },
+        ],
       });
 
       const config = resolveHqConfigFromEnv({
@@ -64,7 +66,9 @@ describe('HQ publisher factory env config', () => {
       await writeHqAuthFile(dir, {
         version: HQ_AUTH_FILE_VERSION,
         updatedAt: new Date().toISOString(),
-        clientTokens: [{ id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() }],
+        clientTokens: [
+          { id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() },
+        ],
       });
 
       const config = resolveHqConfigFromEnv({
@@ -87,8 +91,12 @@ describe('HQ publisher factory env config', () => {
       await writeHqAuthFile(dir, {
         version: HQ_AUTH_FILE_VERSION,
         updatedAt: new Date().toISOString(),
-        browserTokens: [{ id: 'bt-1', token: 'browser-token-ignored', createdAt: new Date().toISOString() }],
-        clientTokens: [{ id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() }],
+        browserTokens: [
+          { id: 'bt-1', token: 'browser-token-ignored', createdAt: new Date().toISOString() },
+        ],
+        clientTokens: [
+          { id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() },
+        ],
       });
 
       const config = resolveHqConfigFromEnv({
@@ -96,7 +104,10 @@ describe('HQ publisher factory env config', () => {
         WRONGSTACK_HQ_DATA_DIR: dir,
       });
 
-      expect(config).toMatchObject({ url: 'http://127.0.0.1:3499', token: 'client-token-from-auth' });
+      expect(config).toMatchObject({
+        url: 'http://127.0.0.1:3499',
+        token: 'client-token-from-auth',
+      });
     });
   });
 
@@ -109,7 +120,9 @@ describe('HQ publisher factory env config', () => {
       await writeHqAuthFile(dir, {
         version: HQ_AUTH_FILE_VERSION,
         updatedAt: new Date().toISOString(),
-        clientTokens: [{ id: 'ct-1', token: 'local-only-token', createdAt: new Date().toISOString() }],
+        clientTokens: [
+          { id: 'ct-1', token: 'local-only-token', createdAt: new Date().toISOString() },
+        ],
       });
 
       const config = resolveHqConfigFromEnv({
@@ -127,7 +140,9 @@ describe('HQ publisher factory env config', () => {
       await writeHqAuthFile(dir, {
         version: HQ_AUTH_FILE_VERSION,
         updatedAt: new Date().toISOString(),
-        clientTokens: [{ id: 'ct-1', token: 'local-only-token', createdAt: new Date().toISOString() }],
+        clientTokens: [
+          { id: 'ct-1', token: 'local-only-token', createdAt: new Date().toISOString() },
+        ],
       });
 
       const config = resolveHqConfigFromEnv({
@@ -145,7 +160,9 @@ describe('HQ publisher factory env config', () => {
       await writeHqAuthFile(dir, {
         version: HQ_AUTH_FILE_VERSION,
         updatedAt: new Date().toISOString(),
-        clientTokens: [{ id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() }],
+        clientTokens: [
+          { id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() },
+        ],
       });
 
       expect(resolveHqConfigFromEnv({ WRONGSTACK_HQ_DATA_DIR: dir })).toMatchObject({
@@ -180,7 +197,9 @@ describe('HQ publisher factory env config', () => {
       await writeHqAuthFile(dir, {
         version: HQ_AUTH_FILE_VERSION,
         updatedAt: new Date().toISOString(),
-        clientTokens: [{ id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() }],
+        clientTokens: [
+          { id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() },
+        ],
       });
       await writeHqRuntimeFile(dir, { url: 'http://127.0.0.1:45123', pid: process.pid });
 
@@ -198,7 +217,9 @@ describe('HQ publisher factory env config', () => {
       await writeHqAuthFile(dir, {
         version: HQ_AUTH_FILE_VERSION,
         updatedAt: new Date().toISOString(),
-        clientTokens: [{ id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() }],
+        clientTokens: [
+          { id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() },
+        ],
       });
       await writeHqRuntimeFile(dir, { url: 'http://127.0.0.1:45123', pid: 999_999_999 });
 
@@ -298,10 +319,7 @@ describe('HQ publisher factory env config', () => {
       const second = path.join(dir, 'second');
       await fs.mkdir(first, { recursive: true });
       await fs.mkdir(second, { recursive: true });
-      const created = await ensureProjectIdentity(
-        first,
-        () => 'proj_01J00000000000000000000000',
-      );
+      const created = await ensureProjectIdentity(first, () => 'proj_01J00000000000000000000000');
       await fs.mkdir(path.join(second, '.wrongstack'), { recursive: true });
       await fs.copyFile(
         path.join(first, '.wrongstack', 'project.json'),
@@ -355,10 +373,14 @@ describe('HQ publisher factory env config', () => {
       await writeHqAuthFile(dir, {
         version: HQ_AUTH_FILE_VERSION,
         updatedAt: new Date().toISOString(),
-        clientTokens: [{ id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() }],
+        clientTokens: [
+          { id: 'ct-1', token: 'client-token-from-auth', createdAt: new Date().toISOString() },
+        ],
       });
 
-      expect(resolveHqConfigFromEnv({ WRONGSTACK_HQ_DATA_DIR: dir, WRONGSTACK_HQ_ENABLED: '0' })).toBeUndefined();
+      expect(
+        resolveHqConfigFromEnv({ WRONGSTACK_HQ_DATA_DIR: dir, WRONGSTACK_HQ_ENABLED: '0' }),
+      ).toBeUndefined();
     });
   });
 });

@@ -32,9 +32,7 @@ function mockWs(): WebSocket & { send: ReturnType<typeof vi.fn> } {
   } as never as WebSocket & { send: ReturnType<typeof vi.fn> };
 }
 
-function makeHandlers(
-  overrides: Partial<Parameters<typeof createProviderHandlers>[0]> = {},
-) {
+function makeHandlers(overrides: Partial<Parameters<typeof createProviderHandlers>[0]> = {}) {
   const clients = new Map<WebSocket, never>();
   const broadcast = vi.fn();
   const handlers = createProviderHandlers({
@@ -303,7 +301,9 @@ describe('createProviderHandlers saved-provider broadcasts', () => {
 
     expect(getProvider).toHaveBeenCalledWith('anthropic-oauth');
     expect(getProvider).toHaveBeenCalledWith('anthropic');
-    const sent = ws.send.mock.calls.map(([raw]) => JSON.parse(String(raw)) as Record<string, unknown>);
+    const sent = ws.send.mock.calls.map(
+      ([raw]) => JSON.parse(String(raw)) as Record<string, unknown>,
+    );
     const message = sent.find((item) => item.type === 'provider.models');
     expect(message).toEqual({
       type: 'provider.models',

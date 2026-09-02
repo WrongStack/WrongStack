@@ -98,10 +98,13 @@ function readConfig(raw: unknown): TodoListenerConfig {
   const r = raw as Record<string, unknown>;
   return {
     enabled: r['enabled'] === true,
-    subjectPrefix: typeof r['subjectPrefix'] === 'string' ? r['subjectPrefix'] : DEFAULTS.subjectPrefix,
+    subjectPrefix:
+      typeof r['subjectPrefix'] === 'string' ? r['subjectPrefix'] : DEFAULTS.subjectPrefix,
     broadcastOnChange: r['broadcastOnChange'] !== false,
     cooldownMs:
-      typeof r['cooldownMs'] === 'number' && r['cooldownMs'] >= 0 ? r['cooldownMs'] : DEFAULTS.cooldownMs,
+      typeof r['cooldownMs'] === 'number' && r['cooldownMs'] >= 0
+        ? r['cooldownMs']
+        : DEFAULTS.cooldownMs,
   };
 }
 
@@ -115,9 +118,7 @@ function readConfig(raw: unknown): TodoListenerConfig {
  * re-ordered lists with the same items hash identically.
  */
 function hashTodos(todos: TodoItem[]): string {
-  const sorted = todos
-    .map((t) => `${t.id}|${t.status}|${t.content ?? ''}`)
-    .sort();
+  const sorted = todos.map((t) => `${t.id}|${t.status}|${t.content ?? ''}`).sort();
   // FNV-1a 32-bit. Good enough for a session-scoped dedupe key.
   let h = 0x811c9dc5;
   const joined = sorted.join('\n');
@@ -135,7 +136,8 @@ function hashTodos(todos: TodoItem[]): string {
 const plugin: Plugin = {
   name: 'todo-listener',
   version: '0.1.0',
-  description: 'PostToolUse hook on `todo` tool — broadcasts a status update to the project mailbox so other agents can see what this one is working on',
+  description:
+    'PostToolUse hook on `todo` tool — broadcasts a status update to the project mailbox so other agents can see what this one is working on',
   apiVersion: '^0.1.10',
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -201,7 +203,16 @@ const plugin: Plugin = {
         return;
       }
 
-      const inp = input.toolInput as { todos?: TodoItem[]; items?: TodoItem[]; tasks?: TodoItem[]; todoList?: TodoItem[]; list?: TodoItem[] } | TodoItem[] | undefined;
+      const inp = input.toolInput as
+        | {
+            todos?: TodoItem[];
+            items?: TodoItem[];
+            tasks?: TodoItem[];
+            todoList?: TodoItem[];
+            list?: TodoItem[];
+          }
+        | TodoItem[]
+        | undefined;
       const todos = Array.isArray(inp)
         ? (inp as TodoItem[])
         : Array.isArray(inp?.todos)
@@ -243,10 +254,11 @@ const plugin: Plugin = {
         return;
       }
 
-      const subject = `${cfg.subjectPrefix}${inProgress ? `working on '${inProgress.content}'` : `${todos.length} item(s)`}`.slice(
-        0,
-        200,
-      );
+      const subject =
+        `${cfg.subjectPrefix}${inProgress ? `working on '${inProgress.content}'` : `${todos.length} item(s)`}`.slice(
+          0,
+          200,
+        );
       // The bus payload is not ours; a circular reference must not turn a
       // status broadcast into a thrown listener.
       const body = safeJsonStringify(payload, 2);
@@ -306,7 +318,8 @@ const plugin: Plugin = {
             errors: state.errorCount,
           },
           lastMessageId: state.lastMessageId,
-          lastBroadcastAt: state.lastBroadcastAt > 0 ? new Date(state.lastBroadcastAt).toISOString() : null,
+          lastBroadcastAt:
+            state.lastBroadcastAt > 0 ? new Date(state.lastBroadcastAt).toISOString() : null,
         };
       },
     });

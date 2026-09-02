@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { PALETTE_STORAGE_KEY, isPaletteId, readStoredPalette, type PaletteId } from '@/lib/palettes';
+import {
+  PALETTE_STORAGE_KEY,
+  isPaletteId,
+  readStoredPalette,
+  type PaletteId,
+} from '@/lib/palettes';
 import { defaultWsUrl } from '@/lib/ws-client-utils';
 
 // ============================================
@@ -20,7 +25,12 @@ export interface ConfigState {
     | { state: 'connecting' }
     | { state: 'open' }
     | { state: 'closed'; error?: string | undefined }
-    | { state: 'reconnecting'; attempt: number; nextRetryAt: number; lastError?: string | undefined };
+    | {
+        state: 'reconnecting';
+        attempt: number;
+        nextRetryAt: number;
+        lastError?: string | undefined;
+      };
   theme: 'light' | 'dark' | 'system';
   /** Selected color palette id — see `lib/palettes.ts` + `index.css` token
    *  blocks. Mirrors the ThemeProvider's `wrongstack-palette` localStorage

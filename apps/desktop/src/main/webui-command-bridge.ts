@@ -110,7 +110,10 @@ export function normalizeDesktopWebuiCommand(value: unknown): DesktopWebuiComman
 
   const overlay = value['overlay'];
   if (overlay !== undefined) {
-    if (typeof overlay !== 'string' || !DESKTOP_WEBUI_OVERLAYS.has(overlay as DesktopCommandOverlay)) {
+    if (
+      typeof overlay !== 'string' ||
+      !DESKTOP_WEBUI_OVERLAYS.has(overlay as DesktopCommandOverlay)
+    ) {
       return null;
     }
     command.overlay = overlay as DesktopCommandOverlay;
@@ -131,7 +134,10 @@ export function normalizeDesktopWebuiCommand(value: unknown): DesktopWebuiComman
 
   const workTab = value['workTab'];
   if (workTab !== undefined) {
-    if (typeof workTab !== 'string' || !DESKTOP_WEBUI_WORK_TABS.has(workTab as DesktopCommandWorkTab)) {
+    if (
+      typeof workTab !== 'string' ||
+      !DESKTOP_WEBUI_WORK_TABS.has(workTab as DesktopCommandWorkTab)
+    ) {
       return null;
     }
     command.workTab = workTab as DesktopCommandWorkTab;

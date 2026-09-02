@@ -1,5 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { loadSavedProviders, saveProviders } from '@wrongstack/webui-server/server/provider-config-io.js';
+import {
+  loadSavedProviders,
+  saveProviders,
+} from '@wrongstack/webui-server/server/provider-config-io.js';
 
 const mockReadFile = vi.hoisted(() => vi.fn());
 const mockAtomicWrite = vi.hoisted(() => vi.fn());
@@ -87,11 +90,9 @@ describe('saveProviders', () => {
     await saveProviders('/path/config.json', mockVault as any, providers);
 
     expect(mockEncryptSecrets).toHaveBeenCalled();
-    expect(mockAtomicWrite).toHaveBeenCalledWith(
-      '/path/config.json',
-      expect.any(String),
-      { mode: 0o600 },
-    );
+    expect(mockAtomicWrite).toHaveBeenCalledWith('/path/config.json', expect.any(String), {
+      mode: 0o600,
+    });
   });
 
   it('merges with existing config', async () => {
@@ -112,18 +113,18 @@ describe('saveProviders', () => {
     mockReadFile.mockResolvedValueOnce('not json {{{');
     const providers = { anthropic: { provider: 'anthropic' } as any };
 
-    await expect(
-      saveProviders('/path/config.json', mockVault as any, providers),
-    ).rejects.toThrow('Refusing to overwrite corrupt config');
+    await expect(saveProviders('/path/config.json', mockVault as any, providers)).rejects.toThrow(
+      'Refusing to overwrite corrupt config',
+    );
   });
 
   it('throws on non-ENOENT read errors', async () => {
     mockReadFile.mockRejectedValueOnce(Object.assign(new Error('EACCES'), { code: 'EACCES' }));
     const providers = { anthropic: { provider: 'anthropic' } as any };
 
-    await expect(
-      saveProviders('/path/config.json', mockVault as any, providers),
-    ).rejects.toThrow('Refusing to mutate');
+    await expect(saveProviders('/path/config.json', mockVault as any, providers)).rejects.toThrow(
+      'Refusing to mutate',
+    );
   });
 
   it('starts fresh on missing config file', async () => {

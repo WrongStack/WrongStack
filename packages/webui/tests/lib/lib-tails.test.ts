@@ -122,9 +122,9 @@ describe('isCalendarRuleActive — guards', () => {
   const base = { id: 'r', provider: 'cc', start: '09:00', end: '17:00', timezone: 'UTC' };
 
   it('is inactive when the rule is explicitly disabled', () => {
-    expect(isCalendarRuleActive({ ...base, enabled: false }, new Date('2026-07-29T12:00:00Z'))).toBe(
-      false,
-    );
+    expect(
+      isCalendarRuleActive({ ...base, enabled: false }, new Date('2026-07-29T12:00:00Z')),
+    ).toBe(false);
   });
 
   it('is active when `enabled` is omitted', () => {
@@ -134,14 +134,16 @@ describe('isCalendarRuleActive — guards', () => {
   it.each(['9:00', '0900', '25:00', '09:60', '', 'noon'])(
     'rejects the malformed start time %j',
     (start) => {
-      expect(isCalendarRuleActive({ ...base, start }, new Date('2026-07-29T12:00:00Z'))).toBe(false);
+      expect(isCalendarRuleActive({ ...base, start }, new Date('2026-07-29T12:00:00Z'))).toBe(
+        false,
+      );
     },
   );
 
   it('rejects a malformed end time', () => {
-    expect(
-      isCalendarRuleActive({ ...base, end: '99:99' }, new Date('2026-07-29T12:00:00Z')),
-    ).toBe(false);
+    expect(isCalendarRuleActive({ ...base, end: '99:99' }, new Date('2026-07-29T12:00:00Z'))).toBe(
+      false,
+    );
   });
 
   it('accepts the 00:00 and 23:59 boundaries', () => {
@@ -155,10 +157,7 @@ describe('isCalendarRuleActive — guards', () => {
 
   it('returns false for an invalid timezone instead of throwing', () => {
     expect(
-      isCalendarRuleActive(
-        { ...base, timezone: 'Not/AZone' },
-        new Date('2026-07-29T12:00:00Z'),
-      ),
+      isCalendarRuleActive({ ...base, timezone: 'Not/AZone' }, new Date('2026-07-29T12:00:00Z')),
     ).toBe(false);
   });
 
@@ -183,9 +182,9 @@ describe('isCalendarRuleActive — guards', () => {
   });
 
   it('treats an empty days array as "every day"', () => {
-    expect(
-      isCalendarRuleActive({ ...base, days: [] }, new Date('2026-07-29T12:00:00Z')),
-    ).toBe(true);
+    expect(isCalendarRuleActive({ ...base, days: [] }, new Date('2026-07-29T12:00:00Z'))).toBe(
+      true,
+    );
   });
 
   it('excludes the end minute of a same-day window', () => {
@@ -215,7 +214,7 @@ describe('isCalendarRuleActive — guards', () => {
     ).toBe(true);
   });
 
-  it('is inactive in the middle of an overnight rule\'s off-hours', () => {
+  it("is inactive in the middle of an overnight rule's off-hours", () => {
     expect(
       isCalendarRuleActive(
         { ...base, start: '22:00', end: '07:00' },

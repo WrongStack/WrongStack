@@ -1,4 +1,14 @@
-import { AlertCircle, Bot, Brain, Check, CircleDot, Copy, Info, MessageSquareText, Wrench } from 'lucide-react';
+import {
+  AlertCircle,
+  Bot,
+  Brain,
+  Check,
+  CircleDot,
+  Copy,
+  Info,
+  MessageSquareText,
+  Wrench,
+} from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { i18n, useAppTranslation } from '@/i18n';
@@ -70,7 +80,11 @@ const KIND_META: Record<
 function formatTime(ts: string): string {
   const time = Date.parse(ts);
   if (!Number.isFinite(time)) return '';
-  return new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return new Date(time).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 function transcriptText(entries: AgentTranscriptEntry[]): string {
@@ -117,9 +131,7 @@ export function AgentTranscript({
               {title ?? t('activity:transcript.title')}
             </span>
             {agentName && (
-              <span className="truncate text-[10px] text-muted-foreground">
-                {agentName}
-              </span>
+              <span className="truncate text-[10px] text-muted-foreground">{agentName}</span>
             )}
             <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[9px] tabular-nums text-muted-foreground">
               {entries.length}
@@ -137,7 +149,12 @@ export function AgentTranscript({
           </button>
         </div>
       )}
-      <div className={cn('space-y-2 overflow-y-auto p-2', maxHeightClassName ?? (compact ? 'max-h-72' : 'max-h-[32rem]'))}>
+      <div
+        className={cn(
+          'space-y-2 overflow-y-auto p-2',
+          maxHeightClassName ?? (compact ? 'max-h-72' : 'max-h-[32rem]'),
+        )}
+      >
         {entries.length === 0 ? (
           <div className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
             {t('activity:transcript.empty')}

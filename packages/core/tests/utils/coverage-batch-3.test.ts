@@ -173,11 +173,9 @@ describe('token-estimate', () => {
   });
 
   it('estimateRequestTokens returns breakdown', () => {
-    const result = estimateRequestTokens(
-      'hello',
-      'system prompt',
-      [{ name: 'tool1', description: 'A tool', inputSchema: { type: 'object' } }],
-    );
+    const result = estimateRequestTokens('hello', 'system prompt', [
+      { name: 'tool1', description: 'A tool', inputSchema: { type: 'object' } },
+    ]);
     expect(result.messages).toBeGreaterThan(0);
     expect(result.systemPrompt).toBeGreaterThan(0);
     expect(result.tools).toBeGreaterThan(0);
@@ -274,13 +272,13 @@ describe('sanitizeNodeOptions', () => {
   });
 
   it('strips --loader form', () => {
-    expect(sanitizeNodeOptions('--loader ./custom.mjs --max-old-space-size=2048'))
-      .toBe('--max-old-space-size=2048');
+    expect(sanitizeNodeOptions('--loader ./custom.mjs --max-old-space-size=2048')).toBe(
+      '--max-old-space-size=2048',
+    );
   });
 
   it('handles multiple injection flags', () => {
-    expect(sanitizeNodeOptions('--require a.js --import b.mjs -r c.js --ok'))
-      .toBe('--ok');
+    expect(sanitizeNodeOptions('--require a.js --import b.mjs -r c.js --ok')).toBe('--ok');
   });
 
   it('returns empty for injection-only', () => {

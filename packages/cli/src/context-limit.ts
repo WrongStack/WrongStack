@@ -145,8 +145,7 @@ export async function resolveRuntimeMaxContextDetailed(
         mergedModels,
       ).catch(() => undefined);
       const ownMax =
-        positiveNumber(ownCaps?.maxContext) ??
-        positiveNumber(ownModel.capabilities.maxContext);
+        positiveNumber(ownCaps?.maxContext) ?? positiveNumber(ownModel.capabilities.maxContext);
       if (ownMax) return { maxContext: ownMax, branch: 'catalog-capabilities' };
     }
 

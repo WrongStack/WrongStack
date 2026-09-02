@@ -550,9 +550,7 @@ export function AudienceMemoryPanel() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t('activity:audienceMem.deleteTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('activity:audienceMem.deleteBody')}
-            </DialogDescription>
+            <DialogDescription>{t('activity:audienceMem.deleteBody')}</DialogDescription>
           </DialogHeader>
           <div className="rounded-md border border-border/70 bg-background/45 p-3 text-xs text-muted-foreground">
             {memoryPreview(memories.find((memory) => memory.id === deletingId)?.text ?? '', 180)}
@@ -662,7 +660,11 @@ function AudienceBadges({
 function AudienceMemorySkeleton() {
   const { t } = useAppTranslation();
   return (
-    <div className="space-y-2 pt-3" role="status" aria-label={t('activity:audienceMem.loadingAudienceMemories')}>
+    <div
+      className="space-y-2 pt-3"
+      role="status"
+      aria-label={t('activity:audienceMem.loadingAudienceMemories')}
+    >
       {[0, 1, 2].map((item) => (
         <div key={item} className="animate-pulse rounded-md border border-border/50 p-3">
           <div className="h-2.5 w-full rounded bg-muted" />
@@ -732,9 +734,7 @@ function CreateAudienceMemoryDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>{t('activity:audienceMem.createTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('activity:audienceMem.createBody')}
-          </DialogDescription>
+          <DialogDescription>{t('activity:audienceMem.createBody')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
@@ -769,7 +769,9 @@ function CreateAudienceMemoryDialog({
             </select>
           </div>
           <fieldset className="space-y-3 rounded-md border border-border/70 bg-background/35 p-3">
-            <legend className="px-1 text-xs font-medium">{t('activity:audienceMem.selectors')}</legend>
+            <legend className="px-1 text-xs font-medium">
+              {t('activity:audienceMem.selectors')}
+            </legend>
             <AudienceInput
               id="audience-memory-roles"
               label={t('activity:audienceMem.statRoles')}
@@ -871,7 +873,8 @@ function ImportAudienceMemoryDialog({
         <DialogHeader>
           <DialogTitle>{t('activity:audienceMem.importTitle')}</DialogTitle>
           <DialogDescription>
-            {t('activity:audienceMem.importBodyBefore')} <code>{t('activity:audienceMemoryPanel.memoryAudienceExport')}</code>.{' '}
+            {t('activity:audienceMem.importBodyBefore')}{' '}
+            <code>{t('activity:audienceMemoryPanel.memoryAudienceExport')}</code>.{' '}
             {t('activity:audienceMem.importBodyAfter')}
           </DialogDescription>
         </DialogHeader>

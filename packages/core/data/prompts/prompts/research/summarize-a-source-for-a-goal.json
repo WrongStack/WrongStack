@@ -5,10 +5,7 @@
   "description": "Extract from a text only what serves your purpose.",
   "content": "Summarize this source with a specific purpose: {{goal}}\n\n{{source}}\n\nDon't give a generic abstract; pull out what matters FOR that goal: the claims, evidence, methods, or numbers I can use, and the caveats that limit them. Note what the source conspicuously doesn't address. Separate what it demonstrates from what it merely asserts. End with how much weight I should put on it.",
   "category": "research",
-  "tags": [
-    "summarizing",
-    "synthesis"
-  ],
+  "tags": ["summarizing", "synthesis"],
   "source": "builtin",
   "favorite": false,
   "checksum": "a593bdcd017d9cedeea277a2c715587318c452bdda96b1a26279a61e1a109977",

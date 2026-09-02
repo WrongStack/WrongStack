@@ -11,12 +11,8 @@ const { useF5Resilience } = await import('../../src/hooks/useF5Resilience');
 const { DEFAULT_LANE_ID, ensureLane, laneIds, MAX_LANES, useChatLanes } = await import(
   '../../src/stores/chat-lanes'
 );
-const {
-  ensureSessionLane,
-  SESSION_DEFAULT_LANE_ID,
-  sessionLaneIds,
-  useSessionLanes,
-} = await import('../../src/stores/session-lanes');
+const { ensureSessionLane, SESSION_DEFAULT_LANE_ID, sessionLaneIds, useSessionLanes } =
+  await import('../../src/stores/session-lanes');
 const { useLocalPrefs } = await import('../../src/stores/local-prefs');
 const { useSessionTabStore } = await import('../../src/stores/session-tab-store');
 

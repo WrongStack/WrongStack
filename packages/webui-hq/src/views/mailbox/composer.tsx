@@ -198,9 +198,7 @@ export function MailboxComposer({
               <Select
                 id="composer-priority"
                 value={priority}
-                onChange={(event) =>
-                  setPriority(event.target.value as 'high' | 'normal' | 'low')
-                }
+                onChange={(event) => setPriority(event.target.value as 'high' | 'normal' | 'low')}
               >
                 <option value="high">high</option>
                 <option value="normal">normal</option>

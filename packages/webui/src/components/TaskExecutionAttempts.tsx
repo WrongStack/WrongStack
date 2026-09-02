@@ -184,7 +184,9 @@ export function TaskExecutionAttempts({
     <details open className="mt-3 rounded-md border border-border/70 bg-muted/15">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <History className="size-4 text-primary" />
-        <span className="text-xs font-semibold">{t('activity:taskExecutionAttempts.executionAttempts')}</span>
+        <span className="text-xs font-semibold">
+          {t('activity:taskExecutionAttempts.executionAttempts')}
+        </span>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">
           {attempts.length} total
         </span>

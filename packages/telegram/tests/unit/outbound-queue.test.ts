@@ -287,9 +287,7 @@ describe('OutboundQueue', () => {
     await expect(
       Promise.race([
         manual2,
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('manual2 hung')), 2000),
-        ),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('manual2 hung')), 2000)),
       ]),
     ).resolves.toBe('done');
 

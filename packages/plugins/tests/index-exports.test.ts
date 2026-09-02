@@ -120,7 +120,9 @@ describe('OFFICIAL_PLUGIN_SPECIFIERS (factories)', () => {
 
   it('OFFICIAL_PLUGIN_FACTORIES has same length as specifiers', async () => {
     const factories = await import('../src/factories/index.js');
-    expect(factories.OFFICIAL_PLUGIN_FACTORIES.length).toBe(factories.OFFICIAL_PLUGIN_SPECIFIERS.length);
+    expect(factories.OFFICIAL_PLUGIN_FACTORIES.length).toBe(
+      factories.OFFICIAL_PLUGIN_SPECIFIERS.length,
+    );
   });
 });
 

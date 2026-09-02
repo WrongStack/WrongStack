@@ -150,7 +150,12 @@ describe('nextsteps tool → final assistant text (E2E)', () => {
       {
         content: [
           { type: 'text', text: 'Recording the follow-ups.' },
-          { type: 'tool_use', id: 'ns1', name: 'nextsteps', input: { steps: [{ text: 'Ship it' }] } },
+          {
+            type: 'tool_use',
+            id: 'ns1',
+            name: 'nextsteps',
+            input: { steps: [{ text: 'Ship it' }] },
+          },
         ],
         stopReason: 'tool_use',
       },
@@ -208,9 +213,7 @@ describe('nextsteps tool → final assistant text (E2E)', () => {
     const { agent, ctx, tmp } = await buildAgent(provider);
     dirs.push(tmp);
 
-    ctx.state.replaceTodos([
-      { id: '1', content: 'Finish the migration', status: 'in_progress' },
-    ]);
+    ctx.state.replaceTodos([{ id: '1', content: 'Finish the migration', status: 'in_progress' }]);
 
     const result = await agent.run('keep going');
 

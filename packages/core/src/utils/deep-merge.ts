@@ -69,11 +69,7 @@ export interface DeepMergeOptions {
    * Receives the key name, existing array length, and patch array length.
    * Used by config-loader for debug logging.
    */
-  onNonPrimitiveArrayReplace?: (
-    key: string,
-    existingLen: number,
-    patchLen: number,
-  ) => void;
+  onNonPrimitiveArrayReplace?: (key: string, existingLen: number, patchLen: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,17 +98,9 @@ export function deepMerge<T extends Record<string, unknown>>(
   options?: DeepMergeOptions,
 ): T;
 
-export function deepMerge(
-  base: unknown,
-  patch: unknown,
-  options?: DeepMergeOptions,
-): unknown;
+export function deepMerge(base: unknown, patch: unknown, options?: DeepMergeOptions): unknown;
 
-export function deepMerge(
-  base: unknown,
-  patch: unknown,
-  options: DeepMergeOptions = {},
-): unknown {
+export function deepMerge(base: unknown, patch: unknown, options: DeepMergeOptions = {}): unknown {
   const {
     conflictResolution = 'prefer-patch',
     arrayMode = 'replace',
@@ -131,11 +119,7 @@ export function deepMerge(
   // Arrays — handled *before* the object merge so array-of-objects
   // aren't accidentally treated as plain records.
   if (Array.isArray(base) && Array.isArray(patch)) {
-    if (
-      arrayMode === 'concat-primitives' &&
-      isPrimitiveArray(base) &&
-      isPrimitiveArray(patch)
-    ) {
+    if (arrayMode === 'concat-primitives' && isPrimitiveArray(base) && isPrimitiveArray(patch)) {
       return [...new Set([...base, ...patch])];
     }
     return conflictResolution === 'prefer-patch' ? patch : base;
@@ -178,11 +162,7 @@ export function deepMerge(
     } else if (v !== undefined) {
       // Fire debug hook when a non-primitive (object) array replaces an
       // existing value in concat-primitives mode.
-      if (
-        onNonPrimitiveArrayReplace &&
-        Array.isArray(v) &&
-        !isPrimitiveArray(v)
-      ) {
+      if (onNonPrimitiveArrayReplace && Array.isArray(v) && !isPrimitiveArray(v)) {
         const existingLen = Array.isArray(existing) ? existing.length : 0;
         onNonPrimitiveArrayReplace(k, existingLen, v.length);
       }

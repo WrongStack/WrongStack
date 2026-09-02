@@ -30,23 +30,33 @@ describe('techstack-store', () => {
 
   it('jobProgress updates only when jobId matches', () => {
     useTechStackStore.getState().jobStarted('job-1', 'inventory');
-    useTechStackStore.getState().jobProgress('job-2', { phase: 'enriching', completed: 1, total: 2 });
+    useTechStackStore
+      .getState()
+      .jobProgress('job-2', { phase: 'enriching', completed: 1, total: 2 });
     // Mismatched id — should be ignored
     expect(useTechStackStore.getState().activeJob?.status).toBe('queued');
   });
 
   it('jobProgress rejects unknown phase strings (no cast leak)', () => {
     useTechStackStore.getState().jobStarted('job-1', 'inventory');
-    useTechStackStore.getState().jobProgress('job-1', { phase: 'analyzing', completed: 1, total: 2 });
+    useTechStackStore
+      .getState()
+      .jobProgress('job-1', { phase: 'analyzing', completed: 1, total: 2 });
     // 'analyzing' is not a valid TechStackJobStatus — ignored
     expect(useTechStackStore.getState().activeJob?.status).toBe('queued');
   });
 
   it('jobProgress accepts valid phase strings', () => {
     useTechStackStore.getState().jobStarted('job-1', 'inventory');
-    useTechStackStore.getState().jobProgress('job-1', { phase: 'enriching', completed: 1, total: 2 });
+    useTechStackStore
+      .getState()
+      .jobProgress('job-1', { phase: 'enriching', completed: 1, total: 2 });
     expect(useTechStackStore.getState().activeJob?.status).toBe('enriching');
-    expect(useTechStackStore.getState().activeJob?.progress).toEqual({ phase: 'enriching', completed: 1, total: 2 });
+    expect(useTechStackStore.getState().activeJob?.progress).toEqual({
+      phase: 'enriching',
+      completed: 1,
+      total: 2,
+    });
   });
 
   it('jobFailed only on matching jobId', () => {

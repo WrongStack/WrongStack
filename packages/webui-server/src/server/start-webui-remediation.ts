@@ -52,14 +52,14 @@ export function createPackageOperationExecutor(options: {
       else if (decision === 'yes') permissionPolicy.allowOnce(rule);
       else if (decision === 'deny') await permissionPolicy.deny(rule);
       else permissionPolicy.denyOnce(rule);
-      if (decision === 'deny' || decision === 'no')
-        throw new Error('Package operation was denied');
+      if (decision === 'deny' || decision === 'no') throw new Error('Package operation was denied');
       output = await execute();
     }
     if (output.result.type === 'tool_confirm_pending') {
       throw new Error('Package operation still requires confirmation');
     }
-    if (output.result.is_error) throw new Error(output.result.content ?? 'Package operation failed');
+    if (output.result.is_error)
+      throw new Error(output.result.content ?? 'Package operation failed');
     return { detail: output.result.content ?? '' };
   };
 }

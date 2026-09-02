@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { renderHook, } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useViewport, isMobileViewport, MOBILE_BREAKPOINT } from '../../src/hooks/useViewport';
 
 // Mock matchMedia

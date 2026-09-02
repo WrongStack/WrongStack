@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrainArbiter, BrainDecision } from '../../src/coordination/brain.js';
-import {
-  type BrainInterventionInput,
-  BrainMonitor,
-} from '../../src/coordination/brain-monitor.js';
+import { type BrainInterventionInput, BrainMonitor } from '../../src/coordination/brain-monitor.js';
 import {
   BrainDecisionLedger,
   createLedgerGuardBrainArbiter,

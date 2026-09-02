@@ -179,7 +179,11 @@ export function parseTaskEvidenceFlags(tokens: readonly string[]): TaskEvidenceF
       const sep = raw.lastIndexOf('=');
       const checkId = sep >= 0 ? raw.slice(0, sep).trim() : '';
       const status = sep >= 0 ? raw.slice(sep + 1).trim() : '';
-      if (!checkId || !status || !VALID_TICK_STATUSES.has(status as 'passed' | 'failed' | 'skipped')) {
+      if (
+        !checkId ||
+        !status ||
+        !VALID_TICK_STATUSES.has(status as 'passed' | 'failed' | 'skipped')
+      ) {
         warnings.push(
           `${key} expects <checkId>=<status> where status is passed|failed|skipped (got "${raw}")`,
         );

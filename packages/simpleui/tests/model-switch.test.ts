@@ -24,9 +24,9 @@ describe('parseCatalogProviders', () => {
   });
 
   it('falls back to the id when the name is missing or empty', () => {
-    expect(
-      parseCatalogProviders({ providers: [{ id: 'ollama', hasApiKey: true }] }),
-    ).toEqual([{ id: 'ollama', label: 'ollama', hasApiKey: true }]);
+    expect(parseCatalogProviders({ providers: [{ id: 'ollama', hasApiKey: true }] })).toEqual([
+      { id: 'ollama', label: 'ollama', hasApiKey: true },
+    ]);
   });
 
   it('skips malformed entries and non-array payloads', () => {

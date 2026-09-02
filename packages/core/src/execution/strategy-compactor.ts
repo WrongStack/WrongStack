@@ -196,7 +196,11 @@ class ProviderBackedCompactor implements Compactor {
       preserveK: this.opts.preserveK ?? policy?.preserveK,
       eliseThreshold: this.opts.eliseThreshold ?? policy?.eliseThreshold,
       ...(thresholds
-        ? { warnThreshold: thresholds.warn, softThreshold: thresholds.soft, hardThreshold: thresholds.hard }
+        ? {
+            warnThreshold: thresholds.warn,
+            softThreshold: thresholds.soft,
+            hardThreshold: thresholds.hard,
+          }
         : {}),
     };
 

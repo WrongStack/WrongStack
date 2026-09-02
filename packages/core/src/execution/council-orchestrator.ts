@@ -53,11 +53,7 @@ import {
   withTruncationNote,
 } from './council-response-parser.js';
 
-export {
-  COUNCIL_REFUSAL_OPTION_ID,
-  DEFAULT_COUNCIL_MAX_CONCURRENCY,
-  MAX_COUNCIL_CONCURRENCY,
-};
+export { COUNCIL_REFUSAL_OPTION_ID, DEFAULT_COUNCIL_MAX_CONCURRENCY, MAX_COUNCIL_CONCURRENCY };
 
 export interface CouncilOrchestratorOptions {
   /**

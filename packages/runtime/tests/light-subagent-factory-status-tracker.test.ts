@@ -216,7 +216,13 @@ function makeDeps(): Deps {
       listProviders: async () => [],
       getProvider: async () => undefined,
       getModel: async () => ({
-        capabilities: { reasoningConfig: reasoningCaps, tools: true, vision: false, reasoning: false, maxContext: 0 },
+        capabilities: {
+          reasoningConfig: reasoningCaps,
+          tools: true,
+          vision: false,
+          reasoning: false,
+          maxContext: 0,
+        },
       }),
       suggestModel: async () => undefined,
       ageSeconds: async () => Infinity,

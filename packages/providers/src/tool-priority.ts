@@ -18,15 +18,7 @@ import type { Tool } from '@wrongstack/core/types';
 // ─── Priority tiers (lower number = higher priority) ──────────────────────
 
 /** P0 — core file/shell operations the model needs every turn. */
-const CRITICAL_TOOLS = new Set([
-  'read',
-  'write',
-  'edit',
-  'bash',
-  'exec',
-  'grep',
-  'glob',
-]);
+const CRITICAL_TOOLS = new Set(['read', 'write', 'edit', 'bash', 'exec', 'grep', 'glob']);
 
 /** P1 — indexed discovery, version control, and essential utilities. */
 const ESSENTIAL_TOOLS = new Set([
@@ -160,10 +152,7 @@ export function scoreTool(tool: Tool): number {
  * @returns A new array containing at most `maxTools` tools, in their original
  *          relative order.
  */
-export function filterToolsByMaxCount(
-  tools: readonly Tool[],
-  maxTools: number,
-): Tool[] {
+export function filterToolsByMaxCount(tools: readonly Tool[], maxTools: number): Tool[] {
   if (tools.length <= maxTools) return [...tools];
 
   // Decorate with score + original index for stable sort.

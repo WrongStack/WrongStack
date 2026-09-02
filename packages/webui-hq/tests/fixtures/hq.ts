@@ -74,10 +74,7 @@ export function snapshotWithClient(clientId: string, generatedAt: string = T0): 
   return { ...snapshot(generatedAt), clients: [client] };
 }
 
-export function event(
-  id: string,
-  overrides: Partial<HqEventEnvelope> = {},
-): HqEventEnvelope {
+export function event(id: string, overrides: Partial<HqEventEnvelope> = {}): HqEventEnvelope {
   return {
     id,
     type: 'fleet.event',

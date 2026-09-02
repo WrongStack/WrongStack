@@ -5,10 +5,7 @@
   "description": "Pick the right data structure for an access pattern.",
   "content": "I need to store and access data like this: {{access_pattern}}\n\nRecommend the data structure. Compare the 2-3 viable candidates on the operations I care about (insert, lookup, delete, iterate, ordered) with their Big-O. State the memory trade-off and which one wins for MY pattern. Flag the structure people reach for by habit that would be wrong here.",
   "category": "coding",
-  "tags": [
-    "data-structures",
-    "performance"
-  ],
+  "tags": ["data-structures", "performance"],
   "source": "builtin",
   "favorite": false,
   "checksum": "1b3a74bcae1aec4ee46ffa3993f2b7398d902fd8d9c4fbe92eefa68ded97e4b4",

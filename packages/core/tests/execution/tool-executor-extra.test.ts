@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { classifyToolError } from '../../src/execution/tool-executor.js';
-import { FetchError, ToolValidationError, WrongStackError, ERROR_CODES } from '../../src/types/errors.js';
+import {
+  FetchError,
+  ToolValidationError,
+  WrongStackError,
+  ERROR_CODES,
+} from '../../src/types/errors.js';
 import type { ErrorCode, ErrorSubsystem } from '../../src/types/errors.js';
 import { ToolErrorCategory } from '../../src/types/tool.js';
 import type { ConfirmAwaiter } from '../../src/types/tool-executor.js';

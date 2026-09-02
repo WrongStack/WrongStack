@@ -70,9 +70,7 @@ export function McpPicker({
       <Text bold color="cyan">
         MCP Servers
       </Text>
-      <Text dimColor>
-        ↑/↓ select · Enter/←/→ toggle enable · r restart · Esc close
-      </Text>
+      <Text dimColor>↑/↓ select · Enter/←/→ toggle enable · r restart · Esc close</Text>
       <Box marginTop={1} flexDirection="column">
         {items.length === 0 ? (
           <Text dimColor>{busy ? 'Loading servers…' : 'No MCP servers configured.'}</Text>
@@ -85,8 +83,7 @@ export function McpPicker({
               const marker = focused ? '›' : ' ';
               return (
                 <Text key={item.name} color={focused ? 'cyan' : undefined} wrap="truncate-end">
-                  {marker}{' '}
-                  {statusBadge(item.status, item.enabled)}{' '}
+                  {marker} {statusBadge(item.status, item.enabled)}{' '}
                   <Text bold>{item.name.padEnd(18)}</Text>
                   <Text dimColor>
                     {item.transport.padEnd(14)}

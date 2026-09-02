@@ -164,7 +164,7 @@ export interface HqRouterDeps {
   bootstrapStore?: import('@wrongstack/core/hq').HqBootstrapCodeStore | undefined;
   /**
    * Applies a freshly-persisted `auth.json` to live server state. Bound to
-  * `HqAuthState.apply` so the in-process mutation routes share one projection
+   * `HqAuthState.apply` so the in-process mutation routes share one projection
    * — and one WS-010 exposure re-assessment — with the reload watcher.
    */
   applyAuthFile: ApplyHqAuthFile;

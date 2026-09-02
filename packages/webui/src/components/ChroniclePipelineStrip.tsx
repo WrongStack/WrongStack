@@ -35,7 +35,9 @@ export function ChroniclePipelineStrip({ status }: { status: ChronicleStatus }) 
         store <b className="text-foreground">{shortPath(status.pipeline.storage)}</b>
       </span>
       {status.mode === 'inline' && (
-        <span className="font-sans font-semibold text-warning">{t('activity:chroniclePipelineStrip.inlineFallback')}</span>
+        <span className="font-sans font-semibold text-warning">
+          {t('activity:chroniclePipelineStrip.inlineFallback')}
+        </span>
       )}
     </section>
   );

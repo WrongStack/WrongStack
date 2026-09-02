@@ -124,7 +124,7 @@ function embeddedIPv4(groups: number[]): string | undefined {
   // with the ISATAP 0x5efe marker and make ISATAP read the *obscured* client
   // IPv4 as plain (SSRF bypass + false positives).
   if (g(0) === 0x2001 && g(1) === 0) {
-    return quad((~g(6)) & 0xffff, (~g(7)) & 0xffff);
+    return quad(~g(6) & 0xffff, ~g(7) & 0xffff);
   }
 
   // ISATAP (RFC 5214): the embedded IPv4 sits in the last 32 bits, preceded

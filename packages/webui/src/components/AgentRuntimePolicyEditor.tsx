@@ -140,14 +140,14 @@ export function AgentRuntimePolicyEditor({
       {systemProtected && (
         <div className="flex gap-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-[11px] text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-          <span>
-            {t('activity:runtimePolicy.protectedSystemAgentRequiredToolsAnd')}
-          </span>
+          <span>{t('activity:runtimePolicy.protectedSystemAgentRequiredToolsAnd')}</span>
         </div>
       )}
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold">{t('activity:runtimePolicy.providerAndModelPolicy')}</h4>
+        <h4 className="text-xs font-semibold">
+          {t('activity:runtimePolicy.providerAndModelPolicy')}
+        </h4>
         <ModelPicker
           candidates={candidates}
           provider={config.provider}
@@ -195,7 +195,9 @@ export function AgentRuntimePolicyEditor({
         {modelPolicy && (
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <span className="text-[10px] font-medium">{t('activity:runtimePolicy.allowedModels')}</span>
+              <span className="text-[10px] font-medium">
+                {t('activity:runtimePolicy.allowedModels')}
+              </span>
               <FallbackEditor
                 value={allowedRefs}
                 candidates={candidates}
@@ -205,7 +207,9 @@ export function AgentRuntimePolicyEditor({
               />
             </div>
             <div className="space-y-1">
-              <span className="text-[10px] font-medium">{t('activity:runtimePolicy.orderedFallbackChain')}</span>
+              <span className="text-[10px] font-medium">
+                {t('activity:runtimePolicy.orderedFallbackChain')}
+              </span>
               <FallbackEditor
                 value={fallbackRefs}
                 candidates={candidates}
@@ -239,7 +243,9 @@ export function AgentRuntimePolicyEditor({
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold">{t('activity:runtimePolicy.workspaceAndIsolation')}</h4>
+        <h4 className="text-xs font-semibold">
+          {t('activity:runtimePolicy.workspaceAndIsolation')}
+        </h4>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-[10px]">
             <span>{t('activity:runtimePolicy.projectRelativeWorkingDirectory')}</span>

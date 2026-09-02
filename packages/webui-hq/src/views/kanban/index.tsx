@@ -156,7 +156,11 @@ function Board({
                 'flex items-center gap-2 border-b-2 px-2 py-1.5',
                 overLimit ? 'border-b-destructive' : 'border-b-border',
               )}
-              style={column.color !== undefined && !overLimit ? { borderBottomColor: column.color } : undefined}
+              style={
+                column.color !== undefined && !overLimit
+                  ? { borderBottomColor: column.color }
+                  : undefined
+              }
             >
               <strong className="text-xs">{column.title}</strong>
               {column.wipLimit !== undefined && (

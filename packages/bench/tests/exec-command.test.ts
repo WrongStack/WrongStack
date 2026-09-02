@@ -94,10 +94,7 @@ describe('execCommand', () => {
     // because the buffer guard tree-kills it (not because it finished cleanly).
     const res = await execCommand({
       command: NODE,
-      args: [
-        '-e',
-        "process.stdout.write('x'.repeat(200000)); setTimeout(() => {}, 30000);",
-      ],
+      args: ['-e', "process.stdout.write('x'.repeat(200000)); setTimeout(() => {}, 30000);"],
       cwd: process.cwd(),
       timeoutMs: 10_000,
       shell: false,

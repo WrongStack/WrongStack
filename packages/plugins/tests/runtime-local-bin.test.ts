@@ -163,9 +163,7 @@ describe('resolveExecInvocation', () => {
   it.runIf(isWindows)('refuses arguments carrying cmd.exe metacharacters', () => {
     // The BatBadBut argument-injection class: without this guard a dynamic
     // path argument could chain a second command through the .cmd wrapper.
-    expect(() => resolveExecInvocation('npx', ['biome', 'a & calc.exe'])).toThrow(
-      /metacharacter/i,
-    );
+    expect(() => resolveExecInvocation('npx', ['biome', 'a & calc.exe'])).toThrow(/metacharacter/i);
   });
 
   it.runIf(!isWindows)('never rewrites the command on POSIX', () => {

@@ -80,17 +80,13 @@ const EXT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
  * The classes resolve through WebUI theme tokens so file icons adapt to
  * light/dark mode and the selected product palette.
  */
-export function fileIconColor(
-  name: string,
-  isDirectory: boolean,
-): string {
+export function fileIconColor(name: string, isDirectory: boolean): string {
   if (isDirectory) {
     const lower = name.toLowerCase();
     if (lower === '.git') return 'text-primary/80';
     if (lower === 'node_modules') return 'text-destructive/70';
     if (lower === 'src' || lower === 'lib' || lower === 'packages') return 'text-warning/80';
-    if (lower === 'tests' || lower === 'test' || lower === '__tests__')
-      return 'text-success/80';
+    if (lower === 'tests' || lower === 'test' || lower === '__tests__') return 'text-success/80';
     if (lower === 'dist' || lower === 'build' || lower === '.next')
       return 'text-muted-foreground/70';
     return 'text-warning/80';
@@ -108,15 +104,12 @@ export function fileIconColor(
   if (/^(c|h|cpp|hpp|cc|hh)$/.test(ext)) return 'text-muted-foreground/80';
 
   // ── Config files ──
-  if (/^(gitignore|editorconfig|prettierrc|eslintrc)$/.test(ext))
-    return 'text-muted-foreground/75';
+  if (/^(gitignore|editorconfig|prettierrc|eslintrc)$/.test(ext)) return 'text-muted-foreground/75';
 
   return 'text-muted-foreground';
 }
 
-export function fileIcon(
-  name: string,
-): React.ComponentType<{ className?: string }> {
+export function fileIcon(name: string): React.ComponentType<{ className?: string }> {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   return EXT_ICONS[ext] ?? File;
 }

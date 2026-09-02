@@ -82,7 +82,9 @@ describe('CommandPalette', () => {
   });
 
   it('does not run disabled commands', () => {
-    const { host, onClose, onRun } = renderPalette({ context: { hasSession: false, running: true } });
+    const { host, onClose, onRun } = renderPalette({
+      context: { hasSession: false, running: true },
+    });
     const search = host.querySelector<HTMLInputElement>('input[aria-label="Search commands"]');
 
     act(() => input(search as HTMLInputElement, 'new session'));

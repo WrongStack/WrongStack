@@ -4,11 +4,7 @@ import * as path from 'node:path';
 import type { ToolErrorCategory } from '../types/tool.js';
 import { ToolErrorCategory as ToolErrorCategoryEnum } from '../types/tool.js';
 import type { ToolExecutorOptions } from '../types/tool-executor.js';
-import {
-  FetchError,
-  ToolValidationError,
-  WrongStackError,
-} from '../types/errors.js';
+import { FetchError, ToolValidationError, WrongStackError } from '../types/errors.js';
 import { MALFORMED_ARG_MARKERS } from '../types/tool-markers.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';

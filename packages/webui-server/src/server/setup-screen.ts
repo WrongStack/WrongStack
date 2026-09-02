@@ -95,19 +95,18 @@ function logCreateFailure(event: string, err: unknown): void {
  *
  * Throws on provider-construction failure (same as the inline code).
  */
-export function resolveSetupProvider(
-  opts: ResolveSetupProviderOptions,
-): ResolvedSetupProvider {
+export function resolveSetupProvider(opts: ResolveSetupProviderOptions): ResolvedSetupProvider {
   const { config, needsProvider, providerRegistry } = opts;
 
   // Branch 1 — configured provider.
   if (!needsProvider) {
-    const providerConfig: ProviderConfig | Record<string, unknown> =
-      config.providers?.[config.provider] ?? {
-        type: config.provider,
-        apiKey: config.apiKey,
-        baseUrl: config.baseUrl,
-      };
+    const providerConfig: ProviderConfig | Record<string, unknown> = config.providers?.[
+      config.provider
+    ] ?? {
+      type: config.provider,
+      apiKey: config.apiKey,
+      baseUrl: config.baseUrl,
+    };
     try {
       // WrongProxy / WrongTrace: rewrite THIS provider's base URL through the
       // shared helper when the toggle is on and the daemon is reachable.
@@ -139,11 +138,7 @@ export function resolveSetupProvider(
     try {
       // WrongProxy / WrongTrace: rewrite the fallback provider's base URL
       // through the shared helper, same as Branch 1.
-      const routedConfig = routeProviderCfgThroughProxy(
-        firstProvider,
-        config.baseUrl,
-        firstKey,
-      );
+      const routedConfig = routeProviderCfgThroughProxy(firstProvider, config.baseUrl, firstKey);
       const provider = makeProviderFromConfig(firstKey, {
         ...routedConfig,
         type: firstKey,

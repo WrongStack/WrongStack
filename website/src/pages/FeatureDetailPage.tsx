@@ -27,8 +27,7 @@ export function FeatureDetailPage() {
         titleFontSize={heroTitleFontSize(feature.title, { lines: 2 })}
         title={
           <>
-            {leadingTitle}{' '}
-            <span className="text-brand">{lastTitleWord}</span>
+            {leadingTitle} <span className="text-brand">{lastTitleWord}</span>
           </>
         }
         description={feature.summary}

@@ -18,10 +18,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
-import type {
-  CascadeEvidenceCheckResult,
-  CascadeEvidenceStatus,
-} from './review-types.js';
+import type { CascadeEvidenceCheckResult, CascadeEvidenceStatus } from './review-types.js';
 import type {
   ReviewReport,
   ReviewReportCounts,
@@ -158,9 +155,7 @@ export class JsonlReportStore implements ReportStore {
           durationSeconds: input.durationSeconds ?? existing.durationSeconds,
           rawText: input.rawText || existing.rawText,
           files: input.files.length > 0 ? input.files : existing.files,
-          ...(input.evidenceStatus !== undefined
-            ? { evidenceStatus: input.evidenceStatus }
-            : {}),
+          ...(input.evidenceStatus !== undefined ? { evidenceStatus: input.evidenceStatus } : {}),
           ...(input.evidenceChecks !== undefined ? { evidenceChecks: input.evidenceChecks } : {}),
         };
         await fsp.appendFile(this.filePath, JSON.stringify({ __report: 1, data: updated }) + NL, {
@@ -186,9 +181,7 @@ export class JsonlReportStore implements ReportStore {
         durationSeconds: input.durationSeconds,
         rawText: input.rawText,
         ...(input.cascadeDepth !== undefined ? { cascadeDepth: input.cascadeDepth } : {}),
-        ...(input.evidenceStatus !== undefined
-          ? { evidenceStatus: input.evidenceStatus }
-          : {}),
+        ...(input.evidenceStatus !== undefined ? { evidenceStatus: input.evidenceStatus } : {}),
         ...(input.evidenceChecks !== undefined ? { evidenceChecks: input.evidenceChecks } : {}),
       };
 

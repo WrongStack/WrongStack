@@ -67,9 +67,7 @@ function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): Mock
   };
 }
 
-function getHook(api: MockApi): (
-  input: unknown,
-) => Promise<{ additionalContext?: string } | void> {
+function getHook(api: MockApi): (input: unknown) => Promise<{ additionalContext?: string } | void> {
   const call = api.registerHook.mock.calls[0];
   if (!call) throw new Error('hook not registered');
   return (call as unknown[])[2] as ReturnType<typeof getHook>;
@@ -358,9 +356,7 @@ describe('cross-plugin coordination with import-organizer', () => {
   // can skip the redundant `biome format --write` invocation. These
   // tests pin the contract.
 
-  function getImportOrganizerListener(
-    api: MockApi,
-  ): (eventName: string, payload: unknown) => void {
+  function getImportOrganizerListener(api: MockApi): (eventName: string, payload: unknown) => void {
     const call = api.onPattern.mock.calls.find((c) => c[0] === 'import-organizer:done');
     if (!call) throw new Error('import-organizer:done listener not registered');
     return call[1] as (eventName: string, payload: unknown) => void;

@@ -52,9 +52,10 @@ export function createPromptJournalRecorder(): PromptJournalRecorder {
       const meta = ctx.meta as Record<string, unknown> | undefined;
       // Consume the raw marker up front so a stale stamp from an aborted turn
       // can never mislabel a later submission.
-      const raw = typeof meta?.[PROMPT_JOURNAL_RAW_MARKER] === 'string'
-        ? (meta[PROMPT_JOURNAL_RAW_MARKER] as string)
-        : undefined;
+      const raw =
+        typeof meta?.[PROMPT_JOURNAL_RAW_MARKER] === 'string'
+          ? (meta[PROMPT_JOURNAL_RAW_MARKER] as string)
+          : undefined;
       if (meta) delete meta[PROMPT_JOURNAL_RAW_MARKER];
 
       const projectRoot = ctx.projectRoot;

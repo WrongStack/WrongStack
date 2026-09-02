@@ -5,10 +5,7 @@
   "description": "Assess whether a specific claim holds up.",
   "content": "Fact-check this claim: {{claim}}\n\nBreak it into the specific, checkable assertions it actually makes. For each, what evidence would confirm or refute it, and how strong that evidence is. Separate what is well-established from what is contested or unknown. Watch for the ways a claim misleads while being technically true — cherry-picked stats, missing context, correlation as causation. Give a calibrated verdict (true / misleading / false / unverifiable) with your confidence and what would change it.",
   "category": "research",
-  "tags": [
-    "fact-check",
-    "verification"
-  ],
+  "tags": ["fact-check", "verification"],
   "source": "builtin",
   "favorite": false,
   "checksum": "767579294f5a74d1fb4180153878bad5ede7775fbcd63bc92d11cc0d3376174f",

@@ -5,10 +5,7 @@
   "description": "Build and explain a regex for a specific matching task.",
   "content": "Write a regular expression that matches: {{requirement}}\n\nProvide the pattern in {{flavor}} syntax, a plain-language breakdown of each part, 3 strings it SHOULD match and 3 it should NOT, and a note on any catastrophic-backtracking risk and how to avoid it. Prefer readability (named groups) over cleverness.",
   "category": "coding",
-  "tags": [
-    "regex",
-    "parsing"
-  ],
+  "tags": ["regex", "parsing"],
   "source": "builtin",
   "favorite": false,
   "checksum": "8ad68afcf850b52b609cfbdf4afa3bda68cc53f2c806fd06cb3d3b08fcf15b32",
@@ -24,16 +21,7 @@
       "name": "flavor",
       "description": "Regex flavor (PCRE, JS, Python)",
       "required": true,
-      "enum": [
-        "PCRE",
-        "JavaScript",
-        "Python",
-        "Go",
-        "Java",
-        ".NET",
-        "Rust",
-        "RE2"
-      ]
+      "enum": ["PCRE", "JavaScript", "Python", "Go", "Java", ".NET", "Rust", "RE2"]
     }
   ]
 }

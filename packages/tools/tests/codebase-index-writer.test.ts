@@ -783,9 +783,7 @@ describe('IndexStore.optimizeFtsIfNeeded (P2 churn gate)', () => {
       const probe = new DatabaseSync(dbPath, { readOnly: true });
       try {
         const row = probe
-          .prepare(
-            `SELECT SUM(pgsize)/1024.0 AS kb FROM dbstat WHERE name = 'symbols_fts_data'`,
-          )
+          .prepare(`SELECT SUM(pgsize)/1024.0 AS kb FROM dbstat WHERE name = 'symbols_fts_data'`)
           .get() as { kb: number };
         return row.kb;
       } finally {

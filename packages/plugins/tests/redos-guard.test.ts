@@ -99,10 +99,7 @@ describe('guardedMatcher', () => {
   it('returns an async function that reuses the same budget and onTimeout', async () => {
     const onTimeout = vi.fn();
     const match = guardedMatcher(/^(a+)+$/g, 1, onTimeout);
-    const [r1, r2] = await Promise.all([
-      match('a'.repeat(28) + 'b'),
-      match('a'.repeat(30) + 'b'),
-    ]);
+    const [r1, r2] = await Promise.all([match('a'.repeat(28) + 'b'), match('a'.repeat(30) + 'b')]);
     expect(r1.timedOut).toBe(true);
     expect(r2.timedOut).toBe(true);
     expect(onTimeout).toHaveBeenCalledTimes(2);

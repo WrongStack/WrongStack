@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ANTHROPIC_MAX_BREAKPOINTS, capAnthropicCacheBreakpoints } from '../src/cache-breakpoint-cap.js';
+import {
+  ANTHROPIC_MAX_BREAKPOINTS,
+  capAnthropicCacheBreakpoints,
+} from '../src/cache-breakpoint-cap.js';
 
 type Block = { type: string; text: string; cache_control?: { type: string; ttl?: string } };
 
@@ -39,7 +42,15 @@ describe('capAnthropicCacheBreakpoints', () => {
 
   it('always retains the ttl-pinned marker even amid many competitors', () => {
     // ttl marker sits in the middle, surrounded by 6 plain ephemeral markers.
-    const system = [ephemeral(), ephemeral(), ttl(), ephemeral(), ephemeral(), ephemeral(), ephemeral()];
+    const system = [
+      ephemeral(),
+      ephemeral(),
+      ttl(),
+      ephemeral(),
+      ephemeral(),
+      ephemeral(),
+      ephemeral(),
+    ];
     capAnthropicCacheBreakpoints({ system });
     expect(system[2]?.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
     expect(markerCount(system)).toBe(ANTHROPIC_MAX_BREAKPOINTS);
@@ -111,9 +122,9 @@ describe('capAnthropicCacheBreakpoints', () => {
       // 5 ttl-pinned markers, limit 4 → overflow.
       const system = [ttl(), ttl(), ttl(), ttl(), ttl()];
       const warnings = await captureWarnings(() => capAnthropicCacheBreakpoints({ system }));
-      expect(
-        warnings.some((w) => w.message.includes('5 pinned (ttl) cache_control markers')),
-      ).toBe(true);
+      expect(warnings.some((w) => w.message.includes('5 pinned (ttl) cache_control markers'))).toBe(
+        true,
+      );
       expect(warnings.some((w) => w.name === 'PinnedCacheBreakpointOverflow')).toBe(true);
       // All pinned markers are still retained (the cap can't drop them).
       expect(markerCount(system)).toBe(5);

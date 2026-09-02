@@ -1,10 +1,7 @@
 import { createDefaultPipelines } from '@wrongstack/core/agent';
 import type { Response } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
-import {
-  installVibeProtocol,
-  VIBE_PROTOCOL_META_KEY,
-} from '../src/vibe-protocol-wiring.js';
+import { installVibeProtocol, VIBE_PROTOCOL_META_KEY } from '../src/vibe-protocol-wiring.js';
 
 function response(content: Response['content']): Response {
   return {

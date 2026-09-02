@@ -189,10 +189,7 @@ type UnregisteredConfigField = Exclude<
 >;
 
 /** Registry entries `Config` no longer has. Must be `never`. */
-type StaleRegistryField = Exclude<
-  (typeof KNOWN_CONFIG_TOP_LEVEL_KEY_LIST)[number],
-  keyof Config
->;
+type StaleRegistryField = Exclude<(typeof KNOWN_CONFIG_TOP_LEVEL_KEY_LIST)[number], keyof Config>;
 
 /**
  * The gate that makes `assertInProjectAllowListComplete` trustworthy.
@@ -207,9 +204,7 @@ export type ConfigFieldRegistryCoverage =
   | AssertNever<UnregisteredConfigField>
   | AssertNever<StaleRegistryField>;
 
-const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set(
-  KNOWN_CONFIG_TOP_LEVEL_KEY_LIST,
-);
+const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set(KNOWN_CONFIG_TOP_LEVEL_KEY_LIST);
 
 /**
  * Nested fields stripped from an allow-listed top-level key.

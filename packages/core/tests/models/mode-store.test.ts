@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DefaultModeStore, loadProjectModes, loadUserModes } from '../../src/models/mode-store.js';
 import { DEFAULT_MODES } from '../../src/types/mode.js';
 
@@ -39,9 +39,15 @@ describe('DefaultModeStore', () => {
         'research-web',
       ]),
     );
-    expect(DEFAULT_MODES.filter((mode) => mode.tags?.includes('lite')).length).toBeGreaterThanOrEqual(8);
-    expect(DEFAULT_MODES.filter((mode) => mode.tags?.includes('deep')).length).toBeGreaterThanOrEqual(8);
-    expect(DEFAULT_MODES.find((mode) => mode.id === 'review-lite')?.prompt).toContain('Token-saving');
+    expect(
+      DEFAULT_MODES.filter((mode) => mode.tags?.includes('lite')).length,
+    ).toBeGreaterThanOrEqual(8);
+    expect(
+      DEFAULT_MODES.filter((mode) => mode.tags?.includes('deep')).length,
+    ).toBeGreaterThanOrEqual(8);
+    expect(DEFAULT_MODES.find((mode) => mode.id === 'review-lite')?.prompt).toContain(
+      'Token-saving',
+    );
     expect(DEFAULT_MODES.find((mode) => mode.id === 'code-reviewer')?.name).toBe('Review Deep');
   });
 
@@ -51,8 +57,12 @@ describe('DefaultModeStore', () => {
     ).map((mode) => mode.id);
 
     expect(modesWithoutPrompts).toEqual([]);
-    expect(DEFAULT_MODES.find((mode) => mode.id === 'audit-lite')?.prompt).toContain('Audit Lite Mode');
-    expect(DEFAULT_MODES.find((mode) => mode.id === 'research-lite')?.prompt).toContain('Research Lite Mode');
+    expect(DEFAULT_MODES.find((mode) => mode.id === 'audit-lite')?.prompt).toContain(
+      'Audit Lite Mode',
+    );
+    expect(DEFAULT_MODES.find((mode) => mode.id === 'research-lite')?.prompt).toContain(
+      'Research Lite Mode',
+    );
   });
 
   it('has "default" active mode when no config file', async () => {

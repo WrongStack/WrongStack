@@ -5,11 +5,7 @@
   "description": "Plan backups you can actually restore from.",
   "content": "I need a backup strategy for: {{data}}\n\nDesign it around the RESTORE, not the backup. Specify what to back up, frequency, retention, and where copies live (including off-site or immutable). State the realistic recovery time and recovery point. Most importantly, describe how restores are tested regularly, because an untested backup isn't a backup. Flag the failure that would defeat this plan.",
   "category": "devops",
-  "tags": [
-    "backup",
-    "restore",
-    "disaster-recovery"
-  ],
+  "tags": ["backup", "restore", "disaster-recovery"],
   "source": "builtin",
   "favorite": false,
   "checksum": "0cb666f040fb59c11428cfc9fa3480a26f84b84c4a5628312e807e82e2f69a8b",

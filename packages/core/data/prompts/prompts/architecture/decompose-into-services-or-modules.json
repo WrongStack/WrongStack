@@ -5,11 +5,7 @@
   "description": "Find good boundaries for splitting a system.",
   "content": "Help me decompose this system into modules/services: {{system}}\n\nFind boundaries along the seams of change and ownership, not just nouns. For each proposed module: its single responsibility, what it owns, its interface, and its dependencies. Watch for chatty boundaries and shared databases. Tell me honestly whether this should stay a monolith with clean internal modules instead of being split.",
   "category": "architecture",
-  "tags": [
-    "boundaries",
-    "modularity",
-    "decomposition"
-  ],
+  "tags": ["boundaries", "modularity", "decomposition"],
   "source": "builtin",
   "favorite": false,
   "checksum": "bb7e477ff2f97c69c94f2ee3f2dea89ada04f2f4b8a3cba020f7dd8320050c20",

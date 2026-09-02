@@ -64,7 +64,11 @@ export function buildNav(snapshot: HqSnapshot | null): NavMachine[] {
   }
 
   for (const node of topology.nodes) {
-    if (node.kind !== 'terminal' || node.sessionId === undefined || node.serviceMode !== undefined) {
+    if (
+      node.kind !== 'terminal' ||
+      node.sessionId === undefined ||
+      node.serviceMode !== undefined
+    ) {
       continue;
     }
     const project = projectById.get(projectKey(node));

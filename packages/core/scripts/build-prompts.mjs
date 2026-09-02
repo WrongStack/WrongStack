@@ -78,7 +78,8 @@ function normalizeVariables(raw, slug) {
     if (typeof v.default === 'string') entry.default = v.default;
     if (v.required === true) entry.required = true;
     if (Array.isArray(v.enum) && v.enum.length > 0) {
-      if (!v.enum.every((x) => typeof x === 'string')) fail(`${slug}: variable ${v.name} enum must be strings`);
+      if (!v.enum.every((x) => typeof x === 'string'))
+        fail(`${slug}: variable ${v.name} enum must be strings`);
       entry.enum = v.enum;
     }
     if (v.multiline === true) entry.multiline = true;
@@ -112,7 +113,8 @@ function main() {
       } catch (err) {
         fail(`${category}.jsonl:${lineNo}: invalid JSON — ${err.message}`);
       }
-      if (typeof obj.title !== 'string' || !obj.title) fail(`${category}.jsonl:${lineNo}: missing title`);
+      if (typeof obj.title !== 'string' || !obj.title)
+        fail(`${category}.jsonl:${lineNo}: missing title`);
       if (typeof obj.description !== 'string' || !obj.description)
         fail(`${category}.jsonl:${lineNo}: missing description`);
       if (typeof obj.content !== 'string' || !obj.content)
@@ -160,7 +162,8 @@ function main() {
   );
 
   const counts = new Map();
-  for (const { entry } of entries) counts.set(entry.category, (counts.get(entry.category) ?? 0) + 1);
+  for (const { entry } of entries)
+    counts.set(entry.category, (counts.get(entry.category) ?? 0) + 1);
 
   const index = {
     datasetVersion: DATASET_VERSION,

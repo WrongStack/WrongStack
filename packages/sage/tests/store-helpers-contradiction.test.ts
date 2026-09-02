@@ -81,11 +81,12 @@ describe('isPossiblyContradictory (shared heuristic)', () => {
   });
 
   it('requires at least 5 tokens on both sides', () => {
+    expect(isPossiblyContradictory({ text: 'not a fact' }, { text: 'a fact' })).toBe(false);
     expect(
-      isPossiblyContradictory({ text: 'not a fact' }, { text: 'a fact' }),
-    ).toBe(false);
-    expect(
-      isPossiblyContradictory({ text: 'a very short claim here' }, { text: 'not a very short claim here' }),
+      isPossiblyContradictory(
+        { text: 'a very short claim here' },
+        { text: 'not a very short claim here' },
+      ),
     ).toBe(false); // 'a very short claim here' tokenizes to 4 kept tokens
   });
 });

@@ -59,7 +59,9 @@ export interface IRuntimeManager {
   ): Promise<DesktopRuntimeRecord>;
   registerProject(projectRoot: string): Promise<void>;
   unregisterProject(projectRoot: string): Promise<void>;
-  openProjectSession(runtimeId?: string): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
+  openProjectSession(
+    runtimeId?: string,
+  ): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
   saveWindowState(window: import('../../shared/types.js').DesktopWindowState): Promise<void>;
   restoreLastWorkspace(): Promise<void>;
   on(event: 'changed', listener: () => void): this;
@@ -72,10 +74,16 @@ export interface IAgentBridge {
     wsUrl: string,
     content: string,
   ): Promise<import('../../shared/types.js').DesktopConversationSnapshot>;
-  abort(runtimeId: string, wsUrl: string): Promise<import('../../shared/types.js').DesktopConversationSnapshot>;
+  abort(
+    runtimeId: string,
+    wsUrl: string,
+  ): Promise<import('../../shared/types.js').DesktopConversationSnapshot>;
   close(runtimeId: string): void;
   closeAll(): void;
-  on(event: 'changed', listener: (conversation: import('../../shared/types.js').DesktopConversationSnapshot) => void): this;
+  on(
+    event: 'changed',
+    listener: (conversation: import('../../shared/types.js').DesktopConversationSnapshot) => void,
+  ): this;
 }
 
 interface IConfigIo {
@@ -116,15 +124,28 @@ export interface IpcHandlerContext {
   broadcastLocaleToEmbeddedWebuis(locale: string): void;
   dispatchWebuiCommand(command: unknown): Promise<boolean>;
   reloadActiveWebuiView(): Promise<boolean>;
-  openProject(requestedRoot?: string): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
-  registerProject(requestedRoot?: string): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
+  openProject(
+    requestedRoot?: string,
+  ): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
+  registerProject(
+    requestedRoot?: string,
+  ): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
   unregisterProject(root: string): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
-  openProjectSession(runtimeId?: string): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
+  openProjectSession(
+    runtimeId?: string,
+  ): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
   activateRuntime(id: string): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
   closeRuntime(id: string): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
   openSettings(): Promise<import('../../shared/types.js').DesktopStateSnapshot>;
-  sendMessage(id: string, wsUrl: string, content: string): Promise<import('../../shared/types.js').DesktopConversationSnapshot>;
-  abortRuntime(id: string, wsUrl: string): Promise<import('../../shared/types.js').DesktopConversationSnapshot>;
+  sendMessage(
+    id: string,
+    wsUrl: string,
+    content: string,
+  ): Promise<import('../../shared/types.js').DesktopConversationSnapshot>;
+  abortRuntime(
+    id: string,
+    wsUrl: string,
+  ): Promise<import('../../shared/types.js').DesktopConversationSnapshot>;
   openExternal(url: string): void;
   revealInExplorer(root: string): void;
   findWebuiEntryBySenderId(senderId: number): DesktopWebuiRuntimeView | undefined;

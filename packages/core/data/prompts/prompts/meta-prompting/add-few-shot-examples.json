@@ -5,11 +5,7 @@
   "description": "Design examples that steer model output by demonstration.",
   "content": "I want consistent output for this task: {{task}}\n\nHelp me design few-shot examples. Pick examples that cover the range of cases (including a tricky one and an edge case), show the exact input-to-output mapping I want, and demonstrate the format and tone implicitly. Tell me how many examples are worth including and why more wouldn't help. Warn me about any example that might bias the model the wrong way.",
   "category": "meta-prompting",
-  "tags": [
-    "few-shot",
-    "examples",
-    "prompt-engineering"
-  ],
+  "tags": ["few-shot", "examples", "prompt-engineering"],
   "source": "builtin",
   "favorite": false,
   "checksum": "37d814e65f35f7fd025ff0690d25f435051ecd4bd8534e9e650e427b91834300",

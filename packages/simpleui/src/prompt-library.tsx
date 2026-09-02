@@ -52,7 +52,9 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
   useEffect(() => {
     if (!open) return;
     closeRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
@@ -86,8 +88,11 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
   if (!open) {
     return (
       <button
-        type="button" className="prompt-library-trigger" title="Prompt library"
-        aria-label="Open prompt library" onClick={() => setOpen(true)}
+        type="button"
+        className="prompt-library-trigger"
+        title="Prompt library"
+        aria-label="Open prompt library"
+        onClick={() => setOpen(true)}
       >
         <Bookmark size={13} aria-hidden="true" />
       </button>
@@ -96,7 +101,12 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
 
   return (
     <>
-      <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
+      <button
+        type="button"
+        className="settings-overlay"
+        tabIndex={-1}
+        onClick={() => setOpen(false)}
+      />
       <aside
         className="prompt-library"
         role="dialog"
@@ -106,12 +116,26 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
         tabIndex={-1}
       >
         <header className="prompt-library-head">
-          <span><Bookmark size={13} aria-hidden="true" /> PROMPTS</span>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}><X size={14} /></button>
+          <span>
+            <Bookmark size={13} aria-hidden="true" /> PROMPTS
+          </span>
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}>
+            <X size={14} />
+          </button>
         </header>
         <div className="prompt-library-add">
-          <input type="text" placeholder="Label" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
-          <textarea placeholder="Prompt text…" value={newText} onChange={(e) => setNewText(e.target.value)} rows={3} />
+          <input
+            type="text"
+            placeholder="Label"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+          />
+          <textarea
+            placeholder="Prompt text…"
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+            rows={3}
+          />
           <button type="button" onClick={add} disabled={!newText.trim()}>
             <Plus size={12} aria-hidden="true" /> Save
           </button>
@@ -126,11 +150,23 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
           {prompts.length === 0 && <p className="prompt-library-empty">No saved prompts yet.</p>}
           {prompts.map((p) => (
             <article key={p.id} className="prompt-item">
-              <button type="button" className="prompt-item-recall" onClick={() => { onRecall(p.text); setOpen(false); }}>
+              <button
+                type="button"
+                className="prompt-item-recall"
+                onClick={() => {
+                  onRecall(p.text);
+                  setOpen(false);
+                }}
+              >
                 <strong>{p.label}</strong>
                 <span>{p.text.length > 80 ? `${p.text.slice(0, 77)}…` : p.text}</span>
               </button>
-              <button type="button" className="prompt-item-remove" aria-label={`Remove "${p.label}"`} onClick={() => remove(p.id)}>
+              <button
+                type="button"
+                className="prompt-item-remove"
+                aria-label={`Remove "${p.label}"`}
+                onClick={() => remove(p.id)}
+              >
                 <Trash2 size={12} aria-hidden="true" />
               </button>
             </article>

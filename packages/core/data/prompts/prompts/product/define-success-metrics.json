@@ -5,11 +5,7 @@
   "description": "Choose metrics that prove a feature worked.",
   "content": "For this feature/initiative: {{feature}}\n\nDefine how we'll know it succeeded. Propose a primary success metric tied to the user/business outcome (not just usage), supporting metrics, and a guardrail metric to catch harm. For each, give the precise definition and a target or direction. Avoid vanity metrics. Tell me what we'd conclude if the primary metric moves but the guardrail breaks.",
   "category": "product",
-  "tags": [
-    "metrics",
-    "success",
-    "north-star"
-  ],
+  "tags": ["metrics", "success", "north-star"],
   "source": "builtin",
   "favorite": false,
   "checksum": "e5a1b0d3e6827c3b288c93df97cfbe28538c5d48bec65ae83ba0ca31bf8fcd68",

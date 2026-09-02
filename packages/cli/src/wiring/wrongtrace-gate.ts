@@ -14,5 +14,5 @@ export {
   preflightFileEdit,
   resetWrongTraceGate,
   withFileLock,
-} from "@wrongstack/wrongtrace";
-export type { PreflightOptions, PreflightVerdict } from "@wrongstack/wrongtrace";
+} from '@wrongstack/wrongtrace';
+export type { PreflightOptions, PreflightVerdict } from '@wrongstack/wrongtrace';

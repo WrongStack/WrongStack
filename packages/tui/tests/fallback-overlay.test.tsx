@@ -53,9 +53,7 @@ describe('FallbackOverlay', () => {
   });
 
   it('highlights the selected candidate', () => {
-    const view = render(
-      React.createElement(FallbackOverlay, { ...baseProps, selected: 1 }),
-    );
+    const view = render(React.createElement(FallbackOverlay, { ...baseProps, selected: 1 }));
     const frame = view.lastFrame() ?? '';
     expect(frame).toContain('▸');
     expect(frame).toContain('google/gemini-pro');
@@ -64,9 +62,7 @@ describe('FallbackOverlay', () => {
 
   it('calls onChoose with the selected candidate on Enter', () => {
     const onChoose = vi.fn();
-    const view = render(
-      React.createElement(FallbackOverlay, { ...baseProps, onChoose }),
-    );
+    const view = render(React.createElement(FallbackOverlay, { ...baseProps, onChoose }));
     view.stdin.write('\r');
     expect(onChoose).toHaveBeenCalledWith({
       providerId: 'openai',
@@ -87,9 +83,7 @@ describe('FallbackOverlay', () => {
 
   it('calls onMove(-1) on up arrow', () => {
     const onMove = vi.fn();
-    const view = render(
-      React.createElement(FallbackOverlay, { ...baseProps, onMove }),
-    );
+    const view = render(React.createElement(FallbackOverlay, { ...baseProps, onMove }));
     // Up arrow: ESC[A
     view.stdin.write('\x1b[A');
     expect(onMove).toHaveBeenCalledWith(-1);
@@ -98,9 +92,7 @@ describe('FallbackOverlay', () => {
 
   it('calls onMove(1) on down arrow', () => {
     const onMove = vi.fn();
-    const view = render(
-      React.createElement(FallbackOverlay, { ...baseProps, onMove }),
-    );
+    const view = render(React.createElement(FallbackOverlay, { ...baseProps, onMove }));
     // Down arrow: ESC[B
     view.stdin.write('\x1b[B');
     expect(onMove).toHaveBeenCalledWith(1);

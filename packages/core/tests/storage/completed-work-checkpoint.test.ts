@@ -53,12 +53,15 @@ describe('completed-work-checkpoint', () => {
     );
 
     const loaded = await loadCompletedWorkCheckpoint(fp, events as never, 'trace-1');
-    expect(loaded).toEqual([
-      { key: 'task:t1', source: 'task', summary: 'Done', completedAt: 2 },
-    ]);
-    expect(events.emit.mock.calls.some(
-      (c) => c[0] === 'storage.read' && (c[1] as { store?: string; outcome?: string }).store === 'completed-work' && (c[1] as { outcome?: string }).outcome === 'success',
-    )).toBe(true);
+    expect(loaded).toEqual([{ key: 'task:t1', source: 'task', summary: 'Done', completedAt: 2 }]);
+    expect(
+      events.emit.mock.calls.some(
+        (c) =>
+          c[0] === 'storage.read' &&
+          (c[1] as { store?: string; outcome?: string }).store === 'completed-work' &&
+          (c[1] as { outcome?: string }).outcome === 'success',
+      ),
+    ).toBe(true);
   });
 
   it('returns null for missing or invalid files', async () => {

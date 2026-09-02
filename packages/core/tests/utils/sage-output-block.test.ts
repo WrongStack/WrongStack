@@ -9,11 +9,14 @@ const HEADER = '--- SAGE: related project knowledge (Memory Injector) ---';
 const TASK_HEADER = '--- SAGE: task-aware project knowledge (Memory Injector) ---';
 const MEM_A =
   '- [pattern][high] <memory id="mem_a">Kanban board writes go through the daemon</memory> (packages/core/src/kanban.ts) [relation=about_file; tags=kanban,daemon]';
-const MEM_B = '- [fact] <memory id="mem_b">Vitest single-file runs must start at the repo root</memory>';
+const MEM_B =
+  '- [fact] <memory id="mem_b">Vitest single-file runs must start at the repo root</memory>';
 
 describe('splitSageOutputBlock', () => {
   it('splits a complete block off the tool body', () => {
-    const { body, sageLines } = splitSageOutputBlock(`packages/a.ts\npackages/b.ts\n\n${HEADER}\n${MEM_A}\n${MEM_B}`);
+    const { body, sageLines } = splitSageOutputBlock(
+      `packages/a.ts\npackages/b.ts\n\n${HEADER}\n${MEM_A}\n${MEM_B}`,
+    );
     expect(body).toBe('packages/a.ts\npackages/b.ts');
     expect(sageLines).toEqual([HEADER, MEM_A, MEM_B]);
   });

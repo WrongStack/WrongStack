@@ -54,7 +54,9 @@ export function CommandPalette({ open, context, onClose, onRun }: CommandPalette
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setSelectedIndex((current) => (visibleItems.length === 0 ? 0 : (current + 1) % visibleItems.length));
+      setSelectedIndex((current) =>
+        visibleItems.length === 0 ? 0 : (current + 1) % visibleItems.length,
+      );
       return;
     }
     if (event.key === 'ArrowUp') {
@@ -102,7 +104,11 @@ export function CommandPalette({ open, context, onClose, onRun }: CommandPalette
             onKeyDown={onKeyDown}
             placeholder="Type a command…"
             aria-label="Search commands"
-            aria-activedescendant={visibleItems[selectedIndex] ? `command-palette-${visibleItems[selectedIndex].id}` : undefined}
+            aria-activedescendant={
+              visibleItems[selectedIndex]
+                ? `command-palette-${visibleItems[selectedIndex].id}`
+                : undefined
+            }
           />
           <kbd>Esc</kbd>
         </div>

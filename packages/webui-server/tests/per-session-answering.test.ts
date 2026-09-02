@@ -169,7 +169,11 @@ describe('the session catalogue marks the asking tab as current', () => {
     const handlers = createSessionHandlers({
       config: { model: 'm', provider: 'p' },
       context: ctx as never,
-      tokenCounter: { account: () => undefined, total: () => ({}), reset: () => undefined } as never,
+      tokenCounter: {
+        account: () => undefined,
+        total: () => ({}),
+        reset: () => undefined,
+      } as never,
       getProjectRoot: () => '/repo',
       getSession: () => ctx.session as never,
       setSession: () => undefined,

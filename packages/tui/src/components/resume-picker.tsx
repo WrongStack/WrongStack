@@ -56,7 +56,7 @@ export function ResumePicker({
         <Text dimColor>No sessions found.</Text>
       ) : (
         <>
-          {hasAbove ? <Text dimColor>  … {start} more above</Text> : null}
+          {hasAbove ? <Text dimColor> … {start} more above</Text> : null}
           {visibleSessions.map((s, j) => {
             const i = start + j;
             const isCurrent = s.isCurrent;
@@ -105,7 +105,10 @@ export function ResumePicker({
                       ● open in {live.clientType ?? 'another wstack'} (pid {live.pid})
                     </Text>
                   ) : null}
-                  <Text dimColor> · {s.id} · {date}</Text>
+                  <Text dimColor>
+                    {' '}
+                    · {s.id} · {date}
+                  </Text>
                 </Text>
                 <Text dimColor>
                   {isSelected ? '   ' : '   '}
@@ -127,9 +130,7 @@ export function ResumePicker({
               </Box>
             );
           })}
-          {hasBelow ? (
-            <Text dimColor>  … {sessions.length - end} more below</Text>
-          ) : null}
+          {hasBelow ? <Text dimColor> … {sessions.length - end} more below</Text> : null}
         </>
       )}
       {hint ? <Text color="yellow">{hint}</Text> : null}

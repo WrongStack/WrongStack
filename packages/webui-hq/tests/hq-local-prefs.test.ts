@@ -260,7 +260,9 @@ describe('hq-local-prefs', () => {
   it('loadFromStorage catch falls back to defaults when localStorage.getItem throws', () => {
     // Make localStorage.getItem throw so the try-catch returns defaults.
     const origGetItem = window.localStorage.getItem.bind(window.localStorage);
-    window.localStorage.getItem = () => { throw new Error('storage error'); };
+    window.localStorage.getItem = () => {
+      throw new Error('storage error');
+    };
     try {
       reloadHqLocalPrefs();
       const prefs = getHqLocalPrefsSnapshot();

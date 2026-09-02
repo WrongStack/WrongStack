@@ -171,9 +171,7 @@ export function makeDependencyWatcherConfig(
     if (plainPatterns.includes(basename)) return true;
     for (const gp of globPatterns) {
       // Simple glob: *.csproj → match any .csproj file
-      const regex = new RegExp(
-        '^' + gp.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$',
-      );
+      const regex = new RegExp('^' + gp.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
       if (regex.test(basename)) return true;
     }
     return false;

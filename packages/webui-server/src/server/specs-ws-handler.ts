@@ -195,7 +195,8 @@ export class SpecsWebSocketHandler {
     const toBoardTask = (n: TaskNode): BoardTask => {
       const deps = blockers.get(n.id) ?? [];
       const allDepsDone = deps.every((b) => statusOf(b) === 'completed');
-      const displayStatus = n.status === 'pending' && deps.length > 0 && allDepsDone ? 'queued' : n.status;
+      const displayStatus =
+        n.status === 'pending' && deps.length > 0 && allDepsDone ? 'queued' : n.status;
       return {
         id: n.id,
         shortId: shortId.get(n.id) ?? n.id.slice(0, 6),

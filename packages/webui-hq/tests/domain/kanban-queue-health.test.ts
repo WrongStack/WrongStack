@@ -12,10 +12,7 @@ import type {
   HqKanbanColumnView,
   HqKanbanTaskView,
 } from '../../src/domain/kanban-model.js';
-import {
-  computeQueueCounts,
-  isQueueHealthy,
-} from '../../src/domain/kanban-queue-health.js';
+import { computeQueueCounts, isQueueHealthy } from '../../src/domain/kanban-queue-health.js';
 
 function task(id: string, overrides: Partial<HqKanbanTaskView> = {}): HqKanbanTaskView {
   return {

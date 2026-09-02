@@ -6,9 +6,27 @@ describe('PhaseGraphBuilder', () => {
     const builder = new PhaseGraphBuilder({
       title: 'Test Project',
       phases: [
-        { name: 'Phase 1', description: 'First', priority: 'high', estimateHours: 2, parallelizable: false },
-        { name: 'Phase 2', description: 'Second', priority: 'critical', estimateHours: 4, parallelizable: false },
-        { name: 'Phase 3', description: 'Third', priority: 'medium', estimateHours: 1, parallelizable: true },
+        {
+          name: 'Phase 1',
+          description: 'First',
+          priority: 'high',
+          estimateHours: 2,
+          parallelizable: false,
+        },
+        {
+          name: 'Phase 2',
+          description: 'Second',
+          priority: 'critical',
+          estimateHours: 4,
+          parallelizable: false,
+        },
+        {
+          name: 'Phase 3',
+          description: 'Third',
+          priority: 'medium',
+          estimateHours: 1,
+          parallelizable: true,
+        },
       ],
     });
 
@@ -49,8 +67,20 @@ describe('PhaseGraphBuilder', () => {
           estimateHours: 5,
           parallelizable: false,
           taskTemplates: [
-            { title: 'Setup', description: 'Setup project', type: 'chore', priority: 'high', estimateHours: 1 },
-            { title: 'Feature', description: 'Build feature', type: 'feature', priority: 'critical', estimateHours: 4 },
+            {
+              title: 'Setup',
+              description: 'Setup project',
+              type: 'chore',
+              priority: 'high',
+              estimateHours: 1,
+            },
+            {
+              title: 'Feature',
+              description: 'Build feature',
+              type: 'feature',
+              priority: 'critical',
+              estimateHours: 4,
+            },
           ],
         },
       ],

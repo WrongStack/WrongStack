@@ -43,7 +43,13 @@ export class DesktopWindowStateController {
     }
     const candidate = { x: state.x, y: state.y, width: state.width, height: state.height };
     return this.ctx.getDisplays().some(({ workArea }) => intersects(candidate, workArea))
-      ? { x: state.x, y: state.y, width: state.width, height: state.height, maximized: state.maximized }
+      ? {
+          x: state.x,
+          y: state.y,
+          width: state.width,
+          height: state.height,
+          maximized: state.maximized,
+        }
       : null;
   }
 }

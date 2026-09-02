@@ -560,10 +560,7 @@ const plugin: Plugin = {
           rawInput['useLlm'] === true ||
           rawInput['ai'] === true ||
           rawInput['use_ai'] === true;
-        const block = await maybePolish(
-          renderUnreleasedBlock(state.entries),
-          shouldPolish,
-        );
+        const block = await maybePolish(renderUnreleasedBlock(state.entries), shouldPolish);
         let existing: string | null = null;
         try {
           existing = readFileSync(cfg.filePath, 'utf-8');

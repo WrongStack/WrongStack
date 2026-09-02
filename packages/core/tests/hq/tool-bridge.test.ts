@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { HqRedactionPolicy, HqToolCompletedPayload, HqToolStartedPayload } from '../../src/hq/protocol.js';
+import type {
+  HqRedactionPolicy,
+  HqToolCompletedPayload,
+  HqToolStartedPayload,
+} from '../../src/hq/protocol.js';
 import type { HqPublisher } from '../../src/hq/publisher.js';
 import { startToolTelemetryBridge } from '../../src/hq/tool-bridge.js';
 import { EventBus } from '../../src/kernel/events.js';
 
-function fakePublisher(spy: ReturnType<typeof vi.fn>, redactionPolicy?: Partial<HqRedactionPolicy>): HqPublisher {
+function fakePublisher(
+  spy: ReturnType<typeof vi.fn>,
+  redactionPolicy?: Partial<HqRedactionPolicy>,
+): HqPublisher {
   return {
     redactionPolicy,
     publishEvent: (o: { type: string; payload: unknown }) => {
@@ -19,7 +26,12 @@ describe('startToolTelemetryBridge', () => {
     const events = new EventBus();
     const spy = vi.fn();
     const publisher = fakePublisher(spy);
-    const stop = startToolTelemetryBridge({ events, publisher, projectRoot: '/proj', sessionId: 's1' });
+    const stop = startToolTelemetryBridge({
+      events,
+      publisher,
+      projectRoot: '/proj',
+      sessionId: 's1',
+    });
     events.emit('tool.started', {
       name: 'bash',
       id: 'toolu_1',

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../../src/coordination/brain.js';
+import type {
+  BrainArbiter,
+  BrainDecision,
+  BrainDecisionRequest,
+} from '../../src/coordination/brain.js';
 import {
   BRAIN_RULE_PATTERN_MAX,
   type BrainRule,
@@ -57,7 +61,9 @@ describe('compileBrainRules', () => {
   });
 
   it('rejects an over-long pattern instead of compiling it', () => {
-    const { errors } = compileBrainRules([answerRule({ question: 'a'.repeat(BRAIN_RULE_PATTERN_MAX + 1) })]);
+    const { errors } = compileBrainRules([
+      answerRule({ question: 'a'.repeat(BRAIN_RULE_PATTERN_MAX + 1) }),
+    ]);
     expect(errors[0]).toContain('max');
   });
 
@@ -84,11 +90,21 @@ describe('ruleMatches', () => {
     const rule = compileOne(
       answerRule({ source: 'system', minRisk: 'medium', maxRisk: 'high', fallback: 'ask_human' }),
     );
-    expect(ruleMatches(rule, req({ source: 'system', risk: 'high', fallback: 'ask_human' }))).toBe(true);
-    expect(ruleMatches(rule, req({ source: 'goal', risk: 'high', fallback: 'ask_human' }))).toBe(false);
-    expect(ruleMatches(rule, req({ source: 'system', risk: 'critical', fallback: 'ask_human' }))).toBe(false);
-    expect(ruleMatches(rule, req({ source: 'system', risk: 'low', fallback: 'ask_human' }))).toBe(false);
-    expect(ruleMatches(rule, req({ source: 'system', risk: 'high', fallback: 'continue' }))).toBe(false);
+    expect(ruleMatches(rule, req({ source: 'system', risk: 'high', fallback: 'ask_human' }))).toBe(
+      true,
+    );
+    expect(ruleMatches(rule, req({ source: 'goal', risk: 'high', fallback: 'ask_human' }))).toBe(
+      false,
+    );
+    expect(
+      ruleMatches(rule, req({ source: 'system', risk: 'critical', fallback: 'ask_human' })),
+    ).toBe(false);
+    expect(ruleMatches(rule, req({ source: 'system', risk: 'low', fallback: 'ask_human' }))).toBe(
+      false,
+    );
+    expect(ruleMatches(rule, req({ source: 'system', risk: 'high', fallback: 'continue' }))).toBe(
+      false,
+    );
   });
 
   it('accepts arrays for source/risk/fallback', () => {
@@ -109,7 +125,9 @@ describe('ruleMatches', () => {
     expect(ruleMatches(needsNone, req())).toBe(true);
     expect(ruleMatches(needsNone, withSteer)).toBe(false);
     expect(ruleMatches(needsSteer, withSteer)).toBe(true);
-    expect(ruleMatches(needsSteer, req({ options: [{ id: 'other', label: 'Other' }] }))).toBe(false);
+    expect(ruleMatches(needsSteer, req({ options: [{ id: 'other', label: 'Other' }] }))).toBe(
+      false,
+    );
   });
 
   it('matches patterns case-insensitively', () => {
@@ -178,7 +196,11 @@ describe('evaluateBrainRules', () => {
     ]);
     const options = [{ id: 'a', label: 'A' }];
     const hit = evaluateBrainRules(rules, req({ options }));
-    expect(hit?.decision).toMatchObject({ type: 'ask_human', prompt: 'Need a human here', options });
+    expect(hit?.decision).toMatchObject({
+      type: 'ask_human',
+      prompt: 'Need a human here',
+      options,
+    });
   });
 
   it('attributes the deciding rule in the rationale/reason', () => {

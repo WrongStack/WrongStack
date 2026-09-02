@@ -146,9 +146,9 @@ describe('GoalKanbanPanel', () => {
         onClose: vi.fn(),
       }),
     );
-    expect(await waitForFrame(empty, (f) => f.includes('Goal kanban board not yet created'))).toContain(
-      'Goal kanban board not yet created',
-    );
+    expect(
+      await waitForFrame(empty, (f) => f.includes('Goal kanban board not yet created')),
+    ).toContain('Goal kanban board not yet created');
     empty.unmount();
 
     mocks.listBoards.mockRejectedValueOnce('storage unavailable');

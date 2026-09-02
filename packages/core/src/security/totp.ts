@@ -248,10 +248,7 @@ export function hashRecoveryCode(code: string): string {
  * SHA-256 hashes. Returns `true` on match. Callers MUST remove the matched
  * hash from the store after a successful verification (single-use).
  */
-export function verifyRecoveryCode(
-  code: string,
-  storedHashes: string[],
-): boolean {
+export function verifyRecoveryCode(code: string, storedHashes: string[]): boolean {
   const candidate = hashRecoveryCode(code);
   for (const stored of storedHashes) {
     const a = Buffer.from(stored, 'hex');
@@ -262,5 +259,3 @@ export function verifyRecoveryCode(
   }
   return false;
 }
-
-

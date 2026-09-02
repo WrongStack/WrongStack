@@ -5,10 +5,7 @@
   "description": "Test a belief you are relying on while debugging.",
   "content": "While debugging, I am assuming: {{assumption}}\n\nThis might be wrong. Tell me the cheapest way to actually verify it (a log, an assert, a one-line check, a debugger watch). Do not let me keep building on an unverified assumption. If it is false, what does that immediately imply about where the bug really is?",
   "category": "debugging",
-  "tags": [
-    "assumptions",
-    "verification"
-  ],
+  "tags": ["assumptions", "verification"],
   "source": "builtin",
   "favorite": false,
   "checksum": "519dd2178be5f4cb93ff83386563aef3b32f04f923b2772bb29871e61aab9ff6",

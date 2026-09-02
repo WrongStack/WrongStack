@@ -40,7 +40,9 @@ class FakeWs {
 }
 
 /** Last worktree.state payload as a non-optional record. */
-function lastState(ws: { sent: Array<{ type: string; payload: Record<string, unknown> }> }): Record<string, unknown> {
+function lastState(ws: {
+  sent: Array<{ type: string; payload: Record<string, unknown> }>;
+}): Record<string, unknown> {
   const message = ws.sent.filter((m) => m.type === 'worktree.state').at(-1);
   return (message as { payload: Record<string, unknown> }).payload;
 }
@@ -92,9 +94,7 @@ describe('WorktreeWebSocketHandler — client lifecycle and dispatch', () => {
     handler.addClient(ws as unknown as WebSocket);
     // State snapshot goes to the client; the orphan scan broadcasts to everyone.
     expect(ws.sent[0]?.type).toBe('worktree.state');
-    await vi.waitFor(() =>
-      expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true),
-    );
+    await vi.waitFor(() => expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true));
     const orphans = ws.sent.find((m) => m.type === 'worktree.orphans')?.payload;
     expect(orphans).toMatchObject({ orphans: [], canClean: true });
     handler.dispose();
@@ -154,7 +154,13 @@ describe('WorktreeWebSocketHandler — lifecycle events', () => {
     expect(state['worktrees']).toHaveLength(1);
     expect(state['baseBranch']).toBe('main');
 
-    emit('worktree.committed', { handleId: 'h1', insertions: 3, deletions: 1, files: 2, committed: true });
+    emit('worktree.committed', {
+      handleId: 'h1',
+      insertions: 3,
+      deletions: 1,
+      files: 2,
+      committed: true,
+    });
     state = lastState(ws);
     expect((state['worktrees'] as Array<Record<string, unknown>>)[0]).toMatchObject({
       status: 'committing',
@@ -218,9 +224,7 @@ describe('WorktreeWebSocketHandler — orphan scan', () => {
     const handler = new WorktreeWebSocketHandler(events, logger());
     const ws = new FakeWs();
     handler.addClient(ws as unknown as WebSocket);
-    await vi.waitFor(() =>
-      expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true),
-    );
+    await vi.waitFor(() => expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true));
     expect(ws.sent.find((m) => m.type === 'worktree.orphans')?.payload).toMatchObject({
       orphans: [],
       canClean: false,
@@ -241,9 +245,7 @@ describe('WorktreeWebSocketHandler — orphan scan', () => {
     });
     const ws = new FakeWs();
     handler.addClient(ws as unknown as WebSocket);
-    await vi.waitFor(() =>
-      expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true),
-    );
+    await vi.waitFor(() => expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true));
     expect(ws.sent.find((m) => m.type === 'worktree.orphans')?.payload).toMatchObject({
       canClean: true,
       orphans: [
@@ -276,9 +278,7 @@ describe('WorktreeWebSocketHandler — orphan scan', () => {
     await handler.handleMessage({ type: 'worktree.scan' });
     const ws = new FakeWs();
     handler.addClient(ws as unknown as WebSocket);
-    await vi.waitFor(() =>
-      expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true),
-    );
+    await vi.waitFor(() => expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true));
     const payload = ws.sent.find((m) => m.type === 'worktree.orphans')?.payload;
     expect(payload?.['orphans']).toEqual([]);
     expect(payload?.['canClean']).toBe(false);
@@ -298,9 +298,7 @@ describe('WorktreeWebSocketHandler — orphan scan', () => {
     });
     const ws = new FakeWs();
     handler.addClient(ws as unknown as WebSocket);
-    await vi.waitFor(() =>
-      expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true),
-    );
+    await vi.waitFor(() => expect(ws.sent.some((m) => m.type === 'worktree.orphans')).toBe(true));
     expect(ws.sent.find((m) => m.type === 'worktree.orphans')?.payload).toMatchObject({
       orphans: [],
       canClean: false,
@@ -465,9 +463,9 @@ describe('WorktreeWebSocketHandler — per-row operations', () => {
     });
 
     await h.handleMessage({ type: 'worktree.merge', payload: { branch: '--force' } });
-    expect(
-      ws.sent.filter((m) => m.type === 'worktree.merge_result').at(-1)?.payload,
-    ).toMatchObject({ ok: false, reason: 'not a managed worktree branch' });
+    expect(ws.sent.filter((m) => m.type === 'worktree.merge_result').at(-1)?.payload).toMatchObject(
+      { ok: false, reason: 'not a managed worktree branch' },
+    );
 
     (events as unknown as { emit: (e: string, p: unknown) => void }).emit('worktree.allocated', {
       handleId: 'h1',
@@ -477,9 +475,9 @@ describe('WorktreeWebSocketHandler — per-row operations', () => {
       baseBranch: 'main',
     });
     await h.handleMessage({ type: 'worktree.merge', payload: { branch: 'wstack/ap/live' } });
-    expect(
-      ws.sent.filter((m) => m.type === 'worktree.merge_result').at(-1)?.payload,
-    ).toMatchObject({ ok: false, reason: 'a run is live on this worktree — stop it first' });
+    expect(ws.sent.filter((m) => m.type === 'worktree.merge_result').at(-1)?.payload).toMatchObject(
+      { ok: false, reason: 'a run is live on this worktree — stop it first' },
+    );
     h.dispose();
   });
 
@@ -516,9 +514,9 @@ describe('WorktreeWebSocketHandler — per-row operations', () => {
     });
     // An unmanaged baseBranch is ignored (treated as detected base).
     expect(diffSummary).toHaveBeenCalledWith(resolve('/proj/.wrongstack/worktrees/a'), undefined);
-    expect(
-      ws.sent.filter((m) => m.type === 'worktree.diff_result').at(-1)?.payload,
-    ).toMatchObject({ summary: { files: 2, insertions: 5, deletions: 1 } });
+    expect(ws.sent.filter((m) => m.type === 'worktree.diff_result').at(-1)?.payload).toMatchObject({
+      summary: { files: 2, insertions: 5, deletions: 1 },
+    });
     h.dispose();
   });
 
@@ -529,7 +527,10 @@ describe('WorktreeWebSocketHandler — per-row operations', () => {
       type: 'worktree.diff',
       payload: { dir: '/proj/.wrongstack/worktrees/a', baseBranch: 'wstack/ap/base' },
     });
-    expect(diffSummary).toHaveBeenCalledWith(resolve('/proj/.wrongstack/worktrees/a'), 'wstack/ap/base');
+    expect(diffSummary).toHaveBeenCalledWith(
+      resolve('/proj/.wrongstack/worktrees/a'),
+      'wstack/ap/base',
+    );
     h.dispose();
   });
 });

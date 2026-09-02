@@ -4,4 +4,8 @@
  * share one implementation with packages that depend on persistence directly
  * (kanban). See `packages/persistence/src/socket-path.ts` for rationale.
  */
-export { assertUnixSocketPathWithinLimit, checkUnixSocketPath, unixSocketPathLimit } from '@wrongstack/persistence';
+export {
+  assertUnixSocketPathWithinLimit,
+  checkUnixSocketPath,
+  unixSocketPathLimit,
+} from '@wrongstack/persistence';

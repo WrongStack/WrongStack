@@ -28,9 +28,7 @@ export function SagePage() {
         }
         description="SAGE is WrongStack's persistent, structured knowledge system. It remembers facts, conventions, decisions, and anti-patterns — then scores and injects the most relevant ones into every agent turn."
         aside={
-          <ExternalDoc path="docs/plans/sage-architecture.md">
-            Open SAGE architecture
-          </ExternalDoc>
+          <ExternalDoc path="docs/plans/sage-architecture.md">Open SAGE architecture</ExternalDoc>
         }
       />
 
@@ -75,9 +73,7 @@ export function SagePage() {
                 </span>
               </div>
               <p className="mt-4 text-sm leading-7 text-muted">{body}</p>
-              <code className="mt-6 block font-mono text-xs text-faint break-all">
-                {path}
-              </code>
+              <code className="mt-6 block font-mono text-xs text-faint break-all">{path}</code>
             </article>
           ))}
         </div>
@@ -102,23 +98,33 @@ export function SagePage() {
               <div className="space-y-3 text-zinc-300">
                 <div className="flex flex-wrap gap-2">
                   <span className="rounded bg-brand/20 px-2 py-0.5 text-xs text-brand">type</span>
-                  <span className="text-zinc-500">fact · decision · convention · preference · reference · anti_pattern</span>
+                  <span className="text-zinc-500">
+                    fact · decision · convention · preference · reference · anti_pattern
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="rounded bg-brand/20 px-2 py-0.5 text-xs text-brand">priority</span>
+                  <span className="rounded bg-brand/20 px-2 py-0.5 text-xs text-brand">
+                    priority
+                  </span>
                   <span className="text-zinc-500">critical ⚡ · high ▲ · medium · low</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <span className="rounded bg-brand/20 px-2 py-0.5 text-xs text-brand">tags</span>
-                  <span className="text-zinc-500">#path · #build · #convention · #bug · #architecture</span>
+                  <span className="text-zinc-500">
+                    #path · #build · #convention · #bug · #architecture
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <span className="rounded bg-brand/20 px-2 py-0.5 text-xs text-brand">source</span>
                   <span className="text-zinc-500">session ID or agent that created the entry</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="rounded bg-brand/20 px-2 py-0.5 text-xs text-brand">confidence</span>
-                  <span className="text-zinc-500">0.0–1.0 — low-confidence entries are injected less often</span>
+                  <span className="rounded bg-brand/20 px-2 py-0.5 text-xs text-brand">
+                    confidence
+                  </span>
+                  <span className="text-zinc-500">
+                    0.0–1.0 — low-confidence entries are injected less often
+                  </span>
                 </div>
               </div>
               <div className="mt-8 rounded-lg border border-white/10 bg-white/[0.03] p-5">
@@ -126,7 +132,8 @@ export function SagePage() {
                   Serialized on disk
                 </span>
                 <code className="mt-3 block text-xs leading-6 text-zinc-400">
-                  - [2026-07-13T10:30:00.000Z] [convention|high] mem_1720_a3f2b1c4 Use conventional commits for all changes #git #commit
+                  - [2026-07-13T10:30:00.000Z] [convention|high] mem_1720_a3f2b1c4 Use conventional
+                  commits for all changes #git #commit
                 </code>
               </div>
             </div>
@@ -214,22 +221,22 @@ export function SagePage() {
                   <div className="flex items-start gap-2">
                     <span className="shrink-0 text-emerald-500">+7</span>
                     <span className="text-zinc-300">
-                      [<span className="text-brand">anti_pattern</span>]
-                      {' '}Auth token refresh races with concurrent requests #auth #bug
+                      [<span className="text-brand">anti_pattern</span>] Auth token refresh races
+                      with concurrent requests #auth #bug
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="shrink-0 text-emerald-500">+5</span>
                     <span className="text-zinc-300">
-                      [<span className="text-brand">fact</span>]
-                      {' '}Login timeout defaults to 30s in production config #auth #timeout
+                      [<span className="text-brand">fact</span>] Login timeout defaults to 30s in
+                      production config #auth #timeout
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="shrink-0 text-zinc-500">+3</span>
                     <span className="text-zinc-400">
-                      [<span className="text-brand">reference</span>]
-                      {' '}auth module lives in packages/auth/src #path #auth
+                      [<span className="text-brand">reference</span>] auth module lives in
+                      packages/auth/src #path #auth
                     </span>
                   </div>
                 </div>
@@ -312,7 +319,8 @@ export function SagePage() {
             <p className="mt-3 text-sm leading-7 text-muted">
               When a scope's total byte size crosses 32 KB (~8K tokens), the store runs a
               normalization pass: timestamps, IDs, type/priority badges, and tags are stripped, and
-              duplicate normalized lines are removed. The original file is backed up before mutation.
+              duplicate normalized lines are removed. The original file is backed up before
+              mutation.
             </p>
             <div className="mt-5 flex items-center gap-2 text-xs text-faint">
               <Check className="size-3.5 text-emerald-500" />
@@ -428,20 +436,14 @@ export function SagePage() {
           <Link href="/commands/memory" className="text-sm font-bold text-brand">
             /memory command reference →
           </Link>
-          <ExternalDoc path="docs/slash/memory.md">
-            Memory slash command docs
-          </ExternalDoc>
+          <ExternalDoc path="docs/slash/memory.md">Memory slash command docs</ExternalDoc>
         </div>
       </section>
 
       {/* ── Configuration ──────────────────────────────────────────────── */}
       <section className="border-t border-line bg-ink text-white">
         <div className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 lg:px-10">
-          <SectionIntro
-            index="08"
-            eyebrow="Configuration"
-            title="Tune memory to your workflow."
-          />
+          <SectionIntro index="08" eyebrow="Configuration" title="Tune memory to your workflow." />
           <div className="mt-12 overflow-hidden rounded-2xl border border-white/10">
             <div className="border-b border-white/10 px-6 py-4">
               <span className="font-mono text-xs font-black uppercase tracking-[0.16em] text-zinc-500">
@@ -451,59 +453,59 @@ export function SagePage() {
             <div className="p-6 font-mono text-sm leading-7 text-zinc-300">
               <span className="text-zinc-600">{'{'}</span>
               <br />
-              <span className="text-zinc-600">  "Sage": {'{'}</span>
+              <span className="text-zinc-600"> "Sage": {'{'}</span>
               <br />
-              <span className="text-zinc-600">    </span>
+              <span className="text-zinc-600"> </span>
               <span className="text-zinc-500">"enabled"</span>
               <span className="text-zinc-600">: </span>
               <span className="text-emerald-400">true</span>
               <span className="text-zinc-600">,</span>
               <span className="text-zinc-700">{' // toggle the entire subsystem'}</span>
               <br />
-              <span className="text-zinc-600">    </span>
+              <span className="text-zinc-600"> </span>
               <span className="text-zinc-500">"storage"</span>
               <span className="text-zinc-600">: {'{'}</span>
               <br />
-              <span className="text-zinc-600">      </span>
+              <span className="text-zinc-600"> </span>
               <span className="text-zinc-500">"projectLocal"</span>
               <span className="text-zinc-600">: </span>
               <span className="text-emerald-400">true</span>
               <span className="text-zinc-600">,</span>
               <span className="text-zinc-700">{' // store inside .wrongstack/memories'}</span>
               <br />
-              <span className="text-zinc-600">      </span>
+              <span className="text-zinc-600"> </span>
               <span className="text-zinc-500">"directory"</span>
               <span className="text-zinc-600">: </span>
               <span className="text-amber-300">".wrongstack/memories"</span>
               <br />
-              <span className="text-zinc-600">    {'}'},</span>
+              <span className="text-zinc-600"> {'}'},</span>
               <br />
-              <span className="text-zinc-600">    </span>
+              <span className="text-zinc-600"> </span>
               <span className="text-zinc-500">"inject"</span>
               <span className="text-zinc-600">: {'{'}</span>
               <br />
-              <span className="text-zinc-600">      </span>
+              <span className="text-zinc-600"> </span>
               <span className="text-zinc-500">"turnContext"</span>
               <span className="text-zinc-600">: </span>
               <span className="text-emerald-400">true</span>
               <span className="text-zinc-600">,</span>
               <span className="text-zinc-700">{' // inject top 8 into every turn'}</span>
               <br />
-              <span className="text-zinc-600">      </span>
+              <span className="text-zinc-600"> </span>
               <span className="text-zinc-500">"toolResults"</span>
               <span className="text-zinc-600">: </span>
               <span className="text-emerald-400">true</span>
               <span className="text-zinc-600">,</span>
               <span className="text-zinc-700">{' // append hints to read/grep/tree output'}</span>
               <br />
-              <span className="text-zinc-600">      </span>
+              <span className="text-zinc-600"> </span>
               <span className="text-zinc-500">"maxHintsPerTool"</span>
               <span className="text-zinc-600">: </span>
               <span className="text-amber-300">4</span>
               <br />
-              <span className="text-zinc-600">    {'}'}</span>
+              <span className="text-zinc-600"> {'}'}</span>
               <br />
-              <span className="text-zinc-600">  {'}'}</span>
+              <span className="text-zinc-600"> {'}'}</span>
               <br />
               <span className="text-zinc-600">{'}'}</span>
             </div>

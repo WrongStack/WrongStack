@@ -22,7 +22,8 @@ const BIG = {
 
 const SMALL = {
   title: 'Fix null check in parser',
-  description: 'Guard against undefined input.\n\n**Acceptance Criteria:**\n- verify: pnpm vitest run parser',
+  description:
+    'Guard against undefined input.\n\n**Acceptance Criteria:**\n- verify: pnpm vitest run parser',
   type: 'bugfix' as const,
   priority: 'medium' as const,
   status: 'pending' as const,
@@ -85,9 +86,7 @@ describe('splitGraphNode', () => {
     const parent = tracker.addNode(BIG);
     expect(splitGraphNode(tracker, 'missing', SPECS)).toEqual([]);
     expect(splitGraphNode(tracker, parent.id, [])).toEqual([]);
-    expect(
-      splitGraphNode(tracker, parent.id, SPECS, { isRunning: () => true }),
-    ).toEqual([]);
+    expect(splitGraphNode(tracker, parent.id, SPECS, { isRunning: () => true })).toEqual([]);
   });
 });
 

@@ -211,9 +211,7 @@ describe('provider status store', () => {
       blocked: 1,
       totalFailures: 1,
       totalRateLimits: 0,
-      statuses: [
-        { providerId: 'a', model: 'm1', state: 'blocked', lastErrorKind: 'rate_limit' },
-      ],
+      statuses: [{ providerId: 'a', model: 'm1', state: 'blocked', lastErrorKind: 'rate_limit' }],
     });
     expect(Object.values(useProviderStatusStore.getState().entries)).toHaveLength(1);
 

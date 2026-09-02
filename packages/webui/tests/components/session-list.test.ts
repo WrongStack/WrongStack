@@ -164,7 +164,9 @@ describe('filterAndSortSessions', () => {
 
   it('searches names, titles, latest requests, providers, models, IDs and tool names', () => {
     const searchable = entries.map((entry) =>
-      entry.id === 'failed' ? { ...entry, lastUserMessage: 'Investigate stale session recovery' } : entry,
+      entry.id === 'failed'
+        ? { ...entry, lastUserMessage: 'Investigate stale session recovery' }
+        : entry,
     );
     const result = filterAndSortSessions(searchable, {
       query: 'stale session recovery',

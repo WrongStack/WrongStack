@@ -94,7 +94,9 @@ describe('buildFleetTopology', () => {
 
     expect(topology.nodes.map((n) => `${n.kind}:${n.label}`)).toContain('machine:devbox');
     expect(topology.nodes.map((n) => `${n.kind}:${n.label}`)).toContain('project:WrongStack');
-    expect(topology.nodes.some((n) => n.kind === 'terminal' && n.sessionId === 'sess-1')).toBe(true);
+    expect(topology.nodes.some((n) => n.kind === 'terminal' && n.sessionId === 'sess-1')).toBe(
+      true,
+    );
     expect(topology.nodes.some((n) => n.kind === 'agent' && n.agentId === 'agent-1')).toBe(true);
     expect(topology.edges.map((e) => `${e.source}->${e.target}`)).toEqual([
       'machine:machine-1->project:machine-1:proj-1',
@@ -362,12 +364,57 @@ describe('filterFleetTopology', () => {
   const nodes: FleetTopologyNode[] = [
     { id: 'machine:m1', kind: 'machine', label: 'm1', chips: [], machineId: 'm1' },
     { id: 'machine:m2', kind: 'machine', label: 'm2', chips: [], machineId: 'm2' },
-    { id: 'project:m1:p1', kind: 'project', label: 'p1', chips: [], machineId: 'm1', projectId: 'p1' },
-    { id: 'project:m2:p1', kind: 'project', label: 'p1', chips: [], machineId: 'm2', projectId: 'p1' },
-    { id: 'project:m2:p2', kind: 'project', label: 'p2', chips: [], machineId: 'm2', projectId: 'p2' },
-    { id: 'terminal:s1', kind: 'terminal', label: 's1', chips: [], machineId: 'm1', projectId: 'p1', sessionId: 's1' },
-    { id: 'terminal:s2', kind: 'terminal', label: 's2', chips: [], machineId: 'm2', projectId: 'p1', sessionId: 's2' },
-    { id: 'terminal:s3', kind: 'terminal', label: 's3', chips: [], machineId: 'm2', projectId: 'p2', sessionId: 's3' },
+    {
+      id: 'project:m1:p1',
+      kind: 'project',
+      label: 'p1',
+      chips: [],
+      machineId: 'm1',
+      projectId: 'p1',
+    },
+    {
+      id: 'project:m2:p1',
+      kind: 'project',
+      label: 'p1',
+      chips: [],
+      machineId: 'm2',
+      projectId: 'p1',
+    },
+    {
+      id: 'project:m2:p2',
+      kind: 'project',
+      label: 'p2',
+      chips: [],
+      machineId: 'm2',
+      projectId: 'p2',
+    },
+    {
+      id: 'terminal:s1',
+      kind: 'terminal',
+      label: 's1',
+      chips: [],
+      machineId: 'm1',
+      projectId: 'p1',
+      sessionId: 's1',
+    },
+    {
+      id: 'terminal:s2',
+      kind: 'terminal',
+      label: 's2',
+      chips: [],
+      machineId: 'm2',
+      projectId: 'p1',
+      sessionId: 's2',
+    },
+    {
+      id: 'terminal:s3',
+      kind: 'terminal',
+      label: 's3',
+      chips: [],
+      machineId: 'm2',
+      projectId: 'p2',
+      sessionId: 's3',
+    },
   ];
   const topology = {
     nodes,
@@ -407,10 +454,41 @@ describe('filterFleetTopology', () => {
 describe('fleet topology compact search', () => {
   const topology = {
     nodes: [
-      { id: 'machine:m1', kind: 'machine' as const, label: 'devbox', chips: ['2 clients'], machineId: 'm1' },
-      { id: 'project:m1:p1', kind: 'project' as const, label: 'WrongStack', chips: ['main'], machineId: 'm1', projectId: 'p1' },
-      { id: 'terminal:s1', kind: 'terminal' as const, label: 'TUI · s1', chips: ['tui'], machineId: 'm1', projectId: 'p1', sessionId: 's1' },
-      { id: 'agent:s1:a1', kind: 'agent' as const, label: 'Release reviewer', status: 'active', chips: ['active'], machineId: 'm1', projectId: 'p1', sessionId: 's1', agentId: 'a1' },
+      {
+        id: 'machine:m1',
+        kind: 'machine' as const,
+        label: 'devbox',
+        chips: ['2 clients'],
+        machineId: 'm1',
+      },
+      {
+        id: 'project:m1:p1',
+        kind: 'project' as const,
+        label: 'WrongStack',
+        chips: ['main'],
+        machineId: 'm1',
+        projectId: 'p1',
+      },
+      {
+        id: 'terminal:s1',
+        kind: 'terminal' as const,
+        label: 'TUI · s1',
+        chips: ['tui'],
+        machineId: 'm1',
+        projectId: 'p1',
+        sessionId: 's1',
+      },
+      {
+        id: 'agent:s1:a1',
+        kind: 'agent' as const,
+        label: 'Release reviewer',
+        status: 'active',
+        chips: ['active'],
+        machineId: 'm1',
+        projectId: 'p1',
+        sessionId: 's1',
+        agentId: 'a1',
+      },
     ],
     edges: [
       { id: 'm-p', source: 'machine:m1', target: 'project:m1:p1' },
@@ -482,15 +560,17 @@ describe('buildFleetTopology — edge cases', () => {
             agents: [],
           },
         ],
-        machines: [{
-          machineId: 'machine-1',
-          hostname: 'devbox',
-          clientCount: 1,
-          sessionCount: 2,
-          agentCount: 0,
-          projectIds: ['proj-a', 'proj-b'],
-          lastActivityAt: '2026-07-09T00:01:00.000Z',
-        }],
+        machines: [
+          {
+            machineId: 'machine-1',
+            hostname: 'devbox',
+            clientCount: 1,
+            sessionCount: 2,
+            agentCount: 0,
+            projectIds: ['proj-a', 'proj-b'],
+            lastActivityAt: '2026-07-09T00:01:00.000Z',
+          },
+        ],
       }),
     );
     // Both sessions share one machine, so the sort must break ties by
@@ -505,29 +585,33 @@ describe('buildFleetTopology — edge cases', () => {
     // the labels/chips must use the session-level fallback.
     const topology = buildFleetTopology(
       baseSnapshot({
-        liveSessions: [{
-          sessionId: 'sess-1',
-          clientKind: 'tui',
-          machineId: 'machine-1',
-          hostname: 'devbox',
-          projectId: 'orphan-proj',
-          projectName: 'Orphan',
-          projectRoot: '/tmp/orphan',
-          status: 'active',
-          startedAt: '2026-07-09T00:00:00.000Z',
-          lastActivityAt: '2026-07-09T00:01:00.000Z',
-          agentCount: 0,
-          agents: [],
-        }],
-        machines: [{
-          machineId: 'machine-1',
-          hostname: 'devbox',
-          clientCount: 1,
-          sessionCount: 1,
-          agentCount: 0,
-          projectIds: ['orphan-proj'],
-          lastActivityAt: '2026-07-09T00:01:00.000Z',
-        }],
+        liveSessions: [
+          {
+            sessionId: 'sess-1',
+            clientKind: 'tui',
+            machineId: 'machine-1',
+            hostname: 'devbox',
+            projectId: 'orphan-proj',
+            projectName: 'Orphan',
+            projectRoot: '/tmp/orphan',
+            status: 'active',
+            startedAt: '2026-07-09T00:00:00.000Z',
+            lastActivityAt: '2026-07-09T00:01:00.000Z',
+            agentCount: 0,
+            agents: [],
+          },
+        ],
+        machines: [
+          {
+            machineId: 'machine-1',
+            hostname: 'devbox',
+            clientCount: 1,
+            sessionCount: 1,
+            agentCount: 0,
+            projectIds: ['orphan-proj'],
+            lastActivityAt: '2026-07-09T00:01:00.000Z',
+          },
+        ],
       }),
     );
     const project = topology.nodes.find((n) => n.kind === 'project');
@@ -540,16 +624,18 @@ describe('buildFleetTopology — edge cases', () => {
   it('excludes disconnected clients from the topology', () => {
     const topology = buildFleetTopology(
       baseSnapshot({
-        clients: [{
-          clientId: 'offline-client',
-          kind: 'webui',
-          machineId: 'machine-x',
-          connected: false,
-          connectedAt: '2026-07-09T00:00:00.000Z',
-          lastSeenAt: '2026-07-09T00:00:10.000Z',
-          projectId: 'proj-x',
-          capabilities: ['control.receive'],
-        }],
+        clients: [
+          {
+            clientId: 'offline-client',
+            kind: 'webui',
+            machineId: 'machine-x',
+            connected: false,
+            connectedAt: '2026-07-09T00:00:00.000Z',
+            lastSeenAt: '2026-07-09T00:00:10.000Z',
+            projectId: 'proj-x',
+            capabilities: ['control.receive'],
+          },
+        ],
       }),
     );
     // Disconnected client should not appear as a node.

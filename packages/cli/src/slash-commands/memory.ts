@@ -276,8 +276,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
                 '`/memory race` requires the SAGE surface. Run the search with `/memory search <query>` instead.',
             };
           }
-          const vectorStore = (opts as { vectorMemoryStore?: unknown })
-            .vectorMemoryStore as
+          const vectorStore = (opts as { vectorMemoryStore?: unknown }).vectorMemoryStore as
             | Parameters<typeof runSearchRace>[2]
             | undefined;
           if (!vectorStore) {
@@ -354,7 +353,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
         case 'import-legacy': {
           if (!Sage?.importLegacy) return requiresSage('import-legacy');
           const legacyPaths = [opts.paths?.projectMemory, opts.paths?.globalMemory].filter(
-            (value): value is string => !(!value),
+            (value): value is string => !!value,
           );
           if (legacyPaths.length === 0)
             return { message: 'Legacy memory paths are unavailable in this session.' };
@@ -440,10 +439,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
                   if (
                     Array.isArray(mem.tags) &&
                     mem.tags.some(
-                      (t) =>
-                        t === DOMAIN_TERM_TAG ||
-                        t === 'glossary' ||
-                        t === 'project-jargon',
+                      (t) => t === DOMAIN_TERM_TAG || t === 'glossary' || t === 'project-jargon',
                     )
                   ) {
                     targets.push({ id: mem.id, tags: mem.tags });
@@ -461,10 +457,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
                 if (
                   Array.isArray(mem.tags) &&
                   mem.tags.some(
-                    (t) =>
-                      t === DOMAIN_TERM_TAG ||
-                      t === 'glossary' ||
-                      t === 'project-jargon',
+                    (t) => t === DOMAIN_TERM_TAG || t === 'glossary' || t === 'project-jargon',
                   )
                 ) {
                   targets.push({ id: mem.id, tags: mem.tags });
@@ -501,11 +494,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
             const tagSummary = new Map<string, number>();
             for (const t of targets) {
               for (const tag of t.tags) {
-                if (
-                  tag === DOMAIN_TERM_TAG ||
-                  tag === 'glossary' ||
-                  tag === 'project-jargon'
-                ) {
+                if (tag === DOMAIN_TERM_TAG || tag === 'glossary' || tag === 'project-jargon') {
                   tagSummary.set(tag, (tagSummary.get(tag) ?? 0) + 1);
                 }
               }
@@ -517,7 +506,10 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
 
             const tail =
               failures.length > 0
-                ? `\n\nFailures (${failures.length}):\n${failures.slice(0, 10).map((f) => `  - ${f}`).join('\n')}`
+                ? `\n\nFailures (${failures.length}):\n${failures
+                    .slice(0, 10)
+                    .map((f) => `  - ${f}`)
+                    .join('\n')}`
                 : '';
             return {
               message:
@@ -615,8 +607,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
           // mirror state across the SAGE + vector memory pair. The
           // host supplies the vector store through the slash command
           // context (added when the vector store is wired at boot).
-          const vectorStore = (opts as { vectorMemoryStore?: unknown })
-            .vectorMemoryStore as
+          const vectorStore = (opts as { vectorMemoryStore?: unknown }).vectorMemoryStore as
             | {
                 stats: () => {
                   entries: number;
@@ -645,9 +636,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
           try {
             [sageStats, sageTotal] = await Promise.all([
               Sage.stats(),
-              Sage.listSagePage({ limit: 1 }).then(
-                (page) => page.total ?? page.memories.length,
-              ),
+              Sage.listSagePage({ limit: 1 }).then((page) => page.total ?? page.memories.length),
             ]);
           } catch (err) {
             return {
@@ -663,8 +652,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
               let mirroredInSage = 0;
               let standalone = 0;
               for (const row of vectorRows) {
-                const sageId =
-                  (row.metadata as { sageId?: unknown } | undefined)?.sageId;
+                const sageId = (row.metadata as { sageId?: unknown } | undefined)?.sageId;
                 if (typeof sageId === 'string' && sageId.length > 0) {
                   mirroredInSage++;
                 } else {

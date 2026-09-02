@@ -52,8 +52,7 @@ export function Scrollbar({
     <Box flexDirection="column" flexShrink={0}>
       {cells.map((cell, row) => {
         const copyHit = copyByRow.get(row);
-        const inBand =
-          band !== null && row >= band.topRow && row <= band.bottomRow && row < rows;
+        const inBand = band !== null && row >= band.topRow && row <= band.bottomRow && row < rows;
         const isHead = band !== null && row === band.headRow && row < rows;
         return (
           <Box key={row} flexDirection="row">
@@ -62,7 +61,9 @@ export function Scrollbar({
             >
               {copyHit ? COPY_ICON : ' '}
             </Text>
-            <Text {...(inBand ? { color: theme.accent } : {})}>{isHead ? '█' : inBand ? '▌' : ' '}</Text>
+            <Text {...(inBand ? { color: theme.accent } : {})}>
+              {isHead ? '█' : inBand ? '▌' : ' '}
+            </Text>
             <Text
               {...(scrollable ? { color: theme.accent } : {})}
               dimColor={!scrollable || cell === '│'}

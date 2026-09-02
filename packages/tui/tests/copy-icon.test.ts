@@ -1,8 +1,4 @@
-import {
-  DEFAULT_MIN_IMPORTANCE,
-  DEFAULT_MIN_SCORE,
-  MIN_RELATION_STRENGTH,
-} from '@wrongstack/sage';
+import { DEFAULT_MIN_IMPORTANCE, DEFAULT_MIN_SCORE, MIN_RELATION_STRENGTH } from '@wrongstack/sage';
 import { describe, expect, it } from 'vitest';
 import {
   COPY_ICON,
@@ -54,7 +50,13 @@ const ALL_ENTRY_KINDS = [
     outcome: 'Done',
   },
   { id: 13, kind: 'banner', version: '1.0.0', provider: 'test', model: 'model', cwd: '/' },
-  { id: 14, kind: 'confirm', toolName: 'bash', input: { command: 'echo hi' }, suggestedPattern: 'echo *' },
+  {
+    id: 14,
+    kind: 'confirm',
+    toolName: 'bash',
+    input: { command: 'echo hi' },
+    suggestedPattern: 'echo *',
+  },
   {
     id: 15,
     kind: 'subagent',
@@ -128,9 +130,7 @@ describe('copyableTextForEntry', () => {
 
   it('uses readable text for structured cards that have a natural body', () => {
     expect(copyableTextForEntry(ALL_ENTRY_KINDS[10]!)).toBe('memory-1\nwhy');
-    expect(copyableTextForEntry(ALL_ENTRY_KINDS[11]!)).toBe(
-      'Proceed?\n\nProceed\n\nSafe\n\nDone',
-    );
+    expect(copyableTextForEntry(ALL_ENTRY_KINDS[11]!)).toBe('Proceed?\n\nProceed\n\nSafe\n\nDone');
     expect(copyableTextForEntry(ALL_ENTRY_KINDS[14]!)).toBe('review complete\nclean');
   });
 

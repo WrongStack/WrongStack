@@ -260,7 +260,11 @@ export function applyMemoryContextSnapshot(
       }
     }
   }
-  return { ...state, memories: pruneExitedMemories(memories), transitions: transitions.slice(0, 100) };
+  return {
+    ...state,
+    memories: pruneExitedMemories(memories),
+    transitions: transitions.slice(0, 100),
+  };
 }
 
 function placeholder(

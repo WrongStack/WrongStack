@@ -139,11 +139,7 @@ describe('acp-session-updates', () => {
     expect(emit).not.toHaveBeenCalled();
 
     // no update at all
-    handleAcpSessionUpdate(
-      { jsonrpc: '2.0', method: 'session/update' } as never,
-      scratch,
-      emit,
-    );
+    handleAcpSessionUpdate({ jsonrpc: '2.0', method: 'session/update' } as never, scratch, emit);
     expect(emit).not.toHaveBeenCalled();
   });
 
@@ -206,7 +202,12 @@ describe('acp-session-updates', () => {
         jsonrpc: '2.0',
         method: 'session/update',
         params: {
-          update: { sessionUpdate: 'usage_update', used: 100, size: 500, cost: { input: 0.01, output: 0.02 } },
+          update: {
+            sessionUpdate: 'usage_update',
+            used: 100,
+            size: 500,
+            cost: { input: 0.01, output: 0.02 },
+          },
         },
       } as never,
       scratch,
@@ -293,7 +294,10 @@ describe('acp-session-updates', () => {
       emit,
     );
     expect(emit).toHaveBeenCalledTimes(1); // raw event always emitted
-    expect(emit).toHaveBeenCalledWith({ type: 'raw', update: { sessionUpdate: 'unknown_type_xyz' } });
+    expect(emit).toHaveBeenCalledWith({
+      type: 'raw',
+      update: { sessionUpdate: 'unknown_type_xyz' },
+    });
   });
 });
 
@@ -311,9 +315,7 @@ describe('acp-session-callbacks', () => {
 
   describe('handleAcpPermissionRequest', () => {
     it('returns early when msg has no id', async () => {
-      const { handleAcpPermissionRequest } = await import(
-        '../src/client/acp-session-callbacks.js'
-      );
+      const { handleAcpPermissionRequest } = await import('../src/client/acp-session-callbacks.js');
       await handleAcpPermissionRequest(
         { jsonrpc: '2.0', method: 'session/request_permission', params: {} } as never,
         vi.fn() as never,
@@ -323,9 +325,7 @@ describe('acp-session-callbacks', () => {
     });
 
     it('sends error when toolCall is missing', async () => {
-      const { handleAcpPermissionRequest } = await import(
-        '../src/client/acp-session-callbacks.js'
-      );
+      const { handleAcpPermissionRequest } = await import('../src/client/acp-session-callbacks.js');
       await handleAcpPermissionRequest(
         { jsonrpc: '2.0', method: 'session/request_permission', id: 1, params: {} } as never,
         vi.fn() as never,
@@ -335,92 +335,128 @@ describe('acp-session-callbacks', () => {
     });
 
     it('sends result when permission policy succeeds', async () => {
-      const { handleAcpPermissionRequest } = await import(
-        '../src/client/acp-session-callbacks.js'
-      );
+      const { handleAcpPermissionRequest } = await import('../src/client/acp-session-callbacks.js');
       const policy = vi.fn().mockResolvedValue({ outcome: 'selected', optionId: 'allow' });
       await handleAcpPermissionRequest(
         {
           jsonrpc: '2.0',
           method: 'session/request_permission',
           id: 2,
-          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc1', title: 'test', kind: 'read' } },
+          params: {
+            toolCall: {
+              sessionUpdate: 'tool_call_update',
+              toolCallId: 'tc1',
+              title: 'test',
+              kind: 'read',
+            },
+          },
         } as never,
         policy,
         sender,
       );
-      expect(sender.sendResult).toHaveBeenCalledWith(2, { outcome: { outcome: 'selected', optionId: 'allow' } });
+      expect(sender.sendResult).toHaveBeenCalledWith(2, {
+        outcome: { outcome: 'selected', optionId: 'allow' },
+      });
     });
 
     it('handles policy rejection', async () => {
-      const { handleAcpPermissionRequest } = await import(
-        '../src/client/acp-session-callbacks.js'
-      );
+      const { handleAcpPermissionRequest } = await import('../src/client/acp-session-callbacks.js');
       const policy = vi.fn().mockResolvedValue({ outcome: 'selected', optionId: 'reject' });
       await handleAcpPermissionRequest(
         {
           jsonrpc: '2.0',
           method: 'session/request_permission',
           id: 3,
-          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc2', title: 'test', kind: 'read' } },
+          params: {
+            toolCall: {
+              sessionUpdate: 'tool_call_update',
+              toolCallId: 'tc2',
+              title: 'test',
+              kind: 'read',
+            },
+          },
         } as never,
         policy,
         sender,
       );
-      expect(sender.sendResult).toHaveBeenCalledWith(3, { outcome: { outcome: 'selected', optionId: 'reject' } });
+      expect(sender.sendResult).toHaveBeenCalledWith(3, {
+        outcome: { outcome: 'selected', optionId: 'reject' },
+      });
     });
 
     it('handles permission policy that throws', async () => {
-      const { handleAcpPermissionRequest } = await import(
-        '../src/client/acp-session-callbacks.js'
-      );
+      const { handleAcpPermissionRequest } = await import('../src/client/acp-session-callbacks.js');
       const policy = vi.fn().mockRejectedValue(new Error('policy error'));
       await handleAcpPermissionRequest(
         {
           jsonrpc: '2.0',
           method: 'session/request_permission',
           id: 4,
-          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc3', title: 'test', kind: 'read' } },
+          params: {
+            toolCall: {
+              sessionUpdate: 'tool_call_update',
+              toolCallId: 'tc3',
+              title: 'test',
+              kind: 'read',
+            },
+          },
         } as never,
         policy,
         sender,
       );
-      expect(sender.sendErrorResponse).toHaveBeenCalledWith(4, -32603, 'permission policy failed: policy error');
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(
+        4,
+        -32603,
+        'permission policy failed: policy error',
+      );
     });
 
     it('handles null options by defaulting to empty array', async () => {
-      const { handleAcpPermissionRequest } = await import(
-        '../src/client/acp-session-callbacks.js'
-      );
+      const { handleAcpPermissionRequest } = await import('../src/client/acp-session-callbacks.js');
       const policy = vi.fn().mockResolvedValue({ outcome: 'selected', optionId: 'allow' });
       await handleAcpPermissionRequest(
         {
           jsonrpc: '2.0',
           method: 'session/request_permission',
           id: 5,
-          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc4', title: 'test', kind: 'read' }, options: null },
+          params: {
+            toolCall: {
+              sessionUpdate: 'tool_call_update',
+              toolCallId: 'tc4',
+              title: 'test',
+              kind: 'read',
+            },
+            options: null,
+          },
         } as never,
         policy,
         sender,
       );
       expect(policy).toHaveBeenCalled();
-      expect(sender.sendResult).toHaveBeenCalledWith(5, { outcome: { outcome: 'selected', optionId: 'allow' } });
+      expect(sender.sendResult).toHaveBeenCalledWith(5, {
+        outcome: { outcome: 'selected', optionId: 'allow' },
+      });
     });
 
     it('fails closed with -32800 when the policy exceeds permissionTimeoutMs', async () => {
-      const { handleAcpPermissionRequest } = await import(
-        '../src/client/acp-session-callbacks.js'
-      );
+      const { handleAcpPermissionRequest } = await import('../src/client/acp-session-callbacks.js');
       // Policy never settles — only the deadline can end the race.
-      const policy = vi.fn().mockImplementation(
-        () => new Promise(() => undefined) as ReturnType<PermissionPolicy>,
-      );
+      const policy = vi
+        .fn()
+        .mockImplementation(() => new Promise(() => undefined) as ReturnType<PermissionPolicy>);
       await handleAcpPermissionRequest(
         {
           jsonrpc: '2.0',
           method: 'session/request_permission',
           id: 6,
-          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc5', title: 'test', kind: 'edit' } },
+          params: {
+            toolCall: {
+              sessionUpdate: 'tool_call_update',
+              toolCallId: 'tc5',
+              title: 'test',
+              kind: 'edit',
+            },
+          },
         } as never,
         policy,
         sender,
@@ -435,20 +471,25 @@ describe('acp-session-callbacks', () => {
     });
 
     it('rejects immediately when the outer signal is already aborted', async () => {
-      const { handleAcpPermissionRequest } = await import(
-        '../src/client/acp-session-callbacks.js'
-      );
+      const { handleAcpPermissionRequest } = await import('../src/client/acp-session-callbacks.js');
       const controller = new AbortController();
       controller.abort();
-      const policy = vi.fn().mockImplementation(
-        () => new Promise(() => undefined) as ReturnType<PermissionPolicy>,
-      );
+      const policy = vi
+        .fn()
+        .mockImplementation(() => new Promise(() => undefined) as ReturnType<PermissionPolicy>);
       await handleAcpPermissionRequest(
         {
           jsonrpc: '2.0',
           method: 'session/request_permission',
           id: 7,
-          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc6', title: 'test', kind: 'edit' } },
+          params: {
+            toolCall: {
+              sessionUpdate: 'tool_call_update',
+              toolCallId: 'tc6',
+              title: 'test',
+              kind: 'edit',
+            },
+          },
         } as never,
         policy,
         sender,
@@ -463,9 +504,7 @@ describe('acp-session-callbacks', () => {
     });
 
     it('clears the deadline timer when the policy settles first (no late abort)', async () => {
-      const { handleAcpPermissionRequest } = await import(
-        '../src/client/acp-session-callbacks.js'
-      );
+      const { handleAcpPermissionRequest } = await import('../src/client/acp-session-callbacks.js');
       let policySignal: AbortSignal | undefined;
       const policy = vi.fn().mockImplementation(async (req) => {
         policySignal = req.signal;
@@ -476,13 +515,22 @@ describe('acp-session-callbacks', () => {
           jsonrpc: '2.0',
           method: 'session/request_permission',
           id: 8,
-          params: { toolCall: { sessionUpdate: 'tool_call_update', toolCallId: 'tc7', title: 'test', kind: 'read' } },
+          params: {
+            toolCall: {
+              sessionUpdate: 'tool_call_update',
+              toolCallId: 'tc7',
+              title: 'test',
+              kind: 'read',
+            },
+          },
         } as never,
         policy,
         sender,
         { permissionTimeoutMs: 10 },
       );
-      expect(sender.sendResult).toHaveBeenCalledWith(8, { outcome: { outcome: 'selected', optionId: 'allow' } });
+      expect(sender.sendResult).toHaveBeenCalledWith(8, {
+        outcome: { outcome: 'selected', optionId: 'allow' },
+      });
       // If the deadline timer had not been cleared it would fire ~10ms
       // after dispatch and abort the signal handed to the policy.
       await new Promise((resolve) => setTimeout(resolve, 30));
@@ -493,8 +541,17 @@ describe('acp-session-callbacks', () => {
 
 describe('acp-session-callbacks — fs & terminal handlers', () => {
   let sender: MockResponseSender;
-  let fileServer: { readTextFile: ReturnType<typeof vi.fn>; writeTextFile: ReturnType<typeof vi.fn> };
-  let terminalServer: { create: ReturnType<typeof vi.fn>; output: ReturnType<typeof vi.fn>; waitForExit: ReturnType<typeof vi.fn>; kill: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> };
+  let fileServer: {
+    readTextFile: ReturnType<typeof vi.fn>;
+    writeTextFile: ReturnType<typeof vi.fn>;
+  };
+  let terminalServer: {
+    create: ReturnType<typeof vi.fn>;
+    output: ReturnType<typeof vi.fn>;
+    waitForExit: ReturnType<typeof vi.fn>;
+    kill: ReturnType<typeof vi.fn>;
+    release: ReturnType<typeof vi.fn>;
+  };
   let permissionPolicy: ReturnType<typeof vi.fn<PermissionPolicy>>;
 
   beforeEach(() => {
@@ -510,7 +567,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       kill: vi.fn(),
       release: vi.fn(),
     };
-    permissionPolicy = vi.fn<PermissionPolicy>().mockResolvedValue({ outcome: 'selected', optionId: 'allow' });
+    permissionPolicy = vi
+      .fn<PermissionPolicy>()
+      .mockResolvedValue({ outcome: 'selected', optionId: 'allow' });
   });
 
   describe('handleAcpFsRequest', () => {
@@ -541,14 +600,19 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       fileServer.readTextFile.mockResolvedValue({ text: 'content' });
       await handleAcpFsRequest(
         {
-          jsonrpc: '2.0', method: 'fs/read_text_file', id: 2,
+          jsonrpc: '2.0',
+          method: 'fs/read_text_file',
+          id: 2,
           params: { path: '/tmp/test.txt', sessionId: 's1' },
         } as never,
         fileServer as never,
         permissionPolicy,
         sender,
       );
-      expect(fileServer.readTextFile).toHaveBeenCalledWith({ sessionId: 's1', path: '/tmp/test.txt' });
+      expect(fileServer.readTextFile).toHaveBeenCalledWith({
+        sessionId: 's1',
+        path: '/tmp/test.txt',
+      });
       expect(sender.sendResult).toHaveBeenCalledWith(2, { text: 'content' });
     });
 
@@ -556,7 +620,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       const { handleAcpFsRequest } = await import('../src/client/acp-session-callbacks.js');
       await handleAcpFsRequest(
         {
-          jsonrpc: '2.0', method: 'fs/write_text_file', id: 3,
+          jsonrpc: '2.0',
+          method: 'fs/write_text_file',
+          id: 3,
           params: { path: '/tmp/test.txt', content: 'new content', sessionId: 's1' },
         } as never,
         fileServer as never,
@@ -565,7 +631,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       );
       expect(permissionPolicy).toHaveBeenCalled();
       expect(fileServer.writeTextFile).toHaveBeenCalledWith({
-        sessionId: 's1', path: '/tmp/test.txt', content: 'new content',
+        sessionId: 's1',
+        path: '/tmp/test.txt',
+        content: 'new content',
       });
       expect(sender.sendResult).toHaveBeenCalledWith(3, {});
     });
@@ -575,14 +643,20 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       permissionPolicy.mockResolvedValue({ outcome: 'selected', optionId: 'reject' });
       await handleAcpFsRequest(
         {
-          jsonrpc: '2.0', method: 'fs/write_text_file', id: 4,
+          jsonrpc: '2.0',
+          method: 'fs/write_text_file',
+          id: 4,
           params: { path: '/tmp/test.txt', content: 'data' },
         } as never,
         fileServer as never,
         permissionPolicy,
         sender,
       );
-      expect(sender.sendErrorResponse).toHaveBeenCalledWith(4, -32602, 'filesystem write denied by permission policy');
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(
+        4,
+        -32602,
+        'filesystem write denied by permission policy',
+      );
       expect(fileServer.writeTextFile).not.toHaveBeenCalled();
     });
 
@@ -593,7 +667,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       );
       await handleAcpFsRequest(
         {
-          jsonrpc: '2.0', method: 'fs/write_text_file', id: 40,
+          jsonrpc: '2.0',
+          method: 'fs/write_text_file',
+          id: 40,
           params: { path: '/tmp/test.txt', content: 'data' },
         } as never,
         fileServer as never,
@@ -601,7 +677,11 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
         sender,
         { permissionTimeoutMs: 1 },
       );
-      expect(sender.sendErrorResponse).toHaveBeenCalledWith(40, -32800, 'filesystem write permission request cancelled or timed out');
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(
+        40,
+        -32800,
+        'filesystem write permission request cancelled or timed out',
+      );
       expect(fileServer.writeTextFile).not.toHaveBeenCalled();
     });
 
@@ -618,7 +698,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
         );
         const pending = handleAcpFsRequest(
           {
-            jsonrpc: '2.0', method: 'fs/write_text_file', id: 42,
+            jsonrpc: '2.0',
+            method: 'fs/write_text_file',
+            id: 42,
             params: { path: '/tmp/test.txt', content: 'data' },
           } as never,
           fileServer as never,
@@ -651,7 +733,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       });
       await handleAcpFsRequest(
         {
-          jsonrpc: '2.0', method: 'fs/write_text_file', id: 41,
+          jsonrpc: '2.0',
+          method: 'fs/write_text_file',
+          id: 41,
           params: { path: '/tmp/test.txt', content: 'data' },
         } as never,
         fileServer as never,
@@ -659,17 +743,25 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
         sender,
         { signal: controller.signal, permissionTimeoutMs: 1000 },
       );
-      expect(sender.sendErrorResponse).toHaveBeenCalledWith(41, -32800, 'filesystem write permission request cancelled or timed out');
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(
+        41,
+        -32800,
+        'filesystem write permission request cancelled or timed out',
+      );
       expect(fileServer.writeTextFile).not.toHaveBeenCalled();
     });
 
     it('handles fs error on read', async () => {
       const { handleAcpFsRequest } = await import('../src/client/acp-session-callbacks.js');
       const actualFsError = (await import('../src/client/file-server.js')).FsError;
-      fileServer.readTextFile.mockRejectedValue(new actualFsError('ENOENT', '/missing.txt', 'file not found'));
+      fileServer.readTextFile.mockRejectedValue(
+        new actualFsError('ENOENT', '/missing.txt', 'file not found'),
+      );
       await handleAcpFsRequest(
         {
-          jsonrpc: '2.0', method: 'fs/read_text_file', id: 5,
+          jsonrpc: '2.0',
+          method: 'fs/read_text_file',
+          id: 5,
           params: { path: '/missing.txt', sessionId: 's1' },
         } as never,
         fileServer as never,
@@ -696,7 +788,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       const { handleAcpTerminalRequest } = await import('../src/client/acp-session-callbacks.js');
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/create', id: 1,
+          jsonrpc: '2.0',
+          method: 'terminal/create',
+          id: 1,
           params: { command: 'echo', args: ['hello'], cwd: '/tmp', sessionId: 's1' },
         } as never,
         terminalServer as never,
@@ -704,7 +798,10 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
         sender,
       );
       expect(terminalServer.create).toHaveBeenCalledWith({
-        sessionId: 's1', command: 'echo', args: ['hello'], cwd: '/tmp',
+        sessionId: 's1',
+        command: 'echo',
+        args: ['hello'],
+        cwd: '/tmp',
       });
       expect(sender.sendResult).toHaveBeenCalledWith(1, { terminalId: 't1' });
     });
@@ -713,9 +810,12 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       const { handleAcpTerminalRequest } = await import('../src/client/acp-session-callbacks.js');
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/create', id: 2,
+          jsonrpc: '2.0',
+          method: 'terminal/create',
+          id: 2,
           params: {
-            command: 'node', sessionId: 's2',
+            command: 'node',
+            sessionId: 's2',
             env: [{ name: 'FOO', value: 'bar' }],
             outputByteLimit: 1024,
           },
@@ -725,7 +825,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
         sender,
       );
       expect(terminalServer.create).toHaveBeenCalledWith({
-        sessionId: 's2', command: 'node', args: [],
+        sessionId: 's2',
+        command: 'node',
+        args: [],
         env: [{ name: 'FOO', value: 'bar' }],
         outputByteLimit: 1024,
       });
@@ -736,14 +838,20 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       permissionPolicy.mockResolvedValue({ outcome: 'selected', optionId: 'reject' });
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/create', id: 3,
+          jsonrpc: '2.0',
+          method: 'terminal/create',
+          id: 3,
           params: { command: 'rm', sessionId: 's1' },
         } as never,
         terminalServer as never,
         permissionPolicy,
         sender,
       );
-      expect(sender.sendErrorResponse).toHaveBeenCalledWith(3, -32602, 'terminal create denied by permission policy');
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(
+        3,
+        -32602,
+        'terminal create denied by permission policy',
+      );
       expect(terminalServer.create).not.toHaveBeenCalled();
     });
 
@@ -754,7 +862,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       );
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/create', id: 30,
+          jsonrpc: '2.0',
+          method: 'terminal/create',
+          id: 30,
           params: { command: 'rm', sessionId: 's1' },
         } as never,
         terminalServer as never,
@@ -762,7 +872,11 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
         sender,
         { permissionTimeoutMs: 1 },
       );
-      expect(sender.sendErrorResponse).toHaveBeenCalledWith(30, -32800, 'terminal create permission request cancelled or timed out');
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(
+        30,
+        -32800,
+        'terminal create permission request cancelled or timed out',
+      );
       expect(terminalServer.create).not.toHaveBeenCalled();
     });
 
@@ -771,7 +885,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       terminalServer.output.mockReturnValue({ output: 'hello', truncated: false });
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/output', id: 4,
+          jsonrpc: '2.0',
+          method: 'terminal/output',
+          id: 4,
           params: { terminalId: 't1' },
         } as never,
         terminalServer as never,
@@ -786,7 +902,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       const { handleAcpTerminalRequest } = await import('../src/client/acp-session-callbacks.js');
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/wait_for_exit', id: 5,
+          jsonrpc: '2.0',
+          method: 'terminal/wait_for_exit',
+          id: 5,
           params: { terminalId: 't1' },
         } as never,
         terminalServer as never,
@@ -801,7 +919,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       const { handleAcpTerminalRequest } = await import('../src/client/acp-session-callbacks.js');
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/kill', id: 6,
+          jsonrpc: '2.0',
+          method: 'terminal/kill',
+          id: 6,
           params: { terminalId: 't1' },
         } as never,
         terminalServer as never,
@@ -816,7 +936,9 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       const { handleAcpTerminalRequest } = await import('../src/client/acp-session-callbacks.js');
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/release', id: 7,
+          jsonrpc: '2.0',
+          method: 'terminal/release',
+          id: 7,
           params: { terminalId: 't1' },
         } as never,
         terminalServer as never,
@@ -831,22 +953,32 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       const { handleAcpTerminalRequest } = await import('../src/client/acp-session-callbacks.js');
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/unknown', id: 8,
+          jsonrpc: '2.0',
+          method: 'terminal/unknown',
+          id: 8,
           params: {},
         } as never,
         terminalServer as never,
         permissionPolicy,
         sender,
       );
-      expect(sender.sendErrorResponse).toHaveBeenCalledWith(8, -32601, 'unknown method: terminal/unknown');
+      expect(sender.sendErrorResponse).toHaveBeenCalledWith(
+        8,
+        -32601,
+        'unknown method: terminal/unknown',
+      );
     });
 
     it('handles terminal method that throws', async () => {
       const { handleAcpTerminalRequest } = await import('../src/client/acp-session-callbacks.js');
-      terminalServer.create = vi.fn().mockImplementation(() => { throw new Error('create error'); });
+      terminalServer.create = vi.fn().mockImplementation(() => {
+        throw new Error('create error');
+      });
       await handleAcpTerminalRequest(
         {
-          jsonrpc: '2.0', method: 'terminal/create', id: 9,
+          jsonrpc: '2.0',
+          method: 'terminal/create',
+          id: 9,
           params: { command: 'fail', sessionId: 's1' },
         } as never,
         terminalServer as never,
@@ -869,10 +1001,19 @@ describe('ACPSession message routing (handleMessage)', () => {
       handlers: Array<(m: any) => void> = [];
       start = vi.fn(async () => {});
       stop = vi.fn();
-      send = vi.fn(async (m: any) => { this.sent.push(m); });
-      constructor() { hoisted.instances.push(this); }
-      onMessage(h: (m: any) => void) { this.handlers.push(h); return () => {}; }
-      emit(m: any) { for (const h of [...this.handlers]) h(m); }
+      send = vi.fn(async (m: any) => {
+        this.sent.push(m);
+      });
+      constructor() {
+        hoisted.instances.push(this);
+      }
+      onMessage(h: (m: any) => void) {
+        this.handlers.push(h);
+        return () => {};
+      }
+      emit(m: any) {
+        for (const h of [...this.handlers]) h(m);
+      }
       respond(id: number | string, method: string, result: unknown) {
         this.emit({ jsonrpc: '2.0', id, method, result } as never);
       }
@@ -932,8 +1073,14 @@ describe('ACPSession message routing (handleMessage)', () => {
   it('handles session/update notification', async () => {
     const { transport } = await startSession();
     transport.emit({
-      jsonrpc: '2.0', method: 'session/update',
-      params: { update: { sessionUpdate: 'agent_message_chunk', content: [{ type: 'text', text: 'hello' }] } },
+      jsonrpc: '2.0',
+      method: 'session/update',
+      params: {
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: [{ type: 'text', text: 'hello' }],
+        },
+      },
     } as never);
     // Should not crash
   });
@@ -959,16 +1106,20 @@ describe('ACPSession message routing (handleMessage)', () => {
   it('requires valid permissionPolicy/trustBoundary', async () => {
     hoisted.instances.length = 0;
     const { ACPSession } = await import('../src/client/acp-session.js');
-    const FakeTransport = vi.mocked(await import('../src/agent/stdio-transport.js')).ClientTransport as any;
+    const FakeTransport = vi.mocked(await import('../src/agent/stdio-transport.js'))
+      .ClientTransport as any;
     const transport = new FakeTransport();
     const projectRoot = path.resolve(os.tmpdir(), 'wstack-acp-err-' + process.pid);
     await expect(
-      ACPSession.connect(transport as never, {
-        projectRoot,
-        permissionPolicy: vi.fn() as never,
-        trustBoundary: {} as never,
-        command: 'test',
-      } as never),
+      ACPSession.connect(
+        transport as never,
+        {
+          projectRoot,
+          permissionPolicy: vi.fn() as never,
+          trustBoundary: {} as never,
+          command: 'test',
+        } as never,
+      ),
     ).rejects.toThrow('permissionPolicy and trustBoundary are mutually exclusive');
   });
 });
