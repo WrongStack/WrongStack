@@ -157,6 +157,32 @@ describe('detectQuantifiedAmbiguity — legacy octal escapes (Annex B)', () => {
   });
 });
 
+describe('detectQuantifiedAmbiguity — flags-aware analysis', () => {
+  // Same defect class as the dot/octal pins: the analysis modeled the
+  // pattern WITHOUT its flags. Under `i`, 'ab' and 'aB' are the same word,
+  // so every (?:ab|aB)+ occurrence is a 2-way choice (the (a|a)+ class);
+  // under `s`, dot consumes LF so '.a' and '\na' overlap. Both were proven
+  // false negatives pre-fix in the 2026-09-02 round-owned repro. The ASCII
+  // fold is a deliberate under-approximation of full Unicode folding (the
+  // layer can only under-reject); non-ASCII case pairs remain a documented
+  // bypass. Flags-off verdicts must be untouched.
+  it('honors the i flag (case-folded branch identity)', () => {
+    expect(detectQuantifiedAmbiguity('ab|aB', 'i').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('aB|ab', 'i').verdict).toBe('ambiguous');
+  });
+
+  it('honors the s flag (dotAll dot-vs-LF overlap)', () => {
+    expect(detectQuantifiedAmbiguity('.a|\\na', 's').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('\\r|.', 's').verdict).toBe('ambiguous');
+  });
+
+  it('flags-off verdicts are unchanged', () => {
+    expect(detectQuantifiedAmbiguity('ab|aB').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('\\r|.').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('.a|\\na').verdict).toBe('unambiguous');
+  });
+});
+
 describe('detectQuantifiedAmbiguity — character-class merge never mutates NAMED_SETS', () => {
   // `parseClass` spreads the module-level NAMED_SETS tuples (`\d` -> DIGIT,
   // `\w` -> WORD, the cached complements, …) into its working range list, and

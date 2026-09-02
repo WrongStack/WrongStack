@@ -106,7 +106,7 @@ function splitTopLevelBranches(inner: string): string[] {
 /** Original pairwise overlap test extended in round 13: two branches that
  * are equal, prefix-related, empty, zero-width-only, or whose single-char
  * token sets intersect can consume the same text. */
-function branchesOverlap(branches: string[]): boolean {
+function branchesOverlap(branches: string[], foldCase: boolean, dotAll: boolean): boolean {
   // Round 13 compared ONLY the unwrap-normalized branches, which replaced
   // the raw textual comparisons instead of extending them: `((\w)x|(\w))+`
   // has raw branches where one is a strict prefix of the other (clear
@@ -131,16 +131,22 @@ function branchesOverlap(branches: string[]): boolean {
         // the string rules cannot see. Only single-character tokens are set-
         // compared: a 1-char branch can never equal a 2+-char branch, so
         // multi-token branches correctly stay out of this check.
-        const sx = singleTokenCharSet(x);
-        const sy = singleTokenCharSet(y);
+        const sx0 = singleTokenCharSet(x, dotAll);
+        const sy0 = singleTokenCharSet(y, dotAll);
+        // `i`: fold BEFORE intersecting — the modeled sets stay ⊆ the real
+        // flagged languages, so an intersection proves a real overlap.
+        const sx = sx0 && foldCase ? foldForCompare(sx0) : sx0;
+        const sy = sy0 && foldCase ? foldForCompare(sy0) : sy0;
         if (sx && sy && charSetsIntersect(sx, sy)) return true;
         // Round 14: fixed-length multi-token sequences — exact per-position
         // language intersection. `(\w\w|ab)+`: \w∩{a} and \w∩{b} both
         // intersect, so 'ab' is matchable by both branches; a length mismatch
         // or any single disjoint position (`(\w\d|ab)+`: \d∩{b}=∅) means no
         // common string exists and the pair stays allowed.
-        const fx = fixedTokenSets(x);
-        const fy = fixedTokenSets(y);
+        const fx0 = fixedTokenSets(x, dotAll);
+        const fy0 = fixedTokenSets(y, dotAll);
+        const fx = fx0 && foldCase ? fx0.map(foldForCompare) : fx0;
+        const fy = fy0 && foldCase ? fy0.map(foldForCompare) : fy0;
         if (
           fx &&
           fy &&
@@ -215,6 +221,31 @@ const DOT_SET: CharSet = freezeSet([
   [14, 0x2027],
   [0x202a, MAX_CP],
 ]);
+// `.` WITH dotAll: every code point, LF/CR/LS/PS included.
+const DOT_ALL_SET: CharSet = freezeSet([[0, MAX_CP]]);
+
+/**
+ * ASCII case-fold closure of a charset (mirrors the ambiguity module's
+ * foldForCompare): the set plus the upper↔lower ASCII counterpart ranges of
+ * every cased ASCII member. Deliberately an UNDER-approximation of full
+ * Unicode simple folding — under the `i` flag the modeled language never
+ * exceeds the real flagged language, so a flagged intersection proves a real
+ * overlap (no false rejections), while exotic non-ASCII case pairs remain an
+ * acknowledged bypass (sound under-rejection).
+ */
+function foldForCompare(set: CharSet): CharSet {
+  const ranges: (readonly [number, number])[] = [];
+  for (const [lo, hi] of set) {
+    ranges.push([lo, hi]);
+    const upLo = Math.max(lo, 65);
+    const upHi = Math.min(hi, 90);
+    if (upLo <= upHi) ranges.push([upLo + 32, upHi + 32]);
+    const lowLo = Math.max(lo, 97);
+    const lowHi = Math.min(hi, 122);
+    if (lowLo <= lowHi) ranges.push([lowLo - 32, lowHi - 32]);
+  }
+  return mergeRanges(ranges);
+}
 
 function complementOf(set: CharSet): CharSet {
   const out: [number, number][] = [];
@@ -490,8 +521,8 @@ function parseCharClass(s: string): CharSet | null {
  * token: `.`, a literal, an escape, or a `[...]` class. Null for anything
  * else (multi-token, quantified, zero-width, unknown escape) — callers then
  * skip the set comparison, which can only under-reject, never over-reject. */
-function singleTokenCharSet(branch: string): CharSet | null {
-  if (branch === '.') return DOT_SET;
+function singleTokenCharSet(branch: string, dotAll: boolean): CharSet | null {
+  if (branch === '.') return dotAll ? DOT_ALL_SET : DOT_SET;
   if (branch.startsWith('\\')) {
     const tok = parseEscape(branch, 0);
     if (!tok || tok.next !== branch.length) return null;
@@ -514,7 +545,7 @@ function singleTokenCharSet(branch: string): CharSet | null {
  * sequence comparison, which can only under-reject, never over-reject. For
  * two such sequences language intersection is EXACT: they match a common
  * string iff lengths are equal and every position's sets intersect. */
-function fixedTokenSets(branch: string): CharSet[] | null {
+function fixedTokenSets(branch: string, dotAll: boolean): CharSet[] | null {
   const sets: CharSet[] = [];
   let i = 0;
   while (i < branch.length) {
@@ -522,7 +553,7 @@ function fixedTokenSets(branch: string): CharSet[] | null {
     let set: CharSet | null;
     let next: number;
     if (ch === '.') {
-      set = DOT_SET;
+      set = dotAll ? DOT_ALL_SET : DOT_SET;
       next = i + 1;
     } else if (ch === '\\') {
       const tok = parseEscape(branch, i);
@@ -635,18 +666,25 @@ function directChildGroupContents(s: string): string[] {
  * stay allowed, and unquantified wrappers (`((a|a))`) are never analysed —
  * only groups reached from a quantifier are.
  */
-function hasAmbiguousBranches(content: string): boolean {
+function hasAmbiguousBranches(content: string, foldCase: boolean, dotAll: boolean): boolean {
   const branches = splitTopLevelBranches(content);
-  if (branches.length >= 2 && branchesOverlap(branches)) return true;
+  if (branches.length >= 2 && branchesOverlap(branches, foldCase, dotAll)) return true;
   for (const branch of branches) {
     for (const child of directChildGroupContents(branch)) {
-      if (hasAmbiguousBranches(stripGroupPrefix(child))) return true;
+      if (hasAmbiguousBranches(stripGroupPrefix(child), foldCase, dotAll)) return true;
     }
   }
   return false;
 }
 
-function hasAmbiguousQuantifiedAlternation(pattern: string): boolean {
+function hasAmbiguousQuantifiedAlternation(pattern: string, flags: string): boolean {
+  // Flags participate in the analysis: `i` folds ASCII case into every char
+  // set (`(ab|aB)+` is identical branches under i), `s` widens dot to every
+  // code point (`(.a|\na)+` overlaps under s). Other flags (g, m, y) do not
+  // change branch languages; `u` only changes pattern VALIDITY, which the
+  // engine check below already handles.
+  const foldCase = /i/.test(flags);
+  const dotAll = /s/.test(flags);
   // Character-class and escape state tracked across the WHOLE scan, not just
   // per group probe. A `(` inside `[...]` is literal — a probe started there
   // runs off the end of the pattern and aborts the scan with `false` before
@@ -695,7 +733,7 @@ function hasAmbiguousQuantifiedAlternation(pattern: string): boolean {
     if (j >= pattern.length) return false; // unbalanced — RegExp() will reject
     const next = pattern[j + 1];
     if (next !== '+' && next !== '*' && next !== '{') continue;
-    if (hasAmbiguousBranches(stripGroupPrefix(pattern.slice(i + 1, j)))) {
+    if (hasAmbiguousBranches(stripGroupPrefix(pattern.slice(i + 1, j)), foldCase, dotAll)) {
       return true;
     }
     // ADR-004 semantic layer — additive final check. Answers the ambiguity
@@ -703,7 +741,7 @@ function hasAmbiguousQuantifiedAlternation(pattern: string): boolean {
     // char-source pairs + Sardinas–Patterson code check); budget and
     // out-of-subset content both under-reject (allow), so this can only
     // ADD rejections on top of the static layers above.
-    if (detectQuantifiedAmbiguity(pattern.slice(i + 1, j)).verdict === 'ambiguous') {
+    if (detectQuantifiedAmbiguity(pattern.slice(i + 1, j), flags).verdict === 'ambiguous') {
       return true;
     }
   }
@@ -774,7 +812,7 @@ function compileUncached(pattern: string, flags: string): CompileUserRegexResult
       };
     }
   }
-  if (hasAmbiguousQuantifiedAlternation(pattern)) {
+  if (hasAmbiguousQuantifiedAlternation(pattern, flags)) {
     return {
       ok: false,
       reason:

@@ -94,6 +94,31 @@ describe('compileUserRegex — accepted patterns', () => {
     expect(compileUserRegex('(?:\\08|\\x008)+', '').ok).toBe(false);
   });
 
+  it('rejects case-folded branch overlap under the i flag', () => {
+    // Without flag awareness the guard modeled 'ab' vs 'aB' as disjoint
+    // (per-position 'a'∩'a' ok, 'b'∩'B'=∅) and compiled `(?:ab|aB)+` — but
+    // under `i` both branches match the same words, making every occurrence
+    // a 2-way choice: the (a|a)+ exponential class. Proven failing pre-fix
+    // in the 2026-09-02 round-owned repro.
+    expect(compileUserRegex('(?:ab|aB)+', 'i').ok).toBe(false);
+    expect(compileUserRegex('(ab|aB)+', 'i').ok).toBe(false);
+  });
+
+  it('rejects dot/LF branch overlap under the s flag', () => {
+    // Without flag awareness dot excluded LF, so `(.a|\na)+` looked
+    // per-position disjoint; under `s` dot consumes LF and both branches
+    // match '\na'. The same widening makes `(?:\r|.)+` a real overlap.
+    expect(compileUserRegex('(.a|\\na)+', 's').ok).toBe(false);
+    expect(compileUserRegex('(?:\\r|.)+', 's').ok).toBe(false);
+  });
+
+  it('keeps genuinely disjoint flagged patterns allowed', () => {
+    expect(compileUserRegex('(?:foo|bar)+', 'i').ok).toBe(true);
+    expect(compileUserRegex('(?:ab|cd)+', 'i').ok).toBe(true);
+    // Flags-off behavior is unchanged by the flags-aware fix (round-2 pin).
+    expect(compileUserRegex('(?:\\r|.)+', '').ok).toBe(true);
+  });
+
   it('allows multi-token branches with no common string', () => {
     // Round 14 soundness pins: a single disjoint position (`\d` ∩ {b} = ∅)
     // proves the branch languages cannot intersect, so these stay allowed

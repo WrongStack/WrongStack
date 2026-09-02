@@ -124,6 +124,40 @@ const DOT: CharSet = freezeSet([
   [14, 0x2027],
   [0x202a, MAX_CP],
 ]);
+// `.` WITH dotAll: every code point, LF/CR/LS/PS included.
+const DOT_ALL: CharSet = freezeSet([[0, MAX_CP]]);
+
+/**
+ * ASCII case-fold closure of a charset: the set plus the upper↔lower ASCII
+ * counterpart ranges of every cased ASCII member it contains.
+ *
+ * Deliberately an UNDER-approximation of full Unicode simple case folding:
+ * non-ASCII case pairs (ñ/Ñ, ſ/s, K/K) are not expanded. Under the `i` flag
+ * the modeled language therefore stays ⊆ the real flagged language, so the
+ * product and Sardinas–Patterson stages can only under-reject — they may miss
+ * exotic Unicode case overlaps (sound), but never invent an overlap the real
+ * engine would refuse (the over-rejection this layer forbids).
+ */
+function foldForCompare(set: CharSet): CharSet {
+  const ranges: [number, number][] = [];
+  for (const [lo, hi] of set) {
+    ranges.push([lo, hi]);
+    const upLo = Math.max(lo, 65);
+    const upHi = Math.min(hi, 90);
+    if (upLo <= upHi) ranges.push([upLo + 32, upHi + 32]);
+    const lowLo = Math.max(lo, 97);
+    const lowHi = Math.min(hi, 122);
+    if (lowLo <= lowHi) ranges.push([lowLo - 32, lowHi - 32]);
+  }
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [ranges[0]!];
+  for (let k = 1; k < ranges.length; k++) {
+    const last = merged[merged.length - 1]!;
+    if (ranges[k]![0] <= last[1] + 1) last[1] = Math.max(last[1], ranges[k]![1]!);
+    else merged.push(ranges[k]!);
+  }
+  return merged;
+}
 
 // ---------------------------------------------------------------------------
 // Budget
@@ -170,19 +204,19 @@ class Cursor {
   }
 }
 
-function parseAlt(c: Cursor, budget: Budget): Ast | null {
-  const first = parseSeq(c, budget);
+function parseAlt(c: Cursor, budget: Budget, foldCase: boolean, dotAll: boolean): Ast | null {
+  const first = parseSeq(c, budget, foldCase, dotAll);
   if (first === null) return null;
   const parts: Ast[] = [first];
   while (c.eat('|')) {
-    const p = parseSeq(c, budget);
+    const p = parseSeq(c, budget, foldCase, dotAll);
     if (p === null) return null;
     parts.push(p);
   }
   return parts.length === 1 ? parts[0]! : { k: 'alt', parts };
 }
 
-function parseSeq(c: Cursor, budget: Budget): Ast | null {
+function parseSeq(c: Cursor, budget: Budget, foldCase: boolean, dotAll: boolean): Ast | null {
   const parts: Ast[] = [];
   for (;;) {
     const ch = c.peek();
@@ -203,26 +237,26 @@ function parseSeq(c: Cursor, budget: Budget): Ast | null {
           return null; // lookaround or (?X — outside the subset
         }
       }
-      const node = parseAlt(c, budget);
+      const node = parseAlt(c, budget, foldCase, dotAll);
       if (node === null || !c.eat(')')) return null;
       atom = node;
     } else if (ch === '[') {
-      const set = parseClass(c);
+      const set = parseClass(c, foldCase);
       if (set === null) return null;
       atom = { k: 'cls', set };
     } else if (ch === '\\') {
       const t = parseEscape(c);
       if (t === null) return null;
-      atom = { k: 'cls', set: t };
+      atom = { k: 'cls', set: foldCase ? foldForCompare(t) : t };
     } else if (ch === '.') {
       c.i++;
-      atom = { k: 'cls', set: DOT };
+      atom = { k: 'cls', set: dotAll ? DOT_ALL : DOT };
     } else if (ch === '^' || ch === '$' || ch === '{' || ch === '*' || ch === '+' || ch === '?') {
       return null; // anchors / dangling quantifiers — outside the subset
     } else {
       const cp = ch.codePointAt(0)!;
       c.i++;
-      atom = { k: 'cls', set: [[cp, cp]] };
+      atom = { k: 'cls', set: foldCase ? foldForCompare([[cp, cp]]) : [[cp, cp]] };
     }
     const q = c.peek();
     if (q === '*') {
@@ -255,7 +289,7 @@ function parseSeq(c: Cursor, budget: Budget): Ast | null {
       : { k: 'seq', parts };
 }
 
-function parseClass(c: Cursor): CharSet | null {
+function parseClass(c: Cursor, foldCase: boolean): CharSet | null {
   const s = c.s;
   let i = c.i + 1;
   let negated = false;
@@ -326,7 +360,10 @@ function parseClass(c: Cursor): CharSet | null {
     if (sorted[k]![0] <= last[1] + 1) last[1] = Math.max(last[1], sorted[k]![1]!);
     else merged.push(sorted[k]!);
   }
-  return negated ? complementOf(merged) : merged;
+  // `i` folds the POSITIVE set before negation: JS `[^a]` with the i flag
+  // excludes both 'a' and 'A', so the fold must precede complementOf.
+  const final = foldCase ? foldForCompare(merged) : merged;
+  return negated ? complementOf(final) : final;
 }
 
 function escapeWidth(s: string, i: number): number {
@@ -736,11 +773,18 @@ function decompositionAmbiguity(
  * Does `(?:content)+` admit a string with two or more distinct parses?
  * 'ambiguous' is a proof (witness included); 'budget' and 'unparsable'
  * both mean "allow" — the layer can only under-reject, never over-reject.
+ *
+ * `flags` selects which RegExp flag semantics the analysis models: `i`
+ * case-folds charsets (an ASCII under-approximation of full folding), `s`
+ * widens dot to every code point. Other flags do not change branch
+ * languages; unrecognized flags are ignored.
  */
-export function detectQuantifiedAmbiguity(content: string): AmbiguityResult {
+export function detectQuantifiedAmbiguity(content: string, flags = ''): AmbiguityResult {
+  const foldCase = /i/.test(flags);
+  const dotAll = /s/.test(flags);
   const budget = new Budget();
   const cursor = new Cursor(content);
-  const ast = parseAlt(cursor, budget);
+  const ast = parseAlt(cursor, budget, foldCase, dotAll);
   if (ast === null || cursor.i !== content.length) return { verdict: 'unparsable' };
   const nfa = new Nfa();
   const frag = nfa.build(ast, budget);
