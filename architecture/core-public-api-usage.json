@@ -166,7 +166,7 @@
     "@wrongstack/core/types": {
       "files": 1028,
       "typeOnly": 951,
-      "runtimeOrMixed": 265
+      "runtimeOrMixed": 264
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -14466,7 +14466,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/tree.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",

@@ -10,7 +10,7 @@ import {
   safeResolveReal,
 } from './_util.js';
 import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
-import { getProcessRegistry } from './process-registry.js';
+import { getProcessRegistry, redactCommand } from './process-registry.js';
 
 interface OutdatedInput {
   cwd?: string | undefined;
@@ -198,7 +198,13 @@ function runOutdated(
 
     const registry = getProcessRegistry();
     if (typeof child.pid === 'number') {
-      registry.register(child.pid, spawnCmd, args, cwd);
+      registry.register({
+        pid: child.pid,
+        name: manager,
+        command: redactCommand(`${spawnCmd} ${args.join(' ')}`),
+        startedAt: Date.now(),
+        child,
+      });
     }
     const onAbort = () => {
       if (typeof child.pid === 'number') {

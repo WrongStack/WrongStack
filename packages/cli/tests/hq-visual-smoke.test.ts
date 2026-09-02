@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 /**
  * HQ visual smoke (e2e, opt-in) — boots the real HQ server, feeds it a fake
  * client with a rich session (markdown + thinking + tool cards + telemetry +

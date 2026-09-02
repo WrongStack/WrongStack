@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-02T10:51:41.977Z",
+  "generatedAt": "2026-09-02T18:55:13.588Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,119 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3449,
-    "testFiles": 3092,
-    "sourceLines": 846111,
+    "sourceFiles": 3504,
+    "testFiles": 3082,
+    "sourceLines": 855936,
     "workspaceEdges": 128,
-    "moduleEdges": 10732,
+    "moduleEdges": 10972,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 856
+    "testOnlyExports": 853
   },
-  "errors": [],
+  "errors": [
+    "packages/cli/src/execution.ts: hotspot grew from 878 to 881 lines; review and update the ratchet in the same change",
+    "packages/cli/src/fleet/host.ts: hotspot shrunk from 841 to 839 lines; review and update the ratchet in the same change",
+    "packages/cli/src/goal-host.ts: hotspot grew from 930 to 931 lines; review and update the ratchet in the same change",
+    "packages/cli/src/plugin-management.ts: hotspot shrunk from 1038 to 1033 lines; review and update the ratchet in the same change",
+    "packages/cli/src/slash-commands/sdd.ts: hotspot grew from 1003 to 1014 lines; review and update the ratchet in the same change",
+    "packages/cli/src/webui-server.ts: hotspot grew from 941 to 943 lines; review and update the ratchet in the same change",
+    "packages/core/src/chronicle/file-observer.ts: hotspot shrunk from 812 to 807 lines; review and update the ratchet in the same change",
+    "packages/core/src/chronicle/query.ts: hotspot grew from 1297 to 1309 lines; review and update the ratchet in the same change",
+    "packages/core/src/coordination/autonomous-coordinator.ts: hotspot grew from 982 to 1103 lines; review and update the ratchet in the same change",
+    "packages/core/src/coordination/collab-debug.ts: hotspot grew from 900 to 915 lines; review and update the ratchet in the same change",
+    "packages/core/src/coordination/director.ts: hotspot shrunk from 967 to 966 lines; review and update the ratchet in the same change",
+    "packages/core/src/coordination/fleet-supervisor.ts: hotspot grew from 828 to 834 lines; review and update the ratchet in the same change",
+    "packages/core/src/coordination/provider-status-tracker.ts: hotspot shrunk from 1096 to 1092 lines; review and update the ratchet in the same change",
+    "packages/core/src/coordination/subagent-budget.ts: hotspot grew from 828 to 855 lines; review and update the ratchet in the same change",
+    "packages/core/src/core/fallback-model.ts: hotspot grew from 874 to 879 lines; review and update the ratchet in the same change",
+    "packages/core/src/execution/prompt-enhancer.ts: hotspot shrunk from 823 to 814 lines; review and update the ratchet in the same change",
+    "packages/core/src/hq/protocol/core.ts: hotspot shrunk from 949 to 944 lines; review and update the ratchet in the same change",
+    "packages/plugins/src/duplicate-code-detector/index.ts: hotspot shrunk from 876 to 872 lines; review and update the ratchet in the same change",
+    "packages/plugins/src/git-autocommit/index.ts: hotspot grew from 1022 to 1030 lines; review and update the ratchet in the same change",
+    "packages/plugins/src/prompt-firewall/index.ts: hotspot grew from 938 to 955 lines; review and update the ratchet in the same change",
+    "packages/plugins/src/secret-scanner/index.ts: hotspot grew from 927 to 934 lines; review and update the ratchet in the same change",
+    "packages/plugins/src/semantic-search-indexer/index.ts: hotspot grew from 936 to 948 lines; review and update the ratchet in the same change",
+    "packages/plugins/src/semver-bump/index.ts: new 807-line hotspot is not in architecture/hotspots.json",
+    "packages/plugins/src/test-runner-gate/index.ts: hotspot grew from 861 to 876 lines; review and update the ratchet in the same change",
+    "packages/primitives/src/regex-ambiguity.ts: hotspot grew from 827 to 834 lines; review and update the ratchet in the same change",
+    "packages/providers/src/openai-codex.ts: hotspot grew from 817 to 819 lines; review and update the ratchet in the same change",
+    "packages/sage/src/domain-term-extractor.ts: hotspot shrunk from 873 to 872 lines; review and update the ratchet in the same change",
+    "packages/sage/src/sqlite-store.ts: hotspot shrunk from 1063 to 1033 lines; review and update the ratchet in the same change",
+    "packages/sage/src/tools/memory-tools.ts: hotspot shrunk from 985 to 977 lines; review and update the ratchet in the same change",
+    "packages/sage/src/types.ts: hotspot grew from 993 to 996 lines; review and update the ratchet in the same change",
+    "packages/tools/src/codebase-index/writer.ts: hotspot shrunk from 1081 to 1080 lines; review and update the ratchet in the same change",
+    "packages/tools/src/json.ts: hotspot grew from 861 to 908 lines; review and update the ratchet in the same change",
+    "packages/tui/src/components/context-panel.tsx: hotspot shrunk from 1024 to 1014 lines; review and update the ratchet in the same change",
+    "packages/tui/src/components/history/utils.tsx: hotspot grew from 1015 to 1030 lines; review and update the ratchet in the same change",
+    "packages/tui/src/components/settings-picker-model.ts: hotspot grew from 1089 to 1095 lines; review and update the ratchet in the same change",
+    "packages/tui/src/components/settings-picker.tsx: hotspot grew from 816 to 821 lines; review and update the ratchet in the same change",
+    "packages/tui/src/components/sidebar-content.tsx: hotspot grew from 1035 to 1041 lines; review and update the ratchet in the same change",
+    "packages/tui/src/input-validation.ts: hotspot grew from 959 to 983 lines; review and update the ratchet in the same change",
+    "packages/tui/src/reducers/settings-values.ts: hotspot grew from 842 to 845 lines; review and update the ratchet in the same change",
+    "packages/webui/src/components/AgentOfficeView.tsx: hotspot shrunk from 1089 to 1081 lines; review and update the ratchet in the same change",
+    "packages/webui/src/components/AudienceMemoryPanel.tsx: hotspot grew from 906 to 909 lines; review and update the ratchet in the same change",
+    "packages/webui/src/components/CodeMap.tsx: hotspot shrunk from 936 to 931 lines; review and update the ratchet in the same change",
+    "packages/webui/src/components/ContextDashboard.tsx: hotspot shrunk from 1046 to 1044 lines; review and update the ratchet in the same change",
+    "packages/webui/src/components/FileActivityDrawer.tsx: hotspot shrunk from 1063 to 1062 lines; review and update the ratchet in the same change",
+    "packages/webui/src/components/OfficeMapCanvas.tsx: hotspot grew from 1044 to 1049 lines; review and update the ratchet in the same change",
+    "packages/webui/src/components/SddWizard.tsx: hotspot grew from 851 to 899 lines; review and update the ratchet in the same change",
+    "packages/webui/src/components/SidePanel/SkillsList.tsx: new 800-line hotspot is not in architecture/hotspots.json",
+    "packages/webui/src/components/SkillDetailView.tsx: hotspot grew from 915 to 1051 lines; review and update the ratchet in the same change",
+    "packages/webui/src/components/TechStackView/index.tsx: hotspot grew from 831 to 865 lines; review and update the ratchet in the same change",
+    "packages/webui/src/hooks/ws-handlers/misc-handlers.ts: hotspot grew from 992 to 1004 lines; review and update the ratchet in the same change",
+    "packages/webui/src/stores/viz-store.ts: hotspot grew from 974 to 1110 lines; review and update the ratchet in the same change",
+    "packages/webui-server/src/server/context-editor.ts: hotspot grew from 1020 to 1039 lines; review and update the ratchet in the same change",
+    "packages/webui-server/src/server/file-handlers.ts: hotspot shrunk from 1108 to 1105 lines; review and update the ratchet in the same change",
+    "packages/webui-server/src/server/routes.ts: hotspot shrunk from 966 to 964 lines; review and update the ratchet in the same change",
+    "packages/webui-server/src/server/session-handlers.ts: hotspot grew from 1706 to 1715 lines; review and update the ratchet in the same change",
+    "packages/webui-server/src/server/start-webui.ts: hotspot grew from 1044 to 1053 lines; review and update the ratchet in the same change",
+    "apps/desktop/src/renderer/src/renderer.ts: hotspot grew from 944 to 961 lines; review and update the ratchet in the same change",
+    "packages/webui-hq/src/app.tsx: stale hotspot baseline; remove or tighten it in the same change",
+    "packages/webui-hq/src/views/control.tsx: stale hotspot baseline; remove or tighten it in the same change",
+    "packages/webui-hq/src/views/settings.tsx: stale hotspot baseline; remove or tighten it in the same change",
+    "packages/tools/src/builtin.ts: \"BUILTIN_TOOL_DESCRIPTIONS\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/local-prefs.ts: \"getHqLocalPrefsSnapshot\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/local-prefs.ts: \"reloadHqLocalPrefs\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/local-prefs.ts: \"resetHqLocalPrefs\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/selectors.ts: \"actionableAlertCount\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/transport/hq-socket.ts: \"closeHqSocket\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/transport/hq-socket.ts: \"resolveHqSocketUrl\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/transport/resume-frames.ts: \"MAX_RESUME_FRAMES\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/transport/resume-frames.ts: \"normalizeResumeSeq\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/wire.ts: \"applySocketMessage\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/wire.ts: \"armSnapshotRefresh\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/data/wire.ts: \"hydrateFromHttp\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/domain/fleet-topology.ts: \"FLEET_COLUMN_GAP\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/domain/fleet-topology.ts: \"FLEET_LEAF_H\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/domain/mailbox-filters.ts: \"EMPTY_LIVE_FILTER_STATE\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/domain/mailbox-live.ts: \"buildLiveFeed\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/domain/transcript-store.ts: \"entryKey\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/domain/use-session-transcript.ts: \"coalesceStreamedText\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/webui-hq/src/app.tsx: \"getHqViewDefinition\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/app.tsx: \"HQ_VIEW_DEFINITIONS\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/lib/auth.ts: \"authHeaders\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/lib/auth.ts: \"normalizeHqTokenInput\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/lib/auth.ts: \"setHqToken\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/lib/hq-ws-client.ts: \"closeHqClient\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/lib/inspector-slots.tsx: \"RightInspector\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/lib/inspector.ts: \"clearInspectorSlots\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/lib/transcript-store.ts: \"entryKey\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/lib/use-session-transcript.ts: \"coalesceStreamedText\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/stores/hq-local-prefs.ts: \"getHqLocalPrefsSnapshot\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/stores/hq-local-prefs.ts: \"reloadHqLocalPrefs\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/stores/hq-local-prefs.ts: \"resetHqLocalPrefs\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/views/control.tsx: \"controlClientLabel\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/views/fleet-nav.tsx: \"buildNav\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/views/fleet-topology.ts: \"FLEET_COLUMN_GAP\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/views/fleet-topology.ts: \"FLEET_LEAF_H\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/views/live-console.tsx: \"commandLifecycleTone\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/views/mailbox-filters.ts: \"EMPTY_LIVE_FILTER_STATE\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/views/mailbox-live.ts: \"buildLiveFeed\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/webui-hq/src/views/settings.tsx: \"scorePassword\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -841,8 +941,8 @@
     {
       "name": "@wrongstack/webui-hq",
       "dir": "packages/webui-hq",
-      "sourceFiles": 55,
-      "testFiles": 41,
+      "sourceFiles": 110,
+      "testFiles": 31,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/tools",
@@ -858,7 +958,7 @@
         {
           "path": "packages/webui-hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 41
+          "testFiles": 31
         }
       ]
     },
@@ -15803,30 +15903,6 @@
         ]
       },
       {
-        "file": "packages/webui-hq/tests/alerts-views.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/app-shell.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/auth.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/brain-worktree-cost-trends-views.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/webui-hq/tests/browser-import-boundaries.test.ts",
         "projects": [
           "root-node"
@@ -15839,19 +15915,19 @@
         ]
       },
       {
-        "file": "packages/webui-hq/tests/cockpit-alerts-badge.test.tsx",
+        "file": "packages/webui-hq/tests/components/app-shell.test.tsx",
         "projects": [
           "root-node"
         ]
       },
       {
-        "file": "packages/webui-hq/tests/cockpit-governance.test.tsx",
+        "file": "packages/webui-hq/tests/components/transcript-turn.test.tsx",
         "projects": [
           "root-node"
         ]
       },
       {
-        "file": "packages/webui-hq/tests/cockpit-token-stats.test.tsx",
+        "file": "packages/webui-hq/tests/components/views-smoke.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -15869,19 +15945,61 @@
         ]
       },
       {
-        "file": "packages/webui-hq/tests/control-view.test.tsx",
+        "file": "packages/webui-hq/tests/data/auth.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
-        "file": "packages/webui-hq/tests/fleet-chat-drawer.test.ts",
+        "file": "packages/webui-hq/tests/data/hq-socket.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
-        "file": "packages/webui-hq/tests/fleet-kanban-mailbox-views.test.tsx",
+        "file": "packages/webui-hq/tests/data/reducers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/data/transport.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/data/wire.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/design-tokens-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/domain/control-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/domain/control-format.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/domain/kanban-queue-health.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-hq/tests/domain/selectors.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15905,31 +16023,7 @@
         ]
       },
       {
-        "file": "packages/webui-hq/tests/hq-ws-client.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/inspector.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/webui-hq/tests/kanban-model.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/kanban-queue-health.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/kanban-view.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -15947,12 +16041,6 @@
         ]
       },
       {
-        "file": "packages/webui-hq/tests/mailbox-composer.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/webui-hq/tests/mailbox-filters.test.ts",
         "projects": [
           "root-node"
@@ -15960,12 +16048,6 @@
       },
       {
         "file": "packages/webui-hq/tests/mailbox-grouping.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/mailbox-live-view.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15983,43 +16065,7 @@
         ]
       },
       {
-        "file": "packages/webui-hq/tests/main-entrypoint.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/webui-hq/tests/settings.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/settings.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/store-reducers.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/store.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/timeseries-chart.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/token-gate.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -16038,12 +16084,6 @@
       },
       {
         "file": "packages/webui-hq/tests/transcript-store.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/webui-hq/tests/transcript-turn.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19730,12 +19770,12 @@
       "syntax": "import"
     },
     {
-      "from": "packages/webui-hq/src/app.tsx",
-      "specifier": "./app.css",
+      "from": "packages/webui-hq/src/main.tsx",
+      "specifier": "./index.css",
       "syntax": "import"
     },
     {
-      "from": "packages/webui-hq/src/app.tsx",
+      "from": "packages/webui-hq/src/main.tsx",
       "specifier": "./syntax-highlight.css",
       "syntax": "import"
     },
@@ -19772,17 +19812,17 @@
     },
     {
       "file": "packages/cli/src/execution.ts",
-      "lines": 878,
+      "lines": 881,
       "relativeImports": 41
     },
     {
       "file": "packages/cli/src/fleet/host.ts",
-      "lines": 841,
+      "lines": 839,
       "relativeImports": 23
     },
     {
       "file": "packages/cli/src/goal-host.ts",
-      "lines": 930,
+      "lines": 931,
       "relativeImports": 1
     },
     {
@@ -19792,7 +19832,7 @@
     },
     {
       "file": "packages/cli/src/plugin-management.ts",
-      "lines": 1038,
+      "lines": 1033,
       "relativeImports": 1
     },
     {
@@ -19802,7 +19842,7 @@
     },
     {
       "file": "packages/cli/src/slash-commands/sdd.ts",
-      "lines": 1003,
+      "lines": 1014,
       "relativeImports": 14
     },
     {
@@ -19822,7 +19862,7 @@
     },
     {
       "file": "packages/cli/src/webui-server.ts",
-      "lines": 941,
+      "lines": 943,
       "relativeImports": 21
     },
     {
@@ -19832,7 +19872,7 @@
     },
     {
       "file": "packages/core/src/chronicle/file-observer.ts",
-      "lines": 812,
+      "lines": 807,
       "relativeImports": 8
     },
     {
@@ -19842,17 +19882,17 @@
     },
     {
       "file": "packages/core/src/chronicle/query.ts",
-      "lines": 1297,
+      "lines": 1309,
       "relativeImports": 3
     },
     {
       "file": "packages/core/src/coordination/autonomous-coordinator.ts",
-      "lines": 982,
+      "lines": 1103,
       "relativeImports": 14
     },
     {
       "file": "packages/core/src/coordination/collab-debug.ts",
-      "lines": 900,
+      "lines": 915,
       "relativeImports": 10
     },
     {
@@ -19867,12 +19907,12 @@
     },
     {
       "file": "packages/core/src/coordination/director.ts",
-      "lines": 967,
+      "lines": 966,
       "relativeImports": 41
     },
     {
       "file": "packages/core/src/coordination/fleet-supervisor.ts",
-      "lines": 828,
+      "lines": 834,
       "relativeImports": 6
     },
     {
@@ -19882,7 +19922,7 @@
     },
     {
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
-      "lines": 1096,
+      "lines": 1092,
       "relativeImports": 3
     },
     {
@@ -19892,7 +19932,7 @@
     },
     {
       "file": "packages/core/src/coordination/subagent-budget.ts",
-      "lines": 828,
+      "lines": 855,
       "relativeImports": 3
     },
     {
@@ -19902,7 +19942,7 @@
     },
     {
       "file": "packages/core/src/core/fallback-model.ts",
-      "lines": 874,
+      "lines": 879,
       "relativeImports": 15
     },
     {
@@ -19927,7 +19967,7 @@
     },
     {
       "file": "packages/core/src/execution/prompt-enhancer.ts",
-      "lines": 823,
+      "lines": 814,
       "relativeImports": 8
     },
     {
@@ -19937,7 +19977,7 @@
     },
     {
       "file": "packages/core/src/hq/protocol/core.ts",
-      "lines": 949,
+      "lines": 944,
       "relativeImports": 13
     },
     {
@@ -20032,12 +20072,12 @@
     },
     {
       "file": "packages/plugins/src/duplicate-code-detector/index.ts",
-      "lines": 876,
+      "lines": 872,
       "relativeImports": 1
     },
     {
       "file": "packages/plugins/src/git-autocommit/index.ts",
-      "lines": 1022,
+      "lines": 1030,
       "relativeImports": 0
     },
     {
@@ -20047,27 +20087,32 @@
     },
     {
       "file": "packages/plugins/src/prompt-firewall/index.ts",
-      "lines": 938,
+      "lines": 955,
       "relativeImports": 2
     },
     {
       "file": "packages/plugins/src/secret-scanner/index.ts",
-      "lines": 927,
+      "lines": 934,
       "relativeImports": 2
     },
     {
       "file": "packages/plugins/src/semantic-search-indexer/index.ts",
-      "lines": 936,
+      "lines": 948,
+      "relativeImports": 0
+    },
+    {
+      "file": "packages/plugins/src/semver-bump/index.ts",
+      "lines": 807,
       "relativeImports": 0
     },
     {
       "file": "packages/plugins/src/test-runner-gate/index.ts",
-      "lines": 861,
+      "lines": 876,
       "relativeImports": 1
     },
     {
       "file": "packages/primitives/src/regex-ambiguity.ts",
-      "lines": 827,
+      "lines": 834,
       "relativeImports": 0
     },
     {
@@ -20077,12 +20122,12 @@
     },
     {
       "file": "packages/providers/src/openai-codex.ts",
-      "lines": 817,
+      "lines": 819,
       "relativeImports": 13
     },
     {
       "file": "packages/sage/src/domain-term-extractor.ts",
-      "lines": 873,
+      "lines": 872,
       "relativeImports": 1
     },
     {
@@ -20092,17 +20137,17 @@
     },
     {
       "file": "packages/sage/src/sqlite-store.ts",
-      "lines": 1063,
+      "lines": 1033,
       "relativeImports": 43
     },
     {
       "file": "packages/sage/src/tools/memory-tools.ts",
-      "lines": 985,
+      "lines": 977,
       "relativeImports": 4
     },
     {
       "file": "packages/sage/src/types.ts",
-      "lines": 993,
+      "lines": 996,
       "relativeImports": 0
     },
     {
@@ -20157,12 +20202,12 @@
     },
     {
       "file": "packages/tools/src/codebase-index/writer.ts",
-      "lines": 1081,
+      "lines": 1080,
       "relativeImports": 19
     },
     {
       "file": "packages/tools/src/json.ts",
-      "lines": 861,
+      "lines": 908,
       "relativeImports": 2
     },
     {
@@ -20192,7 +20237,7 @@
     },
     {
       "file": "packages/tui/src/components/context-panel.tsx",
-      "lines": 1024,
+      "lines": 1014,
       "relativeImports": 6
     },
     {
@@ -20202,7 +20247,7 @@
     },
     {
       "file": "packages/tui/src/components/history/utils.tsx",
-      "lines": 1015,
+      "lines": 1030,
       "relativeImports": 17
     },
     {
@@ -20212,17 +20257,17 @@
     },
     {
       "file": "packages/tui/src/components/settings-picker-model.ts",
-      "lines": 1089,
+      "lines": 1095,
       "relativeImports": 4
     },
     {
       "file": "packages/tui/src/components/settings-picker.tsx",
-      "lines": 816,
+      "lines": 821,
       "relativeImports": 12
     },
     {
       "file": "packages/tui/src/components/sidebar-content.tsx",
-      "lines": 1035,
+      "lines": 1041,
       "relativeImports": 13
     },
     {
@@ -20237,7 +20282,7 @@
     },
     {
       "file": "packages/tui/src/input-validation.ts",
-      "lines": 959,
+      "lines": 983,
       "relativeImports": 13
     },
     {
@@ -20252,7 +20297,7 @@
     },
     {
       "file": "packages/tui/src/reducers/settings-values.ts",
-      "lines": 842,
+      "lines": 845,
       "relativeImports": 6
     },
     {
@@ -20267,12 +20312,12 @@
     },
     {
       "file": "packages/webui/src/components/AgentOfficeView.tsx",
-      "lines": 1089,
+      "lines": 1081,
       "relativeImports": 5
     },
     {
       "file": "packages/webui/src/components/AudienceMemoryPanel.tsx",
-      "lines": 906,
+      "lines": 909,
       "relativeImports": 0
     },
     {
@@ -20287,17 +20332,17 @@
     },
     {
       "file": "packages/webui/src/components/CodeMap.tsx",
-      "lines": 936,
+      "lines": 931,
       "relativeImports": 12
     },
     {
       "file": "packages/webui/src/components/ContextDashboard.tsx",
-      "lines": 1046,
+      "lines": 1044,
       "relativeImports": 2
     },
     {
       "file": "packages/webui/src/components/FileActivityDrawer.tsx",
-      "lines": 1063,
+      "lines": 1062,
       "relativeImports": 2
     },
     {
@@ -20312,12 +20357,12 @@
     },
     {
       "file": "packages/webui/src/components/OfficeMapCanvas.tsx",
-      "lines": 1044,
+      "lines": 1049,
       "relativeImports": 9
     },
     {
       "file": "packages/webui/src/components/SddWizard.tsx",
-      "lines": 851,
+      "lines": 899,
       "relativeImports": 4
     },
     {
@@ -20341,18 +20386,23 @@
       "relativeImports": 0
     },
     {
+      "file": "packages/webui/src/components/SidePanel/SkillsList.tsx",
+      "lines": 800,
+      "relativeImports": 0
+    },
+    {
       "file": "packages/webui/src/components/SkillDetailView.tsx",
-      "lines": 915,
+      "lines": 1051,
       "relativeImports": 3
     },
     {
       "file": "packages/webui/src/components/TechStackView/index.tsx",
-      "lines": 831,
+      "lines": 865,
       "relativeImports": 5
     },
     {
       "file": "packages/webui/src/hooks/ws-handlers/misc-handlers.ts",
-      "lines": 992,
+      "lines": 1004,
       "relativeImports": 0
     },
     {
@@ -20392,7 +20442,7 @@
     },
     {
       "file": "packages/webui/src/stores/viz-store.ts",
-      "lines": 974,
+      "lines": 1110,
       "relativeImports": 0
     },
     {
@@ -20406,28 +20456,13 @@
       "relativeImports": 10
     },
     {
-      "file": "packages/webui-hq/src/app.tsx",
-      "lines": 823,
-      "relativeImports": 20
-    },
-    {
-      "file": "packages/webui-hq/src/views/control.tsx",
-      "lines": 837,
-      "relativeImports": 2
-    },
-    {
-      "file": "packages/webui-hq/src/views/settings.tsx",
-      "lines": 895,
-      "relativeImports": 2
-    },
-    {
       "file": "packages/webui-server/src/server/backend-services.ts",
       "lines": 944,
       "relativeImports": 13
     },
     {
       "file": "packages/webui-server/src/server/context-editor.ts",
-      "lines": 1020,
+      "lines": 1039,
       "relativeImports": 1
     },
     {
@@ -20437,7 +20472,7 @@
     },
     {
       "file": "packages/webui-server/src/server/file-handlers.ts",
-      "lines": 1108,
+      "lines": 1105,
       "relativeImports": 3
     },
     {
@@ -20452,17 +20487,17 @@
     },
     {
       "file": "packages/webui-server/src/server/routes.ts",
-      "lines": 966,
+      "lines": 964,
       "relativeImports": 47
     },
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1706,
+      "lines": 1715,
       "relativeImports": 11
     },
     {
       "file": "packages/webui-server/src/server/start-webui.ts",
-      "lines": 1044,
+      "lines": 1053,
       "relativeImports": 29
     },
     {
@@ -20477,14 +20512,14 @@
     },
     {
       "file": "apps/desktop/src/renderer/src/renderer.ts",
-      "lines": 944,
+      "lines": 961,
       "relativeImports": 8
     }
   ],
   "hotspots": [
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1706,
+      "lines": 1715,
       "relativeImports": 11
     },
     {
@@ -20499,7 +20534,7 @@
     },
     {
       "file": "packages/core/src/chronicle/query.ts",
-      "lines": 1297,
+      "lines": 1309,
       "relativeImports": 3
     },
     {
@@ -20523,24 +20558,29 @@
       "relativeImports": 19
     },
     {
+      "file": "packages/webui/src/stores/viz-store.ts",
+      "lines": 1110,
+      "relativeImports": 0
+    },
+    {
       "file": "packages/webui-server/src/server/file-handlers.ts",
-      "lines": 1108,
+      "lines": 1105,
       "relativeImports": 3
     },
     {
-      "file": "packages/core/src/coordination/provider-status-tracker.ts",
-      "lines": 1096,
-      "relativeImports": 3
+      "file": "packages/core/src/coordination/autonomous-coordinator.ts",
+      "lines": 1103,
+      "relativeImports": 14
     },
     {
       "file": "packages/tui/src/components/settings-picker-model.ts",
-      "lines": 1089,
+      "lines": 1095,
       "relativeImports": 4
     },
     {
-      "file": "packages/webui/src/components/AgentOfficeView.tsx",
-      "lines": 1089,
-      "relativeImports": 5
+      "file": "packages/core/src/coordination/provider-status-tracker.ts",
+      "lines": 1092,
+      "relativeImports": 3
     },
     {
       "file": "packages/core/src/core/context.ts",
@@ -20553,8 +20593,13 @@
       "relativeImports": 38
     },
     {
-      "file": "packages/tools/src/codebase-index/writer.ts",
+      "file": "packages/webui/src/components/AgentOfficeView.tsx",
       "lines": 1081,
+      "relativeImports": 5
+    },
+    {
+      "file": "packages/tools/src/codebase-index/writer.ts",
+      "lines": 1080,
       "relativeImports": 19
     },
     {
@@ -20568,13 +20613,8 @@
       "relativeImports": 9
     },
     {
-      "file": "packages/sage/src/sqlite-store.ts",
-      "lines": 1063,
-      "relativeImports": 43
-    },
-    {
       "file": "packages/webui/src/components/FileActivityDrawer.tsx",
-      "lines": 1063,
+      "lines": 1062,
       "relativeImports": 2
     },
     {
@@ -20583,9 +20623,24 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/webui-server/src/server/start-webui.ts",
+      "lines": 1053,
+      "relativeImports": 29
+    },
+    {
       "file": "packages/core/src/coordination/delegate-tool.ts",
       "lines": 1051,
       "relativeImports": 10
+    },
+    {
+      "file": "packages/webui/src/components/SkillDetailView.tsx",
+      "lines": 1051,
+      "relativeImports": 3
+    },
+    {
+      "file": "packages/webui/src/components/OfficeMapCanvas.tsx",
+      "lines": 1049,
+      "relativeImports": 9
     },
     {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
@@ -20599,22 +20654,17 @@
     },
     {
       "file": "packages/webui/src/components/ContextDashboard.tsx",
-      "lines": 1046,
+      "lines": 1044,
       "relativeImports": 2
     },
     {
-      "file": "packages/webui-server/src/server/start-webui.ts",
-      "lines": 1044,
-      "relativeImports": 29
+      "file": "packages/tui/src/components/sidebar-content.tsx",
+      "lines": 1041,
+      "relativeImports": 13
     },
     {
-      "file": "packages/webui/src/components/OfficeMapCanvas.tsx",
-      "lines": 1044,
-      "relativeImports": 9
-    },
-    {
-      "file": "packages/cli/src/plugin-management.ts",
-      "lines": 1038,
+      "file": "packages/webui-server/src/server/context-editor.ts",
+      "lines": 1039,
       "relativeImports": 1
     },
     {
@@ -20628,24 +20678,24 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/tui/src/components/sidebar-content.tsx",
-      "lines": 1035,
-      "relativeImports": 13
+      "file": "packages/cli/src/plugin-management.ts",
+      "lines": 1033,
+      "relativeImports": 1
     },
     {
-      "file": "packages/tui/src/components/context-panel.tsx",
-      "lines": 1024,
-      "relativeImports": 6
+      "file": "packages/sage/src/sqlite-store.ts",
+      "lines": 1033,
+      "relativeImports": 43
     },
     {
       "file": "packages/plugins/src/git-autocommit/index.ts",
-      "lines": 1022,
+      "lines": 1030,
       "relativeImports": 0
     },
     {
-      "file": "packages/webui-server/src/server/context-editor.ts",
-      "lines": 1020,
-      "relativeImports": 1
+      "file": "packages/tui/src/components/history/utils.tsx",
+      "lines": 1030,
+      "relativeImports": 17
     },
     {
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
@@ -20653,9 +20703,14 @@
       "relativeImports": 2
     },
     {
-      "file": "packages/tui/src/components/history/utils.tsx",
-      "lines": 1015,
-      "relativeImports": 17
+      "file": "packages/cli/src/slash-commands/sdd.ts",
+      "lines": 1014,
+      "relativeImports": 14
+    },
+    {
+      "file": "packages/tui/src/components/context-panel.tsx",
+      "lines": 1014,
+      "relativeImports": 6
     },
     {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
@@ -20678,9 +20733,9 @@
       "relativeImports": 72
     },
     {
-      "file": "packages/cli/src/slash-commands/sdd.ts",
-      "lines": 1003,
-      "relativeImports": 14
+      "file": "packages/webui/src/hooks/ws-handlers/misc-handlers.ts",
+      "lines": 1004,
+      "relativeImports": 0
     },
     {
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
@@ -20698,6 +20753,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/sage/src/types.ts",
+      "lines": 996,
+      "relativeImports": 0
+    },
+    {
       "file": "packages/webui/src/stores/fleet-store.ts",
       "lines": 996,
       "relativeImports": 2
@@ -20706,31 +20766,6 @@
       "file": "packages/core/src/session-catalog/store.ts",
       "lines": 994,
       "relativeImports": 11
-    },
-    {
-      "file": "packages/sage/src/types.ts",
-      "lines": 993,
-      "relativeImports": 0
-    },
-    {
-      "file": "packages/kanban/src/types.ts",
-      "lines": 992,
-      "relativeImports": 1
-    },
-    {
-      "file": "packages/webui/src/hooks/ws-handlers/misc-handlers.ts",
-      "lines": 992,
-      "relativeImports": 0
-    },
-    {
-      "file": "packages/kanban/src/manager/assignment.ts",
-      "lines": 991,
-      "relativeImports": 13
-    },
-    {
-      "file": "packages/core/src/execution/brain-runtime.ts",
-      "lines": 987,
-      "relativeImports": 13
     }
   ],
   "testOnlyExports": [
@@ -22735,6 +22770,10 @@
       "name": "_resetArtifactSweepForTests"
     },
     {
+      "file": "packages/tools/src/builtin.ts",
+      "name": "BUILTIN_TOOL_DESCRIPTIONS"
+    },
+    {
       "file": "packages/tools/src/codebase-index/background-indexer.ts",
       "name": "resetIndexStateForTesting"
     },
@@ -23411,88 +23450,72 @@
       "name": "renderWorkbenchReport"
     },
     {
-      "file": "packages/webui-hq/src/app.tsx",
-      "name": "getHqViewDefinition"
-    },
-    {
-      "file": "packages/webui-hq/src/app.tsx",
-      "name": "HQ_VIEW_DEFINITIONS"
-    },
-    {
-      "file": "packages/webui-hq/src/lib/auth.ts",
-      "name": "authHeaders"
-    },
-    {
-      "file": "packages/webui-hq/src/lib/auth.ts",
-      "name": "normalizeHqTokenInput"
-    },
-    {
-      "file": "packages/webui-hq/src/lib/auth.ts",
-      "name": "setHqToken"
-    },
-    {
-      "file": "packages/webui-hq/src/lib/hq-ws-client.ts",
-      "name": "closeHqClient"
-    },
-    {
-      "file": "packages/webui-hq/src/lib/inspector-slots.tsx",
-      "name": "RightInspector"
-    },
-    {
-      "file": "packages/webui-hq/src/lib/inspector.ts",
-      "name": "clearInspectorSlots"
-    },
-    {
-      "file": "packages/webui-hq/src/lib/transcript-store.ts",
-      "name": "entryKey"
-    },
-    {
-      "file": "packages/webui-hq/src/lib/use-session-transcript.ts",
-      "name": "coalesceStreamedText"
-    },
-    {
-      "file": "packages/webui-hq/src/stores/hq-local-prefs.ts",
+      "file": "packages/webui-hq/src/data/local-prefs.ts",
       "name": "getHqLocalPrefsSnapshot"
     },
     {
-      "file": "packages/webui-hq/src/stores/hq-local-prefs.ts",
+      "file": "packages/webui-hq/src/data/local-prefs.ts",
       "name": "reloadHqLocalPrefs"
     },
     {
-      "file": "packages/webui-hq/src/stores/hq-local-prefs.ts",
+      "file": "packages/webui-hq/src/data/local-prefs.ts",
       "name": "resetHqLocalPrefs"
     },
     {
-      "file": "packages/webui-hq/src/views/control.tsx",
-      "name": "controlClientLabel"
+      "file": "packages/webui-hq/src/data/selectors.ts",
+      "name": "actionableAlertCount"
     },
     {
-      "file": "packages/webui-hq/src/views/fleet-nav.tsx",
-      "name": "buildNav"
+      "file": "packages/webui-hq/src/data/transport/hq-socket.ts",
+      "name": "closeHqSocket"
     },
     {
-      "file": "packages/webui-hq/src/views/fleet-topology.ts",
+      "file": "packages/webui-hq/src/data/transport/hq-socket.ts",
+      "name": "resolveHqSocketUrl"
+    },
+    {
+      "file": "packages/webui-hq/src/data/transport/resume-frames.ts",
+      "name": "MAX_RESUME_FRAMES"
+    },
+    {
+      "file": "packages/webui-hq/src/data/transport/resume-frames.ts",
+      "name": "normalizeResumeSeq"
+    },
+    {
+      "file": "packages/webui-hq/src/data/wire.ts",
+      "name": "applySocketMessage"
+    },
+    {
+      "file": "packages/webui-hq/src/data/wire.ts",
+      "name": "armSnapshotRefresh"
+    },
+    {
+      "file": "packages/webui-hq/src/data/wire.ts",
+      "name": "hydrateFromHttp"
+    },
+    {
+      "file": "packages/webui-hq/src/domain/fleet-topology.ts",
       "name": "FLEET_COLUMN_GAP"
     },
     {
-      "file": "packages/webui-hq/src/views/fleet-topology.ts",
+      "file": "packages/webui-hq/src/domain/fleet-topology.ts",
       "name": "FLEET_LEAF_H"
     },
     {
-      "file": "packages/webui-hq/src/views/live-console.tsx",
-      "name": "commandLifecycleTone"
-    },
-    {
-      "file": "packages/webui-hq/src/views/mailbox-filters.ts",
+      "file": "packages/webui-hq/src/domain/mailbox-filters.ts",
       "name": "EMPTY_LIVE_FILTER_STATE"
     },
     {
-      "file": "packages/webui-hq/src/views/mailbox-live.ts",
+      "file": "packages/webui-hq/src/domain/mailbox-live.ts",
       "name": "buildLiveFeed"
     },
     {
-      "file": "packages/webui-hq/src/views/settings.tsx",
-      "name": "scorePassword"
+      "file": "packages/webui-hq/src/domain/transcript-store.ts",
+      "name": "entryKey"
+    },
+    {
+      "file": "packages/webui-hq/src/domain/use-session-transcript.ts",
+      "name": "coalesceStreamedText"
     },
     {
       "file": "packages/webui-server/src/server/chimera-routes.ts",

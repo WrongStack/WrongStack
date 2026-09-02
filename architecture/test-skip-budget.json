@@ -149,6 +149,11 @@
     {
       "file": "packages/plugins/tests/process-guard.test.ts",
       "kind": "runIf",
+      "fingerprint": "6372fdcdd20e4a1b"
+    },
+    {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
       "fingerprint": "65e68dd2f29dd5a7"
     },
     {
@@ -160,11 +165,6 @@
       "file": "packages/plugins/tests/process-guard.test.ts",
       "kind": "runIf",
       "fingerprint": "d7463963b9764391"
-    },
-    {
-      "file": "packages/plugins/tests/process-guard.test.ts",
-      "kind": "runIf",
-      "fingerprint": "eb16519bc22de47d"
     },
     {
       "file": "packages/plugins/tests/runtime-local-bin.test.ts",
@@ -464,7 +464,7 @@
     {
       "file": "packages/wrongtrace/src/__tests__/client.test.ts",
       "kind": "skipIf",
-      "fingerprint": "a79e094929c1239d"
+      "fingerprint": "620d01b9947c33f5"
     }
   ]
 }

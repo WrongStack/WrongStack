@@ -1,8 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool, ToolProgressEvent, ToolStreamEvent } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
-import { DEFAULT_WALK_IGNORE_DIRS, compileGlob, expectDefined } from '@wrongstack/core/utils';
+import { compileGlob, DEFAULT_WALK_IGNORE_DIRS, expectDefined } from '@wrongstack/core/utils';
 import { safeResolveReal } from './_util.js';
 
 // Shared artifact/dependency dirs, plus tree-specific privacy dirs — tree can
