@@ -202,6 +202,21 @@ describe('read tool', () => {
     expect(out.text).toContain('past end of file');
   });
 
+  it('repeated read past EOF does not return inverted range message from cache', async () => {
+    const file = path.join(sb.dir, 'repeated-eof.txt');
+    await fs.writeFile(file, 'line 1\nline 2\n');
+    const out1 = await readTool.execute({ path: 'repeated-eof.txt', offset: 10, limit: 10 }, sb.ctx, {
+      signal: newSignal(),
+    });
+    expect(out1.text).toContain('past end of file');
+
+    const out2 = await readTool.execute({ path: 'repeated-eof.txt', offset: 10, limit: 10 }, sb.ctx, {
+      signal: newSignal(),
+    });
+    expect(out2.text).toContain('past end of file');
+    expect(out2.text).not.toContain('already shown');
+  });
+
   // F-04 (CWE-59): a symlink that lives INSIDE the project root but points
   // outside must not be followed — `safeResolve`'s syntactic check passes it,
   // the realpath cross-check (safeResolveReal) must reject it.

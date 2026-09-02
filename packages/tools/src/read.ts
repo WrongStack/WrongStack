@@ -189,9 +189,10 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       input.mode !== 'summary' &&
       limit > 0 &&
       prior &&
+      offset <= requestedEnd &&
       coversRange(prior, stat.mtimeMs, offset, requestedEnd)
     ) {
-      ctx.recordRead(absPath, stat.mtimeMs);
+      ctx.recordRead(absPath, stat.mtimeMs, 'user', ctx.lastReadHash?.(absPath));
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
@@ -268,7 +269,6 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     // and context without making progress.
     if (offset > total) {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
-      rememberReadRange(ctx, absPath, stat.mtimeMs, total, total + 1, total + 1);
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
@@ -439,15 +439,15 @@ function mergeRanges(
 }
 
 function summarizeFile(filePath: string, bytes: number, lines: string[]): string {
-  const interesting = lines
-    .map((line, index) => ({ line: line.trim(), number: index + 1 }))
-    .filter(({ line }) =>
-      /^(import\s|export\s|class\s|interface\s|type\s|function\s|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|def\s+|async\s+function\s)/.test(
-        line,
-      ),
-    )
-    .slice(0, 80)
-    .map(({ line, number }) => `${number}: ${line}`);
+  const interesting: string[] = [];
+  const symbolRegex =
+    /^(import\s|export\s|class\s|interface\s|type\s|function\s|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|def\s+|async\s+function\s)/;
+  for (let i = 0; i < lines.length && interesting.length < 80; i++) {
+    const trimmed = (lines[i] as string).trim();
+    if (symbolRegex.test(trimmed)) {
+      interesting.push(`${i + 1}: ${trimmed}`);
+    }
+  }
   return [
     `summary: ${filePath}`,
     `bytes=${bytes}`,
