@@ -312,6 +312,20 @@ describe('grep tool', () => {
     expect(out.matches.every((m) => m.endsWith('.ts'))).toBe(true);
   });
 
+  it('handles scoped glob pattern with subdirectories (e.g. src/**/*.ts)', async () => {
+    const subDir = path.join(sb.dir, 'src', 'nested');
+    await fs.mkdir(subDir, { recursive: true });
+    await fs.writeFile(path.join(subDir, 'target.ts'), 'match in nested ts');
+    await fs.writeFile(path.join(sb.dir, 'root.ts'), 'match in root ts');
+    const out = await grepTool.execute(
+      { pattern: 'match', glob: 'src/**/*.ts', output_mode: 'files_with_matches' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    expect(out.matches.some((m) => m.includes('target.ts'))).toBe(true);
+    expect(out.matches.every((m) => !m.includes('root.ts'))).toBe(true);
+  });
+
   it('native grep stops at limit', async () => {
     for (let i = 0; i < 100; i++) {
       await fs.writeFile(path.join(sb.dir, `file${i}.txt`), 'match');

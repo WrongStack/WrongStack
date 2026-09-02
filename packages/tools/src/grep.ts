@@ -214,7 +214,14 @@ async function* runRgStream(
   ) {
     args.push('--ignore-file', gitignorePath);
   }
-  if (input.glob) args.push('--glob', input.glob);
+  if (input.glob) {
+    const g = input.glob.trim();
+    if (g.startsWith('!') || g.startsWith('**/') || g.startsWith('*')) {
+      args.push('--glob', g);
+    } else {
+      args.push('--glob', `**/${g}`);
+    }
+  }
   args.push('--', input.pattern, base);
 
   const matches: string[] = [];
@@ -424,10 +431,14 @@ async function runNative(
   let total = 0;
   let stopped = false;
 
-  const scanFile = async (full: string, name: string): Promise<void> => {
+  const scanFile = async (full: string, name: string, rel: string): Promise<void> => {
     if (stopped || signal.aborted) return;
-    if (globRe && !globRe.test(name) && !globRe.test(full)) return;
-    if (globRe) globRe.lastIndex = 0;
+    if (globRe) {
+      const normRel = rel.replace(/\\/g, '/');
+      const normFull = full.replace(/\\/g, '/');
+      if (!globRe.test(name) && !globRe.test(normRel) && !globRe.test(normFull)) return;
+      globRe.lastIndex = 0;
+    }
 
     try {
       const stat = await fs.stat(full);
@@ -464,8 +475,8 @@ async function runNative(
           for (const rawLine of lines) {
             if (stopped || signal.aborted) break;
             lineNumber++;
-            const ln = capSubject(rawLine);
-            re.lastIndex = 0;
+            const ln = rawLine.length > 4096 ? capSubject(rawLine) : rawLine;
+            if (re.global || re.sticky) re.lastIndex = 0;
             if (!re.test(ln)) continue;
 
             fileHits++;
@@ -476,11 +487,9 @@ async function runNative(
             } else if (mode === 'files_with_matches') {
               if (fileHits === 1 && matches.length < limit) matches.push(full);
               break;
-            } else if (fileHits === 1 && matches.length < limit) {
-              matches.push(`${full}:${countOnlyFirstHit ? 1 : 0}`);
             }
 
-            if (countOnlyFirstHit || (mode !== 'content' && matches.length >= limit)) {
+            if (countOnlyFirstHit || (mode === 'content' && matches.length >= limit)) {
               stopped = true;
               break;
             }
@@ -491,8 +500,8 @@ async function runNative(
 
         if (!stopped && !signal.aborted && leftover.length > 0) {
           lineNumber++;
-          const ln = capSubject(leftover);
-          re.lastIndex = 0;
+          const ln = leftover.length > 4096 ? capSubject(leftover) : leftover;
+          if (re.global || re.sticky) re.lastIndex = 0;
           if (re.test(ln)) {
             fileHits++;
             total++;
@@ -500,23 +509,19 @@ async function runNative(
               if (matches.length < limit) matches.push(`${full}:${lineNumber}:${ln}`);
             } else if (mode === 'files_with_matches') {
               if (matches.length < limit) matches.push(full);
-            } else if (matches.length < limit) {
-              matches.push(`${full}:${countOnlyFirstHit ? 1 : fileHits}`);
             }
           }
         }
 
         if (fileHits > 0) {
-          if (mode === 'count') {
-            const idx = matches.findIndex((entry) => entry.startsWith(`${full}:`));
-            if (idx !== -1) matches[idx] = `${full}:${fileHits}`;
+          if (mode === 'count' && matches.length < limit) {
+            matches.push(`${full}:${fileHits}`);
           }
           if (mode === 'files_with_matches' && matches.length >= limit) stopped = true;
         }
 
         if (mode === 'content' && matches.length >= limit) stopped = true;
-        if (mode === 'count' && matches.length >= limit && (countOnlyFirstHit || mode !== 'count'))
-          stopped = true;
+        if (mode === 'count' && matches.length >= limit && countOnlyFirstHit) stopped = true;
       } finally {
         await file.close();
       }
@@ -533,7 +538,7 @@ async function runNative(
     } catch {
       return;
     }
-    const files: Array<{ full: string; name: string }> = [];
+    const files: Array<{ full: string; name: string; rel: string }> = [];
     const subdirs: Array<{ full: string; rel: string }> = [];
     for (const e of entries) {
       if (stopped) return;
@@ -546,11 +551,11 @@ async function runNative(
         subdirs.push({ full, rel });
       } else if (e.isFile()) {
         if (isGitIgnored(rel, false)) continue;
-        files.push({ full, name: e.name });
+        files.push({ full, name: e.name, rel });
       }
     }
-    await mapWithConcurrency(files, NATIVE_SCAN_CONCURRENCY, ({ full, name }) =>
-      scanFile(full, name),
+    await mapWithConcurrency(files, NATIVE_SCAN_CONCURRENCY, ({ full, name, rel }) =>
+      scanFile(full, name, rel),
     );
     await mapWithConcurrency(subdirs, Math.min(16, NATIVE_SCAN_CONCURRENCY), ({ full, rel }) =>
       walk(full, rel),
