@@ -514,8 +514,13 @@ describe('ACPSession', () => {
       method: 'terminal/wait_for_exit',
       params: { sessionId: 'sess_abc', terminalId },
     } as never as ACPMessage);
-    // Give the process time to actually run and exit
-    await new Promise((r) => setTimeout(r, 500));
+    // Do not assume a child Node process receives a fixed CPU slice under the
+    // full coverage suite. Wait for the protocol response instead of making
+    // this end-to-end assertion depend on an arbitrary wall-clock delay.
+    await vi.waitFor(
+      () => expect(t.sent.find((m) => m.id === waitId)).toBeDefined(),
+      { timeout: 5_000 },
+    );
     const waitResp = t.sent.find((m) => m.id === waitId);
     expect(waitResp).toBeDefined();
     expect((waitResp!.result as { exitCode: number | null }).exitCode).toBe(0);
