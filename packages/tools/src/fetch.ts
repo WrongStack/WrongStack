@@ -205,35 +205,45 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
       let pendingBytes = 0;
       const FLUSH_AT = 4 * 1024;
       if (reader) {
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (!value) continue;
-          received += value.byteLength;
-          pendingBytes += value.byteLength;
-          chunks.push(value);
-          if (pendingBytes >= FLUSH_AT) {
-            // Snapshot recent bytes for the partial_output. Keep it cheap —
-            // don't try to decode UTF-8 boundaries; the TUI just needs a
-            // "things are happening" signal.
-            const recent = Buffer.from(value).toString('utf-8');
-            yield {
-              type: 'partial_output',
-              text: recent,
-              data: { received },
-            };
-            pendingBytes = 0;
+        try {
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (!value) continue;
+            received += value.byteLength;
+            pendingBytes += value.byteLength;
+            chunks.push(value);
+            if (pendingBytes >= FLUSH_AT) {
+              // Snapshot recent bytes for the partial_output. Keep it cheap —
+              // don't try to decode UTF-8 boundaries; the TUI just needs a
+              // "things are happening" signal.
+              const recent = Buffer.from(value).toString('utf-8');
+              yield {
+                type: 'partial_output',
+                text: recent,
+                data: { received },
+              };
+              pendingBytes = 0;
+            }
+            if (received > MAX_BYTES) {
+              await reader.cancel().catch(() => {});
+              break;
+            }
           }
-          if (received > MAX_BYTES) break;
+        } finally {
+          reader.releaseLock();
         }
       }
-      const text = Buffer.concat(chunks.map((c) => Buffer.from(c))).toString('utf8');
+      const text = Buffer.concat(chunks).toString('utf8');
 
-      const format = input.format ?? (ct.includes('text/html') ? 'markdown' : 'text');
+      const isHtml = ct.includes('text/html');
+      const isJson = /[\/+]json(;|$)/i.test(ct);
+      const format = input.format ?? (isHtml ? 'markdown' : 'text');
       let content: string;
       if (format === 'raw') content = text;
-      else if (format === 'markdown' && ct.includes('text/html')) content = TD.turndown(text);
-      else if (ct.includes('application/json')) content = prettyJson(text);
+      else if (format === 'markdown' && isHtml) content = TD.turndown(text);
+      else if (format === 'markdown' && isJson) content = `\`\`\`json\n${prettyJson(text)}\n\`\`\``;
+      else if (isJson) content = prettyJson(text);
       else content = text;
 
       yield {

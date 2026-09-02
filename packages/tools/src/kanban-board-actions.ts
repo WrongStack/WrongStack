@@ -255,7 +255,7 @@ export async function handleKanbanBoardAction(
         assignedAgent: input.agentId,
         status: input.status,
         priority: input.priority,
-        label: input.labels?.[0],
+        label: input.label ?? input.labels?.[0],
         chainId: input.chainId,
       });
       return { ok: true, message: `${tasks.length} task(s) matched.`, tasks };
@@ -266,7 +266,7 @@ export async function handleKanbanBoardAction(
         boardId: input.boardId,
         assignedAgent: input.agentId,
         priority: input.priority,
-        label: input.labels?.[0],
+        label: input.label ?? input.labels?.[0],
         chainId: input.chainId,
         limit: input.limit,
       });
@@ -279,7 +279,7 @@ export async function handleKanbanBoardAction(
         assignedAgent: input.agentId,
         status: input.status,
         priority: input.priority,
-        label: input.labels?.[0],
+        label: input.label ?? input.labels?.[0],
         chainId: input.chainId,
       });
       return {

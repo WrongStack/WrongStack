@@ -31,6 +31,16 @@ describe('diffTool', () => {
     expect(result.files).toEqual([]);
   });
 
+  it('resolves files relative to input.path when provided', async () => {
+    const sub = path.join(tmpDir, 'sub');
+    await fs.mkdir(sub, { recursive: true });
+    await fs.writeFile(path.join(sub, 'target.txt'), 'hello inside sub\n');
+    const ctx = makeCtx();
+    const result = await diffTool.execute({ path: 'sub', files: 'target.txt' }, ctx, makeOpts());
+    expect(result.diff).toContain('hello inside sub');
+    expect(result.mode).toBe('dump');
+  });
+
   it('returns error when not in git repo for git diff', async () => {
     const ctx = { cwd: '/', tools: [], projectRoot: '/' } as any;
     const result = await diffTool.execute({ a: 'HEAD~1', b: 'HEAD' }, ctx, makeOpts());

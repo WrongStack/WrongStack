@@ -285,10 +285,16 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     const slice = allLines.slice(offset - 1, offset - 1 + limit);
     const truncated = offset - 1 + slice.length < total;
 
-    const width = String(offset + slice.length - 1).length;
-    const numbered = slice
-      .map((line, i) => `${String(offset + i).padStart(width, ' ')}→${line}`)
-      .join('\n');
+    const sliceCount = slice.length;
+    const width = String(offset + sliceCount - 1).length;
+    const parts: string[] = new Array(sliceCount);
+    for (let i = 0; i < sliceCount; i++) {
+      const numStr = String(offset + i);
+      const padLen = width - numStr.length;
+      const pad = padLen > 0 ? ' '.repeat(padLen) : '';
+      parts[i] = `${pad}${numStr}→${slice[i]}`;
+    }
+    const numbered = parts.join('\n');
 
     ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
     rememberReadRange(ctx, absPath, stat.mtimeMs, total, offset, offset + slice.length - 1);
@@ -327,7 +333,7 @@ async function fetchSymbolsForFile(
         projectRoot: ctx.projectRoot,
         indexDir: codebaseIndexDirOverride(ctx),
         query: '',
-        file: absPath,
+        file: absPath.replace(/\\/g, '/'),
         limit: 500,
       },
       { signal },
@@ -392,6 +398,8 @@ function getReadRangeRecord(
   return getReadRanges(ctx)[absPath];
 }
 
+const MTIME_TOLERANCE_MS = process.platform === 'win32' ? 2000 : 1;
+
 function rememberReadRange(
   ctx: import('@wrongstack/core/agent').Context,
   absPath: string,
@@ -403,7 +411,8 @@ function rememberReadRange(
   if (end < start) return;
   const ranges = getReadRanges(ctx);
   const prior = ranges[absPath];
-  const nextRanges = prior && Math.abs(prior.mtimeMs - mtimeMs) <= 1 ? prior.ranges.slice() : [];
+  const nextRanges =
+    prior && Math.abs(prior.mtimeMs - mtimeMs) <= MTIME_TOLERANCE_MS ? prior.ranges.slice() : [];
   nextRanges.push({ start, end });
   ranges[absPath] = {
     mtimeMs,
@@ -418,7 +427,7 @@ function coversRange(
   start: number,
   end: number,
 ): boolean {
-  if (Math.abs(record.mtimeMs - mtimeMs) > 1) return false;
+  if (Math.abs(record.mtimeMs - mtimeMs) > MTIME_TOLERANCE_MS) return false;
   return record.ranges.some((range) => range.start <= start && range.end >= end);
 }
 

@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
+import { mapWithConcurrency } from './_concurrency.js';
 import { safeResolveReal } from './_util.js';
 
 /**
@@ -146,7 +147,8 @@ async function gitDiff(
       ? 'side-by-side output is not supported; a unified diff was produced instead.'
       : undefined;
 
-  const gitDir = findGitDir(ctx.cwd);
+  const basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
+  const gitDir = findGitDir(basePath);
   if (!gitDir) {
     return { diff: '', files: [], truncated: false, mode: effectiveMode };
   }
@@ -163,7 +165,7 @@ async function gitDiff(
   if (input.b) args.push(input.b);
   if (input.files) {
     const files = Array.isArray(input.files) ? input.files : input.files.split(',');
-    args.push('--', ...files.map((f) => f.trim()));
+    args.push('--', ...files.map((f) => f.trim().replace(/\\/g, '/')));
   }
 
   const result = await runGit(args, gitDir, signal);
@@ -208,6 +210,10 @@ function runGit(
   cwd: string,
   signal: AbortSignal,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  if (signal.aborted) {
+    return Promise.resolve({ stdout: '', stderr: 'Aborted', exitCode: 124 });
+  }
+
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
@@ -256,29 +262,30 @@ async function fileDiff(
     };
   }
 
-  const fileEntries = await Promise.all(
-    files.map(async (file) => {
-      // Realpath containment (WS-048): the dump path OPENS the resolved file, so
-      // the syntactic check alone would follow an in-root symlink out of root.
-      const absPath = await safeResolveReal(file, ctx);
-      const stat = await fs.stat(absPath).catch(() => null);
-      if (!stat?.isFile()) return null;
+  const basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
 
-      if (stat.size > MAX_FILE_DUMP_BYTES) {
-        return {
-          truncated: true,
-          output: `--- ${file} (skipped: ${stat.size} bytes exceeds the ${MAX_FILE_DUMP_BYTES} limit; use the read tool with offset/limit) ---`,
-        };
-      }
+  const fileEntries = await mapWithConcurrency(files, 16, async (file) => {
+    // Realpath containment (WS-048): the dump path OPENS the resolved file, so
+    // the syntactic check alone would follow an in-root symlink out of root.
+    const fileToResolve = path.isAbsolute(file) ? file : path.resolve(basePath, file);
+    const absPath = await safeResolveReal(fileToResolve, ctx);
+    const stat = await fs.stat(absPath).catch(() => null);
+    if (!stat?.isFile()) return null;
 
-      const content = await fs.readFile(absPath, 'utf8');
-      const lines = content.split(/\r?\n/);
+    if (stat.size > MAX_FILE_DUMP_BYTES) {
       return {
-        truncated: false,
-        output: formatWithLineNumbers(file, lines),
+        truncated: true,
+        output: `--- ${file} (skipped: ${stat.size} bytes exceeds the ${MAX_FILE_DUMP_BYTES} limit; use the read tool with offset/limit) ---`,
       };
-    }),
-  );
+    }
+
+    const content = await fs.readFile(absPath, 'utf8');
+    const lines = content.split(/\r?\n/);
+    return {
+      truncated: false,
+      output: formatWithLineNumbers(file, lines),
+    };
+  });
 
   const results: string[] = [];
   let truncated = false;
@@ -312,7 +319,12 @@ async function fileDiff(
  * a line dump has no notion of "context lines".
  */
 function formatWithLineNumbers(file: string, lines: string[]): string {
-  const width = String(lines.length).length;
-  const numbered = lines.map((line, i) => `${String(i + 1).padStart(width)} | ${line}`).join('\n');
-  return `--- ${file} (line-numbered dump, not a unified diff) ---\n${numbered}`;
+  const count = lines.length;
+  const width = String(count).length;
+  const parts: string[] = new Array(count);
+  for (let i = 0; i < count; i++) {
+    const numStr = String(i + 1).padStart(width, ' ');
+    parts[i] = `${numStr} | ${lines[i]}`;
+  }
+  return `--- ${file} (line-numbered dump, not a unified diff) ---\n${parts.join('\n')}`;
 }

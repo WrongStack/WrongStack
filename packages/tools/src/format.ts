@@ -151,13 +151,18 @@ export const formatTool = {
 
     const combinedOut = `${result.stdout}\n${result.stderr}`;
     const counts = parseFormatterCounts(detected, combinedOut);
+    const rawOutput =
+      result.stdout && result.stderr
+        ? `${result.stdout}\n${result.stderr}`
+        : result.stdout || result.stderr || result.error || '';
+
     yield {
       type: 'final',
       output: {
         fixer: detected,
         files_checked: counts.checked,
         files_changed: counts.changed,
-        output: normalizeCommandOutput(result.stdout || result.stderr || result.error || ''),
+        output: normalizeCommandOutput(rawOutput),
         truncated: result.truncated,
       },
     };
@@ -177,9 +182,15 @@ function parseFormatterCounts(
   if (fixer !== 'biome') return { checked: undefined, changed: undefined };
   const checkedMatch = /\b(?:Checked|Formatted)\s+(\d+)\s+files?\b/i.exec(output);
   const changedMatch = /\bFixed\s+(\d+)\s+files?\b/i.exec(output);
+  const changed =
+    changedMatch?.[1] !== undefined
+      ? Number(changedMatch[1])
+      : output.includes('Formatted') && checkedMatch?.[1]
+        ? Number(checkedMatch[1])
+        : undefined;
   return {
     checked: checkedMatch?.[1] !== undefined ? Number(checkedMatch[1]) : undefined,
-    changed: changedMatch?.[1] !== undefined ? Number(changedMatch[1]) : undefined,
+    changed,
   };
 }
 
@@ -199,14 +210,17 @@ async function detectFixer(cwd: string): Promise<string | null> {
   const PRETTIER_CONFIGS = [
     '.prettierrc',
     '.prettierrc.json',
+    '.prettierrc.json5',
     '.prettierrc.yml',
     '.prettierrc.yaml',
+    '.prettierrc.toml',
     '.prettierrc.js',
     '.prettierrc.cjs',
     '.prettierrc.mjs',
     'prettier.config.js',
     'prettier.config.cjs',
     'prettier.config.mjs',
+    'prettier.config.ts',
   ];
   for (const cfg of PRETTIER_CONFIGS) {
     if (await exists(cfg)) return 'prettier';

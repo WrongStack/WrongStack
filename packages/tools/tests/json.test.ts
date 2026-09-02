@@ -253,6 +253,40 @@ describe('jsonTool action: validate', () => {
     expect(result.errors?.some((e) => e.includes('$.a'))).toBe(true);
   });
 
+  it('validates array items when items is an object schema', async () => {
+    const ok = await jsonTool.execute({
+      action: 'validate',
+      data: '["hello", "world"]',
+      schema: { type: 'array', items: { type: 'string' } },
+    });
+    expect(ok.valid).toBe(true);
+
+    const bad = await jsonTool.execute({
+      action: 'validate',
+      data: '["hello", 123]',
+      schema: { type: 'array', items: { type: 'string' } },
+    });
+    expect(bad.valid).toBe(false);
+    expect(bad.errors?.some((e) => e.includes('expected string'))).toBe(true);
+  });
+
+  it('validates required object fields', async () => {
+    const ok = await jsonTool.execute({
+      action: 'validate',
+      data: '{"name": "Alice", "age": 30}',
+      schema: { type: 'object', required: ['name', 'age'] },
+    });
+    expect(ok.valid).toBe(true);
+
+    const bad = await jsonTool.execute({
+      action: 'validate',
+      data: '{"name": "Alice"}',
+      schema: { type: 'object', required: ['name', 'age'] },
+    });
+    expect(bad.valid).toBe(false);
+    expect(bad.errors?.some((e) => e.includes('missing required property "age"'))).toBe(true);
+  });
+
   it('returns error when schema is missing', async () => {
     const result = await jsonTool.execute({ action: 'validate', data: '{}' });
     expect(result.error).toContain('schema is required');

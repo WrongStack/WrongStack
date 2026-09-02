@@ -722,9 +722,29 @@ function validateJsonSchema(
       errors.push(`${path}: above maximum ${s['maximum']}`);
     }
 
-    if (Array.isArray(value) && s['items'] && Array.isArray(s['items'])) {
-      for (let i = 0; i < value.length; i++) {
-        check(value[i], s['items'] as never as Record<string, unknown>, `${path}[${i}]`);
+    if (Array.isArray(value) && s['items']) {
+      if (Array.isArray(s['items'])) {
+        for (let i = 0; i < Math.min(value.length, s['items'].length); i++) {
+          check(value[i], s['items'][i] as Record<string, unknown>, `${path}[${i}]`);
+        }
+      } else if (typeof s['items'] === 'object' && s['items'] !== null) {
+        for (let i = 0; i < value.length; i++) {
+          check(value[i], s['items'] as Record<string, unknown>, `${path}[${i}]`);
+        }
+      }
+    }
+
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Array.isArray(s['required'])
+    ) {
+      const obj = value as Record<string, unknown>;
+      for (const req of s['required']) {
+        if (typeof req === 'string' && !(req in obj)) {
+          errors.push(`${path}: missing required property "${req}"`);
+        }
       }
     }
 
@@ -790,7 +810,7 @@ function toYaml(data: unknown, indent = 0): string {
   if (typeof data === 'boolean') return String(data) + '\n';
   if (typeof data === 'number') return String(data) + '\n';
   if (typeof data === 'string') {
-    if (data.includes('\n') || data.includes(':') || data.includes('#')) {
+    if (data.includes('\n') || data.includes(':') || data.includes('#') || data.startsWith('-')) {
       return `"${data.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"\n`;
     }
     return data + '\n';
@@ -798,12 +818,39 @@ function toYaml(data: unknown, indent = 0): string {
   if (Array.isArray(data)) {
     if (data.length === 0) return '[]\n';
     const prefix = '  '.repeat(indent);
-    return data.map((item) => `${prefix}- ${toYaml(item, indent + 1).trimStart()}`).join('');
+    return data
+      .map((item) => {
+        if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+          const itemEntries = Object.entries(item as Record<string, unknown>);
+          if (itemEntries.length === 0) return `${prefix}- {}\n`;
+          const [firstK, firstV] = itemEntries[0]!;
+          const rest = itemEntries.slice(1);
+          let itemYaml = `${prefix}- ${firstK}: ${toYaml(firstV, indent + 2).trimStart()}`;
+          for (const [k, v] of rest) {
+            itemYaml += `${prefix}  ${k}: ${toYaml(v, indent + 2)}`;
+          }
+          return itemYaml;
+        }
+        return `${prefix}- ${toYaml(item, indent + 1).trimStart()}`;
+      })
+      .join('');
   }
   if (typeof data === 'object') {
     const prefix = '  '.repeat(indent);
     const entries = Object.entries(data as Record<string, unknown>);
-    return entries.map(([k, v]) => `${prefix}${k}: ${toYaml(v, indent + 1)}`).join('');
+    if (entries.length === 0) return '{}\n';
+    return entries
+      .map(([k, v]) => {
+        if (
+          typeof v === 'object' &&
+          v !== null &&
+          (Array.isArray(v) ? v.length > 0 : Object.keys(v).length > 0)
+        ) {
+          return `${prefix}${k}:\n${toYaml(v, indent + 1)}`;
+        }
+        return `${prefix}${k}: ${toYaml(v, indent + 1)}`;
+      })
+      .join('');
   }
   /* v8 ignore next -- JSON.parse only yields null/bool/number/string/array/object; this fallback is defensive. */
   return String(data) + '\n';

@@ -76,6 +76,15 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
   async execute(input, ctx, opts) {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    if (signal.aborted) {
+      return {
+        source: 'none',
+        entries: [],
+        total: 0,
+        truncated: false,
+        stream_mode: false,
+      };
+    }
     const lines = input.lines ?? 100;
     let filterRe: RegExp | null = null;
     if (input.filter) {

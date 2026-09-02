@@ -279,6 +279,18 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     // which made `set_working_dir` silently ineffective for shell tools.
     const spawnCwd = ctx.workingDir ?? ctx.projectRoot;
     const callerSignal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    if (callerSignal.aborted) {
+      yield {
+        type: 'final',
+        output: {
+          output: 'Aborted',
+          exit_code: 124,
+          timed_out: true,
+          pid: null,
+        },
+      };
+      return;
+    }
 
     // On POSIX we put the shell in its own process group so that timeout /
     // abort can kill the entire group with `process.kill(-pid)`. Otherwise
@@ -568,17 +580,15 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       if (stream === 'stdout') stdoutBytes += chunk.byteLength;
       else stderrBytes += chunk.byteLength;
       emitProcessOutput({ pid, stream, chunk });
-      // Cap buf during accumulation to prevent heap exhaustion from unbounded
-      // string growth. exec.ts uses the same pattern. The final output is
-      // further normalized via normalizeCommandOutput which already caps at
-      // MAX_OUTPUT (32 KB). The spool captures the FULL output on disk.
-      if (buf.length < MAX_OUTPUT) {
-        buf += text.slice(0, MAX_OUTPUT - buf.length);
+      if (text.length > 0) {
+        if (buf.length < MAX_OUTPUT) {
+          buf += text.slice(0, MAX_OUTPUT - buf.length);
+        }
+        spool.write(text);
+        pending += text;
+        push({ kind: 'data', text });
+        pauseIfFlooded();
       }
-      spool.write(text);
-      pending += text;
-      push({ kind: 'data', text });
-      pauseIfFlooded();
     };
     const onStdoutData = (chunk: Buffer) => onData(chunk, 'stdout');
     const onStderrData = (chunk: Buffer) => onData(chunk, 'stderr');
@@ -635,7 +645,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
                 (spooled ? spoolNote(spooled) : '') +
                 (hint ? `\n\n${hint}` : '') +
                 pipeToShellNote,
-              exit_code: c.code,
+              exit_code: timedOut ? 124 : c.code,
               timed_out: timedOut,
             },
           };

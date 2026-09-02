@@ -113,31 +113,43 @@ export const lintTool: Tool<LintInput, LintOutput> = {
 
     yield { type: 'log', text: `Running ${detected}…`, data: { linter: detected } };
 
-    const args: string[] = ['lint'];
-    if (input.fix) args.push('--write');
-    if (input.files) {
-      const files = Array.isArray(input.files) ? input.files : input.files.split(',');
-      args.push('--', ...files.map((f) => f.trim()));
+    const files = input.files
+      ? (Array.isArray(input.files) ? input.files : input.files.split(',')).map((f) => f.trim())
+      : [];
+
+    const args: string[] = [];
+    if (detected === 'eslint') {
+      if (input.fix) args.push('--fix');
+      if (files.length) args.push(...files);
+    } else {
+      args.push('lint');
+      if (input.fix) args.push('--write');
+      if (files.length) args.push('--', ...files);
     }
 
     const cmd = detected === 'biome' ? 'biome' : detected;
     const result = yield* spawnStream({ cmd, args, cwd, signal, maxBytes: 100_000 });
 
-    const errors = [...result.stdout.matchAll(/\berror\b/gi)].length;
-    const warnings = [...result.stdout.matchAll(/\bwarning\b/gi)].length;
+    const combined = `${result.stdout}\n${result.stderr}`;
+    let errors = [...combined.matchAll(/\berror\b/gi)].length;
+    const warnings = [...combined.matchAll(/\bwarning\b/gi)].length;
+    if (errors === 0 && result.exitCode !== 0) {
+      errors = 1;
+    }
+
+    const rawOutput =
+      result.stdout && result.stderr
+        ? `${result.stdout}\n${result.stderr}`
+        : result.stdout || result.stderr || result.error || '';
 
     yield {
       type: 'final',
       output: {
         linter: detected,
-        files_checked: input.files
-          ? Array.isArray(input.files)
-            ? input.files.length
-            : input.files.split(',').length
-          : 0,
+        files_checked: files.length,
         errors,
         warnings,
-        output: normalizeCommandOutput(result.stdout),
+        output: normalizeCommandOutput(rawOutput),
         fix_applied: input.fix ?? false,
         truncated: result.truncated,
       },
@@ -147,7 +159,21 @@ export const lintTool: Tool<LintInput, LintOutput> = {
 
 async function detectLinter(cwd: string): Promise<string | null> {
   const { stat } = await import('node:fs/promises');
-  const checks = ['biome.json', '.eslintrc.json', 'tslint.json', '.eslintrc.js', 'tsconfig.json'];
+  const checks = [
+    'biome.json',
+    'biome.jsonc',
+    'eslint.config.js',
+    'eslint.config.mjs',
+    'eslint.config.cjs',
+    'eslint.config.ts',
+    '.eslintrc.json',
+    '.eslintrc.js',
+    '.eslintrc.cjs',
+    '.eslintrc.yaml',
+    '.eslintrc.yml',
+    'tslint.json',
+    'tsconfig.json',
+  ];
   for (const f of checks) {
     try {
       await stat(`${cwd}/${f}`);

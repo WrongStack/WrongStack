@@ -103,6 +103,8 @@ export interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   dueDate?: string | undefined;
   tags?: string[] | undefined;
   labels?: string[] | undefined;
+  /** Singular label filter — takes precedence over the first entry of `labels`. */
+  label?: string | undefined;
   priority?: KanbanTaskPriority | undefined;
   taskType?: KanbanTaskType | undefined;
   status?: KanbanTaskStatus | undefined;

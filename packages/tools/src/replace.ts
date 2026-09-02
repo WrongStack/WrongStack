@@ -16,6 +16,7 @@ import {
 } from '@wrongstack/core/utils';
 import { compileUserRegex } from './_regex.js';
 import { isBinaryBuffer, safeResolveReal, sha256hex, truncateDiffPayload } from './_util.js';
+import { mapWithConcurrency } from './_concurrency.js';
 import { enqueueReindex } from './codebase-index/background-indexer.js';
 
 /** Byte budget for the combined per-file diff payload — matches `maxOutputBytes`. */
@@ -137,15 +138,7 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
     // then makes every legitimately-inside file look "outside" and skips it.
     const realRoot = await fs.realpath(ctx.projectRoot).catch(() => ctx.projectRoot);
 
-    const results: ReplaceOutput['results'] = [];
-    let totalReplacements = 0;
-    // Combined diff budget across all files: once spent, later diffs are
-    // omitted (the summary counters still report every file).
-    let diffBytesUsed = 0;
-    let diffsOmitted = 0;
-    let diffsTruncated = 0;
-
-    for (const absPath of fileList) {
+    const fileResults = await mapWithConcurrency(fileList, 16, async (absPath) => {
       signal?.throwIfAborted();
       // Use lstat to detect symlinks. resolveFiles already applies
       // safeResolve, but a symlink with a target outside the project
@@ -156,8 +149,8 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
         /* v8 ignore next -- non-ENOENT lstat failure (EACCES etc.) is a defensive rethrow. */
         throw err;
       });
-      if (!lstat?.isFile()) continue;
-      if (lstat.isSymbolicLink()) continue;
+      if (!lstat?.isFile()) return null;
+      if (lstat.isSymbolicLink()) return null;
 
       // Cross-check via realpath: if the resolved target lives outside the
       // project root (e.g. a bind mount or a parent-dir traversal we missed),
@@ -167,48 +160,46 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
         realPath = await fs.realpath(absPath);
       } catch {
         /* v8 ignore next -- realpath failing after a successful lstat is a TOCTOU race; defensive. */
-        continue;
+        return null;
       }
       const rel = path.relative(realRoot, realPath);
-      if (rel.startsWith('..') || path.isAbsolute(rel)) continue;
+      if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
 
       // Now stat the real target so we use its mode for atomicWrite.
       const stat = await fs.stat(realPath).catch(() => null);
-      if (!stat?.isFile()) continue;
+      if (!stat?.isFile()) return null;
 
       let content: string;
       try {
         const buf = await fs.readFile(realPath);
-        if (isBinaryBuffer(buf)) continue;
+        if (isBinaryBuffer(buf)) return null;
         content = buf.toString('utf8');
       } catch {
         /* v8 ignore next -- readFile failing after a successful stat is a TOCTOU race; defensive. */
-        continue;
+        return null;
       }
 
       const style = detectNewlineStyle(content);
       const contentLf = normalizeToLf(content);
       re.lastIndex = 0;
       const allMatches = [...contentLf.matchAll(re)];
-      if (allMatches.length === 0) continue;
+      if (allMatches.length === 0) return null;
 
       // When replace_all is false, only act on the first match.
       const matches = replaceAll ? allMatches : allMatches.slice(0, 1);
       const count = matches.length;
 
-      // Rebuild: splice the replacement into each match position from
-      // right to left so earlier indices stay valid. The replacement is
-      // expanded per match with String.replace semantics ($1..$9, $&, $$).
-      let newContentLf = contentLf;
-      for (let i = matches.length - 1; i >= 0; i--) {
+      // Rebuild: single forward pass through matches to avoid quadratic intermediate string allocations.
+      let newContentLf = '';
+      let lastIdx = 0;
+      for (let i = 0; i < matches.length; i++) {
         const m = expectDefined(matches[i]);
-        newContentLf =
-          newContentLf.slice(0, m.index) +
-          expandReplacement(input.replacement, m) +
-          newContentLf.slice(expectDefined(m.index) + m[0].length);
+        const matchIdx = expectDefined(m.index);
+        newContentLf += contentLf.slice(lastIdx, matchIdx) + expandReplacement(input.replacement, m);
+        lastIdx = matchIdx + m[0].length;
       }
+      newContentLf += contentLf.slice(lastIdx);
       re.lastIndex = 0;
-      totalReplacements += count;
 
       if (!dryRun) {
         const newContent = toStyle(newContentLf, style);
@@ -233,7 +224,7 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
         });
       }
 
-      let diff: string | undefined =
+      const rawDiff: string | undefined =
         dryRun || matches.length > 0
           ? unifiedDiff(content, toStyle(newContentLf, style), {
               fromFile: absPath,
@@ -241,8 +232,26 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
             })
           : undefined;
 
-      // Enforce the shared diff budget: truncate the diff that crosses it and
-      // drop diffs entirely once it is spent.
+      return {
+        path: absPath,
+        replacements: count,
+        rawDiff,
+      };
+    });
+
+    const results: ReplaceOutput['results'] = [];
+    let totalReplacements = 0;
+    // Combined diff budget across all files: once spent, later diffs are
+    // omitted (the summary counters still report every file).
+    let diffBytesUsed = 0;
+    let diffsOmitted = 0;
+    let diffsTruncated = 0;
+
+    for (const item of fileResults) {
+      if (!item) continue;
+      totalReplacements += item.replacements;
+
+      let diff = item.rawDiff;
       if (diff !== undefined) {
         const remaining = MAX_DIFF_BYTES - diffBytesUsed;
         if (remaining <= 0) {
@@ -257,8 +266,8 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
       }
 
       results.push({
-        path: absPath,
-        replacements: matches.length,
+        path: item.path,
+        replacements: item.replacements,
         diff,
       });
     }
@@ -491,7 +500,12 @@ function spawnRgFind(pattern: string, base: string): { promise: Promise<string[]
     promise: new Promise((resolve, reject) => {
       child.on('error', reject);
       child.on('close', () => {
-        resolve(buf.split('\n').filter(Boolean));
+        resolve(
+          buf
+            .split(/\r?\n/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+        );
       });
     }),
   };

@@ -229,10 +229,15 @@ export const installTool = {
       maxBytes: 100_000,
     });
 
+    const rawOutput =
+      result.stdout && result.stderr
+        ? `${result.stdout}\n${result.stderr}`
+        : result.stdout || result.stderr || result.error || '';
+
     const output: InstallOutput = {
       packages: pkgList,
       exit_code: result.exitCode,
-      output: normalizeCommandOutput(result.stdout || result.stderr || result.error || ''),
+      output: normalizeCommandOutput(rawOutput),
       dry_run: args.includes('--dry-run'),
       truncated: result.truncated,
     };

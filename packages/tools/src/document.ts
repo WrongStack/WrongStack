@@ -102,7 +102,7 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
       } catch (e) {
         results.push({
           path: absPath,
-          name: absPath.split('/').pop() ?? absPath,
+          name: path.basename(absPath),
           signature: '',
           docstring: '',
           status: 'error',

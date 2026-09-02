@@ -100,6 +100,15 @@ type PreparedWrite = {
   prev: string;
 };
 
+function countLines(text: string): number {
+  if (!text) return 0;
+  let count = 1;
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) === 0x0a) count++;
+  }
+  return count;
+}
+
 async function writeFile(
   input: WriteInput,
   ctx: Context,
@@ -179,14 +188,15 @@ async function finishWrite(
 
   const rawDiff = prepared.existed
     ? unifiedDiff(prepared.prev, content, { fromFile: input.path, toFile: input.path })
-    : `+++ ${input.path}\n+ (new file, ${content.split('\n').length} lines)`;
+    : `+++ ${input.path}\n+ (new file, ${countLines(content)} lines)`;
   const { text: diff, truncated: diffTruncated } = truncateDiffPayload(rawDiff, MAX_DIFF_BYTES);
 
+  const contentHash = sha256hex(content);
   const stat = await fs.stat(prepared.absPath);
   // Tag as 'write' so the permission bypass does not auto-approve a later
   // write to this path — the user approved THIS write, not future ones
   // (P1 #1).
-  ctx.recordRead(prepared.absPath, stat.mtimeMs, 'write', sha256hex(content));
+  ctx.recordRead(prepared.absPath, stat.mtimeMs, 'write', contentHash);
 
   // Record for session rewind
   ctx.session?.recordFileChange?.({

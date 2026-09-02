@@ -89,7 +89,10 @@ export const codebaseSkeletonTool: Tool<CodebaseSkeletonInput, CodebaseSkeletonO
     required: ['path'],
     additionalProperties: false,
   },
-  async execute(input, ctx) {
+  async execute(input, ctx, execOpts) {
+    const signal = execOpts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
+
     // H-5 (security report VF-06): this tool is `permission: 'auto'`, so the
     // resolve must not be a bare isAbsolute passthrough — an absolute or ../
     // path read arbitrary files (the fallback extractor returns FULL content

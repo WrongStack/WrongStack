@@ -145,7 +145,19 @@ export const testTool: Tool<TestInput, TestOutput> = {
 
 async function detectRunner(cwd: string): Promise<string | null> {
   const { stat } = await import('node:fs/promises');
-  const candidates = ['vitest.config.ts', 'jest.config.js', '.mocharc.json'];
+  const candidates = [
+    'vitest.config.ts',
+    'vitest.config.js',
+    'vitest.config.mjs',
+    'vitest.config.mts',
+    'jest.config.ts',
+    'jest.config.js',
+    'jest.config.mjs',
+    'jest.config.cjs',
+    '.mocharc.json',
+    '.mocharc.js',
+    '.mocharc.cjs',
+  ];
   for (const f of candidates) {
     try {
       await stat(path.join(cwd, f));
@@ -228,7 +240,18 @@ function parseResult(
     tests_run = Number.parseInt(suitesMatch?.[1] ?? '0', 10);
     passed = Number.parseInt(passedMatch?.[1] ?? '0', 10);
     failed = Number.parseInt(failedMatch?.[1] ?? '0', 10);
+  } else if (runner === 'mocha') {
+    const passedMatch = out.match(/(\d+)\s+passing/);
+    const failedMatch = out.match(/(\d+)\s+failing/);
+    if (passedMatch?.[1]) passed = Number.parseInt(passedMatch[1], 10);
+    if (failedMatch?.[1]) failed = Number.parseInt(failedMatch[1], 10);
+    tests_run = passed + failed;
   }
+
+  const rawOutput =
+    result.stdout && result.stderr
+      ? `${result.stdout}\n${result.stderr}`
+      : result.stdout || result.stderr || result.error || '';
 
   return {
     runner,
@@ -241,7 +264,7 @@ function parseResult(
     // already parsed above and the FULL log is on disk (spool marker rides
     // the stdout tail). Failures keep the standard command-output cap so
     // the agent sees the failure details inline.
-    output: normalizeCommandOutput(result.stdout || result.error || '', {
+    output: normalizeCommandOutput(rawOutput, {
       maxBytes: result.exitCode === 0 ? 4096 : undefined,
     }),
     truncated: result.truncated,

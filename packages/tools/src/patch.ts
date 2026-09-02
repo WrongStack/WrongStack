@@ -307,7 +307,11 @@ function extractDiffTargets(patch: string): DiffTarget[] {
   // tab-prefixed timestamp suffixes that some diff tools emit.
   const clean = (raw: string | undefined): string => {
     if (!raw) return '';
-    return (raw.length > 4096 ? raw.slice(0, 4096) : raw).trim();
+    let s = (raw.length > 4096 ? raw.slice(0, 4096) : raw).trim();
+    if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+      s = s.slice(1, -1).trim();
+    }
+    return s;
   };
 
   let lastOld: string | undefined;
@@ -431,6 +435,15 @@ function runPatchProcess(
   cwd: string,
   signal: AbortSignal,
 ): Promise<{ exitCode: number; stdout: string; stderr: string; unavailable: boolean }> {
+  if (signal.aborted) {
+    return Promise.resolve({
+      exitCode: 124,
+      stdout: '',
+      stderr: 'Aborted',
+      unavailable: false,
+    });
+  }
+
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
@@ -447,6 +460,7 @@ function runPatchProcess(
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });
+    child.stdin?.end();
     child.stdout?.on('data', (c) => {
       stdout += c.toString();
     });
@@ -474,7 +488,10 @@ function extractPatchedFiles(output: string): string[] {
   // the same file list as a real apply.
   const re = /(?:patching|checking) file (.+)/gi;
   for (const m of output.matchAll(re)) {
-    if (m[1]) files.push(m[1]);
+    if (m[1]) {
+      const sanitized = m[1].replace(/^['"`]|['"`\r\n]+$/g, '').trim();
+      if (sanitized) files.push(sanitized);
+    }
   }
   return files;
 }

@@ -330,7 +330,7 @@ function buildArgs(input: GitInput): string[] {
   const limit = input.limit ?? 20;
   const files = input.files
     ? (Array.isArray(input.files) ? input.files : input.files.split(','))
-        .map((s: string) => s.trim())
+        .map((s: string) => s.trim().replace(/\\/g, '/'))
         .filter(Boolean)
     : [];
 
@@ -427,9 +427,21 @@ function buildArgs(input: GitInput): string[] {
 }
 
 function runGit(args: string[], cwd: string, signal: AbortSignal): Promise<GitOutput> {
+  if (signal.aborted) {
+    return Promise.resolve({
+      command: args[0] as GitSubcommand,
+      stdout: '',
+      stderr: 'Aborted',
+      exitCode: 124,
+      truncated: false,
+    });
+  }
+
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
 
     const child = spawn('git', args, {
       cwd,
@@ -440,12 +452,14 @@ function runGit(args: string[], cwd: string, signal: AbortSignal): Promise<GitOu
     });
 
     child.stdout?.on('data', (chunk: Buffer) => {
+      stdoutBytes += chunk.byteLength;
       if (stdout.length < MAX_OUTPUT) {
         stdout += chunk.toString();
       }
     });
 
     child.stderr?.on('data', (chunk: Buffer) => {
+      stderrBytes += chunk.byteLength;
       if (stderr.length < MAX_OUTPUT) {
         stderr += chunk.toString();
       }
@@ -457,7 +471,7 @@ function runGit(args: string[], cwd: string, signal: AbortSignal): Promise<GitOu
         stdout: normalizeCommandOutput(stdout),
         stderr: err.message,
         exitCode: 1,
-        truncated: Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
+        truncated: stdoutBytes > MAX_OUTPUT || Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
       });
     });
 
@@ -465,14 +479,17 @@ function runGit(args: string[], cwd: string, signal: AbortSignal): Promise<GitOu
       // `MAX_OUTPUT` already bounded the raw buffers in memory; normalize strips
       // ANSI / progress / duplicate noise and head+tail-truncates to the shared
       // command cap so only useful output reaches the model.
+      const isTruncated =
+        stdoutBytes > MAX_OUTPUT ||
+        stderrBytes > MAX_OUTPUT ||
+        Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES ||
+        Buffer.byteLength(stderr, 'utf8') > COMMAND_OUTPUT_MAX_BYTES;
       resolve({
         command: args[0] as GitSubcommand,
         stdout: normalizeCommandOutput(stdout),
         stderr: normalizeCommandOutput(stderr),
         exitCode: code ?? 1,
-        truncated:
-          Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES ||
-          Buffer.byteLength(stderr, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
+        truncated: isTruncated,
       });
     });
   });

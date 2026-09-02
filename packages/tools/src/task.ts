@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { TaskFile } from '@wrongstack/core/storage';
-import { addPlanItem, formatPlan, mutatePlan, mutateTasks } from '@wrongstack/core/storage';
+import {
+  addPlanItem,
+  formatPlan,
+  loadTasks,
+  mutatePlan,
+  mutateTasks,
+} from '@wrongstack/core/storage';
 import type { TaskStatus, Tool } from '@wrongstack/core/types';
 import { computeTaskItemProgress, formatTaskList, type TaskItem } from '@wrongstack/core/utils';
 import { mirrorSessionTasksToKanban } from './session-kanban.js';
@@ -202,9 +208,8 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
     required: ['action'],
   },
   async execute(input, ctx) {
-    const sessionTaskPath = (ctx.meta as Record<string, unknown>)['task.path'] as
-      | string
-      | undefined;
+    const meta = ((ctx.meta ??= {}) as Record<string, unknown>);
+    const sessionTaskPath = meta['task.path'] as string | undefined;
     let taskPath: string | undefined;
 
     if (input.scope === 'project') {
@@ -238,6 +243,20 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
     }
     const sessionId = ctx.session?.id ?? 'unknown';
 
+    if (input.action === 'show') {
+      meta['task.path.resolved'] = taskPath;
+      const file = (await loadTasks(taskPath)) ?? { version: 1, tasks: [] };
+      const p = computeTaskItemProgress(file.tasks);
+      const summary = file.tasks.length > 0 ? formatTaskList(file.tasks) : 'No tasks.';
+      return {
+        ok: true,
+        message: summary,
+        count: file.tasks.length,
+        completed: p.completed,
+        inProgress: p.inProgress,
+      };
+    }
+
     // Early-return result for validation errors that happen before or
     // during the critical section. The lock callback sets this instead of
     // mutating the file, and we return it after the lock releases.
@@ -262,7 +281,7 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
       file = await mutateTasks(taskPath, sessionId, async (f: TaskFile) => {
         switch (input.action) {
           case 'show':
-            // read-only — no mutation, just return current state
+            // read-only — handled above
             break;
 
           case 'replace': {
@@ -314,6 +333,7 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
               return f;
             }
             // Validate dependsOn references: must point to IDs within the new batch
+            const taskStatusById = new Map(input.tasks.map((t) => [t.id, t.status]));
             for (const t of input.tasks) {
               if (t.dependsOn && t.dependsOn.length > 0) {
                 const missing = t.dependsOn.filter((d) => !newIds.has(d));
@@ -330,9 +350,7 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
               }
               if (t.status === 'in_progress' || t.status === 'completed') {
                 const unmet = (t.dependsOn ?? []).filter(
-                  (dependencyId) =>
-                    input.tasks?.find((candidate) => candidate.id === dependencyId)?.status !==
-                    'completed',
+                  (dependencyId) => taskStatusById.get(dependencyId) !== 'completed',
                 );
                 if (unmet.length > 0) {
                   early = {

@@ -152,7 +152,7 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
           query: input.query,
           kind: input.kind?.toLowerCase(),
           lang: input.lang?.toLowerCase(),
-          file: input.file,
+          file: input.file ? input.file.replace(/\\/g, '/') : undefined,
           lspKind: input.lspKind,
           limit,
         },

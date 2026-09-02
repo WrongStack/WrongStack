@@ -495,9 +495,10 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     }
     ctx.state.replaceTodos(boundItems);
 
+    const signal = call?.signal ?? ctx.signal ?? new AbortController().signal;
     const kanbanSync =
       managed && board
-        ? await synchronizeManagedKanban(boundItems, board, ctx, call.signal)
+        ? await synchronizeManagedKanban(boundItems, board, ctx, signal)
         : { synced: 0, warnings: [] as string[] };
     kanbanSync.warnings.unshift(...creationWarnings);
     if (managed && board) {
@@ -558,16 +559,19 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     // plan tool actually wrote ('plan.path.resolved' — set for both session
     // and project scope) over the seeded session path, so project-scoped plan
     // items promoted to todos roll up against the real backlog file.
-    for (const planId of completedPlanIds) {
-      if (pendingPlanIds.has(planId)) continue; // not all done yet
-      const meta = ctx.meta as Record<string, unknown>;
-      const planPath = meta['plan.path.resolved'] ?? meta['plan.path'];
-      if (typeof planPath !== 'string' || !planPath) continue;
+    const meta = ctx.meta as Record<string, unknown> | undefined;
+    const planPath = meta?.['plan.path.resolved'] ?? meta?.['plan.path'];
+    if (typeof planPath === 'string' && planPath && completedPlanIds.size > 0) {
       try {
-        const plan = await loadPlan(planPath);
+        let plan = await loadPlan(planPath);
         if (plan) {
-          const updated = setPlanItemStatus(plan, planId, 'done');
-          await savePlan(planPath, updated);
+          let modified = false;
+          for (const planId of completedPlanIds) {
+            if (pendingPlanIds.has(planId)) continue;
+            plan = setPlanItemStatus(plan, planId, 'done');
+            modified = true;
+          }
+          if (modified) await savePlan(planPath, plan);
         }
       } catch {
         /* best-effort */
@@ -576,20 +580,22 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
 
     // Mark fully-completed tasks as completed — same resolved-path preference
     // as the plan rollup above.
-    for (const taskId of completedTaskIds) {
-      if (pendingTaskIds.has(taskId)) continue; // not all done yet
-      const meta = ctx.meta as Record<string, unknown>;
-      const taskPath = meta['task.path.resolved'] ?? meta['task.path'];
-      if (typeof taskPath !== 'string' || !taskPath) continue;
+    const taskPath = meta?.['task.path.resolved'] ?? meta?.['task.path'];
+    if (typeof taskPath === 'string' && taskPath && completedTaskIds.size > 0) {
       try {
         const file = await loadTasks(taskPath);
         if (file) {
-          const task = file.tasks.find((t) => t.id === taskId);
-          if (task && task.status !== 'completed') {
-            task.status = 'completed';
-            task.updatedAt = new Date().toISOString();
-            await saveTasks(taskPath, file);
+          let modified = false;
+          for (const taskId of completedTaskIds) {
+            if (pendingTaskIds.has(taskId)) continue;
+            const task = file.tasks.find((t) => t.id === taskId);
+            if (task && task.status !== 'completed') {
+              task.status = 'completed';
+              task.updatedAt = new Date().toISOString();
+              modified = true;
+            }
           }
+          if (modified) await saveTasks(taskPath, file);
         }
       } catch {
         /* best-effort */

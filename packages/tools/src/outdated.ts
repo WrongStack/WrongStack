@@ -151,9 +151,21 @@ function runOutdated(
   cwd: string,
   signal: AbortSignal,
 ): Promise<OutdatedOutput> {
+  if (signal.aborted) {
+    return Promise.resolve({
+      exit_code: 124,
+      packages: [],
+      total: 0,
+      output: 'Aborted',
+      truncated: false,
+    });
+  }
+
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
     const MAX = 100_000;
 
     const resolved = resolveWin32Command(manager);
@@ -170,14 +182,20 @@ function runOutdated(
       windowsHide: true,
       ...(shim ? { windowsVerbatimArguments: shim.windowsVerbatimArguments } : {}),
     });
-    child.stdout?.on('data', (c) => {
+    child.stdout?.on('data', (c: Buffer) => {
+      stdoutBytes += c.byteLength;
       if (stdout.length < MAX) stdout += c.toString();
     });
-    child.stderr?.on('data', (c) => {
+    child.stderr?.on('data', (c: Buffer) => {
+      stderrBytes += c.byteLength;
       if (stderr.length < MAX) stderr += c.toString();
     });
     child.on('close', (code) => {
-      const result = parseOutdatedOutput(stdout, code ?? 0);
+      const isTruncated =
+        stdoutBytes > MAX ||
+        stderrBytes > MAX ||
+        Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES;
+      const result = parseOutdatedOutput(stdout, code ?? 0, stderr, isTruncated);
       resolve(result);
     });
     child.on('error', (e) => {
@@ -192,7 +210,12 @@ function runOutdated(
   });
 }
 
-function parseOutdatedOutput(json: string, exitCode: number): OutdatedOutput {
+function parseOutdatedOutput(
+  json: string,
+  exitCode: number,
+  stderr = '',
+  truncated = false,
+): OutdatedOutput {
   const packages: OutdatedPackage[] = [];
 
   if (!json) {
@@ -200,13 +223,15 @@ function parseOutdatedOutput(json: string, exitCode: number): OutdatedOutput {
       exit_code: exitCode,
       packages: [],
       total: 0,
-      output: exitCode === 0 ? 'All packages up to date' : 'Could not check outdated packages',
-      truncated: false,
+      output: stderr || (exitCode === 0 ? 'All packages up to date' : 'Could not check outdated packages'),
+      truncated: truncated,
     };
   }
 
-  const truncated =
-    json.length >= 100_000 || Buffer.byteLength(json, 'utf8') > COMMAND_OUTPUT_MAX_BYTES;
+  const isTruncated =
+    truncated ||
+    json.length >= 100_000 ||
+    Buffer.byteLength(json, 'utf8') > COMMAND_OUTPUT_MAX_BYTES;
   let parsedOk = false;
 
   try {
@@ -243,6 +268,6 @@ function parseOutdatedOutput(json: string, exitCode: number): OutdatedOutput {
     packages,
     total: packages.length,
     output,
-    truncated,
+    truncated: isTruncated,
   };
 }

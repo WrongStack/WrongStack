@@ -486,6 +486,18 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
       };
     }
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    if (signal.aborted) {
+      return {
+        command: cmd,
+        args,
+        stdout: '',
+        stderr: 'Aborted',
+        exitCode: 124,
+        truncated: false,
+        allowed: true,
+        danger,
+      };
+    }
 
     return runCommand(cmd, args, cwd, timeout, signal, ctx.session?.id, danger);
   },
@@ -699,15 +711,18 @@ function runCommand(
       emitCompletedOnce(exitCode, pid);
       registry.afterCall(durationMs, exitCode !== 0);
       const spooled = spool.finalize();
+      const isTruncated =
+        stdoutBytes > MAX_OUTPUT ||
+        stderrBytes > MAX_OUTPUT ||
+        Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES ||
+        Buffer.byteLength(stderr, 'utf8') > COMMAND_OUTPUT_MAX_BYTES;
       finish({
         command: cmd,
         args,
         stdout: normalizeCommandOutput(stdout) + (spooled ? spoolNote(spooled) : ''),
         stderr: normalizeCommandOutput(stderr),
         exitCode,
-        truncated:
-          Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES ||
-          Buffer.byteLength(stderr, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
+        truncated: isTruncated,
         allowed: true,
         danger,
       });

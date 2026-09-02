@@ -32,6 +32,23 @@ describe('treeTool', () => {
     expect(result).toHaveProperty('total_dirs');
   });
 
+  it('renders correct tree branch connectors for sibling directories', async () => {
+    const dir1 = path.join(tmpDir, 'dir1');
+    const dir2 = path.join(tmpDir, 'dir2');
+    await fs.mkdir(path.join(dir1, 'subdir1'), { recursive: true });
+    await fs.writeFile(path.join(dir1, 'subdir1', 'file.txt'), 'content');
+    await fs.mkdir(dir2, { recursive: true });
+    await fs.writeFile(path.join(dir2, 'file2.txt'), 'content');
+
+    const ctx = makeCtx();
+    const result = await treeTool.execute({ depth: 5 }, ctx, makeOpts());
+    const lines = result.tree.split('\n');
+    const subdirLine = lines.find((l) => l.includes('subdir1'));
+    expect(subdirLine).toBeDefined();
+    // Non-last root directory's children must be prefixed with '│   '
+    expect(subdirLine!.startsWith('│   ')).toBe(true);
+  });
+
   it('defaults to cwd', async () => {
     const ctx = makeCtx();
     const result = await treeTool.execute({}, ctx, makeOpts());

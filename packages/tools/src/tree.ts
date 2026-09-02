@@ -130,6 +130,7 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
     const queue: ToolProgressEvent[] = [];
     const FLUSH_EVERY = 200; // emit metric every 200 entries seen
     let lastEmittedTotal = 0;
+    let wakeWaiter: (() => void) | undefined;
 
     const tickProgress = () => {
       const seen = totals.totalFiles.value + totals.totalDirs.value;
@@ -140,6 +141,7 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
           data: { files: totals.totalFiles.value, dirs: totals.totalDirs.value },
         });
         lastEmittedTotal = seen;
+        wakeWaiter?.();
       }
     };
 
@@ -163,32 +165,22 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
 
     // Race the walk against periodic flushes — yield metrics while it runs.
     let walkDone = false;
-    void walkPromise.then(
-      () => {
+    void walkPromise
+      .catch(() => {})
+      .finally(() => {
         walkDone = true;
-      },
-      () => {
-        walkDone = true;
-      },
-    );
+        wakeWaiter?.();
+      });
 
     while (!walkDone || queue.length > 0) {
       if (queue.length > 0) {
         yield expectDefined(queue.shift());
       } else {
-        // Race the walk completion against a short tick so we don't busy-
-        // spin while the producer fills the queue. Previously the
-        // setTimeout was never cleared when walkPromise won — one stray
-        // timer per drain iteration accumulated on the event loop.
-        let pollTimer: ReturnType<typeof setTimeout> | undefined;
-        const poll = new Promise<void>((r) => {
-          pollTimer = setTimeout(r, 50);
+        await new Promise<void>((resolve) => {
+          wakeWaiter = resolve;
+          if (walkDone || queue.length > 0) resolve();
         });
-        try {
-          await Promise.race([walkPromise, poll]).catch(() => undefined);
-        } finally {
-          if (pollTimer) clearTimeout(pollTimer);
-        }
+        wakeWaiter = undefined;
       }
     }
     await walkPromise; // surface any error
@@ -287,7 +279,7 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
     /* v8 ignore next -- i is bounded by items.length, so entry is always defined; defensive. */
     if (!entry) continue;
     const isLast = i === items.length - 1;
-    const connector = opts.isLast ? '    ' : '│   ';
+    const connector = isLast ? '    ' : '│   ';
     const branch = isLast ? '└── ' : '├── ';
     const displayName = entry.name + (entry.isDirectory() ? '/' : '');
 

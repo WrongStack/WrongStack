@@ -191,6 +191,19 @@ async function* runRgStream(
   limit: number,
   signal: AbortSignal,
 ): AsyncGenerator<ToolStreamEvent<GrepOutput>> {
+  if (signal.aborted) {
+    yield {
+      type: 'final',
+      output: {
+        matches: [],
+        count: 0,
+        truncated: false,
+        used: 'rg',
+      },
+    };
+    return;
+  }
+
   const args: string[] = ['--no-heading'];
   if (input.case_insensitive) args.push('-i');
   if (mode === 'files_with_matches') args.push('-l');
@@ -411,6 +424,15 @@ async function runNative(
   limit: number,
   signal: AbortSignal,
 ): Promise<GrepOutput> {
+  if (signal.aborted) {
+    return {
+      matches: [],
+      count: 0,
+      truncated: false,
+      used: 'native',
+    };
+  }
+
   const flags = input.case_insensitive ? 'i' : '';
   const compiled = compileUserRegex(input.pattern, flags);
   if (!compiled.ok) {
@@ -434,10 +456,12 @@ async function runNative(
   const scanFile = async (full: string, name: string, rel: string): Promise<void> => {
     if (stopped || signal.aborted) return;
     if (globRe) {
+      globRe.lastIndex = 0;
       const normRel = rel.replace(/\\/g, '/');
       const normFull = full.replace(/\\/g, '/');
-      if (!globRe.test(name) && !globRe.test(normRel) && !globRe.test(normFull)) return;
+      const matchesGlob = globRe.test(name) || globRe.test(normRel) || globRe.test(normFull);
       globRe.lastIndex = 0;
+      if (!matchesGlob) return;
     }
 
     try {
@@ -561,7 +585,13 @@ async function runNative(
       walk(full, rel),
     );
   };
-  await walk(base, '');
+
+  const baseStat = await fs.stat(base).catch(() => null);
+  if (baseStat?.isFile()) {
+    await scanFile(base, path.basename(base), path.basename(base));
+  } else {
+    await walk(base, '');
+  }
 
   return {
     matches,

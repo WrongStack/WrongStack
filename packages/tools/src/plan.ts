@@ -5,6 +5,7 @@ import {
   deriveTodosFromPlanItem,
   formatPlan,
   getPlanTemplate,
+  loadPlan,
   mutatePlan,
   mutateTasks,
   type PlanFile,
@@ -166,10 +167,9 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
     },
     required: ['action'],
   },
-  async execute(input, ctx) {
-    const sessionPlanPath = (ctx.meta as Record<string, unknown>)['plan.path'] as
-      | string
-      | undefined;
+  async execute(input, ctx, _opts) {
+    const meta = ((ctx.meta ??= {}) as Record<string, unknown>);
+    const sessionPlanPath = meta['plan.path'] as string | undefined;
     let planPath: string | undefined;
 
     if (input.scope === 'project') {
@@ -211,6 +211,17 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
       };
     }
     const sessionId = ctx.session?.id ?? 'unknown';
+
+    if (input.action === 'show') {
+      meta['plan.path.resolved'] = planPath;
+      const plan = (await loadPlan(planPath)) ?? {
+        version: 1,
+        sessionId,
+        updatedAt: new Date().toISOString(),
+        items: [],
+      };
+      return mkResult(plan, true, 'Plan show ok.');
+    }
 
     let early: PlanOutput | null = null;
     // Track taskify data — task write happens after the plan lock releases

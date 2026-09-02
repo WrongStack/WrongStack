@@ -240,17 +240,25 @@ export function similarity(a: string, b: string): number {
   return 1 - levenshtein(a, b) / max;
 }
 
-/** Two-row Levenshtein distance. */
+/** Two-row Levenshtein distance with dimension swap and Int32Array. */
 function levenshtein(a: string, b: string): number {
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
-  let prev = new Array<number>(b.length + 1);
-  let cur = new Array<number>(b.length + 1);
-  for (let j = 0; j <= b.length; j++) prev[j] = j;
-  for (let i = 1; i <= a.length; i++) {
+  if (a.length < b.length) {
+    const tmp = a;
+    a = b;
+    b = tmp;
+  }
+  const bLen = b.length;
+  const aLen = a.length;
+  let prev = new Int32Array(bLen + 1);
+  let cur = new Int32Array(bLen + 1);
+  for (let j = 0; j <= bLen; j++) prev[j] = j;
+
+  for (let i = 1; i <= aLen; i++) {
     cur[0] = i;
     const ca = a.charCodeAt(i - 1);
-    for (let j = 1; j <= b.length; j++) {
+    for (let j = 1; j <= bLen; j++) {
       const cost = ca === b.charCodeAt(j - 1) ? 0 : 1;
       cur[j] = Math.min(
         (prev[j] as number) + 1,
@@ -258,9 +266,11 @@ function levenshtein(a: string, b: string): number {
         (prev[j - 1] as number) + cost,
       );
     }
-    [prev, cur] = [cur, prev];
+    const tmp = prev;
+    prev = cur;
+    cur = tmp;
   }
-  return prev[b.length] as number;
+  return prev[bLen] as number;
 }
 
 /** Leading whitespace (spaces/tabs) of the first non-empty line, or ''. */
@@ -316,27 +326,38 @@ export function nearestMatchHint(
 ): { line: number; snippet: string } | undefined {
   const fileLines = fileLf.split('\n');
   const needleLines = oldLf.split('\n');
-  if (needleLines.length > fileLines.length) return undefined;
+  const n = needleLines.length;
+  if (n > fileLines.length) return undefined;
 
   const needleTrimmed = needleLines.map((l) => l.trim());
   const fileTrimmed = fileLines.map((l) => l.trim());
   let bestScore = 0;
   let bestStart = -1;
-  for (let i = 0; i + needleLines.length <= fileLines.length; i++) {
+  const maxI = fileLines.length - n;
+
+  for (let i = 0; i <= maxI; i++) {
     let sum = 0;
-    for (let j = 0; j < needleLines.length; j++) {
+    let possible = true;
+    for (let j = 0; j < n; j++) {
       sum += prefixSimilarity(needleTrimmed[j] as string, fileTrimmed[i + j] as string);
+      // Prune if remaining maximum score cannot beat bestScore
+      if (sum + (n - 1 - j) <= bestScore * n) {
+        possible = false;
+        break;
+      }
     }
-    const score = sum / needleLines.length;
-    if (score > bestScore) {
-      bestScore = score;
-      bestStart = i;
+    if (possible) {
+      const score = sum / n;
+      if (score > bestScore) {
+        bestScore = score;
+        bestStart = i;
+      }
     }
   }
   if (bestStart === -1 || bestScore < 0.5) return undefined;
 
   const snippet = fileLines
-    .slice(bestStart, bestStart + Math.min(3, needleLines.length))
+    .slice(bestStart, bestStart + Math.min(3, n))
     .map((l) => (l.length > 120 ? `${l.slice(0, 120)}…` : l))
     .join('\n');
   return { line: bestStart + 1, snippet };

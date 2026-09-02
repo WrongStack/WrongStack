@@ -144,6 +144,23 @@ describe('patchTool', () => {
     const result = await patchTool.execute({ patch: patchBody }, ctx, makeOpts());
     expect(result.message).not.toMatch(/outside project root/);
   });
+
+  it('correctly parses and applies patches with quoted file targets', async () => {
+    const file = path.join(tmpDir, 'quoted-test.txt');
+    await fs.writeFile(file, 'initial\n');
+    const ctx = makeCtx();
+    const patchBody =
+      '--- "a/quoted-test.txt"\n' +
+      '+++ "b/quoted-test.txt"\n' +
+      '@@ -1 +1 @@\n' +
+      '-initial\n' +
+      '+updated\n';
+    const result = await patchTool.execute({ patch: patchBody }, ctx, makeOpts());
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(result.rejected).toBe(0);
+    const after = await fs.readFile(file, 'utf8');
+    expect(after).toContain('updated');
+  });
 });
 
 describe('patchTool — bookkeeping on every outcome', () => {

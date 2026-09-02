@@ -30,6 +30,9 @@ export const kanbanTool = {
   timeoutMs: 30_000,
   inputSchema: KANBAN_INPUT_SCHEMA,
   async execute(input: KanbanToolInput, ctx: KanbanContext, _opts?: { signal: AbortSignal }) {
+    const signal = _opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    if (signal.aborted) return fail('Operation aborted.');
+
     const projectRoot = ctx.projectRoot;
     if (!projectRoot) return fail('No project root is available.');
 

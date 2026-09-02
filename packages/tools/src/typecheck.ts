@@ -133,8 +133,16 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
     // occurrence of the word "error" — messages quoting the word inflated the
     // old \berror\b count.
     const combined = `${result.stdout}\n${result.stderr}`;
-    const errors = [...combined.matchAll(/^.*\berror TS\d+:/gm)].length;
+    let errors = [...combined.matchAll(/^.*\berror TS\d+:/gm)].length;
     const warnings = [...combined.matchAll(/^.*\bwarning TS\d+:/gm)].length;
+    if (errors === 0 && result.exitCode !== 0) {
+      errors = 1;
+    }
+
+    const rawOutput =
+      result.stdout && result.stderr
+        ? `${result.stdout}\n${result.stderr}`
+        : result.stdout || result.stderr || result.error || '';
 
     yield {
       type: 'final',
@@ -143,7 +151,7 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
         exit_code: result.exitCode,
         errors,
         warnings,
-        output: normalizeCommandOutput(result.stdout || result.stderr || result.error || ''),
+        output: normalizeCommandOutput(rawOutput),
         truncated: result.truncated,
       },
     };
@@ -152,7 +160,13 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
 
 async function findTsConfig(cwd: string): Promise<string | null> {
   const { stat } = await import('node:fs/promises');
-  const candidates = ['tsconfig.json', 'tsconfig.base.json'];
+  const candidates = [
+    'tsconfig.json',
+    'tsconfig.base.json',
+    'tsconfig.build.json',
+    'tsconfig.app.json',
+    'tsconfig.node.json',
+  ];
   for (const f of candidates) {
     try {
       const s = await stat(path.join(cwd, f));
