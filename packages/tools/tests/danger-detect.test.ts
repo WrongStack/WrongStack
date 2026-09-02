@@ -167,6 +167,41 @@ describe('detectDanger — PowerShell Remove-Item -Recurse -Force', () => {
     const r = detectDanger('powershell', ['Get-ChildItem', '-Recurse']);
     expect(r.level).toBe('safe');
   });
+
+  it('flags explicit `:$true` switch-value spellings as destructive', () => {
+    // PowerShell switch parameters accept an explicit boolean value form:
+    // `-Recurse:$true` ≡ `-Recurse`, `-Force:$true` ≡ `-Force`. Both are a
+    // verbatim recursive force-delete and must hit the confirm gate.
+    expect(detectDanger('powershell', ['Remove-Item', '-Recurse:$true', '-Force', 'foo']).level).toBe(
+      'destructive',
+    );
+    expect(detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force:$true', 'foo']).level).toBe(
+      'destructive',
+    );
+    expect(detectDanger('pwsh', ['Remove-Item', '-Recurse:$true', '-Force:$true', 'foo']).level).toBe(
+      'destructive',
+    );
+  });
+
+  it('does NOT flag `:$false` switch-value spellings (switch explicitly OFF)', () => {
+    // `-Recurse:$false` turns recursion OFF and `-Force:$false` turns force
+    // OFF — neither is a recursive force-delete, so both stay safe.
+    expect(detectDanger('powershell', ['Remove-Item', '-Recurse:$false', '-Force', 'foo']).level).toBe(
+      'safe',
+    );
+    expect(detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force:$false', 'foo']).level).toBe(
+      'safe',
+    );
+  });
+
+  it('exempts explicit `-WhatIf:$true` (dry-run) and NOT `-WhatIf:$false` (executes)', () => {
+    expect(detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force', '-WhatIf:$true', 'foo']).level).toBe(
+      'safe',
+    );
+    expect(detectDanger('powershell', ['Remove-Item', '-Recurse', '-Force', '-WhatIf:$false', 'foo']).level).toBe(
+      'destructive',
+    );
+  });
 });
 
 describe('detectDanger — find -exec / -ok', () => {

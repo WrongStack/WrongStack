@@ -113,10 +113,12 @@ const RULES: readonly DangerRule[] = [
       // sibling PowerShell rules below. Case-sensitive matching here let
       // `Remove-Item -recurse -force` classify as safe and bypass the
       // confirm gate its canonical spelling triggers.
-      const hasRecurse = argMatches(args, /^-(?:r|recurse)/i);
-      const hasForce = argMatches(args, /^-(?:f|force)$/i);
-      // Allow `-WhatIf` (dry-run, any casing) without confirmation
-      if (argMatches(args, /^-whatif$/i)) return false;
+      const hasRecurse = argMatches(args, /^-(?:r|recurse)(?::\$true)?$/i);
+      const hasForce = argMatches(args, /^-(?:f|force)(?::\$true)?$/i);
+      // Allow `-WhatIf` (dry-run, any casing) without confirmation. The
+      // explicit `-WhatIf:$true` spelling is the same dry run; `-WhatIf:$false`
+      // re-enables execution and must NOT be exempt.
+      if (argMatches(args, /^-whatif(?::\$true)?$/i)) return false;
       return hasRecurse && hasForce;
     },
     reason: 'Remove-Item with -Recurse -Force',
