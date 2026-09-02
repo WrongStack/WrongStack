@@ -164,15 +164,33 @@ type CharSet = readonly (readonly [number, number])[];
 
 const MAX_CP = 0x10ffff;
 
-const WORD_SET: CharSet = [
+/**
+ * Deep-freeze a shared CharSet: the range tuples AND the array holding them.
+ *
+ * These tables are handed out by reference (`singleTokenCharSet` returns
+ * DOT_SET / NAMED_CLASS_SETS[...] outright, `parseCharClass` and
+ * `fixedTokenSets` spread their tuples into working lists). `readonly` in the
+ * type only stops the compiler; `as` casts have already been shown to erase
+ * that once (the 2026-09-02 DIGIT_SET corruption — see `mergeRanges`). After
+ * freezing, any future write through such a borrowed reference throws a
+ * TypeError in strict-mode ESM at the offending line instead of quietly
+ * widening a global class for every later verdict in the process. Fail fast
+ * and locally, never leak globally.
+ */
+function freezeSet(set: CharSet): CharSet {
+  for (const range of set) Object.freeze(range);
+  return Object.freeze(set);
+}
+
+const WORD_SET: CharSet = freezeSet([
   [48, 57],
   [65, 90],
   [95, 95],
   [97, 122],
-];
-const DIGIT_SET: CharSet = [[48, 57]];
+]);
+const DIGIT_SET: CharSet = freezeSet([[48, 57]]);
 /** Exact JS `\s` (ASCII + the Unicode spaces ECMAScript defines). */
-const SPACE_SET: CharSet = [
+const SPACE_SET: CharSet = freezeSet([
   [9, 13],
   [32, 32],
   [0x00a0, 0x00a0],
@@ -183,7 +201,7 @@ const SPACE_SET: CharSet = [
   [0x205f, 0x205f],
   [0x3000, 0x3000],
   [0xfeff, 0xfeff],
-];
+]);
 /** `.` without the dotAll flag: everything except the ECMAScript line
  * terminators — LF (0x0a), CR (0x0d), LS (0x2028), PS (0x2029) (ECMA-262
  * `LineTerminator`). Modeling dot as [^\n] made this set a SUPERSET of the
@@ -191,12 +209,12 @@ const SPACE_SET: CharSet = [
  * through CR/LS/PS that the real engine refuses — e.g. `(?:\r|.)+` was
  * falsely rejected although the branches' languages are exactly disjoint
  * (no shared char → no exponential choice tree). */
-const DOT_SET: CharSet = [
+const DOT_SET: CharSet = freezeSet([
   [0, 9],
   [11, 12],
   [14, 0x2027],
   [0x202a, MAX_CP],
-];
+]);
 
 function complementOf(set: CharSet): CharSet {
   const out: [number, number][] = [];
@@ -250,14 +268,18 @@ function charSetsIntersect(a: CharSet, b: CharSet): boolean {
   return false;
 }
 
-const NAMED_CLASS_SETS: Record<string, CharSet> = {
+// Every value here is a shared object handed out by reference and spread into
+// working range lists by `parseCharClass`, so the cached complements are
+// frozen exactly like the base sets — folding `_` into `\W`'s [91,94] tuple
+// was one of the proven corruption paths.
+const NAMED_CLASS_SETS: Record<string, CharSet> = Object.freeze({
   w: WORD_SET,
-  W: complementOf(WORD_SET),
+  W: freezeSet(complementOf(WORD_SET)),
   d: DIGIT_SET,
-  D: complementOf(DIGIT_SET),
+  D: freezeSet(complementOf(DIGIT_SET)),
   s: SPACE_SET,
-  S: complementOf(SPACE_SET),
-};
+  S: freezeSet(complementOf(SPACE_SET)),
+});
 
 interface EscapedToken {
   readonly kind: 'literal' | 'named';
@@ -402,7 +424,11 @@ function parseCharClass(s: string): CharSet | null {
     negated = true;
     i++;
   }
-  const ranges: [number, number][] = [];
+  // Readonly tuple ELEMENTS on purpose: the named-class branch below pushes
+  // the shared frozen tables' tuples in as-is, so nothing here may write
+  // through them. The removed `as [number, number][]` cast is exactly what
+  // let the 2026-09-02 DIGIT_SET corruption compile.
+  const ranges: (readonly [number, number])[] = [];
   // A `]` immediately after `[` (or `[^`) is a literal member.
   let first = true;
   while (i < s.length - 1) {
@@ -413,7 +439,15 @@ function parseCharClass(s: string): CharSet | null {
       const tok = parseEscape(s, i);
       if (!tok) return null;
       if (tok.kind === 'named') {
-        ranges.push(...(NAMED_CLASS_SETS[tok.name] as [number, number][]));
+        // No cast: `Record<string, CharSet>` under noUncheckedIndexedAccess
+        // yields `CharSet | undefined`, which the old `as [number, number][]`
+        // silently erased along with the mutability guarantee. Unknown named
+        // classes are NOT modellable, so yield null (sound under-rejection)
+        // rather than spreading an empty set, which would claim a class we
+        // have silently emptied and could under-reject a real catastrophe.
+        const shared = NAMED_CLASS_SETS[tok.name];
+        if (shared === undefined) return null;
+        ranges.push(...shared);
         i = tok.next;
         first = false;
         continue; // named classes cannot be range endpoints

@@ -78,37 +78,50 @@ function intersect(a: CharSet, b: CharSet): CharSet {
 function anyMember(set: CharSet): number {
   return set[0]![0]!;
 }
-const WORD: CharSet = [
+/**
+ * Deep-freeze a shared CharSet (tuples + array). `parseClass` spreads these
+ * tables' tuples directly into its working range list and the merge loop
+ * widens `last[1]` in place, so writing through a borrowed tuple used to grow
+ * a global class for the rest of the process and hand later contents a false
+ * 'ambiguous' verdict (see the 2026-09-02 `[\\d:]` -> DIGIT case). Frozen:
+ * a reintroduced write now throws a TypeError at the offending line instead
+ * of leaking state into unrelated verdicts.
+ */
+function freezeSet(set: CharSet): CharSet {
+  for (const range of set) Object.freeze(range);
+  return Object.freeze(set);
+}
+const WORD: CharSet = freezeSet([
   [48, 57],
   [65, 90],
   [95, 95],
   [97, 122],
-];
-const DIGIT: CharSet = [[48, 57]];
-const SPACE: CharSet = [
+]);
+const DIGIT: CharSet = freezeSet([[48, 57]]);
+const SPACE: CharSet = freezeSet([
   [9, 13],
   [32, 32],
-];
-const NAMED_SETS: Record<string, CharSet> = {
+]);
+const NAMED_SETS: Record<string, CharSet> = Object.freeze({
   w: WORD,
-  W: complementOf(WORD),
+  W: freezeSet(complementOf(WORD)),
   d: DIGIT,
-  D: complementOf(DIGIT),
+  D: freezeSet(complementOf(DIGIT)),
   s: SPACE,
-  S: complementOf(SPACE),
-};
+  S: freezeSet(complementOf(SPACE)),
+});
 // `.` without dotAll: everything except the ECMAScript line terminators —
 // LF (0x0a), CR (0x0d), LS (0x2028), PS (0x2029) (ECMA-262 `LineTerminator`).
 // Modeling dot as [^\n] made the module's language a SUPER-language of the
 // real one: the product and Sardinas–Patterson stages could "prove" overlaps
 // through CR/LS/PS that the real engine refuses (e.g. `\r|.`), producing
 // false 'ambiguous' verdicts — over-rejection, which this layer forbids.
-const DOT: CharSet = [
+const DOT: CharSet = freezeSet([
   [0, 9],
   [11, 12],
   [14, 0x2027],
   [0x202a, MAX_CP],
-];
+]);
 
 // ---------------------------------------------------------------------------
 // Budget
@@ -248,7 +261,11 @@ function parseClass(c: Cursor): CharSet | null {
     negated = true;
     i++;
   }
-  const ranges: [number, number][] = [];
+  // Readonly tuple ELEMENTS, and no `as [number, number][]` cast on the
+  // named-class spread below: that cast is what let a borrowed global tuple be
+  // written through in 2026-09-02's DIGIT_SET corruption. The tables are
+  // frozen now too, so a reintroduced write throws instead of leaking.
+  const ranges: (readonly [number, number])[] = [];
   let first = true;
   while (i < s.length && (s[i] !== ']' || first)) {
     first = false;
@@ -257,7 +274,12 @@ function parseClass(c: Cursor): CharSet | null {
       const t = escapeAt(s, i);
       if (t === null) return null;
       if (typeof t !== 'number') {
-        ranges.push(...(NAMED_SETS[t as string] as [number, number][]));
+        // No `as [number, number][]` cast (it hid both the mutability and the
+        // `CharSet | undefined` from noUncheckedIndexedAccess). An unknown
+        // named class is not modellable -> null = sound under-rejection.
+        const shared = NAMED_SETS[t as string];
+        if (shared === undefined) return null;
+        ranges.push(...shared);
         i += 2;
         continue;
       }
