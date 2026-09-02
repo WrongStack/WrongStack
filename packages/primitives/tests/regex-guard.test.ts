@@ -53,6 +53,47 @@ describe('compileUserRegex — accepted patterns', () => {
     expect(compileUserRegex('(ab|ac)+', '').ok).toBe(true);
   });
 
+  it('models the real JS dot: CR/LS/PS are not dot-consumable', () => {
+    // The default (non-dotAll) dot is [^\n\r\u2028\u2029] (ECMA-262
+    // LineTerminator). The old [^\n] model made DOT_SET a superset of the
+    // real class, so branch-overlap comparisons "found" intersections
+    // through CR/LS/PS the engine refuses: `(?:\r|.)+` was falsely rejected
+    // even though the branches' languages are exactly disjoint — proven
+    // failing pre-fix in the 2026-09-01 round-owned repro.
+    // Spelled with fromCharCode: raw invisible codepoints in test sources
+    // get mangled by tooling.
+    for (const esc of ['\\r', '\\u2028', '\\u2029']) {
+      const ch = String.fromCharCode(parseInt(esc.slice(2), 16));
+      const result = compileUserRegex(`(?:${esc}|.)+`, '');
+      if (!result.ok) {
+        throw new Error(
+          `false rejection of (?:${esc}|.)+ — ${esc} and . are exactly disjoint ` +
+            `(default dot never consumes U+${ch.codePointAt(0)!.toString(16)})`,
+        );
+      }
+      expect(result.ok).toBe(true);
+      expect(result.regex.test(ch)).toBe(true); // still matches via its own branch
+    }
+    // Boundary both ways: 'a' IS in the real dot class, so (?:a|.)+ is a
+    // genuine overlap and must stay rejected; space is in both \s and dot,
+    // so (?:\s|.)+ overlaps via space even though \s also contains the
+    // dot-excluded CR.
+    expect(compileUserRegex('(?:a|.)+', '').ok).toBe(false);
+    expect(compileUserRegex('(?:\\s|.)+', '').ok).toBe(false);
+  });
+
+  it('parses legacy octal escapes as single codepoints (Annex B)', () => {
+    // `\01` is U+0001 and `\012` is LF, NOT NUL + literal digits. The old
+    // NUL+digit model made `(?:\01|\x001)+` look like two identical
+    // two-char branches (false rejection) when the real branches are
+    // exactly disjoint (1 char vs 2 chars). `\08` keeps the NUL+'8' model
+    // (8 is not an octal digit), so that pair stays genuinely overlapping.
+    // Proven failing pre-fix in the 2026-09-01 round-owned repro.
+    expect(compileUserRegex('(?:\\01|\\x001)+', '').ok).toBe(true);
+    expect(compileUserRegex('(?:\\012|\\x0012)+', '').ok).toBe(true);
+    expect(compileUserRegex('(?:\\08|\\x008)+', '').ok).toBe(false);
+  });
+
   it('allows multi-token branches with no common string', () => {
     // Round 14 soundness pins: a single disjoint position (`\d` ∩ {b} = ∅)
     // proves the branch languages cannot intersect, so these stay allowed

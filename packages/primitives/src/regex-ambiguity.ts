@@ -97,9 +97,17 @@ const NAMED_SETS: Record<string, CharSet> = {
   s: SPACE,
   S: complementOf(SPACE),
 };
+// `.` without dotAll: everything except the ECMAScript line terminators —
+// LF (0x0a), CR (0x0d), LS (0x2028), PS (0x2029) (ECMA-262 `LineTerminator`).
+// Modeling dot as [^\n] made the module's language a SUPER-language of the
+// real one: the product and Sardinas–Patterson stages could "prove" overlaps
+// through CR/LS/PS that the real engine refuses (e.g. `\r|.`), producing
+// false 'ambiguous' verdicts — over-rejection, which this layer forbids.
 const DOT: CharSet = [
   [0, 9],
-  [11, MAX_CP],
+  [11, 12],
+  [14, 0x2027],
+  [0x202a, MAX_CP],
 ];
 
 // ---------------------------------------------------------------------------
@@ -294,13 +302,36 @@ function escapeWidth(s: string, i: number): number {
   const ch = s[i + 1];
   if (ch === 'x') return 4;
   if (ch === 'u') return s[i + 2] === '{' ? (s.indexOf('}', i + 3) - i + 1) : 6;
+  if (ch === '0') {
+    // Annex B legacy octal: `\0` + up to two octal digits is ONE codepoint.
+    let w = 2;
+    while (w < 4) {
+      const d = s[i + w];
+      if (d === undefined || d < '0' || d > '7') break;
+      w++;
+    }
+    return w;
+  }
   return 2;
 }
 function escapeAt(s: string, i: number): number | string | null {
   const ch = s[i + 1];
   if (ch === undefined) return null;
   if (NAMED_SETS[ch] !== undefined) return ch;
-  const simple: Record<string, number> = { n: 10, r: 13, t: 9, f: 12, v: 11, 0: 0 };
+  if (ch === '0') {
+    // Annex B LegacyOctalEscapeSequence: `\0` followed by up to two octal
+    // digits is ONE codepoint (`\01` = U+0001, `\012` = LF) — not NUL plus
+    // literal digits. Non-octal followers (`\08`, `\09`) stay NUL + literal
+    // (escapeWidth applies the same rule).
+    let cp = 0;
+    for (let k = 0; k < 2; k++) {
+      const d = s[i + 2 + k];
+      if (d === undefined || d < '0' || d > '7') break;
+      cp = cp * 8 + (d.codePointAt(0)! - 48);
+    }
+    return cp;
+  }
+  const simple: Record<string, number> = { n: 10, r: 13, t: 9, f: 12, v: 11 };
   if (simple[ch] !== undefined) return simple[ch]!;
   if (ch === 'x') {
     const cp = Number.parseInt(s.slice(i + 2, i + 4), 16);

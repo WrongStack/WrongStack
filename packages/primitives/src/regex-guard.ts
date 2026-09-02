@@ -184,10 +184,18 @@ const SPACE_SET: CharSet = [
   [0x3000, 0x3000],
   [0xfeff, 0xfeff],
 ];
-/** `.` without the dotAll flag: everything except line feed. */
+/** `.` without the dotAll flag: everything except the ECMAScript line
+ * terminators — LF (0x0a), CR (0x0d), LS (0x2028), PS (0x2029) (ECMA-262
+ * `LineTerminator`). Modeling dot as [^\n] made this set a SUPERSET of the
+ * real dot class, so the branch-overlap comparisons could claim intersections
+ * through CR/LS/PS that the real engine refuses — e.g. `(?:\r|.)+` was
+ * falsely rejected although the branches' languages are exactly disjoint
+ * (no shared char → no exponential choice tree). */
 const DOT_SET: CharSet = [
   [0, 9],
-  [11, MAX_CP],
+  [11, 12],
+  [14, 0x2027],
+  [0x202a, MAX_CP],
 ];
 
 function complementOf(set: CharSet): CharSet {
@@ -252,7 +260,6 @@ const SIMPLE_ESCAPES: Record<string, number> = {
   t: 9,
   f: 12,
   v: 11,
-  0: 0,
   b: 8, // backspace inside a class; outside, a lone `\b` is caught by matchesEmptyToken first
 };
 
@@ -270,6 +277,21 @@ function parseEscape(s: string, i: number): EscapedToken | null {
   if (ch === undefined) return null;
   if (NAMED_CLASS_SETS[ch] !== undefined) {
     return { kind: 'named', cp: -1, name: ch, next: i + 2 };
+  }
+  if (ch === '0') {
+    // Annex B legacy octal: `\0` followed by up to two octal digits is ONE
+    // codepoint (`\01` = U+0001, `\012` = LF) — not NUL plus literal digits.
+    // Non-octal followers (`\08`, `\09`) stay NUL + literal. Mirrors the
+    // ambiguity module's escapeAt/escapeWidth rule.
+    let cp = 0;
+    let next = i + 2;
+    for (let k = 0; k < 2; k++) {
+      const d = s[next];
+      if (d === undefined || d < '0' || d > '7') break;
+      cp = cp * 8 + (d.codePointAt(0)! - 48);
+      next++;
+    }
+    return { kind: 'literal', cp, name: '', next };
   }
   const simple = SIMPLE_ESCAPES[ch];
   if (simple !== undefined) {

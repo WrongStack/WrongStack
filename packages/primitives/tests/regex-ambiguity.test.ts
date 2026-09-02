@@ -102,6 +102,61 @@ describe('detectQuantifiedAmbiguity — witness contract', () => {
   });
 });
 
+describe('detectQuantifiedAmbiguity — dot models the real JS dot', () => {
+  // The default (non-dotAll) JS dot excludes CR (U+000D), LS (U+2028), and
+  // PS (U+2029) — not just LF. Modeling dot as [^\n] made the module's
+  // language a super-language of the real one and let the product stage
+  // "prove" a false overlap (e.g. `\r|.` flagged ambiguous with witness
+  // '\r', although the real engine gives '\r' exactly one parse). These
+  // pins were proven failing before the fix (round-owned repro in
+  // .temp_files, 2026-09-01); the real-overlap pins below keep the fix
+  // from over-tightening.
+  it('does not flag dot-vs-CR overlap (false positive class)', () => {
+    expect(detectQuantifiedAmbiguity('\\r|.').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('.|\\r').verdict).toBe('unambiguous');
+  });
+
+  it('does not flag dot-vs-LS/PS overlap (false positive class)', () => {
+    expect(detectQuantifiedAmbiguity('\\u2028|.').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('\\u2029|.').verdict).toBe('unambiguous');
+  });
+
+  it('still detects real dot overlaps (dot genuinely matches ordinary chars)', () => {
+    expect(detectQuantifiedAmbiguity('.|a').verdict).toBe('ambiguous');
+    // \s contains CR, which dot must NOT match — but space is in both, so
+    // the overlap must be found via space, not via the excluded CR.
+    expect(detectQuantifiedAmbiguity('\\s|.').verdict).toBe('ambiguous');
+  });
+
+  it('witness contract holds for real dot overlaps', () => {
+    const r = detectQuantifiedAmbiguity('.|a');
+    expect(r.verdict).toBe('ambiguous');
+    expect(typeof r.witness === 'string' && r.witness.length > 0).toBe(true);
+    expect(new RegExp(`^(?:.|a)$`).test(r.witness ?? '')).toBe(true);
+  });
+});
+
+describe('detectQuantifiedAmbiguity — legacy octal escapes (Annex B)', () => {
+  // `\0` followed by 1-2 octal digits is ONE codepoint (`\01` = U+0001,
+  // `\012` = LF; ECMA-262 Annex B LegacyOctalEscapeSequence) — not NUL
+  // followed by literal digits. The old model made `\01` a phantom
+  // two-char sequence, so `\01|\x001` looked like two IDENTICAL branches
+  // (false 'ambiguous', witness NUL+'1') while the real branches are
+  // exactly disjoint (1 char vs 2 chars). Proven failing pre-fix in the
+  // 2026-09-01 round-owned repro. fromCharCode-style escapes only: raw
+  // invisible codepoints in test sources get mangled by tooling.
+  it('parses \\0 + octal digits as a single codepoint', () => {
+    expect(detectQuantifiedAmbiguity('\\01|\\x001').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('\\012|\\x0012').verdict).toBe('unambiguous');
+  });
+
+  it('keeps the NUL + literal model for non-octal followers', () => {
+    // '8' is not an octal digit, so `\08` really is NUL + '8' and
+    // `\08|\x008` IS two identical branches — genuinely ambiguous.
+    expect(detectQuantifiedAmbiguity('\\08|\\x008').verdict).toBe('ambiguous');
+  });
+});
+
 describe('detectQuantifiedAmbiguity — property test vs brute-force oracle', () => {
   // Deterministic PRNG so a failure reproduces exactly.
   function lcg(seed: number): () => number {

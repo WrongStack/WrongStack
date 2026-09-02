@@ -392,7 +392,12 @@ export class Director implements DirectorFleetHost, ICoordinator {
             durationMs: r.durationMs,
           }),
         ).catch(() => {});
-      } catch {}
+      } catch (err) {
+        // Sync throws from taskResultNotifier land here. Async throws are
+        // swallowed by the inner .catch(() => {}) — acceptable degradation.
+        // Sync throws must not be silently discarded: surface them as warnings.
+        this.logger?.warn('[director] taskResultNotifier sync error', { err });
+      }
     }
     const failed = r.status !== 'success';
     const errorString = r.error ? `${r.error.kind}: ${r.error.message}` : undefined;
