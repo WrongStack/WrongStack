@@ -1468,7 +1468,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6822
+      "sourceLines": 6828
     },
     {
       "directory": "session-catalog",
@@ -1524,7 +1524,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10623
+      "sourceLines": 10638
     },
     {
       "directory": "wiring",

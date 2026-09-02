@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-02T07:33:05.343Z",
+  "generatedAt": "2026-09-02T08:52:52.120Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3449,
     "testFiles": 3092,
-    "sourceLines": 845491,
+    "sourceLines": 845594,
     "workspaceEdges": 128,
     "moduleEdges": 10730,
     "nonCommandSlashImports": 0,
@@ -20066,8 +20066,13 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/primitives/src/regex-ambiguity.ts",
+      "lines": 819,
+      "relativeImports": 0
+    },
+    {
       "file": "packages/primitives/src/regex-guard.ts",
-      "lines": 806,
+      "lines": 849,
       "relativeImports": 1
     },
     {
