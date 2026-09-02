@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-02T08:52:52.120Z",
+  "generatedAt": "2026-09-02T09:02:40.775Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3449,
     "testFiles": 3092,
-    "sourceLines": 845594,
+    "sourceLines": 845608,
     "workspaceEdges": 128,
     "moduleEdges": 10730,
     "nonCommandSlashImports": 0,
@@ -24,7 +24,10 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 856
   },
-  "errors": [],
+  "errors": [
+    "packages/primitives/src/regex-ambiguity.ts: hotspot grew from 819 to 827 lines; review and update the ratchet in the same change",
+    "packages/primitives/src/regex-guard.ts: hotspot grew from 849 to 855 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -20067,12 +20070,12 @@
     },
     {
       "file": "packages/primitives/src/regex-ambiguity.ts",
-      "lines": 819,
+      "lines": 827,
       "relativeImports": 0
     },
     {
       "file": "packages/primitives/src/regex-guard.ts",
-      "lines": 849,
+      "lines": 855,
       "relativeImports": 1
     },
     {

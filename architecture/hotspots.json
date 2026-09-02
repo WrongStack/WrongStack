@@ -251,11 +251,11 @@
       "relativeImports": 1
     },
     "packages/primitives/src/regex-ambiguity.ts": {
-      "lines": 819,
+      "lines": 827,
       "relativeImports": 0
     },
     "packages/primitives/src/regex-guard.ts": {
-      "lines": 849,
+      "lines": 855,
       "relativeImports": 1
     },
     "packages/providers/src/openai-codex.ts": {
