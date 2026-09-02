@@ -124,7 +124,14 @@ function validateDestinationWipLimit(
   if (!column) return;
   const limit = column.wipLimit ?? 0;
   if (limit <= 0) return;
-  const occupants = board.tasks.filter((t) => t.columnId === columnId && t.id !== task.id).length;
+  // Archived cards are tombstones that left the board for good — they keep
+  // their `columnId` (archiveManagedTask never clears it) but occupy zero
+  // LIVE WIP slots. Count only non-tombstone cards, or an archived task in
+  // the destination column would falsely consume capacity and wedge the
+  // column at its limit.
+  const occupants = board.tasks.filter(
+    (t) => t.columnId === columnId && t.id !== task.id && !isManagedTombstone(board, t),
+  ).length;
   if (occupants >= limit) {
     issues.push({
       code: 'wip-limit-exceeded',

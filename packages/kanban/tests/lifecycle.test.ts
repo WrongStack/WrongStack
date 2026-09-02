@@ -738,6 +738,63 @@ describe('validateManagedTaskTransition', () => {
     });
     expect(issues.some((i) => i.code === 'wip-limit-exceeded')).toBe(false);
   });
+
+  it('ignores archived (tombstone) cards when counting WIP occupancy', () => {
+    // Archived managed cards keep their `columnId` (archiveManagedTask never
+    // clears it) but are tombstones that left the board for good — they must
+    // occupy ZERO live WIP slots. WIP limit 1 with only an archived card in
+    // the running column means there is room, so todo→running must be allowed.
+    const cols = COLS.map((c) => (c.id === 'in-progress' ? { ...c, wipLimit: 1 } : c));
+    const b = { ...emptyBoard(cols), lifecycle: policy };
+    const archived = card({
+      id: 'archived',
+      columnId: 'in-progress',
+      status: 'archived',
+      lifecycle: { currentStage: 'running', stageEnteredAt: nowIso(), history: [] },
+    });
+    const mover = card({
+      id: 'mover',
+      columnId: 'todo',
+      lifecycle: { currentStage: 'todo', stageEnteredAt: nowIso(), history: [] },
+    });
+    b.tasks = [archived, mover];
+    const issues = validateManagedTaskTransition(b, mover, {
+      to: 'running',
+      actor: 'agent',
+      comment: 'Start.',
+    });
+    expect(issues.some((i) => i.code === 'wip-limit-exceeded')).toBe(false);
+  });
+
+  it('still blocks on live occupants even when an archived card is also present', () => {
+    // Two live cards in the running column (limit 1) must still refuse, and
+    // the presence of a third, archived tombstone must not change that.
+    const cols = COLS.map((c) => (c.id === 'in-progress' ? { ...c, wipLimit: 1 } : c));
+    const b = { ...emptyBoard(cols), lifecycle: policy };
+    const archived = card({
+      id: 'archived',
+      columnId: 'in-progress',
+      status: 'archived',
+      lifecycle: { currentStage: 'running', stageEnteredAt: nowIso(), history: [] },
+    });
+    const live1 = card({
+      id: 'live1',
+      columnId: 'in-progress',
+      lifecycle: { currentStage: 'running', stageEnteredAt: nowIso(), history: [] },
+    });
+    const mover = card({
+      id: 'mover',
+      columnId: 'todo',
+      lifecycle: { currentStage: 'todo', stageEnteredAt: nowIso(), history: [] },
+    });
+    b.tasks = [archived, live1, mover];
+    const issues = validateManagedTaskTransition(b, mover, {
+      to: 'running',
+      actor: 'agent',
+      comment: 'Start.',
+    });
+    expect(issues.some((i) => i.code === 'wip-limit-exceeded')).toBe(true);
+  });
 });
 
 // ── End-to-end transition flows for full validation paths ─────────────
