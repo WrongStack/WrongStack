@@ -157,6 +157,35 @@ describe('detectQuantifiedAmbiguity — legacy octal escapes (Annex B)', () => {
   });
 });
 
+describe('detectQuantifiedAmbiguity — character-class merge never mutates NAMED_SETS', () => {
+  // `parseClass` spreads the module-level NAMED_SETS tuples (`\d` -> DIGIT,
+  // `\w` -> WORD, the cached complements, …) into its working range list, and
+  // the merge loop widens `last[1]` in place. Writing through one of those
+  // shared tuples grows a global class for the rest of the process, so a
+  // LATER unrelated content gets a false 'ambiguous' verdict — the exact
+  // over-rejection ADR-004 forbids. Verdicts must depend only on the content
+  // handed in, never on what was parsed before it.
+  it('parsing [\\d:] does not make \\d|: ambiguous', () => {
+    // V8 oracle: a colon is never a digit, so the two branches share no
+    // character and every string has exactly one parse.
+    expect(/^\d$/.test(':')).toBe(false);
+    expect(detectQuantifiedAmbiguity(String.raw`[\d:]x`).verdict).not.toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity(String.raw`\d|:`).verdict).toBe('unambiguous');
+  });
+
+  it('parsing [\\w{] does not make \\w|{ ambiguous', () => {
+    expect(/^\w$/.test('{')).toBe(false);
+    expect(detectQuantifiedAmbiguity(String.raw`[\w{]!`).verdict).not.toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity(String.raw`\w|\{`).verdict).toBe('unambiguous');
+  });
+
+  it('still proves genuine ambiguity after those classes are parsed', () => {
+    // The copy-on-merge fix must not weaken the layer: `\d|\x30` really does
+    // overlap ('0' is a digit), so it stays ambiguous.
+    expect(detectQuantifiedAmbiguity(String.raw`\d|\x30`).verdict).toBe('ambiguous');
+  });
+});
+
 describe('detectQuantifiedAmbiguity — property test vs brute-force oracle', () => {
   // Deterministic PRNG so a failure reproduces exactly.
   function lcg(seed: number): () => number {

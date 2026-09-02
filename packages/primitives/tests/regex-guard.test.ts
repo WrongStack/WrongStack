@@ -406,3 +406,49 @@ describe('compileUserRegex — instance independence (shared-cache regression)',
     expect(first.reason).toBe(second.reason);
   });
 });
+
+describe('compileUserRegex — char-set tables survive every compile', () => {
+  // `parseCharClass` spreads the module-level `NAMED_CLASS_SETS` tuples (the
+  // cached complements too) straight into its working range list, and
+  // `mergeRanges` used to widen `last[1]` in place while sorting the caller's
+  // own array. One compile therefore PERMANENTLY grew `\w`, `\d`, `\s` or `\W`
+  // for the rest of the process, so an unrelated pattern compiled afterwards
+  // got a different verdict than it deserved. Every probe below is spelled
+  // with a `\x` escape: that keeps it a distinct cache key from the pattern
+  // that poisons the table, so the cache cannot mask the corruption.
+  const ORDER_INDEPENDENT: ReadonlyArray<{
+    poison: string;
+    probe: string;
+    /** V8 oracle: `cls` must not match `lit` for "allowed" to be correct. */
+    cls: RegExp;
+    lit: string;
+  }> = [
+    { poison: String.raw`(?:[\d:]|x)+`, probe: String.raw`(?:\d|\x3a)+`, cls: /^\d$/, lit: ':' },
+    { poison: String.raw`(?:[\w{]|!)+`, probe: String.raw`(?:\w|\x7b)+`, cls: /^\w$/, lit: '{' },
+    { poison: String.raw`(?:[\s!]|x)+`, probe: String.raw`(?:\s|\x21)+`, cls: /^\s$/, lit: '!' },
+    // The cached complement tables are shared objects as well: folding `_`
+    // into `\W`'s [91,94] range made `\W` claim a word character.
+    { poison: String.raw`(?:[\W_]|x)+`, probe: String.raw`(?:\W|\x5f)+`, cls: /^\W$/, lit: '_' },
+  ];
+
+  for (const { poison, probe, cls, lit } of ORDER_INDEPENDENT) {
+    it(`compiling ${poison} does not make ${probe} look ambiguous`, () => {
+      // Ground the expectation in the engine, not in the guard: the probe's
+      // two branches share no character, so it is linear and must stay allowed
+      // (the guard's own contract — "disjoint branches stay allowed").
+      expect(cls.test(lit), `oracle: ${cls} unexpectedly matches ${JSON.stringify(lit)}`).toBe(
+        false,
+      );
+      expect(compileUserRegex(poison, '').ok, `poison pattern must be allowed`).toBe(true);
+      expect(compileUserRegex(probe, '').ok).toBe(true);
+    });
+  }
+
+  it('still rejects genuine overlap between a named class and its own member', () => {
+    // The fix must not turn the static layer permissive: these pairs share
+    // real characters, so they stay rejected however they are ordered.
+    expect(compileUserRegex(String.raw`(?:\d|\x30)+`, '').ok).toBe(false); // '0' is a digit
+    expect(compileUserRegex(String.raw`(?:\w|\x5f)+`, '').ok).toBe(false); // '_' is a word char
+    expect(compileUserRegex(String.raw`(?:\s|\x20)+`, '').ok).toBe(false); // ' ' is whitespace
+  });
+});

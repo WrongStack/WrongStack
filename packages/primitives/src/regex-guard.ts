@@ -209,13 +209,25 @@ function complementOf(set: CharSet): CharSet {
   return out;
 }
 
-function mergeRanges(ranges: [number, number][]): CharSet {
+function mergeRanges(ranges: readonly (readonly [number, number])[]): CharSet {
   if (ranges.length === 0) return [];
-  ranges.sort((a, b) => a[0] - b[0]);
-  const out: [number, number][] = [ranges[0] as [number, number]];
-  for (let i = 1; i < ranges.length; i++) {
+  // COPY every range before sorting and merging. Two callers hand us tuples
+  // that are not theirs to give: `parseCharClass` spreads the module-level
+  // `NAMED_CLASS_SETS` entries (`\d` -> DIGIT_SET, `\w` -> WORD_SET, `\S` ->
+  // the cached complementOf(WORD_SET), …) straight into its range list, and
+  // the merge below widens `last[1]` in place. Doing that to a shared tuple
+  // permanently grew a global character class for the rest of the process —
+  // `(?:[\d:]|x)+` folded `:` (0x3a) into DIGIT_SET, after which the unrelated
+  // pattern `(?:\d|:)+` was rejected as ambiguous even though V8 proves its
+  // branches share no character. In-place `sort()` also reordered the caller's
+  // own array. Merging now owns private copies, so no verdict can depend on
+  // which patterns were compiled earlier.
+  const sorted: [number, number][] = ranges.map(([lo, hi]) => [lo, hi]);
+  sorted.sort((a, b) => a[0] - b[0]);
+  const out: [number, number][] = [sorted[0] as [number, number]];
+  for (let i = 1; i < sorted.length; i++) {
     const last = out[out.length - 1] as [number, number];
-    const r = ranges[i] as [number, number];
+    const r = sorted[i] as [number, number];
     if (r[0] <= last[1] + 1) {
       last[1] = Math.max(last[1], r[1]);
     } else {

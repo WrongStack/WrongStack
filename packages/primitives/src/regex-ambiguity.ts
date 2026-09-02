@@ -288,12 +288,19 @@ function parseClass(c: Cursor): CharSet | null {
   if (s[i] !== ']') return null;
   c.i = i + 1;
   if (ranges.length === 0) return null;
-  ranges.sort((a, b) => a[0] - b[0]);
-  const merged: [number, number][] = [ranges[0]!];
-  for (let k = 1; k < ranges.length; k++) {
+  // Private copies before sorting/merging — `ranges` can hold tuples borrowed
+  // from the module-level NAMED_SETS (`\d` -> DIGIT, `\w` -> WORD, …) via the
+  // spread in the escape branch above. Widening `last[1]` in place there grew
+  // a global class for the rest of the process, so a later unrelated content
+  // (`\d|:`) was proven 'ambiguous' after an earlier one (`[\d:]`) had been
+  // parsed, even though V8 keeps `\d` and `:` disjoint.
+  const sorted: [number, number][] = ranges.map(([lo, hi]) => [lo, hi]);
+  sorted.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [sorted[0]!];
+  for (let k = 1; k < sorted.length; k++) {
     const last = merged[merged.length - 1]!;
-    if (ranges[k]![0] <= last[1] + 1) last[1] = Math.max(last[1], ranges[k]![1]!);
-    else merged.push(ranges[k]!);
+    if (sorted[k]![0] <= last[1] + 1) last[1] = Math.max(last[1], sorted[k]![1]!);
+    else merged.push(sorted[k]!);
   }
   return negated ? complementOf(merged) : merged;
 }
