@@ -574,10 +574,15 @@ function fixedTokenSets(branch: string, dotAll: boolean): CharSet[] | null {
     } else if ('^$()*+?{|'.includes(ch)) {
       return null; // anchors, groups, quantifier starters — out of scope
     } else {
-      const cp = ch.codePointAt(0);
+      // Astral literals are surrogate PAIRS: read the code point from the
+      // full branch at i (codePointAt combines the pair there) and advance by
+      // its UTF-16 width — advancing one unit re-parses the low surrogate as
+      // a phantom lone-surrogate token and every per-position comparison
+      // misfires for patterns containing raw astral literals.
+      const cp = branch.codePointAt(i);
       if (cp === undefined) return null;
       set = [[cp, cp]];
-      next = i + 1;
+      next = i + (cp > 0xffff ? 2 : 1);
     }
     if (set === null) return null;
     const q = branch[next];

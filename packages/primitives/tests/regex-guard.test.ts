@@ -119,6 +119,20 @@ describe('compileUserRegex — accepted patterns', () => {
     expect(compileUserRegex('(?:\\r|.)+', '').ok).toBe(true);
   });
 
+  it('models raw astral literals as one token (surrogate-pair advance)', () => {
+    // fixedTokenSets read the astral code point but advanced one UTF-16
+    // unit, so the low surrogate re-parsed as a phantom lone-surrogate
+    // token: `(?:😀a|\u{1F600}a)+` (raw vs escaped identical branches)
+    // compiled — the (a|a)+ class — while the truly disjoint
+    // `(?:😀a|\u{1F600}\u{DE00}a)+` was only allowed by accident (wrong
+    // surrogate-value model). Proven failing pre-fix in the 2026-09-02
+    // round-owned repro. All characters spelled as TS escapes.
+    expect(compileUserRegex('(?:\u{1F600}a|\\u{1F600}a)+', 'u').ok).toBe(false);
+    expect(compileUserRegex('(?:\u{1F600}a|\\u{1F600}\\u{DE00}a)+', 'u').ok).toBe(true);
+    expect(compileUserRegex('(?:\u{1F600}a|\u{1F600}b)+', 'u').ok).toBe(true);
+    expect(compileUserRegex('(?:\u{1F600}|a)+', 'u').ok).toBe(true);
+  });
+
   it('allows multi-token branches with no common string', () => {
     // Round 14 soundness pins: a single disjoint position (`\d` ∩ {b} = ∅)
     // proves the branch languages cannot intersect, so these stay allowed
