@@ -94,6 +94,54 @@ describe('isClearlyDestructiveBashCommand — destructive detection (P2 #12)', (
     });
   });
 
+  describe('git push combined short-flag clusters — shape parity with -f', () => {
+    // Git combines short flags, so `-fv` ≡ `-f -v`, `-vf` ≡ `-v -f`,
+    // `-vfu` ≡ `-v -f -u`. Each is a verbatim force-push that rewrites remote
+    // history and must be gated like the canonical `-f` spelling. Previously
+    // only the exact `-f` token fired the push branch, so a cluster of git
+    // push's other short flags (-q -v -u -o) silently hid it.
+    it.each([
+      ['git push -fv origin main', true],
+      ['git push -vf origin main', true],
+      ['git push -vfu origin main', true],
+      ['git push -fvq origin main', true],
+      ['git push -ufv origin main', true],
+      // Non-force clusters do not rewrite history.
+      ['git push -v origin main', false],
+      ['git push -vu origin main', false],
+      ['git push -uv origin main', false],
+    ])('%j → destructive=%s', (cmd, expected) => {
+      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(expected);
+    });
+  });
+
+  describe('del/erase /s recursive delete — cross-layer parity with tools-side rm-recursive', () => {
+    // Tools-side `_danger-detect.ts` rm-recursive flags `del`/`erase` + `/s`
+    // as destructive (on Windows `/s` deletes matching files in the whole
+    // subtree without any per-file prompt). Core-side `hasRecursiveForceDelete`
+    // previously only handled `rd`/`rmdir` + `/s`, so a project-escaping
+    // `del /s` slipped through both its branch and hasCatastrophicDelete
+    // (which checks catastrophic targets only, never pathLooksInsideProject).
+    // Mirror the rd/rmdir semantics: `/s` present → gate empty/catastrophic/
+    // project-escaping targets; in-project `del /s` stays frictionless.
+    it.each([
+      ['del /s C:\\', true], // catastrophic drive root (downstream gate)
+      ['del /s C:\\Users\\victim\\Downloads', true], // project escape
+      ['del /s ..\\..\\shared-secrets', true], // relative project escape
+      ['del /S ..\\..\\shared-secrets', true], // uppercase /S is the same flag
+      ['erase /s ..\\..\\shared-secrets', true], // erase is a del alias
+      ['erase /s C:\\Users\\victim\\Documents', true],
+      // In-project recursive cleanup is normal YOLO work.
+      ['del /s .\\build\\artifacts', false],
+      ['del /s build', false],
+      // Non-recursive single-file delete stays safe.
+      ['del C:\\temp\\file.txt', false],
+      ['erase notes.txt', false],
+    ])('%j → destructive=%s', (cmd, expected) => {
+      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(expected);
+    });
+  });
+
   describe('disk / partition wipes', () => {
     it.each([
       ['mkfs.ext4 /dev/sda1', true],

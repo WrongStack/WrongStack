@@ -176,6 +176,25 @@ function hasRecursiveForceDelete(command: string, projectRoot: string | undefine
         if (targets.some((target) => !pathLooksInsideProject(target, projectRoot))) return true;
       }
     }
+
+    // Windows `del` / `erase` (erase is a del alias): `/s` deletes matching
+    // files in the whole subtree WITHOUT any per-file prompt, so it is the
+    // recursive-force half — the tools-side rm-recursive rule (`_danger-detect.ts`)
+    // flags `del`/`erase` + `/s` as destructive. This branch mirrors the
+    // `rd`/`rmdir`+`/s` branch above so a project-escaping recursive file-tree
+    // delete is gated here too (hasCatastrophicDelete only catches whole-disk/
+    // home/system targets; it never checks pathLooksInsideProject).
+    if (token === 'del' || token === 'erase') {
+      const args = commandSegment(tokens, i + 1).map((arg) => arg.toLowerCase());
+      if (args.includes('/s')) {
+        const targets = args.filter(
+          (arg) => !arg.startsWith('-') && !arg.startsWith('/') && !SHELL_OPERATORS.has(arg),
+        );
+        if (targets.length === 0) return true;
+        if (targets.some(isCatastrophicDeleteTarget)) return true;
+        if (targets.some((target) => !pathLooksInsideProject(target, projectRoot))) return true;
+      }
+    }
   }
   return false;
 }
@@ -211,6 +230,13 @@ function hasGitHistoryRewrite(command: string): boolean {
             arg === '--force-with-lease' ||
             arg.startsWith('--force=') ||
             arg.startsWith('--force-with-lease=') ||
+            // Combined short-flag cluster (`-fv` ≡ `-f -v`): git combines
+            // short flags, so an `f` anywhere in a single-dash all-letter
+            // cluster is a verbatim force-push. Mirrors the cluster-aware
+            // pattern the `git clean` branch above already uses. Deliberately
+            // no dry-run (`-n`) carve-out: this layer flags `--dry-run -f`
+            // as destructive too (documented asymmetry vs the tools-side rule).
+            /^-[a-z]*f[a-z]*$/i.test(arg) ||
             // Per-refspec force (`git push origin +main`,
             // `+HEAD:refs/heads/main`): documented git shorthand equivalent
             // to `--force` for that ref. A `+` anywhere else in a refspec
