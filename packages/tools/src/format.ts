@@ -76,6 +76,7 @@ export const formatTool = {
   ): AsyncGenerator<ToolStreamEvent<FormatOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
     const fixer = input.fixer ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -127,7 +128,9 @@ export const formatTool = {
     };
 
     const fileList = input.files
-      ? (Array.isArray(input.files) ? input.files : input.files.split(',')).map((f) => f.trim())
+      ? (Array.isArray(input.files) ? input.files : input.files.split(',')).map((f) =>
+          f.trim().replace(/\\/g, '/'),
+        )
       : [];
 
     let args: string[];
@@ -196,9 +199,10 @@ function parseFormatterCounts(
 
 async function detectFixer(cwd: string): Promise<string | null> {
   const fs = await import('node:fs/promises');
+  const { join } = await import('node:path');
   const exists = async (file: string): Promise<boolean> => {
     try {
-      await fs.stat(`${cwd}/${file}`);
+      await fs.stat(join(cwd, file));
       return true;
     } catch {
       return false;
@@ -227,7 +231,7 @@ async function detectFixer(cwd: string): Promise<string | null> {
   }
   // package.json#prettier counts as a prettier config too.
   try {
-    const raw = await fs.readFile(`${cwd}/package.json`, 'utf8');
+    const raw = await fs.readFile(join(cwd, 'package.json'), 'utf8');
     const pkg = JSON.parse(raw) as Record<string, unknown>;
     if (pkg['prettier'] !== undefined) return 'prettier';
   } catch {

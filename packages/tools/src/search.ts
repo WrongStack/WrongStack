@@ -606,14 +606,14 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&lsquo;|&rsquo;/g, "'")
     .replace(/&#(\d+);/g, (_, code) => {
       try {
-        return String.fromCharCode(Number(code));
+        return String.fromCodePoint(Number(code));
       } catch {
         return _;
       }
     })
     .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
       try {
-        return String.fromCharCode(parseInt(hex, 16));
+        return String.fromCodePoint(parseInt(hex, 16));
       } catch {
         return _;
       }

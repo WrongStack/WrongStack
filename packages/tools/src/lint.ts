@@ -65,6 +65,7 @@ export const lintTool: Tool<LintInput, LintOutput> = {
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<LintOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
     const linter = input.linter ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -114,7 +115,9 @@ export const lintTool: Tool<LintInput, LintOutput> = {
     yield { type: 'log', text: `Running ${detected}…`, data: { linter: detected } };
 
     const files = input.files
-      ? (Array.isArray(input.files) ? input.files : input.files.split(',')).map((f) => f.trim())
+      ? (Array.isArray(input.files) ? input.files : input.files.split(',')).map((f) =>
+          f.trim().replace(/\\/g, '/'),
+        )
       : [];
 
     const args: string[] = [];
@@ -176,7 +179,8 @@ async function detectLinter(cwd: string): Promise<string | null> {
   ];
   for (const f of checks) {
     try {
-      await stat(`${cwd}/${f}`);
+      const { join } = await import('node:path');
+      await stat(join(cwd, f));
       if (f.includes('biome')) return 'biome';
       if (f.includes('eslint')) return 'eslint';
       if (f.includes('tslint')) return 'tslint';

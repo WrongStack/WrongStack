@@ -174,7 +174,9 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
     },
     required: [],
   },
-  async execute(input, ctx): Promise<DesignOutput> {
+  async execute(input, ctx, _opts): Promise<DesignOutput> {
+    const signal = _opts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
     const loader = getDesignKitLoader(ctx.projectRoot);
     const action = input.action ?? 'list';
     const stack: DesignStack | undefined =

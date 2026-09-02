@@ -155,6 +155,7 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
     yield { type: 'log', text: `GET ${input.url}` };
 
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
     const ctrl = new AbortController();
     const timer = setTimeout(
       () =>
@@ -217,7 +218,7 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
               // Snapshot recent bytes for the partial_output. Keep it cheap —
               // don't try to decode UTF-8 boundaries; the TUI just needs a
               // "things are happening" signal.
-              const recent = Buffer.from(value).toString('utf-8');
+              const recent = Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('utf8');
               yield {
                 type: 'partial_output',
                 text: recent,
@@ -313,6 +314,7 @@ function describeFetchError(err: unknown, url: string, timedOut: boolean): Fetch
 }
 
 function prettyJson(s: string): string {
+  if (!s || s.length > 500_000) return s;
   try {
     return JSON.stringify(JSON.parse(s), null, 2);
   } catch {

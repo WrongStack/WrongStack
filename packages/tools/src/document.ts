@@ -69,7 +69,9 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
       cwd: { type: 'string', description: 'Working directory (default: cwd)' },
     },
   },
-  async execute(input, ctx) {
+  async execute(input, ctx, _opts) {
+    const signal = _opts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const style = input.style ?? 'jsdoc';
     const results: DocumentedItem[] = [];
@@ -87,6 +89,7 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
         : [];
 
     for (const absPath of fileList) {
+      if (signal?.aborted) break;
       try {
         const content = await fs.readFile(absPath, 'utf8');
         filesProcessed++;
@@ -119,6 +122,14 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
     };
   },
 };
+
+function getLineNumber(content: string, index: number): number {
+  let line = 1;
+  for (let i = 0; i < index; i++) {
+    if (content.charCodeAt(i) === 10) line++;
+  }
+  return line;
+}
 
 async function resolveFiles(filesInput: string, cwd: string, ctx: Context): Promise<string[]> {
   const files = filesInput.split(',');
@@ -175,7 +186,7 @@ function processFile(
         name: m[1],
         sig: m[2] ?? '',
         type: 'function',
-        line: content.slice(0, m.index).split('\n').length,
+        line: getLineNumber(content, m.index),
       });
     }
     for (const m of content.matchAll(arrowRegex)) {
@@ -185,7 +196,7 @@ function processFile(
         name: m[1],
         sig: m[2] ?? '',
         type: 'arrow',
-        line: content.slice(0, m.index).split('\n').length,
+        line: getLineNumber(content, m.index),
       });
     }
   }
@@ -198,7 +209,7 @@ function processFile(
         name: m[1],
         sig: '',
         type: 'class',
-        line: content.slice(0, m.index).split('\n').length,
+        line: getLineNumber(content, m.index),
       });
     }
   }
@@ -211,7 +222,7 @@ function processFile(
         name: m[1],
         sig: m[0] ?? '',
         type: 'type',
-        line: content.slice(0, m.index).split('\n').length,
+        line: getLineNumber(content, m.index),
       });
     }
   }

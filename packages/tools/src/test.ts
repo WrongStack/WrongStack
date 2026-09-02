@@ -79,6 +79,7 @@ export const testTool: Tool<TestInput, TestOutput> = {
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<TestOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
     const runner = input.runner ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -150,6 +151,8 @@ async function detectRunner(cwd: string): Promise<string | null> {
     'vitest.config.js',
     'vitest.config.mjs',
     'vitest.config.mts',
+    'vitest.config.cjs',
+    'vitest.config.cts',
     'jest.config.ts',
     'jest.config.js',
     'jest.config.mjs',
@@ -204,7 +207,7 @@ function buildArgs(runner: string, input: TestInput): string[] {
 
   if (input.files) {
     const files = Array.isArray(input.files) ? input.files : input.files.split(',');
-    args.push('--', ...files.map((f) => f.trim()));
+    args.push('--', ...files.map((f) => f.trim().replace(/\\/g, '/')));
   }
 
   return args;

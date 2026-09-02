@@ -59,6 +59,12 @@ function bindTodosToBoard(
   board: KanbanBoard,
 ): TodoItem[] {
   const previousById = new Map(previous.map((item) => [item.id, item]));
+  const taskById = new Map(board.tasks.map((task) => [task.id, task]));
+  const taskByOriginId = new Map(
+    board.tasks
+      .filter((task) => task.origin?.taskId)
+      .map((task) => [task.origin!.taskId, task]),
+  );
   const available = board.tasks
     .filter(
       (task) =>
@@ -81,9 +87,9 @@ function bindTodosToBoard(
           : undefined;
     const title = normalizedTitle(item.content);
     const candidates: Array<KanbanTask | undefined> = [
-      requestedTaskId ? board.tasks.find((task) => task.id === requestedTaskId) : undefined,
-      board.tasks.find((task) => task.id === item.id),
-      board.tasks.find((task) => task.origin?.taskId === item.id),
+      requestedTaskId ? taskById.get(requestedTaskId) : undefined,
+      taskById.get(item.id),
+      taskByOriginId.get(item.id),
       available.find((task) => !used.has(task.id) && normalizedTitle(task.title) === title),
     ];
     const task = candidates.find((candidate) => candidate && !used.has(candidate.id));

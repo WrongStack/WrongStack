@@ -81,8 +81,11 @@ export const clarifyTool: Tool<ClarifyQuestionInput, ClarifyOutput> = {
     required: ['question', 'options'],
     additionalProperties: false,
   },
-  async execute(input, ctx) {
+  async execute(input, ctx, opts) {
     try {
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
+
       const options = input.options;
       if (!options || options.length < 2) {
         throw new Error('clarify requires at least 2 distinct options.');

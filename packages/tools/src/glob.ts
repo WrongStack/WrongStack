@@ -145,7 +145,8 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
           subdirs.push({ full, rel });
         } else if (e.isFile()) {
           if (isGitIgnored(rel, false)) continue;
-          if (re.test(rel) || re.test(name)) {
+          re.lastIndex = 0;
+          if (re.test(rel) || (re.lastIndex = 0, re.test(name))) {
             matchedFiles.push(full);
           }
         } else if (e.isSymbolicLink()) {
@@ -166,7 +167,8 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
               if (isGitIgnored(rel, false)) continue;
               const real = await fs.realpath(full);
               await assertRealInsideRoot(real, ctx);
-              if (re.test(rel) || re.test(name)) matchedFiles.push(full);
+              re.lastIndex = 0;
+              if (re.test(rel) || (re.lastIndex = 0, re.test(name))) matchedFiles.push(full);
             }
           } catch {
             // Skip broken symlink, stat error, OR out-of-root target. All

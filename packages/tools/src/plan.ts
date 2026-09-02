@@ -168,6 +168,8 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
     required: ['action'],
   },
   async execute(input, ctx, _opts) {
+    const signal = _opts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
     const meta = ((ctx.meta ??= {}) as Record<string, unknown>);
     const sessionPlanPath = meta['plan.path'] as string | undefined;
     let planPath: string | undefined;
@@ -499,7 +501,10 @@ function mkResult(
   message: string,
   todos?: PlanOutput['todos'],
 ): PlanOutput {
-  const open = plan.items.filter((i) => i.status !== 'done').length;
+  let open = 0;
+  for (let i = 0; i < plan.items.length; i++) {
+    if (plan.items[i]!.status !== 'done') open++;
+  }
   const result: PlanOutput = {
     ok,
     message,

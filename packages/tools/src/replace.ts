@@ -40,7 +40,7 @@ interface ReplaceOutput {
   note?: string | undefined;
 }
 
-const DEFAULT_IGNORE = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage'];
+const DEFAULT_IGNORE = new Set(['node_modules', '.git', 'dist', 'build', '.next', 'coverage']);
 
 export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
   name: 'replace',
@@ -527,8 +527,9 @@ async function globNative(
       /* v8 ignore next -- unreadable directory during the walk; defensive. */
       return;
     }
+    const subdirs: string[] = [];
     for (const e of entries) {
-      if (DEFAULT_IGNORE.includes(e.name)) continue;
+      if (DEFAULT_IGNORE.has(e.name)) continue;
       const full = path.join(dir, e.name);
       // Dirent.isSymbolicLink() uses readdir's d_type, which may not detect
       // directory symlinks on Windows (d_type = DT_UNKNOWN). Defensive stat
@@ -543,7 +544,7 @@ async function globNative(
         continue;
       }
       if (e.isDirectory()) {
-        await walk(full);
+        subdirs.push(full);
       } else if (e.isFile()) {
         const name = e.name;
         // The walker compares compiled globs (anchored at the walk base, e.g.
@@ -561,6 +562,9 @@ async function globNative(
         }
         globRe.lastIndex = 0;
       }
+    }
+    if (subdirs.length > 0) {
+      await mapWithConcurrency(subdirs, 16, (subdir) => walk(subdir));
     }
   };
 

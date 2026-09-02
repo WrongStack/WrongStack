@@ -156,7 +156,9 @@ export const jsonTool: Tool<JsonInput, JsonOutput> = {
       },
     },
   },
-  async execute(input, ctx) {
+  async execute(input, ctx, opts) {
+    const signal = opts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
     const action = input.action ?? 'parse';
 
     switch (action) {
@@ -841,14 +843,15 @@ function toYaml(data: unknown, indent = 0): string {
     if (entries.length === 0) return '{}\n';
     return entries
       .map(([k, v]) => {
+        const safeKey = /[:#\s]/.test(k) ? `"${k.replace(/"/g, '\\"')}"` : k;
         if (
           typeof v === 'object' &&
           v !== null &&
           (Array.isArray(v) ? v.length > 0 : Object.keys(v).length > 0)
         ) {
-          return `${prefix}${k}:\n${toYaml(v, indent + 1)}`;
+          return `${prefix}${safeKey}:\n${toYaml(v, indent + 1)}`;
         }
-        return `${prefix}${k}: ${toYaml(v, indent + 1)}`;
+        return `${prefix}${safeKey}: ${toYaml(v, indent + 1)}`;
       })
       .join('');
   }

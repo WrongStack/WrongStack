@@ -144,6 +144,16 @@ async function dockerLogs(
   }
   args.push('--timestamps', service);
 
+  if (signal.aborted) {
+    return Promise.resolve({
+      source: `docker:${service}`,
+      entries: [],
+      total: 0,
+      truncated: false,
+      stream_mode: false,
+    });
+  }
+
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
@@ -183,10 +193,16 @@ async function dockerLogs(
     }, DOCKER_LOGS_TIMEOUT_MS);
 
     child.stdout?.on('data', (c) => {
-      if (stdout.length < MAX) stdout += c.toString();
+      if (stdout.length < MAX) {
+        const text = c.toString();
+        stdout += text.slice(0, MAX - stdout.length);
+      }
     });
     child.stderr?.on('data', (c) => {
-      if (stderr.length < MAX) stderr += c.toString();
+      if (stderr.length < MAX) {
+        const text = c.toString();
+        stderr += text.slice(0, MAX - stderr.length);
+      }
     });
     // When the child is SIGTERM-killed on timeout (or aborted via `signal`),
     // its pipes can emit `error` (e.g. EPIPE on Windows). Without a listener

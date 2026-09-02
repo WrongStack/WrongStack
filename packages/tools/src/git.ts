@@ -310,7 +310,7 @@ function findGitDir(cwd: string, projectRoot: string): string | null {
   let dir = cwd;
   for (let i = 0; i < 20; i++) {
     try {
-      const stat = statSync(`${dir}/.git`);
+      const stat = statSync(resolve(dir, '.git'));
       // A normal repo has a `.git` directory; a linked worktree has a `.git`
       // *file* (gitlink pointing at the main repo). Accept both so the tool
       // operates inside a worktree when a subagent's cwd is a worktree dir.
@@ -454,14 +454,16 @@ function runGit(args: string[], cwd: string, signal: AbortSignal): Promise<GitOu
     child.stdout?.on('data', (chunk: Buffer) => {
       stdoutBytes += chunk.byteLength;
       if (stdout.length < MAX_OUTPUT) {
-        stdout += chunk.toString();
+        const text = chunk.toString();
+        stdout += text.slice(0, MAX_OUTPUT - stdout.length);
       }
     });
 
     child.stderr?.on('data', (chunk: Buffer) => {
       stderrBytes += chunk.byteLength;
       if (stderr.length < MAX_OUTPUT) {
-        stderr += chunk.toString();
+        const text = chunk.toString();
+        stderr += text.slice(0, MAX_OUTPUT - stderr.length);
       }
     });
 

@@ -115,6 +115,7 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
     const globRe = input.glob ? compileGlob(input.glob) : undefined;
     const maxEntries = input.max_entries ?? DEFAULT_MAX_ENTRIES;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
 
     const lines: string[] = [basePath];
     const totals = { totalFiles: { value: 0 }, totalDirs: { value: 0 } };
@@ -200,13 +201,20 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
 
 /** Match a tree glob against the basename and a POSIX project-relative path. */
 function matchesTreeGlob(globRe: RegExp, fileName: string, absPath: string, basePath: string): boolean {
-  if (globRe.test(fileName)) return true;
+  globRe.lastIndex = 0;
+  if (globRe.test(fileName)) {
+    globRe.lastIndex = 0;
+    return true;
+  }
+  globRe.lastIndex = 0;
   const rel = path.relative(basePath, absPath);
   const posixRel =
     !rel || rel.startsWith('..') || path.isAbsolute(rel)
       ? absPath.split(path.sep).join('/')
       : rel.split(path.sep).join('/');
-  return globRe.test(posixRel);
+  const matches = globRe.test(posixRel);
+  globRe.lastIndex = 0;
+  return matches;
 }
 
 interface WalkOptions {

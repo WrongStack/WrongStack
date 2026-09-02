@@ -531,10 +531,22 @@ function runCommand(
     let stderrBytes = 0;
     let telemetryCompleted = false;
     let timedOut = false;
-    // Full-output spool (stdout+stderr interleaved as they arrive): the
-    // in-memory buffers keep only the first MAX_OUTPUT bytes; the spool
-    // captures everything on disk and the result points at the file.
     const spool = createOutputSpool({ tool: `exec-${cmd}`, thresholdBytes: MAX_OUTPUT });
+
+    if (signal.aborted) {
+      spool.finalize();
+      finish({
+        command: cmd,
+        args,
+        stdout: '',
+        stderr: 'Aborted',
+        exitCode: 124,
+        truncated: false,
+        allowed: true,
+        danger,
+      });
+      return;
+    }
 
     // On Windows, .cmd/.bat files are not natively executable by CreateProcess.
     // resolveWin32Command() finds the full path, then the shim helper launches

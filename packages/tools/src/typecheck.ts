@@ -65,6 +65,7 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<TypecheckOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     const bridge = await tryLegacyCodeOperation('semantic', {
@@ -166,6 +167,7 @@ async function findTsConfig(cwd: string): Promise<string | null> {
     'tsconfig.build.json',
     'tsconfig.app.json',
     'tsconfig.node.json',
+    'tsconfig.lib.json',
   ];
   for (const f of candidates) {
     try {

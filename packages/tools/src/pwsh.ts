@@ -247,6 +247,21 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<PwshOutput>> {
     if (!input?.command) throw new Error('pwsh: command is required');
 
+    const callerSignal = opts?.signal ?? ctx?.signal ?? new AbortController().signal;
+    if (callerSignal.aborted) {
+      yield {
+        type: 'final',
+        output: {
+          output: '',
+          exit_code: 124,
+          timed_out: false,
+          pid: null,
+          error: 'Aborted',
+        },
+      };
+      return;
+    }
+
     const isBackground = !!(input.run_in_background || input.background);
     const registry = getProcessRegistry();
 
@@ -306,7 +321,6 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
     }
 
     const startedAt = Date.now();
-    const callerSignal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const detached = !isWin;
 
     if (isBackground) {

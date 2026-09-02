@@ -118,14 +118,16 @@ export const scaffoldTool: Tool<ScaffoldInput, ScaffoldOutput> = {
     },
     required: ['template', 'name'],
   },
-  async execute(input, ctx) {
+  async execute(input, ctx, _opts) {
+    const signal = _opts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const name = input.name;
     const vars = { name, ...input.vars };
 
     const builtIn = BUILT_IN_TEMPLATES[input.template];
     if (builtIn) {
-      return await handleBuiltIn(name, builtIn.files, cwd, ctx, input.dry_run ?? false, vars);
+      return await handleBuiltIn(name, builtIn.files, cwd, ctx, input.dry_run ?? false, vars, signal);
     }
 
     return {
@@ -146,11 +148,13 @@ async function handleBuiltIn(
   ctx: Parameters<Tool['execute']>[1],
   dryRun: boolean,
   vars: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<ScaffoldOutput> {
   const files: string[] = [];
   let filesCreated = 0;
 
   for (const [filePath, content] of Object.entries(templateFiles)) {
+    if (signal?.aborted) break;
     const resolvedPath = substituteVars(filePath, name, vars);
     const joinedPath = path.join(cwd, resolvedPath);
     // Ensure generated files cannot escape the project root via template variable injection (e.g. name containing "../")
@@ -216,6 +220,7 @@ function substituteVars(content: string, name: string, vars: Record<string, stri
   result = result.replace(/\{\{name\}\}/g, () => kebab);
   result = result.replace(/\{\{Name\}\}/g, () => pascal);
   for (const [k, v] of Object.entries(vars)) {
+    if (k === 'name' || k === 'Name') continue;
     result = result.replace(new RegExp(`\\{\\{${escapeRegexLiteral(k)}\\}\\}`, 'g'), () => v);
   }
   return result;

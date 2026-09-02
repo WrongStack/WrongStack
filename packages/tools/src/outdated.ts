@@ -76,6 +76,7 @@ export const outdatedTool = {
   async execute(input: OutdatedInput, ctx: OutdatedContext, opts?: { signal: AbortSignal }) {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
     const manager = await detectPackageManager(cwd, ctx.projectRoot);
 
     // When no JS package manager was detected (npm is the fallback), try the
@@ -184,11 +185,17 @@ function runOutdated(
     });
     child.stdout?.on('data', (c: Buffer) => {
       stdoutBytes += c.byteLength;
-      if (stdout.length < MAX) stdout += c.toString();
+      if (stdout.length < MAX) {
+        const text = c.toString();
+        stdout += text.slice(0, MAX - stdout.length);
+      }
     });
     child.stderr?.on('data', (c: Buffer) => {
       stderrBytes += c.byteLength;
-      if (stderr.length < MAX) stderr += c.toString();
+      if (stderr.length < MAX) {
+        const text = c.toString();
+        stderr += text.slice(0, MAX - stderr.length);
+      }
     });
     child.on('close', (code) => {
       const isTruncated =

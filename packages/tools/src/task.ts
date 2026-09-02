@@ -207,7 +207,9 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
     },
     required: ['action'],
   },
-  async execute(input, ctx) {
+  async execute(input, ctx, _opts) {
+    const signal = _opts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
     const meta = ((ctx.meta ??= {}) as Record<string, unknown>);
     const sessionTaskPath = meta['task.path'] as string | undefined;
     let taskPath: string | undefined;

@@ -107,6 +107,7 @@ export const installTool = {
   ): AsyncGenerator<ToolStreamEvent<InstallOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     if (!input.global) {
