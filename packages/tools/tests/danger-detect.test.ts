@@ -376,6 +376,24 @@ describe('detectDanger — git push --force / -f', () => {
     expect(detectDanger('git', ['push', '-n', 'origin', '+main']).level).toBe('safe');
     expect(detectDanger('git', ['push', '-nf', 'origin', '+main']).level).toBe('safe');
   });
+
+  it('flags combined short-flag clusters containing -f as destructive', () => {
+    // Git combines short flags, so `-fv` ≡ `-f -v`, `-vf` ≡ `-v -f`,
+    // `-vfu` ≡ `-v -f -u`. Each is a verbatim force-push that rewrites remote
+    // history and must hit the destructive confirm gate like the canonical
+    // `-f` spelling. Previously only the exact `-f` token fired the rule, so a
+    // cluster of git push's other short flags (-q -v -u -o) silently hid it.
+    expect(detectDanger('git', ['push', '-fv', 'origin', 'main']).level).toBe('destructive');
+    expect(detectDanger('git', ['push', '-vf', 'origin', 'main']).level).toBe('destructive');
+    expect(detectDanger('git', ['push', '-vfu', 'origin', 'main']).level).toBe('destructive');
+    expect(detectDanger('git', ['push', '-fvq', 'origin', 'main']).level).toBe('destructive');
+  });
+
+  it('still treats non-force short clusters as safe', () => {
+    // `-v` (verbose) and `-u` (set-upstream) alone do not rewrite history.
+    expect(detectDanger('git', ['push', '-v', 'origin', 'main']).level).toBe('safe');
+    expect(detectDanger('git', ['push', '-vu', 'origin', 'main']).level).toBe('safe');
+  });
 });
 
 describe('detectDanger — git reset --hard', () => {

@@ -283,6 +283,13 @@ const RULES: readonly DangerRule[] = [
           continue;
         }
         if (a.startsWith('--force') /* covers --force-with-lease already */) return true;
+        // Combined short-flag cluster: git combines short flags, so
+        // `-fv` ≡ `-f -v` and is a verbatim force-push that rewrites history.
+        // Only single-dash all-letter clusters qualify; the dry-run exemption
+        // above already returned early on any `n`, so an `f` reaching here is
+        // a genuine (non-dry-run) force. This is the flag-cluster shape-variance
+        // gap already fixed for rm-recursive / powershell rules but missed here.
+        if (/^-[a-z]+$/i.test(a) && a.toLowerCase().includes('f')) return true;
       }
       return false;
     },
