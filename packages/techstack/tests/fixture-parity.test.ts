@@ -23,11 +23,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   constructPurl,
-  parsePurlEcosystem,
   type DependencyObservation,
   type DependencyStatus,
   type EcosystemId,
   type Evidence,
+  parsePurl,
+  parsePurlEcosystem,
 } from '../src/index.js';
 
 const VALID_STATUSES = new Set<DependencyStatus>([
@@ -168,6 +169,27 @@ describe('fixture-parity — PURL roundtrip', () => {
     expect(parsePurlEcosystem('pkg:npm/')).toBeUndefined();
   });
 
+  it('does not throw on malformed percent-escapes in qualifiers', () => {
+    // Regression (2026-09-02): the qualifier branch used a raw
+    // decodeURIComponent, so a malformed escape crashed parsePurl with
+    // URIError instead of degrading the way every other purl segment does
+    // (decodePurlSegment passes undecodable escapes through raw).
+    const value = parsePurl('pkg:npm/react?arch=%E0%A4%A');
+    expect(value?.name).toBe('react');
+    expect(value?.qualifiers?.get('arch')).toBe('%E0%A4%A');
+    const key = parsePurl('pkg:npm/react?%E0%A4%A=x86');
+    expect(key?.name).toBe('react');
+    expect(key?.qualifiers?.get('%E0%A4%A')).toBe('x86');
+    expect(parsePurlEcosystem('pkg:npm/react?arch=%')).toEqual({ ecosystem: 'npm', name: 'react' });
+  });
+
+  it('parses and decodes valid qualifiers', () => {
+    const parts = parsePurl('pkg:npm/react?arch=x86&os=linux&v=1%2F2');
+    expect(parts?.qualifiers?.get('arch')).toBe('x86');
+    expect(parts?.qualifiers?.get('os')).toBe('linux');
+    expect(parts?.qualifiers?.get('v')).toBe('1/2');
+  });
+
   it('returns undefined for PURL types that do not map to a TechStack ecosystem', () => {
     // `deb` is a valid PURL type but not in the TechStack ecosystem union.
     expect(parsePurlEcosystem('pkg:deb/debian/curl@7.88.1-10')).toBeUndefined();
@@ -249,15 +271,9 @@ describe('fixture-parity — normalized DependencyObservation shape', () => {
       expect(Array.isArray(obs.evidence)).toBe(true);
       expect(obs.evidence.length).toBeGreaterThanOrEqual(1);
       for (const item of obs.evidence) {
-        expect([
-          'manifest',
-          'lockfile',
-          'registry',
-          'audit',
-          'osv',
-          'agent',
-          'command',
-        ]).toContain(item.kind);
+        expect(['manifest', 'lockfile', 'registry', 'audit', 'osv', 'agent', 'command']).toContain(
+          item.kind,
+        );
         expect(typeof item.source).toBe('string');
         expect(item.source.length).toBeGreaterThan(0);
         expect(typeof item.retrievedAt).toBe('string');
@@ -278,9 +294,7 @@ describe('fixture-parity — normalized DependencyObservation shape', () => {
     // Build one observation per ecosystem, collect key sets, and assert
     // they're all the same — this catches any ecosystem accidentally
     // adding/dropping a field.
-    const observations = SHAPE_ECOSYSTEMS.map((eco) =>
-      makeObservation(eco, 'x', 'manifest'),
-    );
+    const observations = SHAPE_ECOSYSTEMS.map((eco) => makeObservation(eco, 'x', 'manifest'));
     const keySets = observations.map((o) => Object.keys(o).sort());
     const reference = JSON.stringify(keySets[0]);
     for (const keys of keySets) {

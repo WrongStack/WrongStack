@@ -141,8 +141,8 @@ export function parsePurl(purl: string): PurlParts | undefined {
       const eqIdx = pair.indexOf('=');
       if (eqIdx > 0) {
         qualifiers.set(
-          decodeURIComponent(pair.slice(0, eqIdx)),
-          decodeURIComponent(pair.slice(eqIdx + 1)),
+          decodePurlSegment(pair.slice(0, eqIdx)),
+          decodePurlSegment(pair.slice(eqIdx + 1)),
         );
       }
     }
