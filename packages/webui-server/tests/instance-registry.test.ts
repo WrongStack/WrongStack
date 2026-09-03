@@ -283,6 +283,63 @@ describe('instance-registry', () => {
       authToken: 'token-a',
     };
 
+    // B-07: migrated from packages/webui/tests/server/instance-registry.test.ts
+    // — a SECOND registerInstance for the same pid must REPLACE the existing
+    // entry, not append. Without this pin a future refactor that switches to
+    // a push-only strategy (or forgets the merge step) would silently leak
+    // dead entries every time a session rebinds.
+    it('replaces a stale entry for the same pid instead of duplicating', async () => {
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => undefined as any);
+      mockReadFile.mockRejectedValue({ code: 'ENOENT' });
+      mockAtomicWrite.mockResolvedValue(undefined);
+
+      await registerInstance({ ...sampleRecord, httpPort: 3456 }, '/tmp/base');
+      await registerInstance({ ...sampleRecord, httpPort: 9999 }, '/tmp/base');
+
+      const lastWrite = mockAtomicWrite.mock.calls.at(-1);
+      expect(lastWrite).toBeDefined();
+      if (!lastWrite) throw new Error('Expected registry write');
+      const [, content] = lastWrite;
+      const parsed = JSON.parse(content);
+      expect(parsed.instances).toHaveLength(1);
+      expect(parsed.instances[0].httpPort).toBe(9999);
+      killSpy.mockRestore();
+    });
+
+    // B-07: migrated from packages/webui/tests/server/instance-registry.test.ts
+    // — registerInstance must drop a pre-existing DEAD-pid entry in the same
+    // file before writing the live one. The server's existing `'prunes dead
+    // entries and persists'` only exercises listInstances; this covers the
+    // symmetric registerInstance path so a refactor that splits the prune
+    // logic between register and list cannot regress only one direction.
+    it('prunes dead-pid entries on register', async () => {
+      const err = new Error('ESRCH') as any;
+      err.code = 'ESRCH';
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation((pid: number) => {
+        if (pid === 11111) throw err;
+        return undefined as any;
+      });
+
+      mockReadFile.mockResolvedValue(
+        JSON.stringify({
+          version: 1,
+          instances: [{ ...sampleRecord, pid: 11111, projectName: 'ghost' }],
+        }),
+      );
+      mockAtomicWrite.mockResolvedValue(undefined);
+
+      await registerInstance({ ...sampleRecord, projectName: 'live' }, '/tmp/base');
+
+      const lastWrite = mockAtomicWrite.mock.calls.at(-1);
+      expect(lastWrite).toBeDefined();
+      if (!lastWrite) throw new Error('Expected registry write');
+      const [, content] = lastWrite;
+      const parsed = JSON.parse(content);
+      expect(parsed.instances).toHaveLength(1);
+      expect(parsed.instances[0].projectName).toBe('live');
+      killSpy.mockRestore();
+    });
+
     it('marks matching live session-child endpoints attachable', () => {
       const candidates = joinSessionRegistryWithWebUIInstances({
         sessions: [session],

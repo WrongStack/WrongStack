@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 
 // We'll test with a real net.Server since mocking it is fragile
 // The module is simple enough that real port-binding tests are more reliable
@@ -201,5 +201,115 @@ describe('port-utils', () => {
         );
       }
     });
+  });
+});
+
+// B-07: migrated from packages/webui/tests/server/port-utils.test.ts (verbatim,
+// import path rewritten to the local `../src/server/...` resolution). The
+// webui copy used an ephemeral-port discovery helper (`occupy(0)` → learn the
+// assigned port) rather than a hard-coded BASE_PORT — that pattern matters
+// under full-suite load where many workers grab 23456-series sockets. The
+// server's hard-coded range was a deliberate trade for test isolation; the
+// webui variant is the regression guard for the CI-load path.
+describe('isPortFree (webui variant — ephemeral-port discovery)', () => {
+  const HOST2 = '127.0.0.1';
+  const servers: import('net').Server[] = [];
+
+  function occupy(port: number): Promise<import('net').Server> {
+    return new Promise((resolve, reject) => {
+      const srv = import('node:net').then((m) => m.createServer());
+      srv
+        .then((s) => {
+          s.once('error', reject);
+          s.listen(port, HOST2, () => {
+            servers.push(s);
+            resolve(s);
+          });
+        })
+        .catch(reject);
+    });
+  }
+
+  it('reports an occupied port as not free, and a free one as free', async () => {
+    // Grab an ephemeral port, learn its number, then probe it.
+    const srv = await occupy(0);
+    const addr = srv.address();
+    if (!addr || typeof addr === 'string') throw new Error('bad address');
+    const taken = addr.port;
+    expect(await isPortFree(HOST2, taken)).toBe(false);
+
+    // Close it and confirm it frees up.
+    await new Promise<void>((r) => srv.close(() => r()));
+    expect(await isPortFree(HOST2, taken)).toBe(true);
+  });
+});
+
+describe('findFreePort (webui variant — ephemeral-port discovery)', () => {
+  const HOST2 = '127.0.0.1';
+  const servers: import('net').Server[] = [];
+
+  function occupy(port: number): Promise<import('net').Server> {
+    return new Promise((resolve, reject) => {
+      import('node:net').then((m) => {
+        const srv = m.createServer();
+        srv.once('error', reject);
+        srv.listen(port, HOST2, () => {
+          servers.push(srv);
+          resolve(srv);
+        });
+      });
+    });
+  }
+
+  afterEach(async () => {
+    await Promise.all(
+      servers.splice(0).map((s) => new Promise<void>((r) => s.close(() => r()))),
+    );
+  });
+
+  it('returns the start port when it is free', async () => {
+    const srv = await occupy(0);
+    const addr = srv.address();
+    if (!addr || typeof addr === 'string') throw new Error('bad address');
+    const known = addr.port;
+    await new Promise<void>((r) => srv.close(() => r()));
+    expect(await findFreePort(HOST2, known)).toBe(known);
+  });
+
+  it('advances past an occupied port to the next free one', async () => {
+    // Occupy an ephemeral port, then ask findFreePort to start there. It must
+    // skip the taken port and return a higher one.
+    const srv = await occupy(0);
+    const addr = srv.address();
+    if (!addr || typeof addr === 'string') throw new Error('bad address');
+    const taken = addr.port;
+    // Start at an OS-assigned ephemeral port. Under full-suite + coverage load,
+    // many parallel workers hold ephemeral sockets, so the default 200-port scan
+    // window above `taken` can be entirely occupied and throw. A generous
+    // maxTries makes exhaustion effectively impossible while still proving the
+    // skip-occupied-port behaviour (the call returns on the first free port).
+    const found = await findFreePort(HOST2, taken, { maxTries: 2000 });
+    expect(found).toBeGreaterThan(taken);
+    expect(await isPortFree(HOST2, found)).toBe(true);
+  });
+
+  it('honors the exclude set even when the port is free', async () => {
+    const srv = await occupy(0);
+    const addr = srv.address();
+    if (!addr || typeof addr === 'string') throw new Error('bad address');
+    const base = addr.port;
+    await new Promise<void>((r) => srv.close(() => r()));
+    // base is free now, but excluded → must return something else.
+    const found = await findFreePort(HOST2, base, { exclude: new Set([base]) });
+    expect(found).not.toBe(base);
+  });
+
+  it('throws when no free port is found within maxTries', async () => {
+    const srv = await occupy(0);
+    const addr = srv.address();
+    if (!addr || typeof addr === 'string') throw new Error('bad address');
+    const taken = addr.port;
+    // maxTries=1 with the only candidate occupied → no free port.
+    await expect(findFreePort(HOST2, taken, { maxTries: 1 })).rejects.toThrow(/No free port/);
   });
 });

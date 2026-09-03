@@ -80,7 +80,7 @@ describe('memory-handlers', () => {
     it('sends SAGE formatted text when SAGE is available', async () => {
       const ws = mockWs();
       mockGetSageSurface.mockReturnValue(makeSage());
-      await handleMemoryList(ws, { readAll: vi.fn() } as any);
+      await handleMemoryList(ws, { type: 'memory.list' }, { readAll: vi.fn() } as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.type).toBe('memory.list');
       expect(sent.payload.text).toContain('🧠 SAGE');
@@ -92,7 +92,7 @@ describe('memory-handlers', () => {
         stats: vi.fn(async () => ({ total: 0, byStatus: {}, byKind: {}, edges: 0 })),
         listSage: vi.fn(async () => []),
       });
-      await handleMemoryList(ws, { readAll: vi.fn() } as any);
+      await handleMemoryList(ws, { type: 'memory.list' }, { readAll: vi.fn() } as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.text).toContain('empty');
     });
@@ -101,7 +101,7 @@ describe('memory-handlers', () => {
       const ws = mockWs();
       mockGetSageSurface.mockReturnValue(null);
       const store = { readAll: vi.fn(async () => 'plain text') } as any;
-      await handleMemoryList(ws, store);
+      await handleMemoryList(ws, { type: 'memory.list' }, store);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.text).toBe('plain text');
     });
@@ -114,7 +114,7 @@ describe('memory-handlers', () => {
         }),
         listSage: vi.fn(async () => []),
       });
-      await handleMemoryList(ws, { readAll: vi.fn() } as any);
+      await handleMemoryList(ws, { type: 'memory.list' }, { readAll: vi.fn() } as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.error).toBeTruthy();
     });
@@ -147,7 +147,7 @@ describe('memory-handlers', () => {
     it('sends error when SAGE is not available', async () => {
       const ws = mockWs();
       mockGetSageSurface.mockReturnValue(null);
-      await handleSageList(ws, {} as any);
+      await handleSageList(ws, { type: 'memory.sage.list' }, {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.error).toContain('SAGE');
     });
@@ -156,7 +156,7 @@ describe('memory-handlers', () => {
       const ws = mockWs();
       const sage = makeSage();
       mockGetSageSurface.mockReturnValue(sage);
-      await handleSageList(ws, {} as any);
+      await handleSageList(ws, { type: 'memory.sage.list' }, {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.memories).toHaveLength(2);
       expect(sent.payload.stats.total).toBe(2);
@@ -170,7 +170,7 @@ describe('memory-handlers', () => {
         }),
         listSage: vi.fn(async () => []),
       });
-      await handleSageList(ws, {} as any);
+      await handleSageList(ws, { type: 'memory.sage.list' }, {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.error).toBe('fail');
     });

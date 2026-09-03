@@ -125,4 +125,15 @@ describe('open-browser', () => {
       expect(() => errorHandler()).not.toThrow();
     });
   });
+
+  // B-07: migrated from packages/webui/tests/server/open-browser.test.ts —
+  // exercises the no-opener-missing path WITHOUT mocking spawn, so the test
+  // asserts that the real spawn ENOENT (xdg-open absent in this sandbox) is
+  // swallowed asynchronously instead of crashing the caller. The server's
+  // existing suite drives the same contract via `mockSpawn.mockImplementation(
+  // () => { throw new Error('ENOENT'); })`, which proves the function shape
+  // but not that real spawn failures are also silent.
+  it('never throws even when the opener is missing', () => {
+    expect(() => openBrowser('http://127.0.0.1:65000', 'linux')).not.toThrow();
+  });
 });

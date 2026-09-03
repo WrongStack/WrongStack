@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { createShutdown, registerShutdownHandlers } from '../src/server/lifecycle.js';
 
 describe('lifecycle', () => {
@@ -184,6 +184,37 @@ describe('lifecycle', () => {
 
       processOn.mockRestore();
       processOff.mockRestore();
+    });
+
+    // B-07: migrated from packages/webui/tests/server/lifecycle.test.ts — the
+    // end-to-end SIGINT-fires-shutdown-runs path. The server's suite mocks
+    // `process.on` and asserts the handler is wired (proves the API), but
+    // never emits a real SIGINT and asserts the wired function actually
+    // runs the full shutdown sequence. A bug where the handler is wired
+    // but its body no-ops would pass every server test and only fail here.
+    let unregister: (() => void) | undefined;
+    afterEach(() => {
+      unregister?.();
+      unregister = undefined;
+    });
+
+    it('runs the shutdown sequence when SIGINT fires', async () => {
+      const flushSession = vi.fn().mockResolvedValue(undefined);
+      const exit = vi.fn();
+      const clientsFn = vi.fn().mockReturnValue([{ close: vi.fn() }]);
+      const servers = [{ close: vi.fn() }];
+
+      unregister = registerShutdownHandlers({
+        flushSession,
+        clients: clientsFn,
+        servers,
+        log: vi.fn(),
+        exit,
+      });
+      process.emit('SIGINT');
+
+      await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+      expect(flushSession).toHaveBeenCalledTimes(1);
     });
   });
 });

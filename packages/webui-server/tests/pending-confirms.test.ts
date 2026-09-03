@@ -185,3 +185,36 @@ describe('resolvePendingConfirmsForSession', () => {
     expect(map.size).toBe(1);
   });
 });
+
+// B-07: migrated from packages/webui/tests/server/pending-confirms.test.ts —
+// the integration test for the WS-022 inversion (YOLO blanket-approve is
+// FORWARD-looking only; a parked destructive prompt must stay pending even
+// after YOLO flips). The server suite covers `isDestructivePendingConfirm`
+// (the predicate) and `resolveYoloEligiblePendingConfirms` (the drain) in
+// isolation; the webui copy was the only place that pinned both at once —
+// the regression guard that proved the predicate actually gates the drain.
+// Splitting them across two `describe`s would have hidden the bug the
+// inverted test was about: each unit looked correct, but their composition
+// silently approved destructive prompts.
+describe('resolveYoloEligiblePendingConfirms — destructive gating (WS-022 inversion)', () => {
+  it('auto-approves standard pending confirms but leaves destructive ones pending', () => {
+    const pending = new Map<string, import('../src/server/pending-confirms.js').PendingConfirm>();
+    const decisions: string[] = [];
+    pending.set('safe', {
+      resolve: (decision: string) => decisions.push(`safe:${decision}`),
+      riskTier: 'standard',
+    });
+    pending.set('destructive', {
+      resolve: (decision: string) => decisions.push(`destructive:${decision}`),
+      decisionSource: 'yolo_destructive',
+      riskTier: 'destructive',
+    });
+
+    resolveYoloEligiblePendingConfirms(pending);
+
+    expect(decisions).toEqual(['safe:yes']);
+    expect(pending.has('safe')).toBe(false);
+    // Still on screen, still the user's call.
+    expect(pending.has('destructive')).toBe(true);
+  });
+});

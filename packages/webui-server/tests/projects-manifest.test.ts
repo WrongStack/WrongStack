@@ -138,3 +138,34 @@ describe('projects-manifest', () => {
     });
   });
 });
+
+// B-07: migrated from packages/webui/tests/server/projects-manifest.test.ts —
+// the saveManifest → loadManifest round-trip. The server suite covers each
+// direction in isolation (`writes manifest to disk` proves saveManifest; the
+// `returns parsed manifest` test proves loadManifest against a fixture file
+// written directly to disk) but never asserts the two compose. A future
+// schema change to either side — say, an extra `lastSeen` field saved by
+// saveManifest and stripped by loadManifest — would pass both isolated tests
+// and only fail the round-trip. This is the regression guard.
+describe('projects-manifest — round-trip', () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-test-manifest-roundtrip-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('saveManifest then loadManifest round-trips the projects', async () => {
+    const configPath = path.join(tmpDir, 'config.json');
+    const manifest = {
+      projects: [
+        { name: 'proj', root: '/x/proj', slug: 'proj-abc', lastSeen: '2026-06-21T00:00:00Z' },
+      ],
+    };
+    await saveManifest(manifest, configPath);
+    expect(await loadManifest(configPath)).toEqual(manifest);
+  });
+});

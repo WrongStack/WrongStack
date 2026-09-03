@@ -93,4 +93,19 @@ describe('computeUsageCost', () => {
     // (100M * 100 + 50M * 500 + 10M * 50) / 1M = (10B + 25B + 500M) / 1M = 35500
     expect(computeUsageCost(usage, rates)).toBe(35500);
   });
+
+  // B-07: migrated from packages/webui/tests/server/usage-cost.test.ts — the
+  // all-cacheRead scenario. The server suite exercises partial-cacheRead in
+  // the presence of input/output tokens, but never the pure cache-hit path
+  // (zero input + zero output + non-zero cacheRead). A future refactor that
+  // short-circuits when `input + output === 0` (treating cache-only as free)
+  // would pass every server test and only fail this one — the cache-hit
+  // discount on a no-new-completion reply must still bill the cached prefix.
+  it('includes cache-read tokens (all-cacheRead scenario)', () => {
+    const rates = { input: 3, output: 15, cacheRead: 0.3 };
+    expect(computeUsageCost({ input: 0, output: 0, cacheRead: 2_000_000 }, rates)).toBeCloseTo(
+      0.6,
+      9,
+    );
+  });
 });

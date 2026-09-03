@@ -115,6 +115,9 @@ describe('ws-auth', () => {
 
   describe('verifyClient', () => {
     const TOKEN = 'test-token-123';
+    // A loopback Host header — required for the DNS-rebinding guard to pass
+    // on a loopback bind. Real same-machine browsers send this.
+    const LOOPBACK_HOST = '127.0.0.1:3456';
 
     it('allows loopback browser origin without token (loopback bind)', () => {
       expect(
@@ -599,6 +602,135 @@ describe('ws-auth', () => {
           expectedToken: TOKEN,
         }),
       ).toBe(true);
+    });
+
+    // -------------------------------------------------------------------------
+    // B-07: migrated from packages/webui/tests/server/ws-auth.test.ts.
+    // The webui suite pin additional invariants that the server suite did not
+    // cover explicitly. Skipped: the `HTTP static file path traversal guard`
+    // and `WebSocket rate limiter` describe blocks, because both test locally-
+    // defined helper functions (`isPathSafe`, `createRateLimiter`) that the
+    // webui file inlines with comments saying "extracted from index.ts /
+    // webui-server.ts for unit testing" — they are not exported from
+    // `webui-server`, so they cannot be migrated to this file. The IPv6
+    // wildcard tests below and the C-598 invariant test are the genuinely
+    // new contracts worth carrying forward.
+    // -------------------------------------------------------------------------
+
+    describe('verifyClient (IPv6 wildcard :: bind parity with 0.0.0.0)', () => {
+      it('requires a token for a non-loopback peer (no origin) on a :: bind', () => {
+        // The server's suite exercises 0.0.0.0 with the same scenario. Without
+        // an explicit :: test, a regression that branched `wsHost === '::'` to
+        // a different code path (e.g. treating it as a loopback bind) would
+        // pass every server test and only fail here.
+        const base = { remoteAddress: 'fd00::1234', wsHost: '::', expectedToken: TOKEN } as const;
+        expect(verifyClient({ url: '/', ...base })).toBe(false);
+        expect(verifyClient({ url: `/?token=${TOKEN}`, ...base })).toBe(true);
+      });
+
+      it('still admits a loopback peer on a :: bind with the correct token', () => {
+        expect(
+          verifyClient({
+            url: `/?token=${TOKEN}`,
+            remoteAddress: '::1',
+            wsHost: '::',
+            expectedToken: TOKEN,
+          }),
+        ).toBe(true);
+      });
+
+      it('requires the auth cookie for loopback browser origins on a :: bind', () => {
+        // file:// origin is rejected outright…
+        expect(
+          verifyClient({
+            origin: 'file://localhost',
+            url: '/',
+            wsHost: '::',
+            expectedToken: TOKEN,
+          }),
+        ).toBe(false);
+        // …a loopback browser origin on a non-loopback bind without a cookie
+        // is rejected…
+        expect(
+          verifyClient({
+            origin: 'http://localhost:3000',
+            url: '/',
+            wsHost: '::',
+            expectedToken: TOKEN,
+          }),
+        ).toBe(false);
+        // …and the matching Host header + cookie lets it through.
+        expect(
+          verifyClient({
+            origin: 'http://localhost:3000',
+            url: '/',
+            cookieHeader: `ws_token=${TOKEN}`,
+            hostHeader: 'localhost:3000',
+            wsHost: '::',
+            expectedToken: TOKEN,
+          }),
+        ).toBe(true);
+      });
+    });
+
+    describe('verifyClient (C-598 invariant — URL token rejected for browser clients)', () => {
+      // C-598 closing case pinned in one test: the legacy `?token=…` URL path
+      // is no longer accepted for browser clients (it leaks the token into
+      // history / referrer / proxy logs). The frontend bootstraps the HttpOnly
+      // cookie via /ws-auth before connecting, so browser clients authenticate
+      // via the cookie; a URL-only token must reject. The server's existing
+      // suite asserts each case in isolation — combining them here makes the
+      // invariant explicit and prevents a future refactor that re-allows the
+      // URL path from landing in the codebase.
+      it('rejects URL token for browser client even with allowBrowserUrlToken + non-matching allowedHostnames', () => {
+        const base = {
+          hostHeader: LOOPBACK_HOST,
+          wsHost: '127.0.0.1',
+          expectedToken: TOKEN,
+        } as const;
+        // No credential at all → rejected.
+        expect(verifyClient({ origin: 'http://192.168.1.5:3000', url: '/', ...base })).toBe(false);
+        // URL `?token=` is NO LONGER accepted for a browser client.
+        expect(
+          verifyClient({ origin: 'http://192.168.1.5:3000', url: `/?token=${TOKEN}`, ...base }),
+        ).toBe(false);
+        // Explicit public WS URL mode may keep URL-token auth for browser
+        // clients ONLY when the HttpOnly cookie cannot cross hostnames, AND
+        // the origin's hostname matches `allowedHostnames`.
+        expect(
+          verifyClient({
+            origin: 'http://192.168.1.5:3000',
+            url: `/?token=${TOKEN}`,
+            allowBrowserUrlToken: true,
+            allowedHostnames: ['192.168.1.5'],
+            ...base,
+          }),
+        ).toBe(true);
+        expect(
+          verifyClient({
+            origin: 'http://192.168.1.5:3000',
+            url: `/?token=${TOKEN}`,
+            allowBrowserUrlToken: true,
+            allowedHostnames: ['other.example.com'],
+            ...base,
+          }),
+        ).toBe(false);
+        // The HttpOnly cookie is the accepted browser credential — but only
+        // when the browser Origin matches the request Host. On a loopback
+        // bind the Host is 127.0.0.1, so a 192.168.1.5 origin can never
+        // match. Use a public bind with a matching Host to exercise the
+        // cookie acceptance path.
+        expect(
+          verifyClient({
+            origin: 'http://192.168.1.5:3000',
+            url: '/',
+            cookieHeader: `ws_token=${TOKEN}`,
+            hostHeader: '192.168.1.5:3000',
+            wsHost: '0.0.0.0',
+            expectedToken: TOKEN,
+          }),
+        ).toBe(true);
+      });
     });
   });
 });

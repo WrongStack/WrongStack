@@ -346,4 +346,55 @@ describe('estimateContextBreakdown', () => {
     expect(ratio).toBeGreaterThan(1.0);
     expect(ratio).toBeLessThanOrEqual(4 / 3.5 + 0.01);
   });
+
+  // B-07: migrated from packages/webui/tests/server/token-estimator.test.ts —
+  // pins the EXACT per-section token numbers (systemPrompt: 15, tools.total:
+  // 9, messages.total: 6) for a representative fixture. The server suite
+  // covers each section in isolation with `toBeGreaterThan(0)` checks but
+  // never asserts the precise sum — a future refactor that bumps one
+  // section's basis (say, switch tools from 3.5 to /4 chars-per-token)
+  // would pass every server test and only fail this one. The breakdown
+  // also surfaces per-tool {name, tokens} shape, which the server does
+  // not assert.
+  it('sums system prompt, tool schema, and message tokens (exact numeric breakdown)', () => {
+    const out = estimateContextBreakdown({
+      systemPrompt: [{ text: 'a'.repeat(40) }, { text: 'b'.repeat(8) }], // 12 + 3 = 15
+      tools: [{ name: 'read', description: 'reads', inputSchema: { type: 'object' } }],
+      messages: [{ role: 'user', content: 'a'.repeat(20) }], // 6
+    });
+
+    expect(out.systemPrompt).toBe(15);
+    // tool: estimate('read'=4 →2) + estimate('reads'=5 →2) + estimate('{"type":"object"}'=17 →5) = 9
+    expect(out.tools.total).toBe(9);
+    expect(out.tools.count).toBe(1);
+    expect(out.tools.breakdown[0]).toEqual({ name: 'read', tokens: 9 });
+    expect(out.messages.total).toBe(6);
+    expect(out.total).toBe(15 + 9 + 6);
+  });
+
+  // B-07: migrated from packages/webui/tests/server/token-estimator.test.ts —
+  // a single-message mixed-block (text + tool_use + tool_result) token
+  // estimate. The server suite exercises text-only, tool_use-only, and
+  // tool_result-only blocks separately; the webui variant pins their SUM
+  // inside one message so a future refactor that drops one block type's
+  // contribution (e.g. treats tool_result as zero tokens) cannot pass.
+  it('accounts for each block type in array message content', () => {
+    const out = estimateContextBreakdown({
+      systemPrompt: [],
+      tools: [],
+      messages: [
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'a'.repeat(40) }, // 12
+            { type: 'tool_use', name: 'grep', input: { q: 'x' } }, // estimate('{"q":"x"}'=9 →3)
+            { type: 'tool_result', content: 'a'.repeat(8) }, // 3
+          ],
+        },
+      ],
+    });
+    expect(out.messages.breakdown[0]?.tokens).toBe(12 + 3 + 3);
+    expect(out.messages.total).toBe(18);
+    expect(out.total).toBe(18);
+  });
 });

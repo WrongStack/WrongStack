@@ -76,6 +76,23 @@ describe('provider-keys', () => {
       ]);
       expect(cfg.activeKey).toBe('key1');
     });
+
+    // B-07: migrated from packages/webui/tests/server/provider-keys.test.ts —
+    // the legacy `apiKey` plaintext mirror MUST be cleared even when writing
+    // a non-empty key list. The server's existing suite asserts `apiKey`
+    // is undefined only on the empty-list branch; if a future refactor
+    // skips the `delete cfg.apiKey` step on the non-empty branch the
+    // plaintext key would round-trip back into the serialized config.
+    it('clears the legacy apiKey field to prevent serialization leaks (non-empty list)', () => {
+      const cfg: any = { type: 'x', activeKey: 'b' };
+      writeKeysBack(cfg, [
+        { label: 'a', apiKey: 'ka', createdAt: '' },
+        { label: 'b', apiKey: 'kb', createdAt: '' },
+      ]);
+      expect(cfg.apiKey).toBeUndefined();
+      expect(cfg.activeKey).toBe('b');
+      expect(cfg.apiKeys).toHaveLength(2);
+    });
   });
 
   describe('maskedKey', () => {
@@ -185,6 +202,30 @@ describe('provider-keys', () => {
     it('returns error when provider not found', () => {
       const result = setActiveKey({}, 'missing', 'k1');
       expect(result.ok).toBe(false);
+    });
+
+    // B-07: migrated from packages/webui/tests/server/provider-keys.test.ts —
+    // setActiveKey must NOT mirror the active key's secret into the legacy
+    // `apiKey` plaintext field. The server's existing `'sets the active key
+    // on a provider'` test only asserts `activeKey`; it never asserts the
+    // NEGATIVE invariant that the legacy mirror stays cleared. A future
+    // refactor that writes `cfg.apiKey = apiKey` as a "convenience" for
+    // legacy readers would round-trip the plaintext secret into the
+    // serialized config, defeating the entire apiKeys-only persistence
+    // model.
+    it('does not write the plaintext secret back to the legacy apiKey field', () => {
+      const providers: any = {
+        test: {
+          type: 'test',
+          apiKeys: [
+            { label: 'k1', apiKey: 'sk-1', createdAt: '' },
+            { label: 'k2', apiKey: 'sk-2', createdAt: '' },
+          ],
+        },
+      };
+      setActiveKey(providers, 'test', 'k2');
+      expect(providers.test.activeKey).toBe('k2');
+      expect(providers.test.apiKey).toBeUndefined();
     });
   });
 

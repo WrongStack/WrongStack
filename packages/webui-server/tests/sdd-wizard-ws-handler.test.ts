@@ -2,7 +2,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { SddInterviewDriver, SpecStore, TaskGraphStore } from '@wrongstack/sdd';
 import { SddWizardWebSocketHandler } from '@wrongstack/webui-server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 /** Minimal ws stub capturing sent JSON messages. */
 function fakeWs() {
@@ -34,6 +34,19 @@ function requireLastOfType(
   const match = matches[matches.length - 1];
   if (!match) throw new Error(`expected at least one ${type} frame, got none`);
   return match;
+}
+
+/**
+ * B-07: relaxed variant for the merged-from-webui "fails closed" test below.
+ * `requireLastOfType` throws when no frame exists; `lastOfType` returns
+ * `undefined` instead so callers can assert on absence without try/catch.
+ */
+function lastOfType(
+  ws: { sent: Array<{ type: string; payload: Record<string, unknown> }> },
+  type: string,
+) {
+  const matches = ws.sent.filter((x) => x.type === type);
+  return matches[matches.length - 1];
 }
 
 function tmp(): string {
@@ -392,5 +405,30 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     expect(probeCalls).toBe(2);
     // Both frames broadcast the preserved latched error.
     expect(requireLastOfType(ws, 'sdd.spec.error').payload.message).toMatch(/persistent failure/);
+  });
+
+  // B-07: migrated from packages/webui/tests/server/sdd-wizard-ws-handler.test.ts
+  // — covers the "fails closed" branch where the authoritative state probe
+  // throws BEFORE the interview is driven. Server's existing suite never
+  // exercised this path; the failure-closed contract is now asserted here.
+  it('fails closed when authoritative interview state cannot be read', async () => {
+    const runInterviewTurn = vi.fn(async () => QUESTION);
+    const handler = new SddWizardWebSocketHandler({
+      makeDriver: () =>
+        ({
+          loadExisting: async () => {
+            throw new Error('project daemon unavailable');
+          },
+        }) as never,
+      runInterviewTurn,
+      startRun: async () => ({ runId: 'unreachable' }),
+    });
+    const ws = fakeWs();
+    handler.addClient(ws);
+
+    await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'Do not overwrite' } });
+
+    expect(lastOfType(ws, 'sdd.spec.error')?.payload.message).toBe('project daemon unavailable');
+    expect(runInterviewTurn).not.toHaveBeenCalled();
   });
 });

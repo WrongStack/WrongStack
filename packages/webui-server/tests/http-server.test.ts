@@ -59,6 +59,22 @@ afterAll(async () => {
 });
 
 describe('buildCspHeader', () => {
+  // B-07: migrated from packages/webui/tests/server/http-server.test.ts —
+  // pins the *absence* of ws:// / wss:// literals when the helper is called
+  // without any host/port/url arguments (default same-origin-only mode).
+  // The server suite asserted the positive (connect-src 'self') but never
+  // the negative (no ws: literal creeping in). The negative is the
+  // regression guard: a future addition that auto-injects ws:// for the
+  // bound host would otherwise pass the server's existing assertions.
+  it('allows same-origin WebSocket upgrades and pins the policy', () => {
+    const csp = buildCspHeader();
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("connect-src 'self'");
+    expect(csp).not.toContain('ws://');
+    expect(csp).not.toContain('wss://');
+    expect(csp).toContain("frame-ancestors 'none'");
+  });
+
   it("covers same-origin WS via 'self' in connect-src", () => {
     const csp = buildCspHeader();
     expect(csp).toContain("default-src 'self'");
@@ -76,6 +92,17 @@ describe('buildCspHeader', () => {
   it('allows an explicit public WebSocket URL for tunnel access', () => {
     const csp = buildCspHeader('wss://wrongstack-ws.example.com/ws');
     expect(csp).toContain('wss://wrongstack-ws.example.com');
+  });
+
+  // B-07: migrated from packages/webui/tests/server/http-server.test.ts —
+  // covers the rejection branch. The server's existing suite only tested
+  // the acceptance path (`wss://…` is allowed); the rejection of an
+  // https:// URL passed as the publicWsUrl was never pinned. A future
+  // refactor that lets any URL through would open a CSP hole.
+  it('ignores non-WebSocket public URLs', () => {
+    const csp = buildCspHeader('https://wrongstack.example.com');
+    expect(csp).toContain("connect-src 'self'");
+    expect(csp).not.toContain('https://wrongstack.example.com');
   });
 
   it('adds explicit ws:// entries for loopback hosts', () => {
@@ -216,6 +243,21 @@ describe('injectWsConfig', () => {
       '<meta name="wrongstack-ws-url" content="wss://wrongstack-ws.example.com/socket?x=1&amp;y=&quot;2&quot;" />',
     );
   });
+
+  // B-07: migrated from packages/webui/tests/server/http-server.test.ts —
+  // asserts the publicWsUrl branch SUPPLANTS the legacy `wrongstack-ws-port`
+  // meta tag rather than adding to it. Without the negative assertion the
+  // server test passes even if a future refactor emits both tags and the
+  // frontend falls back to the dead port path on tunneled builds.
+  it('injects an explicit public WS URL without a separate port tag', () => {
+    const out = injectWsConfig('<html><head><title>x</title></head><body></body></html>', {
+      publicWsUrl: 'wss://wrongstack-ws.example.com/socket?x=1&y="2"',
+    });
+    expect(out).not.toContain('wrongstack-ws-port');
+    expect(out).toContain(
+      '<meta name="wrongstack-ws-url" content="wss://wrongstack-ws.example.com/socket?x=1&amp;y=&quot;2&quot;" />',
+    );
+  });
 });
 
 describe('createHttpServer', () => {
@@ -252,6 +294,22 @@ describe('createHttpServer', () => {
     expect(res.headers.get('content-security-policy')).toContain("connect-src 'self'");
     const html = await res.text();
     expect(html).toContain('<title>root</title>');
+  });
+
+  // B-07: migrated from packages/webui/tests/server/http-server.test.ts —
+  // same-origin WS path: the served HTML must NOT carry the legacy
+  // `wrongstack-ws-port` meta tag (which would force the frontend to derive
+  // the WS port from a stale injection) on a plain loopback bind where the
+  // frontend derives the WS endpoint from the page origin instead.
+  it('serves index.html for / with same-origin WS allowed', async () => {
+    const res = await authFetch(`${baseUrl}/`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/html');
+    expect(res.headers.get('content-security-policy')).toContain("connect-src 'self'");
+    const html = await res.text();
+    expect(html).toContain('<title>root</title>');
+    // The frontend derives the shared WS endpoint from the page origin.
+    expect(html).not.toContain('wrongstack-ws-port');
   });
 
   it('serves .js with the right MIME type', async () => {

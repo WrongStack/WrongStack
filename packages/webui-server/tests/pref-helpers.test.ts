@@ -448,3 +448,65 @@ describe('WebUI preference persistence helpers', () => {
     });
   });
 });
+
+// B-07: migrated from packages/webui/tests/server/pref-helpers.test.ts — pins
+// the NESTED modelRuntime shape (reasoning + cache + parameters all the way
+// through persistPrefsToConfig → read-back). The server suite covers the
+// reasoning sub-shape in isolation (`never persists the WebUI "auto" effort
+// sentinel as a concrete level`) and the cache.ttl scalar (`merges existing
+// nested config`) but never the three-sub-object round-trip on a single
+// matrix entry. A future refactor that strips one of the sub-objects (e.g.
+// drops `cache` while persisting `reasoning`) would pass every server test
+// and only fail this one.
+describe('WebUI preference persistence — nested modelRuntime round-trip', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wrongstack-pref-helpers-rt-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it('persists model matrix entries with route-specific runtime overrides', async () => {
+    const profileConfigPath = path.join(dir, 'config.json');
+    await fs.writeFile(profileConfigPath, JSON.stringify({ version: 1 }), 'utf8');
+
+    await persistPrefsToConfig(
+      {
+        globalConfigPath: path.join(dir, 'root.json'),
+        profileConfigPath,
+        vault: noOpVault,
+        logger: { warn: () => undefined },
+      } as PrefHelperDeps,
+      { lock: Promise.resolve() },
+      {
+        modelMatrix: {
+          planner: {
+            fallbackProfile: 'cheap',
+            modelRuntime: {
+              reasoning: { mode: 'on', effort: 'low', preserve: false },
+              cache: { ttl: '5m' },
+              parameters: { user: 'planner' },
+            },
+          },
+        },
+      },
+    );
+
+    const written = JSON.parse(await fs.readFile(profileConfigPath, 'utf8')) as {
+      modelMatrix?: Record<string, unknown>;
+    };
+    expect(written.modelMatrix).toEqual({
+      planner: {
+        fallbackProfile: 'cheap',
+        modelRuntime: {
+          reasoning: { mode: 'on', effort: 'low', preserve: false },
+          cache: { ttl: '5m' },
+          parameters: { user: 'planner' },
+        },
+      },
+    });
+  });
+});

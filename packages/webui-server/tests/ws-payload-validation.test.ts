@@ -412,6 +412,87 @@ describe('WebUI payload validation', () => {
     ])('rejects model matrix when %s', (_name, modelMatrix) => {
       expect(validatePrefsUpdatePayload({ modelMatrix })).toMatchObject({ ok: false });
     });
+
+    // B-01 regression (docs/audit/webui-full-review-2026-09-03.md).
+    // `modelTiers` was in pref-helpers' PREF_KEYS with a working persist
+    // branch, but in no validator set — so it fell through to "unknown
+    // preference key" and the rejection took the WHOLE payload with it. The
+    // WebUI's Model Tiers editor sends the entire object on every keystroke,
+    // so the panel showed the edit while the config file never changed.
+    it('accepts the full modelTiers object the WebUI tier editor sends', () => {
+      expect(
+        validatePrefsUpdatePayload({
+          modelTiers: {
+            enabled: true,
+            default: 'standard',
+            levels: {
+              budget: {
+                fallbackProfile: 'cheap',
+                maxCostUsd: 0.5,
+                maxIterations: 20,
+                maxToolCalls: 40,
+                maxTokens: 120_000,
+                timeoutMs: 300_000,
+                description: 'Cheap and fast.',
+                modelRuntime: { reasoning: { mode: 'off' }, cache: { ttl: '1h' } },
+              },
+              premium: { provider: 'anthropic', model: 'claude-opus-5' },
+            },
+            routing: { '*': 'standard', reviewer: 'premium' },
+            leader: {
+              mode: 'propose',
+              dwellTurns: 6,
+              minSavingsUsd: 0.1,
+              maxContextFillForSwitch: 0.8,
+              maxTier: 'premium',
+            },
+          },
+        }),
+      ).toMatchObject({ ok: true });
+    });
+
+    it('accepts a modelTiers object that only flips the master switch', () => {
+      expect(validatePrefsUpdatePayload({ modelTiers: { enabled: false } })).toMatchObject({
+        ok: true,
+      });
+      expect(validatePrefsUpdatePayload({ modelTiers: {} })).toMatchObject({ ok: true });
+    });
+
+    it.each([
+      ['the value is not an object', 'standard'],
+      ['the value is an array', []],
+      ['enabled is not a boolean', { enabled: 'yes' }],
+      ['levels is not an object', { levels: [] }],
+      ['a level is not an object', { levels: { budget: 'cheap' } }],
+      ['a level budget is negative', { levels: { budget: { maxIterations: 0 } } }],
+      ['a level budget is not finite', { levels: { budget: { maxCostUsd: Number.NaN } } }],
+      ['a level field has the wrong type', { levels: { budget: { fallbackProfile: 1 } } }],
+      [
+        'a level runtime is invalid',
+        { levels: { budget: { modelRuntime: { reasoning: { effort: 'huge' } } } } },
+      ],
+      ['routing is not an object', { routing: 'premium' }],
+      ['a routing target is not a string', { routing: { reviewer: 3 } }],
+      ['leader mode is unknown', { leader: { mode: 'whenever' } }],
+      ['leader context fill is out of range', { leader: { maxContextFillForSwitch: 1.5 } }],
+    ])('rejects modelTiers when %s', (_name, modelTiers) => {
+      expect(validatePrefsUpdatePayload({ modelTiers })).toMatchObject({ ok: false });
+    });
+
+    // The KEYS of `levels` and `routing` become property names on
+    // `config.modelTiers` (pref-helpers.ts), exactly like modelMatrix's role
+    // names — so both records need the same prototype-pollution guard.
+    // JSON.parse, not an object literal: it makes `__proto__` an OWN
+    // enumerable key — what an incoming WS frame actually produces. A literal
+    // would invoke the prototype setter and leave the guard nothing to see.
+    it.each([
+      ['levels', '{"modelTiers":{"levels":{"__proto__":{"fallbackProfile":"cheap"}}}}'],
+      ['routing', '{"modelTiers":{"routing":{"__proto__":"premium"}}}'],
+    ])('rejects a forbidden prototype key in modelTiers.%s', (_name, frame) => {
+      const result = validatePrefsUpdatePayload(JSON.parse(frame) as unknown);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toContain('forbidden key');
+    });
   });
 
   describe('skills payloads', () => {
@@ -555,6 +636,129 @@ describe('WebUI payload validation', () => {
       });
       expect(validator({ root: '/workspace', name: 'WrongStack' })).toMatchObject({ ok: true });
       expectInvalid(validator, [null, { root: '' }, { root: 1 }, { root: '/workspace', name: 1 }]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // B-07: migrated from packages/webui/tests/server/ws-payload-validation.test.ts.
+  // The webui suite re-tests every validator with broader / differently-shaped
+  // payloads. The cases below pin contracts that the server's existing suite
+  // did not cover: the requestId whitespace guard, all five levels / modes
+  // parameterized (vs. a single representative), empty-string-array acceptance
+  // for `fallbackModels`, and additional non-object types for `prefs.update`.
+  // ---------------------------------------------------------------------------
+
+  describe('B-07 migrated coverage (model.switch / brain / autonomy)', () => {
+    it('rejects an empty (whitespace-only) model.switch requestId', () => {
+      // Server's `'accepts valid and rejects invalid model.switch payloads'`
+      // exercises provider/model/rejection but never a requestId field. A
+      // regression that dropped the requestId.trim() guard would let an
+      // empty echoed requestId round-trip back to the WS client and break
+      // the per-session switch-routing key.
+      expect(
+        validateModelSwitchPayload({ provider: 'openai', model: 'gpt-5', requestId: '  ' }),
+      ).toMatchObject({ ok: false });
+    });
+
+    it.each(['off', 'low', 'medium', 'high', 'all'])('accepts brain.risk level %s', (level) => {
+      // Server's suite uses `valid: { level: 'medium' }` only. Pinning all
+      // five valid levels guards against an `AUTONOMY_VALUES` /
+      // `BRAIN_RISK_VALUES` set shrinking accidentally (e.g. someone deletes
+      // 'off' thinking it's redundant).
+      expect(validateBrainRiskPayload({ level })).toEqual({ ok: true, value: { level } });
+    });
+
+    it.each(['off', 'suggest', 'auto', 'eternal', 'eternal-parallel'])(
+      'accepts autonomy.switch mode %s',
+      (mode) => {
+        expect(validateAutonomySwitchPayload({ mode })).toEqual({ ok: true, value: { mode } });
+      },
+    );
+  });
+
+  describe('B-07 migrated coverage (mailbox primitives)', () => {
+    it('rejects a string sentinel for mailbox.purge (not just null/array/number)', () => {
+      // Server's invalid list for `validateMailboxPurgePayload` covers
+      // null, array, and wrong-typed numbers. It never covers the bare
+      // string `'x'`, which an opponent payload could supply to exercise
+      // an unhandled branch.
+      const result = validateMailboxPurgePayload('x');
+      expect(result.ok).toBe(false);
+    });
+
+    it('rejects a string sentinel for mailbox.agents (not just null/array/bad onlineOnly)', () => {
+      const result = validateMailboxAgentsPayload('x');
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('B-07 migrated coverage (prefs.update)', () => {
+    it('accepts an empty fallbackModels array (clear vs. accept-defaults)', () => {
+      // Server covers array-element validation (`'rejects fallbackModels: ['fast', 1]'`)
+      // but never pins that `[]` is explicitly valid. The WebUI "Clear fallback
+      // list" button sends exactly this — a regression that treated `[]` as
+      // "no models" and rejected it would leave the user unable to reset.
+      expect(validatePrefsUpdatePayload({ fallbackModels: [] })).toMatchObject({ ok: true });
+    });
+
+    it.each([
+      undefined,
+      null,
+      [],
+      'prefs',
+      123,
+      true,
+    ])('rejects non-object prefs.update payload %#', (payload) => {
+      // Server covers `[null, [], { notASetting: true }]`. The webui side
+      // additionally sends literal strings / numbers / booleans when an
+      // upstream serializer corrupts the envelope — those must reject too.
+      const result = validatePrefsUpdatePayload(payload);
+      expect(result.ok).toBe(false);
+    });
+
+    it.each([
+      { typoPreference: true },
+      { yolo: 'yes' },
+      { maxIterations: Number.NaN },
+      { maxConcurrent: '4' },
+      { autonomy: 'manual' },
+      { contextStrategy: 'random' },
+      { logLevel: 'trace' },
+      { auditLevel: 'verbose' },
+      { fallbackModels: 'anthropic/claude' },
+      { fallbackModels: [1, 2] },
+      { fallbackProfiles: ['bad'] },
+      { fallbackProfiles: { default: 'anthropic/claude' } },
+      { favoriteModels: 'anthropic/claude' },
+      { favoriteModelsOnly: 'yes' },
+      { fallbackAuto: 'yes' },
+    ])('rejects unknown keys or invalid preference values %#', (payload) => {
+      const result = validatePrefsUpdatePayload(payload);
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('B-07 migrated coverage (context.mode.create)', () => {
+    it('rejects eliseThreshold: undefined explicitly (not just non-finite numbers)', () => {
+      // The server's `'rejects each invalid create field'` covers
+      // `{ ...validCreate, eliseThreshold: Number.POSITIVE_INFINITY }` but
+      // not the undefined case. The validator's `isFiniteNumber` check
+      // returns false for undefined — this pins that explicit undefined
+      // is rejected (a future refactor that switched to `?? <default>`
+      // would silently start accepting omitted `eliseThreshold` instead of
+      // demanding it as a required finite number).
+      const validPayload = {
+        id: 'my-mode',
+        name: 'My Mode',
+        description: 'A custom context mode.',
+        thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 },
+        preserveK: 10,
+      };
+      const result = validateContextModeCreatePayload({
+        ...validPayload,
+        eliseThreshold: undefined as unknown as number,
+      });
+      expect(result.ok).toBe(false);
     });
   });
 });

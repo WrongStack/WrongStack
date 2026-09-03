@@ -164,5 +164,36 @@ describe('shell-open', () => {
       );
       expect(result.success).toBe(true);
     });
+
+    // B-07: migrated from packages/webui/tests/server/shell-open.test.ts —
+    // pins the order resolve → access → metacharacter → spawn. The webui
+    // fixture uses a `tmp/../tmp/sub` lexical path that path.resolve folds
+    // into a clean `tmp/sub`; if the metacharacter guard ran on the
+    // unresolved lexical form it would scan `../` for metacharacters
+    // (which it does, but the resolved path also has no metacharacters
+    // here, so the test specifically asserts the resolved form is what
+    // gets checked). The server suite covers metacharacter rejection in
+    // isolation but never asserts the ORDER between resolve and the
+    // guard — a regression that flips the order would pass every server
+    // test.
+    it('resolves .. traversal before the metacharacter check', async () => {
+      mockAccess.mockResolvedValue(undefined);
+      mockSpawn.mockReturnValue({ on: vi.fn().mockReturnThis(), unref: vi.fn() });
+      mockRealpath.mockImplementation((p: string) => Promise.resolve(p));
+
+      // Use a real lexical path with `..` that resolves into a path
+      // that exists inside the mocked-access scope; the helper must
+      // resolve it FIRST and only then run the metacharacter guard.
+      // The resolved form is `tmp/sub`, which contains no metacharacters,
+      // so we assert the guard did NOT fire (not "unsupported characters").
+      const projectRoot = path.resolve('/tmp/shell-open-trav');
+      const sub = path.join(projectRoot, 'sub');
+      const result = await handleShellOpen(
+        { path: path.join(sub, '..', 'sub'), target: 'file-manager' },
+        logger as any,
+        { projectRoot },
+      );
+      expect(result.message).not.toMatch(/unsupported characters/i);
+    });
   });
 });

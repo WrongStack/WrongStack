@@ -155,6 +155,15 @@ describe('ws-utils', () => {
       expect(errMessage(new Error('test error'))).toBe('test error');
     });
 
+    // B-07: migrated from packages/webui/tests/server/ws-utils.test.ts —
+    // TypeError (and any other Error subclass) share the `.message` shape
+    // the helper reads, but a future refactor that introspects `.name` or
+    // walks a non-standard property would break the subclass path. Pinning
+    // the bare-subclass behaviour keeps the regression visible.
+    it('handles Error subclass', () => {
+      expect(errMessage(new TypeError('bad type'))).toBe('bad type');
+    });
+
     it('returns string representation of non-Error values', () => {
       expect(errMessage('direct string')).toBe('direct string');
       expect(errMessage(42)).toBe('42');
@@ -331,6 +340,25 @@ describe('ws-utils', () => {
       });
       expect(url).toContain('token=secret');
       expect(url).toContain('existing=true');
+    });
+
+    // B-07: migrated from packages/webui/tests/server/ws-utils.test.ts —
+    // asserts the URL-encoded form of a space-bearing token (`abc 123` →
+    // `abc+123`) is preserved in the merged query string. The server's
+    // `toContain('token=secret')` does not catch a regression that
+    // double-encodes, omits, or leaves the space raw (`abc%20123` would
+    // still `toContain('token='` once). The webui variant pins the exact
+    // output so a token with whitespace cannot silently break the
+    // tunnel URL.
+    it('uses publicUrl and preserves existing query params (with URL-encoded space in token)', () => {
+      expect(
+        buildWebUIAccessUrl({
+          host: '127.0.0.1',
+          port: 8080,
+          token: 'abc 123',
+          publicUrl: 'https://wrongstack.example.com/ui?from=tunnel',
+        }),
+      ).toBe('https://wrongstack.example.com/ui?from=tunnel&token=abc+123');
     });
 
     it('handles malformed publicUrl gracefully', () => {

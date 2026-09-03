@@ -224,6 +224,24 @@ describe('WS message dispatcher routing (Issue #31 PR 0)', () => {
     expect(out).toBe(false);
   });
 
+  // B-07: migrated from packages/webui/tests/server/dispatcher-routing.test.ts
+  // — covers the prefs-route dispatch for `system_prompt.get`, which the
+  // server's suite never exercised. The asking tab's sessionId must thread
+  // through to getSystemPrompt so the answer lands in the right lane instead
+  // of overwriting whichever tab is in front.
+  it('handlePrefsRoute: carries the asking tab through system_prompt.get', async () => {
+    const getSystemPrompt = vi.fn();
+    const out = await handlePrefsRoute(
+      ws,
+      { type: 'system_prompt.get', payload: { sessionId: 'tab-3' } } as never,
+      { getPrefs: vi.fn(), updatePrefs: vi.fn(), getSystemPrompt } as never,
+    );
+    expect(out).toBe(true);
+    // The identity variant is per session; an unstamped answer overwrites
+    // whichever tab the browser is showing.
+    expect(getSystemPrompt).toHaveBeenCalledWith(ws, 'tab-3');
+  });
+
   // ── ShellGitRouteHandlers ──────────────────────────────────────────
   it('handleShellGitRoute: claims git.info; rejects foreign', async () => {
     const gitInfo = vi.fn();

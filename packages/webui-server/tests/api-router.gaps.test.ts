@@ -495,8 +495,19 @@ describe('handleApiRoutes — debug and deadcode routes', () => {
     expect(JSON.parse(missing.res.body).error).toBe('File watcher metrics not available');
   });
 
-  it('exposes /debug/system without an access-token gate', async () => {
-    const out = await route('GET', '/debug/system', {}, { accessTokenOk: false });
+  // B-12: this route was the one hole in the file's repeated token gate. The
+  // outer server rejects tokenless requests before the router runs, so it was
+  // never reachable — but the pattern must be complete, and the assertion had
+  // pinned the omission as if it were intended.
+  it('gates /debug/system behind the access token like its neighbours', async () => {
+    const denied = await route('GET', '/debug/system', {}, { accessTokenOk: false });
+    expect(denied.handled).toBe(true);
+    expect(denied.res.statusCode).toBe(401);
+    expect(JSON.parse(denied.res.body).error).toBe('Unauthorized');
+  });
+
+  it('serves /debug/system to an authorized caller', async () => {
+    const out = await route('GET', '/debug/system', {}, { accessTokenOk: true });
     expect(out.handled).toBe(true);
     expect(out.res.statusCode).toBe(200);
     const body = JSON.parse(out.res.body);

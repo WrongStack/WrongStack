@@ -148,3 +148,44 @@ describe('resolveWorkingDirInsideProject', () => {
     }
   });
 });
+
+// B-07: migrated from packages/webui/tests/server/path-containment.test.ts —
+// the symlink escape regression. The server suite pins lexical `..` traversal
+// (`../outside`) but never a symlink pointing OUTSIDE the project root, which
+// is the more dangerous vector: a normal-looking in-project entry like
+// `node_modules/.bin/shim` can resolve to an attacker-controlled directory
+// outside the project. The webui file used a real fs.symlink() to model the
+// production scenario; the server test below keeps that pattern.
+describe('resolveWorkingDirInsideProject — symlink escape (WS-016 regression)', () => {
+  let tmpDir: string;
+  let projectRoot: string;
+  let outsideRoot: string;
+
+  it('rejects an in-project symlink that resolves outside the project root', async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-symlink-'));
+    projectRoot = path.join(tmpDir, 'project');
+    outsideRoot = path.join(tmpDir, 'outside');
+    await fs.mkdir(path.join(projectRoot, 'src'), { recursive: true });
+    await fs.mkdir(outsideRoot, { recursive: true });
+
+    const linkPath = path.join(projectRoot, 'outside-link');
+    try {
+      await fs.symlink(outsideRoot, linkPath, 'dir');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EPERM') {
+        // Some sandboxes forbid symlink creation; skip rather than fail.
+        await fs.rm(tmpDir, { recursive: true, force: true });
+        return;
+      }
+      throw err;
+    }
+
+    try {
+      await expect(resolveWorkingDirInsideProject(projectRoot, 'outside-link')).rejects.toThrow(
+        'Path must stay inside the project root',
+      );
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
