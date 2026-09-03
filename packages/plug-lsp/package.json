@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@wrongstack/tools": "workspace:*",
-    "vscode-languageserver-protocol": "^3.18.2"
+    "vscode-languageserver-protocol": "^3.18.3"
   },
   "peerDependencies": {
     "@wrongstack/core": "workspace:*"
