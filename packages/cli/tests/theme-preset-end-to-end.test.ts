@@ -49,9 +49,9 @@ describe('every canonical preset is selectable', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('exposes 50 presets — the count is pinned so a silent drop is visible', () => {
-    expect(THEME_PRESET_IDS).toHaveLength(50);
-    expect(new Set(THEME_PRESET_IDS).size).toBe(50);
+  it('exposes 64 presets — the count is pinned so a silent drop is visible', () => {
+    expect(THEME_PRESET_IDS).toHaveLength(64);
+    expect(new Set(THEME_PRESET_IDS).size).toBe(64);
   });
 
   it.each(THEME_PRESET_IDS)('/theme %s switches and persists to the config store', async (id) => {

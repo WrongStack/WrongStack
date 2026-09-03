@@ -127,6 +127,38 @@ const THEME_META: Record<ThemePresetId, { name: string; desc: string }> = {
     name: 'Gruvbox Dark Hard',
     desc: 'Maximum contrast Gruvbox on deep pitch charcoal',
   },
+  'oceanic-next': {
+    name: 'Oceanic Next',
+    desc: 'Teal-and-slate classic — calm blue, warm coral',
+  },
+  'one-half-dark': {
+    name: 'One Half Dark',
+    desc: "Atom's One Half — One Dark with cleaner contrast",
+  },
+  'ayu-mirage': { name: 'Ayu Mirage', desc: 'Dusk-slate Ayu, between Dark and Light' },
+  seti: { name: 'Seti', desc: 'Long-running VS Code classic — charcoal, gold, cyan' },
+  'paraiso-dark': { name: 'Paraiso Dark', desc: 'Base16 plum — warm, muted, low-glare' },
+  darcula: { name: 'Darcula', desc: "JetBrains' default dark — grey-green with amber" },
+  'slack-dark': { name: 'Slack Aubergine', desc: 'Deep aubergine with sky blue and lime' },
+  'vitesse-black': { name: 'Vitesse Black', desc: 'Vitesse on true black — least glare here' },
+  'atom-dark': { name: 'Atom Dark', desc: 'The original Atom grey — neutral, low-chroma' },
+  'github-dark-high-contrast': {
+    name: 'GitHub Dark High Contrast',
+    desc: 'Accessible GitHub — boosted text and borders',
+  },
+  'contrast-max': {
+    name: 'Maximum Contrast',
+    desc: 'Original — pure black, AAA-targeted text and borders',
+  },
+  'colorblind-safe': {
+    name: 'Colorblind Safe',
+    desc: 'Original — blue/orange coding, no red-vs-green reliance',
+  },
+  sandstone: { name: 'Sandstone', desc: 'Original — warm stone neutrals with sage and clay' },
+  'everforest-hard': {
+    name: 'Everforest Hard',
+    desc: 'Everforest on its deepest base — more depth, same greens',
+  },
 };
 
 const THEME_OPTIONS: ThemeOption[] = THEME_PRESET_IDS.map((id) => ({ id, ...THEME_META[id] }));

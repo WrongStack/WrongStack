@@ -58,11 +58,25 @@ describe('computeWindow (raw picker windowing math)', () => {
   });
 
   it('grows the window on a tall terminal and shows all presets once they fit', () => {
-    const w = computeWindow(PRESETS, 0, 60);
+    // Derive the height from the list size: `computeWindow` reserves 5 chrome
+    // rows + 2 marker rows, so "all of them fit" means rows >= PRESETS + 7.
+    // Hardcoding a number here silently encoded "there are 50 presets" and
+    // broke the moment the registry grew past that.
+    const rows = PRESETS + 7;
+    const w = computeWindow(PRESETS, 0, rows);
     expect(w.start).toBe(0);
     expect(w.end).toBe(PRESETS);
     expect(w.hasAbove).toBe(false);
     expect(w.hasBelow).toBe(false);
+  });
+
+  it('keeps windowing intact once the list outgrows a tall terminal', () => {
+    // The case the old hardcoded 60 rows used to cover by accident: 64 presets
+    // no longer fit in 60 rows, so the window must cap AND flag both directions.
+    const w = computeWindow(PRESETS, 0, 60);
+    expect(w.end).toBeLessThan(PRESETS);
+    expect(w.hasAbove).toBe(false);
+    expect(w.hasBelow).toBe(true);
   });
 
   it('shows markers above and below when the window is centered mid-list', () => {

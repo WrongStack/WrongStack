@@ -1,6 +1,6 @@
 # TUI Theme Presets
 
-WrongStack'in TUI'si **50 tema preset'i** ile gelir. Aktif preset `config.themePreset` alanında saklanır ve `/theme` ile değiştirilir.
+WrongStack'in TUI'si **64 tema preset'i** ile gelir. Aktif preset `config.themePreset` alanında saklanır ve `/theme` ile değiştirilir.
 
 > Bu dosya `packages/tui/src/theme.ts` içindeki canlı paletten üretilmiştir. Elle düzenlemeyin — palet değişirse yeniden üretin.
 
@@ -30,13 +30,13 @@ Seçim aktif profilin config dosyasına yazılır, yani sonraki açılışta da 
 | 9 | `monokai` | Monokai | Monokai | `#1e1f1c` | `#66d9ef` | `#1f3318` | `#3a1f25` |
 | 10 | `rose-pine` | Rosé Pine | Rosé Pine | `#191724` | `#9ccfd8` | `#1f3538` | `#3a2530` |
 | 11 | `kanagawa` | Kanagawa | — | `#16161d` | `#7fb4ca` | `#1f2d1f` | `#321e22` |
-| 12 | `ayu-dark` | Ayu Dark | — | `#0f1419` | `#59c2ff` | `#1c2a1f` | `#2e1c20` |
-| 13 | `everforest` | Everforest | — | `#2d353b` | `#7fbbb3` | `#1f3326` | `#331f25` |
+| 12 | `ayu-dark` | Ayu Dark | Ayu | `#0f1419` | `#59c2ff` | `#1c2a1f` | `#2e1c20` |
+| 13 | `everforest` | Everforest | Everforest | `#2d353b` | `#7fbbb3` | `#1f3326` | `#331f25` |
 | 14 | `night-owl` | Night Owl | — | `#011627` | `#82aaff` | `#0e2e26` | `#2e1722` |
-| 15 | `synthwave` | Synthwave '84 | — | `#1a103a` | `#36f9f6` | `#1f3530` | `#3a1f30` |
-| 16 | `github-dark` | GitHub Dark | — | `#0d1117` | `#58a6ff` | `#0d2f18` | `#3d1418` |
+| 15 | `synthwave` | Synthwave '84 | Synthwave | `#1a103a` | `#36f9f6` | `#1f3530` | `#3a1f30` |
+| 16 | `github-dark` | GitHub Dark | GitHub | `#0d1117` | `#58a6ff` | `#0d2f18` | `#3d1418` |
 | 17 | `material-ocean` | Material Ocean | Material | `#0f111a` | `#89ddff` | `#17301f` | `#331b21` |
-| 18 | `nightfox` | Nightfox | — | `#192330` | `#719cd6` | `#1d3025` | `#33202a` |
+| 18 | `nightfox` | Nightfox | Nightfox | `#192330` | `#719cd6` | `#1d3025` | `#33202a` |
 | 19 | `oxocarbon` | Oxocarbon | — | `#161616` | `#78a9ff` | `#17301f` | `#33182a` |
 | 20 | `catppuccin-macchiato` | Catppuccin Macchiato | Catppuccin | `#1e2030` | `#8bd5ca` | `#26402f` | `#3f242c` |
 | 21 | `catppuccin-frappe` | Catppuccin Frappé | Catppuccin | `#292c3c` | `#81c8be` | `#2c4034` | `#422a32` |
@@ -51,15 +51,15 @@ Seçim aktif profilin config dosyasına yazılır, yani sonraki açılışta da 
 | 30 | `moonfly` | Moonfly | — | `#080808` | `#80a0ff` | `#10301d` | `#331414` |
 | 31 | `melange` | Melange | — | `#292522` | `#a3a9ce` | `#2f3a30` | `#3f2b28` |
 | 32 | `poimandres` | Poimandres | — | `#1b1e28` | `#5de4c7` | `#14352f` | `#35202c` |
-| 33 | `vitesse-dark` | Vitesse Dark | — | `#121212` | `#6394bf` | `#16301f` | `#331d1d` |
+| 33 | `vitesse-dark` | Vitesse Dark | Vitesse | `#121212` | `#6394bf` | `#16301f` | `#331d1d` |
 | 34 | `aura` | Aura Dark | — | `#15141b` | `#82e2ff` | `#14382c` | `#351d23` |
 | 35 | `dark-plus` | VS Code Dark+ | — | `#1e1e1e` | `#569cd6` | `#16351f` | `#3a1d20` |
-| 36 | `monochrome` | Monochrome | — | `#0e0e0e` | `#cccccc` | `#1c1c1c` | `#262626` |
+| 36 | `monochrome` | Monochrome | Monochrome | `#0e0e0e` | `#cccccc` | `#1c1c1c` | `#262626` |
 | 37 | `matrix` | Matrix Green | Monochrome / CRT | `#050a05` | `#22c55e` | `#0b2612` | `#2a0e14` |
 | 38 | `amber` | Amber CRT | Monochrome / CRT | `#0f0a03` | `#ffb000` | `#1a2608` | `#2b0e0a` |
 | 39 | `cyber-noir` | Cyber Noir | Monochrome | `#08090a` | `#e2e8f0` | `#0f291e` | `#2d1217` |
 | 40 | `cobalt-mono` | Cobalt Monochrome | Monochrome | `#040d1a` | `#38bdf8` | `#06281e` | `#2a0e18` |
-| 41 | `blood-moon` | Blood Moon | Monochrome | `#0f0507` | `#f87171` | `#122614` | `#2e080d` |
+| 41 | `blood-moon` | Blood Moon | Monochrome | `#0f0507` | `#ff8f8f` | `#122614` | `#2e080d` |
 | 42 | `cobalt2` | Cobalt2 | — | `#15232d` | `#0088ff` | `#103822` | `#3d0e20` |
 | 43 | `shades-of-purple` | Shades of Purple | — | `#181734` | `#9effff` | `#163628` | `#3b162a` |
 | 44 | `flexoki-dark` | Flexoki Dark | Flexoki | `#100f0f` | `#4385be` | `#192b1a` | `#321919` |
@@ -69,6 +69,20 @@ Seçim aktif profilin config dosyasına yazılır, yani sonraki açılışta da 
 | 48 | `snazzy` | Hyper Snazzy | — | `#1e2029` | `#57c7ff` | `#153826` | `#3b1820` |
 | 49 | `tokyo-night-moon` | Tokyo Night Moon | Tokyo Night | `#1e2030` | `#82aaff` | `#1d3627` | `#3d1e28` |
 | 50 | `gruvbox-dark-hard` | Gruvbox Dark Hard | Gruvbox | `#141617` | `#83a598` | `#1a331a` | `#351a1a` |
+| 51 | `oceanic-next` | Oceanic Next | Oceanic | `#1b2b34` | `#6699cc` | `#344947` | `#593a43` |
+| 52 | `one-half-dark` | One Half Dark | — | `#282c34` | `#61aeee` | `#435145` | `#593d45` |
+| 53 | `ayu-mirage` | Ayu Mirage | Ayu | `#1f2430` | `#73d0ff` | `#37423c` | `#4e3a40` |
+| 54 | `seti` | Seti | VS Code classic | `#151718` | `#55bbc4` | `#3a4628` | `#3c2123` |
+| 55 | `paraiso-dark` | Paraiso Dark | — | `#2f1b24` | `#06b6ef` | `#333735` | `#56292e` |
+| 56 | `darcula` | Darcula | JetBrains | `#2b2b2b` | `#589df6` | `#343731` | `#663c3e` |
+| 57 | `slack-dark` | Slack Aubergine | — | `#350d36` | `#5ddbfa` | `#4b4048` | `#67304e` |
+| 58 | `vitesse-black` | Vitesse Black | Vitesse | `#0a0a0a` | `#6394bf` | `#254236` | `#5e3939` |
+| 59 | `atom-dark` | Atom Dark | — | `#1d1f21` | `#81a2be` | `#3e4231` | `#503435` |
+| 60 | `github-dark-high-contrast` | GitHub Dark High Contrast | GitHub | `#0a0c10` | `#80ccff` | `#316e45` | `#834a44` |
+| 61 | `contrast-max` | Maximum Contrast | Erişilebilirlik | `#000000` | `#4db8ff` | `#00733b` | `#7c2828` |
+| 62 | `colorblind-safe` | Colorblind Safe | Erişilebilirlik | `#171b21` | `#4d9de0` | `#0e5155` | `#5e2d35` |
+| 63 | `sandstone` | Sandstone | — | `#26221d` | `#6f9e8f` | `#414732` | `#4f3431` |
+| 64 | `everforest-hard` | Everforest Hard | Everforest | `#272e33` | `#7fbbb3` | `#313e3d` | `#433a3e` |
 
 ### Açıklamalar
 
@@ -122,7 +136,20 @@ Seçim aktif profilin config dosyasına yazılır, yani sonraki açılışta da 
 - **Hyper Snazzy** (`snazzy`) — Sindre Sorhus' elegant saturated terminal palette
 - **Tokyo Night Moon** (`tokyo-night-moon`) — Tokyo Night on balanced deep indigo — vibrant accents
 - **Gruvbox Dark Hard** (`gruvbox-dark-hard`) — Maximum contrast Gruvbox on deep pitch charcoal
-
+- **Oceanic Next** (`oceanic-next`) — Teal-and-slate classic — calm blue, warm coral
+- **One Half Dark** (`one-half-dark`) — Atom's One Half — One Dark with cleaner contrast
+- **Ayu Mirage** (`ayu-mirage`) — Dusk-slate Ayu, between Dark and Light
+- **Seti** (`seti`) — Long-running VS Code classic — charcoal, gold, cyan
+- **Paraiso Dark** (`paraiso-dark`) — Base16 plum — warm, muted, low-glare
+- **Darcula** (`darcula`) — JetBrains' default dark — grey-green with amber
+- **Slack Aubergine** (`slack-dark`) — Deep aubergine with sky blue and lime
+- **Vitesse Black** (`vitesse-black`) — Vitesse on true black — least glare here
+- **Atom Dark** (`atom-dark`) — The original Atom grey — neutral, low-chroma
+- **GitHub Dark High Contrast** (`github-dark-high-contrast`) — Accessible GitHub — boosted text and borders
+- **Maximum Contrast** (`contrast-max`) — Original — pure black, AAA-targeted text and borders
+- **Colorblind Safe** (`colorblind-safe`) — Original — blue/orange coding, no red-vs-green reliance
+- **Sandstone** (`sandstone`) — Original — warm stone neutrals with sage and clay
+- **Everforest Hard** (`everforest-hard`) — Everforest on its deepest base — more depth, same greens
 ## Bir preset neyi tanımlar
 
 Her preset `Theme` arayüzünün tamamını doldurur (`packages/tui/src/theme.ts`). Anlamlı gruplar:
@@ -144,7 +171,9 @@ Her preset `Theme` arayüzünün tamamını doldurur (`packages/tui/src/theme.ts
 İki dosya, ikisi de derleme zamanında zorunlu tutulur:
 
 1. `packages/core/src/types/config/ui.ts` → `THEME_PRESET_IDS` dizisine id ekleyin. **Bu kanonik listedir.**
-2. `packages/tui/src/theme.ts` → `themePresets` içine palet, `THEME_OPTIONS` içine picker satırı ekleyin.
+2. Palet verisi aile modüllerinde durur: `packages/tui/src/theme-presets/<aile>.ts` (ör. `gruvbox.ts`, `misc-1.ts`) → paleti ekleyin, ve `packages/tui/src/theme-presets/options.ts` → `THEME_OPTIONS` satırını **kanonik sırada** ekleyin. Yepyeni bir aile açıyorsanız `packages/tui/src/theme-presets.ts` index'ine import edip spread etmeniz gerekir.
+
+Her renk anahtarını açıkça yazın, `baseTheme`'den türetmeyin — 14 preset tam olarak bu şekilde kendi paletinin üstünde Catppuccin gövde rengi render ediyordu.
 
 Başka hiçbir yere dokunmayın. CLI `/theme` komutu ve boot adapter geçerli id kümesini `THEME_PRESET_IDS`'ten **türetir**, kendi kopyalarını tutmaz.
 
@@ -167,8 +196,20 @@ Unutursanız `tsc` durdurur:
 | `+` işaretçisi kendi wash'ında okunur | kontrast > 3:1 |
 | `−` işaretçisi kendi wash'ında okunur | kontrast > 3:1 |
 | Wash üstüne terfi ettirilen yorum token'ı okunur | kontrast ≥ 4.5:1 (WCAG AA) |
+| Gövde metni her iki yüzeyde de okunur (`textPrimary` → `surface` ve `surfaceRaised`) | kontrast ≥ 4.5:1 (WCAG AA) |
+| İkincil metin okunur (`textSecondary` → `surface`) | kontrast ≥ 4.5:1 (WCAG AA) |
+| Sessiz metin / kod yorumu kaybolmaz (`textMuted` → `surface`) | kontrast ≥ 3:1 |
+| Vurgu hiyerarşisi korunur | parlaklık: `textPrimary` > `textSecondary` > `textMuted` |
+| Panel çerçevesi yüzeyden ayırt edilir (`borderDefault` → `surface`) | kontrast ≥ 1.3:1 |
+| Odaklı çerçeve belirgindir (`borderActive` → `surface`) | kontrast ≥ 2:1 |
+| Çerçeve tonları kendi aralarında sıralıdır | `borderSubtle`, `borderDefault`'tan daha soluk |
+| Kaldırılmış panel tabandan ayrışır | `surface ≠ surfaceRaised` |
+| İnce ayraç bir kartın üstünde kaybolmaz | `borderSubtle ≠ surfaceRaised`, `≠ surface` |
+| Transkript rolleri birbirine karışmaz | `user` / `assistant` / `tool` üçü de farklı renk |
+| İstem rengi hata rengiyle çakışmaz | `accent ≠ error` |
+| Her preset kendi renk anahtarlarını açıkça yazar | renk sızması (Catppuccin türemesi) yasak |
 
-**Tek belgelenmiş istisna:** `rose-pine`. Paletinde hiç yeşil yoktur — `success` pine (`#31748f`) rengidir ve "eklendi" görünümünü koruyan hiçbir wash 3:1'e ulaşamaz. Test için ayrı bir eşik (2.4) tanımlanmıştır; diğer 34 preset 3:1'de tutulur.
+**Tek belgelenmiş istisna:** `rose-pine`. Paletinde hiç yeşil yoktur — `success` pine (`#31748f`) rengidir ve "eklendi" görünümünü koruyan hiçbir wash 3:1'e ulaşamaz. Test için ayrı bir eşik (2.4) tanımlanmıştır; diğer 63 preset 3:1'de tutulur.
 
 ## Sözdizimi renkleri
 

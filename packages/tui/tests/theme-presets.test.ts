@@ -21,14 +21,15 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { applyWashTokens } from '../src/components/history/code-block.js';
 import { highlightLine } from '../src/highlight.js';
 import {
+  baseTheme,
   getActiveThemeName,
   pastel,
   resolveSyntaxPalette,
   setActiveTheme,
   softColor,
-  theme,
   THEME_OPTIONS,
   type Theme,
+  theme,
   themePresets,
 } from '../src/theme.js';
 
@@ -198,6 +199,76 @@ describe.each(THEME_PRESET_IDS)('preset %s', (id) => {
     expect(resolved, 'promoted comment color must resolve to a hex').toMatch(HEX);
     expect(contrast(resolved, preset.diffAddBg)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(resolved, preset.diffDelBg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('meets the body-text and panel floors the 2026-09 rework established', () => {
+    // Body text carries the transcript, and it is painted on BOTH surfaces:
+    // panels raise to `surfaceRaised`, which is a lighter base than `surface`.
+    expect(contrast(preset.textPrimary, preset.surface), `${id} body`).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(preset.textPrimary, preset.surfaceRaised),
+      `${id} body/raised`,
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(preset.textSecondary, preset.surface),
+      `${id} secondary`,
+    ).toBeGreaterThanOrEqual(4.5);
+    // `textMuted` drives `syntax.comment`. A comment is allowed to recede, but
+    // ten presets sat under 3:1 — effectively invisible — before the rework.
+    expect(contrast(preset.textMuted, preset.surface), `${id} muted`).toBeGreaterThanOrEqual(3);
+    // Emphasis hierarchy. Two new ports shipped `textSecondary` BRIGHTER than
+    // `textPrimary` while chasing a wash rule, which inverts what the reader
+    // is told to prioritise.
+    expect(
+      luminance(preset.textPrimary),
+      `${id} primary not brighter than secondary`,
+    ).toBeGreaterThan(luminance(preset.textSecondary));
+    expect(
+      luminance(preset.textSecondary),
+      `${id} secondary not brighter than muted`,
+    ).toBeGreaterThan(luminance(preset.textMuted));
+    // A panel edge has to be findable, and a raised panel has to be raised.
+    expect(contrast(preset.borderDefault, preset.surface), `${id} border`).toBeGreaterThanOrEqual(
+      1.3,
+    );
+    expect(preset.surface, `${id} has no elevation`).not.toBe(preset.surfaceRaised);
+    expect(preset.borderSubtle, `${id} divider vanishes on a raised card`).not.toBe(
+      preset.surfaceRaised,
+    );
+    expect(preset.borderSubtle, `${id} divider vanishes on the base`).not.toBe(preset.surface);
+    // `borderSubtle` is the quieter sibling of `borderDefault` by definition.
+    expect(
+      contrast(preset.borderSubtle, preset.surface),
+      `${id} borderSubtle outranks borderDefault`,
+    ).toBeLessThan(contrast(preset.borderDefault, preset.surface));
+    expect(
+      contrast(preset.borderActive, preset.surface),
+      `${id} borderActive`,
+    ).toBeGreaterThanOrEqual(2);
+    for (const role of ['success', 'warn', 'error', 'accent'] as const) {
+      expect(contrast(preset[role], preset.surface), `${id} ${role}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('keeps the three transcript roles tellable apart', () => {
+    // USER / ASSISTANT / tool rows are what a reader scans for. Before the
+    // rework, `assistant == tool == accent` in several presets, so tool output
+    // and prose rendered in one colour. `warn` deliberately shares the user hue
+    // (a house convention across the registry), so it is NOT in this set.
+    const roles = [preset.user, preset.assistant, preset.tool];
+    expect(new Set(roles).size, `${id} role colours: ${roles.join(' ')}`).toBe(3);
+    // The prompt colour must never double as the failure colour.
+    expect(preset.accent, `${id} accent == error`).not.toBe(preset.error);
+  });
+
+  it('does not carry Catppuccin body text on a non-Catppuccin palette', () => {
+    // The original bug class, and the reason every colour key is now written
+    // out per preset: 14 presets spread `...baseTheme` and never overrode the
+    // text tokens, so e.g. Gruvbox rendered Mocha's lavender body text.
+    if (id === 'catppuccin') return;
+    for (const key of ['textPrimary', 'textSecondary', 'textMuted'] as const) {
+      expect(preset[key], `${id}.${key} is still the Catppuccin value`).not.toBe(baseTheme[key]);
+    }
   });
 });
 

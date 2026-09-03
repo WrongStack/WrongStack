@@ -63,6 +63,23 @@ export const THEME_PRESET_IDS = [
   'snazzy',
   'tokyo-night-moon',
   'gruvbox-dark-hard',
+  // Added by the 2026-09 theme rework: ports of palettes that were missing,
+  // plus four original palettes aimed at gaps the ports could not fill
+  // (AAA contrast, colour-vision deficiency, warm neutrals, deepest Everforest).
+  'oceanic-next',
+  'one-half-dark',
+  'ayu-mirage',
+  'seti',
+  'paraiso-dark',
+  'darcula',
+  'slack-dark',
+  'vitesse-black',
+  'atom-dark',
+  'github-dark-high-contrast',
+  'contrast-max',
+  'colorblind-safe',
+  'sandstone',
+  'everforest-hard',
 ] as const;
 
 export type ThemePresetId = (typeof THEME_PRESET_IDS)[number];
