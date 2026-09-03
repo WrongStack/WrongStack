@@ -58,7 +58,10 @@ import { useShadowPanel } from './hooks/use-shadow-panel.js';
 import { useSlashPicker } from './hooks/use-slash-picker.js';
 import { useStatusSyncInterval } from './hooks/use-status-sync-interval.js';
 import { useStatusbarViewModel } from './hooks/use-statusbar-view-model.js';
-import { useStatuslineHiddenSync } from './hooks/use-statusline-hidden-sync.js';
+import {
+  useStatuslineHiddenSync,
+  useStatuslineLayoutSync,
+} from './hooks/use-statusline-hidden-sync.js';
 import { useStreamChipExpiration } from './hooks/use-stream-chip-expiration.js';
 import { useThemePickerHandler } from './hooks/use-theme-picker-handler.js';
 import { useThemeState } from './hooks/use-theme-state.js';
@@ -219,6 +222,10 @@ export function App(props: AppProps): React.ReactElement {
     setLiveModeLabel,
     hiddenItems,
     setHiddenItems,
+    lines,
+    setLines,
+    densities,
+    setDensities,
     setSessionCount,
     hiddenItemsRef,
     setMemoryContextMonitor,
@@ -226,6 +233,13 @@ export function App(props: AppProps): React.ReactElement {
     memoryRecordTotalRef,
     setLiveToolCount,
   } = environment;
+
+  // Latest layout, readable from the picker-open callback without making it
+  // depend on (and re-create for) every layout keystroke.
+  const linesRef = React.useRef(lines);
+  linesRef.current = lines;
+  const densitiesRef = React.useRef(densities);
+  densitiesRef.current = densities;
 
   const projectRoot = agent.ctx.projectRoot;
   const sessionTodos = useLiveTodos(agent.ctx);
@@ -301,6 +315,17 @@ export function App(props: AppProps): React.ReactElement {
     pickerHidden: state.statuslinePicker.hiddenItems,
     hiddenItems,
     setHiddenItems: (items) => setHiddenItems(items as typeof hiddenItems),
+  });
+
+  useStatuslineLayoutSync({
+    pickerOpen: state.statuslinePicker.open,
+    layoutSeeded: state.statuslinePicker.layoutSeeded,
+    pickerLines: state.statuslinePicker.lines,
+    pickerDensities: state.statuslinePicker.densities,
+    lines,
+    densities,
+    setLines,
+    setDensities,
   });
 
   useStreamChipExpiration({
@@ -432,9 +457,16 @@ export function App(props: AppProps): React.ReactElement {
       if (field !== undefined) {
         dispatch({ type: 'statuslineFieldSet', field });
       }
-      dispatch({ type: 'statuslineOpen', hiddenItems: statuslineHiddenForPicker() });
+      // Seed the editor from the live layout so the picker opens showing what
+      // the bar is actually rendering, not the contract defaults.
+      dispatch({
+        type: 'statuslineOpen',
+        hiddenItems: statuslineHiddenForPicker(),
+        lines: linesRef.current,
+        densities: densitiesRef.current,
+      });
     },
-    [dispatch, statuslineHiddenForPicker],
+    [dispatch, statuslineHiddenForPicker, linesRef, densitiesRef],
   );
 
   const { mouseMode, setMouseMode, nativeMouse, setNativeMouse } = useMouseTracking({

@@ -28,9 +28,9 @@ describe('computeRailSpans (hit-test geometry)', () => {
       120,
     );
     expect(spans).toEqual([
-      { id: 'yolo', start: 0, len: 4 },
-      { id: 'model', start: 6, len: 'openai/gpt-5.6'.length },
-      { id: 'state', start: 6 + 'openai/gpt-5.6'.length + 2, len: 4 },
+      { id: 'yolo', start: 0, len: 4, level: 0 },
+      { id: 'model', start: 6, len: 'openai/gpt-5.6'.length, level: 0 },
+      { id: 'state', start: 6 + 'openai/gpt-5.6'.length + 2, len: 4, level: 0 },
     ]);
   });
 
@@ -49,7 +49,7 @@ describe('computeRailSpans (hit-test geometry)', () => {
 
   it('always keeps the first segment even when over budget', () => {
     const spans = computeRailSpans([{ id: 'a', node: chip('aaaaaaaaaa') }], 4);
-    expect(spans).toEqual([{ id: 'a', start: 0, len: 10 }]);
+    expect(spans).toEqual([{ id: 'a', start: 0, len: 10, level: 0 }]);
   });
 
   it('trims trailing segments to make room for a right anchor', () => {
@@ -75,6 +75,46 @@ describe('computeRailSpans (hit-test geometry)', () => {
 
   it('returns no spans for an empty rail', () => {
     expect(computeRailSpans([], 80)).toEqual([]);
+  });
+
+  it('shortens the widest chip before it drops any chip', () => {
+    const spans = computeRailSpans(
+      [
+        { id: 'fat', node: chip('a'.repeat(40)), alt: [chip('a'.repeat(8))] },
+        { id: 'thin', node: chip('bbbb') },
+      ],
+      30,
+    );
+    // Both survive: the fitter concedes detail, not chips.
+    expect(spans.map((s) => s.id)).toEqual(['fat', 'thin']);
+    expect(spans[0]!.level).toBe(1);
+    expect(spans[0]!.len).toBe(8);
+  });
+
+  it('drops only once every chip is at its narrowest level', () => {
+    const spans = computeRailSpans(
+      [
+        { id: 'a', node: chip('a'.repeat(20)), alt: [chip('aaaaa')] },
+        { id: 'b', node: chip('b'.repeat(20)), alt: [chip('bbbbb')] },
+        { id: 'c', node: chip('c'.repeat(20)), alt: [chip('ccccc')] },
+      ],
+      14,
+    );
+    expect(spans.map((s) => s.id)).toEqual(['a']);
+    expect(spans[0]!.level).toBe(1);
+  });
+
+  it('honours a pinned density: a chip with lo===hi never degrades', () => {
+    const spans = computeRailSpans(
+      [
+        { id: 'pinned', node: chip('P'.repeat(20)), alt: [chip('P')], lo: 0, hi: 0 },
+        { id: 'free', node: chip('f'.repeat(20)), alt: [chip('f')] },
+      ],
+      24,
+    );
+    expect(spans[0]!.level).toBe(0);
+    expect(spans[0]!.len).toBe(20);
+    expect(spans[1]!.level).toBe(1);
   });
 });
 

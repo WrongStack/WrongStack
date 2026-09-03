@@ -1,3 +1,4 @@
+import { effectiveLine } from '@wrongstack/core/statusline';
 import { brainPanelRows } from '../brain-panel-model.js';
 import type { KeyEvent } from '../components/input.js';
 import { filterResourceMenuItems } from '../components/resource-menu.js';
@@ -569,8 +570,17 @@ export function tryToolsSettingsPickerKeys(
 
   // ── Statusline picker ─────────────────────────────────────
   if (state.statuslinePicker.open) {
+    const focused = STATUSLINE_ITEMS[state.statuslinePicker.field];
+    const filtering = state.statuslinePicker.filtering;
+
     if (key.escape) {
-      dispatch({ type: 'statuslineClose' });
+      // Esc backs out of filter capture first, then closes the panel — the
+      // same two-stage escape the project/settings pickers use.
+      if (filtering || state.statuslinePicker.filter) {
+        dispatch({ type: 'statuslineFilter', text: '', filtering: false });
+      } else {
+        dispatch({ type: 'statuslineClose' });
+      }
       return true;
     }
     if (key.mouse?.kind === 'wheel') {
@@ -586,11 +596,57 @@ export function tryToolsSettingsPickerKeys(
       return true;
     }
     if (key.mouse) return true;
-    if (key.leftArrow || key.rightArrow || isEnter) {
-      const focused = STATUSLINE_ITEMS[state.statuslinePicker.field];
-      if (focused) {
-        dispatch({ type: 'statuslineToggle', item: focused });
+
+    // Filter capture owns printable keys while active, so a chip name can be
+    // typed without every letter firing a layout command.
+    if (filtering) {
+      if (isEnter) {
+        dispatch({ type: 'statuslineFilter', filtering: false });
+        return true;
       }
+      if (key.backspace || key.delete) {
+        dispatch({
+          type: 'statuslineFilter',
+          text: state.statuslinePicker.filter.slice(0, -1),
+        });
+        return true;
+      }
+      if (input && input.length === 1 && input >= ' ' && input <= '~') {
+        dispatch({ type: 'statuslineFilter', text: state.statuslinePicker.filter + input });
+        return true;
+      }
+      return true;
+    }
+
+    if (input === '/') {
+      dispatch({ type: 'statuslineFilter', filtering: true });
+      return true;
+    }
+    if (key.leftArrow || key.rightArrow || isEnter) {
+      if (focused) dispatch({ type: 'statuslineToggle', item: focused });
+      return true;
+    }
+    if (focused && input && input >= '1' && input <= '4') {
+      dispatch({ type: 'statuslineSetLine', item: focused, line: Number(input) as 1 | 2 | 3 | 4 });
+      return true;
+    }
+    if (focused && (input === '[' || input === ']')) {
+      dispatch({ type: 'statuslineMoveLine', item: focused, delta: input === '[' ? -1 : 1 });
+      return true;
+    }
+    if (focused && (input === 'd' || input === 'D')) {
+      dispatch({ type: 'statuslineSetDensity', item: focused });
+      return true;
+    }
+    if (focused && (input === 'a' || input === 'A')) {
+      dispatch({
+        type: 'statuslineToggleLine',
+        line: effectiveLine(focused, state.statuslinePicker.lines),
+      });
+      return true;
+    }
+    if (input === 'r' || input === 'R') {
+      dispatch({ type: 'statuslineResetLayout' });
       return true;
     }
     return true;

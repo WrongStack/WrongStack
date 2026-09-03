@@ -46,10 +46,9 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
 
   it('lists items in render order within each line (mirrors the rails)', () => {
     // The exact left-to-right render order of each rail, so picker
-    // navigation mirrors what the user sees on screen. Updated for the
-    // 2026-08-27 re-map: theme/sessions/tools moved to the line-1 tail and
-    // line 2 became urgency-first (breaker leads the dynamic block, hint —
-    // ephemeral notices — is last so overflow drops it first).
+    // navigation mirrors what the user sees on screen. Lines are grouped by
+    // VOLATILITY: identity is static, vitals redraw every token, safety &
+    // work change a few times a turn, async comes and goes on its own.
     const expected: Record<number, StatuslineItem[]> = {
       1: [
         'project',
@@ -63,34 +62,32 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
         'tools',
         'version',
       ],
-      2: [
-        'state',
+      2: ['state', 'context', 'tokens', 'cost', 'cache', 'elapsed', 'queue', 'hint', 'index'],
+      3: [
         'yolo',
         'autonomy',
         'eternal_stage',
         'breaker',
-        'context',
-        'tokens',
-        'cost',
-        'cache',
-        'queue',
-        'processes',
-        'elapsed',
         'token_saving',
+        'processes',
         'side_effects',
-        'hint',
-      ],
-      3: [
+        'dropped_tools',
         'goal',
         'todos',
         'plan',
         'tasks',
+      ],
+      4: [
+        'fleet',
+        'fleet_agents',
+        'mailbox',
+        'brain',
+        'debug_stream',
+        'memory_context',
         'next_steps',
         'auto_proceed',
         'enhance',
-        'dropped_tools',
       ],
-      4: ['fleet', 'fleet_agents', 'mailbox', 'brain', 'debug_stream', 'memory_context', 'index'],
     };
     for (const [line, items] of Object.entries(expected)) {
       const actual = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === Number(line));
@@ -98,45 +95,49 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
     }
   });
 
-  it('groups codebase index server status on line 4 (connectivity & services)', () => {
-    expect(ITEM_LINE.index).toBe(4);
-
-    const line4Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 4);
-    expect(line4Items).toContain('index');
-
-    const line3Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 3);
-    expect(line3Items).not.toContain('index');
+  it('anchors index beside the vitals it reports on, not on the async rail', () => {
+    expect(ITEM_LINE.index).toBe(2);
+    expect(STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 2)).toContain('index');
   });
 
-  it('groups memory_context on line 4 (connectivity & services)', () => {
-    expect(ITEM_LINE.memory_context).toBe(4);
-
-    const line4Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 4);
-    expect(line4Items).toContain('memory_context');
-
-    const line3Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 3);
-    expect(line3Items).not.toContain('memory_context');
+  it('keeps the ephemeral hint on the vitals rail so no rail strobes for it', () => {
+    // `hint` appears and disappears several times within one turn. On a
+    // conditional rail that would open and close the whole rail; on line 2
+    // (which always renders) it is simply the first chip overflow sheds.
+    expect(ITEM_LINE.hint).toBe(2);
+    const line2 = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 2);
+    expect(line2[line2.length - 1]).toBe('index');
+    expect(line2[line2.length - 2]).toBe('hint');
   });
 
-  it('places goal on line 3 (active work) and eternal_stage on line 2 (run state)', () => {
-    expect(ITEM_LINE.goal).toBe(3);
-    expect(ITEM_LINE.eternal_stage).toBe(2);
-    expect(ITEM_LINE.auto_proceed).toBe(3);
-
-    const line3Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 3);
-    expect(line3Items).toContain('goal');
-    expect(line3Items).toContain('auto_proceed');
-
-    const line2Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 2);
-    expect(line2Items).toContain('eternal_stage');
-    expect(line2Items).not.toContain('goal');
+  it('groups memory_context and the fleet with the other async activity', () => {
+    for (const item of ['memory_context', 'fleet', 'fleet_agents', 'mailbox'] as const) {
+      expect(ITEM_LINE[item]).toBe(4);
+    }
   });
 
-  it('places side_effects on line 2 (run state & safety)', () => {
-    expect(ITEM_LINE.side_effects).toBe(2);
+  it('groups every countdown on the async rail', () => {
+    for (const item of ['next_steps', 'auto_proceed', 'enhance'] as const) {
+      expect(ITEM_LINE[item]).toBe(4);
+    }
+  });
 
-    const line2Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 2);
-    expect(line2Items).toContain('side_effects');
+  it('puts the safety posture ahead of the work boards on line 3', () => {
+    const line3 = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 3);
+    expect(line3.indexOf('yolo')).toBeLessThan(line3.indexOf('todos'));
+    expect(line3.indexOf('breaker')).toBeLessThan(line3.indexOf('goal'));
+    for (const item of ['yolo', 'autonomy', 'eternal_stage', 'breaker', 'side_effects'] as const) {
+      expect(ITEM_LINE[item]).toBe(3);
+    }
+  });
+
+  it('splits the telemetry composite into four independently placeable chips', () => {
+    // They used to render as one atomic `primary-0` entry, which silently
+    // ignored per-chip line assignment for tokens/cost/cache.
+    for (const item of ['context', 'tokens', 'cost', 'cache'] as const) {
+      expect(ITEM_LINE[item]).toBe(2);
+      expect(STATUSLINE_ITEMS).toContain(item);
+    }
   });
 
   it('has no duplicate items', () => {

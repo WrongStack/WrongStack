@@ -6,7 +6,7 @@ import type {
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { StatuslineLines } from '@wrongstack/core/statusline';
+import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 import type { QueueStore } from '@wrongstack/core/storage';
 import type {
   AttachmentStore,
@@ -361,6 +361,10 @@ export interface RunTuiOptions {
   statuslineLines?: StatuslineLines | undefined;
   setStatuslineLines?: (lines: StatuslineLines) => void;
   saveStatuslineLines?: (lines: StatuslineLines) => Promise<void>;
+  /** Per-chip density pin (statusline.json schema v3). */
+  statuslineDensities?: StatuslineDensities | undefined;
+  setStatuslineDensities?: (densities: StatuslineDensities) => void;
+  saveStatuslineDensities?: (densities: StatuslineDensities) => Promise<void>;
   /**
    * Controller for the agents monitor overlay. App installs a dispatch-backed
    * setter on mount so the `/agents on|off` slash command can toggle the

@@ -15,7 +15,7 @@
 // happens to mount first.
 
 import { useState } from 'react';
-import type { StatuslineLines } from '@wrongstack/core/statusline';
+import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 import type { StatuslineItem } from '../components/statusline-picker.js';
 
 export type AutonomyStage = 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel';
@@ -44,6 +44,8 @@ interface UseStatuslineStateOptions {
   statuslineHiddenItems: Set<string> | readonly string[];
   /** Per-chip line assignment (schema v2); absent keys use DEFAULT_LINES. */
   statuslineLines?: StatuslineLines | undefined;
+  /** Per-chip density pin (schema v3); absent keys leave the rail fitter free. */
+  statuslineDensities?: StatuslineDensities | undefined;
 }
 
 interface UseStatuslineState {
@@ -63,6 +65,8 @@ interface UseStatuslineState {
   setHiddenItems: (v: StatuslineHiddenItem[]) => void;
   lines: StatuslineLines;
   setLines: (v: StatuslineLines) => void;
+  densities: StatuslineDensities;
+  setDensities: (v: StatuslineDensities) => void;
   sessionCount: number;
   setSessionCount: (v: number) => void;
 }
@@ -91,6 +95,7 @@ export function useStatuslineState(opts: UseStatuslineStateOptions): UseStatusli
       : [...(opts.statuslineHiddenItems as readonly string[])]) as StatuslineHiddenItem[],
   );
   const [lines, setLines] = useState<StatuslineLines>(opts.statuslineLines ?? {});
+  const [densities, setDensities] = useState<StatuslineDensities>(opts.statuslineDensities ?? {});
   const [sessionCount, setSessionCount] = useState<number>(0);
 
   return {
@@ -110,6 +115,8 @@ export function useStatuslineState(opts: UseStatuslineStateOptions): UseStatusli
     setHiddenItems,
     lines,
     setLines,
+    densities,
+    setDensities,
     sessionCount,
     setSessionCount,
   };

@@ -86,6 +86,7 @@ export function AppViewPickers({
     refineModel,
     setEnhanceCountdown,
     enhanceDelayMs,
+    statusBarClickMapRef,
   } = runtime;
   const { nowTick, enhanceDots } = activity;
   const { setYoloLive } = environment;
@@ -272,8 +273,15 @@ export function AppViewPickers({
         <StatuslinePicker
           field={state.statuslinePicker.field}
           hiddenItems={state.statuslinePicker.hiddenItems}
+          lines={state.statuslinePicker.lines}
+          densities={state.statuslinePicker.densities}
           visibleChips={state.statuslinePicker.visibleChips}
+          filter={state.statuslinePicker.filter}
+          filtering={state.statuslinePicker.filtering}
           hint={state.statuslinePicker.hint}
+          // Real geometry from the bar's last render — the fill gauges are
+          // measured, not estimated.
+          clickMap={statusBarClickMapRef.current}
         />
       ) : null}
       {state.pluginPicker.open ? (

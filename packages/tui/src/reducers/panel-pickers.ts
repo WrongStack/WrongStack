@@ -1,7 +1,19 @@
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
 import { brainPanelRows } from '../brain-panel-model.js';
-import { type ChipMeta, STATUSLINE_FIELD_COUNT } from '../components/statusline-picker.js';
+import {
+  clampLine,
+  effectiveDensity,
+  effectiveLine,
+  LINE_TITLES,
+  STATUSLINE_ITEMS,
+} from '@wrongstack/core/statusline';
+import {
+  type ChipMeta,
+  navigableFields,
+  nextDensity,
+  STATUSLINE_FIELD_COUNT,
+} from '../components/statusline-picker.js';
 import { closePanels } from './helpers.js';
 
 const panelPickerActionTypes = [
@@ -10,6 +22,12 @@ const panelPickerActionTypes = [
   'statuslineFieldMove',
   'statuslineFieldSet',
   'statuslineToggle',
+  'statuslineSetLine',
+  'statuslineMoveLine',
+  'statuslineSetDensity',
+  'statuslineToggleLine',
+  'statuslineResetLayout',
+  'statuslineFilter',
   'statuslineHint',
   'statuslineChipShow',
   'statuslineChipExpire',
@@ -75,6 +93,11 @@ export function reducePanelPickers(state: State, action: PanelPickerAction): Sta
           field: 0,
           hiddenItems: action.hiddenItems,
           visibleChips: state.statuslinePicker.visibleChips,
+          lines: action.lines ?? state.statuslinePicker.lines,
+          densities: action.densities ?? state.statuslinePicker.densities,
+          filter: '',
+          filtering: false,
+          layoutSeeded: action.lines != null || action.densities != null,
           hint: undefined,
         },
       };
@@ -84,8 +107,13 @@ export function reducePanelPickers(state: State, action: PanelPickerAction): Sta
         statuslinePicker: { ...state.statuslinePicker, open: false, hint: undefined },
       };
     case 'statuslineFieldMove': {
-      const totalFields = STATUSLINE_FIELD_COUNT;
-      const next = (state.statuslinePicker.field + action.delta + totalFields) % totalFields;
+      // Navigation walks the FILTERED fields so `/cost` + ↓ doesn't stall on
+      // rows the picker isn't drawing. With no filter this is the plain
+      // wrap-around over STATUSLINE_ITEMS the mouse hit-test assumes.
+      const fields = navigableFields(state.statuslinePicker.filter);
+      const at = fields.indexOf(state.statuslinePicker.field);
+      const from = at >= 0 ? at : 0;
+      const next = fields[(from + action.delta + fields.length) % fields.length]!;
       return {
         ...state,
         statuslinePicker: { ...state.statuslinePicker, field: next, hint: undefined },
@@ -107,6 +135,99 @@ export function reducePanelPickers(state: State, action: PanelPickerAction): Sta
       return {
         ...state,
         statuslinePicker: { ...cur, hiddenItems: [...hiddenSet] as typeof cur.hiddenItems },
+      };
+    }
+    case 'statuslineSetLine': {
+      const cur = state.statuslinePicker;
+      // Report the CLAMPED line: a raw out-of-range value would otherwise
+      // store 4 while telling the user it went to 9.
+      const line = clampLine(action.line);
+      return {
+        ...state,
+        statuslinePicker: {
+          ...cur,
+          lines: { ...cur.lines, [action.item]: line },
+          layoutSeeded: true,
+          hint: `${action.item} → line ${line} (${LINE_TITLES[line]})`,
+        },
+      };
+    }
+    case 'statuslineMoveLine': {
+      const cur = state.statuslinePicker;
+      const current = effectiveLine(action.item, cur.lines);
+      // Wrap within 1-4 so `[` on line 1 lands on line 4 rather than sticking.
+      const next = clampLine(((current - 1 + action.delta + 4) % 4) + 1);
+      return {
+        ...state,
+        statuslinePicker: {
+          ...cur,
+          lines: { ...cur.lines, [action.item]: next },
+          layoutSeeded: true,
+          hint: `${action.item} → line ${next} (${LINE_TITLES[next]})`,
+        },
+      };
+    }
+    case 'statuslineSetDensity': {
+      const cur = state.statuslinePicker;
+      const current = effectiveDensity(action.item, cur.densities);
+      const next = action.density ?? nextDensity(current);
+      const densities = { ...cur.densities };
+      // 'auto' is the absence of a pin, so it is deleted rather than stored —
+      // the persisted document stays sparse.
+      if (next === 'auto') delete densities[action.item];
+      else densities[action.item] = next;
+      return {
+        ...state,
+        statuslinePicker: {
+          ...cur,
+          densities,
+          layoutSeeded: true,
+          hint: `${action.item} density: ${next}`,
+        },
+      };
+    }
+    case 'statuslineToggleLine': {
+      const cur = state.statuslinePicker;
+      const onLine = STATUSLINE_ITEMS.filter(
+        (item) => effectiveLine(item, cur.lines) === action.line,
+      );
+      const hiddenSet = new Set(cur.hiddenItems);
+      const anyVisible = onLine.some((item) => !hiddenSet.has(item));
+      for (const item of onLine) {
+        if (anyVisible) hiddenSet.add(item);
+        else hiddenSet.delete(item);
+      }
+      return {
+        ...state,
+        statuslinePicker: {
+          ...cur,
+          hiddenItems: [...hiddenSet] as typeof cur.hiddenItems,
+          hint: `line ${action.line}: ${anyVisible ? 'all off' : 'all on'}`,
+        },
+      };
+    }
+    case 'statuslineResetLayout':
+      return {
+        ...state,
+        statuslinePicker: {
+          ...state.statuslinePicker,
+          lines: {},
+          densities: {},
+          layoutSeeded: true,
+          hint: 'layout reset — default lines and densities restored',
+        },
+      };
+    case 'statuslineFilter': {
+      const cur = state.statuslinePicker;
+      const filter = action.text ?? cur.filter;
+      const filtering = action.filtering ?? cur.filtering;
+      // Keep the selection on a row that survives the new filter, so the
+      // list never shows a highlight the user cannot see.
+      const fields = navigableFields(filter);
+      const field = fields.includes(cur.field) ? cur.field : (fields[0] ?? 0);
+      return {
+        ...state,
+        statuslinePicker: { ...cur, filter, filtering, field, hint: undefined },
       };
     }
     case 'statuslineHint':

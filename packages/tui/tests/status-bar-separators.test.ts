@@ -124,7 +124,7 @@ describe('StatusBar chip separators', () => {
     expect(frame).toContain('indexing 12/40 · connected #4242');
   });
 
-  it('places index-server status on the final memory/service line instead of line 1', () => {
+  it('right-anchors index status on the vitals rail, not the identity rail', () => {
     const frame = frameOf({
       Sage: { total: 6261, activeInContext: 3 },
       indexState: {
@@ -137,9 +137,12 @@ describe('StatusBar chip separators', () => {
     });
     const lines = frame.split('\n');
 
+    // Identity (line 1) never carries live service state...
     expect(lines[0]).not.toContain('index connected');
+    // ...the index chip anchors to the right of the vitals rail it reports on...
+    expect(lines[1]).toContain('index connected #4242');
+    // ...and the memory counters live on the async rail below.
     expect(lines.at(-1)).toContain('6261 total');
-    expect(lines.at(-1)).toContain('index connected #4242');
   });
 
   it('shows total SAGE records and the active-in-context summary', () => {
@@ -302,9 +305,9 @@ describe('StatusBar chip separators', () => {
     view.unmount();
   });
 
-  it('line 2: separates the run-state chips (state, yolo, autonomy)', () => {
-    // Autonomy moved to the run-state rail (line 2) with state and yolo,
-    // while project leads the workspace rail (line 1).
+  it('splits identity, vitals and posture across their own rails', () => {
+    // Lines are grouped by volatility: project on identity (1), the run
+    // state on vitals (2), the autonomy posture on safety & work (3).
     const frame = frameOf({
       autonomy: 'auto',
       projectName: 'proj',
@@ -313,9 +316,11 @@ describe('StatusBar chip separators', () => {
     });
     expect(frame).toContain('∞ AUTO');
     expect(frame).toContain('▣ proj');
-    const [line1 = '', line2 = ''] = frame.split('\n');
+    const [line1 = '', line2 = '', line3 = ''] = frame.split('\n');
     expect(line1).toMatch(/^▣ proj.*anthropic\/claude/);
-    expect(line2).toMatch(/● idle.*AUTO/);
+    expect(line2).toContain('● idle');
+    expect(line2).not.toContain('AUTO');
+    expect(line3).toContain('∞ AUTO');
   });
 
   it('separates the task chip (line 3) from the fleet chip (line 4)', () => {
@@ -352,8 +357,11 @@ describe('StatusBar chip separators', () => {
     });
     // Line 2 is the run-state rail: state first, then the permission band
     // (yolo, autonomy), with separators between all adjacent chips.
-    const line2 = frame.split('\n').find((l) => l.includes('YOLO')) ?? '';
-    expect(line2).toMatch(/● idle.*! YOLO.*∞ ETERNAL/);
+    const lines = frame.split('\n');
+    const safety = lines.find((l) => l.includes('YOLO')) ?? '';
+    expect(safety).toMatch(/! YOLO.*∞ ETERNAL/);
+    expect(lines[1]).toContain('● idle');
+    expect(lines[1]).not.toContain('YOLO');
   });
 
   it('hides mailbox line content when mailbox is disabled', () => {
@@ -444,47 +452,28 @@ describe('StatusBar chip separators', () => {
     expect(frame).toContain('✉ 0');
   });
 
-  it('right-anchors the index-server chip so its column stays put while memory counters grow', () => {
-    // Find the right-edge column of "index connected #4242" on the last
-    // line under two different memory-detail widths, and assert the column
-    // is identical — that's the regression check for the statusline
-    // jitter that previously moved the index chip every heartbeat as
-    // matched/injected/filtered counts and "ctx N%" updated.
-    const narrow = frameOf({
-      Sage: { total: 6261, activeInContext: 3 },
-      indexState: {
-        ready: true,
-        indexing: false,
-        currentFile: 0,
-        totalFiles: 0,
-        server: { status: 'connected', connected: true, pid: 4242 },
-      },
-    });
+  it('right-anchors the index chip so its column stays put while the rail grows', () => {
+    // Regression check for the statusline jitter that moved the index chip
+    // every heartbeat as the vitals beside it updated. The chip anchors to
+    // the rail's right edge, so its trailing column must be identical
+    // regardless of how wide the left-hand chips get.
+    const indexState = {
+      ready: true,
+      indexing: false,
+      currentFile: 0,
+      totalFiles: 0,
+      server: { status: 'connected' as const, connected: true, pid: 4242 },
+    };
+    const narrow = frameOf({ indexState, hint: 'ok' });
     const wide = frameOf({
-      Sage: { total: 6261, activeInContext: 3 },
-      memoryContextMonitor: {
-        memories: {},
-        transitions: [],
-        latest: {
-          at: '2026-07-28T00:00:00.000Z',
-          matched: 12,
-          injected: 9,
-          filtered: 4,
-          trigger: 'auth-refactor-bug',
-          contextPressure: 0.5,
-          injectedChars: 12345,
-        },
-      },
-      indexState: {
-        ready: true,
-        indexing: false,
-        currentFile: 0,
-        totalFiles: 0,
-        server: { status: 'connected', connected: true, pid: 4242 },
-      },
+      indexState,
+      hint: 'a much longer transient notice that widens the vitals rail',
+      queueCount: 3,
+      context: { used: 25_000, max: 100_000 },
     });
 
-    const lastLineOf = (f: string) => f.split('\n').at(-1) ?? '';
+    const vitalsLineOf = (f: string) =>
+      f.split('\n').find((l) => l.includes('index connected #4242')) ?? '';
     const endColumn = (line: string, needle: string) => {
       const idx = line.indexOf(needle);
       if (idx < 0) return -1;
@@ -495,13 +484,9 @@ describe('StatusBar chip separators', () => {
       return col;
     };
 
-    // The index chip is the rightmost content on the last line in both
-    // cases. Asserting its trailing column is identical is the proof
-    // that the right-anchored geometry holds the chip steady regardless
-    // of how wide the memory counters grow.
-    expect(endColumn(lastLineOf(narrow), 'index connected #4242')).toBeGreaterThan(0);
-    expect(endColumn(lastLineOf(wide), 'index connected #4242')).toBe(
-      endColumn(lastLineOf(narrow), 'index connected #4242'),
+    expect(endColumn(vitalsLineOf(narrow), 'index connected #4242')).toBeGreaterThan(0);
+    expect(endColumn(vitalsLineOf(wide), 'index connected #4242')).toBe(
+      endColumn(vitalsLineOf(narrow), 'index connected #4242'),
     );
   });
 });

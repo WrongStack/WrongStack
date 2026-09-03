@@ -1,5 +1,6 @@
 import type React from 'react';
 import {
+  clampLine,
   DEFAULT_LINES,
   STATUSLINE_ITEMS,
   type StatuslineItem,
@@ -8,9 +9,9 @@ import {
 } from '@wrongstack/core/statusline';
 import type { RailSpanEntry } from './powerline-rail.js';
 import {
-  buildConnectivityChipEntries,
-  buildRunStateChipEntries,
-  buildWorkRowEntries,
+  buildAsyncChipEntries,
+  buildSafetyWorkEntries,
+  buildVitalsChipEntries,
   buildWorkspaceChipEntries,
   type StatusBarRailBuildParams,
 } from './status-bar-rails.js';
@@ -25,8 +26,8 @@ import {
  * canonical chip key, applies the user's per-chip line assignment
  * (`StatuslineLines`), and places the right-anchored chips (version, index)
  * on their assigned line. With default lines the partition is byte-identical
- * to the pre-registry four-rail composition, which the
- * `status-bar-rail-order` / `status-bar-separators` suites pin.
+ * to the builders' own grouping, which the `status-bar-rail-order` /
+ * `status-bar-separators` suites pin.
  */
 
 /** A rail (physical status bar line) in the detailed layout: left chips in
@@ -37,19 +38,27 @@ export interface DetailedRail {
 }
 
 /**
- * Map a rail entry id to its canonical statusline chip key.
- *
- * Composite and detail spans carry synthetic ids that travel with their
- * parent chip: `primary-0` is the ctx·tokens·cost·cache telemetry composite
- * (key `context`), `detail-N` are the mailbox peer/detail chips (key
- * `mailbox`), and `memory-N` are the memory-context group (key
- * `memory_context`). Returns null for ids outside the contract — those fall
- * back to their builder's default line.
+ * Rail entry ids that are extra spans of a parent chip rather than chips of
+ * their own. They travel with the parent's line assignment and density, and
+ * exist only so the fitter can shed the 4th mailbox detail without shedding
+ * the mailbox counter, and so the hit-test keeps unique span ids.
+ */
+const SPAN_ALIASES: Record<string, StatuslineItem> = {
+  mailbox_peers: 'mailbox',
+  mailbox_last: 'mailbox',
+  memory_pipeline: 'memory_context',
+  memory_pressure: 'memory_context',
+};
+
+/**
+ * Map a rail entry id to its canonical statusline chip key. Returns null for
+ * ids outside the contract — those fall back to their builder's default line.
  */
 export function canonicalChipKey(entryId: string): StatuslineItem | null {
-  if (entryId === 'primary-0') return 'context';
-  if (entryId.startsWith('detail-')) return 'mailbox';
-  if (entryId.startsWith('memory-')) return 'memory_context';
+  const alias = SPAN_ALIASES[entryId];
+  if (alias) return alias;
+  // Per-agent rows: `fleet_agent-3` is the 4th agent of the fleet_agents group.
+  if (entryId.startsWith('fleet_agent-')) return 'fleet_agents';
   return (STATUSLINE_ITEMS as readonly string[]).includes(entryId)
     ? (entryId as StatuslineItem)
     : null;
@@ -62,8 +71,8 @@ function assignedLine(
   lines: StatuslineLines,
 ): StatuslineLine {
   const override = key != null ? lines[key] : undefined;
-  const line = override ?? (key != null ? DEFAULT_LINES[key] : fallback);
-  return Math.min(4, Math.max(1, line)) as StatuslineLine;
+  if (override != null) return clampLine(override);
+  return key != null ? DEFAULT_LINES[key] : fallback;
 }
 
 /** One builder's output plus the line its unmapped ids fall back to. */
@@ -113,6 +122,9 @@ function placeAnchors(
 export interface DetailedRailBuildOptions {
   /** Pre-built provider/model chip (status-bar.tsx owns its dim-provider styling). */
   modelChip: React.ReactElement | null;
+  /** Narrower model renderings for the density fitter (model only, provider dropped). */
+  modelShortChip?: React.ReactElement | null;
+  modelMicroChip?: React.ReactElement | null;
   /** `v{version} (update …)` chip, right-anchored on its assigned line. */
   versionChip: React.ReactElement | null;
   /** Codebase-index health chip, right-anchored on its assigned line. */
@@ -123,9 +135,10 @@ export interface DetailedRailBuildOptions {
 
 /**
  * Build the four detailed-mode rails: run the rail builders (which apply
- * each chip's data + hidden gates), then partition the surviving entries by
- * the user's line assignment. Rails are returned in logical order 1–4;
- * rendering/click-map code decides which rails render.
+ * each chip's data + hidden gates and attach its density levels), then
+ * partition the surviving entries by the user's line assignment. Rails are
+ * returned in logical order 1–4; rendering/click-map code decides which
+ * rails render.
  */
 export function buildDetailedRails(
   p: StatusBarRailBuildParams,
@@ -134,10 +147,18 @@ export function buildDetailedRails(
   const lines = opts.lines ?? {};
   const rails = partitionRailEntries(
     [
-      { entries: buildWorkspaceChipEntries(p, opts.modelChip), fallbackLine: 1 },
-      { entries: buildRunStateChipEntries(p), fallbackLine: 2 },
-      { entries: buildWorkRowEntries(p), fallbackLine: 3 },
-      { entries: buildConnectivityChipEntries(p), fallbackLine: 4 },
+      {
+        entries: buildWorkspaceChipEntries(
+          p,
+          opts.modelChip,
+          opts.modelShortChip,
+          opts.modelMicroChip,
+        ),
+        fallbackLine: 1,
+      },
+      { entries: buildVitalsChipEntries(p), fallbackLine: 2 },
+      { entries: buildSafetyWorkEntries(p), fallbackLine: 3 },
+      { entries: buildAsyncChipEntries(p), fallbackLine: 4 },
     ],
     lines,
   );

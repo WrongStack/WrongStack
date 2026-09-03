@@ -21,7 +21,7 @@ import { QueuePanel } from './components/queue-panel.js';
 import { SddBoardOverlay } from './components/sdd-board-overlay.js';
 import { SessionsPanel } from './components/sessions-panel.js';
 import { StatusBar } from './components/status-bar.js';
-import type { StatuslineItem } from './components/statusline-picker.js';
+import { COMPOSER_OWNED_CHIPS, type StatuslineItem } from './components/statusline-picker.js';
 import { TodosMonitor } from './components/todos-monitor.js';
 import { WorktreeMonitor } from './components/worktree-monitor.js';
 import { WorktreePanel } from './components/worktree-panel.js';
@@ -39,6 +39,18 @@ export { resolveAgentSwarmPanelVisibility } from './app-ui-state.js';
 interface AppStatusRegionProps extends AppViewProps {
   /** Optional column width cap for the status bar (when beside a sidebar). */
   mainColumnWidth?: number | undefined;
+}
+
+/**
+ * Suppress the chips the composer's top rail already owns. Their entries stay
+ * in `STATUSLINE_ITEMS` (the mouse hit-test indexes by position) and stay
+ * user-togglable — they are only render-suppressed here, so the bar never
+ * shows the same indicator twice.
+ */
+function mergeComposerOwnedChips(hiddenItems: readonly StatuslineItem[]): StatuslineItem[] {
+  const merged = new Set<StatuslineItem>(hiddenItems);
+  for (const chip of COMPOSER_OWNED_CHIPS) merged.add(chip);
+  return [...merged];
 }
 
 export function AppStatusRegion({
@@ -98,6 +110,7 @@ export function AppStatusRegion({
     liveModeLabel,
     hiddenItems,
     lines,
+    densities,
     sessionCount,
     memoryContextMonitor,
     memoryRecordTotal,
@@ -186,12 +199,9 @@ export function AppStatusRegion({
           // suppress the duplicate `state` chip. Keep `model` governed by
           // the user's statusline settings so the live provider/model route
           // remains visible beside the project/workdir information.
-          hiddenItems={
-            (hiddenItems.includes('state')
-              ? hiddenItems
-              : [...hiddenItems, 'state' as const]) as StatuslineItem[]
-          }
+          hiddenItems={mergeComposerOwnedChips(hiddenItems)}
           statuslineLines={lines}
+          statuslineDensities={densities}
           mode={liveStatuslineMode}
           visibleChips={state.statuslinePicker.visibleChips}
           events={events}

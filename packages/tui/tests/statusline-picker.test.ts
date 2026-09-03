@@ -125,22 +125,26 @@ describe('StatuslinePicker render', () => {
     unmount();
   });
 
+  // A chip's LIST row pads its name to 16 columns; the layout strip at the
+  // top space-joins chip names, so this padding distinguishes "the row is
+  // rendered" from "the name appears in the strip".
+  const row = (item: string) => item.padEnd(16);
+
   it('windows the list instead of rendering every item at once', () => {
     const { lastFrame, unmount } = render(
       React.createElement(StatuslinePicker, {
-        field: 0, // focus the first item — window covers only the top items
+        field: 0, // focus the first item - window covers only the top items
         hiddenItems: [],
         visibleChips: [],
       }),
     );
 
     const frame = lastFrame() ?? '';
-    // Focused top item is visible…
-    expect(frame).toContain('project');
-    // …but items far below the window are NOT rendered, and a "below" hint shows.
-    expect(frame).not.toContain('mailbox');
-    expect(frame).toContain('below');
-    expect(frame).not.toContain('above');
+    // Focused top item has a row...
+    expect(frame).toContain(row('project'));
+    // ...but items far below the window do not, and a "more" hint shows.
+    expect(frame).not.toContain(row('mailbox'));
+    expect(frame).toContain('more');
     unmount();
   });
 
@@ -154,12 +158,70 @@ describe('StatuslinePicker render', () => {
     );
 
     const frame = lastFrame() ?? '';
-    // Bottom items are now visible…
-    expect(frame).toContain('mailbox');
-    // …the top items have scrolled out, and an "above" hint shows.
-    expect(frame).not.toContain('breaker');
-    expect(frame).toContain('above');
-    expect(frame).not.toContain('below');
+    // Bottom items now have rows; the top items have scrolled out.
+    expect(frame).toContain(row('enhance'));
+    expect(frame).not.toContain(row('project'));
+    expect(frame).toContain('more');
+    unmount();
+  });
+
+  it('always shows the four rails, even the ones with no chips on them', () => {
+    const { lastFrame, unmount } = render(
+      React.createElement(StatuslinePicker, {
+        field: 0,
+        hiddenItems: [],
+        visibleChips: [],
+      }),
+    );
+    const frame = lastFrame() ?? '';
+    for (const title of ['IDENTITY', 'VITALS', 'SAFETY & WORK', 'ASYNC']) {
+      expect(frame).toContain(title);
+    }
+    unmount();
+  });
+
+  it('marks a chip that has been moved off its default line', () => {
+    const { lastFrame, unmount } = render(
+      React.createElement(StatuslinePicker, {
+        field: 0,
+        hiddenItems: [],
+        visibleChips: [],
+        lines: { project: 3 },
+      }),
+    );
+    const frame = lastFrame() ?? '';
+    // The moved marker (L3*) tells the user this line is theirs, not the default.
+    expect(frame).toContain('L3*');
+    unmount();
+  });
+
+  it('shows a pinned density and leaves unpinned chips on auto', () => {
+    const { lastFrame, unmount } = render(
+      React.createElement(StatuslinePicker, {
+        field: 0,
+        hiddenItems: [],
+        visibleChips: [],
+        densities: { project: 'micro' },
+      }),
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('micro');
+    expect(frame).toContain('auto');
+    unmount();
+  });
+
+  it('filters rows by name and reports the match count', () => {
+    const { lastFrame, unmount } = render(
+      React.createElement(StatuslinePicker, {
+        field: STATUSLINE_ITEMS.indexOf('cost'),
+        hiddenItems: [],
+        visibleChips: [],
+        filter: 'cost',
+      }),
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain(row('cost'));
+    expect(frame).not.toContain(row('project'));
     unmount();
   });
 });

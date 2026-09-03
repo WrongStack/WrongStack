@@ -2,7 +2,11 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { AutonomyStage, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
 import type { GitInfo } from '../git-info.js';
 import type { MemoryContextMonitorState } from '../memory-context-monitor.js';
-import type { StatuslineLines } from '@wrongstack/core/statusline';
+import type {
+  StatuslineDensities,
+  StatuslineLine,
+  StatuslineLines,
+} from '@wrongstack/core/statusline';
 import type { AnimationStyle } from './animation-style.js';
 import type { StatuslineMode } from './settings-picker.js';
 import type { ChipMeta, StatuslineItem } from './statusline-picker.js';
@@ -243,6 +247,13 @@ export interface StatusBarProps {
    */
   statuslineLines?: StatuslineLines | undefined;
   /**
+   * Per-chip density pin (statusline.json schema v3). Absent keys — and an
+   * explicit 'auto' — leave the chip to the rail fitter, which shortens the
+   * widest chip first and only drops a chip once every chip on that rail is
+   * already at its narrowest form.
+   */
+  statuslineDensities?: StatuslineDensities | undefined;
+  /**
    * Statusline density. The prop default 'detailed' is kept for back-compat
    * with tests/callers that omit `mode`; the user-facing default is 'minimum'
    * (DEFAULT_STATUSLINE_MODE), applied at the settings layer.
@@ -417,6 +428,16 @@ export interface StatusBarClickMap {
   lines: Array<{
     /** 0-based content-line index within the status-bar box (line 1 = 0). */
     line: number;
+    /** Logical rail (1-4) this physical row renders — the /statusline picker
+     *  maps its per-line fill gauges through this, since conditional rails
+     *  make the physical index shift. */
+    logical?: StatuslineLine | undefined;
     spans: Array<import('./powerline-rail.js').RailSpan>;
+    /** Columns this rail was fitted into (terminal width). */
+    budget?: number | undefined;
+    /** Columns the rail actually consumes after fitting. */
+    used?: number | undefined;
+    /** Chip ids the fitter had to shed entirely (the `+N` marker). */
+    droppedIds?: string[] | undefined;
   }>;
 }

@@ -38,10 +38,25 @@ export function visibleNodeText(node: React.ReactNode): string {
   return '';
 }
 
+/** Columns between two adjacent chips on a rail. */
+export const RAIL_SEP_COST = 2;
+
 export interface RailSpanEntry {
   /** Stable identifier used by the mouse hit-test ('model', 'todos', …). */
   id: string;
+  /** Widest rendering of the chip (density level 0). */
   node: React.ReactElement;
+  /**
+   * Narrower renderings, widest → narrowest, EXCLUDING {@link node}. A chip
+   * with `alt: [short, micro]` has three levels: 0 = node, 1 = short,
+   * 2 = micro. The fitter degrades a chip through these before it will drop
+   * any chip from the rail.
+   */
+  alt?: React.ReactElement[] | undefined;
+  /** Widest level the fitter may use (density pin). Defaults to 0. */
+  lo?: number | undefined;
+  /** Narrowest level the fitter may use (density pin). Defaults to the last. */
+  hi?: number | undefined;
 }
 
 export interface RailSpan {
@@ -50,57 +65,165 @@ export interface RailSpan {
   start: number;
   /** Rendered width in columns. */
   len: number;
+  /** Density level actually rendered (0 = widest). */
+  level: number;
+}
+
+export interface RailLayoutItem extends RailSpan {
+  node: React.ReactElement;
+}
+
+export interface RailLayout {
+  /** Chips that survive, in render order, with their resolved columns. */
+  items: RailLayoutItem[];
+  /** Ids the fitter had to drop entirely (rendered as the `+N` marker). */
+  droppedIds: string[];
+  /** Whether the right-anchored chip fits and will be drawn. */
+  rightVisible: boolean;
+  /** Filler columns between the last left chip and the right anchor. */
+  gap: number;
+  /** Columns the rail actually consumes (left chips + separators + anchor). */
+  used: number;
+}
+
+function markerWidth(dropped: number): number {
+  return dropped > 0 ? 2 + String(dropped).length : 0;
+}
+
+interface Measured {
+  id: string;
+  nodes: React.ReactElement[];
+  widths: number[];
+  lo: number;
+  hi: number;
+  level: number;
+}
+
+function measure(entry: RailSpanEntry): Measured {
+  const nodes = [entry.node, ...(entry.alt ?? [])];
+  const last = nodes.length - 1;
+  const lo = Math.min(Math.max(0, entry.lo ?? 0), last);
+  const hi = Math.min(Math.max(lo, entry.hi ?? last), last);
+  return {
+    id: entry.id,
+    nodes,
+    widths: nodes.map((node) => displayWidth(visibleNodeText(node))),
+    lo,
+    hi,
+    level: lo,
+  };
 }
 
 /**
- * 0-based column spans of the segments PowerlineRail will actually keep,
- * mirroring its keep/drop and right-anchor trim math exactly. The status-bar
- * mouse hit-test consumes this so click targets are derived from the SAME
- * nodes the renderer draws — dead-reckoned column constants drifted every
- * time a chip changed width or moved lines. Keep this in lockstep with
- * PowerlineRail's layout loop above.
+ * Fit a rail into `budget` columns.
+ *
+ * The order of concessions is deliberate and is the whole point of the
+ * density system: **shorten before you drop**. A rail first degrades chips
+ * one level at a time — always the chip that gives back the most columns, so
+ * a 92-column telemetry composite collapses long before a 5-column
+ * `⚠ -7` disappears — and only starts dropping trailing chips once every
+ * chip is already at its narrowest permitted level. A chip with a pinned
+ * density (`lo === hi`) never degrades; it can only be dropped.
+ *
+ * Both {@link PowerlineRail} and {@link computeRailSpans} consume this, so
+ * the mouse hit-test can never drift from what is drawn.
+ */
+export function layoutRail(
+  entries: readonly RailSpanEntry[],
+  budget: number,
+  rightAnchor?: React.ReactElement | null,
+): RailLayout {
+  const chips = entries.map(measure);
+  const rightWidth = rightAnchor ? displayWidth(visibleNodeText(rightAnchor)) : 0;
+  let rightVisible = rightAnchor != null;
+  let keep = chips.length;
+
+  const leftWidth = (): number => {
+    let total = 0;
+    for (let i = 0; i < keep; i++) total += chips[i]!.widths[chips[i]!.level]!;
+    return total + Math.max(0, keep - 1) * RAIL_SEP_COST;
+  };
+  const total = (): number => {
+    const dropped = chips.length - keep;
+    const anchor = rightVisible ? (keep > 0 ? RAIL_SEP_COST : 0) + rightWidth : 0;
+    return leftWidth() + anchor + markerWidth(dropped);
+  };
+
+  // 1. Degrade widest-first. Each pass concedes the single largest column
+  //    saving available, which keeps the rail's information density even:
+  //    no chip is squeezed to `micro` while a fatter neighbour stays `full`.
+  while (total() > budget) {
+    let best = -1;
+    let bestGain = 0;
+    for (let i = 0; i < keep; i++) {
+      const chip = chips[i]!;
+      if (chip.level >= chip.hi) continue;
+      const gain = chip.widths[chip.level]! - chip.widths[chip.level + 1]!;
+      // `>=` so ties resolve to the later chip: the tail concedes first,
+      // matching the drop order in step 2.
+      if (gain > 0 && gain >= bestGain) {
+        best = i;
+        bestGain = gain;
+      }
+    }
+    if (best === -1) break;
+    chips[best]!.level += 1;
+  }
+
+  // 2. Drop trailing chips. Leading chips are the ones the mouse spans and
+  //    the reader's eye both assume, so the tail always goes first.
+  while (keep > 1 && total() > budget) keep -= 1;
+
+  // 3. Last resort: hide the right anchor rather than render a single
+  //    orphaned left chip beside it.
+  if (rightVisible && total() > budget) {
+    rightVisible = false;
+    while (keep > 1 && total() > budget) keep -= 1;
+  }
+
+  const items: RailLayoutItem[] = [];
+  let col = 0;
+  for (let i = 0; i < keep; i++) {
+    const chip = chips[i]!;
+    if (i > 0) col += RAIL_SEP_COST;
+    items.push({
+      id: chip.id,
+      start: col,
+      len: chip.widths[chip.level]!,
+      level: chip.level,
+      node: chip.nodes[chip.level]!,
+    });
+    col += chip.widths[chip.level]!;
+  }
+
+  const droppedIds = chips.slice(keep).map((chip) => chip.id);
+  const used = total();
+  const gap = rightVisible ? Math.max(0, budget - used) : 0;
+  return { items, droppedIds, rightVisible, gap, used };
+}
+
+/**
+ * 0-based column spans of the segments PowerlineRail will actually keep.
+ * A thin projection of {@link layoutRail} — the status-bar mouse hit-test
+ * consumes this so click targets are derived from the SAME nodes the
+ * renderer draws.
  */
 export function computeRailSpans(
   entries: readonly RailSpanEntry[],
   budget: number,
   rightAnchor?: React.ReactElement | null,
 ): RailSpan[] {
-  const widths = entries.map((entry) => displayWidth(visibleNodeText(entry.node)));
-  let used = 0;
-  let keep = 0;
-  for (let i = 0; i < entries.length; i++) {
-    const sep = keep > 0 ? 2 : 0;
-    const w = widths[i]!;
-    const wouldDrop = entries.length - (i + 1);
-    const markerWidth = wouldDrop > 0 ? 2 + String(wouldDrop).length : 0;
-    if (keep > 0 && used + sep + w + markerWidth > budget) break;
-    used += sep + w;
-    keep += 1;
-  }
-  if (entries.length > 0) keep = Math.max(1, keep);
-  let dropped = entries.length - keep;
-  if (rightAnchor && keep > 0) {
-    const reservedRight = displayWidth(visibleNodeText(rightAnchor));
-    while (keep > 1) {
-      const markerWidth = dropped > 0 ? 2 + String(dropped + 1).length : 0;
-      if (used + 2 + reservedRight + markerWidth <= budget) break;
-      used -= 2 + widths[keep - 1]!;
-      keep -= 1;
-      dropped += 1;
-    }
-  }
-  const spans: RailSpan[] = [];
-  let col = 0;
-  for (let i = 0; i < keep; i++) {
-    if (i > 0) col += 2;
-    spans.push({ id: entries[i]!.id, start: col, len: widths[i]! });
-    col += widths[i]!;
-  }
-  return spans;
+  return layoutRail(entries, budget, rightAnchor).items.map(({ id, start, len, level }) => ({
+    id,
+    start,
+    len,
+    level,
+  }));
 }
 
 interface PowerlineRailProps {
-  segments: React.ReactElement[];
+  /** Chips in render order. Plain elements are treated as single-level chips. */
+  segments: Array<React.ReactElement | RailSpanEntry>;
   budget: number;
   monochrome?: boolean | undefined;
   /** Override the filler background for per-line tonal layering. */
@@ -112,6 +235,12 @@ interface PowerlineRailProps {
    * preventing visual jitter when the left side updates frequently.
    */
   rightAnchor?: React.ReactElement | null | undefined;
+}
+
+function toEntries(segments: PowerlineRailProps['segments']): RailSpanEntry[] {
+  return segments.map((segment, index) =>
+    isValidElement(segment) ? { id: `seg-${index}`, node: segment } : (segment as RailSpanEntry),
+  );
 }
 
 /**
@@ -137,70 +266,22 @@ export function PowerlineRail({
     );
   }
 
-  const widths = segments.map((segment) => displayWidth(visibleNodeText(segment)));
-
-  let used = 0;
-  let keep = 0;
-  for (let i = 0; i < segments.length; i++) {
-    const sep = keep > 0 ? 2 : 0;
-    const w = widths[i]!;
-    const wouldDrop = segments.length - (i + 1);
-    const markerWidth = wouldDrop > 0 ? 2 + String(wouldDrop).length : 0;
-    if (keep > 0 && used + sep + w + markerWidth > budget) break;
-    used += sep + w;
-    keep += 1;
-  }
-  if (segments.length > 0) keep = Math.max(1, keep);
-  const visible = segments.slice(0, keep);
-  let dropped = segments.length - keep;
-
-  // Right-anchor reservation: when the anchor + left segments would
-  // overflow, trim trailing left segments until it fits. The omission
-  // marker (`+N`) must also fit within the budget.
-  if (rightAnchor && visible.length > 0) {
-    const rightTextWidth = displayWidth(visibleNodeText(rightAnchor));
-    const reservedRight = rightTextWidth;
-    while (visible.length > 1) {
-      const markerWidth = dropped > 0 ? 2 + String(dropped + 1).length : 0;
-      if (used + 2 + reservedRight + markerWidth <= budget) break;
-      const droppedSegWidth = widths[visible.length - 1]!;
-      used -= 2 + droppedSegWidth;
-      visible.pop();
-      dropped += 1;
-    }
-  }
-
-  let rightSegment: React.ReactElement | null = null;
-  let gapWidth = 0;
-  if (rightAnchor) {
-    const rightTextWidth = displayWidth(visibleNodeText(rightAnchor));
-    const reservedRight = rightTextWidth;
-    const trailingSep = visible.length > 0 ? 2 : 0;
-    const markerWidth = dropped > 0 ? 2 + String(dropped).length : 0;
-    const leftUsed = segments.length > 0 ? used + trailingSep + markerWidth : 0;
-    if (leftUsed + reservedRight <= budget) {
-      rightSegment = rightAnchor;
-      gapWidth = Math.max(0, budget - leftUsed - reservedRight);
-    } else {
-      rightSegment = null;
-    }
-  }
-
-  const fillBackground = fillBg ?? theme.surface;
+  const layout = layoutRail(toEntries(segments), budget, rightAnchor);
+  const dropped = layout.droppedIds.length;
 
   const content = (
     <Text>
-      {visible.map((segment, index) => (
-        <Text key={index}>
+      {layout.items.map((item, index) => (
+        <Text key={item.id}>
           {index > 0 ? '  ' : null}
-          {segment}
+          {item.node}
         </Text>
       ))}
-      {rightSegment ? (
+      {layout.rightVisible && rightAnchor ? (
         <Text>
-          {visible.length > 0 ? '  ' : null}
-          {gapWidth > 0 ? ' '.repeat(gapWidth) : null}
-          {rightSegment}
+          {layout.items.length > 0 ? '  ' : null}
+          {layout.gap > 0 ? ' '.repeat(layout.gap) : null}
+          {rightAnchor}
         </Text>
       ) : null}
       {dropped > 0 ? <Text color={theme.textMuted}>{` +${dropped}`}</Text> : null}
@@ -209,5 +290,5 @@ export function PowerlineRail({
 
   if (monochrome) return content;
 
-  return <Box backgroundColor={fillBackground}>{content}</Box>;
+  return <Box backgroundColor={fillBg ?? theme.surface}>{content}</Box>;
 }

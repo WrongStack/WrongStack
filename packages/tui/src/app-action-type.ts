@@ -1,4 +1,10 @@
 import type {
+  StatuslineDensities,
+  StatuslineDensity,
+  StatuslineLine,
+  StatuslineLines,
+} from '@wrongstack/core/statusline';
+import type {
   AutonomyStage,
   ContextSnapshot,
   DesignKitEntry,
@@ -329,11 +335,28 @@ export type Action =
   | { type: 'settingsWrongProxyUrlEditCommit' }
   /** Discard the draft and leave edit mode without changing the URL. */
   | { type: 'settingsWrongProxyUrlEditCancel' }
-  | { type: 'statuslineOpen'; hiddenItems: StatuslineItem[] }
+  | {
+      type: 'statuslineOpen';
+      hiddenItems: StatuslineItem[];
+      lines?: StatuslineLines | undefined;
+      densities?: StatuslineDensities | undefined;
+    }
   | { type: 'statuslineClose' }
   | { type: 'statuslineFieldMove'; delta: number }
   | { type: 'statuslineFieldSet'; field: number }
   | { type: 'statuslineToggle'; item: StatuslineItem }
+  /** Move a chip to another rail (1-4). */
+  | { type: 'statuslineSetLine'; item: StatuslineItem; line: StatuslineLine }
+  /** Shift a chip one rail up/down, wrapping within 1-4. */
+  | { type: 'statuslineMoveLine'; item: StatuslineItem; delta: number }
+  /** Cycle or set a chip's density pin (auto → full → short → micro). */
+  | { type: 'statuslineSetDensity'; item: StatuslineItem; density?: StatuslineDensity | undefined }
+  /** Turn every chip on the given rail on or off in one keystroke. */
+  | { type: 'statuslineToggleLine'; line: StatuslineLine }
+  /** Restore default lines and densities (chip visibility untouched). */
+  | { type: 'statuslineResetLayout' }
+  /** Enter/leave `/` filter capture, or replace the filter text. */
+  | { type: 'statuslineFilter'; text?: string | undefined; filtering?: boolean | undefined }
   | { type: 'statuslineHint'; text?: string | undefined }
   /**
    * A chip became visible due to data arriving (e.g., brain decision made,

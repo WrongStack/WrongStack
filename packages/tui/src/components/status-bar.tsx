@@ -1,4 +1,5 @@
 import { expectDefined } from '@wrongstack/core/utils';
+import { effectiveDensity, type StatuslineDensity } from '@wrongstack/core/statusline';
 import type React from 'react';
 import { useMemo } from 'react';
 import {
@@ -11,13 +12,17 @@ import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
 import { Box, Text, useAnimation } from '../ink.js';
 import { theme } from '../theme.js';
 import type { AnimationStyle } from './animation-style.js';
-import { computeRailSpans, PowerlineRail } from './powerline-rail.js';
+import { layoutRail, PowerlineRail } from './powerline-rail.js';
 import { ThinkingChip } from './status-bar-chips.js';
-import { hasTokenDisplay, stateChip, tokenDisplayTotals } from './status-bar-format.js';
+import {
+  hasTokenDisplay,
+  stateChip,
+  tokenDisplayTotals,
+  truncateChip,
+} from './status-bar-format.js';
 import { countdownColor, hasMailboxActivity, isStreamChipVisible } from './status-bar-helpers.js';
 import {
-  COMPACT_THRESHOLD,
-  LINE_BG_COLORS,
+  lineBackground,
   SPINNER_FRAMES,
   SPINNER_INTERVAL_MS,
   STACK_ORANGE,
@@ -25,9 +30,8 @@ import {
 } from './status-bar-icons.js';
 import {
   buildIndexStatusChip,
-  buildMemoryDetailChips,
+  buildMemoryDetailEntries,
   buildMinimumChips,
-  buildPrimaryChips,
   type StatusBarRailBuildParams,
 } from './status-bar-rails.js';
 import { buildDetailedRails, type DetailedRail } from './status-line-registry.js';
@@ -39,9 +43,9 @@ export {
   fmtElapsed,
   hasTokenDisplay,
   nodeText,
-  planChipFit,
   renderMeter,
   renderProgress,
+  shortenPath,
   stateChip,
   type TokenDisplayTotals,
   tokenDisplayTotals,
@@ -68,21 +72,23 @@ export type {
 } from './status-bar-types.js';
 
 /**
- * Four-rail status bar — one semantic question per line, left-to-right in
- * descending importance:
+ * Four-rail status bar. Lines are assigned by VOLATILITY, not by topic, so
+ * the reader's eye learns where to look:
  *
- *  L1 workspace & identity (static): project, working_dir, git, model, mode,
- *     prompt_variant, theme, sessions, tools; version right-anchored.
- *  L2 run state, safety & vitals (live): state, yolo, autonomy,
- *     eternal_stage, breaker, ctx·tokens·cost·cache, queue, processes,
- *     elapsed, token_saving, side_effects; hint last (first dropped).
- *  L3 active work & countdowns (conditional): goal, todos, plan, tasks,
- *     next_steps, auto_proceed, enhance, dropped_tools.
- *  L4 fleet, connectivity & services (conditional): fleet, mailbox, brain,
- *     debug_stream, memory; index right-anchored.
+ *  L1 IDENTITY — project, working_dir, git, model, mode, prompt_variant,
+ *     theme, sessions, tools; version right-anchored. Fixed for the session.
+ *  L2 VITALS — state, context, tokens, cost, cache, elapsed, queue, hint;
+ *     index right-anchored. Redraws every token.
+ *  L3 SAFETY & WORK — yolo, autonomy, eternal_stage, breaker, token_saving,
+ *     processes, side_effects, dropped_tools, goal, todos, plan, tasks.
+ *  L4 ASYNC — fleet, fleet_agents, mailbox, brain, debug_stream, memory,
+ *     next_steps, auto_proceed, enhance.
  *
- * L3/L4 gates derive from the rendered entries themselves, so an empty rail
- * never renders and a vanilla session keeps its two-line footprint.
+ * Every chip declares its density levels (full → short → micro) and the rail
+ * fitter in `powerline-rail.tsx` shortens before it drops, so a narrow
+ * terminal loses detail rather than losing chips. L3/L4 gates derive from
+ * the rendered entries themselves, so an empty rail never renders and a
+ * vanilla session keeps its two-line footprint.
  */
 export function StatusBar({
   model,
@@ -117,6 +123,7 @@ export function StatusBar({
   contextStrategy,
   hiddenItems,
   statuslineLines,
+  statuslineDensities,
   mode = 'detailed',
   events,
   sessionId,
@@ -144,10 +151,11 @@ export function StatusBar({
 }: StatusBarProps): React.ReactElement {
   const { columns: termWidth } = useTerminalSize({ maxWidth, fallbackColumns: 90 });
 
-  const isCompact = termWidth < COMPACT_THRESHOLD;
   const isNoColor = mode === 'no-color';
   const hiddenSet = useMemo(() => new Set(hiddenItems), [hiddenItems]);
   const showChip = (item: StatuslineItem): boolean => !hiddenSet.has(item);
+  const chipDensity = (item: StatuslineItem): StatuslineDensity =>
+    effectiveDensity(item, statuslineDensities ?? {});
 
   const tokenData = useTokenCounterRefresh(tokenCounter, events, sessionId);
   const usage = tokenData?.usage;
@@ -254,21 +262,24 @@ export function StatusBar({
       </Text>
     ) : null;
 
+  // Model chip density levels: `provider/model` → `model` → truncated model.
+  const modelColor = isNoColor ? undefined : theme.monitor.agents;
   const modelStatusChip = showChip('model') ? (
-    <Text color={isNoColor ? undefined : theme.monitor.agents}>
-      {provider ? <Text dimColor>{provider}/</Text> : null}
+    <Text color={modelColor}>
+      {provider ? <Text dimColor={!isNoColor}>{provider}/</Text> : null}
       {model}
     </Text>
+  ) : null;
+  const modelShortChip = showChip('model') ? <Text color={modelColor}>{model}</Text> : null;
+  const modelMicroChip = showChip('model') ? (
+    <Text color={modelColor}>{truncateChip(model, 10)}</Text>
   ) : null;
 
   const indexStatusChip = buildIndexStatusChip(indexState, showChip, isNoColor);
 
-  const memoryDetailChips = showChip('memory_context')
-    ? buildMemoryDetailChips(memoryContextMonitor, Sage, isNoColor)
-    : [];
-
   const buildParams: StatusBarRailBuildParams = {
     showChip,
+    chipDensity,
     isNoColor,
     model,
     provider,
@@ -280,7 +291,6 @@ export function StatusBar({
     processCount,
     stateStatusChip,
     fleetWorkingTime,
-    primaryChips: [],
     context,
     contextStrategy,
     showTokenDisplay,
@@ -327,7 +337,7 @@ export function StatusBar({
     mailbox,
     fleetAgents,
     showMailbox,
-    memoryDetailChips,
+    memoryDetailChips: [],
     promptVariant,
     minimalWorkParts,
     thinking,
@@ -341,9 +351,9 @@ export function StatusBar({
     Sage,
     indexState,
   };
-
-  const primaryChips = buildPrimaryChips(buildParams);
-  buildParams.primaryChips = primaryChips;
+  buildParams.memoryDetailChips = showChip('memory_context')
+    ? buildMemoryDetailEntries(buildParams)
+    : [];
 
   const showUpdateNotice =
     Boolean(updateAvailable) &&
@@ -367,43 +377,53 @@ export function StatusBar({
   // Four detailed rails: the builders remain the single source of chip JSX
   // and data gating (a hidden or data-less chip emits no entry and can never
   // open a rail); the registry partitions the surviving entries per the
-  // user's line assignment. With no overrides this is exactly the
-  // pre-registry four-rail composition pinned by the rail-order suites.
+  // user's line assignment.
   const detailedRails = buildDetailedRails(buildParams, {
     lines: statuslineLines,
     modelChip: modelStatusChip,
+    modelShortChip,
+    modelMicroChip,
     versionChip: versionStatusChip,
     indexChip: indexStatusChip,
   });
 
+  const railBudget = Math.max(12, termWidth);
+
   // Rails 1–2 always render so a vanilla session keeps its two-line
   // footprint; conditional rails render when they have content. The index
-  // chip alone opens the services rail (right-anchored, no left chips).
+  // chip alone opens its rail (right-anchored, no left chips).
   const rendersRail = (rail: DetailedRail, logical: number): boolean =>
     logical < 2 || rail.entries.length > 0 || rail.rightAnchor != null;
 
   // Click-map: physical rows are the rails that publish left spans, top to
-  // bottom — conditional rows shift up when an earlier rail is gated off
-  // (the separators suite pins fleet's physical line for exactly this).
+  // bottom — conditional rows shift up when an earlier rail is gated off.
   // Right-anchored chips carry no left spans, so an anchor-only rail
-  // publishes no row.
+  // publishes no row. `budget`/`droppedIds` let the /statusline picker show
+  // real, measured fill per line instead of guessing chip widths.
   if (clickMapRef) {
-    const railBudget = Math.max(12, termWidth);
-    const clickableRails = detailedRails.filter(
-      (rail, logical) => logical < 2 || rail.entries.length > 0,
-    );
+    const clickableRails = detailedRails
+      .map((rail, index) => ({ rail, logical: (index + 1) as 1 | 2 | 3 | 4 }))
+      .filter(({ rail, logical }) => logical <= 2 || rail.entries.length > 0);
     clickMapRef.current =
       mode === 'minimum'
         ? { lines: [] }
         : {
-            lines: clickableRails.map((rail, physical) => ({
-              line: physical,
-              spans: computeRailSpans(
-                physical === 0 && isCompact ? rail.entries.slice(0, 5) : rail.entries,
-                railBudget,
-                rail.rightAnchor,
-              ),
-            })),
+            lines: clickableRails.map(({ rail, logical }, physical) => {
+              const layout = layoutRail(rail.entries, railBudget, rail.rightAnchor);
+              return {
+                line: physical,
+                logical,
+                spans: layout.items.map(({ id, start, len, level }) => ({
+                  id,
+                  start,
+                  len,
+                  level,
+                })),
+                budget: railBudget,
+                used: layout.used,
+                droppedIds: layout.droppedIds,
+              };
+            }),
           };
   }
 
@@ -413,9 +433,9 @@ export function StatusBar({
         <PowerlineRail
           segments={minimumChips}
           rightAnchor={versionStatusChip}
-          budget={Math.max(12, termWidth)}
+          budget={railBudget}
           monochrome={isNoColor}
-          fillBg={LINE_BG_COLORS[0]}
+          fillBg={lineBackground(0)}
         />
       </Box>
     );
@@ -423,22 +443,18 @@ export function StatusBar({
 
   return (
     <Box key={`sb-${stalenessGuard.renderNonce}`} flexDirection="column" paddingX={0}>
-      {/* Logical rails 1–4: workspace & identity, run state & safety, active
-          work & countdowns, fleet/connectivity & services. Conditional rails
-          drop out when empty; the click-map renumbers physical rows to match. */}
+      {/* Logical rails 1–4: identity, vitals, safety & work, async.
+          Conditional rails drop out when empty; the click-map renumbers
+          physical rows to match. */}
       {detailedRails.map((rail, logical) =>
         rendersRail(rail, logical) ? (
           <PowerlineRail
             key={`rail-${logical}`}
-            segments={
-              logical === 0 && isCompact
-                ? rail.entries.slice(0, 5).map((entry) => entry.node)
-                : rail.entries.map((entry) => entry.node)
-            }
+            segments={rail.entries}
             rightAnchor={rail.rightAnchor}
-            budget={Math.max(12, termWidth)}
+            budget={railBudget}
             monochrome={isNoColor}
-            fillBg={LINE_BG_COLORS[logical as 0 | 1 | 2 | 3]}
+            fillBg={lineBackground(logical as 0 | 1 | 2 | 3)}
           />
         ) : null,
       )}

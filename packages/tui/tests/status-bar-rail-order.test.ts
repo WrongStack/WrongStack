@@ -5,7 +5,7 @@ import type { StatusBarClickMap } from '../src/components/status-bar-types.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 
 /**
- * Rail-composition pin for the 4-line statusline re-map.
+ * Rail-composition pin for the volatility-grouped 4-line statusline.
  *
  * status-bar-separators.test.ts pins individual chips; this file pins the
  * COMPLETE composition — which chip ids sit on which physical rail and in
@@ -96,8 +96,8 @@ describe('StatusBar 4-rail chip composition', () => {
     // Four physical rails: unconditional 0/1, conditional work/fleet on 2/3.
     expect([...idsByLine.keys()].sort((a, b) => a - b)).toEqual([0, 1, 2, 3]);
 
-    // L1 — workspace & identity: static session header with the
-    // theme/sessions/tools tail (moved off the run-state rail 2026-08-27).
+    // L1 — IDENTITY: static session header with the theme/sessions/tools
+    // tail (all three off by default, forced on here by the fixture).
     expect(idsByLine.get(0)).toEqual([
       'project',
       'working_dir',
@@ -110,76 +110,69 @@ describe('StatusBar 4-rail chip composition', () => {
       'tools',
     ]);
 
-    // L2 — run state, safety & vitals: breaker leads the dynamic block
-    // (urgency-first), the ctx·tokens·cost·cache composite (primary-0) sits
-    // center, the ephemeral hint is last so overflow drops it first.
-    expect(idsByLine.get(1)).toEqual([
-      'state',
+    // L2 — VITALS: the per-turn telemetry. context/tokens/cost/cache are
+    // four independent entries now (they used to be one atomic `primary-0`
+    // composite); the ephemeral hint is last so overflow drops it first.
+    expect(idsByLine.get(1)).toEqual(['state', 'context', 'elapsed', 'queue', 'hint']);
+
+    // L3 — SAFETY & WORK: posture first, then the work boards.
+    expect(idsByLine.get(2)).toEqual([
       'yolo',
       'autonomy',
       'breaker',
-      'primary-0',
-      'queue',
-      'processes',
-      'elapsed',
       'token_saving',
+      'processes',
       'side_effects',
-      'hint',
-    ]);
-
-    // L3 — active work & countdowns.
-    expect(idsByLine.get(2)).toEqual([
+      'dropped_tools',
       'goal',
       'todos',
       'plan',
       'tasks',
-      'next_steps',
-      'auto_proceed',
-      'dropped_tools',
     ]);
 
-    // L4 — fleet, connectivity & background services.
+    // L4 — ASYNC: fleet/peers/services, then the countdowns.
     expect(idsByLine.get(3)).toEqual([
       'fleet',
       'mailbox',
-      'detail-1',
-      'detail-2',
-      'memory-0',
-      'memory-1',
+      'mailbox_peers',
+      'mailbox_last',
+      'memory_context',
+      'next_steps',
+      'auto_proceed',
     ]);
 
-    // Visual order signature of the re-map on the run-state rail: the
-    // breaker countdown renders BEFORE the context meter — it used to trail
-    // the dim hint text inside the old primary-chip bundle. (Anchored on
-    // YOLO, not the state label: stateChip relabels "idle" when fleet
-    // agents are running.)
-    const runStateLine = lines.find((l) => l.includes('YOLO')) ?? '';
-    expect(runStateLine).toMatch(/YOLO.*AUTO.*kill\/reset in 25s.*ctx.*queued 2/);
+    // Visual order signature of the volatility grouping: the safety rail
+    // reads posture-first (YOLO → autonomy → breaker) and carries the work
+    // boards, while the vitals rail above it holds only telemetry.
+    const safetyLine = lines.find((l) => l.includes('YOLO')) ?? '';
+    expect(safetyLine).toMatch(/YOLO.*AUTO.*kill\/reset in 25s/);
+    expect(safetyLine).not.toContain('ctx');
+    const vitalsLine = lines.find((l) => l.includes('ctx')) ?? '';
+    expect(vitalsLine).toMatch(/ctx.*queued 2/);
   });
 
-  it('at 90 columns identity leads survive, the static tail drops, and the dynamic block keeps its order', async () => {
+  it('at 90 columns identity shortens rather than dropping, and rails stay isolated', async () => {
     const { idsByLine } = await capture(90);
 
     const identity = idsByLine.get(0) ?? [];
-    for (const id of ['project', 'working_dir', 'git', 'model']) {
+    // Shorten-before-drop: at 90 the identity rail concedes detail, not chips.
+    for (const id of ['project', 'working_dir', 'git', 'model', 'tools']) {
       expect(identity).toContain(id);
     }
-    // Static session trivia is the L1 overflow sacrifice — never the
-    // dynamic run-state content. That trade is the point of the re-map.
-    expect(identity).not.toContain('tools');
 
-    const runState = idsByLine.get(1) ?? [];
-    expect(runState[0]).toBe('state');
-    // Urgency-first order survives narrowing: breaker still leads vitals.
-    expect(runState.indexOf('breaker')).toBeGreaterThan(-1);
-    expect(runState.indexOf('primary-0')).toBeGreaterThan(runState.indexOf('breaker'));
-    // The misplacement regression guard: these never drift back to L2.
-    for (const id of ['theme', 'sessions', 'tools', 'hint']) {
-      expect(runState).not.toContain(id);
+    const vitals = idsByLine.get(1) ?? [];
+    expect(vitals[0]).toBe('state');
+    // The misplacement regression guard: identity trivia and posture chips
+    // never drift onto the vitals rail.
+    for (const id of ['theme', 'sessions', 'tools', 'yolo', 'autonomy']) {
+      expect(vitals).not.toContain(id);
     }
 
-    // Conditional rails still open below with their lead chips intact.
-    expect(idsByLine.get(2) ?? []).toEqual(expect.arrayContaining(['goal', 'todos']));
+    const safety = idsByLine.get(2) ?? [];
+    expect(safety[0]).toBe('yolo');
+    expect(safety.indexOf('breaker')).toBeGreaterThan(safety.indexOf('autonomy'));
+    expect(safety.indexOf('todos')).toBeGreaterThan(safety.indexOf('breaker'));
+
     expect((idsByLine.get(3) ?? [])[0]).toBe('fleet');
   });
 });

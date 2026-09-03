@@ -3,7 +3,6 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import {
   nodeText,
-  planChipFit,
   StatusBar,
   type StatusBarProps,
   truncateChip,
@@ -58,10 +57,16 @@ async function frameAt(columns: number, props: Partial<StatusBarProps>): Promise
   return lines;
 }
 
-async function spansAt(
+interface RailProbe {
+  ids: string[];
+  levels: Map<string, number>;
+  dropped: string[];
+}
+
+async function railsAt(
   columns: number,
   props: Partial<StatusBarProps>,
-): Promise<Map<number, string[]>> {
+): Promise<Map<number, RailProbe>> {
   const clickMapRef: { current: StatusBarClickMap | null } = { current: null };
   const view = renderRealTty(
     React.createElement(StatusBar, {
@@ -73,15 +78,17 @@ async function spansAt(
     { columns, rows: 24 },
   );
   await settle();
-  const idsByLine = new Map<number, string[]>();
+  const byLogical = new Map<number, RailProbe>();
   for (const line of clickMapRef.current?.lines ?? []) {
-    idsByLine.set(
-      line.line,
-      line.spans.map((s) => s.id),
-    );
+    if (line.logical == null) continue;
+    byLogical.set(line.logical, {
+      ids: line.spans.map((s) => s.id),
+      levels: new Map(line.spans.map((s) => [s.id, s.level])),
+      dropped: line.droppedIds ?? [],
+    });
   }
   view.unmount();
-  return idsByLine;
+  return byLogical;
 }
 
 describe('truncateChip', () => {
@@ -94,29 +101,6 @@ describe('truncateChip', () => {
     const out = truncateChip('a'.repeat(40), 24);
     expect(out).toBe(`${'a'.repeat(23)}…`);
     expect([...out].length).toBe(24);
-  });
-});
-
-describe('planChipFit', () => {
-  it('keeps every chip when they all fit', () => {
-    expect(planChipFit([10, 10, 10], 100)).toBe(3);
-  });
-
-  it('accounts for the inter-chip separator cost', () => {
-    // 10 + (10+2) = 22 fits in 25 but a third (+12) does not.
-    expect(planChipFit([10, 10, 10], 25)).toBe(2);
-    // 10 + (10+2) = 22 ≤ 22 → two fit; but at 21 only the first.
-    expect(planChipFit([10, 10, 10], 22)).toBe(2);
-    expect(planChipFit([10, 10, 10], 21)).toBe(1);
-  });
-
-  it('always keeps the first chip even if it alone exceeds the budget', () => {
-    expect(planChipFit([100], 10)).toBe(1);
-    expect(planChipFit([100, 5], 10)).toBe(1);
-  });
-
-  it('returns 0 for an empty chip list', () => {
-    expect(planChipFit([], 80)).toBe(0);
   });
 });
 
@@ -140,55 +124,57 @@ describe('StatusBar overflow handling (width-budget)', () => {
     expect(frame).toContain(`${'p'.repeat(23)}…`);
   });
 
-  it('drops trailing chips with a +N marker rather than wrapping the line', async () => {
-    // Pack the identity rail (L1) well past 100 columns so the
-    // lowest-priority trailing chips must be dropped with a +N marker.
-    const lines = await frameAt(100, {
+  it('shortens chips instead of dropping them while any chip can still shrink', async () => {
+    // The identity rail's content is well past 100 columns at full density.
+    // The fitter's contract is shorten-before-drop, so at this width every
+    // chip survives and the concession shows up as raised density levels.
+    const rails = await railsAt(100, {
       projectName: 'project-name-here',
       workingDir: 'some/working/directory/path',
       git: { branch: 'feature/long-branch-name', added: 0, deleted: 2, untracked: 3 },
       sessionCount: 4,
       toolCount: 42,
     });
-    expect(lines.length).toBeGreaterThan(0);
-    // No rail may wrap: every rendered line fits the terminal width.
-    for (const line of lines) {
-      expect(displayWidth(line)).toBeLessThanOrEqual(100);
+    const identity = rails.get(1)!;
+    expect(identity.dropped).toEqual([]);
+    for (const id of ['project', 'working_dir', 'git', 'model', 'tools']) {
+      expect(identity.ids).toContain(id);
     }
-    const identity = lines[0] ?? '';
-    // Leading identity survives the drop; the omission marker appears.
-    expect(identity).toContain('project-name-here');
-    expect(identity).toContain('feature/long-branch-name');
-    const overflowMatch = identity.match(/\+(\d+)/);
-    expect(overflowMatch).not.toBeNull();
-    expect(Number(overflowMatch?.[1])).toBeGreaterThan(0);
+    // Something had to give: at least one chip is rendering a narrower form.
+    expect([...identity.levels.values()].some((level) => level > 0)).toBe(true);
   });
 
-  it('sacrifices the static tail first and leaves the run-state rail untouched', async () => {
-    // At 60 columns the identity rail keeps its leading chips through the
-    // model but drops the static tail (theme/sessions/tools). The run-state
-    // rail below is budgeted independently — L1 overflow must never push
-    // state/yolo/autonomy off L2. That isolation is the core guarantee of
-    // the 2026-08-27 re-map.
-    const idsByLine = await spansAt(60, {
+  it('never wraps a rail, at any width', async () => {
+    for (const columns of [140, 100, 80, 60, 40]) {
+      const lines = await frameAt(columns, {
+        projectName: 'project-name-here',
+        workingDir: 'some/working/directory/path',
+        git: { branch: 'feature/long-branch-name', added: 0, deleted: 2, untracked: 3 },
+        sessionCount: 4,
+        toolCount: 42,
+        version: '1.2.3',
+      });
+      for (const line of lines) {
+        expect(displayWidth(line)).toBeLessThanOrEqual(columns);
+      }
+    }
+  });
+
+  it('falls back to dropping trailing chips once shortening is exhausted', async () => {
+    const rails = await railsAt(60, {
       projectName: 'project-name-here',
-      workingDir: 'pkg/mod',
-      git: { branch: 'x', added: 0, deleted: 0, untracked: 0 },
+      workingDir: 'some/working/directory/path',
+      git: { branch: 'feature/long-branch-name', added: 0, deleted: 2, untracked: 3 },
+      modeLabel: 'teach',
+      promptVariant: 'pro',
       sessionCount: 4,
       toolCount: 42,
-      yolo: true,
-      autonomy: 'eternal',
     });
-    const identity = idsByLine.get(0) ?? [];
-    for (const id of ['project', 'working_dir', 'git', 'model']) {
-      expect(identity).toContain(id);
-    }
-    expect(identity).not.toContain('tools');
-
-    const runState = idsByLine.get(1) ?? [];
-    expect(runState[0]).toBe('state');
-    expect(runState).toContain('yolo');
-    expect(runState).toContain('autonomy');
+    const identity = rails.get(1)!;
+    expect(identity.dropped.length).toBeGreaterThan(0);
+    // Leading identity survives; the tail is what goes.
+    expect(identity.ids.slice(0, 3)).toEqual(['project', 'working_dir', 'git']);
+    expect(identity.dropped).toContain('tools');
   });
 
   it('keeps the right-anchored version chip while the identity rail overflows', async () => {
@@ -205,7 +191,6 @@ describe('StatusBar overflow handling (width-budget)', () => {
     });
     const identity = lines[0] ?? '';
     expect(identity).toContain('v0.7.0');
-    expect(identity).toMatch(/\+\d+/);
   });
 });
 

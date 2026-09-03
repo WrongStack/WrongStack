@@ -21,13 +21,35 @@ type EnvironmentProps = Omit<
     | 'modeLabel'
     | 'statuslineHiddenItems'
     | 'statuslineLines'
+    | 'statuslineDensities'
     | 'toolCount'
     | 'getSettings'
     | 'setStatuslineHiddenItems'
     | 'saveStatuslineHiddenItems'
+    | 'setStatuslineLines'
+    | 'saveStatuslineLines'
+    | 'setStatuslineDensities'
+    | 'saveStatuslineDensities'
   >,
   'yolo'
 > & { yolo: boolean };
+
+/**
+ * A failed statusline write is logged, never thrown — losing a layout tweak
+ * must not take the session down.
+ */
+function logPersistFailure(event: string): (error: unknown) => void {
+  return (error) => {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event,
+        message: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  };
+}
 
 export function useTuiEnvironmentState({
   events,
@@ -40,10 +62,15 @@ export function useTuiEnvironmentState({
   modeLabel,
   statuslineHiddenItems,
   statuslineLines,
+  statuslineDensities,
   toolCount,
   getSettings,
   setStatuslineHiddenItems,
   saveStatuslineHiddenItems,
+  setStatuslineLines,
+  saveStatuslineLines,
+  setStatuslineDensities,
+  saveStatuslineDensities,
 }: EnvironmentProps) {
   const [memoryContextMonitor, setMemoryContextMonitor] = useState(emptyMemoryContextMonitor);
   const [memoryRecordTotal, setMemoryRecordTotal] = useState<number | undefined>();
@@ -81,6 +108,7 @@ export function useTuiEnvironmentState({
     modeLabel,
     statuslineHiddenItems,
     statuslineLines,
+    statuslineDensities,
   });
   const hiddenItemsRef = useRef(statusline.hiddenItems);
   hiddenItemsRef.current = statusline.hiddenItems;
@@ -135,6 +163,34 @@ export function useTuiEnvironmentState({
       );
     });
   }, [setStatuslineHiddenItems, saveStatuslineHiddenItems, statusline.hiddenItems]);
+
+  // Layout (line assignment + density pins) persists on the same terms as
+  // chip visibility: mirror into the host's in-memory copy, then write
+  // statusline.json best-effort. Both effects skip their mount pass — the
+  // layout we just loaded from disk does not need writing back to disk.
+  const layoutHydrated = useRef(false);
+  useEffect(() => {
+    if (!layoutHydrated.current) {
+      layoutHydrated.current = true;
+      return;
+    }
+    setStatuslineLines?.(statusline.lines);
+    saveStatuslineLines?.(statusline.lines).catch?.(
+      logPersistFailure('statusline.persist_lines_failed'),
+    );
+  }, [setStatuslineLines, saveStatuslineLines, statusline.lines]);
+
+  const densityHydrated = useRef(false);
+  useEffect(() => {
+    if (!densityHydrated.current) {
+      densityHydrated.current = true;
+      return;
+    }
+    setStatuslineDensities?.(statusline.densities);
+    saveStatuslineDensities?.(statusline.densities).catch?.(
+      logPersistFailure('statusline.persist_densities_failed'),
+    );
+  }, [setStatuslineDensities, saveStatuslineDensities, statusline.densities]);
 
   return {
     ...statusline,

@@ -26,18 +26,17 @@ export function nodeText(node: React.ReactNode): string {
   return '';
 }
 
-const SB_SEP_COST = 2;
-
-export function planChipFit(widths: number[], budget: number, sepCost = SB_SEP_COST): number {
-  let used = 0;
-  let keep = 0;
-  for (const w of widths) {
-    const cost = w + (keep > 0 ? sepCost : 0);
-    if (keep > 0 && used + cost > budget) break;
-    used += cost;
-    keep += 1;
-  }
-  return keep;
+/**
+ * Keep only the last `segments` path components, prefixed with `…/` when
+ * anything was elided. Used by the working-dir chip's narrower density
+ * levels: `D:\Codebox\PROJECTS\WrongStack` → `…/PROJECTS/WrongStack` →
+ * `…/WrongStack`. Separators are normalized to `/` so the result has a
+ * predictable width on Windows too.
+ */
+export function shortenPath(path: string, segments: number): string {
+  const parts = path.split(/[\\/]+/).filter(Boolean);
+  if (parts.length <= segments) return parts.join('/') || path;
+  return `…/${parts.slice(-Math.max(1, segments)).join('/')}`;
 }
 
 export interface TokenDisplayTotals {

@@ -23,10 +23,20 @@ describe('canonicalChipKey', () => {
     expect(canonicalChipKey('project')).toBe('project');
   });
 
-  it('maps composite and detail spans to their parent chip key', () => {
-    expect(canonicalChipKey('primary-0')).toBe('context');
-    expect(canonicalChipKey('detail-2')).toBe('mailbox');
-    expect(canonicalChipKey('memory-0')).toBe('memory_context');
+  it('maps alias spans to their parent chip key', () => {
+    // The telemetry composite is gone — context/tokens/cost/cache are four
+    // real entries now — but grouped chips still travel with their parent.
+    expect(canonicalChipKey('mailbox_peers')).toBe('mailbox');
+    expect(canonicalChipKey('mailbox_last')).toBe('mailbox');
+    expect(canonicalChipKey('memory_pipeline')).toBe('memory_context');
+    expect(canonicalChipKey('memory_pressure')).toBe('memory_context');
+    expect(canonicalChipKey('fleet_agent-3')).toBe('fleet_agents');
+  });
+
+  it('resolves the split telemetry keys to themselves', () => {
+    for (const key of ['context', 'tokens', 'cost', 'cache'] as const) {
+      expect(canonicalChipKey(key)).toBe(key);
+    }
   });
 
   it('returns null for ids outside the contract', () => {
@@ -58,21 +68,29 @@ describe('partitionRailEntries', () => {
       { hint: 1 },
     );
     expect(rails[0]!.entries.map((e) => e.id)).toEqual(['hint']);
-    expect(rails[1]!.entries.map((e) => e.id)).toEqual(['state', 'yolo']);
+    // `state` defaults to line 2 (VITALS); `yolo` to line 3 (SAFETY & WORK).
+    expect(rails[1]!.entries.map((e) => e.id)).toEqual(['state']);
+    expect(rails[2]!.entries.map((e) => e.id)).toEqual(['yolo']);
   });
 
-  it('moves composite and detail spans with their parent key', () => {
+  it('moves alias spans with their parent key', () => {
     const rails = partitionRailEntries(
       [
-        { entries: [entry('primary-0')], fallbackLine: 2 },
-        { entries: [entry('mailbox'), entry('detail-1')], fallbackLine: 4 },
-        { entries: [entry('memory-0')], fallbackLine: 4 },
+        { entries: [entry('context')], fallbackLine: 2 },
+        { entries: [entry('mailbox'), entry('mailbox_peers')], fallbackLine: 4 },
+        { entries: [entry('memory_context'), entry('memory_pressure')], fallbackLine: 4 },
+        { entries: [entry('fleet_agents'), entry('fleet_agent-1')], fallbackLine: 4 },
       ],
-      { context: 3, mailbox: 2, memory_context: 1 },
+      { context: 3, mailbox: 2, memory_context: 1, fleet_agents: 1 },
     );
-    expect(rails[0]!.entries.map((e) => e.id)).toEqual(['memory-0']);
-    expect(rails[1]!.entries.map((e) => e.id)).toEqual(['mailbox', 'detail-1']);
-    expect(rails[2]!.entries.map((e) => e.id)).toEqual(['primary-0']);
+    expect(rails[0]!.entries.map((e) => e.id)).toEqual([
+      'memory_context',
+      'memory_pressure',
+      'fleet_agents',
+      'fleet_agent-1',
+    ]);
+    expect(rails[1]!.entries.map((e) => e.id)).toEqual(['mailbox', 'mailbox_peers']);
+    expect(rails[2]!.entries.map((e) => e.id)).toEqual(['context']);
   });
 
   it('falls back to the builder line for ids outside the contract (override impossible)', () => {

@@ -83,7 +83,7 @@ describe('adjacent F-key surfaces', () => {
     expect(frame).toContain('STATUS LINE');
     expect(frame).toContain(STATUSLINE_ITEMS[field]);
     expect(frame).toContain('Visibility updated');
-    expect(frame).toContain('above');
+    expect(frame).toContain('more');
     expect(Math.max(...frame.split('\n').map((line) => line.length))).toBeLessThanOrEqual(60);
     view.unmount();
   });

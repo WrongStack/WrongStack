@@ -1,3 +1,4 @@
+import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 // State, Action, and supporting types extracted from app-reducer.ts.
 // This file has NO React or Ink dependencies — pure type definitions.
 import type {
@@ -458,6 +459,22 @@ export type State = {
      * chips stay visible via their data being truthy — they are NOT here.
      */
     visibleChips: ChipMeta[];
+    /** Per-chip line assignment being edited (mirrors statusline.json v3). */
+    lines: StatuslineLines;
+    /** Per-chip density pin being edited. */
+    densities: StatuslineDensities;
+    /** Text filter over chip names/descriptions. */
+    filter: string;
+    /** True while `/` is capturing filter keystrokes. */
+    filtering: boolean;
+    /**
+     * True once the editor holds the live layout (seeded on open, or made
+     * true by any layout edit). The app only mirrors the editor's layout
+     * back into the live statusline while this is set, so a caller that
+     * opens the picker WITHOUT seeding it can never publish an empty layout
+     * over the user's saved one.
+     */
+    layoutSeeded: boolean;
     hint?: string | undefined;
   };
   /** Plugin toggle editor — opened by `/plugin menu` or `/settings plugins`. */
