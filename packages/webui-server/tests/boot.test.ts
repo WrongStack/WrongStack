@@ -44,5 +44,21 @@ describe('boot', () => {
       expect(config.yolo).toBe(false);
       expect(patched.yolo).toBe(true);
     });
+
+    // B-07: migrated from packages/webui/tests/server/boot.test.ts —
+    // asserts the IDENTITY of the returned object (`patched !== base`).
+    // The server's existing `'returns a frozen merged config'` covers the
+    // merge + freeze contract but never asserts the result is a NEW object.
+    // A refactor that switched from `Object.freeze({...base, ...patch})`
+    // to `Object.freeze(base)` (after mutating `base`) would still pass
+    // every server test and only fail here.
+    it('returns a new object (does not freeze and reuse the input)', () => {
+      const base = { provider: 'openai', model: 'gpt-5' } as any;
+      const result = patchConfig(base, { model: 'gpt-5-mini' } as any);
+      expect(result).not.toBe(base);
+      expect(result.model).toBe('gpt-5-mini');
+      expect(result.provider).toBe('openai');
+      expect(Object.isFrozen(result)).toBe(true);
+    });
   });
 });

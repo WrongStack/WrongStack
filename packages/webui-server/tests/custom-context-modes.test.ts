@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock @wrongstack/core - listContextWindowModes, atomicWrite
 const mockListModes = vi.hoisted(() => vi.fn());
 const mockAtomicWrite = vi.hoisted(() => vi.fn());
+const mockReadFile = vi.hoisted(() => vi.fn());
 
 vi.mock('@wrongstack/core/types', () => ({
   listContextWindowModes: mockListModes,
@@ -10,6 +11,14 @@ vi.mock('@wrongstack/core/types', () => ({
 
 vi.mock('@wrongstack/core/utils', () => ({
   atomicWrite: mockAtomicWrite,
+}));
+
+// B-07: also mock node:fs/promises so we can drive `store.load()` with a
+// real JSON payload (the server's existing suite only exercises the
+// catch-block path with a non-existent path — it never proves the happy
+// path parses and registers custom modes from disk).
+vi.mock('node:fs/promises', () => ({
+  readFile: mockReadFile,
 }));
 
 import {
@@ -60,6 +69,39 @@ describe('custom-context-modes', () => {
         // File doesn't exist; should be caught by the catch block
         await store.load();
         expect(store.modes.size).toBe(0);
+      });
+
+      // B-07: migrated from packages/webui/tests/server/custom-context-modes.test.ts —
+      // happy-path JSON load. The server's existing `'handles missing file'`
+      // and `'handles corrupt JSON'` only exercise the catch-block path; this
+      // proves the success path parses `modes[]` from disk, marks each entry
+      // `custom: true`, and registers them into the store. A regression that
+      // silently dropped the parse step would leave the in-memory map empty
+      // for users with valid persisted modes (the WebUI editor would then
+      // show zero custom modes even though the file has them).
+      it('loads custom modes from a valid JSON file', async () => {
+        mockReadFile.mockResolvedValueOnce(
+          JSON.stringify({
+            modes: [
+              {
+                id: 'loaded-mode',
+                name: 'Loaded Mode',
+                description: 'From file',
+                thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 },
+                aggressiveOn: 'soft',
+                preserveK: 10,
+                eliseThreshold: 2000,
+                targetLoad: 0.65,
+              },
+            ],
+          }),
+        );
+        const store = createCustomModeStore('/test/.wrongstack');
+        await store.load();
+        const loaded = store.modes.get('loaded-mode');
+        expect(loaded).toBeDefined();
+        expect(loaded?.name).toBe('Loaded Mode');
+        expect(loaded?.custom).toBe(true);
       });
     });
 

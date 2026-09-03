@@ -106,5 +106,34 @@ describe('provider-config-io', () => {
         'Refusing to overwrite corrupt config',
       );
     });
+
+    // B-07: migrated from packages/webui/tests/server/provider-config-io.test.ts —
+    // pins the "merges with existing config" contract: saveProviders must
+    // preserve unrelated top-level keys (theme, uiLocale, etc.) when writing
+    // the providers section. The server's existing `'reads, encrypts, and
+    // writes providers to config'` writes `{ someKey: 'value' }` but never
+    // asserts the result round-trips that key into the written JSON. A
+    // refactor that switched from `parsed.providers = providers` to
+    // `JSON.stringify({ providers })` would erase every other config key
+    // (operator's theme, uiLocale, …) on every save.
+    it('merges with existing config (preserves unrelated top-level keys)', async () => {
+      mockReadFile.mockResolvedValueOnce(JSON.stringify({ theme: 'dark', uiLocale: 'tr' }));
+      mockEncrypt.mockReturnValueOnce({
+        theme: 'dark',
+        uiLocale: 'tr',
+        providers: { anthropic: { type: 'anthropic' } },
+      });
+      await saveProviders('/fake/config.json', vault, { anthropic: { type: 'anthropic' } });
+      expect(mockAtomicWrite).toHaveBeenCalledWith(
+        '/fake/config.json',
+        expect.stringContaining('theme'),
+        { mode: 0o600 },
+      );
+      expect(mockAtomicWrite).toHaveBeenCalledWith(
+        '/fake/config.json',
+        expect.stringContaining('uiLocale'),
+        { mode: 0o600 },
+      );
+    });
   });
 });
