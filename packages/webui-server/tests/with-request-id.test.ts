@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { withRequestId } from '../../src/server/ws-utils.js';
+import { withRequestId } from '../src/server/ws-utils.js';
 
 /**
  * B-04 (docs/audit/webui-full-review-2026-09-03.md) — inspect-style
