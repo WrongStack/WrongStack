@@ -257,6 +257,56 @@ describe('estimateRequestTokens', () => {
     const r = estimateRequestTokens([], [{ type: 'tool_use', id: 'x' }], []);
     expect(r.systemPrompt).toBe(0);
   });
+
+  // A `text` block that omits `text` is a shape this estimator has to survive:
+  // `systemPrompt` is typed `unknown` and the loop already narrows `b` by hand,
+  // so the declared `TextBlock.text: string` is not a runtime guarantee. The
+  // messages branch guarded it with `?? ''` long before this branch did; a
+  // missing guard here threw `TypeError: Cannot read properties of undefined
+  // (reading 'length')` out of the context-pressure path.
+  it('tolerates a system-prompt text block that omits `text`', () => {
+    const r = estimateRequestTokens([], [{ type: 'text' }], []);
+    // Counted as empty text, which still costs the 1-token floor — exactly what
+    // the messages branch yields for the same block. The two must not diverge.
+    expect(r.systemPrompt).toBe(1);
+    expect(r.total).toBe(1);
+  });
+
+  it('tolerates a message text block that omits `text` (branch parity)', () => {
+    const r = estimateRequestTokens([{ content: [{ type: 'text' }] }], '', []);
+    expect(r.messages).toBe(1);
+  });
+
+  it('counts valid blocks alongside a malformed system-prompt block', () => {
+    // One bad block must not destroy the whole breakdown: the estimate drives
+    // compaction thresholds, and a throw there aborts the turn.
+    const r = estimateRequestTokens(
+      [{ content: [{ type: 'text', text: 'a'.repeat(350) }] }],
+      [{ type: 'text' }, { type: 'text', text: 'b'.repeat(350) }],
+      [],
+    );
+    expect(r.messages).toBe(100); // 350 / 3.5
+    expect(r.systemPrompt).toBe(101); // 1 (empty) + 100
+  });
+
+  it('does not throw from the calibrated/upper-bound wrappers', () => {
+    const sys = [{ type: 'text' }];
+    expect(() => estimateRequestTokensCalibrated([], sys, [])).not.toThrow();
+    expect(() => estimateRequestTokensUpperBound([], sys, [])).not.toThrow();
+  });
+
+  it('still counts well-formed block system prompts (non-regression)', () => {
+    const r = estimateRequestTokens(
+      [],
+      [
+        { type: 'text', text: 'x'.repeat(700) },
+        { type: 'text', text: '', cache_control: { type: 'ephemeral' } },
+      ],
+      [],
+    );
+    // 700 / 3.5 = 200, plus the 1-token floor for the explicitly empty block.
+    expect(r.systemPrompt).toBe(201);
+  });
 });
 
 describe('recordActualUsage + estimateRequestTokensCalibrated', () => {

@@ -94,6 +94,10 @@ function repairTruncated(s: string): string {
   } else if (prevSig === ':') {
     // A key with no value (e.g. `{"k":`) — complete it to null.
     result += 'null';
+  } else if (prevSig === ',') {
+    // A trailing comma (e.g. `{"a": 1,` or `[1, 2,`) — strip it so closing
+    // braces/brackets produce valid JSON.
+    result = result.slice(0, -1).trimEnd();
   }
 
   // Close any still-open containers in reverse order.
@@ -102,9 +106,11 @@ function repairTruncated(s: string): string {
   }
 
   // Last resort: an empty value sitting before an existing close (`{"k":}`)
-  // leaves invalid JSON — fill it with null.
+  // or a dangling comma (`{"k": 1, }`) leaves invalid JSON — patch them.
   if (!tryParse(result).ok) {
-    const patched = result.replace(/:(\s*)([}\]])/g, ':null$2');
+    const patched = result
+      .replace(/:(\s*)([}\]])/g, ':null$2')
+      .replace(/,(\s*[}\]])/g, '$1');
     if (tryParse(patched).ok) result = patched;
   }
 

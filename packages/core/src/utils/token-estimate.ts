@@ -312,7 +312,7 @@ export function estimateRequestTokens(
         b !== null &&
         (b as { type?: string | undefined }).type === 'text'
       ) {
-        systemTokens += RoughTokenEstimate((b as { text: string }).text);
+        systemTokens += RoughTokenEstimate((b as { text: string }).text ?? '');
       }
     }
   }

@@ -163,7 +163,10 @@ export function assignNickname(role: string, used: ReadonlySet<string>): Nicknam
   }
 
   // 4. Pool exhausted — synthesize a stable, unique key/display pair.
-  const counter = used.size + 1;
+  let counter = used.size + 1;
+  while (used.has(`scientist-${counter}`)) {
+    counter++;
+  }
   return { key: `scientist-${counter}`, display: `Scientist #${counter} (${formatRole(role)})` };
 }
 

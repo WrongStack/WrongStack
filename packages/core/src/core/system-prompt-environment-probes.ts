@@ -27,11 +27,18 @@ export async function gitStatus(root: string): Promise<string> {
       resolve(s);
     };
     let proc: ReturnType<typeof spawn> | undefined;
-    // 2 s ceiling: a hung git status must not stall prompt construction.
+    // 10 s ceiling: a hung git status must not stall prompt construction
+    // forever — but the ceiling must also tolerate a HEALTHY git under full
+    // parallel load, where spawn+exec plus a lived-in repo's directory scan
+    // legitimately exceeds 2 s (observed: a 2.3 s probe under 24-way vitest
+    // load; the old 2 s ceiling SIGKILLed it and silently stripped
+    // branch/modified/staged from every system prompt — bug-hunt round 19,
+    // load-dependent flake in system-prompt-builder's "reports git branch"
+    // test). 10 s still bounds a genuinely hung git via SIGKILL.
     const timer = setTimeout(() => {
       proc?.kill('SIGKILL');
       finish('git timeout');
-    }, 2000);
+    }, 10_000);
     try {
       proc = spawn('git', ['status', '--porcelain=v1', '--branch'], {
         cwd: root,
