@@ -140,15 +140,18 @@ export class Poller {
           this.offset = upd.update_id + 1;
           continue;
         }
+        // A failing handler must not wedge the offset: Telegram redelivers
+        // every update at/after the requested offset, so failing to advance
+        // past a poison update would re-fetch and re-fail it on every poll,
+        // permanently blocking all later updates. Log, acknowledge, continue.
         try {
           this.onMessageUpdate(raw);
-          this.offset = upd.update_id + 1;
         } catch (err) {
           this.log.debug(
             `Telegram processMessage failed: ${err instanceof Error ? err.message : String(err)}`,
           );
-          break;
         }
+        this.offset = upd.update_id + 1;
       }
       if (this.offsetStore && updates.length > 0) void this.saveOffset();
     } catch (err) {
