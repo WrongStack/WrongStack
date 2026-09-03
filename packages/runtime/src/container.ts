@@ -29,6 +29,7 @@ import {
   DefaultConfigStore,
   DefaultSessionStore,
   getSessionRegistry,
+  resolveSessionLoggingConfig,
 } from '@wrongstack/core/storage';
 import type { Config, Logger, ModelsRegistry, Tool } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
@@ -115,33 +116,48 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
 
   const modeStore = new DefaultModeStore({ directory: wpaths.configDir });
   container.bind(TOKENS.ModeStore, () => modeStore);
-  container.bind(
-    TOKENS.SessionStore,
-    () =>
-      new DefaultSessionStore({
-        dir: wpaths.projectSessions,
-        projectRoot: wpaths.projectRoot,
-        logger,
-        // Scrub secrets out of persisted user/model turns (F-06). Tool output
-        // is already scrubbed by the executor.
-        secretScrubber: container.resolve(TOKENS.SecretScrubber),
-        // Cross-process guard consulted by delete(): refuses to remove a
-        // session that a LIVE terminal/TUI/WebUI in this project is using.
-        isSessionInUse: async (sessionId) => {
-          try {
-            const registry = getSessionRegistry(wpaths.globalRoot);
-            const live = await registry.listByProject(wpaths.projectSlug);
-            const hit = live.find((e) => e.sessionId === sessionId);
-            if (hit) {
-              return `active in ${hit.projectName} (PID ${hit.pid})`;
-            }
-          } catch {
-            // Registry failures must not make the session store unavailable.
+  container.bind(TOKENS.SessionStore, () => {
+    const sessionLogging = resolveSessionLoggingConfig(config);
+    const store = new DefaultSessionStore({
+      dir: wpaths.projectSessions,
+      projectRoot: wpaths.projectRoot,
+      logger,
+      // Scrub secrets out of persisted user/model turns (F-06). Tool output
+      // is already scrubbed by the executor.
+      secretScrubber: container.resolve(TOKENS.SecretScrubber),
+      storage: sessionLogging.storage,
+      // Cross-process guard consulted by delete(): refuses to remove a
+      // session that a LIVE terminal/TUI/WebUI in this project is using.
+      isSessionInUse: async (sessionId) => {
+        try {
+          const registry = getSessionRegistry(wpaths.globalRoot);
+          const live = await registry.listByProject(wpaths.projectSlug);
+          const hit = live.find((e) => e.sessionId === sessionId);
+          if (hit) {
+            return `active in ${hit.projectName} (PID ${hit.pid})`;
           }
-          return null;
-        },
-      }),
-  );
+        } catch {
+          // Registry failures must not make the session store unavailable.
+        }
+        return null;
+      },
+    });
+    if (sessionLogging.storage.autoArchive) {
+      void store
+        .archiveIdle({
+          hotKeepSessions: sessionLogging.storage.hotKeepSessions,
+          includeSubagents: sessionLogging.storage.includeSubagents,
+          backfill: true,
+        })
+        ?.catch((error: unknown) => {
+          logger.warn('Session archive-idle failed', {
+            event: 'session_store.archive_idle_failed',
+            message: error instanceof Error ? error.message : String(error),
+          });
+        });
+    }
+    return store;
+  });
 
   // Single memory backend: SAGE is the only store. `Sage.enabled`
   // no longer swaps the backend — it only gates automatic context injection and
