@@ -219,8 +219,17 @@ export class SessionCatalogProjectClient {
       }
       if (!spawnIfMissing) break;
       if (!spawned) {
-        this.spawnDetached();
-        spawned = true;
+        try {
+          this.spawnDetached();
+          spawned = true;
+        } catch (error) {
+          // A concurrent workspace rebuild can transiently remove the built
+          // project-server artifact; this deadline loop exists to absorb
+          // exactly that window, so record the failure and retry the spawn
+          // once the artifact re-emerges instead of letting the throw bypass
+          // the loop (hq-mailbox-mutation flake, bug-hunt round 18).
+          lastError = error;
+        }
       }
       await delay(75);
     }
