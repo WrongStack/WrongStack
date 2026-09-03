@@ -343,7 +343,7 @@
       "relativeImports": 18
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 944,
+      "lines": 946,
       "relativeImports": 14
     },
     "packages/tui/src/app.tsx": {

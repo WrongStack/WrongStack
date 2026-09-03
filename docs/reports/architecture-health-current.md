@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-03T09:44:46.122Z
+**Generated:** 2026-09-03T09:50:43.328Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,7 +21,7 @@
 
 ## Verification result
 
-- packages/tui/src/app-state.ts: hotspot grew from 944 to 946 lines; review and update the ratchet in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 

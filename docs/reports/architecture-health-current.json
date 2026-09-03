@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-03T09:44:46.122Z",
+  "generatedAt": "2026-09-03T09:50:43.328Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -24,9 +24,7 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 853
   },
-  "errors": [
-    "packages/tui/src/app-state.ts: hotspot grew from 944 to 946 lines; review and update the ratchet in the same change"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
