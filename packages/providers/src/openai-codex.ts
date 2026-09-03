@@ -724,7 +724,17 @@ export async function* parseOpenAIResponsesStream(
       case 'response.completed':
       case 'response.incomplete': {
         const resp = evt['response'] as { status?: string; usage?: ResponsesUsage } | undefined;
-        if (resp?.usage) usage = normalizeUsage(resp.usage);
+        if (resp?.usage) {
+          usage = normalizeUsage(resp.usage);
+          // A usage-bearing terminal envelope must never silently drop its
+          // telemetry, even when the backend skipped every start-producing
+          // event (`response.created`/`in_progress`/`output_item.added`):
+          // emit message_start here so the final `if (started)` yields the
+          // paired usage-bearing message_stop. No-op on the normal path where
+          // message_start was already emitted.
+          const s = ensureStart();
+          if (s) yield s;
+        }
         stopReason = mapResponsesStatus(resp?.status, sawToolUse);
         sawTerminal = true;
         break;

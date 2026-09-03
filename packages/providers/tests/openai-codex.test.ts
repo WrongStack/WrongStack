@@ -1,10 +1,11 @@
-import { ProviderError, type Request } from '@wrongstack/core/types';
+import { ProviderError, type Request, type StreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   type CodexOAuthTokens,
   codexOutputCap,
   extractAccountId,
   OpenAICodexProvider,
+  parseOpenAIResponsesStream,
   resolveCodexModelsUrl,
   resolveCodexUrl,
 } from '../src/openai-codex.js';
@@ -839,5 +840,40 @@ describe('Codex output cap', () => {
     });
     await p.complete({ ...baseReq, maxTokens: 16_384 }, { signal: new AbortController().signal });
     expect(JSON.parse(captured.init?.body ?? '{}')).not.toHaveProperty('max_output_tokens');
+  });
+});
+
+describe('parseOpenAIResponsesStream usage recovery', () => {
+  it('emits message_start + usage-bearing message_stop when the terminal envelope arrives with no start-producing events', async () => {
+    const sse = [
+      'data: {"type":"response.completed","response":{"id":"r1","status":"completed","usage":{"input_tokens":7,"output_tokens":2,"input_tokens_details":{"cached_tokens":5}}}}',
+      '',
+    ].join('\n');
+    const events: StreamEvent[] = [];
+    for await (const e of parseOpenAIResponsesStream(sseBody(sse), 'gpt-5-codex')) {
+      events.push(e);
+    }
+    // Regression: a backend that skips `response.created`/`output_item.added`
+    // and goes straight to a usage-bearing `response.completed` must not
+    // silently drop its telemetry. The parser now emits the paired
+    // message_start so the terminal message_stop (with usage) is delivered.
+    expect(events.map((e) => e.type)).toEqual(['message_start', 'message_stop']);
+    const stop = events[1] as { type: 'message_stop'; usage?: { input: number; output: number; cacheRead?: number } };
+    // normalizeUsage: input = 7 − 5(cached) − 0(write) = 2, cacheRead = 5.
+    expect(stop.usage).toEqual({ input: 2, output: 2, cacheRead: 5 });
+  });
+
+  it('still emits nothing (no telemetry) for a usage-less terminal envelope with no start-producing events', async () => {
+    const sse = [
+      'data: {"type":"response.completed","response":{"id":"r1","status":"completed"}}',
+      '',
+    ].join('\n');
+    const events: StreamEvent[] = [];
+    for await (const e of parseOpenAIResponsesStream(sseBody(sse), 'gpt-5-codex')) {
+      events.push(e);
+    }
+    // Pre-existing contract preserved: without usage there is nothing worth
+    // synthesizing an empty stream event pair for.
+    expect(events).toEqual([]);
   });
 });
