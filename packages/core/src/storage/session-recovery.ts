@@ -1,11 +1,16 @@
-import { createReadStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { createInterface } from 'node:readline';
 import type { SessionEvent } from '../types/session.js';
-import { isSessionTranscriptFileName, sessionScopedPath } from '../utils/session-scoped-path.js';
+import {
+  isColdSessionTranscriptFileName,
+  isSessionTranscriptFileName,
+  sessionScopedPath,
+  stripSessionTranscriptExtension,
+} from '../utils/session-scoped-path.js';
 import { resolveSessionId, sessionIdResolutionError } from './session-id-resolver.js';
 import { collectSessionIds } from './session-store/directory-session-files.js';
+import { createTranscriptLineReader, isGzipTranscriptPath } from './session-store/transcript-io.js';
+import { locateTranscript, locateTranscriptSync } from './session-store/transcript-location.js';
 /**
  * Idea #1 from IDEAS.md — Stateful Session Recovery.
  *
@@ -308,7 +313,7 @@ export class SessionRecovery {
   }
 
   private async detectStaleExact(sessionId: string): Promise<StaleSession | null> {
-    const fp = this.filePath(sessionId);
+    const fp = (await locateTranscript(this.dir, sessionId))?.filePath ?? this.filePath(sessionId);
     let stat;
     try {
       stat = await fs.stat(fp);
@@ -348,17 +353,17 @@ export class SessionRecovery {
    */
   async recover(sessionId: string): Promise<RecoveryPlan | null> {
     const canonicalId = await this.resolveId(sessionId);
-    const fp = this.filePath(canonicalId);
+    const located = await locateTranscript(this.dir, canonicalId);
+    const fp = located?.filePath ?? this.filePath(canonicalId);
     const pendingEvents: SessionEvent[] = [];
     const pendingSizes: number[] = [];
     let pendingBytes = 0;
     let lastCheckpoint: SessionEvent | null = null;
     let latestBoundary: LifecycleBoundary | null = null;
     let sawEvent = false;
-    const stream = createReadStream(fp, { encoding: 'utf8' });
-    const lines = createInterface({ input: stream, crlfDelay: Infinity });
+    const reader = createTranscriptLineReader(fp);
     try {
-      for await (const line of lines) {
+      for await (const line of reader.lines) {
         if (!line.trim()) continue;
         let event: SessionEvent;
         try {
@@ -395,8 +400,7 @@ export class SessionRecovery {
       /* v8 ignore next -- defensive */
       return null;
     } finally {
-      lines.close();
-      stream.close();
+      reader.close();
     }
     if (!sawEvent) return null;
     // The dangling in_flight_start, if it is the newest lifecycle boundary.
@@ -490,7 +494,7 @@ export class SessionRecovery {
    * both — a root-only scan silently misses every modern crash.
    */
   private async collectTranscripts(): Promise<TranscriptCandidate[]> {
-    const out: TranscriptCandidate[] = [];
+    const out = new Map<string, TranscriptCandidate>();
     const collect = async (dir: string, prefix: string, depth: number): Promise<void> => {
       let entries: import('node:fs').Dirent[];
       try {
@@ -511,7 +515,7 @@ export class SessionRecovery {
           continue;
         }
         if (!entry.isFile() || !isSessionTranscriptFileName(entry.name)) continue;
-        const base = entry.name.slice(0, -'.jsonl'.length);
+        const base = stripSessionTranscriptExtension(entry.name);
         const sessionId = prefix ? `${prefix}/${base}` : base;
         const fp = path.join(dir, entry.name);
         let stat: Awaited<ReturnType<typeof fs.stat>>;
@@ -522,11 +526,13 @@ export class SessionRecovery {
           continue;
         }
         /* v8 ignore stop */
-        out.push({ sessionId, path: fp, size: stat.size, modifiedAt: stat.mtimeMs });
+        const next = { sessionId, path: fp, size: stat.size, modifiedAt: stat.mtimeMs };
+        const existing = out.get(sessionId);
+        if (!existing || !isColdSessionTranscriptFileName(fp)) out.set(sessionId, next);
       }
     };
     await collect(this.dir, '', 0);
-    return out;
+    return [...out.values()];
   }
 
   // ── Internals ──────────────────────────────────────────────────────────
@@ -535,7 +541,10 @@ export class SessionRecovery {
     // Containment-checked: date-sharded ids ("2026-06-11/<base>") are
     // legitimate; traversal is rejected. Shared with the other per-session
     // sidecar stores so the contract can't drift.
-    return sessionScopedPath(this.dir, sessionId, '.jsonl');
+    return (
+      locateTranscriptSync(this.dir, sessionId)?.filePath ??
+      sessionScopedPath(this.dir, sessionId, '.jsonl')
+    );
   }
 
   constructor(private readonly dir: string) {}
@@ -577,6 +586,27 @@ function hasNonWhitespace(line: Buffer): boolean {
   return false;
 }
 
+async function scanLatestLifecycleBoundaryForward(
+  filePath: string,
+  countEvents: boolean,
+): Promise<{ boundary: LifecycleBoundary; eventCount: number } | null> {
+  const reader = createTranscriptLineReader(filePath);
+  let latestBoundary: LifecycleBoundary | null = null;
+  let eventCount = 0;
+  try {
+    for await (const line of reader.lines) {
+      if (!line.trim()) continue;
+      eventCount++;
+      const boundary = parseLifecycleBoundary(Buffer.from(line));
+      if (boundary) latestBoundary = boundary;
+    }
+  } finally {
+    reader.close();
+  }
+  if (!latestBoundary) return null;
+  return { boundary: latestBoundary, eventCount: countEvents ? eventCount : 0 };
+}
+
 /**
  * Walk JSONL records newest-first without decoding partial UTF-8 chunks. A
  * record split across chunks is retained as bytes and decoded only after its
@@ -594,6 +624,9 @@ async function scanLatestLifecycleBoundary(
   // first one found — otherwise every unclosed multi-hundred-MB transcript
   // would be read end to end just to answer a yes/no question.
   const countEvents = options.countEvents !== false;
+  if (isGzipTranscriptPath(filePath)) {
+    return scanLatestLifecycleBoundaryForward(filePath, countEvents);
+  }
   const CHUNK_SIZE = 64 * 1024;
   const handle = await fs.open(filePath, 'r');
   let position = size;

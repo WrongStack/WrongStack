@@ -4,7 +4,10 @@ import type { DatabaseSync } from 'node:sqlite';
 import { shouldSkipSessionDirectoryEntry } from '../storage/session-store/directory-scan.js';
 import { totalUsageTokens } from '../types/provider.js';
 import type { SessionEvent, SessionSummary } from '../types/session.js';
-import { isSessionTranscriptFileName } from '../utils/session-scoped-path.js';
+import {
+  isSessionTranscriptFileName,
+  stripSessionTranscriptExtension,
+} from '../utils/session-scoped-path.js';
 import { parseJson } from './store-schema.js';
 
 /**
@@ -103,13 +106,14 @@ export function rebuildCatalogIndex(
   bumpGenerationFn: () => number,
 ): { indexed: number; damaged: number } {
   const summaries = walkSessionFiles(sessionsDir, '.summary.json');
-  const transcripts = walkSessionFiles(sessionsDir, '.jsonl').filter((file) =>
-    isSessionTranscriptFileName(path.basename(file)),
-  );
+  const transcripts = [
+    ...walkSessionFiles(sessionsDir, '.jsonl'),
+    ...walkSessionFiles(sessionsDir, '.jsonl.gz'),
+  ].filter((file) => isSessionTranscriptFileName(path.basename(file)));
   const ids = new Set<string>();
   for (const file of [...summaries, ...transcripts]) {
     const relative = path.relative(sessionsDir, file).replaceAll('\\', '/');
-    ids.add(relative.replace(/\.summary\.json$|\.jsonl$/, ''));
+    ids.add(stripSessionTranscriptExtension(relative.replace(/\.summary\.json$/, '')));
   }
   let indexed = 0;
   let damaged = 0;
@@ -118,24 +122,39 @@ export function rebuildCatalogIndex(
     for (const id of ids) {
       try {
         const summaryFile = containedPathFn(`${id}.summary.json`);
+        const hot = containedPathFn(`${id}.jsonl`);
+        const cold = containedPathFn(`${id}.jsonl.gz`);
+        const hotExists = fs.existsSync(hot);
+        const coldExists = fs.existsSync(cold);
+        const transcript = hotExists ? hot : cold;
+        const relative = hotExists ? `${id}.jsonl` : `${id}.jsonl.gz`;
+        const storageState = hotExists ? 'hot' : 'cold';
         const summary = fs.existsSync(summaryFile)
           ? parseJson<SessionSummary>(fs.readFileSync(summaryFile, 'utf8'))
-          : summarizeTranscriptFile(containedPathFn(`${id}.jsonl`), id);
+          : hotExists
+            ? summarizeTranscriptFile(hot, id)
+            : (() => {
+                throw new Error('compressed transcript requires a summary sidecar');
+              })();
         if (!summary || summary.id !== id) throw new Error('summary identity mismatch');
-        const transcript = containedPathFn(`${id}.jsonl`);
-        const stat = fs.existsSync(transcript) ? fs.statSync(transcript) : undefined;
+        const stat = transcript && (hotExists || coldExists) ? fs.statSync(transcript) : undefined;
         const now = new Date().toISOString();
         db.prepare(
-          'INSERT INTO sessions(session_id,transcript_relative_path,summary_relative_path,summary_json,transcript_size,transcript_mtime_ms,summary_revision,indexed_at,damaged) VALUES (?,?,?,?,?,?,?,?,0)',
+          'INSERT INTO sessions(session_id,transcript_relative_path,summary_relative_path,summary_json,transcript_size,transcript_mtime_ms,summary_revision,indexed_at,damaged,storage_state,codec,uncompressed_size,compressed_size,archived_at) VALUES (?,?,?,?,?,?,?,?,0,?,?,?,?,?)',
         ).run(
           id,
-          `${id}.jsonl`,
+          relative,
           `${id}.summary.json`,
           JSON.stringify(summary),
           stat?.size ?? 0,
           stat?.mtimeMs ?? 0,
           1,
           now,
+          storageState,
+          storageState === 'cold' ? 'gzip' : null,
+          storageState === 'hot' ? (stat?.size ?? 0) : 0,
+          storageState === 'cold' ? (stat?.size ?? 0) : 0,
+          storageState === 'cold' ? now : null,
         );
         indexed++;
       } catch {

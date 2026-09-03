@@ -67,6 +67,30 @@ export interface CatalogRow {
   summary_revision: number;
   indexed_at: string;
   damaged: number;
+  storage_state?: string;
+  codec?: string | null;
+  uncompressed_size?: number;
+  compressed_size?: number;
+  content_sha256?: string | null;
+  archived_at?: string | null;
+}
+
+export type SessionStorageState = 'hot' | 'cold';
+
+export function ensureCatalogStorageColumns(db: DatabaseSync): void {
+  const cols = db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>;
+  const have = new Set(cols.map((col) => col.name));
+  const add: Array<[string, string]> = [
+    ['storage_state', "TEXT NOT NULL DEFAULT 'hot'"],
+    ['codec', 'TEXT'],
+    ['uncompressed_size', 'INTEGER NOT NULL DEFAULT 0'],
+    ['compressed_size', 'INTEGER NOT NULL DEFAULT 0'],
+    ['content_sha256', 'TEXT'],
+    ['archived_at', 'TEXT'],
+  ];
+  for (const [name, ddl] of add) {
+    if (!have.has(name)) db.exec(`ALTER TABLE sessions ADD COLUMN ${name} ${ddl}`);
+  }
 }
 
 export function hashSecret(secret: string): string {
@@ -139,7 +163,13 @@ export function initializeCatalogSchema(db: DatabaseSync): void {
       transcript_mtime_ms REAL NOT NULL DEFAULT 0,
       summary_revision INTEGER NOT NULL DEFAULT 1,
       indexed_at TEXT NOT NULL,
-      damaged INTEGER NOT NULL DEFAULT 0
+      damaged INTEGER NOT NULL DEFAULT 0,
+      storage_state TEXT NOT NULL DEFAULT 'hot',
+      codec TEXT,
+      uncompressed_size INTEGER NOT NULL DEFAULT 0,
+      compressed_size INTEGER NOT NULL DEFAULT 0,
+      content_sha256 TEXT,
+      archived_at TEXT
     );
     CREATE TABLE IF NOT EXISTS session_leases (
       session_id TEXT PRIMARY KEY,
@@ -199,6 +229,7 @@ export function initializeCatalogSchema(db: DatabaseSync): void {
     CREATE INDEX IF NOT EXISTS idx_reservations_expiry ON resume_reservations(expires_at);
     CREATE INDEX IF NOT EXISTS idx_maintenance_expiry ON maintenance_leases(expires_at);
   `);
+  ensureCatalogStorageColumns(db);
   db.prepare('INSERT INTO catalog_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING').run(
     'schema_version',
     String(SCHEMA_VERSION),

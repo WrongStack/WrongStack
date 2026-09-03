@@ -292,6 +292,14 @@ export function resolveSessionLoggingConfig(
                 toolProgress?: { sampleRate?: number | undefined } | undefined;
               }
             | undefined;
+          storage?:
+            | {
+                hotKeepSessions?: number | undefined;
+                archiveAfterDays?: number | undefined;
+                autoArchive?: boolean | undefined;
+                includeSubagents?: boolean | undefined;
+              }
+            | undefined;
         }
       | undefined;
   } | null,
@@ -300,12 +308,26 @@ export function resolveSessionLoggingConfig(
   sampling: {
     toolProgress: { sampleRate: number };
   };
+  storage: {
+    hotKeepSessions: number;
+    archiveAfterDays: number;
+    autoArchive: boolean;
+    includeSubagents: boolean;
+  };
 } {
   const session = cfg?.session ?? {};
 
   const auditLevel = resolveAuditLevel(cfg);
 
   const toolProgressSampleRate = session.sampling?.toolProgress?.sampleRate ?? 8;
+  const hotKeepSessions = Math.min(
+    10_000,
+    Math.max(1, Math.floor(session.storage?.hotKeepSessions ?? 20)),
+  );
+  const archiveAfterDays = Math.min(
+    3_650,
+    Math.max(0, Math.floor(session.storage?.archiveAfterDays ?? 7)),
+  );
 
   return {
     auditLevel,
@@ -313,6 +335,12 @@ export function resolveSessionLoggingConfig(
       toolProgress: {
         sampleRate: Math.max(1, Math.floor(toolProgressSampleRate)),
       },
+    },
+    storage: {
+      hotKeepSessions,
+      archiveAfterDays,
+      autoArchive: session.storage?.autoArchive !== false,
+      includeSubagents: session.storage?.includeSubagents !== false,
     },
   };
 }

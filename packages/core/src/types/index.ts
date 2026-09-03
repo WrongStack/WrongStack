@@ -410,7 +410,7 @@ export type { Renderer } from './renderer.js';
 export type { SecretScrubber } from './secret-scrubber.js';
 // ── secret-vault (2 symbols) ──
 export type { RotatableSecretVault, SecretVault } from './secret-vault.js';
-// ── session (16 symbols) ──
+// ── session (19 symbols) ──
 export type {
   FileSnapshot,
   ForkedSession,
@@ -418,11 +418,14 @@ export type {
   ResumeFileStatus,
   ResumeFileValidationEntry,
   ResumeValidation,
+  SessionArchiveIdleResult,
+  SessionArchiveResult,
   SessionData,
   SessionEvent,
   SessionForkOptions,
   SessionLoadProgress,
   SessionMetadata,
+  SessionStoragePolicy,
   SessionStore,
   SessionSummary,
   SessionWriter,

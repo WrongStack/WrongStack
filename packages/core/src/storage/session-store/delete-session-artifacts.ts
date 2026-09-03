@@ -18,9 +18,16 @@ export async function deleteSessionArtifacts({
   const base = path.basename(id);
   const sessDir = path.join(shardDir, base);
 
+  const uniquePaths = [
+    ...new Set([
+      jsonlPath,
+      sessionStorePath(rootDir, id, '.jsonl'),
+      sessionStorePath(rootDir, id, '.jsonl.gz'),
+      sessionStorePath(rootDir, id, '.summary.json'),
+    ]),
+  ];
   const deletions: Array<Promise<void>> = [
-    fsp.unlink(jsonlPath),
-    fsp.unlink(sessionStorePath(rootDir, id, '.summary.json')),
+    ...uniquePaths.map((target) => fsp.unlink(target)),
     fsp.unlink(sessionStorePath(rootDir, id, '.plan.json')),
     fsp.unlink(sessionStorePath(rootDir, id, '.tasks.json')),
     fsp.unlink(sessionStorePath(rootDir, id, '.todos.json')),

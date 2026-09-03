@@ -117,7 +117,17 @@ const OPERATION_KEYS: Record<SessionCatalogOperationName, readonly string[]> = {
   get_live: ['sessionId'],
   subscribe: ['cursor'],
   unsubscribe: [],
-  upsert_summary: ['summary', 'transcriptRelativePath', 'summaryRelativePath'],
+  upsert_summary: [
+    'summary',
+    'transcriptRelativePath',
+    'summaryRelativePath',
+    'storageState',
+    'codec',
+    'uncompressedSize',
+    'compressedSize',
+    'contentSha256',
+    'archivedAt',
+  ],
   list_catalog: [
     'limit',
     'search',
@@ -302,6 +312,14 @@ async function dispatch<O extends SessionCatalogOperationName>(
         value.summary,
         value.transcriptRelativePath,
         value.summaryRelativePath,
+        {
+          storageState: value.storageState,
+          codec: value.codec,
+          uncompressedSize: value.uncompressedSize,
+          compressedSize: value.compressedSize,
+          contentSha256: value.contentSha256,
+          archivedAt: value.archivedAt,
+        },
       ) as SessionCatalogOperations[O]['result'];
     }
     case 'list_catalog': {

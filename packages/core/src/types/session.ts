@@ -580,6 +580,12 @@ export interface SessionSummary {
   compactionCount?: number | undefined;
   /** Session outcome: 'completed', 'error', 'timeout', 'aborted', or undefined. */
   outcome?: 'completed' | 'error' | 'timeout' | 'aborted' | undefined;
+  /** Disk tier: live JSONL (`hot`) or gzip archive (`cold`). */
+  storageState?: 'hot' | 'cold' | undefined;
+  codec?: 'gzip' | undefined;
+  archivedAt?: string | undefined;
+  uncompressedBytes?: number | undefined;
+  compressedBytes?: number | undefined;
 }
 
 export interface SessionData {
@@ -654,6 +660,35 @@ export interface ForkedSession {
 export interface SessionLoadProgress {
   loadedBytes: number;
   totalBytes: number;
+}
+
+export interface SessionStoragePolicy {
+  /** Most-recent sessions (by lastActivity) that stay uncompressed. */
+  hotKeepSessions: number;
+  /** Archive when last activity is older than this many days AND outside keep-N. */
+  archiveAfterDays: number;
+  /** Gzip subagent journals with the leader. */
+  includeSubagents: boolean;
+  /**
+   * Compress every hot transcript outside keep-N immediately, ignoring
+   * `archiveAfterDays`. Used to drain an existing JSONL pile on boot.
+   */
+  backfill?: boolean | undefined;
+}
+
+export interface SessionArchiveResult {
+  id: string;
+  action: 'archived' | 'rehydrated' | 'already-hot' | 'already-cold' | 'skipped';
+  reason?: string | undefined;
+  uncompressedBytes?: number | undefined;
+  compressedBytes?: number | undefined;
+}
+
+export interface SessionArchiveIdleResult {
+  archived: number;
+  skipped: number;
+  failed: number;
+  results: SessionArchiveResult[];
 }
 
 export interface SessionStore {
@@ -737,6 +772,18 @@ export interface SessionStore {
    * `isSessionInUse` guard.
    */
   prune(maxAgeDays?: number): Promise<number>;
+  /**
+   * Lossless-gzip a closed session transcript. Live sessions are refused.
+   * Resume rehydrates automatically; this is the explicit maintenance path.
+   */
+  archive?(id: string): Promise<SessionArchiveResult>;
+  /** Expand a gzip archive back to appendable JSONL. */
+  rehydrate?(id: string): Promise<SessionArchiveResult>;
+  /**
+   * Archive sessions outside the keep-N / age window. Does not delete.
+   * `/prune` remains the delete path.
+   */
+  archiveIdle?(policy?: Partial<SessionStoragePolicy>): Promise<SessionArchiveIdleResult>;
   /**
    * Rebuild the session index from disk. Scans all session directories,
    * computes summaries, and writes a fresh _index.jsonl. Returns the

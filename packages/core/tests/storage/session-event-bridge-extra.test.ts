@@ -137,6 +137,12 @@ describe('session-event-bridge — extra coverage', () => {
       expect(resolveSessionLoggingConfig(null)).toEqual({
         auditLevel: 'standard',
         sampling: { toolProgress: { sampleRate: 8 } },
+        storage: {
+          hotKeepSessions: 20,
+          archiveAfterDays: 7,
+          autoArchive: true,
+          includeSubagents: true,
+        },
       });
       expect(
         resolveSessionLoggingConfig({
@@ -145,6 +151,12 @@ describe('session-event-bridge — extra coverage', () => {
       ).toEqual({
         auditLevel: 'full',
         sampling: { toolProgress: { sampleRate: 1 } },
+        storage: {
+          hotKeepSessions: 20,
+          archiveAfterDays: 7,
+          autoArchive: true,
+          includeSubagents: true,
+        },
       });
       expect(
         resolveSessionLoggingConfig({

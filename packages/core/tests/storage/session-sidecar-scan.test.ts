@@ -37,7 +37,11 @@ async function writeSidecars(base: string): Promise<void> {
 describe('session directory scans — sidecar exclusion', () => {
   it('classifies transcripts and sidecars', () => {
     expect(isSessionTranscriptFileName('sess_abc.jsonl')).toBe(true);
+    expect(isSessionTranscriptFileName('sess_abc.jsonl.gz')).toBe(true);
+    expect(isSessionTranscriptFileName('SESS_ABC.JSONL.GZ')).toBe(true);
     expect(isSessionTranscriptFileName('2026-06-11/sess_abc.jsonl')).toBe(true);
+    expect(isSessionTranscriptFileName('sess_abc.replay.jsonl.gz')).toBe(false);
+    expect(isSessionTranscriptFileName('sess_abc.REPLAY.jsonl')).toBe(false);
     expect(isSessionTranscriptFileName('sess_abc.replay.jsonl')).toBe(false);
     expect(isSessionTranscriptFileName('sess_abc.audit.jsonl')).toBe(false);
     expect(isSessionTranscriptFileName('sess_abc.annotations.jsonl')).toBe(false);

@@ -6,7 +6,8 @@ export function buildPruneCommand(opts: SlashCommandContext): SlashCommand {
   return {
     name: 'prune',
     category: 'Session',
-    description: 'Delete old sessions. /prune (default 30d), /prune 7, /prune --rebuild-index.',
+    description:
+      'Delete old sessions. /prune (default 30d). To compress instead of delete, use /sessions archive.',
     help:
       'Usage:\n' +
       '  /prune               Delete sessions older than 30 days.\n' +

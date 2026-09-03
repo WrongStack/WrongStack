@@ -1,6 +1,5 @@
-import { createReadStream } from 'node:fs';
 import { stat as fspStat } from 'node:fs/promises';
-import { createInterface } from 'node:readline';
+import { createTranscriptLineReader } from './transcript-io.js';
 import type { ContentBlock } from '../../types/blocks.js';
 import type { Message } from '../../types/messages.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
@@ -92,17 +91,26 @@ export async function loadSessionDataFromFile(params: {
   // readline that the try/finally below has not claimed yet.
   const totalBytes = params.onLoadProgress ? (await fspStat(params.file)).size : 0;
 
-  const stream = createReadStream(params.file, { encoding: 'utf8' });
-  const rl = createInterface({ input: stream, crlfDelay: Infinity });
+  const reader = createTranscriptLineReader(params.file);
+  const rl = reader.lines;
   let loadedBytes = 0;
   let lastProgressAt = 0;
   const progressIntervalMs = params.progressIntervalMs ?? LOAD_PROGRESS_INTERVAL_MS;
+  if (params.onLoadProgress && reader.compressed) {
+    reader.source.on('data', (chunk: string | Buffer) => {
+      loadedBytes += typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.length;
+      if (Date.now() - lastProgressAt >= progressIntervalMs) {
+        lastProgressAt = Date.now();
+        params.onLoadProgress?.({ loadedBytes, totalBytes });
+      }
+    });
+  }
 
   try {
     for await (const line of rl) {
       // Opt-in per contract: the default path (no consumer) must stay a
       // zero-extra-cost scan on OOM-scale journals — no stat, no accounting.
-      if (params.onLoadProgress) {
+      if (params.onLoadProgress && !reader.compressed) {
         loadedBytes += Buffer.byteLength(line, 'utf8') + 1;
         if (Date.now() - lastProgressAt >= progressIntervalMs) {
           lastProgressAt = Date.now();
@@ -207,8 +215,7 @@ export async function loadSessionDataFromFile(params: {
       params.onLoadProgress({ loadedBytes: totalBytes, totalBytes });
     }
   } finally {
-    rl.close();
-    stream.close();
+    reader.close();
   }
 
   let finalMessages: Message[] = [];

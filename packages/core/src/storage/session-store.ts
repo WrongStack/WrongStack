@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Dirent } from 'node:fs';
 import * as fsp from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import type { EventBus } from './event-bus-port.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
@@ -8,16 +9,20 @@ import {
   resolveSessionCatalogProjectServerUrl,
   SessionCatalogProjectClient,
 } from '../session-catalog/client.js';
+import type { MaintenanceLease } from '../session-catalog/protocol.js';
 import type { Logger } from '../types/logger.js';
 import type { SecretScrubber } from '../types/secret-scrubber.js';
 import type {
   ForkedSession,
   ResumedSession,
+  SessionArchiveIdleResult,
+  SessionArchiveResult,
   SessionData,
   SessionEvent,
   SessionForkOptions,
   SessionLoadProgress,
   SessionMetadata,
+  SessionStoragePolicy,
   SessionStore,
   SessionSummary,
   SessionWriter,
@@ -25,6 +30,7 @@ import type {
 } from '../types/session.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
+import { isColdSessionTranscriptFileName } from '../utils/session-scoped-path.js';
 import { FileSessionWriter } from './file-session-writer.js';
 import { SessionCheckpointCas } from './session-checkpoint-cas.js';
 import { captureCheckpoint, materializeCheckpoint, sessionContentText } from './session-helpers.js';
@@ -46,6 +52,11 @@ import {
 import { forkSession } from './session-store/fork-session.js';
 import { SessionLoadCache } from './session-store/load-cache.js';
 import { loadSessionDataFromFile } from './session-store/load-session-data.js';
+import {
+  archiveSessionTranscript,
+  rehydrateSessionTranscript,
+} from './session-store/transcript-archive.js';
+import { locateTranscript } from './session-store/transcript-location.js';
 import {
   ensureShardDir as ensureSessionShardDir,
   sessionPath as sessionStorePath,
@@ -81,6 +92,12 @@ import { mapWithConcurrency } from './storage-concurrency.js';
 /** Upper bound for filtered-listing candidate pools (bounds pathological dirs). */
 const SESSION_FILTER_POOL_LIMIT = 10_000;
 
+function archiveConcurrency(): number {
+  const cpus =
+    typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
+  return Math.max(2, Math.min(4, Math.max(1, cpus)));
+}
+
 export type { SessionStoreOptions } from './session-store/types.js';
 
 interface CachedShardManifest {
@@ -102,6 +119,9 @@ export class DefaultSessionStore implements SessionStore {
   private readonly onAppendBatch?: ((events: SessionEvent[]) => void) | undefined;
   private readonly catalogClient: SessionCatalogProjectClient | undefined;
   private readonly maintenanceHolderId = randomUUID();
+  private readonly storagePolicy: SessionStoragePolicy;
+  private readonly autoArchive: boolean;
+  private archiveIdleInFlight: Promise<SessionArchiveIdleResult> | null = null;
 
   private readonly _loadCache = new Map<
     string,
@@ -150,6 +170,15 @@ export class DefaultSessionStore implements SessionStore {
     this.logger = opts.logger;
     this.onAppend = opts.onAppend;
     this.onAppendBatch = opts.onAppendBatch;
+    this.storagePolicy = {
+      hotKeepSessions: Math.min(10_000, Math.max(1, Math.floor(opts.storage?.hotKeepSessions ?? 20))),
+      archiveAfterDays: Math.min(
+        3_650,
+        Math.max(0, Math.floor(opts.storage?.archiveAfterDays ?? 7)),
+      ),
+      includeSubagents: opts.storage?.includeSubagents !== false,
+    };
+    this.autoArchive = opts.storage?.autoArchive === true;
     const builtRuntime = import.meta.url.includes('/dist/');
     this.catalogClient =
       this.projectRoot &&
@@ -187,8 +216,26 @@ export class DefaultSessionStore implements SessionStore {
     return path.join(this.dir, '_index.jsonl');
   }
 
-  private sessionPath(id: string, ext: '.jsonl' | '.summary.json'): string {
+  private sessionPath(id: string, ext: '.jsonl' | '.jsonl.gz' | '.summary.json'): string {
     return sessionStorePath(this.dir, id, ext);
+  }
+
+  private async requireTranscript(id: string) {
+    const located = await locateTranscript(this.dir, id);
+    if (!located) throw new Error(`Session not found: ${id}`);
+    return located;
+  }
+
+  private decorateStorage(summary: SessionSummary, located: { state: 'hot' | 'cold'; size: number }): SessionSummary {
+    if (located.state === 'cold') {
+      return {
+        ...summary,
+        storageState: 'cold',
+        codec: 'gzip',
+        compressedBytes: located.size,
+      };
+    }
+    return { ...summary, storageState: 'hot', uncompressedBytes: located.size };
   }
 
   private shardManifestPath(shardKey: string): string {
@@ -261,6 +308,7 @@ export class DefaultSessionStore implements SessionStore {
     // under this id so list() cannot publish old metadata before the first
     // checkpoint/close. Transcript cleanliness is guaranteed by the 'w'
     // open below (create-or-truncate).
+    await fsp.unlink(this.sessionPath(id, '.jsonl.gz')).catch(() => undefined);
     const sidecar = path.join(shardDir, `${path.basename(id)}.summary.json`);
     try {
       await fsp.rm(sidecar, { force: true });
@@ -370,7 +418,10 @@ export class DefaultSessionStore implements SessionStore {
             ? {}
             : { name: sessionContentText(this.secretScrubber.scrub(current.name)) };
         },
-        onClose: (s) => this.persistCatalogSummary(s),
+        onClose: async (s) => {
+          await this.persistCatalogSummary(s);
+          if (this.autoArchive) void this.archiveIdle().catch(() => undefined);
+        },
         // Mid-session metadata checkpoints reuse the same sink as close so
         // killed sessions leave accurate index rows / catalog entries behind.
         onMetadataCheckpoint: (s) => this.persistCatalogSummary(s),
@@ -414,8 +465,8 @@ export class DefaultSessionStore implements SessionStore {
     if (!normalized) throw new Error('Session not found: (empty query)');
     if (normalized) {
       try {
-        const stat = await fsp.stat(this.sessionPath(normalized, '.jsonl'));
-        if (stat.isFile()) return normalized;
+        const located = await locateTranscript(this.dir, normalized);
+        if (located) return normalized;
       } catch {
         // Fall through to exact-leaf / unique-prefix resolution.
       }
@@ -431,6 +482,7 @@ export class DefaultSessionStore implements SessionStore {
     onLoadProgress?: (progress: SessionLoadProgress) => void,
   ): Promise<ResumedSession> {
     const canonicalId = await this.resolveId(id);
+    await this.ensureHot(canonicalId, false);
     const file = this.sessionPath(canonicalId, '.jsonl');
     return executeResumeSession({
       id,
@@ -467,7 +519,8 @@ export class DefaultSessionStore implements SessionStore {
     mode: { full: true } | { full: false },
     onLoadProgress?: (progress: SessionLoadProgress) => void,
   ): Promise<SessionData> {
-    const file = this.sessionPath(id, '.jsonl');
+    const located = await this.requireTranscript(id);
+    const file = located.filePath;
     const t0 = Date.now();
     let outcome: 'success' | 'failure' = 'success';
     let errorMsg: string | undefined;
@@ -529,8 +582,10 @@ export class DefaultSessionStore implements SessionStore {
     predicate: (event: SessionEvent, eventIndex: number, ts: string) => boolean,
     opts?: { limit?: number | undefined; signal?: AbortSignal | undefined },
   ): Promise<Array<{ event: SessionEvent; eventIndex: number; ts: string }>> {
+    const located = await locateTranscript(this.dir, id);
+    if (!located) return [];
     return searchSessionEvents({
-      file: this.sessionPath(id, '.jsonl'),
+      file: located.filePath,
       secretScrubber: this.secretScrubber,
       predicate,
       limit: opts?.limit,
@@ -628,10 +683,20 @@ export class DefaultSessionStore implements SessionStore {
       await this.appendToIndex(summary);
       return;
     }
+    const located = await locateTranscript(this.dir, summary.id);
     await this.catalogClient.call('upsert_summary', {
       summary,
-      transcriptRelativePath: `${summary.id}.jsonl`,
+      transcriptRelativePath: located?.relativePath ?? `${summary.id}.jsonl`,
       summaryRelativePath: `${summary.id}.summary.json`,
+      ...(located?.state === 'cold'
+        ? {
+            storageState: 'cold' as const,
+            codec: 'gzip' as const,
+            compressedSize: located.size,
+          }
+        : located
+          ? { storageState: 'hot' as const, uncompressedSize: located.size }
+          : {}),
     });
   }
 
@@ -913,9 +978,10 @@ export class DefaultSessionStore implements SessionStore {
     if (fromManifest) return fromManifest;
 
     try {
-      const full = this.sessionPath(id, '.jsonl');
+      const located = await this.requireTranscript(id);
+      const full = located.filePath;
       const stat = await fsp.stat(full);
-      const summary = await this.summarize(id, stat.mtime.toISOString());
+      const summary = this.decorateStorage(await this.summarize(id, stat.mtime.toISOString()), located);
       await atomicWrite(manifest, JSON.stringify(summary), { mode: 0o600 }).catch((err) => {
         const msg = toErrorMessage(err);
         emitSessionStoreError(this.events, id, manifest, 'summary_fallback', msg, true);
@@ -979,14 +1045,17 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   private async deleteSession(id: string): Promise<void> {
-    const jsonlPath = this.sessionPath(id, '.jsonl');
+    const located = await locateTranscript(this.dir, id);
+    const jsonlPath = located?.filePath ?? this.sessionPath(id, '.jsonl');
     await deleteSessionArtifacts({ rootDir: this.dir, id, jsonlPath });
     await this.writeTombstone(id);
   }
 
   async isEmpty(id: string): Promise<boolean> {
     const canonicalId = await this.resolveId(id);
-    return isStrictlyEmptySessionFile(this.sessionPath(canonicalId, '.jsonl'));
+    const located = await locateTranscript(this.dir, canonicalId);
+    if (!located) return false;
+    return isStrictlyEmptySessionFile(located.filePath);
   }
 
   async delete(id: string): Promise<void> {
@@ -1021,7 +1090,8 @@ export class DefaultSessionStore implements SessionStore {
       return summary;
     }
     const manifest = this.sessionPath(id, '.summary.json');
-    const jsonlPath = this.sessionPath(id, '.jsonl');
+    const located = await locateTranscript(this.dir, id);
+    const jsonlPath = located?.filePath ?? this.sessionPath(id, '.jsonl');
     const updated = await executeRenameSession({
       id,
       name,
@@ -1074,12 +1144,280 @@ export class DefaultSessionStore implements SessionStore {
     // previously loaded via an alias would keep a raw-keyed entry after a
     // canonical-only clear. Delete both keys; Map.delete no-ops on a miss.
     if (id !== canonical) this.clearLoadCache(id);
+    await fsp.unlink(this.sessionPath(canonical, '.jsonl.gz')).catch(() => undefined);
+  }
+
+  async archive(id: string): Promise<SessionArchiveResult> {
+    const canonical = await this.resolveId(id);
+    return this.archiveCanonical(canonical);
+  }
+
+  async rehydrate(id: string): Promise<SessionArchiveResult> {
+    const canonical = await this.resolveId(id);
+    return this.ensureHot(canonical, true);
+  }
+
+  async archiveIdle(policy?: Partial<SessionStoragePolicy>): Promise<SessionArchiveIdleResult> {
+    if (this.archiveIdleInFlight) return this.archiveIdleInFlight;
+    this.archiveIdleInFlight = this.runArchiveIdle({
+      ...this.storagePolicy,
+      ...policy,
+    }).finally(() => {
+      this.archiveIdleInFlight = null;
+    });
+    return this.archiveIdleInFlight;
+  }
+
+  private async runArchiveIdle(policy: SessionStoragePolicy): Promise<SessionArchiveIdleResult> {
+    const files = await collectSessionFilesFromDirectory(this.dir);
+    const hot: Array<{ id: string; mtimeMs: number }> = [];
+    for (const ref of files) {
+      if (isColdSessionTranscriptFileName(ref.filePath)) continue;
+      try {
+        const stat = await fsp.stat(ref.filePath);
+        if (!stat.isFile() || stat.size <= 0) continue;
+        hot.push({ id: ref.id, mtimeMs: stat.mtimeMs });
+      } catch {
+        continue;
+      }
+    }
+    hot.sort((a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id));
+    const keep = new Set(hot.slice(0, policy.hotKeepSessions).map((row) => row.id));
+    const cutoff = Date.now() - policy.archiveAfterDays * 86_400_000;
+    const ignoreAge = policy.backfill === true || policy.archiveAfterDays <= 0;
+    const candidates = hot.filter((row) => {
+      if (keep.has(row.id)) return false;
+      if (!ignoreAge && row.mtimeMs >= cutoff) return false;
+      return true;
+    });
+    const fast = true;
+    const gzipOpts = { level: 1 as const, verify: false };
+    const mapped = await mapWithConcurrency(candidates, archiveConcurrency(), async (row) => {
+      try {
+        return await this.archiveCanonical(row.id, {
+          fast,
+          gzipOpts,
+          skipManifestInvalidate: true,
+        });
+      } catch (error) {
+        return {
+          id: row.id,
+          action: 'skipped' as const,
+          reason: toErrorMessage(error),
+        };
+      }
+    });
+    const touched = new Set(candidates.map((row) => row.id));
+    for (const id of touched) {
+      await this.invalidateShardManifestBySessionId(id).catch(() => undefined);
+    }
+    let archived = 0;
+    let failed = 0;
+    for (const result of mapped) {
+      if (result.action === 'archived') archived++;
+      else if (
+        result.action === 'skipped' &&
+        result.reason &&
+        result.reason !== 'already-cold' &&
+        !/in use|live/i.test(result.reason)
+      ) {
+        failed++;
+      }
+    }
+    return {
+      archived,
+      skipped: hot.length - archived,
+      failed,
+      results: mapped,
+    };
+  }
+
+  /** Sidecar only — never re-parse a multi-hundred-MB journal just to gzip it. */
+  private async ensureArchiveSummarySidecar(id: string): Promise<void> {
+    if (await this.readSummaryManifest(id)) return;
+    const located = await locateTranscript(this.dir, id);
+    if (!located) return;
+    const header = await readSessionSummaryHeader(
+      { id, filePath: located.filePath },
+      this.secretScrubber,
+    );
+    if (!header) return;
+    await atomicWrite(this.sessionPath(id, '.summary.json'), JSON.stringify(header), {
+      mode: 0o600,
+    }).catch(() => undefined);
+  }
+
+  private async archiveCanonical(
+    id: string,
+    opts: {
+      fast?: boolean | undefined;
+      gzipOpts?: { level?: number; verify?: boolean } | undefined;
+      skipManifestInvalidate?: boolean | undefined;
+    } = {},
+  ): Promise<SessionArchiveResult> {
+    if (this.isSessionInUse) {
+      const reason = await this.isSessionInUse(id);
+      if (reason) return { id, action: 'skipped', reason };
+    }
+    const located = await locateTranscript(this.dir, id);
+    if (!located) throw new Error(`Session not found: ${id}`);
+    if (located.state === 'cold') {
+      return {
+        id,
+        action: 'already-cold',
+        compressedBytes: located.size,
+      };
+    }
+    let lease: MaintenanceLease | undefined;
+    if (this.catalogClient) {
+      try {
+        lease = await this.catalogClient.call('acquire_maintenance', {
+          sessionId: id,
+          operation: 'archive',
+          holderId: this.maintenanceHolderId,
+          holderPid: process.pid,
+        });
+      } catch (error) {
+        return { id, action: 'skipped', reason: toErrorMessage(error) };
+      }
+    }
+    try {
+      if (opts.fast) {
+        await this.ensureArchiveSummarySidecar(id);
+      } else {
+        await this.summaryFor(id);
+      }
+      const result = await archiveSessionTranscript(
+        this.dir,
+        id,
+        this.storagePolicy.includeSubagents,
+        opts.gzipOpts,
+      );
+      const summary = await this.readSummaryManifest(id);
+      if (summary) {
+        // Sync the per-session manifest with the new tier. The shard-manifest
+        // builder trusts this file verbatim (readSummaryManifest has no
+        // freshness check) and scanned rows win mergeIndexWithScan, so a stale
+        // hot-era manifest here hides the archive state from list() even
+        // though _index.jsonl carries it.
+        const coldSummary: SessionSummary = {
+          ...summary,
+          storageState: 'cold',
+          codec: 'gzip',
+          uncompressedBytes: result.uncompressedBytes,
+          compressedBytes: result.compressedBytes,
+          archivedAt: new Date().toISOString(),
+        };
+        await atomicWrite(this.sessionPath(id, '.summary.json'), JSON.stringify(coldSummary), {
+          mode: 0o600,
+        }).catch(() => undefined);
+        if (!opts.skipManifestInvalidate) {
+          await this.invalidateShardManifestBySessionId(id).catch(() => undefined);
+        }
+        if (this.catalogClient) {
+          await this.catalogClient.call('upsert_summary', {
+            summary,
+            transcriptRelativePath: result.relativePath,
+            summaryRelativePath: `${id}.summary.json`,
+            storageState: 'cold',
+            codec: 'gzip',
+            uncompressedSize: result.uncompressedBytes,
+            compressedSize: result.compressedBytes,
+            contentSha256: result.sha256,
+            archivedAt: new Date().toISOString(),
+          });
+        } else {
+          await this.appendToIndex(coldSummary);
+        }
+      }
+      this.clearLoadCache(id);
+      return {
+        id,
+        action: 'archived',
+        uncompressedBytes: result.uncompressedBytes,
+        compressedBytes: result.compressedBytes,
+      };
+    } finally {
+      if (this.catalogClient && lease) {
+        await this.catalogClient.call('release_maintenance', { lease }).catch(() => undefined);
+      }
+    }
+  }
+
+  private async ensureHot(id: string, leased: boolean): Promise<SessionArchiveResult> {
+    const located = await locateTranscript(this.dir, id);
+    if (!located) throw new Error(`Session not found: ${id}`);
+    if (located.state === 'hot') {
+      await rehydrateSessionTranscript(this.dir, id, this.storagePolicy.includeSubagents).catch(
+        () => undefined,
+      );
+      return { id, action: 'already-hot', uncompressedBytes: located.size };
+    }
+    let lease: MaintenanceLease | undefined;
+    if (leased && this.catalogClient) {
+      lease = await this.catalogClient.call('acquire_maintenance', {
+        sessionId: id,
+        operation: 'rehydrate',
+        holderId: this.maintenanceHolderId,
+        holderPid: process.pid,
+      });
+    }
+    try {
+      const result = await rehydrateSessionTranscript(
+        this.dir,
+        id,
+        this.storagePolicy.includeSubagents,
+      );
+      const summary = await this.readSummaryManifest(id);
+      if (summary) {
+        // Mirror of the archive-side manifest sync: after cold -> hot the
+        // manifest must stop claiming the gzip tier — the shard-manifest
+        // builder reads this file verbatim and scanned rows win the
+        // list() merge, so a stale cold manifest would misreport a live
+        // session as archived.
+        const hotSummary: SessionSummary = {
+          ...summary,
+          storageState: 'hot',
+          uncompressedBytes: result.uncompressedBytes,
+        };
+        delete hotSummary.codec;
+        delete hotSummary.compressedBytes;
+        delete hotSummary.archivedAt;
+        await atomicWrite(this.sessionPath(id, '.summary.json'), JSON.stringify(hotSummary), {
+          mode: 0o600,
+        }).catch(() => undefined);
+        await this.invalidateShardManifestBySessionId(id).catch(() => undefined);
+        if (this.catalogClient) {
+          await this.catalogClient.call('upsert_summary', {
+            summary,
+            transcriptRelativePath: result.relativePath,
+            summaryRelativePath: `${id}.summary.json`,
+            storageState: 'hot',
+            uncompressedSize: result.uncompressedBytes,
+            compressedSize: 0,
+            archivedAt: null,
+          });
+        }
+      }
+      this.clearLoadCache(id);
+      return {
+        id,
+        action: 'rehydrated',
+        uncompressedBytes: result.uncompressedBytes,
+        compressedBytes: result.compressedBytes,
+      };
+    } finally {
+      if (this.catalogClient && lease) {
+        await this.catalogClient.call('release_maintenance', { lease }).catch(() => undefined);
+      }
+    }
   }
 
   private async summarize(id: string, mtime: string): Promise<SessionSummary> {
+    const located = await locateTranscript(this.dir, id);
     return summarizeSessionFile({
       id,
-      file: this.sessionPath(id, '.jsonl'),
+      file: located?.filePath ?? this.sessionPath(id, '.jsonl'),
       mtime,
       secretScrubber: this.secretScrubber,
     });

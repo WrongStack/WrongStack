@@ -3,6 +3,7 @@ import { StringDecoder } from 'node:string_decoder';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
 import type { SessionEvent } from '../../types/session.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
+import { createTranscriptLineReader, isGzipTranscriptPath } from './transcript-io.js';
 
 export async function searchSessionEvents(args: {
   file: string;
@@ -22,6 +23,30 @@ export async function searchSessionEvents(args: {
     throw err;
   }
   if (stat.size === 0) return [];
+
+  if (isGzipTranscriptPath(file)) {
+    const reader = createTranscriptLineReader(file);
+    let eventIndex = 0;
+    try {
+      for await (const line of reader.lines) {
+        if (signal?.aborted) {
+          const reason = signal.reason ?? new DOMException('Aborted', 'AbortError');
+          throw reason;
+        }
+        if (!line) continue;
+        const ev = parseSessionEventLine(line, secretScrubber);
+        if (!ev) continue;
+        if (predicate(ev, eventIndex, ev.ts)) {
+          out.push({ event: ev, eventIndex, ts: ev.ts });
+          if (limit !== undefined && out.length >= limit) return out;
+        }
+        eventIndex++;
+      }
+      return out;
+    } finally {
+      reader.close();
+    }
+  }
 
   let fh: fsp.FileHandle | undefined;
   try {

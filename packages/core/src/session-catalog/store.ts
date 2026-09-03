@@ -22,6 +22,7 @@ import {
 } from './protocol.js';
 import { deriveSessionAgents, type SessionAgentRecord } from './session-agents.js';
 import type { SessionRegistryEntry } from './session-registry-types.js';
+import { isCanonicalTranscriptRelativePath } from '../storage/session-store/transcript-location.js';
 import { rebuildCatalogIndex, walkSessionFiles } from './store-rebuild.js';
 import {
   assertId,
@@ -92,7 +93,10 @@ export class SessionCatalogStore {
     );
     if (
       rowCount === 0 &&
-      walkSessionFiles(this.sessionsDir, '.jsonl').some((file) => !file.endsWith('_index.jsonl'))
+      (walkSessionFiles(this.sessionsDir, '.jsonl').some(
+        (file) => !file.endsWith('_index.jsonl') && !file.endsWith('.replay.jsonl'),
+      ) ||
+        walkSessionFiles(this.sessionsDir, '.jsonl.gz').length > 0)
     ) {
       this.rebuildCatalog();
     }
@@ -295,7 +299,11 @@ export class SessionCatalogStore {
       const catalog = this.db
         .prepare('SELECT 1 AS yes FROM sessions WHERE session_id=?')
         .get(targetSessionId);
-      if (!catalog && !fs.existsSync(this.containedPath(`${targetSessionId}.jsonl`)))
+      if (
+        !catalog &&
+        !fs.existsSync(this.containedPath(`${targetSessionId}.jsonl`)) &&
+        !fs.existsSync(this.containedPath(`${targetSessionId}.jsonl.gz`))
+      )
         throw new Error(`Session not found: ${targetSessionId}`);
       const reservationId = randomUUID();
       const now = Date.now();
@@ -509,7 +517,12 @@ export class SessionCatalogStore {
   }
 
   private containedPath(relative: string): string {
-    assertId(relative.replace(/\.(jsonl|summary\.json)$/, ''), 'session path');
+    assertId(
+      relative
+        .replace(/\.jsonl\.gz$/, '')
+        .replace(/\.(jsonl|summary\.json|plan\.json|tasks\.json|todos\.json)$/, ''),
+      'session path',
+    );
     const root = path.resolve(this.sessionsDir);
     const candidate = path.resolve(root, relative);
     const prefix = `${root}${path.sep}`;
@@ -527,13 +540,21 @@ export class SessionCatalogStore {
     summary: SessionSummary,
     transcriptRelativePath = `${summary.id}.jsonl`,
     summaryRelativePath = `${summary.id}.summary.json`,
+    storage?: {
+      storageState?: 'hot' | 'cold' | undefined;
+      codec?: 'gzip' | undefined;
+      uncompressedSize?: number | undefined;
+      compressedSize?: number | undefined;
+      contentSha256?: string | undefined;
+      archivedAt?: string | null | undefined;
+    },
   ): CatalogSessionRecord {
     assertId(summary.id);
     summary = this.scrubber.scrubObject(summary);
     const normalizedTranscript = transcriptRelativePath.replaceAll('\\', '/');
     const normalizedSummary = summaryRelativePath.replaceAll('\\', '/');
     if (
-      normalizedTranscript !== `${summary.id}.jsonl` ||
+      !isCanonicalTranscriptRelativePath(summary.id, normalizedTranscript) ||
       normalizedSummary !== `${summary.id}.summary.json`
     ) {
       throw new TypeError('Session catalog paths must match the canonical session identity');
@@ -543,14 +564,24 @@ export class SessionCatalogStore {
     const transcript = this.containedPath(transcriptRelativePath);
     const stat = fs.existsSync(transcript) ? fs.statSync(transcript) : undefined;
     const now = new Date().toISOString();
+    const storageState =
+      storage?.storageState ?? (transcriptRelativePath.endsWith('.jsonl.gz') ? 'cold' : 'hot');
+    const codec = storage?.codec ?? (storageState === 'cold' ? 'gzip' : undefined);
+    const uncompressedSize = storage?.uncompressedSize ?? (storageState === 'hot' ? (stat?.size ?? 0) : 0);
+    const compressedSize = storage?.compressedSize ?? (storageState === 'cold' ? (stat?.size ?? 0) : 0);
+    const contentSha256 = storage?.contentSha256;
+    const archivedAt =
+      storage?.archivedAt === null
+        ? null
+        : (storage?.archivedAt ?? (storageState === 'cold' ? now : null));
     return this.transaction(() => {
       const prior = this.db
         .prepare('SELECT summary_revision FROM sessions WHERE session_id=?')
         .get(summary.id) as { summary_revision: number } | undefined;
       const revision = (prior?.summary_revision ?? 0) + 1;
       this.db
-        .prepare(`INSERT INTO sessions(session_id,transcript_relative_path,summary_relative_path,summary_json,transcript_size,transcript_mtime_ms,summary_revision,indexed_at,damaged)
-        VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(session_id) DO UPDATE SET transcript_relative_path=excluded.transcript_relative_path,summary_relative_path=excluded.summary_relative_path,summary_json=excluded.summary_json,transcript_size=excluded.transcript_size,transcript_mtime_ms=excluded.transcript_mtime_ms,summary_revision=excluded.summary_revision,indexed_at=excluded.indexed_at,damaged=0`)
+        .prepare(`INSERT INTO sessions(session_id,transcript_relative_path,summary_relative_path,summary_json,transcript_size,transcript_mtime_ms,summary_revision,indexed_at,damaged,storage_state,codec,uncompressed_size,compressed_size,content_sha256,archived_at)
+        VALUES (?,?,?,?,?,?,?,?,0,?,?,?,?,?,?) ON CONFLICT(session_id) DO UPDATE SET transcript_relative_path=excluded.transcript_relative_path,summary_relative_path=excluded.summary_relative_path,summary_json=excluded.summary_json,transcript_size=excluded.transcript_size,transcript_mtime_ms=excluded.transcript_mtime_ms,summary_revision=excluded.summary_revision,indexed_at=excluded.indexed_at,damaged=0,storage_state=excluded.storage_state,codec=excluded.codec,uncompressed_size=excluded.uncompressed_size,compressed_size=excluded.compressed_size,content_sha256=excluded.content_sha256,archived_at=excluded.archived_at`)
         .run(
           summary.id,
           transcriptRelativePath,
@@ -560,6 +591,12 @@ export class SessionCatalogStore {
           stat?.mtimeMs ?? 0,
           revision,
           now,
+          storageState,
+          codec ?? null,
+          uncompressedSize,
+          compressedSize,
+          contentSha256 ?? null,
+          archivedAt,
         );
       this.bumpGeneration();
       return {
@@ -571,11 +608,18 @@ export class SessionCatalogStore {
         summaryRevision: revision,
         indexedAt: now,
         damaged: false,
+        storageState,
+        ...(codec ? { codec } : {}),
+        uncompressedSize,
+        compressedSize,
+        ...(contentSha256 ? { contentSha256 } : {}),
+        ...(archivedAt ? { archivedAt } : {}),
       };
     });
   }
 
   private catalogRecord(row: CatalogRow): CatalogSessionRecord {
+    const storageState = row.storage_state === 'cold' ? 'cold' : 'hot';
     return {
       ...parseJson<SessionSummary>(row.summary_json),
       transcriptRelativePath: row.transcript_relative_path,
@@ -585,6 +629,12 @@ export class SessionCatalogStore {
       summaryRevision: row.summary_revision,
       indexedAt: row.indexed_at,
       damaged: row.damaged !== 0,
+      storageState,
+      ...(row.codec === 'gzip' ? { codec: 'gzip' as const } : {}),
+      uncompressedSize: row.uncompressed_size ?? 0,
+      compressedSize: row.compressed_size ?? 0,
+      ...(row.content_sha256 ? { contentSha256: row.content_sha256 } : {}),
+      ...(row.archived_at ? { archivedAt: row.archived_at } : {}),
     };
   }
 
@@ -801,6 +851,12 @@ export class SessionCatalogStore {
       'summaryRevision',
       'indexedAt',
       'damaged',
+      'storageState',
+      'codec',
+      'uncompressedSize',
+      'compressedSize',
+      'contentSha256',
+      'archivedAt',
     ] as const)
       delete (summary as unknown as Record<string, unknown>)[key];
     const previous: SessionSummary = { ...summary };
@@ -834,7 +890,13 @@ export class SessionCatalogStore {
     return this.transaction(() => {
       this.reapExpired();
       const live = this.leaseRow(sessionId);
-      if (live && (operation === 'delete' || this.foreignLiveLease(sessionId, holderPid))) {
+      if (
+        live &&
+        (operation === 'delete' ||
+          operation === 'archive' ||
+          operation === 'rehydrate' ||
+          this.foreignLiveLease(sessionId, holderPid))
+      ) {
         throw conflict(`Session ${sessionId} is live`);
       }
       const reservation = this.db
@@ -879,6 +941,8 @@ export class SessionCatalogStore {
     const transcript = this.containedPath(record.transcriptRelativePath);
     const artifacts = [
       transcript,
+      this.containedPath(`${sessionId}.jsonl`),
+      this.containedPath(`${sessionId}.jsonl.gz`),
       this.containedPath(record.summaryRelativePath),
       this.containedPath(`${sessionId}.plan.json`),
       this.containedPath(`${sessionId}.tasks.json`),

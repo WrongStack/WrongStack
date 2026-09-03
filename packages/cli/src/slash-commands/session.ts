@@ -38,6 +38,13 @@ function agentStatusIcon(status: string): string {
   }
 }
 
+function formatBytes(value: number | undefined): string {
+  if (!value || !Number.isFinite(value) || value <= 0) return '0B';
+  if (value < 1024) return `${value}B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)}KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 function fmtDuration(startedAt: string): string {
   const diff = Date.now() - new Date(startedAt).getTime();
   const min = Math.floor(diff / 60000);
@@ -101,7 +108,7 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
     category: 'Session',
     aliases: ['resume', 'load'],
     description:
-      'List recent sessions, show incomplete ones (--incomplete), or plan a recovery (--recover <id>).',
+      'List, resume, archive, or recover sessions. /sessions archive compresses old JSONL logs.',
     async run(args) {
       const parts = args.split(/\s+/).filter(Boolean);
       const first = parts[0]?.toLowerCase();
@@ -162,6 +169,66 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
           };
         } catch (err) {
           return { message: color.red(`Rename failed: ${toErrorMessage(err)}`) };
+        }
+      }
+
+      if (first === 'archive') {
+        if (!opts.sessionStore?.archive || !opts.sessionStore.archiveIdle) {
+          return { message: color.yellow('Session store does not support archive.') };
+        }
+        const apply = parts.includes('--apply');
+        const targetId = parts.filter((p) => p !== '--apply' && p !== 'archive')[0];
+        if (targetId) {
+          try {
+            const result = await opts.sessionStore.archive(targetId);
+            return {
+              message:
+                result.action === 'archived'
+                  ? color.green(
+                      `Archived ${targetId} (${formatBytes(result.uncompressedBytes)} → ${formatBytes(result.compressedBytes)})`,
+                    )
+                  : color.dim(`Archive ${result.action}: ${targetId}${result.reason ? ` (${result.reason})` : ''}`),
+            };
+          } catch (err) {
+            return { message: color.red(`Archive failed: ${toErrorMessage(err)}`) };
+          }
+        }
+        if (!apply) {
+          const preview = await opts.sessionStore.list(1000);
+          return {
+            message: [
+              color.bold('Dry run — gzip existing closed session logs (JSONL stays the resume authority).'),
+              color.dim('Last 20 stay hot; everything else is gzipped immediately. /prune still deletes.'),
+              color.dim(`Currently listed: ${preview.length} session(s).`),
+              '',
+              color.dim('Run /sessions archive --apply to compress, or /sessions archive <id> for one session.'),
+            ].join('\n'),
+          };
+        }
+        const result = await opts.sessionStore.archiveIdle({ backfill: true });
+        return {
+          message: `Archived ${color.green(String(result.archived))} · skipped ${color.dim(String(result.skipped))} · failed ${result.failed ? color.red(String(result.failed)) : color.dim('0')}.`,
+        };
+      }
+
+      if (first === 'rehydrate') {
+        const targetId = parts[1];
+        if (!targetId) {
+          return { message: color.yellow('Usage: /sessions rehydrate <sessionId>') };
+        }
+        if (!opts.sessionStore?.rehydrate) {
+          return { message: color.yellow('Session store does not support rehydrate.') };
+        }
+        try {
+          const result = await opts.sessionStore.rehydrate(targetId);
+          return {
+            message:
+              result.action === 'rehydrated'
+                ? color.green(`Rehydrated ${targetId}`)
+                : color.dim(`Rehydrate ${result.action}: ${targetId}`),
+          };
+        } catch (err) {
+          return { message: color.red(`Rehydrate failed: ${toErrorMessage(err)}`) };
         }
       }
 
@@ -324,12 +391,13 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
         }
         const stat = parts.join(' ');
         const date = color.dim(s.startedAt.slice(0, 16).replace('T', ' '));
+        const archived = s.storageState === 'cold' ? color.dim(' gz') : '';
         const isCurrent = s.id === currentId;
         const marker = isCurrent ? color.cyan(' (current)') : '';
         const label = s.name
           ? `${color.bold(s.id)} ${color.cyan(`(${s.name})`)}`
           : color.bold(s.id);
-        return `  ${label}${marker}\n    ${date}  ${stat}\n    ${color.dim(s.title)}`;
+        return `  ${label}${marker}${archived}\n    ${date}  ${stat}\n    ${color.dim(s.title)}`;
       });
       const msg = [
         color.bold(`Recent sessions (${list.length}):`),

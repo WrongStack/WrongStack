@@ -1,5 +1,4 @@
-import { createReadStream } from 'node:fs';
-import { createInterface } from 'node:readline';
+import { createTranscriptLineReader } from './transcript-io.js';
 import { effectiveInputTokens } from '../../types/provider.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
 import type { SessionEvent, SessionSummary } from '../../types/session.js';
@@ -178,10 +177,9 @@ export async function* iterateSessionEvents(
   file: string,
   secretScrubber: SecretScrubber,
 ): AsyncGenerator<SessionEvent> {
-  const stream = createReadStream(file, { encoding: 'utf8' });
-  const lines = createInterface({ input: stream, crlfDelay: Infinity });
+  const reader = createTranscriptLineReader(file);
   try {
-    for await (const line of lines) {
+    for await (const line of reader.lines) {
       if (!line.trim()) continue;
       try {
         const parsed: unknown = JSON.parse(line);
@@ -198,7 +196,6 @@ export async function* iterateSessionEvents(
       }
     }
   } finally {
-    lines.close();
-    stream.destroy();
+    reader.close();
   }
 }

@@ -220,6 +220,20 @@ export interface SessionLoggingConfig {
       sampleRate?: number | undefined;
     };
   };
+
+  /**
+   * On-disk transcript lifecycle. JSONL stays the append/resume authority;
+   * closed sessions outside keep-N and older than `archiveAfterDays` are
+   * lossless-gzipped. `/prune` still deletes. Default: keep 20 hot, archive
+   * after 7 days, never auto-delete.
+   */
+  storage?: {
+    hotKeepSessions?: number | undefined;
+    archiveAfterDays?: number | undefined;
+    /** Fire archiveIdle after a writer closes. */
+    autoArchive?: boolean | undefined;
+    includeSubagents?: boolean | undefined;
+  };
 }
 
 /**

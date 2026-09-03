@@ -1,5 +1,4 @@
-import { createReadStream } from 'node:fs';
-import { createInterface } from 'node:readline';
+import { createTranscriptLineReader } from './transcript-io.js';
 
 const EMPTY_SESSION_EVENT_TYPES = new Set(['session_start', 'session_resumed', 'session_end']);
 
@@ -9,12 +8,11 @@ const EMPTY_SESSION_EVENT_TYPES = new Set(['session_start', 'session_resumed', '
  * can never be mistaken for an empty session and deleted.
  */
 export async function isStrictlyEmptySessionFile(file: string): Promise<boolean> {
-  const input = createReadStream(file, { encoding: 'utf8' });
-  const lines = createInterface({ input, crlfDelay: Infinity });
+  const reader = createTranscriptLineReader(file);
   let sawSessionStart = false;
 
   try {
-    for await (const line of lines) {
+    for await (const line of reader.lines) {
       if (!line.trim()) continue;
       let event: unknown;
       try {
@@ -30,8 +28,7 @@ export async function isStrictlyEmptySessionFile(file: string): Promise<boolean>
   } catch {
     return false;
   } finally {
-    lines.close();
-    input.destroy();
+    reader.close();
   }
 
   return sawSessionStart;

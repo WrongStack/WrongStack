@@ -1,12 +1,23 @@
 import type { Dirent } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import {
+  isColdSessionTranscriptFileName,
+  stripSessionTranscriptExtension,
+} from '../../utils/session-scoped-path.js';
 import type { SessionFileRef } from './types.js';
 import { isSessionJsonlFileName, shouldSkipSessionDirectoryEntry } from './directory-scan.js';
 
 function sessionIdForFile(prefix: string, name: string): string {
-  const base = name.replace(/\.jsonl$/, '');
+  const base = stripSessionTranscriptExtension(name);
   return prefix ? `${prefix}/${base}` : base;
+}
+
+function preferHotTranscript(existing: SessionFileRef | undefined, next: SessionFileRef): SessionFileRef {
+  if (!existing) return next;
+  if (!isColdSessionTranscriptFileName(existing.filePath)) return existing;
+  if (!isColdSessionTranscriptFileName(next.filePath)) return next;
+  return existing;
 }
 
 function childPrefixFor(entry: Dirent, prefix: string, depth: number): string {
@@ -26,16 +37,15 @@ export async function collectSessionFiles(
   }
 
   const dirEntries: Dirent[] = [];
-  const files: SessionFileRef[] = [];
+  const files = new Map<string, SessionFileRef>();
   for (const entry of entries) {
     if (shouldSkipSessionDirectoryEntry(entry.name)) continue;
     if (entry.isDirectory()) {
       dirEntries.push(entry);
     } else if (entry.isFile() && isSessionJsonlFileName(entry.name)) {
-      files.push({
-        id: sessionIdForFile(prefix, entry.name),
-        filePath: path.join(dir, entry.name),
-      });
+      const id = sessionIdForFile(prefix, entry.name);
+      const next = { id, filePath: path.join(dir, entry.name) };
+      files.set(id, preferHotTranscript(files.get(id), next));
     }
   }
 
@@ -49,7 +59,7 @@ export async function collectSessionFiles(
     ),
   );
 
-  return [...childFileArrays.flat(), ...files];
+  return [...childFileArrays.flat(), ...files.values()];
 }
 
 export async function collectSessionIds(dir: string, prefix = '', depth = 0): Promise<string[]> {
@@ -61,13 +71,13 @@ export async function collectSessionIds(dir: string, prefix = '', depth = 0): Pr
   }
 
   const dirEntries: Dirent[] = [];
-  const fileIds: string[] = [];
+  const fileIds = new Set<string>();
   for (const entry of entries) {
     if (shouldSkipSessionDirectoryEntry(entry.name)) continue;
     if (entry.isDirectory()) {
       dirEntries.push(entry);
     } else if (entry.isFile() && isSessionJsonlFileName(entry.name)) {
-      fileIds.push(sessionIdForFile(prefix, entry.name));
+      fileIds.add(sessionIdForFile(prefix, entry.name));
     }
   }
 

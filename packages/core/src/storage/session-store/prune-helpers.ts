@@ -1,6 +1,9 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { isSessionTranscriptFileName } from '../../utils/session-scoped-path.js';
+import {
+  isSessionTranscriptFileName,
+  stripSessionTranscriptExtension,
+} from '../../utils/session-scoped-path.js';
 
 /**
  * Prunable === is a transcript. This module held the only complete sidecar
@@ -30,7 +33,7 @@ export async function pruneSessionFiles(
       return;
     }
     /* v8 ignore stop */
-    const base = name.replace(/\.jsonl$/, '');
+    const base = stripSessionTranscriptExtension(name);
     const id = prefix ? `${prefix}/${base}` : base;
     if (isSessionInUse && (await isSessionInUse(id))) return;
     await deleteSession(id);

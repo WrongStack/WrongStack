@@ -82,6 +82,12 @@ export const DEFAULT_SESSION_LOGGING_CONFIG = Object.freeze({
       sampleRate: 8,
     },
   },
+  storage: Object.freeze({
+    hotKeepSessions: 20,
+    archiveAfterDays: 7,
+    autoArchive: true,
+    includeSubagents: true,
+  }),
 });
 
 /** Default retention window for local session pruning. */

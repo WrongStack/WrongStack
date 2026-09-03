@@ -25,7 +25,7 @@ export interface ResumeReservation {
 
 export interface MaintenanceLease {
   sessionId: string;
-  operation: 'delete' | 'prune' | 'clear' | 'truncate' | 'rewind' | 'repair';
+  operation: 'delete' | 'prune' | 'clear' | 'truncate' | 'rewind' | 'repair' | 'archive' | 'rehydrate';
   holderId: string;
   leaseId: string;
   expiresAt: number;
@@ -70,6 +70,12 @@ export interface CatalogSessionRecord extends SessionSummary {
   summaryRevision: number;
   indexedAt: string;
   damaged: boolean;
+  storageState: 'hot' | 'cold';
+  codec?: 'gzip' | undefined;
+  uncompressedSize?: number | undefined;
+  compressedSize?: number | undefined;
+  contentSha256?: string | undefined;
+  archivedAt?: string | undefined;
 }
 
 export interface SessionCatalogListArgs {
@@ -173,6 +179,12 @@ export interface SessionCatalogOperations {
       summary: SessionSummary;
       transcriptRelativePath?: string;
       summaryRelativePath?: string;
+      storageState?: 'hot' | 'cold';
+      codec?: 'gzip';
+      uncompressedSize?: number;
+      compressedSize?: number;
+      contentSha256?: string;
+      archivedAt?: string | null;
     };
     result: CatalogSessionRecord;
   };

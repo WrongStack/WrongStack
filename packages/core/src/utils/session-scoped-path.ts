@@ -59,10 +59,43 @@ const RESERVED_SESSION_JSONL_NAMES: ReadonlySet<string> = new Set([
  * One predicate, so a new sidecar suffix cannot be added to one scanner's
  * blocklist and forgotten in the others.
  */
+export const SESSION_HOT_TRANSCRIPT_SUFFIX = '.jsonl';
+export const SESSION_COLD_TRANSCRIPT_SUFFIX = '.jsonl.gz';
+
+/** NTFS/APFS default to case-insensitive names; Linux is sensitive. Always
+ *  classify transcript suffixes case-insensitively so a file written on one
+ *  host is still a transcript when the same tree is read on another. */
+export function endsWithTranscriptSuffix(name: string, suffix: string): boolean {
+  if (name.length < suffix.length) return false;
+  return name.slice(-suffix.length).toLowerCase() === suffix.toLowerCase();
+}
+
+/** True when `name` is a gzip-compressed session transcript. */
+export function isColdSessionTranscriptFileName(name: string): boolean {
+  return endsWithTranscriptSuffix(name, SESSION_COLD_TRANSCRIPT_SUFFIX);
+}
+
+/**
+ * Strip `.jsonl.gz` or `.jsonl` from a transcript file name. Other suffixes
+ * are returned unchanged so callers can detect non-transcripts.
+ */
+export function stripSessionTranscriptExtension(name: string): string {
+  if (endsWithTranscriptSuffix(name, SESSION_COLD_TRANSCRIPT_SUFFIX)) {
+    return name.slice(0, -SESSION_COLD_TRANSCRIPT_SUFFIX.length);
+  }
+  if (endsWithTranscriptSuffix(name, SESSION_HOT_TRANSCRIPT_SUFFIX)) {
+    return name.slice(0, -SESSION_HOT_TRANSCRIPT_SUFFIX.length);
+  }
+  return name;
+}
+
 export function isSessionTranscriptFileName(name: string): boolean {
-  if (!name.endsWith('.jsonl')) return false;
-  if (RESERVED_SESSION_JSONL_NAMES.has(name)) return false;
-  return !SESSION_SIDECAR_JSONL_SUFFIXES.some((suffix) => name.endsWith(suffix));
+  if (endsWithTranscriptSuffix(name, SESSION_COLD_TRANSCRIPT_SUFFIX)) {
+    return isSessionTranscriptFileName(name.slice(0, -3));
+  }
+  if (!endsWithTranscriptSuffix(name, SESSION_HOT_TRANSCRIPT_SUFFIX)) return false;
+  if (RESERVED_SESSION_JSONL_NAMES.has(name.toLowerCase())) return false;
+  return !SESSION_SIDECAR_JSONL_SUFFIXES.some((suffix) => endsWithTranscriptSuffix(name, suffix));
 }
 
 function invalid(sessionId: string): FsError {

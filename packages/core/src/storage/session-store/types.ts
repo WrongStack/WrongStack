@@ -40,6 +40,14 @@ export interface SessionStoreOptions {
   /** Batch variant of {@link onAppend}. Called once per batch with
    * all scrubbed events after all have been observed. */
   onAppendBatch?: ((events: SessionEvent[]) => void) | undefined;
+  storage?:
+    | {
+        hotKeepSessions?: number | undefined;
+        archiveAfterDays?: number | undefined;
+        autoArchive?: boolean | undefined;
+        includeSubagents?: boolean | undefined;
+      }
+    | undefined;
 }
 
 /**
