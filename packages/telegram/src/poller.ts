@@ -6,7 +6,9 @@ export class Poller {
   private readonly api: () => TelegramApiClient;
   private readonly pollIntervalMs: number;
   private readonly log: Logger;
-  private readonly controller: AbortController;
+  // Not readonly: start() swaps in a fresh controller when a previous stop()
+  // aborted this one (see start()).
+  private controller: AbortController;
   private readonly offsetStore?: OffsetStore | undefined;
   private readonly lock?: PollLock | undefined;
   private readonly standbyRetryMs: number;
@@ -62,6 +64,11 @@ export class Poller {
     if (this.pollActive) return;
     this.pollActive = true;
     this._startedAt = Date.now();
+    // A previous stop() aborted the injected controller. Reusing it here would
+    // put an already-aborted signal on every future getUpdates — each poll
+    // rejects (silently: err.aborted → return) and the loop zombies forever
+    // while active===true. A restart must poll with a live signal.
+    if (this.controller.signal.aborted) this.controller = new AbortController();
     this.acquireAndPoll();
   }
   stop(): void {

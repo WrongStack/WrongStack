@@ -11,7 +11,7 @@
  * (offset advances), and keeps processing the batch.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { TelegramApiUpdate } from '../../src/api-client.js';
+import { type TelegramApiUpdate, TelegramNetworkError } from '../../src/api-client.js';
 import { Poller } from '../../src/poller.js';
 
 function makePoller(opts: {
@@ -118,5 +118,101 @@ describe('Poller offset contract', () => {
     expect(processed).toEqual(['hello']);
     await poller.poll();
     expect(getUpdatesOffsets[1]).toBe(5);
+  });
+});
+
+/**
+ * Restart contract — `start()` must be re-enterable after `stop()`.
+ *
+ * `stop()` aborts the injected AbortController to cancel any in-flight
+ * long-poll. A restart that reused the aborted controller would put an
+ * already-aborted signal on every future getUpdates: each poll rejects,
+ * poll() swallows the abort silently (`err.aborted → return`), and the loop
+ * zombies forever while `active === true` — no updates, no errors, until the
+ * process restarts.
+ */
+describe('Poller restart contract', () => {
+  function makeRestartablePoller() {
+    const calls: Array<{ aborted: boolean; offset: number }> = [];
+    const delivered: string[] = [];
+    let nextUpdateId = 1;
+    const log = { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() };
+    const api = () =>
+      ({
+        safeBaseUrl: 'https://api.telegram.org/bot<redacted>',
+        getUpdates: async (req: { offset: number; signal?: AbortSignal }) => {
+          const aborted = req.signal?.aborted === true;
+          calls.push({ aborted, offset: req.offset });
+          // Real-client contract: an already-aborted signal rejects immediately.
+          if (aborted) throw new TelegramNetworkError('getUpdates', 'aborted before fetch', true);
+          const id = nextUpdateId++;
+          return [
+            {
+              update_id: id,
+              message: {
+                message_id: id * 10,
+                chat: { id: 99, type: 'private' },
+                date: 0,
+                text: `m${id}`,
+              },
+            },
+          ] as TelegramApiUpdate[];
+        },
+      }) as never;
+    const poller = new Poller({
+      api,
+      pollIntervalMs: 10,
+      log: log as never,
+      controller: new AbortController(),
+      standbyRetryMs: 1000,
+      onCallbackQuery: () => {},
+      onMessageUpdate: (msg) => delivered.push((msg as { text: string }).text),
+    });
+    return { poller, calls, delivered };
+  }
+
+  const tick = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+  it('start() after stop() resumes polling with a live signal', async () => {
+    const { poller, calls, delivered } = makeRestartablePoller();
+    try {
+      poller.start();
+      await tick(60);
+      expect(calls.length).toBeGreaterThanOrEqual(1);
+      expect(calls.every((c) => !c.aborted)).toBe(true);
+      expect(delivered.length).toBeGreaterThanOrEqual(1);
+
+      poller.stop();
+      await tick(20); // let any in-flight poll settle its finally-chain
+      const callsAtStop = calls.length;
+      const deliveredBeforeRestart = delivered.length;
+      poller.start(); // restart the SAME instance
+      await tick(60);
+
+      const postRestart = calls.slice(callsAtStop);
+      expect(postRestart.length).toBeGreaterThanOrEqual(1);
+      // Pre-fix: every post-restart call carried the stop()ed (aborted) signal,
+      // so each poll rejected silently and no update was ever delivered again.
+      expect(postRestart.every((c) => !c.aborted)).toBe(true);
+      expect(delivered.length).toBeGreaterThan(deliveredBeforeRestart);
+    } finally {
+      poller.stop();
+    }
+  });
+
+  it('stop() halts the loop — no further getUpdates calls after stopping', async () => {
+    const { poller, calls } = makeRestartablePoller();
+    try {
+      poller.start();
+      await tick(40);
+      expect(poller.active).toBe(true);
+      poller.stop();
+      const callsAtStop = calls.length;
+      await tick(40);
+      expect(poller.active).toBe(false);
+      expect(calls.length).toBe(callsAtStop);
+    } finally {
+      poller.stop();
+    }
   });
 });
