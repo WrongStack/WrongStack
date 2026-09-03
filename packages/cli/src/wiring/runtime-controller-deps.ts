@@ -26,6 +26,9 @@ interface RuntimeControllerDepsInput {
   statuslineLines?: ControllerDeps['statuslineLines'];
   setStatuslineLines?: ControllerDeps['setStatuslineLines'];
   saveStatuslineLines?: ControllerDeps['saveStatuslineLines'];
+  statuslineDensities?: ControllerDeps['statuslineDensities'];
+  setStatuslineDensities?: ControllerDeps['setStatuslineDensities'];
+  saveStatuslineDensities?: ControllerDeps['saveStatuslineDensities'];
   getYolo: NonNullable<ControllerDeps['getYolo']>;
   onYolo: NonNullable<ControllerDeps['onYolo']>;
   getAutonomy: () => AutonomyMode;
@@ -69,6 +72,9 @@ export function createRuntimeControllerDeps(input: RuntimeControllerDepsInput): 
     statuslineLines: input.statuslineLines,
     setStatuslineLines: input.setStatuslineLines,
     saveStatuslineLines: input.saveStatuslineLines,
+    statuslineDensities: input.statuslineDensities,
+    setStatuslineDensities: input.setStatuslineDensities,
+    saveStatuslineDensities: input.saveStatuslineDensities,
     getYolo: input.getYolo,
     onYolo: input.onYolo,
     getAutonomy: input.getAutonomy,

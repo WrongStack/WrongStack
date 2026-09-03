@@ -30,10 +30,11 @@ import {
   loadStatuslineHiddenItems,
 } from './controllers.js';
 import {
+  loadStatuslineDensities,
   loadStatuslineLines,
-  saveStatuslineLines as persistStatuslineLines,
+  saveStatuslineLayout as persistStatuslineLayout,
 } from '../services/statusline-config.js';
-import type { StatuslineLines } from '@wrongstack/core/statusline';
+import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
 type CoordinatorController = NonNullable<BuiltinSlashCommandDeps['coordinatorController']>;
@@ -102,7 +103,17 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
   };
   const saveStatuslineLines = async (next: StatuslineLines) => {
     currentLines = { ...next };
-    await persistStatuslineLines(next);
+    await persistStatuslineLayout({ lines: next });
+  };
+  // Per-chip density pin (schema v3) — same shape as the line assignment.
+  const statuslineDensities = await loadStatuslineDensities();
+  let currentDensities: StatuslineDensities = { ...statuslineDensities };
+  const setStatuslineDensities = (next: StatuslineDensities) => {
+    currentDensities = { ...next };
+  };
+  const saveStatuslineDensities = async (next: StatuslineDensities) => {
+    currentDensities = { ...next };
+    await persistStatuslineLayout({ densities: next });
   };
   const agentsMonitorController = createAgentsMonitorController();
   const onPanelOpen: { current: ((action: string) => boolean) | null } = { current: null };
@@ -154,6 +165,10 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
     getCurrentStatuslineLines: () => currentLines,
     setStatuslineLines,
     saveStatuslineLines,
+    statuslineDensities: { ...statuslineDensities },
+    getCurrentStatuslineDensities: () => currentDensities,
+    setStatuslineDensities,
+    saveStatuslineDensities,
     agentsMonitorController,
     onPanelOpen,
     goalHost,

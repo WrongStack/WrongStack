@@ -1,5 +1,15 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import {
+  CHIP_DESCRIPTIONS,
+  clampLine,
+  effectiveDensity,
+  effectiveLine,
+  LINE_TITLES,
+  STATUSLINE_DENSITY_LEVELS,
+  type StatuslineDensity,
+  type StatuslineLine,
+} from '@wrongstack/core/statusline';
+import {
   DEFAULTS,
   STATUSLINE_CONFIG_KEYS,
   type StatuslineConfig,
@@ -11,12 +21,16 @@ export {
   DEFAULTS,
   ensureStatuslineConfig,
   loadStatuslineConfig,
+  loadStatuslineDensities,
+  loadStatuslineLines,
   STATUSLINE_CONFIG_KEYS,
   STATUSLINE_CONFIG_VERSION,
   type StatuslineConfig,
   type StatuslineConfigKey,
   type StatuslineDocument,
   saveStatuslineConfig,
+  saveStatuslineLayout,
+  saveStatuslineLines,
 } from '../services/statusline-config.js';
 
 export interface StatuslineCommandDeps {
@@ -39,70 +53,72 @@ export interface StatuslineCommandDeps {
   onPanelOpen?: { current: ((action: string) => boolean) | null } | undefined;
 }
 
-/** Item descriptions for help display */
-const ITEM_DESCRIPTIONS: Record<keyof StatuslineConfig, string> = {
-  state: 'Agent run state / thinking spinner',
-  model: 'Current provider/model id',
-  todos: 'Todo items (pending/in-progress/done counts)',
-  plan: 'Plan board items (open/in-progress/done)',
-  tasks: 'Task board items (structured work with type/priority)',
-  fleet: 'Fleet agent status (running/idle/pending/completed)',
-  fleet_agents: 'Per-agent live detail row',
-  git: 'Git branch name',
-  elapsed: 'Session elapsed time',
-  context: 'Context window usage (input tokens)',
-  tokens: 'Input/output token counters',
-  cache: 'Prompt cache hit ratio',
-  cost: 'Token cost estimate (input/output/total)',
-  queue: 'Queued prompt count',
-  hint: 'Transient status hint text',
-  index: 'Codebase indexing status',
-  breaker: 'Process breaker countdown',
-  working_dir: 'Current working directory',
-  project: 'Project name',
-  yolo: 'YOLO permission mode',
-  autonomy: 'Autonomy mode',
-  eternal_stage: 'Autonomy stage',
-  goal: 'Active goal summary',
-  mode: 'Active agent mode label',
-  auto_proceed: 'Auto-proceed countdown',
-  sessions: 'Live session count',
-  tools: 'Registered tool count',
-  theme: 'Active color theme preset',
-  token_saving: 'Token-saving mode indicator',
-  side_effects: 'Side-effect / audit event count',
-  processes: 'Tracked bash/exec process count',
-  version: 'WrongStack version + update notice (right-anchored)',
-  dropped_tools: 'Tools dropped from the provider request (maxTools limit)',
-  prompt_variant: 'System prompt variant (Lite / Standard / Pro)',
-  brain: 'Brain arbiter decisions',
-  mailbox: 'Mailbox unread messages and peers',
-  enhance: 'Prompt-enhance countdown',
-  debug_stream: 'Stream debug telemetry',
-  next_steps: 'Next-step auto-submit countdown',
-  memory_context: 'Memory context detail (total records + active-in-context)',
-};
-
 const ALL_CONFIG_KEYS = STATUSLINE_CONFIG_KEYS;
+
+function isConfigKey(value: string | undefined): value is StatuslineConfigKey {
+  return value != null && (ALL_CONFIG_KEYS as readonly string[]).includes(value);
+}
+
+function isDensity(value: string | undefined): value is StatuslineDensity {
+  return (
+    value === 'auto' ||
+    (value != null && (STATUSLINE_DENSITY_LEVELS as readonly string[]).includes(value))
+  );
+}
+
+/** Render the current layout as four grouped lines — the text-mode preview. */
+function renderLayout(cfg: StatuslineDocument): string[] {
+  const out: string[] = [];
+  for (const line of [1, 2, 3, 4] as StatuslineLine[]) {
+    const items = ALL_CONFIG_KEYS.filter(
+      (key) => effectiveLine(key, cfg.lines) === line && cfg.chips[key] !== false,
+    );
+    out.push(`Line ${line} — ${LINE_TITLES[line]}`);
+    out.push(
+      items.length === 0
+        ? '  (empty)'
+        : `  ${items
+            .map((key) => {
+              const density = effectiveDensity(key, cfg.densities);
+              return density === 'auto' ? key : `${key}:${density}`;
+            })
+            .join('  ')}`,
+    );
+  }
+  const off = ALL_CONFIG_KEYS.filter((key) => cfg.chips[key] === false);
+  if (off.length > 0) out.push(`Off — ${off.join(' ')}`);
+  return out;
+}
 
 export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashCommand {
   return {
     name: 'statusline',
     category: 'Config',
     aliases: ['sl'],
-    description: 'Customize status bar chips: /statusline [item] [on|off|reset]',
+    description: 'Customize status bar chips: /statusline [item] [on|off|line N|density D]',
     help: [
-      'Usage: /statusline [item] [on|off|reset]',
-      '       /statusline              — show current config',
-      '       /statusline <item>      — toggle item on/off',
-      '       /statusline <item> on   — enable a chip',
-      '       /statusline <item> off  — disable a chip',
-      '       /statusline all on      — enable all chips',
-      '       /statusline all off     — disable all chips',
-      '       /statusline reset       — restore defaults',
+      'Usage: /statusline                     — open the picker (TUI) or list the config',
+      '       /statusline preview             — show the four lines as they are laid out',
+      '       /statusline <item>              — toggle a chip on/off',
+      '       /statusline <item> on|off       — enable/disable a chip',
+      '       /statusline <item> line <1-4>   — move a chip to another line',
+      '       /statusline <item> density <d>  — pin a chip to auto|full|short|micro',
+      '       /statusline all on|off          — enable/disable every chip',
+      '       /statusline layout reset        — restore default lines and densities',
+      '       /statusline reset               — restore default chip visibility',
+      '',
+      'Lines are assigned by volatility:',
+      '  1 IDENTITY       fixed for the session',
+      '  2 VITALS         redraws every token',
+      '  3 SAFETY & WORK  posture + work in flight',
+      '  4 ASYNC          background activity & countdowns',
+      '',
+      'Density controls how much of a chip renders. With `auto` the rail',
+      'shortens the widest chip first and only drops a chip once every chip',
+      'on that line is already at `micro`.',
       '',
       'Available items:',
-      ...ALL_CONFIG_KEYS.map((k) => `  ${k.padEnd(12)} ${ITEM_DESCRIPTIONS[k]}`),
+      ...ALL_CONFIG_KEYS.map((k) => `  ${k.padEnd(16)} ${CHIP_DESCRIPTIONS[k]}`),
       '',
       'Density mode (minimum/detailed/no-color) is a separate setting — see /settings.',
       'These toggles set chip eligibility in any mode; some chips only render in detailed mode.',
@@ -112,8 +128,8 @@ export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashComman
     async run(args: string) {
       const cfg = await deps.getConfig();
       const trimmed = args.trim();
-      const parts = trimmed.split(/\s+/);
-      const [item, action] = parts;
+      const parts = trimmed.split(/\s+/).filter(Boolean);
+      const [item, action, value] = parts;
 
       // No args → open the TUI picker when the bridge is live (same UX as
       // /plugin and /settings); fall back to the text listing in the REPL.
@@ -128,17 +144,31 @@ export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashComman
         for (const k of ALL_CONFIG_KEYS) {
           const val = cfg.chips[k];
           if (val === undefined) continue;
-          lines.push(`  ${val ? '●' : '○'} ${k.padEnd(12)} ${ITEM_DESCRIPTIONS[k]}`);
+          const line = effectiveLine(k, cfg.lines);
+          const density = effectiveDensity(k, cfg.densities);
+          lines.push(
+            `  ${val ? '●' : '○'} ${k.padEnd(16)} L${line} ${density === 'auto' ? '    ' : density.padEnd(5)} ${CHIP_DESCRIPTIONS[k]}`,
+          );
         }
         return { message: lines.join('\n') };
       }
 
+      if (item === 'preview') {
+        return { message: ['StatusBar layout:', ...renderLayout(cfg)].join('\n') };
+      }
+
       // Reset
       if (item === 'reset') {
-        // Chip visibility resets; the line assignment is a separate axis and is preserved.
+        // Chip visibility resets; the layout is a separate axis and is preserved.
         await deps.setConfig({ ...cfg, chips: { ...DEFAULTS } });
-        deps.setHiddenItems([]);
-        return { message: 'StatusBar config reset to defaults.' };
+        deps.setHiddenItems(ALL_CONFIG_KEYS.filter((k) => DEFAULTS[k] === false));
+        return { message: 'StatusBar chip visibility reset to defaults.' };
+      }
+
+      if (item === 'layout') {
+        if (action !== 'reset') return { message: 'Usage: /statusline layout reset' };
+        await deps.setConfig({ ...cfg, lines: {}, densities: {} });
+        return { message: 'StatusBar layout reset: default lines and densities restored.' };
       }
 
       // Group operation: all on / all off
@@ -158,37 +188,59 @@ export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashComman
         };
       }
 
-      // Single item toggle (no on/off specified)
-      const validItems = ALL_CONFIG_KEYS;
-      if (!validItems.includes(item as keyof StatuslineConfig)) {
+      if (!isConfigKey(item)) {
         return {
           message: `Unknown item "${item}". Run /statusline to see available items.`,
         };
       }
 
-      // If no action specified, toggle the item
       const onOff = action?.toLowerCase();
+
+      // Line assignment
+      if (onOff === 'line') {
+        const parsed = Number(value);
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 4) {
+          return { message: `Usage: /statusline ${item} line 1|2|3|4` };
+        }
+        const line = clampLine(parsed);
+        await deps.setConfig({ ...cfg, lines: { ...cfg.lines, [item]: line } });
+        return { message: `statusline ${item}: line ${line} (${LINE_TITLES[line]})` };
+      }
+
+      // Density pin
+      if (onOff === 'density') {
+        if (!isDensity(value)) {
+          return { message: `Usage: /statusline ${item} density auto|full|short|micro` };
+        }
+        const densities = { ...cfg.densities };
+        if (value === 'auto') delete densities[item];
+        else densities[item] = value;
+        await deps.setConfig({ ...cfg, densities });
+        return { message: `statusline ${item}: density ${value}` };
+      }
+
+      // If no action specified, toggle the item
       if (!onOff) {
-        const currentValue = cfg.chips[item as keyof StatuslineConfig] ?? true;
+        const currentValue = cfg.chips[item] ?? true;
         const newValue = !currentValue;
         await deps.setConfig({ ...cfg, chips: { ...cfg.chips, [item]: newValue } });
         if (newValue) {
           deps.setHiddenItems(deps.hiddenItems.filter((i) => i !== item));
         } else {
-          deps.setHiddenItems([...deps.hiddenItems, item as (typeof deps.hiddenItems)[number]]);
+          deps.setHiddenItems([...deps.hiddenItems, item]);
         }
         return { message: `statusline ${item}: ${newValue ? 'on' : 'off'}` };
       }
 
       if (onOff !== 'on' && onOff !== 'off') {
-        return { message: `Usage: /statusline ${item} on|off` };
+        return { message: `Usage: /statusline ${item} on|off|line <1-4>|density <level>` };
       }
 
       await deps.setConfig({ ...cfg, chips: { ...cfg.chips, [item]: onOff === 'on' } });
 
       // Sync hiddenItems list with TUI
       if (onOff === 'off') {
-        deps.setHiddenItems([...deps.hiddenItems, item as (typeof deps.hiddenItems)[number]]);
+        deps.setHiddenItems([...deps.hiddenItems, item]);
       } else {
         deps.setHiddenItems(deps.hiddenItems.filter((i) => i !== item));
       }

@@ -2,79 +2,66 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { ERROR_CODES, FsError } from '@wrongstack/core/types';
-import type { StatuslineLine, StatuslineLines } from '@wrongstack/core/statusline';
+import {
+  clampLine,
+  defaultChipEnabledMap,
+  STATUSLINE_DENSITY_LEVELS,
+  STATUSLINE_ITEMS,
+  type StatuslineDensities,
+  type StatuslineDensity,
+  type StatuslineItem,
+  type StatuslineLines,
+} from '@wrongstack/core/statusline';
 import { atomicWrite, resolveWstackPaths, toErrorMessage } from '@wrongstack/core/utils';
 
 const CONFIG_ENV = 'WRONGSTACK_STATUSLINE_CONFIG';
 
-/** On-disk schema version. v1 was a flat boolean map; v2 nests it under
- *  `chips` alongside the sparse per-chip `lines` assignment. */
-export const STATUSLINE_CONFIG_VERSION = 2;
+/**
+ * On-disk schema version.
+ *  v1 — flat boolean map.
+ *  v2 — `{chips, lines}`.
+ *  v3 — adds `densities` (per-chip full/short/micro pin).
+ */
+export const STATUSLINE_CONFIG_VERSION = 3;
 
-export const STATUSLINE_CONFIG_KEYS = [
-  'state',
-  'model',
-  'context',
-  'tokens',
-  'cache',
-  'cost',
-  'queue',
-  'hint',
-  'index',
-  'breaker',
-  'yolo',
-  'autonomy',
-  'eternal_stage',
-  'elapsed',
-  'project',
-  'working_dir',
-  'goal',
-  'mode',
-  'auto_proceed',
-  'git',
-  'sessions',
-  'tools',
-  'theme',
-  'token_saving',
-  'processes',
-  'version',
-  'dropped_tools',
-  'prompt_variant',
-  'side_effects',
-  'todos',
-  'plan',
-  'tasks',
-  'fleet',
-  'brain',
-  'debug_stream',
-  'enhance',
-  'next_steps',
-  'mailbox',
-  'fleet_agents',
-  'memory_context',
-] as const;
+/**
+ * The persistence vocabulary IS the core contract — one list, so a new chip
+ * cannot gain a default line without gaining a toggle (or vice versa). The
+ * drift guard in `statusline-contract-drift.test.ts` still asserts it.
+ */
+export const STATUSLINE_CONFIG_KEYS: readonly StatuslineItem[] = STATUSLINE_ITEMS;
 
-export type StatuslineConfigKey = (typeof STATUSLINE_CONFIG_KEYS)[number];
+export type StatuslineConfigKey = StatuslineItem;
 export type StatuslineConfig = { [K in StatuslineConfigKey]?: boolean | undefined };
 
 /**
- * v2 statusline.json document: the chip on/off map plus the sparse
- * per-chip line assignment (`StatuslineLines` from the framework-free core
- * contract). Absent `lines` keys mean "render on the contract's default
- * line" (`DEFAULT_LINES`).
+ * v3 statusline.json document: the chip on/off map, the sparse per-chip line
+ * assignment, and the sparse per-chip density pin. Absent `lines` keys mean
+ * "render on the contract's default line" (`DEFAULT_LINES`); absent
+ * `densities` keys mean "let the rail fitter choose".
  */
 export interface StatuslineDocument {
   version: typeof STATUSLINE_CONFIG_VERSION;
   chips: StatuslineConfig;
   lines: StatuslineLines;
+  densities: StatuslineDensities;
 }
 
-export const DEFAULTS: StatuslineConfig = Object.fromEntries(
-  STATUSLINE_CONFIG_KEYS.map((key) => [key, true]),
-) as StatuslineConfig;
+/**
+ * Chip toggles for a brand-new config. Not every chip is on: the static
+ * identity trivia in `DEFAULT_HIDDEN_ITEMS` starts off, because each costs
+ * 10–30 permanent columns and is recoverable from a slash command. An
+ * existing file's explicit map always wins over this.
+ */
+export const DEFAULTS: StatuslineConfig = defaultChipEnabledMap();
 
 function emptyDocument(): StatuslineDocument {
-  return { version: STATUSLINE_CONFIG_VERSION, chips: { ...DEFAULTS }, lines: {} };
+  return {
+    version: STATUSLINE_CONFIG_VERSION,
+    chips: { ...DEFAULTS },
+    lines: {},
+    densities: {},
+  };
 }
 
 function resolveConfigPath(): string {
@@ -111,30 +98,56 @@ function normalizeLines(value: unknown): StatuslineLines {
   for (const key of STATUSLINE_CONFIG_KEYS) {
     const raw = value[key];
     if (typeof raw !== 'number' || !Number.isInteger(raw)) continue;
-    lines[key] = Math.min(4, Math.max(1, raw)) as StatuslineLine;
+    lines[key] = clampLine(raw);
   }
   return lines;
 }
 
 /**
- * Interpret raw file contents. A `{version:2, chips, lines}` document is
- * read as-is; anything else — including the v1 flat boolean map — is
- * treated as the chips map with no line assignments. A v2-shaped file with
- * a missing `version` is still honored (keyed on the `chips` record) so a
+ * Density pins: only contract keys with a real level survive. `auto` is the
+ * absence of a pin, so it is normalized away rather than stored — that keeps
+ * the file sparse and makes "did the user pin this?" a single check.
+ */
+function normalizeDensities(value: unknown): StatuslineDensities {
+  const densities: StatuslineDensities = {};
+  if (!isRecord(value)) return densities;
+  for (const key of STATUSLINE_CONFIG_KEYS) {
+    const raw = value[key];
+    if (typeof raw !== 'string') continue;
+    if (!(STATUSLINE_DENSITY_LEVELS as readonly string[]).includes(raw)) continue;
+    densities[key] = raw as StatuslineDensity;
+  }
+  return densities;
+}
+
+/**
+ * Interpret raw file contents. A `{chips|lines|densities}` document is read
+ * as-is; anything else — including the v1 flat boolean map — is treated as
+ * the chips map with no layout overrides. A v2/v3-shaped file with a missing
+ * `version` is still honored (keyed on the records it does carry) so a
  * hand-edited file cannot silently reset chip toggles to defaults.
  */
 function parseDocument(value: unknown): StatuslineDocument {
-  // v2 detection accepts a `lines`-only document too: a hand-edit that drops
-  // the chips record must not silently discard the stored line assignment
-  // (chips fall back to DEFAULTS; lines are preserved verbatim).
-  if (isRecord(value) && (isRecord(value['chips']) || isRecord(value['lines']))) {
+  // Detection accepts a `lines`- or `densities`-only document too: a
+  // hand-edit that drops the chips record must not silently discard the
+  // stored layout (chips fall back to DEFAULTS; layout is preserved).
+  if (
+    isRecord(value) &&
+    (isRecord(value['chips']) || isRecord(value['lines']) || isRecord(value['densities']))
+  ) {
     return {
       version: STATUSLINE_CONFIG_VERSION,
       chips: normalizeChips(value['chips']),
       lines: normalizeLines(value['lines']),
+      densities: normalizeDensities(value['densities']),
     };
   }
-  return { version: STATUSLINE_CONFIG_VERSION, chips: normalizeChips(value), lines: {} };
+  return {
+    version: STATUSLINE_CONFIG_VERSION,
+    chips: normalizeChips(value),
+    lines: {},
+    densities: {},
+  };
 }
 
 function isMissingKnownChips(value: unknown): boolean {
@@ -143,18 +156,22 @@ function isMissingKnownChips(value: unknown): boolean {
 
 /**
  * True when the on-disk shape needs a normalization rewrite: flat (v1) maps,
- * wrong/missing versions, incomplete chips, or non-canonical `lines` are all
- * migrated to the canonical v2 document on the next ensure/save.
+ * wrong/missing versions, incomplete chips, or non-canonical `lines` /
+ * `densities` are all migrated to the canonical v3 document on the next
+ * ensure/save.
  */
 function needsRewrite(value: unknown): boolean {
   if (isRecord(value) && isRecord(value['chips'])) {
     if (value['version'] !== STATUSLINE_CONFIG_VERSION) return true;
     if (isMissingKnownChips(value['chips'])) return true;
-    // A missing/non-record `lines` is malformed, not canonical — rewrite it.
-    if (!isRecord(value['lines'])) return true;
-    // Rewrite when `lines` is not already canonical so clamped/dropped
+    // A missing/non-record layout record is malformed, not canonical.
+    if (!isRecord(value['lines']) || !isRecord(value['densities'])) return true;
+    // Rewrite when the layout is not already canonical so clamped/dropped
     // values do not persist indefinitely on disk.
-    return JSON.stringify(normalizeLines(value['lines'])) !== JSON.stringify(value['lines']);
+    return (
+      JSON.stringify(normalizeLines(value['lines'])) !== JSON.stringify(value['lines']) ||
+      JSON.stringify(normalizeDensities(value['densities'])) !== JSON.stringify(value['densities'])
+    );
   }
   return true;
 }
@@ -192,7 +209,7 @@ export async function ensureStatuslineConfig(): Promise<StatuslineDocument> {
     } else {
       // Unreadable or corrupt file (EACCES, partial write, bad JSON, …):
       // quarantine the original so the defaults write below can never destroy
-      // the user's chips/lines, then start fresh. If even the rename fails we
+      // the user's chips/layout, then start fresh. If even the rename fails we
       // return defaults WITHOUT writing — a failed load beats a silent reset.
       if (!(await quarantineCorruptConfig())) return emptyDocument();
       sawFile = false;
@@ -223,6 +240,7 @@ export async function saveStatuslineConfig(config: StatuslineDocument): Promise<
           version: STATUSLINE_CONFIG_VERSION,
           chips: normalizeChips(config.chips),
           lines: normalizeLines(config.lines),
+          densities: normalizeDensities(config.densities),
         },
         null,
         2,
@@ -246,14 +264,31 @@ export async function loadStatuslineLines(): Promise<StatuslineLines> {
   return (await loadStatuslineConfig()).lines;
 }
 
+/** Load just the per-chip density pins (defaults to {} when unpinned). */
+export async function loadStatuslineDensities(): Promise<StatuslineDensities> {
+  return (await loadStatuslineConfig()).densities;
+}
+
 /**
- * Persist a new line assignment while preserving the stored chip toggles.
- * Values are re-normalized (unknown keys dropped, clamped) so a malformed
- * caller cannot write garbage to disk.
+ * Persist a new layout (lines and/or densities) while preserving the stored
+ * chip toggles. Values are re-normalized (unknown keys dropped, clamped) so a
+ * malformed caller cannot write garbage to disk.
  */
-export async function saveStatuslineLines(lines: StatuslineLines): Promise<void> {
+export async function saveStatuslineLayout(layout: {
+  lines?: StatuslineLines | undefined;
+  densities?: StatuslineDensities | undefined;
+}): Promise<void> {
   // ensure (not load) so a corrupt file is quarantined before the RMW —
   // otherwise the defaults write would silently destroy the stored chips.
   const doc = await ensureStatuslineConfig();
-  await saveStatuslineConfig({ ...doc, lines: normalizeLines(lines) });
+  await saveStatuslineConfig({
+    ...doc,
+    lines: normalizeLines(layout.lines ?? doc.lines),
+    densities: normalizeDensities(layout.densities ?? doc.densities),
+  });
+}
+
+/** Back-compat alias: persist only the line assignment. */
+export async function saveStatuslineLines(lines: StatuslineLines): Promise<void> {
+  await saveStatuslineLayout({ lines });
 }

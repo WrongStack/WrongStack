@@ -48,7 +48,7 @@ import type { ReadlineInputReader } from './input-reader.js';
 import type { LiveSettingsInput } from './live-settings-input.js';
 import type { TerminalRenderer } from './renderer.js';
 import type { AutonomyMode } from './services/autonomy-mode.js';
-import type { StatuslineLines } from '@wrongstack/core/statusline';
+import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 import type { StatuslineConfigKey } from './services/statusline-config.js';
 import type { SessionStats } from './session-stats.js';
 import type { UpdateInfo } from './update-check.js';
@@ -345,6 +345,10 @@ export interface ControllerDeps {
   statuslineLines?: StatuslineLines | undefined;
   setStatuslineLines?: ((lines: StatuslineLines) => void) | undefined;
   saveStatuslineLines?: ((lines: StatuslineLines) => Promise<void>) | undefined;
+  /** Per-chip statusline density pin (schema v3). */
+  statuslineDensities?: StatuslineDensities | undefined;
+  setStatuslineDensities?: ((densities: StatuslineDensities) => void) | undefined;
+  saveStatuslineDensities?: ((densities: StatuslineDensities) => Promise<void>) | undefined;
   getYolo?: (() => boolean) | undefined;
   onYolo?: ((setTo?: boolean) => boolean) | undefined;
   getAutonomy?: (() => AutonomyMode) | undefined;

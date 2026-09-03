@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_HIDDEN_ITEMS } from '@wrongstack/core/statusline';
 import {
   buildStatuslineCommand,
   DEFAULTS,
@@ -26,7 +27,7 @@ function profileDir(): string {
 
 /** Build a v2 document from a partial chips map (the pre-v2 fixture shape). */
 function doc(chips: StatuslineConfig, lines: StatuslineDocument['lines'] = {}): StatuslineDocument {
-  return { version: STATUSLINE_CONFIG_VERSION, chips, lines };
+  return { version: STATUSLINE_CONFIG_VERSION, chips, lines, densities: {} };
 }
 
 beforeEach(async () => {
@@ -58,8 +59,12 @@ describe('loadStatuslineConfig', () => {
     const cfg = await loadStatuslineConfig();
     expect(cfg.chips.todos).toBe(true);
     expect(cfg.chips.cost).toBe(true);
-    expect(cfg.chips.working_dir).toBe(true);
+    // Static identity trivia starts off (DEFAULT_HIDDEN_ITEMS): each costs
+    // 10-30 permanent columns and is recoverable from a slash command.
+    expect(cfg.chips.working_dir).toBe(false);
+    expect(cfg.chips.theme).toBe(false);
     expect(cfg.lines).toEqual({});
+    expect(cfg.densities).toEqual({});
   });
 
   it('returns DEFAULTS merged with user overrides', async () => {
@@ -215,13 +220,74 @@ describe('buildStatuslineCommand', () => {
     expect(res?.message ?? '').toContain('○ plan');
   });
 
-  it('reset writes DEFAULTS and clears hidden items', async () => {
+  it('reset writes DEFAULTS and re-applies the default hidden set', async () => {
     const setHidden = vi.fn();
     const deps = { ...makeDeps(), setHiddenItems: setHidden } as never as StatuslineCommandDeps;
     const cmd = buildStatuslineCommand(deps);
     const res = await cmd.run('reset');
     expect(res?.message ?? '').toContain('reset to defaults');
-    expect(setHidden).toHaveBeenCalledWith([]);
+    // Reset restores the shipped defaults, which hide the static identity
+    // trivia rather than turning every chip on.
+    expect(setHidden).toHaveBeenCalledWith(DEFAULT_HIDDEN_ITEMS);
+  });
+
+  it('moves a chip to another line and reports the rail name', async () => {
+    const setConfig = vi.fn();
+    const deps = { ...makeDeps(), setConfig } as never as StatuslineCommandDeps;
+    const cmd = buildStatuslineCommand(deps);
+    const res = await cmd.run('cost line 3');
+    expect(res?.message ?? '').toContain('line 3');
+    expect(res?.message ?? '').toContain('SAFETY & WORK');
+    expect(setConfig).toHaveBeenCalledWith(expect.objectContaining({ lines: { cost: 3 } }));
+  });
+
+  it('rejects an out-of-range line', async () => {
+    const setConfig = vi.fn();
+    const deps = { ...makeDeps(), setConfig } as never as StatuslineCommandDeps;
+    const res = await buildStatuslineCommand(deps).run('cost line 9');
+    expect(res?.message ?? '').toContain('Usage:');
+    expect(setConfig).not.toHaveBeenCalled();
+  });
+
+  it('pins a density, and `auto` clears the pin rather than storing it', async () => {
+    const setConfig = vi.fn();
+    const deps = { ...makeDeps(), setConfig } as never as StatuslineCommandDeps;
+    const cmd = buildStatuslineCommand(deps);
+    await cmd.run('cache density micro');
+    expect(setConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ densities: { cache: 'micro' } }),
+    );
+    setConfig.mockClear();
+    await cmd.run('cache density auto');
+    expect(setConfig).toHaveBeenCalledWith(expect.objectContaining({ densities: {} }));
+  });
+
+  it('rejects an unknown density level', async () => {
+    const setConfig = vi.fn();
+    const deps = { ...makeDeps(), setConfig } as never as StatuslineCommandDeps;
+    const res = await buildStatuslineCommand(deps).run('cache density huge');
+    expect(res?.message ?? '').toContain('auto|full|short|micro');
+    expect(setConfig).not.toHaveBeenCalled();
+  });
+
+  it('layout reset clears lines and densities but leaves visibility alone', async () => {
+    const setConfig = vi.fn();
+    const deps = { ...makeDeps(), setConfig } as never as StatuslineCommandDeps;
+    const cmd = buildStatuslineCommand(deps);
+    await cmd.run('layout reset');
+    const written = setConfig.mock.calls[0]?.[0] as { lines: unknown; densities: unknown };
+    expect(written.lines).toEqual({});
+    expect(written.densities).toEqual({});
+    expect(setConfig.mock.calls[0]?.[0]).toHaveProperty('chips');
+  });
+
+  it('preview groups the enabled chips under their four rails', async () => {
+    const res = await buildStatuslineCommand(makeDeps()).run('preview');
+    const message = res?.message ?? '';
+    for (const title of ['IDENTITY', 'VITALS', 'SAFETY & WORK', 'ASYNC']) {
+      expect(message).toContain(title);
+    }
+    expect(message).toContain('model');
   });
 
   it('unknown item reports available choices', async () => {

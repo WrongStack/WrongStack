@@ -1,6 +1,6 @@
 /**
  * Focused coverage for services/statusline-config.ts — the statusline config
- * loader (schema v2: `{version: 2, chips, lines}`). Uses the
+ * loader (schema v3: `{version: 3, chips, lines, densities}`). Uses the
  * WRONGSTACK_STATUSLINE_CONFIG env override to point at a temp file so no
  * real home directory is touched.
  */
@@ -8,12 +8,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_HIDDEN_ITEMS } from '@wrongstack/core/statusline';
 import {
   DEFAULTS,
   ensureStatuslineConfig,
   loadStatuslineConfig,
   loadStatuslineLines,
   saveStatuslineConfig,
+  saveStatuslineLayout,
   saveStatuslineLines,
   STATUSLINE_CONFIG_KEYS,
   STATUSLINE_CONFIG_VERSION,
@@ -27,7 +29,7 @@ function doc(
   chips: StatuslineDocument['chips'],
   lines: StatuslineDocument['lines'] = {},
 ): StatuslineDocument {
-  return { version: STATUSLINE_CONFIG_VERSION, chips, lines };
+  return { version: STATUSLINE_CONFIG_VERSION, chips, lines, densities: {} };
 }
 
 beforeEach(async () => {
@@ -41,14 +43,18 @@ afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
 });
 
-describe('statusline config (schema v2)', () => {
-  it('defaults every chip to true and falls back on a missing file', async () => {
+describe('statusline config (schema v3)', () => {
+  it('falls back to the shipped defaults on a missing file', async () => {
     const config = await loadStatuslineConfig();
     expect(config.version).toBe(STATUSLINE_CONFIG_VERSION);
+    // Every chip is on except the static identity trivia, which each cost
+    // 10-30 permanent columns and are recoverable from a slash command.
+    const hidden = new Set<string>(DEFAULT_HIDDEN_ITEMS);
     for (const key of STATUSLINE_CONFIG_KEYS) {
-      expect(config.chips[key]).toBe(true);
+      expect(config.chips[key]).toBe(!hidden.has(key));
     }
     expect(config.lines).toEqual({});
+    expect(config.densities).toEqual({});
   });
 
   it('loads a v1 flat config, ignoring unknown keys and non-boolean values', async () => {
@@ -98,7 +104,9 @@ describe('statusline config (schema v2)', () => {
     expect(raw['version']).toBe(STATUSLINE_CONFIG_VERSION);
     const chips = raw['chips'] as Record<string, unknown>;
     for (const key of STATUSLINE_CONFIG_KEYS) {
-      expect(chips[key]).toBe(key !== 'state');
+      // The v1 file wrote every key explicitly, so migration preserves it
+      // verbatim — the new defaults apply only to a file that does not exist.
+      expect(chips[key]).toBe(key === 'state' ? false : DEFAULTS[key]);
     }
   });
 
@@ -241,5 +249,63 @@ describe('statusline config (schema v2)', () => {
     // home rather than the real user config; loading yields defaults.
     const config = await loadStatuslineConfig();
     expect(config.chips.state).toBe(true);
+  });
+});
+
+describe('statusline density persistence (schema v3)', () => {
+  it('round-trips density pins alongside chips and lines', async () => {
+    await saveStatuslineConfig({
+      version: STATUSLINE_CONFIG_VERSION,
+      chips: { ...DEFAULTS, state: false },
+      lines: { todos: 2 },
+      densities: { cache: 'micro', model: 'short' },
+    } as StatuslineDocument);
+    const config = await loadStatuslineConfig();
+    expect(config.chips.state).toBe(false);
+    expect(config.lines).toEqual({ todos: 2 });
+    expect(config.densities).toEqual({ cache: 'micro', model: 'short' });
+  });
+
+  it('drops unknown keys, unknown levels, and the no-op `auto` pin', async () => {
+    await fs.writeFile(
+      cfgFile,
+      JSON.stringify({
+        version: STATUSLINE_CONFIG_VERSION,
+        chips: DEFAULTS,
+        lines: {},
+        // `auto` is the absence of a pin, so it must never reach disk.
+        densities: { cache: 'auto', model: 'huge', not_a_chip: 'micro', cost: 'full' },
+      }),
+      'utf8',
+    );
+    const config = await loadStatuslineConfig();
+    expect(config.densities).toEqual({ cost: 'full' });
+  });
+
+  it('migrates a v2 document by adding an empty densities record', async () => {
+    await fs.writeFile(
+      cfgFile,
+      JSON.stringify({ version: 2, chips: DEFAULTS, lines: { todos: 3 } }),
+      'utf8',
+    );
+    const config = await ensureStatuslineConfig();
+    expect(config.lines).toEqual({ todos: 3 });
+    expect(config.densities).toEqual({});
+    const raw = JSON.parse(await fs.readFile(cfgFile, 'utf8')) as Record<string, unknown>;
+    expect(raw['version']).toBe(STATUSLINE_CONFIG_VERSION);
+    expect(raw['densities']).toEqual({});
+  });
+
+  it('preserves stored chips when only the layout is written', async () => {
+    await saveStatuslineConfig({
+      version: STATUSLINE_CONFIG_VERSION,
+      chips: { ...DEFAULTS, git: false },
+      lines: {},
+      densities: {},
+    } as StatuslineDocument);
+    await saveStatuslineLayout({ densities: { cost: 'short' } });
+    const config = await loadStatuslineConfig();
+    expect(config.chips.git).toBe(false);
+    expect(config.densities).toEqual({ cost: 'short' });
   });
 });

@@ -122,6 +122,7 @@ describe('setupSlashCommands', () => {
       version: STATUSLINE_CONFIG_VERSION,
       chips: DEFAULTS,
       lines: {},
+      densities: {},
     });
   });
 
