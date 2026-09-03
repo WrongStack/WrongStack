@@ -89,6 +89,8 @@ interface ProviderRuntimeResult {
   refreshMaxContextFor: (providerId: string, modelId: string) => Promise<void>;
   refreshRuntimeModelStateFor: (providerId: string, modelId: string) => Promise<void>;
   switchProviderAndModel: (providerId: string, modelId: string) => Promise<string | null>;
+  /** Immediately apply the same merged snapshot used by the file watcher. */
+  reloadProviderConfig: () => Promise<void>;
 }
 
 /**
@@ -343,7 +345,14 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
   const activeProfileOf = (c: Config): string =>
     typeof c.activeProfile === 'string' && c.activeProfile ? c.activeProfile : 'default';
 
-  if (process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'] !== '1') {
+  // Exposed to in-process config writers (notably the TUI auth panel). File
+  // watching remains the safety net for external editors, while this avoids a
+  // debounce-sized window where a just-saved key is absent from the live
+  // provider instance.
+  let reloadProviderConfig = async (): Promise<void> => {};
+
+  const configWatchEnabled = process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'] !== '1';
+  {
     // Active profile name from the merged config (bootstrap + layers).
     // Re-evaluated whenever the profile changes (see the rebind watcher at the
     // end of this block) — a mid-session profile switch used to leave the
@@ -526,6 +535,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
         );
       }
     };
+    reloadProviderConfig = onAnyConfigChange;
 
     // Set up a watcher for EACH config layer. The `watchProviderConfig`
     // watcher provides file-watch, debounce, and no-op guard per path.
@@ -548,27 +558,29 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       for (const w of watchers) w.close();
       watchers = [];
     };
-    openWatchers();
+    if (configWatchEnabled) {
+      openWatchers();
 
-    // Re-point the watchers when the session switches profiles. The layer
-    // paths are derived from `activeProfile`, which was captured once at
-    // wiring time — after a `/profile` switch the runtime kept watching the
-    // previous profile's file, so routing edits to the live profile never
-    // reloaded (and edits to the abandoned one still did).
-    teardownHandlers.push(
-      configStore.watch((next: Config) => {
-        const nextProfile = activeProfileOf(next);
-        if (nextProfile === activeProfile) return;
-        activeProfile = nextProfile;
-        closeWatchers();
-        rebuildLayers();
-        openWatchers();
-        // The new profile's file may already differ from what is in memory.
-        previousSnapshotSerialized = undefined;
-        void onAnyConfigChange();
-      }),
-    );
-    teardownHandlers.push(closeWatchers);
+      // Re-point the watchers when the session switches profiles. The layer
+      // paths are derived from `activeProfile`, which was captured once at
+      // wiring time — after a `/profile` switch the runtime kept watching the
+      // previous profile's file, so routing edits to the live profile never
+      // reloaded (and edits to the abandoned one still did).
+      teardownHandlers.push(
+        configStore.watch((next: Config) => {
+          const nextProfile = activeProfileOf(next);
+          if (nextProfile === activeProfile) return;
+          activeProfile = nextProfile;
+          closeWatchers();
+          rebuildLayers();
+          openWatchers();
+          // The new profile's file may already differ from what is in memory.
+          previousSnapshotSerialized = undefined;
+          void onAnyConfigChange();
+        }),
+      );
+      teardownHandlers.push(closeWatchers);
+    }
   }
 
   return {
@@ -578,5 +590,6 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     refreshMaxContextFor,
     refreshRuntimeModelStateFor,
     switchProviderAndModel,
+    reloadProviderConfig,
   };
 }

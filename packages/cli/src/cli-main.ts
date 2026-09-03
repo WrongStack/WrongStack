@@ -380,30 +380,34 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   // probe here ensures `active` is correct before the singleton is read.
   await awaitFirstWrongProxyProbe();
 
-  const { buildProviderForId, buildProviderForModel, switchProviderAndModel } =
-    setupProviderRuntime({
-      config,
-      onConfigUpdate: (newConfig) => {
-        config = newConfig;
-      },
-      configStore,
-      fallbackProfileManager,
-      providerRegistry,
-      modelsRegistry,
-      agent,
-      memoryStore,
-      refreshMaxContext,
-      refreshActiveReasoningConfig,
-      wpaths,
-      vault,
-      logger,
-      teardownHandlers,
-      context,
-      events,
-      resolveProviderCfgRuntime,
-      buildProviderForIdRuntime,
-      statusTracker,
-    });
+  const {
+    buildProviderForId,
+    buildProviderForModel,
+    switchProviderAndModel,
+    reloadProviderConfig,
+  } = setupProviderRuntime({
+    config,
+    onConfigUpdate: (newConfig) => {
+      config = newConfig;
+    },
+    configStore,
+    fallbackProfileManager,
+    providerRegistry,
+    modelsRegistry,
+    agent,
+    memoryStore,
+    refreshMaxContext,
+    refreshActiveReasoningConfig,
+    wpaths,
+    vault,
+    logger,
+    teardownHandlers,
+    context,
+    events,
+    resolveProviderCfgRuntime,
+    buildProviderForIdRuntime,
+    statusTracker,
+  });
   switchProviderAndModelRef.current = switchProviderAndModel;
 
   await adoptResumedProvider({
@@ -553,6 +557,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     statuslineLines,
     setStatuslineLines,
     saveStatuslineLines,
+    statuslineDensities,
+    setStatuslineDensities,
+    saveStatuslineDensities,
     agentsMonitorController,
     onPanelOpen,
     goalHost,
@@ -772,6 +779,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     resolvedProvider,
     logger,
     switchProviderAndModel,
+    reloadProviderConfig,
     applyMaxContext,
     renderer,
     reader,
@@ -799,6 +807,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     statuslineLines,
     setStatuslineLines,
     saveStatuslineLines,
+    statuslineDensities,
+    setStatuslineDensities,
+    saveStatuslineDensities,
     setYoloMode,
     autonomyMode,
     setAutonomyMode: (mode: typeof autonomyMode) => {

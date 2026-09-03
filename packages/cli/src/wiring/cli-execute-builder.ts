@@ -63,6 +63,7 @@ export async function runCliExecution(params: {
   resolvedProvider: X['provider']['resolvedProvider'];
   logger: Logger;
   switchProviderAndModel: X['provider']['switchProviderAndModel'];
+  reloadProviderConfig: () => Promise<void>;
   applyMaxContext: NonNullable<X['provider']['onModelContextResolved']>;
   renderer: X['ui']['renderer'];
   reader: X['ui']['reader'];
@@ -155,6 +156,7 @@ export async function runCliExecution(params: {
     resolvedProvider,
     logger,
     switchProviderAndModel,
+    reloadProviderConfig,
     applyMaxContext,
     renderer,
     reader,
@@ -292,6 +294,7 @@ export async function runCliExecution(params: {
           vault,
           modelsRegistry,
           profileConfigPath,
+          onProvidersChanged: reloadProviderConfig,
         }),
         onPanelOpen,
       },

@@ -268,7 +268,14 @@ describe('panel-service.ts — host', () => {
     configMock.loadConfigProviders.mockResolvedValue({});
     const host = createAuthPanelHost(panelDeps());
     const rows = await host.listCatalog();
-    expect(rows.map((r) => r.id)).toEqual(['beta', 'zebra']);
+    // The registry catalog is merged with WrongStack's own built-in provider
+    // definitions (ownDefinitionsAsCatalog), so assert on the registry-derived
+    // rows rather than the exact full list.
+    const ids = rows.map((r) => r.id);
+    expect(ids).toContain('beta');
+    expect(ids).toContain('zebra');
+    expect(ids).not.toContain('alpha');
+    expect(ids).toEqual([...ids].sort((a, b) => a.localeCompare(b)));
   });
 
   it('setActiveKey and deleteKey mutate through the config utils', async () => {
@@ -279,7 +286,10 @@ describe('panel-service.ts — host', () => {
           apiKeys: [{ label: 'work', apiKey: 'k1', createdAt: '2020-01-01T00:00:00.000Z' }],
         },
       };
-      mutator(providers);
+      // The real mutateConfigProviders hands the mutator the full decrypted
+      // config as a second argument (provider-config-utils.ts) — removeProvider
+      // now uses it to clean up fallback references.
+      mutator(providers, {});
     });
     const host = createAuthPanelHost(panelDeps());
     await expect(host.setActiveKey('openai', 'work')).resolves.toBeNull();

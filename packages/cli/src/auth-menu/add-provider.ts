@@ -25,7 +25,7 @@ import type { AuthMenuDeps } from './types.js';
  * are unreachable from the catalog picker and the user has to hand-roll a
  * custom entry to use them.
  */
-function ownDefinitionsAsCatalog(known: Set<string>): ResolvedProvider[] {
+export function ownDefinitionsAsCatalog(known: Set<string>): ResolvedProvider[] {
   return Object.values(PROVIDER_DEFINITIONS)
     .filter((d) => !known.has(d.id) && d.family !== 'unsupported' && d.usage !== 'local')
     .map((d) => ({

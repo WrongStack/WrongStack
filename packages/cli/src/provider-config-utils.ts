@@ -193,7 +193,7 @@ export async function loadConfigProviders(
 export async function mutateConfigProviders(
   configPath: string,
   vault: SecretVault,
-  mutator: (providers: Record<string, ProviderConfig>) => void,
+  mutator: (providers: Record<string, ProviderConfig>, config: Record<string, unknown>) => void,
   profileConfigPath?: string,
 ): Promise<void> {
   const targetPath = profileConfigPath ?? configPath;
@@ -233,7 +233,7 @@ export async function mutateConfigProviders(
   }
   const decrypted = decryptConfigSecrets(parsed, vault) as Record<string, unknown>;
   const providers = (decrypted.providers as Record<string, ProviderConfig>) ?? {};
-  mutator(providers);
+  mutator(providers, decrypted);
   decrypted.providers = providers;
   clearStaleProviderDefaults(decrypted);
   const encrypted = encryptConfigSecrets(decrypted, vault);

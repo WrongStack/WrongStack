@@ -62,6 +62,7 @@ async function setup(
     catalog?: Partial<ResolvedProvider>[];
     models?: Array<Partial<ResolvedModel> & { providerId: string; modelId: string }>;
     preExisting?: object;
+    onProvidersChanged?: () => Promise<void>;
   } = {},
 ) {
   const tmpDir = await mkTempDir();
@@ -79,6 +80,7 @@ async function setup(
     vault,
     modelsRegistry: makeModelsRegistry(opts.catalog ?? [], opts.models ?? []),
     profileConfigPath: configPath,
+    onProvidersChanged: opts.onProvidersChanged,
   });
   return { host, configPath, rootConfigPath };
 }
@@ -166,9 +168,9 @@ describe('listCatalog', () => {
       ],
     });
     const catalog = await host.listCatalog();
-    expect(catalog.map((c) => c.id)).toEqual(['anthropic', 'openai']);
-    expect(catalog[0]?.saved).toBe(true);
-    expect(catalog[1]?.saved).toBe(false);
+    expect(catalog.map((c) => c.id)).toEqual(expect.arrayContaining(['anthropic', 'openai']));
+    expect(catalog.find((entry) => entry.id === 'anthropic')?.saved).toBe(true);
+    expect(catalog.find((entry) => entry.id === 'openai')?.saved).toBe(false);
   });
 });
 
@@ -211,6 +213,101 @@ describe('direct mutations', () => {
     expect(raw.model).toBeUndefined();
   });
 
+  it('removeProvider prunes fallback chains and their dangling selectors before reloading', async () => {
+    const onProvidersChanged = vi.fn(async () => undefined);
+    const { host, configPath } = await setup({
+      onProvidersChanged,
+      preExisting: {
+        ...TWO_KEYS_CONFIG,
+        fallbackModels: ['anthropic/claude-old', 'zebra/z-1'],
+        fallbackBridge: 'anthropic/claude-old',
+        favoriteModels: ['anthropic/claude-old', 'zebra/z-1'],
+        models: {
+          'anthropic-custom': { provider: 'anthropic' },
+          'zebra-custom': { provider: 'zebra' },
+        },
+        fallbackProfiles: {
+          mixed: ['anthropic/claude-old', 'zebra/z-1'],
+          anthropicOnly: ['anthropic/claude-old'],
+        },
+        fallbackProfile: 'anthropicOnly',
+        modelMatrix: {
+          reviewer: { provider: 'anthropic', model: 'claude-old', fallbackProfile: 'anthropicOnly' },
+          writer: { fallbackProfile: 'mixed' },
+        },
+        modelTiers: {
+          levels: {
+            premium: { provider: 'anthropic', model: 'claude-old', fallbackProfile: 'anthropicOnly' },
+            standard: { fallbackProfile: 'mixed' },
+          },
+        },
+        autonomy: {
+          refinerProvider: 'anthropic',
+          refinerModel: 'claude-old',
+          enhanceFallbackModel: 'anthropic/claude-old',
+          refinerFallbackProfile: 'anthropicOnly',
+        },
+        brain: {
+          models: ['anthropic/claude-old', { provider: 'zebra', model: 'z-1' }],
+          council: {
+            voters: ['anthropic/claude-old', { provider: 'zebra', model: 'z-1' }],
+            judge: 'anthropic/claude-old',
+          },
+        },
+        tools: {
+          council: {
+            profiles: [
+              {
+                id: 'routing',
+                seats: [
+                  {
+                    target: {
+                      providerId: 'anthropic',
+                      model: 'claude-old',
+                      fallbackModels: ['anthropic/claude-old', 'zebra/z-1'],
+                      fallbackProfile: 'anthropicOnly',
+                    },
+                  },
+                ],
+                judge: {
+                  providerId: 'anthropic',
+                  model: 'claude-old',
+                  fallbackModels: ['anthropic/claude-old', 'zebra/z-1'],
+                  fallbackProfile: 'anthropicOnly',
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(await host.removeProvider('anthropic')).toBeNull();
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    expect(raw.fallbackModels).toEqual(['zebra/z-1']);
+    expect(raw.fallbackBridge).toBeUndefined();
+    expect(raw.favoriteModels).toEqual(['zebra/z-1']);
+    expect(raw.models).toEqual({ 'zebra-custom': { provider: 'zebra' } });
+    expect(raw.fallbackProfiles).toEqual({ mixed: ['zebra/z-1'] });
+    expect(raw.fallbackProfile).toBeUndefined();
+    expect(raw.modelMatrix).toEqual({ writer: { fallbackProfile: 'mixed' } });
+    expect(raw.modelTiers.levels).toEqual({
+      premium: {},
+      standard: { fallbackProfile: 'mixed' },
+    });
+    expect(raw.autonomy).toEqual({});
+    expect(raw.brain).toEqual({
+      models: [{ provider: 'zebra', model: 'z-1' }],
+      council: { voters: [{ provider: 'zebra', model: 'z-1' }] },
+    });
+    expect(raw.tools.council.profiles[0]).toEqual({
+      id: 'routing',
+      seats: [{ target: { fallbackModels: ['zebra/z-1'] } }],
+      judge: { fallbackModels: ['zebra/z-1'] },
+    });
+    expect(onProvidersChanged).toHaveBeenCalledTimes(1);
+  });
+
   it('deleteKey clears stale default provider/model when the last key is removed', async () => {
     const { host, configPath } = await setup({
       preExisting: {
@@ -229,6 +326,28 @@ describe('direct mutations', () => {
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8'));
     expect(raw.provider).toBeUndefined();
     expect(raw.model).toBeUndefined();
+  });
+
+  it('saveProviderEdit updates every non-secret provider setting atomically', async () => {
+    const onProvidersChanged = vi.fn(async () => undefined);
+    const { host, configPath } = await setup({ preExisting: TWO_KEYS_CONFIG, onProvidersChanged });
+    expect(
+      await host.saveProviderEdit({
+        providerId: 'anthropic',
+        family: 'openai-compatible',
+        baseUrl: 'http://localhost:4000/v1',
+        models: 'alpha, beta',
+        envVars: 'LOCAL_TOKEN, SECOND_TOKEN',
+      }),
+    ).toBeNull();
+    const raw = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    expect(raw.providers.anthropic).toMatchObject({
+      family: 'openai-compatible',
+      baseUrl: 'http://localhost:4000/v1',
+      models: ['alpha', 'beta'],
+      envVars: ['LOCAL_TOKEN', 'SECOND_TOKEN'],
+    });
+    expect(onProvidersChanged).toHaveBeenCalledTimes(1);
   });
 
   it('surfaces errors as strings instead of throwing', async () => {
@@ -259,6 +378,81 @@ describe('addKey flow (prompt bridge)', () => {
     const result = await host.addKey('anthropic', io);
     expect(result).toEqual({ ok: false, message: 'Cancelled.' });
     expect(await fs.readFile(configPath, 'utf8')).toBe(before);
+  });
+});
+
+describe('saveProviderSetup', () => {
+  it('persists the one-screen catalog form atomically with an encrypted key', async () => {
+    const { host, configPath } = await setup();
+    const result = await host.saveProviderSetup({
+      source: 'catalog',
+      type: 'openrouter',
+      name: 'OpenRouter',
+      family: 'openai-compatible',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      alias: 'openrouter-work',
+      keyLabel: 'work',
+      apiKey: 'sk-private-1234567890',
+      models: '',
+      envVars: 'OPENROUTER_API_KEY',
+    });
+    expect(result).toBeNull();
+    const rawText = await fs.readFile(configPath, 'utf8');
+    expect(rawText).not.toContain('sk-private-1234567890');
+    const raw = JSON.parse(rawText);
+    expect(raw.providers['openrouter-work']).toMatchObject({
+      type: 'openrouter',
+      family: 'openai-compatible',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      activeKey: 'work',
+      envVars: ['OPENROUTER_API_KEY'],
+    });
+  });
+
+  it('rejects a conflicting alias without mutating its existing provider', async () => {
+    const { host } = await setup({ preExisting: TWO_KEYS_CONFIG });
+    await expect(
+      host.saveProviderSetup({
+        source: 'catalog',
+        type: 'anthropic',
+        name: 'Anthropic',
+        family: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        alias: 'anthropic',
+        keyLabel: 'new',
+        apiKey: 'sk-private-1234567890',
+        models: '',
+        envVars: '',
+      }),
+    ).resolves.toContain('already uses');
+  });
+
+  it('notifies the live runtime after a successful save, not after a rejected one', async () => {
+    let configPath = '';
+    const onProvidersChanged = vi.fn(async () => {
+      const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
+      expect(config.provider).toBe('openrouter');
+      expect(config.model).toBe('openrouter/default');
+    });
+    const created = await setup({
+      onProvidersChanged,
+      catalog: [{ id: 'openrouter', models: [{ id: 'openrouter/default', name: 'Default' }] }],
+    });
+    configPath = created.configPath;
+    const { host } = created;
+    await host.saveProviderSetup({
+      source: 'catalog',
+      type: 'openrouter',
+      name: 'OpenRouter',
+      family: 'openai-compatible',
+      baseUrl: '',
+      alias: 'openrouter',
+      keyLabel: 'default',
+      apiKey: 'sk-private-1234567890',
+      models: '',
+      envVars: '',
+    });
+    expect(onProvidersChanged).toHaveBeenCalledTimes(1);
   });
 });
 

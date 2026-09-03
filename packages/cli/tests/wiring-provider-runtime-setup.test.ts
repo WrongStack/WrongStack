@@ -344,6 +344,21 @@ describe('setupProviderRuntime — config watchers', () => {
     expect(createdWatchers).toHaveLength(0);
   });
 
+  it('still reloads an explicit auth save when file watching is disabled', async () => {
+    process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'] = '1';
+    snapshotByPath['/home/profiles/default.json'] = {
+      providers: { anthropic: { apiKey: TOKEN_ROTATED } },
+      apiKey: TOKEN_ROTATED,
+    };
+    const deps = makeDeps();
+    const runtime = setupProviderRuntime(deps);
+    await runtime.reloadProviderConfig();
+    expect(createdWatchers).toHaveLength(0);
+    expect(deps.configStore.update).toHaveBeenCalledWith(
+      expect.objectContaining({ providers: { anthropic: { apiKey: TOKEN_ROTATED } } }),
+    );
+  });
+
   it('merges trusted layers with higher priority winning', async () => {
     snapshotByPath['/home/profiles/default.json'] = {
       providers: { anthropic: { apiKey: TOKEN_PROFILE } },
