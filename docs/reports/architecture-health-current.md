@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-02T22:43:42.053Z
+**Generated:** 2026-09-03T09:44:46.122Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3504 |
-| Production source lines | 855975 |
-| Test files | 3082 |
+| Production source lines | 856405 |
+| Test files | 3084 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 10972 |
+| Relative module edges | 10976 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -21,7 +21,7 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- packages/tui/src/app-state.ts: hotspot grew from 944 to 946 lines; review and update the ratchet in the same change
 
 ## Workspace packages
 
@@ -31,7 +31,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
 | @wrongstack/cli | 476 | 452 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 792 | 701 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 792 | 702 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 18 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 27 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 65 | @wrongstack/persistence, @wrongstack/primitives |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/security-scanner | 18 | 26 | @wrongstack/core |
 | @wrongstack/simpleui | 93 | 61 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
-| @wrongstack/telegram | 27 | 29 | @wrongstack/core |
+| @wrongstack/telegram | 27 | 30 | @wrongstack/core |
 | @wrongstack/tools | 191 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 335 | 328 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |

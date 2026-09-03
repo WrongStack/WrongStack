@@ -834,4 +834,30 @@ describe('tool-format conversions', () => {
       expect(a).toEqual(b);
     });
   });
+
+  describe('deterministic tool sorting for prompt cache stability', () => {
+    const makeTool = (name: string): Tool => ({
+      name,
+      description: `tool ${name}`,
+      inputSchema: { type: 'object' },
+      permission: 'auto',
+      mutating: false,
+      async execute() {
+        return '';
+      },
+    });
+
+    it('sorts tools alphabetically by name across OpenAI, Anthropic, and Responses', () => {
+      const toolZ = makeTool('zebra');
+      const toolA = makeTool('apple');
+      const toolM = makeTool('mango');
+      const unsorted = [toolZ, toolA, toolM];
+
+      const openAi = toolsToOpenAI(unsorted);
+      expect(openAi.map((t) => t.function.name)).toEqual(['apple', 'mango', 'zebra']);
+
+      const anthropic = toolsToAnthropic(unsorted);
+      expect(anthropic.map((t) => t.name)).toEqual(['apple', 'mango', 'zebra']);
+    });
+  });
 });

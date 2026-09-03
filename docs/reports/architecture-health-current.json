@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-02T22:43:42.053Z",
+  "generatedAt": "2026-09-03T09:44:46.122Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3504,
-    "testFiles": 3082,
-    "sourceLines": 855975,
+    "testFiles": 3084,
+    "sourceLines": 856405,
     "workspaceEdges": 128,
-    "moduleEdges": 10972,
+    "moduleEdges": 10976,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -24,7 +24,9 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 853
   },
-  "errors": [],
+  "errors": [
+    "packages/tui/src/app-state.ts: hotspot grew from 944 to 946 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -213,7 +215,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 792,
-      "testFiles": 701,
+      "testFiles": 702,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -228,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 701
+          "testFiles": 702
         }
       ]
     },
@@ -711,7 +713,7 @@
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
       "sourceFiles": 27,
-      "testFiles": 29,
+      "testFiles": 30,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -724,7 +726,7 @@
         {
           "path": "packages/telegram/tsconfig.test.json",
           "error": null,
-          "testFiles": 29
+          "testFiles": 30
         }
       ]
     },
@@ -7397,6 +7399,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/security/write-targets-visibility.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/security/yolo-credential-binding.test.ts",
         "projects": [
           "root-node"
@@ -12480,6 +12488,12 @@
       },
       {
         "file": "packages/telegram/tests/unit/poll-lock.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/unit/poller.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20122,7 +20136,7 @@
     },
     {
       "file": "packages/tui/src/app-state.ts",
-      "lines": 944,
+      "lines": 946,
       "relativeImports": 14
     },
     {

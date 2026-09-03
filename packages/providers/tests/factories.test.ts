@@ -81,6 +81,29 @@ describe('buildProviderFactoriesFromRegistry', () => {
     expect(provider.id).toBe('groq');
   });
 
+  it('honors the envVars: [] sentinel — preset env fallback suppressed (VULN-006)', async () => {
+    // VULN-006: provider_manage's endpointChanged persists `envVars: []` as a
+    // SENTINEL — "endpoint changed; do not silently re-arm the credential from
+    // the preset env var". Present-but-empty must NOT fall through to the
+    // preset (ANTHROPIC_API_KEY here); only an ABSENT envVars may. The
+    // decoupled path cannot pin this (it synthesizes `envVars: cfg.envVars ??
+    // []`, erasing the distinction) — the catalog path is where it matters.
+    process.env['ANTHROPIC_API_KEY'] = 'sk-from-env';
+    try {
+      const registry = makeRegistry();
+      const factories = await buildProviderFactoriesFromRegistry({ registry });
+      const f = factories.find((x) => x.type === 'anthropic')!;
+      // Control: absent envVars → the preset's ANTHROPIC_API_KEY is consulted
+      // and the provider constructs. If this control cannot pass, the preset
+      // env is not wired for this id and the sentinel assertion is vacuous.
+      expect(() => f.create({ type: 'anthropic' })).not.toThrow();
+      // Sentinel: present-but-empty → preset suppressed → no key → ConfigError.
+      expect(() => f.create({ type: 'anthropic', envVars: [] })).toThrow(/requires an API key/);
+    } finally {
+      delete process.env['ANTHROPIC_API_KEY'];
+    }
+  });
+
   it('rejects invalid compatibility quirks', async () => {
     const registry = makeRegistry();
     const factories = await buildProviderFactoriesFromRegistry({ registry });

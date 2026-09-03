@@ -260,3 +260,162 @@ describe('patchTool — bookkeeping on every outcome', () => {
     expect(resultWithSignal).toHaveProperty('dry_run');
   });
 });
+
+describe('patchTool — VULN-001 containment (git extended headers, fail-closed)', () => {
+  // VULN-001 (security-report 2026-09-03): extractDiffTargets parsed only
+  // ---/+++ lines, so a diff built purely from `diff --git` / `rename` /
+  // `copy` headers yielded an EMPTY target list, the containment preflight
+  // never ran, and `git apply --unsafe-paths` could write outside the
+  // project root. These tests are the red-first attack suite: the escape
+  // tests were written against the unfixed code and failed there.
+  const escapeNames = [
+    'vuln-001-esc-rename.txt',
+    'vuln-001-esc-copy.txt',
+    'vuln-001-esc-unq.txt',
+    'vuln-001-esc-q.txt',
+  ];
+  const escapedAbs = (name: string) => path.resolve(tmpDir, '..', name);
+
+  afterEach(async () => {
+    // Red-state safety net: before the fix an escape could actually land
+    // next to the sandbox via the git fallback. Never leave it behind.
+    for (const name of escapeNames) {
+      await fs.rm(escapedAbs(name), { force: true });
+    }
+  });
+
+  const expectGone = async (name: string) => {
+    const stat = await fs.stat(escapedAbs(name)).catch(() => null);
+    expect(stat, `${name} must not exist outside the project root`).toBeNull();
+  };
+
+  it('refuses a header-only rename diff whose target escapes the project root', async () => {
+    const ctx = makeCtx();
+    const evil =
+      'diff --git a/inside.txt b/../vuln-001-esc-rename.txt\n' +
+      'rename from a/inside.txt\n' +
+      'rename to b/../vuln-001-esc-rename.txt\n';
+    const result = await patchTool.execute({ patch: evil }, ctx, makeOpts());
+    expect(result.applied).toBe(0);
+    expect(result.rejected).toBe(1);
+    expect(result.message).toContain('patch refused');
+    await expectGone('vuln-001-esc-rename.txt');
+  });
+
+  it('refuses a header-only copy diff whose target escapes the project root', async () => {
+    const ctx = makeCtx();
+    const evil =
+      'diff --git a/inside.txt b/../vuln-001-esc-copy.txt\n' +
+      'copy from a/inside.txt\n' +
+      'copy to b/../vuln-001-esc-copy.txt\n';
+    const result = await patchTool.execute({ patch: evil }, ctx, makeOpts());
+    expect(result.applied).toBe(0);
+    expect(result.rejected).toBe(1);
+    expect(result.message).toContain('patch refused');
+    await expectGone('vuln-001-esc-copy.txt');
+  });
+
+  it('refuses an unquoted `diff --git` header whose b-side escapes the root', async () => {
+    const ctx = makeCtx();
+    const evil = 'diff --git a/ok.txt b/../vuln-001-esc-unq.txt\n';
+    const result = await patchTool.execute({ patch: evil }, ctx, makeOpts());
+    expect(result.applied).toBe(0);
+    expect(result.rejected).toBe(1);
+    expect(result.message).toContain('patch refused');
+    await expectGone('vuln-001-esc-unq.txt');
+  });
+
+  it('refuses a quoted `diff --git` header whose quoted b-side escapes the root', async () => {
+    const ctx = makeCtx();
+    const evil = 'diff --git "a/ok.txt" "b/../vuln-001-esc-q.txt"\n';
+    const result = await patchTool.execute({ patch: evil }, ctx, makeOpts());
+    expect(result.applied).toBe(0);
+    expect(result.rejected).toBe(1);
+    expect(result.message).toContain('patch refused');
+    await expectGone('vuln-001-esc-q.txt');
+  });
+
+  it('fails closed: a non-empty patch with zero parseable targets is refused', async () => {
+    // An unparsed diff is an unchecked diff. Before the fix this sailed
+    // past the preflight (empty target list) straight into the engines.
+    const ctx = makeCtx();
+    const result = await patchTool.execute(
+      { patch: 'just some text\nwith no diff headers at all\n' },
+      ctx,
+      makeOpts(),
+    );
+    expect(result.applied).toBe(0);
+    expect(result.rejected).toBe(1);
+    expect(result.message).toContain('patch refused');
+  });
+
+  it('does not spuriously refuse a legitimate in-root header-only rename (no over-blocking)', async () => {
+    // Containment contract only. Neither engine actually applies header-only
+    // renames in a plain sandbox — GNU patch sees no hunks ("Only garbage"),
+    // and `git apply` skips renames without an index context ("Skipped
+    // patch", exit 0) or errors, depending on repo discovery from the cwd.
+    // What must hold is that the extended-header parse produced containment
+    // TARGETS, so an in-root rename passes the preflight unrefused; engine
+    // applied/rejected counts are environment-dependent and not asserted.
+    const ctx = makeCtx();
+    const oldFile = path.join(tmpDir, 'ren.txt');
+    await fs.writeFile(oldFile, 'keep me\n');
+    const legit =
+      'diff --git a/ren.txt b/ren2.txt\n' +
+      'rename from a/ren.txt\n' +
+      'rename to b/ren2.txt\n';
+    const result = await patchTool.execute({ patch: legit }, ctx, makeOpts());
+    expect(result.message).not.toContain('patch refused');
+    expect(result.message).not.toMatch(/outside project root/);
+    expect(result.applied, `patch reported: ${JSON.stringify(result)}`).toBeGreaterThanOrEqual(0);
+  });
+
+  it('still applies a quoted combined diff (--git + ---/+++ + hunk) in-root', async () => {
+    const ctx = makeCtx();
+    const file = path.join(tmpDir, 'sp ace.txt');
+    await fs.writeFile(file, 'old\n');
+    const legit =
+      'diff --git "a/sp ace.txt" "b/sp ace.txt"\n' +
+      '--- "a/sp ace.txt"\n' +
+      '+++ "b/sp ace.txt"\n' +
+      '@@ -1 +1 @@\n' +
+      '-old\n' +
+      '+new\n';
+    const result = await patchTool.execute({ patch: legit }, ctx, makeOpts());
+    expect(result.message).not.toContain('patch refused');
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(await fs.readFile(file, 'utf8')).toContain('new');
+  });
+
+  it('exposes its destinations through writeTargets for the permission layer', () => {
+    // VULN-001 Phase 2: the confirm prompt keyed on `directory` (".") and
+    // never showed what the patch would actually touch.
+    const wt = (patchTool as { writeTargets?: (input: unknown) => string[] }).writeTargets;
+    expect(typeof wt).toBe('function');
+    if (typeof wt !== 'function') return;
+
+    // Realistic rename-with-modification: both sides visible after -p1.
+    const renameWithHunk =
+      'diff --git a/src/keep.ts b/src/moved.ts\n' +
+      'rename from a/src/keep.ts\n' +
+      'rename to b/src/moved.ts\n' +
+      '--- a/src/keep.ts\n' +
+      '+++ b/src/moved.ts\n' +
+      '@@ -1 +1 @@\n' +
+      '-old\n' +
+      '+new\n';
+    const targets = wt({ patch: renameWithHunk });
+    expect(targets).toContain('src/keep.ts');
+    expect(targets).toContain('src/moved.ts');
+
+    // An escaping destination must be visible to the agent-state gate, not
+    // hidden behind the innocuous `directory` subject.
+    const evil = 'diff --git a/x.txt b/../esc.txt\nrename from a/x.txt\nrename to b/../esc.txt\n';
+    expect(wt({ patch: evil })).toContain('../esc.txt');
+
+    // Strip honoured (a/p/q.txt with strip 2 → q.txt), garbage → no targets.
+    expect(wt({ patch: '--- a/p/q.txt\n+++ b/p/q.txt\n', strip: 2 })).toContain('q.txt');
+    expect(wt({ patch: '' })).toEqual([]);
+    expect(wt({ patch: 'not a diff at all\n' })).toEqual([]);
+  });
+});

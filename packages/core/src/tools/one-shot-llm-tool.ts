@@ -135,6 +135,7 @@ const INPUT_SCHEMA: JSONSchema = {
     timeoutMs: {
       type: 'number',
       description: `Hard timeout in ms (default 30s, clamped to a maximum of ${MAX_TIMEOUT_MS}).`,
+      default: 30_000,
     },
   },
   additionalProperties: false,

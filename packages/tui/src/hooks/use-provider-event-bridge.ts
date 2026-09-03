@@ -412,6 +412,7 @@ export function useProviderEventBridge({
           resolve: e.resolve,
           destructive: e.riskTier === 'destructive' || e.decisionSource === 'yolo_destructive',
           boundaryReason: e.boundaryReason,
+          writeTargets: e.writeTargets,
         },
       });
     });

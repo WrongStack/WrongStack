@@ -126,6 +126,8 @@ export interface ToolConfirmPendingResult {
   suggestedPattern: string;
   decisionSource?: import('./permission.js').PermissionDecision['source'] | undefined;
   riskTier?: import('./tool.js').RiskTier | undefined;
+  /** Real write destinations from `Tool.writeTargets`, when declared (VULN-001 Phase 2). */
+  writeTargets?: string[] | undefined;
   /** Present when approval is required specifically by a Kanban scope. */
   boundaryReason?: string | undefined;
 }

@@ -92,7 +92,7 @@ export interface FileToolLifecycle {
 }
 
 function isReadToolName(name: string): boolean {
-  return /^(read|read_file|open_file|view)$/.test(name.toLowerCase());
+  return /^(read|read_file|open_file|view|view_file)$/.test(name.toLowerCase());
 }
 
 function isFileMutationToolName(name: string): boolean {

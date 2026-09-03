@@ -12,6 +12,7 @@ import {
   PROVIDER_KEY_SET_TOOL_NAME,
   PROVIDER_MANAGE_TOOL_NAME,
   createFallbackManageTools,
+  validateProviderBaseUrl,
 } from '../../src/tools/fallback-manage-tools.js';
 import type { FallbackManageToolOptions } from '../../src/tools/fallback-manage-tool-options.js';
 import type { Tool } from '../../src/types/tool.js';
@@ -493,7 +494,9 @@ describe('provider_manage', () => {
       ).providers['test-provider']!;
       expect(entry.apiKeys).toBeUndefined();
       expect(entry.activeKey).toBeUndefined();
-      expect(entry.envVars).toBeUndefined();
+      // VULN-006 sentinel: envVars persists as present-but-empty so the
+      // provider resolver suppresses the catalog preset fallback.
+      expect(entry.envVars).toEqual([]);
       expect(result.message).toContain('cleared');
     });
 
@@ -799,5 +802,114 @@ describe('leader_model_set', () => {
       expect(result.status).toBe('ok');
       expect(switchProviderAndModel).toHaveBeenCalledWith('test-provider', 'test-model');
     });
+  });
+});
+
+describe('provider_manage — VULN-006 endpoint guard (tool level)', () => {
+  // VULN-006 (security-report 2026-09-03): validateProviderBaseUrl checked
+  // only scheme + embedded credentials, so a single auto-approved call
+  // (`permission: 'auto'`) could reroute a provider at the IMDS
+  // (169.254.169.254) — a metadata-theft primitive — and the key followed via
+  // the preset env fallback. Red-first: these were written against the
+  // unfixed code.
+  //
+  // Final rule (resolved against the pinned local-LLM contract — the
+  // 'still allows local providers' test and the add-with-envVars pin above):
+  //  - link-local / metadata (169.254/16, 0.0.0.0/8, IPv6 fe80::/10, `::`,
+  //    and IPv4 embedded in IPv6): ALWAYS refused — no legitimate LLM
+  //    endpoint lives there.
+  //  - other private/loopback hosts stay allowed (Ollama/LM Studio/omniroute
+  //    contract, same-user boundary); the credential-theft half of VULN-006
+  //    is closed by the envVars sentinel + resolver suppression below.
+  it.each([
+    'http://169.254.169.254/latest/meta-data/',
+    'http://0.0.0.0/v1',
+  ])('refuses %s (metadata/link-local destination)', async (baseUrl) => {
+    const tools = createFallbackManageTools(makeOpts());
+    const tool = getTool(tools, PROVIDER_MANAGE_TOOL_NAME);
+    const result = await run(tool, { action: 'configure', provider: 'test-provider', baseUrl });
+    expect(result.status).toBe('error');
+    expect(String(result.message)).toMatch(/link-local|metadata/i);
+  });
+
+  it('allows a credential-less loopback endpoint (Ollama/LM Studio contract)', async () => {
+    const tools = createFallbackManageTools(makeOpts());
+    const tool = getTool(tools, PROVIDER_MANAGE_TOOL_NAME);
+    const result = await run(tool, {
+      action: 'configure',
+      provider: 'test-provider',
+      baseUrl: 'http://127.0.0.1:11434/v1',
+    });
+    expect(result.status).toBe('ok');
+  });
+
+  it('persists an envVars: [] sentinel when endpointChanged clears env vars', async () => {
+    // The sentinel is the second half of VULN-006: clearing envVars to
+    // undefined DROPPED the key, and the provider resolver treats an absent
+    // envVars as "fall back to the catalog preset" — silently re-arming
+    // OPENAI_API_KEY from process.env for the NEW endpoint. Present-but-empty
+    // must survive serialization and suppress that fallback (resolver-side
+    // suppression is pinned in packages/providers/tests/factories.test.ts).
+    const opts = makeOpts({
+      providers: {
+        'test-provider': { type: 'openai', apiKey: 'sk-test', envVars: ['OPENAI_API_KEY'] },
+      },
+    });
+    const tools = createFallbackManageTools(opts);
+    const tool = getTool(tools, PROVIDER_MANAGE_TOOL_NAME);
+    const result = await run(tool, {
+      action: 'configure',
+      provider: 'test-provider',
+      baseUrl: 'https://public.example.invalid/v1',
+    });
+    expect(result.status).toBe('ok');
+    const cfg = opts.getConfig() as unknown as {
+      providers: Record<string, Record<string, unknown>>;
+    };
+    const entry = cfg.providers['test-provider']!;
+    expect(entry.envVars).toEqual([]);
+    expect(entry.apiKey).toBeUndefined();
+  });
+});
+
+describe('validateProviderBaseUrl — VULN-006 host guard (direct)', () => {
+  it.each([
+    'http://169.254.169.254/latest/meta-data/',
+    'http://0.0.0.0/v1',
+    // Full 0.0.0.0/8 and IPv4-embedded IPv6 forms of 169.254/16 (chimera:
+    // an exact-literal guard would let these through).
+    'http://0.0.0.1/v1',
+    'http://[::ffff:169.254.169.254]/v1',
+    // RFC 4291 IPv4-translated spelling (::ffff:0:0/96 variant) — the kernel
+    // translates the embedded IPv4 at connect time (chimera review).
+    'http://[::ffff:0:169.254.169.254]/v1',
+    // IPv6 link-local + unspecified — an IPv4-only guard would let these through.
+    'http://[fe80::1]/v1',
+    'http://[::]/v1',
+  ])('rejects metadata/link-local %s', async (baseUrl) => {
+    expect(await validateProviderBaseUrl(baseUrl)).toMatch(/link-local|metadata/i);
+  });
+
+  // Other private/loopback hosts are deliberately ALLOWED (local-LLM contract;
+  // pinned by 'still allows local providers' and the Ollama test above) — the
+  // credential-theft half of VULN-006 is closed by the envVars sentinel.
+
+  it('still rejects non-http(s) schemes and embedded credentials (regression)', async () => {
+    expect(await validateProviderBaseUrl('ftp://example.com')).toMatch(/not supported/);
+    expect(await validateProviderBaseUrl('https://user:pass@example.com')).toMatch(
+      /credentials embedded/,
+    );
+    expect(await validateProviderBaseUrl('not a url')).toMatch(/not a valid URL/);
+  });
+
+  it('accepts public IP literals, loopback, and unresolvable hostnames (no over-blocking)', async () => {
+    // `.invalid` never resolves; DNS failure is not a metadata hit, so the
+    // configure-time check passes and the endpoint is simply unusable later —
+    // deterministic and offline-friendly.
+    expect(await validateProviderBaseUrl('http://8.8.8.8/v1')).toBeNull();
+    expect(await validateProviderBaseUrl('https://public.example.invalid/v1')).toBeNull();
+    // Loopback in both families stays allowed (local-LLM contract).
+    expect(await validateProviderBaseUrl('http://127.0.0.1:11434/v1')).toBeNull();
+    expect(await validateProviderBaseUrl('http://[::1]/v1')).toBeNull();
   });
 });

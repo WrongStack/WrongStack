@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.319.1",
+  "packageVersion": "0.319.2",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1342,7 +1342,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 47,
-      "sourceLines": 12077
+      "sourceLines": 12094
     },
     {
       "directory": "design",
@@ -1356,7 +1356,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 18118
+      "sourceLines": 18131
     },
     {
       "directory": "extension",
@@ -1398,7 +1398,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3891
+      "sourceLines": 3893
     },
     {
       "directory": "models",
@@ -1468,7 +1468,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6927
+      "sourceLines": 7029
     },
     {
       "directory": "session-catalog",
@@ -1510,21 +1510,21 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 20,
-      "sourceLines": 3777
+      "sourceLines": 3910
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 12903
+      "sourceLines": 12928
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10626
+      "sourceLines": 10646
     },
     {
       "directory": "wiring",

@@ -108,7 +108,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
 
   private hasAgentStateWriteTarget(tool: Tool, input: unknown, ctx: Context): boolean {
     if (!hasCapability(tool, ToolCapabilities.FS_WRITE)) return false;
-    for (const targetPath of fsWriteTargetPaths(input)) {
+    for (const targetPath of fsWriteTargetPaths(tool, input)) {
       const base = ctx.workingDir ?? ctx.cwd;
       const resolved = base ? path.resolve(base, targetPath) : path.resolve(targetPath);
       if (isInsideAgentStateRoot(resolved)) return true;

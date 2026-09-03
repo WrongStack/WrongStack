@@ -253,7 +253,15 @@ export function dedupStaleReads(
     const m = messages[i];
     if (!m || typeof m.content === 'string') continue;
     for (const b of m.content) {
-      if (b.type !== 'tool_use' || b.name.toLowerCase() !== 'read') continue;
+      if (b.type !== 'tool_use') continue;
+      const toolName = b.name.toLowerCase();
+      const isRead =
+        toolName === 'read' ||
+        toolName === 'read_file' ||
+        toolName === 'open_file' ||
+        toolName === 'view_file' ||
+        toolName === 'view';
+      if (!isRead) continue;
       const p = readPathOf(b.input);
       if (!p) continue;
       const key = normalizePathKey(p);

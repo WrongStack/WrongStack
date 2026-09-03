@@ -1,32 +1,52 @@
 import { createHash } from 'node:crypto';
 import type { TextBlock } from '../types/blocks.js';
+import type { Tool } from '../types/tool.js';
 
 const keyCache = new WeakMap<readonly TextBlock[], string>();
+const toolsKeyCache = new WeakMap<readonly TextBlock[], WeakMap<readonly Tool[], string>>();
 
 /**
  * Derive a stable, provider-agnostic cache-partition key from a frozen
- * system-prompt epoch. Requests that share the same stable prefix produce the
- * same key, so provider backends route them to the same automatic-cache
- * partition — this is what OpenAI's `prompt_cache_key` (and Gemini implicit
- * routing) needs to actually hit the cache on load-balanced deployments.
+ * system-prompt epoch and active tool definitions. Requests that share the
+ * same stable prefix (system prompt + tools) produce the same key, so provider
+ * backends route them to the same automatic-cache partition — this is what
+ * OpenAI's `prompt_cache_key` (and Gemini implicit routing) needs to actually
+ * hit the cache on load-balanced deployments.
  *
- * Keyed off the volatile-free `ctx.systemPrompt` epoch array (the per-turn
- * ledger/next-steps blocks are appended AFTER this array, so they never enter
- * the key). Cached by array identity in a WeakMap — the sha-256 runs once per
- * epoch (a new array = a new epoch, e.g. on mode switch), not per request.
- *
- * Anthropic ignores this field (it uses `ttl` + `cache_control` markers), so
- * setting it is harmless there; only the wires that read `req.cache.key` act on
- * it, gated by their own capability flags.
+ * When `tools` is provided, tools are sorted canonically by name before hashing
+ * so registration order differences across plugins do not perturb the key.
  */
-export function deriveCachePrefixKey(systemPrompt: readonly TextBlock[]): string {
-  const cached = keyCache.get(systemPrompt);
+export function deriveCachePrefixKey(
+  systemPrompt: readonly TextBlock[],
+  tools?: readonly Tool[],
+): string {
+  if (!tools || tools.length === 0) {
+    const cached = keyCache.get(systemPrompt);
+    if (cached !== undefined) return cached;
+    const h = createHash('sha256');
+    for (const block of systemPrompt) h.update(block.text).update('\u0000');
+    const key = `ws-${h.digest('hex').slice(0, 32)}`;
+    keyCache.set(systemPrompt, key);
+    return key;
+  }
+
+  let byPrompt = toolsKeyCache.get(systemPrompt);
+  if (!byPrompt) {
+    byPrompt = new WeakMap<readonly Tool[], string>();
+    toolsKeyCache.set(systemPrompt, byPrompt);
+  }
+  const cached = byPrompt.get(tools);
   if (cached !== undefined) return cached;
+
   const h = createHash('sha256');
   for (const block of systemPrompt) h.update(block.text).update('\u0000');
-  // 128 bits of hex is ample collision resistance for a routing key and keeps
-  // the value short enough for provider length limits (OpenAI caps at 128 chars).
+  h.update('tools:\u0000');
+  const sorted =
+    tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
+  for (const tool of sorted) {
+    h.update(tool.name).update('\u0000');
+  }
   const key = `ws-${h.digest('hex').slice(0, 32)}`;
-  keyCache.set(systemPrompt, key);
+  byPrompt.set(tools, key);
   return key;
 }

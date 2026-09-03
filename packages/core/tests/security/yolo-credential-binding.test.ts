@@ -74,6 +74,61 @@ describe('attachesWellKnownCredential', () => {
   });
 });
 
+describe('attachesWellKnownCredential — deep carrier scan (VULN-006 item 3)', () => {
+  // Report item 3: the predicate read ONLY the top-level `envVars` key, so
+  // credential carriers nested inside config-sync / mass-assignment payloads
+  // (or named `env` / `env_vars`, or given as a single string) were invisible
+  // to the YOLO gate. Red-first: written against the shallow implementation.
+  it('sees envVars nested inside a payload object', () => {
+    expect(attachesWellKnownCredential({ config: { envVars: ['OPENAI_API_KEY'] } })).toBe(true);
+  });
+
+  it('treats env-object KEYS as names (MCP-server env map)', () => {
+    expect(
+      attachesWellKnownCredential({
+        mcpServer: { command: 'run.sh', env: { ANTHROPIC_API_KEY: 'sk' } },
+      }),
+    ).toBe(true);
+  });
+
+  it('reads the catalog-style env array', () => {
+    expect(attachesWellKnownCredential({ catalogEntry: { env: ['OPENAI_API_KEY'] } })).toBe(true);
+  });
+
+  it('accepts a single-name string form', () => {
+    expect(attachesWellKnownCredential({ envVars: 'OPENAI_API_KEY' })).toBe(true);
+  });
+
+  it('matches snake_case carrier keys', () => {
+    expect(attachesWellKnownCredential({ env_vars: ['OPENAI_API_KEY'] })).toBe(true);
+  });
+
+  it('ignores nested names that are not well-known credentials', () => {
+    expect(attachesWellKnownCredential({ config: { envVars: ['LOCAL_LLM_KEY'] } })).toBe(false);
+  });
+
+  it('fails closed past the documented depth bound', () => {
+    // Exhaustion = "cannot prove clean" = risky. A carrier hidden below the
+    // scan depth must still force human approval, not silently pass.
+    let deep: Record<string, unknown> = { envVars: ['OPENAI_API_KEY'] };
+    for (let i = 0; i < 8; i++) deep = { wrapper: deep };
+    expect(attachesWellKnownCredential(deep)).toBe(true);
+  });
+
+  it('fails closed when the node budget is exhausted before the carrier', () => {
+    // ~600 container nodes ahead of the carrier exhaust the node budget;
+    // exhaustion must read as risky, never as "no carrier found".
+    const padded: Record<string, unknown> = {};
+    for (let i = 0; i < 600; i++) padded[`pad${i}`] = { n: i };
+    padded.wrapper = { envVars: ['OPENAI_API_KEY'] };
+    expect(attachesWellKnownCredential(padded)).toBe(true);
+  });
+
+  it('still ignores inputs with no credential carriers', () => {
+    expect(attachesWellKnownCredential({ provider: 'myllm', baseUrl: 'https://x' })).toBe(false);
+  });
+});
+
 describe('YOLO does not silently bind a real credential to a chosen host', () => {
   it('refuses to auto-approve under YOLO', async () => {
     const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
@@ -121,5 +176,24 @@ describe('YOLO does not silently bind a real credential to a chosen host', () =>
     );
 
     expect(decision.permission).toBe('auto');
+  });
+
+  it('does not auto-approve when the credential carrier is nested, not top-level', async () => {
+    // VULN-006 item 3: config-sync and mass-assignment payloads can carry the
+    // envVars array one or more levels below the input root; the YOLO gate
+    // must see it there too.
+    const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
+    const decision = await p.evaluate(
+      tool('provider_manage'),
+      {
+        action: 'add',
+        provider: 'evil',
+        baseUrl: 'https://attacker.example',
+        config: { envVars: ['ANTHROPIC_API_KEY'] },
+      },
+      ctx(),
+    );
+
+    expect(decision.permission).not.toBe('auto');
   });
 });

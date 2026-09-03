@@ -63,9 +63,29 @@ export function matchesCommandTrust(patterns: string[], subject: string): boolea
  * permission policies so a new write-target key recognized here protects the
  * leader and its subagents in the same edit (the same contract as
  * {@link isSensitiveReadCall}).
+ *
+ * VULN-001 Phase 2: takes the TOOL as well as the input. A tool may declare
+ * its real destinations through `Tool.writeTargets` — necessary when they
+ * live inside a payload body (patch text, config payloads) that the key list
+ * below cannot see. Declared destinations are UNIONED with the key list
+ * (never a replacement) so the gate can only grow stricter, and a throwing
+ * hook degrades to the key-list heuristic rather than failing permission
+ * evaluation.
  */
-export function fsWriteTargetPaths(input: unknown): string[] {
+export function fsWriteTargetPaths(tool: Tool | undefined, input: unknown): string[] {
   const out: string[] = [];
+  if (typeof tool?.writeTargets === 'function') {
+    try {
+      for (const declared of tool.writeTargets(input)) {
+        if (typeof declared === 'string' && declared.length > 0 && !out.includes(declared)) {
+          out.push(declared);
+        }
+      }
+    } catch {
+      // A buggy tool hook must not crash permission evaluation — fall
+      // through to the key-list heuristic.
+    }
+  }
   if (!input || typeof input !== 'object') return out;
   const obj = input as Record<string, unknown>;
   for (const key of [
@@ -91,6 +111,26 @@ export function fsWriteTargetPaths(input: unknown): string[] {
     }
   }
   return out;
+}
+
+/**
+ * Display-quality write destinations for the confirmation prompt (VULN-001
+ * Phase 2). Prefers the tool's own `writeTargets` declaration — the real
+ * destinations, without innocuous `directory: "."` noise — and falls back to
+ * the same key list the gate uses. Returns [] when nothing is known.
+ */
+export function describeWriteTargets(tool: Tool | undefined, input: unknown): string[] {
+  if (typeof tool?.writeTargets === 'function') {
+    try {
+      const declared = tool.writeTargets(input).filter(
+        (p): p is string => typeof p === 'string' && p.length > 0,
+      );
+      if (declared.length > 0) return declared;
+    } catch {
+      // fall back to the heuristic below
+    }
+  }
+  return fsWriteTargetPaths(undefined, input);
 }
 
 /**
@@ -164,6 +204,10 @@ export function permissionFingerprint(tool: Tool): string {
     tool.permission ?? '',
     tool.riskTier ?? '',
     tool.mutating ? 'm' : '',
+    // WS-058 class: a permission decision now also reads Tool.writeTargets
+    // (via fsWriteTargetPaths), so a registry wrap() that adds or removes the
+    // hook must invalidate cached verdicts.
+    typeof tool.writeTargets === 'function' ? 'wt' : '',
     caps,
   ]);
 }

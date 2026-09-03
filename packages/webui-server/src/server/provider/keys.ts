@@ -92,7 +92,7 @@ export function createProviderCrudHandlers(ctx: ProviderServiceContext) {
   ): Promise<boolean> {
     try {
       if (payload.baseUrl !== undefined && payload.baseUrl !== '') {
-        const invalid = validateProviderBaseUrl(payload.baseUrl);
+        const invalid = await validateProviderBaseUrl(payload.baseUrl);
         if (invalid) {
           ctx.sendOperationResult(ws, false, invalid);
           return false;
@@ -198,7 +198,7 @@ export function createProviderCrudHandlers(ctx: ProviderServiceContext) {
       // primitive. `provider_manage` has validated this since WS-013; this path
       // reached the same field without it.
       if (payload.baseUrl !== undefined && payload.baseUrl !== '') {
-        const invalid = validateProviderBaseUrl(payload.baseUrl);
+        const invalid = await validateProviderBaseUrl(payload.baseUrl);
         if (invalid) {
           ctx.sendOperationResult(ws, false, invalid);
           return;

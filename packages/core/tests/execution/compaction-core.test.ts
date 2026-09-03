@@ -953,6 +953,34 @@ describe('dedupStaleReads', () => {
     expect(serialized).not.toContain('OLD content'); // oldest collapsed
   });
 
+  it('deduplicates across read_file and view_file tool variants', () => {
+    const msgs: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'u1', name: 'read_file', input: { path: 'src/config.ts' } }],
+      } as Message,
+      readResult('u1', 'OLD config '.repeat(200)),
+      text('user', 'turn 1'),
+      text('assistant', 'turn 2'),
+      text('user', 'turn 3'),
+      text('assistant', 'turn 4'),
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'u2', name: 'view_file', input: { path: 'src/config.ts' } }],
+      } as Message,
+      readResult('u2', 'NEW config '.repeat(200)),
+      text('user', 'turn 5'),
+      text('assistant', 'turn 6'),
+    ];
+    const res = dedupStaleReads(msgs, [{ file: 'src/config.ts', count: 2 }], { preserveK: 2 });
+    expect(res.changed).toBe(true);
+    expect(res.deduped).toBe(1);
+    const serialized = JSON.stringify(res.messages);
+    expect(serialized).toContain('stale read of');
+    expect(serialized).toContain('NEW config');
+    expect(serialized).not.toContain('OLD config');
+  });
+
   it('is a no-op when there is no repeated-read pressure', () => {
     const msgs: Message[] = [readUse('u1', 'src/a.ts'), readResult('u1', 'content'.repeat(100))];
     const res = dedupStaleReads(msgs, [], { preserveK: 2 });

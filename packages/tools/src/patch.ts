@@ -59,6 +59,24 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
     },
     required: ['patch'],
   },
+  // VULN-001 Phase 2: the permission layer's input-key heuristic cannot see
+  // destinations encoded in the diff body, so the confirm prompt keyed on
+  // `directory` (".") while the patch wrote elsewhere. Declares the stripped
+  // relative destinations; execute()'s realpath containment above remains
+  // the authority on whether they are allowed.
+  writeTargets(input: PatchInput): string[] {
+    if (!input?.patch || typeof input.patch !== 'string' || !input.patch.trim()) return [];
+    const strip =
+      typeof input.strip === 'number' && Number.isFinite(input.strip) && input.strip >= 0
+        ? Math.floor(input.strip)
+        : 1;
+    const out: string[] = [];
+    for (const target of extractDiffTargets(input.patch)) {
+      const stripped = stripPathComponents(target.raw, strip);
+      if (stripped) out.push(stripped);
+    }
+    return out;
+  },
   async execute(input, ctx, opts) {
     if (!input?.patch || typeof input.patch !== 'string' || !input.patch.trim()) {
       throw new ToolValidationError({
@@ -103,6 +121,15 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
     // the project root. This catches `../../../etc/passwd`-style escapes
     // before we hand the diff to GNU patch.
     const targets = extractDiffTargets(input.patch);
+    // Fail closed (VULN-001): an unparsed diff is an unchecked diff. If the
+    // parser recognises no target in a non-empty patch — today, or after a
+    // future regression in extractDiffTargets — refuse here rather than hand
+    // an uncontained diff to the engines.
+    if (targets.length === 0) {
+      return refuse(
+        'patch refused: no file target could be parsed from the patch (fail-closed containment — refusing an unparseable diff)',
+      );
+    }
     const resolvedTargets: DiffTarget[] = [];
     for (const t of targets) {
       const stripped = stripPathComponents(t.raw, strip);
@@ -362,6 +389,46 @@ function extractDiffTargets(patch: string): DiffTarget[] {
       continue;
     }
 
+    // Git extended headers (only appear outside hunk bodies). `git apply`
+    // honours rename/copy targets and the a/b paths on the `diff --git`
+    // line — none of which the ---/+++ scan below can see. VULN-001: a diff
+    // built purely from these headers used to produce an empty target list
+    // and skip containment entirely.
+    if (line.startsWith('diff --git ')) {
+      const rest = line.slice('diff --git '.length);
+      if (rest.startsWith('"')) {
+        // Quoted form: git quotes the ENTIRE path (a//b/ prefix included)
+        // when it contains special characters.
+        const quoted = /^"((?:[^"\\]|\\.)*)"\s+"((?:[^"\\]|\\.)*)"$/.exec(rest);
+        if (quoted) {
+          for (const half of [quoted[1], quoted[2]]) {
+            const p = clean(half);
+            if (p) out.push({ raw: p, deleted: false });
+          }
+        }
+      } else {
+        // Unquoted form: split on the LAST ' b/' (git's own ambiguity rule).
+        // Both halves keep their a//b/ prefix so -pN stripping behaves
+        // exactly as it does for ---/+++ paths. Pushing the a-half too is a
+        // deliberate superset: an extra containment check can at worst cause
+        // a spurious refusal, never a missed escape.
+        const bIdx = rest.lastIndexOf(' b/');
+        if (rest.startsWith('a/') && bIdx !== -1) {
+          out.push({ raw: rest.slice(0, bIdx), deleted: false });
+          out.push({ raw: rest.slice(bIdx + 1), deleted: false });
+        }
+      }
+      // Unrecognised shapes push nothing: the fail-closed empty-target check
+      // in execute() turns anything unparseable into a refusal.
+      continue;
+    }
+    const extended = /^(?:rename|copy) (?:from|to) (.+)$/.exec(line);
+    if (extended) {
+      const p = clean(extended[1]);
+      if (p && p !== '/dev/null') out.push({ raw: p, deleted: false });
+      continue;
+    }
+
     const oldMatch = /^---\s+([^\t\r\n]+)/.exec(line);
     if (oldMatch) {
       lastOld = clean(oldMatch[1]);
@@ -423,12 +490,13 @@ function runPatch(
 
     // GNU patch is not installed by default on Windows. Git for Windows is
     // already a WrongStack prerequisite and `git apply` works outside a Git
-    // worktree, so use it as a shell-free fallback. Path containment remains
-    // enforced by the pre-flight above; --unsafe-paths only prevents Git from
-    // applying its own repository-root policy to an already-validated target.
+    // worktree, so use it as a shell-free fallback. `--unsafe-paths` is
+    // deliberately NOT passed: with it, git allows patches touching paths
+    // outside the working area; without it, git's own refusal of
+    // out-of-working-area, absolute and symlinked paths is the engine-level
+    // backstop behind the pre-flight containment check (VULN-001).
     const gitArgs = [
       'apply',
-      '--unsafe-paths',
       `-p${fallback.strip}`,
       '--verbose',
       ...(fallback.dryRun ? ['--check'] : []),

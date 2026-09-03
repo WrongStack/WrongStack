@@ -428,6 +428,7 @@ export function AppViewPickers({
               onEnableYolo={onEnableYolo}
               destructive={head.destructive}
               boundaryReason={head.boundaryReason}
+              writeTargets={head.writeTargets}
             />
           );
         })()}

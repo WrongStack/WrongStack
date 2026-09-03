@@ -127,6 +127,8 @@ export interface ToolEventMap {
     suggestedPattern: string;
     decisionSource?: PermissionDecision['source'] | undefined;
     riskTier?: RiskTier | undefined;
+    /** Real write destinations from `Tool.writeTargets`, when declared (VULN-001 Phase 2). */
+    writeTargets?: string[] | undefined;
     boundaryReason?: string | undefined;
     resolve: (decision: 'yes' | 'no' | 'always' | 'deny') => void;
   };

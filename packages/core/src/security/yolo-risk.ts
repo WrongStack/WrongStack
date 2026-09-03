@@ -528,26 +528,84 @@ const WELL_KNOWN_CREDENTIAL_ENV_VARS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Input keys whose value NAMES environment variables — an array of names, a
+ * single name string, or an object whose keys are the names (MCP-server
+ * `env` maps). Matched case-insensitively with underscores ignored, so
+ * `envVars` / `env_vars` / `ENVVARS` all hit.
+ */
+const ENV_NAME_CARRIER_KEYS = new Set(['envvars', 'env', 'environment']);
+
+/** Bounds for the recursive carrier scan — tool inputs are untrusted. */
+const MAX_CREDENTIAL_SCAN_DEPTH = 6;
+const MAX_CREDENTIAL_SCAN_NODES = 500;
+
+/**
  * True when a tool call would bind a well-known third-party credential to a
  * provider endpoint.
  *
  * `provider_manage` lets the model create a provider, choose its `baseUrl`
- * (validated for scheme only — no host allowlist) and name the environment
- * variables its key is read from. Nothing claims `ANTHROPIC_API_KEY` on a stock
- * install, so `rejectBorrowedEnvVars` — which only rejects names another
- * provider already lists — let it through. Combined with the sibling
- * `fallback_chain_manage` / `leader_model_set` tools in the same bundle, that is
- * a complete "send my real key to a host I chose" primitive, reachable by
- * prompt injection.
+ * (no metadata-host gate) and name the environment variables its key is read
+ * from. Nothing claims `ANTHROPIC_API_KEY` on a stock install, so
+ * `rejectBorrowedEnvVars` — which only rejects names another provider already
+ * lists — let it through. Combined with the sibling `fallback_chain_manage` /
+ * `leader_model_set` tools in the same bundle, that is a complete "send my
+ * real key to a host I chose" primitive, reachable by prompt injection.
  *
- * The tool stays usable: this only forces the decision back to the human rather
- * than letting YOLO auto-approve it.
+ * VULN-006 item 3: the scan is NOT limited to the top-level `envVars` key.
+ * Config-sync and mass-assignment payloads carry credential carriers nested
+ * one or more levels down, under alias keys (`env`, `env_vars`,
+ * `environment`), as MCP-style env MAPS (the keys are the names), or as
+ * single strings. The scan walks the whole input — depth- and node-bounded —
+ * and flags a well-known name in any of those shapes.
+ *
+ * The tool stays usable: this only forces the decision back to the human
+ * rather than letting YOLO auto-approve it.
  */
 export function attachesWellKnownCredential(input: unknown): boolean {
-  if (!input || typeof input !== 'object') return false;
-  const envVars = (input as Record<string, unknown>)['envVars'];
-  if (!Array.isArray(envVars)) return false;
-  return envVars.some(
-    (name) => typeof name === 'string' && WELL_KNOWN_CREDENTIAL_ENV_VARS.has(name.toUpperCase()),
-  );
+  return inputNamesAWellKnownCredential(input, 0, { nodes: 0 });
+}
+
+function inputNamesAWellKnownCredential(
+  node: unknown,
+  depth: number,
+  budget: { nodes: number },
+): boolean {
+  if (!node || typeof node !== 'object') return false;
+  if (depth > MAX_CREDENTIAL_SCAN_DEPTH || ++budget.nodes > MAX_CREDENTIAL_SCAN_NODES) {
+    // Fail closed (chimera review): a payload that exhausts the traversal
+    // bounds cannot be proven clean, so treat it as risky — the callers turn
+    // `true` into human approval instead of a silent YOLO auto-approve. A
+    // crafted payload can weaponize the bounds ONLY into a spurious prompt,
+    // never into a missed carrier.
+    return true;
+  }
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (isEnvCarrierKey(key) && namesAWellKnownCredential(value)) return true;
+    if (value && typeof value === 'object') {
+      if (inputNamesAWellKnownCredential(value, depth + 1, budget)) return true;
+    }
+  }
+  return false;
+}
+
+function isEnvCarrierKey(key: string): boolean {
+  return ENV_NAME_CARRIER_KEYS.has(key.toLowerCase().replace(/_/g, ''));
+}
+
+function namesAWellKnownCredential(value: unknown): boolean {
+  if (typeof value === 'string') {
+    return WELL_KNOWN_CREDENTIAL_ENV_VARS.has(value.toUpperCase());
+  }
+  if (Array.isArray(value)) {
+    return value.some(
+      (name) => typeof name === 'string' && WELL_KNOWN_CREDENTIAL_ENV_VARS.has(name.toUpperCase()),
+    );
+  }
+  if (value && typeof value === 'object') {
+    // MCP-server style env maps: the KEYS are the variable names.
+    return Object.keys(value as Record<string, unknown>).some((name) =>
+      WELL_KNOWN_CREDENTIAL_ENV_VARS.has(name.toUpperCase()),
+    );
+  }
+  return false;
 }

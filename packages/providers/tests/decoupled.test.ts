@@ -76,4 +76,10 @@ describe('makeProviderFromConfig (no models.dev dependency)', () => {
       }),
     ).toThrow(/requires an API key/);
   });
+
+  // VULN-006 resolver-side sentinel coverage lives in factories.test.ts:
+  // makeProviderFromConfig synthesizes `envVars: cfg.envVars ?? []`, which
+  // erases the present-vs-absent distinction this sentinel depends on. The
+  // distinction only materializes when the preset (p.envVars) is non-empty —
+  // i.e. on the buildProviderFactoriesFromRegistry catalog path.
 });

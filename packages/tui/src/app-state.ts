@@ -541,6 +541,8 @@ export type State = {
     /** True when the call was classified destructive. */
     destructive: boolean;
     boundaryReason?: string | undefined;
+    /** Real write destinations from `Tool.writeTargets`, when declared (VULN-001 Phase 2). */
+    writeTargets?: string[] | undefined;
   }[];
   /**
    * Active warning for the `!<command>` shell shortcut. It resolves before

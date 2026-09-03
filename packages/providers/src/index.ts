@@ -392,7 +392,11 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
   // Config overrides the catalog. This is the path that lets users wire
   // up internal proxies / self-hosted endpoints without needing models.dev.
   const family: WireFamily = cfg.family ?? p.family;
-  const envVars = cfg.envVars && cfg.envVars.length > 0 ? cfg.envVars : p.envVars;
+  // VULN-006 sentinel: a present-but-empty `envVars` array is written by
+  // provider_manage's endpointChanged — "endpoint changed; do NOT silently
+  // re-arm the credential from the catalog preset". Only an absent/undefined
+  // envVars falls back to the preset.
+  const envVars = Array.isArray(cfg.envVars) ? cfg.envVars : p.envVars;
   const apiKey = resolveActiveKey(cfg) ?? readFromEnv(envVars);
   if (!apiKey && family !== 'unsupported') {
     throw new ConfigError({

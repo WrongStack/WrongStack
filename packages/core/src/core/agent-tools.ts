@@ -12,6 +12,7 @@ import { capSageLines, splitSageOutputBlock } from '../utils/sage-output-block.j
 import { sizeSignals, truncateForEvent } from '../utils/tool-output-serializer.js';
 import type { AgentInternals } from './agent-internals.js';
 import { resolveEventSessionId } from './context.js';
+import { describeWriteTargets } from '../security/permission-helpers.js';
 
 /**
  * Tools whose serialized output is a unified diff that UIs render as a
@@ -96,6 +97,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     decisionSource?: import('../types/permission.js').PermissionDecision['source'] | undefined;
     riskTier?: import('../types/tool.js').RiskTier | undefined;
     boundaryReason?: string | undefined;
+    writeTargets?: string[] | undefined;
   }): Promise<'yes' | 'no' | 'always' | 'deny' | 'abort'> {
     // Headless deadlock guard (P1 #4, before-release.md): if no UI layer has
     // subscribed to `tool.confirm_needed`, emitting the event leaves the
@@ -133,6 +135,9 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
         return;
       }
       signal.addEventListener('abort', onAbort, { once: true });
+      // VULN-001 Phase 2: real destinations from Tool.writeTargets so the
+      // prompt shows what the call would write, not just its subject key.
+      const writeTargets = info.writeTargets ?? describeWriteTargets(info.tool, info.input);
       a.events.emit('tool.confirm_needed', {
         sessionId: resolveEventSessionId(a.ctx),
         tool: info.tool,
@@ -142,6 +147,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
         decisionSource: info.decisionSource,
         riskTier: info.riskTier,
         boundaryReason: info.boundaryReason,
+        ...(writeTargets.length > 0 ? { writeTargets } : {}),
         resolve: (choice) => {
           signal.removeEventListener('abort', onAbort);
           resolve(choice);
@@ -228,6 +234,12 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
           decisionSource: result.decisionSource,
           riskTier: result.riskTier,
           boundaryReason: result.boundaryReason,
+          // Forward the executor's single computation rather than re-deriving
+          // here (chimera: the field existed but was never forwarded, so the
+          // event path re-parsed the diff on every confirm and the two sites
+          // could drift). The ?? fallback in waitForConfirm stays as the net
+          // for callers that construct the info object directly.
+          writeTargets: result.writeTargets,
         });
 
         // Persist trust/deny rules

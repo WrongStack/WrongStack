@@ -8,6 +8,7 @@ import {
   hasDangerousCapabilityForSubagents,
   ToolCapabilities,
 } from '../security/capabilities.js';
+import { describeWriteTargets } from '../security/permission-helpers.js';
 import { areSubagentsAllowed } from '../coordination/session-subagent-policy.js';
 import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
 import type { ToolResultRenderMode, ToolResultRenderModeConfig } from '../types/config.js';
@@ -228,6 +229,9 @@ export class ToolExecutor {
             ? `kanban-boundary:${boundary.path ?? tool.name}`
             : (subjectForToolInput(tool.name, use.input, tool.subjectKey, tool.subjectFields) ??
               tool.name);
+        // VULN-001 Phase 2: real destinations from Tool.writeTargets so the
+        // confirm payload shows what the call would write, not `directory: "."`.
+        const writeTargets = describeWriteTargets(tool, use.input);
         if (this.opts.confirmAwaiter) {
           const awaiter = this.opts.confirmAwaiter;
           const choice = await new Promise<'yes' | 'no' | 'always' | 'deny' | 'abort'>(
@@ -274,6 +278,7 @@ export class ToolExecutor {
             suggestedPattern,
             decisionSource: decision.source,
             riskTier: decision.riskTier ?? tool.riskTier,
+            ...(writeTargets.length > 0 ? { writeTargets } : {}),
             ...(boundary.decision === 'confirm' && boundary.reason
               ? { boundaryReason: boundary.reason }
               : {}),

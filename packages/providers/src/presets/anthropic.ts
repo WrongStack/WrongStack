@@ -186,6 +186,12 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
             type: 'enabled',
             budget_tokens: budget,
           };
+          // Anthropic requires temperature to be 1.0 (or omitted) and top_p/top_k
+          // to be unset when thinking is enabled. Leaving a non-1.0 temperature or
+          // top_p will cause Anthropic to reject the request with 400 invalid_request.
+          delete body['temperature'];
+          delete body['top_p'];
+          delete body['top_k'];
         }
       }
     }

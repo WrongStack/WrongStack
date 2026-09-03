@@ -76,15 +76,19 @@ describe('GoogleProvider explicit cached-content', () => {
     expect(calls[0]!.body).not.toHaveProperty('cachedContent');
   });
 
-  it('falls back to an inline request when cache creation fails', async () => {
+  it('falls back to an inline request when cache creation fails and negative-caches the failure', async () => {
     const { provider, calls } = makeProvider(false);
     await provider.complete(req(), { signal: signal() });
+    await provider.complete(req(), { signal: signal() });
 
-    // create attempted, then the generate falls back to inline system.
-    expect(calls).toHaveLength(2);
+    // 1st request: create attempted (failed) + inline generate.
+    // 2nd request: negative-cached → immediately inline generate without re-attempting create!
+    expect(calls).toHaveLength(3);
     expect(calls[0]!.url).toMatch(/\/cachedContents$/);
+    expect(calls[1]!.url).toContain(':streamGenerateContent');
+    expect(calls[2]!.url).toContain(':streamGenerateContent');
     expect(calls[1]!.body['systemInstruction']).toBeDefined();
-    expect(calls[1]!.body).not.toHaveProperty('cachedContent');
+    expect(calls[2]!.body['systemInstruction']).toBeDefined();
   });
 
   it('reuses a live cache resource across requests (single create)', async () => {

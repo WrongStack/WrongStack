@@ -106,7 +106,7 @@ function quad(hi: number | undefined, lo: number | undefined): string {
  *   - `::ffff:0:0:0/96` IPv4-translated — 0xffff in group 4, not group 5
  *   - `::/96`          IPv4-compatible (deprecated, RFC 4291)
  */
-function embeddedIPv4(groups: number[]): string | undefined {
+export function embeddedIPv4(groups: number[]): string | undefined {
   const g = (i: number): number => groups[i] ?? 0;
 
   // NAT64 well-known prefix: 0064:ff9b:0:0:0:0:<ipv4> (RFC 6052 /96)

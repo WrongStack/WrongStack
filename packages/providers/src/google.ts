@@ -62,7 +62,7 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
    * explicit dispose is needed (which is why this works despite the provider
    * being rebuilt on every model switch).
    */
-  private readonly explicitCache = new Map<string, { name: string; expiresAt: number }>();
+  private readonly explicitCache = new Map<string, { name: string | null; expiresAt: number }>();
 
   override async *stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
     // Pre-filter tools for the maxTools limit so the explicit-cache hash
@@ -114,7 +114,7 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
       .digest('hex');
 
     const live = this.explicitCache.get(hash);
-    if (live && live.expiresAt > Date.now()) return live.name;
+    if (live && live.expiresAt > Date.now()) return live.name ?? undefined;
     if (live) this.explicitCache.delete(hash);
 
     const createBody: Record<string, unknown> = {
@@ -137,11 +137,23 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
     if (!res.ok) {
       // Drain the body so fetch implementations can promptly reuse the socket.
       await res.text().catch(() => undefined);
+      // Remember negative result so repeated turns in this session don't spam
+      // failing /cachedContents POSTs when the prefix is below Gemini's token threshold.
+      this.explicitCache.set(hash, {
+        name: null,
+        expiresAt: Date.now() + 60_000,
+      });
       return undefined;
     }
     const json = (await res.json()) as { name?: unknown };
     const name = typeof json.name === 'string' ? json.name : undefined;
-    if (!name) return undefined;
+    if (!name) {
+      this.explicitCache.set(hash, {
+        name: null,
+        expiresAt: Date.now() + 60_000,
+      });
+      return undefined;
+    }
     const now = Date.now();
     for (const [key, entry] of this.explicitCache) {
       if (entry.expiresAt <= now) this.explicitCache.delete(key);

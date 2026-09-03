@@ -489,7 +489,8 @@ function ownerMatches(
   owner: string | undefined,
   plugin: { name: string; aliases: readonly string[] },
 ): boolean {
-  if (!owner) return false;
+  // undefined owner means no ownership constraint (built-in tool) — allow.
+  if (!owner) return true;
   const names = new Set([plugin.name, ...plugin.aliases]);
   const segments = owner.split('+');
   return segments.length > 0 && segments.every((segment) => names.has(segment));

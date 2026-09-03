@@ -202,6 +202,29 @@ export interface Tool<I = unknown, O = unknown> {
    */
   validate?(input: I): string[];
   /**
+   * Optional declaration of the filesystem paths this call would write.
+   *
+   * Called synchronously by the permission layer BEFORE execution for two
+   * consumers (VULN-001 Phase 2): the agent-state write gate in both
+   * permission policies (which unions this with its input-key heuristic, so
+   * the result can only ever ADD scrutiny) and the confirmation prompt
+   * payload (`ToolConfirmPendingResult` / `tool.confirm_needed`), so the
+   * user sees real destinations instead of an innocuous `subjectKey` value.
+   *
+   * Use this when destinations live inside a payload body the heuristic
+   * cannot see — e.g. `patch`'s destinations are encoded in its diff text,
+   * while its permission subject is just `directory: "."`.
+   *
+   * Contract:
+   * - Synchronous and pure — no I/O, no ctx access, no throwing. A hook that
+   *   throws is treated as absent (the heuristic alone decides).
+   * - Best-effort candidates, typically relative and pre-realpath. This is
+   *   VISIBILITY, not authorization: `execute()` remains the authority on
+   *   whether any destination is actually permitted (containment, realpath
+   *   checks, fail-closed refusals).
+   */
+  writeTargets?(input: I): string[];
+  /**
    * Optional streaming variant. When defined, the executor prefers this
    * over `execute` — yielded events become `tool.progress` EventBus events
    * and the terminal `final` event provides the output. Tools that don't

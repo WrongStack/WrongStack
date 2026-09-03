@@ -111,6 +111,22 @@ describe('Anthropic preset - buildBody variants', () => {
     });
   });
 
+  it('strips temperature, top_p, and top_k when thinking is enabled', () => {
+    const body = anthropicWireFormat.buildBody({
+      model: 'claude-3-7-sonnet-20250219',
+      maxTokens: 4096,
+      messages: [{ role: 'user', content: 'think through this problem' }],
+      temperature: 0.2,
+      topP: 0.95,
+      topK: 40,
+      reasoning: { enabled: true, effort: 'medium' },
+    } as Parameters<typeof anthropicWireFormat.buildBody>[0]);
+    expect(body['thinking']).toEqual({ type: 'enabled', budget_tokens: 2048 });
+    expect(body).not.toHaveProperty('temperature');
+    expect(body).not.toHaveProperty('top_p');
+    expect(body).not.toHaveProperty('top_k');
+  });
+
   it('maps system role to user in messages', () => {
     const body = anthropicWireFormat.buildBody({
       model: 'anthropic-preset-test-model',

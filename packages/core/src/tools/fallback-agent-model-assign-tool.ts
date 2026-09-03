@@ -183,6 +183,26 @@ export function createAgentModelAssignTool(
         return { status: 'ok', message: `✓ "${input.role}" → ${display}` };
       }
 
+      // provider without model: validate the provider is a known favorite base.
+      // input.model is falsy here (guarded by above), so this is the only
+      // remaining mutating path that can reach this point.
+      if (input.provider) {
+        const ref = `${input.provider}/`;
+        if (!isFavoriteRef(ref, config)) {
+          return { status: 'error', message: notFavoriteError(ref, config) };
+        }
+        const matrix = { ...((config.modelMatrix ?? {}) as Record<string, unknown>) };
+        const previousRuntime = (matrix[input.role] as Record<string, unknown>)?.modelRuntime;
+        matrix[input.role] = {
+          provider: input.provider,
+          ...(previousRuntime ? { modelRuntime: previousRuntime } : {}),
+        };
+        await opts.updateConfig((cfg) => {
+          cfg.modelMatrix = matrix;
+        });
+        return { status: 'ok', message: `✓ "${input.role}" → ${input.provider} (provider only)` };
+      }
+
       return {
         status: 'error',
         message: 'Provide model, profile, or clear=true for the role assignment.',

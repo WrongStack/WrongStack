@@ -299,7 +299,12 @@ interface CacheBoundaryRef {
  *   still anchoring the prompt prefix.
  */
 function markCacheBoundary(msg: Message): Message | undefined {
-  if (typeof msg.content === 'string') return undefined;
+  if (typeof msg.content === 'string') {
+    return {
+      ...msg,
+      content: [{ type: 'text', text: msg.content, cache_control: { type: 'ephemeral' } }],
+    };
+  }
   const blocks: ContentBlock[] = msg.content.slice();
   const boundary = blocks[blocks.length - 1];
   if (!boundary || (boundary.type !== 'text' && boundary.type !== 'tool_result')) return undefined;
@@ -474,7 +479,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       // the ModelRuntime middleware. Keyed off the stable partition, not the
       // full epoch — a glossary/plan refresh must not re-route the cache
       // partition when the actual prefix bytes did not change.
-      cache: { key: deriveCachePrefixKey(stableSystem) },
+      cache: { key: deriveCachePrefixKey(stableSystem, a.tools.listForProvider()) },
     };
     // Bind BEFORE the pipeline runs: the request pipeline is shared by every
     // conversation in the process, and its payload carries no session, so a

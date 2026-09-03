@@ -222,7 +222,7 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
   private hasAgentStateWriteTarget(tool: Tool, input: unknown, ctx?: SubagentContext): boolean {
     if (!hasCapability(tool, ToolCapabilities.FS_WRITE)) return false;
     const base = ctx?.workingDir ?? ctx?.cwd;
-    for (const targetPath of fsWriteTargetPaths(input)) {
+    for (const targetPath of fsWriteTargetPaths(tool, input)) {
       const resolved = base ? path.resolve(base, targetPath) : path.resolve(targetPath);
       if (isInsideAgentStateRoot(resolved)) return true;
     }

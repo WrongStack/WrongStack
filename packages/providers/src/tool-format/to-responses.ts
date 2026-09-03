@@ -47,7 +47,9 @@ function stringifyToolInputOnce(input: Record<string, unknown>): string {
 export function toolsToResponses(tools: Tool[]): ResponsesTool[] {
   const hit = _toolCache.get(tools);
   if (hit) return hit;
-  const result = tools.map((t): ResponsesTool => {
+  const sorted =
+    tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
+  const result = sorted.map((t): ResponsesTool => {
     const compact = compactToolDefinitionForWire(t);
     return {
       type: 'function',

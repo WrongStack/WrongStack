@@ -1,4 +1,7 @@
+import * as dns from 'node:dns/promises';
+import * as net from 'node:net';
 import type { JSONSchema, Tool } from '../types/tool.js';
+import { embeddedIPv4, expandIPv6 } from '../utils/ip-guard.js';
 import type { FallbackManageToolOptions } from './fallback-manage-tool-options.js';
 
 export const PROVIDER_MANAGE_TOOL_NAME = 'provider_manage';
@@ -110,7 +113,41 @@ export function rejectBorrowedEnvVars(
   return null;
 }
 
-export function validateProviderBaseUrl(raw: string): string | null {
+/**
+ * Refuse IPv6 link-local (fe80::/10) and unspecified (`::`) addresses.
+ * Kept separate from the IPv4 metadata check so each family's always-block
+ * list stays explicit.
+ */
+function isV6LinkLocalOrUnspecified(address: string): boolean {
+  if (address === '::') return true;
+  const first = expandIPv6(address.toLowerCase())?.[0];
+  return first !== undefined && (first & 0xffc0) === 0xfe80;
+}
+
+/**
+ * Validate a provider `baseUrl` before it is persisted (VULN-006).
+ *
+ * IMDS-class link-local/metadata ranges — IPv4 169.254.0.0/16 (AWS/GCE/Azure
+ * IMDS), 0.0.0.0/8, IPv6 fe80::/10 and `::` — are refused outright. No
+ * legitimate LLM endpoint lives there, and a redirect is both a
+ * credential-delivery and a metadata-theft primitive (the cloud metadata
+ * service hands out host role credentials to whoever asks). Deliberately NOT
+ * gated: CGNAT (100.64/10) and benchmarking (198.18/15) — those are
+ * tenant-network space, not metadata endpoints, and hard-blocking them could
+ * break legitimate internal deployments; revisit if the threat model grows.
+ *
+ * Other private/loopback hosts (127/8, RFC1918, ::1, ULA, `localhost`) stay
+ * allowed: pointing a provider at a local server is a documented, pinned
+ * product contract (Ollama, LM Studio, omniroute), and a redirect there is a
+ * same-user boundary (T4). The credential-theft half of VULN-006 is closed
+ * by `endpointChanged`'s `envVars: []` sentinel, which stops the resolver
+ * from silently re-arming the old credential for the new endpoint.
+ *
+ * Async because hostnames are DNS-resolved — the same resolution gate
+ * `assertNotPrivateHost` applies before sockets. DNS failure is not treated
+ * as a metadata hit: the endpoint simply fails to connect when used.
+ */
+export async function validateProviderBaseUrl(raw: string): Promise<string | null> {
   let url: URL;
   try {
     url = new URL(raw);
@@ -123,7 +160,74 @@ export function validateProviderBaseUrl(raw: string): string | null {
   if (url.username || url.password) {
     return 'Invalid baseUrl: credentials embedded in the URL are not accepted.';
   }
+
+  const host =
+    url.hostname.startsWith('[') && url.hostname.endsWith(']')
+      ? url.hostname.slice(1, -1)
+      : url.hostname;
+
+  let addresses: string[];
+  if (host === 'localhost' || host.endsWith('.localhost')) {
+    // localhost itself is loopback-tier (allowed); resolving it adds nothing.
+    return null;
+  }
+  if (net.isIP(host) !== 0) {
+    addresses = [host];
+  } else {
+    try {
+      addresses = (await dns.lookup(host, { all: true })).map((record) => record.address);
+    } catch {
+      // Unresolvable hostname: nothing to gate here — the endpoint fails on
+      // first use. (Same policy as assertNotPrivateHost's DNS handling.)
+      return null;
+    }
+  }
+
+  for (const address of addresses) {
+    // Classify the always-block set through BOTH representations: the literal
+    // itself and any IPv4 it embeds (mapped `::ffff:a9fe:a9fe`, NAT64
+    // `64:ff9b::a9fe:a9fe`, 6to4) — isPrivateIPv6's transition-format logic
+    // flags these as private, but only the embedded IPv4 reveals that the
+    // target is specifically link-local/metadata (VULN-006 review).
+    if (net.isIP(address) === 4) {
+      // Full 0.0.0.0/8 ("this host") and 169.254.0.0/16 (IMDS + link-local).
+      if (address.startsWith('0.') || address.startsWith('169.254.')) {
+        return metadataRefusal(address);
+      }
+      continue;
+    }
+    if (isV6LinkLocalOrUnspecified(address)) {
+      return metadataRefusal(address);
+    }
+    // IPv6 loopback (::1) is loopback-tier (allowed) — it is NOT metadata.
+    if (address === '::1') continue;
+    // Classify the IPv4 a v6 address embeds. The MAPPED format
+    // (::ffff:a9fe:a9fe — WHATWG's serialization of ::ffff:169.254.169.254)
+    // must be handled explicitly here: embeddedIPv4 deliberately skips it
+    // (its doc: "the formats the mapped-address branch does not"), and
+    // isPrivateIPv6 owns the mapped branch but only answers a boolean, while
+    // this gate needs the embedded IPv4 STRING to recognize 0/8 and
+    // 169.254/16. Without this, a mapped IMDS target passes as "no embedded
+    // IPv4".
+    let embedded: string | undefined;
+    const groups = expandIPv6(address.toLowerCase());
+    if (groups) {
+      if (groups[5] === 0xffff && groups.slice(0, 5).every((g) => g === 0)) {
+        const g = (i: number): number => groups[i] ?? 0;
+        embedded = `${g(6) >> 8}.${g(6) & 0xff}.${g(7) >> 8}.${g(7) & 0xff}`;
+      } else {
+        embedded = embeddedIPv4(groups);
+      }
+    }
+    if (embedded && (embedded.startsWith('0.') || embedded.startsWith('169.254.'))) {
+      return metadataRefusal(`${address} (embeds ${embedded})`);
+    }
+  }
   return null;
+}
+
+function metadataRefusal(address: string): string {
+  return `Invalid baseUrl: link-local/metadata address "${address}" is not a valid provider endpoint — it exposes the machine's internal network and cloud metadata services.`;
 }
 
 export function createProviderManageTool(
@@ -195,7 +299,7 @@ export function createProviderManageTool(
           };
         }
         if (input.baseUrl) {
-          const invalid = validateProviderBaseUrl(input.baseUrl);
+          const invalid = await validateProviderBaseUrl(input.baseUrl);
           if (invalid) return { status: 'error', message: invalid };
         }
         const borrowed = rejectBorrowedEnvVars(providers, input.provider, input.envVars);
@@ -229,7 +333,7 @@ export function createProviderManageTool(
           };
         }
         if (input.baseUrl) {
-          const invalid = validateProviderBaseUrl(input.baseUrl);
+          const invalid = await validateProviderBaseUrl(input.baseUrl);
           if (invalid) return { status: 'error', message: invalid };
         }
         const previous: Record<string, unknown> = { ...providers[input.provider] };
@@ -254,7 +358,14 @@ export function createProviderManageTool(
               (field) => !explicitlySupplied.has(field) && previous[field] !== undefined,
             )
           : [];
-        for (const field of droppedFields) entry[field] = undefined;
+        for (const field of droppedFields) {
+          // VULN-006: `envVars` must persist as an explicit EMPTY ARRAY, not
+          // undefined. An absent key lets the provider resolver fall back to
+          // the catalog preset (e.g. OPENAI_API_KEY) and silently re-arm the
+          // credential for the NEW endpoint; present-but-empty suppresses
+          // that fallback (providers/src/index.ts honors the sentinel).
+          entry[field] = field === 'envVars' ? [] : undefined;
+        }
 
         const borrowed = rejectBorrowedEnvVars(providers, input.provider, input.envVars);
         if (borrowed) return { status: 'error', message: borrowed };

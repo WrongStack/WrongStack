@@ -17,6 +17,12 @@ interface ConfirmPromptProps {
   /** Whether this call was classified destructive. */
   destructive?: boolean;
   boundaryReason?: string | undefined;
+  /**
+   * Real write destinations from `Tool.writeTargets` (VULN-001 Phase 2) —
+   * what the call would actually touch, as opposed to the permission
+   * subject (`patch`'s is just `directory: "."`).
+   */
+  writeTargets?: string[] | undefined;
 }
 
 /** Ink color for each button's bracketed key. */
@@ -185,6 +191,7 @@ export function ConfirmPrompt({
   onEnableYolo,
   destructive,
   boundaryReason,
+  writeTargets,
 }: ConfirmPromptProps): React.ReactElement {
   // Terminal bell on mount — alerts the user that action is required,
   // especially important when the agent has been running autonomously
@@ -236,6 +243,12 @@ export function ConfirmPrompt({
       </Box>
       {inputSummary ? <Text dimColor>{inputSummary}</Text> : null}
       {boundaryReason ? <Text color="yellow">KANBAN BOUNDARY: {boundaryReason}</Text> : null}
+      {writeTargets && writeTargets.length > 0 ? (
+        <Text color="yellow">
+          WRITES: {writeTargets.slice(0, 5).join(', ')}
+          {writeTargets.length > 5 ? ` (+${writeTargets.length - 5} more)` : ''}
+        </Text>
+      ) : null}
       {diff ? (
         <Box flexDirection="column" marginY={1}>
           {renderDiff(diff, diffPath)}

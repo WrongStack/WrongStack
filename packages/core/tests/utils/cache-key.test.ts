@@ -27,6 +27,20 @@ describe('deriveCachePrefixKey', () => {
     // array ref — a frozen epoch array never mutates, so the cached value holds.
     expect(deriveCachePrefixKey(arr)).toBe(first);
   });
+
+  it('incorporates tools deterministically and independently of registration order', () => {
+    const system = [block('identity')];
+    const toolA = { name: 'apple' } as any;
+    const toolZ = { name: 'zebra' } as any;
+
+    const keyWithoutTools = deriveCachePrefixKey(system);
+    const keyWithToolsOrder1 = deriveCachePrefixKey(system, [toolZ, toolA]);
+    const keyWithToolsOrder2 = deriveCachePrefixKey(system, [toolA, toolZ]);
+
+    expect(keyWithToolsOrder1).toMatch(/^ws-[0-9a-f]{32}$/);
+    expect(keyWithToolsOrder1).toBe(keyWithToolsOrder2);
+    expect(keyWithToolsOrder1).not.toBe(keyWithoutTools);
+  });
 });
 
 describe('applyModelRuntime — cache key survives the config ttl overlay', () => {

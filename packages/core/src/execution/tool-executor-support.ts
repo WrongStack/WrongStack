@@ -9,8 +9,8 @@ import { MALFORMED_ARG_MARKERS } from '../types/tool-markers.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
 
-const TOOL_OUTPUT_ARTIFACT_THRESHOLD_BYTES = 64 * 1024;
-const TOOL_OUTPUT_ARTIFACT_PREVIEW_BYTES = 12 * 1024;
+const TOOL_OUTPUT_ARTIFACT_THRESHOLD_BYTES = 24 * 1024;
+const TOOL_OUTPUT_ARTIFACT_PREVIEW_BYTES = 6 * 1024;
 const TOOL_OUTPUT_ARTIFACT_OMISSION = '\n…[artifact middle omitted]…\n';
 
 export function clampTimeoutMs(timeoutMs: number, maxTimeoutMs: number): number {
