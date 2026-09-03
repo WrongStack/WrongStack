@@ -55,9 +55,9 @@ const HOTSPOTS: readonly Hotspot[] = [
   },
   {
     file: 'packages/tui/src/theme-presets.ts',
-    maxLines: 1424,
+    maxLines: 130,
     rationale:
-      'Single inline `themePresets` Record<ThemeName, Theme> holds ~50 preset definitions inline. Extract per-preset files under theme-presets/<name>.ts and compose via index to shrink below the 1424 floor; do not extend the inline list further.',
+      'This file is a composing index: it imports the `theme-presets/<family>.ts` data modules, spreads them into `themePresets`, and guards against duplicate ids. Palette data belongs in those modules, NOT back here — one inlined preset costs ~22 lines, which is why the cap sits only 18 lines over the current 112. A new family module adds ~3 lines here (import + spread + `presetGroups` entry); adding presets to an existing family adds none. Raise this cap only if the index has started doing data work again.',
   },
 ] as const;
 
