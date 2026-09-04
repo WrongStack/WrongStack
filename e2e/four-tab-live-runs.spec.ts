@@ -392,7 +392,8 @@ async function restartStandaloneServer(baseURL: string, token: string): Promise<
   // Log the spawned server: a silent server made the "Disconnected from
   // backend" failure undiagnosable — the page's sends were being dropped
   // and nothing on the server side was inspectable after the fact.
-  const outFd = fs.openSync(path.join(cwd, '.temp_files', 'e2elr-standalone.out.log'), 'a');
+  fs.mkdirSync(path.join(cwd, '.temp_files'), { recursive: true });
+    const outFd = fs.openSync(path.join(cwd, '.temp_files', 'e2elr-standalone.out.log'), 'a');
   const errFd = fs.openSync(path.join(cwd, '.temp_files', 'e2elr-standalone.err.log'), 'a');
   const child = spawn(process.execPath, ['packages/webui-server/dist/server/entry.js'], {
     cwd,

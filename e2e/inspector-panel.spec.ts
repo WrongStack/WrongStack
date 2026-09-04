@@ -51,7 +51,7 @@ test.describe('global inspector drawer', () => {
     await page.waitForLoadState('networkidle');
     // Readiness gate: the top bar (and its Agents trigger) renders only in
     // the ready state — not on the first-run setup screen.
-    await expect(page.getByTestId('inspector-trigger')).toBeVisible();
+    await expect(page.getByTestId('inspector-trigger').first()).toBeVisible();
   });
 
   test('opens on the right without shrinking the work surface', async ({ page }) => {
@@ -97,7 +97,7 @@ test.describe('global inspector drawer', () => {
 
   test('closes with the labelled action and restores trigger focus', async ({ page }) => {
     await openInspector(page);
-    const trigger = page.getByTestId('inspector-trigger');
+    const trigger = page.getByTestId('inspector-trigger').first();
 
     await page.getByTestId('inspector-close').click();
 

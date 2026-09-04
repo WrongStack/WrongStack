@@ -1,5 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import { enableKeyboardShortcuts } from './helpers/keyboard-shortcuts';
+
 async function openQueuePanel(page: Page) {
   await page.evaluate(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -12,6 +14,7 @@ async function openQueuePanel(page: Page) {
 
 test.describe('Queue panel', () => {
   test.beforeEach(async ({ page }) => {
+    await enableKeyboardShortcuts(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
   });

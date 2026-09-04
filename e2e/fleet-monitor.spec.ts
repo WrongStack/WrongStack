@@ -1,5 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import { enableKeyboardShortcuts } from './helpers/keyboard-shortcuts';
+
 async function openFleetInspector(page: Page) {
   const drawer = page.getByTestId('inspector-drawer');
   // F2 reaches a `window` keydown listener bound in App.tsx's root effect,
@@ -30,6 +32,7 @@ async function openFleetInspector(page: Page) {
 
 test.describe('Fleet inspector', () => {
   test.beforeEach(async ({ page }) => {
+    await enableKeyboardShortcuts(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
   });
