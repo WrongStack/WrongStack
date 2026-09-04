@@ -9,8 +9,8 @@
  * @module session-note-hub
  */
 
-import type { EventBus } from '../kernel/events.js';
 import type { SessionNote, SessionNoteKind } from '../core/session-notes.js';
+import type { EventBus } from '../kernel/events.js';
 import { mailboxIdentityBase } from './mailbox-types.js';
 
 export interface SessionNotePost {
@@ -60,56 +60,14 @@ function identityKeys(inbox: SessionNoteInbox): Set<string> {
 
 export class SessionNoteHub {
   private readonly inboxes = new Set<SessionNoteInbox>();
-  private readonly buses = new Map<string, EventBus>();
-  /**
-   * Live contributing inboxes per session id. When a session's count drops to
-   * zero its `buses` entry is removed — otherwise this process-wide singleton
-   * would retain a torn-down agent's EventBus (and everything its listeners
-   * close over) for every session id it has ever seen.
-   */
-  private readonly busRefCounts = new Map<string, number>();
 
   register(inbox: SessionNoteInbox): () => void {
     this.inboxes.add(inbox);
-    const rawSid = resolveInboxSessionId(inbox);
-    const sid = rawSid ? rawSid.trim().replace(/\\/g, '/') : undefined;
-    const contributes = Boolean(sid && inbox.events);
-    if (sid && inbox.events) {
-      this.busRefCounts.set(sid, (this.busRefCounts.get(sid) ?? 0) + 1);
-      if (!this.buses.has(sid)) this.buses.set(sid, inbox.events);
-    }
     let disposed = false;
     return () => {
       if (disposed) return;
       disposed = true;
       this.inboxes.delete(inbox);
-      if (contributes && sid) {
-        const remaining = (this.busRefCounts.get(sid) ?? 1) - 1;
-        if (remaining <= 0) {
-          this.busRefCounts.delete(sid);
-          this.buses.delete(sid);
-        } else {
-          this.busRefCounts.set(sid, remaining);
-          // Rebind away from a torn-down first contributor: if the disposed
-          // inbox owned the cached bus, point the session at a surviving
-          // live contributor's bus. Keeping first-wins here would retain the
-          // dead agent's EventBus (listeners and all closures) until the
-          // session's LAST inbox unregisters, and post() would emit
-          // `session.note` on that dead bus.
-          if (this.buses.get(sid) === inbox.events) {
-            let survivor: EventBus | undefined;
-            for (const other of this.inboxes) {
-              const otherSid = resolveInboxSessionId(other)?.trim().replace(/\\/g, '/');
-              if (otherSid !== sid) continue;
-              if (!other.events) continue;
-              survivor = other.events;
-              break;
-            }
-            if (survivor) this.buses.set(sid, survivor);
-            else this.buses.delete(sid);
-          }
-        }
-      }
     };
   }
 
@@ -129,10 +87,14 @@ export class SessionNoteHub {
     };
 
     let delivered = 0;
+    let bus = input.events;
     const fromKey = from.toLowerCase();
     for (const inbox of this.inboxes) {
       const inboxSid = resolveInboxSessionId(inbox)?.trim().replace(/\\/g, '/');
       if (inboxSid !== sessionId) continue;
+      // Session getters can change after registration; observers must use the
+      // same live session lookup as delivery, including the sender's bus.
+      bus ??= inbox.events;
       const keys = identityKeys(inbox);
       if (keys.has(fromKey)) continue;
       if (!broadcast && !keys.has(to)) continue;
@@ -145,7 +107,6 @@ export class SessionNoteHub {
     }
 
     try {
-      const bus = input.events ?? this.buses.get(sessionId);
       bus?.emit('session.note', {
         sessionId,
         from,

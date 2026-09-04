@@ -118,6 +118,90 @@ describe('SessionNoteHub', () => {
     expect(consumeSessionNotes(leader)).toEqual([]);
   });
 
+  it.each([undefined, 'old-session'])(
+    'routes observers using the live session (initially %s)',
+    (initial) => {
+      const hub = new SessionNoteHub();
+      const events = new EventBus();
+      const seen: string[] = [];
+      const delivered: string[] = [];
+      let sessionId: string | undefined = initial;
+      events.on('session.note', (event) => seen.push(event.sessionId));
+      const off = hub.register({
+        sessionId: () => sessionId,
+        agentId: 'leader',
+        events,
+        deliver: (note) => delivered.push(note.body),
+      });
+
+      sessionId = ' new\\session ';
+      expect(
+        hub.post({
+          sessionId: 'new/session',
+          from: 'worker',
+          to: 'leader',
+          kind: 'note',
+          body: 'current',
+        }).delivered,
+      ).toBe(1);
+      expect(seen).toEqual(['new/session']);
+      hub.post({
+        sessionId: 'old-session',
+        from: 'worker',
+        to: 'leader',
+        kind: 'note',
+        body: 'old',
+      });
+      expect(seen).toEqual(['new/session']);
+      expect(delivered).toEqual(['current']);
+
+      sessionId = undefined;
+      hub.post({
+        sessionId: 'new/session',
+        from: 'worker',
+        to: 'leader',
+        kind: 'note',
+        body: 'unbound',
+      });
+      expect(seen).toEqual(['new/session']);
+      sessionId = 'new/session';
+      off();
+      off();
+      hub.post({
+        sessionId: 'new/session',
+        from: 'worker',
+        to: 'leader',
+        kind: 'note',
+        body: 'disposed',
+      });
+      expect(seen).toEqual(['new/session']);
+    },
+  );
+
+  it('prefers an explicit bus and otherwise uses the first matching bus even for the sender', () => {
+    const hub = new SessionNoteHub();
+    const first = new EventBus();
+    const second = new EventBus();
+    const explicit = new EventBus();
+    const seen: string[] = [];
+    first.on('session.note', () => seen.push('first'));
+    second.on('session.note', () => seen.push('second'));
+    explicit.on('session.note', () => seen.push('explicit'));
+    hub.register({ sessionId: 's', agentId: 'no-bus', deliver: () => {} });
+    hub.register({ sessionId: 's', agentId: 'sender', events: first, deliver: () => {} });
+    hub.register({ sessionId: 's', agentId: 'target', events: second, deliver: () => {} });
+    const input = {
+      sessionId: 's',
+      from: 'sender',
+      to: 'target',
+      kind: 'note' as const,
+      body: 'hi',
+    };
+    expect(hub.post({ ...input, events: explicit }).delivered).toBe(1);
+    expect(hub.post(input).delivered).toBe(1);
+    expect(seen).toEqual(['explicit', 'first']);
+  });
+
   it('emits session.note for observers', () => {
     const hub = new SessionNoteHub();
     const events = new EventBus();
