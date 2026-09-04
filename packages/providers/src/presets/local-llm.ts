@@ -282,8 +282,8 @@ export function createLocalLlmPreset(opts: LocalLlmPresetOptions) {
         | undefined;
       if (u) {
         state.usage = {
-          input: u.prompt_tokens ?? state.usage.input,
-          output: u.completion_tokens ?? state.usage.output,
+          input: nonNegative(u.prompt_tokens, state.usage.input),
+          output: nonNegative(u.completion_tokens, state.usage.output),
         };
       }
 
@@ -350,6 +350,10 @@ export const ollamaWireFormat = createLocalLlmPreset({
   },
   maxContext: 8_192,
 });
+
+function nonNegative(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+}
 
 /**
  * vLLM — https://docs.vllm.ai

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrainArbiter, BrainDecision } from '../../src/coordination/brain.js';
 import { DefaultBrainArbiter } from '../../src/coordination/brain.js';
 import { type BrainInterventionInput, BrainMonitor } from '../../src/coordination/brain-monitor.js';
-import { EventBus, type EventMap } from '../../src/kernel/events.js';
 import { createTieredBrainArbiter } from '../../src/execution/autonomy-brain.js';
+import { EventBus, type EventMap } from '../../src/kernel/events.js';
 
 const STEER: BrainDecision = {
   type: 'answer',
@@ -509,5 +509,62 @@ describe('BrainMonitor — live reconfiguration', () => {
     // streak after two failures and engaging twice.
     expect(brain.decide).toHaveBeenCalledTimes(1);
     monitor.stop();
+  });
+});
+
+describe('BrainMonitor — control-plane discipline', () => {
+  let events: EventBus;
+  let interventions: BrainInterventionInput[];
+
+  beforeEach(() => {
+    events = new EventBus();
+    interventions = [];
+  });
+
+  const run = async (decision: BrainDecision) => {
+    const m = new BrainMonitor({
+      events,
+      brain: { decide: async () => decision },
+      intervene: async (input) => {
+        interventions.push(input);
+      },
+    });
+    m.start();
+    const emitted: EventMap['brain.intervention'][] = [];
+    events.on('brain.intervention', (e) => emitted.push(e));
+    events.emit('tool.executed', failedTool('edit'));
+    events.emit('tool.executed', failedTool('edit'));
+    events.emit('tool.executed', failedTool('edit'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    m.stop();
+    return emitted;
+  };
+
+  it('does not steer on prose when no option was chosen', async () => {
+    // The request always offers `steer`/`continue`, so an optionless answer
+    // means no tier actually made this choice. Steering on a sentence that
+    // merely did not start with "continue" injected guidance into a live
+    // agent off the back of a regex.
+    const emitted = await run({
+      type: 'answer',
+      text: 'The agent appears to be stuck on a dependency problem.',
+    });
+
+    expect(interventions).toHaveLength(0);
+    // The engagement is still reported — observe-only, not silent.
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]?.intervened).toBe(false);
+  });
+
+  it('steers on the exact option id', async () => {
+    await run({ type: 'answer', optionId: 'steer', text: 'Steer', rationale: 'read first' });
+    expect(interventions).toHaveLength(1);
+    expect(interventions[0]?.body).toContain('read first');
+  });
+
+  it('does not steer on an empty steer answer', async () => {
+    const emitted = await run({ type: 'answer', optionId: 'steer', text: '   ' });
+    expect(interventions).toHaveLength(0);
+    expect(emitted[0]?.intervened).toBe(false);
   });
 });

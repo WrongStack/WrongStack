@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { BrainDecision, BrainDecisionRequest } from '../../src/coordination/brain.js';
 import {
   createAutonomyBrain,
-  formatDecisionSummary,
   extractConfidence,
+  formatDecisionSummary,
   isNonAnswer,
   parseFreeTextDecision,
   readLlmDenyKind,
   resolveRiskCeiling,
 } from '../../src/execution/autonomy-brain.js';
-import type { BrainDecision, BrainDecisionRequest } from '../../src/coordination/brain.js';
+import { EventBus } from '../../src/kernel/events.js';
 import type { Provider } from '../../src/types/provider.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
@@ -550,5 +551,128 @@ describe('isNonAnswer / parseFreeTextDecision / extractConfidence', () => {
     expect(extractConfidence('{"confidence":-2}')).toBe(0);
     expect(extractConfidence('no json here')).toBeUndefined();
     expect(extractConfidence('```json\n{"confidence":0.5}\n```')).toBe(0.5);
+  });
+});
+
+/** A request `quickDecide` will not short-circuit, so the LLM tier runs. */
+const llmReq = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest =>
+  req({ question: 'goal complete?', fallback: 'continue', ...over });
+
+describe('single-LLM tier — call shape and budgets', () => {
+  /** Captures the Request the provider was handed. */
+  function recordingProvider(text: string, stopReason?: string) {
+    const calls: Array<Record<string, unknown>> = [];
+    const provider = {
+      id: 'fake',
+      capabilities: {},
+      stream: vi.fn(),
+      complete: vi.fn(async (request: Record<string, unknown>) => {
+        calls.push(request);
+        return { content: [{ type: 'text', text }], ...(stopReason ? { stopReason } : {}) };
+      }),
+    } as never as Provider;
+    return { provider, calls };
+  }
+
+  it('asks for JSON on the wire, not only in the prompt', async () => {
+    const { provider, calls } = recordingProvider('{"decision":"Ship it."}');
+    await createAutonomyBrain({ provider, model: 'm' }).decide(llmReq());
+    // The system prompt demands "exactly one JSON object"; reasoning-heavy
+    // models ignore prose instructions that are not backed on the wire.
+    expect(calls[0]?.responseFormat).toEqual({ type: 'json_object' });
+  });
+
+  it('budgets enough output for a reasoning model to think', async () => {
+    const { provider, calls } = recordingProvider('{"decision":"Ship it."}');
+    await createAutonomyBrain({ provider, model: 'm' }).decide(llmReq());
+    // 200 was sized for the response, not the budget: thinking tokens come
+    // out of the same allowance and starve the answer into `unparseable`.
+    expect(calls[0]?.maxTokens).toBe(2000);
+  });
+
+  it('honours an explicit maxTokens override', async () => {
+    const { provider, calls } = recordingProvider('{"decision":"Ship it."}');
+    await createAutonomyBrain({ provider, model: 'm', maxTokens: 128 }).decide(llmReq());
+    expect(calls[0]?.maxTokens).toBe(128);
+  });
+
+  it('names truncation in the deny reason instead of reporting a bare parse failure', async () => {
+    const { provider } = recordingProvider('{"decis', 'max_tokens');
+    const d = await createAutonomyBrain({ provider, model: 'm' }).decide(
+      llmReq({ options: [{ id: 'go', label: 'Go' }] }),
+    );
+    expect(d.type).toBe('deny');
+    expect(d.type === 'deny' && d.reason).toContain('truncated at maxTokens=2000');
+  });
+
+  it('flags a truncated call as ok-but-truncated on the trace event', async () => {
+    const { provider } = recordingProvider('{"decis', 'max_tokens');
+    const events = new EventBus();
+    const rows: Array<{ ok?: boolean; truncated?: boolean; error?: string }> = [];
+    events.on('brain.llm_call', (e) => rows.push(e as never));
+    await createAutonomyBrain({ provider, model: 'm', events }).decide(llmReq());
+    expect(rows[0]).toMatchObject({ ok: true, truncated: true });
+    // `error` belongs to failed rows; a truncated call reached the provider.
+    expect(rows[0]?.error).toBeUndefined();
+  });
+
+  it('stops walking a dead pool once the decision budget is spent', async () => {
+    const attempted: string[] = [];
+    /** Hangs until aborted, so each attempt burns exactly its per-call budget. */
+    const hangingTarget = (model: string) => ({
+      provider: {
+        id: model,
+        capabilities: {},
+        stream: vi.fn(),
+        complete: vi.fn(
+          (_request: unknown, opts?: { signal?: AbortSignal }) =>
+            new Promise((_resolve, reject) => {
+              attempted.push(model);
+              opts?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+            }),
+        ),
+      } as never as Provider,
+      model,
+    });
+
+    const brain = createAutonomyBrain({
+      targets: ['a', 'b', 'c', 'd', 'e'].map(hangingTarget),
+      decisionTimeoutMs: 30,
+    });
+    const d = await brain.decide(llmReq());
+
+    expect(d.type).toBe('deny');
+    expect(d.type === 'deny' && d.reason).toContain('decision budget');
+    // Three attempts' worth of budget — without the cap the caller would
+    // block for the whole five-model chain.
+    expect(attempted).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('confidence floor is independent of the uncertainty gate', () => {
+  it('rejects a low-confidence optionless answer even with rejectUncertain off', async () => {
+    const brain = createAutonomyBrain({
+      provider: fakeProvider('{"decision":"Ship it.","confidence":0.1}'),
+      model: 'm',
+      rejectUncertain: false,
+      minConfidence: 0.7,
+    });
+    const d = await brain.decide(llmReq());
+    // Option-bearing requests always enforced the floor; optionless ones
+    // silently skipped it whenever the uncertainty gate was off.
+    expect(d.type).toBe('deny');
+    expect(d.type === 'deny' && d.reason).toContain('confidence');
+  });
+
+  it('still allows the legacy wrap-anything behaviour when confidence is absent', async () => {
+    const brain = createAutonomyBrain({
+      provider: fakeProvider('   '),
+      model: 'm',
+      rejectUncertain: false,
+    });
+    await expect(brain.decide(llmReq())).resolves.toMatchObject({
+      type: 'answer',
+      text: 'Continue execution.',
+    });
   });
 });

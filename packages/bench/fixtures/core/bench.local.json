@@ -1,0 +1,92 @@
+{
+  "name": "WrongStack core",
+  "tasks": [
+    {
+      "id": "merge-intervals",
+      "prompt": "Implement export function mergeIntervals(intervals) in src/merge.js. Input is an array of [start, end] number pairs, possibly unsorted and overlapping. Return a new array of merged, non-overlapping intervals sorted by start. Touching intervals (end of one equals start of the next) must merge. Empty input returns []. Do not modify test.mjs or package.json.",
+      "templateDir": "./fixtures/merge-intervals",
+      "grader": {
+        "type": "command",
+        "command": "node",
+        "args": ["test.mjs"],
+        "shell": false
+      },
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "CORE_SENTINEL_merge-intervals" }
+      ]
+    },
+    {
+      "id": "broken-pager",
+      "prompt": "src/page.js exports paginate(items, page, pageSize). It is buggy. A page is 1-based. It must return { items, page, pageSize, total, totalPages } where items is the slice for that page, total is items.length, and totalPages is ceil(total/pageSize) or 0 when empty. Out-of-range pages return an empty items array but still the correct totals. pageSize < 1 or page < 1 should throw. Do not modify test.mjs or package.json.",
+      "templateDir": "./fixtures/broken-pager",
+      "grader": {
+        "type": "command",
+        "command": "node",
+        "args": ["test.mjs"],
+        "shell": false
+      },
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "CORE_SENTINEL_broken-pager" }
+      ]
+    },
+    {
+      "id": "cross-file-rename",
+      "prompt": "Rename the class/export UserRepo to AccountRepo across the src/ directory. Update every import and constructor call. Public API in src/index.js must export AccountRepo. Do not modify test.mjs or package.json.",
+      "templateDir": "./fixtures/cross-file-rename",
+      "grader": {
+        "type": "command",
+        "command": "node",
+        "args": ["test.mjs"],
+        "shell": false
+      },
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "CORE_SENTINEL_cross-file-rename" },
+        { "type": "file_not_contains", "path": "src/index.js", "text": "UserRepo" }
+      ]
+    },
+    {
+      "id": "frozen-contract",
+      "prompt": "src/money.js formatCents(cents) must return a decimal string with exactly two fraction digits (150 → \"1.50\", 1 → \"0.01\", -20 → \"-0.20\"). src/contract.js is a frozen public contract — do not change that file. Do not modify test.mjs or package.json.",
+      "templateDir": "./fixtures/frozen-contract",
+      "grader": {
+        "type": "command",
+        "command": "node",
+        "args": ["test.mjs"],
+        "shell": false
+      },
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "CORE_SENTINEL_frozen-contract" },
+        { "type": "file_contains", "path": "src/contract.js", "text": "export const FRACTION_DIGITS = 2;" },
+        { "type": "file_contains", "path": "src/contract.js", "text": "CORE_CONTRACT_FROZEN" }
+      ]
+    },
+    {
+      "id": "query-parser",
+      "prompt": "Implement export function parseSearch(qs) in src/query.js. qs is a query string without a leading '?'. Rules: plus becomes space; values are URL-decoded; a key with no value is \"\"; repeated keys become an array of values in order; a key that appears once stays a string; limit if present must be a finite integer (parse as number, not string); missing keys are omitted. Empty input returns {}. Do not modify test.mjs or package.json.",
+      "templateDir": "./fixtures/query-parser",
+      "grader": {
+        "type": "command",
+        "command": "node",
+        "args": ["test.mjs"],
+        "shell": false
+      },
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "CORE_SENTINEL_query-parser" }
+      ]
+    },
+    {
+      "id": "rate-limiter",
+      "prompt": "Implement export class TokenBucket in src/limiter.js. constructor({ capacity, refillPerSecond, now }). now() returns unix ms and defaults to Date.now if omitted. Methods: tryRemove(n=1) returns true if n tokens were available and consumed, else false and consumes nothing; available() returns current tokens capped at capacity. Tokens refill continuously from elapsed time. Start full. Do not modify test.mjs or package.json.",
+      "templateDir": "./fixtures/rate-limiter",
+      "grader": {
+        "type": "command",
+        "command": "node",
+        "args": ["test.mjs"],
+        "shell": false
+      },
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "CORE_SENTINEL_rate-limiter" }
+      ]
+    }
+  ]
+}

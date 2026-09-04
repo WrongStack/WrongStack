@@ -15,7 +15,7 @@ import { color } from './color.js';
  * straight to a history dispatcher or stdout.
  */
 export function formatTodosList(todos: TodoItem[]): string {
-  if (todos.length === 0) return 'No todos.';
+  if (!Array.isArray(todos) || todos.length === 0) return 'No todos.';
   const lines: string[] = [];
   const done = todos.filter((t) => t.status === 'completed').length;
   lines.push(color.dim(`Todos (${done}/${todos.length} done):`));
@@ -62,7 +62,7 @@ export function formatTodosForModel(
   todos: readonly TodoItem[],
   emptyLine = '- No active todos remain.',
 ): string {
-  return todos.length ? todos.map(formatTodoForModel).join('\n') : emptyLine;
+  return Array.isArray(todos) && todos.length ? todos.map(formatTodoForModel).join('\n') : emptyLine;
 }
 
 /**

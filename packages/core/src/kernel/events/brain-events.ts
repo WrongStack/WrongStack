@@ -28,6 +28,21 @@ export interface BrainEventMap {
     at: number;
     /** See `brain.decision_answered`. */
     tier?: BrainDecisionTier | undefined;
+    /**
+     * True when this is the PROMPT rather than the resolution: a
+     * `BrainDecisionQueue` is now waiting on a human and the decision is
+     * still open. The same request will later produce a
+     * `brain.decision_answered`/`_denied` carrying the real outcome.
+     *
+     * Absent/false means ask_human WAS the final decision — nothing in the
+     * chain escalated it.
+     *
+     * Consumers that log Brain activity want both forms. Consumers that
+     * close a per-decision record (the trace recorder) must ignore the
+     * pending one, or every interactive escalation is filed at prompt time
+     * and the human's actual answer never lands in the record.
+     */
+    pending?: boolean | undefined;
   };
   'brain.human_answered': {
     sessionId?: string | undefined;
@@ -104,6 +119,14 @@ export interface BrainEventMap {
     durationMs: number;
     /** Failure message when `ok` is false. */
     error?: string | undefined;
+    /**
+     * The call succeeded on the wire but the model was cut off at its output
+     * budget. Distinct from `error`, which belongs to `ok: false` rows: a
+     * truncated response is a budget problem that produces a perfectly
+     * normal-looking failed parse downstream, and overloading `error` on an
+     * `ok: true` row forced every consumer to pick one reading or the other.
+     */
+    truncated?: boolean | undefined;
     /** Raw response text — only when trace content capture is on. */
     responseText?: string | undefined;
     usage?: Usage | undefined;
@@ -116,6 +139,10 @@ export interface BrainEventMap {
     seatId: string;
     persona: string;
     status: 'valid' | 'invalid' | 'failed' | 'cancelled';
+    /** 1-based deliberation round. 1 is the independent round. */
+    round?: number | undefined;
+    /** This ballot differs from the same seat's previous round. */
+    changed?: boolean | undefined;
     providerId?: string | undefined;
     model?: string | undefined;
     optionId?: string | undefined;
@@ -141,6 +168,32 @@ export interface BrainEventMap {
     validVoteCount: number;
     distinctTargetCount: number;
     judgeUsed: boolean;
+    /** Deliberation rounds the panel actually ran. 1 = no deliberation. */
+    rounds?: number | undefined;
+    /**
+     * Seats that changed their vote in the final round.
+     *
+     * The health metric for deliberation: 0 means the extra rounds bought
+     * cost and nothing else, and a figure near the seat count every time
+     * means the panel is conforming rather than reasoning.
+     */
+    deliberationChanges?: number | undefined;
+    /**
+     * The tie-breaker's identity, e.g. "anthropic/claude-haiku".
+     *
+     * `judgeUsed: true` alone says a judge decided but not WHICH model, so a
+     * judge that is silently unresolvable, or one that is also a seated
+     * voter, looks identical to a healthy independent tie-break. Always
+     * emitted when a judge is configured — a model id is structural
+     * metadata, not decision content.
+     */
+    judgeLabel?: string | undefined;
+    /**
+     * True when the judge is ALSO one of the seated voters: the model that
+     * broke the tie already cast one of the tied votes, so its "independent"
+     * verdict is a restatement of its own position with deciding weight.
+     */
+    judgeIsVoter?: boolean | undefined;
     usage?:
       | {
           calls: number;

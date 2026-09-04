@@ -150,8 +150,13 @@ export function ToolSidebar({
   useEffect(() => {
     if (!open) return;
     const closeOnEscape = (event: KeyboardEvent) => {
+      // Participate in the topmost-panel convention: a handler that already
+      // claimed this Escape (e.g. an inner panel) wins; otherwise claim it so
+      // only ONE open surface closes per press. stopPropagation alone cannot
+      // do that — it does not stop other listeners on the same node.
+      if (event.defaultPrevented) return;
       if (event.key === 'Escape') {
-        event.stopPropagation();
+        event.preventDefault();
         setView(null);
       }
     };

@@ -30,7 +30,7 @@
 import type { EventBus } from '../kernel/events.js';
 import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from './brain.js';
 import { brainDecisionKey } from './brain-ledger.js';
-import { markDecisionTier, readDecisionTier } from './brain-telemetry.js';
+import { emitBrainTierTransition, markDecisionTier, readDecisionTier } from './brain-telemetry.js';
 
 export interface BrainDecisionCacheOptions {
   /** Master switch. Default false — caching a judgement is opt-in. */
@@ -222,6 +222,12 @@ export class BrainDecisionCache {
 export interface CachingBrainArbiterOptions {
   inner: BrainArbiter;
   cache: BrainDecisionCache;
+  /**
+   * Bus for the `brain.tier_transition` step recorded on a cache HIT. A
+   * replayed verdict is otherwise the one outcome with no ladder steps at
+   * all, which reads in the trace exactly like a decision that never ran.
+   */
+  events?: EventBus | undefined;
 }
 
 /**
@@ -234,9 +240,19 @@ export interface CachingBrainArbiterOptions {
 export function createCachingBrainArbiter(opts: CachingBrainArbiterOptions): BrainArbiter {
   return {
     async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
+      const startedAt = Date.now();
       const hit = opts.cache.get(request);
       if (hit) {
         markDecisionTier(request, 'cache');
+        emitBrainTierTransition(
+          opts.events,
+          request,
+          'cache',
+          hit.type,
+          true,
+          startedAt,
+          'replayed a cached verdict',
+        );
         return hit;
       }
       const decision = await opts.inner.decide(request);

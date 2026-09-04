@@ -5,8 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrainDecision, BrainDecisionRequest } from '../../src/coordination/brain.js';
 import {
   BrainDecisionLedger,
-  brainDecisionKey,
   type BrainLedgerEntry,
+  brainDecisionKey,
+  createLedgerGuardBrainArbiter,
 } from '../../src/coordination/brain-ledger.js';
 import { EventBus } from '../../src/kernel/events.js';
 
@@ -280,5 +281,60 @@ describe('BrainDecisionLedger — digest injection point', () => {
     await brain.decide(request({ question: 'Is the goal complete?' }));
     expect(seen[0]).toContain('Outcome history of similar past decisions');
     expect(seen[0]).toContain('later FAILED');
+  });
+});
+
+describe('createLedgerGuardBrainArbiter — ladder step', () => {
+  it('emits a terminal ledger-guard step naming the failure streak', async () => {
+    const steps: Array<Record<string, unknown>> = [];
+    events.on('brain.tier_transition', (e) => steps.push(e as Record<string, unknown>));
+    const inner = {
+      decide: vi.fn(async (): Promise<BrainDecision> => ({ type: 'answer', text: 'go' })),
+    };
+    const arbiter = createLedgerGuardBrainArbiter({
+      inner,
+      failureStreakFor: () => 4,
+      denyAfter: 3,
+      events,
+    });
+
+    const decision = await arbiter.decide({
+      id: 'g1',
+      source: 'director',
+      question: 'Extend the budget again?',
+      risk: 'high',
+      fallback: 'deny',
+    });
+
+    expect(decision.type).toBe('deny');
+    expect(inner.decide).not.toHaveBeenCalled();
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({
+      tier: 'ledger-guard',
+      outcome: 'deny',
+      terminal: true,
+      reason: '4 consecutive observed failures on record',
+    });
+  });
+
+  it('emits nothing when the streak is below the threshold', async () => {
+    const steps: unknown[] = [];
+    events.on('brain.tier_transition', (e) => steps.push(e));
+    const arbiter = createLedgerGuardBrainArbiter({
+      inner: { decide: async (): Promise<BrainDecision> => ({ type: 'answer', text: 'go' }) },
+      failureStreakFor: () => 1,
+      denyAfter: 3,
+      events,
+    });
+
+    await arbiter.decide({
+      id: 'g2',
+      source: 'director',
+      question: 'Extend?',
+      risk: 'high',
+      fallback: 'deny',
+    });
+
+    expect(steps).toEqual([]);
   });
 });

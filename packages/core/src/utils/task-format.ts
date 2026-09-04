@@ -36,6 +36,20 @@ export interface TaskItem {
 // ---------------------------------------------------------------------------
 
 export function computeTaskItemProgress(tasks: TaskItem[]): TaskGraphProgress {
+  if (!Array.isArray(tasks)) {
+    return {
+      total: 0,
+      pending: 0,
+      inProgress: 0,
+      blocked: 0,
+      failed: 0,
+      review: 0,
+      completed: 0,
+      percentComplete: 0,
+      estimatedHours: 0,
+      actualHours: 0,
+    };
+  }
   let completed = 0;
   let pending = 0;
   let inProgress = 0;
@@ -115,6 +129,7 @@ const TYPE_ICON: Record<TaskType, string> = {
 // ---------------------------------------------------------------------------
 
 export function formatTaskProgress(tasks: TaskItem[]): string {
+  if (!Array.isArray(tasks) || tasks.length === 0) return 'No tasks.';
   const p = computeTaskItemProgress(tasks);
   if (p.total === 0) return 'No tasks.';
   const barWidth = 24;
@@ -131,7 +146,7 @@ export function formatTaskProgress(tasks: TaskItem[]): string {
 }
 
 export function formatTaskList(tasks: TaskItem[]): string {
-  if (tasks.length === 0) return 'No tasks.';
+  if (!Array.isArray(tasks) || tasks.length === 0) return 'No tasks.';
 
   // Group by status
   const order: TaskStatus[] = [

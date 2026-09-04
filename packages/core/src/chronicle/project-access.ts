@@ -6,7 +6,7 @@ import { type ChronicleRuntimeLocation, resolveChronicleRuntimeLocation } from '
 import { ChronicleJournal, type ChronicleJournalStats } from './journal.js';
 import { ChronicleMetricsStore } from './metrics-store.js';
 import { importLegacyChronicleJournal } from './legacy-journal-import.js';
-import { ChronicleSqliteJournal } from './sqlite-journal.js';
+import { ChronicleSqliteJournal, type ChronicleSqliteJournalOptions } from './sqlite-journal.js';
 import type { ChronicleSqliteQueryEngine } from './sqlite-query.js';
 import {
   type ChronicleProjectServerCallOptions,
@@ -30,6 +30,12 @@ export interface ChronicleProjectAccessOptions {
   projectRoot: string;
   userHome?: string | undefined;
   retentionDays?: number | undefined;
+  /** Journal row ceiling; see {@link ChronicleSqliteJournalOptions.maxEvents}. */
+  maxEvents?: number | undefined;
+  /** Aggregate SQLite allocation ceiling, database plus WAL/SHM sidecars. */
+  maxBytes?: number | undefined;
+  /** Retention for `metrics.db` per-event rows; daily aggregates are kept. */
+  metricsRowRetentionDays?: number | undefined;
   projectPaths?:
     | {
         globalRoot: string;
@@ -64,7 +70,7 @@ export function resolveChronicleProjectServerOptions(
     return {
       projectRoot: path.resolve(options.projectRoot),
       ...options.projectPaths,
-      ...(options.retentionDays !== undefined ? { retentionDays: options.retentionDays } : {}),
+      ...pickLimits(options),
     };
   }
   const paths = resolveWstackPaths({
@@ -77,7 +83,38 @@ export function resolveChronicleProjectServerOptions(
     projectId: paths.projectHash,
     projectDir: paths.projectDir,
     workspaceId: paths.projectSlug,
+    ...pickLimits(options),
+  };
+}
+
+/**
+ * Storage ceilings for a directly-opened journal.
+ *
+ * The inline path is explicit recovery mode, but "recovery" is no reason to let
+ * a journal grow without bound: it opens the same database the daemon would and
+ * used to do so with no ceiling at all, so a long `--recover` session wrote
+ * until the disk complained.
+ */
+function journalLimits(
+  options: ChronicleProjectAccessOptions,
+): Pick<ChronicleSqliteJournalOptions, 'retentionDays' | 'maxEvents' | 'maxBytes'> {
+  return {
     ...(options.retentionDays !== undefined ? { retentionDays: options.retentionDays } : {}),
+    ...(options.maxEvents !== undefined ? { maxEvents: options.maxEvents } : {}),
+    ...(options.maxBytes !== undefined ? { maxBytes: options.maxBytes } : {}),
+  };
+}
+
+/** Copy only the limits the caller actually set, so an unset one keeps the
+ *  daemon default rather than being forwarded as `undefined`. */
+function pickLimits(
+  options: ChronicleProjectAccessOptions,
+): Partial<ChronicleProjectServerClientOptions> {
+  return {
+    ...journalLimits(options),
+    ...(options.metricsRowRetentionDays !== undefined
+      ? { metricsRowRetentionDays: options.metricsRowRetentionDays }
+      : {}),
   };
 }
 
@@ -146,7 +183,10 @@ export function createChronicleEventJournal(
   }
   assertInlineWasRequested('createChronicleEventJournal');
   if (useSqliteStore()) {
-    const journal = new ChronicleSqliteEventSink(path.join(resolved.projectDir, 'chronicle'));
+    const journal = new ChronicleSqliteEventSink(
+      path.join(resolved.projectDir, 'chronicle'),
+      journalLimits(options),
+    );
     return {
       journal,
       identity,
@@ -196,10 +236,13 @@ class ChronicleSqliteEventSink implements ChronicleEventSink {
   private readonly ready: Promise<ChronicleSqliteJournal>;
   private last: ChronicleJournalStats | undefined;
 
-  constructor(directory: string) {
+  constructor(
+    directory: string,
+    limits: Pick<ChronicleSqliteJournalOptions, 'retentionDays' | 'maxEvents' | 'maxBytes'> = {},
+  ) {
     this.ready = (async () => {
       await fsPromises.mkdir(directory, { recursive: true });
-      const journal = new ChronicleSqliteJournal({ directory });
+      const journal = new ChronicleSqliteJournal({ directory, ...limits });
       try {
         await importLegacyChronicleJournal(journal, directory);
       } catch (error) {
@@ -265,7 +308,10 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
   private store(): Promise<ChronicleSqliteJournal> {
     this.sqlite ??= (async () => {
       await fsPromises.mkdir(this.chronicleDirectory, { recursive: true });
-      const journal = new ChronicleSqliteJournal({ directory: this.chronicleDirectory });
+      const journal = new ChronicleSqliteJournal({
+        directory: this.chronicleDirectory,
+        ...journalLimits(this.options),
+      });
       try {
         await importLegacyChronicleJournal(journal, this.chronicleDirectory);
       } catch (error) {
@@ -339,7 +385,9 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
       }
       case 'metrics': {
         const args = rawArgs as ChronicleServerOperations['metrics']['args'];
-        const store = ChronicleMetricsStore.open(this.chronicleDirectory);
+        const store = ChronicleMetricsStore.open(this.chronicleDirectory, {
+          rowRetentionDays: this.options.metricsRowRetentionDays,
+        });
         try {
           const refreshed =
             args.refresh === false

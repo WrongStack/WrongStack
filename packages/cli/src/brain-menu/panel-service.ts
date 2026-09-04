@@ -82,6 +82,7 @@ export function createBrainPanelHost(deps: BrainPanelServiceDeps): BrainPanelHos
         councilPerCallTimeoutMs: snap.council.perCallTimeoutMs,
         councilMaxConcurrency: snap.council.maxConcurrency,
         councilVoterMaxTokens: snap.council.voterMaxTokens,
+        councilDeliberationRounds: snap.council.deliberationRounds,
         councilJudgeMaxTokens: snap.council.judgeMaxTokens,
         // The EFFECTIVE judge, not `council.judge`. The configured one is
         // usually absent, so the panel used to read "auto" and say nothing
@@ -167,6 +168,8 @@ export function createBrainPanelHost(deps: BrainPanelServiceDeps): BrainPanelHos
     setCouncilPerCallTimeout: (ms) => apply({ council: { perCallTimeoutMs: ms ?? null } }),
     setCouncilMaxConcurrency: (count) => apply({ council: { maxConcurrency: count ?? null } }),
     setCouncilVoterMaxTokens: (tokens) => apply({ council: { voterMaxTokens: tokens ?? null } }),
+    setCouncilDeliberationRounds: (rounds) =>
+      apply({ council: { deliberationRounds: rounds ?? null } }),
     setCouncilJudgeMaxTokens: (tokens) => apply({ council: { judgeMaxTokens: tokens ?? null } }),
     setLedgerEnabled: (on) => apply({ ledger: { enabled: on } }),
     setAutoDeny: (count) => apply({ ledger: { autoDenyAfterFailures: count ?? null } }),

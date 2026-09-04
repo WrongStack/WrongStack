@@ -1,7 +1,7 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { runWstack } from '../src/runner.js';
 import type { ModelCell } from '../src/types.js';
 

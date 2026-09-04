@@ -69,7 +69,9 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     },
   },
   async execute(input, ctx) {
-    const limit = Math.min(input.limit ?? 20, 100);
+    const rawLimit =
+      typeof input.limit === 'number' && Number.isFinite(input.limit) ? input.limit : 20;
+    const limit = Math.max(1, Math.min(Math.floor(rawLimit), 100));
     const tools = ctx.catalogTools ?? ctx.tools;
     const query = input.query?.toLowerCase() ?? '';
 

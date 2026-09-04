@@ -16,6 +16,7 @@ interface ConfigBackupPaths {
  * recover from accidental changes. Backups are never cleaned up automatically.
  */
 export function configHistoryDir(globalRoot: string): string {
+  if (typeof globalRoot !== 'string' || !globalRoot) return 'config-history';
   return path.join(globalRoot, 'config-history');
 }
 
@@ -26,6 +27,9 @@ export function configHistoryDir(globalRoot: string): string {
  *   profiles/default/config.json           →  profiles-default-config
  */
 export function configSlug(absolutePath: string, globalRoot: string): string {
+  if (typeof absolutePath !== 'string' || typeof globalRoot !== 'string') {
+    return 'config';
+  }
   const rel = path.relative(globalRoot, absolutePath);
   const normalized = rel.replace(/\\/g, '/').replace(/\.json$/i, '');
   return slugify(normalized, 'config');

@@ -171,7 +171,7 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
     if (err) {
       res.statusCode = 400;
       res.end(callbackHtml(false, `Authorization error: ${err}`));
-      resolveCode(null);
+      server.close(() => resolveCode(null));
       return;
     }
     const code = url.searchParams.get('code');
@@ -179,7 +179,7 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
     if (state !== expectedState) {
       res.statusCode = 400;
       res.end(callbackHtml(false, 'State mismatch — please restart the login.'));
-      resolveCode(null);
+      server.close(() => resolveCode(null));
       return;
     }
     if (!code) {
@@ -189,7 +189,7 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
     }
     res.statusCode = 200;
     res.end(callbackHtml(true, 'You can close this window and return to WrongStack.'));
-    resolveCode({ code, state });
+    server.close(() => resolveCode({ code, state }));
   });
 
   const onAbort = (): void => {

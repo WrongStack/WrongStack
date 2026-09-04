@@ -14,7 +14,7 @@ export function extractAccountId(token: string): string | null {
     >;
     const auth = payload[JWT_CLAIM_PATH] as { chatgpt_account_id?: string } | undefined;
     const id = auth?.chatgpt_account_id;
-    return typeof id === 'string' && id.length > 0 ? id : null;
+    return typeof id === 'string' && id.trim().length > 0 ? id : null;
   } catch {
     return null;
   }

@@ -5,19 +5,23 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import type { BrainLedgerEntry } from '@wrongstack/core/coordination';
+import { type BrainLedgerEntry, DETERMINISTIC_BRAIN_TIERS } from '@wrongstack/core/coordination';
 import { color } from '@wrongstack/core/utils';
 import { judgeSummary } from './brain-council.js';
-import type { SlashCommandContext } from './command-context.js';
 
-const DETERMINISTIC_TIER_NAMES = [
-  'rule',
-  'policy',
-  'heuristic',
-  'cache',
-  'ledger-guard',
-  'terminal',
-];
+/**
+ * Deliberation is the one council setting that silently multiplies cost, so
+ * the status line names it whenever it is on — an operator reading "3 seats"
+ * would otherwise budget for three calls and get six.
+ */
+function councilRoundsSummary(snapshot: {
+  council: { deliberationRounds?: number | undefined };
+}): string {
+  const rounds = snapshot.council.deliberationRounds ?? 2;
+  return rounds > 1 ? `, ${rounds} rounds` : ', no deliberation';
+}
+
+import type { SlashCommandContext } from './command-context.js';
 
 export function fmtAge(at: number): string {
   const s = Math.max(0, Math.round((Date.now() - at) / 1000));
@@ -53,7 +57,7 @@ export function formatBrainStatus(opts: SlashCommandContext): string {
   const councilSeats = opts.brainSettings?.councilLabels ?? [];
   if (councilSeats.length > 0) {
     lines.push(
-      `  council:          ${color.cyan(councilSeats.join(', '))}${snapshot ? color.dim(` (minRisk: ${snapshot.council.minRisk}${judgeSummary(snapshot)})`) : ''}`,
+      `  council:          ${color.cyan(councilSeats.join(', '))}${snapshot ? color.dim(` (minRisk: ${snapshot.council.minRisk}${judgeSummary(snapshot)}${councilRoundsSummary(snapshot)})`) : ''}`,
     );
   } else if (snapshot) {
     lines.push(`  council:          ${color.dim('disabled (/brain council on + voters)')}`);
@@ -83,21 +87,32 @@ export function formatBrainStatus(opts: SlashCommandContext): string {
 
 export function formatBrainStats(opts: SlashCommandContext): string {
   const log = opts.getBrainLog?.() ?? [];
+  const councilWarnings = log.filter((entry) => entry.kind === 'council_warn');
+
+  // Prefer the session-lifetime counter. The ring buffer holds 20 entries, so
+  // counting it answers "what did the Brain do in the last few minutes", not
+  // "how often does the Brain burn a provider call" — which is the whole
+  // point of the tier split.
+  const lifetime = opts.brainTierStats?.();
   const counts = new Map<string, number>();
-  const councilWarnings: Array<(typeof log)[number]> = [];
-  for (const entry of log) {
-    if (entry.kind === 'council_warn') {
-      councilWarnings.push(entry);
-      continue;
+  if (lifetime) {
+    for (const [tier, n] of Object.entries(lifetime.byTier)) counts.set(tier, n ?? 0);
+    if (lifetime.unattributed > 0) counts.set('unattributed', lifetime.unattributed);
+  } else {
+    for (const entry of log) {
+      if (entry.kind === 'council_warn') continue;
+      counts.set(entry.tier ?? 'unattributed', (counts.get(entry.tier ?? 'unattributed') ?? 0) + 1);
     }
-    const tier = (entry as { tier?: string }).tier ?? 'unattributed';
-    counts.set(tier, (counts.get(tier) ?? 0) + 1);
   }
-  let free = 0;
-  let paid = 0;
-  for (const [tier, n] of counts) {
-    if (DETERMINISTIC_TIER_NAMES.includes(tier)) free += n;
-    else if (tier === 'llm' || tier === 'council') paid += n;
+  let free = lifetime?.deterministic ?? 0;
+  let paid = lifetime?.llmBacked ?? 0;
+  if (!lifetime) {
+    for (const [tier, n] of counts) {
+      // The set lives in core next to the tier union: a hand-copied list here
+      // silently mis-buckets every tier added upstream.
+      if ((DETERMINISTIC_BRAIN_TIERS as ReadonlySet<string>).has(tier)) free += n;
+      else if (tier === 'llm' || tier === 'council') paid += n;
+    }
   }
   const lines = [color.bold('Brain decision tiers'), ''];
   if (counts.size === 0) {
@@ -131,7 +146,11 @@ export function formatBrainStats(opts: SlashCommandContext): string {
   }
   lines.push(
     '',
-    color.dim(`  Based on the last ${log.length} logged decision(s) of this session.`),
+    color.dim(
+      lifetime
+        ? `  ${lifetime.total} decision(s) this session.`
+        : `  Based on the last ${log.length} logged decision(s) of this session.`,
+    ),
   );
   return lines.join('\n');
 }

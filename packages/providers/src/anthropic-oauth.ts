@@ -125,7 +125,13 @@ export async function refreshAnthropicOAuthToken(
     refresh_token?: string;
     expires_in?: number;
   } | null;
-  if (!json?.access_token || !json.refresh_token || typeof json.expires_in !== 'number') {
+  if (
+    !json?.access_token ||
+    !json.refresh_token ||
+    typeof json.expires_in !== 'number' ||
+    !Number.isFinite(json.expires_in) ||
+    json.expires_in <= 0
+  ) {
     throw new ParseError({
       message: 'Claude token refresh response missing fields',
       source: 'anthropic-oauth',

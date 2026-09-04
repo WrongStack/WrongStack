@@ -42,6 +42,16 @@ export interface ChronicleProjectServerClientOptions {
   projectDir: string;
   workspaceId: string;
   retentionDays?: number | undefined;
+  /**
+   * Storage ceilings forwarded to the daemon at spawn.
+   *
+   * Only the client that wins the spawn race sets them: a daemon already
+   * running keeps whatever limits it started with, exactly as it already does
+   * for `retentionDays`.
+   */
+  maxEvents?: number | undefined;
+  maxBytes?: number | undefined;
+  metricsRowRetentionDays?: number | undefined;
 }
 
 export interface ChronicleProjectServerCallOptions {
@@ -423,8 +433,13 @@ export class ChronicleProjectServerClient {
       '--workspace-id',
       this.options.workspaceId,
     ];
-    if (this.options.retentionDays !== undefined) {
-      args.push('--retention-days', String(this.options.retentionDays));
+    for (const [flag, value] of [
+      ['--retention-days', this.options.retentionDays],
+      ['--max-events', this.options.maxEvents],
+      ['--max-bytes', this.options.maxBytes],
+      ['--metrics-row-retention-days', this.options.metricsRowRetentionDays],
+    ] as const) {
+      if (value !== undefined) args.push(flag, String(value));
     }
     const child = spawn(process.execPath, args, {
       detached: true,

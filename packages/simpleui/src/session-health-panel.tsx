@@ -27,9 +27,16 @@ export function SessionHealthPanel({
 
   useEffect(() => {
     if (!open) return;
+    // Reset the clock snapshot at open time — `now` otherwise still holds the
+    // app-mount value and the uptime reads short until the first 1s tick.
+    setNow(Date.now());
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+      }
     };
     document.addEventListener('keydown', onKey);
     const timer = setInterval(() => setNow(Date.now()), 1000);

@@ -835,6 +835,8 @@
     "councilDistinctnessHint": "Rifiuta seggi duplicati: 'model' richiede modelli distinti, 'provider' provider indipendenti così un guasto non può far pendere il voto.",
     "councilVoterBudgetLabel": "Budget di risposta votante",
     "councilVoterBudgetHint": "Token di output per chiamata di seggio — i modelli di ragionamento spendono i token di pensiero da questo budget.",
+    "councilRoundsLabel": "Turni di deliberazione",
+    "councilRoundsHint": "Il turno 1 è indipendente. Nei turni successivi ogni seggio vede i voti degli altri e può rivedere la propria posizione. Viene conteggiato solo l’ultimo turno e ogni turno costa una chiamata in più per seggio.",
     "councilJudgeBudgetLabel": "Budget di risposta giudice",
     "councilJudgeBudgetHint": "Token di output per la chiamata del giudice di spareggio.",
     "councilSeatTemplate": "Modello di seggio:",
@@ -901,6 +903,7 @@
     "m5Default": "5 min (predefinito)",
     "default": "Predefinito",
     "oneSerial": "1 (seriale)",
+    "roundsOff": "1 (nessuna deliberazione)",
     "default500": "Predefinito (500)",
     "default10m": "Predefinito (10 min)"
   },

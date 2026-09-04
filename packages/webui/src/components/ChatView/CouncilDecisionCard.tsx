@@ -1,4 +1,3 @@
-import { memo, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Award,
@@ -13,6 +12,7 @@ import {
   Gavel,
   HelpCircle,
   Layers,
+  RefreshCw,
   Scale,
   Shield,
   ShieldAlert,
@@ -23,6 +23,7 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
+import { memo, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { ChatMessage, CouncilDecisionData, CouncilSeatVote } from '@/stores';
@@ -157,9 +158,12 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
     distinctTargetCount,
     judgeUsed,
     judgeModel,
+    judgeIsVoter,
     judgeRationale,
     totalTokens,
     durationMs,
+    rounds,
+    deliberationChanges,
     warnings = [],
     seats = [],
   } = councilData;
@@ -174,6 +178,14 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
     );
   const isDenied = status === 'denied' || isVetoed;
   const isCorrelated = !isVoting && validSeats > 1 && (distinctTargetCount ?? 0) < validSeats;
+  const deliberated = (rounds ?? 1) > 1;
+  const movedSeats = deliberationChanges ?? seats.filter((seat) => seat.changed).length;
+  /**
+   * A majority of the panel moving in one round is the signature of
+   * conformity, not of one decisive argument — and the unanimous verdict it
+   * produces looks BETTER than the split it came from, so it needs saying.
+   */
+  const converged = deliberated && validSeats > 0 && movedSeats > validSeats / 2;
 
   const voteDistribution = useMemo(() => {
     const counts: Record<string, { count: number; weight: number; voters: string[] }> = {};
@@ -383,6 +395,30 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 </span>
               ) : null}
 
+              {converged ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/15 px-2 py-0.5 text-[10px] font-bold text-destructive"
+                  title="A majority of the panel changed position after seeing the other ballots — this reads as convergence rather than independent revision."
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  <span>
+                    {t('activity:councilDecision.converged', { defaultValue: 'Converged Panel' })}
+                  </span>
+                </span>
+              ) : null}
+              {judgeIsVoter ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/15 px-2 py-0.5 text-[10px] font-bold text-destructive"
+                  title="The tie-breaker had already cast one of the votes it is breaking, so its verdict restates its own position with the deciding weight."
+                >
+                  <ShieldAlert className="h-3 w-3" />
+                  <span>
+                    {t('activity:councilDecision.judgeIsVoter', {
+                      defaultValue: 'Judge Also Voted',
+                    })}
+                  </span>
+                </span>
+              ) : null}
               {isCorrelated ? (
                 <span
                   className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning"
@@ -446,6 +482,30 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 </div>
               </div>
             </div>
+
+            {deliberated ? (
+              <div className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-surface-1/40 p-2.5 transition-colors hover:bg-surface-1/70">
+                <div
+                  className={cn(
+                    'p-1.5 rounded-lg',
+                    converged ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary',
+                  )}
+                >
+                  <RefreshCw className="h-4 w-4 shrink-0" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                    Deliberation
+                  </div>
+                  <div className="font-semibold text-foreground truncate">
+                    {rounds} rounds ·{' '}
+                    {/* 0 is the honest signal that the extra rounds bought
+                        cost and nothing else. */}
+                    {movedSeats === 0 ? 'none moved' : `${movedSeats} moved`}
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {durationMs !== undefined ? (
               <div className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-surface-1/40 p-2.5 transition-colors hover:bg-surface-1/70">
@@ -602,15 +662,40 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                             </span>
                           </div>
 
-                          {seat.veto ? (
-                            <span
-                              className="inline-flex items-center gap-0.5 rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning"
-                              title="Holds veto power"
-                            >
-                              <ShieldAlert className="h-3 w-3" />
-                              <span>VETO</span>
-                            </span>
-                          ) : null}
+                          <div className="flex shrink-0 items-center gap-1">
+                            {/* A seat that moved after reading the others is
+                                the single most interesting row in a
+                                deliberating panel — and a VETO seat that
+                                moved has surrendered the panel's safety
+                                property. */}
+                            {seat.changed ? (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[10px] font-bold',
+                                  seat.veto
+                                    ? 'border-destructive/30 bg-destructive/15 text-destructive'
+                                    : 'border-primary/30 bg-primary/15 text-primary',
+                                )}
+                                title={
+                                  seat.veto
+                                    ? 'This veto seat changed its vote after seeing the other ballots.'
+                                    : 'Changed its vote after seeing the other ballots.'
+                                }
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                                <span>MOVED</span>
+                              </span>
+                            ) : null}
+                            {seat.veto ? (
+                              <span
+                                className="inline-flex items-center gap-0.5 rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning"
+                                title="Holds veto power"
+                              >
+                                <ShieldAlert className="h-3 w-3" />
+                                <span>VETO</span>
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
 
                         {/* Model Badge */}

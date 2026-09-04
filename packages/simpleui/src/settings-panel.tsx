@@ -164,6 +164,7 @@ export function SettingsPanel({
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         onClose();

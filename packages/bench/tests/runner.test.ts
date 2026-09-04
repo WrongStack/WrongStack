@@ -66,6 +66,27 @@ describe('runWstack', () => {
     expect(run.exitCode).toBe(0);
   });
 
+  it('treats --output-json status "done" as completed', async () => {
+    const entry = path.join(dir, 'done.js');
+    await fs.writeFile(
+      entry,
+      'process.stdout.write(JSON.stringify({ status: "done", finalText: "Hi", usage: { input: 10, output: 2, iterations: 1, cost: 0 } }) + "\\n");\n',
+      'utf8',
+    );
+    const run = await runWstack({
+      nodeBin: process.execPath,
+      wstackEntry: entry,
+      homeDir: dir,
+      workdir: dir,
+      cell,
+      prompt: 'hi',
+      timeoutMs: 30_000,
+    });
+    expect(run.status).toBe('completed');
+    expect(run.finalText).toBe('Hi');
+    expect(run.tokensIn).toBe(10);
+  });
+
   it('reports crashed when no JSON payload is emitted', async () => {
     const run = await runWstack({
       nodeBin: process.execPath,
@@ -78,6 +99,7 @@ describe('runWstack', () => {
     });
     expect(run.status).toBe('crashed');
     expect(run.exitCode).toBe(3);
+    expect(run.crashDetail).toMatch(/exit 3/);
   });
 
   it('times out and kills a hung process', async () => {

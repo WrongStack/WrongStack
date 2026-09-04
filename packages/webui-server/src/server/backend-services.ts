@@ -641,7 +641,13 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     },
   };
   const brain = new ObservableBrainArbiterCtor(
-    new EscalationRoutingBrainArbiter(brainRuntime.arbiter, undefined, () => 'headless'),
+    new EscalationRoutingBrainArbiter(
+      brainRuntime.arbiter,
+      undefined,
+      () => 'headless',
+      undefined,
+      events,
+    ),
     events,
   );
   container.bind(TOKENS.BrainArbiter, () => brain);

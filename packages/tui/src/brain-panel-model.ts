@@ -70,6 +70,8 @@ export interface BrainPanelSettings {
   councilMaxConcurrency?: number | undefined;
   /** Output budget per voter seat call (undefined = default 2000). */
   councilVoterMaxTokens?: number | undefined;
+  /** Voting rounds; undefined = product default (2). 1 disables deliberation. */
+  councilDeliberationRounds?: number | undefined;
   /** Output budget for the judge call (undefined = follows the seat budget). */
   councilJudgeMaxTokens?: number | undefined;
   /** Explicitly configured voters (empty = seats derive from the pool). */
@@ -157,6 +159,7 @@ export interface BrainPanelHost {
   setCouncilPerCallTimeout(ms: number | undefined): Promise<string | null>;
   setCouncilMaxConcurrency(count: number | undefined): Promise<string | null>;
   setCouncilVoterMaxTokens(tokens: number | undefined): Promise<string | null>;
+  setCouncilDeliberationRounds(rounds: number | undefined): Promise<string | null>;
   setCouncilJudgeMaxTokens(tokens: number | undefined): Promise<string | null>;
   setLedgerEnabled(on: boolean): Promise<string | null>;
   setAutoDeny(count: number | undefined): Promise<string | null>;
@@ -199,6 +202,7 @@ export type BrainPanelRow =
   | { kind: 'councilTimeout' }
   | { kind: 'councilConcurrency' }
   | { kind: 'councilVoterMaxTokens' }
+  | { kind: 'councilDeliberationRounds' }
   | { kind: 'councilJudgeMaxTokens' }
   | { kind: 'ledgerToggle' }
   | { kind: 'autoDeny' }
@@ -273,6 +277,7 @@ export function brainPanelRows(settings: BrainPanelSettings): BrainPanelRow[] {
       { kind: 'councilConcurrency' },
       { kind: 'councilVoterMaxTokens' },
       { kind: 'councilJudgeMaxTokens' },
+      { kind: 'councilDeliberationRounds' },
     );
   }
   rows.push({ kind: 'ledgerToggle' });
@@ -365,6 +370,18 @@ export const COUNCIL_JUDGE_MAX_TOKENS_PRESETS: ReadonlyArray<number | undefined>
  * their thinking tokens from this budget, so the rungs skew higher than the
  * judge ladder.
  */
+/**
+ * Deliberation round presets. Deliberately short: every step is another
+ * provider call PER SEAT on every council decision, so this is the panel's
+ * steepest cost lever and the list should not invite exploration.
+ */
+export const COUNCIL_DELIBERATION_ROUNDS_PRESETS: ReadonlyArray<number | undefined> = [
+  undefined,
+  1,
+  2,
+  3,
+];
+
 export const COUNCIL_VOTER_MAX_TOKENS_PRESETS: ReadonlyArray<number | undefined> = [
   undefined,
   500,

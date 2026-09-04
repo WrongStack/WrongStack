@@ -4,11 +4,15 @@
  * single-text-object path, the too-short/long guard, and the heuristic
  * fallback when the provider throws or the diff is empty.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type CommitLLMProvider,
   generateCommitMessageWithLLM,
 } from '../src/services/commit-message.js';
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function providerWith(content: unknown): CommitLLMProvider {
   return {
@@ -80,5 +84,36 @@ describe('generateCommitMessageWithLLM', () => {
     expect(
       await generateCommitMessageWithLLM(SAMPLE_DIFF, { provider: longProvider, model: 'm' }),
     ).toBe('chore: update');
+  });
+
+  describe('abort-timer lifecycle (regression: timer leak on the error path)', () => {
+    it('clears the 15s abort timer when the provider rejects', async () => {
+      vi.useFakeTimers();
+      const before = vi.getTimerCount();
+      const provider: CommitLLMProvider = {
+        complete: vi.fn(async () => {
+          throw new Error('provider down');
+        }),
+      };
+      const message = await generateCommitMessageWithLLM(SAMPLE_DIFF, { provider, model: 'm' });
+      expect(message).toBe('chore: update');
+      expect(vi.getTimerCount() - before).toBe(0);
+    });
+
+    it('clears the timer on the guard-fallthrough path (over-200-char message)', async () => {
+      vi.useFakeTimers();
+      const before = vi.getTimerCount();
+      const provider = providerWith([{ type: 'text', text: 'x'.repeat(201) }]);
+      await generateCommitMessageWithLLM(SAMPLE_DIFF, { provider, model: 'm' });
+      expect(vi.getTimerCount() - before).toBe(0);
+    });
+
+    it('clears the timer on the success path', async () => {
+      vi.useFakeTimers();
+      const before = vi.getTimerCount();
+      const provider = providerWith([{ type: 'text', text: 'feat(a): add x' }]);
+      await generateCommitMessageWithLLM(SAMPLE_DIFF, { provider, model: 'm' });
+      expect(vi.getTimerCount() - before).toBe(0);
+    });
   });
 });

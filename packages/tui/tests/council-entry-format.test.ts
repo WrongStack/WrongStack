@@ -19,9 +19,7 @@ describe('councilHeadline', () => {
       seats: [],
     });
 
-    expect(line).toBe(
-      '↳ Council: judge · 3/3 seats · 3 distinct targets · judge used · 1.3s · 420 tok',
-    );
+    expect(line).toBe('↳ Council: judge · 3/3 seats · 3 distinct targets · judge · 1.3s · 420 tok');
   });
 
   it('singularizes a correlated one-target panel and omits absent cost data', () => {
@@ -66,6 +64,91 @@ describe('councilSeatLine', () => {
   it('falls back to the status when a failed seat carries no error text', () => {
     expect(councilSeatLine({ seatId: 'voter-3', persona: 'security', status: 'cancelled' })).toBe(
       '   × security → cancelled',
+    );
+  });
+});
+
+describe('councilHeadline — deliberation and judge identity', () => {
+  const base = {
+    resolution: 'majority' as const,
+    configuredSeatCount: 3,
+    validVoteCount: 3,
+    distinctTargetCount: 3,
+    judgeUsed: false,
+    seats: [],
+  };
+
+  it('reports the round count and how many seats actually moved', () => {
+    expect(councilHeadline({ ...base, rounds: 2, deliberationChanges: 1 })).toContain(
+      '2 rounds, 1 changed',
+    );
+  });
+
+  it('says so explicitly when the extra rounds changed nothing', () => {
+    // 0 is the honest signal that deliberation bought cost and nothing else,
+    // so it must be stated rather than omitted.
+    expect(councilHeadline({ ...base, rounds: 2, deliberationChanges: 0 })).toContain(
+      '2 rounds, none changed',
+    );
+  });
+
+  it('omits the round segment for a single-round panel', () => {
+    expect(councilHeadline({ ...base, rounds: 1, deliberationChanges: 0 })).not.toContain('round');
+  });
+
+  it('names the judge and flags one that had already voted', () => {
+    const line = councilHeadline({
+      ...base,
+      judgeUsed: true,
+      judgeLabel: 'anthropic/haiku',
+      judgeIsVoter: true,
+    });
+    // A tie-breaker that cast one of the tied votes is not an independent
+    // opinion; the headline is the only place that surfaces it.
+    expect(line).toContain('judge anthropic/haiku (also a voter)');
+  });
+});
+
+describe('councilSeatLine — stances and deliberation', () => {
+  it('prints the actual stance for an optionless panel', () => {
+    // It used to print the literal word "stance", which said that the seat
+    // had voted but never what it said — the whole content of an open panel.
+    expect(
+      councilSeatLine({
+        seatId: 'voter-1',
+        persona: 'executor',
+        status: 'valid',
+        stance: 'Ship behind a flag.',
+      }),
+    ).toBe('   • executor → Ship behind a flag.');
+  });
+
+  it('elides a very long stance rather than wrapping the row', () => {
+    const line = councilSeatLine({
+      seatId: 'voter-1',
+      persona: 'executor',
+      status: 'valid',
+      stance: 'x'.repeat(200),
+    });
+    expect(line.length).toBeLessThan(100);
+    expect(line).toContain('…');
+  });
+
+  it('marks a seat that changed its vote after reading the others', () => {
+    expect(
+      councilSeatLine({
+        seatId: 'voter-1',
+        persona: 'skeptic',
+        status: 'valid',
+        optionId: 'merge',
+        changed: true,
+      }),
+    ).toBe('   ↺ skeptic → merge');
+  });
+
+  it('reports a valid seat with no stance at all rather than an empty arrow', () => {
+    expect(councilSeatLine({ seatId: 'voter-1', persona: 'auditor', status: 'valid' })).toBe(
+      '   • auditor → no stance',
     );
   });
 });

@@ -157,7 +157,15 @@ export async function migrateSqliteLegacyJsonl(input: {
     stmt('INSERT INTO schema_meta (key, value) VALUES (?, 1)').run(LEGACY_JSONL_MIGRATION_KEY);
     db.exec('COMMIT');
   } catch (err) {
-    db.exec('ROLLBACK');
+    // SQLITE_FULL/IOERR auto-rollback leaves no active transaction, so an
+    // unguarded ROLLBACK here would throw "cannot rollback - no transaction
+    // is active" and mask the primary error. Preserve the original for the
+    // caller.
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      /* preserve original error */
+    }
     throw err;
   }
 }

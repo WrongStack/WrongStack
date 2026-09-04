@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanupSandbox, createSandbox, prepareWorkdir } from '../src/isolation.js';
 
 let base: string;
@@ -23,6 +23,49 @@ describe('createSandbox', () => {
       session: { auditLevel: 'standard' },
     });
     await expect(fs.stat(sandbox.workRoot)).resolves.toBeDefined();
+  });
+
+  it('copies host vault, providers, and models cache into the sandbox', async () => {
+    const host = path.join(base, 'host-home');
+    await fs.mkdir(path.join(host, 'profiles', 'default'), { recursive: true });
+    await fs.mkdir(path.join(host, 'cache'), { recursive: true });
+    await fs.writeFile(path.join(host, '.key'), 'vault-key', 'utf8');
+    await fs.writeFile(
+      path.join(host, 'config.json'),
+      JSON.stringify({
+        providers: { 'zai-coding-plan': { type: 'openai-compatible', apiKey: 'enc:v1:x' } },
+        plugins: [{ id: 'noise' }],
+        mcpServers: { skip: {} },
+      }),
+      'utf8',
+    );
+    await fs.writeFile(
+      path.join(host, 'profiles', 'default', 'config.json'),
+      JSON.stringify({ providers: { 'zai-coding-plan': { type: 'openai-compatible' } } }),
+      'utf8',
+    );
+    await fs.writeFile(path.join(host, 'cache', 'models.dev.json'), '{"ok":true}', 'utf8');
+
+    const sandbox = await createSandbox({
+      baseDir: path.join(base, 'sandbox'),
+      maxIterations: 20,
+      yolo: true,
+      hostHomeDir: host,
+    });
+    const cfg = JSON.parse(await fs.readFile(path.join(sandbox.homeDir, 'config.json'), 'utf8'));
+    expect(cfg.yolo).toBe(true);
+    expect(cfg.tools.maxIterations).toBe(20);
+    expect(cfg.providers['zai-coding-plan'].type).toBe('openai-compatible');
+    expect(cfg.plugins).toBeUndefined();
+    expect(cfg.mcpServers).toBeUndefined();
+    expect(await fs.readFile(path.join(sandbox.homeDir, '.key'), 'utf8')).toBe('vault-key');
+    const profile = JSON.parse(
+      await fs.readFile(path.join(sandbox.homeDir, 'profiles', 'default', 'config.json'), 'utf8'),
+    );
+    expect(profile.providers['zai-coding-plan']).toBeDefined();
+    expect(await fs.readFile(path.join(sandbox.homeDir, 'cache', 'models.dev.json'), 'utf8')).toBe(
+      '{"ok":true}',
+    );
   });
 
   it('defaults to an OS temp dir when no baseDir is given', async () => {

@@ -313,6 +313,7 @@ describe('resolveCodexModels', () => {
         Response.json({
           data: [
             { id: 'gpt-5.2' },
+            { id: 'gpt-6-astra' },
             { id: 'gpt-5.4-mini' },
             { id: 'gpt-5.3-codex' },
             { id: 'gpt-5.5' },
@@ -330,6 +331,7 @@ describe('resolveCodexModels', () => {
     } as never as ModelsRegistry;
 
     await expect(resolveCodexModels(registry, 'test-token')).resolves.toEqual([
+      'gpt-6-astra',
       'gpt-5.6-sol',
       'gpt-5.5',
       'gpt-5.6-terra',
@@ -348,6 +350,7 @@ describe('resolveCodexModels', () => {
         id === 'openai'
           ? {
               models: [
+                { id: 'gpt-6-astra', family: 'gpt-codex' },
                 { id: 'gpt-5.6-sol', family: 'gpt-codex' },
                 { id: 'gpt-5.5', family: 'gpt-codex' },
                 { id: 'gpt-5.6-terra', family: 'gpt-codex' },
@@ -364,6 +367,7 @@ describe('resolveCodexModels', () => {
     } as never as ModelsRegistry;
 
     await expect(resolveCodexModels(registry, 'test-token')).resolves.toEqual([
+      'gpt-6-astra',
       'gpt-5.6-sol',
       'gpt-5.5',
       'gpt-5.6-terra',
@@ -384,6 +388,7 @@ describe('resolveCodexModels', () => {
     } as never as ModelsRegistry;
 
     await expect(resolveCodexModels(registry, 'test-token')).resolves.toEqual([
+      'gpt-6-astra',
       'gpt-5.6-sol',
       'gpt-5.5',
       'gpt-5.6-terra',

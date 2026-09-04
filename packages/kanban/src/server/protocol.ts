@@ -99,7 +99,8 @@ export function decodeKanbanDomainValue(value: unknown): unknown {
     case 'number':
       if (typeof payload === 'string') {
         const number = Number(payload);
-        if (Number.isFinite(number)) return number;
+        const canonical = Object.is(number, -0) ? '-0' : String(number);
+        if (Number.isFinite(number) && canonical === payload) return number;
       }
       break;
     case 'string':
@@ -111,7 +112,7 @@ export function decodeKanbanDomainValue(value: unknown): unknown {
     case 'date':
       if (typeof payload === 'string') {
         const date = new Date(payload);
-        if (!Number.isNaN(date.getTime())) return date;
+        if (!Number.isNaN(date.getTime()) && date.toISOString() === payload) return date;
       }
       break;
     case 'array':

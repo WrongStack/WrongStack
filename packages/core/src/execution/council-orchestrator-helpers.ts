@@ -104,6 +104,51 @@ export function distinctnessWarnings(
   return [];
 }
 
+/**
+ * Panel-integrity warnings specific to deliberation.
+ *
+ * Deliberation buys information at the cost of independence, and the failure
+ * mode is silent: a panel that CONFORMS produces a clean unanimous verdict
+ * that looks better than the split it started from. These warnings are the
+ * only signal that the unanimity was manufactured.
+ *
+ * Structural, never content — same contract as `distinctnessWarnings`.
+ */
+export function deliberationWarnings(
+  roundVotes: readonly (readonly CouncilVoteResult[])[],
+  profile: ResolvedCouncilProfile,
+): string[] {
+  if (roundVotes.length < 2) return [];
+  const previous = roundVotes[roundVotes.length - 2];
+  const final = roundVotes[roundVotes.length - 1];
+  if (!previous || !final) return [];
+  const changed = final.filter((vote) => vote.changed === true).length;
+  const validFinal = final.filter((vote) => vote.status === 'valid').length;
+  if (validFinal === 0) return [];
+
+  const warnings: string[] = [];
+  // A majority of the panel abandoning its position in one round is the
+  // signature of conformity, not of one decisive argument.
+  if (changed > validFinal / 2) {
+    warnings.push(
+      `Council deliberation moved ${changed} of ${validFinal} valid vote(s) in the final round — ` +
+        'a majority of the panel changed position, which reads as convergence rather than independent revision.',
+    );
+  }
+  // A seat with veto power that folds has surrendered the one thing it was
+  // seated for; the panel's safety property quietly disappears.
+  const foldedVeto = final.filter(
+    (vote) =>
+      vote.changed === true && profile.seats.find((seat) => seat.id === vote.seatId)?.veto === true,
+  );
+  for (const vote of foldedVeto) {
+    warnings.push(
+      `Council deliberation: veto seat "${vote.seatId}" changed its vote after seeing the other ballots.`,
+    );
+  }
+  return warnings;
+}
+
 export function cancelledVote(seat: ResolvedCouncilSeat): CouncilVoteResult {
   return {
     seatId: seat.id,
@@ -151,8 +196,16 @@ export function resultEnvelope(input: {
   warnings: string[];
   errors: string[];
   judgeUsed?: boolean | undefined;
+  /**
+   * Every round's ballots, oldest first. Omit for a single-round panel; the
+   * envelope then reports one round holding `votes`.
+   */
+  roundVotes?: readonly (readonly CouncilVoteResult[])[] | undefined;
 }): CouncilResult {
   const validVoteCount = input.votes.filter((vote) => vote.status === 'valid').length;
+  const roundVotes: readonly (readonly CouncilVoteResult[])[] = input.roundVotes ?? [
+    Object.freeze([...input.votes]),
+  ];
   return {
     status: input.status,
     ...(input.answer ? { answer: input.answer } : {}),
@@ -167,5 +220,11 @@ export function resultEnvelope(input: {
     usage: usageResult(input.usage, input.startedAt),
     ...(input.warnings.length > 0 ? { warnings: Object.freeze([...input.warnings]) } : {}),
     ...(input.errors.length > 0 ? { errors: Object.freeze([...input.errors]) } : {}),
+    rounds: roundVotes.length,
+    roundVotes: Object.freeze(roundVotes.map((round) => Object.freeze([...round]))),
+    // Counted from the ballots themselves rather than passed in: a seat marks
+    // its own `changed` when it is re-polled, so every exit path of the
+    // orchestrator reports the same number without having to remember to.
+    deliberationChanges: input.votes.filter((vote) => vote.changed === true).length,
   };
 }

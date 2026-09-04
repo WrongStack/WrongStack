@@ -36,35 +36,36 @@ import {
 import { markDecisionTier } from '../coordination/brain-telemetry.js';
 import type { EventBus } from '../kernel/events.js';
 import type { Provider } from '../types/provider.js';
-import type { BrainCircuitBreaker } from './brain-circuit.js';
 import {
   type BrainLlmTarget,
-  DEFAULT_BRAIN_MAX_TOKENS,
-  llmDecide,
-  markDenyKind,
-  readLlmDenyKind,
   buildBrainUserMessage,
-  withDecisionDigest,
   completeBrainLlm,
   completeBrainLlmDetailed,
+  DEFAULT_BRAIN_MAX_TOKENS,
+  DEFAULT_BRAIN_TIMEOUT_MS,
   extractConfidence,
   isNonAnswer,
+  llmDecide,
+  markDenyKind,
   parseFreeTextDecision,
   parseOptionDecision,
+  readLlmDenyKind,
+  withDecisionDigest,
 } from './autonomy-brain-llm.js';
+import type { BrainCircuitBreaker } from './brain-circuit.js';
 
 export type { BrainLlmTarget };
 export {
-  DEFAULT_BRAIN_MAX_TOKENS,
   buildBrainUserMessage,
-  withDecisionDigest,
   completeBrainLlm,
   completeBrainLlmDetailed,
+  DEFAULT_BRAIN_MAX_TOKENS,
   extractConfidence,
   isNonAnswer,
   parseFreeTextDecision,
   parseOptionDecision,
   readLlmDenyKind,
+  withDecisionDigest,
 };
 
 export interface AutonomyBrainOptions {
@@ -328,7 +329,7 @@ export function createTieredBrainArbiter(opts: TieredBrainArbiterOptions): Brain
 export function createAutonomyBrain(opts: AutonomyBrainOptions): BrainArbiter {
   const maxRisk = opts.maxAutoRisk ?? 'high';
   const maxRiskLevel = resolveRiskCeiling(maxRisk);
-  const timeoutMs = opts.decisionTimeoutMs ?? 15_000;
+  const timeoutMs = opts.decisionTimeoutMs ?? DEFAULT_BRAIN_TIMEOUT_MS;
   const targets: BrainLlmTarget[] =
     opts.targets && opts.targets.length > 0
       ? opts.targets

@@ -6,10 +6,10 @@
 
 import { parseModelRef } from '@wrongstack/core/agent';
 import {
-  BUILTIN_COUNCIL_PERSONA_IDS,
-  BUILTIN_COUNCIL_PERSONAS,
   type BrainConfigPatch,
   type BrainConfigSnapshot,
+  BUILTIN_COUNCIL_PERSONA_IDS,
+  BUILTIN_COUNCIL_PERSONAS,
 } from '@wrongstack/core/execution';
 import type { BrainCouncilVoterConfig } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
@@ -23,6 +23,7 @@ const COUNCIL_NUMERIC_OPS: Record<string, string | undefined> = {
   concurrency: 'maxConcurrency',
   votertokens: 'voterMaxTokens',
   judgetokens: 'judgeMaxTokens',
+  rounds: 'deliberationRounds',
 };
 
 const PERSONA_SHORTHANDS: ReadonlySet<string> = new Set(BUILTIN_COUNCIL_PERSONA_IDS);
@@ -179,7 +180,8 @@ export async function handleBrainCouncilSubcommand(
       | 'perCallTimeoutMs'
       | 'maxConcurrency'
       | 'voterMaxTokens'
-      | 'judgeMaxTokens';
+      | 'judgeMaxTokens'
+      | 'deliberationRounds';
     const raw = rest[1];
     if (!raw) {
       const msg = `Usage: /brain council ${op} <positive integer | default>`;
@@ -192,7 +194,7 @@ export async function handleBrainCouncilSubcommand(
       return `Brain council ${op} set to ${color.cyan(applied === undefined ? 'default' : String(applied))}`;
     });
   }
-  const msg = `Unknown council subcommand: ${op}. Use on, off, minrisk, voters, personas, judge, quorum, approval, distinctness, timeout, concurrency, votertokens, or judgetokens.`;
+  const msg = `Unknown council subcommand: ${op}. Use on, off, minrisk, voters, personas, judge, quorum, approval, distinctness, timeout, concurrency, votertokens, judgetokens, or rounds.`;
   opts.renderer.writeWarning(msg);
   return { message: msg };
 }

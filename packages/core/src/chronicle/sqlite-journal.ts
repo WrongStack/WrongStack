@@ -13,6 +13,9 @@
  * staying lossless forever. Storing `JSON.stringify(event)` and re-deriving the
  * preimage from the parsed payload keeps verification independent of the
  * projection — the columns are a read-path index, never the source of truth.
+ * `payload-codec.ts` compresses that same JSON text on the way to disk and
+ * restores it byte-for-byte on the way back, so the invariant holds while the
+ * column costs ~41% of what it used to.
  *
  * Only the project daemon opens this database, after it has won the endpoint
  * election, so the writer is single by construction and `BEGIN IMMEDIATE` is
@@ -24,6 +27,12 @@ import type { DatabaseSync } from 'node:sqlite';
 import { chronicleEventHash, GENESIS_HASH, hashValue } from './event-hash.js';
 import type { ChronicleJournalStats, ChroniclePurgeResult } from './journal.js';
 import {
+  chroniclePayloadStoredBytes,
+  decodeChroniclePayload,
+  encodeChroniclePayload,
+  type StoredChroniclePayload,
+} from './payload-codec.js';
+import {
   ChronicleQuotaManager,
   ChronicleStorageQuotaError,
   MIN_SQLITE_PAGE_BUDGET_BYTES,
@@ -34,6 +43,7 @@ import {
 import {
   CHRONICLE_SQLITE_FILE,
   ensureChronicleSchema,
+  ensureIncrementalVacuum,
   LEGACY_JSONL_BOUNDARY_KEY,
   LEGACY_JSONL_MIGRATION_KEY,
   LEGACY_JSONL_QUARANTINE_KEY,
@@ -75,6 +85,18 @@ export {
  */
 const TRIM_SLACK_RATIO = 0.02;
 const MAX_TRIM_SLACK_EVENTS = 2_000;
+
+/**
+ * Pages handed back to the filesystem per maintenance pass.
+ *
+ * 4 096 pages is ~16 MiB at the default page size — enough that a day's purge
+ * is reclaimed in one pass, small enough that the walk stays off the critical
+ * path of an append.
+ */
+const INCREMENTAL_VACUUM_PAGES = 4_096;
+
+/** Smaller slice for the per-append trim, which runs far more often. */
+const TRIM_VACUUM_PAGES = 256;
 
 export interface ChronicleSqliteJournalOptions {
   /** Directory holding the journal, i.e. `<projectDir>/chronicle`. */
@@ -233,6 +255,10 @@ export class ChronicleSqliteJournal {
         : Math.min(MAX_TRIM_SLACK_EVENTS, Math.floor(this.maxEvents * TRIM_SLACK_RATIO));
     const Database = loadDatabaseSync();
     this.db = new Database(this.dbPath);
+    // Before the WAL switch and before any CREATE TABLE: SQLite only accepts
+    // the auto_vacuum header bit while the file is empty and still in
+    // rollback-journal mode. After WAL it is a silent no-op.
+    ensureIncrementalVacuum(this.db);
     this.db.exec('PRAGMA journal_mode = WAL');
     this.db.exec(
       options.durability === 'full' ? 'PRAGMA synchronous = FULL' : 'PRAGMA synchronous = NORMAL',
@@ -304,9 +330,9 @@ export class ChronicleSqliteJournal {
       previous = { sequence: event.sequence, hash: event.hash };
     }
 
-    const payloads = events.map((event) => JSON.stringify(event));
+    const payloads = events.map((event) => encodeChroniclePayload(JSON.stringify(event)));
     let batchBytes = 0;
-    for (const payload of payloads) batchBytes += Buffer.byteLength(payload, 'utf8');
+    for (const payload of payloads) batchBytes += chroniclePayloadStoredBytes(payload);
 
     let retainedCountAfterCommit = this.retainedEventCount;
     try {
@@ -335,7 +361,7 @@ export class ChronicleSqliteJournal {
           row.resourceId,
           row.resourcePath,
           row.durationNs,
-          payloads[index] as string,
+          payloads[index] as StoredChroniclePayload,
         );
       }
       retainedCountAfterCommit = this.enforceEventLimitWithinTransaction(
@@ -358,7 +384,14 @@ export class ChronicleSqliteJournal {
 
     this.anchors.set(day, previous);
     this.counters.persistedEvents += events.length;
+    const trimmed = retainedCountAfterCommit < this.retainedEventCount + events.length;
     this.retainedEventCount = retainedCountAfterCommit;
+    // A `maxEvents` eviction just moved pages to the freelist, and a journal
+    // parked at its ceiling evicts on most appends — without this the file
+    // only ever grows. Cheap because the freelist is short in steady state;
+    // `incremental_vacuum` cannot run inside the append transaction, so it
+    // happens here rather than in enforceEventLimitWithinTransaction.
+    if (trimmed) this.reclaimFreePages(TRIM_VACUUM_PAGES);
     this.quotaManager.recordAppendedBytes(batchBytes);
     this.lastBatchDurationMs = performance.now() - started;
     await this.enforceRetentionIfDue();
@@ -368,8 +401,8 @@ export class ChronicleSqliteJournal {
   async readAll(): Promise<ChronicleEvent[]> {
     const rows = this.db
       .prepare('SELECT payload FROM events ORDER BY day, sequence')
-      .all() as Array<{ payload: string }>;
-    return rows.map((row) => JSON.parse(row.payload) as ChronicleEvent);
+      .all() as Array<{ payload: StoredChroniclePayload }>;
+    return rows.map((row) => JSON.parse(decodeChroniclePayload(row.payload)) as ChronicleEvent);
   }
 
   async verify(): Promise<ChronicleVerifyResult> {
@@ -390,7 +423,7 @@ export class ChronicleSqliteJournal {
         sequence: number;
         hash: string;
         previous_hash: string;
-        payload: string;
+        payload: StoredChroniclePayload;
       }>;
 
       for (const row of rows) {
@@ -407,7 +440,7 @@ export class ChronicleSqliteJournal {
         }
         let event: ChronicleEvent;
         try {
-          event = JSON.parse(row.payload) as ChronicleEvent;
+          event = JSON.parse(decodeChroniclePayload(row.payload)) as ChronicleEvent;
         } catch {
           return { ok: false, entries, brokenAt: entries, reason: 'invalid payload JSON' };
         }
@@ -488,11 +521,12 @@ export class ChronicleSqliteJournal {
       .toISOString()
       .slice(0, 10);
 
-    const count = (
-      this.db.prepare('SELECT COUNT(*) AS n FROM events WHERE day < ?').get(cutoff) as {
-        n: number;
-      }
-    ).n;
+    const doomed = this.db
+      .prepare(
+        'SELECT COUNT(*) AS n, COALESCE(SUM(LENGTH(payload)), 0) AS bytes FROM events WHERE day < ?',
+      )
+      .get(cutoff) as { n: number; bytes: number };
+    const count = doomed.n;
     if (count === 0) return empty;
 
     if (options.dryRun) {
@@ -526,8 +560,28 @@ export class ChronicleSqliteJournal {
 
     this.anchors.clear();
     this.retainedEventCount = this.countRows();
+    this.reclaimFreePages();
     this.quotaManager.invalidateEstimate();
-    return { ...empty, deletedCount: count };
+    // Payload bytes, not file bytes: the file only shrinks by whole pages and
+    // only as fast as incremental_vacuum walks the freelist, so reporting the
+    // delta in file size would tell an operator that a purge freed nothing.
+    return { ...empty, deletedCount: count, deletedBytes: Number(doomed.bytes) };
+  }
+
+  /**
+   * Return freed pages to the filesystem, a bounded slice at a time.
+   *
+   * `incremental_vacuum(N)` is O(N) and interruptible, unlike `VACUUM`, so the
+   * daemon can shed a purge's worth of pages without a stop-the-world rewrite.
+   * A no-op when the database is not in incremental mode.
+   */
+  private reclaimFreePages(pages = INCREMENTAL_VACUUM_PAGES): void {
+    try {
+      this.db.exec(`PRAGMA incremental_vacuum(${pages})`);
+    } catch {
+      // Not in incremental mode, or a concurrent reader holds the file. The
+      // pages stay on the freelist and are reused by the next append.
+    }
   }
 
   async runFamilyImport(load: (sink: ChronicleImportSink) => Promise<void>): Promise<void> {
@@ -571,7 +625,7 @@ export class ChronicleSqliteJournal {
             row.resourceId,
             row.resourcePath,
             row.durationNs,
-            JSON.stringify(event),
+            encodeChroniclePayload(JSON.stringify(event)),
           );
         },
         checkpoint: (day, sequence, hash) => {

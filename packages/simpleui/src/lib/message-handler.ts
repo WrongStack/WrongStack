@@ -152,7 +152,15 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
   function drainQueue(): void {
     const { item, rest } = dequeueItem(queueRef.current);
     if (!item) return;
-    if (!dispatchUserMessage(item.text)) return; // dropped — keep the item queued
+    // Queued images replay on the same `user_message.images` payload the
+    // direct send path uses; a text-only item keeps the single-argument call.
+    const queuedImages = item.images?.length
+      ? item.images.map((img) => ({ ...img, mediaType: img.mime }))
+      : undefined;
+    const dispatched = queuedImages
+      ? dispatchUserMessage(item.text, queuedImages)
+      : dispatchUserMessage(item.text);
+    if (!dispatched) return; // dropped — keep the item queued
     queueRef.current = rest;
     setQueue(rest);
   }
@@ -210,6 +218,9 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         role: 'assistant',
         text: boundSimpleChatText(text),
         streaming: true,
+        // Live entries need a real timestamp or the timeline orders them
+        // against tool calls incorrectly (see ChatMessageList).
+        ts: new Date().toISOString(),
       });
       return retainSimpleChatMessages(normalized);
     });
@@ -339,6 +350,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
               role: 'thinking',
               text: boundSimpleChatText(text),
               streaming: true,
+              ts: new Date().toISOString(),
             },
           ]);
         });
@@ -399,6 +411,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
                   role: 'assistant',
                   text: boundSimpleChatText(responseText),
                   final,
+                  ts: new Date().toISOString(),
                 },
               ])
             : current;
@@ -583,6 +596,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
                     text: '',
                     final: true,
                     nextSteps: completedToolNextSteps,
+                    ts: new Date().toISOString(),
                   },
                 ]);
           });
@@ -681,7 +695,12 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         setMessages((current) =>
           retainSimpleChatMessages([
             ...current,
-            { id: messageId('error'), role: 'system', text: boundSimpleChatText(text) },
+            {
+              id: messageId('error'),
+              role: 'system',
+              text: boundSimpleChatText(text),
+              ts: new Date().toISOString(),
+            },
           ]),
         );
         drainQueue();

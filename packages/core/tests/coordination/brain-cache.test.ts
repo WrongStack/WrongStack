@@ -278,3 +278,24 @@ describe('createCachingBrainArbiter', () => {
     expect(calls).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('createCachingBrainArbiter — ladder step', () => {
+  it('emits a terminal cache step only on a HIT', async () => {
+    const events = new EventBus();
+    const cache = new BrainDecisionCache({ enabled: true });
+    const inner = tierArbiter('llm', { type: 'answer', text: 'go' });
+    const arbiter = createCachingBrainArbiter({ inner: inner.arbiter, cache, events });
+    const steps: Array<{ tier: string; outcome: string; terminal: boolean }> = [];
+    events.on('brain.tier_transition', (e) => steps.push(e));
+
+    // Miss — the inner ladder emits its own steps, this tier emits none.
+    await arbiter.decide(req());
+    expect(steps).toEqual([]);
+
+    // Hit — replayed without touching the inner chain.
+    await arbiter.decide(req({ id: 'r2' }));
+    expect(inner.calls).toHaveBeenCalledTimes(1);
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({ tier: 'cache', outcome: 'answer', terminal: true });
+  });
+});

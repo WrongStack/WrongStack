@@ -70,6 +70,7 @@ export function setupCliSlashCommands(params: {
   brainSettings: B['brainSettings'];
   brainRuntime: B['brainRuntime'];
   initialBrainLog: ReturnType<NonNullable<B['getBrainLog']>>;
+  brainTierStats: NonNullable<B['brainTierStats']>;
   coordinatorController: B['coordinatorController'];
   statusTracker: B['statusTracker'];
   shadowController: B['shadowController'];
@@ -160,6 +161,7 @@ export function setupCliSlashCommands(params: {
     brainSettings,
     brainRuntime,
     initialBrainLog,
+    brainTierStats,
     coordinatorController,
     statusTracker,
     shadowController,
@@ -247,6 +249,7 @@ export function setupCliSlashCommands(params: {
     brainSettings,
     brainRuntime,
     getBrainLog: () => initialBrainLog,
+    brainTierStats,
     ...(coordinatorController ? { coordinatorController } : {}),
     statusTracker,
     shadowController,

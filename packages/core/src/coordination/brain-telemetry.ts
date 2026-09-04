@@ -27,6 +27,7 @@
  * @module brain-telemetry
  */
 
+import type { EventBus } from '../kernel/events.js';
 import type { BrainDecisionRequest } from './brain.js';
 
 /**
@@ -135,4 +136,41 @@ export class BrainTierCounter {
     this.total = 0;
     this.unattributed = 0;
   }
+}
+
+/**
+ * Emit one `brain.tier_transition` step.
+ *
+ * Every tier of the ladder needs to record its own step, or a decision's
+ * path is only partially reconstructable: before this helper existed only
+ * the tiered arbiter (policy/council/llm) emitted transitions, so a decision
+ * settled by a rule, a cache hit, the ledger guard or the headless terminal
+ * policy produced a trace record with an EMPTY `steps` array — the cheapest
+ * and most common outcomes were the least observable ones.
+ *
+ * Kept next to `markDecisionTier` on purpose: a tier that marks itself as
+ * the resolver should emit the matching step, and one call site for the
+ * payload shape stops the emitters from drifting apart.
+ */
+export function emitBrainTierTransition(
+  events: EventBus | undefined,
+  request: BrainDecisionRequest,
+  tier: BrainDecisionTier,
+  outcome: 'answer' | 'deny' | 'ask_human' | 'error' | 'skipped',
+  terminal: boolean,
+  startedAt: number,
+  reason?: string,
+): void {
+  if (!events) return;
+  const at = Date.now();
+  events.emit('brain.tier_transition', {
+    sessionId: request.sessionId,
+    requestId: request.id,
+    tier,
+    outcome,
+    terminal,
+    ...(reason ? { reason } : {}),
+    durationMs: Math.max(0, at - startedAt),
+    at,
+  });
 }

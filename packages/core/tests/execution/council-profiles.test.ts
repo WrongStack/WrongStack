@@ -44,7 +44,10 @@ describe('Council profiles', () => {
       voterMaxTokens: 300,
       judgeMaxTokens: 500,
       perCallTimeoutMs: 30_000,
-      overallTimeoutMs: 90_000,
+      deliberationRounds: 2,
+      // The overall budget covers EVERY round, so the default scales with the
+      // round count — a 90s budget would abort a 2-round panel mid-debate.
+      overallTimeoutMs: 180_000,
     });
     expect(profile.seats).toMatchObject([
       { id: 'skeptic', veto: true, weight: 1 },
@@ -215,5 +218,48 @@ describe('Council profiles', () => {
         distinctness: 'cluster',
       }),
     ).toThrow(/distinctness/);
+  });
+});
+
+describe('Council profiles — deliberation rounds', () => {
+  it('lets a profile opt out of deliberation', () => {
+    const profile = normalizeCouncilProfile({
+      id: 'single',
+      seats: [{ persona: 'executor' }],
+      deliberationRounds: 1,
+    });
+    expect(profile.deliberationRounds).toBe(1);
+    // With one round the default budget is the pre-deliberation 90s.
+    expect(profile.overallTimeoutMs).toBe(90_000);
+  });
+
+  it('keeps an explicitly configured overall budget', () => {
+    const profile = normalizeCouncilProfile({
+      id: 'explicit',
+      seats: [{ persona: 'executor' }],
+      deliberationRounds: 3,
+      overallTimeoutMs: 45_000,
+    });
+    expect(profile.overallTimeoutMs).toBe(45_000);
+  });
+
+  it('rejects a round count above the ceiling', () => {
+    expect(() =>
+      normalizeCouncilProfile({
+        id: 'runaway',
+        seats: [{ persona: 'executor' }],
+        deliberationRounds: 99,
+      }),
+    ).toThrow(/deliberationRounds must not exceed/);
+  });
+
+  it('rejects a non-positive round count', () => {
+    expect(() =>
+      normalizeCouncilProfile({
+        id: 'zero',
+        seats: [{ persona: 'executor' }],
+        deliberationRounds: 0,
+      }),
+    ).toThrow(/deliberationRounds/);
   });
 });

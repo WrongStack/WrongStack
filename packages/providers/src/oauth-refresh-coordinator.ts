@@ -151,7 +151,7 @@ export class OAuthRefreshCoordinator<TTokens, TPayload> {
    * recorded). Callers should refresh before the next request.
    */
   isStale(): boolean {
-    if (this.expiresAt === undefined) return true;
+    if (this.expiresAt === undefined || !Number.isFinite(this.expiresAt)) return true;
     return Date.now() >= this.expiresAt - this.refreshSkewMs;
   }
 

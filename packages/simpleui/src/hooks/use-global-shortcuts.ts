@@ -1,4 +1,5 @@
 import { type RefObject, useEffect } from 'react';
+import { composePromptWithFileReferences } from '../lib/file-mention.js';
 import { type RefineState, resolveEscapeRestore } from '../lib/refine-model.js';
 import type { SimpleSocket } from '../lib/ws.js';
 import type { ChatMessage, FileEditMeta } from '../types.js';
@@ -24,8 +25,21 @@ export interface UseGlobalShortcutsOptions {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   setCommandPaletteOpen: (open: boolean) => void;
   runningRef: RefObject<boolean>;
-  startSend: (content: string) => void;
+  startSend: (
+    content: string,
+    images?: { data: string; mime: string; mediaType?: string }[],
+  ) => void;
   messagesRef: RefObject<ChatMessage[]>;
+  /**
+   * Composer state the Ctrl/Cmd+Enter send must respect to behave like the
+   * composer's own send path: composed file references, attached images, and
+   * clearing the composer after the send. Optional for backwards-compatible
+   * embedders; when absent the shortcut degrades to the raw-draft send.
+   */
+  fileRefsRef?: RefObject<string[]>;
+  attachedImagesRef?: RefObject<Array<{ data: string; mime: string; name: string; id: string }>>;
+  setFileRefs?: (refs: string[]) => void;
+  clearComposerDraft?: (sessionId: string) => void;
 }
 
 /**
@@ -59,6 +73,10 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
     runningRef,
     startSend,
     messagesRef,
+    fileRefsRef,
+    attachedImagesRef,
+    setFileRefs,
+    clearComposerDraft,
   } = options;
 
   // ── Global keyboard shortcuts ──────────────────────────────────
@@ -138,7 +156,33 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         if (!runningRef.current && draftRef.current.trim()) {
           event.preventDefault();
-          startSend(draftRef.current);
+          // Mirror the composer's own idle send (submitWith's 'send' path):
+          // compose the @file references, forward attached images, and clear
+          // the composer. Sending the raw draft from here silently stripped
+          // the references and images, and left the draft behind so the next
+          // Enter re-sent the same message.
+          const content = composePromptWithFileReferences(
+            draftRef.current,
+            fileRefsRef?.current ?? [],
+          );
+          const images = (attachedImagesRef?.current ?? []).map((img) => ({
+            data: img.data,
+            mime: img.mime,
+            mediaType: img.mime,
+          }));
+          if (!content && images.length === 0) return;
+          if (images.length > 0) startSend(content, images);
+          else startSend(content);
+          setDraft('');
+          setFileRefs?.([]);
+          setAttachedImages([]);
+          const sessionId = sessionIdRef.current;
+          if (sessionId) {
+            draftRef.current = '';
+            if (fileRefsRef) fileRefsRef.current = [];
+            if (attachedImagesRef) attachedImagesRef.current = [];
+            clearComposerDraft?.(sessionId);
+          }
         }
         return;
       }

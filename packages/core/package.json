@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/core",
-  "version": "0.320.0",
+  "version": "0.320.1",
   "license": "MIT",
   "description": "WrongStack core: kernel, types, and shared utilities for the WrongStack CLI agent.",
   "repository": {
@@ -27,6 +27,10 @@
     "./agent": {
       "types": "./dist/core/index.d.ts",
       "import": "./dist/core/index.js"
+    },
+    "./request-conversation": {
+      "types": "./dist/core/request-conversation-binding.d.ts",
+      "import": "./dist/core/request-conversation-binding.js"
     },
     "./agent-catalog": {
       "types": "./dist/coordination/agents/index.d.ts",

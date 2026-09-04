@@ -38,36 +38,48 @@ export function mergeModelsPayload(
   base: ModelsDevPayload,
   overlay: ModelsDevPayload,
 ): ModelsDevPayload {
+  const safeBase = base && typeof base === 'object' ? base : {};
+  const safeOverlay = overlay && typeof overlay === 'object' ? overlay : {};
+
   // Step 1: extract removal directives before the merge loop
-  const removeProviders: string[] = Array.isArray(overlay[REMOVE_PROVIDERS_KEY])
-    ? (overlay[REMOVE_PROVIDERS_KEY] as string[])
+  const removeProviders: string[] = Array.isArray(safeOverlay[REMOVE_PROVIDERS_KEY])
+    ? (safeOverlay[REMOVE_PROVIDERS_KEY] as string[])
     : [];
   const removeModels: Record<string, string[]> =
-    overlay[REMOVE_MODELS_KEY] && typeof overlay[REMOVE_MODELS_KEY] === 'object'
-      ? (overlay[REMOVE_MODELS_KEY] as unknown as Record<string, string[]>)
+    safeOverlay[REMOVE_MODELS_KEY] && typeof safeOverlay[REMOVE_MODELS_KEY] === 'object'
+      ? (safeOverlay[REMOVE_MODELS_KEY] as unknown as Record<string, string[]>)
       : {};
 
   // Step 2: conventional deep-merge (add/override only)
   const out: ModelsDevPayload = {};
-  for (const [id, provider] of Object.entries(base)) {
-    out[id] = cloneProvider(provider);
+  for (const [id, provider] of Object.entries(safeBase)) {
+    if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
+    if (provider && typeof provider === 'object') {
+      out[id] = cloneProvider(provider);
+    }
   }
-  for (const [id, ovProvider] of Object.entries(overlay)) {
+  for (const [id, ovProvider] of Object.entries(safeOverlay)) {
     // Skip magic keys
     if (id === REMOVE_PROVIDERS_KEY || id === REMOVE_MODELS_KEY) continue;
+    if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
+    if (!ovProvider || typeof ovProvider !== 'object') continue;
     const existing = out[id];
     out[id] = existing ? mergeProvider(existing, ovProvider) : cloneProvider(ovProvider);
   }
 
   // Step 3: apply removals
   for (const providerId of removeProviders) {
-    delete out[providerId];
+    if (typeof providerId === 'string') {
+      delete out[providerId];
+    }
   }
   for (const [providerId, modelIds] of Object.entries(removeModels)) {
     const provider = out[providerId];
-    if (!provider?.models) continue;
+    if (!provider?.models || !Array.isArray(modelIds)) continue;
     for (const modelId of modelIds) {
-      delete provider.models[modelId];
+      if (typeof modelId === 'string') {
+        delete provider.models[modelId];
+      }
     }
   }
 

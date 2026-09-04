@@ -84,6 +84,10 @@ const FUZZY_MAX_INTERIOR_CHARS = 2000;
  * match. Returns `undefined` when no tier matches.
  */
 export function findLadderMatches(fileLf: string, oldLf: string): LadderResult | undefined {
+  if (typeof fileLf !== 'string' || typeof oldLf !== 'string' || oldLf.length === 0) {
+    return undefined;
+  }
+
   // Tier 1 — exact substring scan (supports sub-line needles).
   const exact: LadderMatch[] = [];
   let idx = fileLf.indexOf(oldLf);

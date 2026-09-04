@@ -18,6 +18,7 @@ import {
   CACHE_MAX_ENTRIES_PRESETS,
   CACHE_TTL_PRESETS,
   COUNCIL_CONCURRENCY_PRESETS,
+  COUNCIL_DELIBERATION_ROUNDS_PRESETS,
   COUNCIL_DISTINCTNESS_PRESETS,
   COUNCIL_FRACTION_PRESETS,
   COUNCIL_JUDGE_MAX_TOKENS_PRESETS,
@@ -239,6 +240,17 @@ export function useBrainPanel(opts: UseBrainPanelOptions): BrainPanelController 
           runBrainMutation(() =>
             host.setCouncilVoterMaxTokens(
               cyclePreset(COUNCIL_VOTER_MAX_TOKENS_PRESETS, settings.councilVoterMaxTokens, delta),
+            ),
+          );
+          return;
+        case 'councilDeliberationRounds':
+          runBrainMutation(() =>
+            host.setCouncilDeliberationRounds(
+              cyclePreset(
+                COUNCIL_DELIBERATION_ROUNDS_PRESETS,
+                settings.councilDeliberationRounds,
+                delta,
+              ),
             ),
           );
           return;

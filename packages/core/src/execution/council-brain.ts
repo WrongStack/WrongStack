@@ -35,7 +35,10 @@ import {
   type CouncilPersonaRegistry,
   DEFAULT_COUNCIL_PERSONA_REGISTRY,
 } from './council-personas.js';
-import { DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS } from './council-profiles.js';
+import {
+  DEFAULT_COUNCIL_DELIBERATION_ROUNDS,
+  DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS,
+} from './council-profiles.js';
 
 /**
  * Refusal option id used by the Brain adapter. Re-exported from the
@@ -92,6 +95,13 @@ export interface CouncilBrainOptions {
    * truncated JSON).
    */
   voterMaxTokens?: number | undefined;
+  /**
+   * Voting rounds. Round 1 is independent; later rounds show each seat the
+   * others' previous ballots so a seat can revise on new evidence. Only the
+   * final round is tallied. Cost is linear in rounds. See
+   * `CouncilProfileConfig.deliberationRounds`.
+   */
+  deliberationRounds?: number | undefined;
   /** Output budget for the judge call. */
   judgeMaxTokens?: number | undefined;
   /** Optional digest of past decisions for context. */
@@ -340,6 +350,14 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
       } satisfies CouncilModelTarget)
     : false;
 
+  // Judge identity for the trace event. Computed here from the REAL voter
+  // list rather than left to each surface to infer by string-matching a
+  // display label: `brain-chain` already learned that lesson for the status
+  // surfaces, and the trace deserves the same fact rather than a re-parse.
+  const judgeLabel = opts.judge ? (opts.judge.label ?? opts.judge.model) : undefined;
+  const judgeIsVoter =
+    judgeLabel !== undefined && opts.voters.some((v) => (v.label ?? v.model) === judgeLabel);
+
   const perCallTimeoutMs = opts.decisionTimeoutMs ?? BRAIN_COUNCIL_DEFAULT_PER_CALL_TIMEOUT_MS;
   // The overall budget must cover the whole panel: the seat calls run in
   // waves of `maxConcurrency` (worst case ceil(seats / concurrency) waves)
@@ -354,9 +372,13 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
     1,
     Math.min(opts.maxConcurrency ?? DEFAULT_COUNCIL_MAX_CONCURRENCY, seats.length),
   );
+  // Every deliberation round is a full set of seat waves, so the budget must
+  // scale with the round count — otherwise turning deliberation on aborts the
+  // panel partway through round 2 and the extra calls are pure waste.
+  const rounds = opts.deliberationRounds ?? DEFAULT_COUNCIL_DELIBERATION_ROUNDS;
   const overallTimeoutMs = Math.max(
-    DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS,
-    perCallTimeoutMs * (Math.ceil(seats.length / effectiveConcurrency) + 1),
+    DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS * rounds,
+    perCallTimeoutMs * (Math.ceil(seats.length / effectiveConcurrency) * rounds + 1),
   );
 
   const profile: CouncilProfileConfig = {
@@ -375,6 +397,7 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
     voterMaxTokens: opts.voterMaxTokens ?? BRAIN_COUNCIL_DEFAULT_VOTER_MAX_TOKENS,
     ...(opts.judgeMaxTokens !== undefined ? { judgeMaxTokens: opts.judgeMaxTokens } : {}),
     distinctness: opts.distinctness ?? 'none',
+    deliberationRounds: rounds,
   };
 
   // ── Orchestrator with per-seat callers ───────────────────────────────
@@ -422,7 +445,10 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
       // reconstructable.
       if (opts.events) {
         const at = Date.now();
-        for (const vote of result.votes) {
+        // Emit EVERY round, not just the tallied one: a panel that was split
+        // and then converged is a materially different verdict from one that
+        // agreed outright, and only the earlier rounds show the difference.
+        for (const vote of result.roundVotes.flat()) {
           const seat = seats.find((s) => s.id === vote.seatId);
           opts.events.emit('brain.council_vote', {
             sessionId: request.sessionId,
@@ -430,6 +456,8 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
             seatId: vote.seatId,
             persona: vote.persona,
             status: vote.status,
+            round: vote.round,
+            changed: vote.changed,
             providerId: vote.provider,
             model: vote.model,
             optionId: vote.optionId,
@@ -451,6 +479,9 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
           validVoteCount: result.validVoteCount,
           distinctTargetCount: result.distinctTargetCount,
           judgeUsed: result.judgeUsed,
+          rounds: result.rounds,
+          deliberationChanges: result.deliberationChanges,
+          ...(judgeLabel !== undefined ? { judgeLabel, judgeIsVoter } : {}),
           usage: result.usage,
           // Structural, not content — always emitted. See the event docs:
           // a correlated panel is the one council failure mode that produces
@@ -481,10 +512,20 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
       if (request.options && request.options.length > 0) {
         // Option-bearing: pick the winning option
         const winningOption = request.options.find((o) => o.id === result.optionId);
+        if (!winningOption) {
+          // The panel converged on something that is not one of the offered
+          // options. Presenting that as an `answer` with no `optionId` broke
+          // the control-plane invariant at its source: every consumer acts on
+          // an EXACT optionId ("did the Brain say `stop`?"), so an optionless
+          // answer reads as "not stop" — the council's verdict silently
+          // becomes its opposite. An unmatched winner is an unresolved
+          // choice, so hand it to the next tier instead of inventing one.
+          return abstain(request, 'the council chose an option that was not offered');
+        }
         return {
           type: 'answer',
-          ...(winningOption ? { optionId: result.optionId } : {}),
-          text: winningOption?.label ?? result.answer ?? 'Council decided.',
+          optionId: result.optionId,
+          text: winningOption.label,
           rationale: result.reason ?? `Council (${result.resolution})`,
         };
       }

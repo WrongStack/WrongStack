@@ -203,6 +203,9 @@ export function SimpleUiSession() {
             id: messageId('user'),
             role: 'user',
             text: content,
+            // Live entries need a real timestamp or the timeline orders them
+            // against tool calls incorrectly (see ChatMessageList).
+            ts: new Date().toISOString(),
             ...(images && images.length > 0 ? { images } : {}),
           },
         ]),
@@ -309,8 +312,13 @@ export function SimpleUiSession() {
   const refineSendEdited = useCallback(
     (text: string) => {
       if (!text) return;
+      // 'Send edited' exits the refine round-trip like every other decision —
+      // replay the images captured with the original send instead of dropping
+      // them (refineDecision, Escape-restore and the pending flush all do).
+      const images = refineStateRef.current?.images;
       setRefineState(null);
-      dispatchUserMessage(text);
+      if (images?.length) dispatchUserMessage(text, images);
+      else dispatchUserMessage(text);
     },
     [dispatchUserMessage],
   );
@@ -428,6 +436,10 @@ export function SimpleUiSession() {
     runningRef,
     startSend,
     messagesRef,
+    fileRefsRef,
+    attachedImagesRef,
+    setFileRefs,
+    clearComposerDraft,
   });
 
   const {

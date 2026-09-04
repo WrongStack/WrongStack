@@ -96,6 +96,7 @@ export async function* parseSSE(
   if (!body) return;
 
   let pending: Uint8Array = new Uint8Array(0);
+  let skipLeadingLf = false;
   let event = 'message';
   const dataLines: string[] = [];
 
@@ -133,9 +134,16 @@ export async function* parseSSE(
     const out: SSEMessage[] = [];
     let lineStart = 0;
     for (let i = 0; i < chunk.length; i++) {
-      if (chunk[i] !== 0x0a) continue;
-      const isCr = i > lineStart && chunk[i - 1] === 0x0d;
-      const lineEnd = isCr ? i - 1 : i;
+      const byte = chunk[i]!;
+      if (skipLeadingLf && i === lineStart) {
+        skipLeadingLf = false;
+        if (byte === 0x0a) {
+          lineStart = i + 1;
+          continue;
+        }
+      }
+      if (byte !== 0x0a && byte !== 0x0d) continue;
+      const lineEnd = i;
       const lineBytes = chunk.subarray(lineStart, lineEnd);
       let completeLine = pending.length === 0 ? lineBytes : concatBytes(pending, lineBytes);
       if (completeLine.length > 0 && completeLine[completeLine.length - 1] === 0x0d) {
@@ -143,6 +151,7 @@ export async function* parseSSE(
       }
       pending = new Uint8Array(0);
       lineStart = i + 1;
+      skipLeadingLf = byte === 0x0d;
       const msg = processLine(decodeLine(completeLine));
       if (msg) out.push(msg);
     }

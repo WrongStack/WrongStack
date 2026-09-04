@@ -1,8 +1,8 @@
 {
   "name": "@wrongstack/bench",
-  "version": "0.320.0",
+  "version": "0.320.1",
   "license": "MIT",
-  "description": "Model-independent agentic benchmark harness for WrongStack (Aider polyglot + SWE-bench Verified) with deterministic graders and harness fingerprinting.",
+  "description": "Model-independent agentic benchmark harness for WrongStack (bundled smoke suite, Aider polyglot, SWE-bench Verified) with deterministic graders, harness fingerprinting, and run-to-run comparison reports.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WrongStack/WrongStack.git",
@@ -25,6 +25,7 @@
     "dist",
     "!dist/**/*.map",
     "subsets",
+    "fixtures",
     "README.md"
   ],
   "scripts": {

@@ -38,10 +38,10 @@ export async function generateCommitMessageWithLLM(
 
   const userPrompt = `Here is the git diff:\n\n${diff}`;
 
-  try {
-    const signal = new AbortController();
-    const timeout = setTimeout(() => signal.abort(), 15_000);
+  const signal = new AbortController();
+  const timeout = setTimeout(() => signal.abort(), 15_000);
 
+  try {
     const resp = await opts.provider.complete(
       {
         model: opts.model,
@@ -52,7 +52,6 @@ export async function generateCommitMessageWithLLM(
       },
       { signal: signal.signal },
     );
-    clearTimeout(timeout);
 
     const rawContent = resp.content;
     const text = Array.isArray(rawContent)
@@ -67,6 +66,11 @@ export async function generateCommitMessageWithLLM(
     }
   } catch {
     // LLM call failed — fall through to heuristics
+  } finally {
+    // Clear on every path. A rejecting provider must not strand a referenced
+    // 15s timer that holds the event loop open after the heuristic fallback
+    // already resolved (mirrors next-task-predictor.ts).
+    clearTimeout(timeout);
   }
 
   // Fallback: use heuristics via the existing function

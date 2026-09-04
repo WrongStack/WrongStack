@@ -745,7 +745,7 @@ export function buildTitleSequence(
   terminator: string = ESCAPE_TERMINATOR.BEL,
 ): EscapeSequence {
   return {
-    raw: `\x1b]0;${title.replace(/\x07/g, '')}`,
+    raw: `\x1b]0;${(title ?? '').replace(/[\x07]|\x1b\\/g, '')}`,
     terminator,
   };
 }

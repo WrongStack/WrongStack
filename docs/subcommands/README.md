@@ -27,7 +27,7 @@ WrongStack exposes standalone CLI entry points as `wstack <subcommand>` (the `wr
 | `wstack project id\|init\|rekey` | — | [project identity](project.md) |
 | `wstack modeldiag` | `keys`, `caps`, `suggest`, `test`, `bench`, `eval` (`evall` alias) | [model diagnostics](modeldiag.md) |
 | `wstack quick` | intercepted by `boot()` before its registered fallback handler | [quick launch](quick.md) |
-| `wstack bench` | `run`, `mine`, `report`, `list` | [benchmarks](bench.md) |
+| `wstack bench` | `run`, `compare`, `mine`, `report`, `list` | [benchmarks](bench.md) |
 | `wstack hq` | bare and `serve` normalize to `--hq`; `token` remains a real subcommand | [HQ](hq.md) |
 | `wstack mailbox` | bare and `serve` start the bridge; `help`/`--help`/`-h` show usage | [mailbox bridge](mailbox.md) |
 

@@ -10,6 +10,15 @@
  *
  * @module agent-status-tracker
  */
+
+import type { EventBus } from '../kernel/events.js';
+import type {
+  AgentEntry,
+  AgentLiveStatus,
+  AgentRecentMail,
+  AgentRecentTool,
+  AgentTodoItem,
+} from '../session-catalog/session-registry.js';
 import {
   addMailTotal,
   addToolActivity,
@@ -21,14 +30,6 @@ import {
   emptyActivityTotals,
   type PendingTool,
 } from './agent-status-helpers.js';
-import type { EventBus } from '../kernel/events.js';
-import type {
-  AgentEntry,
-  AgentLiveStatus,
-  AgentRecentMail,
-  AgentRecentTool,
-  AgentTodoItem,
-} from '../session-catalog/session-registry.js';
 
 interface SessionPresenceRegistry {
   updateAgents(agents: AgentEntry[]): Promise<void>;
@@ -255,11 +256,32 @@ export class AgentStatusTracker {
       }),
     );
 
-    // Brain ask_human → waiting for user input
+    // Brain escalation → waiting for user input.
+    //
+    // The event is `brain.decision_ask_human`; there has never been a
+    // `brain.ask_human`. Because this file subscribes through the untyped
+    // `onPattern` helper the old name compiled fine and simply never fired,
+    // so an agent blocked on a Brain escalation prompt kept reporting
+    // `running` at every status surface.
+    //
+    // Only the PENDING form (the queue is actually waiting on a human) puts
+    // the leader in `waiting_user`. A non-pending `decision_ask_human` means
+    // ask_human was the final decision and nobody is being asked.
     this.unsubscribers.push(
-      on('brain.ask_human', () => {
+      on('brain.decision_ask_human', (_event, payload) => {
+        if ((payload as { pending?: boolean } | undefined)?.pending !== true) return;
         this.markLeaderStarted();
         this.leaderStatus = 'waiting_user';
+        this.flush();
+      }),
+    );
+
+    // …and back out of it once the human answers, rather than waiting for the
+    // next tool/iteration event to happen to flip the status.
+    this.unsubscribers.push(
+      on('brain.human_answered', () => {
+        if (this.leaderStatus !== 'waiting_user') return;
+        this.leaderStatus = 'running';
         this.flush();
       }),
     );

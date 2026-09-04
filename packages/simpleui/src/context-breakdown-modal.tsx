@@ -139,9 +139,12 @@ export function ContextBreakdownModal({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(dialogRef, open);
 
-  // Tick the UPTIME summary card while the modal is open.
+  // Tick the UPTIME summary card while the modal is open. `now` is reset at
+  // open time — the state otherwise still holds the app-mount snapshot and
+  // the uptime reads short until the first 1s tick.
   useEffect(() => {
     if (!open) return;
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [open]);
@@ -163,6 +166,7 @@ export function ContextBreakdownModal({
     const payload: Record<string, unknown> = {};
     if (sessionId) payload['sessionId'] = sessionId;
     let handle: SocketRequestHandle;
+    let cancelled = false;
     try {
       handle = socketRequest({
         socket,
@@ -177,6 +181,9 @@ export function ContextBreakdownModal({
       return;
     }
     void handle.promise.then((reply) => {
+      // A cancelled request (refresh, close, session switch) resolves null —
+      // its stale callback must not clobber the replacement request's state.
+      if (cancelled) return;
       if (!reply) {
         setLoading(false);
         setError('No response from server');
@@ -191,7 +198,10 @@ export function ContextBreakdownModal({
       setData(parsed);
       setLoading(false);
     });
-    return () => handle.cancel();
+    return () => {
+      cancelled = true;
+      handle.cancel();
+    };
   }, [open, socketRef, sessionId, refreshGen]);
 
   // Focus the close button and bind Escape while open.
@@ -199,7 +209,11 @@ export function ContextBreakdownModal({
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);

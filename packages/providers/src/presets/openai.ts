@@ -258,19 +258,20 @@ export const openaiWireFormat = defineWireFormat<OpenAIStreamState>({
       // calc / cache-hit-ratio from double-counting cached tokens.
       const hasDeepSeekCacheFields =
         u.prompt_cache_hit_tokens !== undefined || u.prompt_cache_miss_tokens !== undefined;
-      const cached = u.prompt_tokens_details?.cached_tokens ?? u.prompt_cache_hit_tokens ?? 0;
-      const cacheWrite = u.prompt_tokens_details?.cache_write_tokens ?? 0;
-      const completion = u.completion_tokens ?? state.usage.output;
+      const cached = nonNegative(u.prompt_tokens_details?.cached_tokens ?? u.prompt_cache_hit_tokens);
+      const cacheWrite = nonNegative(u.prompt_tokens_details?.cache_write_tokens);
+      const completion = nonNegative(u.completion_tokens, state.usage.output);
       // MiniMax (and other lean OpenAI-compatible endpoints) may report only
       // `total_tokens` + `completion_tokens` with no `prompt_tokens`; derive
       // prompt = total − completion so the input count is recovered instead of
       // collapsing to 0. Ordered after the explicit prompt fields.
       const hasPromptTotal = u.prompt_tokens !== undefined;
       const hasFreshInputDelta = !hasPromptTotal && u.input_tokens !== undefined;
+      const cacheMiss = optionalNonNegative(u.prompt_cache_miss_tokens);
       const reportedPromptTotal = hasPromptTotal
-        ? (u.prompt_tokens ?? 0)
+        ? nonNegative(u.prompt_tokens)
         : hasDeepSeekCacheFields
-          ? (u.prompt_cache_hit_tokens ?? 0) + (u.prompt_cache_miss_tokens ?? 0)
+          ? nonNegative(u.prompt_cache_hit_tokens) + nonNegative(u.prompt_cache_miss_tokens)
           : u.total_tokens !== undefined
             ? Math.max(0, u.total_tokens - completion)
             : state.usage.input + cached + cacheWrite;
@@ -285,7 +286,7 @@ export const openaiWireFormat = defineWireFormat<OpenAIStreamState>({
           : reportedPromptTotal;
       const nextUsage: Usage = {
         input:
-          u.prompt_cache_miss_tokens ??
+          cacheMiss ??
           (hasFreshInputDelta
             ? Math.max(0, u.input_tokens ?? 0)
             : Math.max(0, promptTotal - cached - cacheWrite)),
@@ -327,6 +328,14 @@ export const openaiWireFormat = defineWireFormat<OpenAIStreamState>({
   // OpenAI SSE contract this reliably means truncation.
   isTruncated: (state) => state.started && !state.sawTerminal,
 });
+
+function nonNegative(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function optionalNonNegative(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
 
 /**
  * Translate a canonical `ResponseFormat` to OpenAI's `response_format` body field.

@@ -53,11 +53,12 @@ export async function checkSyntax(
   content: string,
   previousContent?: string,
 ): Promise<SyntaxCheckResult | undefined> {
+  if (typeof filePath !== 'string' || typeof content !== 'string') return undefined;
   const errors = await parseErrors(filePath, content);
   if (errors === undefined) return undefined;
   if (errors.length === 0) return { errors, preExisting: false };
   let preExisting = false;
-  if (previousContent !== undefined) {
+  if (typeof previousContent === 'string') {
     const prevErrors = await parseErrors(filePath, previousContent);
     preExisting = prevErrors !== undefined && prevErrors.length > 0;
   }

@@ -839,6 +839,8 @@
     "councilDistinctnessHint": "Yinelenen koltukları reddet: 'model' farklı modeller gerektirir, 'provider' tek bir kesintinin oyu etkileyememesi için bağımsız sağlayıcılar gerektirir.",
     "councilVoterBudgetLabel": "Oy veren yanıt bütçesi",
     "councilVoterBudgetHint": "Koltuk başına çıktı belirteci — akıl yürüten modeller düşünme belirteçlerini bu bütçeden harcar.",
+    "councilRoundsLabel": "Müzakere turu",
+    "councilRoundsHint": "1. tur bağımsızdır. Sonraki turlarda her koltuk diğerlerinin oylarını görüp kendi görüşünü gözden geçirir. Yalnızca son tur sayılır — ve her tur koltuk başına bir çağrı daha demektir.",
     "councilJudgeBudgetLabel": "Hakem yanıt bütçesi",
     "councilJudgeBudgetHint": "Eşitlik bozan hakem çağrısı için çıktı belirteci.",
     "councilSeatTemplate": "Koltuk şablonu:",
@@ -905,6 +907,7 @@
     "m5Default": "5dk (varsayılan)",
     "default": "Varsayılan",
     "oneSerial": "1 (sıralı)",
+    "roundsOff": "1 (müzakere yok)",
     "default500": "Varsayılan (500)",
     "default10m": "Varsayılan (10dk)"
   },

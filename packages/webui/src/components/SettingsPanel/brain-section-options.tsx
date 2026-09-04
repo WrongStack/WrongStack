@@ -142,6 +142,18 @@ export const VOTER_MAX_TOKENS: BrainOption[] = [
   { value: '8000', label: '8000' },
 ];
 
+/**
+ * Deliberation rounds. Deliberately short: each step is another provider call
+ * PER SEAT on every council decision, which makes this the panel's steepest
+ * cost lever.
+ */
+export const DELIBERATION_ROUNDS: BrainOption[] = [
+  { value: 'default', labelKey: 'settings:brainOpt.default' },
+  { value: '1', labelKey: 'settings:brainOpt.roundsOff' },
+  { value: '2', label: '2' },
+  { value: '3', label: '3' },
+];
+
 export const JUDGE_MAX_TOKENS: BrainOption[] = [
   { value: 'default', labelKey: 'settings:brainOpt.default' },
   { value: '200', label: '200' },

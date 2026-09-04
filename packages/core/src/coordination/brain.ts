@@ -14,7 +14,7 @@ import {
   type ResolvedBrainHeuristics,
   resolveBrainHeuristics,
 } from './brain-heuristics.js';
-import { markDecisionTier, readDecisionTier } from './brain-telemetry.js';
+import { emitBrainTierTransition, markDecisionTier, readDecisionTier } from './brain-telemetry.js';
 
 export type BrainDecisionSource = 'goal' | 'director' | 'tool' | 'user' | 'system';
 
@@ -143,6 +143,8 @@ export class BrainDecisionQueue {
     {
       request: BrainDecisionRequest;
       resolve: (decision: BrainDecision) => void;
+      /** When the human was asked — the start of the `human`/`terminal` step. */
+      askedAt: number;
       timer?: ReturnType<typeof setTimeout> | undefined;
     }
   >();
@@ -159,9 +161,25 @@ export class BrainDecisionQueue {
       if (pending.timer) clearTimeout(pending.timer);
       markDecisionTier(pending.request, 'human');
       if (answer.deny) {
+        emitBrainTierTransition(
+          this.events,
+          pending.request,
+          'human',
+          'deny',
+          true,
+          pending.askedAt,
+        );
         pending.resolve({ type: 'deny', reason: answer.text ?? 'Denied by human.' });
         return;
       }
+      emitBrainTierTransition(
+        this.events,
+        pending.request,
+        'human',
+        'answer',
+        true,
+        pending.askedAt,
+      );
       const option = pending.request.options?.find((o) => o.id === answer.optionId);
       pending.resolve({
         type: 'answer',
@@ -179,33 +197,52 @@ export class BrainDecisionQueue {
       options: request.options,
       rationale: 'Decision escalated to human authority.',
     };
+    const askedAt = Date.now();
     const pending = new Promise<BrainDecision>((resolve) => {
       const entry: {
         request: BrainDecisionRequest;
         resolve: (decision: BrainDecision) => void;
+        askedAt: number;
         timer?: ReturnType<typeof setTimeout> | undefined;
-      } = { request, resolve };
+      } = { request, resolve, askedAt };
       if (this.opts.timeoutMs && this.opts.timeoutMs > 0) {
         entry.timer = setTimeout(() => {
           this.pending.delete(request.id);
           // Nobody answered — this resolves through the terminal policy, not
           // through human authority.
           markDecisionTier(request, 'terminal');
-          resolve(
-            this.opts.onTimeout?.(request) ?? {
-              type: 'deny',
-              reason: 'Brain human decision timed out.',
-            },
+          const timedOut = this.opts.onTimeout?.(request) ?? {
+            type: 'deny' as const,
+            reason: 'Brain human decision timed out.',
+          };
+          emitBrainTierTransition(
+            this.events,
+            request,
+            'terminal',
+            timedOut.type,
+            true,
+            askedAt,
+            `no human answer within ${this.opts.timeoutMs}ms`,
           );
+          resolve(timedOut);
         }, this.opts.timeoutMs);
       }
       this.pending.set(request.id, entry);
     });
+    // `pending: true` marks this as the PROMPT, not the resolution. The same
+    // event name carries both: `ObservableBrainArbiter` emits it when
+    // ask_human is the FINAL decision (nothing escalated it), and this queue
+    // emits it when a human is being asked and the decision is still open.
+    // Consumers that log activity (ledger, decision ring, Chronicle) want
+    // both; consumers that close a per-decision record — the trace recorder —
+    // must ignore this one or they file the decision before the human answers
+    // and drop the answer entirely.
     this.events.emit('brain.decision_ask_human', {
       sessionId: request.sessionId,
       request,
       decision: ask,
       at: Date.now(),
+      pending: true,
     });
     return pending;
   }
@@ -302,6 +339,11 @@ export class EscalationRoutingBrainArbiter implements BrainArbiter {
     private readonly getMode: () => BrainEscalationMode,
     /** Live terminal-policy variant, read per decision. Default 'conservative'. */
     private readonly getTerminalPolicy?: () => BrainTerminalPolicy,
+    /**
+     * Bus for the `terminal` ladder step. Optional so hosts that predate it
+     * keep working — they simply record no step for the headless outcome.
+     */
+    private readonly events?: EventBus,
   ) {}
 
   async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
@@ -310,8 +352,20 @@ export class EscalationRoutingBrainArbiter implements BrainArbiter {
     if (this.getMode() === 'interactive' && this.queue) {
       return this.queue.requestHumanDecision(request);
     }
+    const startedAt = Date.now();
     markDecisionTier(request, 'terminal');
-    return terminalPolicyDecision(request, this.getTerminalPolicy?.() ?? 'conservative');
+    const policy = this.getTerminalPolicy?.() ?? 'conservative';
+    const terminal = terminalPolicyDecision(request, policy);
+    emitBrainTierTransition(
+      this.events,
+      request,
+      'terminal',
+      terminal.type,
+      true,
+      startedAt,
+      `headless terminal policy "${policy}" — no human available`,
+    );
+    return terminal;
   }
 }
 

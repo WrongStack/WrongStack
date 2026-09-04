@@ -181,7 +181,15 @@ function ensureFtsIndexInitialized(db: DatabaseSync): void {
     }
     db.exec('COMMIT');
   } catch (error) {
-    db.exec('ROLLBACK');
+    // SQLITE_FULL/IOERR auto-rollback leaves no active transaction, so an
+    // unguarded ROLLBACK here would throw "cannot rollback - no transaction
+    // is active" and mask the primary error. Preserve the original for the
+    // caller.
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      /* preserve original error */
+    }
     throw error;
   }
 }

@@ -33,6 +33,7 @@ export function selectBuiltinToolsForTier(
   tier: ConcreteTokenSavingTier,
   allTools: readonly Tool[],
 ): Tool[] {
+  if (!Array.isArray(allTools)) return [];
   switch (tier) {
     case 'off':
       return [...allTools];
@@ -50,6 +51,8 @@ export function selectBuiltinToolsForTier(
       const tier1Names = toolNameSet(TIER1_TOOLS);
       return allTools.filter((tool) => tier1Names.has(tool.name));
     }
+    default:
+      return [...allTools];
   }
 }
 

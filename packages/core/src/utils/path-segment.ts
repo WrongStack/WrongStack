@@ -19,6 +19,8 @@ import * as path from 'node:path';
  */
 export const MAX_PATH_SEGMENT_LENGTH = 256;
 
+const WINDOWS_RESERVED_NAMES_RE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
+
 /**
  * True when `value` is safe to use as a single path segment.
  *
@@ -37,6 +39,7 @@ export function isSafePathSegment(value: string): boolean {
   if (value.includes('/') || value.includes('\\')) return false;
   if (value.includes('\0')) return false;
   if (value.includes(':')) return false;
+  if (WINDOWS_RESERVED_NAMES_RE.test(value)) return false;
   return true;
 }
 
@@ -50,7 +53,7 @@ export function isSafePathSegment(value: string): boolean {
  * this helper cannot leave `root` even if the segment rule is later loosened.
  */
 export function resolveContainedPath(root: string, ...segments: string[]): string | null {
-  if (segments.length === 0) return null;
+  if (typeof root !== 'string' || !root || segments.length === 0) return null;
   for (const segment of segments) {
     if (!isSafePathSegment(segment)) return null;
   }

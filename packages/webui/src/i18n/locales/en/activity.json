@@ -3645,6 +3645,8 @@
     "voting": "Voting in flight…",
     "judgeUsed": "Judge Broke Tie",
     "correlated": "Correlated Panel",
+    "converged": "Converged Panel",
+    "judgeIsVoter": "Judge Also Voted",
     "evaluatedQuestion": "Deliberated Proposal / Question:",
     "votingDistribution": "Consensus Voting Distribution",
     "quorumWeight": "Total Weight: {{weight}}",

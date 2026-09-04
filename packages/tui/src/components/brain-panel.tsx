@@ -228,6 +228,16 @@ function rowText(
             : String(s.councilVoterMaxTokens),
         dim: 'output budget per seat — reasoning models think from this budget',
       };
+    case 'councilDeliberationRounds': {
+      const rounds = s.councilDeliberationRounds;
+      return {
+        label: '  rounds',
+        value: rounds === undefined ? 'default (2)' : rounds === 1 ? '1 (off)' : String(rounds),
+        // Naming the multiplier here is the point: "3 seats" reads as three
+        // calls, and with deliberation on it is three per round.
+        dim: 'deliberation rounds — each one costs another call PER SEAT',
+      };
+    }
     case 'councilJudgeMaxTokens':
       return {
         label: '  judge tokens',

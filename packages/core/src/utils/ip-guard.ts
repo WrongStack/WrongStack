@@ -15,6 +15,7 @@ import * as net from 'node:net';
  * guaranteed to be a canonical dotted-quad at this point.
  */
 export function isPrivateIPv4(addr: string): boolean {
+  if (typeof addr !== 'string') return true;
   const parts = addr.split('.').map((p) => {
     if (!/^\d+$/.test(p)) return Number.NaN;
     if (p.length > 1 && p.startsWith('0')) return Number.NaN;
@@ -41,6 +42,7 @@ export function isPrivateIPv4(addr: string): boolean {
  * link-local / unspecified / IPv4-mapped-private.
  */
 export function isPrivateIPv6(raw: string): boolean {
+  if (typeof raw !== 'string') return true;
   const lower = raw.toLowerCase();
   if (lower === '::' || lower === '::1') return true; // loopback / unspecified
 

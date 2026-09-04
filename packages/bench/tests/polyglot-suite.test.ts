@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  LANGUAGE_RUNNERS,
   createPolyglotSuite,
+  LANGUAGE_RUNNERS,
   type PolyglotMeta,
 } from '../src/suites/polyglot.js';
 

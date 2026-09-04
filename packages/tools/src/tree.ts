@@ -114,9 +114,15 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
     const showFiles = input.show_files ?? true;
     const showDirs = input.show_dirs ?? true;
     const showHidden = input.show_hidden ?? false;
+    const rawExclude = Array.isArray(input.exclude)
+      ? input.exclude
+      : typeof input.exclude === 'string'
+        ? [input.exclude]
+        : [];
     const exclude = new Set([
       ...DEFAULT_IGNORE,
-      ...(input.exclude ?? [])
+      ...rawExclude
+        .filter((s): s is string => typeof s === 'string')
         .map((s) =>
           s
             .trim()
@@ -317,24 +323,24 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
     const displayName = entry.name + (entry.isDirectory() ? '/' : '');
 
     const isDir = entry.isDirectory();
-    if (!opts.showDirs && isDir) continue;
-    if (!opts.showFiles && !isDir) continue;
-
-    const line = opts.prefix + branch + displayName;
-    const lineBytes = Buffer.byteLength(line, 'utf8') + 1;
-    if (
-      opts.retention.entries >= opts.retention.maxEntries ||
-      opts.retention.outputBytes + lineBytes > opts.retention.maxOutputBytes
-    ) {
-      opts.retention.truncated = true;
-      return;
+    const showEntry = (isDir && opts.showDirs) || (!isDir && opts.showFiles);
+    if (showEntry) {
+      const line = opts.prefix + branch + displayName;
+      const lineBytes = Buffer.byteLength(line, 'utf8') + 1;
+      if (
+        opts.retention.entries >= opts.retention.maxEntries ||
+        opts.retention.outputBytes + lineBytes > opts.retention.maxOutputBytes
+      ) {
+        opts.retention.truncated = true;
+        return;
+      }
+      opts.lines.push(line);
+      opts.retention.entries++;
+      opts.retention.outputBytes += lineBytes;
     }
-    opts.lines.push(line);
-    opts.retention.entries++;
-    opts.retention.outputBytes += lineBytes;
 
     if (entry.isDirectory() && (opts.maxDepth === 0 || depth < opts.maxDepth)) {
-      const childPrefix = opts.prefix + connector;
+      const childPrefix = showEntry ? opts.prefix + connector : opts.prefix;
       await walkDir(path.join(dir, entry.name), depth + 1, {
         ...opts,
         prefix: childPrefix,

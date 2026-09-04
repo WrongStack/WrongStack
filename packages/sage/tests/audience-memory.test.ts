@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SqliteSageStore as SageStore } from '../src/sqlite-store.js';
 
@@ -393,5 +394,100 @@ describe('audience filtering before SQL LIMIT (P0-2 regression)', () => {
     expect(results.length).toBeGreaterThan(0);
     expect(results.find((m) => m.id === general.id)).toBeDefined();
     expect(results.every((m) => !m.audience)).toBe(true);
+  });
+});
+
+/**
+ * Seed audience rows through a second handle on the store's WAL database so a
+ * >10k-row fixture does not pay one async rememberSage round-trip per row.
+ * Rows carry every field `sqliteRowToMemory` validates, so the production
+ * decode + JS audience filter treat them exactly like rememberSage-written rows.
+ */
+async function seedAudienceRowsDirect(
+  fillerCount: number,
+  rareCount: number,
+  fillerImportance: number,
+  rareImportance: number,
+): Promise<void> {
+  const dbPath = path.join(projectRoot, '.wrongstack', 'memories', 'sage.db');
+  const db = new DatabaseSync(dbPath);
+  try {
+    db.exec('BEGIN');
+    const insert = db.prepare(
+      `INSERT INTO memories
+         (id, data, status, kind, scope, importance, confidence, freshness,
+          updated_at, created_at, audience)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const now = '2026-09-04T00:00:00.000Z';
+    const row = (id: string, role: string, importance: number): unknown[] => {
+      const audience = JSON.stringify({ roles: [role] });
+      const data = JSON.stringify({
+        id,
+        text: `${role === 'rare-role' ? 'Rare-role' : 'Filler'} policy entry ${id}`,
+        scope: 'project',
+        kind: 'fact',
+        status: 'active',
+        importance,
+        confidence: 0.9,
+        freshness: 1,
+        createdAt: now,
+        updatedAt: now,
+        audience: { roles: [role] },
+      });
+      return [id, data, 'active', 'fact', 'project', importance, 0.9, 1, now, now, audience];
+    };
+    for (let i = 0; i < fillerCount; i++) {
+      insert.run(...row(`filler-${i}`, 'filler-role', fillerImportance));
+    }
+    for (let i = 0; i < rareCount; i++) {
+      insert.run(...row(`rare-${i}`, 'rare-role', rareImportance));
+    }
+    db.exec('COMMIT');
+  } finally {
+    db.close();
+  }
+}
+
+describe('scan-cap truncation signal (P1-6 regression)', () => {
+  it('fires onTruncated when the scan cap is hit with zero matches and rows remain unscanned', async () => {
+    const store = openStore();
+    await store.initialize();
+    // Windows with limit=20: 100+300+900+2700+6000 = 10_000 rows scanned.
+    // The 0.9 filler tie-group strictly precedes the 0.1 rare rows under
+    // ORDER BY importance DESC, so the scanned set is exactly the fillers.
+    await seedAudienceRowsDirect(10_000, 30, 0.9, 0.1);
+
+    const calls: Array<{ sqlRowsExamined: number; returned: number }> = [];
+    const result = await store.retrieveForAudience({ role: 'rare-role' }, 20, (info) => {
+      calls.push(info);
+    });
+
+    // The 30 rare-role memories exist beyond the scan cap: the result is
+    // legitimately empty, but the caller MUST be told the scan was capped
+    // (silent emptiness is indistinguishable from a true empty corpus).
+    expect(result).toEqual([]);
+    expect(calls).toEqual([{ sqlRowsExamined: 10_000, returned: 0 }]);
+
+    // The audit channel mirrors the callback (M10 dual-channel contract).
+    const audit = await store.readAudit(50);
+    const truncated = audit.filter((entry) => entry.event === 'memory.audience_truncated');
+    expect(truncated).toHaveLength(1);
+  });
+
+  it('stays silent when exactly `limit` matches fill the page even though rows remain unscanned', async () => {
+    const store = openStore();
+    await store.initialize();
+    await seedAudienceRowsDirect(10_050, 20, 0.5, 0.9);
+
+    const calls: Array<{ sqlRowsExamined: number; returned: number }> = [];
+    const result = await store.retrieveForAudience({ role: 'rare-role' }, 20, (info) => {
+      calls.push(info);
+    });
+
+    // A full page is a complete result under standard pagination semantics —
+    // no truncation signal even though the corpus was not exhausted.
+    expect(result).toHaveLength(20);
+    expect(calls).toEqual([]);
   });
 });

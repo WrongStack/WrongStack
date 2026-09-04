@@ -133,6 +133,7 @@ function unbracket(hostname: string): string {
 export function safeBrowserUrl(rawUrl: string): string {
   try {
     const url = new URL(rawUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return 'about:blank';
     url.username = '';
     url.password = '';
     url.search = '';
@@ -145,9 +146,14 @@ export function safeBrowserUrl(rawUrl: string): string {
 
 export function redactBrowserText(text: string): string {
   return text
+    .replace(/\bauthorization\b\s*[:=]\s*[^\r\n]+/gi, 'Authorization=[REDACTED]')
+    .replace(
+      /\bauthorization\b\s*[:=]\s*(?:Basic|Bearer)\s+[^\s,;]+/gi,
+      'Authorization=[REDACTED]',
+    )
     .replace(/\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [REDACTED]')
     .replace(
-      /\b(api[-_ ]?key|access[-_ ]?token|auth[-_ ]?token|token|password|secret)\b\s*[:=]\s*[^\s,;]+/gi,
+      /\b(authorization|set[-_ ]?cookie|cookie|api[-_ ]?key|private[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|session[-_ ]?token|auth[-_ ]?token|token|password|secret)\b\s*[:=]\s*[^\s,;]+/gi,
       '$1=[REDACTED]',
     );
 }

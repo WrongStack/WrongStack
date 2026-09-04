@@ -1,3 +1,4 @@
+import { bindRequestConversation } from '@wrongstack/core/request-conversation';
 import type { Request, StreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { OpenCodeGoProvider } from '../src/opencode-go.js';
@@ -66,6 +67,36 @@ describe('OpenCodeGoProvider', () => {
     expect(calls[0]?.headers['x-opencode-session']).toMatch(/^sess_/);
     expect(calls[1]?.headers['x-opencode-session']).toBe(calls[0]?.headers['x-opencode-session']);
     expect(provider.id).toBe('opencode-go');
+  });
+
+  it('uses one conversation-scoped session header across provider rebuilds and wire surfaces', async () => {
+    const calls: Array<{ headers: Record<string, string> }> = [];
+    const fetchImpl = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      calls.push({
+        headers: Object.fromEntries(
+          Object.entries(init?.headers ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]),
+        ),
+      });
+      return new Response('', { status: 200 });
+    }) as never as typeof fetch;
+    const conversation = { meta: {}, sessionId: 'conversation/alpha' };
+    const firstRequest = request('grok-4.5');
+    const rebuiltRequest = request('minimax-m3');
+    bindRequestConversation(firstRequest, conversation);
+    bindRequestConversation(rebuiltRequest, conversation);
+
+    await drain(
+      new OpenCodeGoProvider({
+        apiKey: 'oc-test',
+        fetchImpl,
+        headers: { 'x-opencode-session': 'must-not-override-conversation' },
+      }),
+      firstRequest,
+    );
+    await drain(new OpenCodeGoProvider({ apiKey: 'oc-test', fetchImpl }), rebuiltRequest);
+
+    expect(calls[0]?.headers['x-opencode-session']).toBe('sess_conversation_alpha');
+    expect(calls[1]?.headers['x-opencode-session']).toBe(calls[0]?.headers['x-opencode-session']);
   });
 
   it('keeps only model-supported effort values even when tools are present', async () => {

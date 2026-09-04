@@ -104,9 +104,12 @@ export async function redirectSafeFetch(
     const nextUrl = new URL(location, currentUrl).toString();
     if (!sameOrigin(currentUrl, nextUrl)) headers = stripCredentials(headers);
 
-    // 301/302 after a POST, and 303 always, become GET without a body — the
-    // same normalisation fetch performs internally.
-    if (status === 303 || ((status === 301 || status === 302) && method === 'POST')) {
+    // 301/302 after a POST, and 303 after any method except HEAD, become GET
+    // without a body — the same normalisation fetch performs internally.
+    if (
+      (status === 303 && method.toUpperCase() !== 'HEAD') ||
+      ((status === 301 || status === 302) && method === 'POST')
+    ) {
       method = 'GET';
       body = undefined;
     }

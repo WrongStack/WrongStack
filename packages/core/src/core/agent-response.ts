@@ -486,10 +486,21 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     // middleware asking "what did THIS conversation configure" has nowhere
     // else to look. Both bindings are re-applied to the pipeline's result
     // because middleware conventionally returns a copy.
-    bindRequestConversation(baseReq, a.ctx);
+    // Request construction is also used by lightweight embedders and focused
+    // tests before a transcript writer exists. Unlike event emission, that
+    // must remain best-effort: OpenCode Go falls back to its provider-local
+    // affinity id when there is no active conversation yet.
+    const conversationSessionId = a.ctx.activeRunSessionId ?? a.ctx.session?.id;
+    bindRequestConversation(baseReq, {
+      meta: a.ctx.meta,
+      sessionId: conversationSessionId,
+    });
     bindRequestProvider(baseReq, provider);
     const request = await a.pipelines.request.run(baseReq);
-    bindRequestConversation(request, a.ctx);
+    bindRequestConversation(request, {
+      meta: a.ctx.meta,
+      sessionId: conversationSessionId,
+    });
     bindRequestProvider(request, provider);
     return { request, provider };
   }

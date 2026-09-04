@@ -13,11 +13,15 @@ export function detectFileMention(input: string, cursor: number): FileMention | 
   return { start: safeCursor - query.length - 1, query };
 }
 
-/** Remove the partial `@query`; the selected path is represented by a chip. */
+/** Remove the partial `@query`; the selected path is represented by a chip.
+ *  Only the whitespace at the removed mention's position collapses — a global
+ *  collapse/trim reflowed unrelated text the user typed elsewhere. */
 export function removeFileMention(input: string, mention: FileMention): string {
   const before = input.slice(0, mention.start);
   const after = input.slice(mention.start + mention.query.length + 1);
-  return `${before}${after}`.replace(/[ \t]{2,}/g, ' ').trim();
+  const head = before.replace(/[ \t]+$/, '');
+  const tail = after.replace(/^[ \t]+/, '');
+  return head && tail ? `${head} ${tail}` : head + tail;
 }
 
 /** Match the canonical Full WebUI wire convention for whole-file references. */

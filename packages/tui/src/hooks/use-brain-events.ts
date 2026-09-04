@@ -65,9 +65,17 @@ export function useBrainEvents(
       }
     };
 
+    /**
+     * @param history false for the escalation PROMPT: a human is being asked
+     *   and the same request will resolve into answered/denied. Writing a row
+     *   for both turns one decision into two history entries — and, worse,
+     *   drains the buffered council panel onto the prompt row so the entry
+     *   carrying the actual verdict shows no panel at all.
+     */
     const addBrainEntry = (
       status: Exclude<Extract<HistoryEntry, { kind: 'brain' }>['status'], 'thinking'>,
       payload: unknown,
+      { history = true }: { history?: boolean } = {},
     ) => {
       const p = payload as {
         request: {
@@ -79,10 +87,13 @@ export function useBrainEvents(
           options?: NonNullable<State['brainPrompt']>['options'] | undefined;
         };
         decision: BrainDecision;
+        tier?: string | undefined;
       };
-      const council = councilTraces.get(p.request.id);
-      councilTraces.delete(p.request.id);
-      councilVotes.delete(p.request.id);
+      const council = history ? councilTraces.get(p.request.id) : undefined;
+      if (history) {
+        councilTraces.delete(p.request.id);
+        councilVotes.delete(p.request.id);
+      }
       const decision = decisionSummary(p.decision);
       dispatch({
         type: 'brainStatus',
@@ -104,6 +115,7 @@ export function useBrainEvents(
       } else {
         dispatch({ type: 'brainPromptClear' });
       }
+      if (!history) return;
       const rationale = p.decision.type === 'deny' ? undefined : p.decision.rationale;
       dispatch({
         type: 'addEntry',
@@ -115,6 +127,7 @@ export function useBrainEvents(
           question: p.request.question,
           decision,
           rationale,
+          ...(p.tier ? { tier: p.tier } : {}),
           ...(council ? { council } : {}),
         },
       });
@@ -164,7 +177,11 @@ export function useBrainEvents(
       pendingMonitorAnswers.set(payload.request.id, timer);
     });
     const offAskHuman = events.on('brain.decision_ask_human', (payload) => {
-      if (isCurrentSession(payload.sessionId)) addBrainEntry('ask_human', payload);
+      if (!isCurrentSession(payload.sessionId)) return;
+      // A pending event is the prompt: it must raise the prompt UI and the
+      // status line, but the history row belongs to whatever the human (or
+      // the timeout) actually decides.
+      addBrainEntry('ask_human', payload, { history: payload.pending !== true });
     });
     const offDenied = events.on('brain.decision_denied', (payload) => {
       if (isCurrentSession(payload.sessionId)) addBrainEntry('denied', payload);
@@ -176,24 +193,40 @@ export function useBrainEvents(
     const offCouncilVote = events.on('brain.council_vote', (payload) => {
       if (!isCurrentSession(payload.sessionId)) return;
       const seats = councilVotes.get(payload.requestId) ?? [];
-      seats.push({
+      const ballot = {
         seatId: payload.seatId,
         persona: payload.persona,
         status: payload.status,
         optionId: payload.optionId,
+        stance: payload.stance,
         model: payload.model,
         veto: payload.veto,
         durationMs: payload.durationMs,
         error: payload.error,
-      });
+        round: payload.round,
+        changed: payload.changed,
+      };
+      // Upsert by seat, never append. A deliberating panel emits one ballot
+      // per seat PER ROUND, so appending listed every seat twice — with
+      // duplicate React keys — and only the final round is the verdict
+      // anyway. A reconnect replay of the same seat lands here too.
+      const existing = seats.findIndex((seat) => seat.seatId === ballot.seatId);
+      if (existing >= 0) seats[existing] = ballot;
+      else seats.push(ballot);
       councilVotes.set(payload.requestId, seats);
       capCouncilMap(councilVotes);
+      const round = payload.round ?? 1;
       dispatch({
         type: 'brainStatus',
         state: 'deciding',
         source: 'council',
         risk: 'high',
-        summary: `council · ${seats.length} seat${seats.length === 1 ? '' : 's'} voted`,
+        // Naming the round is what keeps a 2-round panel from looking like a
+        // stalled 1-round one: the seat count resets and would otherwise
+        // appear to count backwards.
+        summary:
+          `council${round > 1 ? ` r${round}` : ''} · ` +
+          `${seats.length} seat${seats.length === 1 ? '' : 's'} voted`,
       });
     });
     const offCouncilResolved = events.on('brain.council_resolved', (payload) => {
@@ -204,6 +237,10 @@ export function useBrainEvents(
         validVoteCount: payload.validVoteCount,
         distinctTargetCount: payload.distinctTargetCount,
         judgeUsed: payload.judgeUsed,
+        judgeLabel: payload.judgeLabel,
+        judgeIsVoter: payload.judgeIsVoter,
+        rounds: payload.rounds,
+        deliberationChanges: payload.deliberationChanges,
         totalTokens: payload.usage?.totalTokens,
         durationMs: payload.usage?.durationMs,
         ...(payload.warnings?.length ? { warnings: [...payload.warnings] } : {}),

@@ -227,13 +227,32 @@ describe('AgentStatusTracker', () => {
     });
   });
 
-  it('sets leader to waiting_user on brain.ask_human', () => {
-    tracker.start();
-    events.emit('brain.ask_human', {});
-
+  const leaderStatus = (): string | undefined => {
     const call = registry.updateAgents.mock.calls.at(-1)?.[0] as AgentEntry[];
-    const leader = call?.find((a: AgentEntry) => a.id === 'leader');
-    expect(leader?.status).toBe('waiting_user');
+    return call?.find((a: AgentEntry) => a.id === 'leader')?.status;
+  };
+
+  it('sets leader to waiting_user on a pending brain.decision_ask_human', () => {
+    tracker.start();
+    events.emit('brain.decision_ask_human', { pending: true });
+
+    expect(leaderStatus()).toBe('waiting_user');
+  });
+
+  it('ignores a non-pending brain.decision_ask_human (nobody is being asked)', () => {
+    tracker.start();
+    events.emit('brain.decision_ask_human', {});
+
+    expect(leaderStatus()).not.toBe('waiting_user');
+  });
+
+  it('leaves waiting_user once the human answers', () => {
+    tracker.start();
+    events.emit('brain.decision_ask_human', { pending: true });
+    expect(leaderStatus()).toBe('waiting_user');
+
+    events.emit('brain.human_answered', { id: 'req-1', optionId: 'go' });
+    expect(leaderStatus()).toBe('running');
   });
 
   it('sets leader to streaming on llm.stream_started', () => {

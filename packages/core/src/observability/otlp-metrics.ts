@@ -193,7 +193,9 @@ export function startOtlpMetricsExporter(
   if (opts.authorization) headers.authorization = opts.authorization;
 
   async function pushOnce(): Promise<void> {
-    if (stopped) return;
+    // No `stopped` guard here: stop() relies on this for its final flush
+    // (mirrors the traces exporter). The interval callback is what must
+    // respect `stopped`.
     const body = buildExportBody({
       series: opts.sink.snapshot().series,
       resourceAttributes,
@@ -222,7 +224,7 @@ export function startOtlpMetricsExporter(
   }
 
   const handle = setInterval(() => {
-    void pushOnce();
+    if (!stopped) void pushOnce();
   }, intervalMs);
   // Don't keep the process alive just to push metrics — graceful shutdown
   // is the host's job.

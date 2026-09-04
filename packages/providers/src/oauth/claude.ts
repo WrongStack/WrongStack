@@ -65,7 +65,13 @@ async function readTokens(res: Response, op: string): Promise<ClaudeTokens> {
     });
   }
   const json = (await res.json()) as TokenJson | null;
-  if (!json?.access_token || !json.refresh_token || typeof json.expires_in !== 'number') {
+  if (
+    !json?.access_token ||
+    !json.refresh_token ||
+    typeof json.expires_in !== 'number' ||
+    !Number.isFinite(json.expires_in) ||
+    json.expires_in <= 0
+  ) {
     throw new ParseError({
       message: `Claude token ${op} response missing fields`,
       source: 'anthropic-oauth-token-response',

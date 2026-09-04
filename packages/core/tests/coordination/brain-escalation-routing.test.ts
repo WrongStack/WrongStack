@@ -9,7 +9,7 @@ import {
   EscalationRoutingBrainArbiter,
   terminalPolicyDecision,
 } from '../../src/coordination/brain.js';
-import type { EventBus } from '../../src/kernel/events.js';
+import { EventBus } from '../../src/kernel/events.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'e1',
@@ -150,5 +150,89 @@ describe('BrainDecisionQueue — onTimeout', () => {
     const d = await queue.requestHumanDecision(req());
     expect(d.type).toBe('deny');
     queue.dispose();
+  });
+});
+
+describe('escalation ladder steps', () => {
+  it('headless mode records a terminal step naming the policy', async () => {
+    const events = new EventBus();
+    const steps: Array<Record<string, unknown>> = [];
+    events.on('brain.tier_transition', (e) => steps.push(e as Record<string, unknown>));
+    const arbiter = new EscalationRoutingBrainArbiter(
+      stub(askHuman),
+      undefined,
+      () => 'headless',
+      () => 'conservative',
+      events,
+    );
+
+    const decision = await arbiter.decide(req({ risk: 'critical' }));
+
+    expect(decision.type).toBe('deny');
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({ tier: 'terminal', outcome: 'deny', terminal: true });
+    expect(String(steps[0]?.reason)).toContain('conservative');
+  });
+
+  it('an answering human records a terminal human step, and the prompt is marked pending', async () => {
+    const events = new EventBus();
+    const steps: Array<Record<string, unknown>> = [];
+    const prompts: Array<Record<string, unknown>> = [];
+    events.on('brain.tier_transition', (e) => steps.push(e as Record<string, unknown>));
+    events.on('brain.decision_ask_human', (e) => prompts.push(e as Record<string, unknown>));
+    const queue = new BrainDecisionQueue(events);
+    const arbiter = new EscalationRoutingBrainArbiter(
+      stub(askHuman),
+      queue,
+      () => 'interactive',
+      undefined,
+      events,
+    );
+
+    const pending = arbiter.decide(req({ id: 'h1', options: [{ id: 'go', label: 'Go' }] }));
+    // The prompt is emitted after the inner chain resolves — let it settle.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]?.pending).toBe(true);
+
+    events.emit('brain.human_answered', { id: 'h1', optionId: 'go', at: Date.now() });
+    await expect(pending).resolves.toMatchObject({ type: 'answer', optionId: 'go' });
+
+    expect(steps).toEqual([
+      expect.objectContaining({ tier: 'human', outcome: 'answer', terminal: true }),
+    ]);
+    queue.dispose();
+  });
+
+  it('an unanswered prompt records a terminal step, not a human one', async () => {
+    vi.useFakeTimers();
+    try {
+      const events = new EventBus();
+      const steps: Array<Record<string, unknown>> = [];
+      events.on('brain.tier_transition', (e) => steps.push(e as Record<string, unknown>));
+      const queue = new BrainDecisionQueue(events, {
+        timeoutMs: 50,
+        onTimeout: (request) => terminalPolicyDecision(request),
+      });
+      const arbiter = new EscalationRoutingBrainArbiter(
+        stub(askHuman),
+        queue,
+        () => 'interactive',
+        undefined,
+        events,
+      );
+
+      const pending = arbiter.decide(req({ id: 'h2', risk: 'critical' }));
+      await vi.advanceTimersByTimeAsync(60);
+      await expect(pending).resolves.toMatchObject({ type: 'deny' });
+
+      expect(steps).toEqual([
+        expect.objectContaining({ tier: 'terminal', outcome: 'deny', terminal: true }),
+      ]);
+      queue.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

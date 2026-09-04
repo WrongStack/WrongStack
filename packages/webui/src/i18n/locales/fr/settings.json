@@ -835,6 +835,8 @@
     "councilDistinctnessHint": "Rejeter les sièges en double : 'model' exige des modèles distincts, 'provider' des fournisseurs indépendants pour qu'une panne ne puisse pas faire basculer le vote.",
     "councilVoterBudgetLabel": "Budget de réponse du votant",
     "councilVoterBudgetHint": "Jetons de sortie par appel de siège — les modèles de raisonnement dépensent leurs jetons de réflexion sur ce budget.",
+    "councilRoundsLabel": "Tours de délibération",
+    "councilRoundsHint": "Le tour 1 est indépendant. Aux tours suivants, chaque siège voit les votes des autres et peut réviser sa position. Seul le dernier tour est compté, et chaque tour coûte un appel de plus par siège.",
     "councilJudgeBudgetLabel": "Budget de réponse du juge",
     "councilJudgeBudgetHint": "Jetons de sortie pour l'appel du juge de départage.",
     "councilSeatTemplate": "Modèle de siège :",
@@ -901,6 +903,7 @@
     "m5Default": "5 min (par défaut)",
     "default": "Par défaut",
     "oneSerial": "1 (série)",
+    "roundsOff": "1 (pas de délibération)",
     "default500": "Par défaut (500)",
     "default10m": "Par défaut (10 min)"
   },

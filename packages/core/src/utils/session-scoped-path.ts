@@ -13,7 +13,16 @@ import { ERROR_CODES, FsError } from '../types/errors.js';
  * several stores ended up throwing on every modern session id.
  */
 export function sessionScopedPath(dir: string, sessionId: string, suffix: string): string {
-  if (!sessionId || sessionId.includes('..') || sessionId.includes('\\')) {
+  if (
+    typeof dir !== 'string' ||
+    !dir ||
+    typeof sessionId !== 'string' ||
+    !sessionId ||
+    typeof suffix !== 'string' ||
+    sessionId.includes('\0') ||
+    sessionId.includes('..') ||
+    sessionId.includes('\\')
+  ) {
     throw invalid(sessionId);
   }
   const resolved = path.resolve(dir, `${sessionId}${suffix}`);
@@ -66,12 +75,14 @@ export const SESSION_COLD_TRANSCRIPT_SUFFIX = '.jsonl.gz';
  *  classify transcript suffixes case-insensitively so a file written on one
  *  host is still a transcript when the same tree is read on another. */
 export function endsWithTranscriptSuffix(name: string, suffix: string): boolean {
+  if (typeof name !== 'string' || typeof suffix !== 'string') return false;
   if (name.length < suffix.length) return false;
   return name.slice(-suffix.length).toLowerCase() === suffix.toLowerCase();
 }
 
 /** True when `name` is a gzip-compressed session transcript. */
 export function isColdSessionTranscriptFileName(name: string): boolean {
+  if (typeof name !== 'string') return false;
   return endsWithTranscriptSuffix(name, SESSION_COLD_TRANSCRIPT_SUFFIX);
 }
 
@@ -80,6 +91,7 @@ export function isColdSessionTranscriptFileName(name: string): boolean {
  * are returned unchanged so callers can detect non-transcripts.
  */
 export function stripSessionTranscriptExtension(name: string): string {
+  if (typeof name !== 'string') return '';
   if (endsWithTranscriptSuffix(name, SESSION_COLD_TRANSCRIPT_SUFFIX)) {
     return name.slice(0, -SESSION_COLD_TRANSCRIPT_SUFFIX.length);
   }
@@ -90,6 +102,7 @@ export function stripSessionTranscriptExtension(name: string): string {
 }
 
 export function isSessionTranscriptFileName(name: string): boolean {
+  if (typeof name !== 'string') return false;
   if (endsWithTranscriptSuffix(name, SESSION_COLD_TRANSCRIPT_SUFFIX)) {
     return isSessionTranscriptFileName(name.slice(0, -3));
   }

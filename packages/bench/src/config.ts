@@ -5,6 +5,7 @@ const DEFAULTS = {
   maxIterations: 40,
   concurrency: 4,
   timeoutMs: 600_000,
+  repeats: 1,
 } as const;
 
 /**
@@ -51,8 +52,85 @@ export function parseBenchConfig(raw: unknown): BenchConfig {
   const maxIterations = positiveInt(obj['maxIterations'], DEFAULTS.maxIterations, 'maxIterations');
   const concurrency = positiveInt(obj['concurrency'], DEFAULTS.concurrency, 'concurrency');
   const timeoutMs = positiveInt(obj['timeoutMs'], DEFAULTS.timeoutMs, 'timeoutMs');
+  const repeats = positiveInt(obj['repeats'], DEFAULTS.repeats, 'repeats');
 
-  return { maxIterations, concurrency, timeoutMs, cells };
+  return { maxIterations, concurrency, timeoutMs, repeats, cells };
+}
+
+/**
+ * Parse a comma-separated `--cell` spec into model cells.
+ *
+ * Each item is `provider/model` or `label=provider/model`.
+ * Example: `opus=anthropic/claude-opus-4-8,openai/gpt-5.4`
+ */
+export function parseCellList(spec: string): ModelCell[] {
+  const parts = spec
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (parts.length === 0) {
+    throw new Error('cell list is empty — pass provider/model or label=provider/model');
+  }
+  return parseBenchConfig({
+    cells: parts.map((part, i) => parseCellSpec(part, i)),
+  }).cells;
+}
+
+/** Build a config from already-parsed cells, applying the usual numeric defaults. */
+export function configFromCells(
+  cells: ModelCell[],
+  overrides?: Partial<Pick<BenchConfig, 'maxIterations' | 'concurrency' | 'timeoutMs' | 'repeats'>>,
+): BenchConfig {
+  return parseBenchConfig({
+    cells,
+    maxIterations: overrides?.maxIterations,
+    concurrency: overrides?.concurrency,
+    timeoutMs: overrides?.timeoutMs,
+    repeats: overrides?.repeats,
+  });
+}
+
+/** Defaults used when the bundled smoke suite runs without a config file. */
+export const SMOKE_CONFIG_DEFAULTS = {
+  maxIterations: 20,
+  concurrency: 2,
+  timeoutMs: 180_000,
+} as const;
+
+/** Defaults for the bundled `core` quality suite (real tests, not wiring). */
+export const CORE_CONFIG_DEFAULTS = {
+  maxIterations: 40,
+  concurrency: 2,
+  timeoutMs: 600_000,
+} as const;
+
+function parseCellSpec(spec: string, index: number): ModelCell {
+  const eq = spec.indexOf('=');
+  let label: string | undefined;
+  let rest = spec;
+  if (eq !== -1) {
+    label = spec.slice(0, eq).trim();
+    rest = spec.slice(eq + 1).trim();
+  }
+  const slash = rest.indexOf('/');
+  if (slash <= 0 || slash === rest.length - 1) {
+    throw new Error(
+      `cells[${index}] must be provider/model or label=provider/model (got ${JSON.stringify(spec)})`,
+    );
+  }
+  const provider = rest.slice(0, slash).trim();
+  const model = rest.slice(slash + 1).trim();
+  if (!provider || !model) {
+    throw new Error(
+      `cells[${index}] must be provider/model or label=provider/model (got ${JSON.stringify(spec)})`,
+    );
+  }
+  const cell: ModelCell = {
+    label: label && label.length > 0 ? label : `${provider}/${model}`,
+    provider,
+    model,
+  };
+  return cell;
 }
 
 /** Load and validate a `bench.config.json` from disk. */

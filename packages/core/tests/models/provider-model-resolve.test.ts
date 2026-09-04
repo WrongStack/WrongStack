@@ -127,6 +127,7 @@ describe('resolveProviderModelList', () => {
     // (e.g. offline). The provider must still surface the ChatGPT sign-in models.
     const list = resolveProviderModelList([], undefined, 'openai-codex');
     expect(list.map((m) => m.id)).toEqual([
+      'gpt-6-astra',
       'gpt-5.6-sol',
       'gpt-5.5',
       'gpt-5.6-terra',
@@ -136,9 +137,9 @@ describe('resolveProviderModelList', () => {
       'gpt-5.3-codex-spark',
     ]);
     expect(list[0]).toMatchObject({
-      id: 'gpt-5.6-sol',
-      name: 'GPT-5.6 Sol',
-      description: 'Latest frontier agentic coding model.',
+      id: 'gpt-6-astra',
+      name: 'GPT-6 Astra',
+      description: 'Most capable model for complex work across code, apps, and research.',
       capabilities: [],
     });
   });
@@ -146,6 +147,7 @@ describe('resolveProviderModelList', () => {
   it('falls back to the codex list for openai-codex when the catalog has zero models', () => {
     const list = resolveProviderModelList(undefined, catalog([]), 'openai-codex');
     expect(list.map((m) => m.id)).toEqual([
+      'gpt-6-astra',
       'gpt-5.6-sol',
       'gpt-5.5',
       'gpt-5.6-terra',

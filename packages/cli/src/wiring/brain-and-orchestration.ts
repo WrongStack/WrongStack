@@ -107,6 +107,8 @@ interface BrainOrchestrationDeps {
 interface BrainOrchestrationResult {
   brain: ObservableBrainArbiter;
   brainLog: AnyObj[];
+  /** Session-lifetime per-tier decision tally for `/brain stats`. */
+  brainTierStats: () => import('@wrongstack/core/coordination').BrainTierStats;
   brainSettings: BrainRuntimeSettings;
   /** Live-editable Brain config owner (apply = live + persist-to-global). */
   brainRuntime: BrainRuntime;
@@ -317,13 +319,18 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
       brainQueue,
       () => brainRuntime.getMode(),
       () => brainRuntime.getSnapshot().terminalPolicy,
+      events,
     ),
     events,
   );
   container.bind(TOKENS.BrainArbiter, () => brain);
 
   // Decision log for /brain status
-  const { brainLog, dispose: disposeBrainLog } = subscribeBrainDecisionLog(events);
+  const {
+    brainLog,
+    getTierStats: brainTierStats,
+    dispose: disposeBrainLog,
+  } = subscribeBrainDecisionLog(events);
   teardownHandlers.push(disposeBrainLog);
 
   // NOTE: setupHqTelemetry() is called here in cli-main.ts between
@@ -505,6 +512,7 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
   return {
     brain,
     brainLog,
+    brainTierStats,
     brainSettings,
     brainRuntime,
     brainQueue,

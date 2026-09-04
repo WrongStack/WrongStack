@@ -335,22 +335,30 @@ export function convertUsage(usage: LanguageModelUsage): Usage {
   // `inputTokenDetails` is required by the AI SDK type but arrives from the
   // wire — a gateway response missing it must not crash the whole stream.
   const details = usage.inputTokenDetails ?? {};
-  const cacheRead = details.cacheReadTokens ?? 0;
-  const cacheWrite = details.cacheWriteTokens ?? 0;
-  const reportedInput = usage.inputTokens ?? 0;
+  const cacheRead = nonNegative(details.cacheReadTokens);
+  const cacheWrite = nonNegative(details.cacheWriteTokens);
+  const reportedInput = nonNegative(usage.inputTokens);
   const separateCacheExceedsInput = cacheRead + cacheWrite > reportedInput;
   const input =
-    details.noCacheTokens ??
+    optionalNonNegative(details.noCacheTokens) ??
     (separateCacheExceedsInput
       ? Math.max(0, reportedInput)
       : Math.max(0, reportedInput - cacheRead - cacheWrite));
 
   return {
     input,
-    output: usage.outputTokens ?? 0,
+    output: nonNegative(usage.outputTokens),
     ...(cacheRead > 0 ? { cacheRead } : {}),
     ...(cacheWrite > 0 ? { cacheWrite } : {}),
   };
+}
+
+function nonNegative(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function optionalNonNegative(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
 /**

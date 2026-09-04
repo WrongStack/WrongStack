@@ -58,15 +58,17 @@ describe('Chronicle rollups', () => {
       attributes: {
         signal: 'process.output',
         samples: 3,
-        stats: { bytes: { sum: 60, min: 10, max: 30, avg: 20 } },
-        rawEventsRetained: false,
+        // No `avg` (derivable from sum/samples, and unread anywhere) and no
+        // `digest`/`rawEventsRetained` (a 64-char hash and a constant, neither
+        // with a reader).
+        stats: { bytes: { sum: 60, min: 10, max: 30 } },
       },
     });
     expect(recorded[1]).toMatchObject({
       attributes: {
         signal: 'ctx.pct',
         samples: 2,
-        stats: { load: { min: 0.2, max: 0.8, avg: 0.5 }, tokens: { sum: 100, last: 80 } },
+        stats: { load: { min: 0.2, max: 0.8 }, tokens: { sum: 100, last: 80 } },
       },
     });
   });
@@ -126,8 +128,11 @@ describe('Chronicle rollups', () => {
         samples: 2,
         stats: {
           agents: { sum: 3, last: 1 },
-          running: { sum: 2 },
-          toolCalls: { sum: 8, max: 4 },
+          // Both samples reported 1 running and 4 tool calls, so min/max/last
+          // agree and collapse to sum+last. `sum` is never dropped: a window of
+          // identical samples still has a total worth more than one of them.
+          running: { sum: 2, last: 1 },
+          toolCalls: { sum: 8, last: 4 },
           costUsd: { sum: 1.5 },
         },
       },
@@ -136,7 +141,7 @@ describe('Chronicle rollups', () => {
       attributes: {
         samples: 3,
         dimensions: { initiator: 'provider', serverAddress: 'api.example.com' },
-        stats: { durationMs: { sum: 90, min: 10, max: 50, avg: 30 } },
+        stats: { durationMs: { sum: 90, min: 10, max: 50 } },
         categories: { '2xx': 2, '5xx': 1 },
       },
     });
@@ -181,7 +186,7 @@ describe('Chronicle rollups', () => {
         signal: 'runtime.health',
         samples: 2,
         stats: {
-          'eventLoop.utilization': { min: 0.2, max: 0.6, last: 0.6, avg: 0.4 },
+          'eventLoop.utilization': { min: 0.2, max: 0.6, last: 0.6 },
           'memory.heapUsedBytes': { min: 1_000, max: 2_000, last: 2_000 },
           'chronicle.pendingEvents': { last: 5 },
           'chronicle.rejectedEvents': { last: 1 },
@@ -234,14 +239,18 @@ describe('Chronicle rollups', () => {
     expect(rollup).toBeDefined();
     expect(rollup).toMatchObject({
       eventType: 'metrics.rollup',
-      correlation: { toolCallId: 'tc-1' },
       attributes: {
         samples: 3,
-        categories: { file: 2, symbol: 1 },
+        // The tool name moved from `dimensions` into `categories`: the bucket is
+        // keyed on the logical request now and merges every call in the turn, so
+        // a single `toolName` would name only the call that opened it.
+        categories: { file: 2, symbol: 1, 'tool:grep': 1 },
         resourceCount: 3,
-        dimensions: { toolName: 'grep' },
+        dimensions: {},
       },
     });
+    // No `toolCallId` either, for the same reason.
+    expect(rollup!.correlation.toolCallId).toBeUndefined();
     const resources = (
       rollup!.attributes as { resources: Array<{ id: string; kind: string; path?: string }> }
     ).resources;

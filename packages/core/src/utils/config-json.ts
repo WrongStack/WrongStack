@@ -67,6 +67,9 @@ function isForbiddenSegment(segment: JsonPathSegment): boolean {
 }
 
 function assertSafePath(path: JsonPath): void {
+  if (!Array.isArray(path)) {
+    throw new Error('JSON path must be an array of segments');
+  }
   for (const segment of path) {
     if (isForbiddenSegment(segment)) {
       throw new Error(`Refusing to use reserved key "${String(segment)}" in a JSON path`);
@@ -77,7 +80,7 @@ function assertSafePath(path: JsonPath): void {
 export function getJsonPath(root: unknown, path: JsonPath): unknown {
   // Reads are refused rather than thrown on: a caller asking for `__proto__`
   // gets "not present", which is the honest answer about the config's data.
-  if (path.some(isForbiddenSegment)) return undefined;
+  if (!Array.isArray(path) || path.some(isForbiddenSegment)) return undefined;
   let current = root;
   for (const segment of path) {
     if (typeof segment === 'number') {
@@ -94,6 +97,7 @@ export function getJsonPath(root: unknown, path: JsonPath): unknown {
 export function setJsonPath(root: JsonObject, path: JsonPath, value: unknown): JsonObject {
   // Writes throw rather than silently no-op: a caller trying to set a
   // prototype key is either a bug or an attack, and both deserve to be loud.
+  if (root === null || root === undefined) throw new Error('Root config value must be an object');
   assertSafePath(path);
   if (path.length === 0) {
     if (!isJsonObject(value)) throw new Error('Root config value must be an object');
@@ -115,7 +119,7 @@ export function setJsonPath(root: JsonObject, path: JsonPath, value: unknown): J
 export function removeJsonPath(root: JsonObject, path: JsonPath): boolean {
   // `'__proto__' in obj` is true for every plain object, so without this the
   // delete branch would run against the prototype rather than report "absent".
-  if (path.some(isForbiddenSegment)) return false;
+  if (!isJsonObject(root) || !Array.isArray(path) || path.some(isForbiddenSegment)) return false;
   if (path.length === 0) return false;
   const parent = getJsonPath(root, path.slice(0, -1));
   const leaf = lastPathSegment(path);

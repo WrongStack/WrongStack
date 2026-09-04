@@ -7,7 +7,7 @@ import type {
 } from '@wrongstack/core/types';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
-import type { BuildBodyContext } from './model-output-limits.js';
+import { type BuildBodyContext, resolveMaxOutputTokens } from './model-output-limits.js';
 import { parseOpenAIResponsesStream } from './openai-codex.js';
 import { applyPromptCacheKey } from './prompt-cache-key.js';
 import { messagesToResponsesInput, toolsToResponses } from './tool-format/to-responses.js';
@@ -85,7 +85,10 @@ export class OpenAIResponsesProvider extends WireAdapter {
       body['tool_choice'] = mapToolChoice(req.toolChoice);
       body['parallel_tool_calls'] = true;
     }
-    if (req.maxTokens !== undefined) body['max_output_tokens'] = Math.floor(req.maxTokens);
+    const maxOutput = resolveMaxOutputTokens(req, ctx);
+    if (maxOutput !== undefined) {
+      body['max_output_tokens'] = maxOutput;
+    }
     if (req.temperature !== undefined) body['temperature'] = req.temperature;
     if (req.topP !== undefined) body['top_p'] = req.topP;
     const effort = supportedResponsesEffort(req.reasoning?.effort);

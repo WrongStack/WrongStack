@@ -299,6 +299,26 @@ export interface BrainCouncilConfig {
   /** Output budget for the judge call. Default follows the seat budget. */
   judgeMaxTokens?: number | undefined;
   /**
+   * Voting rounds per decision. Default 2.
+   *
+   * Round 1 is independent — no seat sees another. From round 2 on, every
+   * seat is shown the others' previous ballots and votes again; only the
+   * final round is tallied. A seat that missed a consequence another lens
+   * caught can revise on it.
+   *
+   * Cost is LINEAR: 2 rounds means two provider calls per seat on every
+   * council decision, not only contested ones. Set 1 to restore the
+   * single-round panel.
+   *
+   * The trade is independence for information, and it is not free — models
+   * converge on a stated majority whether or not the majority brought an
+   * argument. Watch `deliberationChanges` on the resolution: a panel where
+   * most seats flip every round has stopped being a panel, and the
+   * orchestrator warns when that happens.
+   */
+  deliberationRounds?: number | undefined;
+
+  /**
    * Persona rotation for seats without an explicit one. Replaces the built-in
    * executor / skeptic(veto) / auditor cycle.
    */
@@ -343,7 +363,13 @@ export interface BrainConfig {
   models?: Array<string | BrainModelEntry> | undefined;
   /** Pool selection strategy. Default 'fallback'. */
   strategy?: 'fallback' | 'round-robin' | undefined;
-  /** Per-LLM-call decision timeout (ms). Default 15000. */
+  /**
+   * Per-LLM-call decision timeout (ms). Default 45000 — reasoning models
+   * spend their budget thinking, and the previous 15s aborted them
+   * mid-response. The whole pool walk is separately capped at three
+   * attempts' worth of this budget, so a deep fallback chain of dead
+   * endpoints cannot block the caller for N x this value.
+   */
   decisionTimeoutMs?: number | undefined;
   /**
    * Quality gate for the single-LLM tier — what counts as a usable answer.
@@ -353,9 +379,13 @@ export interface BrainConfig {
   llm?:
     | {
         /**
-         * Output budget per decision call. Default 200. A Brain response is
-         * one decision plus a one-sentence rationale; raise this only if the
-         * trace shows responses truncated at `maxTokens`.
+         * Output budget per decision call. Default 2000.
+         *
+         * The RESPONSE is one decision plus a one-sentence rationale, but a
+         * reasoning model's thinking tokens come out of the same allowance —
+         * a tight budget yields an empty or mid-JSON response that the tier
+         * reports as `unparseable`, i.e. the LLM tier silently stops
+         * deciding. Lower it only for a pool of non-reasoning models.
          */
         maxTokens?: number | undefined;
         /**

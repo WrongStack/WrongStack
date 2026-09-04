@@ -89,7 +89,9 @@ function baseDir(pat: string): string {
     }
   }
   const cut = Math.max(pat.lastIndexOf(SEP, firstGlob - 1), pat.lastIndexOf('/', firstGlob - 1));
-  return cut < 0 ? '.' : pat.slice(0, cut);
+  if (cut < 0) return '.';
+  if (cut === 0) return pat[0] ?? '/';
+  return pat.slice(0, cut);
 }
 
 /**
@@ -101,6 +103,7 @@ function baseDir(pat: string): string {
  * await expandGlob('foo.txt')       // → ['foo.txt']
  */
 export async function expandGlob(pattern: string): Promise<string[]> {
+  if (typeof pattern !== 'string') return [];
   if (!isGlob(pattern)) return [pattern];
 
   const normalized = pattern.replace(/\\/g, '/');
@@ -108,7 +111,10 @@ export async function expandGlob(pattern: string): Promise<string[]> {
   const abs = isAbsolute(pattern);
   const base = baseDir(pattern);
   const baseNorm = base.replace(/\\/g, '/');
-  const relPat = base === '.' ? normalized : normalized.slice(baseNorm.length + 1);
+  const relPat =
+    base === '.'
+      ? normalized
+      : normalized.slice(baseNorm.length + (baseNorm.endsWith('/') ? 0 : 1));
 
   async function walk(dir: string, pat: string): Promise<void> {
     let entries: import('node:fs').Dirent[];

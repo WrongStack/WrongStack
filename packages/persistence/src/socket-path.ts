@@ -38,11 +38,14 @@ export function checkUnixSocketPath(
   socketPath: string,
   platform: NodeJS.Platform = process.platform,
 ): UnixSocketPathCheck {
-  if (platform === 'win32') {
-    return { ok: true, byteLength: socketPath.length, maxBytes: Number.MAX_SAFE_INTEGER };
+  const maxBytes = platform === 'win32' ? Number.MAX_SAFE_INTEGER : unixSocketPathLimit(platform);
+  if (typeof socketPath !== 'string' || socketPath.includes('\0')) {
+    return { ok: false, byteLength: 0, maxBytes };
   }
   const byteLength = Buffer.byteLength(socketPath, 'utf8');
-  const maxBytes = unixSocketPathLimit(platform);
+  if (platform === 'win32') {
+    return { ok: true, byteLength, maxBytes };
+  }
   return { ok: byteLength <= maxBytes, byteLength, maxBytes };
 }
 

@@ -169,3 +169,109 @@ describe('subscribeBrainDecisionLog', () => {
     expect(brainLog).toEqual([]);
   });
 });
+
+describe('subscribeBrainDecisionLog — tier provenance', () => {
+  it('carries the tier from the event onto the log entry', () => {
+    const events = new FakeEvents();
+    const { brainLog } = subscribeBrainDecisionLog(events);
+
+    events.emit('brain.decision_answered', {
+      at: 1,
+      tier: 'council',
+      request: { question: 'ship it?' },
+      decision: { type: 'answer', optionId: 'ship' },
+    });
+    events.emit('brain.decision_denied', {
+      at: 2,
+      tier: 'ledger-guard',
+      request: { question: 'extend again?' },
+      decision: { type: 'deny', reason: 'streak' },
+    });
+
+    expect(brainLog.map((e) => e.tier)).toEqual(['council', 'ledger-guard']);
+  });
+
+  it('omits tier when the chain recorded no provenance', () => {
+    const events = new FakeEvents();
+    const { brainLog } = subscribeBrainDecisionLog(events);
+
+    events.emit('brain.decision_answered', {
+      at: 1,
+      request: { question: 'q' },
+      decision: { type: 'answer', text: 'go' },
+    });
+
+    expect(brainLog[0]?.tier).toBeUndefined();
+  });
+
+  it('labels a pending escalation apart from a final ask_human', () => {
+    const events = new FakeEvents();
+    const { brainLog } = subscribeBrainDecisionLog(events);
+
+    events.emit('brain.decision_ask_human', {
+      at: 1,
+      pending: true,
+      request: { question: 'q' },
+    });
+    events.emit('brain.decision_ask_human', { at: 2, request: { question: 'q' } });
+
+    expect(brainLog.map((e) => e.outcome)).toEqual(['waiting on a human', 'escalated to human']);
+  });
+});
+
+describe('subscribeBrainDecisionLog — session-lifetime tier stats', () => {
+  it('counts every resolution, including ones the 20-entry ring has evicted', () => {
+    const events = new FakeEvents();
+    const { brainLog, getTierStats } = subscribeBrainDecisionLog(events);
+
+    for (let i = 0; i < 25; i++) {
+      events.emit('brain.decision_answered', {
+        at: i,
+        tier: i % 5 === 0 ? 'llm' : 'rule',
+        request: { question: `q${i}` },
+        decision: { type: 'answer', text: 'go' },
+      });
+    }
+
+    expect(brainLog).toHaveLength(20);
+    const stats = getTierStats();
+    expect(stats.total).toBe(25);
+    expect(stats.byTier.rule).toBe(20);
+    expect(stats.byTier.llm).toBe(5);
+    expect(stats.deterministic).toBe(20);
+    expect(stats.llmBacked).toBe(5);
+  });
+
+  it('counts an escalation once — the prompt is not a resolution', () => {
+    const events = new FakeEvents();
+    const { getTierStats } = subscribeBrainDecisionLog(events);
+
+    events.emit('brain.decision_ask_human', {
+      at: 1,
+      pending: true,
+      request: { question: 'q' },
+    });
+    events.emit('brain.decision_answered', {
+      at: 2,
+      tier: 'human',
+      request: { question: 'q' },
+      decision: { type: 'answer', optionId: 'go' },
+    });
+
+    expect(getTierStats().total).toBe(1);
+    expect(getTierStats().byTier.human).toBe(1);
+  });
+
+  it('buckets a decision with no recorded tier as unattributed', () => {
+    const events = new FakeEvents();
+    const { getTierStats } = subscribeBrainDecisionLog(events);
+
+    events.emit('brain.decision_denied', {
+      at: 1,
+      request: { question: 'q' },
+      decision: { type: 'deny', reason: 'no' },
+    });
+
+    expect(getTierStats().unattributed).toBe(1);
+  });
+});

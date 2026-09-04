@@ -512,9 +512,9 @@ async function* parseOpenAIStream(
       // DeepSeek returns `prompt_cache_hit_tokens`/`prompt_cache_miss_tokens`.
       const hasDeepSeekCacheFields =
         u.prompt_cache_hit_tokens !== undefined || u.prompt_cache_miss_tokens !== undefined;
-      const cached = u.prompt_tokens_details?.cached_tokens ?? u.prompt_cache_hit_tokens ?? 0;
-      const cacheWrite = u.prompt_tokens_details?.cache_write_tokens ?? 0;
-      const completion = u.completion_tokens ?? usage.output;
+      const cached = nonNegative(u.prompt_tokens_details?.cached_tokens ?? u.prompt_cache_hit_tokens);
+      const cacheWrite = nonNegative(u.prompt_tokens_details?.cache_write_tokens);
+      const completion = nonNegative(u.completion_tokens, usage.output);
       // MiniMax's OpenAI-compatible API formally guarantees only `total_tokens`
       // in its streamed usage (prompt_tokens/completion_tokens are documented as
       // examples, not required), so its final chunk can carry total+completion
@@ -524,10 +524,11 @@ async function* parseOpenAIStream(
       // explicit prompt fields so no compliant provider regresses.
       const hasPromptTotal = u.prompt_tokens !== undefined;
       const hasFreshInputDelta = !hasPromptTotal && u.input_tokens !== undefined;
+      const cacheMiss = optionalNonNegative(u.prompt_cache_miss_tokens);
       const reportedPromptTotal = hasPromptTotal
-        ? (u.prompt_tokens ?? 0)
+          ? nonNegative(u.prompt_tokens)
         : hasDeepSeekCacheFields
-          ? (u.prompt_cache_hit_tokens ?? 0) + (u.prompt_cache_miss_tokens ?? 0)
+          ? nonNegative(u.prompt_cache_hit_tokens) + nonNegative(u.prompt_cache_miss_tokens)
           : u.total_tokens !== undefined
             ? Math.max(0, u.total_tokens - completion)
             : usage.input + cached + cacheWrite;
@@ -540,7 +541,7 @@ async function* parseOpenAIStream(
           : reportedPromptTotal;
       const nextUsage: Usage = {
         input:
-          u.prompt_cache_miss_tokens ??
+          cacheMiss ??
           (hasFreshInputDelta
             ? Math.max(0, u.input_tokens ?? 0)
             : Math.max(0, promptTotal - cached - cacheWrite)),
@@ -598,4 +599,12 @@ async function* parseOpenAIStream(
   if (started) {
     yield { type: 'message_stop', stopReason, usage };
   }
+}
+
+function nonNegative(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function optionalNonNegative(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 }

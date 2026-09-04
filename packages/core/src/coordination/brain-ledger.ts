@@ -36,7 +36,7 @@ import { createInterface } from 'node:readline';
 import type { EventBus } from '../kernel/events.js';
 import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from './brain.js';
-import { markDecisionTier } from './brain-telemetry.js';
+import { emitBrainTierTransition, markDecisionTier } from './brain-telemetry.js';
 
 export interface BrainLedgerEntry {
   at: number;
@@ -105,6 +105,12 @@ export interface LedgerGuardBrainArbiterOptions {
    * on record for the request's decision group. Default 3. 0 disables.
    */
   denyAfter?: number | undefined;
+  /**
+   * Bus for the `brain.tier_transition` step recorded when the guard denies.
+   * A guard denial is terminal and costs nothing, so without this step the
+   * hardest stop in the whole ladder is also its most invisible one.
+   */
+  events?: EventBus | undefined;
 }
 
 /**
@@ -126,10 +132,20 @@ export function createLedgerGuardBrainArbiter(opts: LedgerGuardBrainArbiterOptio
   const denyAfter = opts.denyAfter ?? 3;
   return {
     async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
+      const startedAt = Date.now();
       if (denyAfter > 0) {
         const streak = opts.failureStreakFor(request);
         if (streak >= denyAfter) {
           markDecisionTier(request, 'ledger-guard');
+          emitBrainTierTransition(
+            opts.events,
+            request,
+            'ledger-guard',
+            'deny',
+            true,
+            startedAt,
+            `${streak} consecutive observed failures on record`,
+          );
           return {
             type: 'deny',
             reason:

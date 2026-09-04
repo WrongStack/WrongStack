@@ -3645,6 +3645,8 @@
     "voting": "Votazione in corso…",
     "judgeUsed": "Il giudice ha risolto il pareggio",
     "correlated": "Panel correlato",
+    "converged": "Collegio Convergente",
+    "judgeIsVoter": "Il Giudice Ha Votato",
     "evaluatedQuestion": "Proposta / domanda deliberata:",
     "votingDistribution": "Distribuzione della votazione di consenso",
     "quorumWeight": "Peso totale: {{weight}}",

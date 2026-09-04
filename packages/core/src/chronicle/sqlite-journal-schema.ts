@@ -62,6 +62,71 @@ export function projectEvent(event: ChronicleEvent): ProjectedRow {
   };
 }
 
+/** Below this, an existing database is left in its current vacuum mode. */
+const CONVERT_VACUUM_MIN_BYTES = 64 * 1024 * 1024;
+
+/**
+ * Above this, conversion is left to the explicit `chronicle compact` path.
+ *
+ * The conversion runs in the journal constructor, so its cost is a stall
+ * before the daemon serves its first append. A gigabyte rewrites in seconds;
+ * the multi-gigabyte files this codebase has actually seen -- a 1.47 GB
+ * partition, a 12.4 GB corpus -- would stall it for minutes with nothing to
+ * tell an operator why. Those are exactly the cases that deserve a deliberate,
+ * announced `wstack chronicle compact` instead.
+ */
+const CONVERT_VACUUM_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+
+/** SQLite's numeric code for `PRAGMA auto_vacuum = INCREMENTAL`. */
+const INCREMENTAL_AUTO_VACUUM = 2;
+
+/**
+ * Put the database in incremental-vacuum mode so freed pages can be handed
+ * back to the filesystem instead of sitting on the freelist forever.
+ *
+ * **Call this before `PRAGMA journal_mode = WAL` and before any CREATE TABLE.**
+ * `auto_vacuum` is a header bit SQLite will only accept while the file is still
+ * empty *and* still in rollback-journal mode; issued after the WAL switch it is
+ * accepted silently and does nothing, which is exactly how the first version of
+ * this shipped. The pragma is therefore always read back, and a database that
+ * refused it is converted by the only mechanism that can -- a full `VACUUM` --
+ * or left alone.
+ *
+ * Conversion is not free: `VACUUM` rewrites the whole file and needs room for a
+ * second copy, so it is spent only where it buys something -- a database that
+ * is mostly freelist, or one already large enough that never shrinking is
+ * itself the problem -- and never on a file so large the rewrite would stall
+ * the daemon past noticing.
+ *
+ * Without this, `purge()` and the `maxEvents` trim return pages to the freelist
+ * and the file keeps its all-time high-water mark. Measured on a live install:
+ * a 220 MB `metrics.db` holding 18 MB of live data.
+ */
+export function ensureIncrementalVacuum(
+  db: DatabaseSync,
+): 'already' | 'set' | 'converted' | 'skipped' {
+  if (autoVacuumMode(db) === INCREMENTAL_AUTO_VACUUM) return 'already';
+  db.exec('PRAGMA auto_vacuum = INCREMENTAL');
+  if (autoVacuumMode(db) === INCREMENTAL_AUTO_VACUUM) return 'set';
+
+  const pages = pragmaNumber(db, 'page_count');
+  const freelist = pragmaNumber(db, 'freelist_count');
+  const bytes = pages * pragmaNumber(db, 'page_size');
+  const worthRewriting = freelist > pages / 4 || bytes > CONVERT_VACUUM_MIN_BYTES;
+  if (!worthRewriting || bytes > CONVERT_VACUUM_MAX_BYTES) return 'skipped';
+  db.exec('VACUUM');
+  return autoVacuumMode(db) === INCREMENTAL_AUTO_VACUUM ? 'converted' : 'skipped';
+}
+
+function autoVacuumMode(db: DatabaseSync): number {
+  return pragmaNumber(db, 'auto_vacuum');
+}
+
+function pragmaNumber(db: DatabaseSync, name: string): number {
+  const row = db.prepare(`PRAGMA ${name}`).get() as Record<string, number>;
+  return Number(row[name]);
+}
+
 export function ensureChronicleSchema(db: DatabaseSync): void {
   const version = (db.prepare('PRAGMA user_version').get() as { user_version: number })
     .user_version;

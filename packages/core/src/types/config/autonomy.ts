@@ -242,6 +242,39 @@ export interface SessionLoggingConfig {
  */
 export interface ChronicleConfig {
   /**
+   * How much raw event detail to keep.
+   *
+   * - `full` stores every collected event verbatim.
+   * - `balanced` (default) folds events that carry no information beyond their
+   *   own occurrence -- routine auto-approvals, iteration ticks, cumulative
+   *   token totals -- into periodic `metrics.counter` aggregates. Failures,
+   *   denials and cancellations are always kept raw.
+   * - `lean` additionally folds `tool.started` and external file
+   *   notifications, leaving raw rows for tool calls that failed.
+   *
+   * See `chronicle/detail-policy.ts` for the routing table and the
+   * measurements behind it.
+   */
+  detail?: 'full' | 'balanced' | 'lean' | undefined;
+  /**
+   * Hard ceiling on retained events. The oldest are checkpointed into the
+   * retention chain and evicted once the journal drifts past it, so `verify()`
+   * still succeeds over the truncated prefix. Default: 100 000.
+   */
+  maxEvents?: number | undefined;
+  /**
+   * Aggregate SQLite allocation ceiling in bytes, across the database and its
+   * WAL/SHM sidecars. Appends past it fail with `ChronicleStorageQuotaError`
+   * rather than filling the disk. Default: 512 MiB.
+   */
+  maxBytes?: number | undefined;
+  /**
+   * How long `metrics.db` keeps per-event detail rows (file lineage, per
+   * request rows), measured from the newest recorded day. Daily aggregates are
+   * never pruned. Default: 30.
+   */
+  metricsRowRetentionDays?: number | undefined;
+  /**
    * Delete rotated Chronicle journal partitions older than this many days.
    * Auto-purge runs opportunistically after append batches and is
    * verify()-safe via the retention checkpoint sidecar. `0` disables

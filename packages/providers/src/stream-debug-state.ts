@@ -38,11 +38,14 @@ let _pendingStats: DebugStreamStats | null = null;
 const THROTTLE_MS = 200; // batch React dispatches at ~5 Hz
 
 function _flush(): void {
-  if (_pendingStats && _debugStreamCallback) {
-    _debugStreamCallback({ ..._pendingStats });
+  try {
+    if (_pendingStats && _debugStreamCallback) {
+      _debugStreamCallback({ ..._pendingStats });
+    }
+  } finally {
     _pendingStats = null;
+    _throttleTimer = null;
   }
-  _throttleTimer = null;
 }
 
 function _scheduleFlush(): void {
@@ -59,6 +62,11 @@ export function isDebugStreamEnabled(): boolean {
 /** Flip the stream debug flag at runtime. Persisted separately via ConfigStore. */
 export function setDebugStreamEnabled(enabled: boolean): void {
   _debugStreamEnabled = enabled;
+  if (!enabled && _throttleTimer) {
+    clearTimeout(_throttleTimer);
+    _throttleTimer = null;
+    _pendingStats = null;
+  }
 }
 
 /**

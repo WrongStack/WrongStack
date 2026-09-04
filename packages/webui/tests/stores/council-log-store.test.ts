@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  type CouncilPanelEntry,
   isCouncilPanelAdverse,
   MAX_COUNCIL_PANELS,
   summarizeCouncilPanel,
   toCouncilSeatVote,
   useCouncilLogStore,
-  type CouncilPanelEntry,
 } from '../../src/stores/council-log-store';
 
 function vote(over: Record<string, unknown> = {}): Record<string, unknown> {
@@ -232,7 +232,7 @@ describe('summarizeCouncilPanel', () => {
       .recordResolution(resolution({ distinctTargetCount: 1, judgeUsed: true }));
 
     expect(summarizeCouncilPanel(panel())).toBe(
-      'majority · 3/3 seats · 1 distinct target · judge used · 1.3s · 420 tok',
+      'majority · 3/3 seats · 1 distinct target · judge · 1.3s · 420 tok',
     );
   });
 
@@ -264,5 +264,74 @@ describe('isCouncilPanelAdverse', () => {
       useCouncilLogStore.getState().recordResolution(resolution(over));
       expect(isCouncilPanelAdverse(panel())).toBe(true);
     }
+  });
+});
+
+describe('deliberation rendering', () => {
+  it('keeps one row per seat across rounds and shows the round while voting', () => {
+    const store = useCouncilLogStore.for('s1');
+    store.getState().recordVote({ requestId: 'r1', seatId: 'a', persona: 'executor', round: 1 });
+    store.getState().recordVote({ requestId: 'r1', seatId: 'b', persona: 'skeptic', round: 1 });
+    store
+      .getState()
+      .recordVote({ requestId: 'r1', seatId: 'a', persona: 'executor', round: 2, changed: true });
+
+    const panel = store.getState().panels[0]!;
+    // A deliberating panel re-polls every seat; appending would list each
+    // seat once per round.
+    expect(panel.seats).toHaveLength(2);
+    expect(panel.seats.find((seat) => seat.seatId === 'a')?.changed).toBe(true);
+    expect(summarizeCouncilPanel(panel)).toContain('r2');
+  });
+
+  it('reports the round count and how many seats moved', () => {
+    const store = useCouncilLogStore.for('s2');
+    store.getState().recordVote({ requestId: 'r1', seatId: 'a', persona: 'executor' });
+    store.getState().recordResolution({
+      requestId: 'r1',
+      status: 'decided',
+      resolution: 'majority',
+      configuredSeatCount: 3,
+      validVoteCount: 3,
+      distinctTargetCount: 3,
+      rounds: 2,
+      deliberationChanges: 2,
+    });
+
+    expect(summarizeCouncilPanel(store.getState().panels[0]!)).toContain('2 rounds, 2 changed');
+  });
+
+  it('says so when the extra rounds changed nothing', () => {
+    const store = useCouncilLogStore.for('s3');
+    store.getState().recordVote({ requestId: 'r1', seatId: 'a', persona: 'executor' });
+    store.getState().recordResolution({
+      requestId: 'r1',
+      status: 'decided',
+      resolution: 'majority',
+      rounds: 2,
+      deliberationChanges: 0,
+    });
+
+    // 0 is the honest signal that deliberation bought cost and nothing else.
+    expect(summarizeCouncilPanel(store.getState().panels[0]!)).toContain('none changed');
+  });
+
+  it('treats a judge that had already voted as an adverse panel', () => {
+    const store = useCouncilLogStore.for('s4');
+    store.getState().recordVote({ requestId: 'r1', seatId: 'a', persona: 'executor' });
+    store.getState().recordResolution({
+      requestId: 'r1',
+      status: 'decided',
+      resolution: 'judge',
+      judgeUsed: true,
+      judgeLabel: 'p/m1',
+      judgeIsVoter: true,
+    });
+
+    const panel = store.getState().panels[0]!;
+    // A tie-breaker that cast one of the tied votes is a panel-integrity
+    // problem, exactly like a correlated panel.
+    expect(isCouncilPanelAdverse(panel)).toBe(true);
+    expect(summarizeCouncilPanel(panel)).toContain('judge p/m1 (also a voter)');
   });
 });

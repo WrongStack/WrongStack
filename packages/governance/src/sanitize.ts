@@ -8,5 +8,6 @@
  * cycle (runtime depends on governance, never the reverse).
  */
 export function sanitizeGovernanceMessage(message: string): string {
+  if (typeof message !== 'string') return '';
   return message.replace(/wsg_[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*/gu, '[credential]').slice(0, 512);
 }

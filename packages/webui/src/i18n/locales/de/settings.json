@@ -835,6 +835,8 @@
     "councilDistinctnessHint": "Doppelte Sitze ablehnen: 'model' erfordert verschiedene Modelle, 'provider' unabhängige Provider, damit ein Ausfall die Abstimmung nicht kippen kann.",
     "councilVoterBudgetLabel": "Wähler-Antwortbudget",
     "councilVoterBudgetHint": "Ausgabetoken pro Sitzaufruf — Reasoning-Modelle verbrauchen ihre Denk-Token aus diesem Budget.",
+    "councilRoundsLabel": "Beratungsrunden",
+    "councilRoundsHint": "Runde 1 ist unabhängig. In späteren Runden sieht jeder Sitz die Stimmen der anderen und kann seine Position überdenken. Nur die letzte Runde zählt — und jede Runde kostet einen weiteren Aufruf pro Sitz.",
     "councilJudgeBudgetLabel": "Richter-Antwortbudget",
     "councilJudgeBudgetHint": "Ausgabetoken für den stichentscheidenden Richteraufruf.",
     "councilSeatTemplate": "Sitzvorlage:",
@@ -901,6 +903,7 @@
     "m5Default": "5 min (Standard)",
     "default": "Standard",
     "oneSerial": "1 (seriell)",
+    "roundsOff": "1 (keine Beratung)",
     "default500": "Standard (500)",
     "default10m": "Standard (10 min)"
   },

@@ -35,6 +35,7 @@ const SENSITIVE_FLAG_PATTERNS: RegExp[] = [
  * The original string is unchanged; this is pure and has no side effects.
  */
 export function redactCommand(cmd: string): string {
+  if (typeof cmd !== 'string') return '';
   let result = cmd;
   for (const pattern of SENSITIVE_FLAG_PATTERNS) {
     result = result.replace(pattern, (match) => {

@@ -25,6 +25,13 @@ export interface QueuedItem {
   mode: QueueMode;
   /** Epoch ms of enqueue — drives the newest/oldest display sort. */
   addedAt: number;
+  /**
+   * Images attached in the composer when the message was queued. The queue
+   * must carry them or a queued send silently strips the attachments; the
+   * drain maps them onto the same `user_message.images` payload the direct
+   * send path uses. `mediaType` is added at drain time, not stored here.
+   */
+  images?: { data: string; mime: string }[] | undefined;
 }
 
 /** What a submit in `mode` should do given the current run state.

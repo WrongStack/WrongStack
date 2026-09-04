@@ -216,4 +216,55 @@ describe('startOtlpMetricsExporter', () => {
     // 2 interval ticks + 1 final flush during stop()
     expect(calls.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('performs the documented final flush on stop() — metrics recorded since the last push are not lost', async () => {
+    const sink = new InMemoryMetricsSink();
+    const fetchImpl = vi.fn(
+      async () => new Response('', { status: 200 }),
+    ) as never as typeof globalThis.fetch;
+
+    const exp = startOtlpMetricsExporter({
+      sink,
+      endpoint: 'http://collector:4318',
+      intervalMs: 10_000, // no scheduled tick can fire before stop()
+      fetchImpl,
+    });
+
+    // Observed after start, before graceful shutdown — only stop()'s
+    // documented "attempt a final flush" can deliver it.
+    sink.counter('events_total', 3);
+    await exp.stop();
+
+    const calls = (fetchImpl as never as { mock: { calls: unknown[][] } }).mock.calls;
+    expect(calls.length).toBe(1);
+    const [, init] = calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    const names: string[] = body.resourceMetrics[0].scopeMetrics[0].metrics.map(
+      (m: { name: string }) => m.name,
+    );
+    expect(names).toContain('events_total');
+  });
+
+  it('does not push on the scheduled interval after stop()', async () => {
+    const sink = new InMemoryMetricsSink();
+    const fetchImpl = vi.fn(
+      async () => new Response('', { status: 200 }),
+    ) as never as typeof globalThis.fetch;
+
+    const exp = startOtlpMetricsExporter({
+      sink,
+      endpoint: 'http://collector:4318',
+      intervalMs: 1_000,
+      fetchImpl,
+    });
+
+    sink.counter('events_total', 1);
+    await exp.stop();
+    const afterStop = (fetchImpl as never as { mock: { calls: unknown[][] } }).mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect((fetchImpl as never as { mock: { calls: unknown[][] } }).mock.calls.length).toBe(
+      afterStop,
+    );
+  });
 });

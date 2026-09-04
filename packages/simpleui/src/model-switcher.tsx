@@ -77,7 +77,14 @@ export function ModelSwitcher(props: ModelSwitcherProps): React.JSX.Element {
 
   const visible: ModelPickerRow[] = useMemo(() => {
     if (query.trim()) return queryRows;
-    return recentRows.length > 0 || browsingRows.length > 0 ? [...recentRows, ...browsingRows] : [];
+    if (recentRows.length === 0) return browsingRows;
+    // A recent pick that is also within the browsing page must not appear
+    // twice (duplicate rows, duplicate React keys).
+    const recentKeys = new Set(recentRows.map((row) => `${row.provider}\t${row.entry.id}`));
+    return [
+      ...recentRows,
+      ...browsingRows.filter((row) => !recentKeys.has(`${row.provider}\t${row.entry.id}`)),
+    ];
   }, [browsingRows, query, queryRows, recentRows]);
 
   useEffect(() => {

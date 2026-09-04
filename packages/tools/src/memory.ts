@@ -197,6 +197,11 @@ interface SearchMemoryOutput {
   }>;
 }
 
+function normalizeMemoryLimit(value: number | undefined): number {
+  const raw = typeof value === 'number' && Number.isFinite(value) ? value : 5;
+  return Math.max(1, Math.min(Math.floor(raw), 20));
+}
+
 export function searchMemoryTool(memory: MemoryStore): Tool<SearchMemoryInput, SearchMemoryOutput> {
   return {
     name: 'search_memory',
@@ -239,7 +244,7 @@ export function searchMemoryTool(memory: MemoryStore): Tool<SearchMemoryInput, S
         });
       }
       const scope = input.scope ?? 'project-memory';
-      const limit = Math.min(input.limit ?? 5, 20);
+      const limit = normalizeMemoryLimit(input.limit);
       const entries = await memory.search(input.query, scope, limit);
       return {
         results: entries.map((e: MemoryEntry) => ({
@@ -305,7 +310,7 @@ export function relatedMemoryTool(
         });
       }
       const scope = input.scope ?? 'project-memory';
-      const limit = Math.min(input.limit ?? 5, 20);
+      const limit = normalizeMemoryLimit(input.limit);
       const entries = memory.findRelated
         ? await memory.findRelated(input.text, scope, limit)
         : await memory.search(input.text, scope, limit);

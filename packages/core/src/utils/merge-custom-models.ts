@@ -16,16 +16,26 @@ export function mergeCustomModelDefs(
   const out: Record<string, CustomModelDefinition> = {};
 
   // Layer 1: provider-level definitions (weaker).
-  if (providerCustomModels) {
+  if (
+    providerCustomModels &&
+    typeof providerCustomModels === 'object' &&
+    !Array.isArray(providerCustomModels)
+  ) {
     for (const [id, def] of Object.entries(providerCustomModels)) {
-      out[id] = { ...def };
+      if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
+      if (def && typeof def === 'object') {
+        out[id] = { ...def };
+      }
     }
   }
 
   // Layer 2: top-level definitions (stronger).
-  if (configModels) {
+  if (configModels && typeof configModels === 'object' && !Array.isArray(configModels)) {
     for (const [id, def] of Object.entries(configModels)) {
-      out[id] = { ...def }; // top-level overwrites provider-level
+      if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
+      if (def && typeof def === 'object') {
+        out[id] = { ...def }; // top-level overwrites provider-level
+      }
     }
   }
 

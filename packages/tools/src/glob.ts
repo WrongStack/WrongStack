@@ -97,22 +97,28 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     const visitedRealDirs = new Set<string>();
     let truncated = false;
     const pushResult = async (full: string): Promise<void> => {
-      // Bail before stat if a concurrent worker has already filled the budget —
-      // the limit is a global cap across all parallel walkers, not per-worker.
-      if (signal?.aborted || truncated || results.length >= limit) {
+      if (signal?.aborted) {
         truncated = true;
         return;
       }
       try {
         const st = await fs.stat(full);
-        // Re-check after the await: another worker may have filled the budget
-        // while we were waiting on fs.stat.
-        if (truncated || results.length >= limit) {
+        if (signal?.aborted) {
           truncated = true;
           return;
         }
-        results.push({ rel: full, mtime: st.mtimeMs });
-        if (results.length >= limit) truncated = true;
+        if (results.length < limit) {
+          results.push({ rel: full, mtime: st.mtimeMs });
+          return;
+        }
+        truncated = true;
+        let oldestIndex = 0;
+        for (let i = 1; i < results.length; i++) {
+          if (results[i]!.mtime < results[oldestIndex]!.mtime) oldestIndex = i;
+        }
+        if (st.mtimeMs > results[oldestIndex]!.mtime) {
+          results[oldestIndex] = { rel: full, mtime: st.mtimeMs };
+        }
       } catch {
         // skip stat error
       }
@@ -127,12 +133,6 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
       const realDir = await fs.realpath(dir).catch(() => dir);
       if (visitedRealDirs.has(realDir)) return;
       visitedRealDirs.add(realDir);
-      /* v8 ignore start -- the inner limit guards (file push + post-recursion return) always stop first; this re-entry guard is defensive. */
-      if (results.length >= limit) {
-        truncated = true;
-        return;
-      }
-      /* v8 ignore stop */
       let entries: import('node:fs').Dirent[];
       try {
         entries = await fs.readdir(dir, { withFileTypes: true });
@@ -184,14 +184,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
         if (truncated) return;
       }
       await mapWithConcurrency(matchedFiles, WALK_CONCURRENCY, pushResult);
-      if (truncated) return;
-      // Subdir walks: each one re-checks the limit at entry (re-entry guard),
-      // but we also stop dispatching new walks once truncated, so siblings of
-      // a hit-limit subdir don't keep adding results.
-      const remainingSubdirs = truncated ? [] : subdirs;
-      await mapWithConcurrency(remainingSubdirs, WALK_CONCURRENCY, ({ full, rel }) =>
-        walk(full, rel),
-      );
+      await mapWithConcurrency(subdirs, WALK_CONCURRENCY, ({ full, rel }) => walk(full, rel));
     };
     await walk(base, '');
     results.sort((a, b) => b.mtime - a.mtime);

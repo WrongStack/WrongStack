@@ -25,14 +25,14 @@ import { renderDeepHelpToString } from '../src/subcommands/handlers/per-subcomma
  */
 describe('bench-run-help', () => {
   describe('BENCH_RUN_FLAGS (the source of truth)', () => {
-    it('contains 9 flags: 5 suite + 1 models + 3 control', () => {
-      expect(BENCH_RUN_FLAGS).toHaveLength(9);
+    it('contains 14 flags: 7 suite + 2 models + 5 control', () => {
+      expect(BENCH_RUN_FLAGS).toHaveLength(14);
       const suite = BENCH_RUN_FLAGS.filter((f) => f.group === 'suite');
       const models = BENCH_RUN_FLAGS.filter((f) => f.group === 'models');
       const control = BENCH_RUN_FLAGS.filter((f) => f.group === 'control');
-      expect(suite).toHaveLength(5);
-      expect(models).toHaveLength(1);
-      expect(control).toHaveLength(3);
+      expect(suite).toHaveLength(7);
+      expect(models).toHaveLength(2);
+      expect(control).toHaveLength(5);
     });
 
     it('each entry has a non-empty name, flag, description, group, and kind', () => {
@@ -45,8 +45,8 @@ describe('bench-run-help', () => {
       }
     });
 
-    it('boolean flags are the suite-level toggles (docker is the only one)', () => {
-      expect(BENCH_RUN_BOOLEAN_FLAG_NAMES).toEqual(['docker']);
+    it('boolean flags are the suite docker toggle and the sandbox-retention switch', () => {
+      expect(BENCH_RUN_BOOLEAN_FLAG_NAMES).toEqual(['docker', 'keep-sandbox']);
     });
 
     it('value flags include the required polyglot-dir and the optional languages / dataset-dir', () => {
@@ -56,10 +56,14 @@ describe('bench-run-help', () => {
       expect(names).toContain('languages');
       expect(names).toContain('dataset-dir');
       expect(names).toContain('models');
+      expect(names).toContain('cell');
+      expect(names).toContain('suite-dir');
+      expect(names).toContain('manifest');
       expect(names).toContain('limit');
       expect(names).toContain('out');
       expect(names).toContain('concurrency');
-      expect(names).toHaveLength(8);
+      expect(names).toContain('repeats');
+      expect(names).toHaveLength(12);
     });
 
     it('every flag has a unique name (no duplicates)', () => {
@@ -67,16 +71,16 @@ describe('bench-run-help', () => {
       expect(new Set(names).size).toBe(names.length);
     });
 
-    it('the polyglot-dir flag is marked as required', () => {
+    it('the polyglot-dir flag is not globally required (only when --suite polyglot)', () => {
       const polyglotDir = BENCH_RUN_FLAGS.find((f) => f.name === 'polyglot-dir');
-      expect(polyglotDir?.required).toBe(true);
+      expect(polyglotDir?.required).toBeUndefined();
     });
 
     it('the suite / models / out flags have default values', () => {
       const suite = BENCH_RUN_FLAGS.find((f) => f.name === 'suite');
       const models = BENCH_RUN_FLAGS.find((f) => f.name === 'models');
       const out = BENCH_RUN_FLAGS.find((f) => f.name === 'out');
-      expect(suite?.defaultValue).toBe('polyglot');
+      expect(suite?.defaultValue).toBe('core');
       expect(models?.defaultValue).toBe('bench.config.json');
       expect(out?.defaultValue).toBe('bench-results');
     });
@@ -111,30 +115,25 @@ describe('bench-run-help', () => {
       expect(controlIdx).toBeGreaterThan(modelsIdx);
     });
 
-    it('marks the required polyglot-dir flag with (required)', () => {
-      // Filter to the flag-block section (lines under the
-      // "Flags" header, not the usage line which also contains
-      // the flag string). The usage line is the FIRST line
-      // that contains `--polyglot-dir`; the flag block is
-      // identified by the "Path to the Aider polyglot dataset"
-      // description that only appears there.
+    it('does not mark polyglot-dir as globally required', () => {
       const polyglotDirLine = block
         .split('\n')
         .find((l) => l.includes('--polyglot-dir') && l.includes('Aider polyglot dataset'));
       expect(polyglotDirLine).toBeDefined();
-      expect(polyglotDirLine).toContain('(required)');
+      expect(polyglotDirLine).not.toContain('(required)');
     });
 
     it('annotates the suite / models / out flags with their default values', () => {
-      expect(block).toContain('(default: polyglot)');
+      expect(block).toContain('(default: core)');
       expect(block).toContain('(default: bench.config.json)');
       expect(block).toContain('(default: bench-results)');
     });
 
-    it('includes a "See also:" line pointing at bench list / report', () => {
+    it('includes a "See also:" line pointing at bench list / report / compare', () => {
       expect(block).toContain('See also:');
       expect(block).toContain('wstack bench list');
       expect(block).toContain('wstack bench report');
+      expect(block).toContain('wstack bench compare');
     });
 
     it('ends with a trailing newline (matches the auth-local-help convention)', () => {

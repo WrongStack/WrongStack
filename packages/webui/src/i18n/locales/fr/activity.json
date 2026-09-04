@@ -3645,6 +3645,8 @@
     "voting": "Vote en cours…",
     "judgeUsed": "L'arbitre a tranché l'égalité",
     "correlated": "Panel corrélé",
+    "converged": "Panel Convergent",
+    "judgeIsVoter": "Le Juge A Aussi Voté",
     "evaluatedQuestion": "Proposition / question délibérée :",
     "votingDistribution": "Répartition du vote de consensus",
     "quorumWeight": "Poids total : {{weight}}",

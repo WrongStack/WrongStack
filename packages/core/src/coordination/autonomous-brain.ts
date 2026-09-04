@@ -50,9 +50,14 @@ import type {
   BrainDecisionSource,
   BrainRisk,
 } from './brain.js';
-import type { DecisionNode, GoalNode, FactNode, ChangeNode } from './knowledge-graph.js';
-import type { KnowledgeGraph } from './knowledge-graph.js';
 import type { FleetBus } from './fleet-bus.js';
+import type {
+  ChangeNode,
+  DecisionNode,
+  FactNode,
+  GoalNode,
+  KnowledgeGraph,
+} from './knowledge-graph.js';
 
 export type { BrainRisk };
 
@@ -146,6 +151,24 @@ export interface AutonomousBrainOptions {
   maxRetries?: number | undefined;
   /** Risk threshold above which consensus is required. Default: 'high'. */
   consensusRiskThreshold?: BrainRisk | undefined;
+  /**
+   * Resolves a decision that `requiresConsensus` — typically a
+   * `ConsensusProtocol` vote. Resolve `true` to approve the chosen option,
+   * `false` to reject it.
+   *
+   * When absent, a consensus-required decision ESCALATES (`ask_human`)
+   * instead of being returned as an executable answer: nothing in the
+   * process is able to approve it, and the escalation tier is exactly the
+   * layer built to settle that (a human interactively, the terminal policy
+   * when headless).
+   */
+  consensus?:
+    | ((input: {
+        request: AutonomousDecisionRequest;
+        optionId: string;
+        rationale: string;
+      }) => Promise<boolean>)
+    | undefined;
   /** Self-improve: track decision history for learning. Default: true. */
   selfImprove?: boolean | undefined;
 }
@@ -176,6 +199,7 @@ export class AutonomousBrain implements BrainArbiter {
   private readonly llmProvider: LLMProvider;
   private readonly maxRetries: number;
   private readonly consensusRiskThreshold: BrainRisk;
+  private readonly consensus: AutonomousBrainOptions['consensus'];
   private readonly selfImprove: boolean;
 
   /** Tracks failure patterns for self-improvement. */
@@ -196,6 +220,7 @@ export class AutonomousBrain implements BrainArbiter {
     this.llmProvider = opts.llmProvider;
     this.maxRetries = opts.maxRetries ?? 3;
     this.consensusRiskThreshold = opts.consensusRiskThreshold ?? 'high';
+    this.consensus = opts.consensus;
     this.selfImprove = opts.selfImprove ?? true;
   }
 
@@ -261,9 +286,15 @@ export class AutonomousBrain implements BrainArbiter {
       context: JSON.stringify(context),
     }).catch(() => {});
 
-    // Handle consensus requirement
+    // Handle consensus requirement.
+    //
+    // This used to return a normal `answer` with a warning appended to the
+    // PROSE rationale, plus a fleet event nobody consumed. Brain decisions
+    // are control-plane input — consumers act on the exact `optionId` and
+    // never read prose — so a decision declared to need approval was
+    // indistinguishable from an approved one and executed unapproved.
+    // `consensusRiskThreshold` was therefore entirely inert.
     if (requiresConsensus) {
-      // Signal that consensus is needed — the caller must route through ConsensusProtocol
       this._emit('brain.decision', {
         id,
         decisionType,
@@ -271,11 +302,36 @@ export class AutonomousBrain implements BrainArbiter {
         rationale: result.rationale,
         consensusRequired: true,
       });
+      const label = options.find((o) => o.id === result.optionId)?.label ?? result.optionId;
+      if (this.consensus) {
+        const approved = await this.consensus({
+          request,
+          optionId: result.optionId,
+          rationale: result.rationale,
+        }).catch(() => false);
+        if (!approved) {
+          return {
+            type: 'deny',
+            reason: `Consensus rejected "${label}" for: ${question}`,
+          };
+        }
+        return {
+          type: 'answer',
+          optionId: result.optionId,
+          text: label,
+          rationale: `${result.rationale} (approved by consensus)`,
+        };
+      }
+      // Nothing wired can approve it — hand it to the escalation tier rather
+      // than executing it. The chosen option travels in the prompt so a human
+      // (or the headless terminal policy) decides on the real proposal.
       return {
-        type: 'answer',
-        optionId: result.optionId,
-        text: options.find((o) => o.id === result.optionId)?.label ?? result.optionId,
-        rationale: `${result.rationale}\n\n⚠️ This decision requires consensus approval before execution.`,
+        type: 'ask_human',
+        prompt:
+          `Consensus required (${risk} risk) before executing "${label}".\n\n` +
+          `Question: ${question}\nProposed: ${label}\nRationale: ${result.rationale}`,
+        options,
+        rationale: 'Decision requires consensus approval and no consensus resolver is wired.',
       };
     }
 

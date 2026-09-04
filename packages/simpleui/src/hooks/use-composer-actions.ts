@@ -157,7 +157,17 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
       }
 
       if (plan === 'enqueue') {
-        const item: QueuedItem = { id: messageId('q'), text: content, mode, addedAt: now };
+        const item: QueuedItem = {
+          id: messageId('q'),
+          text: content,
+          mode,
+          addedAt: now,
+          // The queue must carry the attachments or a queued send silently
+          // strips them — same parity as the direct send path above.
+          ...(hasImages && {
+            images: attachedImagesRef.current.map((img) => ({ data: img.data, mime: img.mime })),
+          }),
+        };
         setQueue((current) => enqueueItem(current, item));
         setDraft('');
         setFileRefs([]);
@@ -171,7 +181,15 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
       }
 
       // abort-then-enqueue-front
-      const item: QueuedItem = { id: messageId('q'), text: content, mode, addedAt: now };
+      const item: QueuedItem = {
+        id: messageId('q'),
+        text: content,
+        mode,
+        addedAt: now,
+        ...(hasImages && {
+          images: attachedImagesRef.current.map((img) => ({ data: img.data, mime: img.mime })),
+        }),
+      };
       setQueue((current) => enqueueFront(current, item));
       setDraft('');
       setFileRefs([]);

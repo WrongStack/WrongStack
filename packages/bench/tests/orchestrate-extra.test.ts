@@ -1,7 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runBenchmark } from '../src/orchestrate.js';
 import type { BenchConfig, BenchSuite, BenchTask } from '../src/types.js';
 
@@ -81,5 +81,30 @@ describe('runBenchmark', () => {
     expect(report.results[0]!.grade.passed).toBe(false);
     expect(report.results[0]!.grade.detail).toMatch(/grader error: grader blew up/);
     expect(typeof report.finishedAt).toBe('string');
+  });
+
+  it('prefixes grade detail when the agent subprocess crashes', async () => {
+    const crashEntry = path.join(dir, 'crash-wstack.cjs');
+    await fs.writeFile(
+      crashEntry,
+      'process.stderr.write("setupProvider failed: unknown provider\\n"); process.exit(2);',
+      'utf8',
+    );
+    const report = await runBenchmark({
+      suite: suiteWith([{ ...task, templateDir }]),
+      grade: async () => ({
+        passed: false,
+        detail: 'expected README.md to contain "# WrongStack"',
+      }),
+      config,
+      cliVersion: '0.0.0',
+      toolNames: ['read'],
+      nodeBin: process.execPath,
+      wstackEntry: crashEntry,
+      sandboxBaseDir: path.join(dir, 'sandbox-crash'),
+    });
+    expect(report.results[0]!.run.status).toBe('crashed');
+    expect(report.results[0]!.grade.detail).toMatch(/agent crashed:[\s\S]*unknown provider/);
+    expect(report.results[0]!.grade.detail).toMatch(/expected README.md/);
   });
 });

@@ -18,6 +18,7 @@ interface Bucket {
   sessionId?: string;
   agentId?: string;
   toolCallId?: string;
+  logicalRequestId?: string;
   dimensions: Record<string, string>;
   startedAt: number;
   updatedAt: number;
@@ -29,7 +30,6 @@ interface Bucket {
   aggregateMs?: number;
   metrics: Record<string, { sum: number; min: number; max: number; last: number }>;
   categories: Record<string, number>;
-  digest: ReturnType<typeof createHash>;
   /** Distinct resources touched (tool.resource rollups only) — id-keyed so kind/path survive. */
   resources: Map<string, { kind: string; path?: string }>;
 }
@@ -71,7 +71,7 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
     key: string,
     seed: Omit<
       Bucket,
-      'startedAt' | 'updatedAt' | 'count' | 'metrics' | 'categories' | 'digest' | 'resources'
+      'startedAt' | 'updatedAt' | 'count' | 'metrics' | 'categories' | 'resources'
     >,
   ) => {
     let value = buckets.get(key);
@@ -84,19 +84,13 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
         count: 0,
         metrics: {},
         categories: {},
-        digest: createHash('sha256'),
         resources: new Map(),
       };
       buckets.set(key, value);
     }
     return value;
   };
-  const sample = (
-    target: Bucket,
-    values: Record<string, number>,
-    category?: string,
-    digest?: string,
-  ) => {
+  const sample = (target: Bucket, values: Record<string, number>, category?: string) => {
     target.count++;
     target.updatedAt = Date.now();
     for (const [name, value] of Object.entries(values)) {
@@ -111,17 +105,28 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
         : { sum: value, min: value, max: value, last: value };
     }
     if (category) target.categories[category] = (target.categories[category] ?? 0) + 1;
-    if (digest) target.digest.update(digest);
   };
   const flush = (key: string) => {
     const value = buckets.get(key);
     if (!value || value.count === 0) return;
     buckets.delete(key);
     const context = typeof options.context === 'function' ? options.context() : options.context;
+    // A metric that never varied within the window is three copies of one
+    // number plus a total: drop `min` and `max`, which say nothing `last` does
+    // not, and drop `avg` unconditionally because it is `sum / samples` and no
+    // reader in the repo has ever asked for it. `sum` always survives -- it is
+    // the one field a collapsed form could not reconstruct, since a window of
+    // four identical samples has a total four times its `last`.
+    //
+    // Measured: 38-66% of rollups per signal aggregate a single sample, so the
+    // collapsed shape is the common one, not the exception. Both shapes expose
+    // `stats[name].last`, which is what ChronicleDashboard.tsx reads.
     const stats = Object.fromEntries(
       Object.entries(value.metrics).map(([name, metric]) => [
         name,
-        { ...metric, avg: metric.sum / value.count },
+        metric.min === metric.max && metric.max === metric.last
+          ? { sum: metric.sum, last: metric.last }
+          : metric,
       ]),
     );
     const resources =
@@ -141,6 +146,7 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
       },
       correlation: {
         ...context.correlation,
+        ...(value.logicalRequestId ? { logicalRequestId: value.logicalRequestId } : {}),
         ...(value.toolCallId ? { toolCallId: value.toolCallId } : {}),
       },
       durationNs: String(Math.max(0, value.updatedAt - value.startedAt) * 1_000_000),
@@ -152,8 +158,6 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
         dimensions: value.dimensions,
         stats,
         categories: value.categories,
-        digest: value.digest.digest('hex'),
-        rawEventsRetained: false,
         ...(resources ? { resources, resourceCount: value.resources.size } : {}),
       },
     };
@@ -191,7 +195,7 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
           pid: String(event.pid ?? ''),
         },
       });
-      sample(target, { bytes: event.bytes }, event.stream, event.chunkHash);
+      sample(target, { bytes: event.bytes }, event.stream);
     }),
     options.events.on('process.completed', (event) => {
       for (const key of [...buckets.keys()])
@@ -207,17 +211,12 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
         toolCallId: event.id,
         dimensions: { toolName: event.name },
       });
-      sample(
-        target,
-        { textBytes: Buffer.byteLength(event.event.text ?? '') },
-        event.event.type,
-        safeDigest(event.event),
-      );
+      sample(target, { textBytes: Buffer.byteLength(event.event.text ?? '') }, event.event.type);
     }),
     options.events.on('tool.executed', (event) => {
       flush(`tool.progress\0${event.sessionId ?? ''}\0${event.id ?? ''}`);
       // Resources a leader-level tool call touched (files read/grepped,
-      // symbols, commands) — one bounded rollup per call instead of one raw
+      // symbols, commands) — one bounded rollup instead of one raw
       // tool.resource.observed event per resource. Subagent calls never
       // carry this metadata (see host-event-bridge.ts), so nothing here.
       const metadata = event.metadata;
@@ -228,14 +227,26 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
           metadata.commands.length === 0)
       )
         return;
-      const key = `tool.resource\0${event.sessionId ?? ''}\0${event.id ?? ''}`;
+      // Keyed on the logical request, not the tool call, and left for the idle
+      // sweep instead of being flushed here. Keying on `event.id` made every
+      // bucket a bucket of one: an agent turn that greps six files wrote six
+      // rollups whose envelope — scope, correlation, the two chain hashes,
+      // window bounds — cost more than the resource lists they carried.
+      // Measured at 7.1 MB and 38% single-sample, the largest single line item
+      // in the journal. One turn now shares one aggregate, and `resources` is
+      // already deduped by id so re-reading a file within the turn is free.
+      const key = `tool.resource\0${event.sessionId ?? ''}\0${event.logicalRequestId ?? event.id ?? ''}`;
       const target = bucket(key, {
         signal: 'tool.resource.observed',
         ...(event.sessionId ? { sessionId: event.sessionId } : {}),
         ...(event.agentId ? { agentId: event.agentId } : {}),
-        ...(event.id ? { toolCallId: event.id } : {}),
-        dimensions: { toolName: event.name },
+        ...(event.logicalRequestId ? { logicalRequestId: event.logicalRequestId } : {}),
+        // Which tools contributed is counted per name in `categories` below; a
+        // merged bucket spans several calls, so a single `toolName` dimension
+        // would name only whichever call happened to open it.
+        dimensions: {},
       });
+      target.categories[`tool:${event.name}`] = (target.categories[`tool:${event.name}`] ?? 0) + 1;
       for (const file of metadata.files) {
         target.resources.set(resourceId('file', file), { kind: 'file', path: file });
         sample(target, {}, 'file');
@@ -248,7 +259,6 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
         target.resources.set(resourceId('command', command), { kind: 'process' });
         sample(target, {}, 'command');
       }
-      flush(key);
     }),
     options.events.on('tool.failed', (event) =>
       flush(`tool.progress\0${event.sessionId}\0${event.id}`),
@@ -328,6 +338,11 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
       const key = `network.request\0${event.sessionId}\0${event.initiator}\0${event.serverAddress}`;
       const target = bucket(key, {
         signal: 'network.request',
+        // Age-based, like the gauges: requests to one host trickle in over a
+        // turn rather than arriving as a burst, so the idle rule closed 53% of
+        // these buckets holding a single request. `startedAt` does not move,
+        // so a window genuinely spans the period it names.
+        aggregateMs: gaugeWindowMs,
         sessionId: event.sessionId,
         dimensions: { initiator: event.initiator, serverAddress: event.serverAddress },
       });
@@ -339,7 +354,6 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
           ...(event.responseBytes !== undefined ? { responseBytes: event.responseBytes } : {}),
         },
         `${Math.floor(event.statusCode / 100)}xx`,
-        event.requestId,
       );
     }),
   ];
@@ -370,13 +384,6 @@ function text(value: unknown): string | undefined {
 }
 function numeric(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-function safeDigest(value: unknown): string {
-  try {
-    return createHash('sha256').update(JSON.stringify(value)).digest('hex');
-  } catch {
-    return 'unhashable';
-  }
 }
 /** Matches tool-adapter.ts's scheme exactly so a resource observed here and
  *  one mutated via file.mutation.observed resolve to the same graph node. */

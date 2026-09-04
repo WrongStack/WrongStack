@@ -26,6 +26,14 @@ import type { Request } from '../types/provider.js';
 export interface RequestConversation {
   /** The conversation's own meta bag — per-session preferences live here. */
   meta: Record<string, unknown>;
+  /**
+   * Stable identifier for the conversation that owns this request.
+   *
+   * This stays in the side-channel rather than on `Request`: adapters can use
+   * it for transport metadata without accidentally serialising a local
+   * WrongStack session id into a model request body.
+   */
+  sessionId?: string | undefined;
 }
 
 const requestConversations = new WeakMap<Request, RequestConversation>();

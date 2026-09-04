@@ -2,11 +2,10 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ModelCell } from '../src/types.js';
-
 // We import the grader and the dependencies directly so we can test
 // the externalGrade returning undefined path.
 import { gradeSwebench } from '../src/graders/swebench-grader.js';
+import type { ModelCell } from '../src/types.js';
 
 const cell: ModelCell = { label: 'gpt-4', provider: 'openai', model: 'gpt-4' };
 

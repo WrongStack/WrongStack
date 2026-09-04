@@ -11,7 +11,13 @@
  * }
  */
 export function assertNever(x: never, message?: string): never {
-  const err = new Error(message ?? `Unhandled case: ${JSON.stringify(x)}`);
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(x);
+  } catch {
+    serialized = String(x);
+  }
+  const err = new Error(message ?? `Unhandled case: ${serialized}`);
   err.name = 'AssertNeverError';
   throw err;
 }

@@ -1,12 +1,12 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AutonomousBrain } from '../../src/coordination/autonomous-brain.js';
-import type { KnowledgeGraph } from '../../src/coordination/knowledge-graph.js';
 import type { FleetBus } from '../../src/coordination/fleet-bus.js';
 import type {
-  DecisionNode,
-  GoalNode,
-  FactNode,
   ChangeNode,
+  DecisionNode,
+  FactNode,
+  GoalNode,
+  KnowledgeGraph,
 } from '../../src/coordination/knowledge-graph.js';
 
 // ── Mock helpers ──────────────────────────────────────────────────────────────
@@ -203,23 +203,79 @@ describe('AutonomousBrain', () => {
       expect(result.optionId).toBe('retry');
     });
 
-    it('marks decision as requiring consensus when specified', async () => {
+    const consensusRequest = {
+      id: 'auto-1',
+      source: 'system' as const,
+      decisionType: 'approve_change',
+      question: 'Should we approve this change?',
+      context: {},
+      options: [{ id: 'approve', label: 'Approve', risk: 'high' as const, recommended: true }],
+      risk: 'high' as const,
+      requiresConsensus: true,
+    };
+
+    it('escalates a consensus-required decision when nothing can approve it', async () => {
       const llm = createMockLlmProvider({ optionId: 'approve', rationale: 'Safe change' });
       const brain = new AutonomousBrain({ llmProvider: llm, graph, fleet });
 
-      const result = await brain.decideAuto({
-        id: 'auto-1',
-        source: 'system',
-        decisionType: 'approve_change',
-        question: 'Should we approve this change?',
-        context: {},
-        options: [{ id: 'approve', label: 'Approve', risk: 'high', recommended: true }],
-        risk: 'high',
-        requiresConsensus: true,
+      const result = await brain.decideAuto(consensusRequest);
+
+      // It used to return a plain `answer` with a warning appended to the
+      // PROSE rationale. Consumers act on the exact optionId and never read
+      // prose, so the decision executed unapproved and
+      // `consensusRiskThreshold` was inert.
+      expect(result.type).toBe('ask_human');
+      if (result.type === 'ask_human') {
+        expect(result.prompt).toContain('Consensus required');
+        expect(result.prompt).toContain('Approve');
+        // The offered options travel with the escalation so a human — or the
+        // headless terminal policy — decides on the real proposal.
+        expect(result.options).toHaveLength(1);
+      }
+    });
+
+    it('answers with the chosen option once consensus approves it', async () => {
+      const llm = createMockLlmProvider({ optionId: 'approve', rationale: 'Safe change' });
+      const brain = new AutonomousBrain({
+        llmProvider: llm,
+        graph,
+        fleet,
+        consensus: async () => true,
       });
 
-      expect(result.type).toBe('answer');
-      expect(result.rationale).toContain('consensus');
+      const result = await brain.decideAuto(consensusRequest);
+
+      expect(result).toMatchObject({ type: 'answer', optionId: 'approve' });
+    });
+
+    it('denies when consensus rejects the proposal', async () => {
+      const llm = createMockLlmProvider({ optionId: 'approve', rationale: 'Safe change' });
+      const brain = new AutonomousBrain({
+        llmProvider: llm,
+        graph,
+        fleet,
+        consensus: async () => false,
+      });
+
+      const result = await brain.decideAuto(consensusRequest);
+
+      expect(result.type).toBe('deny');
+    });
+
+    it('treats a failing consensus resolver as a rejection', async () => {
+      const llm = createMockLlmProvider({ optionId: 'approve', rationale: 'Safe change' });
+      const brain = new AutonomousBrain({
+        llmProvider: llm,
+        graph,
+        fleet,
+        consensus: async () => {
+          throw new Error('vote timed out');
+        },
+      });
+
+      const result = await brain.decideAuto(consensusRequest);
+
+      expect(result.type).toBe('deny');
     });
   });
 

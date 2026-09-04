@@ -116,7 +116,13 @@ export async function readCodexTokenResponse(res: Response, op: string): Promise
     });
   }
   const json = (await res.json()) as TokenEndpointResponse | null;
-  if (!json?.access_token || !json.refresh_token || typeof json.expires_in !== 'number') {
+  if (
+    !json?.access_token ||
+    !json.refresh_token ||
+    typeof json.expires_in !== 'number' ||
+    !Number.isFinite(json.expires_in) ||
+    json.expires_in <= 0
+  ) {
     throw new ParseError({
       message: `Codex token ${op} response missing fields`,
       source: 'openai-codex-token-response',

@@ -122,10 +122,8 @@ export async function runWstack(opts: RunWstackOptions): Promise<RawRun> {
           costUsd: 0,
           elapsedMs,
           exitCode: code,
-          // stderr is intentionally not surfaced in RawRun; the caller can read
-          // the session log. Keep the shape minimal.
+          crashDetail: crashDetail(code, stderr, stdout),
         });
-        void stderr;
         return;
       }
       finish({ ...parsed, elapsedMs, exitCode: code });
@@ -151,7 +149,7 @@ function parseOutputJson(stdout: string): Omit<RawRun, 'elapsedMs' | 'exitCode'>
     }
     if (typeof obj['status'] !== 'string') continue;
     const usage = (obj['usage'] as Record<string, unknown> | undefined) ?? {};
-    return {
+    const parsed: Omit<RawRun, 'elapsedMs' | 'exitCode'> = {
       status: normalizeStatus(obj['status'] as string),
       finalText: typeof obj['finalText'] === 'string' ? (obj['finalText'] as string) : null,
       iterations: num(usage['iterations']),
@@ -159,13 +157,30 @@ function parseOutputJson(stdout: string): Omit<RawRun, 'elapsedMs' | 'exitCode'>
       tokensOut: num(usage['output']),
       costUsd: num(usage['cost']),
     };
+    // The CLI reports *why* the loop failed in `error`. Dropping it left a
+    // `failed` row in the report with no diagnosis at all.
+    const message = errorMessage(obj['error']);
+    if (message) parsed.errorMessage = message;
+    return parsed;
   }
   return undefined;
+}
+
+/** Pull a readable reason out of the `--output-json` `error` object. */
+function errorMessage(raw: unknown): string | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const err = raw as Record<string, unknown>;
+  const message = typeof err['message'] === 'string' ? err['message'].trim() : '';
+  if (message.length === 0) return undefined;
+  const code = typeof err['code'] === 'string' && err['code'].length > 0 ? `${err['code']}: ` : '';
+  return `${code}${message}`.slice(0, 500);
 }
 
 function normalizeStatus(s: string): RawRun['status'] {
   switch (s) {
     case 'completed':
+    case 'done':
+      return 'completed';
     case 'failed':
     case 'aborted':
     case 'max_iterations':
@@ -175,11 +190,21 @@ function normalizeStatus(s: string): RawRun['status'] {
   }
 }
 
+function crashDetail(code: number | null, stderr: string, stdout: string): string {
+  const tail = [stderr, stdout]
+    .map((text) => text.trim())
+    .filter((text) => text.length > 0)
+    .join('\n')
+    .slice(-2000);
+  const prefix = `exit ${code ?? 'null'}`;
+  return tail ? `${prefix}: ${tail}` : prefix;
+}
+
 function num(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : 0;
 }
 
-function crashed(startedAt: number, _reason: string): RawRun {
+function crashed(startedAt: number, reason: string): RawRun {
   return {
     status: 'crashed',
     finalText: null,
@@ -189,6 +214,7 @@ function crashed(startedAt: number, _reason: string): RawRun {
     costUsd: 0,
     elapsedMs: Date.now() - startedAt,
     exitCode: null,
+    crashDetail: reason,
   };
 }
 

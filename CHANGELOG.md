@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`gpt-6-astra` is available under the ChatGPT sign-in (`openai-codex`) provider.** OpenAI's GPT-6 Astra now leads the Codex picker as the recommended model — added to the curated overlay (`packages/cli/data/providers.json`) and to the offline `CODEX_MODELS` floor in core, so it shows up whether or not the overlay sync is reachable. It carries the same wire reasoning efforts as the 5.6 line (`low`/`medium`/`high`/`xhigh`/`max` — `ultra` is a product orchestration mode, not a wire value), text+image input, and the lineup's 1.05M context / 128k output declaration; the live `/codex/models` probe remains the runtime guard on the window the backend actually enforces. `gpt-5.6-sol` is no longer tagged current. (`packages/core/src/models/codex-catalog.ts`, `packages/cli/data/providers.json`)
+
+## [0.320.1] — 2026-09-04
+
+### Added
+
+- **A useful benchmark now works out of the box.** `wstack bench run` defaults to
+  the bundled six-task Node `core` suite, graded by real tests. Use `--cell
+  provider/model` (or a saved model) without cloning a dataset or writing a
+  config. `--suite smoke` remains a three-task wiring check, not a quality
+  score. (`packages/bench`, `wstack bench run`)
+- **Benchmark reports expose variance and failures.** `--repeats N` adds
+  Pass@N, All-pass, and per-task flakiness alongside Pass@1. Completed rows
+  stream to `results.jsonl`, the report names grader and agent failure details,
+  and `wstack bench compare` refuses to silently compare incompatible harnesses.
+  (`packages/bench`, `wstack bench compare`)
+- **Brain councils can deliberate twice before a decision.** The first round is
+  independent; the optional default second round presents other ballots as
+  untrusted quoted data, lets seats revise only on substantive evidence, and
+  records how many votes changed. Set `/brain council rounds 1` for a
+  single-round panel. (`/brain council`)
+- **Chronicle gains a configurable volume policy.** `chronicle.detail` can
+  fold routine high-volume telemetry into bounded counters while always keeping
+  failures, denials, and cancellations as raw evidence. Retention limits cover
+  days, events, and disk usage. (`packages/core/chronicle`)
+
+### Changed
+
+- **Chronicle journals use less disk without weakening verification.** Event
+  payloads are losslessly compressed when beneficial, legacy rows remain
+  readable, and incremental vacuum returns pages after purges or event-limit
+  trims instead of keeping the database at its historical high-water mark.
+  (`packages/core/chronicle`)
+- **Brain decisions carry more operator context across the CLI, TUI, SimpleUI,
+  and HQ.** The shared decision flow now exposes deliberation and telemetry
+  data to the surfaces that render and inspect a council outcome.
+
+### Fixed
+
+- **Benchmark comparisons now include the operator's effective harness policy.**
+  The sandbox hashes behavior-affecting settings it actually reads, while
+  excluding credentials and the chosen provider/model. Different skills,
+  token-saving, or system-prompt settings can no longer masquerade as a model
+  difference. (`packages/bench/src/isolation.ts`)
+- **Incomplete runs no longer flatter a model's cost or exit successfully.**
+  Timed-out and crashed rows are labelled as lower-bound usage rather than
+  ordinary zero-cost work; a matrix where every attempt crashes exits non-zero.
+  (`wstack bench run`)
+
 ## [0.320.0] — 2026-09-04
 
 ### Added

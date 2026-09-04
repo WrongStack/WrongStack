@@ -7,6 +7,7 @@
  * left both intact. A store that only checked the links would call the third
  * one healthy.
  */
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -18,6 +19,11 @@ import {
   ChronicleSqliteJournal,
   ChronicleStorageQuotaError,
 } from '../../src/chronicle/sqlite-journal.js';
+import {
+  decodeChroniclePayload,
+  encodeChroniclePayload,
+  type StoredChroniclePayload,
+} from '../../src/chronicle/payload-codec.js';
 import { ensureChronicleSchema } from '../../src/chronicle/sqlite-journal-schema.js';
 import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 
@@ -137,13 +143,17 @@ describe('ChronicleSqliteJournal', () => {
     // `sequence` — the shape of a tampered audit record.
     const db = openRaw(dir);
     const row = db.prepare('SELECT payload FROM events WHERE sequence = 2').get() as {
-      payload: string;
+      payload: StoredChroniclePayload;
     };
     const tampered = {
-      ...(JSON.parse(row.payload) as Record<string, unknown>),
+      ...(JSON.parse(decodeChroniclePayload(row.payload)) as Record<string, unknown>),
       outcome: 'failure',
     };
-    db.prepare('UPDATE events SET payload = ? WHERE sequence = 2').run(JSON.stringify(tampered));
+    // Re-encoded, not written as plain text: a tamper that also downgraded the
+    // storage format would be caught for the wrong reason.
+    db.prepare('UPDATE events SET payload = ? WHERE sequence = 2').run(
+      encodeChroniclePayload(JSON.stringify(tampered)),
+    );
     db.close();
 
     journal.close();
@@ -354,7 +364,19 @@ describe('ChronicleSqliteJournal', () => {
     journal.close();
     const quotaDir = path.join(dir, 'freelist');
     await fs.mkdir(quotaDir, { recursive: true });
-    const payload = 'x'.repeat(64 * 1024);
+    // Incompressible: the payload codec squeezes a repeated character by two
+    // orders of magnitude, and this test needs a file that genuinely outgrows
+    // the quota it is about to be given.
+    const payload = randomBytes(48 * 1024).toString('base64');
+
+    // Pre-create the database so it is NOT in incremental-vacuum mode: that
+    // pragma is only settable while a database is empty, and a small existing
+    // one is deliberately left alone rather than paying a full VACUUM. This is
+    // therefore a *legacy* journal, and the freelist behaviour this test exists
+    // for is exactly what such a journal still does.
+    const legacy = openRaw(quotaDir);
+    ensureChronicleSchema(legacy);
+    legacy.close();
 
     // Fill an unbounded journal well past the quota we are about to impose.
     const seed = new ChronicleSqliteJournal({ directory: quotaDir });
@@ -382,6 +404,48 @@ describe('ChronicleSqliteJournal', () => {
     await expect(
       journal.append(input({ attributes: { note: 'after-free' } })),
     ).resolves.toBeDefined();
+  });
+
+  /**
+   * The other half of the same story: a journal created by this code returns
+   * its freed pages instead of parking them forever.
+   *
+   * Measured on a live install before this landed: a 220 MB `metrics.db` whose
+   * live data was 18 MB, and a 307 MB journal sitting at its `maxEvents`
+   * ceiling that had evicted rows on nearly every append without the file ever
+   * dropping. Retention that cannot shrink a file is retention in name only.
+   */
+  it('returns freed pages to the filesystem after a purge', async () => {
+    journal.close();
+    const shrinkDir = path.join(dir, 'shrink');
+    await fs.mkdir(shrinkDir, { recursive: true });
+    const payload = randomBytes(24 * 1024).toString('base64');
+    const clock = { now: new Date('2026-01-20T00:00:00.000Z') };
+
+    const seed = new ChronicleSqliteJournal({ directory: shrinkDir, now: () => clock.now });
+    for (let index = 0; index < 200; index += 1) {
+      await seed.append(input({ attributes: { payload, index } }));
+    }
+    // Close before measuring: in WAL mode the pages are still in the sidecar
+    // until a checkpoint, so the main file would read as one page either way.
+    seed.close();
+    const dbPath = path.join(shrinkDir, CHRONICLE_SQLITE_FILE);
+    const grownBytes = (await fs.stat(dbPath)).size;
+    expect(grownBytes).toBeGreaterThan(4 * 1024 * 1024);
+
+    // Age past the window so every row written above is purge-eligible.
+    clock.now = new Date('2026-03-01T00:00:00.000Z');
+    journal = new ChronicleSqliteJournal({ directory: shrinkDir, now: () => clock.now });
+    const result = await journal.purge({ retentionDays: 7 });
+    expect(result.deletedCount).toBe(200);
+    // Payload bytes, not file bytes: the operator needs a number that says
+    // something was actually shed. The old implementation returned a hardcoded
+    // zero, so `chronicle prune` reported "Purged N entries (0 B)" forever.
+    expect(result.deletedBytes).toBeGreaterThan(0);
+
+    journal.close();
+    expect((await fs.stat(dbPath)).size).toBeLessThan(grownBytes);
+    journal = new ChronicleSqliteJournal({ directory: shrinkDir });
   });
 
   /**
@@ -509,11 +573,11 @@ describe('ChronicleSqliteJournal', () => {
       session_id: string;
       agent_id: string;
       resource_path: string;
-      payload: string;
+      payload: StoredChroniclePayload;
     };
     db.close();
 
-    const event = JSON.parse(row.payload) as {
+    const event = JSON.parse(decodeChroniclePayload(row.payload)) as {
       scope: { sessionId: string; agentId: string };
       resource: { path: string };
     };

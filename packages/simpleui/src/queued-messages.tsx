@@ -47,21 +47,30 @@ export function QueuedMessages({ queue, onClear, onRemove }: QueuedMessagesProps
         </div>
       </div>
       <ul className="queue-list">
-        {sorted.map((item) => (
-          <li key={item.id} data-queue-mode={item.mode}>
-            <span className={`queue-tag ${item.mode}`} title={MODE_TITLE[item.mode]}>
-              {item.mode}
-            </span>
-            <span className="queue-text">{item.text}</span>
-            <button
-              type="button"
-              onClick={() => onRemove(item.id)}
-              aria-label={`Remove queued message: ${item.text.slice(0, 40)}`}
-            >
-              <X size={11} />
-            </button>
-          </li>
-        ))}
+        {sorted.map((item) => {
+          // Image-only holds (F1) carry no text — describe them so the row
+          // is not blank and the remove control stays labelled.
+          const summary =
+            item.text ||
+            (item.images?.length
+              ? `${item.images.length} image${item.images.length === 1 ? '' : 's'} attached`
+              : '');
+          return (
+            <li key={item.id} data-queue-mode={item.mode}>
+              <span className={`queue-tag ${item.mode}`} title={MODE_TITLE[item.mode]}>
+                {item.mode}
+              </span>
+              <span className="queue-text">{summary}</span>
+              <button
+                type="button"
+                onClick={() => onRemove(item.id)}
+                aria-label={`Remove queued message: ${summary.slice(0, 40)}`}
+              >
+                <X size={11} />
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

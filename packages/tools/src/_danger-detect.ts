@@ -547,13 +547,15 @@ export function detectDanger(
   args: readonly string[],
   bypass?: ReadonlySet<string>,
 ): DangerAssessment {
+  if (typeof cmd !== 'string') return { level: 'safe', reasons: [] };
+  const safeArgs = Array.isArray(args) ? args : [];
   const reasons: string[] = [];
   let level: DangerLevel = 'safe';
   let matchedRule: string | undefined;
 
   for (const rule of RULES) {
     if (bypass?.has(rule.id)) continue;
-    if (!rule.test(cmd, args)) continue;
+    if (!rule.test(cmd, safeArgs)) continue;
     reasons.push(rule.reason);
     if (matchedRule === undefined || levelRank(rule.level) >= levelRank(level)) {
       matchedRule = rule.id;

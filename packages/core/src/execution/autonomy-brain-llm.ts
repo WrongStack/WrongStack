@@ -17,7 +17,47 @@ export interface BrainLlmCallResult {
   stopReason?: string | undefined;
 }
 
-export const DEFAULT_BRAIN_MAX_TOKENS = 200;
+/** True when the model was cut off at its output budget rather than finishing. */
+export function isTruncated(stopReason: string | undefined): boolean {
+  return stopReason === 'max_tokens' || stopReason === 'length';
+}
+
+/**
+ * Output budget for one single-LLM Brain decision.
+ *
+ * 200 was sized for "one option id plus a one-sentence rationale", which is
+ * true of the OUTPUT but not of the BUDGET: a reasoning model's thinking
+ * tokens are drawn from the same allowance, so 200 leaves an empty or
+ * mid-JSON response, the parse fails, and the tier reports `unparseable` —
+ * i.e. the LLM tier silently never decides anything for that model. This is
+ * the exact failure the council hit and fixed with
+ * `BRAIN_COUNCIL_DEFAULT_VOTER_MAX_TOKENS`; the single-LLM tier shares the
+ * root cause and now shares the budget.
+ */
+export const DEFAULT_BRAIN_MAX_TOKENS = 2000;
+
+/**
+ * Per-call decision timeout. 15s starves the same reasoning models the token
+ * budget did — they spend it thinking and the call is aborted mid-response.
+ * Matches `BRAIN_COUNCIL_DEFAULT_PER_CALL_TIMEOUT_MS`.
+ */
+export const DEFAULT_BRAIN_TIMEOUT_MS = 45_000;
+
+/**
+ * How many targets' worth of wall clock one decision may spend in total.
+ *
+ * The per-call timeout alone bounds nothing: the tier walks every target in
+ * order, so a 10-model fallback chain of dead endpoints blocks the caller for
+ * 10 x the per-call budget — over seven minutes at the default. A Brain
+ * decision sits in front of a working agent, so the walk gets a deadline:
+ * the primary plus two fallbacks' worth of time, then it stops and reports
+ * an exhausted budget instead of grinding through the rest of the chain.
+ *
+ * Expressed in ATTEMPTS rather than as an absolute floor so the cap scales
+ * with whatever per-call timeout is configured — a pool of fast local models
+ * is not held to the same wall clock as a pool of reasoning models.
+ */
+export const BRAIN_LLM_MAX_BUDGETED_ATTEMPTS = 3;
 
 export type BrainLlmDenyKind = 'unavailable' | 'unparseable' | 'refused';
 
@@ -240,17 +280,37 @@ export async function llmDecide(
   const systemPrompt = readBundledInstructionText('llm/autonomy-brain.md');
   const userMessage = withDecisionDigest(buildBrainUserMessage(request), digest);
 
+  const effectiveMaxTokens = maxTokens ?? DEFAULT_BRAIN_MAX_TOKENS;
+  // Bound the whole pool walk, not just each call. Without this a deep
+  // fallback chain of dead endpoints blocks the caller for N x timeoutMs.
+  const overallBudgetMs = timeoutMs * Math.min(targets.length, BRAIN_LLM_MAX_BUDGETED_ATTEMPTS);
+  const deadline = Date.now() + overallBudgetMs;
+
   let text: string | null = null;
+  let truncated = false;
+  let deadlineHit = false;
   for (const [attempt, target] of targets.entries()) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      deadlineHit = true;
+      break;
+    }
     const startedAt = Date.now();
     try {
       const result = await completeBrainLlmDetailed(target, {
         system: systemPrompt,
         user: userMessage,
-        timeoutMs,
-        maxTokens,
+        // Never let one target overrun the decision's whole budget.
+        timeoutMs: Math.min(timeoutMs, remaining),
+        maxTokens: effectiveMaxTokens,
+        // The system prompt demands "exactly one JSON object and no
+        // markdown", but asking for it in prose is not the same as asking
+        // for it on the wire - which is precisely what reasoning-heavy
+        // models ignore. Providers without the field drop it harmlessly.
+        responseFormat: { type: 'json_object' },
       });
       text = result.text;
+      truncated = isTruncated(result.stopReason);
       circuit?.recordSuccess(target.label ?? target.model);
       trace?.events.emit('brain.llm_call', {
         sessionId: request.sessionId,
@@ -262,7 +322,12 @@ export async function llmDecide(
         attempt,
         ok: true,
         durationMs: Date.now() - startedAt,
-        ...(result.stopReason === 'max_tokens' ? { error: 'response truncated at maxTokens' } : {}),
+        // A truncated call SUCCEEDED at the transport level, so it stays
+        // `ok: true`; the flag is what lets a reader tell "the model returned
+        // garbage" from "the model was cut off". Reporting it as `error` on
+        // an ok row (the previous shape) forced every consumer to pick one
+        // reading or the other.
+        ...(truncated ? { truncated: true } : {}),
         ...(trace.content ? { responseText: text } : {}),
         ...(result.usage ? { usage: result.usage } : {}),
         at: Date.now(),
@@ -288,10 +353,21 @@ export async function llmDecide(
 
   if (text === null) {
     return markDenyKind(
-      { type: 'deny', reason: 'Autonomy Brain LLM unavailable for decision.' },
+      {
+        type: 'deny',
+        reason: deadlineHit
+          ? 'Autonomy Brain LLM pool exhausted its ' + overallBudgetMs + 'ms decision budget.'
+          : 'Autonomy Brain LLM unavailable for decision.',
+      },
       'unavailable',
     );
   }
+
+  // A truncated response is a BUDGET problem, not a model that refused. Say
+  // so in the deny reason, or the same symptom reads as an unparseable
+  // response forever - the council learned this as `withTruncationNote`.
+  const withTruncation = (reason: string): string =>
+    truncated ? reason + ' (response truncated at maxTokens=' + effectiveMaxTokens + ')' : reason;
 
   const minConfidence = quality?.minConfidence ?? 0;
   const rejectUncertain = quality?.rejectUncertain ?? true;
@@ -309,20 +385,31 @@ export async function llmDecide(
         type: 'deny',
         reason: belowConfidence
           ? `Autonomy Brain reported confidence ${confidence} below the ${minConfidence} floor.`
-          : 'Autonomy Brain returned no exact valid option id.',
+          : withTruncation('Autonomy Brain returned no exact valid option id.'),
       },
       'unparseable',
     );
   }
 
   const envelope = parseFreeTextDecision(text);
-  if (rejectUncertain && (!envelope || belowConfidence)) {
+  // The confidence floor is its OWN gate. It used to be evaluated only inside
+  // the `rejectUncertain` branch, so turning the uncertainty gate off also
+  // turned `minConfidence` off for optionless requests - while option-bearing
+  // requests kept enforcing it. Two independent knobs sharing one condition.
+  if (belowConfidence) {
     return markDenyKind(
       {
         type: 'deny',
-        reason: belowConfidence
-          ? `Autonomy Brain reported confidence ${confidence} below the ${minConfidence} floor.`
-          : 'Autonomy Brain returned no usable decision (empty or declined).',
+        reason: `Autonomy Brain reported confidence ${confidence} below the ${minConfidence} floor.`,
+      },
+      'unparseable',
+    );
+  }
+  if (rejectUncertain && !envelope) {
+    return markDenyKind(
+      {
+        type: 'deny',
+        reason: withTruncation('Autonomy Brain returned no usable decision (empty or declined).'),
       },
       'unparseable',
     );

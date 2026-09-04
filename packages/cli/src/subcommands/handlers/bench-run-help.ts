@@ -87,10 +87,10 @@ export const BENCH_RUN_FLAGS: ReadonlyArray<BenchRunFlag> = [
   {
     name: 'suite',
     flag: '--suite <id>',
-    description: 'Benchmark suite id (`polyglot` or `swebench`).',
+    description: 'Benchmark suite id (`core`, `smoke`, `local`, `polyglot`, or `swebench`).',
     group: 'suite',
     kind: 'value',
-    defaultValue: 'polyglot',
+    defaultValue: 'core',
   },
   {
     name: 'polyglot-dir',
@@ -98,7 +98,6 @@ export const BENCH_RUN_FLAGS: ReadonlyArray<BenchRunFlag> = [
     description: 'Path to the Aider polyglot dataset (required when --suite polyglot).',
     group: 'suite',
     kind: 'value',
-    required: true,
   },
   {
     name: 'languages',
@@ -122,14 +121,37 @@ export const BENCH_RUN_FLAGS: ReadonlyArray<BenchRunFlag> = [
     group: 'suite',
     kind: 'boolean',
   },
+  {
+    name: 'suite-dir',
+    flag: '--suite-dir <path>',
+    description: 'Directory containing bench.local.json (required when --suite local).',
+    group: 'suite',
+    kind: 'value',
+  },
+  {
+    name: 'manifest',
+    flag: '--manifest <file>',
+    description: 'Explicit local-manifest path (alternative to --suite-dir).',
+    group: 'suite',
+    kind: 'value',
+  },
   // -- Model matrix ---------------------------------------------------
   {
     name: 'models',
     flag: '--models <config>',
-    description: 'Path to the model-cells config (JSON).',
+    description:
+      'Path to the model-cells config (JSON). Optional when --cell or a saved model is set.',
     group: 'models',
     kind: 'value',
     defaultValue: 'bench.config.json',
+  },
+  {
+    name: 'cell',
+    flag: '--cell <spec>',
+    description:
+      'Comma-separated model cells (`provider/model` or `label=provider/model`). Skips the config file.',
+    group: 'models',
+    kind: 'value',
   },
   // -- Run control ----------------------------------------------------
   {
@@ -153,6 +175,22 @@ export const BENCH_RUN_FLAGS: ReadonlyArray<BenchRunFlag> = [
     description: 'Override the per-cell concurrency from the model config.',
     group: 'control',
     kind: 'value',
+  },
+  {
+    name: 'repeats',
+    flag: '--repeats <N>',
+    description:
+      'Attempts per (task x model). >1 adds pass@k and a flakiness count so run-to-run noise is visible.',
+    group: 'control',
+    kind: 'value',
+    defaultValue: '1',
+  },
+  {
+    name: 'keep-sandbox',
+    flag: '--keep-sandbox',
+    description: 'Keep the temporary sandbox (workdirs + isolated home) on disk for debugging.',
+    group: 'control',
+    kind: 'boolean',
   },
 ];
 
@@ -212,10 +250,10 @@ const BENCH_RUN_FLAG_COLUMN_WIDTH = 28;
 export function renderBenchRunHelpToString(): string {
   const lines: string[] = [
     color.bold('wstack bench run — execute a benchmark suite across a model matrix'),
-    color.dim('  Runs a benchmark suite (polyglot or swebench) across every model cell'),
-    color.dim('  in the config. Output is a per-run directory with `report.md`, JSON'),
-    color.dim('  artifacts, and (for swebench) per-cell predictions for the official'),
-    color.dim('  harness.'),
+    color.dim('  Default suite is bundled core (6 agent-edit tasks with tests). Pass --cell'),
+    color.dim('  provider/model to start immediately. Output is a per-run directory'),
+    color.dim('  with `report.md` (leaderboard + per-task matrix), JSON artifacts,'),
+    color.dim('  and (for swebench) per-cell predictions for the official harness.'),
     '',
     color.bold('Usage'),
     `  ${buildUsageLine()}`,
@@ -224,7 +262,7 @@ export function renderBenchRunHelpToString(): string {
     ...buildFlagBlock(),
     '',
     color.dim(
-      'See also: wstack bench list (show available suites + cells); wstack bench report <dir>',
+      'See also: wstack bench list; wstack bench report <dir>; wstack bench compare <a> <b>',
     ),
   ];
   return lines.join('\n') + '\n';
@@ -277,7 +315,7 @@ function buildFlagBlock(): string[] {
     // required flags and defaults. Both annotations are
     // data-driven from the entry's `required` / `defaultValue`
     // fields — the parser uses the same defaults (see
-    // `bench.ts`'s `flagStr(deps, 'suite') ?? 'polyglot'`).
+    // `bench.ts`'s `flagStr(deps, 'suite') ?? 'core'`).
     let desc = f.description;
     if (f.required) {
       desc = desc + ' ' + color.bold('(required)');

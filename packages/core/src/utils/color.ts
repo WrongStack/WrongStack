@@ -39,5 +39,6 @@ export const color = {
 };
 
 export function stripAnsi(s: string): string {
+  if (typeof s !== 'string') return '';
   return s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
 }

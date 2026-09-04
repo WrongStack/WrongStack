@@ -294,3 +294,77 @@ describe('useBrainEvents — council tier', () => {
     unmount();
   });
 });
+
+describe('useBrainEvents — interactive escalation', () => {
+  const request = {
+    id: 'req-esc',
+    source: 'director' as const,
+    question: 'Merge the risky change?',
+    risk: 'high' as const,
+    fallback: 'ask_human' as const,
+    options: [{ id: 'merge', label: 'Merge' }],
+  };
+
+  it('raises the prompt on a pending ask_human without writing a history row', () => {
+    const events = new EventBus();
+    const dispatch = vi.fn();
+    const { unmount } = renderHook(() => useBrainEvents(events, dispatch));
+
+    act(() => {
+      events.emit('brain.decision_ask_human', {
+        request,
+        decision: { type: 'ask_human', prompt: 'pick one' },
+        at: Date.now(),
+        pending: true,
+      });
+    });
+
+    const actions = dispatch.mock.calls.map(([action]) => action);
+    // The prompt UI is the visible waiting state...
+    expect(actions.some((a) => a.type === 'brainPromptSet')).toBe(true);
+    // ...but the row belongs to whatever the human actually decides.
+    expect(actions.filter((a) => a.type === 'addEntry')).toHaveLength(0);
+    unmount();
+  });
+
+  it('writes exactly one row per escalated decision, carrying the council panel', () => {
+    const events = new EventBus();
+    const dispatch = vi.fn();
+    const { unmount } = renderHook(() => useBrainEvents(events, dispatch));
+
+    act(() => {
+      events.emit('brain.council_resolved', {
+        requestId: request.id,
+        status: 'abstained',
+        resolution: 'none',
+        configuredSeatCount: 3,
+        validVoteCount: 1,
+        distinctTargetCount: 1,
+        judgeUsed: false,
+        at: Date.now(),
+      });
+      events.emit('brain.decision_ask_human', {
+        request,
+        decision: { type: 'ask_human', prompt: 'pick one' },
+        at: Date.now(),
+        pending: true,
+      });
+      events.emit('brain.decision_answered', {
+        request,
+        decision: { type: 'answer', optionId: 'merge', text: 'Merge' },
+        at: Date.now(),
+        tier: 'human',
+      });
+    });
+
+    const rows = dispatch.mock.calls
+      .map(([action]) => action)
+      .filter((action) => action.type === 'addEntry');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].entry).toMatchObject({ status: 'answered', decision: 'merge' });
+    // The buffered panel used to be drained by the prompt event, so the row
+    // that carried the real verdict showed no council at all.
+    expect(rows[0].entry.council).toMatchObject({ configuredSeatCount: 3 });
+    unmount();
+  });
+});

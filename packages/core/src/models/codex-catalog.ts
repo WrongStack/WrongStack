@@ -22,7 +22,7 @@
  */
 
 export interface CodexModelMeta {
-  /** The wire id sent to the backend and stored in config (e.g. `gpt-5.5`). */
+  /** The wire id sent to the backend and stored in config (e.g. `gpt-6-astra`). */
   id: string;
   /** Human-readable display name shown in pickers. */
   name: string;
@@ -39,10 +39,15 @@ export interface CodexModelMeta {
  */
 export const CODEX_MODELS: ReadonlyArray<CodexModelMeta> = [
   {
+    id: 'gpt-6-astra',
+    name: 'GPT-6 Astra',
+    description: 'Most capable model for complex work across code, apps, and research.',
+    current: true,
+  },
+  {
     id: 'gpt-5.6-sol',
     name: 'GPT-5.6 Sol',
     description: 'Latest frontier agentic coding model.',
-    current: true,
   },
   {
     id: 'gpt-5.5',

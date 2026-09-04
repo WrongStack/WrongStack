@@ -835,6 +835,8 @@
     "councilDistinctnessHint": "Rejeita assentos duplicados: 'model' exige modelos distintos, 'provider' provedores independentes para que uma queda não possa influenciar o voto.",
     "councilVoterBudgetLabel": "Orçamento de resposta do votante",
     "councilVoterBudgetHint": "Tokens de saída por chamada de assento — modelos de raciocínio gastam seus tokens de pensamento deste orçamento.",
+    "councilRoundsLabel": "Rodadas de deliberação",
+    "councilRoundsHint": "A rodada 1 é independente. Nas seguintes, cada assento vê os votos dos demais e pode rever sua posição. Apenas a última rodada é contada, e cada rodada custa mais uma chamada por assento.",
     "councilJudgeBudgetLabel": "Orçamento de resposta do juiz",
     "councilJudgeBudgetHint": "Tokens de saída para a chamada do juiz de desempate.",
     "councilSeatTemplate": "Modelo de assento:",
@@ -901,6 +903,7 @@
     "m5Default": "5 min (padrão)",
     "default": "Padrão",
     "oneSerial": "1 (serial)",
+    "roundsOff": "1 (sem deliberação)",
     "default500": "Padrão (500)",
     "default10m": "Padrão (10 min)"
   },

@@ -56,14 +56,14 @@ type AnthropicUsageWire = {
  */
 function mergeAnthropicUsage(state: AnthropicStreamState, u: AnthropicUsageWire | undefined): void {
   if (!u) return;
-  if (u.input_tokens !== undefined) state.usage.input = u.input_tokens;
-  if (u.output_tokens !== undefined) state.usage.output = u.output_tokens;
-  if (u.cache_read_input_tokens !== undefined) state.usage.cacheRead = u.cache_read_input_tokens;
+  if (u.input_tokens !== undefined) state.usage.input = nonNegative(u.input_tokens);
+  if (u.output_tokens !== undefined) state.usage.output = nonNegative(u.output_tokens);
+  if (u.cache_read_input_tokens !== undefined) state.usage.cacheRead = nonNegative(u.cache_read_input_tokens);
   if (u.cache_creation?.ephemeral_5m_input_tokens !== undefined) {
-    state.usage.cacheWrite5m = u.cache_creation.ephemeral_5m_input_tokens;
+    state.usage.cacheWrite5m = nonNegative(u.cache_creation.ephemeral_5m_input_tokens);
   }
   if (u.cache_creation?.ephemeral_1h_input_tokens !== undefined) {
-    state.usage.cacheWrite1h = u.cache_creation.ephemeral_1h_input_tokens;
+    state.usage.cacheWrite1h = nonNegative(u.cache_creation.ephemeral_1h_input_tokens);
   }
   // Prefer the explicit aggregate; derive it from the TTL split when only the
   // split was reported. The derivation reads the RETAINED state, not just
@@ -75,7 +75,7 @@ function mergeAnthropicUsage(state: AnthropicStreamState, u: AnthropicUsageWire 
   // the canonical Usage (never fabricated zeros — see the partial-TTL pinning
   // test), so the split-presence signal downstream is preserved.
   if (u.cache_creation_input_tokens !== undefined) {
-    state.usage.cacheWrite = u.cache_creation_input_tokens;
+    state.usage.cacheWrite = nonNegative(u.cache_creation_input_tokens);
     state.cacheWriteFromAggregate = true;
   } else if (
     !state.cacheWriteFromAggregate &&
@@ -83,6 +83,10 @@ function mergeAnthropicUsage(state: AnthropicStreamState, u: AnthropicUsageWire 
   ) {
     state.usage.cacheWrite = (state.usage.cacheWrite5m ?? 0) + (state.usage.cacheWrite1h ?? 0);
   }
+}
+
+function nonNegative(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
 export interface AnthropicStreamState {

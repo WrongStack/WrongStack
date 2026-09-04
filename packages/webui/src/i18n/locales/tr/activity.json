@@ -3645,6 +3645,8 @@
     "voting": "Oylama devam ediyor…",
     "judgeUsed": "Hakem Eşitliği Bozdu",
     "correlated": "Korelasyonlu Panel",
+    "converged": "Yakınsayan Panel",
+    "judgeIsVoter": "Yargıç Oy Da Verdi",
     "evaluatedQuestion": "Değerlendirilen Öneri / Soru:",
     "votingDistribution": "Uzlaşı Oylama Dağılımı",
     "quorumWeight": "Toplam Ağırlık: {{weight}}",

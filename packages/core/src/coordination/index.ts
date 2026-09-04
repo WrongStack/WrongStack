@@ -166,6 +166,16 @@ export {
   BrainMonitor,
   type BrainMonitorOptions,
 } from './brain-monitor.js';
+export {
+  type BrainDecisionTier,
+  BrainTierCounter,
+  type BrainTierStats,
+  DETERMINISTIC_BRAIN_TIERS,
+  emitBrainTierTransition,
+  isDeterministicTier,
+  markDecisionTier,
+  readDecisionTier,
+} from './brain-telemetry.js';
 export { BrainTraceRecorder, type BrainTraceRecorderOptions } from './brain-trace.js';
 export {
   type BugFinding,

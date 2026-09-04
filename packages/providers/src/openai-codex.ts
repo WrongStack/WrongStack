@@ -810,15 +810,19 @@ function responseFailureStatus(
 }
 
 function normalizeUsage(u: ResponsesUsage): Usage {
-  const cached = u.input_tokens_details?.cached_tokens ?? 0;
-  const cacheWrite = u.input_tokens_details?.cache_write_tokens ?? 0;
-  const total = u.input_tokens ?? 0;
+  const cached = nonNegative(u.input_tokens_details?.cached_tokens);
+  const cacheWrite = nonNegative(u.input_tokens_details?.cache_write_tokens);
+  const total = nonNegative(u.input_tokens);
   return {
     input: Math.max(0, total - cached - cacheWrite),
-    output: u.output_tokens ?? 0,
+    output: nonNegative(u.output_tokens),
     cacheRead: cached || undefined,
     cacheWrite: cacheWrite || undefined,
   };
+}
+
+function nonNegative(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
 function mapResponsesStatus(status: string | undefined, sawToolUse: boolean): StopReason {

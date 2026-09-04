@@ -102,10 +102,19 @@ export function retrieveSqliteSageForAudience(
 
   const truncated = matched.slice(0, limit);
   // Truncation signal: fire when the corpus was not exhausted (more rows
-  // exist beyond what was scanned) AND more matching rows were found than
-  // the caller's limit allows. This tells the caller there are additional
-  // audience-matching memories beyond what was returned.
-  if (!exhausted && totalScanned > 0 && matched.length > truncated.length) {
+  // exist beyond what was scanned) AND the returned page may be incomplete:
+  // either matches were dropped by the limit slice, or the scan ended at
+  // AUDIENCE_MAX_SCAN with fewer than `limit` matches while rarer audience
+  // rows may remain unscanned. Without the second arm a capped scan that
+  // found zero or partial matches is indistinguishable from a true empty
+  // corpus (the silent miss documented in docs/sage-memory-report §6).
+  // A full page (matched === limit) stays silent: standard pagination
+  // semantics already tell the caller more may exist.
+  if (
+    !exhausted &&
+    totalScanned > 0 &&
+    (matched.length < limit || matched.length > truncated.length)
+  ) {
     ctx.onTruncated?.({ sqlRowsExamined: totalScanned, returned: truncated.length });
   }
   return truncated;

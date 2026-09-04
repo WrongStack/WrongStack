@@ -146,5 +146,6 @@ export function buildWin32CmdShimInvocation(
 }
 
 function quoteWin32CmdArg(arg: string): string {
-  return `"${arg}"`;
+  const escaped = arg.replace(/(\\+)$/, '$1$1');
+  return `"${escaped}"`;
 }

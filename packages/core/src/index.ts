@@ -101,6 +101,7 @@ export {
   BrainTierCounter,
   type BrainTierStats,
   DETERMINISTIC_BRAIN_TIERS,
+  emitBrainTierTransition,
   isDeterministicTier,
   markDecisionTier,
   readDecisionTier,

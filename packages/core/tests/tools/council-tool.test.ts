@@ -98,9 +98,19 @@ describe('createCouncilTool', () => {
       resolution: 'majority',
       configuredSeatCount: 3,
     });
-    expect(prompts).toHaveLength(3);
+    // Three seats x two deliberation rounds.
+    expect(prompts).toHaveLength(6);
     expect(prompts.every((prompt) => prompt.includes('The release is reversible.'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('Users receive the fix today.'))).toBe(true);
+    // Round 1 is independent — no seat may see another's ballot.
+    expect(prompts.slice(0, 3).some((prompt) => prompt.includes('council-deliberation'))).toBe(
+      false,
+    );
+    // Round 2 shows the previous ballots as delimited untrusted data.
+    expect(prompts.slice(3).every((prompt) => prompt.includes('<council-deliberation>'))).toBe(
+      true,
+    );
+    expect(prompts[3]).toContain('Round 2 of 2');
   });
 
   it('rejects empty, duplicate, and oversized inputs before execution', () => {

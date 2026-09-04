@@ -132,7 +132,10 @@ export function sanitizeNodeOptions(value: string): string {
     const tok = tokens[i] as string;
     if (NODE_OPTIONS_INJECTION_FLAG_EQ.test(tok)) continue; // --require=./x
     if (NODE_OPTIONS_INJECTION_FLAG.test(tok)) {
-      i++; // also drop the following path token (--require ./x)
+      const next = tokens[i + 1];
+      if (next && !next.startsWith('-')) {
+        i++; // also drop the following path token (--require ./x)
+      }
       continue;
     }
     kept.push(tok);

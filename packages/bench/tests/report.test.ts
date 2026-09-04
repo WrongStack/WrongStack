@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { readRunDir, readSummary, writeJsonArtifacts } from '../src/report/json.js';
 import { renderMarkdownReport, reportHeaderLine } from '../src/report/markdown.js';
-import { readSummary, writeJsonArtifacts } from '../src/report/json.js';
 import type {
   BenchReport,
   CellResult,
@@ -172,5 +172,20 @@ describe('writeJsonArtifacts / readSummary', () => {
     await writeJsonArtifacts(dir, fullReport([]));
     const jsonl = await fs.readFile(path.join(dir, 'results.jsonl'), 'utf8');
     expect(jsonl).toBe('');
+  });
+
+  it('readRunDir reloads summary plus results.jsonl', async () => {
+    await writeJsonArtifacts(dir, fullReport([mkResult('t1')]));
+    const loaded = await readRunDir(dir);
+    expect(loaded.results).toHaveLength(1);
+    expect(loaded.results[0]?.taskId).toBe('t1');
+  });
+
+  it('readRunDir treats a missing results.jsonl as an empty result set', async () => {
+    await writeJsonArtifacts(dir, fullReport([mkResult('t1')]));
+    await fs.rm(path.join(dir, 'results.jsonl'));
+    const loaded = await readRunDir(dir);
+    expect(loaded.results).toEqual([]);
+    expect(loaded.cells).toHaveLength(1);
   });
 });

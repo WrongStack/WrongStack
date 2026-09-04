@@ -53,7 +53,11 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);

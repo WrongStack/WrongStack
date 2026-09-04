@@ -3645,6 +3645,8 @@
     "voting": "Abstimmung läuft…",
     "judgeUsed": "Richter hat das Patt aufgelöst",
     "correlated": "Korrelierter Rat",
+    "converged": "Konvergiertes Gremium",
+    "judgeIsVoter": "Richter Hat Mitgestimmt",
     "evaluatedQuestion": "Beratener Vorschlag / Frage:",
     "votingDistribution": "Verteilung der Konsensabstimmung",
     "quorumWeight": "Gesamtgewicht: {{weight}}",

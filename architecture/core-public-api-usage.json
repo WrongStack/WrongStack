@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 199,
-      "typeOnly": 81,
-      "runtimeOrMixed": 170
+      "files": 200,
+      "typeOnly": 80,
+      "runtimeOrMixed": 174
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -127,6 +127,11 @@
       "files": 3,
       "typeOnly": 0,
       "runtimeOrMixed": 3
+    },
+    "@wrongstack/core/request-conversation": {
+      "files": 2,
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
       "files": 136,
@@ -2266,6 +2271,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/boot/brain-decision-log.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/boot/dispatch-webui.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 5
@@ -2549,14 +2560,14 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/slash-commands/brain-status.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/slash-commands/command-context.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 6
+      "runtimeOrMixed": 7
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -2670,7 +2681,7 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/brain-and-orchestration.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -7853,6 +7864,18 @@
     {
       "specifier": "@wrongstack/core/replay",
       "file": "packages/cli/tests/replay-wiring.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/request-conversation",
+      "file": "packages/providers/src/opencode-go.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/request-conversation",
+      "file": "packages/providers/tests/opencode-go.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

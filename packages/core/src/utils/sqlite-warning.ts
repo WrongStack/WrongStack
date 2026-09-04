@@ -43,6 +43,10 @@ function isSqliteExperimentalWarning(warning: unknown, rest: readonly unknown[])
  * process warning path, and the patch is removed before returning.
  */
 export function withSqliteExperimentalWarningSuppressed<T>(run: () => T): T {
+  if (typeof run !== 'function') {
+    return undefined as unknown as T;
+  }
+
   const originalEmitWarning = process.emitWarning;
   const forwardWarning = originalEmitWarning.bind(process) as (
     warning: unknown,

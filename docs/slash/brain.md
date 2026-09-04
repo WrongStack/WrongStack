@@ -118,7 +118,36 @@ WebUI settings section alike.
 /brain council timeout 20000          # per-seat budget
 /brain council concurrency 6          # seats polled at once, 1..8
 /brain council judgetokens 700        # output budget for the tie-breaker
+/brain council rounds 1               # turn deliberation off (default 2)
 ```
+
+### Deliberation rounds
+
+By default a panel votes **twice**. Round 1 is independent — no seat sees any
+other. In round 2 every seat is shown the other seats' ballots, including its
+own, and votes again; only the final round is tallied. A seat that missed a
+consequence another lens caught can revise on it.
+
+The cost is linear and unconditional: two rounds means **two provider calls per
+seat on every council decision**, not only contested ones. `/brain council
+rounds 1` restores the single-round panel.
+
+The trade is independence for information, and it is not free — models converge
+on a stated majority whether or not the majority brought an argument. Three
+things push back on that:
+
+- The voter instruction says so explicitly: change your vote only on substance
+  you had not accounted for, *agreement is not evidence*, and holding your
+  position is a full answer.
+- Other seats' ballots arrive as delimited **untrusted quoted data**, so an
+  instruction smuggled into a rationale carries no more authority than one
+  smuggled into the question.
+- `deliberationChanges` on the resolution reports how many seats actually
+  moved. Watch it: `0` every time means the second round is buying cost and
+  nothing else, and a figure near the seat count means the panel is conforming
+  rather than reasoning. The orchestrator warns when a majority of the panel
+  moves in one round, and separately when a **veto seat** folds — a veto that
+  can be talked out of its veto is not a safety property.
 
 Two things worth setting deliberately:
 

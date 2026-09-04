@@ -52,6 +52,49 @@ The canonical project state directory comes from `resolveWstackPaths`, not from
 The SQLite journal is authoritative. Query caches and `metrics.db` are derived and may be
 rebuilt from the journal. Row-level retention replaces file-granular partition management.
 
+## Volume policy
+
+Chronicle is the highest-volume writer in the runtime, so what it *declines* to store is
+as much a part of its design as what it keeps. Four mechanisms, in the order an event
+meets them:
+
+1. **Collection allowlist** — `domain-adapter.ts` bridges only domains that can improve a
+   coding decision, provenance, reliability or cost control. UI presence, navigation and
+   other product-engagement events are never collected.
+2. **Windowed aggregation** — `rollup-adapter.ts` turns high-frequency ephemeral signals
+   (process output, progress ticks, context gauges, per-request network chatter, fleet
+   snapshots) into one bounded aggregate per window instead of one row per sample.
+   Resource observations are keyed on the logical request, so an agent turn produces one
+   aggregate rather than one per tool call.
+3. **Detail policy** — `detail-policy.ts` classifies each event as kept or foldable, and
+   `counter-sink.ts` folds the foldable ones into periodic `metrics.counter` aggregates.
+   It sits between every adapter and the journal, so the policy cannot drift per-adapter.
+   Levels are `full`, `balanced` (the default) and `lean`, selected by `chronicle.detail`.
+   A failure, denial or cancellation is never folded, at any level.
+4. **Storage limits** — `chronicle.retentionDays` (age), `chronicle.maxEvents` (rows, with
+   prefix eviction that checkpoints the chain so `verify()` still succeeds over the
+   truncated prefix) and `chronicle.maxBytes` (aggregate SQLite allocation across the
+   database and its WAL/SHM sidecars).
+
+Two properties of the storage layer support all of the above:
+
+- **`payload-codec.ts`** compresses the stored event JSON with a frozen deflate preset
+  dictionary of the envelope skeleton and restores it byte for byte on read. The `payload`
+  column remains the source of truth for hash verification; only its encoding changed, and
+  pre-codec rows stay readable in the same table with no migration. Measured on a live
+  4-day journal: 1518 B average down to 618 B (41%).
+- **Incremental vacuum** (`ensureIncrementalVacuum`) lets a purge or a `maxEvents` trim
+  hand pages back to the filesystem. Without it SQLite parks freed pages on the freelist
+  and the file keeps its all-time high-water mark forever — measured on a live install as
+  a 220 MB `metrics.db` holding 18 MB of live data. The pragma must be set *before*
+  `journal_mode = WAL` and before the first `CREATE TABLE`, or SQLite accepts it and does
+  nothing.
+
+`metrics.db` splits its tables along the same line: per-event rows (`file_lineage`,
+`logical_request_daily`) are pruned to `chronicle.metricsRowRetentionDays`, measured from
+the newest recorded day rather than the wall clock, while every daily aggregate is kept for
+the life of the file. That asymmetry is what lets the projection outlive the raw journal.
+
 ## Runtime and fallback
 
 `createChronicleEventJournal` is the producer entry point.

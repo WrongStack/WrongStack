@@ -88,12 +88,18 @@ function FileTreeNode({
     }
   }, [node.path, node.type, selectedPath]);
 
-  // Auto-expand to reveal matching search results
+  // Auto-expand to reveal matching search results. Expanding only the root
+  // left a match nested two+ levels deep hidden behind its collapsed
+  // ancestors — expand every directory on the matching path instead.
   useEffect(() => {
-    if (filter && depth === 0) {
+    if (
+      filter &&
+      node.type === 'directory' &&
+      nodeOrDescendantMatches(node, filter.toLowerCase())
+    ) {
       setExpanded(true);
     }
-  }, [filter, depth]);
+  }, [filter, node]);
 
   // Skip hidden directories in the root
   if (depth === 0 && node.type === 'directory' && node.name.startsWith('.')) {
@@ -236,7 +242,9 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key === 'Escape') {
+        event.preventDefault();
         if (isEditing) {
           setIsEditing(false);
           setEditedContent(null);

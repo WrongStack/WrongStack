@@ -58,9 +58,10 @@ describe('openai-codex overlay ↔ core floor parity', () => {
   });
 
   it('declares the 1M context and 128k output limits for EVERY codex model', () => {
-    // The whole Codex lineup (sol/terra/luna, 5.5, 5.4, mini, spark) is treated
+    // The whole Codex lineup (astra, sol/terra/luna, 5.5, 5.4, mini, spark) is treated
     // as 1M-windowed — mirroring the published 1M-context configuration for
-    // these models. The live /codex/models probe remains the runtime guard that
+    // these models (gpt-6-astra included; OpenAI publishes no separate
+    // window). The live /codex/models probe remains the runtime guard that
     // caps sessions to the window the backend actually enforces.
     const models = OVERLAY['openai-codex']?.models ?? {};
     for (const [id, model] of Object.entries(models)) {
@@ -68,10 +69,10 @@ describe('openai-codex overlay ↔ core floor parity', () => {
     }
   });
 
-  it('declares the documented GPT-5.6 wire reasoning efforts', () => {
+  it('declares the documented GPT-6/GPT-5.6 wire reasoning efforts', () => {
     // Ultra is a product orchestration mode (max + automatic task delegation),
     // not a reasoning.effort value sent to the Responses backend.
-    for (const id of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
+    for (const id of ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
       const model = OVERLAY['openai-codex']?.models?.[id] as
         | { reasoningConfig?: { effortLevels?: string[] } }
         | undefined;

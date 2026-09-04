@@ -7,6 +7,9 @@ export interface SafeParseResult<T> {
 }
 
 export function safeParse<T = unknown>(input: string, maxBytes = 5_000_000): SafeParseResult<T> {
+  if (typeof input !== 'string') {
+    return { ok: false, error: 'Input must be a string' };
+  }
   if (
     input.length > maxBytes ||
     (input.length * 3 > maxBytes && Buffer.byteLength(input, 'utf8') > maxBytes)
@@ -64,6 +67,7 @@ export function safeStringify(value: unknown, pretty = false): string {
  * raw handling.
  */
 export function sanitizeJsonString(s: string): string | null {
+  if (typeof s !== 'string') return null;
   let out = s.trim();
 
   // Stage 1: strip line and block comments outside JSON string values.
@@ -100,16 +104,20 @@ export function sanitizeJsonString(s: string): string | null {
  * never touched.
  */
 export function stripCodeFences(s: string): string | null {
+  if (typeof s !== 'string') return null;
   const trimmed = s.trim();
   // Whole-payload fence: ```lang? … ```? (closer optional for truncation)
   const opener = /^```[\w+-]*[ \t]*\r?\n?/.exec(trimmed);
   if (opener) {
-    const inner = trimmed.slice(opener[0].length).replace(/(\r?\n)?[ \t]*```[ \t]*$/, '');
-    return inner.trim();
+    const inner = trimmed.slice(opener[0].length).replace(/(\r?\n)?[ \t]*```[ \t]*$/, '').trim();
+    return inner.length > 0 ? inner : null;
   }
   // Fence embedded in prose: extract the first complete fenced block.
   const embedded = /```[\w+-]*[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*```/.exec(trimmed);
-  if (embedded) return (embedded[1] ?? '').trim();
+  if (embedded) {
+    const inner = (embedded[1] ?? '').trim();
+    return inner.length > 0 ? inner : null;
+  }
   return null;
 }
 

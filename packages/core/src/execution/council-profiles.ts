@@ -23,6 +23,17 @@ export const DEFAULT_COUNCIL_VOTER_MAX_TOKENS = 300;
 export const DEFAULT_COUNCIL_JUDGE_MAX_TOKENS = 500;
 export const DEFAULT_COUNCIL_PER_CALL_TIMEOUT_MS = 30_000;
 export const DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS = 90_000;
+/**
+ * Voting rounds per decision. 2 = one independent round plus one deliberation
+ * round in which each seat sees the others' ballots.
+ */
+export const DEFAULT_COUNCIL_DELIBERATION_ROUNDS = 2;
+/**
+ * Hard ceiling on rounds. Every round costs one provider call PER SEAT and
+ * the panel blocks a decision the whole time; a runaway `deliberationRounds`
+ * from config would otherwise turn one decision into an unbounded debate.
+ */
+export const MAX_COUNCIL_DELIBERATION_ROUNDS = 5;
 
 /** Model-agnostic profiles. Roles are routing hints, never provider/model pins. */
 export const BUILTIN_COUNCIL_PROFILES: readonly CouncilProfileConfig[] = Object.freeze([
@@ -223,8 +234,22 @@ export function normalizeCouncilProfile(
     'perCallTimeoutMs',
     id,
   );
+  const deliberationRounds = positiveInteger(
+    profile.deliberationRounds ?? DEFAULT_COUNCIL_DELIBERATION_ROUNDS,
+    'deliberationRounds',
+    id,
+  );
+  if (deliberationRounds > MAX_COUNCIL_DELIBERATION_ROUNDS) {
+    throw new Error(
+      `CouncilProfileRegistry: profile "${id}" deliberationRounds must not exceed ` +
+        `${MAX_COUNCIL_DELIBERATION_ROUNDS}.`,
+    );
+  }
+  // The overall budget covers EVERY round, so an explicit budget written for
+  // a single-round panel would now abort the panel mid-deliberation. Scale
+  // the default by the round count and let an explicit value stand.
   const overallTimeoutMs = positiveInteger(
-    profile.overallTimeoutMs ?? DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS,
+    profile.overallTimeoutMs ?? DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS * deliberationRounds,
     'overallTimeoutMs',
     id,
   );
@@ -247,6 +272,7 @@ export function normalizeCouncilProfile(
     judgeMaxTokens,
     perCallTimeoutMs,
     overallTimeoutMs,
+    deliberationRounds,
   });
 }
 

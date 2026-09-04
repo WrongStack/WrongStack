@@ -78,6 +78,25 @@ export interface CouncilProfileConfig {
   judgeMaxTokens?: number | undefined;
   perCallTimeoutMs?: number | undefined;
   overallTimeoutMs?: number | undefined;
+  /**
+   * How many voting rounds the panel runs. Default
+   * {@link DEFAULT_COUNCIL_DELIBERATION_ROUNDS}.
+   *
+   * Round 1 is always independent: no seat sees any other. From round 2 on,
+   * each seat is shown the OTHER seats' previous ballots and votes again, so
+   * a seat that missed a consequence another lens caught can revise. Only the
+   * FINAL round is tallied.
+   *
+   * The cost is linear: N rounds means N x seats provider calls, every time.
+   *
+   * Deliberation trades independence for information, and that trade is not
+   * free — models converge on a stated majority whether or not the majority
+   * brought an argument. The voter instruction counters this explicitly
+   * ("agreement is not evidence"), and `deliberationChanges` on the result
+   * reports how many seats actually moved, which is the number to watch: a
+   * panel where most seats flip every round has stopped being a panel.
+   */
+  deliberationRounds?: number | undefined;
 }
 
 /** Fully validated profile used by the future Council orchestrator. */
@@ -95,6 +114,8 @@ export interface ResolvedCouncilProfile {
   judgeMaxTokens: number;
   perCallTimeoutMs: number;
   overallTimeoutMs: number;
+  /** Voting rounds to run; 1 disables deliberation. See the config doc. */
+  deliberationRounds: number;
 }
 
 /** Generic question accepted by a Council orchestrator. */
@@ -115,6 +136,16 @@ export interface CouncilVoteResult {
   seatId: string;
   persona: string;
   status: CouncilVoteStatus;
+  /**
+   * 1-based deliberation round this ballot was cast in. Absent on ballots
+   * from callers that predate deliberation; 1 means the independent round.
+   */
+  round?: number | undefined;
+  /**
+   * True when this ballot differs from the same seat's previous round — the
+   * seat was persuaded. Only meaningful from round 2 on.
+   */
+  changed?: boolean | undefined;
   optionId?: string | undefined;
   stance?: string | undefined;
   rationale?: string | undefined;
@@ -156,6 +187,26 @@ export interface CouncilResult {
   usage: CouncilUsage;
   warnings?: readonly string[] | undefined;
   errors?: readonly string[] | undefined;
+  /**
+   * Deliberation rounds actually run. 1 means the panel voted once, which is
+   * the whole of the pre-deliberation behaviour.
+   */
+  rounds: number;
+  /**
+   * Every round's ballots, oldest first. The last entry is `votes` — the
+   * tallied round. Kept so a decision stays reconstructable: without it,
+   * "the panel was unanimous" is indistinguishable from "the panel was split
+   * and then conformed", and those are very different verdicts.
+   */
+  roundVotes: readonly (readonly CouncilVoteResult[])[];
+  /**
+   * Ballots that changed in the final round versus the round before it.
+   *
+   * The health metric for deliberation: 0 means the extra rounds bought
+   * nothing but cost, and a number near the seat count every time means the
+   * panel is conforming rather than reasoning.
+   */
+  deliberationChanges: number;
 }
 
 /** Minimal structural dependency implemented by OneShotOrchestrator. */

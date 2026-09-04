@@ -130,6 +130,7 @@ export function useModelCatalog(options: UseModelCatalogOptions): UseModelCatalo
     if (!pendingModelSwitch) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (event.defaultPrevented) return;
         event.preventDefault();
         setPendingModelSwitch(null);
       }

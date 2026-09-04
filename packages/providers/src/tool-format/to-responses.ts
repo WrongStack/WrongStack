@@ -105,20 +105,17 @@ export function messagesToResponsesInput(messages: Message[]): Record<string, un
         if (content.length > 0) out.push({ role: 'user', content });
       }
     } else if (msg.role === 'assistant') {
-      const textBlocks = blocks.filter((b): b is TextBlock => b.type === 'text');
-      const toolUses = blocks.filter((b): b is ToolUseBlock => b.type === 'tool_use');
-
-      const text = textBlocks.map((b) => b.text).join('');
-      if (text.length > 0) {
-        out.push({
-          type: 'message',
-          role: 'assistant',
-          content: [{ type: 'output_text', text, annotations: [] }],
-          status: 'completed',
-        });
-      }
-
-      for (const u of toolUses) {
+      for (const block of blocks) {
+        if (block.type === 'text' && block.text.length > 0) {
+          out.push({
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: block.text, annotations: [] }],
+            status: 'completed',
+          });
+        }
+        if (block.type !== 'tool_use') continue;
+        const u = block as ToolUseBlock;
         out.push({
           type: 'function_call',
           call_id: u.id,

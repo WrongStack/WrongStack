@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  ObservableBrainArbiter,
   type BrainDecision,
   type BrainDecisionRequest,
+  ObservableBrainArbiter,
 } from '../../src/coordination/brain.js';
 import { markDecisionTier } from '../../src/coordination/brain-telemetry.js';
 import {
@@ -352,5 +352,85 @@ describe('brainTraceToEvaluationCase', () => {
     };
     const fixture = brainTraceToEvaluationCase(record);
     expect(fixture.expectations).toBeUndefined();
+  });
+});
+
+describe('BrainTraceRecorder — interactive escalation', () => {
+  let dir: string;
+  let file: string;
+  let events: EventBus;
+  let recorder: BrainTraceRecorder;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'brain-trace-esc-'));
+    file = join(dir, 'brain-trace.jsonl');
+    events = new EventBus();
+    recorder = new BrainTraceRecorder({ events, filePath: file });
+    recorder.start();
+  });
+
+  afterEach(async () => {
+    await recorder.stop();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('does not close a record on the PENDING ask_human prompt', () => {
+    const request = req();
+    events.emit('brain.decision_requested', { sessionId: 's1', request, at: 1_000 });
+    events.emit('brain.decision_ask_human', {
+      sessionId: 's1',
+      request,
+      decision: { type: 'ask_human', prompt: 'pick one' },
+      at: 1_010,
+      pending: true,
+    });
+
+    // Still open: the human has not answered yet.
+    expect(recorder.openCount).toBe(1);
+  });
+
+  it("records the human's real answer, not the prompt", async () => {
+    const request = req();
+    events.emit('brain.decision_requested', { sessionId: 's1', request, at: 1_000 });
+    events.emit('brain.decision_ask_human', {
+      sessionId: 's1',
+      request,
+      decision: { type: 'ask_human', prompt: 'pick one' },
+      at: 1_010,
+      pending: true,
+    });
+    events.emit('brain.decision_answered', {
+      sessionId: 's1',
+      request,
+      decision: { type: 'answer', optionId: 'extend', text: 'Extend it' },
+      at: 1_500,
+      tier: 'human',
+    });
+    await recorder.stop();
+
+    const records = await readBrainTrace(file);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.decision).toEqual({
+      type: 'answer',
+      optionId: 'extend',
+      text: 'Extend it',
+    });
+    expect(records[0]?.tier).toBe('human');
+  });
+
+  it('still closes on an ask_human that IS the final decision', async () => {
+    const request = req();
+    events.emit('brain.decision_requested', { sessionId: 's1', request, at: 1_000 });
+    events.emit('brain.decision_ask_human', {
+      sessionId: 's1',
+      request,
+      decision: { type: 'ask_human', prompt: 'pick one' },
+      at: 1_010,
+    });
+    await recorder.stop();
+
+    const records = await readBrainTrace(file);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.decision.type).toBe('ask_human');
   });
 });

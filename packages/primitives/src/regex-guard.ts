@@ -778,6 +778,9 @@ export function compileUserRegex(pattern: string, flags: string = ''): CompileRe
   if (typeof pattern !== 'string') {
     return { ok: false, reason: 'pattern must be a string' };
   }
+  if (typeof flags !== 'string') {
+    return { ok: false, reason: 'flags must be a string' };
+  }
   const cacheKey = `${flags}\u0000${pattern}`;
   const cached = COMPILED_CACHE.get(cacheKey);
   if (cached !== undefined) {
@@ -850,5 +853,6 @@ export const MAX_SUBJECT_LEN = 64 * 1024;
 
 /** Truncate a subject line to {@link MAX_SUBJECT_LEN} for synchronous regex eval. */
 export function capSubject(line: string): string {
+  if (typeof line !== 'string') return '';
   return line.length > MAX_SUBJECT_LEN ? line.slice(0, MAX_SUBJECT_LEN) : line;
 }

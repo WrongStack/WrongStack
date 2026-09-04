@@ -11,10 +11,16 @@ interface BrainCouncilSeatTrace {
   status: 'valid' | 'invalid' | 'failed' | 'cancelled';
   /** The option the seat voted for, when the question was option-bearing. */
   optionId?: string | undefined;
+  /** Free-text position, for an optionless question. */
+  stance?: string | undefined;
   model?: string | undefined;
   veto?: boolean | undefined;
   durationMs?: number | undefined;
   error?: string | undefined;
+  /** Deliberation round this ballot came from; 1 is the independent round. */
+  round?: number | undefined;
+  /** The seat changed its vote after seeing the other ballots. */
+  changed?: boolean | undefined;
 }
 
 /**
@@ -32,6 +38,12 @@ interface BrainCouncilTrace {
   /** Distinct provider/model targets that served the valid votes. */
   distinctTargetCount: number;
   judgeUsed: boolean;
+  /** The tie-breaker's label, and whether it had already cast a vote. */
+  judgeLabel?: string | undefined;
+  judgeIsVoter?: boolean | undefined;
+  /** Deliberation rounds run (1 = none) and seats that moved in the last one. */
+  rounds?: number | undefined;
+  deliberationChanges?: number | undefined;
   totalTokens?: number | undefined;
   durationMs?: number | undefined;
   /** Structural warnings — most importantly a CORRELATED (non-diverse) panel. */
@@ -236,6 +248,12 @@ export type HistoryEntry =
       rationale?: string | undefined;
       outcome?: string | undefined;
       interventionKind?: string | undefined;
+      /**
+       * Which tier of the ladder resolved this — the difference between a free
+       * rule hit and a multi-model council call, which are otherwise identical
+       * in the transcript.
+       */
+      tier?: string | undefined;
       /**
        * How the multi-LLM council reached this verdict, when a council decided
        * it. Present only for council-tier decisions; the single-LLM and policy

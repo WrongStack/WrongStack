@@ -1,7 +1,8 @@
 import {
+  indexInsideCodeFence,
+  type ParsedNextStep,
   parseNextSteps,
   stripNextStepsBlock,
-  type ParsedNextStep,
 } from '@wrongstack/tools/next-steps';
 
 export interface AssistantMessageProjection {
@@ -33,6 +34,10 @@ export function projectAssistantMessage(text: string): AssistantMessageProjectio
 
   const openingTag = NEXT_STEPS_OPEN_RE.exec(text);
   if (!openingTag) return { text, nextSteps: [] };
+
+  // A tag inside a fenced code block is example documentation — during
+  // streaming it must neither truncate the message nor count as metadata.
+  if (indexInsideCodeFence(text, openingTag.index)) return { text, nextSteps: [] };
 
   // During streaming, hide machine-readable metadata from the moment its
   // opening tag arrives. A balanced but malformed block is stripped too:

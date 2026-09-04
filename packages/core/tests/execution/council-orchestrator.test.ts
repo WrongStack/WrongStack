@@ -111,14 +111,20 @@ describe('CouncilOrchestrator', () => {
       validVoteCount: 3,
       judgeUsed: false,
     });
+    // Two deliberation rounds x three seats: deliberation is linear in cost.
+    expect(result.rounds).toBe(2);
     expect(result.usage).toMatchObject({
-      calls: 3,
-      inputTokens: 30,
-      outputTokens: 15,
-      totalTokens: 45,
+      calls: 6,
+      inputTokens: 60,
+      outputTokens: 30,
+      totalTokens: 90,
     });
     expect(result.usage.durationMs).toBeGreaterThanOrEqual(0);
+    // `votes` is the TALLIED round; every round is retained on `roundVotes`.
     expect(result.votes.filter((vote) => vote.status === 'valid')).toHaveLength(3);
+    expect(result.roundVotes).toHaveLength(2);
+    expect(result.roundVotes[0]?.every((vote) => vote.round === 1)).toBe(true);
+    expect(result.roundVotes[1]).toEqual(result.votes);
     expect(log.judgeCalls).toEqual([]);
   });
 
@@ -1088,7 +1094,8 @@ describe('CouncilOrchestrator — status + usage consistency', () => {
     expect(vote.provider).toBe('p1');
     expect(vote.model).toBe('m1');
     expect(vote.durationMs).toBeGreaterThanOrEqual(10);
-    expect(result.usage.calls).toBe(1);
+    // One seat, two deliberation rounds.
+    expect(result.usage.calls).toBe(2);
   });
 
   it('counts reported fallback attempts in usage.calls', async () => {
@@ -1122,7 +1129,8 @@ describe('CouncilOrchestrator — status + usage consistency', () => {
     const orchestrator = new CouncilOrchestrator({ caller: multiAttempt, maxConcurrency: 1 });
     const result = await orchestrator.ask({ ...QUESTION, profile });
     expect(result.status).toBe('decided');
-    expect(result.usage.calls).toBe(3);
+    // 3 reported attempts per call, one seat, two deliberation rounds.
+    expect(result.usage.calls).toBe(6);
   });
 });
 
@@ -1190,5 +1198,179 @@ describe('CouncilOrchestrator — truncation attribution', () => {
     const result = await orchestrator.ask({ ...QUESTION, profile });
     expect(result.judgeUsed).toBe(true);
     expect(result.errors?.some((e) => e.includes('truncated at maxTokens=77'))).toBe(true);
+  });
+});
+
+describe('CouncilOrchestrator — deliberation rounds', () => {
+  /** A caller that answers per (seatId, round) so a seat can change its mind. */
+  function roundCaller(script: Record<string, string[]>) {
+    const prompts: OneShotLLMInput[] = [];
+    const seen = new Map<string, number>();
+    const caller: CouncilLLMCaller = {
+      async call(input: OneShotLLMInput): Promise<OneShotLLMResult> {
+        const user = input.userPrompt ?? '';
+        prompts.push(input);
+        const seatId = /Seat id: ([a-z0-9-]+)/.exec(user)?.[1] ?? 'unknown';
+        const round = seen.get(seatId) ?? 0;
+        seen.set(seatId, round + 1);
+        const answers = script[seatId] ?? ['{"optionId":"merge"}'];
+        const text = answers[Math.min(round, answers.length - 1)] ?? answers[0]!;
+        return {
+          text,
+          model: 'm',
+          provider: 'p',
+          tokens: { input: 1, output: 1, total: 2 },
+          durationMs: 1,
+          fromFallback: false,
+        };
+      },
+    };
+    return { caller, prompts };
+  }
+
+  const threeSeats = (over: Partial<CouncilProfileConfig> = {}): CouncilProfileConfig => ({
+    id: 'delib',
+    seats: [
+      { id: 'a', persona: 'executor' },
+      { id: 'b', persona: 'skeptic' },
+      { id: 'c', persona: 'auditor' },
+    ],
+    judge: false,
+    distinctness: 'none',
+    ...over,
+  });
+
+  it('keeps round 1 independent and shows the other ballots from round 2', async () => {
+    const { caller, prompts } = roundCaller({
+      a: ['{"optionId":"merge","rationale":"ship it"}'],
+      b: ['{"optionId":"merge","rationale":"fine"}'],
+      c: ['{"optionId":"merge","rationale":"ok"}'],
+    });
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const result = await orchestrator.ask({ ...QUESTION, profile: threeSeats() });
+
+    expect(result.rounds).toBe(2);
+    const round1 = prompts.slice(0, 3).map((p) => p.userPrompt ?? '');
+    const round2 = prompts.slice(3).map((p) => p.userPrompt ?? '');
+    // The panel's value is independence; round 1 must never leak a peer view.
+    expect(round1.some((p) => p.includes('council-deliberation'))).toBe(false);
+    expect(round2.every((p) => p.includes('<council-deliberation>'))).toBe(true);
+    expect(round2[0]).toContain('"seatId":"b"');
+    // A seat sees its OWN previous ballot marked, so it can hold a position
+    // rather than re-deriving one from scratch.
+    expect(round2[0]).toContain('"isYou":true');
+  });
+
+  it('tallies the final round and records the seats that moved', async () => {
+    const { caller } = roundCaller({
+      // The skeptic is persuaded in round 2; the panel flips to unanimous.
+      a: ['{"optionId":"merge"}', '{"optionId":"merge"}'],
+      b: ['{"optionId":"hold"}', '{"optionId":"merge"}'],
+      c: ['{"optionId":"merge"}', '{"optionId":"merge"}'],
+    });
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const result = await orchestrator.ask({ ...QUESTION, profile: threeSeats() });
+
+    expect(result.optionId).toBe('merge');
+    expect(result.roundVotes[0]?.find((v) => v.seatId === 'b')?.optionId).toBe('hold');
+    expect(result.votes.find((v) => v.seatId === 'b')?.optionId).toBe('merge');
+    expect(result.votes.find((v) => v.seatId === 'b')?.changed).toBe(true);
+    expect(result.deliberationChanges).toBe(1);
+  });
+
+  it('reports nothing changed when the panel holds its positions', async () => {
+    const { caller } = roundCaller({
+      a: ['{"optionId":"merge"}'],
+      b: ['{"optionId":"merge"}'],
+      c: ['{"optionId":"merge"}'],
+    });
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const result = await orchestrator.ask({ ...QUESTION, profile: threeSeats() });
+
+    // 0 is the honest signal that the extra round bought cost and nothing else.
+    expect(result.deliberationChanges).toBe(0);
+    expect(result.warnings ?? []).toEqual([]);
+  });
+
+  it('warns when a majority of the panel converges in one round', async () => {
+    const { caller } = roundCaller({
+      a: ['{"optionId":"hold"}', '{"optionId":"merge"}'],
+      b: ['{"optionId":"hold"}', '{"optionId":"merge"}'],
+      c: ['{"optionId":"merge"}', '{"optionId":"merge"}'],
+    });
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const result = await orchestrator.ask({ ...QUESTION, profile: threeSeats() });
+
+    // A clean unanimous verdict that was manufactured by conformity looks
+    // BETTER than the split it came from — the warning is the only signal.
+    expect(result.warnings?.some((w) => w.includes('convergence'))).toBe(true);
+  });
+
+  it('warns when a veto seat folds after seeing the other ballots', async () => {
+    const { caller } = roundCaller({
+      a: ['{"optionId":"merge"}'],
+      b: ['{"optionId":"hold"}', '{"optionId":"merge"}'],
+      c: ['{"optionId":"merge"}'],
+    });
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const result = await orchestrator.ask({
+      ...QUESTION,
+      profile: threeSeats({
+        seats: [
+          { id: 'a', persona: 'executor' },
+          { id: 'b', persona: 'skeptic', veto: true },
+          { id: 'c', persona: 'auditor' },
+        ],
+      }),
+    });
+
+    // The veto seat is the panel's safety property; a folded veto removes it.
+    expect(result.warnings?.some((w) => w.includes('veto seat "b"'))).toBe(true);
+  });
+
+  it('runs exactly one round when deliberation is disabled', async () => {
+    const { caller, prompts } = roundCaller({ a: ['{"optionId":"merge"}'] });
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const result = await orchestrator.ask({
+      ...QUESTION,
+      profile: threeSeats({ seats: [{ id: 'a', persona: 'executor' }], deliberationRounds: 1 }),
+    });
+
+    expect(result.rounds).toBe(1);
+    expect(prompts).toHaveLength(1);
+    expect(result.roundVotes).toHaveLength(1);
+    expect(result.deliberationChanges).toBe(0);
+  });
+
+  it('falls back to the last usable round when a later round fails wholesale', async () => {
+    let round = 0;
+    const caller: CouncilLLMCaller = {
+      async call(input: OneShotLLMInput): Promise<OneShotLLMResult> {
+        round += 1;
+        const base = {
+          model: 'm',
+          provider: 'p',
+          tokens: { input: 1, output: 1, total: 2 },
+          durationMs: 1,
+          fromFallback: false,
+        };
+        // Round 1 votes cleanly; round 2's transport dies.
+        if ((input.userPrompt ?? '').includes('<council-deliberation>')) {
+          return { ...base, text: '', error: 'upstream 503' };
+        }
+        void round;
+        return { ...base, text: '{"optionId":"merge"}' };
+      },
+    };
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const result = await orchestrator.ask({
+      ...QUESTION,
+      profile: threeSeats({ seats: [{ id: 'a', persona: 'executor' }] }),
+    });
+
+    // A dead second round must not throw away a perfectly good first one.
+    expect(result.status).toBe('decided');
+    expect(result.optionId).toBe('merge');
+    expect(result.roundVotes).toHaveLength(2);
   });
 });

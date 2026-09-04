@@ -1,4 +1,14 @@
-import { AlertTriangle, Brain, Shield, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  Ban,
+  Brain,
+  CircleCheck,
+  HandHelping,
+  Shield,
+  Users,
+  X,
+  Zap,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusTrap } from './hooks/use-focus-trap.js';
 import { onSimplePanel } from './lib/panel-events.js';
@@ -10,6 +20,8 @@ interface BrainLogEntry {
   kind: string;
   question: string;
   outcome: string;
+  /** Which tier of the ladder decided — free deterministic, or a model call. */
+  tier?: string | undefined;
 }
 
 interface BrainStatus {
@@ -20,6 +32,58 @@ interface BrainStatus {
 interface BrainAnswer {
   question: string;
   decision: string;
+  kind: 'answer' | 'deny' | 'ask_human';
+}
+
+/** Tiers that reached a verdict without any provider call. */
+const FREE_TIERS = new Set(['rule', 'policy', 'heuristic', 'cache', 'ledger-guard', 'terminal']);
+
+/**
+ * Icon and colour for a log row.
+ *
+ * Keyed on the row's KIND. It used to be keyed on `outcome`, which is free
+ * text (a deny reason, an option id, "steered the agent"), so it never
+ * matched a risk level and every row got the same amber warning triangle —
+ * a routine answered decision looked exactly like a denial.
+ */
+function logRowStyle(kind: string): { Icon: typeof Brain; color: string } {
+  switch (kind) {
+    case 'answered':
+      return { Icon: CircleCheck, color: 'var(--success)' };
+    case 'denied':
+      return { Icon: Ban, color: 'var(--danger)' };
+    case 'ask_human':
+      return { Icon: HandHelping, color: 'var(--warning)' };
+    case 'intervention':
+      return { Icon: Zap, color: 'var(--warning)' };
+    case 'council_warn':
+      return { Icon: Users, color: 'var(--danger)' };
+    default:
+      return { Icon: AlertTriangle, color: 'var(--warning)' };
+  }
+}
+
+/** `decision` arrives as the raw BrainDecision union. */
+function readDecision(raw: unknown): { text: string; kind: BrainAnswer['kind'] } {
+  const d = raw as Record<string, unknown> | undefined;
+  const type = typeof d?.type === 'string' ? d.type : '';
+  if (type === 'deny') {
+    return { text: String(d?.reason ?? 'Denied.'), kind: 'deny' };
+  }
+  if (type === 'ask_human') {
+    return { text: String(d?.prompt ?? 'The Brain escalated this to a human.'), kind: 'ask_human' };
+  }
+  // An `answer` carries its verdict in `text`/`optionId`. Reading `reason`
+  // first and falling back to `type` printed the literal word "answer" as
+  // the reply to every successful question.
+  // The trailing `reason`/`prompt` fallbacks keep an UNDISCRIMINATED payload
+  // readable: a decision that arrives without its `type` (an older host, a
+  // hand-built reply) still shows whatever text it does carry instead of a
+  // generic placeholder.
+  const text = d?.text ?? d?.optionId ?? d?.reason ?? d?.prompt;
+  const rationale = typeof d?.rationale === 'string' ? d.rationale.trim() : '';
+  const body = String(text ?? (typeof raw === 'string' ? raw : 'Decided.'));
+  return { text: rationale ? `${body}\n${rationale}` : body, kind: 'answer' };
 }
 
 interface BrainPanelProps {
@@ -45,7 +109,11 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -61,10 +129,11 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
       const p = msg.payload as Record<string, unknown> | undefined;
       if (!p) return;
       setThinking(false);
-      const decision = p.decision as Record<string, unknown> | undefined;
+      const parsed = readDecision(p.decision);
       setAnswer({
         question: String(p.question ?? ''),
-        decision: String(decision?.reason ?? decision?.type ?? p.decision ?? ''),
+        decision: parsed.text,
+        kind: parsed.kind,
       });
     });
     return unsub;
@@ -186,29 +255,57 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
           </div>
         )}
         {answer && (
-          <div className="brain-panel-answer">
+          <div
+            className="brain-panel-answer"
+            style={{
+              borderLeft: `2px solid ${
+                answer.kind === 'deny'
+                  ? 'var(--danger)'
+                  : answer.kind === 'ask_human'
+                    ? 'var(--warning)'
+                    : 'var(--success)'
+              }`,
+              paddingLeft: 6,
+            }}
+          >
             <strong>Q:</strong> {answer.question}
             <br />
-            <strong>A:</strong> {answer.decision}
+            <strong>A:</strong> <span style={{ whiteSpace: 'pre-wrap' }}>{answer.decision}</span>
           </div>
         )}
         <div className="brain-panel-log">
           {(!status || status.log.length === 0) && (
             <p className="brain-panel-empty">No brain activity yet.</p>
           )}
-          {status?.log.map((entry, i) => (
-            <div key={i} className="brain-log-entry">
-              <AlertTriangle
-                size={11}
-                aria-hidden="true"
-                style={{ color: riskColor(entry.outcome) }}
-              />
-              <span className="brain-log-kind">[{entry.kind}]</span>{' '}
-              <span>
-                {entry.question} → {entry.outcome}
-              </span>
-            </div>
-          ))}
+          {status?.log.map((entry) => {
+            const { Icon, color } = logRowStyle(entry.kind);
+            return (
+              // Keyed on the decision itself, not the array index: the log is
+              // a ring buffer, so index keys re-label every row on each shift.
+              <div key={`${entry.at}-${entry.kind}-${entry.question}`} className="brain-log-entry">
+                <Icon size={11} aria-hidden="true" style={{ color }} />
+                <span className="brain-log-kind">[{entry.kind}]</span>{' '}
+                {/* Which tier decided: a free rule hit and a multi-model
+                    council call are otherwise the same row. */}
+                {entry.tier ? (
+                  <span
+                    className="brain-log-kind"
+                    style={{ opacity: FREE_TIERS.has(entry.tier) ? 0.55 : 1 }}
+                    title={
+                      FREE_TIERS.has(entry.tier)
+                        ? 'Decided without any provider call'
+                        : 'Cost at least one provider call'
+                    }
+                  >
+                    {entry.tier}
+                  </span>
+                ) : null}{' '}
+                <span>
+                  {entry.question} → {entry.outcome}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </aside>
     </>

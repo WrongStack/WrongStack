@@ -60,6 +60,7 @@ import {
   TERMINAL_POLICIES,
   TRACE_CONTENT_MODES,
 } from './brain-runtime-constants.js';
+import { MAX_COUNCIL_DELIBERATION_ROUNDS } from './council-profiles.js';
 
 export type BrainCouncilMinRisk = 'medium' | 'high' | 'critical';
 export type BrainPoolStrategy = 'fallback' | 'round-robin';
@@ -89,6 +90,8 @@ export interface BrainConfigSnapshot {
     distinctness: 'none' | 'model' | 'provider';
     voterMaxTokens: number | undefined;
     judgeMaxTokens: number | undefined;
+    /** Voting rounds; undefined means the product default (2). */
+    deliberationRounds: number | undefined;
     seats: Array<{ persona: string; veto?: boolean | undefined }>;
   };
   ledger: {
@@ -182,6 +185,7 @@ export interface BrainCouncilPatch {
   distinctness?: 'none' | 'model' | 'provider' | null | undefined;
   voterMaxTokens?: number | null | undefined;
   judgeMaxTokens?: number | null | undefined;
+  deliberationRounds?: number | null | undefined;
   seats?: Array<{ persona: string; veto?: boolean | undefined }> | null | undefined;
 }
 
@@ -487,7 +491,11 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
     ruleErrors = compileResult.errors;
     const ruled: BrainArbiter =
       compiledRules.length > 0
-        ? createRuleBrainArbiter({ inner: tiered, getRules: () => compiledRules })
+        ? createRuleBrainArbiter({
+            inner: tiered,
+            getRules: () => compiledRules,
+            events: opts.events,
+          })
         : tiered;
 
     // Decision cache wraps the tiers but stays INSIDE the ledger guard: a
@@ -503,7 +511,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
     decisionCache.start();
     const cached: BrainArbiter =
       cfg.cache?.enabled === true
-        ? createCachingBrainArbiter({ inner: ruled, cache: decisionCache })
+        ? createCachingBrainArbiter({ inner: ruled, cache: decisionCache, events: opts.events })
         : ruled;
 
     // The ledger guard stays OUTERMOST: a guard denial must be terminal, and
@@ -516,6 +524,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
             inner: cached,
             failureStreakFor: streakFor,
             denyAfter: cfg.ledger?.autoDenyAfterFailures,
+            events: opts.events,
           })
         : cached;
   }
@@ -645,11 +654,20 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
           'maxConcurrency',
           'voterMaxTokens',
           'judgeMaxTokens',
+          'deliberationRounds',
         ] as const) {
           const v = p[key];
           if (v === undefined) continue;
           if (v !== null && (!Number.isInteger(v) || v <= 0)) {
             throw new Error(`Invalid council.${key}: ${String(v)} (must be a positive integer)`);
+          }
+          // Every round costs one provider call PER SEAT and blocks the
+          // decision for its whole duration; an unbounded value from config
+          // would turn one decision into an open-ended debate.
+          if (key === 'deliberationRounds' && v !== null && v > MAX_COUNCIL_DELIBERATION_ROUNDS) {
+            throw new Error(
+              `Invalid council.deliberationRounds: ${String(v)} (max ${MAX_COUNCIL_DELIBERATION_ROUNDS})`,
+            );
           }
           c[key] = v ?? undefined;
         }
@@ -847,6 +865,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
         distinctness: councilCfg?.distinctness ?? 'none',
         voterMaxTokens: councilCfg?.voterMaxTokens,
         judgeMaxTokens: councilCfg?.judgeMaxTokens,
+        deliberationRounds: councilCfg?.deliberationRounds,
         seats: (councilCfg?.seats ?? []).map((seat) => ({ ...seat })),
       },
       ledger: {
@@ -929,6 +948,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
       if (c.distinctness !== undefined) outCouncil.distinctness = c.distinctness;
       if (c.voterMaxTokens !== undefined) outCouncil.voterMaxTokens = c.voterMaxTokens;
       if (c.judgeMaxTokens !== undefined) outCouncil.judgeMaxTokens = c.judgeMaxTokens;
+      if (c.deliberationRounds !== undefined) outCouncil.deliberationRounds = c.deliberationRounds;
       if (c.seats?.length) outCouncil.seats = c.seats.map((seat) => ({ ...seat }));
       out.council = outCouncil;
     }

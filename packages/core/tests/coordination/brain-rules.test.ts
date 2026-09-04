@@ -13,6 +13,7 @@ import {
   ruleMatches,
 } from '../../src/coordination/brain-rules.js';
 import { readDecisionTier } from '../../src/coordination/brain-telemetry.js';
+import { EventBus } from '../../src/kernel/events.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'r1',
@@ -252,5 +253,48 @@ describe('createRuleBrainArbiter', () => {
       { id: 'late', when: {}, then: { action: 'answer', text: 'from rule' } },
     ]).rules;
     expect(await arbiter.decide(req())).toMatchObject({ text: 'from rule' });
+  });
+});
+
+describe('createRuleBrainArbiter — ladder step', () => {
+  const inner: BrainArbiter = { decide: async () => ({ type: 'deny', reason: 'inner' }) };
+
+  it('emits a terminal brain.tier_transition naming the rule that matched', async () => {
+    const events = new EventBus();
+    const steps: unknown[] = [];
+    events.on('brain.tier_transition', (e) => steps.push(e));
+    const arbiter = createRuleBrainArbiter({
+      inner,
+      getRules: () => [
+        compileOne({
+          id: 'always-continue',
+          when: {},
+          then: { action: 'answer', text: 'continue' },
+        }),
+      ],
+      events,
+    });
+
+    await arbiter.decide(req());
+
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({
+      tier: 'rule',
+      outcome: 'answer',
+      terminal: true,
+      requestId: 'r1',
+      reason: 'rule "always-continue" matched',
+    });
+  });
+
+  it('emits nothing when no rule matches — the next tier owns the step', async () => {
+    const events = new EventBus();
+    const steps: unknown[] = [];
+    events.on('brain.tier_transition', (e) => steps.push(e));
+    const arbiter = createRuleBrainArbiter({ inner, getRules: () => [], events });
+
+    await arbiter.decide(req());
+
+    expect(steps).toEqual([]);
   });
 });

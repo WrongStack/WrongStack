@@ -157,6 +157,7 @@ export interface WstackPaths {
  * submodules, and separate-git-dir layouts keep their existing identity.
  */
 export function canonicalProjectRoot(absRoot: string): string {
+  if (typeof absRoot !== 'string' || !absRoot) return process.cwd();
   const checkoutRoot = path.resolve(absRoot);
   const dotGit = path.join(checkoutRoot, '.git');
 
@@ -203,6 +204,7 @@ export function projectSlug(absRoot: string): string {
 
 /** Turn a folder name into a filesystem-safe lowercase slug. */
 function slugify(name: string): string {
+  if (typeof name !== 'string') return 'project';
   return (
     name
       .toLowerCase()
@@ -225,10 +227,12 @@ export interface WstackPathOptions {
 /** Make an untrusted profile name safe for use as one path segment. */
 export function safeProfileName(name: string | undefined): string {
   const safe = (name ?? '')
+    .replace(/\0/g, '')
     .replace(/[/\\:]/g, '_')
     .replace(/\.\./g, '_')
     .trim();
-  return safe || 'default';
+  if (safe === '.' || !safe) return 'default';
+  return safe;
 }
 
 /**

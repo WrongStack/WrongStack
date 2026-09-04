@@ -26,6 +26,18 @@ export interface BenchConfig {
   concurrency: number;
   /** Per-task wall-clock timeout in milliseconds. Default 600_000 (10m). */
   timeoutMs: number;
+  /**
+   * How many independent attempts each (task × cell) gets. Default 1.
+   *
+   * Agentic runs are stochastic: a single attempt per task turns run-to-run
+   * noise into a leaderboard position. With `repeats > 1` the pass rate is
+   * measured over every attempt (an unbiased pass@1 estimate) and the report
+   * additionally exposes pass@k and a per-task flakiness count, so a lucky
+   * run cannot be mistaken for a better model.
+   *
+   * Optional so a hand-built config literal stays valid; absent means 1.
+   */
+  repeats?: number | undefined;
   /** The models to benchmark. At least one. */
   cells: ModelCell[];
 }
@@ -59,7 +71,7 @@ export interface BenchTask {
   traceEval?: TranscriptEvalSpec | undefined;
 }
 
-type SuiteId = 'polyglot' | 'swebench' | 'local';
+export type SuiteId = 'polyglot' | 'swebench' | 'local' | 'smoke' | 'core';
 
 /** A suite knows how to enumerate its tasks and grade a finished workdir. */
 export interface BenchSuite {
@@ -97,12 +109,25 @@ export interface RawRun {
   elapsedMs: number;
   /** Process exit code (null when killed by timeout). */
   exitCode: number | null;
+  /**
+   * `error.message` from the CLI's `--output-json` payload. Present only when
+   * the agent loop itself reported a failure; without it a `failed` row in the
+   * report is a dead end for whoever has to diagnose it.
+   */
+  errorMessage?: string | undefined;
+  /** Stderr tail when the subprocess produced no `--output-json` payload. */
+  crashDetail?: string | undefined;
 }
 
 /** Per-(task × cell) result: telemetry + deterministic grade + tool metrics. */
 export interface TaskResult {
   taskId: string;
   cell: ModelCell;
+  /**
+   * 1-based attempt index when `BenchConfig.repeats > 1`. Absent (treated as
+   * 1) in single-attempt runs and in artifacts written before repeats existed.
+   */
+  attempt?: number | undefined;
   run: RawRun;
   grade: GradeResult;
   /** Tool-call metrics parsed from the isolated session JSONL. */
@@ -195,10 +220,31 @@ export interface TraceEvalMetrics {
 /** Folded results for one model cell across all its tasks. */
 export interface CellResult {
   cell: ModelCell;
+  /** Distinct tasks folded into this row (NOT the attempt count). */
   taskCount: number;
-  /** How many tasks produced an actual graded verdict (graded !== false). */
+  /**
+   * Total attempts folded in (`taskCount × repeats` when nothing was skipped).
+   * Absent in artifacts written before repeats existed — read it as
+   * `attemptCount ?? taskCount`.
+   */
+  attemptCount?: number | undefined;
+  /** Attempts per task this run used. Absent in pre-repeats artifacts (=1). */
+  repeats?: number | undefined;
+  /**
+   * Attempts that produced no `--output-json` payload (timeout / crash). Their
+   * token and cost telemetry is unrecoverable, so a non-zero count means the
+   * cost and token averages below are UNDER-stated.
+   */
+  incompleteCount?: number | undefined;
+  /** Tasks whose attempts were not unanimous — the flakiness signal. Requires repeats > 1. */
+  flakyTaskCount?: number | undefined;
+  /** pass@k: fraction of tasks with at least one passing attempt. */
+  passAnyRate?: number | undefined;
+  /** Fraction of tasks where EVERY graded attempt passed (reliability). */
+  passAllRate?: number | undefined;
+  /** How many attempts produced an actual graded verdict (graded !== false). */
   gradedCount: number;
-  /** Fraction in [0,1] of GRADED tasks whose grader passed (pass@1). */
+  /** Fraction in [0,1] of GRADED attempts whose grader passed (pass@1). */
   passRate: number;
   /** Fraction in [0,1] of edit/write calls that applied cleanly. */
   editApplyRate: number;

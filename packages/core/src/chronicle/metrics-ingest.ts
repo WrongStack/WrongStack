@@ -18,6 +18,11 @@ import {
   SQLITE_SOURCE_PREFIX,
   stringAt,
 } from './metrics-schema.js';
+import {
+  chroniclePayloadStoredBytes,
+  decodeChroniclePayload,
+  type StoredChroniclePayload,
+} from './payload-codec.js';
 import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
 import {
   CHRONICLE_SQLITE_FILE,
@@ -251,16 +256,19 @@ export class ChronicleMetricsIngester {
           for (;;) {
             const rows = read.all(day, cursor, SQLITE_INGEST_BATCH) as Array<{
               sequence: number;
-              payload: string;
+              payload: StoredChroniclePayload;
             }>;
             if (rows.length === 0) break;
             for (const row of rows) {
               try {
-                this.ingestEventAtomically(JSON.parse(row.payload) as ChronicleEvent, result);
+                this.ingestEventAtomically(
+                  JSON.parse(decodeChroniclePayload(row.payload)) as ChronicleEvent,
+                  result,
+                );
               } catch {
                 result.invalidLines++;
               }
-              result.ingestedBytes += row.payload.length;
+              result.ingestedBytes += chroniclePayloadStoredBytes(row.payload);
               cursor = Number(row.sequence);
             }
             if (rows.length < SQLITE_INGEST_BATCH) break;

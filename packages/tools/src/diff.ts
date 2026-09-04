@@ -119,13 +119,13 @@ async function gitDiff(
   ctx: import('@wrongstack/core/agent').Context,
   signal: AbortSignal,
 ): Promise<DiffOutput> {
-  if (input.a !== undefined && (!input.a || !input.a.trim())) {
+  if (input.a !== undefined && (typeof input.a !== 'string' || !input.a.trim())) {
     throw new ToolValidationError({
       message: "diff: ref 'a' cannot be empty or whitespace-only",
       field: 'a',
     });
   }
-  if (input.b !== undefined && (!input.b || !input.b.trim())) {
+  if (input.b !== undefined && (typeof input.b !== 'string' || !input.b.trim())) {
     throw new ToolValidationError({
       message: "diff: ref 'b' cannot be empty or whitespace-only",
       field: 'b',
@@ -137,13 +137,13 @@ async function gitDiff(
   // arbitrary path (outside the project root, with no confirmation since this
   // tool is permission:'auto'). Reject leading-dash refs unconditionally —
   // mirrors the guard in git.ts (validateWorktreeInput) and install.ts.
-  if (input.a?.trim().startsWith('-')) {
+  if (typeof input.a === 'string' && input.a.trim().startsWith('-')) {
     throw new ToolValidationError({
       message: `diff: unsafe ref "${input.a}" — refs may not begin with '-' (flag injection)`,
       field: 'a',
     });
   }
-  if (input.b?.trim().startsWith('-')) {
+  if (typeof input.b === 'string' && input.b.trim().startsWith('-')) {
     throw new ToolValidationError({
       message: `diff: unsafe ref "${input.b}" — refs may not begin with '-' (flag injection)`,
       field: 'b',
@@ -183,8 +183,18 @@ async function gitDiff(
   if (input.a) args.push(input.a.trim());
   if (input.b) args.push(input.b.trim());
   if (input.files) {
-    const files = Array.isArray(input.files) ? input.files : input.files.split(',');
-    args.push('--', ...files.map((f) => f.trim().replace(/\\/g, '/')));
+    const rawFiles = Array.isArray(input.files)
+      ? input.files
+      : typeof input.files === 'string'
+        ? input.files.split(',')
+        : [];
+    const files = rawFiles
+      .filter((f): f is string => typeof f === 'string')
+      .map((f) => f.trim().replace(/\\/g, '/'))
+      .filter(Boolean);
+    if (files.length > 0) {
+      args.push('--', ...files);
+    }
   }
 
   const result = await runGit(args, gitDir, signal);
@@ -272,11 +282,15 @@ async function fileDiff(
   // notion of "context lines" because there is no real diff.
   void input.context;
 
-  const files = input.files
-    ? (Array.isArray(input.files) ? input.files : input.files.split(','))
-        .map((f) => f.trim())
-        .filter(Boolean)
-    : [];
+  const rawFiles = Array.isArray(input.files)
+    ? input.files
+    : typeof input.files === 'string'
+      ? input.files.split(',')
+      : [];
+  const files = rawFiles
+    .filter((f): f is string => typeof f === 'string')
+    .map((f) => f.trim())
+    .filter(Boolean);
 
   if (files.length === 0) {
     return {

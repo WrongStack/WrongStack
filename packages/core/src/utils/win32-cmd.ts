@@ -57,5 +57,9 @@ function assertSafeWin32CmdArgs(args: readonly unknown[]): void {
 }
 
 function quoteWin32CmdArg(arg: string): string {
-  return `"${arg}"`;
+  // In Windows command line parsing (cmd.exe / CommandLineToArgvW),
+  // a backslash immediately preceding a double quote escapes it (\").
+  // If the argument ends with backslashes, double them so the closing quote is not escaped.
+  const escaped = arg.replace(/(\\+)$/, '$1$1');
+  return `"${escaped}"`;
 }

@@ -737,6 +737,43 @@ describe('/brain slash command', () => {
       expect(msg).toContain('67% of decided');
     });
 
+    it('/brain stats prefers the session-lifetime counter over the ring buffer', async () => {
+      const { runtime } = makeRt();
+      const ctx = makeCtx({
+        brainRuntime: runtime,
+        // The ring only ever holds the last 20 — it must not be what the
+        // percentages are computed from once a real counter is wired.
+        getBrainLog: () => [{ at: 1, kind: 'answered', question: 'a', outcome: 'x', tier: 'llm' }],
+        brainTierStats: () => ({
+          byTier: { rule: 90, llm: 10 },
+          total: 100,
+          deterministic: 90,
+          llmBacked: 10,
+          unattributed: 0,
+        }),
+      });
+      const msg = stripAnsi((await buildBrainCommand(ctx).run!('stats'))?.message ?? '');
+      expect(msg).toContain('90% of decided');
+      expect(msg).toContain('100 decision(s) this session');
+    });
+
+    it('/brain stats surfaces decisions the chain never attributed', async () => {
+      const { runtime } = makeRt();
+      const ctx = makeCtx({
+        brainRuntime: runtime,
+        getBrainLog: () => [],
+        brainTierStats: () => ({
+          byTier: { policy: 2 },
+          total: 5,
+          deterministic: 2,
+          llmBacked: 0,
+          unattributed: 3,
+        }),
+      });
+      const msg = stripAnsi((await buildBrainCommand(ctx).run!('stats'))?.message ?? '');
+      expect(msg).toContain('unattributed');
+    });
+
     it('/brain stats copes with an empty log', async () => {
       const { runtime } = makeRt();
       const ctx = makeCtx({ brainRuntime: runtime, getBrainLog: () => [] });

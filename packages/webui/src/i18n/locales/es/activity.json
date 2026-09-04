@@ -3645,6 +3645,8 @@
     "voting": "Votación en curso…",
     "judgeUsed": "El juez rompió el empate",
     "correlated": "Panel correlacionado",
+    "converged": "Panel Convergente",
+    "judgeIsVoter": "El Juez También Votó",
     "evaluatedQuestion": "Propuesta / pregunta deliberada:",
     "votingDistribution": "Distribución de la votación de consenso",
     "quorumWeight": "Peso total: {{weight}}",

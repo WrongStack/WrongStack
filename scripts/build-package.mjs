@@ -52,6 +52,7 @@ const coreEntries = entryMap([
   // files with `node:fs` at module scope and made Vite externalize Node
   // built-ins into the browser graph.
   'src/core/model-ref.ts',
+  'src/core/request-conversation-binding.ts',
   'src/types/index.ts',
   'src/types/session-markers.ts',
   'src/types/session-timeline.ts',

@@ -432,3 +432,85 @@ describe('isFinalTurnStopReason', () => {
     expect(isFinalTurnStopReason(undefined)).toBe(true);
   });
 });
+
+describe('code fences (fenced examples are documentation, not metadata)', () => {
+  // A fenced code example showing the suggestion syntax is user-facing
+  // documentation: it must never be parsed into suggestions nor stripped
+  // from the visible message.
+  it('does not parse a <nextsteps> example inside a fenced code block', () => {
+    const text = [
+      'Here is the suggestion format:',
+      '',
+      '```xml',
+      '<nextsteps>',
+      '1. Run the test suite',
+      '2. Review the diff',
+      '</nextsteps>',
+      '```',
+      '',
+      'Use it in your replies.',
+    ].join('\n');
+    const { steps, stripped } = parseNextSteps(text, true);
+    expect(steps).toEqual([]);
+    expect(stripped).toBe(text);
+  });
+
+  it('parses a real block while preserving a fenced example in the same message', () => {
+    const text = [
+      'Real one:',
+      '',
+      '<nextsteps>',
+      '1. Real step',
+      '</nextsteps>',
+      '',
+      'Example:',
+      '',
+      '```xml',
+      '<nextsteps>',
+      '1. Fake step',
+      '</nextsteps>',
+      '```',
+    ].join('\n');
+    const { steps, stripped } = parseNextSteps(text, true);
+    expect(steps.map((s) => s.text)).toEqual(['Real step']);
+    expect(stripped).toContain('1. Fake step');
+    expect(stripped).toContain('```xml');
+    expect(stripped).not.toContain('1. Real step');
+  });
+
+  it('rejects a tag inside an unclosed fence without truncating the text', () => {
+    // An unterminated fence extends to end-of-text: the tag inside it is
+    // example content, and nothing may be stripped.
+    const text = ['Config example:', '', '```xml', '<nextsteps>', '1. Draft step'].join('\n');
+    const { steps, stripped } = parseNextSteps(text, true);
+    expect(steps).toEqual([]);
+    expect(stripped).toBe(text);
+  });
+
+  it('stripNextStepsBlock preserves fenced examples and strips real blocks', () => {
+    const text = [
+      'Real:',
+      '',
+      '<nextsteps>',
+      '1. Real step',
+      '</nextsteps>',
+      '',
+      '```xml',
+      '<nextsteps>',
+      '1. Fake step',
+      '</nextsteps>',
+      '```',
+    ].join('\n');
+    const out = stripNextStepsBlock(text);
+    expect(out).not.toContain('1. Real step');
+    expect(out).toContain('1. Fake step');
+    expect(out).toContain('```xml');
+  });
+
+  it('stripNextStepsBlock preserves a legacy tag inside a fence', () => {
+    const text = ['A', '', '```xml', '<next_steps>', '1. Draft', '```', '', 'B'].join('\n');
+    const out = stripNextStepsBlock(text);
+    expect(out).toContain('<next_steps>');
+    expect(out).toContain('1. Draft');
+  });
+});

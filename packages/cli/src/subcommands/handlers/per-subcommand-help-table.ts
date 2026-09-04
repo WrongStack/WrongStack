@@ -410,13 +410,16 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
     name: 'bench',
     title: 'wstack bench — run model-independent agentic benchmarks',
     description:
-      'Run WrongStack against the Aider polyglot or SWE-bench ' +
-      'Verified suites with deterministic graders. Used internally ' +
-      'to compare model quality across releases; also useful for ' +
-      'evaluating a new model before adopting it.',
-    usage: 'wstack bench [run|report|list] [...]',
+      'Run WrongStack against the bundled smoke suite, a local manifest, ' +
+      'Aider polyglot, or SWE-bench Verified with deterministic graders. ' +
+      'Default `bench run` is the bundled core edit-eval; pass --cell provider/model (or a saved model).',
+    usage: 'wstack bench [run|compare|report|list] [...]',
     subcommands: [
-      { name: 'run', description: 'Run a benchmark suite (--suite <id> --models <config>).' },
+      { name: 'run', description: 'Run a suite. Default: bundled smoke + --cell or saved model.' },
+      {
+        name: 'compare <a> <b>',
+        description: 'Diff two finished run directories (fingerprint-aware).',
+      },
       { name: 'report <dir>', description: 'Render the Markdown report for a prior run.' },
       { name: 'list', description: 'List available suites and the model configs in the catalog.' },
     ],

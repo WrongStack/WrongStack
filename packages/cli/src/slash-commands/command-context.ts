@@ -582,8 +582,23 @@ export interface SlashCommandContext {
   brainRuntime?: import('@wrongstack/core/execution').BrainRuntime | undefined;
   /** Recent Brain decisions (newest last) for `/brain status`. */
   getBrainLog?:
-    | (() => ReadonlyArray<{ at: number; kind: string; question: string; outcome: string }>)
+    | (() => ReadonlyArray<{
+        at: number;
+        kind: string;
+        question: string;
+        outcome: string;
+        /** Tier that resolved the decision, when the chain recorded one. */
+        tier?: string | undefined;
+      }>)
     | undefined;
+  /**
+   * Session-lifetime per-tier decision tally for `/brain stats`.
+   *
+   * Optional: hosts that only wire `getBrainLog` (the WebUI route context,
+   * bare test containers) fall back to counting the ring buffer, which is
+   * capped at 20 entries and therefore only ever describes the recent past.
+   */
+  brainTierStats?: (() => import('@wrongstack/core/coordination').BrainTierStats) | undefined;
   /** Config store for reading/writing config sections at runtime (e.g. settings menu). */
   configStore: import('@wrongstack/core/types').ConfigStore;
   /**

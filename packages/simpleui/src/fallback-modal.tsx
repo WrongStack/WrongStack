@@ -42,13 +42,25 @@ export interface FallbackModalProps {
 
 export function FallbackModal({ info, socketRef, onClose }: FallbackModalProps) {
   // Initialize from the first pending info: starting at 0 would make the
-  // auto-resolve effect fire on the mount commit (before the reset effect's
+  // auto-resolve effect fire on the mount commit (before the reset's
   // setState lands), instantly auto-picking a candidate and never showing
   // the countdown.
   const [remaining, setRemaining] = useState(() =>
     info ? Math.max(1, info.autoSwitchSeconds) : 0,
   );
   const [selected, setSelected] = useState(0);
+  // This component stays mounted for the whole app lifetime (info=null until
+  // a frame arrives), so the initializer alone cannot cover later rounds.
+  // A new pending round is folded in DURING RENDER (React's adjust-state-on-
+  // prop-change pattern): effects for the new round — above all the
+  // auto-resolve guard — then observe the fresh countdown, never a stale
+  // expired `remaining` from the previous round.
+  const [initRequestId, setInitRequestId] = useState<string | null>(info?.requestId ?? null);
+  if ((info?.requestId ?? null) !== initRequestId) {
+    setInitRequestId(info?.requestId ?? null);
+    setSelected(0);
+    setRemaining(info ? Math.max(1, info.autoSwitchSeconds) : 0);
+  }
   const resolvedRef = useRef(false);
   const selectedRef = useRef(0);
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -58,22 +70,15 @@ export function FallbackModal({ info, socketRef, onClose }: FallbackModalProps) 
     selectedRef.current = selected;
   }, [selected]);
 
-  // Reset on new pending event.
-  useEffect(() => {
-    if (info) {
-      resolvedRef.current = false;
-      setSelected(0);
-      setRemaining(Math.max(1, info.autoSwitchSeconds));
-    }
-  }, [info?.requestId]);
-
-  // Countdown.
+  // Countdown. Keyed on the round — a new requestId restarts the interval.
   useEffect(() => {
     if (!info) return;
+    resolvedRef.current = false;
     const id = setInterval(() => {
       setRemaining((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [info?.requestId]);
 
   // Auto-resolve on countdown expiration.

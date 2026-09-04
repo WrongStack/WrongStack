@@ -1,0 +1,2 @@
+// CORE_CONTRACT_FROZEN
+export const FRACTION_DIGITS = 2;

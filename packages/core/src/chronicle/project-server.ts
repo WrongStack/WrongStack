@@ -59,8 +59,21 @@ interface ParsedArgs {
   projectDir: string;
   workspaceId: string;
   retentionDays: number;
+  maxEvents: number;
+  maxBytes: number;
+  metricsRowRetentionDays: number | undefined;
   durability: 'normal' | 'full';
 }
+
+/**
+ * Storage ceilings applied when the client does not pass its own.
+ *
+ * Bound burst growth independently of age retention: a single busy day can
+ * outrun any `retentionDays` setting, and prefix eviction keeps the chain
+ * verifiable via retention checkpoints where a plain delete would not.
+ */
+const DEFAULT_MAX_EVENTS = 100_000;
+const DEFAULT_MAX_BYTES = 512 * 1024 * 1024;
 
 interface ClientState {
   socket: net.Socket;
@@ -86,6 +99,11 @@ function parseArgs(argv: string[]): ParsedArgs {
     if (!values.get(key)) throw new Error(`Chronicle project server requires ${key}`);
   }
   const retentionInput = Number(values.get('--retention-days'));
+  const metricsRowsInput = Number(values.get('--metrics-row-retention-days'));
+  const positive = (flag: string, fallback: number): number => {
+    const value = Number(values.get(flag));
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  };
   // Durability is an operator escape hatch rather than per-session config, so
   // it is read from the environment the daemon already inherits instead of
   // being threaded through the client's spawn arguments. Anything other than
@@ -99,6 +117,10 @@ function parseArgs(argv: string[]): ParsedArgs {
     projectDir: path.resolve(values.get('--project-dir')!),
     workspaceId: values.get('--workspace-id')!,
     retentionDays: Number.isFinite(retentionInput) && retentionInput > 0 ? retentionInput : 30,
+    maxEvents: Math.floor(positive('--max-events', DEFAULT_MAX_EVENTS)),
+    maxBytes: Math.floor(positive('--max-bytes', DEFAULT_MAX_BYTES)),
+    metricsRowRetentionDays:
+      Number.isFinite(metricsRowsInput) && metricsRowsInput > 0 ? metricsRowsInput : undefined,
     durability: durabilityInput.trim().toLowerCase() === 'full' ? 'full' : 'normal',
   };
 }
@@ -237,12 +259,8 @@ function store(): Promise<ChronicleSqliteJournal> {
       directory: chronicleDirectory,
       retentionDays: parsed.retentionDays,
       durability: parsed.durability,
-      // Bound burst growth independently of age retention. Prefix eviction keeps
-      // at most this many rows while preserving chain verification via checkpoints.
-      maxEvents: 100_000,
-      // Formal aggregate allocation ceiling. Quota-enabled journals reserve
-      // rollback-journal headroom and constrain the main database with max_page_count.
-      maxBytes: 512 * 1024 * 1024,
+      maxEvents: parsed.maxEvents,
+      maxBytes: parsed.maxBytes,
     });
     try {
       const result = await importLegacyChronicleJournal(journal, chronicleDirectory);
@@ -377,7 +395,9 @@ async function queryEngine(): Promise<ChronicleQueryEngine | ChronicleSqliteQuer
 }
 
 function metrics(): ChronicleMetricsStore {
-  metricsStore ??= ChronicleMetricsStore.open(chronicleDirectory);
+  metricsStore ??= ChronicleMetricsStore.open(chronicleDirectory, {
+    rowRetentionDays: parsed.metricsRowRetentionDays,
+  });
   return metricsStore;
 }
 

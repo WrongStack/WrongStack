@@ -1,0 +1,5 @@
+{
+  "name": "core-rate-limiter",
+  "type": "module",
+  "private": true
+}

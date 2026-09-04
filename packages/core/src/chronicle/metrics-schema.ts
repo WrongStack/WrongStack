@@ -121,18 +121,120 @@ export function isChronicleMetricsAvailable(): boolean {
   }
 }
 
+/**
+ * Tables holding one row per observed event, and the column that dates them.
+ *
+ * These are the only tables pruned. Everything else in this schema is a daily
+ * aggregate keyed by `day` that stays for as long as the file does, and that
+ * asymmetry *is* the data diet: `file_lineage` answers "which session and task
+ * changed this file", a question only ever asked about recent work, and was
+ * measured at 31k rows against the 48 rows of `provider_daily` covering the
+ * same period.
+ *
+ * `file_seen_daily` is deliberately absent. It looks like per-event detail but
+ * it is a distinct-set: `summary()` counts `DISTINCT path_key` over it, so
+ * pruning it would silently change a historical number rather than drop
+ * redundancy.
+ *
+ * `file_lineage` dates rows by `occurred_at`, a full ISO-8601 timestamp, which
+ * compares correctly against a `YYYY-MM-DD` cutoff precisely because ISO-8601
+ * sorts lexicographically.
+ */
+const ROW_LEVEL_TABLES: ReadonlyArray<{ table: string; dayColumn: string }> = [
+  { table: 'file_lineage', dayColumn: 'occurred_at' },
+  { table: 'logical_request_daily', dayColumn: 'day' },
+];
+
+/** Every table this schema owns, in drop order. */
+const ALL_TABLES = [
+  'ingest_state',
+  'provider_daily',
+  'task_outcomes',
+  'file_lineage',
+  'token_cost',
+  'daily_counters',
+  'family_daily',
+  'agent_daily',
+  'logical_request_daily',
+  'file_seen_daily',
+  'tool_daily',
+] as const;
+
+/**
+ * Drop row-level detail older than `retentionDays`, keeping every aggregate.
+ *
+ * The window is measured from the newest row the store holds, not from the
+ * wall clock. This store is derived from the journal, so "the last 30 days"
+ * most usefully means the last 30 days *of recorded activity*: a project left
+ * alone for two months should still be able to answer what changed in it, and
+ * making the contents a pure function of the journal keeps a refresh
+ * deterministic instead of dependent on when it happened to run.
+ *
+ * Returns the number of rows removed. Callers run this on the same cadence as
+ * ingest; it is idempotent, and the deletes are range scans over the date
+ * column each table is keyed or indexed by.
+ */
+export function pruneMetricsRowDetail(db: DatabaseSync, retentionDays: number): number {
+  if (!Number.isFinite(retentionDays) || retentionDays <= 0) return 0;
+  const newest = newestRowDay(db);
+  if (!newest) return 0;
+  const cutoffDay = new Date(Date.parse(`${newest}T00:00:00.000Z`) - retentionDays * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+  let deleted = 0;
+  for (const { table, dayColumn } of ROW_LEVEL_TABLES) {
+    const before = Number(
+      (
+        db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${dayColumn} < ?`).get(cutoffDay) as {
+          n: number;
+        }
+      ).n,
+    );
+    if (before === 0) continue;
+    db.prepare(`DELETE FROM ${table} WHERE ${dayColumn} < ?`).run(cutoffDay);
+    deleted += before;
+  }
+  if (deleted > 0) {
+    try {
+      db.exec('PRAGMA incremental_vacuum(2048)');
+    } catch {
+      // Not in incremental mode -- pages stay on the freelist for reuse.
+    }
+  }
+  return deleted;
+}
+
+/** Latest `YYYY-MM-DD` any row-level table carries, or undefined when empty. */
+function newestRowDay(db: DatabaseSync): string | undefined {
+  let newest: string | undefined;
+  for (const { table, dayColumn } of ROW_LEVEL_TABLES) {
+    const row = db.prepare(`SELECT MAX(${dayColumn}) AS day FROM ${table}`).get() as {
+      day: string | null;
+    };
+    const day = row.day?.slice(0, 10);
+    if (day && (!newest || day > newest)) newest = day;
+  }
+  return newest;
+}
+
 export function ensureMetricsSchema(db: DatabaseSync): void {
   const version = (db.prepare('PRAGMA user_version').get() as { user_version: number })
     .user_version;
   if (version !== 0 && version !== SCHEMA_VERSION) {
-    db.exec(
-      'DROP TABLE IF EXISTS ingest_state; DROP TABLE IF EXISTS provider_daily;' +
-        'DROP TABLE IF EXISTS task_outcomes; DROP TABLE IF EXISTS file_lineage;' +
-        'DROP TABLE IF EXISTS token_cost; DROP TABLE IF EXISTS daily_counters;' +
-        'DROP TABLE IF EXISTS family_daily; DROP TABLE IF EXISTS agent_daily;' +
-        'DROP TABLE IF EXISTS logical_request_daily; DROP TABLE IF EXISTS file_seen_daily;' +
-        'DROP TABLE IF EXISTS tool_daily;',
-    );
+    db.exec(ALL_TABLES.map((table) => `DROP TABLE IF EXISTS ${table};`).join(''));
+    // A schema bump discards the entire derived corpus. Measured on a live
+    // install this left 202 MB of a 220 MB file on the freelist, never
+    // returned: the store is a rebuildable cache, so the pages are handed
+    // straight back rather than kept for a re-ingest that reuses none of the
+    // old row layout. VACUUM (not incremental) because the drop happens once,
+    // at open, on a database nothing else has a handle on yet.
+    try {
+      db.exec('VACUUM');
+    } catch {
+      // A concurrent reader can block the rewrite; the freelist is reused by
+      // the re-ingest either way.
+    }
   }
   db.exec(`
     CREATE TABLE IF NOT EXISTS ingest_state (

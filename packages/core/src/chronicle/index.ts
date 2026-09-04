@@ -89,7 +89,29 @@ export {
 } from './review-adapter.js';
 export { wireRollupsToChronicle, type ChronicleRollupAdapterOptions } from './rollup-adapter.js';
 export {
+  CHRONICLE_DETAIL_LEVELS,
+  DEFAULT_CHRONICLE_DETAIL,
+  isChronicleDetailLevel,
+  resolveChronicleDetail,
+  routeChronicleEvent,
+  type ChronicleDetailLevel,
+  type ChronicleRouting,
+} from './detail-policy.js';
+export {
+  createChronicleCounterSink,
+  DEFAULT_COUNTER_WINDOW_MS,
+  type ChronicleCounterSink,
+  type ChronicleCounterSinkOptions,
+} from './counter-sink.js';
+export {
+  chroniclePayloadStoredBytes,
+  decodeChroniclePayload,
+  encodeChroniclePayload,
+  type StoredChroniclePayload,
+} from './payload-codec.js';
+export {
   ChronicleMetricsStore,
+  DEFAULT_METRICS_ROW_RETENTION_DAYS,
   isChronicleMetricsAvailable,
   type ChronicleMetricsRefreshResult,
   type ChronicleMetricsSummary,

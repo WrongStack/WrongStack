@@ -183,6 +183,8 @@ export interface BrainConfigWire {
     distinctness: 'none' | 'model' | 'provider';
     voterMaxTokens?: number | undefined;
     judgeMaxTokens?: number | undefined;
+    /** Voting rounds; undefined = the product default (2). 1 disables it. */
+    deliberationRounds?: number | undefined;
     seats: BrainCouncilSeatWire[];
   };
   /**
@@ -250,6 +252,7 @@ export interface BrainConfigPatchWire {
         distinctness?: 'none' | 'model' | 'provider' | null | undefined;
         voterMaxTokens?: number | null | undefined;
         judgeMaxTokens?: number | null | undefined;
+        deliberationRounds?: number | null | undefined;
         seats?: BrainCouncilSeatWire[] | null | undefined;
       }
     | null

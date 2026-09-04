@@ -75,7 +75,16 @@ export function wireDecisionsToChronicle(options: ChronicleDecisionAdapterOption
         e.at,
         e.sessionId,
         e.request.id,
-        { ...requestAttrs(e.request), ...decisionAttrs(e.decision), resolver: 'brain' },
+        {
+          ...requestAttrs(e.request),
+          ...decisionAttrs(e.decision),
+          resolver: 'brain',
+          // `resolver: 'brain'` flattens a free rule hit, a cache replay and a
+          // multi-model council into one bucket. The tier is the only field
+          // that makes cross-session cost analysis possible, and it is pure
+          // structural metadata — no question, context or rationale.
+          ...(e.tier ? { tier: e.tier } : {}),
+        },
         'success',
       ),
     ),
@@ -85,7 +94,16 @@ export function wireDecisionsToChronicle(options: ChronicleDecisionAdapterOption
         e.at,
         e.sessionId,
         e.request.id,
-        { ...requestAttrs(e.request), ...decisionAttrs(e.decision) },
+        {
+          ...requestAttrs(e.request),
+          ...decisionAttrs(e.decision),
+          ...(e.tier ? { tier: e.tier } : {}),
+          // The same event name carries the PROMPT and a final ask_human.
+          // Without this flag one escalated decision writes two identical
+          // rows and every "how often does the Brain escalate" query
+          // double-counts interactive sessions.
+          pending: e.pending === true,
+        },
         'started',
       ),
     ),
@@ -95,8 +113,44 @@ export function wireDecisionsToChronicle(options: ChronicleDecisionAdapterOption
         e.at,
         e.sessionId,
         e.request.id,
-        { ...requestAttrs(e.request), ...decisionAttrs(e.decision) },
+        {
+          ...requestAttrs(e.request),
+          ...decisionAttrs(e.decision),
+          ...(e.tier ? { tier: e.tier } : {}),
+        },
         'denied',
+      ),
+    ),
+    // Council panels are the Brain's only multi-model tier and its whole
+    // cost story. All of this is structural — seat counts, model distinctness,
+    // token totals — so it persists without any content redaction.
+    options.events.on('brain.council_resolved', (e) =>
+      write(
+        'decision.council_resolved',
+        e.at,
+        e.sessionId,
+        e.requestId,
+        {
+          status: e.status,
+          resolution: e.resolution,
+          configuredSeatCount: e.configuredSeatCount,
+          validVoteCount: e.validVoteCount,
+          distinctTargetCount: e.distinctTargetCount,
+          judgeUsed: e.judgeUsed,
+          judgeIsVoter: e.judgeIsVoter ?? false,
+          // Deliberation doubles a panel's cost, so the round count belongs
+          // next to the token totals; `deliberationChanges` is what says
+          // whether that spend bought anything.
+          rounds: e.rounds ?? 1,
+          deliberationChanges: e.deliberationChanges ?? 0,
+          inputTokens: e.usage?.inputTokens ?? 0,
+          outputTokens: e.usage?.outputTokens ?? 0,
+          totalTokens: e.usage?.totalTokens ?? 0,
+          calls: e.usage?.calls ?? 0,
+          durationMs: e.usage?.durationMs ?? 0,
+          warnings: e.warnings ?? [],
+        },
+        e.status === 'decided' ? 'success' : e.status === 'denied' ? 'denied' : 'failure',
       ),
     ),
     options.events.on('brain.human_answered', (e) =>

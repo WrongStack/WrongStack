@@ -81,7 +81,7 @@ export function retryAfterMsFromHeaders(headers?: HeadersLike): number | undefin
   const ms = headers.get('retry-after-ms');
   if (ms) {
     const n = Number(ms);
-    if (Number.isFinite(n) && n > 0) return Math.round(n);
+    if (Number.isFinite(n) && n > 0) return Math.max(1, Math.round(n));
   }
   const ra = headers.get('retry-after');
   if (!ra) return undefined;

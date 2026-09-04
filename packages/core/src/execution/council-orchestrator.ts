@@ -12,16 +12,17 @@ import type {
 } from '../types/council.js';
 import type { OneShotLLMResult } from '../types/one-shot-llm.js';
 import {
+  addUsage,
   CALL_CANCELLED_REASON,
   COUNCIL_REFUSAL_OPTION_ID,
-  DEFAULT_COUNCIL_MAX_CONCURRENCY,
-  MAX_COUNCIL_CONCURRENCY,
-  OVERALL_TIMEOUT_REASON,
-  addUsage,
   callMetadata,
   cancelledVote,
+  DEFAULT_COUNCIL_MAX_CONCURRENCY,
+  deliberationWarnings,
   distinctnessWarnings,
+  MAX_COUNCIL_CONCURRENCY,
   mapConcurrent,
+  OVERALL_TIMEOUT_REASON,
   optionLabel,
   resultEnvelope,
   type UsageAccumulator,
@@ -47,9 +48,9 @@ import { resolveCouncilVotes } from './council-resolution.js';
 import {
   divergentStances,
   errorMessage,
+  type ParsedJudge,
   parseJudge,
   parseVote,
-  type ParsedJudge,
   withTruncationNote,
 } from './council-response-parser.js';
 
@@ -127,28 +128,57 @@ export class CouncilOrchestrator {
       totalTokens: 0,
     };
 
-    const votes = await mapConcurrent(
-      profile.seats,
-      Math.min(this.maxConcurrency, profile.seats.length),
-      async (seat, i) => {
-        try {
-          return await this.callSeat(question, profile, seat, i, signal, usage);
-        } catch (error) {
-          const timedOut = signal.aborted && !question.signal?.aborted;
-          return {
-            seatId: seat.id,
-            persona: seat.persona,
-            status: question.signal?.aborted ? 'cancelled' : 'failed',
-            error: question.signal?.aborted
-              ? CALL_CANCELLED_REASON
-              : timedOut
-                ? OVERALL_TIMEOUT_REASON
-                : errorMessage(error),
-          } satisfies CouncilVoteResult;
-        }
-      },
-    );
-    const warnings = distinctnessWarnings(votes, profile);
+    // Deliberation: round 1 is independent, later rounds show each seat the
+    // previous round's ballots. Only the LAST round is tallied — earlier ones
+    // are retained on the result so a verdict stays reconstructable.
+    const roundVotes: CouncilVoteResult[][] = [];
+    let votes: CouncilVoteResult[] = [];
+    for (let round = 1; round <= profile.deliberationRounds; round++) {
+      const previous = roundVotes[roundVotes.length - 1];
+      const current = await mapConcurrent(
+        profile.seats,
+        Math.min(this.maxConcurrency, profile.seats.length),
+        async (seat, i) => {
+          try {
+            return await this.callSeat(question, profile, seat, i, signal, usage, {
+              round,
+              ...(previous ? { previous } : {}),
+            });
+          } catch (error) {
+            const timedOut = signal.aborted && !question.signal?.aborted;
+            return {
+              seatId: seat.id,
+              persona: seat.persona,
+              round,
+              status: question.signal?.aborted ? 'cancelled' : 'failed',
+              error: question.signal?.aborted
+                ? CALL_CANCELLED_REASON
+                : timedOut
+                  ? OVERALL_TIMEOUT_REASON
+                  : errorMessage(error),
+            } satisfies CouncilVoteResult;
+          }
+        },
+      );
+      roundVotes.push(current);
+      votes = current;
+      // Stop deliberating the moment the budget is gone. Carrying on would
+      // spend a whole extra wave of calls that can only come back aborted,
+      // and would overwrite a usable round with a wave of failures.
+      if (signal.aborted) break;
+    }
+    // A later round that failed wholesale is worse than the independent round
+    // it replaced: falling back to the last round that produced any usable
+    // ballot keeps a transport failure in round 2 from discarding a perfectly
+    // good round 1.
+    if (roundVotes.length > 1 && !votes.some((vote) => vote.status === 'valid')) {
+      const lastUsable = [...roundVotes].reverse().find((r) => r.some((v) => v.status === 'valid'));
+      if (lastUsable) votes = lastUsable;
+    }
+    const warnings = [
+      ...distinctnessWarnings(votes, profile),
+      ...deliberationWarnings(roundVotes, profile),
+    ];
     const errors = votes
       .filter((vote) => vote.status === 'failed' || vote.status === 'invalid')
       .map((vote) => `${vote.seatId}: ${vote.error ?? vote.status}`);
@@ -164,6 +194,7 @@ export class CouncilOrchestrator {
         startedAt,
         warnings,
         errors,
+        roundVotes,
       });
     }
     if (timeoutSignal.aborted) {
@@ -179,6 +210,7 @@ export class CouncilOrchestrator {
         errors: errors.some((entry) => entry.includes(OVERALL_TIMEOUT_REASON))
           ? errors
           : [...errors, OVERALL_TIMEOUT_REASON],
+        roundVotes,
       });
     }
 
@@ -192,6 +224,7 @@ export class CouncilOrchestrator {
         startedAt,
         warnings,
         errors,
+        roundVotes,
       );
     }
     return this.resolveOptionQuestion(
@@ -203,6 +236,7 @@ export class CouncilOrchestrator {
       startedAt,
       warnings,
       errors,
+      roundVotes,
     );
   }
 
@@ -213,13 +247,24 @@ export class CouncilOrchestrator {
     seatIndex: number,
     signal: AbortSignal,
     usage: UsageAccumulator,
+    /** Round 1 is independent; later rounds carry the previous ballots. */
+    ctx: { round: number; previous?: readonly CouncilVoteResult[] | undefined } = { round: 1 },
   ): Promise<CouncilVoteResult> {
+    const { round } = ctx;
+    const priorSelf = ctx.previous?.find((vote) => vote.seatId === seat.id);
+    /** Did this seat move? Only meaningful once it has a previous ballot. */
+    const markChange = (vote: CouncilVoteResult): CouncilVoteResult => {
+      if (priorSelf?.status !== 'valid' || vote.status !== 'valid') return vote;
+      const moved = (vote.optionId ?? vote.stance) !== (priorSelf.optionId ?? priorSelf.stance);
+      return moved ? { ...vote, changed: true } : vote;
+    };
     if (signal.aborted) {
       return question.signal?.aborted
-        ? cancelledVote(seat)
+        ? { ...cancelledVote(seat), round }
         : ({
             seatId: seat.id,
             persona: seat.persona,
+            round,
             status: 'failed',
             ...(seat.target?.providerId ? { provider: seat.target.providerId } : {}),
             ...(seat.target?.model ? { model: seat.target.model } : {}),
@@ -234,6 +279,7 @@ export class CouncilOrchestrator {
       return {
         seatId: seat.id,
         persona: seat.persona,
+        round,
         status: 'failed',
         error: errorMessage(error),
       };
@@ -242,6 +288,15 @@ export class CouncilOrchestrator {
       system: buildCouncilVoterSystemPrompt(persona),
       userPrompt: buildCouncilVoterUserPrompt(question, seat, {
         refusalOptionId: question.options?.length ? this.refusalOptionId : undefined,
+        ...(ctx.previous
+          ? {
+              deliberation: {
+                round,
+                totalRounds: profile.deliberationRounds,
+                previous: ctx.previous,
+              },
+            }
+          : {}),
       }),
       target: seat.target,
       maxTokens: profile.voterMaxTokens,
@@ -257,6 +312,7 @@ export class CouncilOrchestrator {
       return {
         seatId: seat.id,
         persona: seat.persona,
+        round,
         status: question.signal?.aborted ? 'cancelled' : 'failed',
         ...metadata,
         error: question.signal?.aborted
@@ -271,18 +327,20 @@ export class CouncilOrchestrator {
       return {
         seatId: seat.id,
         persona: seat.persona,
+        round,
         status: 'invalid',
         ...metadata,
         error: withTruncationNote(parsed.error, result, profile.voterMaxTokens),
       };
     }
-    return {
+    return markChange({
       seatId: seat.id,
       persona: seat.persona,
+      round,
       status: 'valid',
       ...parsed.vote,
       ...metadata,
-    };
+    });
   }
 
   private async resolveOptionQuestion(
@@ -294,6 +352,7 @@ export class CouncilOrchestrator {
     startedAt: number,
     warnings: string[],
     errors: string[],
+    roundVotes: readonly (readonly CouncilVoteResult[])[],
   ): Promise<CouncilResult> {
     const validVotes = votes.filter(
       (vote): vote is CouncilVoteResult & { optionId: string } =>
@@ -321,6 +380,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors,
       });
     }
@@ -335,6 +395,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors,
       });
     }
@@ -349,6 +410,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors,
       });
     }
@@ -362,6 +424,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors,
       });
     }
@@ -387,6 +450,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors: errors.some((entry) => entry.includes(reason)) ? errors : [...errors, reason],
         judgeUsed: true,
       });
@@ -401,6 +465,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors: [...errors, judged.error],
         judgeUsed: true,
       });
@@ -416,6 +481,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors,
         judgeUsed: true,
       });
@@ -431,6 +497,7 @@ export class CouncilOrchestrator {
       usage,
       startedAt,
       warnings,
+      roundVotes,
       errors,
       judgeUsed: true,
     });
@@ -445,6 +512,7 @@ export class CouncilOrchestrator {
     startedAt: number,
     warnings: string[],
     errors: string[],
+    roundVotes: readonly (readonly CouncilVoteResult[])[],
   ): Promise<CouncilResult> {
     const valid = votes.filter(
       (vote): vote is CouncilVoteResult & { stance: string } =>
@@ -460,6 +528,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors,
       });
     }
@@ -501,6 +570,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors,
       });
     }
@@ -526,6 +596,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors: errors.some((entry) => entry.includes(reason)) ? errors : [...errors, reason],
         judgeUsed: true,
       });
@@ -540,6 +611,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
+        roundVotes,
         errors: [...errors, judged.error],
         judgeUsed: true,
       });
@@ -554,6 +626,7 @@ export class CouncilOrchestrator {
       usage,
       startedAt,
       warnings,
+      roundVotes,
       errors,
       judgeUsed: true,
     });

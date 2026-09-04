@@ -3,6 +3,7 @@ import type { Capabilities, ProviderError, Request, StreamEvent } from '@wrongst
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import type { GoogleStreamState } from './presets/google.js';
 import { googleWireFormat, toolsToGemini } from './presets/google.js';
+import { redirectSafeFetch } from './redirect-safe-fetch.js';
 import type { WireAdapterStreamOptions } from './wire-adapter.js';
 import { WireFormatProvider } from './wire-format.js';
 
@@ -126,7 +127,7 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
       createBody['tools'] = [{ functionDeclarations: toolsToGemini(req.tools) }];
     }
 
-    const res = await this.fetchImpl(`${this.baseUrl}/cachedContents`, {
+    const res = await redirectSafeFetch(this.fetchImpl, `${this.baseUrl}/cachedContents`, {
       method: 'POST',
       headers: { ...this.buildHeaders(req), 'content-type': 'application/json' },
       body: JSON.stringify(createBody),
@@ -146,7 +147,7 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
       return undefined;
     }
     const json = (await res.json()) as { name?: unknown };
-    const name = typeof json.name === 'string' ? json.name : undefined;
+    const name = typeof json.name === 'string' && json.name.trim().length > 0 ? json.name : undefined;
     if (!name) {
       this.explicitCache.set(hash, {
         name: null,

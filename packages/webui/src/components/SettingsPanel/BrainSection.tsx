@@ -21,6 +21,7 @@ import {
   councilPersonaOptions,
   DECISION_LOG_SIZES,
   DECISION_TIMEOUTS,
+  DELIBERATION_ROUNDS,
   entryLabel,
   FRACTIONS,
   HUMAN_TIMEOUTS,
@@ -868,6 +869,19 @@ export function BrainSection(): ReactElement {
               )}
               onChange={(v) =>
                 sendPatch({ council: { voterMaxTokens: v === 'default' ? null : Number(v) } })
+              }
+              disabled={busy}
+            />
+            <PreferenceSelect
+              label={t('settings:brain.councilRoundsLabel')}
+              hint={t('settings:brain.councilRoundsHint')}
+              value={optionalValue(config.council.deliberationRounds)}
+              options={localizeOptions(
+                withCurrent(DELIBERATION_ROUNDS, optionalValue(config.council.deliberationRounds)),
+                t,
+              )}
+              onChange={(v) =>
+                sendPatch({ council: { deliberationRounds: v === 'default' ? null : Number(v) } })
               }
               disabled={busy}
             />

@@ -179,8 +179,12 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       });
     }
 
-    const offset = Math.max(1, input.offset ?? 1);
-    const limit = Math.max(0, Math.min(input.limit ?? 2000, 5000));
+    const rawOffset =
+      typeof input.offset === 'number' && Number.isFinite(input.offset) ? input.offset : 1;
+    const offset = Math.max(1, Math.floor(rawOffset));
+    const rawLimit =
+      typeof input.limit === 'number' && Number.isFinite(input.limit) ? input.limit : 2000;
+    const limit = Math.max(0, Math.min(Math.floor(rawLimit), 5000));
     const prior = getReadRangeRecord(ctx, absPath);
     const requestedEnd = prior
       ? Math.min(offset + limit - 1, prior.totalLines)

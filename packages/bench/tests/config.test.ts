@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { parseBenchConfig } from '../src/config.js';
+import {
+  configFromCells,
+  parseBenchConfig,
+  parseCellList,
+  SMOKE_CONFIG_DEFAULTS,
+} from '../src/config.js';
 
 describe('parseBenchConfig', () => {
   it('parses a minimal valid config and applies defaults', () => {
@@ -50,5 +55,27 @@ describe('parseBenchConfig', () => {
     expect(() =>
       parseBenchConfig({ maxIterations: 0, cells: [{ provider: 'a', model: 'm' }] }),
     ).toThrow(/maxIterations/);
+  });
+});
+
+describe('parseCellList / configFromCells', () => {
+  it('parses provider/model and label=provider/model specs', () => {
+    const cells = parseCellList('opus=anthropic/claude-opus-4-8, openai/gpt-5.4');
+    expect(cells).toEqual([
+      { label: 'opus', provider: 'anthropic', model: 'claude-opus-4-8' },
+      { label: 'openai/gpt-5.4', provider: 'openai', model: 'gpt-5.4' },
+    ]);
+    const cfg = configFromCells(cells, SMOKE_CONFIG_DEFAULTS);
+    expect(cfg.maxIterations).toBe(20);
+    expect(cfg.timeoutMs).toBe(180_000);
+    expect(cfg.concurrency).toBe(2);
+  });
+
+  it('rejects empty or malformed cell specs', () => {
+    expect(() => parseCellList('  ,  ')).toThrow(/empty/);
+    expect(() => parseCellList('anthropic')).toThrow(/provider\/model/);
+    expect(() => parseCellList('/model')).toThrow(/provider\/model/);
+    expect(() => parseCellList('provider/')).toThrow(/provider\/model/);
+    expect(() => parseCellList('p /')).toThrow(/provider\/model/);
   });
 });

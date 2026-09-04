@@ -11,7 +11,10 @@ import { isUnreadIncomingMailboxMessage } from './mailbox-store.js';
 /** Format a token count for compact display (e.g. `12k`, `1.5m`). */
 export function compactTokens(value: number): string {
   if (!value) return '0';
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}m`;
+  // Values from 999_500 up round to a four-digit k label ("1000k" in the
+  // integer tier, "1000.0k" in the decimal tier) — roll them into the m
+  // tier, where they display as `1.0m`.
+  if (value >= 999_500) return `${(value / 1_000_000).toFixed(1)}m`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 100_000 ? 0 : 1)}k`;
   return Math.round(value).toString();
 }
@@ -43,7 +46,9 @@ export function isIncomingMailboxPayload(payload: Record<string, unknown> | unde
 
 /** Format an elapsed duration as a compact uptime string (`1h 23m`). */
 export function formatUptime(ms: number): string {
-  const secs = Math.floor(ms / 1000);
+  // A server-generated startedAt can sit slightly in the future when clocks
+  // skew — elapsed time clamps at zero like relativeSessionTime does.
+  const secs = Math.max(0, Math.floor(ms / 1000));
   if (secs < 60) return `${secs}s`;
   const mins = Math.floor(secs / 60);
   if (mins < 60) return `${mins}m ${secs % 60}s`;

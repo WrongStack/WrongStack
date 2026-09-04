@@ -13,6 +13,7 @@ const textCache = new Map<string, string>();
 let rootCandidates: string[] | undefined;
 
 export function readBundledInstructionText(relativePath: string): string {
+  if (typeof relativePath !== 'string' || relativePath.length === 0) return '';
   const cached = textCache.get(relativePath);
   if (cached !== undefined) return cached;
 
@@ -33,6 +34,8 @@ export function renderInstructionTemplate(
   template: string,
   values: Record<string, string>,
 ): string {
+  if (typeof template !== 'string') return '';
+  if (!values || typeof values !== 'object') return template;
   return template.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (match, key: string) =>
     Object.hasOwn(values, key) ? (values[key] ?? '') : match,
   );

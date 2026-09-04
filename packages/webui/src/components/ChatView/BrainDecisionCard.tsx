@@ -1,4 +1,3 @@
-import { memo, useMemo, useState } from 'react';
 import {
   Activity,
   AlertOctagon,
@@ -17,9 +16,24 @@ import {
   UserCheck,
   Zap,
 } from 'lucide-react';
+import { memo, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { BrainDecisionData, ChatMessage } from '@/stores';
+
+/**
+ * Tiers that reached a verdict without a provider call. Mirrors core's
+ * `DETERMINISTIC_BRAIN_TIERS`; a literal here so the browser bundle takes no
+ * runtime dependency on core.
+ */
+const FREE_BRAIN_TIERS = new Set([
+  'rule',
+  'policy',
+  'heuristic',
+  'cache',
+  'ledger-guard',
+  'terminal',
+]);
 
 /** Parse legacy or replayed markdown into a structured BrainDecisionData fallback */
 export function parseBrainMarkdown(content: string): BrainDecisionData | null {
@@ -319,11 +333,29 @@ export const BrainDecisionCard = memo(function BrainDecisionCard({
                 </span>
               ) : null}
 
-              {/* Source / Tier Badge */}
-              {source || tier ? (
+              {/* Source Badge */}
+              {source ? (
                 <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-foreground font-mono">
                   <Cpu className="h-3 w-3 text-muted-foreground" />
-                  <span>{source ?? tier}</span>
+                  <span>{source}</span>
+                </span>
+              ) : null}
+
+              {/* Tier Badge — which layer of the ladder actually decided.
+                  It used to render only as a FALLBACK for `source`, which is
+                  always present, so the tier was never visible; the handler
+                  did not populate it either. A council call and a free rule
+                  hit looked identical in the transcript. */}
+              {tier ? (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border shadow-2xs font-mono',
+                    FREE_BRAIN_TIERS.has(tier)
+                      ? 'border-border bg-muted/50 text-muted-foreground'
+                      : 'border-primary/40 bg-primary/10 text-primary',
+                  )}
+                >
+                  <span>{tier}</span>
                 </span>
               ) : null}
             </div>

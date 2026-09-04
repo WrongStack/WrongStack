@@ -166,6 +166,12 @@ export interface InstallCatalogOutputLimitsOptions {
 /** `providerId -> modelId -> limit.output`, rebuilt whenever the catalog changes. */
 type OutputLimitIndex = Map<string, Map<string, number>>;
 
+interface OutputLimitState {
+  index: OutputLimitIndex;
+}
+
+const OUTPUT_LIMIT_STATES = new WeakMap<ModelsRegistry, OutputLimitState>();
+
 function indexPayload(payload: ModelsDevPayload): OutputLimitIndex {
   const index: OutputLimitIndex = new Map();
   for (const [providerId, provider] of Object.entries(payload)) {
@@ -242,11 +248,15 @@ export async function installCatalogModelOutputLimits(
   opts: InstallCatalogOutputLimitsOptions,
 ): Promise<void> {
   const { registry, getConfig, log } = opts;
-  let index: OutputLimitIndex = new Map();
+  let state = OUTPUT_LIMIT_STATES.get(registry);
+  if (!state) {
+    state = { index: new Map() };
+    OUTPUT_LIMIT_STATES.set(registry, state);
+  }
 
   const prime = async (force: boolean): Promise<void> => {
     try {
-      index = indexPayload(await registry.load(force ? { force: true } : undefined));
+      state.index = indexPayload(await registry.load(force ? { force: true } : undefined));
     } catch (err) {
       log?.(
         `Model output-limit index unavailable: ${err instanceof Error ? err.message : String(err)}`,
@@ -262,7 +272,7 @@ export async function installCatalogModelOutputLimits(
     const originalRefresh = registry.refresh.bind(registry);
     registry.refresh = async () => {
       const payload = await originalRefresh();
-      index = indexPayload(payload);
+      state.index = indexPayload(payload);
       return payload;
     };
     WRAPPED_REFRESH.add(registry);
@@ -281,9 +291,9 @@ export async function installCatalogModelOutputLimits(
     overlayHolder.mergeOverlay = (payload: ModelsDevPayload) => {
       originalMerge(payload);
       for (const [catalogId, models] of indexPayload(payload)) {
-        const existing = index.get(catalogId);
+        const existing = state.index.get(catalogId);
         if (existing) for (const [id, limit] of models) existing.set(id, limit);
-        else index.set(catalogId, models);
+        else state.index.set(catalogId, models);
       }
     };
     WRAPPED_OVERLAY.add(registry);
@@ -295,7 +305,7 @@ export async function installCatalogModelOutputLimits(
     const override = overrideMaxOutput(config, providerId, modelId);
     if (override !== undefined) return override;
     for (const catalogId of catalogIdsFor(config, providerId)) {
-      const limit = index.get(catalogId)?.get(modelId);
+      const limit = state.index.get(catalogId)?.get(modelId);
       if (limit !== undefined) return limit;
     }
     return undefined;

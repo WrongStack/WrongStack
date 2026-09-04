@@ -52,7 +52,7 @@ export const helpCmd: SubcommandHandler = async (_args, deps) => {
     '  wstack mailbox serve [opts]  Start external-agent mailbox HTTP bridge',
     '  wstack permissions explain   Explain tool permission policy decisions',
     '  wstack modeldiag [test]      Model benchmarks and capability diagnostics',
-    '  wstack bench [run|list]      Agentic benchmarks against standard suites',
+    '  wstack bench [run|compare]   Agentic benchmarks against standard suites',
     '  wstack acp [serve]           Agent Client Protocol (ACP) server',
     '  wstack update [--check-only] Self-update the CLI',
     '  wstack diag                  Full diagnostics',

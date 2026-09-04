@@ -100,14 +100,16 @@ interface CreateOutputSpoolOptions {
  * so every command tool phrases it identically (and tests can match it).
  */
 export function spoolNote(info: SpoolInfo): string {
+  if (!info) return '';
   const dropped =
     info.droppedBytes > 0 ? `, ~${info.droppedBytes} bytes dropped under backpressure` : '';
   return `\n[output truncated — full ${info.bytes} bytes at ${info.path}${dropped}; read/grep that file selectively instead of re-running with more output]`;
 }
 
 export function createOutputSpool(opts: CreateOutputSpoolOptions): OutputSpool {
-  const threshold = opts.thresholdBytes ?? 32_768;
-  const safeTool = opts.tool.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 40) || 'tool';
+  const threshold = opts?.thresholdBytes ?? 32_768;
+  const toolName = typeof opts?.tool === 'string' ? opts.tool : 'tool';
+  const safeTool = toolName.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 40) || 'tool';
 
   let head = '';
   let headBytes = 0;
@@ -148,7 +150,7 @@ export function createOutputSpool(opts: CreateOutputSpoolOptions): OutputSpool {
 
   return {
     write(text: string): void {
-      if (finalized || !text) return;
+      if (finalized || typeof text !== 'string' || !text) return;
       const textBytes = Buffer.byteLength(text, 'utf8');
       totalBytes += textBytes;
       if (!stream && !failed) {

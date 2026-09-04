@@ -22,6 +22,7 @@ import { expectDefined } from './expect-defined.js';
  *   (the input would be valid JSON per JSON.parse, so it's returned as-is).
  */
 export function completePartialObject(s: string): string {
+  if (typeof s !== 'string') return '';
   if (!s.trim().startsWith('{')) return s;
   if (tryParse(s).ok) return s;
   return repairTruncated(s);

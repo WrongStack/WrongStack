@@ -226,6 +226,7 @@ export function assembleBrainTiers(opts: BrainTierAssemblyOptions): BrainTierAss
           maxConcurrency: councilCfg?.maxConcurrency,
           distinctness: councilCfg?.distinctness,
           voterMaxTokens: councilCfg?.voterMaxTokens,
+          deliberationRounds: councilCfg?.deliberationRounds,
           judgeMaxTokens: councilCfg?.judgeMaxTokens,
           getDecisionDigest: opts.getDecisionDigest,
           events: opts.events,

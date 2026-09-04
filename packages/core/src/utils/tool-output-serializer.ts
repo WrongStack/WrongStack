@@ -72,6 +72,7 @@ export function createToolOutputSerializer(opts: ToolOutputSerializerOptions = {
   }
 
   function enforceCap(text: string, remainingBudget: number): { text: string; newBudget: number } {
+    if (typeof text !== 'string') text = String(text ?? '');
     if (remainingBudget <= 0) {
       return { text: '[truncated: iteration output cap exceeded]', newBudget: 0 };
     }
@@ -95,7 +96,7 @@ export function createToolOutputSerializer(opts: ToolOutputSerializerOptions = {
 }
 
 function utf8Prefix(text: string, maxBytes: number): string {
-  if (maxBytes <= 0) return '';
+  if (typeof text !== 'string' || maxBytes <= 0) return '';
   let low = 0;
   let high = text.length;
   while (low < high) {
@@ -109,7 +110,7 @@ function utf8Prefix(text: string, maxBytes: number): string {
 }
 
 function utf8Suffix(text: string, maxBytes: number): string {
-  if (maxBytes <= 0) return '';
+  if (typeof text !== 'string' || maxBytes <= 0) return '';
   let low = 0;
   let high = text.length;
   while (low < high) {

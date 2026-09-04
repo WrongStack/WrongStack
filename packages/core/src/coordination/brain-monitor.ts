@@ -690,15 +690,19 @@ export class BrainMonitor {
     decision: BrainDecision,
   ): Promise<boolean> {
     if (decision.type !== 'answer') return false;
-    // Intervene when the brain explicitly chose the steer option, or gave a
-    // free-text answer that is not the bare continue fallback.
-    const choseSteer = decision.optionId === 'steer';
-    const freeTextGuidance =
-      !decision.optionId &&
-      !/^continue\b/i.test(decision.text.trim()) &&
-      decision.text.trim().length > 0;
-    if (!choseSteer && !freeTextGuidance) return false;
+    // INVARIANT: Brain decisions are control-plane input — act on the exact
+    // `optionId`, never on prose.
+    //
+    // This used to also steer on any free-text answer that did not start with
+    // "continue". The request always offers `steer`/`continue`, so an
+    // optionless answer means no tier actually made this choice — and it IS
+    // reachable (a council whose winner is not one of the offered options
+    // used to surface exactly that shape). Regex-matching the prose then
+    // injected a steer into a live agent on the strength of a sentence that
+    // happened not to begin with the word "continue".
+    if (decision.optionId !== 'steer') return false;
     const guidance = decision.rationale?.trim() || decision.text.trim();
+    if (guidance.length === 0) return false;
     try {
       await this.opts.intervene({
         sessionId: request.sessionId,

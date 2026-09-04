@@ -29,6 +29,7 @@
  * @module brain-rules
  */
 
+import type { EventBus } from '../kernel/events.js';
 import {
   BRAIN_RISK_LEVELS,
   type BrainArbiter,
@@ -38,7 +39,7 @@ import {
   type BrainFallback,
   type BrainRisk,
 } from './brain.js';
-import { markDecisionTier } from './brain-telemetry.js';
+import { emitBrainTierTransition, markDecisionTier } from './brain-telemetry.js';
 
 /** Longest regex source accepted from config. */
 export const BRAIN_RULE_PATTERN_MAX = 1_000;
@@ -340,6 +341,13 @@ export interface RuleBrainArbiterOptions {
   onRuleDecision?:
     | ((ruleId: string, request: BrainDecisionRequest, decision: BrainDecision) => void)
     | undefined;
+  /**
+   * Bus for the `brain.tier_transition` step this tier records when a rule
+   * actually decides. Without it a rule-settled decision reaches the trace
+   * with no steps at all — indistinguishable from a decision that never
+   * entered the ladder.
+   */
+  events?: EventBus | undefined;
 }
 
 /**
@@ -349,9 +357,19 @@ export interface RuleBrainArbiterOptions {
 export function createRuleBrainArbiter(opts: RuleBrainArbiterOptions): BrainArbiter {
   return {
     async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
+      const startedAt = Date.now();
       const hit = evaluateBrainRules(opts.getRules(), request);
       if (hit) {
         markDecisionTier(request, 'rule');
+        emitBrainTierTransition(
+          opts.events,
+          request,
+          'rule',
+          hit.decision.type,
+          true,
+          startedAt,
+          `rule "${hit.ruleId}" matched`,
+        );
         opts.onRuleDecision?.(hit.ruleId, request, hit.decision);
         return hit.decision;
       }

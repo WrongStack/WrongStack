@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.320.0',
+  version: '0.320.1',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -344,6 +344,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.320.1',
+    date: '2026-09-04',
+    tagline: 'Reproducible agent benchmarks, Brain deliberation & leaner Chronicle history',
+    highlights: [
+      '`wstack bench run --repeats N` shows Pass@N, All-pass, and flaky-task counts, while the bundled six-task core suite runs without a dataset clone or config file',
+      'Benchmark rows stream into results.jsonl, reports explain failures and incomplete usage costs, and `wstack bench compare` checks harness fingerprints before comparing runs',
+      'Brain councils can run a second deliberation round with quoted untrusted ballots and visible vote-change telemetry',
+      'Chronicle folds high-volume events into counters, applies retention limits, and compresses journal payloads while preserving integrity verification',
+    ],
+    latest: true,
+  },
+  {
     version: '0.320.0',
     date: '2026-09-04',
     tagline: 'Statusline rail contract, 64 theme presets & picker fixes',
@@ -353,7 +365,6 @@ export const changelog: ChangelogEntry[] = [
       'Model, mode, auth, autonomy, theme, and skills pickers respond to keys again, and `/flow` plus `/help <slash> <deep>` reach their renderers',
       'Session storage policy is wired into session-store construction with idempotent background auto-archive backfill',
     ],
-    latest: true,
   },
   {
     version: '0.319.2',

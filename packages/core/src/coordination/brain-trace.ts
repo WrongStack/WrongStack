@@ -57,6 +57,8 @@ export interface BrainTraceLlmCall {
   ok: boolean;
   durationMs: number;
   error?: string | undefined;
+  /** Model was cut off at its output budget (see the event docs). */
+  truncated?: boolean | undefined;
   responseText?: string | undefined;
   usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number } | undefined;
   at: number;
@@ -66,6 +68,10 @@ export interface BrainTraceCouncilVote {
   seatId: string;
   persona: string;
   status: 'valid' | 'invalid' | 'failed' | 'cancelled';
+  /** 1-based deliberation round; 1 is the independent round. */
+  round?: number | undefined;
+  /** This ballot differs from the same seat's previous round. */
+  changed?: boolean | undefined;
   providerId?: string | undefined;
   model?: string | undefined;
   optionId?: string | undefined;
@@ -86,6 +92,12 @@ export interface BrainTraceCouncilResolution {
   validVoteCount: number;
   distinctTargetCount: number;
   judgeUsed: boolean;
+  /** Deliberation rounds run, and how many seats moved in the final one. */
+  rounds?: number | undefined;
+  deliberationChanges?: number | undefined;
+  /** Which model broke the tie, and whether it had already voted. */
+  judgeLabel?: string | undefined;
+  judgeIsVoter?: boolean | undefined;
   usage?:
     | {
         calls: number;
@@ -290,6 +302,7 @@ export class BrainTraceRecorder {
           ok: e.ok,
           durationMs: e.durationMs,
           error: e.error,
+          truncated: e.truncated,
           responseText: applyContentMode(e.responseText, this.content),
           // Provider `Usage` is {input, output, cache*}; normalize to the
           // council's {input,output,total} token vocabulary so both sources
@@ -310,6 +323,8 @@ export class BrainTraceRecorder {
           seatId: e.seatId,
           persona: e.persona,
           status: e.status,
+          round: e.round,
+          changed: e.changed,
           providerId: e.providerId,
           model: e.model,
           optionId: e.optionId,
@@ -334,6 +349,10 @@ export class BrainTraceRecorder {
           validVoteCount: e.validVoteCount,
           distinctTargetCount: e.distinctTargetCount,
           judgeUsed: e.judgeUsed,
+          rounds: e.rounds,
+          deliberationChanges: e.deliberationChanges,
+          judgeLabel: e.judgeLabel,
+          judgeIsVoter: e.judgeIsVoter,
           usage: e.usage,
           warnings: e.warnings,
           reason: applyContentMode(e.reason, this.content),
@@ -349,6 +368,12 @@ export class BrainTraceRecorder {
     ] as const) {
       this.unsubscribers.push(
         events.on(name, (e) => {
+          // A PENDING ask_human is the escalation prompt, not the outcome:
+          // the queue is still waiting on a human and the same request will
+          // resolve into answered/denied. Closing here would file the record
+          // early and discard the human's actual answer along with every
+          // step that follows it.
+          if ('pending' in e && e.pending === true) return;
           this.close(e.request.id, e.decision, e.tier, e.at);
         }),
       );

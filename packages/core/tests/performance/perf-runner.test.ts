@@ -104,10 +104,7 @@ describe('runOnce', () => {
     expect(result.exitCode).toBe(3);
   });
 
-  it('kills a hung command and marks the run as timed out', {
-    timeout: 180_000,
-    retry: 1,
-  }, async () => {
+  it('kills a hung command and marks the run as timed out', { timeout: 60_000 }, async () => {
     const result = await runOnce({
       command: 'node -e "setTimeout(()=>{}, 60000)"',
       cwd: process.cwd(),

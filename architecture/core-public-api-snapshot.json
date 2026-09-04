@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.320.0",
+  "packageVersion": "0.320.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -148,7 +148,7 @@
         "export { type BrainApplyResult, type BrainConfigPatch, type BrainConfigSnapshot, type BrainCouncilMinRisk, type BrainCouncilPatch, type BrainDefaultsContext, type BrainPoolStrategy, type BrainRuntime, type BrainRuntimeLedgerHost, type BrainRuntimeOptions, createBrainRuntime, resolveBrainConfigDefaults, } from './execution/brain-runtime.js';",
         "export { type BrainArbiter, type BrainDecision, type BrainDecisionOption, BrainDecisionQueue, type BrainDecisionRequest, type BrainDecisionSource, type BrainEscalationMode, type BrainFallback, type BrainRisk, type BrainTerminalPolicy, DefaultBrainArbiter, type DefaultBrainArbiterOptions, EscalationRoutingBrainArbiter, formatHumanPrompt, HumanEscalatingBrainArbiter, ObservableBrainArbiter, terminalPolicyDecision, } from './coordination/brain.js';",
         "export { type BrainCacheStats, BrainDecisionCache, type BrainDecisionCacheOptions, brainCacheKey, type CachingBrainArbiterOptions, createCachingBrainArbiter, } from './coordination/brain-cache.js';",
-        "export { type BrainDecisionTier, BrainTierCounter, type BrainTierStats, DETERMINISTIC_BRAIN_TIERS, isDeterministicTier, markDecisionTier, readDecisionTier, } from './coordination/brain-telemetry.js';",
+        "export { type BrainDecisionTier, BrainTierCounter, type BrainTierStats, DETERMINISTIC_BRAIN_TIERS, emitBrainTierTransition, isDeterministicTier, markDecisionTier, readDecisionTier, } from './coordination/brain-telemetry.js';",
         "export { type BrainInterventionInput, BrainMonitor, type BrainMonitorOptions, type BrainMonitorPolicy, type BrainMonitorSignalToggles, DEFAULT_FILE_EDIT_TOOLS, } from './coordination/brain-monitor.js';",
         "export { type Checkpoint, CheckpointManager, type CheckpointManagerOptions, createGoalRunnerFromTaskGraph, type GoalOptions, GoalPlanner, type GoalPlannerOptions, type GoalPlanResult, GoalRunner, type GoalRunnerOptions, PHASE_EVENT_NAMES, type PhaseEventMap, type PhaseEventName, type PhaseExecutionContext, type PhaseFilter, type PhaseGraph, PhaseGraphBuilder, type PhaseGraphBuilderOptions, type PhaseNode, PhaseOrchestrator, type PhaseOrchestratorOptions, type PhaseProgress, type PhaseSort, type PhaseStatus, PhaseStore, type PhaseStoreOptions, type PhaseTemplate, } from './goal/index.js';",
         "export { type CollabBusState, CollaborationBus, type ConsumedInjectionInfo, } from './coordination/collab-bus.js';",
@@ -221,6 +221,20 @@
         "export { type DomainGlossaryOptions, renderDomainGlossary, } from './system-prompt-glossary.js';",
         "export { type InstructionBundle, type InstructionBundlePaths, loadInstructionBundle, type SystemInstructionVariant, } from './instruction-bundle.js';",
         "export { type InstructionTemplateContext, renderInstructionLayer, } from './instruction-template.js';"
+      ]
+    },
+    {
+      "subpath": "./request-conversation",
+      "target": {
+        "types": "./dist/core/request-conversation-binding.d.ts",
+        "import": "./dist/core/request-conversation-binding.js"
+      },
+      "source": "packages/core/src/core/request-conversation-binding.ts",
+      "declarations": [
+        "export function bindRequestConversation",
+        "export function conversationBoundToRequest",
+        "export function inheritRequestConversation",
+        "export interface RequestConversation"
       ]
     },
     {
@@ -665,6 +679,7 @@
         "export { type ApplyResult, type ChangeFile, ChangeManager, type ChangeManagerOptions, type ChangeProposal, DEFAULT_QUALITY_CHECKS, type QualityGateChecks, type RollbackResult, } from './change-manager.js';",
         "export { type AutoExtendCeiling, type AutoExtendPolicy, attachAutoExtend, } from './auto-extend.js';",
         "export { type BrainArbiter, type BrainDecision, type BrainDecisionOption, BrainDecisionQueue, type BrainDecisionRequest, type BrainDecisionSource, type BrainEscalationMode, type BrainFallback, type BrainRisk, DefaultBrainArbiter, type DefaultBrainArbiterOptions, EscalationRoutingBrainArbiter, formatHumanPrompt, HumanEscalatingBrainArbiter, ObservableBrainArbiter, terminalPolicyDecision, } from './brain.js';",
+        "export { type BrainDecisionTier, BrainTierCounter, type BrainTierStats, DETERMINISTIC_BRAIN_TIERS, emitBrainTierTransition, isDeterministicTier, markDecisionTier, readDecisionTier, } from './brain-telemetry.js';",
         "export { type BrainInterventionInput, BrainMonitor, type BrainMonitorOptions, } from './brain-monitor.js';",
         "export { type BugFinding, type CollabBudgetConfig, type CollabBudgetOverrides, type CollabBudgetWarningPayload, type CollabDebugReport, CollabSession, type CollabSessionOptions, type CriticConcern, type CriticEvaluation, type DirectorAlert, DirectorAlertLevel, type DirectorCancelCollabPayload, type RefactorPhase, type RefactorPlan, type SharedFileEntry, type SharedFileSnapshot, } from './collab-debug.js';",
         "export { type CollabBusState, CollaborationBus, type ConsumedInjectionInfo, } from './collab-bus.js';",
@@ -1215,17 +1230,20 @@
       "source": "packages/core/src/chronicle/index.ts",
       "declarations": [
         "export type { ChronicleEventSink } from './sink.js';",
+        "export { CHRONICLE_DETAIL_LEVELS, DEFAULT_CHRONICLE_DETAIL, isChronicleDetailLevel, resolveChronicleDetail, routeChronicleEvent, type ChronicleDetailLevel, type ChronicleRouting, } from './detail-policy.js';",
         "export { CHRONICLE_FACET_FIELDS, findChroniclePartitions, ChronicleQueryEngine, type ChronicleQueryEngineOptions, type ChronicleSummary, type ChronicleSignalFamily, type ChronicleFacet, type ChronicleFacetValue, type ChronicleQuery, type ChronicleQueryResult, type ChronicleGraphEdge, type ChronicleGraphResult, type ChronicleRelationKind, } from './query.js';",
         "export { CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS, CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION, type ChronicleMetricsRequest, type ChronicleMetricsResponse, type ChronicleMetricsView, type ChronicleProjectServerHealth, type ChronicleProjectServerInfo, type ChronicleServerOperationName, type ChronicleServerOperations, } from './project-server-protocol.js';",
         "export { CHRONICLE_SCHEMA_VERSION, type ChronicleCorrelation, type ChronicleEvent, type ChronicleEventInput, type ChronicleOutcome, type ChronicleResourceRef, type ChronicleRuntimeIdentity, type ChronicleScope, type ChronicleVerifyResult, } from './types.js';",
         "export { ChronicleCompactionBusyError, compactChronicleSqlite, type ChronicleSqliteCompactionOptions, type ChronicleSqliteCompactionResult, } from './sqlite-compaction.js';",
         "export { ChronicleJournal, GENESIS_HASH, type ChronicleJournalOptions, type ChronicleJournalStats, type ChroniclePurgeOptions, type ChroniclePurgeResult, } from './journal.js';",
-        "export { ChronicleMetricsStore, isChronicleMetricsAvailable, type ChronicleMetricsRefreshResult, type ChronicleMetricsSummary, type ChronicleProviderDailyRow, type ChronicleTaskOutcomeRow, type ChronicleFileLineageRow, } from './metrics-store.js';",
+        "export { ChronicleMetricsStore, DEFAULT_METRICS_ROW_RETENTION_DAYS, isChronicleMetricsAvailable, type ChronicleMetricsRefreshResult, type ChronicleMetricsSummary, type ChronicleProviderDailyRow, type ChronicleTaskOutcomeRow, type ChronicleFileLineageRow, } from './metrics-store.js';",
         "export { ChroniclePartitionRangeCache, type ChroniclePartitionRange, } from './partition-range-cache.js';",
         "export { ChronicleProjectServerClient, ChronicleRemoteJournal, isChronicleProjectServerAvailable, type ChronicleProjectServerCallOptions, type ChronicleProjectServerClientOptions, } from './project-server-client.js';",
         "export { ChronicleStorageQuotaError } from './sqlite-journal.js';",
         "export { childChronicleContext, createChronicleContext, type ChronicleContext } from './context.js';",
+        "export { chroniclePayloadStoredBytes, decodeChroniclePayload, encodeChroniclePayload, type StoredChroniclePayload, } from './payload-codec.js';",
         "export { chronicleProjectServerEndpoint, chronicleProjectServerKey, chronicleProjectServerMetadataPath, } from './project-server-endpoint.js';",
+        "export { createChronicleCounterSink, DEFAULT_COUNTER_WINDOW_MS, type ChronicleCounterSink, type ChronicleCounterSinkOptions, } from './counter-sink.js';",
         "export { createChronicleEventJournal, createChronicleProjectAccess, resolveChronicleProjectServerOptions, type ChronicleEventJournalHandle, type ChronicleProjectAccess, type ChronicleProjectAccessOptions, } from './project-access.js';",
         "export { createChroniclePromptManifest, type ChroniclePromptManifest } from './prompt-manifest.js';",
         "export { resolveChronicleRuntimeLocation, type ChronicleRuntimeIdentityInput, type ChronicleRuntimeLocation, } from './identity.js';",
@@ -1339,22 +1357,22 @@
       "directory": "chronicle",
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
-      "sourceFiles": 35,
-      "sourceLines": 10650
+      "sourceFiles": 38,
+      "sourceLines": 11658
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 174,
-      "sourceLines": 51630
+      "sourceLines": 51889
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 47,
-      "sourceLines": 12101
+      "sourceLines": 12120
     },
     {
       "directory": "design",
@@ -1368,7 +1386,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 58,
-      "sourceLines": 18113
+      "sourceLines": 18472
     },
     {
       "directory": "extension",
@@ -1396,7 +1414,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 9012
+      "sourceLines": 9088
     },
     {
       "directory": "infrastructure",
@@ -1410,14 +1428,14 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3893
+      "sourceLines": 3946
     },
     {
       "directory": "models",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 11,
-      "sourceLines": 2461
+      "sourceLines": 2466
     },
     {
       "directory": "notifications",
@@ -1431,7 +1449,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 13,
-      "sourceLines": 1944
+      "sourceLines": 1950
     },
     {
       "directory": "performance",
@@ -1529,14 +1547,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 13048
+      "sourceLines": 13164
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10741
+      "sourceLines": 10889
     },
     {
       "directory": "wiring",

@@ -16,7 +16,7 @@ export function applyPromptCacheKey(
   req: Request,
   caps: Capabilities | undefined,
 ): void {
-  if (req.cache?.key && caps?.cacheControl === 'auto') {
+  if (req.cache?.key?.trim() && caps?.cacheControl === 'auto') {
     body['prompt_cache_key'] = req.cache.key;
   }
 }

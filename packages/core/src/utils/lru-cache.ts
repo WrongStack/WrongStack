@@ -21,7 +21,8 @@ export class LruCache<K, V> {
   private readonly capacity: number;
 
   constructor(capacity: number) {
-    if (capacity < 1) throw new Error(`LruCache capacity must be >= 1, got ${capacity}`);
+    if (!Number.isFinite(capacity) || capacity < 1)
+      throw new Error(`LruCache capacity must be >= 1, got ${capacity}`);
     this.capacity = capacity;
   }
 

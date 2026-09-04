@@ -32,7 +32,9 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key === 'Escape') {
+        event.preventDefault();
         setOpen(false);
       }
     };

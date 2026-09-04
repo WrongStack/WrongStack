@@ -14,10 +14,11 @@
  *
  * @module hq/brain-bridge
  */
-import type { EventBus } from '../kernel/events.js';
+
 import type { BrainDecision, BrainDecisionRequest } from '../coordination/brain.js';
+import type { EventBus } from '../kernel/events.js';
+import { type BridgeContextOptions, createBridgeContext } from './bridge-context.js';
 import type { HqBrainEventKind, HqBrainEventPayload, HqEventEnvelope } from './protocol.js';
-import { createBridgeContext, type BridgeContextOptions } from './bridge-context.js';
 
 export interface BrainTelemetryBridgeOptions extends BridgeContextOptions {
   /** Local EventBus emitting `brain.*` events. */
@@ -90,6 +91,8 @@ export function startBrainTelemetryBridge(opts: BrainTelemetryBridgeOptions): ()
         {
           ...extractRequestFields(p.request),
           ...extractDecisionFields(p.decision),
+          // Provenance is what separates a free rule hit from a council call.
+          ...(p.tier ? { tier: p.tier } : {}),
         },
         p.at,
       );
@@ -102,6 +105,10 @@ export function startBrainTelemetryBridge(opts: BrainTelemetryBridgeOptions): ()
         {
           ...extractRequestFields(p.request),
           ...extractDecisionFields(p.decision),
+          ...(p.tier ? { tier: p.tier } : {}),
+          // A pending prompt means a human is being waited on RIGHT NOW —
+          // the one brain state a fleet operator can act on.
+          ...(p.pending ? { pending: true } : {}),
         },
         p.at,
       );
@@ -114,6 +121,35 @@ export function startBrainTelemetryBridge(opts: BrainTelemetryBridgeOptions): ()
         {
           ...extractRequestFields(p.request),
           ...extractDecisionFields(p.decision),
+          ...(p.tier ? { tier: p.tier } : {}),
+        },
+        p.at,
+      );
+    }),
+  );
+  // Council panels are the Brain's most expensive tier and its most
+  // failure-prone one (correlated seats, starved voters, a judge that is also
+  // a voter). HQ saw none of it: a degraded panel produced a perfectly
+  // ordinary `decision_answered` row.
+  ctx.track(
+    events.on('brain.council_resolved', (p) => {
+      publish(
+        'council_resolved',
+        {
+          requestId: p.requestId,
+          decision: p.status,
+          resolution: p.resolution,
+          seatCount: p.configuredSeatCount,
+          validVoteCount: p.validVoteCount,
+          distinctTargetCount: p.distinctTargetCount,
+          ...(p.judgeLabel !== undefined
+            ? { judgeLabel: p.judgeLabel, judgeIsVoter: p.judgeIsVoter === true }
+            : {}),
+          ...(p.usage ? { totalTokens: p.usage.totalTokens } : {}),
+          ...(p.rounds !== undefined
+            ? { rounds: p.rounds, deliberationChanges: p.deliberationChanges ?? 0 }
+            : {}),
+          ...(p.warnings?.length ? { warnings: [...p.warnings] } : {}),
         },
         p.at,
       );

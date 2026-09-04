@@ -15,7 +15,9 @@ import type {
 } from '@wrongstack/core/chronicle';
 import {
   createChronicleContext,
+  createChronicleCounterSink,
   createChronicleEventJournal,
+  resolveChronicleDetail,
   startChronicleFileObserver,
   startChronicleHealthMonitor,
   wireDecisionsToChronicle,
@@ -86,6 +88,12 @@ function resolveChronicleRetentionDays(config: Record<string, unknown>): number 
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return DEFAULT_CHRONICLE_RETENTION_DAYS;
   if (raw <= 0) return 0;
   return Math.max(MIN_CHRONICLE_RETENTION_DAYS, raw);
+}
+
+/** Read a positive numeric `chronicle.*` knob, or undefined to keep the default. */
+function chronicleLimit(config: Record<string, unknown>, key: string): number | undefined {
+  const raw = (config.chronicle as Record<string, unknown> | undefined)?.[key];
+  return typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : undefined;
 }
 
 /**
@@ -164,6 +172,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   let chronicleFileObserver: Promise<ChronicleFileObserver> | undefined;
   let stopChronicleHealth: (() => void) | undefined;
   let stopNetworkTelemetry: (() => void) | undefined;
+  let disposeCounterSink: (() => Promise<void>) | undefined;
   // Chronicle refuses to run in-process unless asked, so a missing build now
   // raises instead of silently giving this session a private hash chain. That
   // is the right call for the journal's integrity but the wrong call for the
@@ -174,6 +183,12 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
     chronicleHandle = tryCreateChronicleJournal({
       projectRoot,
       retentionDays,
+      // Undefined means "whatever the daemon already runs with": these only
+      // take effect for the client that wins the spawn race, so passing an
+      // explicit fallback here would imply a control this layer does not have.
+      maxEvents: chronicleLimit(config, 'maxEvents'),
+      maxBytes: chronicleLimit(config, 'maxBytes'),
+      metricsRowRetentionDays: chronicleLimit(config, 'metricsRowRetentionDays'),
       projectPaths: {
         globalRoot: wpaths.globalRoot,
         projectId: wpaths.projectHash ?? wpaths.projectSlug,
@@ -184,7 +199,17 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   }
 
   if (chronicleHandle && deps.events) {
-    chronicleJournal = chronicleHandle.journal;
+    // Collection policy sits between the adapters and the journal rather than
+    // inside any one of them: every adapter already writes through the sink,
+    // so one decorator covers all of them and cannot drift per-adapter. At
+    // `full` the decorator still runs, but route() keeps everything, so the
+    // cost is one predictable branch per append.
+    const counterSink = createChronicleCounterSink({
+      inner: chronicleHandle.journal,
+      level: resolveChronicleDetail(config),
+    });
+    chronicleJournal = counterSink;
+    disposeCounterSink = () => counterSink.dispose();
     const location = chronicleHandle.identity;
     const chronicleContext = createChronicleContext(
       {
@@ -625,6 +650,9 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
     stopChronicleHealth?.();
     stopNetworkTelemetry?.();
     unsubscribeChronicle?.();
+    // Before the handle closes: draining emits the final counter windows, and
+    // they have to reach a journal that is still open.
+    await disposeCounterSink?.();
     if (chronicleFileObserver) {
       try {
         await (await chronicleFileObserver).close();

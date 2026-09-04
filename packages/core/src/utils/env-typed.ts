@@ -22,6 +22,7 @@
  * Returns `true` for any other non-empty value.
  */
 export function envBool(key: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (!env || typeof env !== 'object') return false;
   const raw = env[key];
   if (raw === undefined || raw === '') return false;
   return !/^(0|false|no|off)$/i.test(raw.trim());
@@ -35,6 +36,7 @@ export function envBoolOptional(
   key: string,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean | undefined {
+  if (!env || typeof env !== 'object') return undefined;
   const raw = env[key];
   if (raw === undefined || raw === '') return undefined;
   return !/^(0|false|no|off)$/i.test(raw.trim());
@@ -54,6 +56,7 @@ export function envInt(
   options: { default: number; min?: number; max?: number } = { default: 0 },
   env: NodeJS.ProcessEnv = process.env,
 ): number {
+  if (!env || typeof env !== 'object') return options.default;
   const raw = env[key];
   if (raw === undefined || raw === '') return options.default;
   const parsed = Number.parseInt(raw, 10);
@@ -72,6 +75,7 @@ export function envFloat(
   options: { default: number; min?: number; max?: number } = { default: 0 },
   env: NodeJS.ProcessEnv = process.env,
 ): number {
+  if (!env || typeof env !== 'object') return options.default;
   const raw = env[key];
   if (raw === undefined || raw === '') return options.default;
   const parsed = Number.parseFloat(raw);
@@ -86,6 +90,7 @@ export function envFloat(
  * Returns `undefined` when unset or empty after trimming.
  */
 export function envString(key: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (!env || typeof env !== 'object') return undefined;
   const raw = env[key];
   if (raw === undefined) return undefined;
   const trimmed = raw.trim();
@@ -102,7 +107,9 @@ export function envEnum<T extends string>(
   options: { default: T },
   env: NodeJS.ProcessEnv = process.env,
 ): T {
+  const fallback = options?.default;
+  if (!Array.isArray(allowed)) return fallback;
   const raw = envString(key, env);
-  if (raw === undefined) return options.default;
-  return allowed.includes(raw as T) ? (raw as T) : options.default;
+  if (raw === undefined) return fallback;
+  return allowed.includes(raw as T) ? (raw as T) : fallback;
 }

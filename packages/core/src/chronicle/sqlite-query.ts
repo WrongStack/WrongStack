@@ -23,6 +23,7 @@
  * p95 are semantics, not arithmetic.
  */
 import type { DatabaseSync } from 'node:sqlite';
+import { decodeChroniclePayload, type StoredChroniclePayload } from './payload-codec.js';
 import {
   type ChronicleFacet,
   type ChronicleFacetResults,
@@ -173,7 +174,7 @@ export class ChronicleSqliteQueryEngine {
       const rows = this.db.prepare(sql).all(...params) as Array<{
         day: string;
         sequence: number;
-        payload: string;
+        payload: StoredChroniclePayload;
       }>;
       if (rows.length === 0) break;
       offset += rows.length;
@@ -182,7 +183,7 @@ export class ChronicleSqliteQueryEngine {
         scannedEvents++;
         let event: ChronicleEvent;
         try {
-          event = JSON.parse(row.payload) as ChronicleEvent;
+          event = JSON.parse(decodeChroniclePayload(row.payload)) as ChronicleEvent;
         } catch {
           this.diagnostics.invalidLines++;
           continue;
@@ -357,14 +358,14 @@ export class ChronicleSqliteQueryEngine {
     let offset = 0;
     for (;;) {
       const rows = this.db.prepare(sql).all(...pushed.params, this.batchSize, offset) as Array<{
-        payload: string;
+        payload: StoredChroniclePayload;
       }>;
       if (rows.length === 0) return;
       offset += rows.length;
       for (const row of rows) {
         let event: ChronicleEvent;
         try {
-          event = JSON.parse(row.payload) as ChronicleEvent;
+          event = JSON.parse(decodeChroniclePayload(row.payload)) as ChronicleEvent;
         } catch {
           this.diagnostics.invalidLines++;
           continue;

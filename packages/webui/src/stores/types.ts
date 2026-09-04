@@ -23,6 +23,10 @@ export interface CouncilSeatVote {
   weight?: number | undefined;
   durationMs?: number | undefined;
   error?: string | undefined;
+  /** Deliberation round this ballot came from; 1 is the independent round. */
+  round?: number | undefined;
+  /** The seat changed its vote after seeing the other seats' ballots. */
+  changed?: boolean | undefined;
   at: number;
 }
 
@@ -197,9 +201,14 @@ export interface CouncilDecisionData {
   distinctTargetCount?: number | undefined;
   judgeUsed?: boolean | undefined;
   judgeModel?: string | undefined;
+  /** The tie-breaker had already cast one of the votes it is breaking. */
+  judgeIsVoter?: boolean | undefined;
   judgeRationale?: string | undefined;
   totalTokens?: number | undefined;
   durationMs?: number | undefined;
+  /** Deliberation rounds run (1 = none) and seats that moved in the last one. */
+  rounds?: number | undefined;
+  deliberationChanges?: number | undefined;
   warnings?: string[] | undefined;
   seats: CouncilSeatVote[];
 }

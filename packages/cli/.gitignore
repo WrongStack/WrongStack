@@ -2,3 +2,4 @@
 !/.wrongstack/
 /.wrongstack/*
 !/.wrongstack/project.json
+.temp_files/

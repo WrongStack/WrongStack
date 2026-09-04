@@ -145,11 +145,11 @@ export const googleWireFormat = defineWireFormat<GoogleStreamState>({
     const u = obj.usageMetadata;
     if (u) {
       // Disjoint semantics — see google.ts for rationale.
-      const cached = u.cachedContentTokenCount ?? 0;
-      const promptTotal = u.promptTokenCount ?? state.usage.input + cached;
+      const cached = nonNegative(u.cachedContentTokenCount);
+      const promptTotal = nonNegative(u.promptTokenCount, state.usage.input + cached);
       state.usage = {
         input: Math.max(0, promptTotal - cached),
-        output: u.candidatesTokenCount ?? state.usage.output,
+        output: nonNegative(u.candidatesTokenCount, state.usage.output),
         cacheRead: cached || state.usage.cacheRead,
       };
     }
@@ -165,6 +165,10 @@ export const googleWireFormat = defineWireFormat<GoogleStreamState>({
   // mid-response. Surface a retryable error instead of a synthetic end_turn.
   isTruncated: (state) => state.started && !state.sawTerminal,
 });
+
+function nonNegative(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+}
 
 function buildGenConfig(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
   const maxOutput = resolveMaxOutputTokens(req, ctx);

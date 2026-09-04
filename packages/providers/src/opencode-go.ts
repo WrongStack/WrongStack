@@ -1,3 +1,4 @@
+import { conversationBoundToRequest } from '@wrongstack/core/request-conversation';
 import type {
   Capabilities,
   ModelsDevModel,
@@ -50,6 +51,24 @@ function createOpenCodeGoStickySessionId(): string {
   return `sess_${suffix}`;
 }
 
+/**
+ * OpenCode Go uses this header for affinity and request optimisation. Prefer
+ * the owning WrongStack conversation when one is bound to the request, so a
+ * provider rebuild (for example after `/model`) cannot split one conversation
+ * across OpenCode Go sessions. The fallback keeps direct SDK callers stable
+ * for the lifetime of their provider instance.
+ */
+function sessionIdForOpenCodeGoRequest(req: Request, fallback: string): string {
+  const sessionId = conversationBoundToRequest(req)?.sessionId;
+  if (!sessionId) return fallback;
+
+  // Header values must stay ASCII and bounded. WrongStack session IDs are
+  // normally UUID-like; normalising also makes this safe for external hosts
+  // that use a broader local session-id vocabulary.
+  const normalized = sessionId.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 120);
+  return normalized ? `sess_${normalized}` : fallback;
+}
+
 export interface OpenCodeGoProviderOptions {
   apiKey: string;
   baseUrl?: string | undefined;
@@ -99,6 +118,7 @@ export class OpenCodeGoProvider implements Provider {
         quirks: { tolerateMissingTerminalMarker: true },
       },
       this.models,
+      stickySessionId,
     );
     this.messages = new OpenCodeGoMessagesProvider(
       {
@@ -109,6 +129,7 @@ export class OpenCodeGoProvider implements Provider {
         fetchImpl: opts.fetchImpl,
       },
       this.models,
+      stickySessionId,
     );
   }
 
@@ -147,8 +168,16 @@ class OpenCodeGoChatProvider extends OpenAICompatibleProvider {
   constructor(
     opts: OpenAICompatibleOptions,
     private readonly models: ReadonlyMap<string, ModelsDevModel>,
+    private readonly fallbackSessionId: string,
   ) {
     super(opts);
+  }
+
+  protected override buildHeaders(req: Request): Record<string, string> {
+    return {
+      ...super.buildHeaders(req),
+      'x-opencode-session': sessionIdForOpenCodeGoRequest(req, this.fallbackSessionId),
+    };
   }
 
   protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
@@ -177,6 +206,7 @@ class OpenCodeGoMessagesProvider extends AnthropicProvider {
       headers?: Record<string, string> | undefined;
     },
     private readonly models: ReadonlyMap<string, ModelsDevModel>,
+    private readonly fallbackSessionId: string,
   ) {
     super(opts);
     this.extraHeaders = opts.headers;
@@ -202,7 +232,11 @@ class OpenCodeGoMessagesProvider extends AnthropicProvider {
     for (const [key, value] of Object.entries(this.extraHeaders ?? {})) {
       if (!PROTECTED.has(key.toLowerCase())) filtered[key] = value;
     }
-    return { ...filtered, ...super.buildHeaders(req) };
+    return {
+      ...filtered,
+      ...super.buildHeaders(req),
+      'x-opencode-session': sessionIdForOpenCodeGoRequest(req, this.fallbackSessionId),
+    };
   }
 
   protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {

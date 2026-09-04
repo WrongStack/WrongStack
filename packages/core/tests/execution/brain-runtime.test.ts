@@ -560,6 +560,7 @@ describe('createBrainRuntime — config round-trip (brain-config-roundtrip)', ()
       distinctness: 'provider',
       voterMaxTokens: 1500,
       judgeMaxTokens: 400,
+      deliberationRounds: 3,
       seats: [{ persona: 'security', veto: true }],
     },
     ledger: {

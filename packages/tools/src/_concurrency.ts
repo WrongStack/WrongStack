@@ -17,9 +17,11 @@ export async function mapWithConcurrency<T, R>(
   limit: number,
   fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
-  if (items.length === 0) return [];
+  if (!Array.isArray(items) || items.length === 0) return [];
+  if (typeof fn !== 'function') return [];
   if (items.length === 1) return [await fn(items[0] as T)];
-  const effectiveLimit = Math.max(1, Math.min(limit | 0, items.length));
+  const parsedLimit = Number.isFinite(limit) ? Math.floor(limit) : items.length;
+  const effectiveLimit = Math.max(1, Math.min(parsedLimit, items.length));
   const results: R[] = new Array(items.length);
   let nextIndex = 0;
 

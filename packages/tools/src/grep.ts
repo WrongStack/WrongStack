@@ -126,7 +126,9 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
     // (glob.test.ts:183); grep was missed.
     const base = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
     const mode = input.output_mode ?? 'content';
-    const limit = Math.max(1, Math.min(input.limit ?? 200, 2000));
+    const rawLimit =
+      typeof input.limit === 'number' && Number.isFinite(input.limit) ? input.limit : 200;
+    const limit = Math.max(1, Math.min(Math.floor(rawLimit), 2000));
     const validation = compileUserRegex(input.pattern, input.case_insensitive ? 'i' : '');
     if (!validation.ok) {
       throw new ToolValidationError({

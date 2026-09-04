@@ -37,6 +37,12 @@ export interface CouncilPanelEntry {
   /** Distinct provider/model targets that served the valid votes. */
   distinctTargetCount?: number | undefined;
   judgeUsed?: boolean | undefined;
+  judgeLabel?: string | undefined;
+  /** The tie-breaker had already cast one of the votes it is breaking. */
+  judgeIsVoter?: boolean | undefined;
+  /** Deliberation rounds run (1 = none) and seats that moved in the last one. */
+  rounds?: number | undefined;
+  deliberationChanges?: number | undefined;
   totalTokens?: number | undefined;
   durationMs?: number | undefined;
   /** Structural warnings — most importantly a CORRELATED (non-diverse) panel. */
@@ -71,6 +77,8 @@ export function toCouncilSeatVote(payload: Record<string, unknown>, now: number)
     weight: num(payload.weight),
     durationMs: num(payload.durationMs),
     error: str(payload.error),
+    round: num(payload.round),
+    changed: bool(payload.changed),
     at: num(payload.at) ?? now,
   };
 }
@@ -85,7 +93,13 @@ export function toCouncilSeatVote(payload: Record<string, unknown>, now: number)
  */
 export function summarizeCouncilPanel(entry: CouncilPanelEntry): string {
   if (entry.phase === 'voting') {
-    return `voting · ${entry.seats.length} seat${entry.seats.length === 1 ? '' : 's'} in`;
+    // Name the round while voting: a deliberating panel re-polls every seat,
+    // so the seat count resets and would otherwise look like it went backwards.
+    const round = entry.seats.reduce((max, seat) => Math.max(max, seat.round ?? 1), 1);
+    return (
+      `voting${round > 1 ? ` r${round}` : ''} · ` +
+      `${entry.seats.length} seat${entry.seats.length === 1 ? '' : 's'} in`
+    );
   }
   const seatCount = entry.configuredSeatCount ?? entry.seats.length;
   const parts = [
@@ -93,7 +107,18 @@ export function summarizeCouncilPanel(entry: CouncilPanelEntry): string {
     `${entry.validVoteCount ?? entry.seats.length}/${seatCount} seats`,
     `${entry.distinctTargetCount ?? 0} distinct target${entry.distinctTargetCount === 1 ? '' : 's'}`,
   ];
-  if (entry.judgeUsed) parts.push('judge used');
+  // Deliberation multiplies the panel's cost, and the change count is what
+  // says whether the extra rounds bought anything at all.
+  if (entry.rounds !== undefined && entry.rounds > 1) {
+    const changed = entry.deliberationChanges ?? 0;
+    parts.push(`${entry.rounds} rounds${changed > 0 ? `, ${changed} changed` : ', none changed'}`);
+  }
+  if (entry.judgeUsed) {
+    parts.push(
+      `judge${entry.judgeLabel ? ` ${entry.judgeLabel}` : ''}` +
+        (entry.judgeIsVoter ? ' (also a voter)' : ''),
+    );
+  }
   if (entry.durationMs !== undefined) {
     parts.push(`${Math.round(entry.durationMs / 100) / 10}s`);
   }
@@ -109,6 +134,7 @@ export function isCouncilPanelAdverse(entry: CouncilPanelEntry): boolean {
     entry.status === 'abstained' ||
     entry.status === 'failed' ||
     entry.status === 'cancelled' ||
+    entry.judgeIsVoter === true ||
     (entry.warnings?.length ?? 0) > 0
   );
 }
@@ -199,6 +225,10 @@ export const useCouncilLogStore = createSessionScopedStore<CouncilLogState>((set
         validVoteCount: num(payload.validVoteCount),
         distinctTargetCount: num(payload.distinctTargetCount),
         judgeUsed: bool(payload.judgeUsed),
+        judgeLabel: str(payload.judgeLabel),
+        judgeIsVoter: bool(payload.judgeIsVoter),
+        rounds: num(payload.rounds),
+        deliberationChanges: num(payload.deliberationChanges),
         totalTokens: num(usage?.totalTokens),
         durationMs: num(usage?.durationMs),
         warnings: Array.isArray(payload.warnings)

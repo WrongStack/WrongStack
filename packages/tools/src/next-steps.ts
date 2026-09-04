@@ -110,12 +110,62 @@ export function isFinalTurnStopReason(stopReason: string | undefined): boolean {
 // ── Patterns ───────────────────────────────────────────────────────────────
 
 /**
- * Matches the canonical <nextsteps> tag before numbered items.
+ * Byte ranges `[start, end)` of fenced code blocks (``` or ~~~) in `content`.
  *
- * Attributes are accepted defensively because models occasionally attach the
- * item-only `auto="true"` marker to this tag. They never affect parser state.
+ * A fence OPENS on a line whose first non-whitespace characters are 3+
+ * backticks or tildes (an info string like ```xml may follow) and CLOSES on
+ * the next line consisting only of the same marker character with at least
+ * the opening length. An unterminated fence extends to end-of-text.
+ *
+ * Used to keep `<nextsteps>` examples inside code fences out of the parser:
+ * a fenced example is documentation, not suggestion metadata.
  */
-const NEXT_STEPS_TAG_RE = /<nextsteps\b[^>]*>\s*\n+/i;
+function fenceSpans(content: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  const lines = content.split('\n');
+  let offset = 0;
+  let open: { markerChar: string; markerLength: number; start: number } | null = null;
+  for (const line of lines) {
+    const lineStart = offset;
+    offset += line.length + 1;
+    const trimmed = line.trim();
+    const marker = /^(`{3,}|~{3,})/.exec(trimmed)?.[1];
+    if (marker === undefined) continue;
+    if (open === null) {
+      open = { markerChar: marker[0]!, markerLength: marker.length, start: lineStart };
+      continue;
+    }
+    // A closing fence is only the marker itself and must not be shorter than
+    // the opening fence.
+    if (marker[0] === open.markerChar && marker.length >= open.markerLength && trimmed === marker) {
+      spans.push([open.start, offset]);
+      open = null;
+    }
+  }
+  if (open !== null) spans.push([open.start, content.length]);
+  return spans;
+}
+
+/** Whether `index` falls inside a fenced code block of `content`. */
+export function indexInsideCodeFence(content: string, index: number): boolean {
+  return fenceSpans(content).some(([start, end]) => index >= start && index < end);
+}
+
+/** First occurrence of `needle` at/after `fromIndex` that sits outside code fences. */
+function nonFencedIndexOf(
+  content: string,
+  needle: string,
+  fromIndex: number,
+  spans: Array<[number, number]>,
+): number {
+  let at = fromIndex;
+  for (;;) {
+    const found = content.indexOf(needle, at);
+    if (found === -1) return -1;
+    if (!spans.some(([start, end]) => found >= start && found < end)) return found;
+    at = found + 1;
+  }
+}
 
 /** Matches an item line: "1. text", "1) text", "- text", "* text". */
 /** Also captures optional auto="true" attribute at the end. */
@@ -188,13 +238,24 @@ function parseRawNumbered(content: string): ParseNextStepsResult {
 
 /** Parse a heading + item block (the main assistant-message path). */
 function parseWithHeading(content: string): ParseNextStepsResult {
-  const headingMatch = NEXT_STEPS_TAG_RE.exec(content);
+  const empty: ParseNextStepsResult = { steps: [], texts: [], stripped: content, autoTexts: [] };
+  const spans = fenceSpans(content);
+  const outsideFences = (index: number): boolean =>
+    !spans.some(([start, end]) => index >= start && index < end);
 
-  if (!headingMatch) {
-    return { steps: [], texts: [], stripped: content, autoTexts: [] };
+  // The heading tag must sit outside code fences: a <nextsteps> block inside a
+  // fenced example is documentation the user asked to see, not metadata.
+  const headingScan = /<nextsteps\b[^>]*>\s*\n+/gi;
+  let heading: { index: number; length: number } | null = null;
+  for (let m = headingScan.exec(content); m !== null; m = headingScan.exec(content)) {
+    if (outsideFences(m.index)) {
+      heading = { index: m.index, length: m[0].length };
+      break;
+    }
   }
+  if (heading === null) return empty;
 
-  const headingEnd = headingMatch.index + headingMatch[0]!.length;
+  const headingEnd = heading.index + heading.length;
   const afterHeading = content.slice(headingEnd);
   const lines = afterHeading.split('\n');
   const steps: ParsedNextStep[] = [];
@@ -226,77 +287,25 @@ function parseWithHeading(content: string): ParseNextStepsResult {
     if (steps.length >= MAX_STEPS) break;
   }
 
-  if (steps.length === 0) {
-    return { steps: [], texts: [], stripped: content, autoTexts: [] };
-  }
+  if (steps.length === 0) return empty;
 
-  // Require a closing tag. Malformed XML is rejected so raw text remains
-  // visible instead of being partially consumed as automation input.
-  if (!afterHeading.includes('</nextsteps>')) {
-    return { steps: [], texts: [], stripped: content, autoTexts: [] };
-  }
+  // Require a closing tag outside code fences. Malformed XML is rejected so
+  // raw text remains visible instead of being partially consumed as
+  // automation input; a close inside a fence belongs to the example.
+  const closeAbs = nonFencedIndexOf(content, '</nextsteps>', headingEnd, spans);
+  if (closeAbs === -1) return empty;
 
   const texts = steps.map((s) => s.text);
   const autoTexts = steps.filter((s) => s.auto).map((s) => s.text);
 
-  // Strip the entire XML block from the content. `blockEnd` is the LENGTH of
-  // that block, so `content.slice(blockStart + blockEnd)` is the rest of the content.
-  const blockStart = headingMatch.index;
-  const blockEnd = headingMatch[0]!.length + findBlockEnd(afterHeading, steps.length);
-  const stripped = (content.slice(0, blockStart) + content.slice(blockStart + blockEnd))
+  // Strip the heading tag through the closing tag (plus one trailing newline).
+  let blockEndAbs = closeAbs + '</nextsteps>'.length;
+  if (content[blockEndAbs] === '\n') blockEndAbs += 1;
+  const stripped = (content.slice(0, heading.index) + content.slice(blockEndAbs))
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
   return { steps, texts, stripped, autoTexts };
-}
-
-/**
- * Find the byte offset in `afterHeading` where the block ends.
- *
- * The block to strip is the items (one per line) plus the `</nextsteps>`
- * closing tag (and the trailing newline after it).
- *
- * Returns the byte offset of the first character AFTER the block. The
- * caller's `content.slice(0, blockStart) + content.slice(blockStart + offset)`
- * then produces the stripped content.
- *
- * Walks line-by-line. Stops at the first non-item line, the closing XML
- * tag, or the end of the input — whichever comes first.
- */
-function findBlockEnd(afterHeading: string, stepCount: number): number {
-  // Fast path: if the block is the <nextsteps> XML form, find the closing
-  // tag and return its end (consuming the tag + trailing newline).
-  const closeIdx = afterHeading.indexOf('</nextsteps>');
-  if (closeIdx !== -1) {
-    let end = closeIdx + '</nextsteps>'.length;
-    if (afterHeading[end] === '\n') end += 1;
-    return end;
-  }
-
-  // Defensive fallback for malformed input that reached this helper without a
-  // closing tag. The caller rejects such input before using the stripped text.
-  const lines = afterHeading.split('\n');
-  let consumed = 0;
-  let found = 0;
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) break; // blank line ends the block
-
-    const m = ITEM_RE.exec(line);
-    if (!m) break; // non-item line ends the block
-
-    consumed += rawLine.length + 1; // +1 for the \n separator
-    found++;
-    if (found >= stepCount) {
-      // Don't include the trailing newline of the last item — the slice
-      // logic in the caller handles whitespace cleanup.
-      consumed -= 1;
-      break;
-    }
-  }
-
-  return consumed;
 }
 
 /**
@@ -307,11 +316,50 @@ function findBlockEnd(afterHeading: string, stepCount: number): number {
  *
  * Also strips the legacy `<next_steps>` spelling that older persisted
  * subagent output may contain (WebUI parity).
+ *
+ * Code-fence aware: a <nextsteps> example inside a fenced code block is
+ * documentation and must survive verbatim. Only tags (and their blocks)
+ * outside fences are removed; an unpaired open tag outside a fence is
+ * reduced to nothing so raw XML never reaches the user.
  */
 export function stripNextStepsBlock(text: string): string {
-  return text
-    .replace(/<next_?steps\b[^>]*>[\s\S]*?<\/next_?steps>/gi, '')
-    .replace(/<next_?steps\b[^>]*\/?>/gi, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  const spans = fenceSpans(text);
+  const outsideFences = (index: number): boolean =>
+    !spans.some(([start, end]) => index >= start && index < end);
+
+  let result = '';
+  let cursor = 0;
+  const openTagRe = /<next_?steps\b[^>]*>/gi;
+  for (let match = openTagRe.exec(text); match !== null; match = openTagRe.exec(text)) {
+    if (!outsideFences(match.index)) continue;
+
+    let removed: number;
+    if (match[0].endsWith('/>')) {
+      // Self-closing spelling: the tag itself is the whole element.
+      removed = match[0].length;
+    } else {
+      const closeRe = /<\/next_?steps\s*>/gi;
+      closeRe.lastIndex = match.index + match[0].length;
+      removed = -1;
+      for (let close = closeRe.exec(text); close !== null; close = closeRe.exec(text)) {
+        if (!outsideFences(close.index)) continue;
+        // `removed` is a LENGTH (open-tag start → close-tag end) so the
+        // cursor arithmetic below stays consistent with the self-closing
+        // branch — an absolute end offset here would skip past the text
+        // that follows the block.
+        removed = close.index + close[0].length - match.index;
+        break;
+      }
+      if (removed === -1) {
+        // Unpaired tag: drop the tag itself so raw XML never reaches the user.
+        removed = match[0].length;
+      }
+    }
+
+    result += text.slice(cursor, match.index);
+    cursor = match.index + removed;
+    openTagRe.lastIndex = cursor;
+  }
+  result += text.slice(cursor);
+  return result.replace(/\n{3,}/g, '\n\n').trim();
 }

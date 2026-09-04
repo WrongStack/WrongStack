@@ -287,6 +287,8 @@ export interface CouncilToolProfileDefinition {
   judgeMaxTokens?: number | undefined;
   perCallTimeoutMs?: number | undefined;
   overallTimeoutMs?: number | undefined;
+  /** Voting rounds; see `CouncilProfileConfig.deliberationRounds`. Default 2. */
+  deliberationRounds?: number | undefined;
 }
 
 /** Allow/deny extension of the `exec` tool's built-in command allowlist. */

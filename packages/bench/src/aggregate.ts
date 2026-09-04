@@ -13,11 +13,17 @@ import type {
  * consults a model.
  */
 export function aggregateCell(cell: ModelCell, results: TaskResult[]): CellResult {
-  const taskCount = results.length;
-  if (taskCount === 0) {
+  const attemptCount = results.length;
+  if (attemptCount === 0) {
     return {
       cell,
       taskCount: 0,
+      attemptCount: 0,
+      repeats: 1,
+      incompleteCount: 0,
+      flakyTaskCount: 0,
+      passAnyRate: 0,
+      passAllRate: 0,
       gradedCount: 0,
       passRate: 0,
       editApplyRate: 1,
@@ -30,6 +36,17 @@ export function aggregateCell(cell: ModelCell, results: TaskResult[]): CellResul
       totalRateLimitRetries: 0,
     };
   }
+
+  // With repeats, several rows share one taskId. Task-level metrics (pass@k,
+  // flakiness) fold per task; attempt-level metrics (pass@1, cost, latency)
+  // stay over every row so a repeated run is a bigger, not a distorted, sample.
+  const byTask = new Map<string, TaskResult[]>();
+  for (const row of results) {
+    const bucket = byTask.get(row.taskId);
+    if (bucket) bucket.push(row);
+    else byTask.set(row.taskId, [row]);
+  }
+  const taskCount = byTask.size;
 
   // Only count rows that produced an actual verdict — exported-but-ungraded
   // SWE-bench rows (graded === false) must not deflate the pass rate.
@@ -44,22 +61,62 @@ export function aggregateCell(cell: ModelCell, results: TaskResult[]): CellResul
   const editApplyRate = editCalls === 0 ? 1 : (editCalls - editErrors) / editCalls;
   const traceEval = aggregateTraceEval(results);
 
+  const stability = foldTaskStability(byTask);
+
   const cellResult: CellResult = {
     cell,
     taskCount,
+    attemptCount,
+    repeats: Math.max(1, Math.round(attemptCount / Math.max(1, taskCount))),
+    // Timeouts and crashes never print the usage payload, so their tokens and
+    // cost are unrecoverable zeros. Surfacing the count keeps the averages
+    // below honest instead of quietly flattering a model that gave up.
+    incompleteCount: results.filter((r) => r.run.status === 'timeout' || r.run.status === 'crashed')
+      .length,
+    flakyTaskCount: stability.flaky,
+    passAnyRate: stability.eligible === 0 ? 0 : stability.passAny / stability.eligible,
+    passAllRate: stability.eligible === 0 ? 0 : stability.passAll / stability.eligible,
     gradedCount: graded.length,
     passRate: graded.length === 0 ? 0 : passed / graded.length,
     editApplyRate,
-    avgCostUsd: sum(results, (r) => r.run.costUsd) / taskCount,
-    avgTokensIn: sum(results, (r) => r.run.tokensIn) / taskCount,
-    avgTokensOut: sum(results, (r) => r.run.tokensOut) / taskCount,
+    avgCostUsd: sum(results, (r) => r.run.costUsd) / attemptCount,
+    avgTokensIn: sum(results, (r) => r.run.tokensIn) / attemptCount,
+    avgTokensOut: sum(results, (r) => r.run.tokensOut) / attemptCount,
     p50Iterations: median(results.map((r) => r.run.iterations)),
     p50ElapsedMs: median(results.map((r) => r.run.elapsedMs)),
-    timeoutRate: timeouts / taskCount,
+    timeoutRate: timeouts / attemptCount,
     totalRateLimitRetries: sum(results, (r) => r.tools.rateLimitRetries),
   };
   if (traceEval) cellResult.traceEval = traceEval;
   return cellResult;
+}
+
+/**
+ * Fold per-task attempt outcomes into pass@k / all-pass / flaky counts. Only
+ * tasks with at least one graded attempt are eligible — an entirely ungraded
+ * task (SWE-bench predictions exported for offline grading) must not count as
+ * a failure in any of the three.
+ */
+function foldTaskStability(byTask: Map<string, TaskResult[]>): {
+  eligible: number;
+  passAny: number;
+  passAll: number;
+  flaky: number;
+} {
+  let eligible = 0;
+  let passAny = 0;
+  let passAll = 0;
+  let flaky = 0;
+  for (const attempts of byTask.values()) {
+    const graded = attempts.filter((r) => r.grade.graded !== false);
+    if (graded.length === 0) continue;
+    eligible++;
+    const passes = graded.filter((r) => r.grade.passed).length;
+    if (passes > 0) passAny++;
+    if (passes === graded.length) passAll++;
+    if (passes > 0 && passes < graded.length) flaky++;
+  }
+  return { eligible, passAny, passAll, flaky };
 }
 
 /**

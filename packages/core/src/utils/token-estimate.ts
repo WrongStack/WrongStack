@@ -143,6 +143,7 @@ export function estimateToolResultTokens(content: string | unknown): number {
  * Estimate tokens for a text block.
  */
 export function estimateTextTokens(text: string): number {
+  if (typeof text !== 'string') return 1;
   return RoughTokenEstimate(text);
 }
 
@@ -184,6 +185,7 @@ export function computeMessageTokens(msg: Message): number {
  * sum for fully-cached arrays.
  */
 export function estimateMessageTokens(messages: readonly Message[]): number {
+  if (!Array.isArray(messages)) return 0;
   let total = 0;
   for (const m of messages) {
     if (typeof m._estTokens === 'number' && m._estTokens > 0) {
@@ -213,6 +215,7 @@ export function realAnchoredInputTokens(
   anchorTokens: number | undefined,
   anchorMsgCount: number | undefined,
 ): number | null {
+  if (!Array.isArray(messages)) return null;
   if (typeof anchorTokens !== 'number' || anchorTokens <= 0) return null;
   if (typeof anchorMsgCount !== 'number' || anchorMsgCount < 0) return null;
   if (messages.length < anchorMsgCount) return null;
@@ -319,8 +322,11 @@ export function estimateRequestTokens(
 
   // Tool definitions
   let toolsTokens = 0;
-  for (const t of tools) {
-    toolsTokens += estimateToolDefTokens(t);
+  const safeTools = Array.isArray(tools) ? tools : [];
+  for (const t of safeTools) {
+    if (t && typeof t === 'object') {
+      toolsTokens += estimateToolDefTokens(t);
+    }
   }
 
   const total = messagesTokens + systemTokens + toolsTokens;

@@ -167,6 +167,8 @@ Recommended changes:
 
 ### 6. Audience retrieval can miss rare roles
 
+> **Fixed 2026-09-04** (bug-hunt round `audience-truncation-p1-6`). The short-term paging solution below is implemented, and the silent-miss case described here is closed: `retrieveSqliteSageForAudience` now fires the truncation signal (`onTruncated` callback + the `memory.audience_truncated` audit event) whenever the scan ends before corpus exhaustion with fewer than `limit` matches — previously a capped scan finding zero or partial matches stayed silent, indistinguishable from an empty corpus. Regression coverage: `packages/sage/tests/audience-memory.test.ts`, `describe('scan-cap truncation signal (P1-6 regression)')` — pins the scan-cap exit with zero matches (signal fires with `{sqlRowsExamined: 10000, returned: 0}`) and the exact-full-page boundary (stays silent, standard pagination semantics). The long-term recommendation (audience dimensions as indexed SQL columns) remains open.
+
 Audience retrieval fetches only the globally highest-importance `limit * 5` audience records:
 
 - `packages/sage/src/sqlite-store-audience.ts:35`

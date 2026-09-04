@@ -8,7 +8,25 @@
  */
 
 export { aggregateAll, aggregateCell, median } from './aggregate.js';
-export { loadBenchConfig, parseBenchConfig } from './config.js';
+export {
+  buildIntraRunInsights,
+  type CellDelta,
+  type CrossRunTaskDelta,
+  compareReports,
+  type IntraRunDisagreement,
+  type IntraRunInsights,
+  outcomeFromResult,
+  type RunComparison,
+  type TaskOutcome,
+} from './compare.js';
+export {
+  CORE_CONFIG_DEFAULTS,
+  configFromCells,
+  loadBenchConfig,
+  parseBenchConfig,
+  parseCellList,
+  SMOKE_CONFIG_DEFAULTS,
+} from './config.js';
 export { type ExecResult, execCommand } from './exec-command.js';
 export {
   computeHarnessFingerprint,
@@ -18,19 +36,24 @@ export {
   fingerprintLabel,
   type ToolManifestFingerprintInput,
 } from './fingerprint.js';
+export { gradeLocalManifest } from './graders/local-manifest-grader.js';
 // Graders
 export { gradePolyglot } from './graders/polyglot-grader.js';
-export { gradeLocalManifest } from './graders/local-manifest-grader.js';
 export { gradeSwebench, type SwebenchExternalGrade } from './graders/swebench-grader.js';
 export {
+  behaviorConfigProjection,
   cleanupSandbox,
   createSandbox,
   prepareWorkdir,
   type Sandbox,
 } from './isolation.js';
-export { type RunBenchmarkOptions, runBenchmark } from './orchestrate.js';
-export { readSummary, writeJsonArtifacts } from './report/json.js';
-export { renderMarkdownReport, reportHeaderLine } from './report/markdown.js';
+export { type RunBenchmarkOptions, runBenchmark, runFailureReason } from './orchestrate.js';
+export { readResultsJsonl, readRunDir, readSummary, writeJsonArtifacts } from './report/json.js';
+export {
+  renderComparisonMarkdown,
+  renderMarkdownReport,
+  reportHeaderLine,
+} from './report/markdown.js';
 export {
   collectCellPredictions,
   parseResolvedIds,
@@ -40,12 +63,11 @@ export {
 } from './report/predictions.js';
 export { mapWithConcurrency, type RunWstackOptions, runWstack } from './runner.js';
 export { readSessionLogEvents, readToolMetrics, type SessionLogEvent } from './session-metrics.js';
-export { evaluateTraceEval } from './trace-eval.js';
 export {
-  mineTranscript,
-  type MinedTraceEvalDraft,
-  type MineTranscriptResult,
-} from './transcript-mine.js';
+  CORE_TASK_COUNT,
+  createCoreSuite,
+  resolveCoreSuiteDir,
+} from './suites/core.js';
 // Suites
 export {
   createLocalManifestSuite,
@@ -56,6 +78,11 @@ export {
   type LocalTaskMeta,
 } from './suites/local-manifest.js';
 export { createPolyglotSuite, LANGUAGE_RUNNERS, type PolyglotMeta } from './suites/polyglot.js';
+export {
+  createSmokeSuite,
+  resolveSmokeSuiteDir,
+  SMOKE_TASK_COUNT,
+} from './suites/smoke.js';
 export {
   createSwebenchSuite,
   loadSubset,
@@ -69,4 +96,10 @@ export {
   filterPatchExcludingPaths,
   filterPatchSections,
 } from './suites/swebench-patch.js';
+export { evaluateTraceEval } from './trace-eval.js';
+export {
+  type MinedTraceEvalDraft,
+  type MineTranscriptResult,
+  mineTranscript,
+} from './transcript-mine.js';
 export * from './types.js';

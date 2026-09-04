@@ -10,7 +10,7 @@
  * fallback and shorter cap.)
  */
 export function slugify(name: string, fallback = 'prompt', maxLen = 64): string {
-  if (typeof name !== 'string') return fallback;
+  if (typeof name !== 'string' || maxLen <= 0) return fallback;
   return (
     name
       .toLowerCase()

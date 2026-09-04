@@ -57,20 +57,61 @@ export function councilHeadline(
     `${council.validVoteCount}/${council.configuredSeatCount} seats`,
     `${council.distinctTargetCount} distinct target${council.distinctTargetCount === 1 ? '' : 's'}`,
   ];
-  if (council.judgeUsed) parts.push('judge used');
+  // Deliberation multiplies the panel's cost, so the round count belongs on
+  // the same line as the seat count — and the change count is what says
+  // whether the extra rounds bought anything.
+  if (council.rounds !== undefined && council.rounds > 1) {
+    const changed = council.deliberationChanges ?? 0;
+    parts.push(
+      `${council.rounds} rounds` + (changed > 0 ? `, ${changed} changed` : ', none changed'),
+    );
+  }
+  if (council.judgeUsed) {
+    // A tie-breaker that already cast one of the tied votes is not an
+    // independent opinion; naming it is the only way that shows up.
+    parts.push(
+      `judge${council.judgeLabel ? ` ${council.judgeLabel}` : ''}` +
+        (council.judgeIsVoter ? ' (also a voter)' : ''),
+    );
+  }
   if (council.durationMs !== undefined) parts.push(`${Math.round(council.durationMs / 100) / 10}s`);
   if (council.totalTokens) parts.push(`${council.totalTokens} tok`);
   return parts.join(' · ');
 }
 
+/** Longest seat verdict rendered inline before it is elided. */
+const SEAT_VERDICT_MAX = 60;
+
 /** One seat's line under the council headline. */
 export function councilSeatLine(
   seat: NonNullable<Extract<HistoryEntry, { kind: 'brain' }>['council']>['seats'][number],
 ): string {
+  // An optionless panel votes with free-text stances. Printing the literal
+  // word "stance" said only that the seat had voted, never what it said —
+  // which is the entire content of an open-question council.
   const verdict =
-    seat.status === 'valid' ? (seat.optionId ?? 'stance') : (seat.error ?? seat.status);
+    seat.status === 'valid'
+      ? (seat.optionId ?? truncateVerdict(seat.stance) ?? 'no stance')
+      : (seat.error ?? seat.status);
   const suffix = [seat.model, seat.veto ? 'veto' : undefined].filter(Boolean).join(', ');
-  return `   ${seat.status === 'valid' ? '•' : '×'} ${seat.persona} → ${verdict}${suffix ? ` (${suffix})` : ''}`;
+  // A seat that moved after reading the others is the single most
+  // interesting row in a deliberating panel.
+  const marker = seat.status !== 'valid' ? '×' : seat.changed ? '↺' : '•';
+  return `   ${marker} ${seat.persona} → ${verdict}${suffix ? ` (${suffix})` : ''}`;
+}
+
+function truncateVerdict(text: string | undefined): string | undefined {
+  const trimmed = text?.trim();
+  if (!trimmed) return undefined;
+  return trimmed.length > SEAT_VERDICT_MAX ? `${trimmed.slice(0, SEAT_VERDICT_MAX - 1)}…` : trimmed;
+}
+
+/**
+ * Colour for a decision tier chip: the deterministic tiers are free and stay
+ * dim, the model-backed ones are what a reader is scanning for.
+ */
+export function brainTierColor(tier: string): string | undefined {
+  return tier === 'council' || tier === 'llm' ? 'magenta' : tier === 'human' ? 'yellow' : undefined;
 }
 
 export function memoryLifecycleStyle(

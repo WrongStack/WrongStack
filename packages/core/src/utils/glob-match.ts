@@ -155,10 +155,12 @@ export function compileGlob(pattern: string, commandSubject = false): RegExp {
 }
 
 export function matchGlob(pattern: string, input: string): boolean {
+  if (typeof pattern !== 'string' || typeof input !== 'string') return false;
   return getCachedGlob(pattern).test(input);
 }
 
 export function matchAny(patterns: string[], input: string): boolean {
+  if (!Array.isArray(patterns) || typeof input !== 'string') return false;
   return patterns.some((p) => matchGlob(p, input));
 }
 
@@ -173,9 +175,11 @@ export function matchAny(patterns: string[], input: string): boolean {
  * pick deliberately.
  */
 export function matchCommandGlob(pattern: string, input: string): boolean {
+  if (typeof pattern !== 'string' || typeof input !== 'string') return false;
   return getCachedGlob(pattern, true).test(input);
 }
 
 export function matchAnyCommand(patterns: string[], input: string): boolean {
+  if (!Array.isArray(patterns) || typeof input !== 'string') return false;
   return patterns.some((p) => matchCommandGlob(p, input));
 }

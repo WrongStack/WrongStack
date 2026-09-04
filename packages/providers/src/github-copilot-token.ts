@@ -87,7 +87,13 @@ export async function refreshCopilotToken(
     });
   }
   const json = (await res.json()) as { token?: string; expires_at?: number } | null;
-  if (!json?.token || typeof json.expires_at !== 'number') {
+  if (
+    typeof json?.token !== 'string' ||
+    json.token.trim().length === 0 ||
+    typeof json.expires_at !== 'number' ||
+    !Number.isFinite(json.expires_at) ||
+    json.expires_at <= 0
+  ) {
     throw new ParseError({
       message: 'Copilot token response missing fields',
       source: 'github-copilot',

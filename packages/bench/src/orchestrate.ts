@@ -31,7 +31,11 @@ export interface RunBenchmarkOptions {
   toolManifestHash?: string | undefined;
   /** Built system prompt hash, when available. */
   systemPromptHash?: string | undefined;
-  /** Additional behavior-affecting config hash, when available. */
+  /**
+   * Additional behavior-affecting config hash. When omitted the sandbox
+   * computes one from the config the child CLI will actually read, so an
+   * operator-local harness difference cannot masquerade as a model difference.
+   */
   configHash?: string | undefined;
   /** Node executable. */
   nodeBin: string;
@@ -43,10 +47,23 @@ export interface RunBenchmarkOptions {
   sandboxBaseDir?: string | undefined;
   /** Extra env for the subprocess (provider keys are inherited from process.env). */
   env?: NodeJS.ProcessEnv | undefined;
+  /**
+   * Operator `WRONGSTACK_HOME`. Copied into the sandbox (vault + providers +
+   * models cache) so custom providers resolve the same way as an interactive
+   * `wstack --provider --model` run. Sessions stay isolated.
+   */
+  hostHomeDir?: string | undefined;
   /** Keep the sandbox on disk after the run (debugging). */
   keepSandbox?: boolean | undefined;
   /** Progress callback (one line per event). */
   onProgress?: ((msg: string) => void) | undefined;
+  /**
+   * Called as each (task × cell × attempt) row lands. A full matrix can run for
+   * hours; streaming rows out lets the caller persist them so a crash, a
+   * Ctrl-C, or a dead laptop battery does not throw the whole run away.
+   * Failures here are swallowed — persistence must never fail a benchmark.
+   */
+  onResult?: ((result: TaskResult) => void | Promise<void>) | undefined;
   /** Injected clock for the report timestamp (tests pass a fixed value). */
   now?: (() => string) | undefined;
 }
@@ -65,6 +82,15 @@ export async function runBenchmark(opts: RunBenchmarkOptions): Promise<BenchRepo
     throw new Error(`suite "${opts.suite.id}" produced no tasks (check the data directory)`);
   }
   const subsetId = opts.suite.subsetId(tasks);
+  const repeats = Math.max(1, Math.floor(opts.config.repeats ?? 1));
+
+  const sandbox = await createSandbox({
+    baseDir: opts.sandboxBaseDir,
+    maxIterations: opts.config.maxIterations,
+    yolo: true,
+    hostHomeDir: opts.hostHomeDir,
+  });
+
   const fingerprint = computeHarnessFingerprint({
     cliVersion: opts.cliVersion,
     toolNames: opts.toolNames,
@@ -73,37 +99,37 @@ export async function runBenchmark(opts: RunBenchmarkOptions): Promise<BenchRepo
     subsetId,
     toolManifestHash: opts.toolManifestHash,
     systemPromptHash: opts.systemPromptHash,
-    configHash: opts.configHash,
+    configHash: opts.configHash ?? sandbox.configHash,
   });
 
-  progress(
-    `suite=${opts.suite.id} tasks=${tasks.length} cells=${opts.config.cells.length} fp=${fingerprint.hash}`,
-  );
-
-  const sandbox = await createSandbox({
-    baseDir: opts.sandboxBaseDir,
-    maxIterations: opts.config.maxIterations,
-    yolo: true,
-  });
-
-  // The unit of work is one (task × cell) pair. Fanning out at this granularity
-  // keeps all cores busy even when one cell is much slower than another.
-  const units: Array<{ task: BenchTask; cell: ModelCell }> = [];
+  // The unit of work is one (task × cell × attempt). Fanning out at this
+  // granularity keeps all cores busy even when one cell is much slower than
+  // another, and lets repeats of the same task run in parallel.
+  const units: Array<{ task: BenchTask; cell: ModelCell; attempt: number }> = [];
   for (const task of tasks) {
     for (const cell of opts.config.cells) {
-      units.push({ task, cell });
+      for (let attempt = 1; attempt <= repeats; attempt++) {
+        units.push({ task, cell, attempt });
+      }
     }
   }
 
+  progress(
+    `suite=${opts.suite.id} tasks=${tasks.length} cells=${opts.config.cells.length} ` +
+      `repeats=${repeats} runs=${units.length} fp=${fingerprint.hash}`,
+  );
+  let completed = 0;
+
   try {
     const results = await mapWithConcurrency(units, opts.config.concurrency, async (unit) => {
-      const { task, cell } = unit;
+      const { task, cell, attempt } = unit;
       const workdir = await prepareWorkdir(
         sandbox,
         task.templateDir,
         task.id,
         cell.label,
         task.templateExclude,
+        attempt,
       );
 
       const run = await runWstack({
@@ -136,14 +162,37 @@ export async function runBenchmark(opts: RunBenchmarkOptions): Promise<BenchRepo
           detail: `grader error: ${err instanceof Error ? err.message : String(err)}`,
         };
       }
+      // Prepend the harness-level reason so a failed row in the report is
+      // diagnosable. Without this a `failed`/`timeout` row said only "fail".
+      // The grader stays authoritative on pass/fail — a run that hit the
+      // iteration cap but left passing code IS a pass. Only a crash overrides
+      // it, because then no meaningful attempt was made in the workdir.
+      const reason = runFailureReason(run);
+      if (reason) {
+        grade = {
+          ...grade,
+          passed: run.status === 'crashed' ? false : grade.passed,
+          detail: grade.detail ? `${reason}\n${grade.detail}` : reason,
+        };
+      }
 
+      completed++;
       progress(
-        `  ${cell.label} · ${task.id} → ${grade.passed ? 'PASS' : 'fail'} ` +
+        `  [${completed}/${units.length}] ${cell.label} · ${task.id}` +
+          `${repeats > 1 ? ` #${attempt}` : ''} → ${grade.passed ? 'PASS' : 'fail'} ` +
           `(${run.status}, ${run.iterations} it, $${run.costUsd.toFixed(3)})`,
       );
 
       const result: TaskResult = { taskId: task.id, cell, run, grade, tools };
+      if (repeats > 1) result.attempt = attempt;
       if (traceEval) result.traceEval = traceEval;
+      if (opts.onResult) {
+        try {
+          await opts.onResult(result);
+        } catch {
+          // Persisting a row must never fail the benchmark it is recording.
+        }
+      }
       return result;
     });
 
@@ -157,5 +206,27 @@ export async function runBenchmark(opts: RunBenchmarkOptions): Promise<BenchRepo
     };
   } finally {
     if (!opts.keepSandbox) await cleanupSandbox(sandbox);
+  }
+}
+
+/**
+ * Human-readable reason a run did not complete normally, or undefined when the
+ * agent finished its loop (a plain grader failure then speaks for itself).
+ * Exported so the reason strings are pinned by tests rather than by eyeball.
+ */
+export function runFailureReason(run: TaskResult['run']): string | undefined {
+  switch (run.status) {
+    case 'crashed':
+      return `agent crashed: ${run.crashDetail ?? 'no --output-json payload'}`;
+    case 'timeout':
+      return 'agent timed out (killed; token/cost telemetry unrecoverable)';
+    case 'max_iterations':
+      return `agent hit the iteration cap after ${run.iterations} iterations`;
+    case 'aborted':
+      return 'agent aborted';
+    case 'failed':
+      return `agent reported failure${run.errorMessage ? `: ${run.errorMessage}` : ''}`;
+    default:
+      return undefined;
   }
 }

@@ -28,15 +28,17 @@ const MCP_IDENTITY_HASH_LENGTH = 10;
  * survive). Empty input falls back to `'tool'`.
  */
 export function sanitizeWireToolName(name: string): string {
+  if (typeof name !== 'string') return 'tool';
   const replaced = name.replace(/[^a-zA-Z0-9_-]/g, '_');
   const clamped = replaced.slice(0, WIRE_TOOL_NAME_MAX_LENGTH);
   return clamped.length > 0 ? clamped : 'tool';
 }
 
 function collisionSafeMcpSegment(value: string, maxLength: number): string {
-  const replaced = value.replace(/[^a-zA-Z0-9_-]/g, '_') || 'tool';
-  if (replaced === value && replaced.length <= maxLength) return replaced;
-  const suffix = `_${createHash('sha256').update(value, 'utf8').digest('hex').slice(0, MCP_IDENTITY_HASH_LENGTH)}`;
+  const safeValue = typeof value === 'string' ? value : '';
+  const replaced = safeValue.replace(/[^a-zA-Z0-9_-]/g, '_') || 'tool';
+  if (replaced === safeValue && replaced.length <= maxLength) return replaced;
+  const suffix = `_${createHash('sha256').update(safeValue, 'utf8').digest('hex').slice(0, MCP_IDENTITY_HASH_LENGTH)}`;
   return `${replaced.slice(0, Math.max(1, maxLength - suffix.length))}${suffix}`;
 }
 

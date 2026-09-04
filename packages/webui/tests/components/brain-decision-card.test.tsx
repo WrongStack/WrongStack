@@ -115,3 +115,41 @@ describe('BrainDecisionCard', () => {
     expect(screen.getByText(/Increase timeout from 5000ms to 30000ms/i)).toBeTruthy();
   });
 });
+
+describe('BrainDecisionCard — tier provenance', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('shows the resolving tier alongside the source, not instead of it', () => {
+    const message = createBrainMessage({
+      brainDecision: {
+        id: 'req-1',
+        kind: 'answered',
+        decisionType: 'answer',
+        question: 'Merge?',
+        source: 'director',
+        tier: 'council',
+      },
+    });
+    render(<BrainDecisionCard message={message} />);
+    // `source ?? tier` meant the tier was never rendered: `source` is always
+    // present, so a council call read exactly like a free rule hit.
+    expect(screen.getByText('director')).toBeTruthy();
+    expect(screen.getByText('council')).toBeTruthy();
+  });
+
+  it('renders without a tier when the chain recorded no provenance', () => {
+    const message = createBrainMessage({
+      brainDecision: {
+        id: 'req-2',
+        kind: 'answered',
+        decisionType: 'answer',
+        question: 'Merge?',
+        source: 'director',
+      },
+    });
+    render(<BrainDecisionCard message={message} />);
+    expect(screen.getByText('director')).toBeTruthy();
+  });
+});

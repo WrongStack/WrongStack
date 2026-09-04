@@ -11,19 +11,27 @@ the result is graded by the **suite's own tests** — never an LLM. This is the
 difference from `wstack modeldiag eval`, which ranks free-form answers with an
 LLM judge (model-dependent).
 
-Two invariants keep the report objective:
+Three invariants keep the report objective:
 
 1. **Deterministic grading.** Polyglot runs the exercise's hidden tests;
    SWE-bench runs `FAIL_TO_PASS` / `PASS_TO_PASS`. Exit code decides pass/fail.
 2. **Harness fingerprint.** Every report is stamped with a hash of the CLI
    version, tool roster + tool manifest, iteration cap, yolo flag, task subset,
-   and any supplied prompt/config hashes. Rows compare only when the fingerprint
-   matches; change the prompt/tools/version and old numbers are marked stale.
+   and the behaviour-affecting config the sandboxed CLI actually reads (the
+   sandbox seeds itself from the operator's home, so this is what stops one
+   machine's skills/token-saving/system-prompt settings from masquerading as a
+   model difference). Rows compare only when the fingerprint matches.
+3. **Noise is reported, not hidden.** Agentic runs are stochastic. `--repeats N`
+   runs every task N times and the leaderboard then shows Pass@1 alongside
+   Pass@N, All-pass, and a per-task flakiness count, so a lucky run cannot be
+   read as a better model.
 
 ## Suites
 
 | Suite | Standard | Grader | Status |
 |---|---|---|---|
+| `core` | Bundled 6-task agent-edit eval (shipped with the package) | Node tests the agent must not gut | ✅ default, Docker-free |
+| `smoke` | 3 trivial file edits | command + file assertions | wiring check only — not a quality score |
 | `local` | Project-defined manifest tasks | command + file assertions in workdir | ✅ Docker-free, graded inline |
 | `polyglot` | Aider polyglot (225 Exercism exercises, 6 languages) | run hidden tests in workdir | ✅ Docker-free, graded inline |
 | `swebench` | SWE-bench Verified (fixed subset) | export predictions → official harness (inline Docker grading via injectable hook) | ✅ runs + exports; ⚙️ inline grading pluggable |
@@ -41,7 +49,10 @@ masquerade as failures.
 
 - **API keys in env** — providers read keys from the environment (e.g.
   `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`). The isolated
-  `WRONGSTACK_HOME` carries no secrets.
+  `WRONGSTACK_HOME` carries no secrets. A saved `wstack auth` provider/model
+  is enough for the default smoke run.
+- **Core (default):** Node only. Six agent-edit tasks with tests, shipped in `@wrongstack/bench`.
+- **Smoke:** 3 trivial edits to prove the harness spawns. Do not rank models on it.
 - **Local:** a `bench.local.json` manifest and one fixture directory per task.
 - **Polyglot:** a local checkout of the polyglot-benchmark repo plus the
   language toolchains you want to grade (Python+pytest, Node+npm, Go, Rust,
@@ -50,28 +61,42 @@ masquerade as failures.
 
 ## Usage
 
-```bash
-# 1. Get the exercises
-git clone https://github.com/Aider-AI/polyglot-benchmark /path/to/polyglot
+Instant path — no config file, no dataset clone. Compares the named models on
+the bundled 6-task `core` suite (real tests) and writes a leaderboard plus
+per-task matrix:
 
-# 2. Define the model matrix (bench.config.json)
+```bash
+wstack bench run --cell anthropic/claude-sonnet-4-6,openai/gpt-5.4
+
+# Three attempts per task — the leaderboard then reports Pass@3 and flakiness
+wstack bench run --cell anthropic/claude-sonnet-4-6,openai/gpt-5.4 --repeats 3
+
+wstack bench compare ./bench-results/<baseline> ./bench-results/<candidate>
+```
+
+`--cell` accepts `provider/model` or `label=provider/model`. If you omit it,
+the saved `wstack` provider/model is used. `bench.config.json` still works
+when you want a reusable matrix.
+
+```bash
+# Larger suites
+git clone https://github.com/Aider-AI/polyglot-benchmark /path/to/polyglot
 cat > bench.config.json <<'JSON'
 {
   "maxIterations": 40,
   "concurrency": 4,
   "timeoutMs": 600000,
+  "repeats": 1,
   "cells": [
     { "label": "opus-4.8", "provider": "anthropic", "model": "claude-opus-4-8" },
     { "label": "gpt-5.4",  "provider": "openai",    "model": "gpt-5.4" }
   ]
 }
 JSON
-
-# 3. Run (start small with --limit)
 wstack bench run --suite polyglot --polyglot-dir /path/to/polyglot \
   --models bench.config.json --limit 5 --out ./bench-results
 
-# 4. Re-render the markdown report from a finished run
+# Re-render the markdown report from a finished run
 wstack bench report ./bench-results/<timestamp>
 
 # List available suites + configured cells
@@ -142,9 +167,21 @@ grader/assertion definitions, excludes, and a hash of the copied fixture content
 
 Artifacts per run (`bench-results/<timestamp>/`):
 
-- `results.jsonl` — one row per (task × cell)
+- `results.jsonl` — one row per (task × cell × attempt), appended as each row
+  lands so an interrupted run keeps everything it finished
 - `summary.json` — fingerprint + folded cell results
-- `report.md` — the leaderboard (sorted by pass@1)
+- `report.md` — leaderboard, cost-vs-quality, per-task matrix, model
+  disagreements, and a `## Failures` section with each failing row's status and
+  grader/agent detail
+- `compare.md` — written by `wstack bench compare <baseline> <candidate>` into the candidate dir
+
+Rows that timed out or crashed never printed a usage payload, so their tokens
+and cost are unrecoverable zeros; the report counts them and says the `$/task`
+and token columns are lower bounds rather than quietly flattering a model that
+gave up.
+
+`wstack bench run` exits non-zero when *every* attempt crashed before producing
+a result — a bad model id or missing credentials is a broken run, not a 0% score.
 
 ## SWE-bench dataset layout
 

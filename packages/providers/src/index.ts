@@ -373,9 +373,10 @@ export async function buildProviderFactoriesFromRegistry(
 function resolveActiveKey(cfg: ProviderConfig): string | undefined {
   if (Array.isArray(cfg.apiKeys) && cfg.apiKeys.length > 0) {
     const active = cfg.activeKey ? cfg.apiKeys.find((k) => k.label === cfg.activeKey) : undefined;
-    return (active ?? cfg.apiKeys[0])?.apiKey;
+    const key = (active ?? cfg.apiKeys[0])?.apiKey;
+    return key?.trim() ? key : undefined;
   }
-  return cfg.apiKey && cfg.apiKey.length > 0 ? cfg.apiKey : undefined;
+  return cfg.apiKey?.trim() ? cfg.apiKey : undefined;
 }
 
 /** Resolve the full active key ENTRY (not just the string) — needed by OAuth
@@ -628,7 +629,7 @@ function seedConfigModels(cfg: ProviderConfig): Array<{ id: string; name: string
 function readFromEnv(vars: string[]): string | undefined {
   for (const v of vars) {
     const val = process.env[v];
-    if (val) return val;
+    if (val?.trim()) return val;
   }
   return undefined;
 }

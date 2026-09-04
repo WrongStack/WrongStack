@@ -1,0 +1,41 @@
+{
+  "name": "WrongStack smoke",
+  "tasks": [
+    {
+      "id": "add-banner",
+      "prompt": "Edit README.md so the first line is exactly \"# WrongStack\". Keep the existing \"Notes for the sample project.\" line immediately after it. Do not add or delete any other files.",
+      "templateDir": "./fixtures/add-banner",
+      "assertions": [
+        { "type": "file_contains", "path": "README.md", "text": "# WrongStack" },
+        { "type": "file_contains", "path": "README.md", "text": "Notes for the sample project." },
+        { "type": "file_not_contains", "path": "README.md", "text": "TODO" }
+      ]
+    },
+    {
+      "id": "rename-export",
+      "prompt": "In src/greet.js, rename the exported function greet to hello. Do not change its behavior. Leave test.mjs and package.json unchanged.",
+      "templateDir": "./fixtures/rename-export",
+      "grader": {
+        "type": "command",
+        "command": "node",
+        "args": ["test.mjs"],
+        "shell": false
+      },
+      "assertions": [
+        { "type": "file_contains", "path": "src/greet.js", "text": "export function hello" },
+        { "type": "file_not_contains", "path": "src/greet.js", "text": "export function greet" }
+      ]
+    },
+    {
+      "id": "strip-todo",
+      "prompt": "Remove every line that contains TODO from notes.md. Do not change any other line.",
+      "templateDir": "./fixtures/strip-todo",
+      "assertions": [
+        { "type": "file_not_contains", "path": "notes.md", "text": "TODO" },
+        { "type": "file_contains", "path": "notes.md", "text": "# Notes" },
+        { "type": "file_contains", "path": "notes.md", "text": "Keep this heading." },
+        { "type": "file_contains", "path": "notes.md", "text": "Ship the feature." }
+      ]
+    }
+  ]
+}

@@ -110,7 +110,15 @@ function migrateSchemaV2({
     stmt('UPDATE schema_meta SET value = ? WHERE key = ?').run(2, 'version');
     db.exec('COMMIT');
   } catch (migrationErr) {
-    db.exec('ROLLBACK');
+    // SQLITE_FULL/IOERR auto-rollback leaves no active transaction, so an
+    // unguarded ROLLBACK here would throw "cannot rollback - no transaction
+    // is active" and mask the primary error. Preserve the original for the
+    // caller.
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      /* preserve original error */
+    }
     throw migrationErr;
   }
 }
@@ -164,7 +172,15 @@ function migrateSchemaV3({
     stmt('UPDATE schema_meta SET value = ? WHERE key = ?').run(3, 'version');
     db.exec('COMMIT');
   } catch (migrationErr) {
-    db.exec('ROLLBACK');
+    // SQLITE_FULL/IOERR auto-rollback leaves no active transaction, so an
+    // unguarded ROLLBACK here would throw "cannot rollback - no transaction
+    // is active" and mask the primary error. Preserve the original for the
+    // caller.
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      /* preserve original error */
+    }
     throw migrationErr;
   }
 }
@@ -199,7 +215,15 @@ function migrateSchemaV4({
     stmt('UPDATE schema_meta SET value = ? WHERE key = ?').run(4, 'version');
     db.exec('COMMIT');
   } catch (migrationErr) {
-    db.exec('ROLLBACK');
+    // SQLITE_FULL/IOERR auto-rollback leaves no active transaction, so an
+    // unguarded ROLLBACK here would throw "cannot rollback - no transaction
+    // is active" and mask the primary error. Preserve the original for the
+    // caller.
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      /* preserve original error */
+    }
     throw migrationErr;
   }
 }
@@ -232,7 +256,15 @@ function migrateSchemaV5({
     stmt('UPDATE schema_meta SET value = ? WHERE key = ?').run(5, 'version');
     db.exec('COMMIT');
   } catch (migrationErr) {
-    db.exec('ROLLBACK');
+    // SQLITE_FULL/IOERR auto-rollback leaves no active transaction, so an
+    // unguarded ROLLBACK here would throw "cannot rollback - no transaction
+    // is active" and mask the primary error. Preserve the original for the
+    // caller.
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      /* preserve original error */
+    }
     throw migrationErr;
   }
 }

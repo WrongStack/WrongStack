@@ -20,11 +20,15 @@ export function deriveCachePrefixKey(
   systemPrompt: readonly TextBlock[],
   tools?: readonly Tool[],
 ): string {
-  if (!tools || tools.length === 0) {
+  if (!Array.isArray(systemPrompt)) return 'ws-empty';
+
+  const safeTools = Array.isArray(tools) && tools.length > 0 ? tools : undefined;
+
+  if (!safeTools) {
     const cached = keyCache.get(systemPrompt);
     if (cached !== undefined) return cached;
     const h = createHash('sha256');
-    for (const block of systemPrompt) h.update(block.text).update('\u0000');
+    for (const block of systemPrompt) h.update(block?.text ?? '').update('\u0000');
     const key = `ws-${h.digest('hex').slice(0, 32)}`;
     keyCache.set(systemPrompt, key);
     return key;
@@ -35,18 +39,20 @@ export function deriveCachePrefixKey(
     byPrompt = new WeakMap<readonly Tool[], string>();
     toolsKeyCache.set(systemPrompt, byPrompt);
   }
-  const cached = byPrompt.get(tools);
+  const cached = byPrompt.get(safeTools);
   if (cached !== undefined) return cached;
 
   const h = createHash('sha256');
-  for (const block of systemPrompt) h.update(block.text).update('\u0000');
+  for (const block of systemPrompt) h.update(block?.text ?? '').update('\u0000');
   h.update('tools:\u0000');
   const sorted =
-    tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
+    safeTools.length > 1
+      ? [...safeTools].sort((a, b) => (a?.name ?? '').localeCompare(b?.name ?? ''))
+      : safeTools;
   for (const tool of sorted) {
-    h.update(tool.name).update('\u0000');
+    h.update(tool?.name ?? '').update('\u0000');
   }
   const key = `ws-${h.digest('hex').slice(0, 32)}`;
-  byPrompt.set(tools, key);
+  byPrompt.set(safeTools, key);
   return key;
 }

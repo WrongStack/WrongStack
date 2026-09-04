@@ -93,7 +93,7 @@ describe('rollup gauge windows', () => {
     expect(rollups[0]).toMatchObject({
       attributes: {
         samples: 4,
-        stats: { 'eventLoop.utilization': { min: 0.1, max: 0.7, last: 0.7, avg: 0.4 } },
+        stats: { 'eventLoop.utilization': { min: 0.1, max: 0.7, last: 0.7 } },
       },
     });
   });

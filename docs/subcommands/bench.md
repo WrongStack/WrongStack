@@ -13,6 +13,8 @@ free-form answers with an LLM (model-*dependent*). Implemented in
 
 | Suite | Standard | What it measures | Grading |
 |---|---|---|---|
+| `core` | Bundled 6-task Node agent-edit eval (ships with the package) | edit accuracy under tests | Node tests + sentinel so tests cannot be gutted |
+| `smoke` | 3 trivial file edits | harness wiring | command + file assertions — not a quality score |
 | `local` | Project-defined manifest tasks | WrongStack-specific regressions | run manifest command and/or file assertions in the workdir |
 | `polyglot` | [Aider polyglot](https://github.com/Aider-AI/polyglot-benchmark) (225 Exercism exercises, 6 languages) | edit accuracy | run the exercise's hidden tests in the workdir (exit code) |
 | `swebench` | [SWE-bench Verified](https://www.swebench.com/) (fixed subset) | end-to-end issue resolution | export conformant predictions → official harness (or inline Docker hook) |
@@ -53,17 +55,29 @@ run robust to a model crashing, hanging (per-task timeout + tree-kill), or OOMin
 | `wstack bench` | Print usage |
 | `wstack bench list [--models <config>]` | Show suites; with `--models`, list configured cells + the harness header |
 | `wstack bench mine --transcript <session.jsonl> [--out <eval-dir>]` | Copy a real transcript into the corpus and emit curator-ready trace-eval drafts |
-| `wstack bench run --suite <id> [flags]` | Run a suite across the model matrix and write a report |
-| `wstack bench report <run-dir>` | Re-render `report.md` from a finished run's `summary.json` |
+| `wstack bench run [--suite <id>] [--cell spec] [flags]` | Run a suite across the model matrix and write a report |
+| `wstack bench compare <baseline> <candidate>` | Diff two finished run directories (fingerprint-aware) |
+| `wstack bench report <run-dir>` | Re-render `report.md` from a finished run's `summary.json` + `results.jsonl` |
+
+Instant path (no config file, no dataset clone):
+
+```bash
+wstack bench run --cell anthropic/claude-sonnet-4-6,openai/gpt-5.4
+wstack bench compare ./bench-results/<baseline> ./bench-results/<candidate>
+```
+
+`--cell` is `provider/model` or `label=provider/model`, comma-separated. If omitted,
+`bench.config.json` is used when present, otherwise the saved `wstack` provider/model.
 
 ### `run` flags
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--suite <local\|polyglot\|swebench>` | `polyglot` | Which suite to run |
-| `--models <path>` | `bench.config.json` | Model matrix config (see below) |
+| `--suite <core\|smoke\|local\|polyglot\|swebench>` | `core` | Which suite to run |
+| `--cell <spec>` | — | Comma-separated model cells; skips the config file |
+| `--models <path>` | `bench.config.json` | Model matrix config (optional when `--cell` or a saved model is set) |
 | `--limit <N>` | all | Cap the number of tasks (cheap smoke runs) |
-| `--concurrency <K>` | from config (4) | Cells run concurrently |
+| `--concurrency <K>` | from config (4; smoke default 2) | Cells run concurrently |
 | `--out <dir>` | `bench-results` | Output base directory (a timestamped subdir is created) |
 | `--suite-dir <path>` | — | **Required for local unless `--manifest` is set** — directory containing `bench.local.json` |
 | `--manifest <path>` | `<suite-dir>/bench.local.json` | Explicit local manifest path |
@@ -71,6 +85,8 @@ run robust to a model crashing, hanging (per-task timeout + tree-kill), or OOMin
 | `--languages <a,b>` | all | Restrict polyglot languages (python, javascript, go, rust, cpp, java) |
 | `--dataset-dir <path>` | — | **Required for swebench** — materialized instances |
 | `--docker` | off | Reserved for inline SWE-bench grading (otherwise predictions are exported) |
+| `--repeats <N>` | `1` | Attempts per `(task × model)`. `>1` unlocks Pass@k, All-pass and a flakiness count |
+| `--keep-sandbox` | off | Keep the temporary sandbox (workdirs + isolated home) on disk for debugging |
 
 ## Config (`bench.config.json`)
 
@@ -79,6 +95,7 @@ run robust to a model crashing, hanging (per-task timeout + tree-kill), or OOMin
   "maxIterations": 40,
   "concurrency": 4,
   "timeoutMs": 600000,
+  "repeats": 1,
   "cells": [
     { "label": "opus-4.8", "provider": "anthropic", "model": "claude-opus-4-8" },
     { "label": "gpt-5.4",  "provider": "openai",    "model": "gpt-5.4" }
@@ -95,16 +112,35 @@ carries no secrets.
 
 | File | Contents |
 |---|---|
-| `report.md` | Leaderboard, sorted by Pass@1, stamped with the fingerprint |
+| `report.md` | Leaderboard (Pass@1), cost-vs-quality, per-task matrix, intra-run disagreements |
 | `summary.json` | Fingerprint + folded per-cell results |
-| `results.jsonl` | One row per `(task × cell)`, for reproducibility |
+| `results.jsonl` | One row per `(task × cell × attempt)`, for reproducibility. Written **incrementally** as rows land, so an interrupted run keeps what it finished |
+| `compare.md` | Written by `wstack bench compare` into the candidate directory |
 | `predictions-<cell>.jsonl` | (swebench only) official-format predictions for grading |
+
+`wstack bench compare <baseline> <candidate>` checks harness fingerprints first.
+Matching hashes mean the deltas are model/run variance. A mismatch still prints
+numbers but labels the report **Not comparable** and lists what changed (CLI
+version, subset, tool manifest, prompt hash, …). Shared `(task × model)` cells
+that flipped pass/fail are listed explicitly.
 
 ### Report columns
 
-`Pass@1` (graded tasks only) · `Edit-apply` (% of edit/write tool calls that
+`Pass@1` (graded attempts only) · `Edit-apply` (% of edit/write tool calls that
 applied cleanly — the polyglot edit-accuracy signal) · `$/task` · `tok in/out` ·
-`iters (p50)` · `wall (p50)` · `timeout %` · `429s`. Metrics come from the
+`iters (p50)` · `wall (p50)` · `timeout %` · `429s`.
+
+With `--repeats N` the leaderboard swaps in three more columns: `Pass@N` (tasks
+solved at least once), `All-pass` (tasks solved on every attempt) and
+`Flaky tasks` (tasks whose own attempts disagreed). A large flaky count is the
+signal that a gap between two models is noise rather than a result.
+
+A `## Failures` section lists every failing `(task × model)` row with its run
+status and the grader's own detail (failing tests, compiler error) or the
+agent's reported error — so a red row is diagnosable without opening
+`results.jsonl`. When any attempt timed out or crashed before printing its usage
+payload, the report says so explicitly: those rows contribute zero tokens and
+zero cost, making the `$/task` and token columns lower bounds. Metrics come from the
 `--output-json` usage block and the isolated session JSONL (`tool_call_end`,
 `provider_retry`/`provider_error`) — never an LLM. Exported-but-ungraded SWE-bench
 rows show `—` in Pass@1 so they never masquerade as failures.
@@ -115,6 +151,28 @@ application (given recall)**. The last column follows the same correct-intent
 tool-use id to `tool_call_end.ok`, so a model that emits the right edit but whose
 tool invocation fails is counted as a tooling/application failure, not as a model
 or retrieval failure.
+
+## Core (default)
+
+Six Node-only agent-edit tasks ship inside `@wrongstack/bench`. Each is graded
+by `node test.mjs` plus a sentinel assertion so gutted tests cannot pass.
+This is what `wstack bench run` executes when `--suite` is omitted.
+
+| Task | What it measures |
+|---|---|
+| `merge-intervals` | implement a spec; overlapping/touching/unsorted edge cases |
+| `broken-pager` | find and fix an off-by-one in existing code |
+| `cross-file-rename` | rename a symbol across multiple files |
+| `frozen-contract` | change behavior without editing a frozen public file |
+| `query-parser` | parse a small language (encoding, repeats, typed `limit`) |
+| `rate-limiter` | stateful class with an injectable clock |
+
+`--suite smoke` is the 3-task wiring check (`add-banner` / `rename-export` /
+`strip-todo`). Do not rank models on it.
+
+```bash
+wstack bench run --cell opus=anthropic/claude-opus-4-8,haiku=anthropic/claude-haiku-4-5
+```
 
 ## Polyglot
 
@@ -252,7 +310,10 @@ change it (changing the subset changes the fingerprint).
 
 | Module | Responsibility |
 |---|---|
-| `config.ts` | Parse/validate `bench.config.json` |
+| `config.ts` | Parse/validate `bench.config.json` and `--cell` specs |
+| `suites/core.ts` | Bundled 6-task agent-edit eval (default `bench run`) |
+| `suites/smoke.ts` | Bundled 3-task wiring check |
+| `compare.ts` | Intra-run matrix + baseline-vs-candidate diffs |
 | `fingerprint.ts` | `computeHarnessFingerprint()` |
 | `isolation.ts` | Sandbox: isolated `WRONGSTACK_HOME` + per-cell workdirs (`.meta` excluded) |
 | `runner.ts` | Spawn the wstack subprocess, parse `--output-json`, tree-kill on timeout, `mapWithConcurrency` |

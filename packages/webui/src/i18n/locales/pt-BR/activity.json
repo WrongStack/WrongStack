@@ -3645,6 +3645,8 @@
     "voting": "Votação em andamento…",
     "judgeUsed": "Juiz desempatou",
     "correlated": "Painel correlacionado",
+    "converged": "Painel Convergente",
+    "judgeIsVoter": "O Juiz Também Votou",
     "evaluatedQuestion": "Proposta / questão deliberada:",
     "votingDistribution": "Distribuição da votação por consenso",
     "quorumWeight": "Peso total: {{weight}}",

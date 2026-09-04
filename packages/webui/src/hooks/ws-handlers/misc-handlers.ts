@@ -323,7 +323,13 @@ export function handleBrainEvent(msg: WSServerMessage) {
     validVoteCount?: number;
     distinctTargetCount?: number;
     judgeUsed?: boolean;
+    judgeLabel?: string;
+    judgeIsVoter?: boolean;
     warnings?: string[];
+    /** Which tier of the ladder resolved the decision. */
+    tier?: string;
+    /** ask_human only: a human is being waited on and the decision is open. */
+    pending?: boolean;
     usage?: { totalTokens?: number; durationMs?: number };
     request?: { id?: string; question?: string; source?: string; risk?: string };
     decision?: {
@@ -456,6 +462,7 @@ export function handleBrainEvent(msg: WSServerMessage) {
       question: p.request?.question,
       source: p.request?.source,
       risk: p.request?.risk,
+      tier: p.tier,
       decisionType: 'deny',
       reason,
       rationale: p.decision?.rationale,
@@ -476,6 +483,7 @@ export function handleBrainEvent(msg: WSServerMessage) {
       question: p.request?.question,
       source: p.request?.source,
       risk: p.request?.risk,
+      tier: p.tier,
       decisionType: p.decision?.type ?? 'answer',
       optionId: p.decision?.optionId,
       text,
@@ -495,6 +503,7 @@ export function handleBrainEvent(msg: WSServerMessage) {
       question: p.request?.question,
       source: p.request?.source,
       risk: p.request?.risk,
+      tier: p.tier,
       decisionType: 'ask_human',
       rationale: p.decision?.rationale,
       reason: p.decision?.reason,
@@ -502,7 +511,13 @@ export function handleBrainEvent(msg: WSServerMessage) {
     };
     chat.addMessage({
       role: 'assistant',
-      content: '🧠 The Brain escalated this question back to you — it needs human judgement.',
+      // The same event carries the PROMPT (a human is being waited on right
+      // now) and a final ask_human (nothing is waiting — the chain simply had
+      // no answer). Saying "it needs human judgement" for both told a user
+      // to act on a decision that had already closed.
+      content: p.pending
+        ? '🧠 The Brain is waiting on you — this decision needs human judgement.'
+        : '🧠 The Brain escalated this question back to you; no prompt is open for it.',
       brainDecision,
     });
   }

@@ -22,10 +22,12 @@ import {
   clampLimit,
   EMPTY_FAMILIES,
   ensureMetricsSchema,
+  pruneMetricsRowDetail,
   isChronicleMetricsAvailable,
   loadDatabaseSync,
   normalizePathKey,
 } from './metrics-schema.js';
+import { ensureIncrementalVacuum } from './sqlite-journal-schema.js';
 import type { ChronicleSignalFamily, ChronicleSummary } from './query.js';
 
 export type {
@@ -38,17 +40,33 @@ export type {
 };
 export { isChronicleMetricsAvailable };
 
+/**
+ * Default window for per-event rows.
+ *
+ * Deliberately longer than the journal's own retention: the raw events are
+ * gone after `chronicle.retentionDays`, and file lineage is the one question
+ * ("what changed this, and why") that is still worth answering after the
+ * events themselves have aged out.
+ */
+export const DEFAULT_METRICS_ROW_RETENTION_DAYS = 30;
+
 export class ChronicleMetricsStore {
   private readonly db: DatabaseSync;
   private readonly directory: string;
   private readonly dbPath: string;
   private readonly ingester: ChronicleMetricsIngester;
+  private readonly rowRetentionDays: number;
 
-  private constructor(directory: string) {
+  private constructor(directory: string, rowRetentionDays: number) {
     this.directory = path.resolve(directory);
     this.dbPath = path.join(this.directory, 'metrics.db');
     const Database = loadDatabaseSync();
     this.db = new Database(this.dbPath);
+    // Derived data that is dropped wholesale on a schema bump and pruned by
+    // day: it has to be able to give pages back, or the file only ever grows
+    // to its all-time high-water mark. Must precede the WAL switch and the
+    // first CREATE TABLE, per ensureIncrementalVacuum.
+    ensureIncrementalVacuum(this.db);
     this.db.exec('PRAGMA journal_mode = WAL');
     // Every other SQLite store in the repo pairs WAL with NORMAL durability and
     // a busy timeout. Without the timeout a concurrent writer fails instantly
@@ -57,11 +75,27 @@ export class ChronicleMetricsStore {
     this.db.exec('PRAGMA synchronous = NORMAL');
     this.db.exec('PRAGMA busy_timeout = 5000');
     ensureMetricsSchema(this.db);
+    this.rowRetentionDays = rowRetentionDays;
     this.ingester = new ChronicleMetricsIngester(this.db, this.directory, this.dbPath);
   }
 
-  static open(chronicleDirectory: string): ChronicleMetricsStore {
-    return new ChronicleMetricsStore(chronicleDirectory);
+  /**
+   * @param options.rowRetentionDays How long per-event detail (`file_lineage`,
+   * `logical_request_daily`, `file_seen_daily`) is kept. Daily aggregates are
+   * never pruned — they are the whole point of this store outliving the raw
+   * journal. Defaults to {@link DEFAULT_METRICS_ROW_RETENTION_DAYS}.
+   */
+  static open(
+    chronicleDirectory: string,
+    options: { rowRetentionDays?: number | undefined } = {},
+  ): ChronicleMetricsStore {
+    const days = options.rowRetentionDays;
+    return new ChronicleMetricsStore(
+      chronicleDirectory,
+      Number.isFinite(days) && (days as number) > 0
+        ? (days as number)
+        : DEFAULT_METRICS_ROW_RETENTION_DAYS,
+    );
   }
 
   close(): void {
@@ -71,7 +105,24 @@ export class ChronicleMetricsStore {
   /** Incrementally ingest journal bytes appended since the last refresh.
    *  Safe across processes: guarded by a file lock on the database path. */
   async refresh(): Promise<ChronicleMetricsRefreshResult> {
-    return this.ingester.refresh();
+    const result = await this.ingester.refresh();
+    this.pruneRowDetail();
+    return result;
+  }
+
+  /**
+   * Drop per-event rows past the retention window.
+   *
+   * Runs after every refresh rather than on a timer: refresh is already the
+   * only thing that grows these tables, and tying the two together means a
+   * store that is never read never pays for maintenance it does not need.
+   */
+  private pruneRowDetail(): void {
+    try {
+      pruneMetricsRowDetail(this.db, this.rowRetentionDays);
+    } catch {
+      // Retention is maintenance; a locked database must never fail a refresh.
+    }
   }
 
   providerDaily(options: { from?: string; to?: string } = {}): ChronicleProviderDailyRow[] {

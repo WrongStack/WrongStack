@@ -118,16 +118,13 @@ describe('capAnthropicCacheBreakpoints', () => {
       return seen;
     }
 
-    it('warns when pinned markers alone exceed the limit', async () => {
-      // 5 ttl-pinned markers, limit 4 → overflow.
+    it('caps pinned markers at the hard wire limit', async () => {
+      // 5 ttl-pinned markers, limit 4 → retain the deepest four.
       const system = [ttl(), ttl(), ttl(), ttl(), ttl()];
       const warnings = await captureWarnings(() => capAnthropicCacheBreakpoints({ system }));
-      expect(warnings.some((w) => w.message.includes('5 pinned (ttl) cache_control markers'))).toBe(
-        true,
-      );
-      expect(warnings.some((w) => w.name === 'PinnedCacheBreakpointOverflow')).toBe(true);
-      // All pinned markers are still retained (the cap can't drop them).
-      expect(markerCount(system)).toBe(5);
+      expect(warnings.some((w) => w.name === 'PinnedCacheBreakpointOverflow')).toBe(false);
+      expect(markerCount(system)).toBe(ANTHROPIC_MAX_BREAKPOINTS);
+      expect(system[0]?.cache_control).toBeUndefined();
     });
 
     it('does not warn when pinned markers fit within the limit', async () => {

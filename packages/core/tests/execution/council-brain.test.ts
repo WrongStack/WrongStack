@@ -277,16 +277,60 @@ describe('council trace emission', () => {
       ],
     });
 
-    expect(votes).toHaveLength(2);
-    expect(votes[0]).toMatchObject({ requestId: 'req-trace', seatId: 'voter-0' });
+    // Two seats x two deliberation rounds — every round is traced, because a
+    // panel that converged is a different verdict from one that agreed.
+    expect(votes).toHaveLength(4);
+    expect(votes[0]).toMatchObject({ requestId: 'req-trace', seatId: 'voter-0', round: 1 });
     // Seat weight/veto come from the configured seats, not from the vote row.
-    expect(votes[1]).toMatchObject({ seatId: 'voter-1', veto: true });
+    expect(votes[1]).toMatchObject({ seatId: 'voter-1', veto: true, round: 1 });
+    expect(votes[2]).toMatchObject({ seatId: 'voter-0', round: 2 });
     expect(resolutions).toHaveLength(1);
     expect(resolutions[0]).toMatchObject({
       requestId: 'req-trace',
       configuredSeatCount: 2,
       judgeUsed: false,
+      rounds: 2,
+      deliberationChanges: 0,
     });
+  });
+
+  it('names the judge on the resolution, and flags one that already voted', async () => {
+    const events = new EventBus();
+    const resolutions: Array<{ judgeLabel?: string; judgeIsVoter?: boolean }> = [];
+    events.on('brain.council_resolved', (e) => resolutions.push(e as never));
+
+    const seated = {
+      provider: fakeProvider('{"optionId":"go","rationale":"safe"}'),
+      model: 'm1',
+      label: 'p/m1',
+      persona: 'executor',
+    };
+    const arbiter = createCouncilBrainArbiter({
+      voters: [
+        seated,
+        {
+          provider: fakeProvider('{"optionId":"go","rationale":"fine"}'),
+          model: 'm2',
+          label: 'p/m2',
+          persona: 'skeptic',
+        },
+      ],
+      // The tie-breaker is voter #1 — the correlation the surfaces could not see.
+      judge: { provider: seated.provider, model: 'm1', label: 'p/m1' },
+      events,
+    });
+
+    await arbiter.decide({
+      id: 'req-judge',
+      source: 'director',
+      question: 'Proceed?',
+      risk: 'high',
+      fallback: 'deny',
+      options: [{ id: 'go', label: 'Go' }],
+    });
+
+    expect(resolutions[0]?.judgeLabel).toBe('p/m1');
+    expect(resolutions[0]?.judgeIsVoter).toBe(true);
   });
 
   it('reports a correlated panel through resolution warnings', async () => {
@@ -418,7 +462,8 @@ describe('createCouncilBrainArbiter — custom personas', () => {
     // Before this was fixed the orchestrator threw "unknown persona", which the
     // tiered arbiter swallowed — the council silently never ran.
     expect(decision.type).toBe('answer');
-    expect(votes).toHaveLength(2);
+    // Two seats x two deliberation rounds.
+    expect(votes).toHaveLength(4);
     expect(votes.every((v) => v.status === 'valid')).toBe(true);
     expect(votes[0]?.persona).toBe('custom-weigh-latency-above-all-else');
     expect(votes[1]?.persona).toBe('skeptic');
@@ -656,4 +701,71 @@ describe('completeBrainLlm — signal forwarding', () => {
     controller.abort();
     await expect(pending).rejects.toThrow('aborted');
   }, 3_000);
+});
+
+describe('council control-plane discipline', () => {
+  it('abstains rather than answering with an option that was never offered', async () => {
+    // Every Brain consumer acts on an EXACT optionId ("did it say `stop`?"),
+    // so an `answer` carrying no optionId reads as "not stop" — the verdict
+    // silently becomes its opposite.
+    const arbiter = createCouncilBrainArbiter({
+      voters: [
+        {
+          provider: fakeProvider('{"optionId":"launch_rockets","rationale":"go"}'),
+          model: 'm1',
+          persona: 'executor',
+        },
+        {
+          provider: fakeProvider('{"optionId":"launch_rockets","rationale":"go"}'),
+          model: 'm2',
+          persona: 'skeptic',
+        },
+      ],
+    });
+
+    const d = await arbiter.decide({
+      id: 'req-offmenu',
+      source: 'director',
+      question: 'Proceed?',
+      risk: 'high',
+      fallback: 'deny',
+      options: [
+        { id: 'go', label: 'Go' },
+        { id: 'stop', label: 'Stop' },
+      ],
+    });
+
+    expect(d.type).not.toBe('answer');
+  });
+
+  it('still answers with the exact option id when the panel picks a real one', async () => {
+    const arbiter = createCouncilBrainArbiter({
+      voters: [
+        {
+          provider: fakeProvider('{"optionId":"go","rationale":"safe"}'),
+          model: 'm1',
+          persona: 'executor',
+        },
+        {
+          provider: fakeProvider('{"optionId":"go","rationale":"fine"}'),
+          model: 'm2',
+          persona: 'skeptic',
+        },
+      ],
+    });
+
+    const d = await arbiter.decide({
+      id: 'req-onmenu',
+      source: 'director',
+      question: 'Proceed?',
+      risk: 'high',
+      fallback: 'deny',
+      options: [
+        { id: 'go', label: 'Go' },
+        { id: 'stop', label: 'Stop' },
+      ],
+    });
+
+    expect(d).toMatchObject({ type: 'answer', optionId: 'go', text: 'Go' });
+  });
 });

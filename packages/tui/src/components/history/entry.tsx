@@ -7,11 +7,13 @@ import { MEMORY_GATE_DEFAULTS } from '../../history-entry.js';
 import { Box, Text } from '../../ink.js';
 import { sanitizeTerminalText } from '../../terminal-width.js';
 import { theme } from '../../theme.js';
+import { fmtRatioPct } from '../status-bar-format.js';
 import { AssistantBody, assistantContentWidth } from './assistant.js';
 import { Banner } from './banner.js';
 import {
   brainRiskColor,
   brainStatusStyle,
+  brainTierColor,
   councilHeadline,
   councilSeatLine,
   formatScoreTerms,
@@ -22,7 +24,6 @@ import {
 import { ToolEntry } from './tool-entry.js';
 import type { HistoryEntry } from './types.js';
 import { fmtTok } from './utils.js';
-import { fmtRatioPct } from '../status-bar-format.js';
 import { INFO_PREFIX, USER_LABEL } from './wrap-geometry.js';
 
 export { councilHeadline, councilSeatLine } from './entry-helpers.js';
@@ -479,6 +480,19 @@ export const Entry = React.memo(function Entry({
             <Text bold color={riskColor}>
               {entry.risk}
             </Text>
+            {/* Which tier decided. A free rule hit and a multi-model council
+                call are otherwise the same line in the transcript. */}
+            {entry.tier ? (
+              <>
+                <Text dimColor>·</Text>
+                <Text
+                  dimColor={brainTierColor(entry.tier) === undefined}
+                  color={brainTierColor(entry.tier)}
+                >
+                  {entry.tier}
+                </Text>
+              </>
+            ) : null}
           </Box>
           <Box paddingLeft={indentWidth}>
             <Text color={theme.textPrimary}>{entry.question}</Text>
@@ -512,7 +526,11 @@ export const Entry = React.memo(function Entry({
             <Box flexDirection="column" paddingLeft={indentWidth} marginTop={1}>
               <Text dimColor>{councilHeadline(entry.council)}</Text>
               {entry.council.seats.map((seat) => (
-                <Text key={seat.seatId} dimColor>
+                <Text
+                  key={seat.seatId}
+                  dimColor={!seat.changed}
+                  color={seat.changed ? theme.warn : undefined}
+                >
                   {councilSeatLine(seat)}
                 </Text>
               ))}

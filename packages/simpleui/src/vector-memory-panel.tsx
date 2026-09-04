@@ -82,6 +82,9 @@ export function VectorMemoryPanel({ baseUrl = '' }: VectorMemoryPanelProps): Rea
   const [searching, setSearching] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  // Generation counter for overlapping searches: a slow response for an older
+  // query must not overwrite the results of a newer one.
+  const searchGenRef = useRef(0);
   useFocusTrap(dialogRef, open);
 
   useEffect(() => {
@@ -101,7 +104,11 @@ export function VectorMemoryPanel({ baseUrl = '' }: VectorMemoryPanelProps): Rea
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -131,6 +138,7 @@ export function VectorMemoryPanel({ baseUrl = '' }: VectorMemoryPanelProps): Rea
   const onSearch = async () => {
     const q = query.trim();
     if (q.length === 0) return;
+    const generation = ++searchGenRef.current;
     setSearching(true);
     setSearchError(undefined);
     try {
@@ -139,12 +147,14 @@ export function VectorMemoryPanel({ baseUrl = '' }: VectorMemoryPanelProps): Rea
         ...(threshold !== undefined ? { threshold } : {}),
         baseUrl,
       });
+      if (searchGenRef.current !== generation) return; // superseded by a newer search
       setHits(result.hits);
     } catch (err: unknown) {
+      if (searchGenRef.current !== generation) return;
       setHits([]);
       setSearchError(err instanceof Error ? err.message : String(err));
     } finally {
-      setSearching(false);
+      if (searchGenRef.current === generation) setSearching(false);
     }
   };
 

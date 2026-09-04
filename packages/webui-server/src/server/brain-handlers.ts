@@ -53,6 +53,12 @@ export interface BrainLogEntry {
    * Undefined for decisions that named no session.
    */
   sessionId?: string | undefined;
+  /**
+   * Which tier of the ladder resolved the decision, when the chain recorded
+   * one. Passed through verbatim so a client can tell a free deterministic
+   * verdict from one that cost a provider call.
+   */
+  tier?: string | undefined;
 }
 
 export interface BrainTransportContext {

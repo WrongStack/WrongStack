@@ -52,20 +52,26 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.320.0
+### What's new in 0.320.1
 
-- **The statusline picker owns the full rail contract.** `/statusline` decides
-  which chips render, on which of the four rails, and at what density — a
-  narrow terminal concedes detail through shorten-before-drop fitting instead
-  of dropping chips.
-- **The theme registry grew from 50 to 64 presets,** every palette now gated
-  by per-preset contrast, role-colour, and syntax assertions — text tokens,
-  borders, and transcript roles match each theme's own surfaces.
-- **Model, mode, auth, autonomy, theme, and skills pickers respond to keys
-  again,** `/flow` is reachable, and `/help <slash> <deep>` renders focused
-  pages instead of falling back to inline help.
+- **Benchmarks now report variance instead of a lucky single run.**
+  `wstack bench run --repeats N` reports Pass@N, All-pass, and flaky-task
+  counts, while the new bundled six-task `core` suite works without cloning a
+  dataset or writing a config file.
+- **Benchmark failures remain diagnosable after long runs.** Rows are appended
+  to `results.jsonl` as they finish, reports name failure reasons and explain
+  when cost/token figures are lower bounds, and `wstack bench compare` checks
+  harness fingerprints before comparing results.
+- **Brain councils can deliberate for a second round by default.** Seats see
+  the other ballots only as quoted data, can revise only for substantive new
+  evidence, and surface how many votes changed so cost and conformity stay
+  visible.
+- **Chronicle retains decision-relevant history more efficiently.** Its detail
+  policy folds high-volume events into counters, applies configurable
+  retention limits, and compresses stored payloads without invalidating
+  integrity verification.
 
-See the complete [0.320.0 release notes](CHANGELOG.md).
+See the complete [0.320.1 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -74,7 +80,7 @@ See the complete [0.320.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.320.0](#whats-new-in-03200)
+- [What's new in 0.320.1](#whats-new-in-03201)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)

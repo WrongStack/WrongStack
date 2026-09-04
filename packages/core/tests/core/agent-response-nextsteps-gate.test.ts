@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { AgentInternals } from '../../src/core/agent-internals.js';
 import {
   buildLiveNextStepsGateBlock,
   createAgentResponseHandler,
 } from '../../src/core/agent-response.js';
-import type { AgentInternals } from '../../src/core/agent-internals.js';
 import type { TodoItem } from '../../src/core/context.js';
+import { conversationBoundToRequest } from '../../src/core/request-conversation-binding.js';
 import { tagBlock } from '../../src/core/system-prompt-blocks.js';
 import type { Request } from '../../src/types/provider.js';
 import {
@@ -124,6 +125,15 @@ describe('provider request live-context tail', () => {
     } as never as AgentInternals;
     return { ctx, a };
   };
+
+  it('binds the owning conversation session to the provider request side-channel', async () => {
+    const { ctx, a } = makeInternals();
+    ctx.session = { id: 'conversation-alpha' };
+
+    const built = await createAgentResponseHandler(a).buildAndRunRequestPipeline({});
+
+    expect(conversationBoundToRequest(built.request)?.sessionId).toBe('conversation-alpha');
+  });
 
   it('falls back to a system suffix only when there is no history to attach to', async () => {
     const { ctx, a } = makeInternals();

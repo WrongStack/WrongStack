@@ -450,11 +450,18 @@ export function recordCompletedWorkEvidence(
 
 /** Render the ledger's system-prompt block text (marker + newest entries). */
 export function formatCompletedWorkLedger(items: readonly CompletedWorkEvidence[]): string {
+  if (!Array.isArray(items) || items.length === 0) {
+    return (
+      `${COMPLETED_WORK_LEDGER_MARKER}\n` +
+      'Work already completed this session — do not redo it; build on it:\n'
+    );
+  }
   const lines = items
+    .filter((item): item is CompletedWorkEvidence => Boolean(item && typeof item === 'object'))
     .slice(-LEDGER_BLOCK_ITEMS)
     .map(
       (item) =>
-        `- [${item.source}] ${item.summary}${item.evidence ? ` (evidence: ${item.evidence})` : ''}`,
+        `- [${item.source ?? 'work'}] ${item.summary ?? ''}${item.evidence ? ` (evidence: ${item.evidence})` : ''}`,
     );
   return (
     `${COMPLETED_WORK_LEDGER_MARKER}\n` +
@@ -702,18 +709,28 @@ function implicitFactFor(metadata: ToolOutputMetadata): string | undefined {
 }
 
 function metadataReferencedByText(metadata: ToolOutputMetadata, haystack: string): boolean {
-  for (const file of metadata.files) {
-    const f = file.toLowerCase();
-    const base = path.basename(file).toLowerCase();
-    if (f && haystack.includes(f)) return true;
-    if (base && haystack.includes(base)) return true;
+  if (!metadata || typeof metadata !== 'object' || typeof haystack !== 'string') return false;
+  if (Array.isArray(metadata.files)) {
+    for (const file of metadata.files) {
+      if (typeof file !== 'string') continue;
+      const f = file.toLowerCase();
+      const base = path.basename(file).toLowerCase();
+      if (f && haystack.includes(f)) return true;
+      if (base && haystack.includes(base)) return true;
+    }
   }
-  for (const symbol of metadata.symbols) {
-    if (symbol.length >= 3 && haystack.includes(symbol.toLowerCase())) return true;
+  if (Array.isArray(metadata.symbols)) {
+    for (const symbol of metadata.symbols) {
+      if (typeof symbol === 'string' && symbol.length >= 3 && haystack.includes(symbol.toLowerCase())) return true;
+    }
   }
-  for (const err of metadata.errors) {
-    const head = err.slice(0, 80).toLowerCase();
-    if (head.length >= 12 && haystack.includes(head)) return true;
+  if (Array.isArray(metadata.errors)) {
+    for (const err of metadata.errors) {
+      if (typeof err === 'string') {
+        const head = err.slice(0, 80).toLowerCase();
+        if (head.length >= 12 && haystack.includes(head)) return true;
+      }
+    }
   }
   return false;
 }
