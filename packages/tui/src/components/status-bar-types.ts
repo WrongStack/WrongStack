@@ -9,7 +9,7 @@ import type {
 } from '@wrongstack/core/statusline';
 import type { AnimationStyle } from './animation-style.js';
 import type { StatuslineMode } from './settings-picker.js';
-import type { ChipMeta, StatuslineItem } from './statusline-picker.js';
+import type { ChipMeta, StatuslineItem } from '../ui-contracts.js';
 export interface TodoCounts {
   pending: number;
   inProgress: number;

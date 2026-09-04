@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-04T07:05:51.912Z
+**Generated:** 2026-09-04T09:12:09.485Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,51 +8,20 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3535 |
-| Production source lines | 862119 |
-| Test files | 3043 |
+| Production source files | 3529 |
+| Production source lines | 861578 |
+| Test files | 3039 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11080 |
+| Relative module edges | 11041 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 10 |
+| Type-inclusive module cycles | 9 |
 | Tests without TypeScript test-project coverage | 0 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-- 1 unexcepted module cycle(s)
-- packages/cli/src/auth-menu/panel-service.ts: new 1029-line hotspot is not in architecture/hotspots.json
-- packages/cli/src/cli-main.ts: hotspot grew from 839 to 851 lines; review and update the ratchet in the same change
-- packages/cli/src/execution.ts: hotspot grew from 881 to 887 lines; review and update the ratchet in the same change
-- packages/cli/src/webui-server.ts: hotspot grew from 943 to 949 lines; review and update the ratchet in the same change
-- packages/core/src/session-catalog/store.ts: hotspot grew from 994 to 1058 lines; review and update the ratchet in the same change
-- packages/core/src/session-catalog/store.ts: relative import fan-out increased from 11 to 12; review and update the ratchet in the same change
-- packages/core/src/storage/session-store.ts: hotspot grew from 1088 to 1426 lines; review and update the ratchet in the same change
-- packages/core/src/storage/session-store.ts: relative import fan-out increased from 38 to 42; review and update the ratchet in the same change
-- packages/core/src/types/session.ts: hotspot grew from 947 to 994 lines; review and update the ratchet in the same change
-- packages/providers/src/openai-codex.ts: hotspot grew from 819 to 829 lines; review and update the ratchet in the same change
-- packages/sage/src/domain-term-extractor.ts: hotspot grew from 872 to 873 lines; review and update the ratchet in the same change
-- packages/sage/src/tools/memory-tools.ts: hotspot grew from 977 to 981 lines; review and update the ratchet in the same change
-- packages/tui/src/app-state.ts: hotspot grew from 946 to 963 lines; review and update the ratchet in the same change
-- packages/tui/src/app.tsx: hotspot grew from 1004 to 1036 lines; review and update the ratchet in the same change
-- packages/tui/src/components/status-bar-rails.tsx: hotspot grew from 1011 to 1217 lines; review and update the ratchet in the same change
-- packages/tui/src/hooks/use-picker-keys-tools-settings.ts: new 827-line hotspot is not in architecture/hotspots.json
-- packages/webui/src/lib/ws-client.ts: hotspot grew from 1343 to 1386 lines; review and update the ratchet in the same change
-- packages/webui/src/stores/ui-store.ts: hotspot grew from 1279 to 1290 lines; review and update the ratchet in the same change
-- packages/webui-server/src/server/embedded-message-router.ts: hotspot shrunk from 855 to 831 lines; review and update the ratchet in the same change
-- packages/webui-server/src/server/embedded-message-router.ts: relative import fan-out decreased from 53 to 52; review and update the ratchet in the same change
-- packages/webui-server/src/server/memory-handlers.ts: new 863-line hotspot is not in architecture/hotspots.json
-- packages/webui-server/src/server/routes.ts: hotspot shrunk from 964 to 938 lines; review and update the ratchet in the same change
-- packages/webui-server/src/server/start-webui.ts: hotspot grew from 1053 to 1092 lines; review and update the ratchet in the same change
-- packages/core/src/statusline/index.ts: "DEFAULT_HIDDEN_ITEMS" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/mcp/src/read-body.ts: "MAX_MCP_HTTP_BODY_BYTES" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/tui/src/components/powerline-rail.tsx: "computeRailSpans" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui/src/lib/platform.ts: "ALT_KEY_LABEL" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui/src/lib/platform.ts: "IS_APPLE_PLATFORM" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui/src/lib/platform.ts: "SHIFT_KEY_LABEL" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/tui/src/workbench-slash.ts: "createWorkbenchSlashCommand" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-server/src/server/ws-payload-validation.ts: "validateBrainConfigSetPayload" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -60,9 +29,9 @@
 |---|---:|---:|---|
 | @wrongstack/acp | 42 | 35 | @wrongstack/core |
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
-| @wrongstack/cli | 476 | 453 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
+| @wrongstack/cli | 474 | 452 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 795 | 704 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 794 | 703 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 18 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 27 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 65 | @wrongstack/persistence, @wrongstack/primitives |
@@ -86,7 +55,7 @@
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 30 | @wrongstack/core |
 | @wrongstack/tools | 191 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 358 | 329 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 355 | 327 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 505 | 355 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 110 | 31 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -111,7 +80,6 @@ None.
 - packages/core/src/hq/protocol/client.ts ↔ packages/core/src/hq/protocol/core.ts ↔ packages/core/src/hq/protocol/fleet.ts ↔ packages/core/src/hq/protocol/session.ts
 - packages/core/src/index.ts ↔ packages/core/src/plugins/prompts-plugin.ts ↔ packages/core/src/plugins/skills-plugin.ts ↔ packages/core/src/plugins/sync-plugin.ts ↔ packages/core/src/tools/mcp-control.ts ↔ packages/core/src/tools/mcp-use.ts
 - packages/core/src/types/blocks.ts ↔ packages/core/src/types/context.ts ↔ packages/core/src/types/conversation-state.ts ↔ packages/core/src/types/messages.ts ↔ packages/core/src/types/provider.ts ↔ packages/core/src/types/run-env.ts ↔ packages/core/src/types/session.ts ↔ packages/core/src/types/token-counter.ts ↔ packages/core/src/types/tool.ts
-- packages/tui/src/app-settings-type.ts ↔ packages/tui/src/components/settings-picker-model.ts ↔ packages/tui/src/components/settings-picker.tsx ↔ packages/tui/src/components/status-bar-types.ts ↔ packages/tui/src/components/statusline-picker.tsx ↔ packages/tui/src/settings-contracts.ts ↔ packages/tui/src/ui-contracts.ts
 - packages/tui/src/components/status-bar-chips.tsx ↔ packages/tui/src/components/status-bar-rails.tsx ↔ packages/tui/src/components/status-bar.tsx ↔ packages/tui/src/components/status-line-registry.tsx
 
 ## Largest production files
@@ -153,6 +121,7 @@ None.
 | 1036 | `packages/tui/src/app.tsx` |
 | 1036 | `packages/tui/src/components/kanban-panel.tsx` |
 | 1033 | `packages/cli/src/plugin-management.ts` |
+| 1033 | `packages/mcp/src/client.ts` |
 | 1033 | `packages/sage/src/sqlite-store.ts` |
 | 1030 | `packages/plugins/src/git-autocommit/index.ts` |
 | 1030 | `packages/tui/src/components/history/utils.tsx` |
@@ -165,13 +134,12 @@ None.
 | 1004 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 1001 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
-| 997 | `packages/mcp/src/client.ts` |
 | 996 | `packages/sage/src/types.ts` |
 | 996 | `packages/webui/src/stores/fleet-store.ts` |
 
 ## Exports only tests reference
 
-- 857 runtime exports are referenced by tests and by no other production file.
+- 847 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

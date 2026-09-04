@@ -15,6 +15,7 @@ import {
   type StatuslineLine,
   type StatuslineLines,
 } from '@wrongstack/core/statusline';
+import type { ChipMeta } from '../ui-contracts.js';
 import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
@@ -41,17 +42,12 @@ export const COMPOSER_OWNED_CHIPS: StatuslineItem[] = ['state'];
 /**
  * Metadata for a temporarily-visible chip (one that appeared due to data,
  * not user toggle). Tracked so the chip can auto-expire.
+ *
+ * Declared in the `ui-contracts` leaf and re-exported here under the picker's
+ * historical name: `status-bar-types.ts` needs the type, and owning it in a
+ * `.tsx` view module put the contracts leaf and the view in one type cycle.
  */
-export interface ChipMeta {
-  key: StatuslineItem;
-  /** Unix timestamp (ms) when the chip was shown. */
-  shownAt: number;
-  /**
-   * Optional expiration time in minutes. Null/undefined = permanent (only
-   * hidden when user toggles it off). Stream chips get a default 5 min.
-   */
-  expiresIn?: number;
-}
+export type { ChipMeta };
 
 /** Default expiration for stream-triggered chips (5 minutes). */
 export const STREAM_CHIP_EXPIRES_IN_MINUTES = 5;

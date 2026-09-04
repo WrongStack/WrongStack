@@ -37,7 +37,7 @@ vi.mock('node:fs', async (importOriginal) => {
       ) {
         return false;
       }
-      return existsState.actual!(filePath);
+      return existsState.actual!(p);
     }) as typeof actual.existsSync),
   };
 });
@@ -76,7 +76,7 @@ describe('SessionCatalogProjectClient spawn retry', () => {
         distProbes += 1;
         if (distProbes === 1) return false;
       }
-      return existsState.actual!(filePath);
+      return existsState.actual!(p);
     }) as typeof fs.existsSync);
 
     const client = new SessionCatalogProjectClient({

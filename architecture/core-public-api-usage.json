@@ -144,8 +144,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/statusline": {
-      "files": 22,
-      "typeOnly": 11,
+      "files": 23,
+      "typeOnly": 12,
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/storage": {
@@ -8885,6 +8885,12 @@
     {
       "specifier": "@wrongstack/core/statusline",
       "file": "packages/tui/src/run-tui-options.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/tui/src/ui-contracts.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-04T07:05:51.912Z",
+  "generatedAt": "2026-09-04T09:12:09.485Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,52 +12,19 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3535,
-    "testFiles": 3043,
-    "sourceLines": 862119,
+    "sourceFiles": 3529,
+    "testFiles": 3039,
+    "sourceLines": 861578,
     "workspaceEdges": 127,
-    "moduleEdges": 11080,
+    "moduleEdges": 11041,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 10,
+    "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 857
+    "testOnlyExports": 847
   },
-  "errors": [
-    "1 unexcepted module cycle(s)",
-    "packages/cli/src/auth-menu/panel-service.ts: new 1029-line hotspot is not in architecture/hotspots.json",
-    "packages/cli/src/cli-main.ts: hotspot grew from 839 to 851 lines; review and update the ratchet in the same change",
-    "packages/cli/src/execution.ts: hotspot grew from 881 to 887 lines; review and update the ratchet in the same change",
-    "packages/cli/src/webui-server.ts: hotspot grew from 943 to 949 lines; review and update the ratchet in the same change",
-    "packages/core/src/session-catalog/store.ts: hotspot grew from 994 to 1058 lines; review and update the ratchet in the same change",
-    "packages/core/src/session-catalog/store.ts: relative import fan-out increased from 11 to 12; review and update the ratchet in the same change",
-    "packages/core/src/storage/session-store.ts: hotspot grew from 1088 to 1426 lines; review and update the ratchet in the same change",
-    "packages/core/src/storage/session-store.ts: relative import fan-out increased from 38 to 42; review and update the ratchet in the same change",
-    "packages/core/src/types/session.ts: hotspot grew from 947 to 994 lines; review and update the ratchet in the same change",
-    "packages/providers/src/openai-codex.ts: hotspot grew from 819 to 829 lines; review and update the ratchet in the same change",
-    "packages/sage/src/domain-term-extractor.ts: hotspot grew from 872 to 873 lines; review and update the ratchet in the same change",
-    "packages/sage/src/tools/memory-tools.ts: hotspot grew from 977 to 981 lines; review and update the ratchet in the same change",
-    "packages/tui/src/app-state.ts: hotspot grew from 946 to 963 lines; review and update the ratchet in the same change",
-    "packages/tui/src/app.tsx: hotspot grew from 1004 to 1036 lines; review and update the ratchet in the same change",
-    "packages/tui/src/components/status-bar-rails.tsx: hotspot grew from 1011 to 1217 lines; review and update the ratchet in the same change",
-    "packages/tui/src/hooks/use-picker-keys-tools-settings.ts: new 827-line hotspot is not in architecture/hotspots.json",
-    "packages/webui/src/lib/ws-client.ts: hotspot grew from 1343 to 1386 lines; review and update the ratchet in the same change",
-    "packages/webui/src/stores/ui-store.ts: hotspot grew from 1279 to 1290 lines; review and update the ratchet in the same change",
-    "packages/webui-server/src/server/embedded-message-router.ts: hotspot shrunk from 855 to 831 lines; review and update the ratchet in the same change",
-    "packages/webui-server/src/server/embedded-message-router.ts: relative import fan-out decreased from 53 to 52; review and update the ratchet in the same change",
-    "packages/webui-server/src/server/memory-handlers.ts: new 863-line hotspot is not in architecture/hotspots.json",
-    "packages/webui-server/src/server/routes.ts: hotspot shrunk from 964 to 938 lines; review and update the ratchet in the same change",
-    "packages/webui-server/src/server/start-webui.ts: hotspot grew from 1053 to 1092 lines; review and update the ratchet in the same change",
-    "packages/core/src/statusline/index.ts: \"DEFAULT_HIDDEN_ITEMS\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/mcp/src/read-body.ts: \"MAX_MCP_HTTP_BODY_BYTES\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/tui/src/components/powerline-rail.tsx: \"computeRailSpans\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/webui/src/lib/platform.ts: \"ALT_KEY_LABEL\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/webui/src/lib/platform.ts: \"IS_APPLE_PLATFORM\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/webui/src/lib/platform.ts: \"SHIFT_KEY_LABEL\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/tui/src/workbench-slash.ts: \"createWorkbenchSlashCommand\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
-    "packages/webui-server/src/server/ws-payload-validation.ts: \"validateBrainConfigSetPayload\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -175,8 +142,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 476,
-      "testFiles": 453,
+      "sourceFiles": 474,
+      "testFiles": 452,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -215,7 +182,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 453
+          "testFiles": 452
         }
       ]
     },
@@ -245,8 +212,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 795,
-      "testFiles": 704,
+      "sourceFiles": 794,
+      "testFiles": 703,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -261,7 +228,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 704
+          "testFiles": 703
         }
       ]
     },
@@ -788,8 +755,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 358,
-      "testFiles": 329,
+      "sourceFiles": 355,
+      "testFiles": 327,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -812,7 +779,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 329
+          "testFiles": 327
         }
       ]
     },
@@ -1106,18 +1073,6 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/tui/src/app-settings-type.ts",
-          "packages/tui/src/components/settings-picker-model.ts",
-          "packages/tui/src/components/settings-picker.tsx",
-          "packages/tui/src/components/status-bar-types.ts",
-          "packages/tui/src/components/statusline-picker.tsx",
-          "packages/tui/src/settings-contracts.ts",
-          "packages/tui/src/ui-contracts.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
           "packages/tui/src/components/status-bar-chips.tsx",
           "packages/tui/src/components/status-bar-rails.tsx",
           "packages/tui/src/components/status-bar.tsx",
@@ -1136,20 +1091,7 @@
       "ARCH-CYCLE-TYPE-29",
       "ARCH-CYCLE-TYPE-30"
     ],
-    "unexcepted": [
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/tui/src/app-settings-type.ts",
-          "packages/tui/src/components/settings-picker-model.ts",
-          "packages/tui/src/components/settings-picker.tsx",
-          "packages/tui/src/components/status-bar-types.ts",
-          "packages/tui/src/components/statusline-picker.tsx",
-          "packages/tui/src/settings-contracts.ts",
-          "packages/tui/src/ui-contracts.ts"
-        ]
-      }
-    ]
+    "unexcepted": []
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -4184,12 +4126,6 @@
         ]
       },
       {
-        "file": "packages/cli/tests/webui-privileged-actions.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/cli/tests/webui-server-baseline.test.ts",
         "projects": [
           "root-node"
@@ -6429,12 +6365,6 @@
       },
       {
         "file": "packages/core/tests/execution/prompt-loader.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/core/tests/execution/provider-runner-impl.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13838,12 +13768,6 @@
         ]
       },
       {
-        "file": "packages/tui/tests/activity-strip-fixed-height.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/tui/tests/agent-swarm-panel-visibility.test.ts",
         "projects": [
           "root-node"
@@ -15345,12 +15269,6 @@
       },
       {
         "file": "packages/tui/tests/statusbar-view-model-resume-blank.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tui/tests/statusline-detail-panel.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -19785,8 +19703,13 @@
     },
     {
       "file": "packages/mcp/src/client.ts",
-      "lines": 997,
+      "lines": 1033,
       "relativeImports": 11
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "lines": 826,
+      "relativeImports": 2
     },
     {
       "file": "packages/plugins/src/duplicate-code-detector/index.ts",
@@ -20416,6 +20339,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/mcp/src/client.ts",
+      "lines": 1033,
+      "relativeImports": 11
+    },
+    {
       "file": "packages/sage/src/sqlite-store.ts",
       "lines": 1033,
       "relativeImports": 43
@@ -20474,11 +20402,6 @@
       "file": "packages/webui/src/components/SettingsPanel/BrainSection.tsx",
       "lines": 1001,
       "relativeImports": 6
-    },
-    {
-      "file": "packages/mcp/src/client.ts",
-      "lines": 997,
-      "relativeImports": 11
     },
     {
       "file": "packages/sage/src/types.ts",
@@ -20942,14 +20865,6 @@
     },
     {
       "file": "packages/cli/src/slash-commands/slash-deep-help.ts",
-      "name": "renderSlashDeepHelp"
-    },
-    {
-      "file": "packages/cli/src/slash-commands/slash-deep-help.ts",
-      "name": "renderSlashFocusedHelp"
-    },
-    {
-      "file": "packages/cli/src/slash-commands/slash-deep-help.ts",
       "name": "resolveSlashSubcommand"
     },
     {
@@ -21119,18 +21034,6 @@
     {
       "file": "packages/cli/src/update-check.ts",
       "name": "isNewer"
-    },
-    {
-      "file": "packages/cli/src/webui-server/privileged-actions.ts",
-      "name": "authorizeCliWebUIAction"
-    },
-    {
-      "file": "packages/cli/src/webui-server/privileged-actions.ts",
-      "name": "createCliProcessRoutes"
-    },
-    {
-      "file": "packages/cli/src/wiring/cli-heap-watchdog.ts",
-      "name": "startCliHeapWatchdog"
     },
     {
       "file": "packages/cli/src/wiring/mailbox-bridge-bootstrap.ts",
@@ -21393,10 +21296,6 @@
       "name": "completeRefinerPass"
     },
     {
-      "file": "packages/core/src/execution/provider-runner-impl.ts",
-      "name": "DefaultProviderRunner"
-    },
-    {
       "file": "packages/core/src/execution/tool-error-taxonomy.ts",
       "name": "classifiedToolErrorResult"
     },
@@ -21603,10 +21502,6 @@
     {
       "file": "packages/core/src/storage/goal-store.ts",
       "name": "updateGoal"
-    },
-    {
-      "file": "packages/core/src/storage/session-writer/session-writer-flush.ts",
-      "name": "flushBufferSync"
     },
     {
       "file": "packages/core/src/types/runtime-capability-manifest.ts",
@@ -22769,6 +22664,10 @@
       "name": "swarmMeter"
     },
     {
+      "file": "packages/tui/src/components/fleet-panel.tsx",
+      "name": "truncToWidth"
+    },
+    {
       "file": "packages/tui/src/components/help-overlay.tsx",
       "name": "helpSections"
     },
@@ -22825,18 +22724,6 @@
       "name": "isIdleContext"
     },
     {
-      "file": "packages/tui/src/components/live-activity-strip.tsx",
-      "name": "activityStripRows"
-    },
-    {
-      "file": "packages/tui/src/components/memory-context-widget.tsx",
-      "name": "MemoryContextWidget"
-    },
-    {
-      "file": "packages/tui/src/components/powerline-rail.tsx",
-      "name": "computeRailSpans"
-    },
-    {
       "file": "packages/tui/src/components/powerline-rail.tsx",
       "name": "visibleNodeText"
     },
@@ -22891,10 +22778,6 @@
     {
       "file": "packages/tui/src/components/status-line-registry.tsx",
       "name": "partitionRailEntries"
-    },
-    {
-      "file": "packages/tui/src/components/statusline-detail-panel.tsx",
-      "name": "StatuslineDetailPanel"
     },
     {
       "file": "packages/tui/src/components/statusline-picker.tsx",

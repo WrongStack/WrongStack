@@ -210,6 +210,8 @@ describe('MCPRegistry coverage', () => {
       prompts,
     });
     api.servers.set('catalog', slot);
+    registry.markDisabled({ name: 'disabled-catalog', transport: 'stdio', command: 'echo' });
+    expect(registry.getCatalog('disabled-catalog')).toEqual({ name: 'disabled-catalog', state: 'idle' });
     expect(registry.getCatalog('catalog')).toMatchObject({ name: 'catalog' });
     expect(await registry.listResources('catalog')).toEqual(resources);
     expect(await registry.listResourceTemplates('catalog')).toEqual(templates);

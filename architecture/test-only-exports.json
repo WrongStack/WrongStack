@@ -527,6 +527,9 @@
       "resolveGitHubToken",
       "writeBoundedGzipStream"
     ],
+    "packages/core/src/statusline/index.ts": [
+      "DEFAULT_HIDDEN_ITEMS"
+    ],
     "packages/core/src/storage/config-loader/validation.ts": [
       "validateConfigBehavior",
       "validateConfigIdentity"
@@ -669,6 +672,9 @@
     ],
     "packages/kanban/src/verification/verification-report.ts": [
       "renderVerificationReportMarkdown"
+    ],
+    "packages/mcp/src/read-body.ts": [
+      "MAX_MCP_HTTP_BODY_BYTES"
     ],
     "packages/mcp/src/registry-connect-loop.ts": [
       "discoverSlotCapabilities"
@@ -1135,7 +1141,8 @@
       "buildTodoPreviewRows",
       "selectSwarmEntries",
       "swarmColumnCount",
-      "swarmMeter"
+      "swarmMeter",
+      "truncToWidth"
     ],
     "packages/tui/src/components/help-overlay.tsx": [
       "helpSections"
@@ -1635,6 +1642,11 @@
     "packages/webui/src/lib/model-matrix-routes.ts": [
       "MODEL_MATRIX_PHASE_ROUTES",
       "MODEL_MATRIX_ROLE_ROUTES"
+    ],
+    "packages/webui/src/lib/platform.ts": [
+      "ALT_KEY_LABEL",
+      "IS_APPLE_PLATFORM",
+      "SHIFT_KEY_LABEL"
     ],
     "packages/webui/src/lib/plugin-enablement.ts": [
       "resolveOnePlugin",

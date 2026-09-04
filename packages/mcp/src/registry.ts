@@ -395,8 +395,17 @@ export class MCPRegistry {
 
   getCatalog(name: string): MCPRegistryCatalog | undefined {
     const slot = this.servers.get(name);
-    if (!slot) return undefined;
-    return registryCatalogSnapshot(slot);
+    if (slot) {
+      return registryCatalogSnapshot(slot);
+    }
+    const disabled = this.disabledServers.get(name);
+    if (disabled) {
+      return {
+        name: disabled.name,
+        state: 'idle',
+      };
+    }
+    return undefined;
   }
 
   async listResources(name: string, opts: { refresh?: boolean } = {}): Promise<MCPResource[]> {
