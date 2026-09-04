@@ -20,7 +20,7 @@ import {
   estimateMessages,
 } from './compaction-core.js';
 
-import { computeContextWindowBudget, type ContextWindowBudgetSnapshot } from './context-budget.js';
+import { type ContextWindowBudgetSnapshot, computeContextWindowBudget } from './context-budget.js';
 
 type PressureLevel = 'warn' | 'soft' | 'hard';
 const LEVEL_RANK: Record<PressureLevel, number> = { warn: 0, soft: 1, hard: 2 };

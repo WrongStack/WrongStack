@@ -40,7 +40,10 @@ export function computeContextWindowBudget({
   const reservedOutputTokens =
     outputReserveTokens ?? defaultContextOutputReserve(maxContext, maxOutput);
   const reservedSafetyTokens = safetyBufferTokens ?? Math.floor(Math.min(4096, maxContext * 0.02));
-  const availableInputTokens = Math.max(1, maxContext - reservedOutputTokens - reservedSafetyTokens);
+  const availableInputTokens = Math.max(
+    1,
+    maxContext - reservedOutputTokens - reservedSafetyTokens,
+  );
   const remainingInputTokens = availableInputTokens - inputTokens;
   return {
     maxContext,
