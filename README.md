@@ -52,20 +52,20 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.317.0
+### What's new in 0.320.0
 
-- **Mailbox SSE streams are hardened against stalls and leaks.** A wedged
-  credential revalidation now times out after 10 seconds and the serialized
-  delivery queue is capped at 256 pending operations — either limit closes the
-  stream cleanly instead of accumulating queued events forever.
-- **The session-note hub releases torn-down agents' event buses.** Per-session
-  reference counting keeps the process-wide hub from pinning a dead agent's
-  listeners.
-- **MCP-alias tool calls render diffs through the canonical edit/write
-  pipeline,** with expanded tool-output rendering coverage including Windows
-  paths.
+- **The statusline picker owns the full rail contract.** `/statusline` decides
+  which chips render, on which of the four rails, and at what density — a
+  narrow terminal concedes detail through shorten-before-drop fitting instead
+  of dropping chips.
+- **The theme registry grew from 50 to 64 presets,** every palette now gated
+  by per-preset contrast, role-colour, and syntax assertions — text tokens,
+  borders, and transcript roles match each theme's own surfaces.
+- **Model, mode, auth, autonomy, theme, and skills pickers respond to keys
+  again,** `/flow` is reachable, and `/help <slash> <deep>` renders focused
+  pages instead of falling back to inline help.
 
-See the complete [0.317.0 release notes](CHANGELOG.md).
+See the complete [0.320.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -74,7 +74,7 @@ See the complete [0.317.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.317.0](#whats-new-in-03170)
+- [What's new in 0.320.0](#whats-new-in-03200)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)

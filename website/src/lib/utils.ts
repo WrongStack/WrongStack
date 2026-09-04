@@ -344,9 +344,31 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.320.0',
+    date: '2026-09-04',
+    tagline: 'Statusline rail contract, 64 theme presets & picker fixes',
+    highlights: [
+      'The `/statusline` picker owns the full rail contract — narrow terminals concede detail through shorten-before-drop fitting instead of dropping chips',
+      'The theme registry grew from 50 to 64 presets, each gated by per-preset contrast, role-colour, and syntax-highlight assertions',
+      'Model, mode, auth, autonomy, theme, and skills pickers respond to keys again, and `/flow` plus `/help <slash> <deep>` reach their renderers',
+      'Session storage policy is wired into session-store construction with idempotent background auto-archive backfill',
+    ],
+    latest: true,
+  },
+  {
+    version: '0.319.2',
+    date: '2026-09-03',
+    tagline: 'Provider endpoint hardening & YOLO credential gating',
+    highlights: [
+      'Provider configuration rejects link-local and cloud-metadata endpoints and preserves explicit empty credential lists across updates',
+      'YOLO approval detects credential names throughout nested tool input and sends those calls back for human approval',
+      'Patch permissions expose and enforce actual diff destinations, understand Git rename/copy headers, and fail closed on unparsable patches',
+      'Google explicit-cache setup remembers failed cache creation briefly instead of retrying the same rejected request',
+    ],
+  },
+  {
     version: '0.317.1',
     date: '2026-08-31',
-    latest: true,
     tagline: 'Session Catalog SQLite error recovery',
     highlights: [
       'Session Catalog transactions preserve the underlying SQLite or disk failure when SQLite has already ended a transaction',

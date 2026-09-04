@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.320.0] — 2026-09-04
+
 ### Added
 
 - **The statusline picker owns the full rail contract.** `/statusline` now decides which chips render, on which of the four rails, and at what density; the bar consumes that layout through a single shorten-before-drop fitter (`layoutRail()`), so a narrow terminal concedes detail rather than dropping chips. A pinned-density chip never degrades — it can only be dropped. The rails regrouped by volatility into L1 identity, L2 vitals, L3 safety & work, and L4 async, matching the grouping already used by `core/statusline`, and the click map consumes the same layout as the renderer so mouse hit-testing cannot drift from what is drawn. (`54a0aadfe`)
