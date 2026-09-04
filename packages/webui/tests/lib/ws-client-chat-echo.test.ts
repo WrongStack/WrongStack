@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WrongStackWebSocketClient } from '../../src/lib/ws-client.js';
+import type { WSServerMessage } from '../../src/types/server-message.js';
 
 /**
  * B-04 (docs/audit/webui-full-review-2026-09-03.md) — the suppression map
@@ -26,7 +27,7 @@ describe('WrongStackWebSocketClient chat echo suppression (B-04 requestId-keyed)
       client.consumeSuppressedChatEcho('skills.list', {
         type: 'skills.list',
         payload: { requestId: 'rid-1', enabled: true, skills: [] },
-      }),
+      } as WSServerMessage),
     ).toBe(true);
   });
 
@@ -69,7 +70,7 @@ describe('WrongStackWebSocketClient chat echo suppression (B-04 requestId-keyed)
       client.consumeSuppressedChatEcho('tools.list', {
         type: 'tools.list',
         payload: { requestId: minted as string, tools: [] },
-      }),
+      } as WSServerMessage),
     ).toBe(true);
     // An unstamped sibling reply (another tab's chat-issued command) is untouched.
     expect(
@@ -120,7 +121,7 @@ describe('WrongStackWebSocketClient chat echo suppression (B-04 requestId-keyed)
       client.consumeSuppressedChatEcho('tools.list', {
         type: 'tools.list',
         payload: { requestId: 'rid-B', tools: [] },
-      }),
+      } as WSServerMessage),
     ).toBe(true);
     // A's response still finds its slot — the previous FIFO would have
     // dropped this one because the type-keyed queue was already empty.
@@ -128,7 +129,7 @@ describe('WrongStackWebSocketClient chat echo suppression (B-04 requestId-keyed)
       client.consumeSuppressedChatEcho('tools.list', {
         type: 'tools.list',
         payload: { requestId: 'rid-A', tools: [] },
-      }),
+      } as WSServerMessage),
     ).toBe(true);
   });
 
@@ -140,7 +141,7 @@ describe('WrongStackWebSocketClient chat echo suppression (B-04 requestId-keyed)
       client.consumeSuppressedChatEcho('memory.sage.list', {
         type: 'memory.sage.list',
         payload: { requestId: 'unknown', memories: [] },
-      }),
+      } as WSServerMessage),
     ).toBe(false);
   });
 
@@ -161,7 +162,7 @@ describe('WrongStackWebSocketClient chat echo suppression (B-04 requestId-keyed)
       client.consumeSuppressedChatEcho('tools.list', {
         type: 'tools.list',
         payload: { requestId: 'rid-tools', tools: [] },
-      }),
+      } as WSServerMessage),
     ).toBe(false);
   });
 
@@ -195,7 +196,7 @@ describe('WrongStackWebSocketClient chat echo suppression (B-04 requestId-keyed)
       client.consumeSuppressedChatEcho('tools.list', {
         type: 'tools.list',
         payload: { requestId: 'whatever', tools: [] },
-      }),
+      } as WSServerMessage),
     ).toBe(false);
   });
 });
