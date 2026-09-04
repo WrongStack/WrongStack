@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SqliteSageStore as SageStore } from '../src/sqlite-store.js';
 
@@ -420,7 +420,7 @@ async function seedAudienceRowsDirect(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     const now = '2026-09-04T00:00:00.000Z';
-    const row = (id: string, role: string, importance: number): unknown[] => {
+    const row = (id: string, role: string, importance: number): SQLInputValue[] => {
       const audience = JSON.stringify({ roles: [role] });
       const data = JSON.stringify({
         id,

@@ -59,6 +59,7 @@ function createHarness() {
     setCouncilMaxConcurrency: vi.fn().mockResolvedValue(null as string | null),
     setCouncilJudgeMaxTokens: vi.fn().mockResolvedValue(null as string | null),
     setCouncilVoterMaxTokens: vi.fn().mockResolvedValue(null as string | null),
+    setCouncilDeliberationRounds: vi.fn().mockResolvedValue(null as string | null),
     setLedgerEnabled: vi.fn().mockResolvedValue(null as string | null),
     setAutoDeny: vi.fn().mockResolvedValue(null as string | null),
     setTerminalPolicy: vi.fn().mockResolvedValue(null as string | null),

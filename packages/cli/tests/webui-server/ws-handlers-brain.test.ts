@@ -116,6 +116,7 @@ const SNAPSHOT: BrainConfigSnapshot = {
     distinctness: 'none',
     judgeMaxTokens: undefined,
     voterMaxTokens: undefined,
+    deliberationRounds: undefined,
     seats: [],
   },
   ledger: {

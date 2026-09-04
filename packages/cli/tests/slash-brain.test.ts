@@ -192,6 +192,7 @@ describe('/brain slash command', () => {
           distinctness: 'none',
           judgeMaxTokens: undefined,
           voterMaxTokens: undefined,
+          deliberationRounds: undefined,
           seats: [],
         },
         ledger: {
@@ -284,6 +285,7 @@ describe('/brain slash command', () => {
           distinctness: 'none',
           judgeMaxTokens: undefined,
           voterMaxTokens: undefined,
+          deliberationRounds: undefined,
           seats: [],
         },
         councilLabels: ['a/x (executor)', 'b/y (skeptic, veto)'],
@@ -314,6 +316,7 @@ describe('/brain slash command', () => {
           distinctness: 'none',
           judgeMaxTokens: undefined,
           voterMaxTokens: undefined,
+          deliberationRounds: undefined,
           seats: [],
         },
         councilLabels: ['a/x (executor)', 'b/y (skeptic, veto)'],
@@ -546,6 +549,7 @@ describe('/brain slash command', () => {
           distinctness: 'none',
           judgeMaxTokens: undefined,
           voterMaxTokens: undefined,
+          deliberationRounds: undefined,
           seats: [],
         },
         ledger: {
