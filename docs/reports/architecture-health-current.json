@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-04T12:24:40.866Z",
+  "generatedAt": "2026-09-04T13:02:24.136Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,7 +13,7 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3529,
-    "testFiles": 3039,
+    "testFiles": 3040,
     "sourceLines": 861676,
     "workspaceEdges": 127,
     "moduleEdges": 11041,
@@ -568,7 +568,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 104,
-      "testFiles": 80,
+      "testFiles": 81,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -583,7 +583,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 80
+          "testFiles": 81
         }
       ]
     },
@@ -11201,6 +11201,12 @@
       },
       {
         "file": "packages/sage/tests/retrieval/vector-materialize-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/retrieval/visibility.test.ts",
         "projects": [
           "root-node"
         ]
