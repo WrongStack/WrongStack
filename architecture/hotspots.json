@@ -15,7 +15,7 @@
       "relativeImports": 19
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 851,
+      "lines": 859,
       "relativeImports": 34
     },
     "packages/cli/src/execution.ts": {
@@ -71,7 +71,7 @@
       "relativeImports": 8
     },
     "packages/core/src/chronicle/project-server.ts": {
-      "lines": 833,
+      "lines": 853,
       "relativeImports": 18
     },
     "packages/core/src/chronicle/query.ts": {
@@ -135,8 +135,8 @@
       "relativeImports": 10
     },
     "packages/core/src/execution/brain-runtime.ts": {
-      "lines": 987,
-      "relativeImports": 13
+      "lines": 1007,
+      "relativeImports": 14
     },
     "packages/core/src/execution/eternal-autonomy.ts": {
       "lines": 978,
@@ -159,7 +159,7 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 1047,
+      "lines": 1048,
       "relativeImports": 163
     },
     "packages/core/src/plugin/api.ts": {
@@ -191,7 +191,7 @@
       "relativeImports": 4
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
-      "lines": 863,
+      "lines": 864,
       "relativeImports": 0
     },
     "packages/governance/src/protocol-decoder.ts": {
@@ -267,11 +267,11 @@
       "relativeImports": 0
     },
     "packages/primitives/src/regex-guard.ts": {
-      "lines": 855,
+      "lines": 859,
       "relativeImports": 1
     },
     "packages/providers/src/openai-codex.ts": {
-      "lines": 829,
+      "lines": 833,
       "relativeImports": 13
     },
     "packages/sage/src/domain-term-extractor.ts": {
@@ -303,11 +303,11 @@
       "relativeImports": 3
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 816,
+      "lines": 835,
       "relativeImports": 16
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1013,
+      "lines": 1025,
       "relativeImports": 48
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {
@@ -434,6 +434,10 @@
       "lines": 1128,
       "relativeImports": 19
     },
+    "packages/webui/src/components/ChatView/CouncilDecisionCard.tsx": {
+      "lines": 833,
+      "relativeImports": 0
+    },
     "packages/webui/src/components/ChronicleDashboard.tsx": {
       "lines": 1002,
       "relativeImports": 2
@@ -467,7 +471,7 @@
       "relativeImports": 4
     },
     "packages/webui/src/components/SettingsPanel/BrainSection.tsx": {
-      "lines": 1001,
+      "lines": 1015,
       "relativeImports": 6
     },
     "packages/webui/src/components/SettingsPanel/MCPSection.tsx": {
@@ -495,7 +499,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/misc-handlers.ts": {
-      "lines": 1004,
+      "lines": 1019,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
@@ -539,7 +543,7 @@
       "relativeImports": 10
     },
     "packages/webui-server/src/server/backend-services.ts": {
-      "lines": 944,
+      "lines": 950,
       "relativeImports": 13
     },
     "packages/webui-server/src/server/context-editor.ts": {
