@@ -7,14 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- **`gpt-6-astra` is available under the ChatGPT sign-in (`openai-codex`) provider.** OpenAI's GPT-6 Astra now leads the Codex picker as the recommended model — added to the curated overlay (`packages/cli/data/providers.json`) and to the offline `CODEX_MODELS` floor in core, so it shows up whether or not the overlay sync is reachable. It carries the same wire reasoning efforts as the 5.6 line (`low`/`medium`/`high`/`xhigh`/`max` — `ultra` is a product orchestration mode, not a wire value), text+image input, and the lineup's 1.05M context / 128k output declaration; the live `/codex/models` probe remains the runtime guard on the window the backend actually enforces. `gpt-5.6-sol` is no longer tagged current. (`packages/core/src/models/codex-catalog.ts`, `packages/cli/data/providers.json`)
-
 ## [0.320.1] — 2026-09-04
 
 ### Added
 
+- **`gpt-6-astra` is available under the ChatGPT sign-in (`openai-codex`) provider.**
+  GPT-6 Astra leads the Codex picker as the recommended model and is present in
+  both the curated overlay and Core's offline `CODEX_MODELS` floor. It supports
+  text and image input, the same wire reasoning efforts as the 5.6 line, and a
+  declared 1.05M context / 128k output window; the live `/codex/models` probe
+  remains the runtime authority. `gpt-5.6-sol` is no longer tagged current.
+  (`packages/core/src/models/codex-catalog.ts`, `packages/cli/data/providers.json`)
 - **A useful benchmark now works out of the box.** `wstack bench run` defaults to
   the bundled six-task Node `core` suite, graded by real tests. Use `--cell
   provider/model` (or a saved model) without cloning a dataset or writing a
