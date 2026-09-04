@@ -86,6 +86,14 @@ export function getInputString(input: unknown, key: string): string | undefined 
 
 export function pathLooksInsideProject(rawPath: string, projectRoot: string | undefined): boolean {
   if (!projectRoot) return false;
+  // A Windows-absolute target (drive letter + separator) can never be inside
+  // a POSIX project root. Without this branch a POSIX-hosted agent emitting
+  // `del /s C:\Users\...` resolves the target as a relative path *inside*
+  // the project and the recursive-delete gates never fire. On win32 the
+  // normal resolution below already treats drive-absolute paths correctly.
+  if (process.platform !== 'win32' && /^[A-Za-z]:[\\/]/.test(rawPath)) {
+    return false;
+  }
   // A leading ~ is the home directory, never the project root. Without this,
   // path.resolve() treats "~/cache" as a relative path *inside* the project
   // (there is no shell tilde-expansion here), masking an escape like `rm -rf ~/cache`.

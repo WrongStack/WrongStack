@@ -209,7 +209,7 @@ function validateProductCatalog() {
     path.join(repoRoot, 'packages/tools/src/builtin.ts'),
     'utf8',
   );
-  const builtinToolsBlock = sourceSection(builtinToolsSource, 'export const builtinTools', '\n];');
+  const builtinToolsBlock = sourceSection(builtinToolsSource, 'const rawBuiltinTools', '\n];');
   const browserToolsSource = fs.readFileSync(
     path.join(repoRoot, 'packages/tools/src/browser/tools.ts'),
     'utf8',

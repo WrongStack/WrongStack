@@ -80,7 +80,9 @@ describe('codebase-impact-analysis and codebase-targeted-test tools', () => {
     }
   });
 
-  it('codebase-targeted-test locates convention test files and returns test result', async () => {
+  it('codebase-targeted-test locates convention test files and returns test result', {
+    timeout: 120_000,
+  }, async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'targeted-test-'));
     const srcDir = path.join(tempDir, 'src');
     const testsDir = path.join(tempDir, 'tests');

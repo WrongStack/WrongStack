@@ -34,7 +34,10 @@ function sent(ws: { send: ReturnType<typeof vi.fn> }): Array<Record<string, neve
 describe('stampDispatchSession', () => {
   it('stamps the dispatching session onto a key.operation_result', () => {
     const stamped = runWithDispatchSession('sess-a', () =>
-      stampDispatchSession({ type: 'key.operation_result', payload: { success: true, message: 'ok' } }),
+      stampDispatchSession({
+        type: 'key.operation_result',
+        payload: { success: true, message: 'ok' },
+      }),
     );
     expect(stamped).toEqual({
       type: 'key.operation_result',
@@ -124,8 +127,8 @@ describe('sendResult through the bound dispatch', () => {
     ]);
     const byMessage = new Map(
       sent(ws).map((frame) => [
-        (frame as { payload: { message: string } }).payload.message,
-        (frame as { payload: { sessionId?: string } }).payload.sessionId,
+        (frame as unknown as { payload: { message: string } }).payload.message,
+        (frame as unknown as { payload: { sessionId?: string } }).payload.sessionId,
       ]),
     );
     expect(byMessage.get('one failed')).toBe('tab-1');

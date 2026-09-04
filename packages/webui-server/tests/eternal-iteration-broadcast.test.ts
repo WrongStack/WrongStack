@@ -1,10 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 import {
   createEternalSubscription,
   type EternalBroadcast,
   type EternalSubscribe,
 } from '../src/server/eternal-iteration-broadcast.js';
-import type { WebSocket } from 'ws';
 
 describe('eternal-iteration-broadcast', () => {
   describe('createEternalSubscription', () => {
@@ -87,7 +87,7 @@ describe('eternal-iteration-broadcast', () => {
         ws: unknown;
         sessionId: string | null;
       }
-      const cliClients = new Map<unknown, CliConnectedClient>();
+      const cliClients = new Map<WebSocket, CliConnectedClient>();
       const cliClientsRef = () => cliClients;
       const sentTo: unknown[] = [];
       const cliBroadcast: EternalBroadcast<CliConnectedClient> = (_c, msg) => {
