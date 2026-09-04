@@ -189,7 +189,7 @@ describe('chronicle counter sink', () => {
     const denied = event({ outcome: 'denied' });
     const kept = event({ eventType: 'tool.executed', outcome: 'success' });
 
-    const results = await sink.appendBatch([event(), denied, event(), kept]);
+    const results = await sink.appendBatch!([event(), denied, event(), kept]);
     expect(results).toHaveLength(4);
     expect(inner.written.map((written) => written.eventType)).toEqual([
       'permission.evaluated',

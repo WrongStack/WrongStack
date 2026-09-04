@@ -431,6 +431,6 @@ describe('BrainTraceRecorder — interactive escalation', () => {
 
     const records = await readBrainTrace(file);
     expect(records).toHaveLength(1);
-    expect(records[0]?.decision.type).toBe('ask_human');
+    expect(records[0]?.decision?.type).toBe('ask_human');
   });
 });

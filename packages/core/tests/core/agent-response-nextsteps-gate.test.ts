@@ -128,7 +128,7 @@ describe('provider request live-context tail', () => {
 
   it('binds the owning conversation session to the provider request side-channel', async () => {
     const { ctx, a } = makeInternals();
-    ctx.session = { id: 'conversation-alpha' };
+    ctx.session = { id: 'conversation-alpha' } as never;
 
     const built = await createAgentResponseHandler(a).buildAndRunRequestPipeline({});
 

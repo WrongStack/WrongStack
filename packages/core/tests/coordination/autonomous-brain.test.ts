@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AutonomousBrain } from '../../src/coordination/autonomous-brain.js';
+import {
+  AutonomousBrain,
+  type AutonomousDecisionRequest,
+} from '../../src/coordination/autonomous-brain.js';
 import type { FleetBus } from '../../src/coordination/fleet-bus.js';
 import type {
   ChangeNode,
@@ -212,7 +215,7 @@ describe('AutonomousBrain', () => {
       options: [{ id: 'approve', label: 'Approve', risk: 'high' as const, recommended: true }],
       risk: 'high' as const,
       requiresConsensus: true,
-    };
+    } satisfies AutonomousDecisionRequest;
 
     it('escalates a consensus-required decision when nothing can approve it', async () => {
       const llm = createMockLlmProvider({ optionId: 'approve', rationale: 'Safe change' });
