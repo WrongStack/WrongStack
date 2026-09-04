@@ -1,15 +1,15 @@
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { AutonomyStage, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
-import type { GitInfo } from '../git-info.js';
-import type { MemoryContextMonitorState } from '../memory-context-monitor.js';
 import type {
   StatuslineDensities,
   StatuslineLine,
   StatuslineLines,
 } from '@wrongstack/core/statusline';
+import type { AutonomyStage, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
+import type { GitInfo } from '../git-info.js';
+import type { MemoryContextMonitorState } from '../memory-context-monitor.js';
+import type { ChipMeta, StatuslineItem } from '../ui-contracts.js';
 import type { AnimationStyle } from './animation-style.js';
 import type { StatuslineMode } from './settings-picker.js';
-import type { ChipMeta, StatuslineItem } from '../ui-contracts.js';
 export interface TodoCounts {
   pending: number;
   inProgress: number;

@@ -865,7 +865,7 @@ describe('ContextWindowEditor', () => {
       a.getState().loadSnapshot({
         revision: 'rev-a',
         messages: [{ role: 'user', content: 'A second' }],
-        readonlyContext: b.getState().readonlyContext,
+        readonlyContext: b.getState().readonlyContext!,
         messageBreakdown: [],
         diagnostics: {
           hasToolAdjacencyIssues: false,

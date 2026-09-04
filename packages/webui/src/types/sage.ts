@@ -62,6 +62,13 @@ export interface SageGraphEdge {
 export interface WSMemorySageList {
   type: 'memory.sage.list';
   payload: {
+    /**
+     * Echoed back from the request when the caller minted one
+     * (`withRequestId` on the server). `consumeSuppressedChatEcho` correlates
+     * on it to drop the chat echo for exactly the request that asked to be
+     * suppressed.
+     */
+    requestId?: string | undefined;
     memories?: SageEntry[] | undefined;
     stats?: SageStats | undefined;
     error?: string | undefined;

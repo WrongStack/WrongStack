@@ -97,7 +97,10 @@ export function decodeKanbanDomainValue(value: unknown): unknown {
       if (typeof payload === 'boolean') return payload;
       break;
     case 'number':
-      if (typeof payload === 'string') return Number(payload);
+      if (typeof payload === 'string') {
+        const number = Number(payload);
+        if (Number.isFinite(number)) return number;
+      }
       break;
     case 'string':
       if (typeof payload === 'string') return payload;
@@ -106,7 +109,10 @@ export function decodeKanbanDomainValue(value: unknown): unknown {
       if (typeof payload === 'string') return BigInt(payload);
       break;
     case 'date':
-      if (typeof payload === 'string') return new Date(payload);
+      if (typeof payload === 'string') {
+        const date = new Date(payload);
+        if (!Number.isNaN(date.getTime())) return date;
+      }
       break;
     case 'array':
       if (Array.isArray(payload)) return payload.map(decodeKanbanDomainValue);

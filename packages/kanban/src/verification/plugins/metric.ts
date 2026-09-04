@@ -55,7 +55,7 @@ export class MetricPlugin implements VerifierPlugin {
       // 'at_most' means met when current <= target (error rate, cost ceiling,
       // latency, open-bug count — anything where lower is better).
       const direction = m.direction ?? 'at_least';
-      const numeric = !Number.isNaN(target) && !Number.isNaN(current);
+      const numeric = Number.isFinite(target) && Number.isFinite(current);
       if (!numeric) {
         return {
           ...m,

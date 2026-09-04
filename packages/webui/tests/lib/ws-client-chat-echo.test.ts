@@ -25,7 +25,7 @@ describe('WrongStackWebSocketClient chat echo suppression (B-04 requestId-keyed)
     expect(
       client.consumeSuppressedChatEcho('skills.list', {
         type: 'skills.list',
-        payload: { requestId: 'rid-1', skills: [] },
+        payload: { requestId: 'rid-1', enabled: true, skills: [] },
       }),
     ).toBe(true);
   });
@@ -148,10 +148,7 @@ describe('WrongStackWebSocketClient chat echo suppression (B-04 requestId-keyed)
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-16T12:00:00Z'));
     const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
-    const sent = client.send(
-      { type: 'tools.list' },
-      { echoToChat: false, requestId: 'rid-tools' },
-    );
+    const sent = client.send({ type: 'tools.list' }, { echoToChat: false, requestId: 'rid-tools' });
     // The socket is not open in this test, so the send is queued and
     // never reaches the server. The mint stays in the suppression map.
     expect(sent).toBe(true);

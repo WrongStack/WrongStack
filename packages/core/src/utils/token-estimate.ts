@@ -529,7 +529,7 @@ export function estimateRequestTokensUpperBound(
 function getModelFamilyRatio(calibrationKey: string): number | null {
   const lower = calibrationKey.toLowerCase();
   for (const [family, ratio] of Object.entries(MODEL_FAMILY_RATIO)) {
-    if (lower.includes(family)) return ratio / 3.5; // MODEL_FAMILY_RATIO is chars/token, we need multiplier
+    if (lower.includes(family)) return 3.5 / ratio; // ratio is chars/token, baseline is 3.5 chars/token -> multiplier is 3.5 / ratio
   }
   return null;
 }

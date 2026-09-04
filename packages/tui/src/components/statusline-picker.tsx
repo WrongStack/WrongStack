@@ -1,4 +1,3 @@
-import type React from 'react';
 import {
   CHIP_DESCRIPTIONS,
   DEFAULT_LINES,
@@ -15,21 +14,27 @@ import {
   type StatuslineLine,
   type StatuslineLines,
 } from '@wrongstack/core/statusline';
-import type { ChipMeta } from '../ui-contracts.js';
+import type React from 'react';
 import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
+import type { ChipMeta } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
+import { KeyCap, MonitorShell, truncatePanelText, useMonitorSize } from './monitor-shell.js';
 import { renderMeter } from './status-bar-format.js';
 import type { StatusBarClickMap } from './status-bar-types.js';
-import { KeyCap, MonitorShell, truncatePanelText, useMonitorSize } from './monitor-shell.js';
 
+export type { StatuslineItem };
 // Chip identity, render order, line/density assignment and descriptions live
 // in the framework-free core contract (`@wrongstack/core/statusline`) — the
 // single source shared with the CLI's statusline.json persistence.
 // Re-exported here under the picker's historical names for its consumers.
-export { CHIP_DESCRIPTIONS, DEFAULT_LINES, STATUSLINE_FIELD_COUNT, STATUSLINE_ITEMS };
-export { DEFAULT_LINES as ITEM_LINE };
-export type { StatuslineItem };
+export {
+  CHIP_DESCRIPTIONS,
+  DEFAULT_LINES,
+  DEFAULT_LINES as ITEM_LINE,
+  STATUSLINE_FIELD_COUNT,
+  STATUSLINE_ITEMS,
+};
 
 /**
  * Chips the composer's top rail already renders, so the status bar suppresses

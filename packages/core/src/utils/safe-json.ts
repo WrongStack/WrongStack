@@ -69,8 +69,8 @@ export function sanitizeJsonString(s: string): string | null {
   // Stage 1: strip line and block comments outside JSON string values.
   out = stripJsonComments(out);
 
-  // Stage 2: strip trailing commas before } or ]
-  out = out.replace(/,(\s*[}\]])/g, '$1');
+  // Stage 2: strip trailing commas before } or ] outside of string values
+  out = stripTrailingCommas(out);
 
   // Stage 3: escape literal control characters that appear *inside* string
   // values. Models frequently emit raw newlines/tabs inside a code payload
@@ -174,6 +174,56 @@ function escapeControlCharsInStrings(s: string): string {
     out += c;
   }
   return out;
+}
+
+function stripTrailingCommas(s: string): string {
+  let inString = false;
+  let escaped = false;
+  const chars: string[] = [];
+  let i = 0;
+
+  while (i < s.length) {
+    const c = s.charAt(i);
+
+    if (inString) {
+      chars.push(c);
+      if (escaped) {
+        escaped = false;
+      } else if (c === '\\') {
+        escaped = true;
+      } else if (c === '"') {
+        inString = false;
+      }
+      i++;
+      continue;
+    }
+
+    if (c === '"') {
+      inString = true;
+      chars.push(c);
+      i++;
+      continue;
+    }
+
+    if (c === ',') {
+      let j = i + 1;
+      while (
+        j < s.length &&
+        (s.charAt(j) === ' ' || s.charAt(j) === '\t' || s.charAt(j) === '\n' || s.charAt(j) === '\r')
+      ) {
+        j++;
+      }
+      if (j < s.length && (s.charAt(j) === '}' || s.charAt(j) === ']')) {
+        i++;
+        continue;
+      }
+    }
+
+    chars.push(c);
+    i++;
+  }
+
+  return chars.join('');
 }
 
 function stripJsonComments(s: string): string {

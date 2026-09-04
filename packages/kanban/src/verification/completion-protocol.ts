@@ -257,15 +257,23 @@ async function verifySubtasks(
 ): Promise<KanbanVerificationSubtasks> {
   const childIds = parentTask.childTaskIds ?? [];
   const children: KanbanTask[] = [];
+  const childVerdicts: KanbanVerificationSubtasks['children'] = [];
 
   for (const childId of childIds) {
     const child = findTaskInBoard(board, childId);
-    if (child) children.push(child);
+    if (child) {
+      children.push(child);
+    } else {
+      childVerdicts.push({
+        taskId: childId,
+        title: `Missing child (${childId})`,
+        verdict: 'failed',
+      });
+    }
   }
 
   let completed = 0;
-  let failed = 0;
-  const childVerdicts: KanbanVerificationSubtasks['children'] = [];
+  let failed = childVerdicts.length;
 
   for (const child of children) {
     // Recursively verify
@@ -315,7 +323,7 @@ async function verifySubtasks(
   }
 
   return {
-    total: children.length,
+    total: childIds.length,
     completed,
     failed,
     children: childVerdicts,

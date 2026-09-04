@@ -1,9 +1,16 @@
-import type { StreamEvent } from '@wrongstack/core/types';
+import type { Request, StreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import { anthropicWireFormat } from '../src/presets/anthropic.js';
 import { googleWireFormat } from '../src/presets/google.js';
 import { openaiWireFormat } from '../src/presets/openai.js';
 import { WireFormatProvider } from '../src/wire-format.js';
+
+/**
+ * `buildUrl`/`buildHeaders` take (value, req) — none of the presets exercised
+ * below read the request, so one shared stub keeps these direct calls honest
+ * against the WireFormatConfig signature.
+ */
+const WIRE_REQ: Request = { model: 'wire-stub-model', messages: [] };
 
 /**
  * Parity tests: the L0-C presets must produce the same canonical
@@ -54,30 +61,30 @@ async function collectFromPreset(
 
 describe('Anthropic preset - buildUrl variants', () => {
   it('appends /v1/messages when base has no version suffix', () => {
-    const url = anthropicWireFormat.buildUrl('https://api.anthropic.com');
+    const url = anthropicWireFormat.buildUrl('https://api.anthropic.com', WIRE_REQ);
     expect(url).toBe('https://api.anthropic.com/v1/messages');
   });
 
   it('appends /messages when base ends with /v1', () => {
-    const url = anthropicWireFormat.buildUrl('https://api.anthropic.com/v1');
+    const url = anthropicWireFormat.buildUrl('https://api.anthropic.com/v1', WIRE_REQ);
     expect(url).toBe('https://api.anthropic.com/v1/messages');
   });
 
   it('returns base unchanged when already ending with /v1/messages', () => {
-    const url = anthropicWireFormat.buildUrl('https://api.anthropic.com/v1/messages');
+    const url = anthropicWireFormat.buildUrl('https://api.anthropic.com/v1/messages', WIRE_REQ);
     expect(url).toBe('https://api.anthropic.com/v1/messages');
   });
 
   it('strips trailing slashes (the regex match strips all trailing slashes via replace)', () => {
     // replace(/\/+$/, '') strips ALL trailing slashes, then /messages is appended
-    const url = anthropicWireFormat.buildUrl('https://api.anthropic.com/v1///');
+    const url = anthropicWireFormat.buildUrl('https://api.anthropic.com/v1///', WIRE_REQ);
     expect(url).toBe('https://api.anthropic.com/v1/messages');
   });
 });
 
 describe('Anthropic preset - buildHeaders', () => {
   it('sets x-api-key and anthropic-version', () => {
-    const headers = anthropicWireFormat.buildHeaders('test-key-123');
+    const headers = anthropicWireFormat.buildHeaders('test-key-123', WIRE_REQ);
     expect(headers).toEqual({
       'x-api-key': 'test-key-123',
       'anthropic-version': '2023-06-01',
@@ -734,34 +741,37 @@ describe('Anthropic preset - cache metadata', () => {
 
 describe('OpenAI preset - buildUrl variants', () => {
   it('appends /v1/chat/completions when base has no version suffix', () => {
-    const url = openaiWireFormat.buildUrl('https://api.example.com');
+    const url = openaiWireFormat.buildUrl('https://api.example.com', WIRE_REQ);
     expect(url).toBe('https://api.example.com/v1/chat/completions');
   });
 
   it('appends /chat/completions when base ends with /v1', () => {
-    const url = openaiWireFormat.buildUrl('https://api.openai.com/v1');
+    const url = openaiWireFormat.buildUrl('https://api.openai.com/v1', WIRE_REQ);
     expect(url).toBe('https://api.openai.com/v1/chat/completions');
   });
 
   it('appends /chat/completions when base ends with /v10', () => {
-    const url = openaiWireFormat.buildUrl('https://api.openai.com/v10');
+    const url = openaiWireFormat.buildUrl('https://api.openai.com/v10', WIRE_REQ);
     expect(url).toBe('https://api.openai.com/v10/chat/completions');
   });
 
   it('returns base unchanged when already ending with /chat/completions', () => {
-    const url = openaiWireFormat.buildUrl('https://api.openai.com/v1/chat/completions');
+    const url = openaiWireFormat.buildUrl('https://api.openai.com/v1/chat/completions', WIRE_REQ);
     expect(url).toBe('https://api.openai.com/v1/chat/completions');
   });
 
   it('strips trailing slashes before path manipulation', () => {
-    const url = openaiWireFormat.buildUrl('https://api.openai.com/v1/chat/completions///');
+    const url = openaiWireFormat.buildUrl(
+      'https://api.openai.com/v1/chat/completions///',
+      WIRE_REQ,
+    );
     expect(url).toBe('https://api.openai.com/v1/chat/completions');
   });
 });
 
 describe('OpenAI preset - buildHeaders', () => {
   it('sets Bearer authorization header', () => {
-    const headers = openaiWireFormat.buildHeaders('sk-secret');
+    const headers = openaiWireFormat.buildHeaders('sk-secret', WIRE_REQ);
     expect(headers).toEqual({ authorization: 'Bearer sk-secret' });
   });
 });
@@ -1243,7 +1253,7 @@ describe('Google preset - buildUrl', () => {
 
 describe('Google preset - buildHeaders', () => {
   it('sets x-goog-api-key header', () => {
-    const headers = googleWireFormat.buildHeaders('my-api-key');
+    const headers = googleWireFormat.buildHeaders('my-api-key', WIRE_REQ);
     expect(headers).toEqual({ 'x-goog-api-key': 'my-api-key' });
   });
 });

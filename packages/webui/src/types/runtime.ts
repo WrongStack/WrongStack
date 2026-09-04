@@ -373,6 +373,13 @@ export interface WSContextModeChanged {
 export interface WSToolsList {
   type: 'tools.list';
   payload: {
+    /**
+     * Echoed back from the request when the caller minted one
+     * (`withRequestId` on the server). `consumeSuppressedChatEcho` correlates
+     * on it to drop the chat echo for exactly the request that asked to be
+     * suppressed.
+     */
+    requestId?: string | undefined;
     tools: Array<{
       name: string;
       owner: string;

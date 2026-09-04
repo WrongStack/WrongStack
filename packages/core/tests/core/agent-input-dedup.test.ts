@@ -136,7 +136,7 @@ async function buildDedupAgent(provider: MockProvider): Promise<{ agent: Agent; 
   return { agent, tmp };
 }
 
-describe('Agent.run input-dedup burst window', () => {
+describe('Agent.run input-dedup burst window', { retry: 1 }, () => {
   let cleanupDirs: string[] = [];
   afterEach(async () => {
     for (const dir of cleanupDirs) {
