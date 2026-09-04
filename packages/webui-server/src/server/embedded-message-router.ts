@@ -8,15 +8,8 @@ import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
 import { createAutonomyRouteHandlers } from './autonomy-routes.js';
-import {
-  type BrainHandlerContext,
-  handleBrainAsk,
-  handleBrainConfigGet,
-  handleBrainConfigSet,
-  handleBrainRisk,
-  handleBrainStatus,
-} from './brain-handlers.js';
-import type { BrainRouteHandlers } from './brain-routes.js';
+import type { BrainHandlerContext } from './brain-handlers.js';
+import { type BrainRouteHandlers, createBrainRouteHandlers } from './brain-routes.js';
 import type { ChimeraRouteHandlers } from './chimera-routes.js';
 import type { ClientTransportRouteHandlers } from './client-transport-routes.js';
 import { handleCodebaseIndexServerControl } from './codebase-index-server-control.js';
@@ -102,7 +95,6 @@ import type { WSClientMessage, WSServerMessage } from './types.js';
 import { createWorklistRouteHandlers } from './worklist-routes.js';
 import { createSessionAwareWorklistContext } from './worklist-session-context.js';
 import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
-import { messageSessionId } from './ws-utils.js';
 
 export interface EmbeddedMessageRouterOptions {
   agent: Agent;
@@ -618,26 +610,10 @@ export function createEmbeddedMessageRouter(
       }),
   });
   const prefs = createPrefsRouteHandlers(deps.prefsCtx);
-  const brain: BrainRouteHandlers = {
-    status: (ws, msg) => handleBrainStatus(deps.brainCtx, ws, messageSessionId(msg)),
-    risk: (ws, msg) =>
-      handleBrainRisk(
-        deps.brainCtx,
-        ws,
-        (msg.payload as { level?: string } | undefined)?.level ?? '',
-        messageSessionId(msg),
-      ),
-    ask: (ws, msg) =>
-      handleBrainAsk(
-        deps.brainCtx,
-        ws,
-        (msg.payload as { question?: string } | undefined)?.question,
-        messageSessionId(msg),
-      ),
-    configGet: (ws) => handleBrainConfigGet(deps.brainCtx, ws),
-    configSet: (ws, msg) =>
-      handleBrainConfigSet(deps.brainCtx, ws, msg.payload, messageSessionId(msg)),
-  };
+  // Shared with the standalone host: one table, one set of payload checks.
+  // Both hosts used to hand-roll this with inline casts, which is how the
+  // three validateBrain*Payload functions ended up tested but unreachable.
+  const brain: BrainRouteHandlers = createBrainRouteHandlers(deps.brainCtx);
   /**
    * Worklist (todos / tasks / plan) for the session the request NAMES.
    *

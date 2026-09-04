@@ -38,6 +38,66 @@ describe('createSageTurnMiddleware', () => {
     expect(result.system?.[1]?.text).toContain('Always run lifecycle tests.');
   });
 
+  // Turn context gates on `memoryQueryRelevance`, which scores a
+  // semantically-recalled memory 0 — it shares no surface tokens with the
+  // question by construction. Without the breakdown, the fused search
+  // returned the memory and this middleware dropped it one line later.
+  it('injects a semantic-only hit via the per-channel breakdown', async () => {
+    const memory = {
+      searchSage: async () => {
+        throw new Error('flat searchSage must not be preferred over the breakdown');
+      },
+      searchSageWithBreakdown: async () => [
+        {
+          memory: makeMemory({
+            text: 'Retry budgets drain in the waiting room before the wire gate opens.',
+          }),
+          vectorScore: 0.88,
+          lexicalScore: null,
+          finalScore: 0.88,
+          source: 'vector' as const,
+        },
+      ],
+      recordInjection: async () => {},
+    };
+    const middleware = createSageTurnMiddleware({ memory });
+    const request = {
+      model: 'test',
+      // No informative token shared with the memory text.
+      messages: [{ role: 'user' as const, content: 'Why is the provider quarantine slow?' }],
+      system: [{ type: 'text' as const, text: 'Base prompt' }],
+    };
+
+    const result = await middleware.handler(request as never, async (next) => next);
+    expect(result.system).toHaveLength(2);
+    expect(result.system?.[1]?.text).toContain('Retry budgets drain in the waiting room');
+  });
+
+  it('drops a weak-cosine semantic hit that no lexical evidence supports', async () => {
+    const memory = {
+      searchSage: async () => [],
+      searchSageWithBreakdown: async () => [
+        {
+          memory: makeMemory({ text: 'Retry budgets drain in the waiting room.' }),
+          vectorScore: 0.4,
+          lexicalScore: null,
+          finalScore: 0.4,
+          source: 'vector' as const,
+        },
+      ],
+      recordInjection: async () => {},
+    };
+    const middleware = createSageTurnMiddleware({ memory });
+    const request = {
+      model: 'test',
+      messages: [{ role: 'user' as const, content: 'Why is the provider quarantine slow?' }],
+      system: [{ type: 'text' as const, text: 'Base prompt' }],
+    };
+
+    const result = await middleware.handler(request as never, async (next) => next);
+    expect(result.system).toHaveLength(1);
+  });
+
   it('does not inject when no user text matches', async () => {
     const memory = {
       searchSage: async () => [],

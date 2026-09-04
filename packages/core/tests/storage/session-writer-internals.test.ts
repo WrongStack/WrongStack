@@ -4,10 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SessionSummaryTracker } from '../../src/storage/session-summary-tracker.js';
-import {
-  flushBufferSync,
-  isClosedHandleError,
-} from '../../src/storage/session-writer/session-writer-flush.js';
+import { isClosedHandleError } from '../../src/storage/session-writer/session-writer-flush.js';
 import type { SessionEvent, SessionMetadata } from '../../src/types/session.js';
 
 const STARTED_AT = '2026-01-01T00:00:00.000Z';
@@ -28,29 +25,12 @@ describe('session writer internals', () => {
     await fsp.rm(tempDir, { recursive: true, force: true });
   });
 
-  it('flushes JSONL events synchronously and identifies closed handle errors', async () => {
-    const filePath = path.join(tempDir, 'session.jsonl');
-    const events: SessionEvent[] = [
-      { type: 'user_input', ts: STARTED_AT, content: 'hello' },
-      {
-        type: 'tool_result',
-        ts: '2026-01-01T00:00:01.000Z',
-        id: 'tool-1',
-        content: 'done',
-        isError: false,
-      },
-    ];
-
-    flushBufferSync(filePath, events);
-    flushBufferSync(filePath, []);
-
-    const lines = (await fsp.readFile(filePath, 'utf8')).trim().split('\n');
-    expect(lines.map((line) => JSON.parse(line) as SessionEvent)).toEqual(events);
+  it('identifies closed handle errors on the teardown path', () => {
     expect(isClosedHandleError({ code: 'EBADF' })).toBe(true);
+    expect(isClosedHandleError({ code: 'ERR_CLOSED_RESOURCE' })).toBe(true);
+    expect(isClosedHandleError({ code: 'ERR_INVALID_HANDLE' })).toBe(true);
     expect(isClosedHandleError({ code: 'ENOENT' })).toBe(false);
-
-    expect(() => flushBufferSync(tempDir, events)).not.toThrow();
-    expect(fs.statSync(filePath).size).toBeGreaterThan(0);
+    expect(isClosedHandleError(undefined)).toBe(false);
   });
 
   it('tracks observed events, finalizes a summary, and resets state', async () => {

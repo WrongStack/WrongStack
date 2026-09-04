@@ -63,7 +63,11 @@ export function createSageOutcomeCaptureMiddleware(
         const isError = nextPayload.result.is_error === true;
         const output = asString(nextPayload.result.content);
         const input = nextPayload.toolUse.input as Record<string, unknown> | undefined;
-        const command = asString(input?.['command']) || name;
+        const command =
+          asString(input?.['command']) ||
+          asString(input?.['CommandLine']) ||
+          asString(input?.['cmd']) ||
+          name;
 
         if (opts.errorPatterns && isError && output.trim()) {
           const signature = output.replace(/\s+/g, ' ').trim().slice(0, 200);
@@ -82,7 +86,14 @@ export function createSageOutcomeCaptureMiddleware(
           }
         }
 
-        const commandTools = new Set(['bash', 'exec', 'shell', 'run_terminal_command']);
+        const commandTools = new Set([
+          'bash',
+          'exec',
+          'shell',
+          'run_terminal_command',
+          'run_command',
+          'execute_command',
+        ]);
         if (opts.toolOutcomes && !isError && commandTools.has(name)) {
           const summary = output.replace(/\s+/g, ' ').trim().slice(0, 160);
           const key = `ok:${String(command).slice(0, 100)}`;

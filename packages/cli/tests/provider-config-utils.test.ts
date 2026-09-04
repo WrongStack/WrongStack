@@ -1,10 +1,16 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { DefaultSecretVault } from '@wrongstack/core/security';
 import type { ProviderConfig } from '@wrongstack/core/types';
 import { SETUP_MODEL_ID, SETUP_PROVIDER_ID } from '@wrongstack/providers';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   activeLabel,
   clearStaleProviderDefaults,
+  loadConfigProviders,
   maskedKey,
+  mutateConfigProviders,
   normalizeKeys,
   nowIso,
   resolveActiveApiKey,
@@ -350,5 +356,87 @@ describe('normalizeKeys ↔ writeKeysBack roundtrip', () => {
     expect(target.apiKey).toBeUndefined();
     expect(resolveActiveApiKey(target)).toBe('sk-old');
     expect(target.activeKey).toBe('default');
+  });
+});
+
+describe('mutateConfigProviders (concurrent mutations — single-flight RMW)', () => {
+  let dir: string;
+  let configPath: string;
+  let vault: DefaultSecretVault;
+
+  beforeEach(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'provider-config-rmw-'));
+    configPath = path.join(dir, 'settings.json');
+    vault = new DefaultSecretVault({ keyFile: path.join(dir, '.vault-key') });
+    // Seed via one awaited mutation so the file is the canonical encrypted
+    // shape the real writer produces.
+    await mutateConfigProviders(
+      configPath,
+      vault,
+      (providers) => {
+        providers['alpha'] = {
+          apiKeys: [{ label: 'default', apiKey: 'sk-alpha', createdAt: '' }],
+        } as ProviderConfig;
+        providers['beta'] = {
+          apiKeys: [{ label: 'default', apiKey: 'sk-beta', createdAt: '' }],
+        } as ProviderConfig;
+      },
+      configPath,
+    );
+  });
+
+  afterEach(async () => {
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it('two overlapping mutations both land (no lost update)', async () => {
+    // Fired unawaited — the exact way the auth panel's direct mutation methods
+    // (auth-menu/panel-service.ts `mutate()`), the add-provider flows, and the
+    // webui server's provider writes reach this primitive. Both reads used to
+    // resolve before either write landed, and the last writer's document
+    // silently dropped the other mutation.
+    const editAlpha = mutateConfigProviders(
+      configPath,
+      vault,
+      (providers) => {
+        providers['alpha']!.models = ['m1'];
+      },
+      configPath,
+    );
+    const editBeta = mutateConfigProviders(
+      configPath,
+      vault,
+      (providers) => {
+        providers['beta']!.models = ['m2'];
+      },
+      configPath,
+    );
+    await Promise.all([editAlpha, editBeta]);
+
+    const providers = await loadConfigProviders(configPath, vault);
+    expect(providers['alpha']!.models).toEqual(['m1']);
+    expect(providers['beta']!.models).toEqual(['m2']);
+  });
+
+  it('sequential mutations still merge onto the stored document', async () => {
+    await mutateConfigProviders(
+      configPath,
+      vault,
+      (providers) => {
+        providers['alpha']!.models = ['m1'];
+      },
+      configPath,
+    );
+    await mutateConfigProviders(
+      configPath,
+      vault,
+      (providers) => {
+        providers['beta']!.models = ['m2'];
+      },
+      configPath,
+    );
+    const providers = await loadConfigProviders(configPath, vault);
+    expect(providers['alpha']!.models).toEqual(['m1']);
+    expect(providers['beta']!.models).toEqual(['m2']);
   });
 });

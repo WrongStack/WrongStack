@@ -72,7 +72,8 @@ export function wrapMCPTool(
         const signal = opts?.signal ?? ctx?.signal;
         const res = await live.callTool(mcpTool.name, input, signal ? { signal } : undefined);
         if (res.isError) {
-          throw new Error(stringify(res.content));
+          const errText = stringify(res.content);
+          throw new Error(errText || `MCP tool "${qualifiedName}" failed`);
         }
         ok = true;
         return stringify(res.content);

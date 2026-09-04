@@ -19,14 +19,29 @@ import type { MemoryPort } from '@wrongstack/core/types';
 import {
   startFirstBootSageSync,
   subscribeVectorMemoryToSage,
+  sweepStaleSageMirrors,
   TransformersEmbeddingProvider,
   VectorMemoryStore,
   wrapMemoryPortWithVectorRecall,
 } from '@wrongstack/vector-memory';
 
+/** Subset of `Config['Sage']['vector']` this phase reads. */
+export interface VectorMemoryTuning {
+  enabled?: boolean | undefined;
+  weight?: number | undefined;
+  threshold?: number | undefined;
+  vectorOnlyThreshold?: number | undefined;
+  maxMaterializations?: number | undefined;
+}
+
+/** Weight of the semantic channel in the RRF blend when config says nothing. */
+export const DEFAULT_VECTOR_WEIGHT = 0.3;
+
 interface VectorMemoryArgs {
   projectRoot: string;
   flags: { 'vector-sync'?: unknown };
+  /** `config.Sage?.vector`. Omitted = every default applies. */
+  tuning?: VectorMemoryTuning | undefined;
   logger: {
     warn: (message: string) => void;
     info: (message: string) => void;
@@ -51,7 +66,11 @@ interface VectorMemoryResult {
 }
 
 export async function setupVectorMemory(args: VectorMemoryArgs): Promise<VectorMemoryResult> {
-  const { projectRoot, flags, logger, memoryStore, teardownHandlers } = args;
+  const { projectRoot, flags, logger, memoryStore, teardownHandlers, tuning } = args;
+
+  if (tuning?.enabled === false) {
+    return { memoryStore, vectorMemoryStore: undefined, vectorMemoryModelCacheDir: '' };
+  }
 
   // Vector memory is an additional, optional sibling to SAGE — embed
   // locally via @huggingface/transformers, persist to its own SQLite
@@ -103,7 +122,14 @@ export async function setupVectorMemory(args: VectorMemoryArgs): Promise<VectorM
     // so explicit operator searches get the same boost.
     wrapped = wrapMemoryPortWithVectorRecall(wrapped, {
       store: vectorMemoryStore,
-      weight: 0.3,
+      weight: tuning?.weight ?? DEFAULT_VECTOR_WEIGHT,
+      ...(tuning?.threshold !== undefined ? { threshold: tuning.threshold } : {}),
+      ...(tuning?.vectorOnlyThreshold !== undefined
+        ? { vectorOnlyThreshold: tuning.vectorOnlyThreshold }
+        : {}),
+      ...(tuning?.maxMaterializations !== undefined
+        ? { maxMaterializations: tuning.maxMaterializations }
+        : {}),
     });
     // Live event mirror: every SAGE write that follows is auto-vectorized
     // without an operator running a re-sync. The first-boot marker plus
@@ -115,6 +141,17 @@ export async function setupVectorMemory(args: VectorMemoryArgs): Promise<VectorM
       logger,
     });
     teardownHandlers.push(() => mirrorHandle.dispose());
+
+    // Bulk SAGE operations — hygiene's archive/purge passes, `memory.cleared`
+    // — emit one top-level event, not a `memory.deleted` per memory, so the
+    // live mirror above never sees them and their vector rows outlive the
+    // memory. Sweep them here, fire-and-forget and throttled by a marker file
+    // shared with every other host on this project.
+    void sweepStaleSageMirrors({
+      store: vectorMemoryStore,
+      memoryStore: wrapped,
+      logger,
+    });
 
     // Operator flag: `--vector-sync` forces a full re-sync regardless of
     // the existing `complete` marker. Use after a model change, schema

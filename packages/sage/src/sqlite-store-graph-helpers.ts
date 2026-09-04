@@ -1,4 +1,6 @@
-import type { MemoryGraphEdge, MemoryGraphRelation } from './types.js';
+import type { DatabaseSync } from 'node:sqlite';
+import { sqliteRowToMemory } from './sqlite-store-codec.js';
+import type { MemoryGraphEdge, MemoryGraphRelation, Sage } from './types.js';
 
 /** Prefix used for graph node ids referencing memories. */
 export const MEMORY_NODE_PREFIX = 'mem:';
@@ -45,4 +47,58 @@ export function sqliteRowToGraphEdge(id: string, row: SqliteGraphEdgeRow): Memor
     schemaVersion: 1,
     ...(edgeEvidence(row.relation, row.to_node) ?? {}),
   };
+}
+
+export interface SqliteReferenceCleanupContext {
+  stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
+  nowIso: () => string;
+  upsertMemory: (memory: Sage) => void;
+}
+
+/**
+ * Remove references to a deleted memory (`targetId`) from other active/stale memories'
+ * `supersedes`, `contradicts`, and `supersededBy` fields.
+ */
+export function cleanReferencingMemories(
+  ctx: SqliteReferenceCleanupContext,
+  targetId: string,
+): void {
+  const refs = ctx
+    .stmt(
+      `SELECT id, data FROM memories
+       WHERE id != ?
+         AND status != 'deleted'
+         AND (
+           json_extract(data, '$.supersededBy') = ?
+           OR EXISTS (
+             SELECT 1 FROM json_each(COALESCE(json_extract(data, '$.supersedes'), '[]'))
+             WHERE value = ?
+           )
+           OR EXISTS (
+             SELECT 1 FROM json_each(COALESCE(json_extract(data, '$.contradicts'), '[]'))
+             WHERE value = ?
+           )
+         )`,
+    )
+    .all(targetId, targetId, targetId, targetId) as Array<{ id: string; data: string }>;
+
+  for (const ref of refs) {
+    const other = sqliteRowToMemory(ref);
+    const patch: Partial<Sage> = {};
+    if (other.supersedes?.includes(targetId)) {
+      patch.supersedes = other.supersedes.filter((value) => value !== targetId);
+    }
+    if (other.contradicts?.includes(targetId)) {
+      patch.contradicts = other.contradicts.filter((value) => value !== targetId);
+    }
+    if (other.supersededBy === targetId) {
+      patch.supersededBy = undefined;
+    }
+    ctx.upsertMemory({
+      ...other,
+      ...patch,
+      revision: other.revision + 1,
+      updatedAt: ctx.nowIso(),
+    });
+  }
 }

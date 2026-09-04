@@ -1,28 +1,59 @@
 /**
  * Wrap an existing SAGE `MemoryPort` so that every `searchSage` /
- * `unifiedSearch` / `retrieveForAudience` call automatically injects
- * the supplied `VectorRecallProvider`. The wrapper preserves the
- * underlying port's identity for callers that compare ports, but routes
- * the read-side capability methods through a vector-augmented
- * `searchSage`.
+ * `searchSageWithBreakdown` call fuses the port's lexical candidate set with
+ * a semantic recall from the local vector store.
  *
  * Why a wrapper and not a direct constructor change:
  *   - non-invasive: no migration needed for existing host construction
  *   - opt-in: hosts that don't want vector augmentation just don't wrap
  *   - testable: easy to mock the wrapper in unit tests
  *
- * The wrapper only augments paths that go through the read-side
- * capability (`getCapability(SAGE_RETRIEVAL_CAPABILITY)` /
- * `getCapability(SAGE_SURFACE_CAPABILITY)`). Other capabilities
- * (write-side, hygiene, audit) pass through unchanged so the wrapper
- * never widens the trust boundary.
+ * ## Why the fusion runs HERE and not inside the store
+ *
+ * The historical implementation merged a `vectorRecall` provider into the
+ * search *options* and let `SqliteSageStore.searchSage` do the fusion. That
+ * works only when the store is in-process. In production it is not: hosts
+ * build the port with `createProjectSageMemoryPort`, which returns a
+ * `ProjectSageMemoryPort` speaking line-delimited JSON to the per-project
+ * SAGE daemon (`encodeSageProjectServerMessage` = `JSON.stringify`).
+ * `JSON.stringify({ vectorRecall: { search: fn } })` yields
+ * `{"vectorRecall":{}}` — functions do not survive the wire — so the daemon
+ * saw a truthy-but-empty provider, threw `search is not a function` inside
+ * the fusion's fail-open `try`, and silently returned the lexical list.
+ * The entire semantic channel was dead in every production surface while
+ * every diagnostic reported it as wired.
+ *
+ * The vector store also *cannot* simply move into the daemon: it owns an
+ * ONNX embedding provider and `@wrongstack/vector-memory` already depends on
+ * `@wrongstack/sage`, so wiring it the other way is a dependency cycle.
+ *
+ * So the fusion runs on the host side of the boundary:
+ *   1. call the port's `searchSage` (remote or in-process) for the lexical list
+ *   2. query the local vector store for the semantic list
+ *   3. fuse with RRF via `augmentLexicalWithVectorRecall`
+ *   4. resolve vector-only hits by id through the port's surface capability,
+ *      re-applying every visibility rule the lexical channel enforces in SQL
+ *      (`isSageVisibleForSearch`)
+ *
+ * Step 4 is one round-trip per admitted vector-only hit, which is why the
+ * fusion is called with a `maxMaterializations` bound.
+ *
+ * The wrapper only augments read-side capabilities
+ * (`SAGE_RETRIEVAL_CAPABILITY` / `SAGE_SURFACE_CAPABILITY`). Other
+ * capabilities (write-side, hygiene, audit) pass through unchanged so the
+ * wrapper never widens the trust boundary.
  */
 import type { MemoryPort } from '@wrongstack/core/types';
 import {
+  augmentLexicalWithVectorRecall,
+  isSageVisibleForSearch,
   SAGE_RETRIEVAL_CAPABILITY,
   SAGE_SURFACE_CAPABILITY,
+  type Sage,
   type SageRetrievalCapability,
+  type SageSearchOptions,
   type SageSurface,
+  type VectorAugmentHit,
   type VectorRecallProvider,
 } from '@wrongstack/sage';
 
@@ -33,43 +64,28 @@ export interface VectorPortWrappingOptions {
   store: VectorMemoryStore;
   /**
    * Optional pre-built provider. When omitted, the wrapper builds one via
-   * `asVectorRecallProvider(store)`.
+   * `asVectorRecallProviderAdapter(store)`.
    */
   vectorRecall?: VectorRecallProvider | undefined;
   /**
-   * Cosine threshold forwarded to the vector backend. 0 = no threshold
-   * (keep all hits, let RRF decide).
+   * Cosine threshold forwarded to the vector backend. Undefined = no
+   * threshold (keep all hits, let RRF decide).
    */
   threshold?: number | undefined;
   /**
    * Weight of the vector channel in the RRF blend. Default 0.3.
    */
   weight?: number | undefined;
-}
-
-function mergeVectorRecall(
-  options: Record<string, unknown> | undefined,
-  recall: VectorRecallProvider,
-  weight: number | undefined,
-  threshold: number | undefined,
-): Record<string, unknown> {
-  // Caller's explicit vectorRecall wins — but we still inject the
-  // provider when not set, so `searchSage(query)` and `searchSage(query,
-  // { limit: 5 })` both get the augmentation for free.
-  if (
-    options &&
-    typeof options === 'object' &&
-    'vectorRecall' in options &&
-    options['vectorRecall']
-  ) {
-    return options;
-  }
-  return {
-    ...(options ?? {}),
-    vectorRecall: recall,
-    ...(weight !== undefined ? { vectorRecallWeight: weight } : {}),
-    ...(threshold !== undefined ? { vectorRecallMinScore: threshold } : {}),
-  };
+  /**
+   * Cosine floor a semantic-only hit must clear before it is resolved and
+   * admitted. Falls back to the fusion's own default (0.62).
+   */
+  vectorOnlyThreshold?: number | undefined;
+  /**
+   * Cap on by-id resolutions of semantic-only hits per search. Each one is a
+   * round-trip when the port is remote. Falls back to the fusion default.
+   */
+  maxMaterializations?: number | undefined;
 }
 
 /**
@@ -97,39 +113,75 @@ export function asVectorRecallProviderAdapter(store: VectorMemoryStore): VectorR
 }
 
 /**
- * Return a new `MemoryPort` that routes `searchSage` calls through the
- * supplied `VectorRecallProvider`. All other capabilities are passed
- * through unchanged.
+ * Return a new `MemoryPort` whose `searchSage` / `searchSageWithBreakdown`
+ * fuse lexical and semantic recall. All other capabilities pass through
+ * unchanged.
  */
 export function wrapMemoryPortWithVectorRecall(
   port: MemoryPort,
   options: VectorPortWrappingOptions,
 ): MemoryPort {
   const recall = options.vectorRecall ?? asVectorRecallProviderAdapter(options.store);
-  const weight = options.weight;
-  const threshold = options.threshold;
 
-  // Generic search-wrapper: takes any (query, opts) => Promise<unknown>
-  // function, merges the vector recall into the opts, and returns a
-  // function with the same return type. Lets us wrap both
-  // `searchSage` (returns `Sage[]`) and `searchSageWithBreakdown`
-  // (returns `VectorAugmentHit[]`) with the same options-merge logic
-  // — TypeScript can't unify those two return types, so the generic
-  // helper is the cleanest path that doesn't lose precision.
-  const wrapSearch = <F extends (query: string, opts?: unknown) => Promise<unknown>>(
-    original: F,
-  ): F => {
-    return ((query: string, searchOpts?: unknown) =>
-      original(
+  // Resolve a semantic-only hit by id, then re-apply the lexical channel's
+  // visibility rules. `getSage` is a raw primary-key read — it knows nothing
+  // about status filters, audience scoping, `contextPolicy: 'never'` or
+  // session ownership — so skipping this check would make the vector channel
+  // a hole in session isolation.
+  const materializeFor =
+    (searchOpts: SageSearchOptions | undefined) =>
+    async (sageId: string): Promise<Sage | undefined> => {
+      const surface = port.getCapability<SageSurface>(SAGE_SURFACE_CAPABILITY);
+      if (!surface?.getSage) return undefined;
+      const memory = await surface.getSage(sageId);
+      if (!memory) return undefined;
+      return isSageVisibleForSearch(memory, searchOpts) ? memory : undefined;
+    };
+
+  const fusionOptions = (searchOpts: SageSearchOptions | undefined) => ({
+    vectorRecall: recall,
+    materializeVectorOnly: materializeFor(searchOpts),
+    ...(options.weight !== undefined ? { vectorWeight: options.weight } : {}),
+    ...(options.threshold !== undefined ? { threshold: options.threshold } : {}),
+    ...(options.vectorOnlyThreshold !== undefined
+      ? { vectorOnlyThreshold: options.vectorOnlyThreshold }
+      : {}),
+    ...(options.maxMaterializations !== undefined
+      ? { maxMaterializations: options.maxMaterializations }
+      : {}),
+    ...(searchOpts?.limit !== undefined ? { limit: searchOpts.limit } : {}),
+  });
+
+  /**
+   * A caller that supplied its own `vectorRecall` has opted into the
+   * store-side fusion path explicitly (and is therefore talking to an
+   * in-process store); double-fusing would rank the same hits twice.
+   */
+  const callerOwnsFusion = (searchOpts: SageSearchOptions | undefined): boolean =>
+    Boolean(searchOpts?.vectorRecall);
+
+  const wrapSearchSage =
+    (original: (query: string, opts?: unknown) => Promise<Sage[]>) =>
+    async (query: string, searchOpts?: unknown): Promise<Sage[]> => {
+      const opts = searchOpts as SageSearchOptions | undefined;
+      const lexical = await original(query, searchOpts);
+      if (callerOwnsFusion(opts)) return lexical;
+      const fused = await augmentLexicalWithVectorRecall(query, lexical, fusionOptions(opts));
+      return fused.map((hit) => hit.memory);
+    };
+
+  const wrapSearchWithBreakdown =
+    (original: (query: string, opts?: unknown) => Promise<VectorAugmentHit[]>) =>
+    async (query: string, searchOpts?: unknown): Promise<VectorAugmentHit[]> => {
+      const opts = searchOpts as SageSearchOptions | undefined;
+      const lexicalHits = await original(query, searchOpts);
+      if (callerOwnsFusion(opts)) return lexicalHits;
+      return augmentLexicalWithVectorRecall(
         query,
-        mergeVectorRecall(
-          searchOpts as Record<string, unknown> | undefined,
-          recall,
-          weight,
-          threshold,
-        ) as Parameters<F>[1],
-      )) as unknown as F;
-  };
+        lexicalHits.map((hit) => hit.memory),
+        fusionOptions(opts),
+      );
+    };
 
   // Build the wrapper on the port's prototype chain, NOT via a plain
   // spread. `{ ...port }` copies only own enumerable properties: for a
@@ -152,14 +204,12 @@ export function wrapMemoryPortWithVectorRecall(
       if (!original) return undefined;
       return {
         ...original,
-        searchSage: wrapSearch(original.searchSage as never),
-        // The rich-breakdown variant uses the same options-merge
-        // helper — pass the vector recall through so consumers that
-        // want the per-channel score breakdown get the same fusion
-        // behaviour as `searchSage`.
+        searchSage: wrapSearchSage(original.searchSage as never),
         ...(original.searchSageWithBreakdown
           ? {
-              searchSageWithBreakdown: wrapSearch(original.searchSageWithBreakdown as never),
+              searchSageWithBreakdown: wrapSearchWithBreakdown(
+                original.searchSageWithBreakdown as never,
+              ),
             }
           : {}),
       } as unknown as T;
@@ -169,10 +219,12 @@ export function wrapMemoryPortWithVectorRecall(
       if (!original) return undefined;
       return {
         ...original,
-        searchSage: wrapSearch(original.searchSage as never),
+        searchSage: wrapSearchSage(original.searchSage as never),
         ...(original.searchSageWithBreakdown
           ? {
-              searchSageWithBreakdown: wrapSearch(original.searchSageWithBreakdown as never),
+              searchSageWithBreakdown: wrapSearchWithBreakdown(
+                original.searchSageWithBreakdown as never,
+              ),
             }
           : {}),
       } as unknown as T;

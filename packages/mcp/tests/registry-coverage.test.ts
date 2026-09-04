@@ -527,10 +527,31 @@ describe('MCPRegistry coverage', () => {
     // The servers map now points at a *different* slot object for the same name.
     internals(registry).servers.set('replaced', makeSlot('replaced'));
     await internals(registry).attemptConnect(original);
-    // The loop guard at registry.ts:890-892 sees the replacement and returns
-    // before creating any client or mutating state.
+    // The loop guard sees the replacement and returns before creating any client or mutating state.
     expect(original['state']).toBe('connecting');
   });
+
+  it('attemptConnect cleans up and returns when slot was forgotten/removed from servers map during connect', async () => {
+    vi.useFakeTimers();
+    const { registry } = fixture();
+    const clientClose = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(MCPClient.prototype, 'connect').mockImplementation(async function () {
+      registry.forget('forgotten-slot');
+    });
+    vi.spyOn(MCPClient.prototype, 'close').mockImplementation(clientClose);
+
+    const slot = makeSlot('forgotten-slot', {
+      cfg: { name: 'forgotten-slot', transport: 'stdio', command: 'node' },
+    });
+    internals(registry).servers.set('forgotten-slot', slot);
+    await internals(registry).attemptConnect(slot);
+
+    expect(internals(registry).servers.has('forgotten-slot')).toBe(false);
+    expect(slot['client']).toBeUndefined();
+    expect(clientClose).toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
 
   it('attemptConnect cleans up when the slot disconnects during connect', async () => {
     vi.useFakeTimers();

@@ -40,7 +40,14 @@ function allow(key: string, max: number): boolean {
   return true;
 }
 
-const COMMAND_TOOLS = new Set(['bash', 'exec', 'shell', 'run_terminal_command']);
+const COMMAND_TOOLS = new Set([
+  'bash',
+  'exec',
+  'shell',
+  'run_terminal_command',
+  'run_command',
+  'execute_command',
+]);
 
 export function createSagePathRemapMiddleware(
   opts: SagePathRemapOptions,
@@ -88,7 +95,14 @@ export function createSagePathRemapMiddleware(
         // ── Path remaps from shell renames ──────────────────────────
         if (COMMAND_TOOLS.has(name)) {
           const input = nextPayload.toolUse.input as Record<string, unknown> | undefined;
-          const command = typeof input?.['command'] === 'string' ? input['command'] : '';
+          const command =
+            typeof input?.['command'] === 'string'
+              ? input['command']
+              : typeof input?.['CommandLine'] === 'string'
+                ? input['CommandLine']
+                : typeof input?.['cmd'] === 'string'
+                  ? input['cmd']
+                  : '';
           const parsed = command ? parseRenameCommand(command) : undefined;
           if (parsed) {
             const from = toProjectRelative(

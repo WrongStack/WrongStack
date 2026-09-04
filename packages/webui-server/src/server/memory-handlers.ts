@@ -15,7 +15,8 @@
 import type { MemoryPort } from '@wrongstack/core/types';
 import { getSageSurface, type SageStatus } from '@wrongstack/sage';
 import type { WebSocket } from 'ws';
-import { errMessage, send } from './ws-utils.js';
+import type { WSClientMessage } from './types.js';
+import { errMessage, send, withRequestId } from './ws-utils.js';
 
 // ── Sage response projection ──────────────────────────────────
 
@@ -47,21 +48,25 @@ function requiresSage(command: string): string {
  * to `readAll()` text only for a non-SAGE store.
  * Responds with `{ type: 'memory.list', payload: { text } }`.
  */
-export async function handleMemoryList(ws: WebSocket, memoryStore: MemoryPort): Promise<void> {
+export async function handleMemoryList(
+  ws: WebSocket,
+  msg: WSClientMessage,
+  memoryStore: MemoryPort,
+): Promise<void> {
   try {
     const Sage = getSageSurface(memoryStore);
     if (Sage) {
       const [stats, memories] = await Promise.all([Sage.stats(), Sage.listSage()]);
       const text = memories.length === 0 ? '🧠 SAGE is empty.' : formatSageText(stats, memories);
-      send(ws, { type: 'memory.list', payload: { text } });
+      send(ws, { type: 'memory.list', payload: withRequestId(msg.payload, { text }) });
       return;
     }
     const text = await memoryStore.readAll();
-    send(ws, { type: 'memory.list', payload: { text } });
+    send(ws, { type: 'memory.list', payload: withRequestId(msg.payload, { text }) });
   } catch (err) {
     send(ws, {
       type: 'memory.list',
-      payload: { text: '', error: errMessage(err) },
+      payload: withRequestId(msg.payload, { text: '', error: errMessage(err) }),
     });
   }
 }
@@ -100,20 +105,30 @@ function formatSageText(stats: SageStatsLike, memories: SageLike[]): string {
  * Request:  { type: 'memory.sage.list' }
  * Response: { type: 'memory.sage.list', payload: { memories, stats } }
  */
-export async function handleSageList(ws: WebSocket, memoryStore: MemoryPort): Promise<void> {
+export async function handleSageList(
+  ws: WebSocket,
+  msg: WSClientMessage,
+  memoryStore: MemoryPort,
+): Promise<void> {
   const Sage = getSageSurface(memoryStore);
   if (!Sage) {
     send(ws, {
       type: 'memory.sage.list',
-      payload: { error: requiresSage('memory.sage.list') },
+      payload: withRequestId(msg.payload, { error: requiresSage('memory.sage.list') }),
     });
     return;
   }
   try {
     const [stats, memories] = await Promise.all([Sage.stats(), Sage.listSage()]);
-    send(ws, { type: 'memory.sage.list', payload: { memories, stats } });
+    send(ws, {
+      type: 'memory.sage.list',
+      payload: withRequestId(msg.payload, { memories, stats }),
+    });
   } catch (err) {
-    send(ws, { type: 'memory.sage.list', payload: { error: errMessage(err) } });
+    send(ws, {
+      type: 'memory.sage.list',
+      payload: withRequestId(msg.payload, { error: errMessage(err) }),
+    });
   }
 }
 
@@ -138,7 +153,9 @@ export async function handleSageListPage(
   if (!Sage) {
     send(ws, {
       type: 'memory.sage.listPage',
-      payload: { error: requiresSage('memory.sage.listPage') },
+      payload: withRequestId((msg as { payload?: unknown })?.payload, {
+        error: requiresSage('memory.sage.listPage'),
+      }),
     });
     return;
   }
@@ -156,7 +173,10 @@ export async function handleSageListPage(
 
     if (typeof Sage.listSagePage === 'function') {
       const [page, stats] = await Promise.all([Sage.listSagePage(options as never), Sage.stats()]);
-      send(ws, { type: 'memory.sage.listPage', payload: { ...page, stats } });
+      send(ws, {
+        type: 'memory.sage.listPage',
+        payload: withRequestId(payload, { ...page, stats }),
+      });
       return;
     }
 
@@ -178,16 +198,22 @@ export async function handleSageListPage(
     const limit = Math.max(1, Math.min(500, Math.floor(options.limit ?? 50)));
     send(ws, {
       type: 'memory.sage.listPage',
-      payload: {
+      payload: withRequestId(payload, {
         memories: filtered.slice(0, limit),
         nextCursor: null,
         total: filtered.length,
         statusCounts,
         stats: await Sage.stats(),
-      },
+      }),
     });
   } catch (err) {
-    send(ws, { type: 'memory.sage.listPage', payload: { error: errMessage(err) } });
+    send(ws, {
+      type: 'memory.sage.listPage',
+      payload: withRequestId(
+        (msg as { payload?: Record<string, unknown> }).payload,
+        { error: errMessage(err) },
+      ),
+    });
   }
 }
 
@@ -218,7 +244,7 @@ export async function handleSageSearchBreakdown(
   if (!Sage) {
     send(ws, {
       type: 'memory.sage.searchBreakdown',
-      payload: { error: requiresSage('memory.sage.searchBreakdown') },
+      payload: withRequestId(msg, { error: requiresSage('memory.sage.searchBreakdown') }),
     });
     return;
   }
@@ -228,7 +254,7 @@ export async function handleSageSearchBreakdown(
     if (query.trim().length === 0) {
       send(ws, {
         type: 'memory.sage.searchBreakdown',
-        payload: { error: 'Missing required field `query`' },
+        payload: withRequestId(msg, { error: 'Missing required field `query`' }),
       });
       return;
     }
@@ -238,7 +264,10 @@ export async function handleSageSearchBreakdown(
     const options = { limit, includeStatuses };
     if (typeof Sage.searchSageWithBreakdown === 'function') {
       const hits = await Sage.searchSageWithBreakdown(query, options);
-      send(ws, { type: 'memory.sage.searchBreakdown', payload: { hits, source: 'breakdown' } });
+      send(ws, {
+        type: 'memory.sage.searchBreakdown',
+        payload: withRequestId(payload, { hits, source: 'breakdown' }),
+      });
       return;
     }
     // Fallback: synthesize a lexical-only breakdown so the WebUI can
@@ -253,9 +282,18 @@ export async function handleSageSearchBreakdown(
       finalScore: total <= 1 ? 1 : 1 - index / Math.max(1, total - 1),
       source: 'lexical' as const,
     }));
-    send(ws, { type: 'memory.sage.searchBreakdown', payload: { hits, source: 'lexical' } });
+    send(ws, {
+      type: 'memory.sage.searchBreakdown',
+      payload: withRequestId(payload, { hits, source: 'lexical' }),
+    });
   } catch (err) {
-    send(ws, { type: 'memory.sage.searchBreakdown', payload: { error: errMessage(err) } });
+    send(ws, {
+      type: 'memory.sage.searchBreakdown',
+      payload: withRequestId(
+        (msg as { payload?: Record<string, unknown> }).payload,
+        { error: errMessage(err) },
+      ),
+    });
   }
 }
 
@@ -273,24 +311,33 @@ export async function handleSageGet(
   if (!Sage) {
     send(ws, {
       type: 'memory.sage.get',
-      payload: { error: requiresSage('memory.sage.get') },
+      payload: withRequestId(msg, { error: requiresSage('memory.sage.get') }),
     });
     return;
   }
   const { id } = (msg as { payload: { id: string } }).payload;
   if (!id) {
-    send(ws, { type: 'memory.sage.get', payload: { error: 'id is required' } });
+    send(ws, {
+      type: 'memory.sage.get',
+      payload: withRequestId(msg, { error: 'id is required' }),
+    });
     return;
   }
   try {
     const memory = await Sage.getSage(id);
     if (!memory) {
-      send(ws, { type: 'memory.sage.get', payload: { error: `Memory "${id}" not found.` } });
+      send(ws, {
+        type: 'memory.sage.get',
+        payload: withRequestId(msg, { error: `Memory "${id}" not found.` }),
+      });
       return;
     }
-    send(ws, { type: 'memory.sage.get', payload: { memory } });
+    send(ws, { type: 'memory.sage.get', payload: withRequestId(msg, { memory }) });
   } catch (err) {
-    send(ws, { type: 'memory.sage.get', payload: { error: errMessage(err) } });
+    send(ws, {
+      type: 'memory.sage.get',
+      payload: withRequestId(msg, { error: errMessage(err) }),
+    });
   }
 }
 
@@ -304,14 +351,17 @@ export async function handleSageGraph(
   if (!Sage?.graphFor) {
     send(ws, {
       type: 'memory.sage.graph',
-      payload: { query: '', error: requiresSage('memory.sage.graph') },
+      payload: withRequestId(msg, { query: '', error: requiresSage('memory.sage.graph') }),
     });
     return;
   }
   const payload = (msg as { payload?: Record<string, unknown> }).payload ?? {};
   const query = typeof payload['query'] === 'string' ? payload['query'].trim() : '';
   if (!query) {
-    send(ws, { type: 'memory.sage.graph', payload: { query, error: 'query is required' } });
+    send(ws, {
+      type: 'memory.sage.graph',
+      payload: withRequestId(msg, { query, error: 'query is required' }),
+    });
     return;
   }
   const maxDepth =
@@ -333,11 +383,14 @@ export async function handleSageGraph(
     const memories = (await Promise.all([...memoryIds].map((id) => Sage.getSage(id)))).filter(
       (memory) => memory !== null,
     );
-    send(ws, { type: 'memory.sage.graph', payload: { query, edges, memories } });
+    send(ws, {
+      type: 'memory.sage.graph',
+      payload: withRequestId(msg, { query, edges, memories }),
+    });
   } catch (err) {
     send(ws, {
       type: 'memory.sage.graph',
-      payload: { query, error: errMessage(err) },
+      payload: withRequestId(msg, { query, error: errMessage(err) }),
     });
   }
 }
@@ -357,14 +410,17 @@ export async function handleSageUpdate(
   if (!Sage) {
     send(ws, {
       type: 'memory.sage.update',
-      payload: { error: requiresSage('memory.sage.update') },
+      payload: withRequestId(msg, { error: requiresSage('memory.sage.update') }),
     });
     return;
   }
   const payload = (msg as { payload: Record<string, unknown> }).payload;
   const id = payload['id'] as string | undefined;
   if (!id) {
-    send(ws, { type: 'memory.sage.update', payload: { error: 'id is required' } });
+    send(ws, {
+      type: 'memory.sage.update',
+      payload: withRequestId(msg, { error: 'id is required' }),
+    });
     return;
   }
 
@@ -373,15 +429,21 @@ export async function handleSageUpdate(
   delete patch['id'];
 
   if (Object.keys(patch).length === 0) {
-    send(ws, { type: 'memory.sage.update', payload: { error: 'No fields to update.' } });
+    send(ws, {
+      type: 'memory.sage.update',
+      payload: withRequestId(msg, { error: 'No fields to update.' }),
+    });
     return;
   }
 
   try {
     const memory = await Sage.updateSage(id, patch as never);
-    send(ws, { type: 'memory.sage.update', payload: { memory } });
+    send(ws, { type: 'memory.sage.update', payload: withRequestId(msg, { memory }) });
   } catch (err) {
-    send(ws, { type: 'memory.sage.update', payload: { error: errMessage(err) } });
+    send(ws, {
+      type: 'memory.sage.update',
+      payload: withRequestId(msg, { error: errMessage(err) }),
+    });
   }
 }
 
@@ -400,14 +462,17 @@ export async function handleSageRemember(
   if (!Sage) {
     send(ws, {
       type: 'memory.sage.remember',
-      payload: { error: requiresSage('memory.sage.remember') },
+      payload: withRequestId(msg, { error: requiresSage('memory.sage.remember') }),
     });
     return;
   }
   const payload = (msg as { payload: Record<string, unknown> }).payload;
   const text = payload['text'] as string | undefined;
   if (!text?.trim()) {
-    send(ws, { type: 'memory.sage.remember', payload: { error: 'text is required' } });
+    send(ws, {
+      type: 'memory.sage.remember',
+      payload: withRequestId(msg, { error: 'text is required' }),
+    });
     return;
   }
   try {
@@ -428,9 +493,12 @@ export async function handleSageRemember(
       supersedes: payload['supersedes'] as string[] | undefined,
       contradicts: payload['contradicts'] as string[] | undefined,
     } as never);
-    send(ws, { type: 'memory.sage.remember', payload: { memory } });
+    send(ws, { type: 'memory.sage.remember', payload: withRequestId(msg, { memory }) });
   } catch (err) {
-    send(ws, { type: 'memory.sage.remember', payload: { error: errMessage(err) } });
+    send(ws, {
+      type: 'memory.sage.remember',
+      payload: withRequestId(msg, { error: errMessage(err) }),
+    });
   }
 }
 
@@ -516,14 +584,17 @@ export async function handleSageRecover(
   if (!Sage?.recoverSage) {
     send(ws, {
       type: 'memory.sage.recover',
-      payload: { error: requiresSage('memory.sage.recover') },
+      payload: withRequestId(msg, { error: requiresSage('memory.sage.recover') }),
     });
     return;
   }
   const payload = (msg as { payload: Record<string, unknown> }).payload;
   const id = payload['id'] as string | undefined;
   if (!id) {
-    send(ws, { type: 'memory.sage.recover', payload: { error: 'id is required' } });
+    send(ws, {
+      type: 'memory.sage.recover',
+      payload: withRequestId(msg, { error: 'id is required' }),
+    });
     return;
   }
   const reason = payload['reason'] as string | undefined;
@@ -532,7 +603,7 @@ export async function handleSageRecover(
     if (!preExisting) {
       send(ws, {
         type: 'memory.sage.recover',
-        payload: { error: `SAGE "${id}" not found.` },
+        payload: withRequestId(msg, { error: `SAGE "${id}" not found.` }),
       });
       return;
     }
@@ -540,7 +611,7 @@ export async function handleSageRecover(
     if (preExisting.status === 'active') {
       send(ws, {
         type: 'memory.sage.recover',
-        payload: { recovered: true, memory: preExisting, noop: true },
+        payload: withRequestId(msg, { recovered: true, memory: preExisting, noop: true }),
       });
       return;
     }
@@ -553,9 +624,12 @@ export async function handleSageRecover(
       response['activeId'] = memory.id;
       response['noop'] = true;
     }
-    send(ws, { type: 'memory.sage.recover', payload: response });
+    send(ws, { type: 'memory.sage.recover', payload: withRequestId(msg, response) });
   } catch (err) {
-    send(ws, { type: 'memory.sage.recover', payload: { error: errMessage(err) } });
+    send(ws, {
+      type: 'memory.sage.recover',
+      payload: withRequestId(msg, { error: errMessage(err) }),
+    });
   }
 }
 
@@ -573,7 +647,7 @@ export async function handleSageListCandidates(
   if (!Sage) {
     send(ws, {
       type: 'memory.sage.listCandidates',
-      payload: { error: requiresSage('memory.sage.listCandidates') },
+      payload: withRequestId(msg, { error: requiresSage('memory.sage.listCandidates') }),
     });
     return;
   }
@@ -583,16 +657,19 @@ export async function handleSageListCandidates(
     if (typeof Sage.listCandidates !== 'function') {
       send(ws, {
         type: 'memory.sage.listCandidates',
-        payload: { error: 'listCandidates is not available on this SAGE surface' },
+        payload: withRequestId(msg, { error: 'listCandidates is not available on this SAGE surface' }),
       });
       return;
     }
     const candidates = await Sage.listCandidates(includeResolved);
-    send(ws, { type: 'memory.sage.listCandidates', payload: { candidates } });
+    send(ws, {
+      type: 'memory.sage.listCandidates',
+      payload: withRequestId(msg, { candidates }),
+    });
   } catch (err) {
     send(ws, {
       type: 'memory.sage.listCandidates',
-      payload: { error: errMessage(err) },
+      payload: withRequestId(msg, { error: errMessage(err) }),
     });
   }
 }

@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Search,
   Settings as SettingsIcon,
+  Scissors,
   Sparkles,
   Square,
   Stethoscope,
@@ -139,7 +140,26 @@ export function CommandPalette() {
         label: t('activity:panels.contextDashboard'),
         icon: BarChart3,
         keywords: ['context', 'window', 'tokens', 'pressure', 'telemetry'],
-        run: () => useUIStore.getState().setCurrentView('context'),
+        // Was `useUIStore.getState().setCurrentView('context')` — a direct
+        // store write that stepped around the navigation helpers because
+        // 'context' was missing from their union. It is a listed UnlistedView
+        // now, so this goes through the same path as every other view (which
+        // also collapses the side panel, as a main view should).
+        run: () => navigateToView('context'),
+      },
+      {
+        // The Dead Code Scan panel has a backend (`/api/deadcode/*`), a
+        // `ViewRouter` branch and labels in every locale, but shipped with no
+        // way to open it — the navigation union it would have needed did not
+        // list the view. It is a diagnostic, so it belongs here next to the
+        // context dashboard rather than in the activity bar.
+        // See docs/audit/webui-full-review-2026-09-03.md B-02.
+        id: 'deadcode',
+        category: 'Command',
+        label: t('activity:panels.deadcode'),
+        icon: Scissors,
+        keywords: ['dead', 'code', 'unused', 'scan', 'cleanup', 'prune'],
+        run: () => navigateToView('deadcode'),
       },
       {
         id: 'skills',

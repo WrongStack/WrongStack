@@ -29,7 +29,10 @@ export class SpecVersioning {
   recordVersion(spec: Specification, changeDescription?: string): SpecVersion {
     const version: SpecVersion = {
       version: spec.version,
-      spec: { ...spec },
+      // Deep snapshot: a shallow spread leaves `requirements`/`sections`
+      // aliased to the caller's object, so later edits to that object would
+      // retroactively rewrite recorded history.
+      spec: structuredClone(spec),
       timestamp: Date.now(),
       changeDescription,
     };

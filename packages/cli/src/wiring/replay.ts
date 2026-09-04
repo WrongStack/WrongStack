@@ -50,6 +50,11 @@ export function bindReplayToContainer(opts: BindReplayOptions): void {
   if (!opts.container.has(TOKENS.ProviderRunner)) {
     // No prior binding — install the default `runProviderWithRetry`
     // first so the replay wrapper has a real inner to delegate to.
+    // This literal IS the default runner: `core` used to also carry a
+    // `DefaultProviderRunner` class with the same one-line body, documented
+    // as "bound by the CLI at boot", which nothing ever bound. Agent-loop
+    // treats an unbound token as "no DI runner" and calls the provider
+    // directly, so this replay path is the only place a default is needed.
     container.bind(
       TOKENS.ProviderRunner,
       () =>

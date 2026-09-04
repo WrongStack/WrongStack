@@ -47,7 +47,7 @@ describe('project state guard', () => {
     guard.close();
   });
 
-  it('restores the WrongStack .gitignore rules without removing project rules', async () => {
+  it('restores protected .gitignore rules without removing project rules', async () => {
     const root = await temporaryProject();
     const gitignore = path.join(root, '.gitignore');
     const guard = await startProjectStateGuard(root, { pollIntervalMs: 25 });
@@ -57,6 +57,7 @@ describe('project state guard', () => {
 
     const content = await fs.readFile(gitignore, 'utf8');
     expect(content).toContain('node_modules/');
+    expect(content).toContain('.temp_files/');
     expect(content).toContain('.wrongstack/');
     expect(content).toContain('!/.wrongstack/project.json');
     guard.close();

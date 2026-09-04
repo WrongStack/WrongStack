@@ -114,6 +114,19 @@ const ARRAY_PREF_VALIDATORS: Record<
   modelAvailabilitySchedule: validateModelBlackoutRule,
 };
 const MODEL_MATRIX_PREF_KEYS = new Set(['modelMatrix']);
+/**
+ * Deterministic cost tiers (`Config.modelTiers`).
+ *
+ * This key was in `pref-helpers.ts`'s PREF_KEYS — the persist half was written
+ * and ready — but never in any validator set, so `validatePreferenceValue`
+ * fell through to "unknown preference key" and rejected the WHOLE payload.
+ * The WebUI's Model Tiers editor (`SettingsPanel/ModelTiersSection.tsx`) writes
+ * the entire object through `syncPref` on every keystroke, so the local store
+ * updated, the panel re-rendered, and the config file never changed — the
+ * setting looked applied while `/tier` and the TUI menu showed the old value.
+ * See docs/audit/webui-full-review-2026-09-03.md B-01.
+ */
+const MODEL_TIERS_PREF_KEYS = new Set(['modelTiers']);
 // Object of booleans, e.g. { 'plugin-name': true }. Parity with the embedded
 // server, which accepts `pluginsEnabled` and persists it to
 // extensions.<name>.enabled — the standalone server rejected it as unknown.
@@ -253,6 +266,130 @@ function validateModelRuntimeValue(
   const parameters = modelRuntime['parameters'];
   if (parameters !== undefined && !isRecord(parameters)) {
     return `${path}.parameters must be an object when provided`;
+  }
+
+  return null;
+}
+
+const MODEL_TIER_LEADER_MODE_VALUES = new Set(['off', 'propose', 'auto']);
+
+/** Optional finite number, non-negative unless `min` says otherwise. */
+function checkOptionalNumber(
+  value: unknown,
+  path: string,
+  min = 0,
+  max = Number.POSITIVE_INFINITY,
+): string | null {
+  if (value === undefined) return null;
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return `${path} must be a finite number when provided`;
+  }
+  if (value < min || value > max) {
+    const maxStr = max === Number.POSITIVE_INFINITY ? '∞' : String(max);
+    return `${path} must be in [${min}, ${maxStr}]`;
+  }
+  return null;
+}
+
+/** Optional string field. */
+function checkOptionalString(value: unknown, path: string): string | null {
+  if (value === undefined) return null;
+  return typeof value === 'string' ? null : `${path} must be a string when provided`;
+}
+
+/** Validate one `ModelTiersConfig.levels[id]` entry. */
+function validateModelTierLevel(level: Record<string, unknown>, path: string): string | null {
+  for (const field of ['fallbackProfile', 'provider', 'model', 'description'] as const) {
+    const error = checkOptionalString(level[field], `${path}.${field}`);
+    if (error) return error;
+  }
+  // Budgets are ceilings a spawn is clamped to: zero or negative would make
+  // every subagent at this tier fail before its first call, so the floor is 1
+  // for the count/time budgets and 0 for the spend ceiling (0 = "no spend").
+  const numericBounds: Array<[string, number]> = [
+    ['maxCostUsd', 0],
+    ['maxIterations', 1],
+    ['maxToolCalls', 1],
+    ['maxTokens', 1],
+    ['timeoutMs', 1],
+  ];
+  for (const [field, min] of numericBounds) {
+    const error = checkOptionalNumber(level[field], `${path}.${field}`, min);
+    if (error) return error;
+  }
+  const modelRuntime = level['modelRuntime'];
+  if (modelRuntime !== undefined) {
+    if (!isRecord(modelRuntime)) return `${path}.modelRuntime must be an object when provided`;
+    const error = validateModelRuntimeValue(modelRuntime, `${path}.modelRuntime`);
+    if (error) return error;
+  }
+  return null;
+}
+
+/**
+ * Validate a `modelTiers` payload against `ModelTiersConfig`.
+ *
+ * Unknown fields are tolerated (the same contract `modelMatrix` uses): core may
+ * grow `ModelTiersConfig`, and a validator that rejects tomorrow's field would
+ * reproduce exactly the whole-payload rejection this function exists to fix.
+ * What IS enforced is the shape of every field that reaches config, plus the
+ * prototype-pollution guard on the two records whose KEYS become property
+ * names (`levels` tier ids and `routing` role names) — the same guard
+ * `modelMatrix`, `fallbackProfiles` and `pluginsEnabled` already carry.
+ */
+function validateModelTiersValue(value: unknown, path: string): string | null {
+  if (!isRecord(value)) return `${path} must be an object`;
+
+  const enabled = value['enabled'];
+  if (enabled !== undefined && typeof enabled !== 'boolean') {
+    return `${path}.enabled must be a boolean when provided`;
+  }
+  const defaultTier = checkOptionalString(value['default'], `${path}.default`);
+  if (defaultTier) return defaultTier;
+
+  const levels = value['levels'];
+  if (levels !== undefined) {
+    if (!isRecord(levels)) return `${path}.levels must be an object when provided`;
+    const badLevelKey = Object.keys(levels).find((k) => FORBIDDEN_PROTO_KEYS.has(k));
+    if (badLevelKey) return `${path}.levels contains a forbidden key: ${badLevelKey}`;
+    for (const [id, level] of Object.entries(levels)) {
+      if (!isRecord(level)) return `${path}.levels.${id} must be an object`;
+      const error = validateModelTierLevel(level, `${path}.levels.${id}`);
+      if (error) return error;
+    }
+  }
+
+  const routing = value['routing'];
+  if (routing !== undefined) {
+    if (!isRecord(routing)) return `${path}.routing must be an object when provided`;
+    const badRouteKey = Object.keys(routing).find((k) => FORBIDDEN_PROTO_KEYS.has(k));
+    if (badRouteKey) return `${path}.routing contains a forbidden key: ${badRouteKey}`;
+    for (const [route, tier] of Object.entries(routing)) {
+      if (typeof tier !== 'string') return `${path}.routing.${route} must be a string`;
+    }
+  }
+
+  const leader = value['leader'];
+  if (leader !== undefined) {
+    if (!isRecord(leader)) return `${path}.leader must be an object when provided`;
+    const mode = leader['mode'];
+    if (mode !== undefined && (typeof mode !== 'string' || !MODEL_TIER_LEADER_MODE_VALUES.has(mode))) {
+      return `${path}.leader.mode must be one of: ${Array.from(MODEL_TIER_LEADER_MODE_VALUES).join(', ')}`;
+    }
+    const dwell = checkOptionalNumber(leader['dwellTurns'], `${path}.leader.dwellTurns`, 0);
+    if (dwell) return dwell;
+    const savings = checkOptionalNumber(leader['minSavingsUsd'], `${path}.leader.minSavingsUsd`, 0);
+    if (savings) return savings;
+    // A context-fill guard is a fraction of the target model's window.
+    const fill = checkOptionalNumber(
+      leader['maxContextFillForSwitch'],
+      `${path}.leader.maxContextFillForSwitch`,
+      0,
+      1,
+    );
+    if (fill) return fill;
+    const maxTier = checkOptionalString(leader['maxTier'], `${path}.leader.maxTier`);
+    if (maxTier) return maxTier;
   }
 
   return null;
@@ -425,6 +562,9 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
     }
     return null;
   }
+  if (MODEL_TIERS_PREF_KEYS.has(key)) {
+    return validateModelTiersValue(value, `prefs.update payload.${key}`);
+  }
   const allowed = ENUM_PREF_KEYS[key];
   if (allowed) {
     return typeof value === 'string' && allowed.has(value)
@@ -433,6 +573,37 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
   }
   return `prefs.update payload contains unknown preference key: ${key}`;
 }
+
+/**
+ * Every preference key `validatePreferenceValue` will accept.
+ *
+ * Exported so the drift between this validator and `pref-helpers.ts`'s
+ * `PREF_KEYS` (the keys the server is prepared to READ and PERSIST) can be
+ * asserted instead of remembered. The two lists disagreeing is silent and
+ * asymmetric, and both directions are bugs a user sees:
+ *
+ *   - persistable but NOT validated: the whole `prefs.update` payload is
+ *     rejected on that one key, so the browser's local store updates, the
+ *     panel re-renders, and the config file never changes — the setting looks
+ *     applied and is not (this is exactly how `modelTiers` shipped broken);
+ *   - validated but NOT persistable: the write is accepted, echoed back, and
+ *     silently dropped at the persist layer, so it survives until reload.
+ *
+ * Assembled from the same sets `validatePreferenceValue` consults, in the same
+ * order, so a new key can only reach the validator by also reaching this set.
+ */
+export const VALIDATED_PREF_KEYS: ReadonlySet<string> = new Set<string>([
+  ...BOOLEAN_PREF_KEYS,
+  ...NUMBER_PREF_KEYS,
+  ...STRING_PREF_KEYS,
+  ...STRING_ARRAY_PREF_KEYS,
+  ...Object.keys(ARRAY_PREF_VALIDATORS),
+  ...STRING_ARRAY_RECORD_PREF_KEYS,
+  ...BOOLEAN_RECORD_PREF_KEYS,
+  ...MODEL_MATRIX_PREF_KEYS,
+  ...MODEL_TIERS_PREF_KEYS,
+  ...Object.keys(ENUM_PREF_KEYS),
+]);
 
 export function validatePrefsUpdatePayload(
   payload: unknown,

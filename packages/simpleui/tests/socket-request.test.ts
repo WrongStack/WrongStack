@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
-import { socketRequest } from '../src/lib/socket-request.js';
-import type { ServerFrame } from '../src/lib/socket-request.js';
+import { type ServerFrame, socketRequest } from '../src/lib/socket-request.js';
 
 function mockSocket() {
   const listeners = new Set<(frame: ServerFrame) => void>();
@@ -88,5 +87,37 @@ describe('socketRequest', () => {
     socket.emit({ type: 'files.tree', payload: { ok: true } });
     handle.cancel();
     await expect(handle.promise).resolves.toEqual({ ok: true });
+  });
+
+  it('a throwing send resolves null instead of rejecting (never-reject contract)', async () => {
+    const socket = mockSocket();
+    socket.send.mockImplementation(() => {
+      throw new Error('invalid message: payload.filePath failed schema validation');
+    });
+    const handle = socketRequest({
+      socket: socket as never,
+      sendType: 'files.read',
+      payload: { filePath: 'x' },
+      expectType: 'files.read',
+      timeoutMs: 5_000,
+    });
+    await expect(handle.promise).resolves.toBeNull();
+  });
+
+  it('a throwing send unsubscribes the reply listener (no leak)', async () => {
+    const socket = mockSocket();
+    socket.send.mockImplementation(() => {
+      throw new Error('invalid message: payload.filePath failed schema validation');
+    });
+    const handle = socketRequest({
+      socket: socket as never,
+      sendType: 'files.read',
+      payload: { filePath: 'x' },
+      expectType: 'files.read',
+      timeoutMs: 5_000,
+    });
+    await expect(handle.promise).resolves.toBeNull();
+    // finish() must have torn down the subscription: no handler may remain.
+    expect(socket.listeners.size).toBe(0);
   });
 });

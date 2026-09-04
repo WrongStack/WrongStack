@@ -291,6 +291,39 @@ export interface SageConfig {
           | undefined;
       }
     | undefined;
+  /**
+   * Local semantic (vector) recall fused into every SAGE search. The vector
+   * store is a sibling SQLite database populated by mirroring the SAGE corpus;
+   * fusion happens host-side (see `wrapMemoryPortWithVectorRecall`) because a
+   * recall provider cannot cross the SAGE daemon's JSON IPC boundary.
+   */
+  vector?:
+    | {
+        /** Build the vector store and fuse it into search. Default: true. */
+        enabled?: boolean | undefined;
+        /**
+         * Weight of the semantic channel in the RRF blend (0–1). 0 = pure
+         * lexical order, 1 = pure semantic order. Default: 0.3.
+         */
+        weight?: number | undefined;
+        /**
+         * Cosine floor forwarded to the vector backend's own search. Hits
+         * below it never enter the fusion. Default: unset (backend default).
+         */
+        threshold?: number | undefined;
+        /**
+         * Cosine floor a *semantic-only* hit — one the lexical channel missed
+         * entirely — must clear before it is resolved and admitted.
+         * Default: 0.62.
+         */
+        vectorOnlyThreshold?: number | undefined;
+        /**
+         * Cap on by-id resolutions of semantic-only hits per search. Each is
+         * one IPC round-trip to the SAGE daemon. Default: 12.
+         */
+        maxMaterializations?: number | undefined;
+      }
+    | undefined;
   retrieval?:
     | {
         /**

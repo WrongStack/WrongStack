@@ -215,6 +215,84 @@ describe('AnthropicProvider', () => {
     expect(wireSystem[0]?.['cache_control']).toEqual({ type: 'ephemeral', ttl: '5m' });
   });
 
+  it('mixed ttl markers: exactly one ttl marker, emitted deepest after all plain markers', async () => {
+    let body: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      body = JSON.parse(init.body ?? '{}');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
+    }) as never as typeof fetch;
+    const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
+    await p.complete(
+      {
+        model: 'm',
+        maxTokens: 1,
+        system: [
+          { type: 'text', text: 'head', cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: 'tail', cache_control: { type: 'ephemeral' } },
+        ],
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'q', cache_control: { type: 'ephemeral' } }] },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: 't1',
+                content: 'result body',
+                cache_control: { type: 'ephemeral' },
+              },
+            ],
+          },
+        ],
+        cache: { ttl: '1h' },
+      },
+      { signal: new AbortController().signal },
+    );
+    // Pin the documented emission contract (presets/anthropic.ts buildBody):
+    // the configured cache.ttl lands on the DEEPEST marked block — the
+    // conversation boundary, the prefix worth keeping across turn gaps — and
+    // every other marker stays a plain { type: 'ephemeral' } (Anthropic's
+    // 5-minute default). At most one ttl-bearing breakpoint exists per
+    // request by construction, so no 1h/5m pair is ever emitted to order.
+    const markers: Array<{ block: Record<string, unknown>; where: string }> = [];
+    const wireSystem = body?.['system'] as Array<Record<string, unknown>>;
+    wireSystem.forEach((block, i) => {
+      if (block['cache_control']) markers.push({ block, where: `system[${String(i)}]` });
+    });
+    const wireMessages = body?.['messages'] as Array<{
+      content: Array<Record<string, unknown>>;
+    }>;
+    wireMessages.forEach((message, mi) => {
+      if (!Array.isArray(message.content)) return;
+      message.content.forEach((block, bi) => {
+        if (block['cache_control']) {
+          markers.push({ block, where: `messages[${String(mi)}].content[${String(bi)}]` });
+        }
+      });
+    });
+    const ttlMarkers = markers.filter(
+      (m) => (m.block['cache_control'] as Record<string, unknown>)['ttl'] != null,
+    );
+    expect(ttlMarkers).toHaveLength(1);
+    expect(markers.indexOf(ttlMarkers[0]!)).toBe(markers.length - 1);
+    expect(ttlMarkers[0]!.where).toBe('messages[1].content[0]');
+    expect(ttlMarkers[0]!.block['cache_control']).toEqual({ type: 'ephemeral', ttl: '1h' });
+    for (const marker of markers) {
+      if (marker !== ttlMarkers[0]) {
+        expect(marker.block['cache_control']).toEqual({ type: 'ephemeral' });
+      }
+    }
+  });
+
   it('uses Bearer auth for non-Anthropic baseUrls (kimi-for-coding etc.)', async () => {
     const spy = vi.fn(async (_url: unknown, init?: { headers?: Record<string, string> }) => ({
       ok: true,

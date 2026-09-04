@@ -63,6 +63,7 @@ export function createTimeoutSignal(
     () => ctrl.abort(new Error(`MCP HTTP request timed out after ${timeoutMs}ms`)),
     timeoutMs,
   );
+  timer.unref?.();
   return {
     signal: ctrl.signal,
     dispose: () => {

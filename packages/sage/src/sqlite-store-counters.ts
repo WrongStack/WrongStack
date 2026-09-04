@@ -25,8 +25,9 @@ export function recordSqliteInjection(
        '$.lastAccessedAt', ?)
      WHERE id = ? AND status != 'deleted' AND json_valid(data)`,
   );
-  for (const id of memoryIds) stmt.run(now, id);
-  ctx.audit('memory.injected', { details: { memoryIds, trigger, sessionId } });
+  const uniqueIds = [...new Set(memoryIds)];
+  for (const id of uniqueIds) stmt.run(now, id);
+  ctx.audit('memory.injected', { details: { memoryIds: uniqueIds, trigger, sessionId } });
 }
 
 export function recordSqliteUse(
@@ -45,6 +46,7 @@ export function recordSqliteUse(
        '$.lastAccessedAt', ?)
      WHERE id = ? AND status != 'deleted' AND json_valid(data)`,
   );
-  for (const id of memoryIds) stmt.run(now, now, id);
-  ctx.audit('memory.used', { details: { memoryIds, source, sessionId } });
+  const uniqueIds = [...new Set(memoryIds)];
+  for (const id of uniqueIds) stmt.run(now, now, id);
+  ctx.audit('memory.used', { details: { memoryIds: uniqueIds, source, sessionId } });
 }

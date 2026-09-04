@@ -16,6 +16,7 @@ import {
   loadStatuslineConfig,
   STATUSLINE_CONFIG_KEYS,
   type StatuslineConfig,
+  saveStatuslineChips,
   saveStatuslineConfig,
 } from '../services/statusline-config.js';
 
@@ -133,10 +134,10 @@ export async function loadStatuslineHiddenItems(): Promise<{
       chips[k] = !items.includes(k);
     }
     // Hidden-item writes are scoped to chips — the stored line assignment is
-    // preserved. ensure (not load) so a corrupt file is quarantined before
-    // the RMW instead of silently persisting lines: {} over the user's data.
-    const doc = await ensureStatuslineConfig();
-    await saveStatuslineConfig({ ...doc, chips });
+    // preserved. The service queues the RMW (single-flight), so this write
+    // can no longer resurrect a stale read over a layout save that is still
+    // in flight, and vice versa.
+    await saveStatuslineChips(chips);
   };
   return { hiddenItems: hiddenItemsList, setHiddenItems, saveHiddenItems };
 }

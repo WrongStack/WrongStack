@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildClearCommand } from '../src/slash-commands/clear.js';
 import { buildCompactCommand } from '../src/slash-commands/compact.js';
 import { buildHelpCommand } from '../src/slash-commands/help.js';
+import {
+  renderSlashDeepHelp,
+  renderSlashFocusedHelp,
+} from '../src/slash-commands/slash-deep-help.js';
 import { buildDesktopCommand, buildWebuiCommand } from '../src/slash-commands/surfaces.js';
 
 function fakeCtx(): Context {
@@ -392,6 +396,52 @@ describe('buildHelpCommand', () => {
   it('reports unknown command', async () => {
     const cmd = buildHelpCommand({ registry: makeRegistry() } as never);
     const res = await cmd.run('does-not-exist', {} as never);
+    expect(res?.message ?? '').toContain('Unknown command');
+  });
+
+  // `slash-deep-help.ts` shipped with five exports, ~40 tests, and no
+  // production caller: `/help mcp` rendered `/mcp`'s short inline string and
+  // `/help mcp add` answered "Unknown command: /mcp add". Both now route
+  // through the same renderer `wstack mcp --help` uses. These tests pin the
+  // wiring, not the renderer — the renderer has its own suite.
+  it('appends the focused wstack help block for a slash with a top-level mirror', async () => {
+    const reg = new SlashCommandRegistry();
+    reg.register({
+      name: 'mcp',
+      description: 'mcp short',
+      help: 'inline mcp help',
+      run: async () => ({}),
+    });
+    const cmd = buildHelpCommand({ registry: reg } as never);
+    const res = await cmd.run('mcp', {} as never);
+    const message = res?.message ?? '';
+    // The slash-form inline help SURVIVES — a REPL user types `/mcp add`,
+    // not `wstack mcp add` — and the shared focused block follows it.
+    expect(message).toContain('inline mcp help');
+    expect(message).toContain(renderSlashFocusedHelp('mcp') as string);
+    expect(message.indexOf('inline mcp help')).toBeLessThan(
+      message.indexOf(renderSlashFocusedHelp('mcp') as string),
+    );
+  });
+
+  it('renders deep help for `/help <slash> <deep>`', async () => {
+    const reg = new SlashCommandRegistry();
+    reg.register({ name: 'mcp', description: 'mcp short', run: async () => ({}) });
+    const cmd = buildHelpCommand({ registry: reg } as never);
+    const res = await cmd.run('mcp add', {} as never);
+    expect(res?.message ?? '').toBe(renderSlashDeepHelp('mcp', 'add') as string);
+    expect(res?.message ?? '').not.toContain('Unknown command');
+  });
+
+  it('still falls back to the inline help field for a slash with no mirror', async () => {
+    const cmd = buildHelpCommand({ registry: makeRegistry() } as never);
+    const res = await cmd.run('bar', {} as never);
+    expect(res?.message ?? '').toContain('# Detailed bar help');
+  });
+
+  it('still reports unknown for a two-token query with no deep-help entry', async () => {
+    const cmd = buildHelpCommand({ registry: makeRegistry() } as never);
+    const res = await cmd.run('bar nonsense', {} as never);
     expect(res?.message ?? '').toContain('Unknown command');
   });
 });

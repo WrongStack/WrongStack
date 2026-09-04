@@ -178,52 +178,61 @@ interface ResolvedExecutable {
 /** Wrappers that install their target on demand (PATH absence is not staleness). */
 const DEMAND_FETCH_WRAPPERS = new Set(['npx']);
 
+interface TokenInfo {
+  token: string;
+  raw: string;
+}
+
+function firstTokenInfo(input: string): TokenInfo | undefined {
+  const match = /^"([^"]+)"|^'([^']+)'|^(\S+)/.exec(input);
+  if (!match) return undefined;
+  const token = (match[1] ?? match[2] ?? match[3] ?? '').trim();
+  if (!token) return undefined;
+  return { token, raw: match[0] };
+}
+
+
 function resolveCommandExecutable(command: string): ResolvedExecutable {
   const trimmed = command.trim();
   if (!trimmed) {
     return { executable: undefined, skippedFlag: false, demandFetch: false, wrapper: undefined };
   }
-  const first = firstToken(trimmed);
+  const first = firstTokenInfo(trimmed);
   if (!first) {
     return { executable: undefined, skippedFlag: false, demandFetch: false, wrapper: undefined };
   }
-  if (!COMMAND_WRAPPERS.has(first)) {
-    return { executable: first, skippedFlag: false, demandFetch: false, wrapper: undefined };
+  if (!COMMAND_WRAPPERS.has(first.token)) {
+    return { executable: first.token, skippedFlag: false, demandFetch: false, wrapper: undefined };
   }
-  const demandFetch = DEMAND_FETCH_WRAPPERS.has(first);
-  const valueFlags = WRAPPER_VALUE_FLAGS[first] ?? new Set<string>();
-  const rest = trimmed.slice(trimmed.indexOf(first) + first.length).trim();
+  const demandFetch = DEMAND_FETCH_WRAPPERS.has(first.token);
+  const valueFlags = WRAPPER_VALUE_FLAGS[first.token] ?? new Set<string>();
+  const rest = trimmed.slice(trimmed.indexOf(first.raw) + first.raw.length).trim();
   let cursor = rest;
   let skippedFlag = false;
   for (let i = 0; i < 8; i++) {
-    const token = firstToken(cursor);
-    if (!token) return { executable: undefined, skippedFlag, demandFetch, wrapper: first };
+    const tokenInfo = firstTokenInfo(cursor);
+    if (!tokenInfo) return { executable: undefined, skippedFlag, demandFetch, wrapper: first.token };
+    const { token, raw } = tokenInfo;
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) {
       // env-style assignment (`env FOO=bar node`) — unambiguous, not a flag.
-      cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
+      cursor = cursor.slice(cursor.indexOf(raw) + raw.length).trim();
       continue;
     }
     if (token.startsWith('-')) {
-      cursor = cursor.slice(cursor.indexOf(token) + token.length).trim();
+      cursor = cursor.slice(cursor.indexOf(raw) + raw.length).trim();
       if (valueFlags.has(token)) {
         // Known value-taking flag: consume its argument too.
-        const value = firstToken(cursor);
-        if (value) cursor = cursor.slice(cursor.indexOf(value) + value.length).trim();
+        const valInfo = firstTokenInfo(cursor);
+        if (valInfo) cursor = cursor.slice(cursor.indexOf(valInfo.raw) + valInfo.raw.length).trim();
       } else {
         // Unknown flag: conservative — a not-found verdict becomes 'unknown'.
         skippedFlag = true;
       }
       continue;
     }
-    return { executable: token, skippedFlag, demandFetch, wrapper: first };
+    return { executable: token, skippedFlag, demandFetch, wrapper: first.token };
   }
-  return { executable: undefined, skippedFlag, demandFetch, wrapper: first };
-}
-
-function firstToken(input: string): string | undefined {
-  const match = /^"([^"]+)"|^'([^']+)'|^(\S+)/.exec(input);
-  const token = (match?.[1] ?? match?.[2] ?? match?.[3] ?? '').trim();
-  return token || undefined;
+  return { executable: undefined, skippedFlag, demandFetch, wrapper: first.token };
 }
 
 /**

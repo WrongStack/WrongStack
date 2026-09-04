@@ -52,6 +52,21 @@ export function consolidateLegacySqliteMemory(
     const updatedKeeper: Sage = {
       ...selectedKeeper,
       tags: [...new Set(mutable.flatMap((memory) => memory.tags))],
+      anchors: [
+        ...new Map(
+          mutable
+            .flatMap((m) => m.anchors)
+            .map((a) => [
+              `${a.type}\u0000${a.path ?? ''}\u0000${a.symbol ?? ''}\u0000${a.command ?? ''}\u0000${a.role ?? ''}`,
+              a,
+            ]),
+        ).values(),
+      ],
+      sources: [
+        ...new Map(
+          mutable.flatMap((m) => m.sources).map((s) => [JSON.stringify(s), s]),
+        ).values(),
+      ],
       supersedes: [
         ...new Set([
           ...(selectedKeeper.supersedes ?? []),

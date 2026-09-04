@@ -331,6 +331,10 @@ function memoryUpdateTool(memory: SageServiceLike): Tool<{ id: string } & Update
         importance: numberSchema(0, 1),
         confidence: numberSchema(0, 1),
         freshness: numberSchema(0, 1),
+        persistence: enumSchema(
+          ['permanent', 'long_lived', 'short_lived'],
+          'Retention class. Prefer long_lived; permanent is only for explicit invariants.',
+        ),
         status: enumSchema(STATUS_VALUES, 'New lifecycle status.'),
         supersedes: stringArraySchema('Memory ids this replaces.'),
         contradicts: stringArraySchema('Memory ids this contradicts.'),

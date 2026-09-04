@@ -54,7 +54,7 @@ import {
   validateContextModeSwitchPayload,
   validateContextModeUpdatePayload,
 } from './ws-payload-validation.js';
-import { broadcastAll, errMessage, send } from './ws-utils.js';
+import { broadcastAll, errMessage, send, withRequestId } from './ws-utils.js';
 
 type Session = Awaited<ReturnType<SessionStore['create']>>;
 type WSMessageLike = { type: string; payload?: unknown | undefined };
@@ -785,12 +785,12 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       });
       sendTo(ws, {
         type: 'context.debug',
-        payload: {
+        payload: withRequestId(msg.payload, {
           ...breakdown,
           mode: target.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
           policy: target.meta['contextWindowPolicy'],
           sessionId: actingSessionId(msg),
-        },
+        }),
       });
     },
     compactContext: async (ws, msg) => {

@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/security-scanner",
-  "version": "0.319.2",
+  "version": "0.320.0",
   "license": "MIT",
   "description": "WrongStack security scanner — standalone package extracted from @wrongstack/core. Tech-stack detector, secret scanner, report generator, and interactive slash-command for on-demand security scans.",
   "repository": {

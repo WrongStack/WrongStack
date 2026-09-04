@@ -1142,3 +1142,101 @@ describe('SageToolCallMiddleware — retrieval budget', () => {
     expect(memoryEvidenceText(payload)).toContain('Memory for src/file.ts');
   });
 });
+
+/**
+ * The semantic channel's payoff case: a memory that shares NO surface tokens
+ * with the query, recalled only by the vector channel.
+ *
+ * `memoryQueryRelevance` scores such a hit 0 by construction — it was recalled
+ * precisely because it has no lexical overlap. Before `memorySemanticRelevance`
+ * existed, the fused search returned the memory and the very next gate
+ * (`relationStrength < relationFloor`) threw it away, so a working vector
+ * channel produced exactly zero additional injections.
+ */
+describe('semantic-only recall survives the injection gate', () => {
+  function retrieverWithBreakdown(
+    memory: Sage,
+    vectorScore: number,
+  ): SageRetrieverLike & { seen: string[] } {
+    const seen: string[] = [];
+    return {
+      seen,
+      retrieveForPath: async () => [],
+      searchSage: async () => {
+        seen.push('flat');
+        return [];
+      },
+      searchSageWithBreakdown: async () => {
+        seen.push('breakdown');
+        return [
+          {
+            memory,
+            vectorScore,
+            lexicalScore: null,
+            finalScore: vectorScore,
+            source: 'vector' as const,
+          },
+        ];
+      },
+    };
+  }
+
+  function semanticMemory(): Sage {
+    return {
+      id: 'sem-1',
+      text: 'Retry budgets are drained by the waiting room before the wire gate opens.',
+      kind: 'fact',
+      scope: 'project',
+      status: 'active',
+      importance: 0.9,
+      confidence: 0.9,
+      freshness: 1,
+      tags: [],
+      anchors: [],
+      sources: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    } as unknown as Sage;
+  }
+
+  const trigger: ExtractedTriggerContext = {
+    trigger: 'read',
+    paths: [],
+    // Deliberately shares no informative token with the memory text.
+    queryText: 'packages/providers/src/quarantine.ts quarantine',
+  };
+
+  it('admits a strong cosine hit at the default relation floor', async () => {
+    const memory = semanticMemory();
+    const retriever = retrieverWithBreakdown(memory, 0.82);
+    const results = await retrieveTriggeredMemories(retriever, trigger, 8);
+    expect(retriever.seen).toEqual(['breakdown']);
+    expect(results).toHaveLength(1);
+    // Lexical evidence is genuinely zero here — the strength is entirely the
+    // cosine mapping, and it clears the 0.85 default floor.
+    expect(results[0]!.relationStrength).toBeGreaterThanOrEqual(0.85);
+    expect(results[0]!.retrievalReasons.join(',')).toContain('query:semantic-cosine:0.82');
+  });
+
+  it('rejects a weak cosine hit below the floor', async () => {
+    const retriever = retrieverWithBreakdown(semanticMemory(), 0.55);
+    const results = await retrieveTriggeredMemories(retriever, trigger, 8);
+    expect(results[0]!.relationStrength).toBeLessThan(0.85);
+  });
+
+  it('tags semantic evidence under the query channel so diversity caps apply', async () => {
+    const retriever = retrieverWithBreakdown(semanticMemory(), 0.95);
+    const results = await retrieveTriggeredMemories(retriever, trigger, 8);
+    // `selectDiverseMemories` caps by reason prefix; a bare `semantic:` prefix
+    // would match neither anchor:, graph: nor query: and slip every cap.
+    expect(results[0]!.retrievalReasons.every((reason) => reason.startsWith('query:'))).toBe(true);
+  });
+
+  it('falls back to the flat search when the port has no breakdown', async () => {
+    const retriever = retrieverWithBreakdown(semanticMemory(), 0.9);
+    delete (retriever as { searchSageWithBreakdown?: unknown }).searchSageWithBreakdown;
+    const results = await retrieveTriggeredMemories(retriever, trigger, 8);
+    expect(retriever.seen).toEqual(['flat']);
+    expect(results).toEqual([]);
+  });
+});

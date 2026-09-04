@@ -106,7 +106,7 @@ export async function handleContentRoute(
       await handleFilesMove(ws, message, ctx.getProjectRoot());
       return true;
     case 'skills.list':
-      await handleSkillsList(ws, ctx.getSkillsContext());
+      await handleSkillsList(ws, ctx.getSkillsContext(), message);
       return true;
     case 'skills.content':
       await handleSkillsContent(ws, ctx.getSkillsContext(), message);

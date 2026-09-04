@@ -269,11 +269,13 @@ function collapseTsImports(code: string): string {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? '';
-    const trimmed = line.trim();
+    let trimmed = line.trim();
     if (trimmed.startsWith('import ') || trimmed.startsWith('import{')) {
       inImportGroup = true;
       importGroupCount++;
-      // Consume multi-line import
+      // Consume multi-line import: re-trim each line the cursor moves to —
+      // the loop condition must test the CURRENT line, or a first line
+      // without a terminator (`;` / `from '…'`) consumes the whole file.
       while (
         !trimmed.includes(';') &&
         !trimmed.includes("from '") &&
@@ -281,6 +283,7 @@ function collapseTsImports(code: string): string {
         i + 1 < lines.length
       ) {
         i++;
+        trimmed = (lines[i] ?? '').trim();
       }
     } else {
       if (inImportGroup) {

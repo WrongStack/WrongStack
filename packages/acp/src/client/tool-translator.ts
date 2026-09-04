@@ -174,6 +174,10 @@ export class ToolTranslator {
   cancelAll(): void {
     for (const [, p] of this.pending) {
       clearTimeout(p.timeout);
+      // Settle every waiter the way the single-call cancellation path does.
+      // Clearing the timer alone would leave the callTool() promise pending
+      // FOREVER — the timer was the only thing that could ever reject it.
+      p.reject(new Error('Call cancelled by client'));
     }
     this.pending.clear();
   }

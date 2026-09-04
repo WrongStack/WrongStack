@@ -80,6 +80,12 @@ jobs:
       - name: Lint (relative imports)
         run: pnpm lint:imports
 
+      # docs/feature-matrix.md is the only place mapping a plugin to the tool
+      # ids an operator types, and it is hand-written. It had drifted into 19
+      # wrong tool names and a missing plugin before this gate existed.
+      - name: Check (plugin feature matrix)
+        run: pnpm check:feature-matrix
+
   typecheck:
     name: TypeCheck (tsc)
     runs-on: ubuntu-latest

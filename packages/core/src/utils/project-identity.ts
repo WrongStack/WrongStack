@@ -24,6 +24,7 @@ export interface RekeyProjectIdentityResult {
 }
 
 const PROJECT_GITIGNORE_RULES = [
+  '.temp_files/',
   '.wrongstack/',
   '!/.wrongstack/',
   '/.wrongstack/*',
@@ -102,8 +103,8 @@ export async function rekeyProjectIdentity(
 }
 
 /**
- * Keep runtime state ignored while allowing the small, explicitly shared
- * WrongStack project contract to travel with the repository.
+ * Keep local runtime and temporary state ignored while allowing the small,
+ * explicitly shared WrongStack project contract to travel with the repository.
  */
 export async function ensureProjectGitignore(projectRoot: string): Promise<void> {
   const filePath = path.join(projectRoot, '.gitignore');

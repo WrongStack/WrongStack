@@ -4,7 +4,7 @@ import type { WebSocket } from 'ws';
 import { resolveProviderModelMetadata } from './model-catalog.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
 import { computeUsageCost, getCostRates } from './usage-cost.js';
-import { messageSessionId } from './ws-utils.js';
+import { messageSessionId, withRequestId } from './ws-utils.js';
 
 export interface IntrospectionRouteContext {
   /** The runtime's agent — the fallback when the host has no registry. */
@@ -127,7 +127,7 @@ export async function handleIntrospectionRoute(
       const tools = registry.listForProvider?.() ?? registry.list();
       ctx.send(ws, {
         type: 'diag.get',
-        payload: {
+        payload: withRequestId(message.payload, {
           provider: actx.provider.id,
           model: actx.model,
           cwd: ctx.getProjectRoot(),
@@ -147,7 +147,7 @@ export async function handleIntrospectionRoute(
           usage: actx.tokenCounter.total(),
           messages: actx.messages.length,
           todos: actx.todos.length,
-        },
+        }),
       });
       return true;
     }
@@ -175,7 +175,7 @@ export async function handleIntrospectionRoute(
         : null;
       ctx.send(ws, {
         type: 'stats.get',
-        payload: {
+        payload: withRequestId(message.payload, {
           sessionId: askingSessionId(),
           provider: actx.provider.id,
           model: actx.model,
@@ -192,7 +192,7 @@ export async function handleIntrospectionRoute(
           tools: agent.tools.list().length,
           sideEffectCount: actx.sideEffects?.length ?? 0,
           elapsedMs: Date.now() - startedAt(),
-        },
+        }),
       });
       return true;
     }
@@ -232,7 +232,7 @@ export async function handleIntrospectionRoute(
           permission: tool.permission ?? 'auto',
         };
       });
-      ctx.send(ws, { type: 'tools.list', payload: { tools } });
+      ctx.send(ws, { type: 'tools.list', payload: withRequestId(message.payload, { tools }) });
       return true;
     }
     case 'tool.disable':

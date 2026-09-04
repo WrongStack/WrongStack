@@ -227,23 +227,31 @@ export function parseAuthFlags(args: string[]): AuthFlags {
   const out: AuthFlags = { positional: [] };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (a === '--label') {
-      const v = args[++i];
+    if (!a) continue;
+    let key = a;
+    let inlineVal: string | undefined;
+    const eq = a.indexOf('=');
+    if (a.startsWith('--') && eq !== -1) {
+      key = a.slice(0, eq);
+      inlineVal = a.slice(eq + 1);
+    }
+    if (key === '--label') {
+      const v = inlineVal !== undefined ? inlineVal : args[++i];
       if (v) out.label = v;
-    } else if (a === '--family') {
-      const v = args[++i];
+    } else if (key === '--family') {
+      const v = inlineVal !== undefined ? inlineVal : args[++i];
       if (v) out.family = v as AuthFlags['family'];
-    } else if (a === '--base-url') {
-      const v = args[++i];
+    } else if (key === '--base-url') {
+      const v = inlineVal !== undefined ? inlineVal : args[++i];
       if (v) out.baseUrl = v;
-    } else if (a === '--env') {
-      const v = args[++i];
+    } else if (key === '--env') {
+      const v = inlineVal !== undefined ? inlineVal : args[++i];
       if (v)
         out.envVars = v
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean);
-    } else if (a && !a.startsWith('--')) {
+    } else if (!a.startsWith('--')) {
       out.positional.push(a);
     }
   }

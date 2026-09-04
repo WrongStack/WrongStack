@@ -125,8 +125,8 @@ function measure(entry: RailSpanEntry): Measured {
  * chip is already at its narrowest permitted level. A chip with a pinned
  * density (`lo === hi`) never degrades; it can only be dropped.
  *
- * Both {@link PowerlineRail} and {@link computeRailSpans} consume this, so
- * the mouse hit-test can never drift from what is drawn.
+ * Both {@link PowerlineRail} and the status bar's click-map builder consume
+ * this layout, so the mouse hit-test can never drift from what is drawn.
  */
 export function layoutRail(
   entries: readonly RailSpanEntry[],
@@ -200,25 +200,6 @@ export function layoutRail(
   const used = total();
   const gap = rightVisible ? Math.max(0, budget - used) : 0;
   return { items, droppedIds, rightVisible, gap, used };
-}
-
-/**
- * 0-based column spans of the segments PowerlineRail will actually keep.
- * A thin projection of {@link layoutRail} — the status-bar mouse hit-test
- * consumes this so click targets are derived from the SAME nodes the
- * renderer draws.
- */
-export function computeRailSpans(
-  entries: readonly RailSpanEntry[],
-  budget: number,
-  rightAnchor?: React.ReactElement | null,
-): RailSpan[] {
-  return layoutRail(entries, budget, rightAnchor).items.map(({ id, start, len, level }) => ({
-    id,
-    start,
-    len,
-    level,
-  }));
 }
 
 interface PowerlineRailProps {

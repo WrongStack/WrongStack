@@ -288,7 +288,22 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
             };
           }
           try {
-            const lexical = await Sage.searchSage(restJoined, { limit: 20 });
+            // `Sage.searchSage` is the vector-WRAPPED surface in every host
+            // that has a vector store, so its output is already fused —
+            // feeding it in as "the lexical channel" would race the fused
+            // result against one of its own inputs and report a near-perfect
+            // agreement ratio no matter how the channels actually behave.
+            //
+            // Recover the true lexical channel from the per-channel
+            // breakdown: hits the lexical side produced are exactly those
+            // with a non-null `lexicalScore`, and that score is their rank in
+            // that channel.
+            const lexical = Sage.searchSageWithBreakdown
+              ? (await Sage.searchSageWithBreakdown(restJoined, { limit: 20 }))
+                  .filter((hit) => hit.lexicalScore !== null)
+                  .sort((a, b) => (b.lexicalScore ?? 0) - (a.lexicalScore ?? 0))
+                  .map((hit) => hit.memory)
+              : await Sage.searchSage(restJoined, { limit: 20 });
             const race = await runSearchRace(restJoined, lexical, vectorStore, { limit: 20 });
             return { message: formatSearchRace(race) };
           } catch (err) {

@@ -149,9 +149,11 @@ export interface StatusBarProps {
   queueCount?: number | undefined;
   yolo?: boolean | undefined;
   /**
-   * Session start timestamp (ms). Used by StatuslineDetailPanel for its
-   * elapsed-time display. StatusBar itself no longer renders this chip
-   * (working time and fleet time are tracked separately).
+   * Session start timestamp (ms). Still passed by `app-status-region.tsx`
+   * but currently read by nothing: StatusBar stopped rendering the chip
+   * (working time and fleet time are tracked separately), and the detail
+   * panel that consumed it was removed once the `/statusline` picker took
+   * over per-line reporting.
    */
   startedAt?: number | undefined;
   /**

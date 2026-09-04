@@ -98,7 +98,7 @@ function matchMemory(
     }
     if (
       (anchor.type === 'directory' || anchor.type === 'package') &&
-      target.startsWith(`${normalized}/`)
+      (normalized === '.' || target.startsWith(`${normalized}/`))
     ) {
       return { via: 'anchor_directory', strength: 0.5 };
     }

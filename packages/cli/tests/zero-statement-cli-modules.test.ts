@@ -107,7 +107,6 @@ import {
   runModeldiagEval,
 } from '../src/subcommands/handlers/modeldiag-eval.js';
 import { runCliExecution } from '../src/wiring/cli-execute-builder.js';
-import { startCliHeapWatchdog } from '../src/wiring/cli-heap-watchdog.js';
 import { setupCliPromptAndTools } from '../src/wiring/cli-prompt-and-tools-setup.js';
 import { setupCliSlashCommands } from '../src/wiring/cli-slash-commands-setup.js';
 import { setupCliHeapWatchdog } from '../src/wiring/heap-watchdog-setup.js';
@@ -150,43 +149,43 @@ describe('formerly zero-statement CLI modules', () => {
     expect(createProviderForId('openai', { apiKey: 'key' })).toEqual({ id: 'openai' });
   });
 
-  it.each([
-    ['startCliHeapWatchdog', startCliHeapWatchdog],
-    ['setupCliHeapWatchdog', setupCliHeapWatchdog],
-  ])('starts and registers cleanup for %s', (_name, start) => {
-    const teardownHandlers: Array<() => void> = [];
-    start({
-      flags: { webui: true },
-      tuiOwnsScreen: false,
-      context: { session: { id: 'session-1' }, state: { messages: [{ _estTokens: 3 }] } },
-      hqPublisherRef: {},
-      brainMailbox: {
-        getHqSnapshotStats: () => ({
-          inFlight: false,
-          pending: false,
-          timerScheduled: false,
-          eventInFlight: false,
-          pendingEvents: 0,
-          coalescedEvents: 0,
-          droppedEvents: 0,
-        }),
-      },
-      teardownHandlers,
-    } as never);
+  it.each([['setupCliHeapWatchdog', setupCliHeapWatchdog]])(
+    'starts and registers cleanup for %s',
+    (_name, start) => {
+      const teardownHandlers: Array<() => void> = [];
+      start({
+        flags: { webui: true },
+        tuiOwnsScreen: false,
+        context: { session: { id: 'session-1' }, state: { messages: [{ _estTokens: 3 }] } },
+        hqPublisherRef: {},
+        brainMailbox: {
+          getHqSnapshotStats: () => ({
+            inFlight: false,
+            pending: false,
+            timerScheduled: false,
+            eventInFlight: false,
+            pendingEvents: 0,
+            coalescedEvents: 0,
+            droppedEvents: 0,
+          }),
+        },
+        teardownHandlers,
+      } as never);
 
-    const watchdogOptions = mocks.startSharedHeapWatchdog.mock.calls.at(-1)?.[0] as {
-      collectStats(): Record<string, unknown>;
-    };
-    expect(watchdogOptions.collectStats()).toMatchObject({
-      surface: 'webui',
-      sessionId: 'session-1',
-      messages: 1,
-      messageEstimatedTokens: 3,
-    });
-    expect(teardownHandlers).toHaveLength(1);
-    teardownHandlers[0]?.();
-    expect(mocks.stopHeapWatchdog).toHaveBeenCalled();
-  });
+      const watchdogOptions = mocks.startSharedHeapWatchdog.mock.calls.at(-1)?.[0] as {
+        collectStats(): Record<string, unknown>;
+      };
+      expect(watchdogOptions.collectStats()).toMatchObject({
+        surface: 'webui',
+        sessionId: 'session-1',
+        messages: 1,
+        messageEstimatedTokens: 3,
+      });
+      expect(teardownHandlers).toHaveLength(1);
+      teardownHandlers[0]?.();
+      expect(mocks.stopHeapWatchdog).toHaveBeenCalled();
+    },
+  );
 
   it('binds prompt construction, mirrors terms, and registers built-in tools', async () => {
     const container = { resolve: vi.fn(() => ({ compact: true })) };

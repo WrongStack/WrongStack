@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { memoryNodeId } from './sqlite-store-graph-helpers.js';
+import { cleanReferencingMemories, memoryNodeId } from './sqlite-store-graph-helpers.js';
 import { matchesLegacyForget } from './sqlite-store-legacy.js';
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { legacyScopeFilterClause } from './store-helpers.js';
@@ -48,6 +48,7 @@ export function forgetLegacySqliteMemory(
       revision: memory.revision + 1,
       updatedAt: ctx.nowIso(),
     });
+    cleanReferencingMemories(ctx, memory.id);
     ctx.cascadeDeleteEdges(memoryNodeId(memory.id));
     removed++;
   }

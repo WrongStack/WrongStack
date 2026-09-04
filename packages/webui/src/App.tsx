@@ -44,77 +44,23 @@ import { WorkbenchTopbar } from './components/WorkbenchTopbar';
 import { WorkspaceDockInspector } from './components/WorkspaceDock';
 import { useSystemPromptStore } from './stores/system-prompt-store';
 
-// ── Lazy-loaded views ──────────────────────────────────────────────────────
-// These pull heavy libraries (Monaco ~4MB, @xyflow, xterm) or are themselves
-// large, and are gated behind specific `currentView` values. Code-splitting
-// them keeps the initial bundle small; the chunk is fetched on first open.
-const _AnalyticsDashboard = lazy(() =>
-  import('./components/AnalyticsDashboard').then((m) => ({ default: m.AnalyticsDashboard })),
-);
-const _CodeMap = lazy(() => import('./components/CodeMap').then((m) => ({ default: m.CodeMap })));
-const _ChronicleDashboard = lazy(() =>
-  import('./components/ChronicleDashboard').then((m) => ({ default: m.ChronicleDashboard })),
-);
-const _GoalView = lazy(() =>
-  import('./components/GoalView').then((m) => ({ default: m.GoalView })),
-);
-const _ChangesView = lazy(() =>
-  import('./components/ChangesView').then((m) => ({ default: m.ChangesView })),
-);
+// Per-view lazy imports live in `./components/view-registry.ts`, which is the
+// single place that maps a `View` to its component, wrapper and boundary.
+// A parallel block of `const _X = lazy(...)` declarations used to sit here;
+// every one of them was unreferenced (module-local, never rendered), so the
+// code-splitting comment they carried described chunks this file no longer
+// requests. Add new views to the registry, not here.
+
+// These three are NOT main-area views — they are overlay panels App.tsx
+// renders itself, outside the registry — so their lazy handles stay here.
 const CronJobsPanel = lazy(() =>
   import('./components/CronJobsPanel').then((m) => ({ default: m.CronJobsPanel })),
-);
-const _CodeEditor = lazy(() =>
-  import('./components/CodeEditor').then((m) => ({ default: m.CodeEditor })),
-);
-const _DebugDashboard = lazy(() =>
-  import('./components/DebugDashboard').then((m) => ({ default: m.DebugDashboard })),
-);
-const _DesignGalleryView = lazy(() =>
-  import('./components/DesignGalleryView').then((m) => ({ default: m.DesignGalleryView })),
-);
-const _MailboxDetailView = lazy(() =>
-  import('./components/MailboxDetailView').then((m) => ({ default: m.MailboxDetailView })),
-);
-const _SageTabs = lazy(() =>
-  import('./components/MemoryManager/SageTabs').then((m) => ({ default: m.SageTabs })),
-);
-const _AgentRosterView = lazy(() =>
-  import('./components/AgentRosterView').then((m) => ({ default: m.AgentRosterView })),
-);
-const _KanbanView = lazy(() =>
-  import('./components/KanbanView').then((m) => ({ default: m.KanbanView })),
-);
-const _OfficeMapPanel = lazy(() =>
-  import('./components/OfficeMapPanel').then((m) => ({ default: m.OfficeMapPanel })),
 );
 const ProcessMonitor = lazy(() =>
   import('./components/ProcessMonitor').then((m) => ({ default: m.ProcessMonitor })),
 );
 const QueuePanel = lazy(() =>
   import('./components/QueuePanel').then((m) => ({ default: m.QueuePanel })),
-);
-const _RefreshDebugView = lazy(() =>
-  import('./components/RefreshDebugView').then((m) => ({ default: m.RefreshDebugView })),
-);
-const _SddHub = lazy(() => import('./components/SddHub').then((m) => ({ default: m.SddHub })));
-const _SessionsDashboard = lazy(() =>
-  import('./components/SessionsDashboard').then((m) => ({ default: m.SessionsDashboard })),
-);
-const _SetupScreen = lazy(() =>
-  import('./components/SetupScreen').then((m) => ({ default: m.SetupScreen })),
-);
-const _SkillDetailView = lazy(() =>
-  import('./components/SkillDetailView').then((m) => ({ default: m.SkillDetailView })),
-);
-const _SpecsView = lazy(() =>
-  import('./components/SpecsView').then((m) => ({ default: m.SpecsView })),
-);
-const _TechStackView = lazy(() =>
-  import('./components/TechStackView').then((m) => ({ default: m.TechStackView })),
-);
-const _TerminalPanel = lazy(() =>
-  import('./components/TerminalPanel').then((m) => ({ default: m.TerminalPanel })),
 );
 
 // WorkbenchTopbar, useServerProcessMetrics, ServerProcessMetrics, formatCompactBytes,

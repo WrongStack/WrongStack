@@ -2,7 +2,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { rejectIfUnsafeInput } from './shared/candidate-lifecycle.js';
 import { readSqliteSageRow } from './sqlite-store-codec.js';
-import { memoryNodeId } from './sqlite-store-graph-helpers.js';
+import { cleanReferencingMemories, memoryNodeId } from './sqlite-store-graph-helpers.js';
 import {
   clamp01,
   normalizeAnchors,
@@ -39,6 +39,13 @@ export function updateSqliteSage(
   // byKind stats). `scope` is deliberately NOT part of UpdateSageInput — a
   // memory's scope and session ownership are immutable after creation
   // (change = delete+recreate).
+  if (input.text !== undefined) {
+    const normalizedText = normalizeText(input.text);
+    if (!normalizedText) throw new Error('SAGE text must not be empty.');
+    if (normalizedText.length < 4) {
+      throw new Error('SAGE text is too short to be useful long-term memory.');
+    }
+  }
   if (input.persistence !== undefined && !VALID_PERSISTENCE.has(input.persistence)) {
     throw new Error(
       `SAGE persistence must be one of: ${[...VALID_PERSISTENCE].join(', ')}; got "${input.persistence}".`,
@@ -87,13 +94,24 @@ export function updateSqliteSage(
     updatedAt: ctx.nowIso(),
   };
   ctx.upsertMemory(updated);
-  const statusAffectsAnchorEdges = input.status !== undefined && existing.status !== updated.status;
-  if (input.anchors !== undefined || input.confidence !== undefined || statusAffectsAnchorEdges) {
+  const statusAffectsAnchorEdges =
+    input.status !== undefined &&
+    existing.status !== updated.status &&
+    updated.status !== 'deleted';
+  if (
+    updated.status !== 'deleted' &&
+    (input.anchors !== undefined ||
+      input.confidence !== undefined ||
+      input.supersedes !== undefined ||
+      input.contradicts !== undefined ||
+      statusAffectsAnchorEdges)
+  ) {
     ctx.syncAnchorEdges(updated);
   }
   ctx.emitUpdated(updated);
   if (existing.status !== 'deleted' && updated.status === 'deleted') {
     const nodeId = memoryNodeId(updated.id);
+    cleanReferencingMemories(ctx, updated.id);
     const removedEdges = ctx
       .stmt(
         "SELECT COUNT(*) AS n FROM edges WHERE (from_node = ? OR to_node = ?) AND relation != 'related_to'",

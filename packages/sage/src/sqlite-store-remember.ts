@@ -4,6 +4,7 @@ import { rejectIfUnsafeInput } from './shared/candidate-lifecycle.js';
 import { anchorsChanged } from './sqlite-store-anchor-diff.js';
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { importanceFromPriority } from './sqlite-store-legacy.js';
+import { ftsPrefixTerms } from './sqlite-store-search-helpers.js';
 import {
   assessRememberQuality,
   clamp01,
@@ -133,9 +134,18 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
         importance: Math.max(existing.importance, importance),
         confidence: Math.max(existing.confidence, confidence),
         freshness: Math.max(existing.freshness, freshness),
-        ...(input.persistence !== undefined ? { persistence: input.persistence } : {}),
+        ...(input.persistence !== undefined
+          ? {
+              persistence:
+                (existing.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' &&
+                input.persistence !== 'permanent'
+                  ? 'permanent'
+                  : input.persistence,
+            }
+          : {}),
         updatedAt: nowIso,
         revision: existing.revision + 1,
+        ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
         // ownerSessionId is preserved on merge. The strict SQL clause
         // (owner_session_id = ?) guarantees the existing row is owned by
         // the same session, so existing.ownerSessionId is always set here.
@@ -219,24 +229,64 @@ function findNearDuplicate(
   },
 ): Sage | undefined {
   // Bound the scan: near-dup is a quality feature, not a full-corpus join.
-  // Order by importance so high-value keepers are preferred when several match.
   // Session-scoped writes only match memories owned by the same session.
   const sessionClause =
     opts.scope === 'session' && opts.ownerSessionId ? ' AND owner_session_id = ?' : '';
   const sessionParams =
     opts.scope === 'session' && opts.ownerSessionId ? [opts.ownerSessionId] : [];
-  const rows = ctx
+
+  // Two candidate windows, unioned by id.
+  //
+  // The importance window is the historical one: the 64 highest-importance
+  // rows in the scope. It is a good *tie-breaker* pool and a bad *recall*
+  // pool — it is ordered by a signal that has nothing to do with the text
+  // being written, so a paraphrase of an ordinary 0.5-importance memory was
+  // invisible to dedupe on any project with more than 64 memories in the
+  // scope. That is precisely the corpus size where duplicates start to hurt.
+  //
+  // The lexical window fixes the recall side: seed the scan with the rows FTS
+  // ranks closest to the incoming text. `isNearDuplicateMemory` still makes
+  // the actual call — this only decides which rows it gets to see.
+  const rows = new Map<string, { data: string }>();
+  const importanceRows = ctx
     .stmt(
-      `SELECT data FROM memories
+      `SELECT id, data FROM memories
          WHERE status IN ('active','stale') AND scope = ? AND audience IS ?
          ${sessionClause}
          ORDER BY importance DESC, updated_at DESC
          LIMIT 64`,
     )
-    .all(opts.scope, opts.audienceKey, ...sessionParams) as Array<{ data: string }>;
+    .all(opts.scope, opts.audienceKey, ...sessionParams) as Array<{ id: string; data: string }>;
+  for (const row of importanceRows) rows.set(row.id, { data: row.data });
+
+  const terms = ftsPrefixTerms(opts.text);
+  if (terms.length > 0) {
+    try {
+      // CROSS JOIN with memories_fts first — same join-order pin as every
+      // other FTS read path in this package (see sqlite-store-search-sage.ts).
+      const lexicalRows = ctx
+        .stmt(
+          `SELECT m.id AS id, m.data AS data FROM memories_fts f
+             CROSS JOIN memories m ON m.rowid = f.rowid
+             WHERE m.status IN ('active','stale') AND m.scope = ? AND m.audience IS ?
+             ${sessionClause.replace('owner_session_id', 'm.owner_session_id')}
+             AND memories_fts MATCH ?
+             ORDER BY bm25(memories_fts) ASC
+             LIMIT 32`,
+        )
+        .all(opts.scope, opts.audienceKey, ...sessionParams, terms.join(' OR ')) as Array<{
+        id: string;
+        data: string;
+      }>;
+      for (const row of lexicalRows) rows.set(row.id, { data: row.data });
+    } catch {
+      // FTS5 unavailable (or a malformed MATCH we already sanitize against):
+      // dedupe degrades to the importance window rather than failing a write.
+    }
+  }
 
   let best: { memory: Sage; score: number } | undefined;
-  for (const row of rows) {
+  for (const row of rows.values()) {
     const candidate = sqliteRowToMemory(row);
     if (
       !isNearDuplicateMemory(

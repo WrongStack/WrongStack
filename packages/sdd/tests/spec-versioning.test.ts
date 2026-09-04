@@ -76,6 +76,29 @@ describe('SpecVersioning', () => {
     expect(history[0]!.version).toBe('1.0.0');
   });
 
+  it('recorded versions are deep snapshots — later caller mutations do not corrupt history', () => {
+    const spec = makeSpec();
+    versioning.recordVersion(spec, 'Initial');
+
+    // Caller keeps editing the same spec object after recording.
+    spec.version = '2.0.0';
+    spec.requirements.push({
+      id: 'REQ-3',
+      type: 'functional',
+      priority: 'low',
+      description: 'Added later',
+      acceptanceCriteria: [],
+    });
+    spec.requirements[0]!.description = 'MUTATED';
+
+    // The recorded snapshot must reflect the spec as it was at record time.
+    const recorded = versioning.getLatest('spec-1')!;
+    expect(recorded.version).toBe('1.0.0');
+    expect(recorded.spec.version).toBe('1.0.0');
+    expect(recorded.spec.requirements).toHaveLength(2);
+    expect(recorded.spec.requirements[0]!.description).toBe('Feature A');
+  });
+
   it('returns empty history for unknown spec', () => {
     expect(versioning.getHistory('unknown')).toEqual([]);
   });

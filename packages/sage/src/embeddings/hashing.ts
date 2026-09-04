@@ -81,6 +81,17 @@ export class HashingEmbeddingProvider implements EmbeddingProvider {
    * L2-normalize. Deterministic.
    */
   async embed(texts: string[]): Promise<Float32Array[]> {
+    return this.embedSync(texts);
+  }
+
+  /**
+   * Synchronous batch embed. The `EmbeddingProvider` contract is async
+   * because it has to accommodate HTTP and ONNX backends; this provider is a
+   * pure in-process hash with no I/O, so callers on a synchronous hot path
+   * (the offline hybrid re-rank, which runs inside a synchronous SQLite read)
+   * can use this without an await and without hand-inlining the tokenizer.
+   */
+  embedSync(texts: string[]): Float32Array[] {
     const results: Float32Array[] = new Array(texts.length);
     for (let i = 0; i < texts.length; i++) {
       results[i] = this.embedOne(texts[i] ?? '');

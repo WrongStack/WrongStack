@@ -2,7 +2,7 @@ import type { Middleware } from '@wrongstack/core/kernel';
 import type { Message, Request, TextBlock } from '@wrongstack/core/types';
 import { formatMemoryEvidenceBlock } from '@wrongstack/core/utils';
 import { formatMemoryHintsDetailed } from '../retrieval/format.js';
-import { memoryQueryRelevance } from '../retrieval/relevance.js';
+import { memoryQueryRelevance, memorySemanticRelevance } from '../retrieval/relevance.js';
 import { normalizeTextKey, tokenize } from '../store-helpers.js';
 import { InjectionTracker } from './injection-tracker.js';
 import type { SageSearchLike } from './tool-call-memory.js';
@@ -55,11 +55,27 @@ export function createSageTurnMiddleware(opts: SageTurnMiddlewareOptions): Middl
         }
         const query = lastUserText(request.messages);
         if (query) {
-          const memories = await opts.memory.searchSage(query, {
+          const searchOptions = {
             limit: opts.maxMemories ?? 8,
             includeAudienceScoped: false,
             sessionId: opts.getSessionId?.(),
-          });
+          };
+          // Prefer the per-channel breakdown when the port can produce it.
+          // The flat `searchSage` shape discards `vectorScore`, and this
+          // middleware gates on `memoryQueryRelevance` — which is 0 for a hit
+          // the vector channel found and the lexical channel missed. Without
+          // the breakdown, every semantic-only recall is silently dropped one
+          // line below the search that produced it.
+          const hits = opts.memory.searchSageWithBreakdown
+            ? await opts.memory.searchSageWithBreakdown(query, searchOptions)
+            : (await opts.memory.searchSage(query, searchOptions)).map((memory) => ({
+                memory,
+                vectorScore: null as number | null,
+              }));
+          const vectorScoreById = new Map(
+            hits.map((hit) => [hit.memory.id, hit.vectorScore ?? null]),
+          );
+          const memories = hits.map((hit) => hit.memory);
           const minScore = opts.minScore ?? 0.65;
           const metadataWeight = opts.metadataWeight ?? 0.3;
           // Cache the normalized system prompt by a content hash. The system
@@ -103,7 +119,13 @@ export function createSageTurnMiddleware(opts: SageTurnMiddlewareOptions): Middl
             if (seenText.has(textKey) || existingSystem.includes(textKey)) return false;
             const metadataScore =
               (memory.importance * 3 + memory.confidence * 2 + memory.freshness) / 6;
-            const relevance = memoryQueryRelevance(memory, query).strength;
+            // Same max-of-both-channels rule the tool-result path uses, so a
+            // paraphrase recalled semantically is judged on its cosine rather
+            // than on shared surface tokens it does not have.
+            const relevance = Math.max(
+              memoryQueryRelevance(memory, query).strength,
+              memorySemanticRelevance(vectorScoreById.get(memory.id)).strength,
+            );
             // Proven usefulness and anchors should win turn-context budget the
             // same way tool-result injection does — otherwise never-used noise
             // with default scores can crowd out anchored, previously-used facts.
@@ -180,12 +202,17 @@ function lastMessageTextByRole(messages: Message[], role: Message['role']): stri
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i];
     if (!message || message.role !== role) continue;
-    if (typeof message.content === 'string') return message.content.trim();
-    return message.content
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
-      .join(' ')
-      .trim();
+    const text =
+      typeof message.content === 'string'
+        ? message.content.trim()
+        : Array.isArray(message.content)
+          ? message.content
+              .filter((block) => block.type === 'text')
+              .map((block) => block.text)
+              .join(' ')
+              .trim()
+          : '';
+    if (text) return text;
   }
   return '';
 }

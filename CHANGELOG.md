@@ -9,10 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The statusline picker owns the full rail contract.** `/statusline` now decides which chips render, on which of the four rails, and at what density; the bar consumes that layout through a single shorten-before-drop fitter (`layoutRail()`), so a narrow terminal concedes detail rather than dropping chips. A pinned-density chip never degrades — it can only be dropped. The rails regrouped by volatility into L1 identity, L2 vitals, L3 safety & work, and L4 async, matching the grouping already used by `core/statusline`, and the click map consumes the same layout as the renderer so mouse hit-testing cannot drift from what is drawn. (`54a0aadfe`)
+- **Session storage policy is wired into session-store construction.** `DefaultSessionStore` takes a hot/cold `storage` policy resolved from `resolveSessionLoggingConfig(config)`, so the setting affects real construction rather than only the type definitions. With `sessionLogging.storage.autoArchive` enabled, the container also kicks off an idempotent background `archiveIdle({ backfill: true })` on first construction — it walks the existing sessions directory so upgrading a long-lived project compresses its backlog on the next restart instead of waiting out `archiveAfterDays` again. The call is fire-and-forget and a rejection is only logged: a session store must never refuse to construct because archive-idle could not reach disk. (`c3049dec2`)
 - **The TUI theme registry grew from 50 to 64 presets.** Fourteen palettes were missing from the picker: `oceanic-next`, `one-half-dark`, `ayu-mirage`, `seti`, `paraiso-dark`, `darcula`, `slack-dark`, `vitesse-black`, `atom-dark`, and `github-dark-high-contrast`, plus four original themes aimed at gaps no port covered — `contrast-max` (pure black, AAA-targeted text and borders), `colorblind-safe` (blue/orange coding with no red-vs-green reliance), `sandstone` (warm stone neutrals), and `everforest-hard`. Every preset is selectable through `/theme`, the CLI picker, and the boot theme adapter, and is validated by the same per-preset contrast gate. (`a08d78c63`)
 
 ### Fixed
 
+- **`/help <slash>` and `/help <slash> <deep>` reach the shared help renderer.** `slash-deep-help.ts` shipped with five exports and ~40 tests to keep the in-REPL and `wstack <sub> --help` surfaces from drifting — and no production caller. So `/help mcp` showed only `/mcp`'s short inline string, and `/help mcp add` answered `Unknown command: /mcp add`. `/help <slash>` now appends the focused block after the inline help (the inline field teaches the slash form a REPL user actually types, so it is kept rather than replaced), and a two-token query renders the deep block. (`help.ts`)
+- **A dead duplicate of the WebUI trust-boundary authorizer was removed.** `packages/cli/src/webui-server/privileged-actions.ts` exported its own `authorizeCliWebUIAction` plus a `createCliProcessRoutes` factory, both referenced only by their own test; every real host wires process routes through `webui-server`'s `authorizeWebUIAction` instead. The copy had already fallen behind the original — it dropped `sessionId` from both the trust request's `actor` and its `scope` — so wiring it up later would have silently weakened session attribution on `process.kill`. (`privileged-actions.ts`)
+
+- **`/flow` is reachable.** The text-first cross-board Kanban view shipped fully implemented and tested, but `createWorkbenchSlashCommand` was never mounted into any registry — it sat in `architecture/test-only-exports.json`, where green coverage proved the function worked while no user could invoke the command. It is now registered alongside `/kanban` in the TUI's core command mount. (`docs/slash/README.md`)
+- **Twelve registered slash commands were missing from the slash-command overview.** `docs/slash/README.md` presents its tables as derived from the registration sites, but `/theme`, `/tier`, `/effort`, `/profile`, `/sidebar`, `/intake`, `/provider-status`, `/connections`, `/flow`, `/solo`, and `/cron` appeared in none of them, and had no per-command page either. All are listed now, and the overview once again covers every registered command name.
+
+- **The plugin feature matrix stopped advertising tool names that do not exist.** `docs/feature-matrix.md` is the only place that maps a plugin to the tool ids an operator actually types, and it is hand-written — so it had drifted into 19 of 64 rows naming tools the plugin never declares (`error_lens_status` for the real `error_lens_history`, `test_generate` for `generate_unit_tests`, and 17 more, each of which fails at the call site), three plugins claiming to mutate files while writing none, and `gitignore-guard` missing from the matrix entirely. All 65 rows now match the source, and a new `pnpm check:feature-matrix` gate in CI verifies every row's directory and tool ids against `packages/plugins/src` so the matrix cannot drift silently again.
+
+- **A Telegram poller restarted after `stop()` no longer runs as a zombie.** `stop()` aborts the injected `AbortController` to cancel the in-flight long poll, but the controller was readonly and `start()` reused it — so every `getUpdates` after a restart carried an already-aborted signal, rejected silently, and delivered no updates until the process itself restarted, while the loop kept spinning with `active === true`. `start()` now swaps in a fresh controller when the previous signal was aborted. (`0c34c8515`)
+- **OpenAI Codex no longer loses usage telemetry on terminal-only streams.** `parseOpenAIResponsesStream` dropped usage from any `response.completed`/`incomplete` envelope that arrived without the start-producing events, because the terminal `if (started)` guard never fired for a backend that goes straight to a terminal envelope. A usage-bearing terminal now synthesizes the paired `message_start` so the usage-bearing `message_stop` is delivered; usage-less terminals stay silent. (`695d63a27`)
+- **The TUI model, mode, auth, autonomy, theme, and skills pickers respond to keys again.** The statusline rewrite in `54a0aadfe` deleted stage 1 of the `usePickerKeys` dispatch table — the `tryAuthModelPickerKeys` call and its import — leaving the 353-line handler compiled but unreferenced, so every one of those pickers silently ignored input. The stage is restored verbatim. (`559090ad7`)
 - **Fourteen themes no longer render Catppuccin Mocha's body text on their own palettes.** `tokyo-night`, `nord`, `cyberpunk`, `dracula`, `gruvbox-dark`, `solarized-dark`, `one-dark`, `monokai`, `rose-pine`, `kanagawa`, `ayu-dark`, `everforest`, `night-owl`, and `synthwave` spread `...baseTheme` without overriding `textPrimary`, `textSecondary`, or `textMuted`, so each displayed Mocha's lavender foreground and comment gray on its own base — a cool blue-gray body on warm Gruvbox, and so on. All three now carry each palette's real text tones, and every colour key is written explicitly per preset so the inheritance cannot silently recur. (`a08d78c63`)
 - **Faint theme tokens were lifted to readable contrast.** Ten presets rendered code comments below 3:1 against their own surface; `borderSubtle` was byte-identical to `surfaceRaised` in ten presets, so card dividers and tree prefixes vanished on a raised panel; `synthwave` and `blood-moon` panel borders sat at 1.12:1 and 1.24:1 against their base; and five presets had a `surfaceRaised` so close to `surface` that raised panels had no visible elevation. (`a08d78c63`)
 - **Transcript roles and status colors stopped sharing a channel.** `assistant == tool == accent` in five presets made tool output indistinguishable from prose, and `blood-moon` painted the prompt, the assistant label, and errors in one red. The three role colours are now distinct per preset, and no preset uses its failure colour as its prompt colour. (`a08d78c63`)
@@ -20,8 +33,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Three more superseded duplicates were removed from the CLI and core.** `wiring/cli-heap-watchdog.ts` duplicated `wiring/heap-watchdog-setup.ts`, which is the one `cli-main.ts` actually calls — the CLI heap watchdog was never unprotected, it just had two implementations and tested both side by side in the same `it.each`. `session-writer-flush.ts`'s `flushBufferSync` was the naive exit flush that `SessionWriteBuffer.flushSync` superseded (its sibling `isClosedHandleError` stays; it has five real callers). `DefaultProviderRunner` documented itself as "bound to `TOKENS.ProviderRunner` by the CLI at boot" and never was: the agent loop treats an unbound token as "no DI runner", and the single place that installs a default — the replay wiring — reimplements the same one-line body inline. The remaining test coverage was rewritten against the live implementations rather than dropped, and `architecture/test-only-exports.json` had its twelve now-resolved entries pruned.
+
+- **Three superseded TUI components and a block of dead lazy imports were removed.** `StatuslineDetailPanel` (302 lines) documented its own entry point as "the F12 picker's detail option" — an option that was never built; the `/statusline` picker now reports measured per-line fill instead. `LiveActivityStrip` was replaced by the async rail's per-subagent `fleet_agents` chips, and `MemoryContextWidget` by the context panel plus the statusline memory chip. Each was reachable only from its own tests, which is coverage proving the code works rather than that anything calls it. Separately, `App.tsx` carried 21 unreferenced `const _X = lazy(...)` declarations left over after the per-view lazy imports moved into `view-registry.ts`; the three overlay-panel handles that App.tsx does render (`CronJobsPanel`, `ProcessMonitor`, `QueuePanel`) stay. Three comments that named the removed components were corrected.
+
+- **`computeRailSpans` was removed from the statusline rail module.** The statusline v3 rewrite moved the status bar's click-map onto `layoutRail` directly, leaving `computeRailSpans` as an unreachable four-field projection kept alive only by its own tests — while two comments still described it as the thing production used. The tests now apply that projection locally, and the comments name `layoutRail`. Reading `computeRailSpans` from the hot render path would have cost a second layout pass per rail, so the shim was dropped rather than re-wired.
+
 - **TUI theme palettes moved into per-family modules.** Palette data now lives in `packages/tui/src/theme-presets/<family>.ts` (21 family modules plus `base.ts` and `options.ts`) and is composed by a thin `theme-presets.ts` index. The architecture hotspot guardrail caps that file at 1424 lines and the single inline `themePresets` Record could not absorb more presets. The public `./theme-presets.js` path and the `theme.ts` facade are unchanged; adding a theme is now core id → family module → picker row → CLI `THEME_META`, all still compile-enforced. A spread-composition guard in the index now rejects duplicate preset ids across modules — a mistake the old single-object literal caught at compile time and spreading cannot. (`a08d78c63`)
 - **The theme preset suite enforces the palette contract it previously lacked.** Per-preset assertions now cover AA body text on both surfaces, the `textPrimary > textSecondary > textMuted` emphasis hierarchy, `borderSubtle < borderDefault < borderActive` ordering, distinct `user`/`assistant`/`tool` role colours, and that no non-Catppuccin preset carries a Catppuccin text token (513 → 845 tests). `docs/tui-themes.md` was regenerated from the live palette and documents the new floors. (`a08d78c63`)
+
+## [0.319.2] — 2026-09-03
+
+### Security
+
+- **Provider configuration no longer accepts link-local or cloud-metadata endpoints.**
+  The endpoint validator resolves hostnames and rejects `0.0.0.0/8`,
+  `169.254.0.0/16`, IPv6 link-local/unspecified forms, and embedded IPv4
+  metadata addresses. Updating an endpoint also retains an explicit empty
+  credential-variable list when appropriate, so a catalog default cannot
+  silently reattach an old key to a new destination. (`2b069a7bd`)
+- **YOLO approval detects credential names throughout nested tool input.**
+  The bounded scan recognizes environment-variable arrays, strings, and
+  MCP-style maps under common aliases, and sends calls that name a well-known
+  credential back for human approval. (`2b069a7bd`)
+- **Patch permissions expose and enforce actual diff destinations.** The tool
+  reports stripped target paths to the permission layer, understands Git
+  rename/copy headers, and fails closed when a non-empty patch has no parsable
+  target. (`2b069a7bd`)
+
+### Fixed
+
+- **Google explicit-cache setup avoids repeated rejected requests.** Failed or
+  incomplete cache-creation responses are remembered briefly, so subsequent
+  turns use the normal request path instead of retrying the same cache setup.
+  (`2b069a7bd`)
+
+### Changed
+
+- **All public package and website version metadata now align to `0.319.2`.**
+  (`2b069a7bd`)
 
 ## [0.317.1] — 2026-08-31
 

@@ -151,7 +151,7 @@ export interface SageRetrieverLike {
 
 export type SageSearchLike = Pick<
   SageRetrieverLike,
-  'searchSage' | 'recordInjection' | 'recordUse'
+  'searchSage' | 'searchSageWithBreakdown' | 'recordInjection' | 'recordUse'
 >;
 
 const DEFAULT_MAX_HINTS = 8;

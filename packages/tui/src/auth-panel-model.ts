@@ -66,6 +66,68 @@ export interface AuthFlowIo {
   signal: AbortSignal;
 }
 
+/**
+ * One-screen "add provider" form (catalog card or fully custom entry).
+ * Every field arrives as raw text exactly as typed; the CLI host trims,
+ * validates, and splits the comma-separated lists. `apiKey` is the only
+ * secret here and never re-enters the TUI after the save.
+ */
+export interface AuthProviderSetup {
+  /** `catalog` prefills from models.dev; `custom` is user-authored. */
+  source: 'catalog' | 'custom';
+  /** Provider type id (models.dev id for catalog entries). */
+  type: string;
+  /** Human label shown on the setup card. */
+  name: string;
+  family: string;
+  baseUrl: string;
+  /** Config key the provider is saved under — may differ from `type`. */
+  alias: string;
+  keyLabel: string;
+  apiKey: string;
+  /** Comma-separated model allowlist. */
+  models: string;
+  /** Comma-separated env var names. */
+  envVars: string;
+}
+
+/** Non-secret settings of an existing provider, edited as one form. */
+export interface AuthProviderEdit {
+  providerId: string;
+  family: string;
+  baseUrl: string;
+  /** Comma-separated model allowlist. */
+  models: string;
+  /** Comma-separated env var names. */
+  envVars: string;
+}
+
+/**
+ * The subset of a model's models.dev schema the panel edits inline.
+ * Numeric fields are carried as text so a half-typed value round-trips;
+ * the host parses and rejects non-numeric input with a message.
+ */
+export interface AuthModelEdit {
+  providerId: string;
+  modelId: string;
+  name: string;
+  contextWindow: string;
+  maxOutput: string;
+  costInput: string;
+  costOutput: string;
+}
+
+/**
+ * Add-or-rename form for one saved key. `originalLabel` absent means
+ * "append a new key"; present means "replace that key in place".
+ */
+export interface AuthKeyEdit {
+  providerId: string;
+  label: string;
+  apiKey: string;
+  originalLabel?: string | undefined;
+}
+
 export interface AuthFlowResult {
   ok: boolean;
   message?: string | undefined;
@@ -121,6 +183,18 @@ export interface AuthPanelHost {
   addCustomProvider(io: AuthFlowIo): Promise<AuthFlowResult>;
   addLocal(presetId: string, io: AuthFlowIo): Promise<AuthFlowResult>;
   oauthLogin(kind: AuthOAuthKind, io: AuthFlowIo): Promise<AuthFlowResult>;
+  /**
+   * Form-shaped counterparts to the `io`-driven flows above: the panel hands
+   * over one filled-in form instead of a question-at-a-time sequence, and the
+   * host validates the whole thing in a single config mutation. Each resolves
+   * to an error string, or null on success.
+   */
+  saveProviderSetup(setup: AuthProviderSetup): Promise<string | null>;
+  saveProviderEdit(edit: AuthProviderEdit): Promise<string | null>;
+  /** Current editable schema values, or null when the model is gone. */
+  getModelEdit(providerId: string, modelId: string): Promise<AuthModelEdit | null>;
+  saveModelEdit(edit: AuthModelEdit): Promise<string | null>;
+  saveKeyEdit(edit: AuthKeyEdit): Promise<string | null>;
 }
 
 // ── Panel state slice ──────────────────────────────────────────────────────

@@ -204,7 +204,13 @@ describe('ContextBreakdownModal', () => {
       expect(sendMock).toHaveBeenCalledTimes(1);
       expect(handlers.get('context.debug')?.size ?? 0).toBe(1);
 
-      rerender(<ContextBreakdownModal open={false} onClose={onClose} />);
+      // React 18 schedules passive-effect cleanups asynchronously — under
+      // full-suite load the unsubscribe can land after a synchronous read.
+      // Await the flush so this asserts the app contract (subscription gone,
+      // no polling after close) rather than React's effect-flush timing.
+      await act(async () => {
+        rerender(<ContextBreakdownModal open={false} onClose={onClose} />);
+      });
       // Subscription is gone — no further ticks should reach us.
       expect(handlers.get('context.debug')?.size ?? 0).toBe(0);
       await act(async () => {

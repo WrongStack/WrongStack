@@ -18,8 +18,11 @@ import { expectDefined, startSharedHeapWatchdog, wstackGlobalRoot } from '@wrong
 import { ensureSessionShell } from '@wrongstack/tools';
 import {
   startFirstBootSageSync,
+  subscribeVectorMemoryToSage,
+  sweepStaleSageMirrors,
   TransformersEmbeddingProvider,
   VectorMemoryStore,
+  wrapMemoryPortWithVectorRecall,
 } from '@wrongstack/vector-memory';
 
 import { createAgentServices } from './backend-services.js';
@@ -200,6 +203,8 @@ export async function startWebUI(
   // WebUI still boots on the SAGE-only surface — the routes then report
   // `enabled: false` instead of failing to start.
   let vectorMemoryStore: VectorMemoryStore | undefined;
+  /** Set once the live SAGE→vector mirror is subscribed; run at shutdown. */
+  let disposeVectorMirror: (() => void) | undefined;
   const vectorMemoryModelCacheDir = path.join(
     projectRoot,
     '.wrongstack',
@@ -207,6 +212,7 @@ export async function startWebUI(
     'transformers-models',
   );
   try {
+    if (config.Sage?.vector?.enabled === false) throw new Error('disabled by config');
     vectorMemoryStore = new VectorMemoryStore({
       provider: new TransformersEmbeddingProvider({
         cacheDir: vectorMemoryModelCacheDir,
@@ -245,7 +251,7 @@ export async function startWebUI(
     configStore,
     providerRegistry,
     toolRegistry,
-    memoryStore,
+    memoryStore: baseMemoryStore,
     events,
     mcpRegistry,
     sessionReader,
@@ -261,6 +267,9 @@ export async function startWebUI(
     context,
     sessionIdentity,
   } = preContext;
+  // Reassigned below when the vector store comes up — see the vector-recall
+  // wiring after the first-boot sync.
+  let memoryStore = baseMemoryStore;
   let sessionStore = preContext.sessionStore;
   let session = preContext.session;
   const todosCheckpoint = createStandaloneTodosCheckpointLifecycle({
@@ -289,6 +298,35 @@ export async function startWebUI(
       memoryStore,
       logger,
     });
+    // Parity with the CLI host (packages/cli/src/wiring/vector-memory-setup.ts):
+    // warm-starting the vector store is only half the wiring. Without the
+    // wrapper, `searchSage` here stays lexical-only and the mirrored corpus is
+    // never read back; without the live mirror, every SAGE write after boot is
+    // invisible to semantic recall until an operator forces a re-sync. The
+    // standalone WebUI shipped with only the sync, so its vector database was
+    // written once and never consulted.
+    const vectorTuning = config.Sage?.vector;
+    memoryStore = wrapMemoryPortWithVectorRecall(memoryStore, {
+      store: vectorMemoryStore,
+      weight: vectorTuning?.weight ?? 0.3,
+      ...(vectorTuning?.threshold !== undefined ? { threshold: vectorTuning.threshold } : {}),
+      ...(vectorTuning?.vectorOnlyThreshold !== undefined
+        ? { vectorOnlyThreshold: vectorTuning.vectorOnlyThreshold }
+        : {}),
+      ...(vectorTuning?.maxMaterializations !== undefined
+        ? { maxMaterializations: vectorTuning.maxMaterializations }
+        : {}),
+    });
+    const handle = subscribeVectorMemoryToSage({
+      store: vectorMemoryStore,
+      memoryStore,
+      logger,
+    });
+    disposeVectorMirror = () => handle.dispose();
+    // Bulk SAGE operations emit one top-level event rather than a
+    // `memory.deleted` per memory, so the live mirror never sees them.
+    // Throttled by a marker beside the vector db, shared with the CLI host.
+    void sweepStaleSageMirrors({ store: vectorMemoryStore, memoryStore, logger });
   }
 
   // Pref keys + snapshot + persistence live in ./pref-helpers.ts (Phase 1c).
@@ -1045,6 +1083,7 @@ export async function startWebUI(
     codebaseIndexing,
     memoryStore,
     vectorMemoryStore,
+    disposeVectorMirror: () => disposeVectorMirror?.(),
     flushSessionJournalsSync: agentServices.flushSessionJournalsSync,
     closeSessionJournals: agentServices.closeSessionJournals,
     globalConfigPath,

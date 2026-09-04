@@ -1,5 +1,6 @@
 import { useLocalPrefs, useUIStore } from '@/stores';
 import { useAppTranslation } from '@/i18n';
+import { platformKeyLabel } from '@/lib/platform';
 import { Keyboard } from 'lucide-react';
 import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
@@ -145,7 +146,7 @@ export function ShortcutsOverlay() {
                         <span key={k} className="flex items-center gap-1">
                           {ki > 0 && <span className="text-muted-foreground/65 text-xs">+</span>}
                           <kbd className="font-mono text-[10px] border rounded px-1.5 py-0.5 bg-background">
-                            {k}
+                            {platformKeyLabel(k)}
                           </kbd>
                         </span>
                       ))}

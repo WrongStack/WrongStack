@@ -10,7 +10,7 @@ import { renderRealTty, settle } from './helpers/real-tty.js';
  * status-bar-separators.test.ts pins individual chips; this file pins the
  * COMPLETE composition — which chip ids sit on which physical rail and in
  * what left-to-right order — at a wide (140) and a narrow (90) terminal.
- * The click-map spans are the source of truth: computeRailSpans mirrors the
+ * The click-map spans are the source of truth: `layoutRail` performs the
  * exact keep/drop and right-anchor math PowerlineRail renders, so the pin
  * reflects what the user sees without depending on ANSI codes or glyph
  * widths.

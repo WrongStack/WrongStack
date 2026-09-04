@@ -212,8 +212,15 @@ function messageText(message: unknown): string {
     for (const block of content) {
       if (!block || typeof block !== 'object') continue;
       const b = block as { type?: unknown; text?: unknown; content?: unknown };
-      if (b.type === 'text' && typeof b.text === 'string') acc += b.text;
-      else if (typeof b.content === 'string') acc += b.content;
+      const piece =
+        b.type === 'text' && typeof b.text === 'string'
+          ? b.text
+          : typeof b.content === 'string'
+            ? b.content
+            : '';
+      if (piece) {
+        acc += acc && !acc.endsWith(' ') && !piece.startsWith(' ') ? ` ${piece}` : piece;
+      }
     }
     return acc;
   }

@@ -29,9 +29,13 @@ export function patchConfig<T extends object>(base: T, patch: Partial<T>): T {
 export function fmtDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   const s = ms / 1000;
-  if (s < 60) return `${s.toFixed(s < 10 ? 1 : 0)}s`;
-  const m = Math.floor(s / 60);
-  const remSec = Math.round(s - m * 60);
+  if (s < 59.5) return `${s.toFixed(s < 10 ? 1 : 0)}s`;
+  let m = Math.floor(s / 60);
+  let remSec = Math.round(s - m * 60);
+  if (remSec === 60) {
+    remSec = 0;
+    m++;
+  }
   if (m < 60) return remSec === 0 ? `${m}m` : `${m}m${remSec}s`;
   const h = Math.floor(m / 60);
   const remMin = m - h * 60;

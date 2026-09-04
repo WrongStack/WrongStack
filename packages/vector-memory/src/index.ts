@@ -47,8 +47,13 @@ export {
   type VectorPortWrappingOptions,
 } from './sage-port-wrapper.js';
 export {
+  DEFAULT_SWEEP_INTERVAL_MS,
   forgetStaleSageMirrors,
+  SAGE_SWEEP_MARKER_FILENAME,
   subscribeVectorMemoryToSage,
+  sweepStaleSageMirrors,
+  type SweepStaleSageMirrorsOptions,
+  type SweepStaleSageMirrorsResult,
   type VectorMemoryMirrorHandle,
   type VectorMemoryMirrorOptions,
 } from './sage-event-mirror.js';

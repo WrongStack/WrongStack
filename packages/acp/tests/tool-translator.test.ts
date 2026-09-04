@@ -212,27 +212,30 @@ describe('ToolTranslator', () => {
     }
   });
 
-  it('cancelAll clears pending timers without rejecting', async () => {
+  it('cancelAll rejects every pending call with the cancellation error', async () => {
     vi.useFakeTimers();
     try {
       const t = new ToolTranslator({ totalTimeoutMs: 1000 });
       const transport = makeTransport();
       t.attachToTransport(transport);
-      // Two outstanding calls; attach a catch so an unexpected rejection is observable.
-      let rejected = false;
-      void t.callTool(transport, 'a', {}, 'a').catch(() => {
-        rejected = true;
+      // Two outstanding calls; record how each one settles.
+      const rejections: string[] = [];
+      void t.callTool(transport, 'a', {}, 'a').catch((err: unknown) => {
+        rejections.push(err instanceof Error ? err.message : String(err));
       });
-      void t.callTool(transport, 'b', {}, 'b').catch(() => {
-        rejected = true;
+      void t.callTool(transport, 'b', {}, 'b').catch((err: unknown) => {
+        rejections.push(err instanceof Error ? err.message : String(err));
       });
       // Drain the send() microtasks so both pending entries (and their timers)
       // are registered before cancelAll runs.
       await vi.advanceTimersByTimeAsync(0);
       t.cancelAll();
-      // Advancing past the timeout must not fire — timers were cleared.
+      // cancelAll settles both calls immediately with the cancellation error
+      // (the single-call path's contract). Advancing past the timeout must not
+      // fire anything else — the timers were cleared, so there are exactly two
+      // rejections, both cancellation.
       await vi.advanceTimersByTimeAsync(2000);
-      expect(rejected).toBe(false);
+      expect(rejections).toEqual(['Call cancelled by client', 'Call cancelled by client']);
     } finally {
       vi.useRealTimers();
     }

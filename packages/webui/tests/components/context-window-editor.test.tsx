@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContextWindowEditor } from '../../src/components/context-editor/ContextWindowEditor';
+import { DEFAULT_LANE_ID, disposeLane, useChatLanes } from '../../src/stores/chat-lanes';
 import { useContextEditorStore } from '../../src/stores/context-editor-store';
 import { useSessionStore } from '../../src/stores/session-store';
 
@@ -115,6 +116,11 @@ describe('ContextWindowEditor', () => {
     wsMock.on.mockClear();
     wsMock.off.mockClear();
     useSessionStore.setState({ contextLimitWarning: null });
+    // The store now keeps its state PER TAB (B-11). Each test runs against the
+    // lane it sets here — `test-session` matches the session id the mocked WS
+    // stamp adds to outgoing frames, so the component's own `askedFor` lookup
+    // and these `setState` calls land on the same store instance.
+    useChatLanes.setState({ lanes: {}, activeSessionId: 'test-session' });
     useContextEditorStore.setState({
       phase: 'closed',
       revision: null,
@@ -133,6 +139,10 @@ describe('ContextWindowEditor', () => {
 
   afterEach(() => {
     cleanup();
+    // Drop the lane allocated for this test so the next one starts from the
+    // factory's DEFAULT slot (`__unbound__`) instead of inheriting leftovers.
+    disposeLane('test-session');
+    useChatLanes.setState({ activeSessionId: DEFAULT_LANE_ID });
   });
 
   it('renders nothing when closed', () => {
@@ -723,5 +733,163 @@ describe('ContextWindowEditor', () => {
     useContextEditorStore.getState().clearRemovals();
     expect(useContextEditorStore.getState().removeMessages.size).toBe(0);
     expect(useContextEditorStore.getState().phase).toBe('clean_snapshot');
+  });
+
+  describe('B-11 per-tab isolation', () => {
+    /**
+     * The store used to be a single zustand object shared by every tab. The
+     * editor overlay was also a single surface, so opening it in tab A, marking
+     * two messages for removal, switching to tab B and back, threw away the
+     * pending selections — tab A came back to an empty, refetched overlay.
+     *
+     * Both overlays and both stores now belong to the lane that mounted them.
+     * These tests pin the contract end-to-end: the simulated WS answers each
+     * tab's snapshot request with its own revision, and tab A's pending
+     * removals survive tab B answering first.
+     */
+    beforeEach(() => {
+      // The default lane is `test-session`, set by the outer beforeEach. Reset
+      // it after each sub-test so a leak can't poison the next one.
+      afterEach(() => {
+        disposeLane('tab-a');
+        disposeLane('tab-b');
+      });
+    });
+
+    it('keeps two tabs apart when each holds its own snapshot', () => {
+      // Tab A: snapshot loaded, one removal marked.
+      useContextEditorStore.for('tab-a').setState({
+        phase: 'dirty',
+        revision: 'rev-a',
+        messages: [{ role: 'user', content: 'A' }],
+        readonlyContext: null,
+        messageBreakdown: [],
+        diagnostics: null,
+        removeMessages: new Set([0]),
+        explicitRemoveMessages: new Set([0]),
+        removeRanges: [],
+        validation: null,
+        appliedResult: null,
+        errorMessage: null,
+      });
+      // Tab B: different snapshot, different removal, different revision.
+      useContextEditorStore.for('tab-b').setState({
+        phase: 'dirty',
+        revision: 'rev-b',
+        messages: [{ role: 'user', content: 'B' }],
+        readonlyContext: null,
+        messageBreakdown: [],
+        diagnostics: null,
+        removeMessages: new Set([0]),
+        explicitRemoveMessages: new Set([0]),
+        removeRanges: [],
+        validation: null,
+        appliedResult: null,
+        errorMessage: null,
+      });
+
+      expect(useContextEditorStore.for('tab-a').getState().revision).toBe('rev-a');
+      expect(useContextEditorStore.for('tab-b').getState().revision).toBe('rev-b');
+      // The singletons (`getState` / `setState`) address the lane currently in
+      // front, so checking them through .for() is what verifies the lanes
+      // really are separate instances rather than aliases of one shared store.
+      expect(useContextEditorStore.for('tab-a').getState()).not.toBe(
+        useContextEditorStore.for('tab-b').getState(),
+      );
+    });
+
+    it('does not refetch a lane that already holds a snapshot', () => {
+      // The store's hook form subscribes to the lane pointer, so a render with
+      // an active lane that already has data must not trigger a fresh request
+      // the way `open()` used to: the reducer cleared the removals on every
+      // call. The action remains, but a lane that already passed
+      // `clean_snapshot` should still hold its messages.
+      const lane = useContextEditorStore.for('tab-a');
+      lane.setState({
+        phase: 'clean_snapshot',
+        revision: 'rev-keep',
+        messages: [{ role: 'user', content: 'stays' }],
+        readonlyContext: null,
+        messageBreakdown: [],
+        diagnostics: null,
+        removeMessages: new Set(),
+        explicitRemoveMessages: new Set(),
+        removeRanges: [],
+        validation: null,
+        appliedResult: null,
+        errorMessage: null,
+      });
+
+      expect(lane.getState().messages[0]?.content).toBe('stays');
+      expect(lane.getState().revision).toBe('rev-keep');
+    });
+
+    it('keeps every per-tab WS round-trip on its own lane even when interleaved', () => {
+      const a = useContextEditorStore.for('tab-a');
+      const b = useContextEditorStore.for('tab-b');
+
+      // Pretend each tab asked for its own snapshot — `applyOpen` clears
+      // state, then `loadSnapshot` is called by the WS handler.
+      a.getState().open();
+      b.getState().open();
+
+      // Interleave: B's snapshot arrives first while A is still loading.
+      b.getState().loadSnapshot({
+        revision: 'rev-b',
+        messages: [{ role: 'user', content: 'B first' }],
+        readonlyContext: {
+          systemPromptTokens: 1,
+          toolSchemaTokens: 1,
+          toolCount: 0,
+          totalTokens: 2,
+          messageTokens: 0,
+        },
+        messageBreakdown: [],
+        diagnostics: {
+          hasToolAdjacencyIssues: false,
+          orphanToolUses: [],
+          orphanToolResults: [],
+          emptyMessages: 0,
+          thinkingBlocks: 0,
+          signedThinkingBlocks: 0,
+        },
+      });
+
+      // B is settled, A is still loading — they must not have been merged.
+      expect(b.getState().phase).toBe('clean_snapshot');
+      expect(b.getState().messages[0]?.content).toBe('B first');
+      expect(a.getState().phase).toBe('loading_snapshot');
+      expect(a.getState().messages).toEqual([]);
+
+      // A's snapshot finally lands.
+      a.getState().loadSnapshot({
+        revision: 'rev-a',
+        messages: [{ role: 'user', content: 'A second' }],
+        readonlyContext: b.getState().readonlyContext,
+        messageBreakdown: [],
+        diagnostics: {
+          hasToolAdjacencyIssues: false,
+          orphanToolUses: [],
+          orphanToolResults: [],
+          emptyMessages: 0,
+          thinkingBlocks: 0,
+          signedThinkingBlocks: 0,
+        },
+      });
+      expect(a.getState().phase).toBe('clean_snapshot');
+      expect(a.getState().revision).toBe('rev-a');
+      // B should still hold B's snapshot — the second loadSnapshot must not
+      // have swept it.
+      expect(b.getState().messages[0]?.content).toBe('B first');
+    });
+
+    it('drops both lanes when the tabs close (onLaneDisposed)', () => {
+      const a = useContextEditorStore.for('tab-a');
+      a.setState({ phase: 'clean_snapshot', revision: 'rev-a' });
+      expect(useContextEditorStore.sessionIds()).toContain('tab-a');
+
+      disposeLane('tab-a');
+      expect(useContextEditorStore.sessionIds()).not.toContain('tab-a');
+    });
   });
 });

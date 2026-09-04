@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useContextEditorStore } from '@/stores/context-editor-store';
 import { useChatStore } from '@/stores';
 import { useActiveSessionId } from '@/stores/session-lanes';
+import { useServerMessage } from '@/hooks/useServerMessage';
 import { useSessionStore } from '@/stores/session-store';
 import { useAppTranslation, i18n } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -262,17 +263,6 @@ interface ContextWindowEditorProps {
 
 const SNAPSHOT_TIMEOUT_MS = 5_000;
 
-function payloadSessionId(payload: unknown): string | undefined {
-  if (!payload || typeof payload !== 'object') return undefined;
-  const value = (payload as { sessionId?: unknown }).sessionId;
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
-}
-
-function isForAskedSession(payload: unknown, askedFor: string | undefined): boolean {
-  const replyFor = payloadSessionId(payload);
-  return !askedFor || !replyFor || replyFor === askedFor;
-}
-
 export function ContextWindowEditor({
   open,
   onClose,
@@ -301,51 +291,91 @@ export function ContextWindowEditor({
   // Subscribe FIRST, then ask. Empty sessions answer in the same tick as the
   // send (no transcript to walk), so a listener registered in a later effect
   // misses the snapshot and the overlay stays on "Loading context snapshot…".
-  // Re-run when the tab in front changes: the overlay is a singleton and would
-  // otherwise keep the previous tab's snapshot — or its spinner.
+  //
+  // Re-runs when the tab in front changes, because the OVERLAY is one surface
+  // shared by every tab. What is no longer shared is the state behind it: the
+  // store is session-scoped, so each tab keeps its own snapshot, its own
+  // pending removals and its own validation result.
+  //
+  // That is why this no longer calls `open()` unconditionally. It used to, and
+  // with one global store that meant switching tabs while the editor was open
+  // silently discarded whatever the outgoing tab had selected for removal —
+  // the user came back to a re-fetched, empty selection with no warning. A
+  // lane that already holds a snapshot is left exactly as the user left it and
+  // only re-subscribes; a lane that has nothing (or failed) asks for one.
+  //
+  // B-03: subscription now goes through `useServerMessage`, which embeds the
+  // sessionId lane filter and cleans up on unmount automatically. Three ad-hoc
+  // `ws.on` calls + a manual cleanup block collapsed into three hook calls.
+  //
+  // askedFor precedence matches the OLD inline path:
+  //   1. `ws.withSession({}).sessionId` — the WS client's own stamp for the
+  //      lane whose socket originated the request (the most authoritative
+  //      source in production; the chat-lane pointer drifts in boot/empty
+  //      tabs);
+  //   2. `useActiveSessionId()` — the lane pointer fallback;
+  //   3. `foregroundSessionId()` — same lane, read off the legacy store.
+  // The OLD code evaluated #1 inside the effect where it always had a fresh
+  // ws.withSession result. We must call it here too — taking a different
+  // shortcut broke a test that only stubs the chat-lanes store.
+  const askedFor =
+    getWSClient()?.withSession?.({})?.sessionId ??
+    activeSessionId ??
+    foregroundSessionId() ??
+    undefined;
+
+  useServerMessage(
+    'context.editor.snapshot',
+    (msg) => {
+      const p = msg.payload;
+      if (!p || typeof (p as { revision?: unknown }).revision !== 'string') return;
+      if (!Array.isArray((p as { messages?: unknown }).messages)) return;
+      store.getState().loadSnapshot(
+        p as Parameters<ReturnType<typeof store.getState>['loadSnapshot']>[0],
+      );
+    },
+    { sessionId: askedFor, deps: [open, store, askedFor] },
+  );
+
+  useServerMessage(
+    'context.editor.validation',
+    (msg) => {
+      store.getState().setValidation(
+        msg.payload as Parameters<ReturnType<typeof store.getState>['setValidation']>[0],
+      );
+    },
+    { sessionId: askedFor, deps: [open, store, askedFor] },
+  );
+
+  useServerMessage(
+    'context.editor.applied',
+    (msg) => {
+      store.getState().setApplied(
+        msg.payload as Parameters<ReturnType<typeof store.getState>['setApplied']>[0],
+      );
+      const ws = getWSClient();
+      if (typeof ws?.openContextEditor === 'function') ws.openContextEditor();
+    },
+    { sessionId: askedFor, deps: [open, store, askedFor] },
+  );
+
   useEffect(() => {
     if (!open) {
       store.getState().close();
       return;
     }
-    store.getState().open();
+    const needsSnapshot =
+      store.getState().phase === 'closed' || store.getState().phase === 'apply_failed';
+    if (needsSnapshot) store.getState().open();
     const ws = getWSClient();
-    if (!ws?.send || !ws.on) {
+    if (!ws?.send || !ws?.on) {
       store.getState().setError(i18n.t('activity:context.wsNotConnected'));
       return;
     }
 
-    const askedFor =
-      ws.withSession({}).sessionId ?? activeSessionId ?? foregroundSessionId() ?? undefined;
     const request = () => {
       ws.send({ type: 'context.editor.open', payload: ws.withSession({}) });
     };
-
-    const onSnapshot = (msg: { type: string; payload?: unknown }) => {
-      if (msg.type !== 'context.editor.snapshot') return;
-      if (!isForAskedSession(msg.payload, askedFor)) return;
-      const p = msg.payload as Parameters<ReturnType<typeof store.getState>['loadSnapshot']>[0];
-      if (!p || typeof p.revision !== 'string' || !Array.isArray(p.messages)) return;
-      store.getState().loadSnapshot(p);
-    };
-    const onValidation = (msg: { type: string; payload?: unknown }) => {
-      if (msg.type !== 'context.editor.validation') return;
-      if (!isForAskedSession(msg.payload, askedFor)) return;
-      const p = msg.payload as Parameters<ReturnType<typeof store.getState>['setValidation']>[0];
-      store.getState().setValidation(p);
-    };
-    const onApplied = (msg: { type: string; payload?: unknown }) => {
-      if (msg.type !== 'context.editor.applied') return;
-      if (!isForAskedSession(msg.payload, askedFor)) return;
-      const p = msg.payload as Parameters<ReturnType<typeof store.getState>['setApplied']>[0];
-      store.getState().setApplied(p);
-      if (typeof ws.openContextEditor === 'function') ws.openContextEditor();
-      else request();
-    };
-
-    const unsubSnapshot = ws.on('context.editor.snapshot', onSnapshot);
-    const unsubValidation = ws.on('context.editor.validation', onValidation);
-    const unsubApplied = ws.on('context.editor.applied', onApplied);
     request();
 
     const timeout = setTimeout(() => {
@@ -354,16 +384,8 @@ export function ContextWindowEditor({
       }
     }, SNAPSHOT_TIMEOUT_MS);
 
-    return () => {
-      clearTimeout(timeout);
-      unsubSnapshot?.();
-      unsubValidation?.();
-      unsubApplied?.();
-      ws.off?.('context.editor.snapshot', onSnapshot);
-      ws.off?.('context.editor.validation', onValidation);
-      ws.off?.('context.editor.applied', onApplied);
-    };
-  }, [open, store, activeSessionId]);
+    return () => clearTimeout(timeout);
+  }, [open, store, askedFor]);
 
   // Escape to close
   useEffect(() => {

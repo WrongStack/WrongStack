@@ -155,9 +155,9 @@ export function reduceConversation(state: State, action: ConversationAction): St
         // longer references them. /clear would otherwise appear to do
         // nothing to the visible chat history.
         historyGen: state.historyGen + 1,
-        // Reset fleet state on /clear so old subagent entries don't
-        // cause the LiveActivityStrip to render stale spacers, and
-        // the fleet cost/tokens chips show zero.
+        // Reset fleet state on /clear so old subagent entries don't leave
+        // stale per-agent chips on the async rail, and the fleet
+        // cost/tokens chips show zero.
         fleet: {},
         fleetCost: 0,
         fleetTokens: { input: 0, output: 0 },

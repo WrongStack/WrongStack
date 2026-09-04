@@ -1,63 +1,63 @@
-import { tokenize } from '../store-helpers.js';
-import type { MemoryAnchor, Sage } from '../types.js';
+import { tokenize } from "../store-helpers.js";
+import type { MemoryAnchor, Sage } from "../types.js";
 
 const GENERIC_QUERY_TERMS = new Set([
-  'add',
-  'after',
-  'and',
-  'are',
-  'backfill',
-  'bash',
-  'before',
-  'change',
-  'code',
-  'command',
-  'context',
-  'edit',
-  'file',
-  'files',
-  'find',
-  'fix',
-  'for',
-  'from',
-  'glob',
-  'grep',
-  'imported',
-  'inject',
-  'injected',
-  'injector',
-  'legacy',
-  'memory',
-  'model',
-  'node',
-  'output',
-  'package',
-  'packages',
-  'path',
-  'project',
-  'provider',
-  'read',
-  'recovered',
-  'recovery',
-  'remove',
-  'result',
-  'results',
-  'restored',
-  'run',
-  'source',
-  'src',
-  'test',
-  'tests',
-  'that',
-  'the',
-  'this',
-  'tool',
-  'tree',
-  'update',
-  'using',
-  'with',
-  'write',
-  'wrongstack',
+  "add",
+  "after",
+  "and",
+  "are",
+  "backfill",
+  "bash",
+  "before",
+  "change",
+  "code",
+  "command",
+  "context",
+  "edit",
+  "file",
+  "files",
+  "find",
+  "fix",
+  "for",
+  "from",
+  "glob",
+  "grep",
+  "imported",
+  "inject",
+  "injected",
+  "injector",
+  "legacy",
+  "memory",
+  "model",
+  "node",
+  "output",
+  "package",
+  "packages",
+  "path",
+  "project",
+  "provider",
+  "read",
+  "recovered",
+  "recovery",
+  "remove",
+  "result",
+  "results",
+  "restored",
+  "run",
+  "source",
+  "src",
+  "test",
+  "tests",
+  "that",
+  "the",
+  "this",
+  "tool",
+  "tree",
+  "update",
+  "using",
+  "with",
+  "write",
+  "wrongstack",
 ]);
 
 export interface MemoryQueryRelevance {
@@ -71,7 +71,10 @@ export interface MemoryQueryRelevance {
  * multi-term task needs at least two textual matches unless an anchor or tag
  * provides a stronger relationship.
  */
-export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRelevance {
+export function memoryQueryRelevance(
+  memory: Sage,
+  query: string,
+): MemoryQueryRelevance {
   const { normalizedQuery, queryTerms } = prepareQuery(query);
   if (queryTerms.length === 0) return { strength: 0, evidence: [] };
 
@@ -79,7 +82,8 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
     const exact = exactAnchorValue(anchor);
     if (exact && normalizedQuery.includes(exact)) {
       return {
-        strength: anchor.type === 'symbol' || anchor.type === 'command' ? 0.98 : 0.96,
+        strength:
+          anchor.type === "symbol" || anchor.type === "command" ? 0.98 : 0.96,
         evidence: [`query:exact-${anchor.type}`],
       };
     }
@@ -95,7 +99,9 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
   // other `store.ts` in the repository.
   const anchorTerms = new Set(
     memory.anchors.flatMap((anchor) =>
-      informativeTerms([anchor.symbol, anchor.command, anchor.role].filter(Boolean).join(' ')),
+      informativeTerms(
+        [anchor.symbol, anchor.command, anchor.role].filter(Boolean).join(" "),
+      ),
     ),
   );
   const allTerms = new Set([...textTerms, ...tagTerms, ...anchorTerms]);
@@ -106,9 +112,10 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
   const tagMatches = matched.filter((term) => tagTerms.has(term));
   const evidence: string[] = [];
   if (anchorMatches.length > 0)
-    evidence.push(`query:anchor-terms:${anchorMatches.slice(0, 3).join(',')}`);
-  if (tagMatches.length > 0) evidence.push(`query:tag-terms:${tagMatches.slice(0, 3).join(',')}`);
-  evidence.push(`query:text-terms:${matched.slice(0, 4).join(',')}`);
+    evidence.push(`query:anchor-terms:${anchorMatches.slice(0, 3).join(",")}`);
+  if (tagMatches.length > 0)
+    evidence.push(`query:tag-terms:${tagMatches.slice(0, 3).join(",")}`);
+  evidence.push(`query:text-terms:${matched.slice(0, 4).join(",")}`);
 
   // Evidence tiers, deliberately split around the tool-call middleware's
   // relation floor. What lifts a tier is not how many words coincided but how
@@ -117,26 +124,36 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
   // three out of a twelve-term enriched path query is a coincidence. One
   // isolated token — `store`, `session`, `middleware` — is why unrelated
   // memories used to arrive stapled to files they say nothing about.
-  const answersTheQuery = matched.length / queryTerms.length >= 0.6 || matched.length >= 4;
+  const answersTheQuery =
+    matched.length / queryTerms.length >= 0.6 || matched.length >= 4;
   if (anchorMatches.length >= 2) {
-    return { strength: Math.min(0.92, 0.78 + anchorMatches.length * 0.05), evidence };
+    return {
+      strength: Math.min(0.92, 0.78 + anchorMatches.length * 0.05),
+      evidence,
+    };
   }
   if (anchorMatches.length === 1) {
     return { strength: answersTheQuery ? 0.82 : 0.72, evidence };
   }
   if (tagMatches.length >= 2) {
-    return { strength: Math.min(0.88, 0.74 + tagMatches.length * 0.05), evidence };
+    return {
+      strength: Math.min(0.88, 0.74 + tagMatches.length * 0.05),
+      evidence,
+    };
   }
   if (tagMatches.length === 1) {
     return { strength: answersTheQuery ? 0.78 : 0.7, evidence };
   }
   if (matched.length >= 3) {
     return {
-      strength: answersTheQuery ? Math.min(0.86, 0.76 + matched.length * 0.02) : 0.72,
+      strength: answersTheQuery
+        ? Math.min(0.86, 0.76 + matched.length * 0.02)
+        : 0.72,
       evidence,
     };
   }
-  if (matched.length === 2) return { strength: answersTheQuery ? 0.72 : 0.68, evidence };
+  if (matched.length === 2)
+    return { strength: answersTheQuery ? 0.72 : 0.68, evidence };
   // One shared word out of a one- or two-word query. Real evidence when a
   // person typed the query — half of what they asked about — but far too
   // little to staple a memory onto a tool result, so it sits deliberately
@@ -146,21 +163,94 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
   return { strength: 0, evidence: [] };
 }
 
+/**
+ * Cosine at which a semantic hit is exactly as admissible as the default
+ * `relationFloor` (0.85). Below this the memory can still be retrieved and
+ * ranked — it just cannot buy its way into the model's context on semantics
+ * alone.
+ */
+const SEMANTIC_PIVOT_COSINE = 0.75;
+/**
+ * Strength assigned at the pivot. Deliberately equal to
+ * `MIN_RELATION_STRENGTH`: the semantic channel is calibrated against the
+ * SAME gate as every other channel, so an operator who lowers `relationFloor`
+ * lowers it for lexical, structural and semantic evidence alike, and one who
+ * raises it raises all three. There is no separate semantic dial to forget.
+ */
+const SEMANTIC_PIVOT_STRENGTH = 0.85;
+/** Slope through (0.75 → 0.85) and (0.90 → 0.95). */
+const SEMANTIC_SLOPE = 0.1 / 0.15;
+/** Never let semantics claim the certainty of an exact anchor match. */
+const SEMANTIC_MAX_STRENGTH = 0.94;
+
+/**
+ * Convert a vector-channel cosine score into the same relation-strength scale
+ * every other retrieval channel reports on.
+ *
+ * This exists because the injection gate measures *lexical* evidence
+ * (`memoryQueryRelevance`: shared informative terms, anchor terms, tags). A
+ * memory the vector channel found and the lexical channel missed scores 0
+ * there by construction — it was recalled precisely because it shares no
+ * surface tokens with the query. Feeding such a hit through
+ * `memoryQueryRelevance` alone rejects 100% of semantic-only recall at the
+ * `relationFloor`, which turns a working semantic channel back into a
+ * no-op one gate later.
+ *
+ * Callers take `max(lexical, semantic)` so a memory found by both channels
+ * keeps whichever evidence is stronger.
+ *
+ * Calibration is for MiniLM-class embeddings: ~0.75 is "clearly about the
+ * same thing", ~0.9 is near-paraphrase. Retune with `/memory race` evidence,
+ * not by intuition.
+ */
+export function memorySemanticRelevance(
+  vectorScore: number | null | undefined,
+): MemoryQueryRelevance {
+  if (
+    typeof vectorScore !== "number" ||
+    !Number.isFinite(vectorScore) ||
+    vectorScore <= 0
+  ) {
+    return { strength: 0, evidence: [] };
+  }
+  const raw =
+    SEMANTIC_PIVOT_STRENGTH +
+    (vectorScore - SEMANTIC_PIVOT_COSINE) * SEMANTIC_SLOPE;
+  const strength = Math.max(0, Math.min(SEMANTIC_MAX_STRENGTH, raw));
+  if (strength === 0) return { strength: 0, evidence: [] };
+  // The `query:` prefix is load-bearing, not cosmetic: `selectDiverseMemories`
+  // caps channel contribution by reason prefix, and semantic recall is a
+  // query-channel signal. A bare `semantic:` prefix would match none of its
+  // prefixes and slip past every diversity cap.
+  return {
+    strength,
+    evidence: [`query:semantic-cosine:${vectorScore.toFixed(2)}`],
+  };
+}
+
 /** Structural corroboration required before a graph-expanded memory is injected. */
-export function memoryStructuralRelevance(memory: Sage, seeds: Sage[]): MemoryQueryRelevance {
+export function memoryStructuralRelevance(
+  memory: Sage,
+  seeds: Sage[],
+): MemoryQueryRelevance {
   const memoryAnchors = structuralAnchorKeys(memory);
   const memoryTags = new Set(memory.tags.flatMap(informativeTerms));
   for (const seed of seeds) {
-    const sharedAnchors = [...memoryAnchors].filter((key) => structuralAnchorKeys(seed).has(key));
+    const sharedAnchors = [...memoryAnchors].filter((key) =>
+      structuralAnchorKeys(seed).has(key),
+    );
     if (sharedAnchors.length > 0) {
-      return { strength: 0.86, evidence: [`graph:shared-anchor:${sharedAnchors[0]}`] };
+      return {
+        strength: 0.86,
+        evidence: [`graph:shared-anchor:${sharedAnchors[0]}`],
+      };
     }
     const seedTags = new Set(seed.tags.flatMap(informativeTerms));
     const sharedTags = [...memoryTags].filter((tag) => seedTags.has(tag));
     if (sharedTags.length >= 2) {
       return {
         strength: 0.72,
-        evidence: [`graph:shared-tags:${sharedTags.slice(0, 3).join(',')}`],
+        evidence: [`graph:shared-tags:${sharedTags.slice(0, 3).join(",")}`],
       };
     }
   }
@@ -192,7 +282,7 @@ let lastQueryValue: PreparedQuery | undefined;
 function prepareQuery(query: string): PreparedQuery {
   if (lastQueryKey === query && lastQueryValue) return lastQueryValue;
   const prepared: PreparedQuery = {
-    normalizedQuery: query.normalize('NFKC').toLowerCase().replace(/\\/g, '/'),
+    normalizedQuery: query.normalize("NFKC").toLowerCase().replace(/\\/g, "/"),
     queryTerms: informativeTerms(query),
   };
   lastQueryKey = query;
@@ -202,15 +292,19 @@ function prepareQuery(query: string): PreparedQuery {
 
 function informativeTerms(text: string): string[] {
   return tokenize(text)
-    .map((term) => term.replace(/^[._-]+|[._-]+$/g, ''))
+    .map((term) => term.replace(/^[._-]+|[._-]+$/g, ""))
     .filter((term) => term.length >= 3 && !GENERIC_QUERY_TERMS.has(term));
 }
 
 function exactAnchorValue(anchor: MemoryAnchor): string | undefined {
   const value = anchor.symbol ?? anchor.command ?? anchor.path ?? anchor.role;
   if (!value) return undefined;
-  const normalized = value.normalize('NFKC').toLowerCase().replace(/\\/g, '/').replace(/^\.\//, '');
-  if (normalized === '.' || normalized.length < 4) return undefined;
+  const normalized = value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "");
+  if (normalized === "." || normalized.length < 4) return undefined;
   return normalized;
 }
 

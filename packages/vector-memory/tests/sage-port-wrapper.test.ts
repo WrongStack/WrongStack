@@ -4,11 +4,15 @@
  *
  * Pin:
  *  - capabilities other than retrieval/surface pass through unchanged
- *  - the retrieval capability's searchSage is wrapped to inject the provider
- *  - the surface capability's searchSage is wrapped to inject the provider
+ *  - the retrieval capability's searchSage fuses host-side
+ *  - the surface capability's searchSage fuses host-side
  *  - an explicit `vectorRecall` on the call site wins over the wrapper
  *  - a missing underlying capability returns undefined (no crash)
- *  - the vectorRecall option is set with weight/threshold defaults
+ *
+ * The wrapper must NOT push the recall provider into the search options: the
+ * production port speaks JSON over the SAGE daemon socket, where a function
+ * silently becomes `{}` and the whole semantic channel dies fail-open. The
+ * two tests below pin that the forwarded options stay serializable.
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { MemoryPort } from '@wrongstack/core/types';
@@ -67,6 +71,25 @@ function makeFakePort(
   return port as unknown as MemoryPort;
 }
 
+function makeSage(id: string, text: string, overrides: Partial<Sage> = {}): Sage {
+  return {
+    id,
+    text,
+    kind: 'fact',
+    scope: 'project',
+    status: 'active',
+    importance: 0.8,
+    confidence: 0.8,
+    freshness: 1,
+    tags: [],
+    anchors: [],
+    sources: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  } as unknown as Sage;
+}
+
 describe('wrapMemoryPortWithVectorRecall', () => {
   it('passes through capabilities that are not retrieval/surface', () => {
     const port = makeFakePort();
@@ -102,8 +125,10 @@ describe('wrapMemoryPortWithVectorRecall', () => {
       expect(searchSage).toHaveBeenCalledTimes(1);
       const [query, opts] = searchSage.mock.calls[0]!;
       expect(query).toBe('apple');
-      expect((opts as Record<string, unknown>)['vectorRecall']).toBeDefined();
-      expect((opts as Record<string, unknown>)['vectorRecallWeight']).toBeUndefined(); // default
+      // The provider stays host-side. Anything the wrapper forwards has to
+      // survive `JSON.stringify` — a function does not.
+      expect((opts as Record<string, unknown>)['vectorRecall']).toBeUndefined();
+      expect(JSON.parse(JSON.stringify(opts))).toEqual({ limit: 5 });
     } finally {
       store.close();
     }
@@ -124,9 +149,9 @@ describe('wrapMemoryPortWithVectorRecall', () => {
       const wrapped = wrapMemoryPortWithVectorRecall(port, { store, weight: 0.5 });
       const cap = wrapped.getCapability<SageSurface>(SAGE_SURFACE_CAPABILITY)!;
       await cap.searchSage('apple');
+      expect(searchSage).toHaveBeenCalledTimes(1);
       const [, opts] = searchSage.mock.calls[0]!;
-      expect((opts as Record<string, unknown>)['vectorRecall']).toBeDefined();
-      expect((opts as Record<string, unknown>)['vectorRecallWeight']).toBe(0.5);
+      expect((opts as Record<string, unknown>)?.['vectorRecall']).toBeUndefined();
     } finally {
       store.close();
     }
@@ -153,6 +178,73 @@ describe('wrapMemoryPortWithVectorRecall', () => {
     } finally {
       store.close();
     }
+  });
+
+  // The whole point of the host-side fusion: a memory the lexical channel
+  // never returned must still reach the caller when the semantic channel
+  // finds it — and must be resolved through the port, not conjured from the
+  // vector row (which holds no Sage shape).
+  it('materializes a semantic-only hit through the port and respects visibility', async () => {
+    const lexicalHit = makeSage('lex-1', 'lexical only');
+    const semanticHit = makeSage('vec-1', 'semantic only');
+    const hiddenHit = makeSage('vec-2', 'another session', {
+      scope: 'session',
+      ownerSessionId: 'other-session',
+    });
+    const searchSage = vi.fn(async () => [lexicalHit]);
+    const getSage = vi.fn(async (id: string) =>
+      id === 'vec-1' ? semanticHit : id === 'vec-2' ? hiddenHit : undefined,
+    );
+    const port = makeFakePort({
+      retrieval: { searchSage } as unknown as SageRetrievalCapability,
+      surface: { getSage } as unknown as SageSurface,
+    });
+    const vectorRecall = {
+      search: async () => [
+        { id: 'v1', score: 0.9, text: 'semantic only', tags: [], metadata: { sageId: 'vec-1' } },
+        { id: 'v2', score: 0.9, text: 'another session', tags: [], metadata: { sageId: 'vec-2' } },
+      ],
+    };
+    const wrapped = wrapMemoryPortWithVectorRecall(port, {
+      store: undefined as unknown as VectorMemoryStore,
+      vectorRecall,
+    });
+    const cap = wrapped.getCapability<SageRetrievalCapability>(SAGE_RETRIEVAL_CAPABILITY)!;
+    const results = await cap.searchSage('anything', { sessionId: 'mine' });
+    const ids = results.map((memory) => memory.id);
+    expect(ids).toContain('lex-1');
+    expect(ids).toContain('vec-1');
+    // `vec-2` is session-scoped to a different session: `getSage` happily
+    // returns it, so only the JS visibility re-check keeps it out.
+    expect(ids).not.toContain('vec-2');
+  });
+
+  it('bounds by-id materialization so a remote port is not flooded', async () => {
+    const getSage = vi.fn(async (id: string) => makeSage(id, `memory ${id}`));
+    const port = makeFakePort({
+      retrieval: {
+        searchSage: async () => [] as Sage[],
+      } as unknown as SageRetrievalCapability,
+      surface: { getSage } as unknown as SageSurface,
+    });
+    const vectorRecall = {
+      search: async () =>
+        Array.from({ length: 40 }, (_unused, index) => ({
+          id: `v${index}`,
+          score: 0.95,
+          text: `semantic ${index}`,
+          tags: [] as string[],
+          metadata: { sageId: `m${index}` },
+        })),
+    };
+    const wrapped = wrapMemoryPortWithVectorRecall(port, {
+      store: undefined as unknown as VectorMemoryStore,
+      vectorRecall,
+      maxMaterializations: 5,
+    });
+    const cap = wrapped.getCapability<SageRetrievalCapability>(SAGE_RETRIEVAL_CAPABILITY)!;
+    await cap.searchSage('anything');
+    expect(getSage).toHaveBeenCalledTimes(5);
   });
 
   it('returns undefined when the underlying capability is absent', () => {

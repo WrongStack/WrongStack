@@ -117,6 +117,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     logger,
     memoryStore,
     teardownHandlers,
+    tuning: config.Sage?.vector,
   });
   memoryStore = vectorWrappedMemoryStore;
 

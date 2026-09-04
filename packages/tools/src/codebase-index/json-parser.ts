@@ -245,25 +245,6 @@ function regexParse(opts: {
     }
   }
 
-  // Extract JSON Schema $defs or definitions
-  const defsRegex = /"\$defs"\s*:|"\$defs"\s*:/g;
-  const defsMatch = defsRegex.exec(content);
-  if (defsMatch !== null) {
-    const offset = expectDefined(defsMatch.index);
-    const line = lineFromOffset(offset);
-    pushSymbol(
-      makeSymbol({
-        name: '$defs',
-        kind: 'property',
-        line,
-        col: offset - (lineOffsets[line - 1] ?? 0),
-        signature: '"$defs": { ... }',
-        file,
-        lang,
-      }),
-    );
-  }
-
   // Extract definitions (OpenAPI components, JSON Schema definitions)
   const defsPatterns = [
     /"\$defs"\s*:/g,

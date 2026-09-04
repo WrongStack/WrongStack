@@ -31,6 +31,13 @@ const DEFAULT_VECTOR_FETCH = 50;
  * `/memory race` evidence.
  */
 const DEFAULT_VECTOR_ONLY_THRESHOLD = 0.62;
+/**
+ * Default cap on `materializeVectorOnly` calls per fusion. Chosen so a
+ * remote materializer costs at most a dozen round-trips even when the whole
+ * vector fetch window is semantic-only — well above the 8-hint injection
+ * budget the results feed.
+ */
+const DEFAULT_MAX_MATERIALIZATIONS = 12;
 
 /**
  * A semantic-recall provider. `search` returns the top-k semantic matches
@@ -80,6 +87,21 @@ export interface VectorAugmentOptions {
   materializeVectorOnly?:
     | ((sageId: string) => Sage | undefined | Promise<Sage | undefined>)
     | undefined;
+  /**
+   * Upper bound on how many vector-only hits are handed to
+   * `materializeVectorOnly`. Default {@link DEFAULT_MAX_MATERIALIZATIONS}.
+   *
+   * Load-bearing when the materializer is remote. The in-process store
+   * resolves a vector-only hit with one prepared-statement `get()`, so the
+   * fan-out is free and the historical code had no bound. The client-side
+   * fusion used when SAGE runs in the per-project daemon resolves each hit
+   * with an IPC round-trip instead, and the vector channel is fetched at
+   * `max(limit * 2, 50)` — an unbounded fan-out there would put ~50
+   * concurrent requests on the daemon's single event loop for one search.
+   * Hits are already in provider (cosine-descending) order, so the cap keeps
+   * the strongest semantic candidates and drops the tail.
+   */
+  maxMaterializations?: number | undefined;
 }
 
 export interface VectorAugmentHit {
@@ -165,6 +187,8 @@ export async function augmentLexicalWithVectorRecall(
     kind: 'boost' | 'materialize';
   }> = [];
   const seenSageIds = new Set<string>();
+  const maxMaterializations = Math.max(0, options.maxMaterializations ?? DEFAULT_MAX_MATERIALIZATIONS);
+  let materializeBudget = maxMaterializations;
   for (const hit of vectorHits) {
     const sageId =
       hit.metadata && typeof hit.metadata['sageId'] === 'string'
@@ -174,7 +198,12 @@ export async function augmentLexicalWithVectorRecall(
     seenSageIds.add(sageId);
     if (lexicalById.has(sageId)) {
       classified.push({ sageId, hit, kind: 'boost' });
-    } else if (options.materializeVectorOnly && hit.score >= vectorOnlyThreshold) {
+    } else if (
+      options.materializeVectorOnly &&
+      hit.score >= vectorOnlyThreshold &&
+      materializeBudget > 0
+    ) {
+      materializeBudget--;
       classified.push({ sageId, hit, kind: 'materialize' });
     }
   }

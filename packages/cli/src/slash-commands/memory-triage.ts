@@ -25,6 +25,7 @@ import type { LlmCallFn, Sage, SageSurface, UpdateSageInput } from '@wrongstack/
 import {
   fileTriageProposals,
   formatTriageReport,
+  getSageSurface,
   runTriage,
   type TriageReport,
 } from '@wrongstack/sage';
@@ -173,9 +174,7 @@ export async function runTriageCommand(
 function getSage(opts: SlashCommandContext): SageSurface | null {
   if (!opts.memoryStore) return null;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getSageSurface } = require('@wrongstack/sage');
-    return getSageSurface(opts.memoryStore);
+    return getSageSurface(opts.memoryStore) ?? null;
   } catch {
     return null;
   }

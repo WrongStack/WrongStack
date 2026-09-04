@@ -117,11 +117,13 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
       let data: JsonRpcResult | undefined;
 
       if (contentType.includes('application/json')) {
-        const parsed = await initRes.json();
+        // Capped read — connect() used to call initRes.json() here, which
+        // buffered the whole body; every other request path enforces the cap.
+        const parsed = JSON.parse(await readBodyCapped(initRes));
         if (isJsonRpcResult(parsed)) data = parsed;
       } else {
         // text/event-stream or NDJSON — handle SSE `data:` framing.
-        data = extractJsonRpcResults(await initRes.text())[0];
+        data = extractJsonRpcResults(await readBodyCapped(initRes))[0];
       }
 
       if (!data) {
@@ -195,7 +197,9 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
 
       // Notifications get no JSON-RPC reply (the server returns 202 / empty body).
       if (method.startsWith('notifications/')) {
-        await res.text().catch(() => undefined);
+        // 202/empty in practice, but a hostile server can attach a huge body —
+        // drain it through the cap instead of res.text().
+        await readBodyCapped(res).catch(() => undefined);
         return { jsonrpc: '2.0', id };
       }
 
@@ -255,7 +259,9 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
       }
 
       if (method.startsWith('notifications/')) {
-        await res.text().catch(() => undefined);
+        // 202/empty in practice, but a hostile server can attach a huge body —
+        // drain it through the cap instead of res.text().
+        await readBodyCapped(res).catch(() => undefined);
         return { jsonrpc: '2.0', id };
       }
 

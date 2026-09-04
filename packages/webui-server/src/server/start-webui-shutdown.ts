@@ -40,6 +40,8 @@ export function setupWebuiShutdown(options: {
   /** Vector memory store (mirrors CLI's teardown). `undefined` when the
    *  standalone WebUI host failed to construct one (read-only FS, etc.). */
   vectorMemoryStore: { close(): void } | undefined;
+  /** Detaches the live SAGE→vector event mirror before the store closes. */
+  disposeVectorMirror?: (() => void) | undefined;
   /**
    * Drain every open tab's journal synchronously. Registered as a fatal-exit
    * salvage hook: this host had none at all, so a crash truncated the buffered
@@ -135,6 +137,9 @@ export function setupWebuiShutdown(options: {
       // Close the vector memory SQLite handle — keeps the WAL frame file
       // consistent and mirrors the CLI's teardown contract. Safe when the
       // store failed to construct (undefined).
+      // Detach the live mirror BEFORE closing the store — a SAGE event that
+      // lands after close() would otherwise hit a closed SQLite handle.
+      options.disposeVectorMirror?.();
       options.vectorMemoryStore?.close();
       await unregisterInstance(process.pid, path.dirname(options.globalConfigPath));
     },

@@ -59,15 +59,8 @@ import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
 import { type AutonomyRouteHandlers, createAutonomyRouteHandlers } from './autonomy-routes.js';
 import { patchConfig } from './boot.js';
-import {
-  type BrainHandlerContext,
-  handleBrainAsk,
-  handleBrainConfigGet,
-  handleBrainConfigSet,
-  handleBrainRisk,
-  handleBrainStatus,
-} from './brain-handlers.js';
-import type { BrainRouteHandlers } from './brain-routes.js';
+import type { BrainHandlerContext } from './brain-handlers.js';
+import { type BrainRouteHandlers, createBrainRouteHandlers } from './brain-routes.js';
 import { createChimeraRouteHandlers, type ChimeraRouteHandlers } from './chimera-routes.js';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { handleConfigDoctor } from './config-doctor.js';
@@ -147,7 +140,7 @@ import {
   validateGitUnstagePayload,
   validateShellOpenPayload,
 } from './ws-payload-validation.js';
-import { broadcast, messageSessionId, send, sendResult } from './ws-utils.js';
+import { broadcast, send, sendResult } from './ws-utils.js';
 
 /**
  * Mutable session-scoped state. Handlers always read LIVE values through
@@ -906,26 +899,7 @@ export function buildRoutes(
     resolveArbiter: () => deps.brain,
     getSessionId: () => deps.context.session?.id,
   };
-  const brainRoutes: BrainRouteHandlers = {
-    status: (ws, msg) => handleBrainStatus(brainContext, ws, messageSessionId(msg)),
-    risk: (ws, msg) =>
-      handleBrainRisk(
-        brainContext,
-        ws,
-        (msg.payload as { level?: string } | undefined)?.level ?? '',
-        messageSessionId(msg),
-      ),
-    ask: (ws, msg) =>
-      handleBrainAsk(
-        brainContext,
-        ws,
-        (msg.payload as { question?: string } | undefined)?.question,
-        messageSessionId(msg),
-      ),
-    configGet: (ws) => handleBrainConfigGet(brainContext, ws),
-    configSet: (ws, msg) =>
-      handleBrainConfigSet(brainContext, ws, msg.payload, messageSessionId(msg)),
-  };
+  const brainRoutes: BrainRouteHandlers = createBrainRouteHandlers(brainContext);
 
   const goalRoutes: GoalRouteHandlers = {
     handleMessage: (ws, msg) => deps.goalHandler.handleMessage(ws, msg),

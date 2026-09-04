@@ -1,7 +1,7 @@
 import { EventBus } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import type { Logger, MCPServerConfig } from '@wrongstack/core/types';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MCPTool } from '../src/client.js';
 import { MCPClient } from '../src/client.js';
 import { MCPRegistry } from '../src/registry.js';
@@ -369,5 +369,52 @@ describe('MCPRegistry + MockMCPServer', () => {
   it('stopAll is safe when nothing started', async () => {
     const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
     await expect(reg.stopAll()).resolves.toBeUndefined();
+  });
+
+  it('stopAll stops registered servers concurrently and completes even if one throws', async () => {
+    const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
+    const order: string[] = [];
+    const makeMockSlot = (name: string, shouldFail = false) => ({
+      cfg: { name, transport: 'stdio' as const, command: 'node' },
+      state: 'connected' as const,
+      toolNames: [],
+      lazyTools: [],
+      attempts: 0,
+      reconnectPending: false,
+      reconnectCycles: 0,
+      lazy: false,
+      lastUsed: Date.now(),
+      registeredLazy: false,
+      operations: { inFlightCalls: 0, sleepCount: 0 },
+      client: {
+        removeExitListener: vi.fn(),
+        removeToolsChangedListener: vi.fn(),
+        removeResourcesChangedListener: vi.fn(),
+        removePromptsChangedListener: vi.fn(),
+        close: vi.fn(async () => {
+          order.push(`${name}:start`);
+          await new Promise((r) => setTimeout(r, 25));
+          order.push(`${name}:done`);
+          if (shouldFail) throw new Error('stop failed');
+        }),
+      },
+    });
+
+    const s1 = makeMockSlot('s1');
+    const s2 = makeMockSlot('s2', true);
+    const s3 = makeMockSlot('s3');
+    (reg as any).servers.set('s1', s1);
+    (reg as any).servers.set('s2', s2);
+    (reg as any).servers.set('s3', s3);
+
+    const start = Date.now();
+    await reg.stopAll();
+    const duration = Date.now() - start;
+
+    expect(order.slice(0, 3)).toEqual(['s1:start', 's2:start', 's3:start']);
+    expect(duration).toBeLessThan(70);
+    expect(s1.state).toBe('disconnected');
+    expect(s2.state).toBe('disconnected');
+    expect(s3.state).toBe('disconnected');
   });
 });

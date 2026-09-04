@@ -249,6 +249,22 @@ export interface WSKeyOperationResult {
   payload: {
     success: boolean;
     message: string;
+    /**
+     * The tab whose request this answers.
+     *
+     * This is the server's general-purpose result channel — provider keys,
+     * prefs, session operations, MCP, git, shell, the worklist — and it used
+     * to carry no session at all. One socket serves up to four tabs, so a
+     * background tab's failure toast popped on whichever tab was in front
+     * while the tab that actually failed showed nothing.
+     *
+     * Optional because a result raised outside a dispatch (a watcher, a
+     * timer) genuinely has no asking tab; those still fall back to the tab in
+     * front. The server stamps this at the dispatch boundary — see
+     * `runWithDispatchSession` in webui-server/ws-utils.ts, and
+     * docs/audit/webui-full-review-2026-09-03.md B-05.
+     */
+    sessionId?: string | undefined;
   };
 }
 

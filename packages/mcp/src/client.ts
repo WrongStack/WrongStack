@@ -110,6 +110,7 @@ export class MCPClient {
   private _toolsCache?: MCPTool[] | undefined;
   private _drainPending = false;
   private _lastNotifySkipped = false;
+  private closePromise?: Promise<void> | undefined;
   // HTTP transports
   private sseTransport?: SSETransport | undefined;
   private httpTransport?: StreamableHTTPTransport | undefined;
@@ -179,15 +180,20 @@ export class MCPClient {
     this.state = 'connecting';
     this._serverMetadata = undefined;
 
-    if (this.opts.transport === 'stdio') {
-      await this.connectStdio();
-    } else if (this.opts.transport === 'sse') {
-      await this.connectSSE();
-    } else if (this.opts.transport === 'streamable-http') {
-      await this.connectStreamableHTTP();
-    } else {
+    try {
+      if (this.opts.transport === 'stdio') {
+        await this.connectStdio();
+      } else if (this.opts.transport === 'sse') {
+        await this.connectSSE();
+      } else if (this.opts.transport === 'streamable-http') {
+        await this.connectStreamableHTTP();
+      } else {
+        throw new Error(`Unknown transport "${this.opts.transport}"`);
+      }
+    } catch (err) {
+      await this.close().catch(() => {});
       this.state = 'failed';
-      throw new Error(`Unknown transport "${this.opts.transport}"`);
+      throw err;
     }
   }
 
@@ -252,6 +258,13 @@ export class MCPClient {
     this.child = child;
 
     child.stdout?.on('data', (chunk: Buffer) => this.onData(chunk.toString()));
+    child.stdout?.on('end', () => {
+      if (this.rxBuffer.trim()) {
+        const line = this.rxBuffer.trim();
+        this.rxBuffer = '';
+        this.onLine(line);
+      }
+    });
     child.stderr?.on('data', () => {
       // intentionally discard stderr noise from server
     });
@@ -568,6 +581,14 @@ export class MCPClient {
   }
 
   async close(): Promise<void> {
+    if (this.closePromise) return this.closePromise;
+    this.closePromise = this.closeInner().finally(() => {
+      this.closePromise = undefined;
+    });
+    return this.closePromise;
+  }
+
+  private async closeInner(): Promise<void> {
     if (this.child) {
       const child = this.child;
       // Always register the listener first. Checking exitCode/signalCode
@@ -604,19 +625,29 @@ export class MCPClient {
       // close() returns — orphan child processes accumulate over restarts.
       const GRACEFUL_MS = 800;
       const FORCE_TIMEOUT_MS = 1200;
+      let gracefulTimer: NodeJS.Timeout | undefined;
       const gracefulRace = await Promise.race([
         exitPromise.then(() => 'exited' as const),
-        new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), GRACEFUL_MS)),
+        new Promise<'timeout'>((resolve) => {
+          gracefulTimer = setTimeout(() => resolve('timeout'), GRACEFUL_MS);
+          gracefulTimer.unref?.();
+        }),
       ]);
+      if (gracefulTimer) clearTimeout(gracefulTimer);
       if (gracefulRace === 'timeout') {
         // A Windows server that does not exit on stdin EOF is rooted at the
         // still-live cmd.exe wrapper, so taskkill /T /F can reliably remove
         // the complete tree. POSIX SIGKILLs the child directly.
         forceKillTree(child);
+        let forceTimer: NodeJS.Timeout | undefined;
         await Promise.race([
           exitPromise,
-          new Promise<void>((resolve) => setTimeout(resolve, FORCE_TIMEOUT_MS)),
+          new Promise<void>((resolve) => {
+            forceTimer = setTimeout(resolve, FORCE_TIMEOUT_MS);
+            forceTimer.unref?.();
+          }),
         ]);
+        if (forceTimer) clearTimeout(forceTimer);
       }
       // Detach all listeners and drop the reference so the child process
       // object and its stdio streams can be garbage-collected.
@@ -787,52 +818,53 @@ export class MCPClient {
   }
 
   private async notify(method: string, params: unknown): Promise<void> {
+    if (this._drainPending) {
+      this._lastNotifySkipped = true;
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'mcp.notify_skipped_backpressure',
+          server: this.opts.name,
+          method,
+          message: 'stdin buffer backpressure (already waiting for drain)',
+          timestamp: new Date().toISOString(),
+        }),
+      );
+      return;
+    }
+    const stdin = this.child?.stdin;
+    if (!stdin || stdin.destroyed === true || stdin.writable === false) {
+      return;
+    }
     const req = { jsonrpc: '2.0', method, params };
     const encoded = JSON.stringify(req) + '\n';
     try {
-      const ok = this.child?.stdin?.write(encoded);
+      const ok = stdin.write(encoded);
       if (!ok) {
-        // Only the first caller waits for drain; others just warn and return.
-        // This avoids a race where two concurrent notify() calls each start
-        // their own drain-wait, then both resolve and the buffer is still full.
-        if (this._drainPending) {
-          this._lastNotifySkipped = true;
-          console.warn(
-            JSON.stringify({
-              level: 'warn',
-              event: 'mcp.notify_skipped_backpressure',
-              server: this.opts.name,
-              method,
-              message: 'stdin buffer backpressure (already waiting for drain)',
-              timestamp: new Date().toISOString(),
-            }),
-          );
-          return;
-        }
         this._drainPending = true;
         await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => {
-            this.child?.stdin?.removeListener?.('drain', onDrain);
-            this.child?.stdin?.removeListener?.('error', onError);
+            stdin.removeListener?.('drain', onDrain);
+            stdin.removeListener?.('error', onError);
             this._drainPending = false;
             reject(new Error(`MCP notify("${method}") drain timeout`));
           }, 500);
           const onDrain = () => {
             clearTimeout(timeout);
-            this.child?.stdin?.removeListener?.('drain', onDrain);
-            this.child?.stdin?.removeListener?.('error', onError);
+            stdin.removeListener?.('drain', onDrain);
+            stdin.removeListener?.('error', onError);
             this._drainPending = false;
             resolve();
           };
           const onError = (err: Error) => {
             clearTimeout(timeout);
-            this.child?.stdin?.removeListener?.('drain', onDrain);
-            this.child?.stdin?.removeListener?.('error', onError);
+            stdin.removeListener?.('drain', onDrain);
+            stdin.removeListener?.('error', onError);
             this._drainPending = false;
             reject(err);
           };
-          this.child?.stdin?.once('drain', onDrain);
-          this.child?.stdin?.once('error', onError);
+          stdin.once?.('drain', onDrain);
+          stdin.once?.('error', onError);
         });
       }
     } catch (err) {
@@ -855,12 +887,16 @@ export class MCPClient {
       return;
     }
 
+    let start = 0;
     let idx = this.rxBuffer.indexOf('\n');
     while (idx !== -1) {
-      const line = this.rxBuffer.slice(0, idx).trim();
-      this.rxBuffer = this.rxBuffer.slice(idx + 1);
+      const line = this.rxBuffer.slice(start, idx).trim();
+      start = idx + 1;
       if (line) this.onLine(line);
-      idx = this.rxBuffer.indexOf('\n');
+      idx = this.rxBuffer.indexOf('\n', start);
+    }
+    if (start > 0) {
+      this.rxBuffer = this.rxBuffer.slice(start);
     }
   }
 

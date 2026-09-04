@@ -1,7 +1,16 @@
-import { type Activity, useUIStore } from '@/stores/ui-store';
+import { MOD_KEY_LABEL } from '@/lib/platform';
+import { type Activity, useUIStore, type View } from '@/stores/ui-store';
 
+/**
+ * A view that is PAIRED with an activity-bar side panel: opening the panel
+ * steers the main area here, and vice versa.
+ */
 export type PanelMainView = 'chat' | 'files' | 'skill' | 'changes' | 'mailbox' | 'design-gallery';
 
+/**
+ * A standalone main view with its own activity-bar icon (or a slot in the "…"
+ * utilities menu). Selecting one collapses the side panel.
+ */
 export type MainView =
   | 'goal'
   | 'kanban'
@@ -16,15 +25,40 @@ export type MainView =
   | 'prompts'
   | 'chimera';
 
-export type AppView =
-  | PanelMainView
-  | MainView
+/**
+ * A view with no bar affordance at all — reached from the command palette, a
+ * deep link, or another view's action. Diagnostics and drill-downs live here.
+ */
+export type UnlistedView =
   | 'sessions'
   | 'session-inspect'
   | 'setup'
+  | 'context'
   | 'debug'
   | 'refresh-debug'
-  | 'analytics';
+  | 'analytics'
+  | 'deadcode';
+
+/**
+ * Every view the app can display. Derived from `VIEWS` in the UI store rather
+ * than re-declared, so the router and the navigation helpers cannot disagree.
+ */
+export type AppView = View;
+
+/**
+ * Compile-time proof that the three buckets above PARTITION `View`.
+ *
+ * `Exclude<…>` is `never` only when every entry of `VIEWS` is claimed by
+ * exactly one bucket. Adding a view to the store without giving it a
+ * navigation home now fails the build here instead of shipping an unreachable
+ * panel — which is precisely what happened to `deadcode`.
+ */
+type AssertNever<T extends never> = T;
+type UnroutableView = AssertNever<Exclude<View, PanelMainView | MainView | UnlistedView>>;
+/** Guards the other direction: a bucket may not name a view the store lost. */
+type UnknownNavigationView = AssertNever<
+  Exclude<PanelMainView | MainView | UnlistedView, View>
+>;
 
 export const PANEL_VIEW_BY_ACTIVITY: Record<Activity, PanelMainView> = {
   chat: 'chat',
@@ -54,15 +88,30 @@ export const ACTIVITY_SHORTCUT_BY_KEY: Readonly<Record<string, Activity>> = {
   '0': 'design',
 };
 
-export const ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY: Readonly<Record<Activity, string>> = {
-  chat: 'Ctrl+1',
-  agents: '',
-  files: 'Ctrl+2',
-  changes: 'Ctrl+3',
-  mailbox: 'Ctrl+4',
-  skills: 'Ctrl+5',
-  design: 'Ctrl+0',
-};
+/**
+ * Chord labels shown in activity-bar tooltips and the "…" overflow menu.
+ *
+ * Built from `ACTIVITY_SHORTCUT_BY_KEY` rather than re-typed, so a rebound
+ * digit cannot advertise the old one, and from `MOD_KEY_LABEL` so a Mac shows
+ * `⌘1` for a chord its handler already accepts via `e.metaKey`.
+ * The `agents` activity has no digit and stays deliberately unlabelled.
+ */
+export const ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY: Readonly<Record<Activity, string>> =
+  Object.entries(ACTIVITY_SHORTCUT_BY_KEY).reduce(
+    (labels, [digit, activity]) => {
+      labels[activity] = `${MOD_KEY_LABEL}+${digit}`;
+      return labels;
+    },
+    {
+      chat: '',
+      agents: '',
+      files: '',
+      changes: '',
+      mailbox: '',
+      skills: '',
+      design: '',
+    } as Record<Activity, string>,
+  );
 
 export function pairedViewForActivity(activity: Activity): PanelMainView {
   return PANEL_VIEW_BY_ACTIVITY[activity] ?? 'chat';

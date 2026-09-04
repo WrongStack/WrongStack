@@ -475,11 +475,14 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
       onEnd();
       return;
     }
-    let idx = buffer.indexOf('\n');
+    let start = 0;
+    let idx = buffer.indexOf('\n', start);
     while (idx !== -1) {
-      const line = buffer.slice(0, idx);
-      buffer = buffer.slice(idx + 1);
-      idx = buffer.indexOf('\n');
+      let end = idx;
+      if (end > start && buffer.charCodeAt(end - 1) === 13 /* \r */) end--;
+      const line = buffer.slice(start, end);
+      start = idx + 1;
+      idx = buffer.indexOf('\n', start);
       if (!line.trim()) continue;
       const handler = server
         .handleMessage(line)
@@ -508,6 +511,7 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
         });
       inFlightHandlers.add(handler);
     }
+    if (start > 0) buffer = buffer.slice(start);
   };
 
   let resolveDone!: () => void;
@@ -527,6 +531,29 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
     if (closed) return;
     closed = true;
     stdin.off('data', onData);
+    if (!bufferTooLarge && buffer.trim()) {
+      const line = buffer.trim();
+      buffer = '';
+      const handler = server
+        .handleMessage(line)
+        .then((res) => {
+          if (res !== null) writeLine(res);
+        })
+        .catch((err) => {
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              event: 'mcp_server.handle_message_failed',
+              message: toErrorMessage(err),
+              timestamp: new Date().toISOString(),
+            }),
+          );
+        })
+        .finally(() => {
+          inFlightHandlers.delete(handler);
+        });
+      inFlightHandlers.add(handler);
+    }
     resolveDone();
   };
 
@@ -685,22 +712,28 @@ async function handleHttpRequest(
   }
 
   let body = '';
+  let aborted = false;
   req.on('data', (chunk: Buffer) => {
+    if (aborted) return;
     body += chunk.toString('utf8');
     if (body.length > HTTP_BODY_CAP) {
+      aborted = true;
       send(413, JSON.stringify({ error: 'payload too large' }));
       req.destroy();
     }
   });
   req.on('end', () => {
+    if (aborted) return;
     void server
       .handleMessage(body)
       .then((out) => {
+        if (aborted) return;
         // Notifications produce no response body.
         if (out === null) return send(202, '');
         return send(200, out);
       })
       .catch((err) => {
+        if (aborted) return;
         log?.warn?.(`MCP http handler error: ${toErrorMessage(err)}`);
         send(500, JSON.stringify({ error: 'internal error' }));
       });

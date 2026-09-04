@@ -1,6 +1,7 @@
 import type { WebSocket } from 'ws';
 import type { PendingConfirm } from './pending-confirms.js';
 import { resolveAllPendingConfirms } from './pending-confirms.js';
+import { messageSessionId, runWithDispatchSession } from './ws-utils.js';
 
 type OutboundMessage = { type: string; payload: unknown };
 type ProtocolIssue = { code: string; message: string };
@@ -353,7 +354,14 @@ export function createConnectionLifecycle<Client, Request, Message>(
         return;
       }
       try {
-        await options.dispatch(ws, client, decoded.message);
+        // Bind the asking tab for the whole dispatch. Handlers keep sending
+        // `key.operation_result` with no session of their own; `send` stamps
+        // this one on, so a background tab's "provider key saved" / "commit
+        // failed" answer reaches the tab that asked instead of the tab in
+        // front. See `runWithDispatchSession` in ws-utils.ts (B-05).
+        await runWithDispatchSession(messageSessionId(decoded.message as { payload?: unknown }), () =>
+          options.dispatch(ws, client, decoded.message),
+        );
       } catch (error) {
         log('error', 'webui_server.message_handler_failed', error);
       }

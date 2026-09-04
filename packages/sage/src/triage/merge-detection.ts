@@ -155,9 +155,10 @@ function buildClusters(memories: Sage[]): MemoryCluster[] {
       }
     }
   }
-  for (const [key, members] of byFile) {
+  for (const [key, rawMembers] of byFile) {
+    const members = dedupeById(rawMembers);
     if (members.length >= 2 && members.length <= MAX_CLUSTER_SIZE) {
-      clusters.push({ key, type: 'file', members: dedupeById(members) });
+      clusters.push({ key, type: 'file', members });
     }
   }
 
@@ -173,9 +174,10 @@ function buildClusters(memories: Sage[]): MemoryCluster[] {
       }
     }
   }
-  for (const [key, members] of bySymbol) {
+  for (const [key, rawMembers] of bySymbol) {
+    const members = dedupeById(rawMembers);
     if (members.length >= 2 && members.length <= MAX_CLUSTER_SIZE) {
-      clusters.push({ key, type: 'symbol', members: dedupeById(members) });
+      clusters.push({ key, type: 'symbol', members });
     }
   }
 
@@ -191,9 +193,10 @@ function buildClusters(memories: Sage[]): MemoryCluster[] {
       }
     }
   }
-  for (const [key, members] of byCommand) {
+  for (const [key, rawMembers] of byCommand) {
+    const members = dedupeById(rawMembers);
     if (members.length >= 2 && members.length <= MAX_CLUSTER_SIZE) {
-      clusters.push({ key, type: 'command', members: dedupeById(members) });
+      clusters.push({ key, type: 'command', members });
     }
   }
 
@@ -223,12 +226,13 @@ function buildTagClusters(memories: Sage[]): MemoryCluster[] {
         seen.add(key);
 
         // Find all other memories sharing these same tags
-        const members = memories.filter((m) => shared.every((t) => m.tags.includes(t)));
+        const rawMembers = memories.filter((m) => shared.every((t) => m.tags.includes(t)));
+        const members = dedupeById(rawMembers);
         if (members.length >= 2 && members.length <= MAX_CLUSTER_SIZE) {
           clusters.push({
             key,
             type: 'tag_cluster',
-            members: dedupeById(members),
+            members,
           });
         }
       }

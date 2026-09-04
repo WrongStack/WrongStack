@@ -186,6 +186,30 @@ export async function loadConfigProviders(
 }
 
 /**
+ * Every read-modify-write of the config file runs inside this single-flight
+ * chain. Two overlapping mutations (the auth panel's independent direct
+ * methods — auth-menu/panel-service.ts `mutate()` — a flow's save racing a
+ * panel edit, or the webui server writing the same file) each read the file
+ * before either write lands, so an unqueued last writer builds its document
+ * from a stale read and silently drops the other mutation. One process-wide
+ * chain rather than a per-path map: mutations are rare, ms-scale, and a
+ * queued no-op costs nothing. Reads (loadConfigProviders) stay outside the
+ * queue — a read cannot lose an update.
+ */
+let configMutationChain: Promise<unknown> = Promise.resolve();
+
+function queueConfigMutation<T>(mutate: () => Promise<T>): Promise<T> {
+  const run = configMutationChain.then(mutate, mutate);
+  // Swallow the outcome into the chain so a failed mutation never stalls the
+  // next one; `run` still propagates the failure to its own caller.
+  configMutationChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+/**
  * Load → mutate → encrypt → atomic-write. Operates on the FULL config file
  * so non-provider keys are preserved. Refuses to overwrite a corrupt-but-
  * existing config (the user may still have salvageable data).
@@ -196,46 +220,48 @@ export async function mutateConfigProviders(
   mutator: (providers: Record<string, ProviderConfig>, config: Record<string, unknown>) => void,
   profileConfigPath?: string,
 ): Promise<void> {
-  const targetPath = profileConfigPath ?? configPath;
-  let raw: string;
-  let fileExists = true;
-  try {
-    raw = await fs.readFile(targetPath, 'utf8');
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw new FsError({
-        message: `Refusing to mutate ${configPath}: ${(err as Error).message}`,
-        code: 'FS_READ_FAILED',
-        path: targetPath,
-        context: { operation: 'mutateConfigProviders', phase: 'read' },
-        cause: err,
-      });
+  await queueConfigMutation(async () => {
+    const targetPath = profileConfigPath ?? configPath;
+    let raw: string;
+    let fileExists = true;
+    try {
+      raw = await fs.readFile(targetPath, 'utf8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw new FsError({
+          message: `Refusing to mutate ${configPath}: ${(err as Error).message}`,
+          code: 'FS_READ_FAILED',
+          path: targetPath,
+          context: { operation: 'mutateConfigProviders', phase: 'read' },
+          cause: err,
+        });
+      }
+      fileExists = false;
+      raw = '{}';
     }
-    fileExists = false;
-    raw = '{}';
-  }
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(raw) as Record<string, unknown>;
-  } catch (err) {
-    if (fileExists) {
-      throw new FsError({
-        message:
-          `Refusing to overwrite corrupt config at ${targetPath} ` +
-          `(${(err as Error).message}). Fix or move the file aside before retrying.`,
-        code: 'FS_READ_FAILED',
-        path: targetPath,
-        context: { operation: 'mutateConfigProviders', phase: 'parse' },
-        cause: err,
-      });
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch (err) {
+      if (fileExists) {
+        throw new FsError({
+          message:
+            `Refusing to overwrite corrupt config at ${targetPath} ` +
+            `(${(err as Error).message}). Fix or move the file aside before retrying.`,
+          code: 'FS_READ_FAILED',
+          path: targetPath,
+          context: { operation: 'mutateConfigProviders', phase: 'parse' },
+          cause: err,
+        });
+      }
+      parsed = {};
     }
-    parsed = {};
-  }
-  const decrypted = decryptConfigSecrets(parsed, vault) as Record<string, unknown>;
-  const providers = (decrypted.providers as Record<string, ProviderConfig>) ?? {};
-  mutator(providers, decrypted);
-  decrypted.providers = providers;
-  clearStaleProviderDefaults(decrypted);
-  const encrypted = encryptConfigSecrets(decrypted, vault);
-  await atomicWrite(targetPath, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
+    const decrypted = decryptConfigSecrets(parsed, vault) as Record<string, unknown>;
+    const providers = (decrypted.providers as Record<string, ProviderConfig>) ?? {};
+    mutator(providers, decrypted);
+    decrypted.providers = providers;
+    clearStaleProviderDefaults(decrypted);
+    const encrypted = encryptConfigSecrets(decrypted, vault);
+    await atomicWrite(targetPath, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
+  });
 }

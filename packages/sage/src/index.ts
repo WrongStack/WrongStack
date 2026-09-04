@@ -96,6 +96,7 @@ export {
   type ProposalFileResult,
 } from './shared/file-proposals.js';
 export { hybridRerankMemories } from './retrieval/hybrid-rerank.js';
+export { isSageVisibleForSearch } from './retrieval/visibility.js';
 export {
   augmentLexicalWithVectorRecall,
   type VectorAugmentHit,

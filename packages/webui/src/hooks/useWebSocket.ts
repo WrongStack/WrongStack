@@ -30,7 +30,10 @@ function installHandlers(ws: WrongStackWebSocketClient): () => void {
     if (!handler) continue;
     offs.push(
       ws.on(type, (message) => {
-        if (ws.consumeSuppressedChatEcho(type)) return;
+        // B-04: pass the full message so suppression can be correlated by
+        // requestId when the server echoes it back, instead of falling back
+        // to a type-keyed FIFO that can swallow a different tab's reply.
+        if (ws.consumeSuppressedChatEcho(type, message)) return;
         handler(message);
       }),
     );

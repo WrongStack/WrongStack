@@ -1,7 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { ERROR_CODES, FsError } from '@wrongstack/core/types';
 import {
   clampLine,
   defaultChipEnabledMap,
@@ -12,6 +11,7 @@ import {
   type StatuslineItem,
   type StatuslineLines,
 } from '@wrongstack/core/statusline';
+import { ERROR_CODES, FsError } from '@wrongstack/core/types';
 import { atomicWrite, resolveWstackPaths, toErrorMessage } from '@wrongstack/core/utils';
 
 const CONFIG_ENV = 'WRONGSTACK_STATUSLINE_CONFIG';
@@ -270,6 +270,28 @@ export async function loadStatuslineDensities(): Promise<StatuslineDensities> {
 }
 
 /**
+ * Every read-modify-write of the document runs inside this single-flight
+ * chain. Two overlapping saves (the TUI's independent lines and densities
+ * persistence effects — a reset arms both in one commit — or a /statusline
+ * command racing a picker edit) each read the file before either write
+ * lands, so an unqueued last writer resurrects its stale read and silently
+ * drops the other field's update. Reads (load*) stay outside the queue: a
+ * read cannot lose an update.
+ */
+let docMutationChain: Promise<unknown> = Promise.resolve();
+
+function queueDocMutation<T>(mutate: () => Promise<T>): Promise<T> {
+  const run = docMutationChain.then(mutate, mutate);
+  // Swallow the outcome into the chain so a failed mutation never stalls the
+  // next one; `run` still propagates the failure to its own caller.
+  docMutationChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+/**
  * Persist a new layout (lines and/or densities) while preserving the stored
  * chip toggles. Values are re-normalized (unknown keys dropped, clamped) so a
  * malformed caller cannot write garbage to disk.
@@ -278,13 +300,28 @@ export async function saveStatuslineLayout(layout: {
   lines?: StatuslineLines | undefined;
   densities?: StatuslineDensities | undefined;
 }): Promise<void> {
-  // ensure (not load) so a corrupt file is quarantined before the RMW —
-  // otherwise the defaults write would silently destroy the stored chips.
-  const doc = await ensureStatuslineConfig();
-  await saveStatuslineConfig({
-    ...doc,
-    lines: normalizeLines(layout.lines ?? doc.lines),
-    densities: normalizeDensities(layout.densities ?? doc.densities),
+  await queueDocMutation(async () => {
+    // ensure (not load) so a corrupt file is quarantined before the RMW —
+    // otherwise the defaults write would silently destroy the stored chips.
+    const doc = await ensureStatuslineConfig();
+    await saveStatuslineConfig({
+      ...doc,
+      lines: normalizeLines(layout.lines ?? doc.lines),
+      densities: normalizeDensities(layout.densities ?? doc.densities),
+    });
+  });
+}
+
+/**
+ * Persist the chip on/off map while preserving the stored layout. Same RMW
+ * hazard as {@link saveStatuslineLayout}, so it shares the mutation queue: a
+ * hidden-items save racing a layout save must not resurrect the other's
+ * stale field.
+ */
+export async function saveStatuslineChips(chips: StatuslineConfig): Promise<void> {
+  await queueDocMutation(async () => {
+    const doc = await ensureStatuslineConfig();
+    await saveStatuslineConfig({ ...doc, chips: normalizeChips(chips) });
   });
 }
 

@@ -49,4 +49,5 @@ export function scheduleRegistryReconnect({
     slot.reconnectTimer = undefined;
     void attemptReconnect(slot);
   }, delay);
+  slot.reconnectTimer.unref?.();
 }

@@ -139,4 +139,44 @@ describe('json-parser parseSymbols', () => {
     const res = parseSymbols({ file: 'x.json', content: `{${keys}}`, lang: 'json', maxSymbols: 5 });
     expect(res.symbols.length).toBe(5);
   });
+
+  it('emits the $defs block symbol exactly once (no duplicate pre-pass)', () => {
+    const content = '{"$defs": {"Thing": {"type": "object"}}}';
+    const res = parse('schema.json', content);
+    // The root-key extractor's separate emission (signature `"$defs": ..."`)
+    // is by design, same two-extractor overlap as definitions/components;
+    // the defsPatterns block extractor must fire exactly once per occurrence.
+    const blockDefs = res.symbols.filter(
+      (s) => s.name === '$defs' && s.signature === '"$defs": { ... }',
+    );
+    expect(blockDefs.length).toBe(1);
+  });
+
+  it('never emits two fully-identical symbols across extractors', () => {
+    const content = [
+      '{',
+      '  "$schema": "https://json-schema.org/draft/2020-12/schema",',
+      '  "$defs": { "Thing": {} },',
+      '  "definitions": { "Legacy": {} },',
+      '  "components": { "schemas": {} }',
+      '}',
+    ].join('\n');
+    const res = parse('schema.json', content);
+    const seen = new Set<string>();
+    for (const s of res.symbols) {
+      const key = `${s.name}|${s.kind}|${s.line}|${s.col}|${s.signature}`;
+      expect(seen.has(key)).toBe(false);
+      seen.add(key);
+    }
+  });
+
+  it('extracts a nested $defs exactly once', () => {
+    const content = '{"openapi": "3.0.0", "components": {"schemas": {}, "$defs": {}}}';
+    const res = parse('openapi.json', content);
+    const blockDefs = res.symbols.filter(
+      (s) => s.name === '$defs' && s.signature === '"$defs": { ... }',
+    );
+    expect(blockDefs.length).toBe(1);
+    expect(names('openapi.json', content)).toEqual(expect.arrayContaining(['schemas']));
+  });
 });

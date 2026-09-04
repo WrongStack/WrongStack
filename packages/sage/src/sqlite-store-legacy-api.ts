@@ -22,8 +22,12 @@ export async function importLegacySqliteMemory(
       skipped++;
       continue;
     }
-    await ctx.rememberSage({ text, scope: 'project' });
-    imported++;
+    try {
+      await ctx.rememberSage({ text, scope: 'project' });
+      imported++;
+    } catch {
+      skipped++;
+    }
   }
   return { imported, skipped, files: 0 };
 }

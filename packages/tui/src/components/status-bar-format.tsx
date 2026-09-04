@@ -78,8 +78,8 @@ export function hasTokenDisplay(tokens: TokenDisplayTotals): boolean {
 }
 
 // Chip click geometry is no longer dead-reckoned here — StatusBar publishes
-// a StatusBarClickMap computed by `computeRailSpans` (powerline-rail.tsx)
-// from the same segment nodes the rails render.
+// a StatusBarClickMap built from `layoutRail` (powerline-rail.tsx) using the
+// same segment nodes the rails render.
 
 export function stateChip(
   state: 'idle' | 'running' | 'streaming' | 'aborting',

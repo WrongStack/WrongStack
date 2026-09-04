@@ -1,5 +1,9 @@
 import type { SessionRegistry } from '@wrongstack/core/storage';
-import { extractInterruptedTools, SessionRecovery } from '@wrongstack/core/storage';
+import {
+  extractInterruptedTools,
+  getSessionRegistry,
+  SessionRecovery,
+} from '@wrongstack/core/storage';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color, isPidAlive, toErrorMessage } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
@@ -70,11 +74,7 @@ function fmtAgentLine(agent: {
 
 function getRegistry(): SessionRegistry | undefined {
   try {
-    // Dynamic require to avoid import cycle in headless mode
-    const mod = require('@wrongstack/core/storage') as {
-      getSessionRegistry?: () => SessionRegistry;
-    };
-    return mod.getSessionRegistry?.();
+    return getSessionRegistry();
   } catch {
     return undefined;
   }

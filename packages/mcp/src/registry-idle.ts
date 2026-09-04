@@ -16,17 +16,23 @@ export interface RegistryIdleContext {
 }
 
 export async function sleepIdleSlot(ctx: RegistryIdleContext, slot: ServerSlot): Promise<void> {
+  if (slot.operations.inFlightCalls > 0) return;
   slot.reconnectPending = false;
   if (slot.reconnectTimer) {
     clearTimeout(slot.reconnectTimer);
     slot.reconnectTimer = undefined;
   }
   if (slot.client) {
-    slot.client.removeExitListener(ctx.onChildExit);
-    if (slot.onDisconnect) slot.client.removeDisconnectListener(slot.onDisconnect);
-    slot.client.removeToolsChangedListener(ctx.onToolsChanged);
-    ctx.removeCatalogListeners(slot.client);
-    await slot.client.close();
+    const client = slot.client;
+    client.removeExitListener?.(ctx.onChildExit);
+    if (slot.onDisconnect) client.removeDisconnectListener?.(slot.onDisconnect);
+    client.removeToolsChangedListener?.(ctx.onToolsChanged);
+    ctx.removeCatalogListeners(client);
+    try {
+      await client.close?.();
+    } catch (err) {
+      ctx.log.warn(`MCP server "${slot.cfg.name}" error during idle sleep close`, err);
+    }
     slot.client = undefined;
   }
   slot.onDisconnect = undefined;
@@ -45,6 +51,7 @@ export async function sweepIdleSlots(ctx: RegistryIdleContext): Promise<boolean>
       slot.lazy &&
       slot.state === 'connected' &&
       slot.client &&
+      slot.operations.inFlightCalls === 0 &&
       now - slot.lastUsed > ctx.idleTimeoutMs
     ) {
       await sleepIdleSlot(ctx, slot);

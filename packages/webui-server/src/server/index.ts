@@ -26,7 +26,7 @@ export {
   handleBrainStatus,
 } from './brain-handlers.js';
 export type { BrainRouteHandlers } from './brain-routes.js';
-export { handleBrainRoute } from './brain-routes.js';
+export { createBrainRouteHandlers, handleBrainRoute } from './brain-routes.js';
 export {
   type ChimeraReportDetail,
   type ChimeraReportSummary,
@@ -594,6 +594,7 @@ export {
 export {
   validateAutonomySwitchPayload,
   validateBrainAskPayload,
+  validateBrainConfigSetPayload,
   validateBrainRiskPayload,
   validateContextModeCreatePayload,
   validateContextModeDeletePayload,
@@ -615,6 +616,7 @@ export {
   validateSkillsEditPayload,
   validateWorkingDirSetPayload,
 } from './ws-payload-validation.js';
+export { VALIDATED_PREF_KEYS } from './ws-payload-preferences.js';
 export {
   broadcast,
   buildWebUIAccessUrl,
@@ -624,8 +626,10 @@ export {
   generateAuthToken,
   hostForBrowserUrl,
   resolveAuthToken,
+  runWithDispatchSession,
   send,
   sendResult,
+  stampDispatchSession,
   sendSerialized,
   WEBUI_WS_MAX_BUFFERED_BYTES,
 } from './ws-utils.js';

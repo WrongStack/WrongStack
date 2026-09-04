@@ -716,12 +716,13 @@ function extractCandidatesFromCommitSection(section: string): ExtractedTerm[] {
  * Match is case-insensitive and ignores whitespace.
  */
 function isStoplisted(term: string): boolean {
-  const key = term.trim().toLowerCase();
+  const trimmed = term.trim();
+  const key = trimmed.toLowerCase();
   if (!key) return true;
   if (COMMON_WORD_STOPLIST.has(key)) return true;
   // Also reject pure-numeric and purely-uppercase acronyms without
   // an internal lowercase boundary (e.g. `URL`, `HTTP`).
-  if (/^[A-Z0-9]{2,8}$/.test(key) && !/[a-z].*[A-Z]|[A-Z].*[a-z]/.test(key)) return true;
+  if (/^[A-Z0-9]{2,8}$/.test(trimmed) && !/[a-z].*[A-Z]|[A-Z].*[a-z]/.test(trimmed)) return true;
   return false;
 }
 

@@ -20,8 +20,9 @@ export interface EmbeddingProvider {
   embed(texts: string[]): Promise<Float32Array[]>;
 }
 
-/** Cosine similarity in [-1, 1]; zero-vector safe. */
+/** Cosine similarity in [-1, 1]; zero-vector and dimension mismatch safe. */
 export function cosineSimilarity(a: Float32Array, b: Float32Array): number {
+  if (a.length !== b.length) return 0;
   let dot = 0;
   let normA = 0;
   let normB = 0;

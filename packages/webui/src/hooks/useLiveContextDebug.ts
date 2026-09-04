@@ -3,6 +3,7 @@ import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage } from '@/lib/ws-client-utils';
 import { useActiveSessionId } from '@/stores';
 import type { WSServerMessage } from '@/types';
+import { useServerMessage } from './useServerMessage';
 
 const FIRST_SNAPSHOT_TIMEOUT_MS = 5_000;
 
@@ -124,40 +125,21 @@ export function useLiveContextDebug<T extends LiveContextDebugPayload = LiveCont
 
   const sessionId = useActiveSessionId();
 
-  useEffect(() => {
-    // Clearing belongs to identity changes (socket or foreground tab), not
-    // to a cadence restart: a refreshGen bump must re-arm the subscription
-    // and re-request while the last snapshot stays on screen — that is the
-    // documented contract hasSnapshotRef exists to uphold.
-    const identity = `${wsUrl}|${sessionId ?? ''}`;
-    const identityChanged = lastIdentityRef.current !== identity;
-    lastIdentityRef.current = identity;
-    if (identityChanged) {
-      hasSnapshotRef.current = false;
-      setData(null);
-      setError(null);
-      setLastUpdatedAt(null);
-    }
-    if (!active) {
-      setRefreshGen(0);
-      return;
-    }
-
-    const ws = getWSClient(wsUrl);
-    if (!ws?.send || !ws.on) {
-      setError('WebSocket not connected');
-      setLoading(false);
-      return;
-    }
-
-    if (!hasSnapshotRef.current) {
-      setLoading(true);
-    }
-    setError(null);
-
-    const handler = (msg: { type: string; payload?: unknown }) => {
-      if (msg.type !== 'context.debug') return;
-      if (!isActiveSessionMessage(msg as WSServerMessage)) return;
+  // B-03: subscription lifecycle now lives in `useServerMessage` — the hook
+  // owns the `ws.on` registration and its teardown, and re-registers when
+  // refreshGen / sessionId / active change. The handler still does its own
+  // lane filter (this consumer rejects untagged replies when a session is
+  // pinned, which is stricter than the hook's default pass-through).
+  //
+  // `enabled: active` reproduces the OLD effect's `if (!active) return`
+  // early-exit so the subscription is genuinely torn down when the modal
+  // closes — without it the test that asserts `handlers.get('context.debug')
+  // ?.size === 0` after rerender(open=false) would see the re-registered
+  // handler stay alive.
+  useServerMessage(
+    'context.debug',
+    (msg) => {
+      if (!isActiveSessionMessage(msg)) return;
       const replySessionId = (msg.payload as { sessionId?: string | undefined } | undefined)
         ?.sessionId;
       // The context breakdown is session-scoped UI. While a tab is active,
@@ -178,8 +160,40 @@ export function useLiveContextDebug<T extends LiveContextDebugPayload = LiveCont
       setError(null);
       setLoading(false);
       setLastUpdatedAt(Date.now());
-    };
-    const unsubscribe = ws.on('context.debug', handler);
+    },
+    { deps: [sessionId, refreshGen], enabled: active },
+  );
+
+  useEffect(() => {
+    // Clearing belongs to identity changes (socket or foreground tab), not
+    // to a cadence restart: a refreshGen bump must re-arm the subscription
+    // and re-request while the last snapshot stays on screen — that is the
+    // documented contract hasSnapshotRef exists to uphold.
+    const identity = `${wsUrl}|${sessionId ?? ''}`;
+    const identityChanged = lastIdentityRef.current !== identity;
+    lastIdentityRef.current = identity;
+    if (identityChanged) {
+      hasSnapshotRef.current = false;
+      setData(null);
+      setError(null);
+      setLastUpdatedAt(null);
+    }
+    if (!active) {
+      setRefreshGen(0);
+      return;
+    }
+
+    const ws = getWSClient(wsUrl);
+    if (!ws?.send) {
+      setError('WebSocket not connected');
+      setLoading(false);
+      return;
+    }
+
+    if (!hasSnapshotRef.current) {
+      setLoading(true);
+    }
+    setError(null);
 
     /** Issue a request, swallowing transient send errors (e.g. closed
      *  socket during reconnect). The subscription picks up the next
@@ -242,7 +256,6 @@ export function useLiveContextDebug<T extends LiveContextDebugPayload = LiveCont
     return () => {
       clearTimeout(timeout);
       stopTimer();
-      unsubscribe();
       if (pauseWhenHidden && typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisibility);
       }

@@ -96,8 +96,14 @@ export async function consolidateSession(
 
     const policyScore = candidate.confidence * 0.55 + candidate.importance * 0.45;
     if (policyScore >= threshold) {
-      await services.acceptCandidate(candidate.id);
-      result.accepted++;
+      try {
+        const accepted = await services.acceptCandidate(candidate.id);
+        if (accepted) {
+          result.accepted++;
+        }
+      } catch {
+        // Failed candidate acceptance remains pending.
+      }
     }
   }
 

@@ -169,8 +169,8 @@ export function scoreMemoryRelationship(
 
     for (const left of candidate.anchors) {
       for (const right of seed.anchors) {
-        const leftPath = left.path ? normalizeSlashes(left.path).toLowerCase() : '';
-        const rightPath = right.path ? normalizeSlashes(right.path).toLowerCase() : '';
+        const leftPath = normalizeAnchorPath(left.path);
+        const rightPath = normalizeAnchorPath(right.path);
         if (
           left.symbol &&
           right.symbol &&
@@ -190,7 +190,12 @@ export function scoreMemoryRelationship(
         if (leftPath && rightPath) {
           if (leftPath === rightPath) {
             relation += left.type === 'package' || right.type === 'package' ? 10 : 8;
-          } else if (leftPath.startsWith(`${rightPath}/`) || rightPath.startsWith(`${leftPath}/`)) {
+          } else if (
+            leftPath === '.' ||
+            rightPath === '.' ||
+            leftPath.startsWith(`${rightPath}/`) ||
+            rightPath.startsWith(`${leftPath}/`)
+          ) {
             relation += left.type === 'package' || right.type === 'package' ? 6 : 3;
           }
         }
@@ -231,6 +236,14 @@ function normalizeCommand(command: string): string {
 
 function commandFamily(command: string): string {
   return command.split(/\s+/).slice(0, 2).join(' ');
+}
+
+function normalizeAnchorPath(p: string | undefined): string {
+  if (!p) return '';
+  const trimmed = p.trim();
+  if (!trimmed) return '';
+  const normalized = normalizeSlashes(trimmed).toLowerCase().replace(/^\.\/+/, '');
+  return normalized === '' ? '.' : normalized;
 }
 
 /** Negation cues that flip the polarity of an otherwise-overlapping claim. */
@@ -381,9 +394,16 @@ function structuralAnchorKey(anchor: MemoryAnchor): string | undefined {
   if (anchor.type === 'agent' && anchor.role) {
     return `agent:${anchor.role.toLowerCase()}`;
   }
+  if (anchor.type === 'symbol' && anchor.symbol) {
+    const sym = anchor.symbol.trim().toLowerCase();
+    if (anchor.path) {
+      const p = normalizeSlashes(anchor.path).toLowerCase();
+      return `symbol:${p}#${sym}`;
+    }
+    return `symbol:${sym}`;
+  }
   if (anchor.path) {
     const path = normalizeSlashes(anchor.path).toLowerCase();
-    if (anchor.symbol) return `symbol:${path}#${anchor.symbol.toLowerCase()}`;
     return `${anchor.type}:${path}`;
   }
   return undefined;

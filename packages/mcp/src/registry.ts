@@ -245,7 +245,7 @@ export class MCPRegistry {
     if (!slot) throw new Error(`MCP server "${name}" not registered`);
     slot.lastUsed = Date.now();
     if (slot.client && slot.state === 'connected') return slot.client;
-    const waking = slot.state === 'dormant';
+    const waking = slot.state === 'dormant' && !slot.connecting;
     if (waking) {
       slot.operations.wakeCount++;
       this.recordOperation(slot, 'wake', 'lazy-demand');
@@ -331,22 +331,21 @@ export class MCPRegistry {
     }
     slot.state = 'disconnected';
     if (slot.client) {
-      slot.client.removeExitListener(this.onChildExit);
-      if (slot.onDisconnect) slot.client.removeDisconnectListener(slot.onDisconnect);
-      slot.client.removeToolsChangedListener(this.onToolsChanged);
-      this.removeCatalogListeners(slot.client);
-      await slot.client.close();
+      const client = slot.client;
+      client.removeExitListener?.(this.onChildExit);
+      if (slot.onDisconnect) client.removeDisconnectListener?.(slot.onDisconnect);
+      client.removeToolsChangedListener?.(this.onToolsChanged);
+      this.removeCatalogListeners(client);
+      try {
+        await client.close?.();
+      } catch (err) {
+        this.log.warn(`MCP server "${name}" error during stop close`, err);
+      }
       slot.client = undefined;
     }
     slot.onDisconnect = undefined;
     slot.connecting = undefined;
-    for (const t of slot.toolNames) this.toolRegistry.unregister(t);
-    slot.toolNames = [];
-    slot.lazyTools = [];
-    slot.serverMetadata = undefined;
-    slot.resources = undefined;
-    slot.resourceTemplates = undefined;
-    slot.prompts = undefined;
+    resetDisconnectedSlotTools(slot, this.toolRegistry);
     // Full teardown — a future start()/restart() re-registers lazy wrappers.
     slot.registeredLazy = false;
     this.recordOperation(slot, 'stop', 'manual');
@@ -596,9 +595,16 @@ export class MCPRegistry {
       clearInterval(this.idleTimer);
       this.idleTimer = undefined;
     }
-    for (const name of Array.from(this.servers.keys())) {
-      await this.stop(name);
-    }
+    const names = Array.from(this.servers.keys());
+    await Promise.all(
+      names.map(async (name) => {
+        try {
+          await this.stop(name);
+        } catch (err) {
+          this.log.warn(`MCP server "${name}" failed to stop during stopAll`, err);
+        }
+      }),
+    );
     this.disabledServers.clear();
   }
 
@@ -669,8 +675,8 @@ export class MCPRegistry {
   }
 
   private removeCatalogListeners(client: MCPClient): void {
-    client.removeResourcesChangedListener(this.onResourcesChanged);
-    client.removePromptsChangedListener(this.onPromptsChanged);
+    client.removeResourcesChangedListener?.(this.onResourcesChanged);
+    client.removePromptsChangedListener?.(this.onPromptsChanged);
   }
 
   private readonly onChildExit = (
@@ -682,7 +688,11 @@ export class MCPRegistry {
     if (!slot) return;
     if (slot.lazy) {
       this.recordFailure(slot, 'transport', 'process-exit-lazy');
-      markLazySlotDormant(slot, this.events, `exit:${code ?? 'unknown'}`);
+      markLazySlotDormant(slot, this.events, `exit:${code ?? 'unknown'}`, {
+        onChildExit: this.onChildExit,
+        onToolsChanged: this.onToolsChanged,
+        removeCatalogListeners: (c) => this.removeCatalogListeners(c),
+      });
       return;
     }
     resetDisconnectedSlotTools(slot, this.toolRegistry);
@@ -698,7 +708,11 @@ export class MCPRegistry {
     if (!slot) return;
     if (slot.lazy) {
       this.recordFailure(slot, 'transport', 'http-disconnect-lazy');
-      markLazySlotDormant(slot, this.events, 'http-disconnect');
+      markLazySlotDormant(slot, this.events, 'http-disconnect', {
+        onChildExit: this.onChildExit,
+        onToolsChanged: this.onToolsChanged,
+        removeCatalogListeners: (c) => this.removeCatalogListeners(c),
+      });
       return;
     }
     resetDisconnectedSlotTools(slot, this.toolRegistry);

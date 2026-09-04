@@ -5,6 +5,7 @@
  * copy-pasted between `packages/webui/src/server/index.ts` and
  * `packages/cli/src/webui-server.ts`.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes } from 'node:crypto';
 import { scrubErrorDetail } from '@wrongstack/core/security';
 // Value import (not `import type`): we reference `WebSocket.OPEN` below, which
@@ -49,7 +50,7 @@ export function sendSerialized(ws: WebSocket, data: string, frameBytes?: number)
  * No-op when the socket is not in OPEN state (disconnected / closing).
  */
 export function send(ws: WebSocket, msg: object): void {
-  sendSerialized(ws, JSON.stringify(msg));
+  sendSerialized(ws, JSON.stringify(stampDispatchSession(msg)));
 }
 
 /**
@@ -115,9 +116,72 @@ export function broadcastAll(clients: Map<WebSocket, ConnectedClient>, msg: obje
 /**
  * Send a success/failure result message (used by key.* and provider.* handlers).
  * The frontend expects `key.operation_result` with `{ success, message }`.
+ *
+ * The reply is stamped with the asking tab's session by {@link send} — see
+ * {@link runWithDispatchSession}. Nothing here has to thread a session id.
  */
 export function sendResult(ws: WebSocket, success: boolean, message: string): void {
   send(ws, { type: 'key.operation_result', payload: { success, message } });
+}
+
+/**
+ * The session whose message is currently being dispatched.
+ *
+ * `key.operation_result` is the server's general-purpose "did that work?"
+ * channel: 90-odd call sites across prefs, provider keys, session operations,
+ * MCP, git, shell and the worklist, reached through six separate `sendResult`
+ * helpers. Not one of them stamped a session — and one WebSocket connection
+ * carries up to `MAX_OPEN_SESSIONS_PER_CONNECTION` (4) tabs. So a background
+ * tab's error toast surfaced on whichever tab the user happened to be looking
+ * at, while the tab that actually failed showed nothing. The codebase routes
+ * everything else positively (`chatFor`/`sessionFor`, the lane stores); the
+ * most-used result channel was the one thing that did not.
+ *
+ * Threading a session id through 90 call sites and six helper signatures would
+ * touch every handler for one field. The session is already known at exactly
+ * one place — the dispatch boundary, where the client's message names it — so
+ * it is bound there and read at the single send site instead. Same mechanism
+ * the SAGE project server already uses for request metadata
+ * (`packages/sage/src/project-server.ts`).
+ *
+ * See docs/audit/webui-full-review-2026-09-03.md B-05.
+ */
+const dispatchSession = new AsyncLocalStorage<string | undefined>();
+
+/**
+ * Run one message dispatch with `sessionId` bound as the current session.
+ *
+ * Every `key.operation_result` sent while `fn` runs — including from an
+ * `await`ed continuation, since that is what AsyncLocalStorage propagates —
+ * is stamped for that tab.
+ */
+export function runWithDispatchSession<T>(sessionId: string | undefined, fn: () => T): T {
+  return dispatchSession.run(sessionId, fn);
+}
+
+/**
+ * Stamp the dispatching tab's session onto a `key.operation_result` frame.
+ *
+ * Deliberately narrow:
+ *  - ONLY `key.operation_result`. Every other frame either already names its
+ *    session or is genuinely project-wide, and blanket-stamping would hide a
+ *    global answer from three of four tabs.
+ *  - Never overwrites a `sessionId` a handler set itself.
+ *  - No-op outside a dispatch (a timer, a watcher, a broadcast), where there
+ *    is no asking tab and an unstamped frame correctly falls back to the tab
+ *    in front.
+ *
+ * Exported because the CLI-embedded host has its own `send` that writes
+ * straight to `sendSerialized`; it calls this so both hosts stamp alike.
+ */
+export function stampDispatchSession<T extends object>(msg: T): T {
+  if ((msg as { type?: unknown }).type !== 'key.operation_result') return msg;
+  const sessionId = dispatchSession.getStore();
+  if (!sessionId) return msg;
+  const payload = (msg as { payload?: unknown }).payload;
+  if (payload !== undefined && (typeof payload !== 'object' || payload === null)) return msg;
+  if (payload && 'sessionId' in payload) return msg;
+  return { ...msg, payload: { ...(payload ?? {}), sessionId } };
 }
 
 /**
@@ -203,4 +267,40 @@ export function messageSessionId(msg: { payload?: unknown }): string | undefined
     typeof (payload as { sessionId?: unknown }).sessionId === 'string'
     ? (payload as { sessionId: string }).sessionId
     : undefined;
+}
+
+/**
+ * Copy a `requestId` from a request payload onto a response payload.
+ *
+ * B-04 (docs/audit/webui-full-review-2026-09-03.md) — the client's
+ * `echoToChat: false` suppression is keyed by requestId, and the only way
+ * the client can correlate a response with its request is to read the
+ * same requestId back from the response. Inspect-style handlers
+ * (`tools.list`, `memory.sage.*`, `skills.list`, `stats.get`, `diag.get`,
+ * `context.debug`, `memory.list`) use this helper at the `ctx.send(ws,
+ * …)` site so the response carries the correlation id without each
+ * handler having to thread the request payload through manually.
+ *
+ * The `requestPayload` argument may be either the request message itself
+ * (in which case its inner `payload.requestId` is consulted) or the
+ * request payload object directly (then `requestId` is read from the
+ * top level). The helper accepts both because some handlers have the
+ * payload already unwrapped and some pass the full message.
+ *
+ * No-op when the request did not name a requestId — the suppression
+ * stays unused and the chat-echo path runs as before.
+ */
+export function withRequestId<T extends Record<string, unknown>>(
+  requestPayload: unknown,
+  responsePayload: T,
+): T & { requestId?: string } {
+  if (!requestPayload || typeof requestPayload !== 'object') return responsePayload;
+  const direct = (requestPayload as { requestId?: unknown }).requestId;
+  const nested =
+    (requestPayload as { payload?: { requestId?: unknown } | undefined }).payload?.requestId;
+  const requestId = typeof direct === 'string' ? direct : nested;
+  if (typeof requestId === 'string' && requestId.length > 0) {
+    return { ...responsePayload, requestId };
+  }
+  return responsePayload;
 }

@@ -51,12 +51,13 @@ describe('committed project identity', () => {
     await expect(readProjectIdentity(root)).rejects.toThrow('Invalid projectId');
   });
 
-  it('migrates the broad ignore while keeping runtime state ignored', async () => {
+  it('migrates the broad ignore while keeping local state ignored', async () => {
     await fs.writeFile(path.join(root, '.gitignore'), 'node_modules/\n.wrongstack/\n');
     await ensureProjectGitignore(root);
     await ensureProjectGitignore(root);
 
     const content = await fs.readFile(path.join(root, '.gitignore'), 'utf8');
+    expect(content).toContain('.temp_files/\n');
     expect(content).toContain('.wrongstack/\n');
     expect(content).toContain('!/.wrongstack/\n');
     expect(content).toContain('/.wrongstack/*\n');
@@ -70,6 +71,7 @@ describe('committed project identity', () => {
 
     const content = await fs.readFile(path.join(root, '.gitignore'), 'utf8');
     expect(content).toContain('\r\n');
+    expect(content).toContain('.temp_files/\r\n');
     expect(content).toContain('!/.wrongstack/project.json\r\n');
   });
 });

@@ -7,19 +7,20 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_HIDDEN_ITEMS } from '@wrongstack/core/statusline';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   DEFAULTS,
   ensureStatuslineConfig,
   loadStatuslineConfig,
   loadStatuslineLines,
-  saveStatuslineConfig,
-  saveStatuslineLayout,
-  saveStatuslineLines,
   STATUSLINE_CONFIG_KEYS,
   STATUSLINE_CONFIG_VERSION,
   type StatuslineDocument,
+  saveStatuslineChips,
+  saveStatuslineConfig,
+  saveStatuslineLayout,
+  saveStatuslineLines,
 } from '../src/services/statusline-config.js';
 
 let dir: string;
@@ -307,5 +308,77 @@ describe('statusline density persistence (schema v3)', () => {
     const config = await loadStatuslineConfig();
     expect(config.chips.git).toBe(false);
     expect(config.densities).toEqual({ cost: 'short' });
+  });
+});
+
+describe('concurrent document mutations (single-flight RMW)', () => {
+  // A canonical seed (complete chips map, clamped line, valid density) keeps
+  // ensureStatuslineConfig a pure read: a normalization rewrite would add a
+  // third writer and muddy the interleaving under test.
+  function canonicalChips(): StatuslineDocument['chips'] {
+    return Object.fromEntries(
+      STATUSLINE_CONFIG_KEYS.map((key) => [key, true]),
+    ) as StatuslineDocument['chips'];
+  }
+
+  it('overlapping lines and densities saves both land (no lost update)', async () => {
+    await fs.writeFile(
+      cfgFile,
+      JSON.stringify({
+        version: STATUSLINE_CONFIG_VERSION,
+        chips: canonicalChips(),
+        lines: { model: 2 },
+        densities: { model: 'full' },
+      }),
+      'utf8',
+    );
+    // The TUI's independent lines/densities persistence effects (a reset arms
+    // both in one commit) and a /statusline command racing a picker edit reach
+    // the service exactly like this: two unawaited RMWs on the same document.
+    // Both reads used to resolve before either write landed, and the last
+    // writer resurrected its stale field over the other save.
+    const clearLines = saveStatuslineLayout({ lines: {} });
+    const clearDensities = saveStatuslineLayout({ densities: {} });
+    await Promise.all([clearLines, clearDensities]);
+    const final = await loadStatuslineConfig();
+    expect(final.lines).toEqual({});
+    expect(final.densities).toEqual({});
+  });
+
+  it('a hidden-items save racing a layout save leaves both fields consistent', async () => {
+    await fs.writeFile(
+      cfgFile,
+      JSON.stringify({
+        version: STATUSLINE_CONFIG_VERSION,
+        chips: canonicalChips(),
+        lines: { model: 2 },
+        densities: {},
+      }),
+      'utf8',
+    );
+    const hideModel = saveStatuslineChips({ ...DEFAULTS, model: false });
+    const moveModel = saveStatuslineLayout({ lines: { model: 3 } });
+    await Promise.all([hideModel, moveModel]);
+    const final = await loadStatuslineConfig();
+    expect(final.chips.model).toBe(false);
+    expect(final.lines).toEqual({ model: 3 });
+  });
+
+  it('sequential layout saves still merge onto the stored document', async () => {
+    await fs.writeFile(
+      cfgFile,
+      JSON.stringify({
+        version: STATUSLINE_CONFIG_VERSION,
+        chips: canonicalChips(),
+        lines: { model: 2 },
+        densities: {},
+      }),
+      'utf8',
+    );
+    await saveStatuslineLayout({ lines: {} });
+    await saveStatuslineLayout({ densities: { model: 'micro' } });
+    const final = await loadStatuslineConfig();
+    expect(final.lines).toEqual({});
+    expect(final.densities).toEqual({ model: 'micro' });
   });
 });

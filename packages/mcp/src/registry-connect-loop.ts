@@ -73,6 +73,7 @@ export function applySlotTools(
       },
       onFinish: ({ durationMs, ok }) => {
         slot.operations.inFlightCalls = Math.max(0, slot.operations.inFlightCalls - 1);
+        slot.lastUsed = Date.now();
         pushBounded(slot.operations.callSamples, durationMs, MCP_OPERATION_LIMITS.LATENCY_SAMPLES);
         if (ok) {
           ctx.recordSuccess(slot);
@@ -211,7 +212,8 @@ export async function attemptConnectSlot(
       await client.connect();
       if (
         (slot.state as ConnectionState) === 'disconnected' ||
-        (ctx.servers.has(slot.cfg.name) && ctx.servers.get(slot.cfg.name) !== slot)
+        !ctx.servers.has(slot.cfg.name) ||
+        ctx.servers.get(slot.cfg.name) !== slot
       ) {
         client.removeExitListener(ctx.onChildExit);
         if (boundDisconnect) client.removeDisconnectListener(boundDisconnect);

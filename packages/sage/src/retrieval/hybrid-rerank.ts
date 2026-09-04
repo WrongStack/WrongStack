@@ -3,41 +3,49 @@
  * candidate list without a persistent vector index.
  *
  * Fail-open and deterministic. Used after FTS/path retrieval so lexical
- * hits stay available if embedding math fails.
+ * hits stay available if embedding math fails. This is the *offline*
+ * fallback semantic signal — it runs whether or not a real vector store is
+ * wired, and it only reorders candidates the lexical channel already found.
+ * The real semantic recall (which can surface memories the lexical channel
+ * missed entirely) is `augmentLexicalWithVectorRecall`.
  */
 
-import { cosineSimilarity } from '../embeddings/provider.js';
+import { cosineSimilarity, HashingEmbeddingProvider } from '../embeddings/hashing.js';
 import type { Sage } from '../types.js';
 
-const FNV_OFFSET_BASIS = 0x811c9dc5;
-const FNV_PRIME = 0x01000193;
 const DIMENSIONS = 256;
+/**
+ * One shared vectorizer instead of a second, hand-inlined copy of FNV-1a +
+ * log1p + L2 that has to be kept byte-identical to `HashingEmbeddingProvider`
+ * by hand — the two copies had already drifted apart in their tokenizer
+ * comments. `embedSync` exists for exactly this caller: re-ranking runs
+ * inside a synchronous SQLite read path.
+ */
+const vectorizer = new HashingEmbeddingProvider({ dimensions: DIMENSIONS });
 
-function hashEmbed(text: string): Float32Array {
-  const vec = new Float32Array(DIMENSIONS);
-  if (!text) return vec;
-  const tokens = text
-    .normalize('NFKC')
-    .toLowerCase()
-    .split(/[^\p{L}\p{N}_]+/u)
-    .filter((t) => t.length > 0);
-  for (const token of tokens) {
-    let hash = FNV_OFFSET_BASIS >>> 0;
-    for (let i = 0; i < token.length; i++) {
-      hash = (hash ^ token.charCodeAt(i)) >>> 0;
-      hash = Math.imul(hash, FNV_PRIME) >>> 0;
-    }
-    const dim = (hash >>> 0) % DIMENSIONS;
-    vec[dim]! += 1;
+/**
+ * Bounded memo of text → vector.
+ *
+ * Re-ranking embedded every candidate's text on every search, and the same
+ * candidates come back over and over: an injection-heavy session runs this
+ * against a largely stable working set of memories, and each miss is a full
+ * tokenize + hash + normalize over up to 2000 characters. Insertion-ordered
+ * `Map` gives FIFO eviction for free, which is close enough to LRU for a
+ * working set this shaped.
+ */
+const MAX_CACHED_VECTORS = 512;
+const vectorCache = new Map<string, Float32Array>();
+
+function embedCached(text: string): Float32Array {
+  const cached = vectorCache.get(text);
+  if (cached) return cached;
+  const vector = vectorizer.embedSync([text])[0] ?? new Float32Array(DIMENSIONS);
+  vectorCache.set(text, vector);
+  if (vectorCache.size > MAX_CACHED_VECTORS) {
+    const oldest = vectorCache.keys().next().value as string | undefined;
+    if (oldest !== undefined) vectorCache.delete(oldest);
   }
-  for (let d = 0; d < DIMENSIONS; d++) vec[d] = Math.log1p(vec[d]!);
-  let norm = 0;
-  for (let d = 0; d < DIMENSIONS; d++) norm += vec[d]! * vec[d]!;
-  norm = Math.sqrt(norm);
-  if (norm > 0) {
-    for (let d = 0; d < DIMENSIONS; d++) vec[d] = vec[d]! / norm;
-  }
-  return vec;
+  return vector;
 }
 
 /**
@@ -58,10 +66,10 @@ export function hybridRerankMemories(
   if (weight === 0) return candidates;
 
   try {
-    const queryVec = hashEmbed(q);
+    const queryVec = embedCached(q);
     const n = candidates.length;
     const scored = candidates.map((memory, index) => {
-      const vec = hashEmbed(memory.text.slice(0, 2000));
+      const vec = embedCached(memory.text.slice(0, 2000));
       const cosine = Math.max(0, cosineSimilarity(queryVec, vec));
       const positionScore = 1 - index / Math.max(1, n);
       const score = (1 - weight) * positionScore + weight * cosine;
@@ -73,3 +81,9 @@ export function hybridRerankMemories(
     return candidates;
   }
 }
+
+/** Direct-module test seam; intentionally not re-exported by the package barrel. */
+export const hybridRerankCoverage = {
+  clearVectorCache: () => vectorCache.clear(),
+  cacheSize: () => vectorCache.size,
+};

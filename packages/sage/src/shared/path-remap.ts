@@ -97,15 +97,28 @@ export function memoryNeedsSymbolRemap(
 /** Parse common rename command shapes: `mv a b`, `git mv a b`, `Move-Item a b`. */
 export function parseRenameCommand(command: string): { from: string; to: string } | undefined {
   const c = command.replace(/\s+/g, ' ').trim();
+  const token = '(?:"([^"]+)"|\'([^\']+)\'|([^\\s]+))';
   // git mv [-flags] <from> <to>
-  let m = /(?:^|\s)git\s+mv\s+(?:-[^\s]+\s+)*([^\s]+)\s+([^\s]+)\s*$/i.exec(c);
-  if (m?.[1] && m[2]) return { from: stripQuotes(m[1]), to: stripQuotes(m[2]) };
+  let m = new RegExp(`(?:^|\\s)git\\s+mv\\s+(?:-[^\\s]+\\s+)*${token}\\s+${token}\\s*$`, 'i').exec(c);
+  if (m) {
+    const from = m[1] ?? m[2] ?? m[3];
+    const to = m[4] ?? m[5] ?? m[6];
+    if (from && to) return { from, to };
+  }
   // mv [-flags] <from> <to>  (avoid multi-source forms)
-  m = /(?:^|\s)mv\s+(?:-[^\s]+\s+)*([^\s]+)\s+([^\s]+)\s*$/i.exec(c);
-  if (m?.[1] && m[2]) return { from: stripQuotes(m[1]), to: stripQuotes(m[2]) };
+  m = new RegExp(`(?:^|\\s)mv\\s+(?:-[^\\s]+\\s+)*${token}\\s+${token}\\s*$`, 'i').exec(c);
+  if (m) {
+    const from = m[1] ?? m[2] ?? m[3];
+    const to = m[4] ?? m[5] ?? m[6];
+    if (from && to) return { from, to };
+  }
   // PowerShell Move-Item
-  m = /Move-Item\s+(?:-Path\s+)?([^\s]+)\s+(?:-Destination\s+)?([^\s]+)/i.exec(c);
-  if (m?.[1] && m[2]) return { from: stripQuotes(m[1]), to: stripQuotes(m[2]) };
+  m = new RegExp(`Move-Item\\s+(?:-Path\\s+)?${token}\\s+(?:-Destination\\s+)?${token}`, 'i').exec(c);
+  if (m) {
+    const from = m[1] ?? m[2] ?? m[3];
+    const to = m[4] ?? m[5] ?? m[6];
+    if (from && to) return { from, to };
+  }
   return undefined;
 }
 
@@ -120,12 +133,13 @@ export function readIdentifierAt(
   character: number,
 ): string | undefined {
   try {
+    if (line < 1 || character < 1) return undefined;
     const text = fs.readFileSync(absolutePath, 'utf8');
     const lines = text.split(/\r?\n/);
-    const row = lines[Math.max(0, line - 1)];
+    const row = lines[line - 1];
     if (!row) return undefined;
-    const col = Math.max(0, character - 1);
-    if (col >= row.length) return undefined;
+    const col = character - 1;
+    if (col > row.length) return undefined;
     // Expand to word characters (unicode letters/digits/_/$).
     let start = col;
     let end = col;
@@ -151,9 +165,3 @@ export function toProjectRelative(projectRoot: string, cwd: string, inputPath: s
   return normalizeRelPath(rel || '.');
 }
 
-function stripQuotes(s: string): string {
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-    return s.slice(1, -1);
-  }
-  return s;
-}

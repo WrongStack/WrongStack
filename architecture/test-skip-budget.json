@@ -439,6 +439,11 @@
     {
       "file": "packages/vector-memory/tests/sage-event-mirror.test.ts",
       "kind": "conditional-suite-alias",
+      "fingerprint": "6b89fa49810afa04"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror.test.ts",
+      "kind": "conditional-suite-alias",
       "fingerprint": "c794ec541c3bd5d6"
     },
     {

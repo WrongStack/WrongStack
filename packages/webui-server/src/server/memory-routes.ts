@@ -53,10 +53,10 @@ export async function handleMemoryRoute(
   }
   switch (message.type) {
     case 'memory.list':
-      await handleMemoryList(ws, store);
+      await handleMemoryList(ws, message, store);
       return true;
     case 'memory.sage.list':
-      await handleSageList(ws, store);
+      await handleSageList(ws, message, store);
       return true;
     case 'memory.sage.listPage':
       await handleSageListPage(ws, message, store);

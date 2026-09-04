@@ -42,6 +42,7 @@ import {
   type SessionAgentRegistry,
   scheduleOwnerlessEmptySessionCleanup,
   sendSerialized,
+  stampDispatchSession,
   startTerminalDashboard,
   startWebUILiveStatusLogger,
   toSessionHistoryEntries,
@@ -899,7 +900,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   });
 
   function send(ws: WebSocket, msg: WSServerMessage): void {
-    sendSerialized(ws, JSON.stringify(msg));
+    // `stampDispatchSession` names the tab whose message is being handled on
+    // `key.operation_result` frames, which carry no session of their own. This
+    // host writes straight to `sendSerialized` rather than going through the
+    // shared `send`, so it has to apply the stamp itself or the CLI-embedded
+    // WebUI keeps mis-routing background tabs' result toasts. See B-05.
+    sendSerialized(ws, JSON.stringify(stampDispatchSession(msg)));
   }
 
   /**

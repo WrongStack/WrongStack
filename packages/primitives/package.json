@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/primitives",
-  "version": "0.319.2",
+  "version": "0.320.0",
   "license": "MIT",
   "description": "Dependency-leaf primitives shared across WrongStack packages (regex guard, slugs, timestamps).",
   "repository": {

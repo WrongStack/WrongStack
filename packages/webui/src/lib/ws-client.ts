@@ -84,15 +84,6 @@ const CHAT_ECHO_RESPONSE_BY_REQUEST: Partial<
 const CHAT_ECHO_SUPPRESSION_TTL_MS = 30_000;
 
 /**
- * Hard cap on the per-response-type suppression array. A response type that
- * is suppressed but never consumed (e.g. the chat view is unmounted or the
- * user is on a different screen) would otherwise keep every push until the
- * TTL expires; cap the array so RAM stays bounded across long sessions.
- * RAM-leak audit 2026-07-31, LOW.
- */
-const CHAT_ECHO_SUPPRESSION_MAX_PER_TYPE = 32;
-
-/**
  * Cadence of the lazy echo-suppression sweep (see ensureEchoSweep). Chosen
  * at 2x the TTL granularity: stale timestamps are released within one
  * sweep interval of expiry without a per-push clock read.
@@ -242,7 +233,22 @@ class WrongStackWebSocketClientBase {
   private lastErrorText: string | undefined;
   private statusListeners = new Set<(s: WsStatus) => void>();
   private currentStatus: WsStatus = { state: 'connecting' };
-  private suppressedChatEchoes = new Map<string, number[]>();
+  /**
+   * requestId-keyed suppression map. Each `echoToChat: false` request mints
+   * a requestId, stamps it on the outgoing payload, and registers it here
+   * with an expiry timestamp. The server echoes the same requestId back
+   * in its response, and `consumeSuppressedChatEcho` looks it up to drop
+   * the chat echo only for the matching request — not for any other
+   * in-flight request of the same type from a different tab.
+   *
+   * The TTL (30 s) and a periodic sweep are the safety net for a
+   * requestId that was minted but whose response never arrived (chat
+   * unmounted mid-flight, server crash, etc.) so the map cannot grow
+   * unboundedly.
+   *
+   * B-04 (docs/audit/webui-full-review-2026-09-03.md).
+   */
+  private suppressedChatEchoes = new Map<string, number>();
   private echoSweepTimer: ReturnType<typeof setInterval> | null = null;
   private protocolCapabilities = new Set<string>();
   private protocolVersion: number | null = null;
@@ -847,6 +853,43 @@ class WrongStackWebSocketClientBase {
       );
       return false;
     }
+    // B-04 ordering invariant: the requestId stamp MUST happen before the
+    // message is serialized. `serialized` below is the exact string handed
+    // to `ws.send()` on the open-socket path — stamping the payload only
+    // after that string exists would register a suppression id that never
+    // reaches the server, so the server could not echo it back and every
+    // suppressed reply would leak into the chat transcript. (Registering
+    // the mint up front means a frame later dropped by the too-large or
+    // swap-dedupe guards below can leave an unused entry; the TTL + sweep
+    // bound such orphans by design.)
+    if (options.echoToChat === false) {
+      const responseType = CHAT_ECHO_RESPONSE_BY_REQUEST[message.type];
+      if (responseType) {
+        // Mint a correlation id (or use the one the caller supplied) and
+        // register it for the response. B-04: with the previous FIFO-by-type
+        // queue, tab A's suppression could swallow tab B's `/tools` reply
+        // if the two responses interleaved across tabs. Keying the
+        // suppression by requestId makes the drop exactly one-to-one: the
+        // server echoes the requestId, and only the matching response
+        // consumes its slot. Unstamped responses are left alone, so a
+        // chat-issued command that produces a response of the same type
+        // is never silently lost.
+        const requestId =
+          options.requestId ?? `suppress_${Date.now()}_${safeId().slice(0, 8)}`;
+        this.suppressedChatEchoes.set(
+          requestId,
+          Date.now() + CHAT_ECHO_SUPPRESSION_TTL_MS,
+        );
+        this.ensureEchoSweep();
+        // The mint must reach the server for the response to be
+        // correlatable; piggy-back on the existing payload.
+        const targetPayload = (
+          (message as { payload?: Record<string, unknown> }).payload ?? {}
+        ) as Record<string, unknown>;
+        targetPayload.requestId = requestId;
+        (message as { payload?: Record<string, unknown> }).payload = targetPayload;
+      }
+    }
     const serialized = JSON.stringify(decoded.message);
     const socketOpen = this.ws?.readyState === WebSocket.OPEN;
     if (!socketOpen && serialized.length > maxQueuedChars) {
@@ -874,18 +917,6 @@ class WrongStackWebSocketClientBase {
     if (swapTarget) {
       if (this.pendingSwapTarget === swapTarget) return false;
       this.pendingSwapTarget = swapTarget;
-    }
-    if (options.echoToChat === false) {
-      const responseType = CHAT_ECHO_RESPONSE_BY_REQUEST[message.type];
-      if (responseType) {
-        const pending = this.suppressedChatEchoes.get(responseType) ?? [];
-        pending.push(Date.now() + CHAT_ECHO_SUPPRESSION_TTL_MS);
-        // Drop oldest past the cap so a never-consumed response type can't
-        // grow unboundedly. See CHAT_ECHO_SUPPRESSION_MAX_PER_TYPE.
-        while (pending.length > CHAT_ECHO_SUPPRESSION_MAX_PER_TYPE) pending.shift();
-        this.suppressedChatEchoes.set(responseType, pending);
-        this.ensureEchoSweep();
-      }
     }
     if (message.type === 'context.clear') {
       // The conversation in front is being emptied — buffered tokens have
@@ -939,31 +970,44 @@ class WrongStackWebSocketClientBase {
     }
   }
 
-  /** Consume one UI-originated response that must not be mirrored into chat. */
-  consumeSuppressedChatEcho(responseType: string): boolean {
-    const pending = this.suppressedChatEchoes.get(responseType);
-    if (!pending) return false;
-
-    const now = Date.now();
-    while (pending.length > 0 && pending[0]! <= now) pending.shift();
-    if (pending.length === 0) {
-      this.suppressedChatEchoes.delete(responseType);
-      return false;
-    }
-
-    pending.shift();
-    if (pending.length === 0) this.suppressedChatEchoes.delete(responseType);
-    return true;
+  /**
+   * Consume one UI-originated response that must not be mirrored into chat.
+   *
+   * B-04: the suppression map is keyed by requestId. The caller passes the
+   * full message so we can read the `requestId` echoed by the server; only
+   * the matching request consumes a slot. A response with no (or
+   * unrecognised) requestId is left alone — that is exactly the case the
+   * previous FIFO queue got wrong: tab A's suppression swallowed tab B's
+   * chat-issued `/tools` reply when B's response happened to arrive first.
+   *
+   * Pass `msg` whenever the caller has it (the central WS_HANDLERS path
+   * does). When `msg` is missing, no suppression is possible — that
+   * matches the audit's instruction that suppression must be correlated
+   * end-to-end, never type-keyed.
+   */
+  consumeSuppressedChatEcho(responseType: string, msg?: WSServerMessage): boolean {
+    if (!msg) return false;
+    const requestId = (msg.payload as { requestId?: unknown } | undefined)?.requestId;
+    if (typeof requestId !== 'string' || requestId.length === 0) return false;
+    const expiry = this.suppressedChatEchoes.get(requestId);
+    if (expiry === undefined) return false;
+    this.suppressedChatEchoes.delete(requestId);
+    // An expired requestId MUST NOT consume — a late response from a
+    // request whose chat-echo window has elapsed would otherwise be
+    // dropped silently. The sweep keeps the map tidy, but on the consume
+    // path we still let the response through so the user sees the late
+    // reply in their chat.
+    return expiry > Date.now();
   }
 
   /**
    * Lazy periodic sweep for `suppressedChatEchoes`. TTL trimming otherwise
-   * runs only on consume — a response type that is suppressed but never
-   * consumed (chat view unmounted, user on another screen) retains up to
-   * MAX_PER_TYPE stale timestamps indefinitely. The sweep bounds retention
-   * to TTL + one sweep interval and self-stops when the map empties, so no
-   * timer runs for clients that never suppress. RAM-leak audit 2026-08-11
-   * Finding 4 / fix 2026-08-16.
+   * runs only on consume — a requestId that was minted but never consumed
+   * (chat view unmounted, user on another screen) would otherwise retain
+   * its timestamp indefinitely. The sweep bounds retention to TTL + one
+   * sweep interval and self-stops when the map empties, so no timer runs
+   * for clients that never suppress. RAM-leak audit 2026-08-11 Finding 4
+   * / fix 2026-08-16.
    */
   private ensureEchoSweep(): void {
     if (this.echoSweepTimer) return;
@@ -973,9 +1017,8 @@ class WrongStackWebSocketClientBase {
   }
 
   private sweepSuppressedChatEchoes(now: number): void {
-    for (const [responseType, pending] of this.suppressedChatEchoes) {
-      while (pending.length > 0 && pending[0]! <= now) pending.shift();
-      if (pending.length === 0) this.suppressedChatEchoes.delete(responseType);
+    for (const [requestId, expiry] of this.suppressedChatEchoes) {
+      if (expiry <= now) this.suppressedChatEchoes.delete(requestId);
     }
     if (this.suppressedChatEchoes.size === 0 && this.echoSweepTimer) {
       clearInterval(this.echoSweepTimer);

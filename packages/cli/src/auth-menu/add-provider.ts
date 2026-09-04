@@ -1,6 +1,5 @@
-import * as fs from 'node:fs/promises';
 import type { ProviderConfig, ResolvedProvider, WireFamily } from '@wrongstack/core/types';
-import { atomicWrite, color } from '@wrongstack/core/utils';
+import { color } from '@wrongstack/core/utils';
 import { catalogProviderIdFor, PROVIDER_DEFINITIONS } from '@wrongstack/providers';
 import { runLiveProviderPicker } from '../picker.js';
 import {
@@ -373,37 +372,43 @@ async function resolveDefaultModelId(
 
 /**
  * Adopt `providerId` as the global default provider/model when none is set.
- * Reads the raw config (provider/model are plaintext top-level keys) so we
- * never clobber an existing choice, then persists via {@link saveToGlobalConfig}.
+ *
+ * The check and the write happen inside ONE `mutateConfigProviders` cycle so
+ * a concurrent config mutation (another CLI operation, the WebUI server
+ * process) that lands between them is preserved instead of being clobbered
+ * by a stale whole-file rewrite. The previous raw-read + `atomicWrite`
+ * version lost every change that landed inside its read→write window, which
+ * the catalog lookup stretched to unbounded. The vault roundtrip is already
+ * proven in this flow: `addKeyForProvider` saved the provider through the
+ * same cycle one statement earlier.
  */
 async function adoptAsDefaultIfUnset(
   deps: AuthMenuDeps,
   providerId: string,
   template: Partial<ProviderConfig>,
 ): Promise<void> {
-  const targetPath = deps.profileConfigPath;
-  let cfg: Record<string, unknown> = {};
-  try {
-    cfg = JSON.parse(await fs.readFile(targetPath, 'utf8')) as Record<string, unknown>;
-  } catch {
-    // Missing/unparsable config — treat as "no default set" and continue.
-  }
-  if (cfg['provider'] && cfg['model']) return; // already has a usable default
-
+  // Resolve the model BEFORE entering the config mutation — no async work
+  // inside the read-modify-write window (same pattern saveProviderSetup uses).
   const modelId = await resolveDefaultModelId(deps, providerId, template);
   if (!modelId) return; // nothing concrete to point the default at
 
-  // Write straight to the same config path we just saved the provider into.
-  // Re-serialising the parsed object preserves the vault-encrypted provider
-  // blobs verbatim (we never decrypt here), and scoping the write to
-  // the resolved profile target keeps it path-honest — unlike saveToGlobalConfig, whose
-  // backup step targets the real ~/.wrongstack regardless of the path passed.
-  cfg['provider'] = providerId;
-  cfg['model'] = modelId;
-  await atomicWrite(targetPath, JSON.stringify(cfg, null, 2), { mode: 0o600 });
-  deps.renderer.write(
-    `  ${color.green('✓')} Set ${color.bold(providerId)}/${color.bold(modelId)} as the default.\n`,
+  let adopted = false;
+  await mutateConfigProviders(
+    deps.profileConfigPath,
+    deps.vault,
+    (_providers, config) => {
+      if (config['provider'] && config['model']) return; // already has a usable default
+      config['provider'] = providerId;
+      config['model'] = modelId;
+      adopted = true;
+    },
+    deps.profileConfigPath,
   );
+  if (adopted) {
+    deps.renderer.write(
+      `  ${color.green('✓')} Set ${color.bold(providerId)}/${color.bold(modelId)} as the default.\n`,
+    );
+  }
 }
 
 async function promptForLabel(deps: AuthMenuDeps, usedLabels: Set<string>): Promise<string | null> {

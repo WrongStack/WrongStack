@@ -242,3 +242,66 @@ describe('forgetStaleSageMirrors', () => {
     await sagePort.dispose();
   });
 });
+
+/**
+ * Regression: the sweep advanced an `offset` variable that `store.list()`
+ * never accepted, so every iteration re-read the same first page. On a store
+ * with a full page of entries and nothing to remove — the healthy case — the
+ * `page.length < PAGE` exit was never reached and the sweep spun forever.
+ *
+ * Both tests force a multi-page walk with `pageSize`, which is the only shape
+ * that can distinguish a correct keyset walk from a re-read of page one.
+ */
+describeIfSqlite('forgetStaleSageMirrors pagination', () => {
+  async function seed(label: string, count: number) {
+    const projectRoot = path.join(
+      os.tmpdir(),
+      `${SUITE_LABEL}-${label}-${Math.random().toString(36).slice(2, 8)}`,
+    );
+    const sagePort = new SqliteMemoryPort({ projectRoot });
+    await sagePort.initialize();
+    const surface = getSageSurface(sagePort)!;
+    const vectorStore = new VectorMemoryStore({
+      provider: new FakeEmbeddingProvider({ dimensions: 32 }),
+      projectRoot,
+    });
+    const sageIds: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const mem = await surface.rememberSage({ text: `mirrored memory number ${i}`, anchors: [] });
+      sageIds.push(mem.id);
+      await vectorStore.remember({
+        text: `mirrored memory number ${i}`,
+        metadata: { sageId: mem.id, source: 'sage' },
+      });
+    }
+    return { projectRoot, sagePort, surface, vectorStore, sageIds };
+  }
+
+  it('visits every entry exactly once across pages when nothing is stale', async () => {
+    const { sagePort, vectorStore } = await seed('page-clean', 12);
+    // A re-read of page one would terminate only by luck and would report a
+    // scanned count that is a multiple of the page size, not the row count.
+    const result = await forgetStaleSageMirrors(vectorStore, sagePort, undefined, { pageSize: 5 });
+    expect(result.scanned).toBe(12);
+    expect(result.removed).toBe(0);
+    expect(vectorStore.list({ limit: 100 })).toHaveLength(12);
+    vectorStore.close();
+    await sagePort.dispose();
+  });
+
+  it('keeps walking past the entries it deletes', async () => {
+    const { sagePort, surface, vectorStore, sageIds } = await seed('page-stale', 12);
+    // Delete every other SAGE memory. Under OFFSET paging each removal shifts
+    // the remaining rows left, so the next page skips one entry per deletion
+    // and the sweep silently leaves stale rows behind.
+    for (let i = 0; i < sageIds.length; i += 2) {
+      await surface.deleteSage(sageIds[i]!, 'pagination test', { force: true });
+    }
+    const result = await forgetStaleSageMirrors(vectorStore, sagePort, undefined, { pageSize: 5 });
+    expect(result.scanned).toBe(12);
+    expect(result.removed).toBe(6);
+    expect(vectorStore.list({ limit: 100 })).toHaveLength(6);
+    vectorStore.close();
+    await sagePort.dispose();
+  });
+});

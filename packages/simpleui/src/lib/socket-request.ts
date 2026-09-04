@@ -76,7 +76,16 @@ export function socketRequest(config: SocketRequestConfig): SocketRequestHandle 
     };
 
     unsub = socket.onMessage(handler as never);
-    socket.send(sendType, payload);
+    try {
+      socket.send(sendType, payload);
+    } catch {
+      // The never-reject contract: a send failure settles the request with
+      // null exactly like a timeout, and tears down the subscription so the
+      // reply handler cannot leak.
+      finish();
+      resolvePromise(null);
+      return;
+    }
     timer = setTimeout(() => {
       finish();
       resolve(null);

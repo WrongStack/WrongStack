@@ -1,5 +1,6 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
+import { renderSlashDeepHelp, renderSlashFocusedHelp } from './slash-deep-help.js';
 
 export function buildHelpCommand(opts: SlashCommandContext): SlashCommand {
   return {
@@ -26,6 +27,19 @@ export function buildHelpCommand(opts: SlashCommandContext): SlashCommand {
       }
 
       if (query) {
+        // `/help <slash> <deep>` — e.g. `/help mcp add`. A slash command with
+        // a top-level `wstack` mirror renders the SAME block `wstack mcp add
+        // --help` writes, so the in-REPL and CLI help surfaces cannot drift.
+        // Handled before the registry lookup because a two-token query never
+        // matches a command name (it used to fall through to
+        // "Unknown command: /mcp add").
+        const queryParts = query.split(/\s+/).filter(Boolean);
+        if (queryParts.length === 2) {
+          const head = (queryParts[0] as string).replace(/^\//, '');
+          const deepHelp = renderSlashDeepHelp(head, queryParts[1] as string);
+          if (deepHelp) return { message: deepHelp };
+        }
+
         const needle = query.startsWith('/') ? query.slice(1) : query;
         let match: { cmd: SlashCommand; owner: string; fullName: string } | undefined;
         for (const entry of opts.registry.listWithOwner()) {
@@ -47,7 +61,17 @@ export function buildHelpCommand(opts: SlashCommandContext): SlashCommand {
         const aliasLine = match.cmd.aliases?.length
           ? `Aliases: ${match.cmd.aliases.map((a) => `/${prefix}${a}`).join(', ')}\n`
           : '';
-        const body = match.cmd.help ?? match.cmd.description;
+        // A slash command that mirrors a top-level subcommand APPENDS the
+        // focused `wstack <sub> --help` block after its inline help. The two
+        // are complementary, not redundant: the inline field teaches the
+        // slash form the user actually types (`/plugin official`), while the
+        // focused block is the full option reference and is the single
+        // rendering shared with the CLI, so the surfaces cannot drift. A
+        // slash with no top-level mirror keeps the inline field alone.
+        const focused = renderSlashFocusedHelp(match.cmd.name);
+        const body = [match.cmd.help ?? match.cmd.description, focused]
+          .filter(Boolean)
+          .join('\n\n');
         return {
           message: [
             header,

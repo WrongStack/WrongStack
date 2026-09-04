@@ -14,6 +14,7 @@ import type { Action } from '../app-action-type.js';
 import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
 import { createConnectionsSlashCommand } from '../connections-slash.js';
+import { createWorkbenchSlashCommand } from '../workbench-slash.js';
 import { createContextSlashCommand } from '../context-slash.js';
 import { createCronJobsGetter, createCronSlashCommand } from '../cron-slash.js';
 import { createKanbanSlashCommand } from '../kanban-slash.js';
@@ -135,6 +136,17 @@ export function useCoreTuiCommands({
               },
           terminalWidth: stdout.columns ?? 80,
         }),
+      ),
+    );
+    // `/flow` — the text-first cross-board view for terminals where the
+    // visual Workbench panel is closed. It shipped fully implemented and
+    // tested but was never mounted, so `createWorkbenchSlashCommand` sat in
+    // `architecture/test-only-exports.json`: green coverage proving the
+    // function works while no user could reach the command.
+    cleanups.push(
+      registerSlashCommandLifecycle(
+        slashRegistry,
+        createWorkbenchSlashCommand({ projectRoot: agent.ctx.projectRoot }),
       ),
     );
     return () => {

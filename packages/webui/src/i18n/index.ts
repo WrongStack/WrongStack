@@ -14,19 +14,21 @@
  * default + fallback language renders without a flash; every other locale is
  * lazy-loaded as its own Vite chunk via `resourcesToBackend`.
  */
+import { toErrorMessage } from '@wrongstack/core/utils/error';
 import i18n from 'i18next';
 import resourcesToBackend from 'i18next-resources-to-backend';
 import { initReactI18next } from 'react-i18next';
 
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { FALLBACK_LNG, normalizeLocale, SUPPORTED_LNGS } from './languages';
-import activity_en from './locales/en/activity.json';
 import chat_en from './locales/en/chat.json';
 import commandPalette_en from './locales/en/commandPalette.json';
-// English is the source of truth + universal fallback → bundle it inline so
-// fallback strings are available on the very first paint with no network/chunk.
+// English is the source of truth + universal fallback → bundle the SMALL
+// namespaces inline so fallback strings are available on the very first paint
+// with no network/chunk. The two largest namespaces (activity 148 KB,
+// settings 52 KB) ship as their own Vite chunks and load right after init
+// via `loadNamespaces` below — see B-13 in docs/audit/webui-full-review.
 import common_en from './locales/en/common.json';
-import settings_en from './locales/en/settings.json';
 import setup_en from './locales/en/setup.json';
 import toasts_en from './locales/en/toasts.json';
 
@@ -70,13 +72,13 @@ void i18n
     // through the backend when changeLanguage() runs.
     partialBundledLanguages: true,
     // English inline → immediate fallback for every locale, no suspense/flash.
+    // NOTE: `activity` and `settings` are NOT inlined here — they are lazy
+    // chunks pulled by `loadNamespaces` below.
     resources: {
       en: {
         common: common_en,
-        activity: activity_en,
         chat: chat_en,
         commandPalette: commandPalette_en,
-        settings: settings_en,
         setup: setup_en,
         toasts: toasts_en,
       },
@@ -95,6 +97,28 @@ function syncHtmlLang(lng: string): void {
   }
 }
 syncHtmlLang(i18n.language || FALLBACK_LNG);
+
+// Pre-fetch the two biggest namespaces as their own chunks (B-13). Called
+// right after init so the work starts on the same tick as `init` resolves;
+// by the time a user clicks into Settings or Activity the chunks are already
+// in the module graph and `useAppTranslation` resolves to the translated
+// string on the first render.
+const DEFERRED_NAMESPACES = ['activity', 'settings'] as const;
+void i18n.loadNamespaces(DEFERRED_NAMESPACES).catch((error: unknown) => {
+  // Surfacing in the console rather than throwing — a transient chunk failure
+  // (offline, CDN blip) should not take down the entire UI. i18next is
+  // configured with `returnNull: false`, so components will fall back to the
+  // key string until the next refresh re-loads the namespace.
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'i18n_deferred_namespace_prefetch_failed',
+      namespaces: DEFERRED_NAMESPACES,
+      error: toErrorMessage(error),
+      timestamp: new Date().toISOString(),
+    }),
+  );
+});
 
 // Locale reactivity: any change to the stored uiLocale (picker, reset(), or a
 // cross-tab localStorage rehydrate) drives i18next + <html lang> from one place.

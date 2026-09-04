@@ -2,7 +2,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { MemoryScope } from '@wrongstack/core/types';
 
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
-import { memoryNodeId } from './sqlite-store-graph-helpers.js';
+import { cleanReferencingMemories, memoryNodeId } from './sqlite-store-graph-helpers.js';
 import { legacyScopeFilterClause } from './store-helpers.js';
 import type { Sage } from './types.js';
 import { DEFAULT_PERSISTENCE, sageToLegacyScope } from './types.js';
@@ -45,6 +45,7 @@ export function clearLegacySqliteMemory(ctx: SqliteLegacyClearContext, scope?: M
       revision: memory.revision + 1,
       updatedAt: ctx.nowIso(),
     });
+    cleanReferencingMemories(ctx, memory.id);
     ctx.cascadeDeleteEdges(memoryNodeId(memory.id));
     clearedIds.push(memory.id);
   }

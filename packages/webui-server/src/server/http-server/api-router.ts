@@ -487,6 +487,20 @@ export async function handleApiRoutes(
   }
 
   if (url.pathname === '/debug/system' && req.method === 'GET') {
+    // The only route in this file that was missing the token gate its 29
+    // neighbours carry — including `/debug/watcher-metrics` directly above.
+    // `http-server.ts` rejects tokenless requests before this router is even
+    // called, so the omission was never exploitable; it was an inconsistency
+    // in a repeated pattern, and this response is the most sensitive body
+    // here (pid, heap limits, cpu, and per-process diagnostics for up to 32
+    // WrongStack processes). Completing the pattern keeps the defence intact
+    // if this router is ever mounted behind a different front door.
+    // See docs/audit/webui-full-review-2026-09-03.md B-12.
+    if (requireAccessToken && !accessTokenOk) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return true;
+    }
     const processes = await readRecentProcessMemoryDiagnostics(deps.globalRoot);
     res.writeHead(200, {
       'Content-Type': 'application/json',

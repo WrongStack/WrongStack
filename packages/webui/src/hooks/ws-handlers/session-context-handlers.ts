@@ -9,7 +9,7 @@ import {
   pipeViz,
   sessionFor,
 } from '@/lib/ws-client-utils';
-import { useConfigStore } from '@/stores';
+import { useConfigStore, useSessionTabStore } from '@/stores';
 import { activeChatLane, activeLaneId, type ChatLaneActions } from '@/stores/chat-lanes';
 import { useResumeProgressStore } from '@/stores/resume-progress-store';
 import { readSessionLane, setSessionGlobals } from '@/stores/session-lanes';
@@ -86,6 +86,26 @@ export function handleContextDebug(msg: WSServerMessage) {
   });
 }
 
+/**
+ * The server's general-purpose "did that work?" reply.
+ *
+ * Two things were wrong here, and both are about a socket that serves up to
+ * four tabs:
+ *
+ *  1. The toast was unconditional. A background tab's "commit failed" or
+ *     "provider key rejected" popped on whichever tab the user was looking at,
+ *     with no way to tell whose it was — and the tab that actually failed
+ *     showed nothing at all when switched to. The server now stamps the asking
+ *     tab (`sessionId`, see B-05), so the toast fires only for the tab in
+ *     front and a background tab gets an attention marker on its tab strip
+ *     instead — the same treatment `provider.fallback_pending` already gives.
+ *  2. EVERY result re-fetched the saved-provider list, including a prefs
+ *     validation error that has nothing to do with providers. The refetch is
+ *     kept (deciding from the message PROSE which results touch providers
+ *     would be a worse bug than the extra round trip) but it now runs only on
+ *     the foreground path, so a background tab's result no longer triggers it
+ *     at all.
+ */
 export function handleKeyOperationResult(msg: WSServerMessage) {
   const p = msg.payload as { success: boolean; message: string };
   if (!p || typeof p.message !== 'string') return;
@@ -95,6 +115,15 @@ export function handleKeyOperationResult(msg: WSServerMessage) {
     p.message.includes('Session is already active') ||
     p.message.startsWith('Swapped session')
   ) {
+    return;
+  }
+  // An unstamped result (raised by a watcher or timer, with no asking tab)
+  // keeps the old behaviour and lands on the tab in front.
+  const owner = messageSessionId(msg);
+  if (owner && owner !== activeLaneId()) {
+    // Only a failure is worth pulling the user to another tab for; a silent
+    // success there is exactly what "it worked" should look like.
+    if (!p.success) useSessionTabStore.getState().setAttention(owner, true);
     return;
   }
   if (p.success) toast.success(p.message);

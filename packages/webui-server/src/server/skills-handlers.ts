@@ -24,7 +24,7 @@ import type { WebSocket } from 'ws';
 import type { SkillLoader } from '@wrongstack/core/types';
 import { atomicWrite, resolveWstackPaths } from '@wrongstack/core/utils';
 import type { SkillInstaller } from '@wrongstack/core/skills';
-import { send, errMessage } from './ws-utils.js';
+import { send, errMessage, withRequestId } from './ws-utils.js';
 import { validateSkillsCreatePayload, validateSkillsEditPayload } from './ws-payload-validation.js';
 import { createZipBuffer, type ZipEntryInput } from './zip.js';
 
@@ -48,9 +48,16 @@ export interface SkillsContext {
  * ref recorded by the installer (when present), so the panel can show
  * provenance and offer update/uninstall.
  */
-export async function handleSkillsList(ws: WebSocket, ctx: SkillsContext): Promise<void> {
+export async function handleSkillsList(
+  ws: WebSocket,
+  ctx: SkillsContext,
+  msg?: unknown,
+): Promise<void> {
   if (!ctx.skillLoader) {
-    send(ws, { type: 'skills.list', payload: { skills: [], enabled: false } });
+    send(ws, {
+      type: 'skills.list',
+      payload: withRequestId(msg, { skills: [], enabled: false }),
+    });
     return;
   }
   try {
@@ -75,7 +82,7 @@ export async function handleSkillsList(ws: WebSocket, ctx: SkillsContext): Promi
 
     send(ws, {
       type: 'skills.list',
-      payload: {
+      payload: withRequestId(msg, {
         enabled: true,
         skills: manifests.map((m) => ({
           name: m.name,
@@ -88,16 +95,16 @@ export async function handleSkillsList(ws: WebSocket, ctx: SkillsContext): Promi
           trigger: byName.get(m.name)?.trigger ?? '',
           scope: byName.get(m.name)?.scope ?? [],
         })),
-      },
+      }),
     });
   } catch (err) {
     send(ws, {
       type: 'skills.list',
-      payload: {
+      payload: withRequestId(msg, {
         skills: [],
         enabled: true,
         error: errMessage(err),
-      },
+      }),
     });
   }
 }

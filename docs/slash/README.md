@@ -83,6 +83,13 @@ WrongStack routes slash commands through `SlashCommandRegistry`. The command set
 | `/shadow` | `/shadow-agent` | [Shadow Agent](shadow.md) |
 | `/supervisor` | — | [supervisor](supervisor.md) |
 | `/audit` | `/sideeffects`, `/side` | [side-effect audit](audit.md) |
+| `/theme` | — | Switch or select the TUI color theme preset interactively |
+| `/tier` | — | View or change model cost tiers (budget/standard/premium) and their routing |
+| `/effort` | — | View or set the session-wide reasoning effort for the active model |
+| `/profile` | — | Manage configuration profiles |
+| `/sidebar` | — | Toggle or configure the TUI right sidebar visibility |
+| `/intake` | — | Create and submit a requirement intake record from the current prompt |
+| `/provider-status` | — | Live provider/model health: healthy, degraded, blocked |
 
 `/f1` through `/f12` are twelve separately registered hidden commands, not entries in the `aliases` array.
 
@@ -100,6 +107,10 @@ The TUI registers these commands after mounting. They are not available in the p
 | `/model` | `/provider`, `/switch` | Open the provider/model picker; [model picker](model.md) |
 | `/settings-get` | `/config-get`, `/get` | Read settings without opening the picker; [settings lookup](settings-get.md) |
 | `/lite`, `/full` | — | Layout presets: statusline density + sidebar visibility; [layout presets](lite-full.md) |
+| `/connections` | `/conn`, `/conns` | Service connection health — Chronicle, Codebase Index, SAGE Memory, Kanban IPC, Mailbox IPC |
+| `/flow` | `/workbench` | Text-first cross-board Kanban view: running, ready, blocked, awaiting review |
+| `/solo` | — | Control session-only subagents before the first message: `/solo on\|off\|status` |
+| `/cron` | — | Bare `/cron` opens the cron monitor; arguments fall through to the core handler |
 
 The TUI also installs official overrides for existing names. `/settings` gains `/config` and `/prefs`; `/mailbox` gains `/inbox` and `/mail`; and `/autonomy` gains `/auto`. The core aliases remain registered, so `/mb` still reaches the core mailbox command. The TUI claims `/resume` and `/load` for its session picker while `/sessions` remains the core listing command. `/f`, `/design`, and `/statusline` keep their core names but gain interactive behavior.
 

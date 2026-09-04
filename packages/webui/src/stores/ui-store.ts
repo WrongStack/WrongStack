@@ -39,8 +39,19 @@ export function coerceActivity(value: unknown): Activity {
   return 'chat';
 }
 
-/** All valid currentView values. Kept in sync with the union on UIState. */
-const VIEWS = [
+/**
+ * All valid `currentView` values — the SINGLE source of truth.
+ *
+ * `lib/view-navigation.ts` used to carry its own `AppView` union, assembled by
+ * hand from three subsets. The two lists drifted: `deadcode` was in this array
+ * and had a `ViewRouter` branch, a backend, and labels in all seven locales,
+ * but was missing from `AppView`, so no navigation helper could reach it and
+ * the whole panel was unreachable. `AppView` is now derived from this array and
+ * an exhaustiveness assertion pins every entry to exactly one navigation
+ * bucket, which makes that class of drift a compile error.
+ * See docs/audit/webui-full-review-2026-09-03.md B-02.
+ */
+export const VIEWS = [
   'chat',
   'settings',
   'memory',
@@ -68,7 +79,7 @@ const VIEWS = [
   'prompts',
   'chimera',
 ] as const;
-type View = (typeof VIEWS)[number];
+export type View = (typeof VIEWS)[number];
 
 /** Coerce an arbitrary value onto the current view union. Used by migrate
  *  when reading from localStorage so a stale value (e.g. 'context', a view

@@ -159,7 +159,12 @@ export function splitFileList(value: string): string[] {
 
 export function extractPatchPaths(input: Record<string, unknown>): string[] {
   if (typeof input.patch !== 'string') return [];
-  const strip = Math.max(1, Math.floor(typeof input.strip === 'number' ? input.strip : 1));
+  const strip =
+    typeof input.strip === 'number'
+      ? Number.isNaN(input.strip)
+        ? 0
+        : Math.max(0, Math.floor(input.strip))
+      : 1;
   const directory = typeof input.directory === 'string' ? input.directory.trim() : '';
   const result: string[] = [];
   for (const match of input.patch.matchAll(/^\+\+\+\s+([^\t\r\n]+)/gm)) {

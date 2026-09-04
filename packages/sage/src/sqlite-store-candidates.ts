@@ -101,7 +101,9 @@ export function createSqliteCandidate(
     for (const row of rows) {
       try {
         const existing = sqliteRowToCandidate(row);
-        if (existing.scope === scope) return existing;
+        if (existing.scope === scope && existing.targetMemoryId === input.targetMemoryId) {
+          return existing;
+        }
       } catch {
         // Skip corrupt rows.
       }

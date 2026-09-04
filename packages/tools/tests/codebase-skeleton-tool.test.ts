@@ -83,6 +83,35 @@ export function run(): void {
     expect(res.skeleton).toContain('export function run(): void { /* ... */ }');
   });
 
+  it('keeps code after a multi-line import when collapsing (EOF over-consumption)', async () => {
+    const tsCode = [
+      'import {',
+      '  alpha,',
+      '  beta,',
+      "} from './mod';",
+      '',
+      'export function gamma(): number {',
+      '  return 1;',
+      '}',
+    ].join('\n');
+
+    const res = await extractFileSkeleton({
+      file: 'app.ts',
+      content: tsCode,
+      lang: 'ts',
+      options: { collapseImports: true, includeLineNumbers: false },
+    });
+
+    // The import statement collapses to exactly one summary comment...
+    expect(res.skeleton).toContain('[1 import statements collapsed]');
+    // ...and every statement after it survives (a stale `trimmed` in the
+    // consumption loop used to spin the cursor to EOF and drop them all).
+    expect(res.skeleton).toContain('export function gamma(): number { /* ... */ }');
+    // The collapsed import's specifiers must not leak into the outline.
+    expect(res.skeleton).not.toContain('alpha');
+    expect(res.skeleton).not.toContain('beta');
+  });
+
   it('strips Python function bodies with Tree-Sitter and line annotations', async () => {
     const pyCode = `
 def calculate_metrics(data, threshold=0.5):

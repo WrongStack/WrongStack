@@ -387,34 +387,94 @@ export class VectorMemoryStore {
       params.push(opts.kind);
     }
 
-    const rows = this.db
+    // Two-phase scan. Cosine ranking is exhaustive by construction (there is
+    // no ANN index), but only the top `limit` rows are ever returned — so
+    // phase 1 reads the *narrowest* row shape that can produce a score
+    // (id + vector blob) and phase 2 hydrates only the survivors.
+    //
+    // The single-phase version selected `e.text`, `e.summary`, `e.metadata`
+    // and `e.tags` for every row in the store and ran `rowToEntry` (a
+    // two-`JSON.parse` decode) on everything above the threshold — which, at
+    // the default `threshold: 0`, means every row. On a mirrored SAGE corpus
+    // those columns are the entire memory text: the query allocated the whole
+    // corpus as JS strings and parsed every metadata blob to return ten hits.
+    const scanRows = this.db
       .prepare(
-        `SELECT e.id, e.text, e.summary, e.metadata, e.tags, e.scope, e.kind,
-                e.content_hash, e.created_at, e.updated_at,
-                v.vector AS vec_blob
+        `SELECT e.id AS id, v.vector AS vec_blob
            FROM entries e
            JOIN vectors v ON v.entry_id = e.id
           WHERE ${filters.join(' AND ')}`,
       )
-      .all(...params) as Array<Record<string, unknown>>;
+      .all(...params) as Array<{ id: string; vec_blob: Buffer | Uint8Array }>;
 
-    const scored: VectorSearchHit[] = [];
-    for (const row of rows) {
-      const blob = row.vec_blob as Buffer | Uint8Array;
-      const vec = decodeVector(blob);
+    // Bounded top-k by insertion into a small array kept in score order.
+    // Sorting the full candidate list would be O(n log n) on a list that is
+    // discarded except for its head; `limit` is single-digit in every caller.
+    const top: Array<{ id: string; score: number; vector: Float32Array }> = [];
+    for (const row of scanRows) {
+      const vec = decodeVector(row.vec_blob);
       const raw = cosineSimilarity(queryVec, vec);
       const score = Math.max(0, Math.min(1, raw));
       if (score < threshold) continue;
-      const entry = this.rowToEntry(row) as VectorEntry;
-      const hit: VectorSearchHit = { entry, score, providerId };
-      if (includeVectors) hit.vector = vec;
+      if (top.length >= limit && score <= (top[top.length - 1]?.score ?? 0)) continue;
+      let at = top.length;
+      while (at > 0 && (top[at - 1]?.score ?? 0) < score) at--;
+      top.splice(at, 0, { id: row.id, score, vector: vec });
+      if (top.length > limit) top.length = limit;
+    }
+    if (top.length === 0) return [];
+
+    // Phase 2 — hydrate the survivors in one statement, then re-emit in the
+    // score order established above (SQL `IN` does not preserve it).
+    const placeholders = top.map(() => '?').join(',');
+    const hydrated = this.db
+      .prepare(
+        `SELECT id, text, summary, metadata, tags, scope, kind,
+                content_hash, created_at, updated_at
+           FROM entries WHERE id IN (${placeholders})`,
+      )
+      .all(...top.map((t) => t.id)) as Array<Record<string, unknown>>;
+    const entryById = new Map<string, VectorEntry>();
+    for (const row of hydrated) {
+      entryById.set(row.id as string, this.rowToEntry(row) as VectorEntry);
+    }
+
+    const scored: VectorSearchHit[] = [];
+    for (const candidate of top) {
+      const entry = entryById.get(candidate.id);
+      // A row deleted between the two phases simply drops out; search is
+      // advisory and must not fail on a concurrent forget().
+      if (!entry) continue;
+      const hit: VectorSearchHit = { entry, score: candidate.score, providerId };
+      if (includeVectors) hit.vector = candidate.vector;
       scored.push(hit);
     }
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, limit);
+    return scored;
   }
 
-  list(opts: { limit?: number; scope?: VectorScope; kind?: VectorKind } = {}): VectorEntry[] {
+  /**
+   * Page through entries, newest first.
+   *
+   * Ordering is `(updated_at, id)` DESC — `updated_at` alone is not unique, so
+   * without the id tiebreak two entries written in the same millisecond can
+   * swap places between calls and a paging caller silently skips one.
+   *
+   * Pagination is keyset (`after`), not offset, because the only caller that
+   * pages is `forgetStaleSageMirrors`, which *deletes as it walks*. Under
+   * `OFFSET` every deletion shifts the remaining rows left and the next page
+   * skips exactly as many entries as were removed. Keyset is immune: it
+   * resumes from a position, and the rows a deletion removes are ones the
+   * sweep has already passed.
+   */
+  list(
+    opts: {
+      limit?: number;
+      scope?: VectorScope;
+      kind?: VectorKind;
+      /** Resume after this entry — pass the last row of the previous page. */
+      after?: { updatedAt: string; id: string } | undefined;
+    } = {},
+  ): VectorEntry[] {
     this.assertOpen();
     const where: string[] = [];
     const params: Array<string | number> = [];
@@ -426,8 +486,12 @@ export class VectorMemoryStore {
       where.push('kind = ?');
       params.push(opts.kind);
     }
+    if (opts.after) {
+      where.push('(updated_at < ? OR (updated_at = ? AND id < ?))');
+      params.push(opts.after.updatedAt, opts.after.updatedAt, opts.after.id);
+    }
     const sql = `SELECT * FROM entries ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-                 ORDER BY updated_at DESC LIMIT ?`;
+                 ORDER BY updated_at DESC, id DESC LIMIT ?`;
     params.push(opts.limit ?? 100);
     const rows = this.db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
     return rows.map((r) => this.rowToEntry(r) as VectorEntry);

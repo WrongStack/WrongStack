@@ -1,7 +1,4 @@
-import { render } from 'ink-testing-library';
-import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { MemoryContextWidget } from '../src/components/memory-context-widget.js';
 import {
   activeMemoryContextCount,
   applyMemoryContextSnapshot,
@@ -12,7 +9,11 @@ import {
 } from '../src/memory-context-monitor.js';
 
 describe('TUI memory context monitor', () => {
-  it('keeps the ordinary widget to two summary lines and tracks exact exits', () => {
+  // The widget this state used to render was removed (superseded by the
+  // context panel + the statusline memory chip), but the monitor-state
+  // transitions it exercised are production logic behind that chip. Kept
+  // verbatim minus the rendering assertions.
+  it('tracks injection, activation, re-injection and exact exits', () => {
     const injected = applyMemoryInjectorRun(emptyMemoryContextMonitor(), {
       at: '2026-07-19T16:00:00.000Z',
       trigger: 'read',
@@ -38,13 +39,7 @@ describe('TUI memory context monitor', () => {
         { id: 'mem_third', text: 'Third memory.' },
       ],
     });
-    const view = render(React.createElement(MemoryContextWidget, { state: injected }));
-    const frame = view.lastFrame() ?? '';
-    view.unmount();
-
-    expect(frame).toContain('5 matched · 3 injected · 2 filtered · 0 ctx · 3 pending');
-    expect(frame).toContain('/context = details');
-    expect(frame).not.toContain('Rotate refresh tokens');
+    // Injected but not yet reported active by a snapshot: still 0 in context.
     expect(activeMemoryContextCount(injected)).toBe(0);
 
     const active = applyMemoryContextSnapshot(injected, {
@@ -54,11 +49,8 @@ describe('TUI memory context monitor', () => {
       exitedMemoryIds: [],
     });
     expect(activeMemoryContextCount(active)).toBe(3);
-    const activeView = render(React.createElement(MemoryContextWidget, { state: active }));
-    expect(activeView.lastFrame() ?? '').toContain('3 ctx');
-    expect(activeView.lastFrame() ?? '').not.toContain('pending');
-    activeView.unmount();
 
+    // Re-injecting an already-active memory must not double-count it.
     const reinjected = applyMemoryInjectorRun(active, {
       at: '2026-07-19T16:00:01.500Z',
       trigger: 'read',
@@ -76,6 +68,8 @@ describe('TUI memory context monitor', () => {
     expect(Object.values(exited.memories).every((memory) => memory.state === 'exited')).toBe(true);
     expect(activeMemoryContextCount(exited)).toBe(0);
 
+    // An authoritative empty snapshot clears the count even without an
+    // explicit exit list.
     const authoritativeEmptySnapshot = applyMemoryContextSnapshot(active, {
       at: '2026-07-19T16:00:03.000Z',
       activeMemoryIds: [],

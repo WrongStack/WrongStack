@@ -174,10 +174,13 @@ export class SSETransport extends BaseHTTPTransport {
         sseReader.feed(chunk);
       }
     } catch {
-      // SSE read error — connection lost. Transition to disconnected so
-      // callTool and health checks see the correct state, then notify
-      // disconnect handlers so the registry can schedule a reconnect.
-      if (this.state !== 'disconnected' && this.state !== 'failed') {
+      // SSE read error — connection lost.
+    } finally {
+      // Stream ended (either via error or clean remote close / EOF).
+      // Transition to disconnected so callTool and health checks see
+      // the correct state, then notify disconnect handlers so the
+      // registry can schedule a reconnect.
+      if (!this.readerDone && this.state !== 'disconnected' && this.state !== 'failed') {
         this.state = 'disconnected';
         this.notifyDisconnect();
       }
@@ -227,17 +230,38 @@ export class SSETransport extends BaseHTTPTransport {
       const res = await this.fetchWithAuthorization(this.url, fetchOpts, timeoutSignal.signal);
       if (!res.ok) {
         // Cap the body — a misbehaving server could return megabytes of
-        // HTML and that's not useful in an error message anyway.
-        const body = await res.text();
-        const cap = MCP_CONSTANTS.REQUEST_LOG_CAP;
-        const snippet =
-          body.length > cap ? `${body.slice(0, cap)}… [${body.length} bytes total]` : body;
+        // HTML and that's not useful in an error message anyway. readBodyCapped
+        // bounds the BUFFER (the old res.text() slurped the whole body before
+        // the slice below ever ran); when even the cap is exceeded we keep the
+        // status-line error and drop the snippet.
+        let snippet: string;
+        try {
+          snippet = await readBodyCapped(res, MCP_CONSTANTS.REQUEST_LOG_CAP);
+        } catch (err) {
+          // Over-cap (or unreadable) error body: the capped reader stops
+          // before the true size is known, so report the at-least bound it
+          // did observe instead of buffering the whole body to measure it.
+          const received =
+            err instanceof ToolError && typeof err.context?.['received'] === 'number'
+              ? err.context['received']
+              : undefined;
+          snippet =
+            typeof received === 'number'
+              ? `… [${received}+ bytes total]`
+              : '… [error body unreadable]';
+        }
         throw new ToolError({
           message: `HTTP ${res.status}: ${snippet}`,
           code: 'TOOL_EXECUTION_FAILED',
           toolName: method,
           context: { transport: 'sse', url: this.url, status: res.status },
         });
+      }
+
+      // Notifications get no JSON-RPC reply (the server returns 202 / empty body).
+      if (method.startsWith('notifications/')) {
+        await readBodyCapped(res).catch(() => undefined);
+        return { jsonrpc: '2.0', id };
       }
 
       let data: unknown;
@@ -341,6 +365,12 @@ export class SSETransport extends BaseHTTPTransport {
             statusText: res.statusText,
           },
         });
+      }
+
+      // Notifications get no JSON-RPC reply (the server returns 202 / empty body).
+      if (method.startsWith('notifications/')) {
+        await readBodyCapped(res).catch(() => undefined);
+        return { jsonrpc: '2.0', id };
       }
 
       let data: unknown;

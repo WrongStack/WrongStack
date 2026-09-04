@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useActiveSessionId } from '@/stores';
 import { onLaneDisposed } from '@/stores/chat-lanes';
+import { useServerMessage } from '@/hooks/useServerMessage';
 
 interface TaskItem {
   id: string;
@@ -113,21 +114,26 @@ export function TasksPanel(): React.ReactElement | null {
     collapsedSessionRef.current = next;
   }, [sessionId]);
 
+  // B-03: subscription collapsed into `useServerMessage`. The hook manages
+  // teardown on unmount / dep change; the handler keeps the explicit
+  // sessionId filter that the previous inline code applied.
+  useServerMessage(
+    'tasks.updated',
+    (msg) => {
+      const payload = msg.payload as { sessionId?: string; tasks?: TaskItem[] } | undefined;
+      // The server stamps every worklist frame with the session it served.
+      // Untagged frames (older server, embedded host) stay compatible.
+      if (payload?.sessionId && sessionId && payload.sessionId !== sessionId) return;
+      if (payload?.tasks) setTasks(payload.tasks);
+    },
+    { sessionId, deps: [sessionId] },
+  );
+
   useEffect(() => {
     // Drop the previous tab's tasks immediately so a slow `tasks.get` round
     // trip cannot briefly render one tab's list under another tab's name.
     setTasks([]);
     ws.getTasks();
-    const off = ws.on('tasks.updated', (msg: unknown) => {
-      const payload = (msg as { payload?: { sessionId?: string; tasks?: TaskItem[] } })?.payload;
-      // The server stamps every worklist frame with the session it served.
-      // Untagged frames (older server, embedded host) stay compatible.
-      if (payload?.sessionId && sessionId && payload.sessionId !== sessionId) return;
-      if (payload?.tasks) setTasks(payload.tasks);
-    });
-    return () => {
-      off();
-    };
   }, [sessionId, ws]);
 
   const toggle = useCallback((key: string) => {

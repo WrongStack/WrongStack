@@ -23,6 +23,13 @@ export function filterProposalsAgainstPendingTargets<T extends { memoryId: strin
       )
       .map((c) => c.targetMemoryId as string),
   );
-  if (pendingTargets.size === 0) return [...proposals];
-  return proposals.filter((p) => !pendingTargets.has(p.memoryId));
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const p of proposals) {
+    if (!pendingTargets.has(p.memoryId) && !seen.has(p.memoryId)) {
+      seen.add(p.memoryId);
+      result.push(p);
+    }
+  }
+  return result;
 }

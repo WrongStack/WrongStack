@@ -234,8 +234,6 @@
       "isSafeSessionKillPid"
     ],
     "packages/cli/src/slash-commands/slash-deep-help.ts": [
-      "renderSlashDeepHelp",
-      "renderSlashFocusedHelp",
       "resolveSlashSubcommand",
       "slashesWithFocusedHelp",
       "wantsDeepHelp"
@@ -305,13 +303,6 @@
       "fetchLatestFromNpm",
       "getUpdateNotification",
       "isNewer"
-    ],
-    "packages/cli/src/webui-server/privileged-actions.ts": [
-      "authorizeCliWebUIAction",
-      "createCliProcessRoutes"
-    ],
-    "packages/cli/src/wiring/cli-heap-watchdog.ts": [
-      "startCliHeapWatchdog"
     ],
     "packages/cli/src/wiring/mailbox-bridge-bootstrap.ts": [
       "MAILBOX_BRIDGE_META_KEY"
@@ -446,9 +437,6 @@
     "packages/core/src/execution/prompt-enhancer.ts": [
       "completeRefinerPass"
     ],
-    "packages/core/src/execution/provider-runner-impl.ts": [
-      "DefaultProviderRunner"
-    ],
     "packages/core/src/execution/tool-error-taxonomy.ts": [
       "classifiedToolErrorResult",
       "getToolErrorInfo"
@@ -549,9 +537,6 @@
     ],
     "packages/core/src/storage/goal-store.ts": [
       "updateGoal"
-    ],
-    "packages/core/src/storage/session-writer/session-writer-flush.ts": [
-      "flushBufferSync"
     ],
     "packages/core/src/types/runtime-capability-manifest.ts": [
       "isDeprecatedRuntimeToolAlias",
@@ -1182,12 +1167,6 @@
       "IDLE_MESSAGES",
       "isIdleContext"
     ],
-    "packages/tui/src/components/live-activity-strip.tsx": [
-      "activityStripRows"
-    ],
-    "packages/tui/src/components/memory-context-widget.tsx": [
-      "MemoryContextWidget"
-    ],
     "packages/tui/src/components/powerline-rail.tsx": [
       "visibleNodeText"
     ],
@@ -1221,9 +1200,6 @@
     "packages/tui/src/components/status-line-registry.tsx": [
       "canonicalChipKey",
       "partitionRailEntries"
-    ],
-    "packages/tui/src/components/statusline-detail-panel.tsx": [
-      "StatuslineDetailPanel"
     ],
     "packages/tui/src/components/statusline-picker.tsx": [
       "getExpiresInLabel",
@@ -1378,7 +1354,6 @@
       "glyphSet"
     ],
     "packages/tui/src/workbench-slash.ts": [
-      "createWorkbenchSlashCommand",
       "renderWorkbenchReport"
     ],
     "packages/webui-hq/src/data/local-prefs.ts": [
@@ -1459,9 +1434,6 @@
     ],
     "packages/webui-server/src/server/terminal-ws-handler.ts": [
       "resolveTerminalShell"
-    ],
-    "packages/webui-server/src/server/ws-payload-validation.ts": [
-      "validateBrainConfigSetPayload"
     ],
     "packages/webui/src/components/activity-bar/index.tsx": [
       "calculateDesktopActivityCapacity",

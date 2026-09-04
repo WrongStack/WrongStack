@@ -5,7 +5,7 @@ import { ulid } from '@wrongstack/core/utils';
 import { verifyMemoryAnchors } from './anchors/verify.js';
 import { applySemanticChange } from './shared/semantic-rewrite.js';
 import { readSqliteSageRow } from './sqlite-store-codec.js';
-import { memoryNodeId } from './sqlite-store-graph-helpers.js';
+import { cleanReferencingMemories, memoryNodeId } from './sqlite-store-graph-helpers.js';
 import {
   isNearDuplicateMemory,
   isPossiblyContradictory,
@@ -57,6 +57,10 @@ function compareMemoryAgeAscending(a: Sage, b: Sage): number {
   if (a.id < b.id) return -1;
   if (a.id > b.id) return 1;
   return 0;
+}
+
+function hygieneScopeKey(m: Sage): string {
+  return m.scope === 'session' ? `session:${m.ownerSessionId ?? ''}` : m.scope;
 }
 
 interface SqliteHygieneContext {
@@ -212,7 +216,7 @@ export async function runSqliteSageHygiene(
   const groups = new Map<string, Sage[]>();
   for (const m of allActive) {
     const audienceKey = JSON.stringify(normalizeAudience(m.audience) ?? null);
-    const key = `${m.scope}\0${normalizeTextKey(m.text)}\0${audienceKey}`;
+    const key = `${hygieneScopeKey(m)}\0${normalizeTextKey(m.text)}\0${audienceKey}`;
     const group = groups.get(key);
     if (group) group.push(m);
     else groups.set(key, [m]);
@@ -220,12 +224,16 @@ export async function runSqliteSageHygiene(
   await ctx.runMutation(() => {
     for (const group of groups.values()) {
       if (group.length < 2) continue;
-      const sorted = [...group].sort(
-        (a, b) =>
+      const sorted = [...group].sort((a, b) => {
+        const aPerm = (a.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ? 1 : 0;
+        const bPerm = (b.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ? 1 : 0;
+        return (
+          bPerm - aPerm ||
           b.importance - a.importance ||
           b.confidence - a.confidence ||
-          compareIsoAscending(a.createdAt, b.createdAt),
-      );
+          compareIsoAscending(a.createdAt, b.createdAt)
+        );
+      });
       const keeper = sorted[0]!;
       const duplicates = sorted.slice(1);
       const updatedKeeper = applySemanticChange(
@@ -285,7 +293,7 @@ export async function runSqliteSageHygiene(
     const nearBuckets = new Map<string, Sage[]>();
     for (const m of nearActive) {
       const audienceKey = JSON.stringify(normalizeAudience(m.audience) ?? null);
-      const key = `${m.scope}\0${m.kind}\0${audienceKey}`;
+      const key = `${hygieneScopeKey(m)}\0${m.kind}\0${audienceKey}`;
       const bucket = nearBuckets.get(key);
       if (bucket) bucket.push(m);
       else nearBuckets.set(key, [m]);
@@ -341,12 +349,16 @@ export async function runSqliteSageHygiene(
           if (group.length < 2) continue;
           // Track raw union-find collapses (size > 2) before pair validation.
           if (group.length > 2) transitiveMerges++;
-          const sorted = [...group].sort(
-            (a, b) =>
+          const sorted = [...group].sort((a, b) => {
+            const aPerm = (a.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ? 1 : 0;
+            const bPerm = (b.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ? 1 : 0;
+            return (
+              bPerm - aPerm ||
               b.importance - a.importance ||
               b.confidence - a.confidence ||
-              compareIsoAscending(a.createdAt, b.createdAt),
-          );
+              compareIsoAscending(a.createdAt, b.createdAt)
+            );
+          });
           const keeper = sorted[0]!;
           // Pair validation: only supersede members that are near-dup with the
           // keeper itself. Transitively connected-but-unrelated facts stay.
@@ -427,7 +439,7 @@ export async function runSqliteSageHygiene(
     const buckets = new Map<string, Sage[]>();
     for (const memory of activeNow) {
       const audienceKey = JSON.stringify(normalizeAudience(memory.audience) ?? null);
-      const key = `${memory.scope}\u0000${audienceKey}`;
+      const key = `${hygieneScopeKey(memory)}\u0000${audienceKey}`;
       const bucket = buckets.get(key);
       if (bucket) bucket.push(memory);
       else buckets.set(key, [memory]);
@@ -622,6 +634,7 @@ export async function runSqliteSageHygiene(
           contextPolicy: 'never',
         };
         ctx.upsertMemory(tombstone);
+        cleanReferencingMemories(ctx, m.id);
         ctx.cascadeDeleteEdges(memoryNodeId(m.id));
         ctx.audit('memory.session_gc', {
           memoryId: m.id,

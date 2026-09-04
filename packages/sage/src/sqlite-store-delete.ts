@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { memoryNodeId } from './sqlite-store-graph-helpers.js';
-import { readSqliteSageRow, sqliteRowToMemory } from './sqlite-store-codec.js';
+import { cleanReferencingMemories, memoryNodeId } from './sqlite-store-graph-helpers.js';
+import { readSqliteSageRow } from './sqlite-store-codec.js';
 import type { Sage } from './types.js';
 import { DEFAULT_PERSISTENCE } from './types.js';
 
@@ -39,48 +39,8 @@ export function deleteSqliteSage(
   }
 
   const nodeId = memoryNodeId(id);
-  const edgeCount = ctx
-    .stmt(
-      "SELECT COUNT(*) AS n FROM edges WHERE (from_node = ? OR to_node = ?) AND relation != 'related_to'",
-    )
-    .get(nodeId, nodeId) as { n: number };
 
-  const refs = ctx
-    .stmt(
-      `SELECT id, data FROM memories
-       WHERE id != ?
-         AND status != 'deleted'
-         AND (
-           json_extract(data, '$.supersededBy') = ?
-           OR EXISTS (
-             SELECT 1 FROM json_each(COALESCE(json_extract(data, '$.supersedes'), '[]'))
-             WHERE value = ?
-           )
-           OR EXISTS (
-             SELECT 1 FROM json_each(COALESCE(json_extract(data, '$.contradicts'), '[]'))
-             WHERE value = ?
-           )
-         )`,
-    )
-    .all(id, id, id, id) as Array<{ id: string; data: string }>;
-  for (const ref of refs) {
-    const other = sqliteRowToMemory(ref);
-    const patch: Partial<Sage> = {};
-    if (other.supersedes?.includes(id)) {
-      patch.supersedes = other.supersedes.filter((value) => value !== id);
-    }
-    if (other.contradicts?.includes(id)) {
-      patch.contradicts = other.contradicts.filter((value) => value !== id);
-    }
-    if (other.supersededBy === id) {
-      patch.supersededBy = undefined;
-    }
-    ctx.upsertMemory({
-      ...other,
-      ...patch,
-      revision: other.revision + 1,
-    });
-  }
+  cleanReferencingMemories(ctx, id);
 
   ctx.upsertMemory({
     ...fresh,
@@ -89,13 +49,18 @@ export function deleteSqliteSage(
     updatedAt: ctx.nowIso(),
     ...(options.neverInject === true ? { contextPolicy: 'never' as const } : {}),
   });
+  const removedEdges = ctx
+    .stmt(
+      "SELECT COUNT(*) AS n FROM edges WHERE (from_node = ? OR to_node = ?) AND relation != 'related_to'",
+    )
+    .get(nodeId, nodeId) as { n: number };
   ctx.cascadeDeleteEdges(nodeId);
 
   ctx.audit('memory.deleted', {
     memoryId: id,
     reason,
     details: {
-      removedEdges: edgeCount.n,
+      removedEdges: removedEdges.n,
       force: options.force === true,
       contextPolicy: options.neverInject === true ? 'never' : 'eligible',
     },
@@ -104,7 +69,7 @@ export function deleteSqliteSage(
     memoryId: id,
     reason,
     persistence: fresh.persistence ?? DEFAULT_PERSISTENCE,
-    removedEdges: edgeCount.n,
+    removedEdges: removedEdges.n,
     contextPolicy: options.neverInject === true ? 'never' : 'eligible',
   });
   ctx.emit('memory.updated', {

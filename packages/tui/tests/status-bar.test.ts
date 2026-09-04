@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { computeRailSpans } from '../src/components/powerline-rail.js';
+import { layoutRail, type RailSpan, type RailSpanEntry } from '../src/components/powerline-rail.js';
 import {
   fmtElapsed,
   hasTokenDisplay,
@@ -17,9 +17,32 @@ function chip(text: string): React.ReactElement {
   return React.createElement(Text, null, text);
 }
 
-describe('computeRailSpans (hit-test geometry)', () => {
+/**
+ * The 0-based column spans the renderer will actually keep.
+ *
+ * `layoutRail` returns each surviving chip WITH its node; the status bar's
+ * click-map builder projects that down to `{id,start,len,level}` from the
+ * same single layout pass. These tests assert that geometry, so they apply
+ * the same projection locally rather than through a production shim: a
+ * shim existed for exactly this and became unreachable when the click map
+ * moved onto `layoutRail` directly, leaving a tested-but-uncalled export.
+ */
+function railSpans(
+  entries: readonly RailSpanEntry[],
+  budget: number,
+  rightAnchor?: React.ReactElement | null,
+): RailSpan[] {
+  return layoutRail(entries, budget, rightAnchor).items.map(({ id, start, len, level }) => ({
+    id,
+    start,
+    len,
+    level,
+  }));
+}
+
+describe('rail span projection (hit-test geometry)', () => {
   it('lays segments out 0-based with 2-space separators, mirroring PowerlineRail', () => {
-    const spans = computeRailSpans(
+    const spans = railSpans(
       [
         { id: 'yolo', node: chip('YOLO') },
         { id: 'model', node: chip('openai/gpt-5.6') },
@@ -35,7 +58,7 @@ describe('computeRailSpans (hit-test geometry)', () => {
   });
 
   it('drops segments that exceed the budget exactly like the renderer', () => {
-    const spans = computeRailSpans(
+    const spans = railSpans(
       [
         { id: 'a', node: chip('aaaaaaaaaa') },
         { id: 'b', node: chip('bbbbbbbbbb') },
@@ -48,13 +71,13 @@ describe('computeRailSpans (hit-test geometry)', () => {
   });
 
   it('always keeps the first segment even when over budget', () => {
-    const spans = computeRailSpans([{ id: 'a', node: chip('aaaaaaaaaa') }], 4);
+    const spans = railSpans([{ id: 'a', node: chip('aaaaaaaaaa') }], 4);
     expect(spans).toEqual([{ id: 'a', start: 0, len: 10, level: 0 }]);
   });
 
   it('trims trailing segments to make room for a right anchor', () => {
     const anchor = chip('v9.9.99');
-    const withAnchor = computeRailSpans(
+    const withAnchor = railSpans(
       [
         { id: 'a', node: chip('aaaaaaaaaa') },
         { id: 'b', node: chip('bbbbbbbbbb') },
@@ -63,7 +86,7 @@ describe('computeRailSpans (hit-test geometry)', () => {
       anchor,
     );
     expect(withAnchor.map((s) => s.id)).toEqual(['a']);
-    const withoutAnchor = computeRailSpans(
+    const withoutAnchor = railSpans(
       [
         { id: 'a', node: chip('aaaaaaaaaa') },
         { id: 'b', node: chip('bbbbbbbbbb') },
@@ -74,11 +97,11 @@ describe('computeRailSpans (hit-test geometry)', () => {
   });
 
   it('returns no spans for an empty rail', () => {
-    expect(computeRailSpans([], 80)).toEqual([]);
+    expect(railSpans([], 80)).toEqual([]);
   });
 
   it('shortens the widest chip before it drops any chip', () => {
-    const spans = computeRailSpans(
+    const spans = railSpans(
       [
         { id: 'fat', node: chip('a'.repeat(40)), alt: [chip('a'.repeat(8))] },
         { id: 'thin', node: chip('bbbb') },
@@ -92,7 +115,7 @@ describe('computeRailSpans (hit-test geometry)', () => {
   });
 
   it('drops only once every chip is at its narrowest level', () => {
-    const spans = computeRailSpans(
+    const spans = railSpans(
       [
         { id: 'a', node: chip('a'.repeat(20)), alt: [chip('aaaaa')] },
         { id: 'b', node: chip('b'.repeat(20)), alt: [chip('bbbbb')] },
@@ -105,7 +128,7 @@ describe('computeRailSpans (hit-test geometry)', () => {
   });
 
   it('honours a pinned density: a chip with lo===hi never degrades', () => {
-    const spans = computeRailSpans(
+    const spans = railSpans(
       [
         { id: 'pinned', node: chip('P'.repeat(20)), alt: [chip('P')], lo: 0, hi: 0 },
         { id: 'free', node: chip('f'.repeat(20)), alt: [chip('f')] },

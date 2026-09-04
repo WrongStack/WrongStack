@@ -4,11 +4,15 @@ export type {
   AuthCatalogRow,
   AuthFlowIo,
   AuthFlowResult,
+  AuthKeyEdit,
   AuthKeyRow,
   AuthLocalPresetRow,
+  AuthModelEdit,
   AuthOAuthKind,
   AuthPanelHost,
+  AuthProviderEdit,
   AuthProviderRow,
+  AuthProviderSetup,
 } from './auth-panel-model.js';
 export type {
   BrainDenyIsTerminal,

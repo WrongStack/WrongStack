@@ -201,6 +201,11 @@ describe('useAuthPanel standalone secret prompts', () => {
       ),
       addLocal: vi.fn(async () => ({ ok: true })),
       oauthLogin: vi.fn(async () => ({ ok: true })),
+      saveProviderSetup: vi.fn(async () => null),
+      saveProviderEdit: vi.fn(async () => null),
+      getModelEdit: vi.fn(async () => null),
+      saveModelEdit: vi.fn(async () => null),
+      saveKeyEdit: vi.fn(async () => null),
     } satisfies AuthPanelHost;
     let harness!: Harness;
     act(() => {

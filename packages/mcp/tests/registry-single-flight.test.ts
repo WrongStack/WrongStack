@@ -111,4 +111,58 @@ describe('MCPRegistry single-flight & cancellation', () => {
     expect(result).toBe(client);
     expect(attemptConnect).not.toHaveBeenCalled();
   });
+
+  it('records wake operation and increments wakeCount only once on concurrent calls from dormant', async () => {
+    const registry = new MCPRegistry({
+      toolRegistry: dummyToolRegistry,
+      events: dummyEvents,
+      log: dummyLogger,
+    });
+
+    const slot: any = {
+      cfg: { name: 'dormant-race', transport: 'stdio' as const, command: 'node', lazy: true },
+      state: 'dormant' as const,
+      toolNames: [],
+      lazyTools: [],
+      attempts: 0,
+      reconnectPending: false,
+      reconnectCycles: 0,
+      lazy: true,
+      lastUsed: Date.now(),
+      registeredLazy: false,
+      operations: {
+        consecutiveFailures: 0,
+        failures: { transport: 0, protocol: 0, tool: 0 },
+        reconnectCount: 0,
+        wakeCount: 0,
+        sleepCount: 0,
+        restartCount: 0,
+        connectionSamples: [],
+        discoverySamples: [],
+        callSamples: [],
+        inFlightCalls: 0,
+        peakInFlightCalls: 0,
+        recentEvents: [],
+      },
+    };
+    (registry as any).servers.set('dormant-race', slot);
+
+    vi.spyOn(registry as any, 'attemptConnect').mockImplementation(async (s: any) => {
+      await new Promise((r) => setTimeout(r, 20));
+      s.state = 'connected';
+      s.client = { name: 'woken-client' };
+    });
+
+    const p1 = registry.ensureConnected('dormant-race');
+    const p2 = registry.ensureConnected('dormant-race');
+    const p3 = registry.ensureConnected('dormant-race');
+
+    const results = await Promise.all([p1, p2, p3]);
+    expect(results[0]).toBe(results[1]);
+    expect(results[1]).toBe(results[2]);
+    expect(slot.operations.wakeCount).toBe(1);
+    const wakeEvents = slot.operations.recentEvents.filter((e: any) => e.kind === 'wake');
+    expect(wakeEvents).toHaveLength(1);
+  });
 });
+

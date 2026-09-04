@@ -199,8 +199,69 @@ wstack --webui \
 
 ## UI surfaces
 
-- **Theme** — a segmented Light / Dark / System toggle lives in the chat header
-  (`ThemeToggle`). The design system ("Engineering Instrument Deck": IBM Plex
+### Inventory
+
+`ViewRouter.tsx` renders exactly one main view at a time; `VIEWS` in
+`src/stores/ui-store.ts` is the single source of truth for the list, and
+`src/lib/view-navigation.ts` partitions it into the three buckets below (a
+compile-time assertion fails the build if a view belongs to none of them).
+
+**Side panels** — an activity-bar icon that opens a panel *and* steers the main
+area. `Ctrl`/`⌘` + the listed digit toggles each one.
+
+| Panel | Digit | Paired main view |
+|---|---|---|
+| Session | 1 | `chat` |
+| Files | 2 | `files` (Monaco editor) |
+| Changes | 3 | `changes` (diff + worktree lanes tab) |
+| Mailbox | 4 | `mailbox` |
+| Skills | 5 | `skill` |
+| Design Studio | 0 | `design-gallery` |
+
+**Standalone main views** — their own bar icon (overflowing into the "…" menu on
+short viewports); selecting one collapses the side panel.
+
+| View | What it is |
+|---|---|
+| `roster` | Agent Roster: catalog, live fleet, self-learning, office map |
+| `sddhub` | Spec-Driven Development wizard, board and run controls |
+| `kanban` | Task board, inspector, verification and contract graph |
+| `goal` | AutoPhase goal runner and phase timeline |
+| `codemap` | Code Atlas graph, relations and live activity overlay |
+| `techstack` | Dependency inventory, findings and remediation plans |
+| `chronicle` | Session chronicle metrics, facets and query dashboard |
+| `prompts` | Prompt journal and prompt library |
+| `chimera` | Chimera post-session review reports |
+| `intake` | Requirements intake questionnaire |
+| `memory` | SAGE memory manager (+ vector memory as its third lens) |
+| `settings` | Settings panel (lives in the "…" utilities menu, not the bar) |
+
+**Unlisted views** — no bar affordance; reached from the command palette
+(`Ctrl`/`⌘`+K), a deep link, or another view's action.
+
+| View | Opened by |
+|---|---|
+| `context` | palette → "Context Dashboard" |
+| `sessions` | session list / `F10` |
+| `session-inspect` | drill-down from a session row |
+| `setup` | first-run provider setup, palette |
+| `analytics` | palette |
+| `debug` | palette, context-breakdown drill-down |
+| `refresh-debug` | palette |
+| `deadcode` | palette → "Dead Code Scan" (`POST /api/deadcode/*`) |
+
+Chat and the workspace dock stay **mounted for the session lifetime** and are
+parked (`inert`, out of flow) while another view is in front — the transcript,
+scroll position and unsent draft survive a trip to Files or Kanban.
+
+### Notable behaviours
+
+- **Theme** — the workbench topbar (`WorkbenchTopbar`) carries a single
+  sun/moon button that flips between light and dark. The stored preference is
+  tri-state (`light | dark | system`) and lives in `ThemeProvider`, which
+  resolves `system` against `prefers-color-scheme`; the button toggles against
+  the *resolved* mode, and `system` is selected from Settings rather than from
+  the topbar. The design system ("Engineering Instrument Deck": IBM Plex
   type, warm-graphite/​warm-paper surfaces, signal-amber accent, status LEDs) is
   defined entirely with HSL CSS variables in `src/index.css`, so both modes stay
   in lockstep. The sidebar brand plate carries a live connection LED.
@@ -239,11 +300,23 @@ wstack --webui \
 
 ## Internals (for contributors)
 
-- Shared backend: `packages/webui-server/src/server/index.ts` (`startWebUI`), the `@wrongstack/webui-server` package (extracted in PR #018b; `@wrongstack/webui/server` is now a back-compat re-export shim).
-- Canonical launcher: `packages/cli/src/webui-server.ts` (`runWebUI`) — reuses the
-  webui package's `createHttpServer`, `findFreePort`, `openBrowser`, and the instance
-  registry via the `@wrongstack/webui/server` export so the static-serve / port / meta
-  injection logic lives in one place.
+- Shared backend: `packages/webui-server/src/server/index.ts` (`startWebUI`), the
+  `@wrongstack/webui-server` package (extracted in PR #018b). The old
+  `@wrongstack/webui/server` back-compat subpath has been **removed** —
+  `@wrongstack/webui` exports only `.` and `./types`, and every backend import
+  goes to `@wrongstack/webui-server` directly.
+- Wire contract: `@wrongstack/webui-protocol` — the message-type registry, the
+  envelope decoder, the connection FSM and the shared replay projector. Both
+  browser surfaces and the server import it; neither browser package imports
+  the server.
+- Canonical launcher: `packages/cli/src/webui-server.ts` (`runWebUI`) — reuses
+  `createHttpServer`, `findFreePort`, `openBrowser`, and the instance registry
+  from `@wrongstack/webui-server` so the static-serve / port / meta injection
+  logic lives in one place.
+- Message routing: one chain, two hosts. `route-family-dispatcher.ts` walks 26
+  route families in order; the standalone server builds their handler tables in
+  `routes.ts`, and the CLI-embedded host builds the same families against its
+  live agent in `embedded-message-router.ts`.
 - Static serve + optional WS URL `<meta>` injection + CSP: `packages/webui-server/src/server/http-server.ts`.
 - Free-port discovery: `port-utils.ts`. Instance registry: `instance-registry.ts`.
   Browser opener: `open-browser.ts`. Frontend WS-URL resolution: `src/lib/ws-client.ts`.
