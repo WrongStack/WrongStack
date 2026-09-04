@@ -1,5 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import { enableKeyboardShortcuts } from './helpers/keyboard-shortcuts';
+
 /**
  * Global workbench inspector drawer.
  *
@@ -47,6 +49,7 @@ async function openInspector(page: Page, via: 'f2' | 'ctrl-shift-m' = 'f2') {
 
 test.describe('global inspector drawer', () => {
   test.beforeEach(async ({ page }) => {
+    await enableKeyboardShortcuts(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     // Readiness gate: the top bar (and its Agents trigger) renders only in
