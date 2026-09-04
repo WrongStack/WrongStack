@@ -9,6 +9,7 @@ import {
   ProviderError,
   type ProviderErrorKind,
 } from '../types/provider.js';
+import { defaultContextOutputReserve } from './context-budget.js';
 import { NETWORK_ERR_RE } from './regex-patterns.js';
 
 /**
@@ -242,7 +243,7 @@ export function learnEffectiveContextLimitFromOverflow(ctx: Context): number | u
   if (!advertised) return undefined;
 
   const configuredOutputReserve = nonNegativeFinite(ctx.meta?.['contextOutputReserveTokens']);
-  const outputReserve = configuredOutputReserve ?? Math.floor(Math.min(8192, advertised * 0.08));
+  const outputReserve = configuredOutputReserve ?? defaultContextOutputReserve(advertised);
   const observedCeiling = Math.max(1, Math.floor(inputTokens + outputReserve));
   const learned = Math.min(advertised, observedCeiling);
   if (learned >= advertised) return advertised;
