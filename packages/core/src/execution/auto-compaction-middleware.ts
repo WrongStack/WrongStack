@@ -20,6 +20,8 @@ import {
   estimateMessages,
 } from './compaction-core.js';
 
+import { computeContextWindowBudget, type ContextWindowBudgetSnapshot } from './context-budget.js';
+
 type PressureLevel = 'warn' | 'soft' | 'hard';
 const LEVEL_RANK: Record<PressureLevel, number> = { warn: 0, soft: 1, hard: 2 };
 
@@ -33,16 +35,7 @@ function pressureLevelFor(
   return null;
 }
 
-export interface ContextWindowBudgetSnapshot {
-  maxContext: number;
-  inputTokens: number;
-  availableInputTokens: number;
-  remainingInputTokens: number;
-  reservedOutputTokens: number;
-  reservedSafetyTokens: number;
-  load: number;
-  overflowTokens: number;
-}
+export type { ContextWindowBudgetSnapshot } from './context-budget.js';
 
 /** Max chars of collapse digest persisted to the session log line. */
 const MAX_DIGEST_LOG_CHARS = 4_000;
@@ -244,7 +237,7 @@ export class AutoCompactionMiddleware {
       // limit that is lower than the catalog/native-model value. Resolve it on
       // every pass so the next retry compacts against the learned denominator.
       const runtimeMaxContext = effectiveMaxContext(ctx, this._maxContext);
-      let budget = computeContextWindowBudget(ctx, tokens, runtimeMaxContext);
+      let budget = contextWindowBudget(ctx, tokens, runtimeMaxContext);
       const calibratedLoad = budget.load;
       const policy = this.policyProvider?.(ctx);
       const thresholds = policy?.thresholds ?? {
@@ -287,7 +280,7 @@ export class AutoCompactionMiddleware {
         tokens = changed ? this.estimateContextTokens(ctx) : tokens;
         this.lastHygieneTokens = tokens;
         if (changed) {
-          budget = computeContextWindowBudget(ctx, tokens, runtimeMaxContext);
+          budget = contextWindowBudget(ctx, tokens, runtimeMaxContext);
           load = this.applySendGuard(ctx, budget.load, budget.availableInputTokens);
           const relevelled = pressureLevelFor(load, adaptiveThresholds);
           if (!relevelled) {
@@ -625,7 +618,7 @@ export class AutoCompactionMiddleware {
       ctx.clearFileTracking();
 
       const afterTokens = report.fullRequestTokensAfter ?? report.after;
-      let afterBudget = computeContextWindowBudget(ctx, afterTokens, runtimeMaxContext);
+      let afterBudget = contextWindowBudget(ctx, afterTokens, runtimeMaxContext);
       let afterLoad = afterBudget.load;
       let stillHard = afterLoad >= pressure.hardThreshold;
 
@@ -643,7 +636,7 @@ export class AutoCompactionMiddleware {
             ctx.systemPrompt,
             ctx.tools ?? [],
           ).total;
-          afterBudget = computeContextWindowBudget(ctx, retryTokens, runtimeMaxContext);
+          afterBudget = contextWindowBudget(ctx, retryTokens, runtimeMaxContext);
           afterLoad = afterBudget.load;
           stillHard = afterLoad >= pressure.hardThreshold;
           ctx.clearFileTracking();
@@ -670,7 +663,7 @@ export class AutoCompactionMiddleware {
             ctx.systemPrompt,
             ctx.tools ?? [],
           ).total;
-          afterBudget = computeContextWindowBudget(ctx, retryTokens, runtimeMaxContext);
+          afterBudget = contextWindowBudget(ctx, retryTokens, runtimeMaxContext);
           afterLoad = afterBudget.load;
           stillHard = afterLoad >= pressure.hardThreshold;
           ctx.clearFileTracking();
@@ -867,57 +860,18 @@ function effectiveMaxContext(ctx: Context, configured: number): number {
   return configured;
 }
 
-function computeContextWindowBudget(
+function contextWindowBudget(
   ctx: Context,
   inputTokens: number,
   maxContext: number,
 ): ContextWindowBudgetSnapshot {
-  const reservedOutputTokens =
-    readPositiveMetaNumber(ctx, 'contextOutputReserveTokens') ?? realOutputReserve(ctx, maxContext);
-  const reservedSafetyTokens =
-    readPositiveMetaNumber(ctx, 'contextSafetyBufferTokens') ??
-    Math.floor(Math.min(4096, maxContext * 0.02));
-  const availableInputTokens = Math.max(
-    1,
-    maxContext - reservedOutputTokens - reservedSafetyTokens,
-  );
-  const remainingInputTokens = availableInputTokens - inputTokens;
-  return {
+  return computeContextWindowBudget({
     maxContext,
     inputTokens,
-    availableInputTokens,
-    remainingInputTokens,
-    reservedOutputTokens,
-    reservedSafetyTokens,
-    load: inputTokens / availableInputTokens,
-    overflowTokens: Math.max(0, -remainingInputTokens),
-  };
-}
-
-/**
- * The output-token reserve subtracted from the window to get the input budget.
- *
- * This is the room left for the model's RESPONSE, so it must track the actual
- * per-request output cap — which in an agentic loop is `Request.maxTokens`
- * (typically a few thousand), NOT the model's *theoretical* `maxOutput` ceiling
- * (which the catalog reports as 32k-65k for many models). Reserving the full
- * theoretical ceiling shrinks the usable window so far that a large context
- * sits permanently above the compaction thresholds → constant re-compaction.
- *
- * So the reserve is the heuristic `min(8192, 8% of window)` — the same value
- * that has always worked — tightened only when the model's real `maxOutput` is
- * *smaller* than that (a genuinely small-output model can't produce more, so
- * reserving less is both accurate and frees input budget). It never exceeds the
- * heuristic, so it can only keep or reduce compaction frequency, never raise it.
- * The real catalog `maxOutput` is still surfaced in `/context` for visibility.
- */
-function realOutputReserve(ctx: Context, maxContext: number): number {
-  const heuristic = Math.floor(Math.min(8192, maxContext * 0.08));
-  const maxOutput = ctx.provider?.capabilities?.maxOutput;
-  if (typeof maxOutput === 'number' && Number.isFinite(maxOutput) && maxOutput > 0) {
-    return Math.min(heuristic, Math.floor(maxOutput));
-  }
-  return heuristic;
+    maxOutput: ctx.provider?.capabilities?.maxOutput,
+    outputReserveTokens: readPositiveMetaNumber(ctx, 'contextOutputReserveTokens'),
+    safetyBufferTokens: readPositiveMetaNumber(ctx, 'contextSafetyBufferTokens'),
+  });
 }
 
 function readPositiveMetaNumber(ctx: Context, key: string): number | undefined {
