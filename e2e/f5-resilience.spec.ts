@@ -81,7 +81,7 @@ test.describe('F5 resilience — round-trip via /refresh-debug', () => {
     await page.evaluate(() => {
       // Stamp the v6 shape that the ui-store migrate accepts ('sessions'
       // is a valid currentView — see VIEWS in stores/ui-store.ts).
-      const next = { state: { currentView: 'sessions' }, version: 6 };
+      const next = { state: { currentView: 'sessions' }, version: 7 };
       localStorage.setItem('wrongstack-ui', JSON.stringify(next));
     });
 

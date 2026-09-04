@@ -16,7 +16,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { isSageVisibleForSearch } from '../../src/retrieval/visibility.js';
-import type { Sage } from '../../src/types.js';
+import type { Sage, SageSearchOptions } from '../../src/types.js';
 
 function sage(overrides: Partial<Sage> = {}): Sage {
   return {
@@ -47,7 +47,7 @@ describe('isSageVisibleForSearch', () => {
     });
 
     it('honors an explicit includeStatuses list', () => {
-      const opts = { includeStatuses: ['stale', 'archived'] } as const;
+      const opts: SageSearchOptions = { includeStatuses: ['stale', 'archived'] };
       expect(isSageVisibleForSearch(sage({ status: 'stale' }), opts)).toBe(true);
       expect(isSageVisibleForSearch(sage({ status: 'archived' }), opts)).toBe(true);
       expect(isSageVisibleForSearch(sage({ status: 'active' }), opts)).toBe(false);
@@ -56,11 +56,11 @@ describe('isSageVisibleForSearch', () => {
 
   describe('scope pin', () => {
     it('excludes memories outside the pinned scope', () => {
-      expect(isSageVisibleForSearch(sage({ scope: 'project' }), { scope: 'global' })).toBe(false);
+      expect(isSageVisibleForSearch(sage({ scope: 'project' }), { scope: 'user' })).toBe(false);
     });
 
     it('admits memories inside the pinned scope', () => {
-      expect(isSageVisibleForSearch(sage({ scope: 'global' }), { scope: 'global' })).toBe(true);
+      expect(isSageVisibleForSearch(sage({ scope: 'user' }), { scope: 'user' })).toBe(true);
     });
 
     it('applies no scope pin when opts.scope is undefined', () => {
@@ -71,7 +71,7 @@ describe('isSageVisibleForSearch', () => {
   describe('audience exclusion', () => {
     it('drops audience-scoped memories when includeAudienceScoped is false', () => {
       expect(
-        isSageVisibleForSearch(sage({ audience: 'subagents' }), {
+        isSageVisibleForSearch(sage({ audience: { roles: ['subagents'] } }), {
           includeAudienceScoped: false,
         }),
       ).toBe(false);
@@ -87,11 +87,11 @@ describe('isSageVisibleForSearch', () => {
 
     it('keeps audience-scoped memories when audience scoping is not excluded', () => {
       expect(
-        isSageVisibleForSearch(sage({ audience: 'subagents' }), {
+        isSageVisibleForSearch(sage({ audience: { roles: ['subagents'] } }), {
           includeAudienceScoped: true,
         }),
       ).toBe(true);
-      expect(isSageVisibleForSearch(sage({ audience: 'subagents' }))).toBe(true);
+      expect(isSageVisibleForSearch(sage({ audience: { roles: ['subagents'] } }))).toBe(true);
     });
   });
 
@@ -109,7 +109,7 @@ describe('isSageVisibleForSearch', () => {
     });
 
     it('keeps memories without the never policy on automatic-context calls', () => {
-      expect(isSageVisibleForSearch(sage({ contextPolicy: 'inherit' }))).toBe(true);
+      expect(isSageVisibleForSearch(sage({ contextPolicy: 'eligible' }))).toBe(true);
     });
   });
 
@@ -139,7 +139,9 @@ describe('isSageVisibleForSearch', () => {
     });
 
     it('restricts unfiltered callers to unowned session-scoped memories', () => {
-      expect(isSageVisibleForSearch(sage({ scope: 'session', ownerSessionId: null }))).toBe(true);
+      expect(isSageVisibleForSearch(sage({ scope: 'session', ownerSessionId: undefined }))).toBe(
+        true,
+      );
       expect(isSageVisibleForSearch(sage({ scope: 'session', ownerSessionId: 'sess-1' }))).toBe(
         false,
       );

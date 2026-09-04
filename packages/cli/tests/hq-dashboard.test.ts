@@ -91,7 +91,11 @@ describe('HQ React dashboard delivery', () => {
     expect(script).not.toContain('hq-activity-rail');
     expect(styleResponse.status).toBe(200);
     expect(styleResponse.headers.get('content-type')).toContain('text/css');
-    expect(style).toContain('.hq-secondary-nav');
+    // The bundle carries the dashboard's own stylesheet (the SDD board's
+    // react-flow CSS ships in the same file) — proves styling is served
+    // locally, not from a CDN. The old .hq-secondary-nav class no longer
+    // exists in the restyled shell.
+    expect(style).toContain('.react-flow');
     expect(style).not.toContain('.hq-activity-rail');
   });
 
