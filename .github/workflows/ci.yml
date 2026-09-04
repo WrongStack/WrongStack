@@ -792,7 +792,10 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 10m: npm's bulk-advisories endpoint has been slow/degraded (2026-09-04),
+    # and the audit cannot finish inside 5m — the job died on this cap with
+    # zero advisories ever evaluated, not on a real finding.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
