@@ -11,7 +11,11 @@ export {
   executeLanguagePlan,
   executePackagePlan,
 } from './execute.js';
-export { languageTool } from './execute-tool.js';
+export {
+  languageTool,
+  type LanguageToolInput,
+  type LanguageToolOutput,
+} from './execute-tool.js';
 export {
   type LanguagePackageInput,
   type LanguagePackageToolOutput,
@@ -25,7 +29,12 @@ export {
   languageProfileRegistry,
   validateLanguageProfile,
 } from './registry.js';
-export { languageInfoTool } from './tool.js';
+export {
+  languageInfoTool,
+  type LanguageCapabilitiesOutput,
+  type LanguageInfoInput,
+  type LanguageInfoOutput,
+} from './tool.js';
 export type {
   CommandPlan,
   DetectedWorkspace,

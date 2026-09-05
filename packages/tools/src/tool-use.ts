@@ -4,12 +4,12 @@ import {
   type Tool,
 } from '@wrongstack/core/types';
 
-interface ToolUseInput {
+export interface ToolUseInput {
   tool: string;
   input: Record<string, unknown>;
 }
 
-interface ToolUseOutput {
+export interface ToolUseOutput {
   tool: string;
   success: boolean;
   result?: unknown | undefined;

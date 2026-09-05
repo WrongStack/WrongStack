@@ -10,7 +10,7 @@ import type {
   LanguageRunResult,
 } from './types.js';
 
-interface LanguageToolInput {
+export interface LanguageToolInput {
   action: 'check' | 'lint' | 'format' | 'test' | 'build' | 'debug';
   cwd?: string | undefined;
   target?: string | undefined;
@@ -25,7 +25,7 @@ interface LanguageToolInput {
   debug?: 'compile' | 'test' | 'runtime' | 'race' | undefined;
 }
 
-interface LanguageToolOutput {
+export interface LanguageToolOutput {
   status: 'passed' | 'failed' | 'unavailable' | 'cancelled' | 'timed_out';
   language?: LanguageProfileId | undefined;
   workspace?: string | undefined;

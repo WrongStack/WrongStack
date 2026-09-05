@@ -282,14 +282,14 @@ function validateArgs(cmd: string, args: string[]): string | null {
   return null;
 }
 
-interface ExecInput {
+export interface ExecInput {
   command: string;
   args?: string[] | undefined;
   cwd?: string | undefined;
   timeout?: number | undefined;
 }
 
-interface ExecOutput {
+export interface ExecOutput {
   command: string;
   args: string[];
   stdout: string;

@@ -1,13 +1,13 @@
 import type { ModeStore, Tool } from '@wrongstack/core/types';
 
-interface ModeInput {
+export interface ModeInput {
   action: 'get' | 'list' | 'set' | 'clear';
   mode?: string | undefined;
 }
 
-type ModeFamily = 'lite' | 'deep' | 'balanced' | 'custom';
+export type ModeFamily = 'lite' | 'deep' | 'balanced' | 'custom';
 
-interface ModeOutput {
+export interface ModeOutput {
   action: string;
   currentMode?: string | undefined;
   modes?: {

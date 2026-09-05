@@ -18,11 +18,11 @@ import type { Tool } from '@wrongstack/core/types';
  * Opt-in via `tools.nextsteps.enabled`; registered for the leader only.
  */
 
-interface NextStepsInput {
+export interface NextStepsInput {
   steps: Array<{ text: string; auto?: boolean }>;
 }
 
-interface NextStepsOutput {
+export interface NextStepsOutput {
   accepted: number;
   auto: boolean;
 }

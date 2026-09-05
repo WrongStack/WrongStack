@@ -50,7 +50,7 @@ async function resolveReal(p: string): Promise<string> {
   }
 }
 
-interface DesignInput {
+export interface DesignInput {
   action?: 'list' | 'use' | 'foundations' | 'set' | 'tune' | 'materialize' | 'verify' | undefined;
   kit?: string | undefined;
   stack?: string | undefined;
@@ -66,7 +66,7 @@ interface DesignInput {
   files?: string | string[] | undefined;
 }
 
-interface DesignOutput {
+export interface DesignOutput {
   action: string;
   kit?: string | undefined;
   stack?: string | undefined;

@@ -5,12 +5,12 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-interface SetWorkingDirInput {
+export interface SetWorkingDirInput {
   /** Relative or absolute path to navigate to. Must stay within projectRoot. */
   path?: string | undefined;
 }
 
-interface SetWorkingDirOutput {
+export interface SetWorkingDirOutput {
   /** The new working directory (absolute path). */
   current: string;
   /** The previous working directory (absolute path). */

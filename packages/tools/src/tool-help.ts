@@ -1,12 +1,12 @@
 import type { Tool } from '@wrongstack/core/types';
 
-interface ToolHelpInput {
+export interface ToolHelpInput {
   tool?: string | undefined;
   format?: 'short' | 'full' | 'markdown' | undefined;
   include_examples?: boolean | undefined;
 }
 
-interface ToolHelpOutput {
+export interface ToolHelpOutput {
   tool?: string | undefined;
   help: string;
   tools: {

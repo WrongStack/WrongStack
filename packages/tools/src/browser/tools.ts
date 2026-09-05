@@ -63,12 +63,65 @@ const sessionIdSchema = {
   description: 'Browser session id returned by browser_open.',
 } as const;
 
-export const browserOpenTool: Tool<{
+export interface BrowserOpenInput {
   url?: string | undefined;
   width?: number | undefined;
   height?: number | undefined;
   trace?: boolean | undefined;
-}> = {
+}
+
+export interface BrowserNavigateInput {
+  sessionId: string;
+  url: string;
+}
+
+export interface BrowserSnapshotInput {
+  sessionId: string;
+}
+
+export interface BrowserScreenshotInput {
+  sessionId: string;
+  fullPage?: boolean | undefined;
+  selector?: string | undefined;
+}
+
+export interface BrowserSelectorInput {
+  sessionId: string;
+  selector: string;
+}
+
+export interface BrowserTypeInput extends BrowserSelectorInput {
+  text?: string | undefined;
+  secretEnv?: string | undefined;
+}
+
+export interface BrowserSelectInput extends BrowserSelectorInput {
+  value: string;
+}
+
+export interface BrowserPressInput {
+  sessionId: string;
+  key: string;
+}
+
+export interface BrowserDragInput {
+  sessionId: string;
+  from: string;
+  to: string;
+}
+
+export interface BrowserWaitInput {
+  sessionId: string;
+  selector?: string | undefined;
+  timeoutMs?: number | undefined;
+}
+
+export interface BrowserEvaluateInput {
+  sessionId: string;
+  expression: string;
+}
+
+export const browserOpenTool: Tool<BrowserOpenInput> = {
   name: 'browser_open',
   description:
     'Open an isolated first-party Playwright browser session, optionally navigating to a URL. ' +
@@ -130,7 +183,7 @@ export const browserStatusTool: Tool<Record<string, never>> = {
   },
 };
 
-export const browserNavigateTool: Tool<{ sessionId: string; url: string }> = {
+export const browserNavigateTool: Tool<BrowserNavigateInput> = {
   name: 'browser_navigate',
   description:
     'Navigate an owned browser session to an approved http(s) URL. ' +
@@ -153,7 +206,7 @@ export const browserNavigateTool: Tool<{ sessionId: string; url: string }> = {
   },
 };
 
-export const browserSnapshotTool: Tool<{ sessionId: string }> = {
+export const browserSnapshotTool: Tool<BrowserSnapshotInput> = {
   name: 'browser_snapshot',
   description: 'Return bounded accessibility state plus redacted console and network summaries.',
   usageHint: 'browser_snapshot({ sessionId })',
@@ -171,11 +224,7 @@ export const browserSnapshotTool: Tool<{ sessionId: string }> = {
   },
 };
 
-export const browserScreenshotTool: Tool<{
-  sessionId: string;
-  fullPage?: boolean | undefined;
-  selector?: string | undefined;
-}> = {
+export const browserScreenshotTool: Tool<BrowserScreenshotInput> = {
   name: 'browser_screenshot',
   description:
     'Capture a page or element PNG and return sensitive artifact metadata with integrity hash.',
@@ -215,11 +264,11 @@ function selectorTool(
   description: string,
   run: (
     manager: BrowserSessionManager,
-    input: SelectorInput,
+    input: BrowserSelectorInput,
     ownerId: string,
     signal: AbortSignal,
   ) => Promise<void>,
-): Tool<SelectorInput> {
+): Tool<BrowserSelectorInput> {
   return {
     name,
     description,
@@ -257,9 +306,7 @@ export const browserHoverTool = selectorTool(
     manager.hover(input.sessionId, ownerId, input.selector, signal),
 );
 
-export const browserTypeTool: Tool<
-  SelectorInput & { text?: string | undefined; secretEnv?: string | undefined }
-> = {
+export const browserTypeTool: Tool<BrowserTypeInput> = {
   name: 'browser_type',
   description:
     'Fill an input in an owned browser session. Use secretEnv instead of text for credentials so values stay out of tool arguments and session audit.',
@@ -306,7 +353,7 @@ export const browserTypeTool: Tool<
   },
 };
 
-export const browserSelectTool: Tool<SelectorInput & { value: string }> = {
+export const browserSelectTool: Tool<BrowserSelectInput> = {
   name: 'browser_select',
   description: 'Select an option in an owned browser session.',
   usageHint: 'browser_select({ sessionId, selector, value })',
@@ -338,7 +385,7 @@ export const browserSelectTool: Tool<SelectorInput & { value: string }> = {
   },
 };
 
-export const browserPressTool: Tool<{ sessionId: string; key: string }> = {
+export const browserPressTool: Tool<BrowserPressInput> = {
   name: 'browser_press',
   description: 'Press a keyboard key in an owned browser session.',
   usageHint: 'browser_press({ sessionId, key })',
@@ -360,7 +407,7 @@ export const browserPressTool: Tool<{ sessionId: string; key: string }> = {
   },
 };
 
-export const browserDragTool: Tool<{ sessionId: string; from: string; to: string }> = {
+export const browserDragTool: Tool<BrowserDragInput> = {
   name: 'browser_drag',
   description: 'Drag one element to another in an owned browser session.',
   usageHint: 'browser_drag({ sessionId, from, to })',
@@ -392,11 +439,7 @@ export const browserDragTool: Tool<{ sessionId: string; from: string; to: string
   },
 };
 
-export const browserWaitTool: Tool<{
-  sessionId: string;
-  selector?: string | undefined;
-  timeoutMs?: number | undefined;
-}> = {
+export const browserWaitTool: Tool<BrowserWaitInput> = {
   name: 'browser_wait',
   description: 'Wait for an element or a bounded duration in an owned browser session.',
   usageHint: 'browser_wait({ sessionId, selector?, timeoutMs? })',
@@ -424,7 +467,7 @@ export const browserWaitTool: Tool<{
   },
 };
 
-export const browserEvaluateTool: Tool<{ sessionId: string; expression: string }> = {
+export const browserEvaluateTool: Tool<BrowserEvaluateInput> = {
   name: 'browser_evaluate',
   description:
     'Evaluate bounded JavaScript in the page. Requires confirmation because page code is arbitrary.',

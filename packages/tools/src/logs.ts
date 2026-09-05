@@ -7,7 +7,7 @@ import { FsError, ToolValidationError } from '@wrongstack/core/types';
 import { compileUserRegex } from './_regex.js';
 import { safeResolveReal } from './_util.js';
 
-interface LogsInput {
+export interface LogsInput {
   service?: string | undefined;
   path?: string | undefined;
   lines?: number | undefined;
@@ -16,14 +16,14 @@ interface LogsInput {
   cwd?: string | undefined;
 }
 
-interface LogEntry {
+export interface LogEntry {
   timestamp: string;
   level: string;
   message: string;
   source?: string | undefined;
 }
 
-interface LogsOutput {
+export interface LogsOutput {
   source: string;
   entries: LogEntry[];
   total: number;

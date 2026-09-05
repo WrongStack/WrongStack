@@ -5,7 +5,7 @@ import { planLanguageOperation } from './plan.js';
 import { languageProfileRegistry } from './registry.js';
 import type { LanguageOperation, LanguageOperationOptions, LanguageProfileId } from './types.js';
 
-interface LanguageInfoInput {
+export interface LanguageInfoInput {
   action: 'detect' | 'plan' | 'capabilities';
   cwd?: string | undefined;
   target?: string | undefined;
@@ -16,7 +16,7 @@ interface LanguageInfoInput {
   options?: LanguageOperationOptions | undefined;
 }
 
-interface LanguageCapabilitiesOutput {
+export interface LanguageCapabilitiesOutput {
   action: 'capabilities';
   profiles: Array<{
     id: LanguageProfileId;
@@ -27,7 +27,7 @@ interface LanguageCapabilitiesOutput {
   }>;
 }
 
-type LanguageInfoOutput =
+export type LanguageInfoOutput =
   | ({ action: 'detect' } & Awaited<ReturnType<typeof detectLanguageWorkspaces>>)
   | ({ action: 'plan' } & Awaited<ReturnType<typeof planLanguageOperation>>)
   | LanguageCapabilitiesOutput;

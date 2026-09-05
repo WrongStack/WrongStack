@@ -10,19 +10,19 @@ import { SKILL_LIMITS, stripFrontmatter } from '@wrongstack/core/skills';
 import type { SkillLoader, Tool } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
 
-interface SkillToolInput {
+export interface SkillToolInput {
   name: string;
   /** Optional relative path of a bundled resource to load (e.g. `references/REF.md`, `scripts/extract.py`, `assets/template.html`). Omit to list resources. */
   resource?: string | undefined;
 }
 
-interface SkillResource {
+export interface SkillResource {
   /** Path relative to the skill directory (e.g. `scripts/extract.py`). */
   path: string;
   bytes: number;
 }
 
-interface LoadedResource {
+export interface LoadedResource {
   rel: string;
   absPath: string;
   content: string;
@@ -30,7 +30,7 @@ interface LoadedResource {
   truncated: boolean;
 }
 
-interface SkillToolOutput {
+export interface SkillToolOutput {
   name: string;
   description: string;
   /** Frontmatter-stripped SKILL.md body (capped). */

@@ -110,7 +110,11 @@ export {
   shutdownCodebaseIndexServer,
   symbolGraphService,
 } from './codebase-index/index.js';
-export { designTool } from './design.js';
+export {
+  designTool,
+  type DesignInput,
+  type DesignOutput,
+} from './design.js';
 export {
   diffTool,
   type DiffInput,
@@ -141,6 +145,8 @@ export {
   configureDangerBypass,
   configureExecPolicy,
   execTool,
+  type ExecInput,
+  type ExecOutput,
   getDangerBypass,
   getExecAllowlist,
   isExecCommandAllowed,
@@ -207,7 +213,12 @@ export {
   type LintInput,
   type LintOutput,
 } from './lint.js';
-export { logsTool } from './logs.js';
+export {
+  logsTool,
+  type LogEntry,
+  type LogsInput,
+  type LogsOutput,
+} from './logs.js';
 export {
   forgetTool,
   type ForgetInput,
@@ -221,8 +232,17 @@ export {
   type SearchMemoryInput,
   type SearchMemoryOutput,
 } from './memory.js';
-export { createModeTool } from './mode.js';
-export { nextStepsTool } from './next-steps-tool.js';
+export {
+  createModeTool,
+  type ModeFamily,
+  type ModeInput,
+  type ModeOutput,
+} from './mode.js';
+export {
+  nextStepsTool,
+  type NextStepsInput,
+  type NextStepsOutput,
+} from './next-steps-tool.js';
 export {
   outdatedTool,
   type OutdatedContext,
@@ -319,7 +339,18 @@ export {
   rebindSessionKanbanTask,
   SESSION_KANBAN_COLUMNS,
 } from './session-kanban.js';
-export { makeSkillTool } from './skill.js';
+export {
+  makeSkillTool,
+  type LoadedResource,
+  type SkillResource,
+  type SkillToolInput,
+  type SkillToolOutput,
+} from './skill.js';
+export {
+  setWorkingDirTool,
+  type SetWorkingDirInput,
+  type SetWorkingDirOutput,
+} from './set-working-dir.js';
 export {
   taskTool,
   type TaskAdditionItem,
@@ -337,7 +368,11 @@ export {
   type TodoInput,
   type TodoOutput,
 } from './todo.js';
-export { toolHelpTool } from './tool-help.js';
+export {
+  toolHelpTool,
+  type ToolHelpInput,
+  type ToolHelpOutput,
+} from './tool-help.js';
 // Tool icon mapping — shared across all UIs (WebUI, TUI, REPL)
 export {
   FALLBACK_ICON,
@@ -357,7 +392,11 @@ export {
   registerBuiltinToolTier,
   selectBuiltinToolsForTier,
 } from './tool-tier.js';
-export { toolUseTool } from './tool-use.js';
+export {
+  toolUseTool,
+  type ToolUseInput,
+  type ToolUseOutput,
+} from './tool-use.js';
 export {
   treeTool,
   type TreeInput,
