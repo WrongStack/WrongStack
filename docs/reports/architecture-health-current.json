@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T19:58:35.522Z",
+  "generatedAt": "2026-09-05T20:06:42.428Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3632,
+    "sourceFiles": 3636,
     "testFiles": 3071,
-    "sourceLines": 871654,
+    "sourceLines": 871931,
     "workspaceEdges": 127,
-    "moduleEdges": 11417,
+    "moduleEdges": 11437,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -212,7 +212,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 834,
+      "sourceFiles": 838,
       "testFiles": 708,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -19789,11 +19789,6 @@
       "relativeImports": 9
     },
     {
-      "file": "packages/core/src/session-catalog/store.ts",
-      "lines": 1058,
-      "relativeImports": 12
-    },
-    {
       "file": "packages/core/src/types/provider.ts",
       "lines": 890,
       "relativeImports": 7
@@ -20241,11 +20236,6 @@
   ],
   "hotspots": [
     {
-      "file": "packages/core/src/session-catalog/store.ts",
-      "lines": 1058,
-      "relativeImports": 12
-    },
-    {
       "file": "packages/webui-server/src/server/kanban-routes.ts",
       "lines": 1056,
       "relativeImports": 11
@@ -20489,6 +20479,11 @@
       "file": "packages/plugins/src/semantic-search-indexer/index.ts",
       "lines": 948,
       "relativeImports": 0
+    },
+    {
+      "file": "packages/core/src/hq/protocol/core.ts",
+      "lines": 945,
+      "relativeImports": 13
     }
   ],
   "testOnlyExports": [

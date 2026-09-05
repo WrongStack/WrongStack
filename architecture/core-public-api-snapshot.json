@@ -1504,8 +1504,8 @@
       "directory": "session-catalog",
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
-      "sourceFiles": 13,
-      "sourceLines": 4592
+      "sourceFiles": 17,
+      "sourceLines": 4869
     },
     {
       "directory": "skills",

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T19:58:35.522Z
+**Generated:** 2026-09-05T20:06:42.428Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3632 |
-| Production source lines | 871654 |
+| Production source files | 3636 |
+| Production source lines | 871931 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11417 |
+| Relative module edges | 11437 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -31,7 +31,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 26 | 51 | @wrongstack/core |
 | @wrongstack/cli | 475 | 455 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 834 | 708 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 838 | 708 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 18 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 28 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1058 | `packages/core/src/session-catalog/store.ts` |
 | 1056 | `packages/webui-server/src/server/kanban-routes.ts` |
 | 1051 | `packages/core/src/coordination/delegate-tool.ts` |
 | 1051 | `packages/webui/src/components/SkillDetailView.tsx` |
@@ -135,6 +134,7 @@ None.
 | 955 | `packages/plugins/src/prompt-firewall/index.ts` |
 | 950 | `packages/webui-server/src/server/backend-services.ts` |
 | 948 | `packages/plugins/src/semantic-search-indexer/index.ts` |
+| 945 | `packages/core/src/hq/protocol/core.ts` |
 
 ## Exports only tests reference
 
