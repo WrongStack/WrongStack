@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
 import { SLASH_CATEGORY_ORDER, type SlashCommandDef } from './slash-commands.js';
 
 export function SlashCommandPopup({

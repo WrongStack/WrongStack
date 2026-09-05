@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T18:04:06.529Z
+**Generated:** 2026-09-05T18:13:00.304Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3577 |
-| Production source lines | 870381 |
+| Production source files | 3581 |
+| Production source lines | 870738 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11260 |
+| Relative module edges | 11273 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -57,7 +57,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 190 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 357 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 519 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 523 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
 | @wrongstack/webui-server | 211 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1128 | `packages/webui/src/components/ChatInput.tsx` |
 | 1110 | `packages/webui/src/stores/viz-store.ts` |
 | 1103 | `packages/core/src/coordination/autonomous-coordinator.ts` |
 | 1095 | `packages/tui/src/components/settings-picker-model.ts` |
@@ -135,6 +134,7 @@ None.
 | 984 | `packages/tui/src/components/agents-monitor.tsx` |
 | 983 | `apps/desktop/src/main/runtime-manager.ts` |
 | 983 | `packages/tui/src/input-validation.ts` |
+| 981 | `packages/sage/src/tools/memory-tools.ts` |
 
 ## Exports only tests reference
 

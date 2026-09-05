@@ -414,10 +414,6 @@
       "lines": 909,
       "relativeImports": 0
     },
-    "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 1128,
-      "relativeImports": 19
-    },
     "packages/webui/src/components/ChatView/CouncilDecisionCard.tsx": {
       "lines": 833,
       "relativeImports": 0

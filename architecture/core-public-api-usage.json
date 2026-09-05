@@ -19617,7 +19617,7 @@
     },
     {
       "specifier": "@wrongstack/core/utils/error",
-      "file": "packages/webui/src/components/ChatInput.tsx",
+      "file": "packages/webui/src/components/ChatInput/use-chat-submit.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -19629,13 +19629,13 @@
     },
     {
       "specifier": "@wrongstack/core/utils/expect-defined",
-      "file": "packages/webui/src/components/ChatInput.tsx",
+      "file": "packages/webui/src/components/ChatInput/slash-commands.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils/expect-defined",
-      "file": "packages/webui/src/components/ChatInput/slash-commands.ts",
+      "file": "packages/webui/src/components/ChatInput/use-chat-submit.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

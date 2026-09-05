@@ -29,7 +29,7 @@ export interface CreateSubagentBudgetParams {
 }
 
 export function createSubagentTaskBudget(params: CreateSubagentBudgetParams): SubagentBudget {
-  const { subagentConfig, defaultBudget, subagentId, sessionOf } = params;
+  const { subagentConfig, defaultBudget, subagentId, sessionOf, applyRosterBudget } = params;
   const rawMaxIterations = subagentConfig.maxIterations;
   const rawMaxToolCalls = subagentConfig.maxToolCalls;
   const rawMaxTokens = subagentConfig.maxTokens;

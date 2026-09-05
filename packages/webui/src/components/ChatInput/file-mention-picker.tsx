@@ -1,6 +1,6 @@
 import type React from 'react';
-import { FilePicker } from '../FilePicker';
 import { useFileReferenceStore } from '@/stores/file-reference-store.js';
+import { FilePicker } from '../FilePicker';
 
 export interface FileMentionState {
   start: number;

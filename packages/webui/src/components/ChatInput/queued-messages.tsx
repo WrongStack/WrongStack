@@ -1,7 +1,7 @@
 import { ArrowDownAZ, ArrowUpAZ, Check, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
 import type { QueuedItem, QueueMode } from '@/stores/chat-store';
 
 type SortDir = 'oldest' | 'newest';

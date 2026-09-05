@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import type { WSUserMessageImage } from '@/types';
 import { useChatStore, useUIStore } from '@/stores';
+import type { WSUserMessageImage } from '@/types';
 import { toast } from '../Toaster.js';
 
 interface UseRefineTimeoutOptions {

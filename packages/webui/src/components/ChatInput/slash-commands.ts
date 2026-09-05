@@ -1,4 +1,5 @@
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
+
 // Slash command registry and matching utilities for ChatInput
 
 type SlashCategory = 'Run' | 'Session' | 'Inspect' | 'Agent' | 'Config' | 'App';

@@ -2,10 +2,10 @@ import { Bell, ListPlus, Mic, MicOff, RotateCw, Send, Sparkles } from 'lucide-re
 import type React from 'react';
 import { cn } from '@/lib/utils';
 import { useLocalPrefs } from '@/stores/local-prefs';
+import { Button } from '../ui/button.js';
 import { ImageAttachControl } from './image-attach-control.js';
 import type { ImageAttachment } from './image-attachments.js';
 import { StopControls } from './stop-controls.js';
-import { Button } from '../ui/button.js';
 
 interface ComposerButtonBarProps {
   imagePickerRef: React.RefObject<HTMLInputElement | null>;

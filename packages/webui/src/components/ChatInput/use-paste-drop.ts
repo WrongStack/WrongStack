@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { useUIStore } from '@/stores';
 import { toast } from '../Toaster.js';
 import { autoFenceCode } from './code-detect.js';
 import {
@@ -8,9 +9,8 @@ import {
   MAX_ATTACHED_IMAGES,
   processImageFile,
 } from './image-attachments.js';
-import { useUIStore } from '@/stores';
 
-interface PasteHintState {
+export interface PasteHintState {
   chars: number;
   lines: number;
   /** Detected language if code was auto-fenced. */

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { WrongStackWebSocketClient } from '@/lib/ws-client.js';
-import type { WSUserMessageImage } from '@/types';
 import { useChatStore } from '@/stores';
+import type { WSUserMessageImage } from '@/types';
 import { toast } from '../Toaster.js';
 
 interface UseChatInputMcpOptions {

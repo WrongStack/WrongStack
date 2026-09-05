@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T18:04:06.529Z",
+  "generatedAt": "2026-09-05T18:13:00.304Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3577,
+    "sourceFiles": 3581,
     "testFiles": 3071,
-    "sourceLines": 870381,
+    "sourceLines": 870738,
     "workspaceEdges": 127,
-    "moduleEdges": 11260,
+    "moduleEdges": 11273,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -809,7 +809,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 519,
+      "sourceFiles": 523,
       "testFiles": 356,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20124,11 +20124,6 @@
       "relativeImports": 0
     },
     {
-      "file": "packages/webui/src/components/ChatInput.tsx",
-      "lines": 1128,
-      "relativeImports": 19
-    },
-    {
       "file": "packages/webui/src/components/ChatView/CouncilDecisionCard.tsx",
       "lines": 833,
       "relativeImports": 0
@@ -20305,11 +20300,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/webui/src/components/ChatInput.tsx",
-      "lines": 1128,
-      "relativeImports": 19
-    },
     {
       "file": "packages/webui/src/stores/viz-store.ts",
       "lines": 1110,
@@ -20554,6 +20544,11 @@
       "file": "packages/tui/src/input-validation.ts",
       "lines": 983,
       "relativeImports": 13
+    },
+    {
+      "file": "packages/sage/src/tools/memory-tools.ts",
+      "lines": 981,
+      "relativeImports": 4
     }
   ],
   "testOnlyExports": [
