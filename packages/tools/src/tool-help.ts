@@ -161,7 +161,9 @@ function formatAllToolsMarkdown(
   lines.push('| Tool | Description |');
   lines.push('|------|-------------|');
   for (const t of tools) {
-    lines.push(`| \`${t.name}\` | ${t.description} |`);
+    // Escape pipes so descriptions (which often contain '|' in command
+    // examples) cannot terminate the table cell early.
+    lines.push(`| \`${t.name}\` | ${t.description.replaceAll('|', '\\|')} |`);
   }
   return lines.join('\n');
 }

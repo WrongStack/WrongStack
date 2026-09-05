@@ -139,6 +139,13 @@ function clampDetail(detail: string): string {
   return byLine.length > 12 ? `${clipped}\n… (${byLine.length - 12} more line(s))` : clipped;
 }
 
+/** Escape a value for interpolation into a markdown table cell so a literal
+ * `|` (e.g. in user-supplied cell labels) cannot terminate the cell early.
+ * Mirrors markdownCell() in scripts/generate-provider-catalog.mjs. */
+function markdownCell(value: string): string {
+  return String(value).replaceAll('|', '\\|').replaceAll('\n', ' ');
+}
+
 function renderCostQuality(cells: CellResult[]): string[] {
   const lines: string[] = [
     '## Cost vs quality',
@@ -150,7 +157,7 @@ function renderCostQuality(cells: CellResult[]): string[] {
   for (const c of ranked) {
     const passCell = c.gradedCount === 0 ? '—' : pct(c.passRate);
     const efficiency = c.avgCostUsd > 0 && c.gradedCount > 0 ? passPerDollar(c).toFixed(1) : '—';
-    lines.push(`| ${c.cell.label} | ${passCell} | $${c.avgCostUsd.toFixed(3)} | ${efficiency} |`);
+    lines.push(`| ${markdownCell(c.cell.label)} | ${passCell} | $${c.avgCostUsd.toFixed(3)} | ${efficiency} |`);
   }
   lines.push('');
   lines.push(
@@ -170,14 +177,14 @@ function renderInsights(results: TaskResult[]): string[] {
   const lines: string[] = [
     '## Per-task matrix',
     '',
-    `| Task | ${insights.cellLabels.join(' | ')} |`,
+    `| Task | ${insights.cellLabels.map(markdownCell).join(' | ')} |`,
     `|---|${insights.cellLabels.map(() => '---').join('|')}|`,
   ];
   for (const taskId of insights.taskIds) {
     const cells = insights.cellLabels.map((label) =>
       formatOutcome(insights.matrix[taskId]?.[label]),
     );
-    lines.push(`| ${taskId} | ${cells.join(' | ')} |`);
+    lines.push(`| ${markdownCell(taskId)} | ${cells.join(' | ')} |`);
   }
   lines.push('');
 
@@ -206,7 +213,7 @@ function renderInsights(results: TaskResult[]): string[] {
       const entry = row.outcomes.find((o) => o.label === label);
       return formatOutcome(entry?.outcome);
     });
-    lines.push(`| ${row.taskId} | ${cells.join(' | ')} |`);
+    lines.push(`| ${markdownCell(row.taskId)} | ${cells.join(' | ')} |`);
   }
   lines.push('');
   return lines;
@@ -273,7 +280,7 @@ export function renderComparisonMarkdown(comparison: RunComparison): string {
   lines.push('|---|---|---|---|');
   for (const row of comparison.flipped) {
     lines.push(
-      `| ${row.taskId} | ${row.cellLabel} | ${formatOutcome(row.baseline)} | ${formatOutcome(row.candidate)} |`,
+      `| ${markdownCell(row.taskId)} | ${markdownCell(row.cellLabel)} | ${formatOutcome(row.baseline)} | ${formatOutcome(row.candidate)} |`,
     );
   }
   lines.push('');
@@ -290,7 +297,7 @@ function renderDeltaRow(cell: CellDelta): string {
       : '—';
   return [
     '',
-    cell.label,
+    markdownCell(cell.label),
     passArrow,
     signedPct(cell.passRateDelta),
     costArrow,
@@ -350,7 +357,7 @@ function renderRow(c: CellResult, hasTraceEval: boolean): string {
     : [];
   return [
     '',
-    c.cell.label,
+    markdownCell(c.cell.label),
     passCell,
     ...traceCells,
     pct(c.editApplyRate),
@@ -377,7 +384,7 @@ function renderRepeatRow(c: CellResult): string {
         : pct(c.passRate);
   return [
     '',
-    c.cell.label,
+    markdownCell(c.cell.label),
     passCell,
     c.gradedCount === 0 ? '—' : pct(c.passAnyRate ?? 0),
     c.gradedCount === 0 ? '—' : pct(c.passAllRate ?? 0),

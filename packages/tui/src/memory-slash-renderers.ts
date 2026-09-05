@@ -182,9 +182,15 @@ export function renderSageEntries(
         mem.tags.length > 0
           ? mem.tags.slice(0, 3).join(', ') + (mem.tags.length > 3 ? '…' : '')
           : '—';
-      const preview = mem.text.replace(/\s+/g, ' ').trim().slice(0, 60);
+      // Escape pipes so preview text (memory text often contains '|' in
+      // commands or type notations) cannot terminate the cell early.
+      const preview = mem.text
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 60)
+        .replaceAll('|', '\\|');
       lines.push(
-        `| ${idx} | \`${mem.id.slice(0, 16)}…\` | ${mem.kind} | ${mem.status} | ${tags} | ${preview} |`,
+        `| ${idx} | \`${mem.id.slice(0, 16)}…\` | ${mem.kind} | ${mem.status} | ${tags.replaceAll('|', '\\|')} | ${preview} |`,
       );
     }
   } else {

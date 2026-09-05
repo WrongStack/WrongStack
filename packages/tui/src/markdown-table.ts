@@ -122,8 +122,16 @@ export function renderTable(tableLines: string[], maxWidth: number): string {
     aligns.push(parseAlign(sepCells[c] ?? ''));
   }
   const dataRows = tableLines.slice(2).map(parseCells);
-  // Normalise short rows by padding with empty cells; drop extras.
+  // Normalise short rows by padding with empty cells. Cells beyond the
+  // header width — produced by an unescaped `|` in content like
+  // `Promise<string|Null>` — fold back into the last column (rejoined with
+  // the pipe that split them) so no cell text is silently dropped.
   for (const row of dataRows) {
+    if (cols > 0 && row.length > cols) {
+      const overflow = row.slice(cols - 1).join('|');
+      row.length = cols - 1;
+      row.push(overflow);
+    }
     while (row.length < cols) row.push('');
     row.length = cols;
   }

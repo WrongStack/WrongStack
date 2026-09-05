@@ -218,4 +218,38 @@ describe('renderMarkdownTables', () => {
     expect(out).not.toContain('│');
     expect(out.split('\n').every((line) => strWidth(line) <= 24)).toBe(true);
   });
+
+  it('renders an escaped \\| in a cell as a literal pipe', () => {
+    const input = [
+      '| Method | Returns |',
+      '|--------|---------|',
+      '| getUser | `Promise<string\\|null>` |',
+    ].join('\n');
+    const out = renderMarkdownTables(input, 80);
+    expect(out).toContain('Promise<string|null>');
+    // Still a two-column box table.
+    expect(out.split('\n')[0]).toMatch(/^┌─+┬─+┐$/);
+  });
+
+  it('folds cells split by an unescaped | into the last column instead of dropping them', () => {
+    // A raw pipe in a type notation splits the row into 3 cells for a
+    // 2-column table; the overflow must rejoin the last column, not vanish.
+    const input = [
+      '| Method | Returns |',
+      '|--------|---------|',
+      '| deleteUser | Promise<string|Null> |',
+    ].join('\n');
+    const out = renderMarkdownTables(input, 80);
+    expect(out).toContain('Promise<string|Null>');
+    // The GFM cell-split boundary is unchanged: still exactly two columns.
+    expect(out.split('\n')[0]).toMatch(/^┌─+┬─+┐$/);
+    const dataRows = out.split('\n').filter((l) => l.startsWith('│ deleteUser'));
+    expect(dataRows).toHaveLength(1);
+  });
+
+  it('rejoins multiple overflow fragments with their pipes in the last column', () => {
+    const input = ['| fn | sig |', '|----|----|', '| g | A|B|C |'].join('\n');
+    const out = renderMarkdownTables(input, 80);
+    expect(out).toContain('A|B|C');
+  });
 });
