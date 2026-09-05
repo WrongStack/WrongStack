@@ -1,10 +1,10 @@
 {
-  "consolidatedAt": "2026-08-09T17:33:17.477Z",
+  "consolidatedAt": "2026-09-05T19:39:54.275Z",
   "sourceEntryCount": 0,
   "sourceBytes": 395,
-  "consolidatedBytes": 478,
+  "consolidatedBytes": 2097,
   "trigger": "manual",
-  "model": "MiniMax-M3",
+  "model": "MiniMax-M2.7-highspeed",
   "pruned": true,
-  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\shadow-agent\\archive\\learned-2026-08-09T17-33-17-477Z.md"
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\shadow-agent\\archive\\learned-2026-09-05T19-39-54-275Z.md"
 }

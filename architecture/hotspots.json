@@ -146,10 +146,6 @@
       "lines": 853,
       "relativeImports": 9
     },
-    "packages/core/src/session-catalog/store.ts": {
-      "lines": 1058,
-      "relativeImports": 12
-    },
     "packages/core/src/types/provider.ts": {
       "lines": 890,
       "relativeImports": 7
@@ -481,10 +477,6 @@
     "packages/webui-server/src/server/goal-ws-handler.ts": {
       "lines": 1019,
       "relativeImports": 2
-    },
-    "packages/webui-server/src/server/kanban-routes.ts": {
-      "lines": 1056,
-      "relativeImports": 11
     },
     "packages/webui-server/src/server/memory-handlers.ts": {
       "lines": 863,
