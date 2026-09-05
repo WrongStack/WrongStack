@@ -1,6 +1,7 @@
 import type { HqSnapshot } from '@wrongstack/core/hq';
 import { describe, expect, it } from 'vitest';
-import { buildNav } from '../src/domain/fleet-nav-tree.js';
+import { buildNav, buildNavFromTopology } from '../src/domain/fleet-nav-tree.js';
+import type { FleetTopology } from '../src/domain/fleet-topology.js';
 
 function snapshot(overrides: Partial<HqSnapshot> = {}): HqSnapshot {
   return {
@@ -160,5 +161,81 @@ describe('buildNav', () => {
       }),
     );
     expect(nav).toEqual([]);
+  });
+});
+
+describe('buildNavFromTopology retention', () => {
+  // The nav folds the SAME topology the map draws, so a node the map is
+  // holding through a publisher reconnect has to survive in the selector too —
+  // otherwise the terminal you are reading drops out from under the selection.
+  it('carries the retained marker onto clients and agents', () => {
+    const topology: FleetTopology = {
+      nodes: [
+        { id: 'machine:m1', kind: 'machine', label: 'box', chips: [], machineId: 'm1' },
+        {
+          id: 'project:m1:p1',
+          kind: 'project',
+          label: 'repo',
+          chips: [],
+          machineId: 'm1',
+          projectId: 'p1',
+        },
+        {
+          id: 'terminal:s1',
+          kind: 'terminal',
+          label: 'tui',
+          chips: [],
+          machineId: 'm1',
+          projectId: 'p1',
+          sessionId: 's1',
+          retained: true,
+        },
+        {
+          id: 'agent:s1:leader',
+          kind: 'agent',
+          label: 'leader',
+          chips: [],
+          machineId: 'm1',
+          projectId: 'p1',
+          sessionId: 's1',
+          agentId: 'leader',
+          retained: true,
+        },
+      ],
+      edges: [],
+    };
+
+    const nav = buildNavFromTopology(topology);
+    const client = nav[0]?.projects[0]?.clients[0];
+    expect(client?.retained).toBe(true);
+    expect(client?.agents[0]?.retained).toBe(true);
+  });
+
+  it('leaves a live client unmarked', () => {
+    const topology: FleetTopology = {
+      nodes: [
+        { id: 'machine:m1', kind: 'machine', label: 'box', chips: [], machineId: 'm1' },
+        {
+          id: 'project:m1:p1',
+          kind: 'project',
+          label: 'repo',
+          chips: [],
+          machineId: 'm1',
+          projectId: 'p1',
+        },
+        {
+          id: 'terminal:s1',
+          kind: 'terminal',
+          label: 'tui',
+          chips: [],
+          machineId: 'm1',
+          projectId: 'p1',
+          sessionId: 's1',
+        },
+      ],
+      edges: [],
+    };
+
+    expect(buildNavFromTopology(topology)[0]?.projects[0]?.clients[0]?.retained).toBeUndefined();
   });
 });

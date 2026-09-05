@@ -198,6 +198,7 @@ export async function attemptConnectSlot(
         headers: slot.cfg.headers,
         startupTimeoutMs: slot.cfg.startupTimeoutMs,
         requestTimeoutMs: slot.cfg.requestTimeoutMs,
+        allowPrivateNetworks: slot.cfg.allowPrivateNetworks,
         passthroughEnv: slot.cfg.passthroughEnv,
         authorizationProvider: ctx.authorizationProviderFactory?.(slot.cfg),
       });

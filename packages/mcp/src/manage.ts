@@ -28,6 +28,7 @@ type TransportInput = 'stdio' | 'sse' | 'streamable-http' | 'http';
 export interface McpServerInput {
   name: string;
   transport?: TransportInput | string | undefined;
+  allowPrivateNetworks?: boolean | undefined;
   description?: string | undefined;
   enabled?: boolean | undefined;
   command?: string | undefined;
@@ -235,6 +236,8 @@ function buildConfig(input: McpServerInput, base?: MCPServerConfig | undefined):
   if (allowedTools !== undefined) cfg.allowedTools = allowedTools;
   const permission = input.permission ?? base?.permission;
   if (permission !== undefined) cfg.permission = permission;
+  const allowPrivateNetworks = input.allowPrivateNetworks ?? base?.allowPrivateNetworks;
+  if (allowPrivateNetworks !== undefined) cfg.allowPrivateNetworks = allowPrivateNetworks;
   const enabled = input.enabled ?? base?.enabled;
   if (enabled !== undefined) cfg.enabled = enabled;
   const lazy = input.lazy ?? base?.lazy;

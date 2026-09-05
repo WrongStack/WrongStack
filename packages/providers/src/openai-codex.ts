@@ -21,7 +21,7 @@
  */
 
 import { createRequire } from 'node:module';
-
+import { scrubErrorText } from '@wrongstack/core/security';
 import {
   type Capabilities,
   classifyProviderError,
@@ -33,7 +33,6 @@ import {
   type StreamEvent,
   type Usage,
 } from '@wrongstack/core/types';
-import { scrubErrorText } from '@wrongstack/core/security';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from './_tool-input.js';
 import {
@@ -42,15 +41,15 @@ import {
   parseProviderHttpError,
   scrubProviderErrorBody,
 } from './error-parse.js';
-import { extractAccountId } from './openai-codex-account.js';
-import { CODEX_BASE_URL, type CodexTokens, refreshCodexTokens } from './oauth/codex-protocol.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
+import type { BuildBodyContext } from './model-output-limits.js';
+import { CODEX_BASE_URL, type CodexTokens, refreshCodexTokens } from './oauth/codex-protocol.js';
 import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
+import { extractAccountId } from './openai-codex-account.js';
 import { applyPromptCacheKey } from './prompt-cache-key.js';
+import { redirectSafeFetch } from './redirect-safe-fetch.js';
 import { createSseLineFoldingTransform, parseSSE } from './sse.js';
 import { messagesToResponsesInput, toolsToResponses } from './tool-format/to-responses.js';
-import { redirectSafeFetch } from './redirect-safe-fetch.js';
-import type { BuildBodyContext } from './model-output-limits.js';
 import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
 // ── OAuth refresh (shared protocol — see ./oauth/codex-protocol.ts) ──────────
@@ -397,6 +396,9 @@ export class OpenAICodexProvider extends WireAdapter {
       'OpenAI-Beta': 'responses=experimental',
     };
     if (this.accountId) headers['chatgpt-account-id'] = this.accountId;
+    const cacheSessionId = codexCacheSessionId(_req.cache?.sessionId);
+    if (cacheSessionId) headers['session-id'] = cacheSessionId;
+    headers['x-client-request-id'] = crypto.randomUUID();
     return headers;
   }
 
@@ -451,6 +453,13 @@ export class OpenAICodexProvider extends WireAdapter {
   ): ProviderError {
     return parseProviderHttpError(this.id, status, text, headers);
   }
+}
+
+/** Header-safe, session-stable affinity key used by the Codex backend. */
+export function codexCacheSessionId(sessionId: string | undefined): string | undefined {
+  if (!sessionId) return undefined;
+  const normalized = sessionId.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 120);
+  return normalized || undefined;
 }
 
 // ── URL + tool-choice helpers ────────────────────────────────────────────────

@@ -28,11 +28,16 @@ vi.mock('@/lib/view-navigation', () => ({ navigateToView, showPanel }));
 const isDesktopShell = vi.fn(() => false);
 vi.mock('@/lib/desktop-shell', () => ({ isDesktopShell }));
 
-const { useChatStore, useConfigStore, useFleetStore, useSessionStore, useUIStore } = await import(
-  '../../src/stores'
-);
+const {
+  useChatStore,
+  useConfigStore,
+  useFleetStore,
+  useSessionStore,
+  useUIStore,
+  useSessionTabStore,
+} = await import('../../src/stores');
 const { useProviderStatusStore } = await import('../../src/stores/provider-status-store');
-const { useChatLanes } = await import('../../src/stores/chat-lanes');
+const { useChatLanes, chatLane, hasLane, readLane } = await import('../../src/stores/chat-lanes');
 const { useSessionLanes } = await import('../../src/stores/session-lanes');
 const {
   handleCompactionFailed,
@@ -262,6 +267,34 @@ describe('session.start — fleet eviction', () => {
     });
     start({});
     expect([...useFleetStore.getState().agents.keys()].sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('session.start — in-place tab swap on clearedSessionId', () => {
+  beforeEach(() => {
+    useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
+  });
+
+  it("rebinds the retired session's tab to its replacement in the same slot", () => {
+    useSessionTabStore.setState({ openTabIds: ['sess_gone', 'sess_keep'] });
+    chatLane('sess_gone').addMessage({ role: 'user', content: 'retired' });
+
+    // The answer shape `session.new { replaceSessionId }` produces server-side.
+    start({ sessionId: 'sess_fresh', reset: true, clearedSessionId: 'sess_gone' });
+
+    // Same slot, same length: no second tab opened for the newcomer.
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['sess_fresh', 'sess_keep']);
+    // The retired session's lane is gone; the fresh one is the reset lane.
+    expect(hasLane('sess_gone')).toBe(false);
+    expect(readLane('sess_fresh').messages).toHaveLength(0);
+  });
+
+  it('allocates exactly one slot when the retired session had no tab here', () => {
+    start({ sessionId: 'sess_lone', reset: true, clearedSessionId: 'sess_elsewhere' });
+
+    // Nothing to rebind — the normal open path gave the newcomer its own
+    // slot (requested switch), and nothing was swapped in behind it.
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['sess_lone']);
   });
 });
 

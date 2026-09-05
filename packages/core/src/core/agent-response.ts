@@ -458,6 +458,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     // call is pending; this request must still finish under the identity it
     // started with.
     const provider = a.ctx.provider;
+    const conversationSessionId = a.ctx.activeRunSessionId ?? a.ctx.session?.id;
     const baseReq: Request = {
       model: opts.model ?? a.ctx.model,
       system,
@@ -479,7 +480,10 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       // the ModelRuntime middleware. Keyed off the stable partition, not the
       // full epoch — a glossary/plan refresh must not re-route the cache
       // partition when the actual prefix bytes did not change.
-      cache: { key: deriveCachePrefixKey(stableSystem, a.tools.listForProvider()) },
+      cache: {
+        key: deriveCachePrefixKey(stableSystem, a.tools.listForProvider()),
+        sessionId: conversationSessionId,
+      },
     };
     // Bind BEFORE the pipeline runs: the request pipeline is shared by every
     // conversation in the process, and its payload carries no session, so a
@@ -490,7 +494,6 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     // tests before a transcript writer exists. Unlike event emission, that
     // must remain best-effort: OpenCode Go falls back to its provider-local
     // affinity id when there is no active conversation yet.
-    const conversationSessionId = a.ctx.activeRunSessionId ?? a.ctx.session?.id;
     bindRequestConversation(baseReq, {
       meta: a.ctx.meta,
       sessionId: conversationSessionId,

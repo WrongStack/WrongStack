@@ -817,3 +817,60 @@ describe('HqPublisher command redelivery', () => {
     publisher.close();
   });
 });
+
+describe('HqPublisher connection re-seed hook', () => {
+  it('notifies listeners on every open, after hello and the queue drain', async () => {
+    // HQ keeps a client's session/fleet/mailbox state on the SOCKET, so a
+    // reconnect registers a fresh client with all of it empty. Bridges only
+    // publish on change, so without this hook a live terminal simply stopped
+    // existing in HQ's snapshot until something changed.
+    const sockets: FakeSocket[] = [];
+    const publisher = new HqPublisher({
+      url: 'http://localhost:3499',
+      client,
+      project,
+      reconnectBaseMs: 1,
+      reconnectMaxMs: 1,
+      socketFactory: () => {
+        const socket = new FakeSocket();
+        sockets.push(socket);
+        return socket;
+      },
+    });
+    const seen: number[] = [];
+    const off = publisher.onConnected(() => {
+      // Re-seeding publishes; the frame must land AFTER client.hello.
+      publisher.publishEvent({ type: 'session.snapshot', payload: { seeded: true } });
+      seen.push(sockets.length);
+    });
+
+    publisher.connect();
+    sockets[0]!.open();
+    expect(seen).toEqual([1]);
+    const firstFrames = parseSent(sockets[0]!).map((frame) => (frame as { type: string }).type);
+    expect(firstFrames[0]).toBe('client.hello');
+    expect(firstFrames).toContain('client.event');
+
+    // Socket drops — the publisher reconnects on its own and must re-seed.
+    sockets[0]!.close();
+    await vi.waitFor(() => {
+      expect(sockets).toHaveLength(2);
+    });
+    sockets[1]!.open();
+    expect(seen).toEqual([1, 2]);
+    expect(parseSent(sockets[1]!).map((frame) => (frame as { type: string }).type)).toEqual([
+      'client.hello',
+      'client.event',
+    ]);
+
+    off();
+    sockets[1]!.close();
+    await vi.waitFor(() => {
+      expect(sockets.length).toBeGreaterThan(2);
+    });
+    sockets[2]!.open();
+    expect(seen).toEqual([1, 2]);
+
+    publisher.close();
+  });
+});

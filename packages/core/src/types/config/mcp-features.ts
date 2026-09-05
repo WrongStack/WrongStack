@@ -45,6 +45,17 @@ export interface MCPServerConfig {
    */
   passthroughEnv?: string[] | undefined;
   /**
+   * Resolution-bound private-network policy for HTTP transports (sse /
+   * streamable-http). Default (false/undefined): the transport performs the
+   * single DNS resolution its TCP dial uses and BLOCKS private/LAN targets
+   * (10/8, 172.16/12, 192.168/16, CGNAT, ULA fc00::/7, …). Loopback
+   * (localhost / 127.0.0.1 / ::1) stays allowed for the documented local
+   * topology, and link-local / IMDS addresses stay blocked in every mode.
+   * Set true only when this server genuinely runs on a private/LAN network.
+   * Global escape hatch: WRONGSTACK_MCP_ALLOW_PRIVATE=1.
+   */
+  allowPrivateNetworks?: boolean | undefined;
+  /**
    * Operational-health settings for this MCP server. Thresholds are optional;
    * when omitted the server is considered healthy as long as its connection
    * lifecycle succeeds. Latency thresholds compare against the rolling p95 of
@@ -131,8 +142,16 @@ export interface FeaturesConfig {
    * `wstack plugin trust <name>`. Set to false to disable pinning
    * (not recommended — this is the only supply-chain signal for in-process
    * plugins). Default: true.
+   *
+   * Modes: default (`true` / `'tofu'`) is trust-on-first-use — a changed
+   * entry file is refused until re-pinned via `wstack plugin trust <name>`.
+   * `'required'` fail-closes every downgrade path: an entry that cannot be
+   * resolved, read, or pinned refuses the plugin instead of loading with a
+   * warning. `'advisory'` degrades refusals (including changed hashes) to
+   * warnings. `false` skips the gate entirely. Operator-owned switch:
+   * project-supplied configs cannot set it.
    */
-  pluginsTrust?: boolean | undefined;
+  pluginsTrust?: boolean | 'required' | 'tofu' | 'advisory' | undefined;
   /** Register `remember` / `forget` tools backed by memory store. */
   memory: boolean;
   /**

@@ -53,16 +53,17 @@ import { useHqStore } from '../../data/store/index.js';
 import { chatTargetFromNode, type FleetChatTarget } from '../../domain/fleet-chat-target.js';
 import {
   buildFleetTopology,
-  filterFleetTopology,
-  filterFleetTopologyByQuery,
   type FleetTopology,
   type FleetTopologyNode,
   type FleetTopologyScope,
+  filterFleetTopology,
+  filterFleetTopologyByQuery,
   fleetColumnFor,
   layoutFleetTopology,
   orderFleetTopologyNodes,
 } from '../../domain/fleet-topology.js';
 import { activityTone } from '../../domain/status-tone.js';
+import { useRetainedFleetTopology } from '../../domain/use-fleet-retention.js';
 import { resolveTheme } from '../../lib/theme.js';
 import { cn } from '../../lib/utils.js';
 import { FleetChatDrawer } from './chat-drawer.js';
@@ -110,10 +111,14 @@ function FleetFlowNode({
     <div
       data-testid="fleet-node"
       data-kind={data.kind}
+      data-retained={data.retained === true ? 'true' : undefined}
       className={cn(
         'flex h-full flex-col gap-1 border bg-card p-2',
         selected ? 'border-primary' : 'border-border',
         clickable && 'cursor-pointer hover:bg-muted/50',
+        // Still on the map, but not in the latest snapshot: dimmed and dashed
+        // so it reads as "not reporting" rather than as live fleet state.
+        data.retained === true && 'border-dashed opacity-60',
       )}
     >
       <Handle type="target" position={Position.Left} className="!size-1.5 !border-0 !bg-border" />
@@ -319,7 +324,12 @@ function FleetCompactList({ topology }: { topology: FleetTopology }): React.Reac
                       }
                     : undefined
                 }
-                className={clickable ? 'cursor-pointer' : undefined}
+                data-retained={node.retained === true ? 'true' : undefined}
+                className={cn(
+                  clickable && 'cursor-pointer',
+                  // Held from an earlier snapshot — see useRetainedFleetTopology.
+                  node.retained === true && 'opacity-60',
+                )}
               >
                 <TableCell
                   style={{ paddingLeft: `${10 + fleetColumnFor(node.kind) * COMPACT_INDENT}px` }}
@@ -368,7 +378,11 @@ const SCOPES: { id: FleetTopologyScope; label: string }[] = [
 
 export function FleetMapView(): React.ReactElement {
   const snapshot = useHqStore((state) => state.snapshot);
-  const fullTopology = useMemo(() => buildFleetTopology(snapshot), [snapshot]);
+  const liveTopology = useMemo(() => buildFleetTopology(snapshot), [snapshot]);
+  // A publisher reconnect empties that client's session state server-side, so
+  // a healthy terminal drops out of one snapshot and returns in the next. Hold
+  // vanished nodes briefly instead of blinking them off the map.
+  const fullTopology = useRetainedFleetTopology(liveTopology);
 
   const fleetPrefs = useHqLocalPrefs().fleet;
   const scope = fleetPrefs.scope;

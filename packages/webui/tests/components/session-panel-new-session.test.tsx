@@ -20,6 +20,8 @@ vi.mock('@/lib/ws-client', () => ({
   getWSClient: () => ({
     send,
     withSession: (payload: Record<string, unknown>) => ({ ...payload, sessionId: 'sess-a' }),
+    newSession: (payload?: Record<string, unknown>) =>
+      send({ type: 'session.new', payload: { ...(payload ?? {}) } }),
   }),
 }));
 
@@ -30,8 +32,10 @@ import {
   useConfigStore,
   useFleetStore,
   useSessionStore,
+  useSessionTabStore,
   useUIStore,
 } from '../../src/stores/index.js';
+import { useSystemPromptStore } from '../../src/stores/system-prompt-store.js';
 
 function renderPanel() {
   return render(<SessionPanel />);
@@ -69,18 +73,45 @@ describe('SessionPanel quick actions', () => {
         refinePanel: null,
         queuePanelOpen: false,
       });
+      useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
+      useSystemPromptStore.getState().closePicker();
     });
   });
 
   afterEach(() => cleanup());
 
-  it('does not render a duplicate New session button', () => {
+  it('New session opens the identity-prompt picker that starts a NEW tab', () => {
     renderPanel();
+    // Discard the mount-time sessions.list so the assertion below isolates
+    // what the CLICK does.
+    send.mockClear();
 
-    expect(screen.queryByRole('button', { name: 'New session' })).toBeNull();
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'New session' }));
+    });
+
+    // The picker owns the funnel: it applies the variant and only then sends
+    // `session.new`. The click itself must not talk to the server.
+    const picker = useSystemPromptStore.getState();
+    expect(picker.pickerOpen).toBe(true);
+    expect(picker.pickerStartsSession).toBe(true);
+    expect(send).not.toHaveBeenCalled();
   });
 
-  it('clears only the active session lane and sends a session-scoped clear', () => {
+  it('New session refuses to open a picker when all four tab slots are full', () => {
+    useSessionTabStore.setState({
+      openTabIds: ['sess-a', 'sess-b', 'sess-c', 'sess-d'],
+    });
+    renderPanel();
+
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'New session' }));
+    });
+
+    expect(useSystemPromptStore.getState().pickerOpen).toBe(false);
+  });
+
+  it("Clear retires this tab's session: session.new with replaceSessionId, lanes untouched", async () => {
     act(() => {
       setActiveLane('sess-a');
       chatLane('sess-a').addMessage({ role: 'user', content: 'clear me' });
@@ -91,31 +122,41 @@ describe('SessionPanel quick actions', () => {
     });
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    });
 
-    expect(readLane('sess-a').messages).toEqual([]);
-    expect(readLane('sess-a').queue).toEqual([]);
-    expect(readLane('sess-b').messages.map((m) => m.content)).toEqual(['keep me']);
+    // The retire request names THIS tab's session — the server closes it and
+    // answers with a reset session.start whose clearedSessionId rebinds the
+    // tab (see session-tab-store swapTabSession).
+    expect(send).toHaveBeenCalledWith({
+      type: 'session.new',
+      payload: { replaceSessionId: 'sess-a' },
+    });
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'context.clear' }));
+    // Drafts go now; the conversation itself is retired when the swap
+    // answer lands, not by a local wipe that could orphan the tab.
     expect(useUIStore.getState()).toMatchObject({
       draftInput: '',
       draftImages: [],
       refinePanel: null,
       queuePanelOpen: false,
     });
-    expect(send).toHaveBeenCalledWith({ type: 'context.clear', payload: { sessionId: 'sess-a' } });
+    expect(readLane('sess-a').messages.map((m) => m.content)).toEqual(['clear me']);
+    expect(readLane('sess-b').messages.map((m) => m.content)).toEqual(['keep me']);
   });
 
-  it('keeps local clear working while disconnected', () => {
+  it('Clear and New session are disabled while disconnected — no session record can be created offline', () => {
     useConfigStore.setState({ wsConnected: false });
-    act(() => {
-      setActiveLane('sess-a');
-      chatLane('sess-a').addMessage({ role: 'user', content: 'offline clear' });
-    });
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    const clear = screen.getByRole('button', { name: 'Clear' });
+    const newSession = screen.getByRole('button', { name: 'New session' });
+    expect(clear.hasAttribute('disabled')).toBe(true);
+    expect(newSession.hasAttribute('disabled')).toBe(true);
 
-    expect(readLane('sess-a').messages).toEqual([]);
+    fireEvent.click(clear);
+    fireEvent.click(newSession);
     expect(send).not.toHaveBeenCalled();
   });
 });

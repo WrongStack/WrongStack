@@ -47,6 +47,12 @@ export interface MCPClientOptions {
    * without storing them in config.json or being scrubbed by the secret filter.
    */
   passthroughEnv?: string[] | undefined;
+  /**
+   * Resolution-bound private-network policy for HTTP transports. Default:
+   * private/LAN targets are blocked at dial time (DNS-rebinding safe); the
+   * flag opts this server in. See MCPServerConfig.allowPrivateNetworks.
+   */
+  allowPrivateNetworks?: boolean | undefined;
 }
 
 import type { ConnectionState, JsonRpcResponse, MCPTool, ToolCallResult } from './contracts.js';
@@ -356,6 +362,7 @@ export class MCPClient {
       startupTimeoutMs: this.opts.startupTimeoutMs,
       requestTimeoutMs: this.opts.requestTimeoutMs,
       authorizationProvider: this.opts.authorizationProvider,
+      allowPrivateNetworks: this.opts.allowPrivateNetworks,
     };
     this.sseTransport = new SSETransport(httpOpts);
     this.sseTransport.onDisconnect(() => {
@@ -420,6 +427,7 @@ export class MCPClient {
       startupTimeoutMs: this.opts.startupTimeoutMs,
       requestTimeoutMs: this.opts.requestTimeoutMs,
       authorizationProvider: this.opts.authorizationProvider,
+      allowPrivateNetworks: this.opts.allowPrivateNetworks,
     };
     this.httpTransport = new StreamableHTTPTransport(httpOpts);
     this.httpTransport.onDisconnect(() => {

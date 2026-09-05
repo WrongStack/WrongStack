@@ -1,14 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
+import { startFleetTelemetryBridge } from '../../src/hq/fleet-bridge.js';
 import type { HqFleetSnapshotPayload } from '../../src/hq/protocol.js';
 import type { HqPublisher } from '../../src/hq/publisher.js';
-import { startFleetTelemetryBridge } from '../../src/hq/fleet-bridge.js';
 import { EventBus } from '../../src/kernel/events.js';
+
+/** Captured `onConnected` listeners, so a test can replay a reconnect. */
+let reconnectListeners: (() => void)[] = [];
 
 function fakePublisher(spy: ReturnType<typeof vi.fn>): HqPublisher {
   return {
     publishFleetSnapshot: (p: HqFleetSnapshotPayload) => {
       spy(p);
       return {} as never;
+    },
+    onConnected: (listener: () => void) => {
+      reconnectListeners.push(listener);
+      return () => {
+        reconnectListeners = reconnectListeners.filter((entry) => entry !== listener);
+      };
     },
   } as unknown as HqPublisher;
 }
@@ -88,6 +97,7 @@ describe('startFleetTelemetryBridge', () => {
       publishFleetSnapshot: () => {
         throw new Error('boom');
       },
+      onConnected: () => () => {},
     } as unknown as HqPublisher;
     const stop = startFleetTelemetryBridge({ events, publisher, runId: 'run-1' });
     expect(() => events.emit('coordinator.stats', baseStats)).not.toThrow();
@@ -171,5 +181,46 @@ describe('startFleetTelemetryBridge', () => {
       ceilingMismatch: true,
       effectiveSource: 'maxSpawns=profile',
     });
+  });
+});
+
+describe('startFleetTelemetryBridge — reconnect re-seed', () => {
+  it('re-announces the last fleet snapshot when the socket reopens', () => {
+    // HQ keeps fleet snapshots in a map on the SOCKET, so a reconnect drops
+    // them — and the hash-dedup would otherwise keep the fleet invisible until
+    // the stats happened to change.
+    reconnectListeners = [];
+    const events = new EventBus();
+    const spy = vi.fn();
+    const stop = startFleetTelemetryBridge({
+      events,
+      publisher: fakePublisher(spy),
+      runId: 'run-1',
+    });
+
+    events.emit('coordinator.stats', baseStats);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    for (const listener of reconnectListeners) listener();
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy.mock.calls[1]![0]).toEqual(spy.mock.calls[0]![0]);
+
+    stop();
+  });
+
+  it('publishes nothing on reconnect before the first snapshot', () => {
+    reconnectListeners = [];
+    const events = new EventBus();
+    const spy = vi.fn();
+    const stop = startFleetTelemetryBridge({
+      events,
+      publisher: fakePublisher(spy),
+      runId: 'run-1',
+    });
+
+    for (const listener of reconnectListeners) listener();
+    expect(spy).not.toHaveBeenCalled();
+
+    stop();
   });
 });

@@ -31,5 +31,13 @@
 - **Always route Kanban task status, assignment status, managed lifecycle, recovery, and board projection through one canonical command reducer; adding another surface-specific mutation path creates state-machine drift that reconciliation can only mask. Capture verification baselines when an execution attempt starts and bind all evidence to the attempt ID, fencing epoch, task specification revision, and output tree; a snapshot captured when completion verification begins cannot prove the worker's file scope.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
 
+<!-- learned-stamp: category=convention; capturedAt=2026-09-05T11:12:30.721Z -->
+- **Always verify coverage-exclusion justifications by grepping test imports of the excluded files — in `packages/plug-lsp/src/auto-doc/*-parser.ts` the comment "tested via integration" (`vitest.config.ts`, `packages/plug-lsp/vitest.config.ts`) is false: zero `*.test.*` files import those parsers. Exclusion comments rot exactly like test-count comments; treat both as claims to check, not facts.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `packages/plug-lsp/src/auto-doc/*-parser.ts`
+  - *How:* `vitest.config.ts`
+  - *How:* `packages/plug-lsp/vitest.config.ts`
+  - *How:* `*.test.*`
+
 ---
-*Last capture: 2026-08-28T11:33:25.739Z · 3 entries*
+*Last capture: 2026-09-05T11:12:30.721Z · 4 entries*

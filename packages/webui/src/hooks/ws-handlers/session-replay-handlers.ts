@@ -7,12 +7,12 @@ import type {
 import { projectSessionTimeline } from '@wrongstack/core/types/session-timeline';
 import { isMobileViewport } from '@/hooks/useViewport';
 import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailbox-handlers';
+import { parseBugHuntMessage } from '@/lib/bug-hunt-message';
 import { isDesktopShell } from '@/lib/desktop-shell';
 import { setFaviconStatus } from '@/lib/favicon';
+import { parsePerfRunMessage } from '@/lib/perf-run-message';
 import { navigateToView, showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
-import { parseBugHuntMessage } from '@/lib/bug-hunt-message';
-import { parsePerfRunMessage } from '@/lib/perf-run-message';
 import type { ChatMessage, ChatMessageAttachment, SubagentView } from '@/stores';
 import {
   resetUiNavigationToHome,
@@ -24,8 +24,6 @@ import {
   useSessionTabStore,
   useUIStore,
 } from '@/stores';
-import { restoreTabsAfterBoot } from '@/stores/session-tab-store';
-import { useResumeProgressStore } from '@/stores/resume-progress-store';
 import {
   activeLaneId,
   adoptDefaultLane,
@@ -36,6 +34,7 @@ import {
   setActiveLane,
 } from '@/stores/chat-lanes';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
+import { useResumeProgressStore } from '@/stores/resume-progress-store';
 import {
   adoptDefaultSessionLane,
   ensureSessionLane,
@@ -44,6 +43,7 @@ import {
   setSessionGlobals,
 } from '@/stores/session-lanes';
 import { bindForegroundStores } from '@/stores/session-store';
+import { restoreTabsAfterBoot } from '@/stores/session-tab-store';
 import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
 import type { WSServerMessage } from '@/types';
 
@@ -590,6 +590,11 @@ export function handleSessionStart(msg: WSServerMessage) {
       if (agent.sessionId !== retiredSessionId) survivors.set(id, agent);
     }
     useFleetStore.setState({ agents: survivors });
+    // The retired session's tab is inherited by its replacement — the SAME
+    // slot now shows the new session record, and no second tab opens for the
+    // newcomer. A no-op when this page never held the retired session in a
+    // tab; the open/focus decision below then treats it like any other.
+    useSessionTabStore.getState().swapTabSession(retiredSessionId, sessionId);
   }
 
   if (Array.isArray(payload.agentSessions) && payload.agentSessions.length > 0) {

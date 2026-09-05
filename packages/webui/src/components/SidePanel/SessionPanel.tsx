@@ -17,6 +17,7 @@ import {
   History,
   ListTodo,
   Pin,
+  Plus,
   Shrink,
   SlidersHorizontal,
   Square,
@@ -31,6 +32,7 @@ import { playCompletionChime } from '@/lib/chime';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import {
+  MAX_OPEN_TABS,
   useActiveSessionId,
   useChatStore,
   useConfigStore,
@@ -41,8 +43,12 @@ import {
   useUIStore,
 } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
+import { describeSessionActivity, isTabBusy } from '@/stores/session-tab-store';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import { fmtTok } from '../ChatView/utils';
 import { downloadChatAsMarkdown } from '../CommandPalette';
+import { confirmModal } from '../ConfirmModal';
+import { toast } from '../Toaster';
 
 // ── Formatting helpers ────────────────────────────────────────────────
 
@@ -279,17 +285,61 @@ export function SessionPanel() {
     [wsUrl],
   );
 
-  const handleClear = useCallback(() => {
-    const chat = useChatStore.getState();
-    chat.clearMessages();
-    chat.clearQueue();
+  /**
+   * New session in a NEW tab — the same funnel as the tab bar's `+` and
+   * Ctrl+N: the identity-prompt picker applies the variant, then sends
+   * `session.new`, which never touches the sessions other tabs hold.
+   */
+  const handleNewSession = useCallback(() => {
+    const { openTabIds } = useSessionTabStore.getState();
+    if (openTabIds.length < MAX_OPEN_TABS) {
+      useSystemPromptStore.getState().openPicker({ startsSession: true });
+      return;
+    }
+    toast.info(
+      t('activity:sessions.allTabsRunning', {
+        defaultValue: 'All 4 tab slots are full. Close a tab before opening a new session.',
+      }),
+    );
+  }, [t]);
+
+  /**
+   * Clear retires THIS tab's session and starts a fresh record in the SAME
+   * tab: `session.new` with `replaceSessionId`. The server closes the old
+   * session's journal (aborting its run) and answers with a reset
+   * `session.start` carrying `clearedSessionId`, which rebinds this tab's
+   * slot to the new id — see `swapTabSession` in session-tab-store. The old
+   * session stays in History as a closed record; nothing is deleted.
+   */
+  const handleClear = useCallback(async () => {
+    const client = getWSClient(wsUrl);
+    if (!client?.newSession || !wsConnected || !currentSessionId) return;
+    // Retiring a busy session aborts its run — the same guard the tab-close
+    // path uses, with the wording the old panel flow established.
+    if (isTabBusy(currentSessionId)) {
+      const report = describeSessionActivity(currentSessionId);
+      const ok = await confirmModal({
+        title: t('activity:sessionPanel.actions.newSessionConfirm'),
+        message: t('activity:sessionPanel.actions.newSessionConfirmMessage'),
+        details: report.lines,
+        confirmLabel: t('common:action.clear'),
+        cancelLabel: t('common:action.cancel', { defaultValue: 'Cancel' }),
+        danger: true,
+        // Enter/Escape must land on the safe side of a destructive clear.
+        defaultAction: 'cancel',
+      });
+      if (!ok) return;
+    }
+    // The lane swap that lands later disposes the retired conversation; here
+    // only the composer's pending input goes, so nothing of the old session
+    // is left sitting in the input the new record starts with.
     const ui = useUIStore.getState();
     ui.setDraftInput('');
     ui.setDraftImages([]);
     ui.setRefinePanel(null);
     ui.setQueuePanelOpen(false);
-    if (wsConnected) send({ type: 'context.clear' });
-  }, [send, wsConnected]);
+    client.newSession({ replaceSessionId: currentSessionId });
+  }, [wsUrl, wsConnected, currentSessionId, t]);
 
   // Fetch the session list when connected so the History section populates.
   // Through the addressed `send` above, not a bare client call: the reply's
@@ -314,6 +364,13 @@ export function SessionPanel() {
           />
         )}
         <ActionButton
+          icon={<Plus className="h-3 w-3" />}
+          label={t('activity:sessionPanel.actions.newSession')}
+          onClick={handleNewSession}
+          disabled={!wsConnected}
+          title={t('activity:sessionPanel.actions.newSessionTitle')}
+        />
+        <ActionButton
           icon={<Download className="h-3 w-3" />}
           label={t('activity:sessionPanel.actions.export')}
           onClick={() => downloadChatAsMarkdown()}
@@ -330,6 +387,7 @@ export function SessionPanel() {
           icon={<Eraser className="h-3 w-3" />}
           label={t('common:action.clear')}
           onClick={handleClear}
+          disabled={!wsConnected}
           title={t('activity:sessionPanel.actions.clearTitle')}
         />
       </div>

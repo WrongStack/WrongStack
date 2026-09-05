@@ -229,6 +229,23 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       events: opts.events,
       hqSessionId: opts.session.id,
       getSessionId: () => opts.agent.ctx.session?.id ?? opts.session.id,
+      // One HQ session per open tab. The set is the same one the terminal
+      // panel lists: every session a connected browser is displaying.
+      listSessions: () => {
+        const ids = new Set<string>();
+        for (const client of clients.values()) {
+          if (client.sessionId) ids.add(client.sessionId);
+          for (const id of client.sessionIds ?? []) ids.add(id);
+        }
+        return [...ids];
+      },
+      // `cli-main` already runs a tracker and a bridge for the boot session.
+      // Announcing it here too would put two trackers on one bus flushing the
+      // same agent list.
+      isSessionOwnedElsewhere: (sessionId: string) => sessionId === opts.session.id,
+      // The tab's own journal, so HQ takes its turns from the write path
+      // instead of tailing the file.
+      getSessionWriter: (sessionId: string) => sessionAgentsRef?.peek(sessionId)?.ctx.session,
       hqControl: {
         // HQ speaks for the LEADER — the boot session, the one it registered
         // itself under (`hqSessionId`) — not for whatever else the browser
@@ -237,8 +254,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         // the three other tabs' in-flight runs. Deleting the entries was
         // wrong on its own terms too: the run's own `end()` owns removal, and
         // clearing early makes `isRunActive` lie to every tab still running.
-        interruptLeader: () => {
-          const leaderId = opts.session.id;
+        // Every open tab is its own session with its own abort controller, so
+        // the command's session is the one that gets stopped. Falling back to
+        // the boot session keeps a dashboard that sends no session — every one
+        // before this existed — behaving exactly as before.
+        interruptLeader: (sessionId?: string) => {
+          const leaderId = sessionId ?? opts.session.id;
           const controller = abortControllers.get(leaderId);
           if (!controller) return false;
           controller.abort();
@@ -254,6 +275,11 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
           return true;
         },
         allowRunCommand: () => opts.hqAllowExec === true,
+        // A command naming a tab this process no longer holds is refused, not
+        // redirected onto the boot session: the operator picked a terminal,
+        // and steering a different one is worse than not steering at all.
+        ownsSession: (sessionId: string) =>
+          sessionId === opts.session.id || sessionAgentsRef?.has(sessionId) === true,
       },
     });
 

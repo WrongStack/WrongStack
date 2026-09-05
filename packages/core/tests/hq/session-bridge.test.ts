@@ -31,8 +31,17 @@ interface Calls {
   ended: HqSessionEndedPayload[];
 }
 
+/** Captured `onConnected` listeners, so a test can replay a reconnect. */
+let reconnectListeners: (() => void)[] = [];
+
 function fakePublisher(calls: Calls): HqPublisher {
   return {
+    onConnected: (listener: () => void) => {
+      reconnectListeners.push(listener);
+      return () => {
+        reconnectListeners = reconnectListeners.filter((entry) => entry !== listener);
+      };
+    },
     identity: {
       clientId: 'c1',
       kind: 'tui',
@@ -121,6 +130,99 @@ describe('session telemetry bridge', () => {
     });
 
     dispose();
+  });
+
+  it('ignores an agent update that names another session', async () => {
+    // Several trackers share one event bus — the WebUI runs one per open tab —
+    // so without this every tab reported every other tab's agents.
+    const sessionId = '2026-06-23/11-00-00Z_test_scoped';
+    await writeSessionLog(sessionId, []);
+
+    const events = new EventBus();
+    const calls: Calls = { snapshots: [], transcripts: [], ended: [] };
+    const dispose = startSessionTelemetryBridge({
+      publisher: fakePublisher(calls),
+      events,
+      sessionId,
+      projectRoot,
+      projectName: 'demo',
+      globalRoot,
+      startedAt: '2026-06-23T11:00:00Z',
+      now: () => '2026-06-23T11:01:05Z',
+      snapshotIntervalMs: 10_000,
+      transcriptIntervalMs: 10_000,
+    });
+    const before = calls.snapshots.length;
+
+    events.emit('session.agents_updated', {
+      sessionId: 'some-other-tab',
+      agents: [
+        {
+          id: 'leader',
+          name: 'other tab leader',
+          status: 'running',
+          iterations: 1,
+          toolCalls: 1,
+          lastActivityAt: '2026-06-23T11:01:00Z',
+        },
+      ],
+    });
+    expect(calls.snapshots).toHaveLength(before);
+
+    // Its own session still lands.
+    events.emit('session.agents_updated', {
+      sessionId,
+      agents: [
+        {
+          id: 'leader',
+          name: 'my leader',
+          status: 'running',
+          iterations: 1,
+          toolCalls: 1,
+          lastActivityAt: '2026-06-23T11:01:00Z',
+        },
+      ],
+    });
+    expect(calls.snapshots.length).toBeGreaterThan(before);
+    expect(calls.snapshots.at(-1)?.agents[0]?.name).toBe('my leader');
+
+    dispose();
+  });
+
+  it('re-announces the session when the publisher reconnects', async () => {
+    // HQ holds a client's sessions in a map on the SOCKET: a reconnect
+    // registers a fresh client with none, and `publishSnapshot` dedups on
+    // content — so an idle terminal stayed absent from HQ's snapshot (and off
+    // the fleet map) until the 4-minute keep-alive fired.
+    const sessionId = '2026-06-23/11-00-00Z_test_reconnect';
+    await writeSessionLog(sessionId, []);
+
+    reconnectListeners = [];
+    const calls: Calls = { snapshots: [], transcripts: [], ended: [] };
+    const dispose = startSessionTelemetryBridge({
+      publisher: fakePublisher(calls),
+      sessionId,
+      projectRoot,
+      projectName: 'demo',
+      globalRoot,
+      startedAt: '2026-06-23T11:00:00Z',
+      now: () => '2026-06-23T11:01:05Z',
+      snapshotIntervalMs: 10_000,
+      transcriptIntervalMs: 10_000,
+    });
+
+    expect(calls.snapshots).toHaveLength(1);
+    expect(reconnectListeners).toHaveLength(1);
+
+    // Nothing about the session changed — only the connection did.
+    for (const listener of reconnectListeners) listener();
+    expect(calls.snapshots).toHaveLength(2);
+    expect(calls.snapshots[1]).toMatchObject({ sessionId });
+
+    dispose();
+    // The disposer must drop the listener, or a publisher outliving the bridge
+    // would keep announcing a session that ended.
+    expect(reconnectListeners).toHaveLength(0);
   });
 
   it('downgrades stale busy agent statuses to idle in published snapshots', async () => {

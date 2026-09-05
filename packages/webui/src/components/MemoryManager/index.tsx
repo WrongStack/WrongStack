@@ -11,10 +11,10 @@ import { MemoryDrawerToolbar } from './MemoryDrawerToolbar';
 import { MemoryEditor } from './MemoryEditor';
 import { MemoryFilters } from './MemoryFilters';
 import { MemoryList } from './MemoryList';
-import { MemorySearchBreakdown } from './MemorySearchBreakdown';
 import { MemoryManagerEmpty } from './MemoryManagerEmpty';
 import { MemoryManagerHeader } from './MemoryManagerHeader';
 import { MemoryManagerStatsBar } from './MemoryManagerStatsBar';
+import { MemorySearchBreakdown } from './MemorySearchBreakdown';
 import { ReviewQueue } from './ReviewQueue';
 import { useMemoryManagerState } from './useMemoryManagerState';
 
@@ -392,7 +392,7 @@ export function MemoryManager() {
       <DeleteMemoryDialog
         busyAction={state.busyAction}
         deletingId={state.deletingId}
-        memories={state.memories}
+        memory={state.selectedMemory}
         onCancel={() => state.setDeletingId(null)}
         onConfirm={state.confirmDelete}
         onOpenChange={(open) => {

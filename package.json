@@ -60,6 +60,7 @@
     "check:dist-hidden": "node scripts/check-dist-hidden-files.mjs",
     "check:dep-paths": "node scripts/check-dep-path-separators.mjs",
     "check:feature-matrix": "node scripts/check-feature-matrix.mjs",
+    "check:lint-warnings": "node scripts/check-lint-warnings.mjs",
     "check:build-manifest": "node scripts/check-build-lineage.mjs --verify .reports/build-artifact-manifest.json",
     "write:build-manifest": "node scripts/check-build-lineage.mjs --write .reports/build-artifact-manifest.json",
     "check:architecture": "node scripts/snapshot-core-public-api.mjs && node scripts/check-architecture-health.mjs",

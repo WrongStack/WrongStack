@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = path.resolve(__dirname, '../../..');
 const self = rel(__filename);
 const sourceRoots = ['packages', 'apps'].map((dir) => path.join(repoRoot, dir));
-const allowedNegativeKillTests = new Set(['packages/tools/tests/spawn-background.test.ts']);
+const allowedNegativeKillTests = new Set<string>([]);
 const allowedNegativeKillSources = new Set([
   'packages/tools/src/process-registry.ts',
   // Hook commands are spawned detached into their own process group on POSIX;
@@ -83,18 +83,6 @@ describe('POSIX signal safety in tests', () => {
     }
 
     expect(offenders).toEqual([]);
-  });
-
-  it('keeps the spawn-background negative-PID cleanup guarded', () => {
-    const file = path.join(repoRoot, 'packages/tools/tests/spawn-background.test.ts');
-    const text = readFileSync(file, 'utf8');
-
-    expect(text).toContain('function isSafePid(pid: number): boolean');
-    expect(text).toContain('pid > 1');
-    expect(text).toContain('pid !== process.pid');
-    expect(text).toContain('pid !== process.ppid');
-    expect(text).toContain('child.pid !== pid');
-    expect(text).toContain("process.kill(-pid, 'SIGKILL')");
   });
 
   it('keeps production negative-PID process.kill isolated to ProcessRegistry', () => {

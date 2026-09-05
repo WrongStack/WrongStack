@@ -202,17 +202,28 @@ export function buildSnapshot(
     }
 
     for (const tracked of client.sessions.values()) {
-      const cutoff = Date.now() - 5 * 60_000;
-      const agents = tracked.payload.agents.filter((agent) => {
-        if (agent.id === 'leader') return true;
-        const lastActivityAt = Date.parse(agent.lastActivityAt);
-        return Number.isFinite(lastActivityAt) && lastActivityAt >= cutoff;
-      });
+      // The publisher's agent list is taken as authoritative. It used to be
+      // filtered here by `lastActivityAt` — any subagent quiet for 5 minutes
+      // was dropped from the snapshot — which fought the two mechanisms that
+      // already own this, and lost:
+      //
+      //  - `AgentStatusTracker.sweep` removes a FINISHED subagent 30 s after
+      //    it stops, at the source. So anything still being reported past
+      //    5 minutes is one the tracker deliberately kept: running, streaming,
+      //    or waiting_user.
+      //  - `downgradeStaleAgentStatuses` (session-bridge) already handles the
+      //    ghost case at exactly this threshold, and its answer is the
+      //    opposite one: keep the agent visible, relabel it `idle`.
+      //
+      // The net effect was that a subagent inside one long tool call, or
+      // parked on `waiting_user`, disappeared from the fleet map at the
+      // 5-minute mark and reappeared the instant it emitted anything —
+      // hiding precisely the agents an operator needs to see. A publisher
+      // that dies takes its whole session with it via HQ_STALE_SNAPSHOT_MS,
+      // so nothing here is load-bearing for eviction.
       sessionById.set(tracked.payload.sessionId, {
         ...tracked.payload,
         clientId: client.clientId,
-        agents,
-        agentCount: agents.length,
       });
     }
 

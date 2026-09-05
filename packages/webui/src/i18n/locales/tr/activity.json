@@ -353,7 +353,7 @@
       "newSessionTitle": "Yeni oturum başlat (Ctrl+N)",
       "exportTitle": "Sohbeti markdown olarak dışa aktar (Ctrl+E)",
       "compactTitle": "Bağlam penceresini sıkıştır",
-      "clearTitle": "Bağlamı temizle (Ctrl+L)"
+      "clearTitle": "Bu oturumu kapat ve bu sekmede yenisini başlat"
     },
     "model": "Model",
     "modelTitle": "Modeli değiştir (Ctrl+M)",

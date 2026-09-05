@@ -130,6 +130,14 @@ interface SessionTabState {
    * drops to zero.
    */
   closeTabsForSessions: (sessionIds: string[]) => string[];
+  /**
+   * Retire `retiredId` and hand its slot to `nextId` IN PLACE — the tab does
+   * not close and no second tab opens for the newcomer. This is the client
+   * half of `session.new { replaceSessionId }`: the server closes the retired
+   * session and answers with a reset `session.start` whose `clearedSessionId`
+   * names it, and the tab it lived in must become the new session's tab.
+   */
+  swapTabSession: (retiredId: string, nextId: string) => void;
   markSeen: (sessionId: string) => void;
   setAttention: (sessionId: string, needsAttention: boolean) => void;
 }
@@ -808,6 +816,45 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
     // deletions cannot be refused as "still displayed by this connection".
     declareOpenTabsNow(keep);
     return [...removable];
+  },
+
+  swapTabSession: (retiredId, nextId) => {
+    if (!retiredId || !nextId || retiredId === nextId) return;
+    const tabs = get().openTabIds;
+    const slot = tabs.indexOf(retiredId);
+    // The retired session never had a tab here (replaced from another
+    // surface, or this page simply never opened it): nothing to rebind. The
+    // normal open/focus path in `handleSessionStart` decides whether the
+    // newcomer gets a slot at all.
+    if (slot === -1) return;
+
+    // Compute BEFORE releasing: releaseTab leaves the lane pointer aimed at
+    // a disposed lane when the retired session was in front, and the pointer
+    // is what says which slot that was.
+    const wasForeground = foregroundTabId() === retiredId;
+
+    // Free everything the retired session owned BEFORE the strip learns its
+    // replacement, so no store ever holds two sessions' state under one slot.
+    releaseTab(retiredId);
+
+    // Same slot, new session. Length never changes, so a full strip swaps
+    // without touching the four-slot ceiling an `openTab` would have hit.
+    const next = tabs.map((id, i) => (i === slot ? nextId : id));
+    const { [retiredId]: _seen, ...lastSeenCounts } = get().lastSeenCounts;
+    const { [retiredId]: _att, ...attention } = get().attention;
+    set({ openTabIds: next, lastSeenCounts, attention });
+    writeStoredTabs(next);
+
+    // The foreground follows the slot only when the retired session was in
+    // front — a background slot swapped out from under another surface must
+    // not yank the pointer off the tab this user is typing in.
+    if (wasForeground) {
+      activate(nextId);
+      get().markSeen(nextId);
+    }
+    // The retired id is closed server-side; the newcomer must be in the
+    // declared open set or its broadcasts stop at the wire.
+    declareOpenTabsNow(next);
   },
 
   markSeen: (sessionId) =>

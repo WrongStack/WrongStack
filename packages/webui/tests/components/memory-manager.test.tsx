@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SageEntry, SageStats } from '../../src/types.js';
 
@@ -220,5 +220,66 @@ describe('MemoryManager', () => {
 
     emit('memory.sage.delete', { success: true, message: 'Deleted.' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('opens the detail panel for a search-breakdown hit outside the loaded page', async () => {
+    await loadManager();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search memories' }), {
+      target: { value: 'websocket' },
+    });
+
+    // Ranked hit whose memory is NOT part of the loaded list page.
+    const offPageMemory: SageEntry = {
+      ...memory,
+      id: 'mem_offpage',
+      revision: 2,
+      text: 'An old reconnect policy note for the websocket client.',
+    };
+
+    // The refreshed page does not contain the off-page record…
+    emit('memory.sage.listPage', {
+      memories: [memory],
+      nextCursor: null,
+      statusCounts: { active: 1 },
+      stats,
+    });
+    // …but the dual-channel search still ranks it as a hit.
+    emit('memory.sage.searchBreakdown', {
+      hits: [
+        {
+          memory: offPageMemory,
+          lexicalScore: 0.42,
+          vectorScore: 0.81,
+          finalScore: 0.72,
+          source: 'both',
+        },
+      ],
+      source: 'breakdown',
+    });
+
+    // No detail is open before the click.
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+
+    fireEvent.click(await screen.findByText(offPageMemory.text));
+
+    // The detail panel opens even though the memory is not in the
+    // loaded page — the selection resolves from the search hit itself.
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
+
+    // A list response racing the click must not wipe the selection.
+    emit('memory.sage.listPage', {
+      memories: [memory],
+      nextCursor: null,
+      statusCounts: { active: 1 },
+      stats,
+    });
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
+
+    // The delete confirmation previews the off-page memory's text —
+    // resolved from the selection, not a lookup in the loaded page.
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(offPageMemory.text)).toBeTruthy();
   });
 });

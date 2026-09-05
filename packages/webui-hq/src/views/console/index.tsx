@@ -217,6 +217,11 @@ export function LiveConsoleView(): React.ReactElement {
     const sent = body.trim();
     try {
       const result = await postCommand(client.clientId, delivery, {
+        // The command is addressed to a CLIENT, and one client process can
+        // hold several sessions (the WebUI gives every open tab its own).
+        // Naming the session is what makes the message land on the terminal
+        // the operator is actually reading.
+        sessionId: controlTarget.session.sessionId,
         to: controlTarget.recipient,
         subject: subject.trim() || `HQ ${delivery}`,
         body: sent,
@@ -250,6 +255,7 @@ export function LiveConsoleView(): React.ReactElement {
     setStatus(null);
     try {
       const primary = await postCommand(client.clientId, 'abort', {
+        sessionId: controlTarget.session.sessionId,
         target: controlTarget.recipient,
       });
       addReceipt({
@@ -261,7 +267,10 @@ export function LiveConsoleView(): React.ReactElement {
       });
 
       if (isLeaderTarget && includeSubagents) {
-        const fleet = await postCommand(client.clientId, 'abort', { target: 'fleet' });
+        const fleet = await postCommand(client.clientId, 'abort', {
+          sessionId: controlTarget.session.sessionId,
+          target: 'fleet',
+        });
         addReceipt({
           commandId: fleet.commandId,
           type: 'abort',

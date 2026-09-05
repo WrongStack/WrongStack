@@ -40,6 +40,64 @@ import type { FleetConfig } from './types/config.js';
 import { toErrorMessage } from './utils/error.js';
 import { wstackGlobalRoot } from './utils/wstack-paths.js';
 
+/**
+ * Process-wide HQ mailbox publishers, keyed by project root + surface.
+ *
+ * The socket carries mailbox telemetry only. It deliberately does NOT declare
+ * `session.summary`: that is what marks a terminal surface, and HQ would then
+ * render this as a phantom "waiting for session telemetry" node and
+ * orphan-evict it (terminate → reconnect churn) because it never publishes a
+ * session snapshot.
+ */
+const mailboxHqPublishers = new Map<
+  string,
+  { publisher: ReturnType<typeof createHqPublisherFromEnv>; refs: number }
+>();
+
+function mailboxHqPublisherKey(projectRoot: string, source: 'cli' | 'webui'): string {
+  return `${source}::${projectRoot}`;
+}
+
+function acquireMailboxHqPublisher(
+  projectRoot: string,
+  source: 'cli' | 'webui',
+  logger: AgentInternals['logger'],
+): ReturnType<typeof createHqPublisherFromEnv> {
+  const key = mailboxHqPublisherKey(projectRoot, source);
+  const existing = mailboxHqPublishers.get(key);
+  if (existing !== undefined) {
+    existing.refs += 1;
+    return existing.publisher;
+  }
+  const publisher = createHqPublisherFromEnv({
+    clientKind: source,
+    projectRoot,
+    logger,
+    capabilities: ['telemetry.publish', 'mailbox.summary'],
+  });
+  publisher?.connect();
+  // Cached even when HQ is disabled (undefined): the refcount still has to
+  // balance, and re-deciding per Agent would re-read the config every time.
+  mailboxHqPublishers.set(key, { publisher, refs: 1 });
+  return publisher;
+}
+
+function releaseMailboxHqPublisher(projectRoot: string, source: 'cli' | 'webui'): void {
+  const key = mailboxHqPublisherKey(projectRoot, source);
+  const entry = mailboxHqPublishers.get(key);
+  if (entry === undefined) return;
+  entry.refs -= 1;
+  if (entry.refs > 0) return;
+  mailboxHqPublishers.delete(key);
+  entry.publisher?.close();
+}
+
+/** Test seam: drop every cached publisher without waiting for refcounts. */
+export function resetMailboxHqPublishersForTests(): void {
+  for (const entry of mailboxHqPublishers.values()) entry.publisher?.close();
+  mailboxHqPublishers.clear();
+}
+
 export function attachMailboxChecker(
   a: AgentInternals,
   source?: 'cli' | 'webui',
@@ -71,21 +129,18 @@ function attachMailboxCheckerInner(
   // Pass the agent's EventBus so the mailbox can re-emit the project owner's
   // real-time events (agent_registered, agent_heartbeat, etc.) for TUI/WebUI
   // display.
-  // This socket only carries mailbox telemetry. Declaring the default
-  // capability set (which includes `session.summary`) would make HQ treat it
-  // as a terminal surface: it would render as a phantom "waiting for session
-  // telemetry" node and get orphan-evicted (terminate → reconnect churn)
-  // because it never publishes session snapshots.
-  const hqPublisher = createHqPublisherFromEnv({
-    clientKind: source ?? 'cli',
-    projectRoot: a.ctx.projectRoot,
-    logger: a.logger,
-    capabilities: ['telemetry.publish', 'mailbox.summary'],
-  });
-  hqPublisher?.connect();
+  // One socket per PROCESS, not per Agent. `attachMailboxChecker` runs for
+  // every Agent the process builds — the leader and each subagent — so a
+  // per-Agent publisher meant a fleet of five workers opened five extra HQ
+  // sockets that all report the same project mailbox. Worse, HQ supersedes
+  // same-class sockets from one pid: each new one closed its siblings, they
+  // reconnected, closed it back, and the process sat in a permanent
+  // reconnect ping-pong that churned HQ's client list. Shared and refcounted,
+  // there is exactly one.
+  const hqPublisher = acquireMailboxHqPublisher(a.ctx.projectRoot, source ?? 'cli', a.logger);
   if (hqPublisher) {
     // Agent-level hook: the HQ publisher lives across runs, not per-run.
-    a.ctx.registerAgentHook(() => hqPublisher.close());
+    a.ctx.registerAgentHook(() => releaseMailboxHqPublisher(a.ctx.projectRoot, source ?? 'cli'));
   }
   const surface = source ?? (a.ctx.meta['source'] as 'cli' | 'webui' | undefined) ?? 'cli';
   if (!a.ctx.meta['source']) a.ctx.meta['source'] = surface;

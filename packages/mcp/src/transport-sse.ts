@@ -404,6 +404,7 @@ export class SSETransport extends BaseHTTPTransport {
   }
 
   async close(): Promise<void> {
+    this.releasePinnedDispatcher();
     // Idempotent — safe to call multiple times.
     if (this.state === 'disconnected') return;
     this.readerDone = true;

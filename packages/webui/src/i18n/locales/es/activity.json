@@ -353,7 +353,7 @@
       "newSessionTitle": "Iniciar una nueva sesión (Ctrl+N)",
       "exportTitle": "Exportar el chat como markdown (Ctrl+E)",
       "compactTitle": "Comprimir la ventana de contexto",
-      "clearTitle": "Borrar el contexto (Ctrl+L)"
+      "clearTitle": "Cerrar esta sesión e iniciar una nueva en esta pestaña"
     },
     "model": "Modelo",
     "modelTitle": "Cambiar de modelo (Ctrl+M)",

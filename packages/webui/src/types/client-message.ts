@@ -247,7 +247,16 @@ export type WSClientMessageCore =
   | { type: 'session.inspect'; payload: { id: string } }
   | {
       type: 'session.new';
-      payload?: ({ systemPromptVariant?: string } & SessionScopedPayload) | SessionScopedPayload;
+      /**
+       * `replaceSessionId` is the explicit "retire this session as part of
+       * the same operation" target — deliberately a DIFFERENT key from
+       * `sessionId`, which only says which session the request originated
+       * from. Omit it to open an ADDITIONAL session (a new tab) that touches
+       * nothing; send it to close that session and land its replacement.
+       */
+      payload?:
+        | ({ systemPromptVariant?: string; replaceSessionId?: string } & SessionScopedPayload)
+        | SessionScopedPayload;
     }
   | { type: 'session.checkpoints'; payload?: SessionScopedPayload }
   | { type: 'session.rewind'; payload: { checkpointIndex: number } & SessionScopedPayload }

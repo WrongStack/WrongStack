@@ -27,14 +27,27 @@ import type { HqCommand, HqPublisherCommandResult } from '@wrongstack/core/hq';
 export interface HqCommandController {
   /** Project mailbox used to deliver steer/broadcast messages. */
   steerMailbox?: RemoteMailbox | undefined;
-  /** Abort the session leader's running Agent.run(). Returns true if a run was aborted. */
-  interruptLeader: () => boolean;
+  /**
+   * Abort the leader run of `sessionId`. Returns true if a run was aborted.
+   *
+   * The session is the one the command named, already resolved against this
+   * controller's default. A host that owns several sessions at once (the WebUI
+   * gives every open tab its own) MUST honour it rather than aborting whatever
+   * it considers the leader — that is how an operator who picked tab 3 in HQ
+   * ended up stopping tab 1.
+   */
+  interruptLeader: (sessionId?: string) => boolean;
   /** Terminate a specific subagent by id. Returns true if terminated. */
-  terminateAgent?: (subagentId: string) => boolean | Promise<boolean>;
-  /** Stop the entire fleet (all running/idle subagents). Returns kill count. */
-  killFleet?: () => number | Promise<number>;
-  /** Spawn a subagent of the given role. Returns the new subagentId. */
-  spawnAgent?: (role: string, task?: string, maxIterations?: number) => Promise<string>;
+  terminateAgent?: (subagentId: string, sessionId?: string) => boolean | Promise<boolean>;
+  /** Stop the entire fleet of `sessionId` (all running/idle subagents). */
+  killFleet?: (sessionId?: string) => number | Promise<number>;
+  /** Spawn a subagent of the given role, owned by `sessionId`. */
+  spawnAgent?: (
+    role: string,
+    task?: string,
+    maxIterations?: number,
+    sessionId?: string,
+  ) => Promise<string>;
   /** Derive the session-unique mailbox tag for addressing (e.g. `leader@<tag>`). */
   sessionTag: () => string;
   /**
@@ -49,6 +62,16 @@ export interface HqCommandController {
    * the pre-existing behaviour rather than a silent drop.
    */
   sessionId?: (() => string | undefined) | undefined;
+  /**
+   * Does this host currently own `sessionId`?
+   *
+   * A command that names a session this process no longer has must be
+   * REJECTED, never silently redirected to the default: the operator picked a
+   * specific terminal, and steering a different one is worse than not steering
+   * at all. Absent means the host has a single session and the default check
+   * (equality with `sessionId()`) applies.
+   */
+  ownsSession?: ((sessionId: string) => boolean) | undefined;
   /** Whether raw shell execution is explicitly opted-in by the operator. */
   allowRunCommand: () => boolean;
 }
@@ -87,6 +110,41 @@ export function createHqCommandDispatcher(
 }
 
 /**
+ * The session a command is for: the one it named, else this controller's own.
+ */
+function resolveCommandSessionId(
+  controller: HqCommandController,
+  payload: Record<string, unknown>,
+): string | undefined {
+  const named = payload['sessionId'];
+  if (typeof named === 'string' && named.length > 0) return named;
+  return controller.sessionId?.();
+}
+
+/**
+ * Reject a command addressed to a session this host does not own.
+ *
+ * Returns the rejection to send back, or null when the command may proceed.
+ */
+function rejectUnknownSession(
+  controller: HqCommandController,
+  commandId: string,
+  sessionId: string | undefined,
+): HqPublisherCommandResult | null {
+  const named = sessionId;
+  if (named === undefined) return null;
+  const owns =
+    controller.ownsSession?.(named) ??
+    (controller.sessionId === undefined ? true : controller.sessionId() === named);
+  if (owns) return null;
+  return {
+    commandId,
+    status: 'rejected',
+    message: `session ${named} is not active on this client`,
+  };
+}
+
+/**
  * Session-affinity stamp for a leader-addressed message.
  *
  * Only the bare `leader` alias is scoped. An explicit address
@@ -96,11 +154,10 @@ export function createHqCommandDispatcher(
  * narrowing it.
  */
 function leaderSessionAffinity(
-  controller: HqCommandController,
   to: string,
+  sessionId: string | undefined,
 ): { sessionAffinity: { sessionId: string } } | Record<string, never> {
   if (to.trim().toLowerCase() !== 'leader') return {};
-  const sessionId = controller.sessionId?.();
   if (typeof sessionId !== 'string' || sessionId.length === 0) return {};
   return { sessionAffinity: { sessionId } };
 }
@@ -111,6 +168,15 @@ async function dispatch(
   type: HqCommand['type'],
   payload: Record<string, unknown>,
 ): Promise<HqPublisherCommandResult> {
+  // Resolved once: every branch below acts on the session the operator picked,
+  // and a command naming a session this host does not own is refused rather
+  // than redirected to the default.
+  const sessionId = resolveCommandSessionId(controller, payload);
+  const namedSession = typeof payload['sessionId'] === 'string' ? payload['sessionId'] : undefined;
+  if (type !== 'broadcast') {
+    const rejected = rejectUnknownSession(controller, commandId, namedSession);
+    if (rejected !== null) return rejected;
+  }
   switch (type) {
     case 'steer': {
       const mailbox = controller.steerMailbox;
@@ -130,7 +196,7 @@ async function dispatch(
         subject,
         body,
         priority,
-        ...leaderSessionAffinity(controller, to),
+        ...leaderSessionAffinity(to, sessionId),
       });
       return { commandId, status: 'accepted', message: `steered ${to}` };
     }
@@ -157,7 +223,7 @@ async function dispatch(
         subject,
         body,
         priority,
-        ...leaderSessionAffinity(controller, to),
+        ...leaderSessionAffinity(to, sessionId),
       });
       return { commandId, status: 'accepted', message: `noted ${to}` };
     }
@@ -184,7 +250,7 @@ async function dispatch(
         subject,
         body,
         priority,
-        ...leaderSessionAffinity(controller, to),
+        ...leaderSessionAffinity(to, sessionId),
       });
       return { commandId, status: 'accepted', message: `queued for ${to}` };
     }
@@ -206,7 +272,7 @@ async function dispatch(
     case 'abort': {
       const target = typeof payload['target'] === 'string' ? payload['target'] : 'leader';
       if (target === 'leader') {
-        const aborted = controller.interruptLeader();
+        const aborted = controller.interruptLeader(sessionId);
         return {
           commandId,
           status: aborted ? 'completed' : 'accepted',
@@ -214,7 +280,7 @@ async function dispatch(
         };
       }
       if (target === 'fleet') {
-        const killed = (await controller.killFleet?.()) ?? 0;
+        const killed = (await controller.killFleet?.(sessionId)) ?? 0;
         return {
           commandId,
           status: 'completed',
@@ -222,7 +288,7 @@ async function dispatch(
         };
       }
       // Specific subagent id.
-      const terminated = (await controller.terminateAgent?.(target)) ?? false;
+      const terminated = (await controller.terminateAgent?.(target, sessionId)) ?? false;
       return {
         commandId,
         status: terminated ? 'completed' : 'rejected',
@@ -238,7 +304,7 @@ async function dispatch(
       if (controller.spawnAgent === undefined) {
         return { commandId, status: 'rejected', message: 'no director active' };
       }
-      const subagentId = await controller.spawnAgent(role, task, maxIterations);
+      const subagentId = await controller.spawnAgent(role, task, maxIterations, sessionId);
       return { commandId, status: 'completed', message: `spawned ${subagentId}` };
     }
 
@@ -267,7 +333,7 @@ async function dispatch(
           subject: 'Run command (HQ)',
           body: `Run the following shell command:\n\n\`\`\`\n${command}\n\`\`\``,
           priority: 'high',
-          ...leaderSessionAffinity(controller, 'leader'),
+          ...leaderSessionAffinity('leader', sessionId),
         });
         return { commandId, status: 'accepted', message: 'run-command routed to leader as steer' };
       }

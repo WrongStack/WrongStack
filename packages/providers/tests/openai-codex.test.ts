@@ -2,6 +2,7 @@ import { ProviderError, type Request, type StreamEvent } from '@wrongstack/core/
 import { describe, expect, it, vi } from 'vitest';
 import {
   type CodexOAuthTokens,
+  codexCacheSessionId,
   codexOutputCap,
   extractAccountId,
   OpenAICodexProvider,
@@ -100,6 +101,12 @@ describe('resolveCodexUrl', () => {
     ],
   ])('resolves the live model catalog beside %s', (baseUrl, expected) => {
     expect(resolveCodexModelsUrl(baseUrl)).toBe(expected);
+  });
+});
+
+describe('codexCacheSessionId', () => {
+  it('keeps cache affinity stable while making the header safe', () => {
+    expect(codexCacheSessionId('sess:one/two')).toBe('sess_one_two');
   });
 });
 
@@ -282,12 +289,26 @@ describe('OpenAICodexProvider request shape', () => {
     expect(h['chatgpt-account-id']).toBe('acc_99');
     expect(h['originator']).toBe('wrongstack');
     expect(h['OpenAI-Beta']).toBe('responses=experimental');
+    expect(h['x-client-request-id']).toMatch(/^[0-9a-f-]{36}$/i);
 
     const body = JSON.parse(captured.init?.body ?? '{}');
     expect(body.store).toBe(false);
     expect(body.stream).toBe(true);
     expect(body.instructions).toBe('Be terse.');
     expect(body.input).toEqual([{ role: 'user', content: [{ type: 'input_text', text: 'hi' }] }]);
+  });
+
+  it('sends the owning session as Codex cache affinity metadata', async () => {
+    const captured: Captured = {};
+    const p = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: capturingFetch(COMPLETED_SSE, captured),
+    });
+    await p.complete(
+      { ...baseReq, cache: { key: 'ws-key', sessionId: 'sess:one/two' } },
+      { signal: new AbortController().signal },
+    );
+    expect(captured.init?.headers?.['session-id']).toBe('sess_one_two');
   });
 
   it('emits prompt_cache_key from req.cache.key (Responses cache routing)', async () => {
@@ -888,7 +909,10 @@ describe('parseOpenAIResponsesStream usage recovery', () => {
     // silently drop its telemetry. The parser now emits the paired
     // message_start so the terminal message_stop (with usage) is delivered.
     expect(events.map((e) => e.type)).toEqual(['message_start', 'message_stop']);
-    const stop = events[1] as { type: 'message_stop'; usage?: { input: number; output: number; cacheRead?: number } };
+    const stop = events[1] as {
+      type: 'message_stop';
+      usage?: { input: number; output: number; cacheRead?: number };
+    };
     // normalizeUsage: input = 7 − 5(cached) − 0(write) = 2, cacheRead = 5.
     expect(stop.usage).toEqual({ input: 2, output: 2, cacheRead: 5 });
   });

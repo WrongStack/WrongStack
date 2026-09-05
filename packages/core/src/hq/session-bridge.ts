@@ -15,6 +15,7 @@
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import type { EventBus, TrackedAgentSnapshot } from '../kernel/events.js';
+import type { SessionEvent, SessionWriter } from '../types/session.js';
 import { sessionScopedPath } from '../utils/session-scoped-path.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
 import type {
@@ -26,7 +27,6 @@ import type {
 } from './protocol.js';
 import type { HqPublisher } from './publisher.js';
 import { mapSessionEventToEntries } from './transcript-mapper.js';
-import type { SessionEvent, SessionWriter } from '../types/session.js';
 
 export interface SessionTelemetryBridgeOptions {
   publisher: HqPublisher;
@@ -262,6 +262,17 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
   }
 
   const offAgents = opts.events?.on('session.agents_updated', (payload) => {
+    // Several trackers can share one event bus — the WebUI runs one per open
+    // tab — so an update that NAMES another session is not this bridge's.
+    // An unstamped update is still accepted: a host with a single tracker has
+    // no session to name, and dropping those would blank its agent list.
+    if (
+      typeof payload.sessionId === 'string' &&
+      payload.sessionId.length > 0 &&
+      payload.sessionId !== opts.sessionId
+    ) {
+      return;
+    }
     agents = payload.agents.map(toAgentSummary);
     lastActivityAt = now();
     publishSnapshot();
@@ -270,6 +281,16 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
   // Announce the terminal immediately so its node appears even before any
   // agent activity.
   publishSnapshot(true);
+
+  // Re-announce on every reconnect. HQ holds this session in a map on the
+  // SOCKET, so a reconnect hands the server a fresh client with no sessions —
+  // and `publishSnapshot` dedups on content, so an idle terminal would not
+  // republish until the keep-alive fired minutes later. In the meantime the
+  // terminal and all of its agents are simply absent from HQ's snapshot: the
+  // fleet map drops the node and pops it back when the keep-alive lands.
+  const offReconnect = publisher.onConnected(() => {
+    publishSnapshot(true);
+  });
 
   // Captured so the disposer can restore it instead of permanently clearing.
   let prevOnAppend: ((event: SessionEvent) => void) | undefined;
@@ -485,6 +506,7 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
       }
     }
     offAgents?.();
+    offReconnect();
     if (watcher) {
       try {
         watcher.close();

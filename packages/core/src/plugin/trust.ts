@@ -16,7 +16,11 @@
  * it catches swapped/updated plugin builds, not deep transitive changes.
  * It is a tamper signal, not a signature scheme.
  *
- * Disable entirely with `features.pluginsTrust: false` in config.
+ * Disable entirely with `features.pluginsTrust: false`. `'required'`
+ * fail-closes every downgrade path (unresolvable, unreadable, and unpinnable
+ * entries refuse the plugin); `'advisory'` degrades refusals — including
+ * changed hashes — to warnings. Default (`true`/`'tofu'`) is
+ * trust-on-first-use with changed-hash refusal.
  */
 
 import { createHash } from 'node:crypto';

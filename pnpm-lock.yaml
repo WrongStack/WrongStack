@@ -382,6 +382,9 @@ importers:
       '@wrongstack/core':
         specifier: workspace:*
         version: link:../core
+      undici:
+        specifier: ^8.10.0
+        version: 8.10.0
     devDependencies:
       '@types/node':
         specifier: ^26.2.0

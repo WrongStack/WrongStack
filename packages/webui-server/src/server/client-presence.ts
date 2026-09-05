@@ -5,17 +5,22 @@ import {
   type RemoteMailbox,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
-import { startSessionTelemetryBridge } from '@wrongstack/core/hq';
-import { wstackGlobalRoot } from '@wrongstack/core/utils';
-import type { Config } from '@wrongstack/core/types';
 import type {
   CreateHqPublisherOptions,
   HqClientCapability,
   HqPublisher,
 } from '@wrongstack/core/hq';
 import type { EventBus } from '@wrongstack/core/kernel';
+import type { Config } from '@wrongstack/core/types';
+import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import {
+  startWebuiHqSessionTelemetry,
+  type WebuiHqSessionTelemetry,
+} from './hq-session-telemetry.js';
 
 const CLIENT_HEARTBEAT_MS = 15_000;
+/** How often the set of displayed sessions is reconciled against HQ. */
+const SESSION_SYNC_MS = 2_000;
 
 export interface WebuiHqConnection {
   getPublisher(): HqPublisher | undefined;
@@ -30,8 +35,25 @@ export interface WebuiClientPresenceDeps {
   projectRoot: string | undefined;
   appConfig: Config | undefined;
   events: EventBus;
+  /**
+   * The boot session. Used as the HQ fallback when no browser is displaying
+   * anything yet, and as the mailbox client's session stamp.
+   */
   hqSessionId: string;
   getSessionId: () => string;
+  /**
+   * Session ids the connected browsers currently display — one per open tab.
+   *
+   * Absent means "just the boot session", which is what every caller did
+   * before per-tab telemetry existed.
+   */
+  listSessions?: (() => readonly string[]) | undefined;
+  /** Sessions another publisher in this process already announces to HQ. */
+  isSessionOwnedElsewhere?: ((sessionId: string) => boolean) | undefined;
+  /** A tab's own session writer, when the host holds one. */
+  getSessionWriter?:
+    | ((sessionId: string) => import('@wrongstack/core/types').SessionWriter | undefined)
+    | undefined;
   startHqConnection: (options: WebuiHqConnectionOptions) => WebuiHqConnection;
   createCommandHandler?:
     | ((mailbox: RemoteMailbox) => NonNullable<CreateHqPublisherOptions['onCommand']>)
@@ -47,7 +69,8 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
   let clientId: string | null = null;
   let mailbox: RemoteMailbox | undefined;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-  let stopTelemetry: (() => void) | undefined;
+  let sessionTelemetry: WebuiHqSessionTelemetry | undefined;
+  let syncTimer: ReturnType<typeof setInterval> | null = null;
   let hqConnection: WebuiHqConnection | undefined;
   let closed = false;
 
@@ -79,16 +102,30 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
         appConfig: deps.appConfig,
         capabilities,
         ...(onCommand ? { onCommand } : {}),
-        onConnect: (publisher) => {
-          stopTelemetry?.();
-          stopTelemetry = startSessionTelemetryBridge({
-            publisher,
+        onConnect: () => {
+          // Every open tab is its own session; HQ used to hear about only the
+          // boot one. The manager keeps a bridge alive per displayed session
+          // and reconciles on each sync.
+          sessionTelemetry?.stop();
+          sessionTelemetry = startWebuiHqSessionTelemetry({
             events: deps.events,
-            sessionId: deps.hqSessionId,
             projectRoot,
             projectName,
-            startedAt: new Date().toISOString(),
+            globalRoot: wstackGlobalRoot(),
+            getPublisher: () => hqConnection?.getPublisher(),
+            listSessions: () => {
+              const live = deps.listSessions?.() ?? [];
+              // Nothing on screen yet (no browser attached, or a surface that
+              // never reports tabs): fall back to the boot session so HQ still
+              // sees this host.
+              return live.length > 0 ? live : [deps.hqSessionId];
+            },
+            ...(deps.isSessionOwnedElsewhere
+              ? { isOwnedElsewhere: deps.isSessionOwnedElsewhere }
+              : {}),
+            ...(deps.getSessionWriter ? { getWriter: deps.getSessionWriter } : {}),
           });
+          sessionTelemetry.sync();
         },
       });
 
@@ -113,6 +150,12 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
           .catch(() => undefined);
       }, CLIENT_HEARTBEAT_MS);
       heartbeatTimer.unref();
+
+      // Tabs open and close without this layer being told, so reconcile on a
+      // cheap timer: `sync` diffs a handful of ids and does nothing when the
+      // set is unchanged.
+      syncTimer = setInterval(() => sessionTelemetry?.sync(), SESSION_SYNC_MS);
+      syncTimer.unref();
       return clientId;
     } catch {
       return null;
@@ -123,8 +166,10 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
     closed = true;
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = null;
-    stopTelemetry?.();
-    stopTelemetry = undefined;
+    if (syncTimer) clearInterval(syncTimer);
+    syncTimer = null;
+    sessionTelemetry?.stop();
+    sessionTelemetry = undefined;
     hqConnection?.stop();
     hqConnection = undefined;
     const previousClientId = clientId;

@@ -1372,7 +1372,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 47,
-      "sourceLines": 12120
+      "sourceLines": 12123
     },
     {
       "directory": "design",
@@ -1414,7 +1414,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 9201
+      "sourceLines": 9364
     },
     {
       "directory": "infrastructure",
@@ -1463,7 +1463,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 6,
-      "sourceLines": 2390
+      "sourceLines": 2394
     },
     {
       "directory": "plugins",
@@ -1547,7 +1547,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 13164
+      "sourceLines": 13189
     },
     {
       "directory": "utils",

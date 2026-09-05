@@ -2,7 +2,13 @@ import type { HqEventEnvelope, HqProtocolVersion } from './core.js';
 import type { HqProjectIdentity, HqProjectStatus } from './project.js';
 import type { HqRedactionPolicy } from './tool.js';
 
-export type HqClientKind = 'tui' | 'repl' | 'webui' | 'cli' | 'mailbox' | 'unknown';
+/**
+ * The surface a publisher speaks for.
+ *
+ * Validated as a closed set at `client.hello` (`HQ_CLIENT_KINDS`), so a new
+ * surface has to be added in BOTH places or its connection is refused.
+ */
+export type HqClientKind = 'tui' | 'repl' | 'webui' | 'cli' | 'acp' | 'mailbox' | 'unknown';
 
 export type HqClientCapability =
   | 'telemetry.publish'

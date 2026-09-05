@@ -26,6 +26,8 @@ export interface FleetTopologyNode extends Record<string, unknown> {
   session?: HqSessionSnapshotPayload;
   isSyntheticSession?: boolean;
   serviceMode?: 'mailbox-serve';
+  /** Carried over from an earlier snapshot that no longer lists this node. */
+  retained?: boolean;
 }
 
 export interface FleetTopologyEdge {
@@ -588,4 +590,88 @@ export function buildFleetTopology(snapshot: HqSnapshot | null): FleetTopology {
   }
 
   return { nodes, edges };
+}
+
+// ── Presence retention ─────────────────────────────────────────────────────
+
+/**
+ * How long a node that vanished from the snapshot stays on the map.
+ *
+ * HQ keeps a client's sessions in a map on the SOCKET, so any publisher
+ * reconnect — a network blip, an HQ restart, a superseded duplicate — hands
+ * the server a client with no sessions and the terminal (with all of its
+ * agents) drops out of the very next broadcast. Rebuilding the map straight
+ * off each snapshot turned that into a node blinking out and back, which
+ * reads as fleet churn that never happened.
+ *
+ * The window has to outlast a reconnect without outlasting an operator's
+ * patience: a publisher that is coming back is back within a couple of
+ * seconds, and a terminal that really exited should not linger on the map
+ * much longer than it takes to notice.
+ */
+export const FLEET_TOPOLOGY_RETENTION_MS = 45_000;
+
+export interface FleetTopologyRetention {
+  topology: FleetTopology;
+  /** Node id -> epoch ms at which it was first seen missing. */
+  missingSince: Record<string, number>;
+}
+
+function markRetained(node: FleetTopologyNode): FleetTopologyNode {
+  if (node.retained === true) return node;
+  return {
+    ...node,
+    retained: true,
+    // Not an error state — nothing is known to be wrong, the publisher simply
+    // is not reporting right now. `activityTone` reads this as idle (dim).
+    status: 'offline',
+    chips: [...node.chips, 'reconnecting…'],
+  };
+}
+
+/**
+ * Carry nodes the newest snapshot dropped for up to `graceMs`, then let them go.
+ *
+ * `previous` must be the RETAINED topology from the last pass, not the raw
+ * one, so a node missing across several consecutive snapshots keeps its
+ * original `missingSince` instead of having the clock restarted under it.
+ *
+ * An edge survives only when BOTH endpoints do. Ancestors are retained by the
+ * same rule as their children (they went missing together, or the ancestor is
+ * still present), so this cannot leave a dangling edge.
+ */
+export function retainFleetTopology(
+  next: FleetTopology,
+  previous: FleetTopology,
+  missingSince: Readonly<Record<string, number>>,
+  nowMs: number,
+  graceMs: number = FLEET_TOPOLOGY_RETENTION_MS,
+): FleetTopologyRetention {
+  const presentIds = new Set(next.nodes.map((node) => node.id));
+  const nodes = [...next.nodes];
+  const nextMissingSince: Record<string, number> = {};
+
+  for (const node of previous.nodes) {
+    if (presentIds.has(node.id)) continue;
+    const since = missingSince[node.id] ?? nowMs;
+    if (nowMs - since > graceMs) continue;
+    nextMissingSince[node.id] = since;
+    nodes.push(markRetained(node));
+    presentIds.add(node.id);
+  }
+
+  if (Object.keys(nextMissingSince).length === 0) {
+    return { topology: next, missingSince: nextMissingSince };
+  }
+
+  const edges = [...next.edges];
+  const edgeIds = new Set(next.edges.map((edge) => edge.id));
+  for (const edge of previous.edges) {
+    if (edgeIds.has(edge.id)) continue;
+    if (!presentIds.has(edge.source) || !presentIds.has(edge.target)) continue;
+    edges.push(edge);
+    edgeIds.add(edge.id);
+  }
+
+  return { topology: { nodes, edges }, missingSince: nextMissingSince };
 }

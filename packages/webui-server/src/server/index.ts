@@ -220,6 +220,11 @@ export type { WorklistContext } from './handlers/worklist-handlers.js';
 export { handleWorklistMessage } from './handlers/worklist-handlers.js';
 export { type HostRouteHandlers, handleHostRoute } from './host-routes.js';
 export {
+  startWebuiHqSessionTelemetry,
+  type WebuiHqSessionTelemetry,
+  type WebuiHqSessionTelemetryOptions,
+} from './hq-session-telemetry.js';
+export {
   clearAnalyticsBuffer,
   getAnalyticsBuffer,
   handleApiAnalyticsGet,
@@ -463,6 +468,12 @@ export {
   type SessionAgentRegistryOptions,
 } from './session-agent-registry.js';
 export {
+  type AgentSessionPayload,
+  type AgentVirtualSessionLike,
+  buildAgentSessionsPayload,
+  type LoadAgentSessions,
+} from './session-agent-sessions.js';
+export {
   cleanupOwnerlessEmptySessions,
   DEFAULT_EMPTY_SESSION_CLEANUP_INTERVAL_MS,
   EMPTY_SESSION_CLEANUP_INTERVAL_ENV,
@@ -476,12 +487,6 @@ export {
   createSessionTransitionGate,
   type SessionHandlersContext,
 } from './session-handlers.js';
-export {
-  type AgentSessionPayload,
-  type AgentVirtualSessionLike,
-  buildAgentSessionsPayload,
-  type LoadAgentSessions,
-} from './session-agent-sessions.js';
 export {
   type SessionHistoryWireEntry,
   toSessionHistoryEntries,
@@ -591,6 +596,7 @@ export {
   type VerifyClientInput,
   verifyClient,
 } from './ws-auth.js';
+export { VALIDATED_PREF_KEYS } from './ws-payload-preferences.js';
 export {
   validateAutonomySwitchPayload,
   validateBrainAskPayload,
@@ -616,7 +622,6 @@ export {
   validateSkillsEditPayload,
   validateWorkingDirSetPayload,
 } from './ws-payload-validation.js';
-export { VALIDATED_PREF_KEYS } from './ws-payload-preferences.js';
 export {
   broadcast,
   buildWebUIAccessUrl,
@@ -629,8 +634,8 @@ export {
   runWithDispatchSession,
   send,
   sendResult,
-  stampDispatchSession,
   sendSerialized,
+  stampDispatchSession,
   WEBUI_WS_MAX_BUFFERED_BYTES,
 } from './ws-utils.js';
 export { createZipBuffer, readZipEntries, type ZipEntryInput } from './zip.js';

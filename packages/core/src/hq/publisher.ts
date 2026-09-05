@@ -329,6 +329,8 @@ export class HqPublisher {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private commandPollTimer: ReturnType<typeof setInterval> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  /** Listeners re-seeding per-connection server state on every (re)open. */
+  private readonly connectedListeners = new Set<() => void>();
   private lastCommandId: string | undefined;
   /**
    * Dispositions of recently delivered commands, keyed by `commandId`.
@@ -404,6 +406,9 @@ export class HqPublisher {
       }
       this.sendHelloNow();
       this.flushQueue();
+      // AFTER hello and the queue drain, so re-seeded state lands on a
+      // registered client and behind anything that was already waiting.
+      this.notifyConnected();
       this.startHeartbeat();
       if (this.options.onCommand !== undefined) {
         this.startCommandPolling();
@@ -509,6 +514,37 @@ export class HqPublisher {
       // Already gone — the re-dial below is what matters.
     }
     this.connect();
+  }
+
+  /**
+   * Subscribe to every socket (re)open, including the first.
+   *
+   * HQ keeps a client's session / fleet / mailbox / MCP state on the SOCKET:
+   * a reconnect registers a fresh `ConnectedClient` with those maps empty. The
+   * publisher's own reconnect is invisible to the bridges above it — they only
+   * publish on change — so after a blip a live terminal simply stopped existing
+   * in HQ's snapshot (and vanished from the fleet map) until something changed
+   * or the 4-minute keep-alive fired. Bridges that own durable state subscribe
+   * here and re-announce it.
+   *
+   * Returns an unsubscribe handle.
+   */
+  onConnected(listener: () => void): () => void {
+    this.connectedListeners.add(listener);
+    return () => {
+      this.connectedListeners.delete(listener);
+    };
+  }
+
+  private notifyConnected(): void {
+    for (const listener of this.connectedListeners) {
+      try {
+        listener();
+      } catch {
+        // Re-seeding is best-effort: one bridge throwing must not stop the
+        // others, nor the connection itself.
+      }
+    }
   }
 
   publishEvent<TPayload>(

@@ -1,15 +1,21 @@
+import type { HqBrainEventPayload } from './brain.js';
 import type {
   HqClientCapability,
   HqClientCommandAckMessage,
   HqClientCommandPollMessage,
-  HqClientHelloPayload,
   HqClientHeartbeatPayload,
+  HqClientHelloPayload,
   HqClientIdentity,
   HqClientKind,
   HqClientMessage,
   HqClientResumeMessage,
 } from './client.js';
-import type { HqBrainEventPayload } from './brain.js';
+import {
+  HQ_PROTOCOL_VERSION,
+  type HqEventEnvelope,
+  type HqEventType,
+  type HqProtocolVersion,
+} from './envelope.js';
 import type {
   HqFleetEventPayload,
   HqFleetSnapshotPayload,
@@ -17,6 +23,7 @@ import type {
   HqWorktreeEventPayload,
 } from './fleet.js';
 import { type HqGovernanceSnapshotPayload, isHqGovernanceSnapshotPayload } from './governance.js';
+import { type HqServerKanbanSnapshotMessage, isHqKanbanSnapshotPayload } from './kanban.js';
 import type {
   HqMailboxAgentSummary,
   HqMailboxEventPayload,
@@ -31,10 +38,9 @@ import type {
   HqMcpOperationPayload,
   HqMcpServerHealth,
 } from './mcp.js';
-import { isHqKanbanSnapshotPayload, type HqServerKanbanSnapshotMessage } from './kanban.js';
 import { isHqPeerLostPayload, isHqPeerRehydratePayload } from './peer.js';
-import type { HqResumeMessage } from './resume.js';
 import type { HqProjectIdentity, HqWorkspaceKind } from './project.js';
+import type { HqResumeMessage } from './resume.js';
 import type {
   HqSessionAgentSummary,
   HqSessionEndedPayload,
@@ -44,15 +50,9 @@ import type {
   HqTranscriptEntry,
 } from './session.js';
 import type { HqRedactionPolicy, HqToolCompletedPayload, HqToolStartedPayload } from './tool.js';
-import {
-  HQ_PROTOCOL_VERSION,
-  type HqEventEnvelope,
-  type HqEventType,
-  type HqProtocolVersion,
-} from './envelope.js';
 
-export { HQ_PROTOCOL_VERSION };
 export type { HqEventEnvelope, HqEventType, HqProtocolVersion };
+export { HQ_PROTOCOL_VERSION };
 
 export interface HqWelcomePayload {
   type: 'hq.welcome';
@@ -144,6 +144,7 @@ const HQ_CLIENT_KINDS = new Set<HqClientKind>([
   'repl',
   'webui',
   'cli',
+  'acp',
   'mailbox',
   'unknown',
 ]);

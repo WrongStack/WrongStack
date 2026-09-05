@@ -230,6 +230,22 @@ export function handleClient(
 
       const supersededLeaders: ConnectedClient[] = [];
       let inheritedLeader = false;
+      // One process legitimately holds SEVERAL publisher sockets: the session
+      // telemetry one and the mailbox-attach one. They share pid, kind,
+      // project and machine, so `samePublisher` alone cannot tell "the same
+      // terminal reconnected and left a zombie socket" from "a sibling role on
+      // the same process". `session.summary` is what separates the two
+      // classes: a terminal surface declares it, an auxiliary socket
+      // deliberately does not (see the capability comment in mailbox-attach).
+      //
+      // Superseding is confined to one class. Across classes it was pure
+      // damage: the mailbox socket is sessionless BY DESIGN, so it was
+      // eligible forever and got closed on every telemetry hello — and its
+      // reconnect could land inside the telemetry client's own post-hello
+      // window and close THAT one back. Every such reconnect wipes the
+      // server's per-socket session state, which is what made terminals blink
+      // off the fleet map.
+      const isSessionSurface = acceptedCapabilities.includes('session.summary');
       for (const [otherWs, otherClient] of clients) {
         const sameClientId = otherClient.clientId === payload.client.clientId;
         const samePublisher =
@@ -239,7 +255,8 @@ export function handleClient(
           payload.client.pid !== undefined &&
           otherClient.pid === payload.client.pid &&
           (otherClient.machineId || otherClient.project.machineId) ===
-            (payload.client.machineId || payload.project.machineId);
+            (payload.client.machineId || payload.project.machineId) &&
+          isSessionSurface === otherClient.capabilities.includes('session.summary');
         if (
           otherWs !== ws &&
           (sameClientId || (samePublisher && otherClient.sessions.size === 0))

@@ -15,7 +15,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';
-import { HQ_STALE_SNAPSHOT_MS, reapStaleClientState } from '../src/hq-server/snapshot.js';
+import {
+  buildSnapshot,
+  HQ_STALE_SNAPSHOT_MS,
+  reapStaleClientState,
+} from '../src/hq-server/snapshot.js';
 import type { ConnectedClient } from '../src/hq-server/types.js';
 
 const NOW = 1_800_000_000_000;
@@ -125,5 +129,107 @@ describe('reapStaleClientState', () => {
     expect(client.sessions.size).toBe(1);
     expect(client.fleets.size).toBe(1);
     expect(client.mcpSnapshots.size).toBe(1);
+  });
+});
+
+describe('buildSnapshot agent pass-through', () => {
+  /**
+   * The publisher owns which agents exist. `AgentStatusTracker.sweep` removes a
+   * FINISHED subagent 30 s after it stops, and `downgradeStaleAgentStatuses`
+   * relabels a stale busy one as idle while keeping it visible. HQ used to
+   * additionally DROP any subagent quiet for 5 minutes, which fought both:
+   * an agent inside one long tool call, or parked on `waiting_user`,
+   * disappeared from the fleet map and popped back on its next event.
+   */
+  function clientWithAgents(agents: unknown[]): Map<WebSocket, ConnectedClient> {
+    const client = {
+      clientId: 'c1',
+      projectId: 'p1',
+      kind: 'tui',
+      machineId: 'm1',
+      hostname: 'box',
+      pid: 42,
+      connectedAt: new Date(NOW).toISOString(),
+      lastSeenAt: new Date(NOW).toISOString(),
+      capabilities: ['telemetry.publish', 'session.summary'],
+      project: {
+        projectId: 'p1',
+        projectRoot: '/repo',
+        projectName: 'repo',
+        machineId: 'm1',
+        workspaceKind: 'git',
+      },
+      sessions: new Map([
+        [
+          's1',
+          {
+            payload: {
+              sessionId: 's1',
+              clientKind: 'tui',
+              machineId: 'm1',
+              hostname: 'box',
+              projectId: 'p1',
+              projectName: 'repo',
+              projectRoot: '/repo',
+              status: 'active',
+              startedAt: new Date(NOW).toISOString(),
+              lastActivityAt: new Date(NOW).toISOString(),
+              agentCount: agents.length,
+              agents,
+            },
+            receivedAt: Date.now(),
+          },
+        ],
+      ]),
+      fleets: new Map(),
+      mcpSnapshots: new Map(),
+      mailboxes: new Map(),
+      commandQueue: [],
+    } as never as ConnectedClient;
+    return clientsOf(client);
+  }
+
+  const longQuiet = new Date(Date.now() - 20 * 60_000).toISOString();
+
+  it('keeps a subagent the publisher still reports, however long it has been quiet', () => {
+    const snapshot = buildSnapshot(
+      clientWithAgents([
+        {
+          id: 'leader',
+          name: 'leader',
+          status: 'idle',
+          iterations: 0,
+          toolCalls: 0,
+          lastActivityAt: longQuiet,
+        },
+        {
+          id: 'reviewer-1',
+          name: 'reviewer-1',
+          status: 'waiting_user',
+          iterations: 3,
+          toolCalls: 9,
+          lastActivityAt: longQuiet,
+        },
+        {
+          id: 'builder-2',
+          name: 'builder-2',
+          status: 'running',
+          iterations: 7,
+          toolCalls: 2,
+          lastActivityAt: longQuiet,
+        },
+      ]),
+    );
+
+    const session = snapshot.liveSessions?.[0];
+    expect(session?.agents.map((agent) => agent.id)).toEqual(['leader', 'reviewer-1', 'builder-2']);
+    expect(session?.agentCount).toBe(3);
+    expect(snapshot.totals.activeSubagents).toBe(2);
+  });
+
+  it('reports no agents when the publisher reports none', () => {
+    const snapshot = buildSnapshot(clientWithAgents([]));
+    expect(snapshot.liveSessions?.[0]?.agents).toEqual([]);
+    expect(snapshot.liveSessions?.[0]?.agentCount).toBe(0);
   });
 });

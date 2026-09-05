@@ -86,6 +86,14 @@ jobs:
       - name: Check (plugin feature matrix)
         run: pnpm check:feature-matrix
 
+      # Biome warnings exit 0, so the Lint step above cannot see them.
+      # check:lint-warnings ratchets production-scope warnings against
+      # architecture/lint-warning-baseline.json: a new or increased count
+      # fails, and a fixed count must lower the baseline in the same change
+      # (ratchet-down invariant, mirroring check:test-types).
+      - name: Check (lint warning ratchet)
+        run: pnpm check:lint-warnings
+
   typecheck:
     name: TypeCheck (tsc)
     runs-on: ubuntu-latest

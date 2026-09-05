@@ -15,8 +15,8 @@
  * @module hq/fleet-bridge
  */
 import type { EventBus } from '../kernel/events.js';
+import { type BridgeContextOptions, createBridgeContext } from './bridge-context.js';
 import type { HqEventEnvelope, HqFleetSnapshotPayload, HqSubagentSummary } from './protocol.js';
-import { createBridgeContext, type BridgeContextOptions } from './bridge-context.js';
 
 export interface FleetTelemetryBridgeOptions extends BridgeContextOptions {
   /** Local EventBus emitting `coordinator.stats` (host EventBus after the FleetBus hop). */
@@ -92,12 +92,10 @@ export function startFleetTelemetryBridge(opts: FleetTelemetryBridgeOptions): ()
     };
   }
 
-  const off = events.on('coordinator.stats', (stats) => {
-    const payload = buildPayload(stats);
-    // Hash-dedup so identical fleet state isn't republished.
-    const hash = JSON.stringify(payload);
-    if (hash === lastHash) return;
-    lastHash = hash;
+  /** Last payload published, kept so a reconnect can re-announce it. */
+  let lastPayload: HqFleetSnapshotPayload | undefined;
+
+  const publish = (payload: HqFleetSnapshotPayload): void => {
     try {
       publisher.publishFleetSnapshot(payload, {
         ...ctx.sessionIdTag(),
@@ -106,9 +104,27 @@ export function startFleetTelemetryBridge(opts: FleetTelemetryBridgeOptions): ()
     } catch {
       /* best-effort — HQ telemetry must never break the host */
     }
+  };
+
+  const off = events.on('coordinator.stats', (stats) => {
+    const payload = buildPayload(stats);
+    // Hash-dedup so identical fleet state isn't republished.
+    const hash = JSON.stringify(payload);
+    if (hash === lastHash) return;
+    lastHash = hash;
+    lastPayload = payload;
+    publish(payload);
+  });
+
+  // HQ keeps fleet snapshots in a map on the SOCKET, so a reconnect drops
+  // them; the hash-dedup above then keeps the fleet invisible until the stats
+  // actually change. Re-announce the last known payload instead.
+  const offReconnect = publisher.onConnected(() => {
+    if (lastPayload !== undefined) publish(lastPayload);
   });
 
   ctx.track(off);
+  ctx.track(offReconnect);
   return ctx.dispose;
 }
 

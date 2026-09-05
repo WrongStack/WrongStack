@@ -95,7 +95,7 @@ describe('createHqCommandDispatcher', () => {
     const controller = makeController({ terminateAgent });
     const dispatch = createHqCommandDispatcher(controller);
     const result = await dispatch({ commandId: 'c1', type: 'abort', payload: { target: 'sub-9' } });
-    expect(terminateAgent).toHaveBeenCalledWith('sub-9');
+    expect(terminateAgent).toHaveBeenCalledWith('sub-9', undefined);
     expect(result.status).toBe('completed');
   });
 
@@ -108,7 +108,7 @@ describe('createHqCommandDispatcher', () => {
       type: 'spawn',
       payload: { role: 'bug-hunter' },
     });
-    expect(spawnAgent).toHaveBeenCalledWith('bug-hunter', undefined, undefined);
+    expect(spawnAgent).toHaveBeenCalledWith('bug-hunter', undefined, undefined, undefined);
     expect(result).toMatchObject({ status: 'completed' });
   });
 
@@ -234,5 +234,129 @@ describe('createHqCommandDispatcher — session scoping', () => {
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'leader', sessionAffinity: { sessionId: 'sess-42' } }),
     );
+  });
+});
+
+describe('createHqCommandDispatcher — session addressing', () => {
+  // A command is addressed to a CLIENT, and one client process can hold several
+  // sessions at once (the WebUI gives every open tab its own). Without an
+  // address the command lands on whatever that host calls its leader, so an
+  // operator who picked tab 3 in HQ stopped tab 1.
+  it('aborts the session the command names, not the controller default', async () => {
+    const interruptLeader = vi.fn(() => true);
+    const dispatch = createHqCommandDispatcher(
+      makeController({
+        interruptLeader,
+        sessionId: () => 'boot',
+        ownsSession: (id) => id === 'tab-3',
+      }),
+    );
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'abort',
+      payload: { sessionId: 'tab-3', target: 'leader' },
+    });
+    expect(interruptLeader).toHaveBeenCalledWith('tab-3');
+    expect(result.status).toBe('completed');
+  });
+
+  it('falls back to the controller session when the command names none', async () => {
+    const interruptLeader = vi.fn(() => true);
+    const dispatch = createHqCommandDispatcher(
+      makeController({ interruptLeader, sessionId: () => 'boot' }),
+    );
+    await dispatch({ commandId: 'c1', type: 'abort', payload: { target: 'leader' } });
+    expect(interruptLeader).toHaveBeenCalledWith('boot');
+  });
+
+  it('refuses a command for a session this host does not own', async () => {
+    // Redirecting onto the default would stop a terminal the operator did not
+    // pick — worse than not stopping anything.
+    const interruptLeader = vi.fn(() => true);
+    const send = vi.fn().mockResolvedValue(undefined);
+    const controller = makeController({
+      interruptLeader,
+      steerMailbox: { send } as never,
+      sessionId: () => 'boot',
+      ownsSession: (id) => id === 'boot',
+    });
+    const dispatch = createHqCommandDispatcher(controller);
+
+    const aborted = await dispatch({
+      commandId: 'c1',
+      type: 'abort',
+      payload: { sessionId: 'closed-tab', target: 'leader' },
+    });
+    expect(aborted.status).toBe('rejected');
+    expect(aborted.message).toContain('closed-tab');
+    expect(interruptLeader).not.toHaveBeenCalled();
+
+    const steered = await dispatch({
+      commandId: 'c2',
+      type: 'steer',
+      payload: { sessionId: 'closed-tab', to: 'leader', body: 'hi' },
+    });
+    expect(steered.status).toBe('rejected');
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('stamps the named session as the mailbox affinity', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const dispatch = createHqCommandDispatcher(
+      makeController({
+        steerMailbox: { send } as never,
+        sessionId: () => 'boot',
+        ownsSession: () => true,
+      }),
+    );
+    await dispatch({
+      commandId: 'c1',
+      type: 'steer',
+      payload: { sessionId: 'tab-3', to: 'leader', body: 'hi' },
+    });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionAffinity: { sessionId: 'tab-3' } }),
+    );
+  });
+
+  it('leaves a broadcast unaddressed even when a session is named', async () => {
+    // A broadcast is project-wide by definition; the session on it is noise,
+    // and refusing it because a tab closed would be wrong.
+    const send = vi.fn().mockResolvedValue(undefined);
+    const dispatch = createHqCommandDispatcher(
+      makeController({
+        steerMailbox: { send } as never,
+        sessionId: () => 'boot',
+        ownsSession: () => false,
+      }),
+    );
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'broadcast',
+      payload: { sessionId: 'closed-tab', body: 'b' },
+    });
+    expect(result.status).toBe('accepted');
+    expect(send.mock.calls[0]![0]).not.toHaveProperty('sessionAffinity');
+  });
+
+  it('routes spawn and fleet-abort to the named session', async () => {
+    const spawnAgent = vi.fn().mockResolvedValue('sub-1');
+    const killFleet = vi.fn(() => 2);
+    const dispatch = createHqCommandDispatcher(
+      makeController({ spawnAgent, killFleet, sessionId: () => 'boot', ownsSession: () => true }),
+    );
+    await dispatch({
+      commandId: 'c1',
+      type: 'spawn',
+      payload: { sessionId: 'tab-2', role: 'reviewer' },
+    });
+    expect(spawnAgent).toHaveBeenCalledWith('reviewer', undefined, undefined, 'tab-2');
+
+    await dispatch({
+      commandId: 'c2',
+      type: 'abort',
+      payload: { sessionId: 'tab-2', target: 'fleet' },
+    });
+    expect(killFleet).toHaveBeenCalledWith('tab-2');
   });
 });

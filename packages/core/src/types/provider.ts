@@ -179,6 +179,12 @@ export interface RequestCacheControl {
    */
   key?: string | undefined;
   /**
+   * Stable owning conversation id for transports that use connection/session
+   * affinity to route prompt-cache reads. This is transport metadata, never a
+   * model-request field.
+   */
+  sessionId?: string | undefined;
+  /**
    * Opt-in flag (from `ModelRuntimeCacheConfig.geminiExplicit`) telling the
    * Google provider to use explicit `cachedContents` for this request. Ignored
    * by other providers.

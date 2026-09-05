@@ -34,6 +34,7 @@ import {
   WsBridgeTransport,
 } from '@wrongstack/acp/agent';
 import { WebSocketServer } from 'ws';
+import { type AcpHqTelemetry, startAcpHqTelemetry } from '../../acp-hq-telemetry.js';
 import {
   type LoadedAcpRegistry,
   loadCachedAcpRegistry,
@@ -163,6 +164,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
   let turnFactory: (() => ReturnType<typeof makeACPServerAgentTurn>) | undefined;
   let echoTurn: RunTurn | undefined;
   let store: ACPSessionStore | undefined;
+  let hqTelemetry: AcpHqTelemetry | undefined;
   if (echo) {
     echoTurn = async () => ({ stopReason: 'end_turn' });
   } else {
@@ -176,7 +178,16 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
       }
       throw err;
     }
-    turnFactory = () => makeACPServerAgentTurn({ agentFor });
+    // An editor driving WrongStack over ACP runs real turns; HQ never saw
+    // any of them. One publisher for the process, one session node per ACP
+    // session.
+    hqTelemetry = startAcpHqTelemetry({
+      projectRoot: deps.cwd ?? process.cwd(),
+      projectName: path.basename(deps.cwd ?? process.cwd()),
+      appConfig: deps.config,
+    });
+    const tracked = hqTelemetry.wrapAgentFactory(agentFor);
+    turnFactory = () => makeACPServerAgentTurn({ agentFor: tracked });
     store = deps.paths?.projectDir
       ? new ACPSessionStore({ dir: path.join(deps.paths.projectDir, 'acp-sessions') })
       : undefined;
@@ -220,7 +231,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
         ? {
             replayFor: connectionTurn.replay,
             seedFor: connectionTurn.seed,
-            disposeFor: connectionTurn.dispose,
+            disposeFor: hqTelemetry?.wrapDispose(connectionTurn.dispose) ?? connectionTurn.dispose,
           }
         : {}),
       ...(store ? { store } : {}),
@@ -273,6 +284,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
         }
       }
       wss.close();
+      hqTelemetry?.stop();
       resolve();
     };
     process.on('SIGINT', shutdown);
@@ -292,6 +304,8 @@ async function runACPServer(deps: SubcommandDeps): Promise<number> {
   // client without needing a configured provider.
   const echo = deps.flags?.echo === true || deps.flags?.echo === 'true';
 
+  // Declared outside the IIFE so the shutdown path below can stop it.
+  let stdioHqTelemetry: AcpHqTelemetry | undefined;
   const server = new WrongStackACPServer(
     echo
       ? {}
@@ -306,7 +320,14 @@ async function runACPServer(deps: SubcommandDeps): Promise<number> {
             }
             throw err;
           }
-          const turn = makeACPServerAgentTurn({ agentFor });
+          stdioHqTelemetry = startAcpHqTelemetry({
+            projectRoot: deps.cwd ?? process.cwd(),
+            projectName: path.basename(deps.cwd ?? process.cwd()),
+            appConfig: deps.config,
+          });
+          const turn = makeACPServerAgentTurn({
+            agentFor: stdioHqTelemetry.wrapAgentFactory(agentFor),
+          });
           // Persist sessions under the project's wstack dir so `session/load`
           // survives a server restart (project-scoped, not in the repo).
           const store = deps.paths?.projectDir
@@ -316,7 +337,7 @@ async function runACPServer(deps: SubcommandDeps): Promise<number> {
             runTurn: turn,
             replayFor: turn.replay,
             seedFor: turn.seed,
-            disposeFor: turn.dispose,
+            disposeFor: stdioHqTelemetry!.wrapDispose(turn.dispose),
             ...(store ? { store } : {}),
           };
         })(),
@@ -351,6 +372,9 @@ async function runACPServer(deps: SubcommandDeps): Promise<number> {
           `ACP stop failed: ${err instanceof Error ? err.message : String(err)}\n`,
         );
       }
+      // Publishes `session.ended` for every live ACP session, so the fleet
+      // map loses the nodes on shutdown instead of ageing them out.
+      stdioHqTelemetry?.stop();
     },
   }).install();
 

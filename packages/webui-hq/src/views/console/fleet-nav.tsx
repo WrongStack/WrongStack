@@ -14,8 +14,10 @@ import type * as React from 'react';
 import { useMemo, useState } from 'react';
 import { EmptyState, StatusDot } from '../../components/hq/primitives.js';
 import { useHqStore } from '../../data/store/index.js';
-import { buildNav } from '../../domain/fleet-nav-tree.js';
+import { buildNavFromTopology } from '../../domain/fleet-nav-tree.js';
+import { buildFleetTopology } from '../../domain/fleet-topology.js';
 import { activityTone } from '../../domain/status-tone.js';
+import { useRetainedFleetTopology } from '../../domain/use-fleet-retention.js';
 import { cn } from '../../lib/utils.js';
 
 const ROW =
@@ -41,7 +43,13 @@ export function FleetNav({
   selectedSessionId: string | null;
   selectedAgentId: string | null;
 }): React.ReactElement {
-  const machines = useMemo(() => buildNav(snapshot), [snapshot]);
+  // Same retention the Fleet Map uses, from the same topology. A publisher
+  // reconnect empties that client's session state server-side, so without it
+  // the selector drops the terminal you are reading — and the selection with
+  // it — for as long as the reconnect takes.
+  const liveTopology = useMemo(() => buildFleetTopology(snapshot), [snapshot]);
+  const topology = useRetainedFleetTopology(liveTopology);
+  const machines = useMemo(() => buildNavFromTopology(topology), [topology]);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
 
   const toggle = (id: string): void =>
@@ -127,10 +135,15 @@ export function FleetNav({
                                 className={cn(
                                   ROW,
                                   clientSelected && 'bg-accent/60 font-medium text-foreground',
+                                  client.retained === true && 'opacity-60',
                                 )}
                                 disabled={client.synthetic}
                                 title={
-                                  client.synthetic ? 'waiting for session telemetry' : client.label
+                                  client.synthetic
+                                    ? 'waiting for session telemetry'
+                                    : client.retained === true
+                                      ? `${client.label} — not reporting, reconnecting…`
+                                      : client.label
                                 }
                                 onClick={() => {
                                   if (client.synthetic) return;
@@ -170,6 +183,7 @@ export function FleetNav({
                                       ROW,
                                       'pl-6',
                                       agentSelected && 'bg-accent/60 font-medium text-foreground',
+                                      agent.retained === true && 'opacity-60',
                                     )}
                                     onClick={() => {
                                       useHqStore.getState().selectAgent(client.sessionId, agent.id);

@@ -4,7 +4,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Config, Logger, Plugin } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadExternalPlugins } from '../src/wiring/external-plugins.js';
+import {
+  loadExternalPlugins,
+  resolveExternalPluginTrustMode,
+} from '../src/wiring/external-plugins.js';
 
 const log = {
   info: vi.fn(),
@@ -387,5 +390,252 @@ describe('loadExternalPlugins — directory discovery', () => {
       hooks,
     );
     expect(loaded).toEqual([]);
+  });
+});
+
+describe('external-plugin trust failure modes (required/tofu/advisory)', () => {
+  function configWithTrustMode(mode: unknown, plugins: Config['plugins']): Config {
+    const config = makeConfig(plugins);
+    (config.features as unknown as Record<string, unknown>).pluginsTrust = mode;
+    return config;
+  }
+
+  it('resolveExternalPluginTrustMode maps config values to modes', () => {
+    expect(resolveExternalPluginTrustMode(undefined)).toBe('tofu');
+    expect(resolveExternalPluginTrustMode(true)).toBe('tofu');
+    expect(resolveExternalPluginTrustMode('tofu')).toBe('tofu');
+    expect(resolveExternalPluginTrustMode(false)).toBe('off');
+    expect(resolveExternalPluginTrustMode('required')).toBe('required');
+    expect(resolveExternalPluginTrustMode('advisory')).toBe('advisory');
+    expect(resolveExternalPluginTrustMode('bogus')).toBe('tofu');
+  });
+
+  it("'required' refuses a bare spec whose entry cannot be resolved pre-import", async () => {
+    const globalRoot = await tempDir('ws-ext-global-');
+    const projectRoot = await tempDir('ws-ext-project-');
+    const stub = importStub({});
+    const loaded = await loadExternalPlugins(
+      {
+        config: configWithTrustMode('required', ['unresolvable-spec-plugin']),
+        log,
+        globalRoot,
+        projectRoot,
+        reservedNames: new Set(),
+        importModule: stub.importModule,
+      },
+      hooks,
+    );
+    expect(loaded).toEqual([]);
+    // The refusal happens at the trust gate — nothing was imported.
+    expect(stub.calls).toEqual([]);
+    const errors = (log.error as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => String(c[0]))
+      .join('\n');
+    expect(errors).toContain("features.pluginsTrust is 'required'");
+  });
+
+  it("'required' refuses all external plugins when no trust store location exists", async () => {
+    const projectRoot = await tempDir('ws-ext-project-');
+    const entry = await writeEntry(join(projectRoot, 'nostore-plugin'));
+    const stub = importStub({ [entry]: pluginFixture('nostore-plugin') });
+    const loaded = await loadExternalPlugins(
+      {
+        // No globalRoot and no trustStorePath — 'required' cannot be honored.
+        config: configWithTrustMode('required', [{ name: 'nostore-plugin', path: entry }]),
+        log,
+        projectRoot,
+        reservedNames: new Set(),
+        importModule: stub.importModule,
+      },
+      hooks,
+    );
+    expect(loaded).toEqual([]);
+    expect(stub.calls).toEqual([]);
+    const errors = (log.error as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => String(c[0]))
+      .join('\n');
+    expect(errors).toContain('no trust store location is available');
+  });
+
+  it("'required' refuses a plugin whose first-use pin cannot be persisted; tofu warns and loads", async () => {
+    const mk = async () => {
+      const globalRoot = await tempDir('ws-ext-global-');
+      const projectRoot = await tempDir('ws-ext-project-');
+      const entry = await writeEntry(join(projectRoot, 'pin-fail-plugin'));
+      // Point the trust store AT a directory: the EISDIR read is swallowed as
+      // an empty store, but the pin's atomic rename onto the directory path
+      // fails — exercising the pin-persist downgrade branch deterministically.
+      const storeDir = join(globalRoot, 'trust-store-dir');
+      await fs.mkdir(storeDir, { recursive: true });
+      const stub = importStub({ [entry]: pluginFixture('pin-fail-plugin') });
+      return { globalRoot, projectRoot, entry, stub } as const;
+    };
+
+    const req = await mk();
+    const requiredLoaded = await loadExternalPlugins(
+      {
+        config: configWithTrustMode('required', [{ name: 'pin-fail-plugin', path: req.entry }]),
+        log,
+        globalRoot: req.globalRoot,
+        projectRoot: req.projectRoot,
+        reservedNames: new Set(),
+        trustStorePath: join(req.globalRoot, 'trust-store-dir'),
+        importModule: req.stub.importModule,
+      },
+      hooks,
+    );
+    expect(requiredLoaded).toEqual([]);
+    expect(req.stub.calls).toEqual([]);
+    const errors = (log.error as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => String(c[0]))
+      .join('\n');
+    expect(errors).toContain('could not be persisted');
+
+    const tofu = await mk();
+    const tofuLoaded = await loadExternalPlugins(
+      {
+        config: configWithTrustMode('tofu', [{ name: 'pin-fail-plugin', path: tofu.entry }]),
+        log,
+        globalRoot: tofu.globalRoot,
+        projectRoot: tofu.projectRoot,
+        reservedNames: new Set(),
+        trustStorePath: join(tofu.globalRoot, 'trust-store-dir'),
+        importModule: tofu.stub.importModule,
+      },
+      hooks,
+    );
+    expect(tofuLoaded.map((p) => p.name)).toEqual(['pin-fail-plugin']);
+    const warned = (log.warn as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => String(c[0]))
+      .join('\n');
+    expect(warned).toContain('could not persist trust pin');
+  });
+
+  it("'required'/'tofu' refuse all externals on a corrupt trust store; 'advisory' loads ungated with a warning", async () => {
+    const mk = async () => {
+      const globalRoot = await tempDir('ws-ext-global-');
+      const projectRoot = await tempDir('ws-ext-project-');
+      const entry = await writeEntry(join(projectRoot, 'corrupt-plugin'));
+      await fs.writeFile(join(globalRoot, 'plugin-trust.json'), 'not json {{', 'utf8');
+      const stub = importStub({ [entry]: pluginFixture('corrupt-plugin') });
+      return { globalRoot, projectRoot, entry, stub } as const;
+    };
+
+    for (const mode of ['required', 'tofu', true]) {
+      const { globalRoot, projectRoot, entry, stub } = await mk();
+      const loaded = await loadExternalPlugins(
+        {
+          config: configWithTrustMode(mode, [{ name: 'corrupt-plugin', path: entry }]),
+          log,
+          globalRoot,
+          projectRoot,
+          reservedNames: new Set(),
+          importModule: stub.importModule,
+        },
+        hooks,
+      );
+      expect(loaded).toEqual([]);
+      expect(stub.calls).toEqual([]);
+    }
+
+    const adv = await mk();
+    const advisoryLoaded = await loadExternalPlugins(
+      {
+        config: configWithTrustMode('advisory', [{ name: 'corrupt-plugin', path: adv.entry }]),
+        log,
+        globalRoot: adv.globalRoot,
+        projectRoot: adv.projectRoot,
+        reservedNames: new Set(),
+        importModule: adv.stub.importModule,
+      },
+      hooks,
+    );
+    expect(advisoryLoaded.map((p) => p.name)).toEqual(['corrupt-plugin']);
+    const warned = (log.warn as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => String(c[0]))
+      .join('\n');
+    expect(warned).toContain("'advisory', loading external plugins WITHOUT integrity checks");
+  });
+
+  it("'advisory' loads a changed entry file with a warning while required still refuses", async () => {
+    const mk = async () => {
+      const globalRoot = await tempDir('ws-ext-global-');
+      const projectRoot = await tempDir('ws-ext-project-');
+      const entry = await writeEntry(join(projectRoot, 'adv-plugin'), 'export default 1;');
+      // Pin a hash that does NOT match the file on disk (changed entry).
+      await fs.writeFile(
+        join(globalRoot, 'plugin-trust.json'),
+        JSON.stringify({
+          pinned: {
+            [entry.replaceAll('\\', '/')]: {
+              entry,
+              integrity: 'sha256-' + '0'.repeat(64),
+              pinnedAt: '2026-01-01T00:00:00.000Z',
+            },
+          },
+        }),
+        'utf8',
+      );
+      const stub = importStub({ [entry]: pluginFixture('adv-plugin') });
+      return { globalRoot, projectRoot, entry, stub } as const;
+    };
+
+    const adv = await mk();
+    const advisoryLoaded = await loadExternalPlugins(
+      {
+        config: configWithTrustMode('advisory', [{ name: 'adv-plugin', path: adv.entry }]),
+        log,
+        globalRoot: adv.globalRoot,
+        projectRoot: adv.projectRoot,
+        reservedNames: new Set(),
+        importModule: adv.stub.importModule,
+      },
+      hooks,
+    );
+    expect(advisoryLoaded.map((p) => p.name)).toEqual(['adv-plugin']);
+    const warned = (log.warn as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => String(c[0]))
+      .join('\n');
+    expect(warned).toContain("'advisory', loading anyway WITHOUT integrity enforcement");
+
+    const req = await mk();
+    const requiredLoaded = await loadExternalPlugins(
+      {
+        config: configWithTrustMode('required', [{ name: 'adv-plugin', path: req.entry }]),
+        log,
+        globalRoot: req.globalRoot,
+        projectRoot: req.projectRoot,
+        reservedNames: new Set(),
+        importModule: req.stub.importModule,
+      },
+      hooks,
+    );
+    expect(requiredLoaded).toEqual([]);
+    expect(req.stub.calls).toEqual([]);
+  });
+
+  it('tofu/advisory without a trust store still load, but warn that integrity checks are off', async () => {
+    for (const mode of ['tofu', 'advisory', true]) {
+      const projectRoot = await tempDir('ws-ext-project-');
+      const entry = await writeEntry(join(projectRoot, 'nostore-warn-plugin'));
+      const stub = importStub({ [entry]: pluginFixture('nostore-warn-plugin') });
+      const loaded = await loadExternalPlugins(
+        {
+          // No globalRoot / trustStorePath — the integrity gate cannot run.
+          config: configWithTrustMode(mode, [{ name: 'nostore-warn-plugin', path: entry }]),
+          log,
+          projectRoot,
+          reservedNames: new Set(),
+          importModule: stub.importModule,
+        },
+        hooks,
+      );
+      // Back-compat: the plugin still loads, but never silently.
+      expect(loaded.map((p) => p.name)).toEqual(['nostore-warn-plugin']);
+      const warned = (log.warn as ReturnType<typeof vi.fn>).mock.calls
+        .map((c) => String(c[0]))
+        .join('\n');
+      expect(warned).toContain('load WITHOUT integrity checks');
+    }
   });
 });

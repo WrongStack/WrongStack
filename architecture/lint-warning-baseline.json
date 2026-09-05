@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "entries": {
+    "lint/a11y/noLabelWithoutControl|production|warning": 1,
+    "lint/a11y/noStaticElementInteractions|production|warning": 1,
+    "lint/a11y/useAriaPropsSupportedByRole|production|warning": 1,
+    "lint/a11y/useFocusableInteractive|production|warning": 1,
+    "lint/a11y/useKeyWithClickEvents|production|warning": 4,
+    "lint/a11y/useSemanticElements|production|warning": 5,
+    "lint/complexity/noCommaOperator|production|warning": 2,
+    "lint/complexity/useArrowFunction|test|warning": 1,
+    "lint/complexity/useOptionalChain|production|warning": 4,
+    "lint/complexity/useOptionalChain|test|warning": 1,
+    "lint/complexity/useRegexLiterals|test|warning": 1,
+    "lint/correctness/noUnusedFunctionParameters|production|warning": 2,
+    "lint/correctness/noUnusedImports|production|warning": 15,
+    "lint/correctness/noUnusedImports|test|warning": 4,
+    "lint/correctness/noUnusedVariables|production|warning": 20,
+    "lint/correctness/noUnusedVariables|test|warning": 3,
+    "lint/suspicious/noAssignInExpressions|production|warning": 6,
+    "lint/suspicious/noAssignInExpressions|test|warning": 2,
+    "lint/suspicious/noExplicitAny|production|warning": 78,
+    "lint/suspicious/noPrototypeBuiltins|test|warning": 2,
+    "lint/suspicious/noTemplateCurlyInString|production|warning": 2,
+    "lint/suspicious/noTemplateCurlyInString|test|warning": 8
+  }
+}

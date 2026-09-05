@@ -361,7 +361,7 @@
       "newSessionTitle": "Start a new session (Ctrl+N)",
       "exportTitle": "Export chat as markdown (Ctrl+E)",
       "compactTitle": "Compact the context window",
-      "clearTitle": "Clear context (Ctrl+L)"
+      "clearTitle": "Close this session and start a new one in this tab"
     },
     "model": "Model",
     "modelTitle": "Change model (Ctrl+M)",

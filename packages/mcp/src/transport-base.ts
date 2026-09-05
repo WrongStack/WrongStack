@@ -1,6 +1,7 @@
 import * as https from 'node:https';
 import { ConfigError } from '@wrongstack/core/types';
 import type { HttpDispatcher } from '@wrongstack/core/utils';
+import { Agent as UndiciAgent, fetch as undiciFetch } from 'undici';
 import {
   authorizationHeaderForToken,
   canonicalMcpResource,
@@ -9,10 +10,37 @@ import {
 } from './authorization.js';
 import type { ConnectionState, MCPTool } from './contracts.js';
 import type { MCPServerMetadata } from './protocol.js';
-import { isTlsUnsafeAllowed, validateTransportUrl } from './transport-security.js';
+import {
+  ALLOW_MCP_PRIVATE_NETWORKS,
+  isTlsUnsafeAllowed,
+  type TransportDnsLookup,
+  transportPinnedLookup,
+  validateTransportUrl,
+} from './transport-security.js';
 
 /** Redirect hops an MCP HTTP transport will follow, each revalidated (WS-085). */
 const MAX_TRANSPORT_REDIRECTS = 5;
+
+// Node's bundled global fetch rejects a dispatcher created by the workspace's
+// `undici` package (different ABI: "invalid onRequestStart method"), so the
+// pinned Agent must be paired with the package's own fetch — mirroring
+// tools/_fetch-guard.ts. Test/user shims that replaced globalThis.fetch are
+// honored as-is.
+const nativeGlobalFetch = globalThis.fetch;
+
+// Every transport's pinned Agent registers here so long-running processes
+// (MCP server mode, eternal autonomy) tear their connection pools down on
+// exit instead of leaking sockets.
+const pinnedAgents = new Set<UndiciAgent>();
+let pinnedAgentsCleanupRegistered = false;
+/* v8 ignore next 6 -- process 'beforeExit' cleanup; not deterministically triggerable in-test. */
+if (!pinnedAgentsCleanupRegistered) {
+  pinnedAgentsCleanupRegistered = true;
+  process.on('beforeExit', () => {
+    for (const agent of pinnedAgents) agent.destroy();
+    pinnedAgents.clear();
+  });
+}
 
 export interface HttpTransportOptions {
   name: string;
@@ -36,6 +64,21 @@ export interface HttpTransportOptions {
    * servers must present a valid certificate.
    */
   tls?: { ca?: string | undefined; rejectUnauthorized?: boolean | undefined };
+  /**
+   * Resolution-bound private-network policy. Default: the transport resolves
+   * the configured hostname itself and refuses dial-time addresses outside
+   * the public internet — link-local/IMDS always, other private/LAN ranges
+   * unless this flag is set. The configured hostname is still used for the
+   * Host header and TLS SNI, so certificate validation is unaffected, and
+   * plaintext http:// remains loopback-only (validateTransportUrl).
+   */
+  allowPrivateNetworks?: boolean | undefined;
+  /**
+   * DNS seam for tests and hosts with custom resolvers. Production callers
+   * omit it: dns.lookup(hostname, { all: true }) runs and every returned
+   * record is policy-checked before the dial.
+   */
+  lookup?: TransportDnsLookup | undefined;
 }
 
 /**
@@ -94,6 +137,10 @@ export abstract class BaseHTTPTransport {
   protected readonly authorizationResource: string;
   /** Per-request TLS agent — created once from HttpTransportOptions.tls */
   protected readonly tlsAgent?: https.Agent | undefined;
+  private readonly tlsOptions: HttpTransportOptions['tls'];
+  private readonly allowPrivateNetworks: boolean;
+  private readonly lookup: TransportDnsLookup | undefined;
+  private pinnedAgent: UndiciAgent | undefined;
   protected readonly tools: MCPTool[] = [];
   protected serverMetadata?: MCPServerMetadata | undefined;
   protected abortController?: AbortController | undefined;
@@ -133,6 +180,9 @@ export abstract class BaseHTTPTransport {
         rejectUnauthorized: opts.tls.rejectUnauthorized,
       });
     }
+    this.tlsOptions = opts.tls;
+    this.allowPrivateNetworks = opts.allowPrivateNetworks === true || ALLOW_MCP_PRIVATE_NETWORKS;
+    this.lookup = opts.lookup;
   }
 
   getState(): ConnectionState {
@@ -172,7 +222,15 @@ export abstract class BaseHTTPTransport {
       let currentUrl = typeof input === 'string' ? input : String(input);
       let hopHeaders = headers;
       for (let hop = 0; hop < MAX_TRANSPORT_REDIRECTS; hop++) {
-        const res = await fetch(currentUrl, { ...init, headers: hopHeaders, redirect: 'manual' });
+        const fetchOpts: RequestInit = { ...init, headers: hopHeaders, redirect: 'manual' };
+        // Resolution-bound connect (spike b1a8814a): the pinned dispatcher
+        // performs the single DNS lookup the dial uses and refuses
+        // link-local/IMDS targets always and private/LAN targets unless the
+        // server opted in — re-checked on every redirect hop. Overrides a
+        // subclass's plain TLS dispatcher; the pinned Agent embeds the same
+        // TLS options, so certificate behavior is unchanged.
+        this.applyPinnedDispatcher(fetchOpts);
+        const res = await this.dispatcherFetch()(currentUrl, fetchOpts);
         if (
           res.status !== 301 &&
           res.status !== 302 &&
@@ -288,12 +346,72 @@ export abstract class BaseHTTPTransport {
     }
   }
 
+  private dispatcherFetch(): typeof globalThis.fetch {
+    // Honors test/user fetch shims. SECURITY NOTE: only the native path
+    // enforces the resolution-bound policy at the dial (its Agent runs the
+    // pinning lookup); a shim ignores RequestInit.dispatcher, so dial-time
+    // enforcement under a shim depends on that shim. Shims are a test-only
+    // construct — replacing globalThis.fetch in a production process is
+    // already process compromise, the same assumption tools/_fetch-guard.ts
+    // makes. The policy is exercised end-to-end against real dials in
+    // packages/mcp/tests/transport-pinning.test.ts.
+    return globalThis.fetch === nativeGlobalFetch
+      ? (undiciFetch as unknown as typeof globalThis.fetch)
+      : globalThis.fetch;
+  }
+
+  private pinnedDispatcher(): UndiciAgent {
+    if (!this.pinnedAgent) {
+      // allowH2: false keeps the proven HTTP/1.1 transport (undici 8's H2
+      // streams can emit late unhandled errors after fetch rejects). The
+      // connect lookup is the single DNS resolution the dial performs and it
+      // enforces the address policy, closing the rebinding window between
+      // validation and connect. TLS options ride in connect, so replacing a
+      // subclass's plain TLS dispatcher does not weaken certificate checks.
+      // `connections` stays at the undici default (unlimited per origin) so
+      // concurrent streamable requests and an open SSE stream never
+      // head-of-line block each other; releasePinnedDispatcher() tears the
+      // pool down on close, and the beforeExit sweep is the backstop.
+      const tls = this.tlsOptions;
+      this.pinnedAgent = new UndiciAgent({
+        allowH2: false,
+        connect: {
+          ...(tls ? { ca: tls.ca, rejectUnauthorized: tls.rejectUnauthorized } : {}),
+          lookup: transportPinnedLookup({
+            allowPrivateNetworks: this.allowPrivateNetworks,
+            lookup: this.lookup,
+          }) as never,
+        },
+      });
+      pinnedAgents.add(this.pinnedAgent);
+    }
+    return this.pinnedAgent;
+  }
+
+  private applyPinnedDispatcher(fetchOpts: RequestInit): void {
+    fetchOpts.dispatcher = this.pinnedDispatcher() as never as HttpDispatcher;
+  }
+
+  /**
+   * Destroy this transport's pinned Agent and its connection pool. Idempotent.
+   * Subclasses call it from close(); the process-exit sweep is the backstop.
+   */
+  protected releasePinnedDispatcher(): void {
+    if (!this.pinnedAgent) return;
+    pinnedAgents.delete(this.pinnedAgent);
+    this.pinnedAgent.destroy();
+    this.pinnedAgent = undefined;
+  }
+
   /**
    * Apply the pinned TLS agent (if configured) to a `RequestInit` object.
    * Uses `HttpDispatcher` from `@wrongstack/core`'s dispatcher-types shim,
    * which declares `https.Agent` compatible with `RequestInit.dispatcher`.
    * Verified safe: https.Agent implements the `dispatch(req, opts)` method
    * that fetch requires at runtime.
+   *
+   * Superseded at fetch time by `applyPinnedDispatcher`, whose Agent embeds
+   * these same TLS options plus the resolution-bound lookup.
    */
   protected applyTlsAgent(fetchOpts: RequestInit): void {
     if (this.tlsAgent) {

@@ -38,6 +38,17 @@ export interface HqSteerCommand {
   subject: string;
   body: string;
   priority?: 'low' | 'normal' | 'high';
+  /**
+   * The session this command is for.
+   *
+   * A command is addressed to a CLIENT, and one client process can hold
+   * several sessions at once (the WebUI gives every open tab its own). Without
+   * this the command lands on whichever session that host treats as its
+   * leader, so an operator who picked tab 3 in HQ steered tab 1. Absent means
+   * "the session this client speaks for", which is what every pre-session
+   * dashboard sends.
+   */
+  sessionId?: string;
 }
 
 /**
@@ -52,6 +63,17 @@ export interface HqBtwCommand {
   subject: string;
   body: string;
   priority?: 'low' | 'normal' | 'high';
+  /**
+   * The session this command is for.
+   *
+   * A command is addressed to a CLIENT, and one client process can hold
+   * several sessions at once (the WebUI gives every open tab its own). Without
+   * this the command lands on whichever session that host treats as its
+   * leader, so an operator who picked tab 3 in HQ steered tab 1. Absent means
+   * "the session this client speaks for", which is what every pre-session
+   * dashboard sends.
+   */
+  sessionId?: string;
 }
 
 /**
@@ -66,6 +88,17 @@ export interface HqQueueCommand {
   subject: string;
   body: string;
   priority?: 'low' | 'normal' | 'high';
+  /**
+   * The session this command is for.
+   *
+   * A command is addressed to a CLIENT, and one client process can hold
+   * several sessions at once (the WebUI gives every open tab its own). Without
+   * this the command lands on whichever session that host treats as its
+   * leader, so an operator who picked tab 3 in HQ steered tab 1. Absent means
+   * "the session this client speaks for", which is what every pre-session
+   * dashboard sends.
+   */
+  sessionId?: string;
 }
 
 /** Abort a running agent run or fleet. */
@@ -73,6 +106,17 @@ export interface HqAbortCommand {
   type: 'abort';
   /** `'leader'` aborts the session leader; a subagentId aborts one agent; `'fleet'` stops all. */
   target: 'leader' | 'fleet' | string;
+  /**
+   * The session this command is for.
+   *
+   * A command is addressed to a CLIENT, and one client process can hold
+   * several sessions at once (the WebUI gives every open tab its own). Without
+   * this the command lands on whichever session that host treats as its
+   * leader, so an operator who picked tab 3 in HQ steered tab 1. Absent means
+   * "the session this client speaks for", which is what every pre-session
+   * dashboard sends.
+   */
+  sessionId?: string;
 }
 
 /** Spawn a subagent of the given role. */
@@ -82,6 +126,17 @@ export interface HqSpawnCommand {
   /** Optional task description for dispatch routing. */
   task?: string;
   maxIterations?: number;
+  /**
+   * The session this command is for.
+   *
+   * A command is addressed to a CLIENT, and one client process can hold
+   * several sessions at once (the WebUI gives every open tab its own). Without
+   * this the command lands on whichever session that host treats as its
+   * leader, so an operator who picked tab 3 in HQ steered tab 1. Absent means
+   * "the session this client speaks for", which is what every pre-session
+   * dashboard sends.
+   */
+  sessionId?: string;
 }
 
 /** Broadcast a mailbox message to all agents on the target's project. */
@@ -98,6 +153,17 @@ export interface HqRunCommandCommand {
   command: string;
   /** Optional working directory (defaults to the agent's project root). */
   cwd?: string;
+  /**
+   * The session this command is for.
+   *
+   * A command is addressed to a CLIENT, and one client process can hold
+   * several sessions at once (the WebUI gives every open tab its own). Without
+   * this the command lands on whichever session that host treats as its
+   * leader, so an operator who picked tab 3 in HQ steered tab 1. Absent means
+   * "the session this client speaks for", which is what every pre-session
+   * dashboard sends.
+   */
+  sessionId?: string;
 }
 
 export type HqCommand =
@@ -122,6 +188,22 @@ const HQ_COMMAND_TYPE_SET = new Set<string>(HQ_COMMAND_TYPES);
  * at enqueue time (browser token must have `control.enqueue`) and at execute
  * time (`run-command` requires `control.execute`).
  */
+/**
+ * Carry an optional session address through validation.
+ *
+ * The validator rebuilds each command from named fields, so anything it does
+ * not copy is silently dropped — which is the right default, and the reason
+ * this has to be explicit.
+ */
+function withSessionId<T extends { sessionId?: string }>(
+  result: T,
+  payload: Record<string, unknown>,
+): T {
+  const sessionId = payload['sessionId'];
+  if (typeof sessionId === 'string' && sessionId.length > 0) result.sessionId = sessionId;
+  return result;
+}
+
 export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
   if (!HQ_COMMAND_TYPE_SET.has(queued.type)) return null;
   const p = queued.payload as Record<string, unknown>;
@@ -144,7 +226,7 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
       if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
         result.priority = p['priority'];
       }
-      return result;
+      return withSessionId(result, p);
     }
     case 'btw': {
       if (
@@ -163,7 +245,7 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
       if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
         result.priority = p['priority'];
       }
-      return result;
+      return withSessionId(result, p);
     }
     case 'queue': {
       if (
@@ -182,17 +264,17 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
       if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
         result.priority = p['priority'];
       }
-      return result;
+      return withSessionId(result, p);
     }
     case 'abort':
       if (typeof p['target'] !== 'string') return null;
-      return { type: 'abort', target: p['target'] };
+      return withSessionId<HqAbortCommand>({ type: 'abort', target: p['target'] }, p);
     case 'spawn': {
       if (typeof p['role'] !== 'string') return null;
       const result: HqSpawnCommand = { type: 'spawn', role: p['role'] };
       if (typeof p['task'] === 'string') result.task = p['task'];
       if (typeof p['maxIterations'] === 'number') result.maxIterations = p['maxIterations'];
-      return result;
+      return withSessionId(result, p);
     }
     case 'broadcast': {
       if (typeof p['subject'] !== 'string' || typeof p['body'] !== 'string') return null;
@@ -210,7 +292,7 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
       if (typeof p['command'] !== 'string') return null;
       const result: HqRunCommandCommand = { type: 'run-command', command: p['command'] };
       if (typeof p['cwd'] === 'string') result.cwd = p['cwd'];
-      return result;
+      return withSessionId(result, p);
     }
     default:
       return null;

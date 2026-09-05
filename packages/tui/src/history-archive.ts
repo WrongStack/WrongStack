@@ -31,14 +31,34 @@ interface OffsetIndexEntry {
 }
 
 /**
- * Thread-safe token bucket for serializing file writes. Multiple callers
- * can request a flush token concurrently; only one drains at a time,
- * and the freshest pending write replaces any queued one.
+ * Token bucket for serializing file writes. Multiple callers can request a
+ * flush concurrently; only one drains at a time and later callers batch
+ * into the same drain, so every queued line is written exactly once.
  */
 interface DrainToken {
   buffer: string[];
   promise: Promise<void>;
   resolve: () => void;
+}
+
+/**
+ * A JSONL line counts as blank when it holds only whitespace — the ASCII
+ * range is decided on bytes (cheap, per-chunk); a line containing high bytes
+ * falls back to String#trim so Unicode-whitespace-only lines stay blank.
+ */
+function isBlankLine(line: Buffer): boolean {
+  let sawHighByte = false;
+  for (let i = 0; i < line.length; i++) {
+    const byte = line[i] ?? 0;
+    if (byte >= 0x80) {
+      sawHighByte = true;
+      break;
+    }
+    // 0x09..0x0d = \t \n \v \f \r; 0x20 = space
+    if (byte !== 0x20 && (byte < 0x09 || byte > 0x0d)) return false;
+  }
+  if (!sawHighByte) return true;
+  return line.toString('utf8').trim().length === 0;
 }
 
 /**
@@ -68,6 +88,8 @@ export class HistoryArchive {
 
   private writeChain: Promise<void> = Promise.resolve();
   private drainToken: DrainToken | null = null;
+  /** In-flight `fsp.open`, so concurrent first-uses share one handle. */
+  private opening: Promise<fsp.FileHandle> | null = null;
 
   constructor(sessionDir: string) {
     this.filePath = path.join(sessionDir, 'history-archive.jsonl');
@@ -92,6 +114,13 @@ export class HistoryArchive {
    */
   async loadRange(startIndex: number, count: number): Promise<HistoryEntry[]> {
     if (this.closed || count <= 0) return [];
+    // append() is fire-and-forget, so a page requested right after appends
+    // must order against the write chain — otherwise the index below is
+    // built from a file that does not yet contain this page's own lines.
+    await this.writeChain;
+    // close() may have raced the await above: a closed archive must not
+    // reopen its file (the handle close() released could not be reclaimed).
+    if (this.closed) return [];
     await this.buildIndex();
     if (!this.index) return [];
 
@@ -132,8 +161,11 @@ export class HistoryArchive {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
-    // Drain any pending write
+    // Drain queued writes and let any in-flight open land so the handle it
+    // adopts is released below instead of leaking past close().
     await this.writeChain;
+    await this.opening?.catch(() => undefined);
+    this.opening = null;
     if (this.handle) {
       try {
         await this.handle.close();
@@ -147,10 +179,19 @@ export class HistoryArchive {
   // ── Internals ────────────────────────────────────────────────────────
 
   private async ensureOpen(): Promise<fsp.FileHandle> {
-    if (this.handle) return this.handle;
-    await fsp.mkdir(path.dirname(this.filePath), { recursive: true });
-    this.handle = await fsp.open(this.filePath, 'a+', 0o600);
-    return this.handle;
+    const existing = this.handle;
+    if (existing) return existing;
+    // Memoize the in-flight open: two concurrent first-uses (e.g. a write
+    // draining while a page loads) must not each open their own handle —
+    // the loser would only be closed by garbage collection. The open is
+    // always adopted; close() awaits it and releases the handle.
+    this.opening ??= (async () => {
+      await fsp.mkdir(path.dirname(this.filePath), { recursive: true });
+      const handle = await fsp.open(this.filePath, 'a+', 0o600);
+      this.handle = handle;
+      return handle;
+    })();
+    return this.opening;
   }
 
   /**
@@ -167,32 +208,63 @@ export class HistoryArchive {
       return;
     }
 
-    const buf = Buffer.allocUnsafe(stat.size);
-    await handle.read(buf, 0, stat.size, 0);
-    const text = buf.toString('utf8');
-    const lines = text.split('\n');
-
+    // Stream the file in bounded chunks instead of materializing it: RSS
+    // must not grow with archive size (the whole point of the index is to
+    // avoid whole-file scans on every page load). Newline bytes are safe to
+    // scan for directly — UTF-8 continuation bytes are always >= 0x80.
+    const CHUNK_BYTES = 1024 * 1024;
     const idx: OffsetIndexEntry[] = [];
-    let offset = 0;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      // JSONL line includes the newline. split('\n') strips it, so add 1 back.
-      const lineBytes = Buffer.byteLength(line, 'utf8') + 1;
-      if (line.trim().length === 0) {
-        offset += lineBytes;
-        continue;
+    const pushLine = (line: Buffer, offset: number, length: number): void => {
+      if (isBlankLine(line)) return;
+      idx.push({ index: idx.length, offset, length });
+    };
+
+    let read = 0; // absolute file offset of the next chunk
+    let lineStart = 0; // absolute offset where the current line begins
+    let pending: Buffer | null = null; // carries a line spanning chunks
+    let chunk = Buffer.allocUnsafe(Math.min(CHUNK_BYTES, stat.size));
+    while (read < stat.size) {
+      const want = Math.min(CHUNK_BYTES, stat.size - read);
+      // One reusable buffer: fresh allocations per chunk would let RSS grow
+      // with the file until garbage collection runs.
+      if (chunk.length !== want) chunk = Buffer.allocUnsafe(want);
+      const { bytesRead } = await handle.read(chunk, 0, want, read);
+      if (bytesRead <= 0) break; // short read: treat as EOF, retry rebuilds
+      let cursor = 0;
+      for (;;) {
+        const newline = chunk.indexOf(0x0a, cursor);
+        if (newline === -1) break;
+        const line = pending
+          ? Buffer.concat([pending, chunk.subarray(cursor, newline)])
+          : chunk.subarray(cursor, newline);
+        pending = null;
+        pushLine(line, lineStart, read + newline + 1 - lineStart);
+        cursor = newline + 1;
+        lineStart = read + cursor;
       }
-      idx.push({ index: idx.length, offset, length: lineBytes });
-      offset += lineBytes;
+      if (cursor < bytesRead) {
+        // The chunk buffer is reused below, so a spanning line tail must be
+        // copied out (bounded by the chunk size).
+        const tail = Buffer.from(chunk.subarray(cursor, bytesRead));
+        pending = pending ? Buffer.concat([pending, tail]) : tail;
+      }
+      read += bytesRead;
+      if (bytesRead < want) break;
+    }
+    if (pending !== null && pending.length > 0) {
+      // Unterminated trailing line (append always terminates; hand-edited
+      // files may not). Counted with its TRUE length — the whole-file read
+      // used to overshoot by one byte and drop it as a corrupt record.
+      pushLine(pending, lineStart, read - lineStart);
     }
     this.index = idx;
   }
 
-  /** Serialise writes through a FIFO promise chain with fresh-token coalescing. */
+  /** Serialise writes through a FIFO promise chain with per-drain batching. */
   private enqueueWrite(line: string): void {
-    // If a drain is already in flight, replace its buffer content.
-    // Only keep the freshest data — intermediate lines are superseded
-    // by the latest append (monotonic entry stream).
+    // A drain in flight? Accumulate into the same batch — every queued line
+    // is written; dropping "superseded" lines would lose entries from this
+    // append-only log.
     if (this.drainToken) {
       this.drainToken.buffer.push(line);
       return;

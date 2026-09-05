@@ -351,6 +351,18 @@ The current code uses `crypto.randomBytes(16).toString('hex')` — 128 bits of c
 
 ---
 
+### L-16: MCP Transport URL Validation Is String-Level — DNS Names Could Reach Private Networks
+**File:** `packages/mcp/src/transport-security.ts` (validateTransportUrl) — dial-time enforcement in `packages/mcp/src/transport-base.ts`
+**CWE:** [CWE-918](https://cwe.mitre.org/data/definitions/918.html) — Server-Side Request Forgery (SSRF)
+**Severity:** High
+**Status:** ✅ FIXED — Resolution-bound dial policy (spike b1a8814a)
+
+`validateTransportUrl` inspected the URL string only: a hostname like `internal.corp` — or an attacker-controlled DNS name resolving to `169.254.169.254` / `10.x` — passed the literal checks, and nothing closed the rebinding window between validation and connect. HTTP transports (SSE + streamable) now dial through a pinned undici dispatcher whose connect lookup performs the single DNS resolution the socket uses and classifies every returned record via `isPrivateIPv4`/`isPrivateIPv6` from `@wrongstack/core/utils` (the same guard the fetch tool and MCP OAuth discovery use): link-local/IMDS refused unconditionally — IPv4-mapped IPv6 spellings included; other private/LAN ranges refused unless the server config sets `allowPrivateNetworks: true` or `WRONGSTACK_MCP_ALLOW_PRIVATE=1` globally. Every redirect hop re-resolves and re-checks; the Host header and TLS SNI still use the configured hostname, so certificate validation is unchanged; plaintext http:// remains loopback-only. Test matrix: `packages/mcp/tests/transport-pinning.test.ts` (19 cases: classification table, mapped-IPv6 regression, per-hop re-resolution, live loopback dial with Host preservation, opt-in semantics). Enforcement caveat: test fetch shims that replace `globalThis.fetch` bypass the dial-time lookup (documented at `dispatcherFetch` in transport-base.ts); production runs use the native path and are fully enforced.
+
+ID note: retained as L-16 inside this (mostly Low) series for reference stability — the validated improvement backlog cites this id; its severity is High, as reflected in the summary table above.
+
+---
+
 ## Informational
 
 ### I-1: WebUI Binds to Loopback by Default — Correct
@@ -402,5 +414,6 @@ The `patch` tool checks that diff targets resolve inside the project root before
 | L-13 | Low | CWE-778 | WebUI static file server ignores Range header validation | ✅ Fixed |
 | L-14 | Low | CWE-403 | MCP client shutdown rejects in-flight requests without guard | ✅ Fixed |
 | L-15 | Low | CWE-287 | MCP SSE stream uses timestamp not random token | ✅ Fixed |
+| L-16 | High | CWE-918 | MCP transport URL validation is string-level — DNS rebinding reaches private networks | ✅ Fixed |
 
 **Open issues: 0** — all issues resolved, fixed, or acknowledged

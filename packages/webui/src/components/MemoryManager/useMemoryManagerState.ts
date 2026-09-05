@@ -72,6 +72,7 @@ export function useMemoryManagerState() {
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
 
   const hasLoadedRef = useRef(false);
+  const searchBreakdownHitsRef = useRef<import('@/types/sage').WSSearchBreakdownHit[]>([]);
   const searchBreakdownGenerationRef = useRef(0);
   const searchBreakdownCleanupRef = useRef<(() => void) | null>(null);
   const mountedRef = useRef(true);
@@ -96,9 +97,26 @@ export function useMemoryManagerState() {
     () => JSON.stringify(draft) !== JSON.stringify(baselineDraft),
     [baselineDraft, draft],
   );
+  /**
+   * Resolve a memory record by id across every surface the operator can
+   * open one from. The paginated library list is primary, but search
+   * breakdown hits and graph neighbors reference memories that may sit
+   * outside the currently loaded page — without these fallbacks,
+   * clicking such a result sets `selectedId` while `selectedMemory`
+   * stays null and the detail panel never opens.
+   */
+  const resolveMemory = useCallback(
+    (id: string): SageEntry | null =>
+      memories.find((memory) => memory.id === id) ??
+      searchBreakdown.hits.find((hit) => hit.memory.id === id)?.memory ??
+      graphMemories.find((memory) => memory.id === id) ??
+      null,
+    [graphMemories, memories, searchBreakdown.hits],
+  );
+
   const selectedMemory = useMemo(
-    () => memories.find((memory) => memory.id === selectedId) ?? null,
-    [memories, selectedId],
+    () => (selectedId === null ? null : resolveMemory(selectedId)),
+    [resolveMemory, selectedId],
   );
 
   const loadPage = useCallback(
@@ -153,9 +171,18 @@ export function useMemoryManagerState() {
           }
           hasLoadedRef.current = true;
           if (!isAppend) {
-            setSelectedId((current) =>
-              current && page.some((memory) => memory.id === current) ? current : null,
-            );
+            setSelectedId((current) => {
+              if (!current) return null;
+              if (page.some((memory) => memory.id === current)) return current;
+              // Preserve selections backed by the search breakdown
+              // panel — those memories legitimately live outside the
+              // loaded page, and list responses racing a click would
+              // otherwise wipe the just-opened detail.
+              if (searchBreakdownHitsRef.current.some((hit) => hit.memory.id === current)) {
+                return current;
+              }
+              return null;
+            });
           }
         }
         setInitialLoading(false);
@@ -268,6 +295,14 @@ export function useMemoryManagerState() {
     searchSageBreakdown({ query, limit: 20 });
   }, [searchQuery, client, searchSageBreakdown]);
 
+  // Async handlers (e.g. the listPage response) need the latest search
+  // hits without `loadPage` depending on them — a state dep would
+  // recreate `loadPage` on every search response and re-trigger list
+  // reloads for each keystroke.
+  useEffect(() => {
+    searchBreakdownHitsRef.current = searchBreakdown.hits;
+  }, [searchBreakdown.hits]);
+
   useEffect(() => {
     setGraphEdges([]);
     setGraphMemories([]);
@@ -339,8 +374,7 @@ export function useMemoryManagerState() {
 
   const openEdit = useCallback(
     (id?: string) => {
-      const target =
-        id !== undefined ? (memories.find((memory) => memory.id === id) ?? null) : selectedMemory;
+      const target = id !== undefined ? resolveMemory(id) : selectedMemory;
       if (!target || target.status === 'deleted') return;
       if (id !== undefined) setSelectedId(id);
       const next = draftFromMemory(target);
@@ -350,7 +384,7 @@ export function useMemoryManagerState() {
       setCreating(false);
       setMutationError(null);
     },
-    [memories, selectedMemory],
+    [resolveMemory, selectedMemory],
   );
 
   const cancelEditor = useCallback(() => {

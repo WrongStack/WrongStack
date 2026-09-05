@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=1127; wins=1120 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=1138; wins=1131 -->
 - **Always verify a comment's test claim by searching for the named test file before trusting it as a drift guard. When a diff duplicates a canonical constant across packages (e.g. `BOARD_SOFT_MAX_BYTES` mirrored in `packages/tui`, `packages/webui`, and `packages/kanban/src/storage.ts`), grep the whole repo for the symbol and for `*.test.*` matches — a comment saying "`X.test.ts` pins both copies" is unverified until the test file is found, and an absent pin is the classic declared-but-not-enforced drift hazard.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `BOARD_SOFT_MAX_BYTES`
@@ -27,7 +27,7 @@
   - *How:* `claimedEvidence: accumulatedEvidence`
   - *How:* `verify...`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T10:38:35.669Z; skill=chimera; applied=167; wins=155 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T10:38:35.669Z; skill=chimera; applied=172; wins=160 -->
 - **When a Chimera review diff's line annotations disagree with the live on-disk file (e.g., diff shows `string[]` but the file reads `KanbanLifecycleValidationIssue[]`), always trust the file on disk and flag the divergence — an in-session `file.external.edit` can land a half-applied refactor between the diff being captured and review running. Resolve every finding against `read`/`grep` of the actual file, never the diff hunk, and cite the live line number.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `string[]`
@@ -43,7 +43,7 @@
   - *How:* `runCteWithSeeds`
   - *How:* `ReferenceError`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z; applied=166; wins=163 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z; applied=167; wins=164 -->
 - **When a test-file diff adds a new import block but the test bodies it accompanies never reference those symbols, immediately grep the changed file for every imported name before trusting the diff — `noUnusedLocals: true` (set in `tsconfig.base.json`, inherited by every package's `tsconfig.json` and `tsconfig.test.json`) turns each unused import into `error TS6133` and fails the package's test typecheck. Unused `type`-qualified inline imports are flagged too; do not assume type-only imports are exempt.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `noUnusedLocals: true`
@@ -77,4 +77,4 @@
   - *How:* `import x = require()`
 
 ---
-*Last capture: 2026-09-05T10:36:48.902Z · 8 entries*
+*Last capture: 2026-08-12T10:38:35.669Z · 8 entries*

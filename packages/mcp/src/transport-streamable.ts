@@ -318,6 +318,7 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
   }
 
   async close(): Promise<void> {
+    this.releasePinnedDispatcher();
     if (this.state === 'disconnected') return;
     this.state = 'disconnected';
     this.abortController?.abort();

@@ -1,4 +1,3 @@
-import { useAppTranslation } from '@/i18n';
 import { Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,13 +8,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useAppTranslation } from '@/i18n';
 import type { SageEntry } from '@/types';
 import { memoryPreview } from './shared';
 
 interface DeleteMemoryDialogProps {
   busyAction: 'create' | 'update' | 'delete' | null;
   deletingId: string | null;
-  memories: readonly SageEntry[];
+  /** Resolved target — may be a search hit or graph neighbor outside the loaded page. */
+  memory: SageEntry | null;
   onCancel: () => void;
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
@@ -24,7 +25,7 @@ interface DeleteMemoryDialogProps {
 export function DeleteMemoryDialog({
   busyAction,
   deletingId,
-  memories,
+  memory,
   onCancel,
   onConfirm,
   onOpenChange,
@@ -43,7 +44,7 @@ export function DeleteMemoryDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="border border-border/70 bg-background/45 p-3 text-xs text-muted-foreground">
-          {memoryPreview(memories.find((memory) => memory.id === deletingId)?.text ?? '', 180)}
+          {memoryPreview(memory?.text ?? '', 180)}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={busyAction === 'delete'}>

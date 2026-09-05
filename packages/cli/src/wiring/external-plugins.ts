@@ -25,21 +25,39 @@
  * First-party/built-in plugins never enter this module.
  */
 
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isAbsolute, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   defaultPluginTrustPath,
   discoverExternalPlugins,
   hashFileContents,
   normalizeTrustKey,
+  type PluginTrustStore,
   pinPluginTrust,
   readPluginTrustStore,
   resolvePluginEnablement,
   resolvePluginTarget,
   verifyPluginTrust,
-  type PluginTrustStore,
 } from '@wrongstack/core/plugin';
 import type { Config, Logger, Plugin } from '@wrongstack/core/types';
+
+/** Policy for the external-plugin trust gate. See FeaturesConfig.pluginsTrust. */
+export type ExternalPluginTrustMode = 'off' | 'required' | 'tofu' | 'advisory';
+
+/**
+ * Resolve the trust mode from config. `true`, `undefined`, and `'tofu'` all
+ * map to the documented default (trust on first use); `false` skips the
+ * gate; unknown strings fall back to the default rather than inventing
+ * behavior.
+ */
+export function resolveExternalPluginTrustMode(
+  raw: boolean | string | undefined,
+): ExternalPluginTrustMode {
+  if (raw === false) return 'off';
+  if (raw === 'required') return 'required';
+  if (raw === 'advisory') return 'advisory';
+  return 'tofu';
+}
 
 /** Resolve a `file:` URL / absolute / relative path to an absolute fs path. */
 export function normalizeConfigPath(raw: string, projectRoot: string): string {
@@ -119,24 +137,58 @@ export async function loadExternalPlugins(
   if (config.features?.plugins === false) return [];
 
   const importModule = ctx.importModule ?? ((url: string) => import(url));
+  const trustMode = resolveExternalPluginTrustMode(config.features?.pluginsTrust);
+  if (
+    trustMode === 'required' &&
+    ctx.globalRoot === undefined &&
+    ctx.trustStorePath === undefined
+  ) {
+    // `required` without a trust store cannot be honored — silently loading
+    // untrusted code would defeat the mode, so fail closed with an
+    // actionable error instead.
+    log.error(
+      '[plugins] features.pluginsTrust is "required" but no trust store location is available (no globalRoot) — refusing all external plugins. Configure a global root, or set features.pluginsTrust to "tofu"/"advisory".',
+    );
+    return [];
+  }
   // Without a globalRoot there is nowhere to persist pins — TOFU would
   // re-trust on every boot, so the gate is skipped rather than pretend.
-  const trustEnabled =
-    config.features?.pluginsTrust !== false &&
-    (ctx.globalRoot !== undefined || ctx.trustStorePath !== undefined);
+  // (`required` already returned above; for tofu/advisory the downgrade is
+  // a warning, not silent trust.)
+  const trustEnabled = trustMode !== 'off';
   const trustStorePath =
     ctx.trustStorePath ??
     (ctx.globalRoot !== undefined ? defaultPluginTrustPath(ctx.globalRoot) : undefined);
   let trustStore: PluginTrustStore | undefined;
-  if (trustEnabled && trustStorePath !== undefined) {
+  // `trustUsable` starts true only when a store location exists and turns
+  // false when `advisory` downgrades an unreadable store to warn-and-proceed.
+  let trustUsable = trustEnabled && trustStorePath !== undefined;
+  if (trustEnabled && !trustUsable) {
+    // Trust is on but there is nowhere to persist pins (no globalRoot): the
+    // integrity gate cannot run. Never silent — tofu/advisory operators must
+    // know their plugins load unpinned (`required` already refused above).
+    log.warn(
+      '[plugins] features.pluginsTrust is enabled but no trust store location is available (no globalRoot) — external plugins load WITHOUT integrity checks. Configure a global root to enable trust-on-first-use.',
+    );
+  }
+  if (trustUsable && trustStorePath !== undefined) {
     try {
       trustStore = await readPluginTrustStore(trustStorePath);
     } catch (err) {
       // A corrupt trust store must not silently downgrade every pin to
-      // "unpinned" (that would re-trust changed code). Refuse external
-      // plugins entirely until the user fixes the file.
-      log.error(`[plugins] ${err instanceof Error ? err.message : String(err)}`);
-      return [];
+      // "unpinned" (that would re-trust changed code). `required`/`tofu`
+      // refuse external plugins entirely until the user fixes the file;
+      // `advisory` proceeds ungated with a loud warning.
+      const message = err instanceof Error ? err.message : String(err);
+      if (trustMode === 'advisory') {
+        log.warn(
+          `[plugins] trust store unreadable (${message}) — features.pluginsTrust is 'advisory', loading external plugins WITHOUT integrity checks`,
+        );
+        trustUsable = false;
+      } else {
+        log.error(`[plugins] ${message}`);
+        return [];
+      }
     }
   }
 
@@ -233,18 +285,25 @@ export async function loadExternalPlugins(
     const entryPath: string | undefined =
       source.kind === 'spec' ? resolveSpecifierEntry(source.spec) : source.entryPath;
 
-    if (trustEnabled && trustStorePath !== undefined && entryPath !== undefined) {
+    if (trustUsable && trustStorePath !== undefined && entryPath !== undefined) {
       const gate = await gateExternalPluginTrust({
         entryPath,
         spec: source.spec,
         label: source.label,
         store: trustStore,
         storePath: trustStorePath,
+        mode: trustMode,
         log,
       });
       if (!gate.ok) continue;
       if (gate.pinned) trustStore = gate.store;
-    } else if (trustEnabled && trustStorePath !== undefined && entryPath === undefined) {
+    } else if (trustUsable && entryPath === undefined) {
+      if (trustMode === 'required') {
+        log.error(
+          `[plugins] REFUSING external plugin "${source.label}" — features.pluginsTrust is 'required' and its entry file could not be resolved pre-import (spec "${source.spec}"). Install it so its entry file resolves, or load it by explicit path.`,
+        );
+        continue;
+      }
       log.warn(
         `[plugins] trust check skipped for "${source.label}" — entry file could not be resolved pre-import`,
       );
@@ -294,9 +353,10 @@ async function gateExternalPluginTrust(args: {
   label: string;
   store: PluginTrustStore | undefined;
   storePath: string;
+  mode: ExternalPluginTrustMode;
   log: Logger;
 }): Promise<TrustGateResult> {
-  const { spec, label, store, storePath, log } = args;
+  const { spec, label, store, storePath, mode, log } = args;
   // Pin keys are canonical forward-slash paths regardless of how the entry
   // was resolved (config path, discovery, module resolution).
   const entryPath = normalizeTrustKey(args.entryPath);
@@ -305,9 +365,14 @@ async function gateExternalPluginTrust(args: {
   try {
     integrity = await hashFileContents(entryPath);
   } catch (err) {
-    log.warn(
-      `[plugins] trust check skipped for "${label}" — entry could not be read (${err instanceof Error ? err.message : String(err)})`,
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    if (mode === 'required') {
+      log.error(
+        `[plugins] REFUSING external plugin "${label}" — features.pluginsTrust is 'required' and its entry file could not be read (${message})`,
+      );
+      return { ok: false, pinned: false };
+    }
+    log.warn(`[plugins] trust check skipped for "${label}" — entry could not be read (${message})`);
     return { ok: true, pinned: false };
   }
   const verification = verifyPluginTrust(entryPath, integrity, store);
@@ -320,17 +385,29 @@ async function gateExternalPluginTrust(args: {
       );
       return { ok: true, pinned: true, store: next };
     } catch (err) {
-      // Pinning is best-effort: failing to persist the pin must not block
-      // a load the user explicitly configured.
-      log.warn(
-        `[plugins] could not persist trust pin for "${label}" (${err instanceof Error ? err.message : String(err)})`,
-      );
+      const message = err instanceof Error ? err.message : String(err);
+      // Pinning is best-effort by default: failing to persist the pin must
+      // not block a load the user explicitly configured. `required` flips
+      // that — an unpersistable pin would mean the plugin runs unverified.
+      if (mode === 'required') {
+        log.error(
+          `[plugins] REFUSING external plugin "${label}" — features.pluginsTrust is 'required' and its first-use pin could not be persisted (${message})`,
+        );
+        return { ok: false, pinned: false };
+      }
+      log.warn(`[plugins] could not persist trust pin for "${label}" (${message})`);
       return { ok: true, pinned: false };
     }
   }
-  log.error(
-    `[plugins] REFUSING external plugin "${label}" — its entry file changed since it was first trusted (pinned ${verification.pinnedAt}). ` +
-      `If you expected this update, re-pin it: wstack plugin trust ${label}`,
-  );
+  const changedMessage =
+    `its entry file changed since it was first trusted (pinned ${verification.pinnedAt}). ` +
+    `If you expected this update, re-pin it: wstack plugin trust ${label}`;
+  if (mode === 'advisory') {
+    log.warn(
+      `[plugins] external plugin "${label}" — ${changedMessage} features.pluginsTrust is 'advisory', loading anyway WITHOUT integrity enforcement`,
+    );
+    return { ok: true, pinned: false };
+  }
+  log.error(`[plugins] REFUSING external plugin "${label}" — ${changedMessage}`);
   return { ok: false, pinned: false };
 }

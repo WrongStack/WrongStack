@@ -5,12 +5,18 @@
  * the nav and the map can never disagree about what the fleet contains.
  */
 import type { HqSnapshot } from '@wrongstack/core/hq';
-import { buildFleetTopology, type FleetTopologyNode } from './fleet-topology.js';
+import {
+  buildFleetTopology,
+  type FleetTopology,
+  type FleetTopologyNode,
+} from './fleet-topology.js';
 
 export interface NavAgent {
   id: string;
   label: string;
   status?: string | undefined;
+  /** Carried from an earlier snapshot — see `retainFleetTopology`. */
+  retained?: boolean | undefined;
 }
 
 export interface NavClient {
@@ -20,6 +26,8 @@ export interface NavClient {
   clientKind?: string | undefined;
   status?: string | undefined;
   synthetic: boolean;
+  /** Carried from an earlier snapshot — see `retainFleetTopology`. */
+  retained?: boolean | undefined;
   agents: NavAgent[];
 }
 
@@ -37,7 +45,18 @@ export interface NavMachine {
 }
 
 export function buildNav(snapshot: HqSnapshot | null): NavMachine[] {
-  const topology = buildFleetTopology(snapshot);
+  return buildNavFromTopology(buildFleetTopology(snapshot));
+}
+
+/**
+ * Same tree, from a topology that has already been built.
+ *
+ * The Console takes this form so it can fold in the map's presence retention
+ * (`useRetainedFleetTopology`) instead of rebuilding a second, unretained
+ * topology — otherwise the nav would blink a terminal out while the map beside
+ * it still showed the node.
+ */
+export function buildNavFromTopology(topology: FleetTopology): NavMachine[] {
   const machines: NavMachine[] = [];
   const machineById = new Map<string, NavMachine>();
   const projectById = new Map<string, NavProject>();
@@ -80,6 +99,7 @@ export function buildNav(snapshot: HqSnapshot | null): NavMachine[] {
       clientKind: node.clientKind,
       status: node.status,
       synthetic: node.isSyntheticSession === true,
+      ...(node.retained === true ? { retained: true } : {}),
       agents: [],
     };
     clientBySession.set(node.sessionId, client);
@@ -92,7 +112,12 @@ export function buildNav(snapshot: HqSnapshot | null): NavMachine[] {
     }
     const client = clientBySession.get(node.sessionId);
     if (client === undefined) continue;
-    client.agents.push({ id: node.agentId, label: node.label, status: node.status });
+    client.agents.push({
+      id: node.agentId,
+      label: node.label,
+      status: node.status,
+      ...(node.retained === true ? { retained: true } : {}),
+    });
   }
 
   // Drop machines and projects that ended up empty — e.g. a machine whose only
