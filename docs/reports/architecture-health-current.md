@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T18:29:33.642Z
+**Generated:** 2026-09-05T18:38:18.324Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3589 |
-| Production source lines | 870511 |
+| Production source files | 3591 |
+| Production source lines | 870601 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11303 |
+| Relative module edges | 11310 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -31,7 +31,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 26 | 51 | @wrongstack/core |
 | @wrongstack/cli | 475 | 455 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 817 | 708 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 819 | 708 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 18 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 28 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1092 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 1092 | `packages/webui-server/src/server/start-webui.ts` |
 | 1088 | `packages/core/src/core/context.ts` |
 | 1085 | `packages/core/src/hq/publisher.ts` |
@@ -135,6 +134,7 @@ None.
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 | 978 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 975 | `packages/cli/src/webui-server.ts` |
+| 973 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 
 ## Exports only tests reference
 

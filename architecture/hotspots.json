@@ -94,10 +94,6 @@
       "lines": 834,
       "relativeImports": 6
     },
-    "packages/core/src/coordination/provider-status-tracker.ts": {
-      "lines": 1092,
-      "relativeImports": 3
-    },
     "packages/core/src/coordination/sqlite-mailbox.ts": {
       "lines": 923,
       "relativeImports": 15

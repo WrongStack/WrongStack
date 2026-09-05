@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T18:29:33.642Z",
+  "generatedAt": "2026-09-05T18:38:18.324Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3589,
+    "sourceFiles": 3591,
     "testFiles": 3071,
-    "sourceLines": 870511,
+    "sourceLines": 870601,
     "workspaceEdges": 127,
-    "moduleEdges": 11303,
+    "moduleEdges": 11310,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -212,7 +212,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 817,
+      "sourceFiles": 819,
       "testFiles": 708,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -19724,11 +19724,6 @@
       "relativeImports": 6
     },
     {
-      "file": "packages/core/src/coordination/provider-status-tracker.ts",
-      "lines": 1092,
-      "relativeImports": 3
-    },
-    {
       "file": "packages/core/src/coordination/sqlite-mailbox.ts",
       "lines": 923,
       "relativeImports": 15
@@ -20286,11 +20281,6 @@
   ],
   "hotspots": [
     {
-      "file": "packages/core/src/coordination/provider-status-tracker.ts",
-      "lines": 1092,
-      "relativeImports": 3
-    },
-    {
       "file": "packages/webui-server/src/server/start-webui.ts",
       "lines": 1092,
       "relativeImports": 29
@@ -20534,6 +20524,11 @@
       "file": "packages/cli/src/webui-server.ts",
       "lines": 975,
       "relativeImports": 21
+    },
+    {
+      "file": "packages/core/src/execution/auto-compaction-middleware.ts",
+      "lines": 973,
+      "relativeImports": 12
     }
   ],
   "testOnlyExports": [
