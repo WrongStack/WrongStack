@@ -192,6 +192,9 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
     try {
       const res = await this.fetchWithAuthorization(this.url, fetchOpts, timeoutSignal.signal);
       if (!res.ok) {
+        if (StreamableHTTPTransport.SESSION_FATAL_HTTP_STATUSES.has(res.status)) {
+          this.markDisconnected();
+        }
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
@@ -218,7 +221,6 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
         }).catch(() => {});
         throw makeAbortError(method);
       }
-      this.markDisconnected();
       throw err;
     } finally {
       timeoutSignal.dispose();
@@ -256,6 +258,9 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
     try {
       const res = await this.fetchWithAuthorization(this.url, fetchOpts, timeoutSignal.signal);
       if (!res.ok) {
+        if (StreamableHTTPTransport.SESSION_FATAL_HTTP_STATUSES.has(res.status)) {
+          this.markDisconnected();
+        }
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
@@ -285,7 +290,6 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
         }).catch(() => {});
         throw makeAbortError(method);
       }
-      this.markDisconnected();
       throw err;
     } finally {
       timeoutSignal.dispose();
@@ -321,6 +325,15 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
     // reconnection in the registry, which would fight an explicit close().
     this.disconnectHandlers.splice(0, this.disconnectHandlers.length);
   }
+
+  /**
+   * HTTP statuses that mean the streamable-http session itself is gone
+   * (auth rejected, session id unknown or expired). Only these tear the
+   * connection down on the request path; transient faults (5xx, network
+   * resets) surface as call errors and keep the session alive so the next
+   * request can succeed — the contract pinned by http-fault-soak.test.ts.
+   */
+  private static readonly SESSION_FATAL_HTTP_STATUSES = new Set([401, 403, 404, 410]);
 
   private markDisconnected(): void {
     if (this.state === 'connected') {
