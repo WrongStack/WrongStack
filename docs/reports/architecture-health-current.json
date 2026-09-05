@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T20:06:42.428Z",
+  "generatedAt": "2026-09-05T20:11:26.321Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3636,
+    "sourceFiles": 3640,
     "testFiles": 3071,
-    "sourceLines": 871931,
+    "sourceLines": 872020,
     "workspaceEdges": 127,
-    "moduleEdges": 11437,
+    "moduleEdges": 11449,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -885,7 +885,7 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 220,
+      "sourceFiles": 224,
       "testFiles": 187,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20204,11 +20204,6 @@
       "relativeImports": 2
     },
     {
-      "file": "packages/webui-server/src/server/kanban-routes.ts",
-      "lines": 1056,
-      "relativeImports": 11
-    },
-    {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 863,
       "relativeImports": 2
@@ -20235,11 +20230,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/webui-server/src/server/kanban-routes.ts",
-      "lines": 1056,
-      "relativeImports": 11
-    },
     {
       "file": "packages/core/src/coordination/delegate-tool.ts",
       "lines": 1051,
@@ -20484,6 +20474,11 @@
       "file": "packages/core/src/hq/protocol/core.ts",
       "lines": 945,
       "relativeImports": 13
+    },
+    {
+      "file": "packages/cli/src/slash-commands/settings-mutations.ts",
+      "lines": 944,
+      "relativeImports": 4
     }
   ],
   "testOnlyExports": [

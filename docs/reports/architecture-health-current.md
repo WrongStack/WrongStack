@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T20:06:42.428Z
+**Generated:** 2026-09-05T20:11:26.321Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3636 |
-| Production source lines | 871931 |
+| Production source files | 3640 |
+| Production source lines | 872020 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11437 |
+| Relative module edges | 11449 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -60,7 +60,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/webui | 536 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
-| @wrongstack/webui-server | 220 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 224 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/wrongtrace | 11 | 5 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
 
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1056 | `packages/webui-server/src/server/kanban-routes.ts` |
 | 1051 | `packages/core/src/coordination/delegate-tool.ts` |
 | 1051 | `packages/webui/src/components/SkillDetailView.tsx` |
 | 1049 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
@@ -135,6 +134,7 @@ None.
 | 950 | `packages/webui-server/src/server/backend-services.ts` |
 | 948 | `packages/plugins/src/semantic-search-indexer/index.ts` |
 | 945 | `packages/core/src/hq/protocol/core.ts` |
+| 944 | `packages/cli/src/slash-commands/settings-mutations.ts` |
 
 ## Exports only tests reference
 
