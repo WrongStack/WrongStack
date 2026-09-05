@@ -385,7 +385,7 @@ export class Context implements RunEnv, AgentContext {
    * `onChange`. New code should prefer the wrapper API.
    */
   _state: ConversationState | null = null;
-  private readonly _journalQueueManager: ConversationJournalQueue = new ConversationJournalQueue({
+  readonly _journalQueueManager: ConversationJournalQueue = new ConversationJournalQueue({
     sessionIdGetter: () => this.session?.id,
     messagesGetter: () => this.messages,
   });

@@ -170,6 +170,8 @@ export interface AgentContext extends RunEnv {
   lastRealInputTokens: number | undefined;
   /** Lazy observable wrapper backing `state`. */
   _state: ConversationStateApi | null;
+  /** Backing journal-queue manager; class-typed (private `options` member makes structural inlining impossible). PAIRED with core/context.ts:388 — dropping either side re-breaks the tools build. */
+  readonly _journalQueueManager: ConversationJournalQueue;
   readonly _conversationJournalQueue: Array<{
     event: SessionEvent;
     bytes: number;
