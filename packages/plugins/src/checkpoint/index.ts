@@ -36,8 +36,7 @@
  * @public
  */
 
-import { existsSync, realpathSync } from 'node:fs';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 
@@ -130,7 +129,7 @@ function readConfig(raw: unknown): CheckpointConfig {
 // Capture helpers
 // ---------------------------------------------------------------------------
 
-function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null {
+async function resolveProjectPath(rawPath: string, cwd = process.cwd()): Promise<string | null> {
   if (typeof rawPath !== 'string' || rawPath.length === 0) return null;
   const root = resolve(cwd);
   const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
@@ -142,7 +141,7 @@ function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null
   // must be rejected like any other outside path. Not-yet-existing leaves
   // resolve via their nearest existing ancestor so brand-new files keep
   // being captured.
-  if (realResolutionEscapes(resolved, root)) return null;
+  if (await realResolutionEscapes(resolved, root)) return null;
   return resolved;
 }
 
@@ -152,26 +151,38 @@ function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null
  * outside `root`. The non-existing tail cannot re-escape on its own: the
  * caller already established `absPath` is lexically inside `root`.
  */
-function realResolutionEscapes(absPath: string, root: string): boolean {
+async function realResolutionEscapes(absPath: string, root: string): Promise<boolean> {
   let real: string;
   try {
-    real = realpathSync(absPath);
+    real = await realpath(absPath);
   } catch {
     let current = dirname(absPath);
-    for (let hops = 0; hops < 64 && !existsSync(current); hops++) {
+    let hops = 0;
+    while (hops < 64 && !(await pathExists(current))) {
       const parent = dirname(current);
       if (parent === current) return false;
       current = parent;
+      hops++;
     }
-    if (!existsSync(current)) return false;
+    if (!(await pathExists(current))) return false;
     try {
-      real = realpathSync(current);
+      real = await realpath(current);
     } catch {
       return false;
     }
   }
   const realRel = relative(root, real);
   return realRel !== '' && realRel !== '.' && (realRel.startsWith('..') || isAbsolute(realRel));
+}
+
+/** Async existence probe (stat-based) so hot paths never touch sync fs APIs. */
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await stat(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -323,7 +334,7 @@ const plugin: Plugin = {
           ti['targetFile'] ??
           ti['file'];
         if (typeof raw !== 'string' || raw.length === 0) return;
-        const safePath = resolveProjectPath(raw);
+        const safePath = await resolveProjectPath(raw);
         if (!safePath) return;
         const captured = await captureFileForHook(safePath, cfg.maxFileBytes, runtime.signal);
         if (captured === 'too-large') {
@@ -411,7 +422,7 @@ const plugin: Plugin = {
         const rejectedOutsideProject: string[] = [];
         let skipped = 0;
         for (const p of paths) {
-          const safePath = resolveProjectPath(p);
+          const safePath = await resolveProjectPath(p);
           if (!safePath) {
             rejectedOutsideProject.push(p);
             continue;
@@ -542,7 +553,7 @@ const plugin: Plugin = {
             error: rawId ? `no snapshot with id "${rawId}"` : 'no snapshots captured yet',
           };
         }
-        const targetPath = rawPath ? (resolveProjectPath(rawPath) ?? rawPath) : null;
+        const targetPath = rawPath ? ((await resolveProjectPath(rawPath)) ?? rawPath) : null;
         const targets = targetPath
           ? snapshot.files.filter((f) => f.path === targetPath || f.path === rawPath)
           : snapshot.files;
