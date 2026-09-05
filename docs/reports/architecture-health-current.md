@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T19:50:46.065Z
+**Generated:** 2026-09-05T19:54:51.105Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3622 |
-| Production source lines | 871467 |
+| Production source files | 3627 |
+| Production source lines | 871576 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11392 |
+| Relative module edges | 11406 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -54,7 +54,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/simpleui | 93 | 63 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 31 | @wrongstack/core |
-| @wrongstack/tools | 192 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/tools | 197 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 359 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 531 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1068 | `packages/tools/src/codebase-index/project-server.ts` |
 | 1062 | `packages/webui/src/components/FileActivityDrawer.tsx` |
 | 1058 | `packages/core/src/session-catalog/store.ts` |
 | 1056 | `packages/webui-server/src/server/kanban-routes.ts` |
@@ -135,6 +134,7 @@ None.
 | 962 | `packages/tui/src/app-key-handler.ts` |
 | 961 | `apps/desktop/src/renderer/src/renderer.ts` |
 | 955 | `packages/plugins/src/prompt-firewall/index.ts` |
+| 950 | `packages/webui-server/src/server/backend-services.ts` |
 
 ## Exports only tests reference
 

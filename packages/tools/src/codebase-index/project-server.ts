@@ -12,97 +12,42 @@ import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
-import { restrictFilePermissions } from '@wrongstack/core/security';
-import {
-  DEFAULT_WALK_IGNORE_SET,
-  type ProjectWatchSubscription,
-  startSharedHeapWatchdog,
-  useDaemonPerfDefaults,
-  watchProjectTree,
-} from '@wrongstack/core/utils';
-import { atomicWrite, bindProjectEndpoint } from '@wrongstack/persistence';
-import {
-  decodeBinaryFrame,
-  encodeBinaryFrame,
-  isBinaryFrame,
-  MAX_INBOUND_BINARY_FRAME_BYTES,
-} from './binary-frame.js';
-import {
-  fileGraphService,
-  incomingCallsService,
-  indexService,
-  outgoingCallsService,
-  packageGraphService,
-  searchService,
-  statsService,
-  symbolGraphService,
-} from './index-service.js';
-import { isIndexablePath } from './languages.js';
+import { startSharedHeapWatchdog, useDaemonPerfDefaults } from '@wrongstack/core/utils';
+import { bindProjectEndpoint } from '@wrongstack/persistence';
+import { indexService } from './index-service.js';
 import {
   PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
   projectIndexServerBuildId,
   projectIndexServerEndpoint,
   projectIndexServerMetadataPath,
 } from './project-server-endpoint.js';
+import { consumeClientChunk, sendServerMessage } from './project-server-framing.js';
 import {
-  encodeProjectServerMessage,
-  PROJECT_INDEX_SERVER_MAX_FRAME_CHARS,
-  type ProjectIndexServerActivity,
-  type ProjectIndexServerHealth,
-  type ProjectIndexServerInfo,
-  type ProjectIndexServerMetadata,
-  type ProjectServerClientMessage,
-  type ProjectServerMessage,
-} from './project-server-protocol.js';
-import {
-  indexRefreshInProgressError,
-  ServerQueryCaches,
-  staleAwareRead,
-} from './project-server-query-cache.js';
-import { WalMaintenance } from './wal-maintenance.js';
+  armCodebaseIndexSignalGuard,
+  removeMetadataIfOwned,
+  writeProjectServerMetadata,
+} from './project-server-lifecycle.js';
+import { dispatchOperation, type OperationContext } from './project-server-operations.js';
 import type {
-  CallRefsOpArgs,
-  FileGraphOpArgs,
-  IndexOpArgs,
-  OpShapes,
-  SearchOpArgs,
-  StatsOpArgs,
-  SymbolGraphOpArgs,
-} from './worker-protocol.js';
+  ProjectIndexServerActivity,
+  ProjectIndexServerHealth,
+  ProjectIndexServerInfo,
+  ProjectIndexServerMetadata,
+  ProjectServerClientMessage,
+  ProjectServerMessage,
+} from './project-server-protocol.js';
+import { ServerQueryCaches } from './project-server-query-cache.js';
+import type { ActiveFullIndex, ClientState } from './project-server-types.js';
+import {
+  DEFAULT_EXTERNAL_COALESCE_WINDOW_MS,
+  DEFAULT_EXTERNAL_DEBOUNCE_MS,
+  ProjectServerWatcherManager,
+} from './project-server-watcher.js';
+import { WalMaintenance } from './wal-maintenance.js';
 import { indexStorePool, resolveIndexDir } from './writer.js';
 
 const DEFAULT_IDLE_MS = 5 * 60_000;
 const DEFAULT_CLIENT_LEASE_MS = 45_000;
-
-interface ClientState {
-  socket: net.Socket;
-  /**
-   * Raw inbound bytes. Frames may be newline-delimited JSON or length-
-   * prefixed binary (magic 0x57); the mode is sniffed per frame. Kept as
-   * bytes because a JSON text line may split a multibyte UTF-8 sequence at a
-   * chunk boundary — the StringDecoder handles that at parse time.
-   */
-  buffer: Buffer;
-  cancelled: Set<number>;
-  cancel: Map<number, () => void>;
-  watchExternal: boolean;
-  debounceMs: number;
-  coalesceWindowMs: number;
-  lastSeenAt: number;
-  /** True once this client has sent at least one binary frame. */
-  binary: boolean;
-}
-
-interface FullIndexSubscriber {
-  state: ClientState;
-  id: number;
-}
-
-interface ActiveFullIndex {
-  promise: Promise<OpShapes['index']['result']>;
-  controller: AbortController;
-  subscribers: Set<FullIndexSubscriber>;
-}
 
 function parseArgs(argv: string[]): { projectRoot: string; indexDir?: string | undefined } {
   let projectRoot: string | undefined;
@@ -210,14 +155,6 @@ const stopMemoryWatchdog = startSharedHeapWatchdog({
   }),
 });
 let lastProgressBroadcastAt = 0;
-let externalWatcher: ProjectWatchSubscription | undefined;
-const DEFAULT_EXTERNAL_DEBOUNCE_MS = 400;
-const DEFAULT_EXTERNAL_COALESCE_WINDOW_MS = 50;
-let externalDebounceMs = DEFAULT_EXTERNAL_DEBOUNCE_MS;
-let externalCoalesceWindowMs = DEFAULT_EXTERNAL_COALESCE_WINDOW_MS;
-const externalDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const externalReadyFiles = new Set<string>();
-let externalReadyFlush: ReturnType<typeof setTimeout> | undefined;
 
 function clearQueryCaches(): void {
   queryCaches.clear();
@@ -251,27 +188,8 @@ const walMaintenance = new WalMaintenance({
   },
 });
 
-/**
- * Cap on outbound bytes queued for one client before it is dropped. This
- * server pushes index-activity updates to every client, and `socket.write()`
- * buffers without limit when its `false` return is ignored — so one client
- * that stops reading would otherwise grow the owner's heap indefinitely. The
- * index lives in SQLite; a dropped client re-queries on reconnect.
- */
-const MAX_CLIENT_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
-
 function send(state: ClientState, message: ProjectServerMessage): void {
-  if (state.socket.destroyed) return;
-  if (state.socket.writableLength > MAX_CLIENT_WRITE_BUFFER_BYTES) {
-    state.socket.destroy(new Error('Index client fell too far behind on reads'));
-    return;
-  }
-  // Reply in the framing this connection negotiated: a client that has sent
-  // at least one binary frame gets binary frames back; JSON-only clients
-  // (and the pre-first-frame greeting) get newline-delimited JSON.
-  state.socket.write(
-    state.binary ? encodeBinaryFrame(message) : encodeProjectServerMessage(message),
-  );
+  sendServerMessage(state, message);
 }
 
 function withWriteMutex<T>(job: () => Promise<T>): Promise<T> {
@@ -292,6 +210,29 @@ function withWriteMutex<T>(job: () => Promise<T>): Promise<T> {
   );
   return run;
 }
+
+const watcherManager = new ProjectServerWatcherManager({
+  projectRoot,
+  onFilesChanged: (files) => {
+    void withIndexWrite(
+      (onProgress) =>
+        indexService(
+          {
+            projectRoot,
+            indexDir,
+            files,
+          },
+          { onProgress },
+        ),
+      // Watcher runs are targeted file lists — keep the caches so the next
+      // refresh's stale-serve window has previous-generation answers.
+      { preserveCaches: true },
+    ).catch(() => {
+      // External indexing is best effort. A subsequent explicit request
+      // surfaces errors through the normal RPC/circuit-breaker path.
+    });
+  },
+});
 
 function serverHealth(): ProjectIndexServerHealth {
   const memory = process.memoryUsage();
@@ -316,8 +257,8 @@ function serverHealth(): ProjectIndexServerHealth {
     activeRequests,
     activeWrites,
     queuedWrites,
-    pendingExternalFiles: externalDebounceTimers.size + externalReadyFiles.size,
-    watchingExternal: externalWatcher !== undefined,
+    pendingExternalFiles: watcherManager.pendingFileCount,
+    watchingExternal: watcherManager.isWatching,
     watchingClients,
     clientLeaseTimeoutMs: clientLeaseMs,
     oldestClientIdleMs,
@@ -338,24 +279,6 @@ function reportIndexProgress(currentFile: number, totalFiles: number): void {
     lastProgressBroadcastAt = now;
     broadcastIndexActivity();
   }
-}
-
-/**
- * Cache policy at write-run completion.
- *
- * A run with an explicit targeted file list (edit/watcher reindex) makes a
- * per-file surgical change, so — on success — every previous-generation entry
- * stays valid as a stale answer for the NEXT refresh. On failure the run's
- * transaction rolls back, which equally leaves the cached entries describing
- * the on-disk truth. (Precision: the rollback is per-file — a multi-file
- * targeted run commits the files that parsed and rolls back only the failed
- * one — but each file's slice is atomic, and queries never straddle slices,
- * so cached answers stay correct.) Anything else (full scan, force rebuild,
- * langs/ignore-filtered scan) can reshape the whole index, so its caches are
- * dropped on completion and on failure alike.
- */
-function preservesQueryCaches(args: IndexOpArgs): boolean {
-  return !args.force && args.files !== undefined && args.files.length > 0;
 }
 
 function withIndexWrite<T>(
@@ -401,178 +324,18 @@ function withIndexWrite<T>(
   });
 }
 
-function fixedArgs<T extends { projectRoot: string; indexDir?: string | undefined }>(args: T): T {
-  return { ...args, projectRoot, indexDir };
-}
-
-function isShareableFullIndex(args: IndexOpArgs): boolean {
-  return (
-    !args.force &&
-    (!args.files || args.files.length === 0) &&
-    (!args.langs || args.langs.length === 0) &&
-    (!args.ignore || args.ignore.length === 0)
-  );
-}
-
-async function runFullIndex(
-  state: ClientState,
-  id: number,
-  args: IndexOpArgs,
-): Promise<OpShapes['index']['result']> {
-  const subscriber: FullIndexSubscriber = { state, id };
-  let active = activeFullIndex;
-  if (!active) {
-    const controller = new AbortController();
-    const subscribers = new Set<FullIndexSubscriber>([subscriber]);
-    const promise = withIndexWrite(
-      (reportProgress) =>
-        indexService(fixedArgs(args), {
-          signal: controller.signal,
-          onProgress: (current, total) => {
-            reportProgress(current, total);
-            for (const item of subscribers) {
-              if (!item.state.cancelled.has(item.id)) {
-                send(item.state, { type: 'progress', id: item.id, current, total });
-              }
-            }
-          },
-        }),
-      // Shareable full index: whole-index scope, caches drop on completion.
-      { preserveCaches: false },
-    );
-    active = { promise, controller, subscribers };
+const operationContext: OperationContext = {
+  projectRoot,
+  indexDir,
+  queryCaches,
+  getActivity: () => indexActivity,
+  withIndexWrite,
+  send,
+  getActiveFullIndex: () => activeFullIndex,
+  setActiveFullIndex: (active) => {
     activeFullIndex = active;
-    void promise
-      .finally(() => {
-        if (activeFullIndex === active) activeFullIndex = null;
-      })
-      .catch(() => {});
-  } else {
-    active.subscribers.add(subscriber);
-  }
-
-  const selected = active;
-  state.cancel.set(id, () => {
-    state.cancelled.add(id);
-    selected.subscribers.delete(subscriber);
-    if (selected.subscribers.size === 0) {
-      selected.controller.abort(new Error('Indexing cancelled'));
-    }
-  });
-  try {
-    return await selected.promise;
-  } finally {
-    selected.subscribers.delete(subscriber);
-  }
-}
-
-async function dispatchOperation(
-  state: ClientState,
-  message: Extract<ProjectServerClientMessage, { type: 'request' }>,
-): Promise<unknown> {
-  const { id, op } = message;
-  switch (op) {
-    case 'index': {
-      const args = message.args as IndexOpArgs;
-      if (isShareableFullIndex(args)) return runFullIndex(state, id, args);
-      const controller = new AbortController();
-      state.cancel.set(id, () => {
-        state.cancelled.add(id);
-        controller.abort(new Error('Indexing cancelled'));
-      });
-      return withIndexWrite(
-        (reportProgress) =>
-          indexService(fixedArgs(args), {
-            signal: controller.signal,
-            onProgress: (current, total) => {
-              reportProgress(current, total);
-              if (!state.cancelled.has(id)) send(state, { type: 'progress', id, current, total });
-            },
-          }),
-        { preserveCaches: preservesQueryCaches(args) },
-      );
-    }
-    case 'search': {
-      const { value, stale } = staleAwareRead(
-        queryCaches.searchCache,
-        JSON.stringify(message.args),
-        indexActivity,
-        () => searchService(fixedArgs(message.args as SearchOpArgs)),
-      );
-      return stale ? { ...value, stale: true } : value;
-    }
-    case 'stats':
-      // Stats is the refresh progress poll: serving a cached pre-run answer
-      // would read as "finished" with stale numbers, so it keeps refusing
-      // for the whole refresh even on a cache hit.
-      if (indexActivity.indexing) {
-        throw indexRefreshInProgressError(indexActivity.currentFile, indexActivity.totalFiles);
-      }
-      return staleAwareRead(queryCaches.statsCache, 'stats', indexActivity, () =>
-        statsService(fixedArgs(message.args as StatsOpArgs)),
-      ).value;
-    case 'packageGraph': {
-      const { value, stale } = staleAwareRead(
-        queryCaches.packageGraphCache,
-        'package',
-        indexActivity,
-        () => packageGraphService(fixedArgs(message.args as StatsOpArgs)),
-      );
-      return stale ? { ...value, stale: true } : value;
-    }
-    case 'fileGraph': {
-      const key = (message.args as FileGraphOpArgs).packageFilter;
-      const { value, stale } = staleAwareRead(queryCaches.fileGraphCache, key, indexActivity, () =>
-        fileGraphService(fixedArgs(message.args as FileGraphOpArgs)),
-      );
-      return stale ? { ...value, stale: true } : value;
-    }
-    case 'symbolGraph': {
-      const key = (message.args as SymbolGraphOpArgs).fileFilter;
-      const { value, stale } = staleAwareRead(
-        queryCaches.symbolGraphCache,
-        key,
-        indexActivity,
-        () => symbolGraphService(fixedArgs(message.args as SymbolGraphOpArgs)),
-      );
-      return stale ? { ...value, stale: true } : value;
-    }
-    case 'incomingCalls': {
-      const callArgs = fixedArgs(message.args as CallRefsOpArgs);
-      const cacheKey = JSON.stringify([
-        callArgs.symbol,
-        callArgs.file ?? '',
-        callArgs.limit ?? 100,
-        callArgs.transitive ?? false,
-      ]);
-      const { value, stale } = staleAwareRead(
-        queryCaches.incomingCallsCache,
-        cacheKey,
-        indexActivity,
-        () => incomingCallsService(callArgs),
-      );
-      return stale ? { ...value, stale: true } : value;
-    }
-    case 'outgoingCalls': {
-      const callArgs = fixedArgs(message.args as CallRefsOpArgs);
-      const cacheKey = JSON.stringify([
-        callArgs.symbol,
-        callArgs.file ?? '',
-        callArgs.limit ?? 100,
-        callArgs.transitive ?? false,
-      ]);
-      const { value, stale } = staleAwareRead(
-        queryCaches.outgoingCallsCache,
-        cacheKey,
-        indexActivity,
-        () => outgoingCallsService(callArgs),
-      );
-      return stale ? { ...value, stale: true } : value;
-    }
-    default:
-      throw new Error(`unknown index operation: ${String(op satisfies never)}`);
-  }
-}
+  },
+};
 
 async function handleMessage(
   state: ClientState,
@@ -612,13 +375,13 @@ async function handleMessage(
         0,
         message.coalesceWindowMs ?? DEFAULT_EXTERNAL_COALESCE_WINDOW_MS,
       );
-      reconcileExternalWatcher();
+      watcherManager.reconcile(clients);
       send(state, {
         type: 'response',
         id: message.id,
         ok: true,
         result: {
-          watching: externalWatcher !== undefined,
+          watching: watcherManager.isWatching,
           health: serverHealth(),
         },
       });
@@ -627,7 +390,7 @@ async function handleMessage(
       state.debounceMs = previousDebounceMs;
       state.coalesceWindowMs = previousCoalesceWindowMs;
       try {
-        reconcileExternalWatcher();
+        watcherManager.reconcile(clients);
       } catch {
         /* preserve the original configuration error */
       }
@@ -654,7 +417,7 @@ async function handleMessage(
 
   activeRequests++;
   try {
-    const result = await dispatchOperation(state, message);
+    const result = await dispatchOperation(operationContext, state, message);
     if (!state.cancelled.has(message.id)) {
       send(state, { type: 'response', id: message.id, ok: true, result });
     }
@@ -675,188 +438,8 @@ async function handleMessage(
   }
 }
 
-function isIgnoredRelativePath(relativePath: string): boolean {
-  return relativePath.split(/[/\\]/u).some((segment) => DEFAULT_WALK_IGNORE_SET.has(segment));
-}
-
-function enqueueExternalFile(file: string): void {
-  const previous = externalDebounceTimers.get(file);
-  if (previous) clearTimeout(previous);
-  const timer = setTimeout(() => {
-    externalDebounceTimers.delete(file);
-    externalReadyFiles.add(file);
-    // Sliding coalescing window: each file that arrives resets the flush
-    // timer so a staggered burst (formatter-on-save touching several files
-    // over ~10-50ms) stays open until the gap between arrivals exceeds the
-    // window. windowMs=0 falls back to immediate flush via setTimeout(fn, 0).
-    if (externalReadyFlush) clearTimeout(externalReadyFlush);
-    externalReadyFlush = setTimeout(() => {
-      externalReadyFlush = undefined;
-      const files = [...externalReadyFiles].sort();
-      externalReadyFiles.clear();
-      void withIndexWrite(
-        (onProgress) =>
-          indexService(
-            {
-              projectRoot,
-              indexDir,
-              files,
-            },
-            { onProgress },
-          ),
-        // Watcher runs are targeted file lists — keep the caches so the next
-        // refresh's stale-serve window has previous-generation answers.
-        { preserveCaches: true },
-      ).catch(() => {
-        // External indexing is best effort. A subsequent explicit request
-        // surfaces errors through the normal RPC/circuit-breaker path.
-      });
-    }, externalCoalesceWindowMs);
-    externalReadyFlush.unref?.();
-  }, externalDebounceMs);
-  timer.unref?.();
-  externalDebounceTimers.set(file, timer);
-}
-
-function ensureExternalWatcher(): void {
-  if (externalWatcher) return;
-  externalWatcher = watchProjectTree(
-    projectRoot,
-    ({ filename }) => {
-      if (!filename || isIgnoredRelativePath(filename)) return;
-      const absolute = path.resolve(projectRoot, filename);
-      const relative = path.relative(projectRoot, absolute);
-      if (
-        relative === '..' ||
-        relative.startsWith(`..${path.sep}`) ||
-        path.isAbsolute(relative) ||
-        !isIndexablePath(absolute)
-      ) {
-        return;
-      }
-      enqueueExternalFile(absolute);
-    },
-    {
-      onError: () => {
-        // Watch errors are non-fatal; explicit edit/startup requests remain
-        // available through the same server.
-      },
-    },
-  );
-}
-
-function stopExternalWatcher(): void {
-  try {
-    externalWatcher?.close();
-  } catch {
-    /* already closed */
-  }
-  externalWatcher = undefined;
-  for (const timer of externalDebounceTimers.values()) clearTimeout(timer);
-  externalDebounceTimers.clear();
-  if (externalReadyFlush) clearTimeout(externalReadyFlush);
-  externalReadyFlush = undefined;
-  externalReadyFiles.clear();
-}
-
-function reconcileExternalWatcher(): void {
-  const owners = [...clients].filter((client) => client.watchExternal);
-  if (owners.length === 0) {
-    externalDebounceMs = DEFAULT_EXTERNAL_DEBOUNCE_MS;
-    externalCoalesceWindowMs = DEFAULT_EXTERNAL_COALESCE_WINDOW_MS;
-    stopExternalWatcher();
-    return;
-  }
-  externalDebounceMs = Math.min(...owners.map((client) => client.debounceMs));
-  externalCoalesceWindowMs = Math.min(...owners.map((client) => client.coalesceWindowMs));
-  ensureExternalWatcher();
-}
-
-/**
- * Frame reader for one client connection. Each frame is sniffed per first
- * byte: `0x57` ('W') → length-prefixed MessagePack, anything else →
- * newline-delimited JSON text. Bytes stay raw until a complete frame is
- * assembled, so a multibyte UTF-8 sequence split across chunks is only ever
- * decoded as part of a finished line (raw `0x0a` only occurs as the JSON
- * delimiter — inside JSON strings `\n` is escaped — so a complete line is
- * always complete UTF-8).
- *
- * The buffer is consumed with a scan offset rather than re-slicing after
- * every frame: each parsed frame advances `scan` within the same Buffer,
- * and the leftover tail is compacted once at the end of the call. A burst
- * of small frames therefore costs one allocation per chunk, not one
- * per frame (the previous slice-per-frame loop reallocated on every frame
- * while pinning the whole parent buffer).
- */
 function consume(state: ClientState, chunk: Buffer): void {
-  const buffer = state.buffer.length === 0 ? chunk : Buffer.concat([state.buffer, chunk]);
-  let scan = 0;
-  while (true) {
-    if (buffer.length - scan === 0) break;
-    if (isBinaryFrame(buffer[scan]!)) {
-      if (buffer.length - scan < 5) break; // header not fully received yet
-      const frameLen = buffer.readUInt32BE(scan + 1);
-      // Inbound frames are client requests, checked against the inbound cap
-      // the moment the five-byte header completes: the connection is
-      // destroyed without waiting for or accumulating the declared payload.
-      // This direction is unauthenticated at framing time.
-      if (frameLen > MAX_INBOUND_BINARY_FRAME_BYTES) {
-        state.buffer = Buffer.alloc(0);
-        state.socket.destroy(new Error('codebase-index client binary frame exceeds the IPC limit'));
-        return;
-      }
-      if (buffer.length - scan < 5 + frameLen) break; // payload incomplete
-      const payload = buffer.subarray(scan + 5, scan + 5 + frameLen);
-      let message: ProjectServerClientMessage;
-      try {
-        message = decodeBinaryFrame(payload) as ProjectServerClientMessage;
-      } catch {
-        state.buffer = Buffer.alloc(0);
-        state.socket.destroy(new Error('invalid codebase-index client binary frame'));
-        return;
-      }
-      scan += 5 + frameLen;
-      state.binary = true;
-      state.lastSeenAt = Date.now();
-      void handleMessage(state, message);
-      continue;
-    }
-    const newline = buffer.indexOf(0x0a, scan);
-    if (newline < 0) {
-      if (buffer.length - scan > PROJECT_INDEX_SERVER_MAX_FRAME_CHARS) {
-        state.buffer = Buffer.alloc(0);
-        state.socket.destroy(new Error('codebase-index client message exceeds the IPC limit'));
-        // Like every other destroy path: return, so the post-loop
-        // compaction cannot resurrect bytes from the stale local buffer.
-        return;
-      }
-      break;
-    }
-    if (newline - scan > PROJECT_INDEX_SERVER_MAX_FRAME_CHARS) {
-      state.buffer = Buffer.alloc(0);
-      state.socket.destroy(new Error('codebase-index client message exceeds the IPC limit'));
-      return;
-    }
-    const line = buffer.subarray(scan, newline).toString('utf8');
-    scan = newline + 1;
-    if (!line) continue;
-    let message: ProjectServerClientMessage;
-    try {
-      message = JSON.parse(line) as ProjectServerClientMessage;
-    } catch {
-      state.buffer = Buffer.alloc(0);
-      state.socket.destroy(new Error('invalid codebase-index client message'));
-      return;
-    }
-    state.lastSeenAt = Date.now();
-    void handleMessage(state, message);
-  }
-  // Compact the parsed prefix once per chunk instead of once per frame.
-  // The tail is COPIED into a right-sized buffer: subarray would pin the
-  // whole parent allocation, so an unauthenticated client sending a
-  // near-64 MiB frame followed by a one-byte partial would hold ~64 MiB
-  // per connection until more data arrived or the lease expired.
-  state.buffer = scan === 0 ? buffer : Buffer.from(buffer.subarray(scan));
+  consumeClientChunk(state, chunk, handleMessage);
 }
 
 function scheduleIdleStop(): void {
@@ -864,43 +447,6 @@ function scheduleIdleStop(): void {
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = setTimeout(() => void stop('idle-timeout'), idleMs);
   idleTimer.unref?.();
-}
-
-function removeMetadataIfOwned(): void {
-  try {
-    const current = JSON.parse(fs.readFileSync(metadataPath, 'utf8')) as { pid?: number };
-    if (current.pid === process.pid) fs.rmSync(metadataPath, { force: true });
-  } catch {
-    /* absent or owned by a successor */
-  }
-}
-
-async function writeMetadata(): Promise<void> {
-  fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
-  // The token lives ONLY in this owner-only file, never on the wire (WS-027).
-  const metadata: ProjectIndexServerMetadata = { ...serverInfo, authToken };
-  // WS-059: this was a hand-rolled write + rename whose catch did
-  // `rmSync(metadataPath)` then retried. The old comment justified that as
-  // safe because the socket already elected this process the sole owner —
-  // but ownership was never the risk. The risk is the window: between the
-  // `rm` and the retry `rename` the metadata file does not exist, and a
-  // client that reads it right then concludes there is no daemon and spawns
-  // a second one. On Windows the rename fails whenever a reader holds the
-  // destination, so that branch was the common path, not the edge case.
-  //
-  // `atomicWrite` replaces in place with a bounded rename retry and never
-  // unlinks the destination, so the file is present at every instant. The
-  // mailbox, chronicle and SAGE daemons already moved onto it.
-  await atomicWrite(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
-  // `mode: 0o600` is honored on POSIX but ignored by Node on Windows, where
-  // the file inherits the parent directory's ACLs instead — and the IPC
-  // endpoint excludes nobody on Windows either, so a readable metadata file
-  // hands the per-process token to any local account. Strips inherited ACEs
-  // and grants the owner alone.
-  await restrictFilePermissions(metadataPath, {
-    label: 'codebase-index-metadata',
-    warn: (message: string) => process.stderr.write(`${message}\n`),
-  });
 }
 
 const server = net.createServer((socket) => {
@@ -932,7 +478,7 @@ const server = net.createServer((socket) => {
     state.cancel.clear();
     clients.delete(state);
     try {
-      reconcileExternalWatcher();
+      watcherManager.reconcile(clients);
     } catch {
       /* remaining clients can retry configuration */
     }
@@ -964,10 +510,10 @@ async function stop(_reason: string): Promise<void> {
     state.socket.end();
   }
   activeFullIndex?.controller.abort(new Error('codebase-index server stopping'));
-  stopExternalWatcher();
+  watcherManager.stop();
   walMaintenance.dispose();
   indexStorePool.closeAll();
-  removeMetadataIfOwned();
+  removeMetadataIfOwned(metadataPath, process.pid);
   await new Promise<void>((resolve) => {
     server.close(() => resolve());
     const timer = setTimeout(() => {
@@ -1010,58 +556,10 @@ void (async () => {
     process.stderr.write(`codebase-index server error: ${error.message}\n`);
     process.exitCode = 1;
   });
-  await writeMetadata();
+  const metadata: ProjectIndexServerMetadata = { ...serverInfo, authToken };
+  await writeProjectServerMetadata(metadataPath, metadata);
   markMetadataWritten?.();
   scheduleIdleStop();
 })();
 
-/**
- * One SIGINT/SIGTERM pair per PROCESS, not per module instance.
- *
- * The in-process test harness imports this module once per test case with a
- * `?case=<n>` query URL, so every case evaluates this module body fresh; a
- * bare top-level `process.once(signal, ...)` pair accumulates one handler
- * per case until Node raises MaxListenersExceededWarning in every coverage
- * run. The guard lives on globalThis under a Symbol.for key: the first
- * evaluation registers the pair, every evaluation re-targets it at its own
- * `stop`, and a fired signal removes the pair (once semantics).
- */
-interface CodebaseIndexSignalGuard {
-  arm(stop: (signal: string) => Promise<void>): void;
-}
-const SIGNAL_GUARD: unique symbol = Symbol.for(
-  'wrongstack.codebase-index.project-server.signalGuard',
-);
-
-const signalGuardStore = globalThis as typeof globalThis & {
-  [SIGNAL_GUARD]?: CodebaseIndexSignalGuard | undefined;
-};
-let signalGuard = signalGuardStore[SIGNAL_GUARD];
-if (!signalGuard) {
-  let current: (signal: string) => Promise<void> = async () => undefined;
-  let armed = false;
-  const handlers = new Map<string, () => void>();
-  const disarm = (): void => {
-    if (!armed) return;
-    armed = false;
-    for (const [signal, handler] of handlers) process.removeListener(signal, handler);
-    handlers.clear();
-  };
-  signalGuard = {
-    arm(next) {
-      current = next;
-      if (armed) return;
-      armed = true;
-      for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-        const handler = (): void => {
-          disarm();
-          void current(signal);
-        };
-        handlers.set(signal, handler);
-        process.on(signal, handler);
-      }
-    },
-  };
-  signalGuardStore[SIGNAL_GUARD] = signalGuard;
-}
-signalGuard.arm(stop);
+armCodebaseIndexSignalGuard(stop);

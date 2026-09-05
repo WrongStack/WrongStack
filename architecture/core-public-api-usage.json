@@ -199,9 +199,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 552,
+      "files": 553,
       "typeOnly": 55,
-      "runtimeOrMixed": 525
+      "runtimeOrMixed": 526
     },
     "@wrongstack/core/utils/error": {
       "files": 6,
@@ -8571,7 +8571,7 @@
     },
     {
       "specifier": "@wrongstack/core/security",
-      "file": "packages/tools/src/codebase-index/project-server.ts",
+      "file": "packages/tools/src/codebase-index/project-server-lifecycle.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -18754,6 +18754,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/json-parser.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/project-server-watcher.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

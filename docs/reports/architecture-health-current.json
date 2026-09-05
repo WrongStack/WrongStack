@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T19:50:46.065Z",
+  "generatedAt": "2026-09-05T19:54:51.105Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3622,
+    "sourceFiles": 3627,
     "testFiles": 3071,
-    "sourceLines": 871467,
+    "sourceLines": 871576,
     "workspaceEdges": 127,
-    "moduleEdges": 11392,
+    "moduleEdges": 11406,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -731,7 +731,7 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 192,
+      "sourceFiles": 197,
       "testFiles": 202,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -19969,11 +19969,6 @@
       "relativeImports": 6
     },
     {
-      "file": "packages/tools/src/codebase-index/project-server.ts",
-      "lines": 1068,
-      "relativeImports": 9
-    },
-    {
       "file": "packages/tools/src/codebase-index/tree-sitter/queries.ts",
       "lines": 867,
       "relativeImports": 1
@@ -20251,11 +20246,6 @@
   ],
   "hotspots": [
     {
-      "file": "packages/tools/src/codebase-index/project-server.ts",
-      "lines": 1068,
-      "relativeImports": 9
-    },
-    {
       "file": "packages/webui/src/components/FileActivityDrawer.tsx",
       "lines": 1062,
       "relativeImports": 2
@@ -20499,6 +20489,11 @@
       "file": "packages/plugins/src/prompt-firewall/index.ts",
       "lines": 955,
       "relativeImports": 2
+    },
+    {
+      "file": "packages/webui-server/src/server/backend-services.ts",
+      "lines": 950,
+      "relativeImports": 13
     }
   ],
   "testOnlyExports": [

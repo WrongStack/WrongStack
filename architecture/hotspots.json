@@ -290,10 +290,6 @@
       "lines": 823,
       "relativeImports": 6
     },
-    "packages/tools/src/codebase-index/project-server.ts": {
-      "lines": 1068,
-      "relativeImports": 9
-    },
     "packages/tools/src/codebase-index/tree-sitter/queries.ts": {
       "lines": 867,
       "relativeImports": 1
