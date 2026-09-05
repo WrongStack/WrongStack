@@ -166,8 +166,12 @@ export function aggregateAll(cells: ModelCell[], results: TaskResult[]): CellRes
 
 /** Median of a numeric array (0 for empty). Exported for tests. */
 export function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
+  // Ignore non-finite values (NaN/±Infinity): a single malformed telemetry value
+  // must not poison the p50 (median of [1,NaN,3] was becoming NaN). Consistent
+  // with finiteSum keeping the cell averages finite.
+  const finite = values.filter((v) => Number.isFinite(v));
+  if (finite.length === 0) return 0;
+  const sorted = [...finite].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0
     ? ((sorted[mid - 1] as number) + (sorted[mid] as number)) / 2

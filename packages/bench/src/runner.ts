@@ -145,9 +145,14 @@ function parseOutputJson(stdout: string): Omit<RawRun, 'elapsedMs' | 'exitCode'>
     try {
       obj = JSON.parse(line) as Record<string, unknown>;
     } catch {
-      continue;
+      // A trailing line that begins `{` but isn't complete JSON is the real
+      // (malformed) payload — a multiline finalText, an adapter that emitted a
+      // raw newline, or a hard-killed write. Treating it as noise and scanning
+      // further up could silently substitute an EARLIER, stale payload from a
+      // previous run, masking the failure. Abort instead of guessing.
+      return undefined;
     }
-    if (typeof obj['status'] !== 'string') continue;
+    if (typeof obj['status'] !== 'string') return undefined;
     const usage = (obj['usage'] as Record<string, unknown> | undefined) ?? {};
     const parsed: Omit<RawRun, 'elapsedMs' | 'exitCode'> = {
       status: normalizeStatus(obj['status'] as string),

@@ -227,6 +227,15 @@ export function runFailureReason(run: TaskResult['run']): string | undefined {
     case 'failed':
       return `agent reported failure${run.errorMessage ? `: ${run.errorMessage}` : ''}`;
     default:
+      // 'completed' normally means the loop finished. But if the subprocess
+      // exited non-zero AFTER printing a completed payload (a wrapper crash, a
+      // signal, or an error path that still wrote the report), that abnormal
+      // exit must not be silently graded as a clean pass — surface it so the
+      // report carries the diagnostic while the grader stays authoritative on
+      // pass/fail.
+      if (run.status === 'completed' && run.exitCode !== 0 && run.exitCode != null) {
+        return `agent exited with code ${run.exitCode} after reporting completed`;
+      }
       return undefined;
   }
 }
