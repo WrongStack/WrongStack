@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 312,
-      "typeOnly": 247,
+      "files": 316,
+      "typeOnly": 251,
       "runtimeOrMixed": 82
     },
     "@wrongstack/core/agent-catalog": {
@@ -1887,6 +1887,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/kanban-board-routes.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/kanban-contract-routes.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1905,6 +1911,18 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/kanban-item-routes.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/kanban-orchestration-routes.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/kanban-route-helpers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1912,6 +1930,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/kanban-routes.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/kanban-task-lifecycle-routes.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9891,7 +9915,7 @@
     },
     {
       "specifier": "@wrongstack/core/tasking",
-      "file": "packages/webui-server/src/server/kanban-routes.ts",
+      "file": "packages/webui-server/src/server/kanban-orchestration-routes.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15525,7 +15549,7 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/webui-server/src/server/kanban-routes.ts",
+      "file": "packages/webui-server/src/server/kanban-orchestration-routes.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
