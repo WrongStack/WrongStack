@@ -514,10 +514,6 @@
       "lines": 926,
       "relativeImports": 16
     },
-    "packages/webui/src/stores/ui-store.ts": {
-      "lines": 1290,
-      "relativeImports": 4
-    },
     "packages/webui/src/stores/viz-store.ts": {
       "lines": 1110,
       "relativeImports": 0
