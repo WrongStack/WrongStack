@@ -70,12 +70,12 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
       typeof input.strip === 'number' && Number.isFinite(input.strip) && input.strip >= 0
         ? Math.floor(input.strip)
         : 1;
-    const out: string[] = [];
+    const out = new Set<string>();
     for (const target of extractDiffTargets(input.patch)) {
       const stripped = stripPathComponents(target.raw, strip);
-      if (stripped) out.push(stripped);
+      if (stripped) out.add(stripped);
     }
-    return out;
+    return [...out];
   },
   async execute(input, ctx, opts) {
     if (!input?.patch || typeof input.patch !== 'string' || !input.patch.trim()) {
@@ -87,6 +87,12 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
 
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
+    if (input.strip !== undefined && (typeof input.strip !== 'number' || !Number.isFinite(input.strip) || input.strip < 0)) {
+      throw new ToolValidationError({
+        message: 'patch: strip must be a non-negative integer',
+        field: 'strip',
+      });
+    }
     const strip =
       typeof input.strip === 'number' && Number.isFinite(input.strip) && input.strip >= 0
         ? Math.floor(input.strip)

@@ -146,8 +146,8 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
         const finalResults = results.slice(0, num);
         yield {
           type: 'log',
-          text: `Cache hit for "${input.query}" (${source})`,
-          data: { source, query: input.query, cached: true },
+          text: `Cache hit for "${input.query}" (${entry.source})`,
+          data: { source: entry.source, query: input.query, cached: true },
         };
         yield {
           type: 'partial_output',
@@ -267,6 +267,11 @@ function pruneCacheEntries(): void {
 /** Exposed for tests so they can reset the module-level cache between cases. */
 export function __clearSearchCache(): void {
   cache.clear();
+}
+
+/** Exposed for tests so they can seed the module-level cache between cases. */
+export function __setSearchCacheForTest(key: string, entry: CacheEntry): void {
+  cache.set(key, entry);
 }
 
 // ---------------------------------------------------------------------------

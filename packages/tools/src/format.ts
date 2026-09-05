@@ -64,10 +64,14 @@ export const formatTool = {
     if (input?.check) return [];
     if (!input?.files) return [];
     const rawFiles = Array.isArray(input.files) ? input.files : input.files.split(',');
-    return rawFiles
-      .filter((f): f is string => typeof f === 'string')
-      .map((f) => f.trim().replace(/\\/g, '/'))
-      .filter(Boolean);
+    return [
+      ...new Set(
+        rawFiles
+          .filter((f): f is string => typeof f === 'string')
+          .map((f) => f.trim().replace(/\\/g, '/'))
+          .filter(Boolean),
+      ),
+    ];
   },
   async execute(input: FormatInput, ctx: FormatContext, opts?: { signal: AbortSignal }) {
     let final: FormatOutput | undefined;
@@ -219,7 +223,7 @@ function parseFormatterCounts(
   };
 }
 
-async function detectFixer(cwd: string): Promise<string | null> {
+export async function detectFixer(cwd: string): Promise<string | null> {
   const fs = await import('node:fs/promises');
   const { join } = await import('node:path');
   const exists = async (file: string): Promise<boolean> => {
