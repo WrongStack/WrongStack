@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T19:09:09.235Z",
+  "generatedAt": "2026-09-05T19:18:57.756Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3606,
+    "sourceFiles": 3612,
     "testFiles": 3071,
-    "sourceLines": 871184,
+    "sourceLines": 871225,
     "workspaceEdges": 127,
-    "moduleEdges": 11343,
+    "moduleEdges": 11357,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 843
+    "testOnlyExports": 842
   },
   "errors": [],
   "packageCycles": [],
@@ -212,7 +212,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 825,
+      "sourceFiles": 831,
       "testFiles": 708,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -19774,11 +19774,6 @@
       "relativeImports": 13
     },
     {
-      "file": "packages/core/src/hq/publisher.ts",
-      "lines": 1085,
-      "relativeImports": 5
-    },
-    {
       "file": "packages/core/src/index.ts",
       "lines": 1048,
       "relativeImports": 163
@@ -20271,11 +20266,6 @@
   ],
   "hotspots": [
     {
-      "file": "packages/core/src/hq/publisher.ts",
-      "lines": 1085,
-      "relativeImports": 5
-    },
-    {
       "file": "packages/webui/src/components/AgentOfficeView.tsx",
       "lines": 1081,
       "relativeImports": 5
@@ -20519,6 +20509,11 @@
       "file": "packages/webui/src/components/SidePanel/SessionList.tsx",
       "lines": 965,
       "relativeImports": 0
+    },
+    {
+      "file": "packages/tui/src/app-state.ts",
+      "lines": 963,
+      "relativeImports": 14
     }
   ],
   "testOnlyExports": [
@@ -21449,10 +21444,6 @@
     {
       "file": "packages/core/src/hq/mailbox-mapper.ts",
       "name": "mapMailboxMessageToHqSummary"
-    },
-    {
-      "file": "packages/core/src/hq/publisher.ts",
-      "name": "resetHqPublisherWarningStateForTests"
     },
     {
       "file": "packages/core/src/hq/redaction.ts",

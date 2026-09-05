@@ -35,8 +35,8 @@ import { HqTimeseriesStore } from './persistence/timeseries-store.js';
 
 export { HqKanbanStore } from './kanban-store.js';
 export {
-  HqEventLog,
   HQ_EVENT_LOG_PRESETS,
+  HqEventLog,
   hqEventLogPresetFields,
 } from './persistence/event-log.js';
 export { HqSimpleLog } from './persistence/simple-log.js';

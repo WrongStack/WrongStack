@@ -17,7 +17,7 @@
  * @module hq/bridge-context
  */
 
-import type { HqPublisher, HqPublishEventOptions } from './publisher.js';
+import type { HqPublishEventOptions, HqPublisher } from './publisher.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

@@ -2,9 +2,9 @@
 
 # WrongStack
 
-### _Built on the wrong stack. Shipped anyway._
+### Ships with a Brain, a Memory, and 70 tools. Yours to run anywhere.
 
-**A fully autonomous, from-scratch AI coding agent that gets better at _your_ codebase. WrongStack reads code, edits files, runs commands, and verifies work across a terminal REPL, full-screen TUI, browser UI, Electron desktop shell, and cross-machine HQ — while every tool call stays behind an explicit permission boundary.**
+**A free, open-source AI coding agent that gets better at _your_ codebase over time. It reads code, runs tools, and coordinates specialist agents — with durable memory, visible permission boundaries, and no subscription required.**
 
 [![npm](https://img.shields.io/npm/v/wrongstack?style=flat-square&color=0b7285&label=npm)](https://www.npmjs.com/package/wrongstack)
 [![downloads](https://img.shields.io/npm/dm/wrongstack?style=flat-square&color=0b7285)](https://www.npmjs.com/package/wrongstack)
@@ -23,11 +23,10 @@ npm i -g wrongstack && wrongstack
 ---
 
 WrongStack is **free, open source, and MIT licensed**. It drives autonomous goal
-loops, parallel subagent fan-out, multi-agent Director orchestration,
-Brain-governed policy decisions, and collaborative debugging — with a
+loops, parallel subagent fan-out, and Brain-governed policy decisions — with a
 **project-wide SAGE memory** that persists knowledge across sessions, **active
-Kanban/task boards** with atomic verification, an **inter-agent mailbox** that
-links every client, and **Chimera** auto-review agents that critique your diffs.
+Kanban boards** with atomic verification, an **inter-agent mailbox** that links
+every client, and **Chimera** auto-review agents that critique your diffs.
 It ships with **70 built-in tools**, **29 bundled skills**, **73 managed first-party
 plugins**, and **~140 providers** pulled live from
 [models.dev](https://models.dev) — all on top of a compact, swappable kernel that
@@ -52,17 +51,20 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.320.1
+### What's new in 1.0.0
 
+- **WrongStack reaches production-ready 1.0.0.** The kernel is stable, the tool
+  contract is sealed, and the runtime gate passes reliably. Everything from here
+  follows semver.
 - **Benchmarks now report variance instead of a lucky single run.**
   `wstack bench run --repeats N` reports Pass@N, All-pass, and flaky-task
-  counts, while the new bundled six-task `core` suite works without cloning a
+  counts, while the bundled six-task `core` suite works without cloning a
   dataset or writing a config file.
 - **Benchmark failures remain diagnosable after long runs.** Rows are appended
   to `results.jsonl` as they finish, reports name failure reasons and explain
   when cost/token figures are lower bounds, and `wstack bench compare` checks
   harness fingerprints before comparing results.
-- **Brain councils can deliberate for a second round by default.** Seats see
+- **Brain councils deliberate for a second round by default.** Seats see
   the other ballots only as quoted data, can revise only for substantive new
   evidence, and surface how many votes changed so cost and conformity stay
   visible.
@@ -71,7 +73,7 @@ agent to phone home to.
   retention limits, and compresses stored payloads without invalidating
   integrity verification.
 
-See the complete [0.320.1 release notes](CHANGELOG.md).
+See the complete [1.0.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -80,7 +82,7 @@ See the complete [0.320.1 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.320.1](#whats-new-in-03201)
+- [What's new in 1.0.0](#whats-new-in-100)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
@@ -541,6 +543,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
+- **v1.0.0** — first production-ready release
 - **Tens of thousands of tests** passing in the release gate across ~1,900 test files
 - Coverage thresholds (root Vitest): ≥73% lines / ≥73% functions / ≥64% branches / ≥72% statements
 - All 34 packages + 2 apps build clean with TypeScript strict + `noUncheckedIndexedAccess`

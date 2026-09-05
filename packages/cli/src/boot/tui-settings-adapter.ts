@@ -206,7 +206,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       // here we read from `decrypted.tools.multiDiffSummaryThreshold` to
       // match the Tools-section write gate added in saveSettings).
       multiDiffSummaryThreshold:
-        ((cfg.tools as Record<string, unknown> | undefined)?.multiDiffSummaryThreshold as
+        ((cfg.tools as unknown as Record<string, unknown> | undefined)?.multiDiffSummaryThreshold as
           | number
           | undefined) ?? 5,
       nextStepsTool: cfg.tools?.nextsteps?.enabled === true,

@@ -13,8 +13,9 @@
  *
  * @module hq/transcript-mapper
  */
-import { CHAT_MARKER_SOURCES, sessionEventToMarker } from '../types/session-markers.js';
+
 import type { SessionEvent } from '../types/session.js';
+import { CHAT_MARKER_SOURCES, sessionEventToMarker } from '../types/session-markers.js';
 import type { HqTranscriptEntry, HqTranscriptRole } from './protocol.js';
 
 function blocksToText(content: unknown): string {

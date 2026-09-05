@@ -31,6 +31,8 @@ export interface LiveSettingsInput {
   indexOnStart?: boolean | undefined;
   maxIterations?: number | undefined;
   autoProceedMaxIterations?: number | undefined;
+  /** Per-tool diff threshold that triggers multi-diff summary view. Default: 5. */
+  multiDiffSummaryThreshold?: number | undefined;
   /** When true, file tools are confined to the project root. Default false. */
   restrictFsToRoot?: boolean | undefined;
   debugStream?: boolean | undefined;

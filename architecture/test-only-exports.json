@@ -461,9 +461,6 @@
       "mapMailboxAgentToHqSummary",
       "mapMailboxMessageToHqSummary"
     ],
-    "packages/core/src/hq/publisher.ts": [
-      "resetHqPublisherWarningStateForTests"
-    ],
     "packages/core/src/hq/redaction.ts": [
       "redactHqValue"
     ],

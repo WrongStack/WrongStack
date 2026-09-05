@@ -2,9 +2,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import { hostname } from 'node:os';
 import { basename } from 'node:path';
-import { readProjectIdentitySync } from '../utils/project-identity.js';
 import type { HqClientConfig } from '../types/config.js';
 import type { Logger } from '../types/logger.js';
+import { readProjectIdentitySync } from '../utils/project-identity.js';
 import {
   type HqAuthFile,
   hqAuthFilePath,

@@ -17,19 +17,19 @@
  * @module hq/tool-bridge
  */
 import type { EventBus } from '../kernel/events.js';
-import {
-  resolveHqRedactionPolicy,
-  scrubAndTruncateHqPreview,
-  summarizeHqToolArgs,
-} from './redaction.js';
-import { HQ_TRANSCRIPT_TEXT_CAP } from './protocol.js';
+import { type BridgeContextOptions, createBridgeContext } from './bridge-context.js';
 import type {
   HqEventEnvelope,
   HqRedactionPolicy,
   HqToolCompletedPayload,
   HqToolStartedPayload,
 } from './protocol.js';
-import { createBridgeContext, type BridgeContextOptions } from './bridge-context.js';
+import { HQ_TRANSCRIPT_TEXT_CAP } from './protocol.js';
+import {
+  resolveHqRedactionPolicy,
+  scrubAndTruncateHqPreview,
+  summarizeHqToolArgs,
+} from './redaction.js';
 
 export interface ToolTelemetryBridgeOptions extends BridgeContextOptions {
   /** Local EventBus emitting `tool.started` and `tool.executed` events. */

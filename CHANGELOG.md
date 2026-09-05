@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-09-05
+
+> **WrongStack 1.0.0 — The stable, production-ready release.** This milestone
+> ships after months of incremental improvements: a hardened kernel with Chronicle
+> event journals, Brain councils with multi-round deliberation, an SSA-based loop
+> breaker, 73 managed plugins, 29 bundled skills, first-class ACP fleet control,
+> and a full six-interface deployment surface. From here, every change follows
+> semver.
+
+### Added
+
+- **WrongStack graduates to 1.0.0.** The kernel is stable, the tool contract is
+  sealed, the runtime gate (audit, build, contracts, typecheck, tests) passes
+  reliably, and the publish pipeline is automated. This is the first release
+  intended for production use.
+- **`wstack bench run` works out of the box.** The bundled six-task Node `core`
+  suite is the new default, graded by real tests. `--suite smoke` remains a
+  three-task wiring check. (`packages/bench`, `wstack bench run`)
+- **Benchmark reports expose variance and failures.** `--repeats N` adds Pass@N,
+  All-pass, and per-task flakiness alongside Pass@1. Results stream to
+  `results.jsonl`, the report names grader and agent failure details, and
+  `wstack bench compare` refuses to silently compare incompatible harnesses.
+- **Brain councils deliberate twice before a decision.** The first round is
+  independent; the optional second round presents other ballots as untrusted
+  quoted data, lets seats revise only on substantive evidence, and records how
+  many votes changed. Set `/brain council rounds 1` for a single-round panel.
+- **Chronicle gains a configurable volume policy.** `chronicle.detail` can fold
+  routine high-volume telemetry into bounded counters while always keeping
+  failures, denials, and cancellations as raw evidence. Retention limits cover
+  days, events, and disk usage.
+- **GPT-6 Astra available under the ChatGPT sign-in provider.** Leads the Codex
+  picker as the recommended model. Supports text and image input, 1.05M context /
+  128k output window.
+
+### Changed
+
+- **Chronicle journals use less disk without weakening verification.** Event
+  payloads are losslessly compressed when beneficial, legacy rows remain
+  readable, and incremental vacuum returns pages after purges or event-limit
+  trims instead of keeping the database at its historical high-water mark.
+- **Brain decisions carry more operator context** across CLI, TUI, SimpleUI, and
+  HQ, with full council deliberation and voting metadata surfaced in slash
+  command output.
+- **Context window pressure reporting is now three-stage.** The CLI shows
+  `warn / soft / hard` thresholds separately instead of a single percentage.
+- **CLI flag table now documents** `--no-mouse`, `--eternal`, and `--skip-index`;
+  `/hq` and `/supervisor` are now covered in the slash-command table.
+- **README HQ coverage added** — documents the cross-machine HQ surface,
+  auto-discovery, token scopes, telemetry streams, persisted event/snapshot/
+  timeseries storage, alerting, and guarded command routing.
+- **README plugin section updated to the 73-plugin catalog** — replaces the
+  stale table with the current catalog-backed list; calls out retired plugins
+  (`web-search`, `json-path`) with their built-in tool replacements.
+- **README observability count corrected** from 53 typed events to 97 typed
+  events, matching the current kernel `EventMap`.
+- **README bundled-skill count corrected** to 29 and now includes the
+  `plugin-author` bundled skill.
+
 ## [0.320.1] — 2026-09-04
 
 ### Added

@@ -1413,8 +1413,8 @@
       "directory": "hq",
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
-      "sourceFiles": 43,
-      "sourceLines": 9364
+      "sourceFiles": 49,
+      "sourceLines": 9401
     },
     {
       "directory": "infrastructure",
@@ -1547,7 +1547,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 13189
+      "sourceLines": 13191
     },
     {
       "directory": "utils",

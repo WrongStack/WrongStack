@@ -24,9 +24,9 @@
  * working (the reason the old `ctx.constructor` cast existed) without any
  * consumer importing the class type.
  */
+import type { TextBlock } from './blocks.js';
 import type { ContextEvidenceState } from './context-evidence.js';
 import type { ConversationStateApi } from './conversation-state.js';
-import type { TextBlock } from './blocks.js';
 import type { FileEventRecord } from './file-event-record.js';
 import type { Message } from './messages.js';
 import type { Usage } from './provider.js';
@@ -170,6 +170,8 @@ export interface AgentContext extends RunEnv {
   lastRealInputTokens: number | undefined;
   /** Lazy observable wrapper backing `state`. */
   _state: ConversationStateApi | null;
+  /** Backing manager for the conversation journal queue. */
+  readonly _journalQueueManager: ConversationJournalQueue;
   readonly _conversationJournalQueue: Array<{
     event: SessionEvent;
     bytes: number;

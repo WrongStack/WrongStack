@@ -22,7 +22,7 @@
  * @module hq/auth-audit
  */
 
-import { appendFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 /** Scope of the token the event is about. */

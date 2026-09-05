@@ -12,8 +12,8 @@
  * @module hq/worktree-bridge
  */
 import type { EventBus } from '../kernel/events.js';
+import { type BridgeContextOptions, createBridgeContext } from './bridge-context.js';
 import type { HqEventEnvelope, HqWorktreeEventPayload } from './protocol.js';
-import { createBridgeContext, type BridgeContextOptions } from './bridge-context.js';
 
 export interface WorktreeTelemetryBridgeOptions extends BridgeContextOptions {
   /** Local EventBus emitting `worktree.*` events. */

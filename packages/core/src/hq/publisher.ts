@@ -19,13 +19,10 @@ import {
   type HqClientHelloMessage,
   type HqClientIdentity,
   type HqEventEnvelope,
-  type HqEventType,
   type HqFleetSnapshotPayload,
-  type HqKanbanSnapshotPayload,
   type HqMailboxEventPayload,
   type HqMailboxSnapshotPayload,
   type HqProjectIdentity,
-  type HqQueuedCommand,
   type HqRedactionPolicy,
   type HqServerCommandBatchMessage,
   type HqServerKanbanSnapshotMessage,
@@ -33,138 +30,46 @@ import {
   type HqSessionSnapshotPayload,
   type HqTranscriptAppendPayload,
 } from './protocol.js';
+import { CommandTracker, IN_FLIGHT_COMMAND } from './publisher-command-tracker.js';
+import { PublisherQueue, queuedFrameCoalesceKey } from './publisher-queue.js';
+import { parseHqServerMessage } from './publisher-server-message.js';
+import {
+  addSocketListener,
+  defaultSocketFactory,
+  OPEN_STATE,
+  removeSocketListener,
+  toClientUrl,
+} from './publisher-socket.js';
+import type {
+  HqPublishEventOptions,
+  HqPublisherCommandHandler,
+  HqPublisherCommandResult,
+  HqPublisherOptions,
+  HqSocketFactory,
+  HqSocketLike,
+} from './publisher-types.js';
+import {
+  CONNECT_WARN_AFTER_FAILURES,
+  DEFAULT_CONNECT_WARN_COOLDOWN_MS,
+  emitConnectWarning,
+  resetHqPublisherWarningStateForTests,
+  warnedEndpoints,
+} from './publisher-warnings.js';
 import { redactHqEvent, resolveHqRedactionPolicy } from './redaction.js';
 
-export interface HqSocketLike {
-  readyState: number;
-  send(data: string): void;
-  close(code?: number, reason?: string): void;
-  addEventListener?(
-    type: 'open' | 'close' | 'error' | 'message',
-    listener: (event: unknown) => void,
-  ): void;
-  removeEventListener?(
-    type: 'open' | 'close' | 'error' | 'message',
-    listener: (event: unknown) => void,
-  ): void;
-  on?(type: 'open' | 'close' | 'error' | 'message', listener: (event: unknown) => void): void;
-  off?(type: 'open' | 'close' | 'error' | 'message', listener: (event: unknown) => void): void;
-}
-
-export type HqSocketFactory = (url: string, init: { token?: string }) => HqSocketLike;
-
-export interface HqPublisherCommandResult {
-  commandId: string;
-  status: 'accepted' | 'completed' | 'failed' | 'rejected';
-  message?: string;
-}
-
-export type HqPublisherCommandHandler = (
-  command: HqQueuedCommand,
-) => void | HqPublisherCommandResult | Promise<void | HqPublisherCommandResult>;
-
-export interface HqPublisherOptions {
-  url: string;
-  token?: string;
-  client: HqClientIdentity;
-  project: HqProjectIdentity;
-  capabilities?: readonly HqClientCapability[];
-  socketFactory?: HqSocketFactory;
-  now?: () => string;
-  idFactory?: () => string;
-  reconnect?: boolean;
-  reconnectBaseMs?: number;
-  reconnectMaxMs?: number;
-  /**
-   * Consecutive connect failures (never reaching `open`) before the one-time
-   * diagnostic warning fires. Defaults to `CONNECT_WARN_AFTER_FAILURES` (5).
-   */
-  connectWarnAfterFailures?: number;
-  /**
-   * Minimum gap between connect-failure warnings ACROSS all HqPublisher
-   * instances in this process. When a fleet of agents fails against the same
-   * dead/rejecting HQ at once, only the first instance to cross the threshold
-   * warns; the rest stay silent until the window elapses (each instance still
-   * warns at most once). Defaults to 5 minutes. Set to 0 to disable the
-   * process-wide gate entirely.
-   */
-  connectWarnCooldownMs?: number;
-  maxQueuedMessages?: number;
-  /** Hard byte cap on the outbound queue (prevents RAM blow-up when HQ is
-   * offline). Older frames are dropped oldest-first when exceeded. The default
-   * is heap-relative: `min(16 MiB, heap_limit * 0.10)` — see `DEFAULT_MAX_QUEUED_BYTES`. */
-  maxQueuedBytes?: number;
-  redactionPolicy?: Partial<HqRedactionPolicy>;
-  commandPollIntervalMs?: number;
-  commandPollLimit?: number;
-  onCommand?: HqPublisherCommandHandler;
-  /** Called whenever HQ sends the merged Kanban state for this project. */
-  onKanbanSnapshot?: (snapshot: HqKanbanSnapshotPayload) => void | Promise<void>;
-  /**
-   * Local auto-discovery hook: re-resolve the HQ endpoint before EVERY
-   * connect attempt (e.g. by reading `<hq dataDir>/runtime.json`). Returning
-   * `undefined` means no HQ is currently discoverable — the publisher stays
-   * dormant (events keep queueing, bounded) and re-checks every
-   * {@link HqPublisherOptions.discoveryPollMs}. Because the endpoint is
-   * re-resolved per attempt, an HQ started AFTER this client — or restarted
-   * on a different port, or one that minted its first client token on boot —
-   * is picked up automatically.
-   */
-  resolveEndpoint?: () => { url: string; token?: string | undefined } | undefined;
-  /** Dormant re-check interval while `resolveEndpoint` yields nothing. Default 5s. */
-  discoveryPollMs?: number;
-  /**
-   * Application-level heartbeat interval for the `/ws/client` connection.
-   * The HQ server evicts silent sockets, so this must be comfortably below
-   * the server-side client TTL even when no command handler is installed.
-   */
-  heartbeatIntervalMs?: number;
-  /**
-   * Diagnostic sink for the consecutive-connect-failure warning. The
-   * publisher is otherwise deliberately silent (dormant queueing), which
-   * made auth failures invisible: a token the server rejects — e.g. a wrong
-   * `WRONGSTACK_HQ_TOKEN` against a remote HQ — looked exactly like "HQ not
-   * running". Emission is one-shot per instance and rate-limited process-wide
-   * via {@link HqPublisherOptions.connectWarnCooldownMs}. Defaults to a
-   * single structured `console.warn` line.
-   */
-  warn?: (message: string) => void;
-  /** Logger for structured events. When provided, the `warn` callback is derived from it. */
-  logger?: Logger | undefined;
-}
-
-export interface HqPublishEventOptions {
-  type: HqEventType | (string & {});
-  payload: unknown;
-  sessionId?: string;
-  runId?: string;
-  timestamp?: string;
-  /**
-   * Per-string redaction cap override. Defaults to the generic 500-char
-   * summary cap; chat-transcript event types (`session.transcript`,
-   * `agent.message`) automatically get {@link HQ_TRANSCRIPT_TEXT_CAP} so
-   * full chat history survives when `rawContent` is enabled.
-   */
-  maxSummaryLength?: number;
-}
+export {
+  type HqPublishEventOptions,
+  type HqPublisherCommandHandler,
+  type HqPublisherCommandResult,
+  type HqPublisherOptions,
+  type HqSocketFactory,
+  type HqSocketLike,
+  resetHqPublisherWarningStateForTests,
+};
 
 /** Event types that carry full chat turns rather than telemetry summaries. */
 const TRANSCRIPT_EVENT_TYPES = new Set<string>(['session.transcript', 'agent.message']);
 
-const OPEN_STATE = 1;
-/**
- * After this many consecutive failed connects (never reaching `open`), emit
- * ONE diagnostic warning. The WS handshake gives the browser-style socket no
- * HTTP status, so a 401 (token mismatch) is indistinguishable from a dead
- * server at this layer — the warning names both possibilities.
- */
-const CONNECT_WARN_AFTER_FAILURES = 5;
-/**
- * Process-wide minimum gap between connect-failure warnings. Suppresses the
- * burst of identical warnings when many publisher instances (one per agent)
- * fail against the same dead/rejecting HQ at once.
- */
-const DEFAULT_CONNECT_WARN_COOLDOWN_MS = 5 * 60_000;
 const DEFAULT_RECONNECT_BASE_MS = 1_000;
 const DEFAULT_RECONNECT_MAX_MS = 30_000;
 const DEFAULT_DISCOVERY_POLL_MS = 5_000;
@@ -187,105 +92,10 @@ const DEFAULT_MAX_QUEUED_BYTES = Math.min(
 // close to WebSocket-real-time while retaining the existing bounded poll
 // protocol (which also provides replay after a brief disconnect).
 const DEFAULT_COMMAND_POLL_INTERVAL_MS = 500;
-/** Sentinel for a command whose handler has not returned yet. */
-const IN_FLIGHT_COMMAND = Symbol('hq.command.in_flight');
 /** Upper bound on the redelivery ledger (server queues at most 200 per client). */
 const MAX_TRACKED_COMMANDS = 500;
 const DEFAULT_COMMAND_POLL_LIMIT = 25;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 25_000;
-
-/**
- * Module-level set of endpoints (urls) for which a connect-failure warning has
- * already been emitted in THIS process. Shared across all HqPublisher instances so
- * that only one diagnostic warning is emitted across the entire process lifetime
- * while the server is unreachable, rather than repeating warnings periodically or
- * across multiple instances.
- */
-const warnedEndpoints = new Set<string>();
-
-/** Test helper to reset the module-level process warning state. */
-export function resetHqPublisherWarningStateForTests(): void {
-  warnedEndpoints.clear();
-}
-
-interface QueuedFrame {
-  serialized: string;
-  bytes: number;
-  /**
-   * State snapshots are rollups: while offline, only the newest snapshot for
-   * a scope has value. Event/transcript frames intentionally have no key and
-   * retain FIFO semantics.
-   */
-  coalesceKey?: string | undefined;
-}
-
-function queuedFrameCoalesceKey(
-  frame:
-    | HqClientHelloMessage
-    | HqClientEventMessage
-    | HqClientCommandPollMessage
-    | HqClientCommandAckMessage,
-): string | undefined {
-  if (frame.type !== 'client.event' || !frame.event.type.endsWith('.snapshot')) {
-    return undefined;
-  }
-  // Chunks of one snapshot are different content, not different versions of the
-  // same content. Without this the whole multi-chunk publish collapsed onto a
-  // single key while the socket was down, each chunk evicting the last, and
-  // only the final chunk survived the reconnect.
-  //
-  // A newer snapshot with FEWER chunks still leaves the older tail chunks
-  // queued. That is safe for the rollups this applies to: records carry their
-  // own revision, so a stale one loses on arrival.
-  const payload = frame.event.payload as { chunkIndex?: unknown } | undefined;
-  const chunk =
-    typeof payload?.chunkIndex === 'number' && Number.isFinite(payload.chunkIndex)
-      ? String(payload.chunkIndex)
-      : '';
-  return [frame.event.type, frame.event.sessionId ?? '', frame.event.runId ?? '', chunk].join('|');
-}
-
-function defaultSocketFactory(url: string): HqSocketLike {
-  const WebSocketCtor = globalThis.WebSocket;
-  if (WebSocketCtor === undefined) {
-    throw new Error(
-      'No global WebSocket implementation is available; provide HqPublisherOptions.socketFactory.',
-    );
-  }
-  return new WebSocketCtor(url) as HqSocketLike;
-}
-
-function toClientUrl(baseUrl: string, token: string | undefined): string {
-  const url = new URL(baseUrl);
-  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  if (url.pathname === '/' || url.pathname === '') url.pathname = '/ws/client';
-  if (token !== undefined && token.length > 0) url.searchParams.set('token', token);
-  return url.toString();
-}
-
-function addSocketListener(
-  socket: HqSocketLike,
-  type: 'open' | 'close' | 'error' | 'message',
-  listener: (event: unknown) => void,
-): void {
-  if (socket.addEventListener !== undefined) {
-    socket.addEventListener(type, listener);
-    return;
-  }
-  socket.on?.(type, listener);
-}
-
-function removeSocketListener(
-  socket: HqSocketLike,
-  type: 'open' | 'close' | 'error' | 'message',
-  listener: (event: unknown) => void,
-): void {
-  if (socket.removeEventListener !== undefined) {
-    socket.removeEventListener(type, listener);
-    return;
-  }
-  socket.off?.(type, listener);
-}
 
 export class HqPublisher {
   private readonly socketFactory: HqSocketFactory;
@@ -298,26 +108,11 @@ export class HqPublisher {
   private readonly connectWarnAfterFailures: number;
   private readonly connectWarnCooldownMs: number;
   private readonly maxQueuedMessages: number;
-  private readonly maxQueuedBytes: number;
   private readonly resolvedRedactionPolicy: HqRedactionPolicy;
   private readonly logger: Logger | undefined;
   private socket: HqSocketLike | null = null;
   private seq = 0;
-  private queue: QueuedFrame[] = [];
-  private queueBytes = 0;
-  /**
-   * Cumulative count of frames dropped by the bounded outbound queue when the
-   * count/byte cap is exceeded while HQ is unreachable. Lifetime statistic —
-   * intentionally NOT reset on close()/reconnect, so it reflects total
-   * telemetry loss to overflow for this publisher instance.
-   */
-  private droppedFrames = 0;
-  /** Cumulative UTF-8 bytes of frames dropped on overflow (see droppedFrames). */
-  private droppedBytes = 0;
-  /** Obsolete state snapshots replaced in-place while HQ was unreachable. */
-  private coalescedFrames = 0;
-  /** UTF-8 bytes released by snapshot coalescing. */
-  private coalescedBytes = 0;
+  private readonly outboundQueue: PublisherQueue;
   private stopped = false;
   private reconnectAttempt = 0;
   private connectWarningEmitted = false;
@@ -332,17 +127,7 @@ export class HqPublisher {
   /** Listeners re-seeding per-connection server state on every (re)open. */
   private readonly connectedListeners = new Set<() => void>();
   private lastCommandId: string | undefined;
-  /**
-   * Dispositions of recently delivered commands, keyed by `commandId`.
-   *
-   * `IN_FLIGHT_COMMAND` while the handler is running, the ack result once it
-   * finished. Guards against the server redelivering a command whose handler
-   * has not returned yet — see `handleCommandBatch`.
-   */
-  private readonly commandResults = new Map<
-    string,
-    HqPublisherCommandResult | typeof IN_FLIGHT_COMMAND
-  >();
+  private readonly commandTracker = new CommandTracker(MAX_TRACKED_COMMANDS);
 
   constructor(private readonly options: HqPublisherOptions) {
     this.socketFactory = options.socketFactory ?? defaultSocketFactory;
@@ -360,7 +145,8 @@ export class HqPublisher {
     this.connectWarnAfterFailures = options.connectWarnAfterFailures ?? CONNECT_WARN_AFTER_FAILURES;
     this.connectWarnCooldownMs = options.connectWarnCooldownMs ?? DEFAULT_CONNECT_WARN_COOLDOWN_MS;
     this.maxQueuedMessages = options.maxQueuedMessages ?? DEFAULT_MAX_QUEUED_MESSAGES;
-    this.maxQueuedBytes = options.maxQueuedBytes ?? DEFAULT_MAX_QUEUED_BYTES;
+    const maxQueuedBytes = options.maxQueuedBytes ?? DEFAULT_MAX_QUEUED_BYTES;
+    this.outboundQueue = new PublisherQueue(this.maxQueuedMessages, maxQueuedBytes);
     this.resolvedRedactionPolicy = resolveHqRedactionPolicy(options.redactionPolicy);
     this.logger = options.logger;
   }
@@ -467,8 +253,7 @@ export class HqPublisher {
     }
     this.stopCommandPolling();
     this.stopHeartbeat();
-    this.queue = [];
-    this.queueBytes = 0;
+    this.outboundQueue.clear();
     const socket = this.socket;
     this.socket = null;
     this.detachSocket = null;
@@ -635,24 +420,8 @@ export class HqPublisher {
   }
 
   /** Current outbound queue pressure — useful for flow control in telemetry bridges. */
-  getQueueStats(): {
-    entries: number;
-    bytes: number;
-    maxBytes: number;
-    droppedFrames: number;
-    droppedBytes: number;
-    coalescedFrames: number;
-    coalescedBytes: number;
-  } {
-    return {
-      entries: this.queue.length,
-      bytes: this.queueBytes,
-      maxBytes: this.maxQueuedBytes,
-      droppedFrames: this.droppedFrames,
-      droppedBytes: this.droppedBytes,
-      coalescedFrames: this.coalescedFrames,
-      coalescedBytes: this.coalescedBytes,
-    };
+  getQueueStats() {
+    return this.outboundQueue.getStats();
   }
 
   /** Publish a live session/terminal snapshot (state + agents). */
@@ -761,83 +530,25 @@ export class HqPublisher {
     const serialized = JSON.stringify(frame);
     const socket = this.socket;
     // Fast path: socket is open and nothing queued — send immediately.
-    if (socket?.readyState === OPEN_STATE && this.queue.length === 0) {
+    if (socket?.readyState === OPEN_STATE && this.outboundQueue.length === 0) {
       socket.send(serialized);
       return;
     }
     // Slow path: socket offline or queue already has pending frames — enqueue.
-    this.enqueue(serialized, queuedFrameCoalesceKey(frame));
+    this.outboundQueue.enqueue(serialized, queuedFrameCoalesceKey(frame));
     this.connect();
-  }
-
-  private enqueue(serialized: string, coalesceKey?: string): void {
-    const bytes = Buffer.byteLength(serialized, 'utf8');
-    // A single pathological snapshot must not bypass the total byte cap just
-    // because the queue is empty. It is telemetry, so fail closed and let the
-    // next (usually smaller) rollup supersede it.
-    if (bytes > this.maxQueuedBytes) {
-      this.droppedFrames += 1;
-      this.droppedBytes += bytes;
-      // `droppedFrames` only moves a counter nobody polls. This is the one drop
-      // that is never recoverable — no later rollup supersedes a frame that was
-      // never queued — so name it once per frame. The frame body is not logged:
-      // it is telemetry that may carry project content.
-      process.emitWarning(
-        `HQ telemetry frame of ${bytes} bytes exceeds the ${this.maxQueuedBytes}-byte offline queue cap and was dropped.`,
-        { code: 'WRONGSTACK_HQ_FRAME_TOO_LARGE' },
-      );
-      return;
-    }
-
-    if (coalesceKey !== undefined) {
-      let existingIndex = -1;
-      for (let index = this.queue.length - 1; index >= 0; index -= 1) {
-        if (this.queue[index]?.coalesceKey === coalesceKey) {
-          existingIndex = index;
-          break;
-        }
-      }
-      if (existingIndex !== -1) {
-        const [obsolete] = this.queue.splice(existingIndex, 1);
-        if (obsolete !== undefined) {
-          this.queueBytes -= obsolete.bytes;
-          this.coalescedFrames += 1;
-          this.coalescedBytes += obsolete.bytes;
-        }
-      }
-    }
-
-    // Drop oldest frames when either the count cap or the byte cap is
-    // exceeded. The byte cap prevents unbounded RAM growth during extended
-    // HQ outages while the count cap limits per-frame overhead.
-    while (
-      (this.queue.length >= this.maxQueuedMessages ||
-        this.queueBytes + bytes > this.maxQueuedBytes) &&
-      this.queue.length > 0
-    ) {
-      const dropped = this.queue.shift();
-      if (dropped !== undefined) {
-        this.queueBytes -= dropped.bytes;
-        this.droppedFrames += 1;
-        this.droppedBytes += dropped.bytes;
-      }
-    }
-    this.queue.push({ serialized, bytes, coalesceKey });
-    this.queueBytes += bytes;
   }
 
   /** Batch-dequeue up to 50 frames at a time, yielding to the microtask
    *  queue between batches so we don't starve the event loop on reconnect. */
   private flushQueue(): void {
     const socket = this.socket;
-    if (socket?.readyState !== OPEN_STATE || this.queue.length === 0) return;
-    const batch = this.queue.splice(0, 50);
+    if (socket?.readyState !== OPEN_STATE || this.outboundQueue.length === 0) return;
+    const batch = this.outboundQueue.spliceBatch(50);
     for (const frame of batch) {
       socket.send(frame.serialized);
-      this.queueBytes -= frame.bytes;
     }
-    this.queueBytes = Math.max(0, this.queueBytes);
-    if (this.queue.length > 0) setImmediate(() => this.flushQueue());
+    if (this.outboundQueue.length > 0) setImmediate(() => this.flushQueue());
   }
 
   private startCommandPolling(): void {
@@ -897,46 +608,7 @@ export class HqPublisher {
   private parseServerMessage(
     event: unknown,
   ): HqServerCommandBatchMessage | HqServerKanbanSnapshotMessage | null {
-    const data = this.extractMessageData(event);
-    if (data === null) return null;
-    try {
-      const parsed = JSON.parse(data) as
-        | Partial<HqServerCommandBatchMessage>
-        | Partial<HqServerKanbanSnapshotMessage>;
-      if (parsed.type === 'hq.command_batch' && Array.isArray(parsed.commands)) {
-        return parsed as HqServerCommandBatchMessage;
-      }
-      if (parsed.type === 'hq.kanban_snapshot') {
-        const payload = (parsed as Partial<HqServerKanbanSnapshotMessage>).payload;
-        if (
-          payload !== undefined &&
-          typeof payload === 'object' &&
-          typeof payload.projectId === 'string' &&
-          payload.projectId === this.options.project.projectId &&
-          Array.isArray(payload.boards) &&
-          Array.isArray(payload.tombstones)
-        ) {
-          return parsed as HqServerKanbanSnapshotMessage;
-        }
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  private extractMessageData(event: unknown): string | null {
-    const value =
-      typeof event === 'object' && event !== null && 'data' in event
-        ? (event as { data?: unknown }).data
-        : event;
-    if (typeof value === 'string') return value;
-    if (value instanceof ArrayBuffer) return new TextDecoder().decode(value);
-    if (ArrayBuffer.isView(value)) {
-      const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-      return new TextDecoder().decode(bytes);
-    }
-    return null;
+    return parseHqServerMessage(event, this.options.project.projectId);
   }
 
   private async handleCommandBatch(message: HqServerCommandBatchMessage): Promise<void> {
@@ -949,7 +621,7 @@ export class HqPublisher {
       // any handler slower than the poll interval is re-sent the SAME command
       // and, without this, runs it twice. `spawn` and `abort` routinely take
       // seconds; a duplicate there means a second subagent or a second kill.
-      const seen = this.commandResults.get(command.commandId);
+      const seen = this.commandTracker.get(command.commandId);
       if (seen !== undefined) {
         // Still running: the original invocation owns the ack. Already
         // finished: replay the SAME ack so the server's audit row converges
@@ -958,14 +630,14 @@ export class HqPublisher {
         this.lastCommandId = command.commandId;
         continue;
       }
-      this.rememberCommand(command.commandId, IN_FLIGHT_COMMAND);
+      this.commandTracker.remember(command.commandId, IN_FLIGHT_COMMAND);
       try {
         const result = await handler(command);
         const ack: HqPublisherCommandResult = result ?? {
           commandId: command.commandId,
           status: 'accepted',
         };
-        this.rememberCommand(command.commandId, ack);
+        this.commandTracker.remember(command.commandId, ack);
         if (result !== undefined) this.ackCommand(result);
         else if (command.requiresAck) this.ackCommand(ack);
       } catch (err) {
@@ -974,7 +646,7 @@ export class HqPublisher {
           status: 'failed',
           message: err instanceof Error ? err.message : String(err),
         };
-        this.rememberCommand(command.commandId, ack);
+        this.commandTracker.remember(command.commandId, ack);
         this.ackCommand(ack);
       }
       // Advance the poll cursor only AFTER the command is handled and acked.
@@ -984,28 +656,6 @@ export class HqPublisher {
       // skipped and never re-fetched. At-least-once (a possible duplicate on
       // reconnect, which these commands tolerate) beats losing one outright.
       this.lastCommandId = command.commandId;
-    }
-  }
-
-  /**
-   * Record a command's disposition in the bounded redelivery ledger.
-   *
-   * Insertion-ordered and trimmed from the front, so a long-lived publisher
-   * cannot accumulate one entry per command it has ever seen. The cap is far
-   * above any realistic in-flight window (the server itself keeps at most 200
-   * queued commands per client), so an entry is only ever evicted long after
-   * the server stopped redelivering it.
-   */
-  private rememberCommand(
-    commandId: string,
-    disposition: HqPublisherCommandResult | typeof IN_FLIGHT_COMMAND,
-  ): void {
-    this.commandResults.delete(commandId);
-    this.commandResults.set(commandId, disposition);
-    while (this.commandResults.size > MAX_TRACKED_COMMANDS) {
-      const oldest = this.commandResults.keys().next();
-      if (oldest.done === true) break;
-      this.commandResults.delete(oldest.value);
     }
   }
 
@@ -1028,42 +678,15 @@ export class HqPublisher {
   }
 
   private emitConnectWarning(): boolean {
-    const targetUrl = this.lastAttempt?.url ?? this.options.url;
-    // Process-wide suppression: multiple agents failing against the same HQ
-    // collapse to ONE warning across the entire process lifetime while unreachable.
-    if (this.connectWarnCooldownMs > 0) {
-      if (warnedEndpoints.has(targetUrl)) {
-        return false;
-      }
-      warnedEndpoints.add(targetUrl);
-    }
-    const attempt = this.lastAttempt;
-    const message =
-      `WrongStack HQ publisher: ${this.reconnectAttempt} consecutive connection failures` +
-      `${attempt !== null ? ` to ${attempt.url} (client token ${attempt.hadToken ? 'present' : 'absent'})` : ''}. ` +
-      'Either the HQ server is unreachable or it rejected the token (401). ' +
-      'If HQ runs in client-token mode, verify WRONGSTACK_HQ_TOKEN / auth.json. Retries continue with backoff.';
-    if (this.logger) {
-      this.logger.warn(message, { event: 'hq.publisher.connect_failed' });
-      return true;
-    }
-    const warn =
-      this.options.warn ??
-      ((msg: string) =>
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'hq.publisher.connect_failed',
-            message: msg,
-            timestamp: this.now(),
-          }),
-        ));
-    try {
-      warn(message);
-    } catch {
-      /* diagnostics must never break publishing */
-    }
-    return true;
+    return emitConnectWarning({
+      targetUrl: this.lastAttempt?.url ?? this.options.url,
+      reconnectAttempt: this.reconnectAttempt,
+      lastAttempt: this.lastAttempt,
+      connectWarnCooldownMs: this.connectWarnCooldownMs,
+      now: this.now,
+      logger: this.logger,
+      warn: this.options.warn,
+    });
   }
 
   /**

@@ -134,10 +134,6 @@
       "lines": 945,
       "relativeImports": 13
     },
-    "packages/core/src/hq/publisher.ts": {
-      "lines": 1085,
-      "relativeImports": 5
-    },
     "packages/core/src/index.ts": {
       "lines": 1048,
       "relativeImports": 163
