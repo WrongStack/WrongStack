@@ -11,8 +11,8 @@
       "relativeImports": 1
     },
     "packages/cli/src/boot.ts": {
-      "lines": 921,
-      "relativeImports": 19
+      "lines": 917,
+      "relativeImports": 18
     },
     "packages/cli/src/cli-main.ts": {
       "lines": 859,
@@ -47,7 +47,7 @@
       "relativeImports": 14
     },
     "packages/cli/src/slash-commands/settings-mutations.ts": {
-      "lines": 959,
+      "lines": 944,
       "relativeImports": 4
     },
     "packages/cli/src/slash-commands/tool.ts": {
@@ -131,7 +131,7 @@
       "relativeImports": 24
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
-      "lines": 908,
+      "lines": 973,
       "relativeImports": 12
     },
     "packages/core/src/execution/brain-runtime.ts": {
@@ -155,7 +155,7 @@
       "relativeImports": 13
     },
     "packages/core/src/hq/publisher.ts": {
-      "lines": 936,
+      "lines": 1049,
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
@@ -203,7 +203,7 @@
       "relativeImports": 8
     },
     "packages/governance/src/verification-ledger-store.ts": {
-      "lines": 916,
+      "lines": 931,
       "relativeImports": 6
     },
     "packages/kanban/src/manager/assignment.ts": {
@@ -271,7 +271,7 @@
       "relativeImports": 1
     },
     "packages/providers/src/openai-codex.ts": {
-      "lines": 833,
+      "lines": 832,
       "relativeImports": 13
     },
     "packages/sage/src/domain-term-extractor.ts": {

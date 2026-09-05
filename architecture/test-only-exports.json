@@ -181,11 +181,6 @@
       "extractQuickTunnelUrl",
       "hasRegisteredQuickTunnelConnection"
     ],
-    "packages/cli/src/launch-hints.ts": [
-      "HINT_COUNT",
-      "HINT_GROUP_COUNT",
-      "HINT_GROUP_TITLES"
-    ],
     "packages/cli/src/mcp-serve.ts": [
       "loadSelectedMcpServeContent",
       "makeServeContext",
@@ -1168,11 +1163,6 @@
       "stageForColumn",
       "summarizeGoalMetrics",
       "summarizeSuccessCriteria"
-    ],
-    "packages/tui/src/components/key-hint-bar.tsx": [
-      "hintsFor",
-      "IDLE_MESSAGES",
-      "isIdleContext"
     ],
     "packages/tui/src/components/powerline-rail.tsx": [
       "visibleNodeText"
