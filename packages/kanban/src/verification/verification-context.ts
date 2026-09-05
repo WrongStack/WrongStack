@@ -29,6 +29,7 @@ import type { KanbanBoard, KanbanTask } from '../types.js';
 import {
   BoundedProcessOutput,
   buildAllowlist,
+  commandAllowlistFromEnv,
   type CommandAllowlistConfig,
   DEFAULT_ALLOWED_COMMANDS,
   DEFAULT_BLOCKED_COMMANDS,
@@ -38,11 +39,13 @@ import {
   parseCommandArguments,
   SHELL_OPERATOR_RE,
   validateCommand,
+  VERIFIER_COMMANDS_ENV,
 } from './command-security.js';
 import { parseGitNameStatus, parseGitNumstat, tryParseTestJson } from './test-output-parser.js';
 
 export {
   BoundedProcessOutput,
+  commandAllowlistFromEnv,
   type CommandAllowlistConfig,
   DEFAULT_ALLOWED_COMMANDS,
   DEFAULT_BLOCKED_COMMANDS,
@@ -54,6 +57,7 @@ export {
   parseGitNumstat,
   SHELL_OPERATOR_RE,
   validateCommand,
+  VERIFIER_COMMANDS_ENV,
 };
 
 // ─── Tree / Diff / Result Types ────────────────────────────────────────────
