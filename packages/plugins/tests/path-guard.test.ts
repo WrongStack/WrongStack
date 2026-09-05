@@ -2608,6 +2608,135 @@ describe('path-guard covers any tool that declares a write', () => {
     }
   });
 
+  it('blocks destructive shell commands on a symlink that escaped the project (#365 shell branch)', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'path-guard-shell-link-'));
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'path-guard-shell-out-'));
+    const original = process.cwd();
+    try {
+      fs.writeFileSync(path.join(outsideDir, 'secret.txt'), 'secret', 'utf8');
+      // Junction on Windows (no admin/Developer Mode needed), dir symlink on POSIX.
+      if (process.platform === 'win32') {
+        fs.symlinkSync(outsideDir, path.join(projectDir, 'assets-link'), 'junction');
+      } else {
+        fs.symlinkSync(outsideDir, path.join(projectDir, 'assets-link'), 'dir');
+      }
+      fs.writeFileSync(path.join(projectDir, 'ordinary.txt'), 'x', 'utf8');
+      process.chdir(projectDir);
+      const api = makeApi();
+      pathGuardPlugin.setup(api as never);
+      // File-kind destructive targets against the escaped link must block —
+      // parity with the structured write branch's isSymlinkEscape check
+      // (which runs before the allow-list).
+      expect(
+        (
+          await hookOf(api)({
+            toolName: 'bash',
+            toolInput: { command: 'rm -f assets-link' },
+            cwd: projectDir,
+          })
+        )?.decision,
+      ).toBe('block');
+      expect(
+        (
+          await hookOf(api)({
+            toolName: 'bash',
+            toolInput: { command: 'dd of=assets-link bs=1 count=0' },
+            cwd: projectDir,
+          })
+        )?.decision,
+      ).toBe('block');
+      // Ordinary (non-escaped, non-protected) targets stay allowed.
+      expect(
+        await hookOf(api)({
+          toolName: 'bash',
+          toolInput: { command: 'rm -f ordinary.txt' },
+          cwd: projectDir,
+        }),
+      ).toBeUndefined();
+    } finally {
+      process.chdir(original);
+      fs.rmSync(projectDir, { recursive: true, force: true });
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('blocks NEW files written through a symlink that escaped the project (#365 new-file)', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'path-guard-nf-link-'));
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'path-guard-nf-out-'));
+    const original = process.cwd();
+    try {
+      fs.writeFileSync(path.join(outsideDir, 'existing.txt'), 'y', 'utf8');
+      // Junction on Windows (no admin/Developer Mode needed), dir symlink on POSIX.
+      if (process.platform === 'win32') {
+        fs.symlinkSync(outsideDir, path.join(projectDir, 'assets-link'), 'junction');
+      } else {
+        fs.symlinkSync(outsideDir, path.join(projectDir, 'assets-link'), 'dir');
+      }
+      process.chdir(projectDir);
+      const api = makeApi();
+      pathGuardPlugin.setup(api as never);
+      // Existing leaf through the link (pre-existing correct behavior).
+      expect(
+        (
+          await hookOf(api)({
+            toolName: 'write',
+            toolInput: { file_path: 'assets-link/existing.txt', content: 'x' },
+            cwd: projectDir,
+          })
+        )?.decision,
+      ).toBe('block');
+      // NEW file directly under the escaped link — a full-path realpathSync
+      // throws ENOENT for the missing leaf, which must not disable the check.
+      expect(
+        (
+          await hookOf(api)({
+            toolName: 'write',
+            toolInput: { file_path: 'assets-link/newfile.txt', content: 'x' },
+            cwd: projectDir,
+          })
+        )?.decision,
+      ).toBe('block');
+      // NEW file in a NEW subdir under the link.
+      expect(
+        (
+          await hookOf(api)({
+            toolName: 'write',
+            toolInput: { file_path: 'assets-link/sub/newfile.txt', content: 'x' },
+            cwd: projectDir,
+          })
+        )?.decision,
+      ).toBe('block');
+      // Shell writer with a not-yet-existing target under the link.
+      expect(
+        (
+          await hookOf(api)({
+            toolName: 'bash',
+            toolInput: { command: 'dd of=assets-link/newfile.txt bs=1 count=0' },
+            cwd: projectDir,
+          })
+        )?.decision,
+      ).toBe('block');
+      // No false positive: brand-new path in an ordinary project directory.
+      expect(
+        await hookOf(api)({
+          toolName: 'write',
+          toolInput: { file_path: 'brand/new/file.txt', content: 'x' },
+          cwd: projectDir,
+        }),
+      ).toBeUndefined();
+    } finally {
+      process.chdir(original);
+      fs.rmSync(projectDir, { recursive: true, force: true });
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
   it('setup() twice unregisters the first hook (H1 reload, issue #365)', () => {
     const first = vi.fn();
     const second = vi.fn();

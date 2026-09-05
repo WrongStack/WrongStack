@@ -575,11 +575,12 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
               });
             }
 
-            if (input.subtasks && input.subtasks.length > 0) {
+            if (Array.isArray(input.subtasks) && input.subtasks.length > 0) {
               for (const st of input.subtasks) {
+                if (typeof st !== 'string' || !st.trim()) continue;
                 todos.push({
                   id: `todo_${ts}_${randomUUID().slice(0, 6)}`,
-                  content: st,
+                  content: st.trim(),
                   status: 'pending',
                   promotedFromTask: match.id,
                 });

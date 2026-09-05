@@ -23,10 +23,10 @@ interface AuthPanelProps {
 /**
  * Rows of chrome around the visible row window: the panel's own border /
  * title / legend / footer (~10) plus the collapsed input placeholder,
- * statusline and key-hint bar below (~8). Subtracted from `stdout.rows`
+ * statusline below (~7). Subtracted from `stdout.rows`
  * so the list never pushes the status area off-screen.
  */
-const CHROME_ROWS = 18;
+const CHROME_ROWS = 17;
 
 const LIST_ACTION_LABEL: Record<string, string> = {
   catalog: '＋ Add provider (models.dev catalog)',

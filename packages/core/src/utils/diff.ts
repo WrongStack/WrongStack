@@ -116,15 +116,15 @@ export function unifiedDiff(
   const edits = myersDiff(a, b);
   if (edits.every((e) => e.op === 'equal')) return '';
 
-  const hunks: { aStart: number; bStart: number; lines: string[] }[] = [];
+  const hunks: { aStart: number; aCount: number; bStart: number; bCount: number; lines: string[] }[] = [];
   let i = 0;
   while (i < edits.length) {
     while (i < edits.length && edits[i]?.op === 'equal') i++;
     if (i >= edits.length) break;
     const hunkStart = Math.max(0, i - context);
     const lines: string[] = [];
-    let aStart = (edits[hunkStart]?.a ?? 0) + 1;
-    let bStart = (edits[hunkStart]?.b ?? 0) + 1;
+    let firstA: number | null = null;
+    let firstB: number | null = null;
     let aCount = 0;
     let bCount = 0;
     let cursor = hunkStart;
@@ -139,13 +139,17 @@ export function unifiedDiff(
         trailing = 0;
       }
       if (e.op === 'equal') {
+        if (firstA === null) firstA = e.a + 1;
+        if (firstB === null) firstB = e.b + 1;
         lines.push(` ${e.line}`);
         aCount++;
         bCount++;
       } else if (e.op === 'delete') {
+        if (firstA === null) firstA = e.a + 1;
         lines.push(`-${e.line}`);
         aCount++;
       } else {
+        if (firstB === null) firstB = e.b + 1;
         lines.push(`+${e.line}`);
         bCount++;
       }
@@ -158,9 +162,9 @@ export function unifiedDiff(
       bCount--;
       trailing--;
     }
-    if (aCount === 0) aStart = 0;
-    if (bCount === 0) bStart = 0;
-    hunks.push({ aStart, bStart, lines });
+    const aStart = aCount === 0 ? (edits[hunkStart]?.a ?? 0) : (firstA ?? 1);
+    const bStart = bCount === 0 ? (edits[hunkStart]?.b ?? 0) : (firstB ?? 1);
+    hunks.push({ aStart, aCount, bStart, bCount, lines });
     i = cursor;
   }
   if (hunks.length === 0) return '';
@@ -169,16 +173,7 @@ export function unifiedDiff(
   out += `--- ${opts.fromFile ?? 'a'}\n`;
   out += `+++ ${opts.toFile ?? 'b'}\n`;
   for (const h of hunks) {
-    let aCount = 0;
-    let bCount = 0;
-    for (const l of h.lines) {
-      if (l.startsWith(' ')) {
-        aCount++;
-        bCount++;
-      } else if (l.startsWith('-')) aCount++;
-      else if (l.startsWith('+')) bCount++;
-    }
-    out += `@@ -${h.aStart},${aCount} +${h.bStart},${bCount} @@\n`;
+    out += `@@ -${h.aStart},${h.aCount} +${h.bStart},${h.bCount} @@\n`;
     out += `${h.lines.join('\n')}\n`;
   }
   return out;

@@ -42,8 +42,7 @@ interface AppViewRuntime {
   >;
   /**
    * Stable callback ScrollableHistory calls on scroll-state transitions
-   * (scrolled away from / re-pinned to the newest output). Drives the
-   * "managed" key hint via `state.historyScrolled`.
+   * (scrolled away from / re-pinned to the newest output).
    */
   onScrollInfo?: ((info: { scrolled: boolean }) => void) | undefined;
   /**
@@ -57,7 +56,7 @@ interface AppViewRuntime {
   belowStatusBarRef: MutableRefObject<DOMElement | null>;
   /**
    * Measured rows consumed by the status chrome below the pickers (status
-   * bar + mailbox/monitors/key-hint). Picker overlays use it to size their
+   * bar + mailbox/monitors). Picker overlays use it to size their
    * window against the real remaining space instead of a hardcoded guess.
    */
   statusBarRows: number;

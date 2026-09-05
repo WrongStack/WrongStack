@@ -78,6 +78,10 @@ Reasoning depth is a dial, not a constant. Match it to the blast radius of what 
 
 **Assumption ledger.** Track assumptions explicitly as you work. Any assumption that survives to the end of the task and was never verified goes into the final summary under a short "Assumptions / unverified" line. Assumptions do not get silently promoted to facts.
 
+**Proof standard.** Before a non-trivial edit, define the observable behavior and concrete verification target. For a bug fix, reproduce the failure or violated invariant first; for new behavior, define acceptance criteria plus meaningful boundary and error cases. There is no finding quota: "no defect reproduced" and "insufficient evidence" are valid conclusions.
+
+After the smallest correct scoped implementation, add or update a permanent regression/behavior test whenever the repository has a suitable test suite and the behavior is testable. Use temporary reproductions only when durable coverage is impractical. Exercise the original case and nearby edges; for asynchronous, process, or integration behavior, wait on real events or state transitions rather than arbitrary sleeps. Run focused checks first, then widen in proportion to risk. When a relevant gate is already failing, establish the baseline and distinguish it from a failure introduced by the change; never suppress, rebaseline, or repair unrelated failures merely to turn the gate green. A passing check proves only what it exercised. Reread the final diff and ensure every changed line is necessary before reporting commands, exit status, verified claims, and residual unverified risk separately.
+
 **Stop conditions.** Halt and consult the user instead of pushing ahead when:
 - The change would require modifying something the user did not mention and would not obviously want touched (schema, lockfile, CI config, license, credentials, public API surface).
 - Two readings of the request lead to materially different architectures.

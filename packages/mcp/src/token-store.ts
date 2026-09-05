@@ -240,16 +240,19 @@ export class MCPRefreshingAuthorizationProvider implements MCPAuthorizationProvi
     state: MCPStoredAuthorization,
     signal?: AbortSignal | undefined,
   ): Promise<MCPStoredAuthorization | undefined> {
-    if (this.refreshPromise) return this.refreshPromise;
-    this.refreshPromise = this.refreshInner(state, signal).finally(() => {
-      this.refreshPromise = undefined;
-    });
-    return this.refreshPromise;
+    if (!this.refreshPromise) {
+      // The refresh is shared by concurrent requests. It must not inherit one
+      // caller's signal: cancelling that request must not abort other callers
+      // that are awaiting the same token rotation.
+      this.refreshPromise = this.refreshInner(state).finally(() => {
+        this.refreshPromise = undefined;
+      });
+    }
+    return awaitWithAbort(this.refreshPromise, signal);
   }
 
   private async refreshInner(
     state: MCPStoredAuthorization,
-    signal?: AbortSignal | undefined,
   ): Promise<MCPStoredAuthorization | undefined> {
     const refreshToken = state.tokenSet.refreshToken;
     if (!refreshToken) {
@@ -261,7 +264,6 @@ export class MCPRefreshingAuthorizationProvider implements MCPAuthorizationProvi
       clientId: state.clientId,
       resource: state.resource,
       refreshToken,
-      signal,
     });
     const next = normalizeStoredAuthorization({
       ...state,
@@ -311,6 +313,20 @@ export function createVaultBackedMcpAuthorizationProviderFactory(
     }
     return provider;
   };
+}
+
+function awaitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal | undefined): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortReason(signal));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortReason(signal));
+    signal.addEventListener('abort', onAbort, { once: true });
+    void promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+  });
+}
+
+function abortReason(signal: AbortSignal): Error {
+  return signal.reason instanceof Error ? signal.reason : new Error('MCP token refresh aborted');
 }
 
 function emptyFile(): TokenStoreFile {

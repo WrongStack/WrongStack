@@ -54,8 +54,32 @@ export function entryKey(e: HqTranscriptEntry): string {
   return `${e.ts}|${e.role}|${e.tool ?? ''}|${e.text}`;
 }
 
-/** Fold one entry into the state: merge result-halves, dedup, index tools. */
-function foldEntry(next: TranscriptState, src: HqTranscriptEntry): void {
+/**
+ * True for a plain streamed-text entry — the shape the agent monitor emits one
+ * of per `provider.text_delta` / `thinking_delta`.
+ */
+function isStreamedText(e: HqTranscriptEntry): boolean {
+  return (
+    (e.role === 'assistant' || e.role === 'thinking') &&
+    e.tool === undefined &&
+    e.toolUseId === undefined
+  );
+}
+
+/**
+ * Fold one entry into the state: merge result-halves, dedup, index tools.
+ *
+ * `recordSeen` controls whether the entry JOINS the content-key set, as
+ * opposed to merely being checked against it. The set exists for one job: the
+ * fetch/stream overlap (see the module header). The fetch records, so live
+ * entries it already delivered are dropped. Live streamed TEXT must not
+ * record, because a delta stream legitimately repeats itself — dozens of
+ * one-word entries share a timestamp and recur (' the', a comma, a newline) —
+ * and recording them made every repeat after the first vanish from the
+ * rendered message. Live non-text entries still record, so a re-delivered
+ * batch is not left entirely unguarded.
+ */
+function foldEntry(next: TranscriptState, src: HqTranscriptEntry, recordSeen: boolean): void {
   const e = { ...src };
   if (isLiveResultEntry(e)) {
     const idx = e.toolUseId !== undefined ? next.openTools.get(e.toolUseId) : undefined;
@@ -74,7 +98,7 @@ function foldEntry(next: TranscriptState, src: HqTranscriptEntry): void {
   }
   const key = entryKey(e);
   if (next.seen.has(key)) return;
-  next.seen.add(key);
+  if (recordSeen || !isStreamedText(e)) next.seen.add(key);
   if (e.role === 'tool' && e.toolUseId !== undefined && e.toolInput !== undefined) {
     next.openTools.set(e.toolUseId, next.entries.length);
   }
@@ -93,7 +117,7 @@ export function applyFetch(
 ): TranscriptState {
   const next = createTranscriptState();
   next.rev = state.rev + 1;
-  for (const src of entries) foldEntry(next, src);
+  for (const src of entries) foldEntry(next, src, true);
   return next;
 }
 
@@ -123,7 +147,7 @@ export function applyLiveBatch(
     rev: state.rev + 1,
   };
   next.consumedBatches.add(batchKey);
-  for (const src of entries) foldEntry(next, src);
+  for (const src of entries) foldEntry(next, src, false);
   return next;
 }
 

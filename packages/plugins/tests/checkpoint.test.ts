@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -147,6 +147,45 @@ describe('checkpoint plugin', () => {
       expect(result['rejectedOutsideProject']).toContain(outside);
     } finally {
       rmSync(outside, { force: true });
+    }
+  });
+
+  it('rejects snapshots through a symlink that escaped the project (content capture)', async () => {
+    const api = makeApi();
+    checkpointPlugin.setup(api as never);
+    const outsideDir = mkdtempSync(join(tmpdir(), 'checkpoint-outside-dir-'));
+    writeFileSync(join(outsideDir, 'secret.txt'), 'TOP SECRET');
+    // Junction on Windows (no admin/Developer Mode needed), dir symlink on POSIX.
+    if (process.platform === 'win32') {
+      symlinkSync(outsideDir, join(tmp, 'out-link'), 'junction');
+    } else {
+      symlinkSync(outsideDir, join(tmp, 'out-link'), 'dir');
+    }
+    try {
+      // Existing file THROUGH the link: lexically inside, real target outside.
+      const existing = await getTool(api, 'checkpoint_create').execute({
+        paths: ['out-link/secret.txt'],
+      });
+      expect(existing['ok']).toBe(false);
+      expect(existing['rejectedOutsideProject']).toContain('out-link/secret.txt');
+
+      // Not-yet-existing leaf under the link must be rejected the same way
+      // (resolveProjectPath canonicalizes the nearest existing ancestor).
+      const missing = await getTool(api, 'checkpoint_create').execute({
+        paths: ['out-link/newly.txt'],
+      });
+      expect(missing['ok']).toBe(false);
+      expect(missing['rejectedOutsideProject']).toContain('out-link/newly.txt');
+
+      // Auto-capture hook must not snapshot behind the link either.
+      await getHook(api)({ toolName: 'write', toolInput: { path: 'out-link/secret.txt' } });
+      const list = await getTool(api, 'checkpoint_list').execute({});
+      expect(list['total']).toBe(0);
+    } finally {
+      // recursive so a Windows junction (a directory reparse point) is
+      // removed; rmSync never follows it, the link itself is unlinked.
+      rmSync(join(tmp, 'out-link'), { recursive: true, force: true });
+      rmSync(outsideDir, { recursive: true, force: true });
     }
   });
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.321.0",
+  "packageVersion": "1.0.0",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1386,7 +1386,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 18486
+      "sourceLines": 18551
     },
     {
       "directory": "extension",
@@ -1554,7 +1554,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10889
+      "sourceLines": 10923
     },
     {
       "directory": "wiring",

@@ -124,9 +124,21 @@ export function useHistoryArchive({
     }
 
     if (nextLoadEndRef.current === null) {
-      // The in-memory window is the tail of the archive, so the oldest row on
-      // screen sits exactly `entries.length` lines from the end.
-      nextLoadEndRef.current = Math.max(0, appendedCountRef.current - entriesRef.current.length);
+      // The in-memory window is the tail of the archive — except that it
+      // usually is not, exactly when scroll-back matters. Retention's
+      // omission marker (id < 0) occupies a row on screen with no archive
+      // line, and the banner is archived at line 0 rather than beside the
+      // tail once retention has run. Counting either as a tail row lands
+      // the cursor short: scroll-back re-serves the banner (duplicate rows)
+      // and the newest omitted entries become unreachable.
+      const rows = entriesRef.current;
+      const markers = rows.filter((entry) => entry.id < 0).length;
+      const bannerOffTail =
+        markers > 0 && rows.some((entry) => entry.kind === 'banner') ? 1 : 0;
+      nextLoadEndRef.current = Math.max(
+        0,
+        appendedCountRef.current - (rows.length - markers - bannerOffTail),
+      );
     }
     const end = nextLoadEndRef.current;
     if (end <= 0) {

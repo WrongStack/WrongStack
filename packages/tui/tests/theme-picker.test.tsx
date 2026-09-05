@@ -128,20 +128,20 @@ describe('ThemePicker', () => {
     view.unmount();
   });
 
-  it('fits a 24-row terminal when the status bar wraps to 2 rows (pickerMaxRows = 19)', async () => {
+  it('fits a 24-row terminal when the status bar wraps to 2 rows (pickerMaxRows = 20)', async () => {
     // Wiring edge case: app-view computes
     // `pickerMaxRows = max(8, termRows − statusBarRows − inputHeight − 1)`.
-    // On a 24-row terminal the baseline status chrome measures 2 rows
-    // (status bar + key-hint) → budget 20. When the status bar WRAPS to a
-    // second line (too many chips), statusBarRows = 3 and the picker budget
-    // tightens to 24 − 3 − 1 − 1 = 19. The picker must still fit.
+    // On a 24-row terminal the baseline status chrome measures 1 row. When
+    // the status bar wraps to a second line (too many chips), statusBarRows
+    // = 2 and the picker budget tightens to 24 − 2 − 1 − 1 = 20. The picker
+    // must still fit.
     const view = renderRealTty(
       React.createElement(ThemePicker, {
         options: THEME_OPTIONS,
         selected: THEME_OPTIONS.length - 1,
         activeId: 'tokyo-night',
         columns: 100,
-        maxRows: 19,
+        maxRows: 20,
       }),
       { columns: 100, rows: 24 },
     );

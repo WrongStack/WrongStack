@@ -288,6 +288,7 @@ export class SSETransport extends BaseHTTPTransport {
         }).catch(() => {});
         throw makeAbortError(method);
       }
+      this.markDisconnected();
       throw err;
     } finally {
       timeoutSignal.dispose();
@@ -395,6 +396,7 @@ export class SSETransport extends BaseHTTPTransport {
         }).catch(() => {});
         throw makeAbortError(method);
       }
+      this.markDisconnected();
       throw err;
     } finally {
       timeoutSignal.dispose();
@@ -419,5 +421,12 @@ export class SSETransport extends BaseHTTPTransport {
     this.abortController?.abort();
     this.disconnectHandlers.splice(0, this.disconnectHandlers.length);
     this.state = 'disconnected';
+  }
+
+  private markDisconnected(): void {
+    if (this.state === 'connected') {
+      this.state = 'disconnected';
+      this.notifyDisconnect();
+    }
   }
 }

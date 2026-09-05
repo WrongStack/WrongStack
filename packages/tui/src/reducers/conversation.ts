@@ -79,8 +79,21 @@ export function reduceConversation(state: State, action: ConversationAction): St
       // retainTuiHistory and trim from the front, naturally aging out the
       // oldest archive entries. This hard cap prevents unbounded growth from
       // repeated archive loads without the user submitting new entries.
-      const loadedMaxId = action.entries.reduce((max, e) => Math.max(max, e.id), 0);
-      const merged = [...action.entries, ...state.entries];
+      // A page must never re-introduce an id already on screen: the scroll
+      // cursor can legitimately reach line 0 (the banner is archived too),
+      // and ids collide as duplicate React keys / ambiguous lookups.
+      const seen = new Set(state.entries.map((entry) => entry.id));
+      const fresh: HistoryEntry[] = [];
+      for (const entry of action.entries) {
+        if (seen.has(entry.id)) continue;
+        seen.add(entry.id);
+        fresh.push(entry);
+      }
+      if (fresh.length === 0) {
+        return { ...state, archiveLoading: false };
+      }
+      const loadedMaxId = fresh.reduce((max, e) => Math.max(max, e.id), 0);
+      const merged = [...fresh, ...state.entries];
       const SOFT_MAX_ENTRIES = 800;
       return {
         ...state,

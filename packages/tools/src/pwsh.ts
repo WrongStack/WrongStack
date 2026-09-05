@@ -685,7 +685,11 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
               exit_code: timedOut || isAborted ? 124 : c.code,
               timed_out: timedOut || isAborted,
               pid: pid ?? null,
-              ...(isAborted ? { error: 'Command aborted by user or signal' } : {}),
+              ...(timedOut
+                ? { error: 'Command timed out' }
+                : isAborted
+                  ? { error: 'Command aborted by user or signal' }
+                  : {}),
             },
           };
           return;

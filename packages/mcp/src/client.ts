@@ -103,6 +103,7 @@ export class MCPClient {
     { resolve: (res: JsonRpcResponse) => void; reject: (err: Error) => void; timer: NodeJS.Timeout }
   >();
   private rxBuffer = '';
+  private rxBufferBytes = 0;
   private _tools: MCPTool[] = [];
   /** Server-declared handshake metadata. Populated for stdio in the first protocol slice. */
   private _serverMetadata?: MCPServerMetadata | undefined;
@@ -208,6 +209,7 @@ export class MCPClient {
     // (re)connect cycle, but a leftover rxBuffer from a half-initialized
     // attempt would corrupt JSON-RPC parsing on the new stream.
     this.rxBuffer = '';
+    this.rxBufferBytes = 0;
 
     // On Windows, MCP servers are usually launched via `npx`/`npm`/`uvx`,
     // which resolve to `.cmd` shims. Since the CVE-2024-27980 fix Node refuses
@@ -874,12 +876,14 @@ export class MCPClient {
 
   private onData(s: string): void {
     this.rxBuffer += s;
+    this.rxBufferBytes += Buffer.byteLength(s, 'utf8');
 
     // Guard against a malicious or buggy server that never emits a newline —
     // without this cap the buffer grows without limit and OOMs the process.
-    if (this.rxBuffer.length > MCPClient.MAX_RX_BUFFER_BYTES) {
-      const truncated = this.rxBuffer.length;
+    if (this.rxBufferBytes > MCPClient.MAX_RX_BUFFER_BYTES) {
+      const truncated = this.rxBufferBytes;
       this.rxBuffer = '';
+      this.rxBufferBytes = 0;
       this.failPending(
         `MCP "${this.opts.name}" rx buffer overflow (${truncated} bytes without a newline) — closing connection`,
       );
@@ -896,6 +900,7 @@ export class MCPClient {
       idx = this.rxBuffer.indexOf('\n', start);
     }
     if (start > 0) {
+      this.rxBufferBytes -= Buffer.byteLength(this.rxBuffer.slice(0, start), 'utf8');
       this.rxBuffer = this.rxBuffer.slice(start);
     }
   }

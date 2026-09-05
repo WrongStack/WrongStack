@@ -57,6 +57,22 @@ function calState(key: string): CalState {
 const MIN_SAMPLES_FOR_CALIBRATION = 3;
 
 /**
+ * Bounds the calibrated/upper-bound estimators can move an estimate by. The
+ * send guard in auto-compaction-middleware.ts derives its skip gate from these,
+ * so they live here next to the code that enforces them rather than being
+ * re-guessed at the call site.
+ */
+/** Largest multiplier {@link textDensityMultiplier} can return. */
+export const MAX_TOKEN_DENSITY_MULTIPLIER = 2.5;
+/** Lower clamp on the rolling calibration ratio (see recordActualUsage). */
+export const MIN_CALIBRATION_MULTIPLIER = 0.5;
+/**
+ * Smallest multiplier the uncalibrated model-family fallback can apply:
+ * 3.5 / max(MODEL_FAMILY_RATIO) = 3.5 / 4.0.
+ */
+export const MIN_UNCALIBRATED_MULTIPLIER = 0.875;
+
+/**
  * Fallback chars/token ratios per model family for providers that don't return
  * usage data. Used when `recordActualUsage` receives zero/negative tokens and
  * we have enough samples to trust the fallback. Keys are lowercase prefixes.

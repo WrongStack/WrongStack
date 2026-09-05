@@ -11,6 +11,9 @@ import {
   estimateRequestTokensCalibrated,
   estimateRequestTokensUpperBound,
   getCalibrationState,
+  MAX_TOKEN_DENSITY_MULTIPLIER,
+  MIN_CALIBRATION_MULTIPLIER,
+  MIN_UNCALIBRATED_MULTIPLIER,
   realAnchoredInputTokens,
 } from '../utils/token-estimate.js';
 import {
@@ -110,10 +113,11 @@ export class AutoCompactionMiddleware {
   private static readonly MIN_EFFECTIVE_REDUCTION_RATIO = 0.005;
 
   /**
-   * Calibrated-load floor above which the upper-bound send guard runs. Below
-   * this, even the maximum density under-count factor (2.5×) cannot push the
-   * real token count past the window, so the extra scan is pure waste. Equals
-   * 1 / 2.5 = 0.4.
+   * Ceiling for the derived send-guard gate. The stale note this replaces read
+   * "even the maximum density under-count factor (2.5x) cannot push the real
+   * token count past the window ... Equals 1 / 2.5 = 0.4" — true only when the
+   * calibration multiplier is >= 1. The gate actually applied is computed per
+   * calibration state in {@link guardGateLoad}; this value only caps it.
    */
   private static readonly GUARD_GATE_LOAD = 0.4;
 
@@ -240,11 +244,13 @@ export class AutoCompactionMiddleware {
       let budget = contextWindowBudget(ctx, tokens, runtimeMaxContext);
       const calibratedLoad = budget.load;
       const policy = this.policyProvider?.(ctx);
-      const thresholds = policy?.thresholds ?? {
-        warn: this.warnThreshold,
-        soft: this.softThreshold,
-        hard: this.hardThreshold,
-      };
+      const thresholds = sanitizeThresholds(
+        policy?.thresholds ?? {
+          warn: this.warnThreshold,
+          soft: this.softThreshold,
+          hard: this.hardThreshold,
+        },
+      );
       const repetition = repeatedReadPressure(ctx);
       const adaptiveThresholds = adaptThresholdsForSignals(thresholds, {
         repeatedReadCount: repetition,
@@ -408,15 +414,45 @@ export class AutoCompactionMiddleware {
     calibratedLoad: number,
     availableInputTokens: number,
   ): number {
-    if (calibratedLoad < AutoCompactionMiddleware.GUARD_GATE_LOAD) return calibratedLoad;
+    const calibrationKey = `${ctx.provider?.id ?? 'unknown'}/${ctx.model}`;
+    if (calibratedLoad < AutoCompactionMiddleware.guardGateLoad(calibrationKey)) {
+      return calibratedLoad;
+    }
     const guardTotal = estimateRequestTokensUpperBound(
       ctx.messages,
       ctx.systemPrompt,
       ctx.tools ?? [],
-      `${ctx.provider?.id ?? 'unknown'}/${ctx.model}`,
+      calibrationKey,
     ).total;
     const guardLoad = guardTotal / availableInputTokens;
     return guardLoad > calibratedLoad ? guardLoad : calibratedLoad;
+  }
+
+  /**
+   * Load below which the upper-bound rescan can be skipped without risking an
+   * overflow.
+   *
+   * The number being compared is the CALIBRATED load, and calibration scales
+   * that number DOWN — the EWMA ratio floor is 0.5, and even with no samples
+   * the model-family fallback can apply 0.875. The true load can therefore
+   * reach `calibratedLoad * (maxDensity / appliedRatio)`, so skipping is safe
+   * only while `gate <= appliedRatio / maxDensity`.
+   *
+   * The previous fixed 0.4 was derived from `1 / maxDensity` alone, which holds
+   * only when the applied ratio is >= 1. At the ratio floor that let a request
+   * at ~1.8x the window reach the provider with no compaction and no
+   * hard-budget pass — below the gate `pressureLevelFor` returns null, so
+   * nothing else runs either.
+   */
+  private static guardGateLoad(calibrationKey: string): number {
+    const cal = getCalibrationState(calibrationKey);
+    const appliedRatio = cal.calibrated
+      ? Math.min(1.5, Math.max(MIN_CALIBRATION_MULTIPLIER, cal.ratio))
+      : MIN_UNCALIBRATED_MULTIPLIER;
+    return Math.min(
+      AutoCompactionMiddleware.GUARD_GATE_LOAD,
+      appliedRatio / MAX_TOKEN_DENSITY_MULTIPLIER,
+    );
   }
 
   /**
@@ -879,6 +915,35 @@ function readPositiveMetaNumber(ctx: Context, key: string): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
     ? Math.floor(value)
     : undefined;
+}
+
+/** Built-in ladder used to replace any threshold that cannot be honored. */
+const DEFAULT_THRESHOLDS = { warn: 0.55, soft: 0.7, hard: 0.85 } as const;
+
+/**
+ * Make a threshold triple usable by {@link pressureLevelFor}, which tests
+ * hard -> soft -> warn and therefore assumes `warn <= soft <= hard`, all
+ * finite. Nothing upstream enforces that: `resolveContextWindowPolicy` passes
+ * `config.warnThreshold` / `softThreshold` / `hardThreshold` through verbatim,
+ * so a config typo can invert the ladder (a mild load classified 'hard') or a
+ * non-numeric value can make every comparison false, disabling compaction at
+ * ANY load. Both fail silently in the subsystem that owns the no-overflow
+ * guarantee, so unusable values fall back to the built-in ladder and the
+ * ordering is enforced.
+ */
+function sanitizeThresholds(thresholds: { warn: number; soft: number; hard: number }): {
+  warn: number;
+  soft: number;
+  hard: number;
+} {
+  const usable = (value: number, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 1
+      ? value
+      : fallback;
+  const warn = usable(thresholds.warn, DEFAULT_THRESHOLDS.warn);
+  const soft = Math.max(warn, usable(thresholds.soft, DEFAULT_THRESHOLDS.soft));
+  const hard = Math.max(soft, usable(thresholds.hard, DEFAULT_THRESHOLDS.hard));
+  return { warn, soft, hard };
 }
 
 function adaptThresholdsForSignals(

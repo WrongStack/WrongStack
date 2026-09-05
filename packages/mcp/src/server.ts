@@ -417,6 +417,7 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
   const stdin: NodeJS.ReadableStream = opts.stdin ?? process.stdin;
   const stdout = opts.stdout ?? process.stdout;
   let buffer = '';
+  let bufferBytes = 0;
   let closed = false;
   let bufferTooLarge = false;
   // Serialize writes so concurrent async handlers don't interleave lines.
@@ -450,10 +451,13 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
     // (`HTTP_BODY_CAP` below) — once exceeded, abandon the line, drop the
     // unread tail, and shut down so the caller can react.
     if (bufferTooLarge) return;
-    buffer += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
-    if (buffer.length > HTTP_BODY_CAP) {
+    const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+    buffer += text;
+    bufferBytes += Buffer.byteLength(text, 'utf8');
+    if (bufferBytes > HTTP_BODY_CAP) {
       bufferTooLarge = true;
       buffer = '';
+      bufferBytes = 0;
       console.error(
         JSON.stringify({
           level: 'error',
@@ -511,7 +515,10 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
         });
       inFlightHandlers.add(handler);
     }
-    if (start > 0) buffer = buffer.slice(start);
+    if (start > 0) {
+      bufferBytes -= Buffer.byteLength(buffer.slice(0, start), 'utf8');
+      buffer = buffer.slice(start);
+    }
   };
 
   let resolveDone!: () => void;
@@ -534,6 +541,7 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
     if (!bufferTooLarge && buffer.trim()) {
       const line = buffer.trim();
       buffer = '';
+      bufferBytes = 0;
       const handler = server
         .handleMessage(line)
         .then((res) => {
@@ -712,11 +720,13 @@ async function handleHttpRequest(
   }
 
   let body = '';
+  let bodyBytes = 0;
   let aborted = false;
   req.on('data', (chunk: Buffer) => {
     if (aborted) return;
+    bodyBytes += chunk.byteLength;
     body += chunk.toString('utf8');
-    if (body.length > HTTP_BODY_CAP) {
+    if (bodyBytes > HTTP_BODY_CAP) {
       aborted = true;
       send(413, JSON.stringify({ error: 'payload too large' }));
       req.destroy();

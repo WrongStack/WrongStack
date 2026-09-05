@@ -149,7 +149,7 @@ async function prepareWrite(input: WriteInput, ctx: Context): Promise<PreparedWr
     existed = stat.isFile();
     if (existed) {
       prev = await fs.readFile(absPath, 'utf8');
-      if (!ctx.hasRead(absPath)) {
+      if (ctx.hasRead ? !ctx.hasRead(absPath) : true) {
         // User approved this write (confirm → yes/always) but ctx has no
         // read record. The model may call write without a prior explicit
         // read. Read the file now so we can compute the diff and honor

@@ -135,20 +135,29 @@ export async function routeInputKey(
     const width = inputContentWidth(host.terminalColumns);
     const rows = layoutInputRows(host.prompt, buffer, cursor, width);
     if (rows.length > 1) {
+      // Locate the caret cell the layout already marked. Counting cell
+      // offsets here would drift from the buffer cursor by prompt.length
+      // (prompt cells are part of row 0) and by every '\n' cell consumed
+      // as a row break.
       let row = 0;
       let col = 0;
-      let offset = 0;
-      outer: for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-        const cells = rows[rowIndex]!;
-        for (let column = 0; column < cells.length; column++) {
-          if (offset === cursor) {
+      const caretRow = rows.findIndex((cells) => cells.some((cell) => cell.cursor));
+      if (caretRow >= 0) {
+        row = caretRow;
+        col = rows[caretRow]!.findIndex((cell) => cell.cursor);
+      } else {
+        // The caret sits on a '\n' cell, which wrapping consumes: treat it
+        // as the end of the row that newline terminates.
+        let valueCells = 0;
+        for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+          const cells = rows[rowIndex]!;
+          valueCells += cells.filter((cell) => !cell.prompt).length;
+          if (valueCells >= cursor) {
             row = rowIndex;
-            col = column;
-            break outer;
+            col = cells.length;
+            break;
           }
-          offset++;
         }
-        if (cells.length < width) offset++;
       }
 
       const targetRow = key.upArrow

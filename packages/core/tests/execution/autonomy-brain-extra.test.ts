@@ -643,9 +643,15 @@ describe('single-LLM tier — call shape and budgets', () => {
 
     expect(d.type).toBe('deny');
     expect(d.type === 'deny' && d.reason).toContain('decision budget');
-    // Three attempts' worth of budget — without the cap the caller would
-    // block for the whole five-model chain.
-    expect(attempted).toEqual(['a', 'b', 'c']);
+    // The cap is wall clock (deadline = 3 x per-call timeout), so the exact
+    // attempt where the walk stops is scheduler-dependent: AbortSignal.timeout
+    // and the Date.now() budget check run on different clocks, and under load
+    // a 4th attempt can start a fraction of a millisecond before the deadline
+    // and abort almost immediately. 3 is the deterministic window, 4 the
+    // boundary race; anything else means the budget or the walk broke.
+    expect(attempted.length).toBeGreaterThanOrEqual(3);
+    expect(attempted.length).toBeLessThan(5);
+    expect(attempted).toEqual(['a', 'b', 'c', 'd'].slice(0, attempted.length));
   });
 });
 

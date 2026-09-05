@@ -172,9 +172,9 @@ describe('settings picker overflow at 24×80', () => {
     view.unmount();
   });
 
-  it('full bottom-region composition fits at 24×80 with StatusBar + KeyHintBar', async () => {
+  it('full bottom-region composition fits at 24×80 with StatusBar', async () => {
     // Mirrors AppView's actual bottom-region layout: Input placeholder +
-    // SettingsPicker + StatusBar(4 rows) + KeyHintBar(1 row), all inside
+    // SettingsPicker + StatusBar(4 rows), all inside
     // the root cap (height=termRows, overflowY=hidden, flex-end).
     // This is the real integration test — if the pickerHeight budget
     // doesn't account for the status chrome, the root cap clips the
@@ -182,8 +182,7 @@ describe('settings picker overflow at 24×80', () => {
     const { Box, Text } = await import('../src/ink.js');
     const inputRows = 3;
     const statusRows = 4; // StatusBar detailed-mode worst case
-    const hintRows = 1; // KeyHintBar
-    const historyRows = ROWS - inputRows - statusRows - hintRows - 8; // picker gets the rest
+    const historyRows = ROWS - inputRows - statusRows - 8; // picker gets the rest
 
     function BottomRegionComposition() {
       return (
@@ -198,7 +197,7 @@ describe('settings picker overflow at 24×80', () => {
             >
               <Text>{'history placeholder'}</Text>
             </Box>
-            {/* Bottom region: Input + SettingsPicker + StatusBar + KeyHintBar */}
+            {/* Bottom region: Input + SettingsPicker + StatusBar */}
             <Box flexDirection="column" flexShrink={0}>
               {/* Input placeholder (same height as real Input) */}
               <Box flexDirection="column" height={inputRows} flexShrink={0}>
@@ -220,10 +219,6 @@ describe('settings picker overflow at 24×80', () => {
                   <Text key={i}>{`status-${i}`}</Text>
                 ))}
               </Box>
-              {/* KeyHintBar placeholder (1 row) */}
-              <Box flexDirection="row" flexShrink={0}>
-                <Text>{'key hints'}</Text>
-              </Box>
             </Box>
           </Box>
         </Box>
@@ -241,8 +236,6 @@ describe('settings picker overflow at 24×80', () => {
     // The picker title must survive — it's the topmost element of the
     // picker and the first thing clipped if the budget is wrong.
     expect(view.lastFrame()).toContain('Settings');
-    // KeyHintBar at the bottom edge must be visible.
-    expect(view.lastFrame()).toContain('key hints');
     view.unmount();
   });
 });

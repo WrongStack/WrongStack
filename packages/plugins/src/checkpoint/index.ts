@@ -36,6 +36,7 @@
  * @public
  */
 
+import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
@@ -134,8 +135,43 @@ function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null
   const root = resolve(cwd);
   const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
   const rel = relative(root, resolved);
-  if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) return resolved;
-  return null;
+  const lexicallyInside = rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+  if (!lexicallyInside) return null;
+  // Lexically inside is not sufficient: checkpoints hold file CONTENT, so a
+  // project-local symlink/junction whose real target escaped the project
+  // must be rejected like any other outside path. Not-yet-existing leaves
+  // resolve via their nearest existing ancestor so brand-new files keep
+  // being captured.
+  if (realResolutionEscapes(resolved, root)) return null;
+  return resolved;
+}
+
+/**
+ * True when the canonical resolution of `absPath` — following symlinks, via
+ * the nearest existing ancestor when the leaf does not exist yet — lies
+ * outside `root`. The non-existing tail cannot re-escape on its own: the
+ * caller already established `absPath` is lexically inside `root`.
+ */
+function realResolutionEscapes(absPath: string, root: string): boolean {
+  let real: string;
+  try {
+    real = realpathSync(absPath);
+  } catch {
+    let current = dirname(absPath);
+    for (let hops = 0; hops < 64 && !existsSync(current); hops++) {
+      const parent = dirname(current);
+      if (parent === current) return false;
+      current = parent;
+    }
+    if (!existsSync(current)) return false;
+    try {
+      real = realpathSync(current);
+    } catch {
+      return false;
+    }
+  }
+  const realRel = relative(root, real);
+  return realRel !== '' && realRel !== '.' && (realRel.startsWith('..') || isAbsolute(realRel));
 }
 
 /**

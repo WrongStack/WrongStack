@@ -14,8 +14,8 @@ export function useHistoryViewportSync(input: {
   termRows: number;
   /**
    * Measured height (rows) of the status chrome below the pickers: the
-   * status bar itself plus everything beneath it (mailbox panel, monitors,
-   * key-hint bar). Pickers use it to size their window against the REAL
+   * status bar itself plus everything beneath it (mailbox panel, monitors).
+   * Pickers use it to size their window against the REAL
    * space left after input + status chrome instead of the hardcoded
    * 6-row `shellReservedRows` guess in use-windowed-picker.ts — the guess
    * under-reserves whenever the input wraps or the status bar grows, which
@@ -52,7 +52,7 @@ export function useHistoryViewportSync(input: {
   });
 
   // Measure the status chrome the pickers sit above. The status bar box and
-  // everything below it (mailbox panel, monitors, key-hint bar) are separate
+  // everything below it (mailbox panel, monitors) are separate
   // siblings, so both refs must be measured and summed.
   useLayoutEffect(() => {
     const bar = statusBarWrapRef.current;

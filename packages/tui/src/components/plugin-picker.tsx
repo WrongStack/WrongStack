@@ -24,11 +24,11 @@ interface PluginPickerProps {
 
 /**
  * Rows of terminal chrome around the visible item window: the picker's own
- * border/title/legend/scroll indicators (~9) plus the input box, statusline
- * and key-hint bar rendered below the picker (~8). Subtracted from
+ * border/title/legend/scroll indicators (~9) plus the input box and statusline
+ * rendered below the picker (~7). Subtracted from
  * `stdout.rows` so the plugin list never pushes the input area off-screen.
  */
-const CHROME_ROWS = 17;
+const CHROME_ROWS = 16;
 
 /**
  * Hard ceiling on how many plugin rows are rendered at once. Smaller terminals

@@ -413,6 +413,7 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       const tokens = applyTokenOverrides(rawTokens, active.overrides);
       const normalizedFiles = input.files
         ? (Array.isArray(input.files) ? input.files : String(input.files).split(','))
+            .filter((f): f is string => typeof f === 'string')
             .map((f) => f.trim().replace(/\\/g, '/'))
             .filter(Boolean)
         : undefined;

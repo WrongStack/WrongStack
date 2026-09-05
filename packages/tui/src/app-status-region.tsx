@@ -11,7 +11,6 @@ import { GoalKanbanPanel } from './components/goal-kanban-panel.js';
 import { GoalPanel } from './components/goal-panel.js';
 import { HelpOverlay } from './components/help-overlay.js';
 import { KanbanPanel } from './components/kanban-panel.js';
-import { KeyHintBar, type KeyHintContext } from './components/key-hint-bar.js';
 import { MailboxPanel } from './components/mailbox-panel.js';
 import { PhaseMonitor } from './components/phase-monitor.js';
 import { PhasePanel } from './components/phase-panel.js';
@@ -417,67 +416,6 @@ export function AppStatusRegion({
         routedToBottom('worktree') ? (
           <WorktreePanel worktrees={state.worktrees} nowTick={nowTick} />
         ) : null}
-        {/* Key hint bar — shows keyboard shortcuts and a discovery hint for the next panel. */}
-        {(() => {
-          // anyMonitorOpen: a panel is only "open in the bottom region" if its
-          // F-key is on AND its position is 'bottom'. Panels routed to
-          // the sidebar twin shouldn't fire the key hint bar's
-          // "monitor open" mode — the hint expects the bottom to be
-          // the visible surface.
-          const anyMonitorOpen =
-            (state.agentsMonitorOpen && panelPositions.agents === 'bottom') ||
-            ((state.goalRun?.monitorOpen ?? false) && panelPositions.coordinator === 'bottom') ||
-            (state.worktreeMonitorOpen && panelPositions.worktree === 'bottom') ||
-            (state.todosMonitorOpen && panelPositions.todos === 'bottom') ||
-            (state.monitorOpen && panelPositions.fleet === 'bottom') ||
-            (state.processListOpen && panelPositions.processList === 'bottom') ||
-            (state.queuePanelOpen && panelPositions.queue === 'bottom') ||
-            (state.goalPanelOpen && panelPositions.goal === 'bottom') ||
-            state.contextPanelOpen;
-          // Compute the next panel hint based on the currently open monitor.
-          // Panels cycle in this order: agents(F3) → todos(F6) → goal(F9) → agents
-          let nextPanelHint: KeyHintContext['nextPanelHint'];
-          if (state.agentsMonitorOpen) {
-            nextPanelHint = { key: 'F6', label: 'todos' };
-          } else if (
-            state.goalRun?.monitorOpen ||
-            state.worktreeMonitorOpen ||
-            state.todosMonitorOpen
-          ) {
-            nextPanelHint = { key: 'F9', label: 'goal' };
-          } else if (state.queuePanelOpen || state.processListOpen || state.goalPanelOpen) {
-            nextPanelHint = { key: 'F3', label: 'agents' };
-          } else if (anyMonitorOpen) {
-            nextPanelHint = { key: 'F3', label: 'agents' };
-          }
-          const ctx: KeyHintContext = {
-            // The y/n/a/d hints are the most important ones in the bar —
-            // without this flag they could never render (nothing else
-            // sets `confirm`).
-            confirm: state.confirmQueue.length > 0 || state.shellCommandWarning != null,
-            monitor: anyMonitorOpen,
-            managed: state.historyScrolled,
-            picker:
-              state.settingsPicker.open ||
-              state.modelPicker.open ||
-              state.autonomyPicker.open ||
-              state.skillPicker.open ||
-              state.designPicker.open ||
-              state.projectPicker.open ||
-              state.promptPicker.open ||
-              state.resumePicker.open ||
-              state.pluginPicker.open ||
-              state.mcpPicker.open ||
-              state.toolsPicker.open ||
-              state.statuslinePicker.open ||
-              state.fKeyPicker.open ||
-              state.slashPicker.open ||
-              state.picker.open ||
-              state.rewindOverlay != null,
-            nextPanelHint,
-          };
-          return <KeyHintBar context={ctx} />;
-        })()}
       </Box>
     </>
   );

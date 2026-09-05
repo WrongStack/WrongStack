@@ -52,20 +52,43 @@ export function manifestConfigHash(cfg: {
   command?: string | undefined;
   args?: string[] | undefined;
   url?: string | undefined;
+  env?: Record<string, string> | undefined;
+  headers?: Record<string, string> | undefined;
+  passthroughEnv?: string[] | undefined;
 }): string {
   const basis = JSON.stringify({
     transport: cfg.transport,
     command: cfg.command ?? null,
     args: cfg.args ?? null,
     url: cfg.url ?? null,
+    env: sortedEntries(cfg.env),
+    headers: sortedEntries(cfg.headers),
+    passthroughEnv: passthroughEntries(cfg.passthroughEnv),
   });
   return createHash('sha256').update(basis).digest('hex').slice(0, 16);
+}
+
+function sortedEntries(values: Record<string, string> | undefined): [string, string][] | null {
+  return values ? Object.entries(values).sort(([left], [right]) => left.localeCompare(right)) : null;
+}
+
+function passthroughEntries(names: string[] | undefined): [string, string | null][] | null {
+  return names
+    ? [...new Set(names)].sort().map((name) => [name, process.env[name] ?? null])
+    : null;
 }
 
 /** Filesystem-safe file name for a server within the manifest cache dir. */
 function manifestFile(cacheDir: string, name: string): string {
   const safe = name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  return path.join(cacheDir, 'mcp-tools', `${safe}.json`);
+  // Preserve legacy paths only for already-safe lowercase names. A lossy
+  // sanitizer makes `team/api` collide with `team_api`, and Windows makes
+  // `Team.json` collide with `team.json`.
+  if (safe === name && name === name.toLowerCase()) {
+    return path.join(cacheDir, 'mcp-tools', `${safe}.json`);
+  }
+  const identity = createHash('sha256').update(name).digest('hex');
+  return path.join(cacheDir, 'mcp-tools', `${safe}-${identity}.json`);
 }
 
 /**

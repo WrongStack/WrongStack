@@ -126,7 +126,8 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
         .map((s) =>
           s
             .trim()
-            .replace(/[\\/]+$/, '')
+            .replace(/\\/g, '/')
+            .replace(/\/+$/, '')
             .replace(/^\.\//, ''),
         )
         .filter(Boolean),

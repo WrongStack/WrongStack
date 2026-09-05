@@ -218,6 +218,7 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
         }).catch(() => {});
         throw makeAbortError(method);
       }
+      this.markDisconnected();
       throw err;
     } finally {
       timeoutSignal.dispose();
@@ -284,6 +285,7 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
         }).catch(() => {});
         throw makeAbortError(method);
       }
+      this.markDisconnected();
       throw err;
     } finally {
       timeoutSignal.dispose();
@@ -318,5 +320,12 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
     // Intentionally do NOT fire disconnect handlers — those trigger
     // reconnection in the registry, which would fight an explicit close().
     this.disconnectHandlers.splice(0, this.disconnectHandlers.length);
+  }
+
+  private markDisconnected(): void {
+    if (this.state === 'connected') {
+      this.state = 'disconnected';
+      this.notifyDisconnect();
+    }
   }
 }

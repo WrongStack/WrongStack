@@ -4,7 +4,11 @@
  *
  * @public
  */
+
+import { existsSync, realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import type { Plugin, PluginAPI } from '@wrongstack/core/types';
+import { withinProject } from '../runtime/index.js';
 import {
   compilePathGlob,
   effectiveToolCwd,
@@ -36,23 +40,50 @@ import {
   pathsFromToolInput,
   writesToDisk,
 } from './tool-targets.js';
-import { realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { withinProject } from '../runtime/index.js';
 
 export { compilePathGlob } from './glob.js';
 export { destructiveTargets } from './shell-targets.js';
 
-/** True when `path` is a project-local symlink whose real target escaped. */
+/**
+ * True when `path` is a project-local path whose canonical resolution
+ * escaped the project — including when the leaf does not exist yet (e.g. a
+ * `write` of a brand-new file): the nearest EXISTING ancestor is
+ * canonicalized instead, so a new file created THROUGH an escaped symlink
+ * is still detected. A brand-new path under ordinary project directories
+ * resolves to an ancestor inside the project and returns false.
+ */
 export function isSymlinkEscape(path: string, cwd?: string): boolean {
   if (!withinProject(path)) return false;
+  const abs = resolve(cwd ?? process.cwd(), path);
+  let real: string;
   try {
-    const abs = resolve(cwd ?? process.cwd(), path);
-    const real = realpathSync(abs);
-    return !withinProject(real);
+    real = realpathSync(abs);
   } catch {
-    return false;
+    // ENOENT for a not-yet-existing leaf: canonicalize the nearest existing
+    // ancestor. The non-existing tail cannot introduce an escape — `abs`
+    // already passed the lexical withinProject check, so plain tail segments
+    // appended to an inside-project realpath stay inside.
+    const ancestor = nearestExistingAncestor(abs);
+    if (ancestor === null) return false;
+    try {
+      real = realpathSync(ancestor);
+    } catch {
+      return false;
+    }
   }
+  return !withinProject(real);
+}
+
+/** Deepest existing prefix directory of `abs`; null when none exists. */
+function nearestExistingAncestor(abs: string): string | null {
+  let current = dirname(abs);
+  for (let hops = 0; hops < 64; hops++) {
+    if (existsSync(current)) return current;
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +322,9 @@ const plugin: Plugin = {
                   ? 'deletion-scope'
                   : 'file',
             };
+            if (target.kind === 'file' && isSymlinkEscape(target.path, input.cwd)) {
+              return target;
+            }
             if (targetFullyAllowed(target, cfg.allow, allowRes)) return null;
             const protectedShellTarget =
               (await targetIntersectsPatternsGuarded(target, cfg.protect, protectRes, {

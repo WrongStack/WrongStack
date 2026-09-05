@@ -296,6 +296,7 @@ function wrapCell(text: string, width: number): string[] {
       while (restWidth > width) {
         // Collect characters until we reach `width` visual columns.
         const [collected, remaining] = splitDisplay(rest, width);
+        if (collected === '') break; // single grapheme wider than the column
         out.push(padVisual(collected, width));
         rest = remaining;
         restWidth = strWidth(rest);

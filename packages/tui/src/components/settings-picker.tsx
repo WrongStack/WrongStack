@@ -642,17 +642,17 @@ export function SettingsPicker({
   // buffers; default to 3 (single-line prompt + 2 chrome rows) when not
   // supplied (tests, standalone rendering).
   const INPUT_ROWS = inputHeight ?? 3;
-  // StatusBar + KeyHintBar render below the picker inside the bottom region.
-  // Minimum/no-color reserve one status rail plus the hint row; detailed
-  // reserves its four-rail worst case plus the hint row.
-  const bottomChromeRows = statuslineMode === 'detailed' ? 5 : 2;
+  // StatusBar renders below the picker inside the bottom region.
+  // Minimum/no-color reserves one status rail; detailed reserves its
+  // four-rail worst case.
+  const bottomChromeRows = statuslineMode === 'detailed' ? 4 : 1;
   const BORDER_ROWS = 2; // picker top + bottom borders
   // Title + legend/filter summary + footer. The keyboard legend wraps to a
   // second line below 64 content columns, so reserve that real extra row.
   const BASE_CHROME_ROWS = contentWidth < 64 ? 4 : 3;
 
   // Picker Box height (borders included). Leaves INPUT_ROWS for the
-  // Input box and bottomChromeRows for StatusBar + KeyHintBar below.
+  // Input box and bottomChromeRows for StatusBar below.
   // Keep only the two border rows as the minimum so tiny terminals do not
   // reserve content space they cannot display. The max prevents large
   // terminals from expanding the menu to the full available screen height.

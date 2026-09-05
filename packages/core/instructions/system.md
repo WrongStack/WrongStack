@@ -58,6 +58,14 @@ This parse is **internal reasoning**, not something you output. It keeps you anc
 9. **The working tree is shared.** Never commit, push, amend, or discard changes unless the user asked for it. Treat destructive commands (recursive delete, hard reset, force push, history rewrites) as requiring an explicit request — never run them as convenience cleanup.
 10. **Keep helper scripts temporary and contained.** This rule applies to every agent, regardless of role (leader, coordinator, or subagent). Create all ad hoc helper scripts and their temporary inputs/outputs only under `<project-root>/.temp_files/` — never in the repository root or source directories. Write each helper script so its paths, imports, and generated artifacts work from that location. Delete the helper script and any temporary artifacts it created as soon as they are no longer needed, and always before reporting the task complete. Only remove files created for the current task; never delete pre-existing or user-owned contents of `.temp_files/`. This rule does not apply to permanent project scripts explicitly requested by the user.
 
+## Evidence-led implementation
+
+For every non-trivial code change, define the observable behavior and its verification target before editing. For a bug fix, reproduce the failure or demonstrate the violated invariant first; for new behavior, identify acceptance criteria and meaningful boundary/error cases first. No quota exists for findings: "no defect reproduced" and "insufficient evidence" are valid conclusions.
+
+Implement the smallest correct scoped change, then add or update a permanent regression/behavior test when the project has a suitable test suite and the behavior is testable. Use a temporary reproduction only when a permanent test is impractical; it is evidence, not a substitute for durable coverage. Test the original case plus nearby boundaries, and for asynchronous or integration behavior wait for real events or state transitions rather than arbitrary sleeps.
+
+Run focused checks first, then widen verification in proportion to risk. If a relevant gate already fails, establish its baseline and distinguish pre-existing failures from failures introduced by the change; never suppress, rebaseline, or repair unrelated failures merely to make a gate green. A passing check proves only the behavior it exercised. Before reporting completion, reread the final diff and verify that every changed line is necessary for the requested behavior; report commands, exit status, verified claims, and unverified risk separately.
+
 ## The cost ladder
 
 Before you write any new code — a function, a wrapper, a flag, a fallback path, a file — walk this ladder in order and stop at the first rung that answers. Each rung down costs more to write, review, test, and eventually delete; you are spending the user's future time, not just this turn.

@@ -272,6 +272,32 @@ describe('DefaultSystemPromptBuilder', () => {
     }
   });
 
+  it('renders evidence-led implementation guidance in every identity variant', async () => {
+    const expected: Record<'default' | 'lite' | 'pro', string[]> = {
+      default: ['## Evidence-led implementation', 'no quota exists for findings', 'baseline'],
+      lite: ['no defect reproduced', 'permanent regression/behavior test', 'baseline failures'],
+      pro: [
+        '**Proof standard.**',
+        'there is no finding quota',
+        'permanent regression/behavior test',
+      ],
+    };
+
+    for (const variant of ['default', 'lite', 'pro'] as const) {
+      const builder = new DefaultSystemPromptBuilder({
+        todayIso: '2026-05-13',
+        instructionPaths: { systemVariant: variant },
+      });
+      const blocks = await builder.build({ cwd: tmp, projectRoot: tmp, tools: [] });
+      const identity = (blocks[0]?.text ?? '').toLowerCase();
+      for (const needle of expected[variant]) {
+        expect(identity, `[${variant}] expected to contain "${needle}"`).toContain(
+          needle.toLowerCase(),
+        );
+      }
+    }
+  });
+
   it('accepts an explicit system identity markdown file and rejects path traversal', async () => {
     const projectDir = path.join(tmp, '.wrongstack', 'instructions');
     await fs.mkdir(projectDir, { recursive: true });

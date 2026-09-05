@@ -3,8 +3,18 @@
 /** 1_234_567 -> "1.2M". Compact counts for badges and metric rows. */
 export function formatCount(value: number): string {
   if (!Number.isFinite(value)) return '0';
-  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  const magnitude = Math.abs(value);
+  if (magnitude >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (magnitude >= 1_000) {
+    // The unit must be chosen from the ROUNDED mantissa, not the raw value.
+    // `.toFixed(1)` rounds up, so a count below the M threshold can still
+    // print 1000.0 — and "1000.0k" is one full step past its own unit, which
+    // also made the badges non-monotonic (999_999 -> "1000.0k" while
+    // 1_000_000 -> "1.0M"). Carry into the next unit instead.
+    const thousands = Number((value / 1_000).toFixed(1));
+    if (Math.abs(thousands) >= 1_000) return `${(value / 1_000_000).toFixed(1)}M`;
+    return `${thousands.toFixed(1)}k`;
+  }
   return String(Math.trunc(value));
 }
 

@@ -86,10 +86,15 @@ function repairTruncated(s: string): string {
     // A dangling lone backslash can't begin a valid escape — drop it.
     if (escaped) {
       result = result.slice(0, -1);
-    } else if (endsWithInvalidEscape(result)) {
-      // A trailing invalid escape (e.g. `\}`) can't be completed into valid
-      // JSON — strip the backslash and its bogus escapee.
-      result = result.slice(0, -2);
+    } else {
+      const incompleteUnicodeLen = trailingIncompleteUnicodeLength(result);
+      if (incompleteUnicodeLen > 0) {
+        result = result.slice(0, -incompleteUnicodeLen);
+      } else if (endsWithInvalidEscape(result)) {
+        // A trailing invalid escape (e.g. `\}`) can't be completed into valid
+        // JSON — strip the backslash and its bogus escapee.
+        result = result.slice(0, -2);
+      }
     }
     result += '"';
   } else if (prevSig === ':') {
@@ -119,6 +124,24 @@ function repairTruncated(s: string): string {
 }
 
 const VALID_ESCAPE = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
+
+/** Length of a trailing incomplete Unicode escape (\u, \uX, \uXX, \uXXX), or 0 if none. */
+function trailingIncompleteUnicodeLength(str: string): number {
+  for (let h = 0; h <= 3; h++) {
+    const uPos = str.length - 1 - h;
+    if (uPos >= 0 && str[uPos] === 'u') {
+      const suffix = str.slice(uPos + 1);
+      if (/^[0-9a-fA-F]*$/.test(suffix)) {
+        let backslashes = 0;
+        for (let k = uPos - 1; k >= 0 && str[k] === '\\'; k--) backslashes++;
+        if (backslashes % 2 === 1) {
+          return 1 + 1 + h;
+        }
+      }
+    }
+  }
+  return 0;
+}
 
 /** True when `str` ends with a backslash escape that JSON does not allow. */
 function endsWithInvalidEscape(str: string): boolean {

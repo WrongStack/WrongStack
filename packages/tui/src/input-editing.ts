@@ -104,7 +104,9 @@ export function nextInputWordStart(buffer: string, cursor: number): number {
   else
     while (i < buffer.length && !isInputWordSeparator(buffer[i])) {
       const chip = tokenSpanAt(buffer, i);
-      if (chip) {
+      // tokenSpanAt also matches at `end`; jumping there again would not
+      // advance `i`, so only jump when the walk is still inside the chip.
+      if (chip && i < chip.end) {
         i = chip.end;
         continue;
       }

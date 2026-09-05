@@ -120,7 +120,7 @@ export interface ScrollableHistoryProps extends HistoryProps {
    *  mount and clears on unmount. Optional for isolated renderers. */
   controllerRef?: MutableRefObject<HistoryScrollController | null> | undefined;
   /** Reports scroll-state transitions (scrolled away from / re-pinned to the
-   *  newest output) so the host can adjust key hints. */
+   *  newest output). */
   onScrollInfo?: ((info: { scrolled: boolean }) => void) | undefined;
   /** Optional cap on the width used for entry wrapping (right panel mode). */
   maxWidth?: number | undefined;
