@@ -1,8 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { type Bm25Index, buildBm25Index, buildIndexableText } from './bm25.js';
-import { LANG_FAMILY_ENTRIES } from './languages.js';
+import { type Bm25Index, buildBm25Index } from './bm25.js';
 import type {
   CallSite,
   CodeMapGraph,
@@ -14,9 +13,7 @@ import type {
   SymbolKind,
   SymbolLang,
 } from './schema.js';
-import { SCHEMA_VERSION } from './schema.js';
 import { loadDatabaseSync, runSqliteWithRetry } from './sqlite-runtime.js';
-import { embedText, encodeVector, vectorEmbeddingEnabled } from './vector-search.js';
 import {
   getAllFileMetasWithStatement,
   getAllIndexableWithStatement,
@@ -27,14 +24,7 @@ import {
   getStatsWithStatement,
   type IndexSummary,
 } from './writer-admin.js';
-import {
-  type BulkSymbolRow,
-  type BulkVectorRow,
-  bulkInsertFtsWithStatement,
-  bulkInsertRefsWithStatement,
-  bulkInsertSymbolsWithStatement,
-  bulkInsertVectorsWithStatement,
-} from './writer-bulk-insert.js';
+import { bulkInsertRefsWithStatement } from './writer-bulk-insert.js';
 import {
   findIncomingCallsByName,
   findOutgoingCallsByName,
@@ -48,7 +38,20 @@ import {
   getSymbolGraphWithStatement,
 } from './writer-graph-reader.js';
 import { inListChunks, padToInBucket, placeholders, resolveIndexDir } from './writer-helpers.js';
-import { commitBatchWithStatement } from './writer-mutations.js';
+import { allocateSymbolIds, initIndexSchema, NEXT_SYMBOL_ID_KEY } from './writer-init.js';
+import {
+  checkpointWal,
+  compactIfNeeded,
+  optimizeFtsIfNeeded,
+  optimizeStore,
+  recordFtsChurn,
+} from './writer-maintenance.js';
+import {
+  commitBatchWithStatement,
+  insertSymbolsWithStatement,
+  setFilePackagesWithStatement,
+  upsertFileWithStatement,
+} from './writer-mutations.js';
 import { applyIndexStorePragmas } from './writer-pragmas.js';
 import {
   applyImportResolutionsWithStatement,
@@ -60,18 +63,6 @@ import {
   resolveRefsForNamesUnsafe,
   resolveRefsWithStatement,
 } from './writer-refs.js';
-import {
-  CORE_TABLES_SQL,
-  FILE_INDEX_SQL,
-  LANG_FAMILY_TABLE_SQL,
-  LANG_FAMILY_WILDCARD,
-  METADATA_TABLE_SQL,
-  REFS_INDEX_SQL,
-  REFS_TABLE_SQL,
-  SYMBOL_INDEX_SQL,
-  SYMBOL_VECTORS_TABLE_SQL,
-  SYMBOLS_FTS_SQL,
-} from './writer-schema.js';
 import {
   countSearchWithStatement,
   searchRankedWithStatement,
@@ -170,221 +161,28 @@ export class IndexStore {
     }
   }
 
-  private seedLangFamilies(): void {
-    const insert = this.stmt('INSERT OR REPLACE INTO lang_family(lang, family) VALUES (?, ?)');
-    for (const [lang, family] of LANG_FAMILY_ENTRIES) insert.run(lang, family);
-    insert.run('', LANG_FAMILY_WILDCARD);
-  }
-
-  private repairMissingColumns(): void {
-    const expected: ReadonlyArray<{ table: string; columns: ReadonlyArray<[string, string]> }> = [
-      {
-        table: 'files',
-        columns: [
-          ['package', "TEXT NOT NULL DEFAULT ''"],
-          ['content_hash', "TEXT NOT NULL DEFAULT ''"],
-        ],
-      },
-      {
-        table: 'refs',
-        columns: [
-          ['lang', "TEXT NOT NULL DEFAULT ''"],
-          ['module', 'TEXT'],
-          ['to_file', 'TEXT'],
-        ],
-      },
-    ];
-
-    for (const { table, columns } of expected) {
-      const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
-        name?: unknown;
-      }>;
-      const present = new Set<string>();
-      for (const row of rows) {
-        if (typeof row.name === 'string') present.add(row.name);
-      }
-      if (present.size === 0) continue;
-      for (const [name, type] of columns) {
-        if (present.has(name)) continue;
-        this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
-      }
-    }
-  }
-
-  /**
-   * P4: `symbols.text` duplicated name + signature + doc_comment (~19 MB on
-   * the live index) and is derived on demand now. In-place DROP COLUMN — no
-   * SCHEMA_VERSION bump, so no wipe-and-reparse. Best-effort: a busy or
-   * SQLite-without-DROP-COLUMN open leaves the column in place, where new
-   * inserts simply default it to '' and the next open retries.
-   */
-  private dropDeprecatedSymbolsColumns(): void {
-    // One-shot flag: once the column is gone (or never existed on a fresh
-    // database), skip the PRAGMA scan on every subsequent open.
-    if (this.getMetadata(IndexStore.SYMBOLS_TEXT_DROPPED_KEY) !== undefined) return;
-    const present = new Set(
-      (this.db.prepare('PRAGMA table_info(symbols)').all() as Array<{ name?: unknown }>).flatMap(
-        (row) => (typeof row.name === 'string' ? [row.name] : []),
-      ),
-    );
-    if (present.size === 0) return;
-    if (!present.has('text')) {
-      // Fresh database or already migrated — the column is never coming back.
-      this.setMetadata(IndexStore.SYMBOLS_TEXT_DROPPED_KEY, '1');
-      return;
-    }
-    try {
-      this.db.exec('ALTER TABLE symbols DROP COLUMN text');
-      this.setMetadata(IndexStore.SYMBOLS_TEXT_DROPPED_KEY, '1');
-    } catch {
-      // Best-effort: a busy store defers the drop to the next open (the flag
-      // is only set after a successful ALTER, so the retry actually happens).
-    }
-  }
-
   private initSchema(): void {
-    this.db.exec(METADATA_TABLE_SQL);
-
-    const storedRows = this.stmt('SELECT value FROM metadata WHERE key = ?').all('version') as {
-      value: string;
-    }[];
-    const storedVersion = storedRows.length ? Number(storedRows[0]?.value) : null;
-    if (storedVersion !== null && storedVersion !== SCHEMA_VERSION) {
-      this.db.exec(`
-        DROP TABLE IF EXISTS symbols;
-        DROP TABLE IF EXISTS files;
-        DROP TABLE IF EXISTS refs;
-        DROP TABLE IF EXISTS symbol_vectors;
-      `);
-      this.db.exec('DROP TABLE IF EXISTS symbols_fts');
-      this.stmt('UPDATE metadata SET value = ? WHERE key = ?').run(
-        String(SCHEMA_VERSION),
-        'version',
-      );
-    } else if (storedVersion === null) {
-      this.stmt('INSERT INTO metadata(key, value) VALUES (?, ?)').run(
-        'version',
-        String(SCHEMA_VERSION),
-      );
-    }
-
-    this.db.exec(CORE_TABLES_SQL);
-    this.db.exec(REFS_TABLE_SQL);
-    this.repairMissingColumns();
-    this.dropDeprecatedSymbolsColumns();
-    for (const sql of FILE_INDEX_SQL) this.db.exec(sql);
-    for (const sql of SYMBOL_INDEX_SQL) this.db.exec(sql);
-    for (const sql of REFS_INDEX_SQL) this.db.exec(sql);
-    this.db.exec(LANG_FAMILY_TABLE_SQL);
-    this.seedLangFamilies();
-
-    try {
-      const ftsSchema = this.stmt(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='symbols_fts'",
-      ).get() as { sql?: string } | undefined;
-      if (ftsSchema?.sql?.includes('unicode61')) {
-        this.db.exec('DROP TABLE IF EXISTS symbols_fts');
-      }
-      this.db.exec(SYMBOLS_FTS_SQL);
-      this.ftsAvailable = true;
-      const symbolCount = Number(
-        (this.stmt('SELECT COUNT(*) AS n FROM symbols').get() as { n?: number } | undefined)?.n ??
-          0,
-      );
-      const ftsCount = Number(
-        (this.stmt('SELECT COUNT(*) AS n FROM symbols_fts').get() as { n?: number } | undefined)
-          ?.n ?? 0,
-      );
-      if (symbolCount !== ftsCount) {
-        this.db.exec('DELETE FROM symbols_fts');
-        // NB: vectorsAvailable is not yet assigned here (the vector init block
-        // below runs later in initSchema) — gate on the env source of truth.
-        // Guard the purge: on a same-version DB where vectors were just
-        // enabled, symbol_vectors may not exist yet (the vector init below
-        // creates it). An unguarded DELETE would throw, and this whole block
-        // sits inside the FTS try — the broad catch would then flip
-        // ftsAvailable=false, silently disabling FTS because a *vector* table
-        // was missing.
-        if (
-          vectorEmbeddingEnabled() &&
-          (this.stmt(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='symbol_vectors'",
-          ).get() as { '1'?: number } | undefined) !== undefined
-        ) {
-          this.db.exec('DELETE FROM symbol_vectors');
-        }
-        const rows = this.stmt(
-          'SELECT id, name, signature, doc_comment FROM symbols ORDER BY id',
-        ).all() as Array<{ id: number; name: string; signature: string; doc_comment: string }>;
-        bulkInsertFtsWithStatement(
-          (sql) => this.stmt(sql),
-          IndexStore.MAX_SQL_VARS,
-          this.ftsAvailable,
-          rows.map((row) => ({
-            id: row.id,
-            text: buildIndexableText(row.name, row.signature, row.doc_comment),
-          })),
-        );
-        this.invalidateBm25();
-      }
-    } catch {
-      this.ftsAvailable = false;
-    }
-
-    // P4.11: the vector layer is opt-in (WRONGSTACK_INDEX_VECTORS=1).
-    // Default off — see vectorEmbeddingEnabled(). When off, a legacy database
-    // may still carry symbol_vectors; dropping it returns those pages to the
-    // free list instead of carrying ~1.5KB/symbol of dead BLOBs forever.
-    // Re-enabling + a force reindex repopulates it.
-    try {
-      if (vectorEmbeddingEnabled()) {
-        this.db.exec(SYMBOL_VECTORS_TABLE_SQL);
-        this.vectorsAvailable = true;
-      } else {
-        this.db.exec('DROP TABLE IF EXISTS symbol_vectors');
-        this.vectorsAvailable = false;
-      }
-    } catch {
-      this.vectorsAvailable = false;
-    }
-
-    this.ensureNextSymbolIdSeeded();
-  }
-
-  private static readonly NEXT_SYMBOL_ID_KEY = 'next_symbol_id';
-  private static readonly MAX_SQL_VARS = 900;
-  /** P2: persisted FTS-mutation churn counter — see {@link optimizeFtsIfNeeded}. */
-  private static readonly FTS_CHURN_KEY = 'fts_churn_since_maintain';
-  /** P4: one-shot marker that the deprecated symbols.text column is gone. */
-  private static readonly SYMBOLS_TEXT_DROPPED_KEY = 'symbols_text_dropped';
-
-  private ensureNextSymbolIdSeeded(): void {
-    const existing = this.stmt('SELECT value FROM metadata WHERE key = ?').get(
-      IndexStore.NEXT_SYMBOL_ID_KEY,
-    ) as { value?: string } | undefined;
-    if (existing?.value !== undefined) return;
-    const maxRows = this.stmt('SELECT MAX(id) AS m FROM symbols').all() as {
-      m: number | null;
-    }[];
-    const next = (maxRows[0]?.m ?? 0) + 1;
-    this.stmt('INSERT OR REPLACE INTO metadata(key, value) VALUES (?, ?)').run(
-      IndexStore.NEXT_SYMBOL_ID_KEY,
-      String(next),
+    const { ftsAvailable, vectorsAvailable } = initIndexSchema(
+      this.db,
+      (sql) => this.stmt(sql),
+      (key) => this.getMetadata(key),
+      (key, value) => this.setMetadata(key, value),
+      IndexStore.MAX_SQL_VARS,
+      () => this.invalidateBm25(),
     );
+    this.ftsAvailable = ftsAvailable;
+    this.vectorsAvailable = vectorsAvailable;
   }
+
+  private static readonly NEXT_SYMBOL_ID_KEY = NEXT_SYMBOL_ID_KEY;
+  private static readonly MAX_SQL_VARS = 900;
 
   private allocateSymbolIds(count: number): number {
-    if (count <= 0) return this.getMaxSymbolId() + 1;
-    this.ensureNextSymbolIdSeeded();
-    const row = this.stmt('SELECT value FROM metadata WHERE key = ?').get(
-      IndexStore.NEXT_SYMBOL_ID_KEY,
-    ) as { value?: string } | undefined;
-    const start = Math.max(1, Number(row?.value ?? 1) || 1);
-    this.stmt('INSERT OR REPLACE INTO metadata(key, value) VALUES (?, ?)').run(
-      IndexStore.NEXT_SYMBOL_ID_KEY,
-      String(start + count),
+    return allocateSymbolIds(
+      (sql) => this.stmt(sql),
+      count,
+      () => this.getMaxSymbolId(),
     );
-    return start;
   }
 
   private invalidateIncomingRefsForFiles(files: readonly string[]): Set<string> {
@@ -419,54 +217,14 @@ export class IndexStore {
     return this.runWithRetry(() => {
       const ownsTransaction = this.beginWriteTransaction();
       try {
-        let nextId = this.allocateSymbolIds(symbols.length);
-        const result: IndexSymbol[] = [];
-        const bulk: BulkSymbolRow[] = [];
-        const ftsRows: Array<{ id: number; text: string }> = [];
-        const vectorRows: BulkVectorRow[] = [];
-
-        for (const s of symbols) {
-          const id = nextId++;
-          bulk.push({
-            id,
-            lang: s.lang,
-            kind: s.kind,
-            name: s.name,
-            file: s.file,
-            line: s.line,
-            col: s.col,
-            signature: s.signature,
-            docComment: s.docComment,
-            scope: s.scope,
-          });
-          if (this.ftsAvailable) {
-            ftsRows.push({ id, text: buildIndexableText(s.name, s.signature, s.docComment) });
-          }
-          if (this.vectorsAvailable) {
-            vectorRows.push({
-              id,
-              vector: encodeVector(
-                embedText(buildIndexableText(s.name, s.signature, s.docComment)),
-              ),
-            });
-          }
-          result.push({ ...s, id });
-        }
-        bulkInsertSymbolsWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, bulk);
-        bulkInsertFtsWithStatement(
+        const result = insertSymbolsWithStatement(
           (sql) => this.stmt(sql),
           IndexStore.MAX_SQL_VARS,
           this.ftsAvailable,
-          ftsRows,
+          this.vectorsAvailable,
+          this.allocateSymbolIds.bind(this),
+          symbols,
         );
-        if (this.vectorsAvailable) {
-          bulkInsertVectorsWithStatement(
-            (sql) => this.stmt(sql),
-            IndexStore.MAX_SQL_VARS,
-            vectorRows,
-          );
-        }
-
         this.recordFtsChurn(symbols.length);
         this.commitWriteTransaction(ownsTransaction);
         return result;
@@ -540,25 +298,7 @@ export class IndexStore {
   }
 
   upsertFile(meta: FileMeta): void {
-    this.runWithRetry(() => {
-      this.stmt(
-        `INSERT INTO files(file, lang, mtime_ms, content_hash, symbol_count, last_indexed)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(file) DO UPDATE SET
-           lang = excluded.lang,
-           mtime_ms = excluded.mtime_ms,
-           content_hash = excluded.content_hash,
-           symbol_count = excluded.symbol_count,
-           last_indexed = excluded.last_indexed`,
-      ).run(
-        meta.file,
-        meta.lang,
-        meta.mtimeMs,
-        meta.contentHash ?? '',
-        meta.symbolCount,
-        meta.lastIndexed,
-      );
-    });
+    this.runWithRetry(() => upsertFileWithStatement((sql) => this.stmt(sql), meta));
   }
 
   getFileMeta(file: string): FileMeta | null {
@@ -570,11 +310,7 @@ export class IndexStore {
   }
 
   setFilePackages(entries: ReadonlyMap<string, string>): void {
-    if (entries.size === 0) return;
-    this.runWithRetry(() => {
-      const update = this.stmt('UPDATE files SET package = ? WHERE file = ?');
-      for (const [file, label] of entries) update.run(label, file);
-    });
+    this.runWithRetry(() => setFilePackagesWithStatement((sql) => this.stmt(sql), entries));
   }
 
   getNamespaceDeclarations(): Array<{ name: string; file: string }> {
@@ -849,11 +585,7 @@ export class IndexStore {
   }
 
   optimize(): void {
-    try {
-      this.db.exec('PRAGMA optimize');
-    } catch {
-      /* optional */
-    }
+    optimizeStore(this.db);
   }
 
   /**
@@ -872,25 +604,14 @@ export class IndexStore {
    * it ran, safe to call from the daemon's single-threaded idle path.
    */
   optimizeFtsIfNeeded(options: { minChurnRatio?: number; minChurnRows?: number } = {}): boolean {
-    if (!this.ftsAvailable) return false;
-    try {
-      const minChurnRatio = options.minChurnRatio ?? 0.1;
-      const minChurnRows = options.minChurnRows ?? 5_000;
-      const churn = Number(this.getMetadata(IndexStore.FTS_CHURN_KEY) ?? '0') || 0;
-      const liveRows = Number(
-        (this.stmt('SELECT COUNT(*) AS n FROM symbols').get() as { n?: number } | undefined)?.n ??
-          0,
-      );
-      if (churn < Math.max(minChurnRows, liveRows * minChurnRatio)) return false;
-      this.runWithRetry(() => {
-        this.stmt(`INSERT INTO symbols_fts(symbols_fts) VALUES('optimize')`).run();
-      });
-      this.setMetadata(IndexStore.FTS_CHURN_KEY, '0');
-      return true;
-    } catch {
-      // Maintenance must never fail its caller (mirrors checkpointWal).
-      return false;
-    }
+    return optimizeFtsIfNeeded(
+      (sql) => this.stmt(sql),
+      this.ftsAvailable,
+      (key) => this.getMetadata(key),
+      (key, value) => this.setMetadata(key, value),
+      (fn) => this.runWithRetry(fn),
+      options,
+    );
   }
 
   /**
@@ -900,13 +621,12 @@ export class IndexStore {
    * survives store open/close cycles in the daemon pool.
    */
   private recordFtsChurn(rows: number): void {
-    if (rows <= 0 || !this.ftsAvailable) return;
-    try {
-      const current = Number(this.getMetadata(IndexStore.FTS_CHURN_KEY) ?? '0') || 0;
-      this.setMetadata(IndexStore.FTS_CHURN_KEY, String(current + rows));
-    } catch {
-      /* tracking must never fail the owning write */
-    }
+    recordFtsChurn(
+      this.ftsAvailable,
+      (key) => this.getMetadata(key),
+      (key, value) => this.setMetadata(key, value),
+      rows,
+    );
   }
 
   /**
@@ -921,52 +641,16 @@ export class IndexStore {
    * never wait on readers here: busy means "retry at the next idle window".
    */
   checkpointWal(): boolean {
-    try {
-      const probe = this.db.prepare('PRAGMA wal_checkpoint(PASSIVE)').get() as
-        | { busy?: number }
-        | undefined;
-      if (Number(probe?.busy ?? 1) !== 0) return false;
-      const done = this.db.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get() as
-        | { busy?: number }
-        | undefined;
-      return Number(done?.busy ?? 1) === 0;
-    } catch {
-      return false;
-    }
+    return checkpointWal(this.db);
   }
 
   compactIfNeeded(options: { minBytes?: number; minFreeRatio?: number } = {}): boolean {
-    const minBytes = options.minBytes ?? 256 * 1024 * 1024;
-    const minFreeRatio = options.minFreeRatio ?? 0.35;
-    try {
-      const pageCount = Number(
-        (this.stmt('PRAGMA page_count').get() as { page_count?: number } | undefined)?.page_count ??
-          0,
-      );
-      const pageSize = Number(
-        (this.stmt('PRAGMA page_size').get() as { page_size?: number } | undefined)?.page_size ?? 0,
-      );
-      const freePages = Number(
-        (this.stmt('PRAGMA freelist_count').get() as { freelist_count?: number } | undefined)
-          ?.freelist_count ?? 0,
-      );
-      if (
-        pageCount <= 0 ||
-        pageSize <= 0 ||
-        pageCount * pageSize < minBytes ||
-        freePages / pageCount < minFreeRatio
-      ) {
-        return false;
-      }
-      this.runWithRetry(() => {
-        this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
-        this.db.exec('VACUUM');
-        this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
-      });
-      return true;
-    } catch {
-      return false;
-    }
+    return compactIfNeeded(
+      this.db,
+      (sql) => this.stmt(sql),
+      (fn) => this.runWithRetry(fn),
+      options,
+    );
   }
 
   findIncomingCallsByName(

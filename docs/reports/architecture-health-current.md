@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T19:28:59.433Z
+**Generated:** 2026-09-05T19:38:13.396Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3617 |
-| Production source lines | 871238 |
+| Production source files | 3619 |
+| Production source lines | 871252 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11370 |
+| Relative module edges | 11374 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -54,7 +54,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/simpleui | 93 | 63 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 31 | @wrongstack/core |
-| @wrongstack/tools | 190 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/tools | 192 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 359 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 531 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1080 | `packages/tools/src/codebase-index/writer.ts` |
 | 1078 | `packages/core/src/storage/file-session-writer.ts` |
 | 1068 | `packages/tools/src/codebase-index/project-server.ts` |
 | 1062 | `packages/webui/src/components/FileActivityDrawer.tsx` |
@@ -135,6 +134,7 @@ None.
 | 965 | `packages/webui/src/components/SidePanel/SessionList.tsx` |
 | 963 | `packages/tui/src/app-state.ts` |
 | 962 | `packages/tui/src/app-key-handler.ts` |
+| 961 | `apps/desktop/src/renderer/src/renderer.ts` |
 
 ## Exports only tests reference
 

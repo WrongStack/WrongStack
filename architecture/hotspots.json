@@ -306,10 +306,6 @@
       "lines": 831,
       "relativeImports": 5
     },
-    "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 1080,
-      "relativeImports": 19
-    },
     "packages/tools/src/json.ts": {
       "lines": 919,
       "relativeImports": 2

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T19:28:59.433Z",
+  "generatedAt": "2026-09-05T19:38:13.396Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3617,
+    "sourceFiles": 3619,
     "testFiles": 3071,
-    "sourceLines": 871238,
+    "sourceLines": 871252,
     "workspaceEdges": 127,
-    "moduleEdges": 11370,
+    "moduleEdges": 11374,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -731,7 +731,7 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 190,
+      "sourceFiles": 192,
       "testFiles": 202,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -19989,11 +19989,6 @@
       "relativeImports": 5
     },
     {
-      "file": "packages/tools/src/codebase-index/writer.ts",
-      "lines": 1080,
-      "relativeImports": 19
-    },
-    {
       "file": "packages/tools/src/json.ts",
       "lines": 919,
       "relativeImports": 2
@@ -20261,11 +20256,6 @@
   ],
   "hotspots": [
     {
-      "file": "packages/tools/src/codebase-index/writer.ts",
-      "lines": 1080,
-      "relativeImports": 19
-    },
-    {
       "file": "packages/core/src/storage/file-session-writer.ts",
       "lines": 1078,
       "relativeImports": 10
@@ -20509,6 +20499,11 @@
       "file": "packages/tui/src/app-key-handler.ts",
       "lines": 962,
       "relativeImports": 18
+    },
+    {
+      "file": "apps/desktop/src/renderer/src/renderer.ts",
+      "lines": 961,
+      "relativeImports": 8
     }
   ],
   "testOnlyExports": [
