@@ -182,17 +182,23 @@ async function gitDiff(
   if (input.staged) args.push('--staged');
   if (input.a) args.push(input.a.trim());
   if (input.b) args.push(input.b.trim());
+  let effectiveFiles: string[] = [];
   if (input.files) {
     const rawFiles = Array.isArray(input.files)
       ? input.files
       : typeof input.files === 'string'
         ? input.files.split(',')
         : [];
-    const files = rawFiles
-      .filter((f): f is string => typeof f === 'string')
-      .map((f) => f.trim().replace(/\\/g, '/'))
-      .filter(Boolean);
+    const files = [
+      ...new Set(
+        rawFiles
+          .filter((f): f is string => typeof f === 'string')
+          .map((f) => f.trim().replace(/\\/g, '/'))
+          .filter(Boolean),
+      ),
+    ];
     if (files.length > 0) {
+      effectiveFiles = files;
       args.push('--', ...files);
     }
   }
@@ -216,7 +222,7 @@ async function gitDiff(
   const combinedNote = [sideBySideNote, exitNote].filter(Boolean).join('\n') || undefined;
   return {
     diff,
-    files: [],
+    files: effectiveFiles,
     truncated,
     mode: effectiveMode,
     note: combinedNote,
@@ -228,7 +234,9 @@ function findGitDir(cwd: string): string | null {
   for (let i = 0; i < 20; i++) {
     try {
       const stat = statSync(path.join(dir, '.git'));
-      if (stat.isDirectory()) return dir;
+      // A normal repo has a `.git` directory; a linked worktree has a `.git`
+      // file (gitlink pointing at the main repo). Accept both.
+      if (stat.isDirectory() || stat.isFile()) return dir;
     } catch {
       // continue
     }
@@ -287,10 +295,14 @@ async function fileDiff(
     : typeof input.files === 'string'
       ? input.files.split(',')
       : [];
-  const files = rawFiles
-    .filter((f): f is string => typeof f === 'string')
-    .map((f) => f.trim())
-    .filter(Boolean);
+  const files = [
+    ...new Set(
+      rawFiles
+        .filter((f): f is string => typeof f === 'string')
+        .map((f) => f.trim())
+        .filter(Boolean),
+    ),
+  ];
 
   if (files.length === 0) {
     return {

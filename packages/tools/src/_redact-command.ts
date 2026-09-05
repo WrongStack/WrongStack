@@ -42,8 +42,16 @@ export function redactCommand(cmd: string): string {
       // Preserve the flag name portion; redact only the value part.
       // e.g. "--token=sekrit_abc"  →  "--token=[REDACTED]"
       const eq = match.indexOf('=');
+      const colon = match.indexOf(':');
       const sp = match.search(/\s/);
-      const delim = eq !== -1 ? '=' : sp !== -1 ? match[sp] : null;
+      const delim =
+        eq !== -1 && (colon === -1 || eq < colon)
+          ? '='
+          : colon !== -1
+            ? ':'
+            : sp !== -1
+              ? match[sp]
+              : null;
       if (delim !== null) {
         const flag = match.slice(0, match.indexOf(expectDefined(delim)) + 1);
         return `${flag}[REDACTED]`;

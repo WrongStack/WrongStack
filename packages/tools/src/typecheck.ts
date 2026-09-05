@@ -149,8 +149,8 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
 
     // Count real tsc diagnostic lines ("file(1,2): error TS1234: …"), not every
     // occurrence of the word "error" — messages quoting the word inflated the
-    // old \berror\b count.
-    const combined = `${result.stdout}\n${result.stderr}`;
+    // old \berror\b count. Include result.error if present (e.g. spawn failure).
+    const combined = [result.stdout, result.stderr, result.error].filter(Boolean).join('\n');
     let errors = [...combined.matchAll(/^.*\berror TS\d+:/gmi)].length;
     const warnings = [...combined.matchAll(/^.*\bwarning TS\d+:/gmi)].length;
     if (errors === 0 && result.exitCode !== 0) {

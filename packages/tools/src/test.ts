@@ -207,7 +207,7 @@ function buildArgs(runner: string, input: TestInput): string[] {
       if (input.verbose) args.push('--verbose');
       if (input.watch) args.push('--watch');
       if (input.coverage) args.push('--coverage');
-      if (input.grep) args.push('--testPathPattern', input.grep);
+      if (input.grep) args.push('--testNamePattern', input.grep);
       args.push('--testTimeout', String(timeout));
       break;
     case 'mocha':
@@ -253,12 +253,12 @@ function parseResult(
     if (failedMatch?.[1]) failed = Number.parseInt(failedMatch[1], 10);
     tests_run = passed + failed;
   } else if (runner === 'jest') {
-    const suitesMatch = out.match(/Test Suites:\s+(\d+)\s+total/);
-    const passedMatch = out.match(/Tests:\s+(\d+)\s+passed/);
-    const failedMatch = out.match(/Tests:\s+(\d+)\s+failed/);
-    tests_run = Number.parseInt(suitesMatch?.[1] ?? '0', 10);
+    const totalMatch = out.match(/Tests:\s+(?:.*,\s+)?(\d+)\s+total/);
+    const passedMatch = out.match(/Tests:\s+.*?(\d+)\s+passed/);
+    const failedMatch = out.match(/Tests:\s+.*?(\d+)\s+failed/);
     passed = Number.parseInt(passedMatch?.[1] ?? '0', 10);
     failed = Number.parseInt(failedMatch?.[1] ?? '0', 10);
+    tests_run = totalMatch?.[1] ? Number.parseInt(totalMatch[1], 10) : passed + failed;
   } else if (runner === 'mocha') {
     const passedMatch = out.match(/(\d+)\s+passing/);
     const failedMatch = out.match(/(\d+)\s+failing/);

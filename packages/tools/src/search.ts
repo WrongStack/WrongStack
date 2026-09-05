@@ -136,6 +136,7 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
           url: r.url,
           snippet: r.snippet,
         }));
+        const finalResults = results.slice(0, num);
         yield {
           type: 'log',
           text: `Cache hit for "${input.query}" (${source})`,
@@ -143,14 +144,14 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
         };
         yield {
           type: 'partial_output',
-          text: `${results.length} cached results from ${entry.source}`,
-          data: { count: results.length, cached: true, source: entry.source },
+          text: `${finalResults.length} cached results from ${entry.source}`,
+          data: { count: finalResults.length, cached: true, source: entry.source },
         };
         yield {
           type: 'final',
           output: {
             query: input.query,
-            results: results.slice(0, num),
+            results: finalResults,
             source: entry.source,
             truncated: results.length > num,
             cached: true,

@@ -360,13 +360,6 @@ export class PolyglotInvariantEngine {
               params,
               returnType,
             });
-            // Also store as standalone method name for convenience
-            functions.set(methodName, {
-              name: methodName,
-              isExported: isExp,
-              params,
-              returnType,
-            });
           }
         }
       }

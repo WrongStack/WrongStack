@@ -155,6 +155,12 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
       resolvedTargets.push({ raw: t.raw, deleted: t.deleted, abs: real });
     }
 
+    if (resolvedTargets.length === 0) {
+      return refuse(
+        'patch refused: no file target could be resolved from the patch (fail-closed containment — target paths stripped to empty)',
+      );
+    }
+
     // Snapshot target contents before applying so the change can be recorded
     // for session rewind and stale-read tracking (same bookkeeping as `edit`).
     // Track existence separately from content: a >5 MB or binary file exists

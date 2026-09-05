@@ -602,12 +602,13 @@ function jmespathSearch(data: unknown, query: string): unknown {
     return jmespathSearch(val, rest);
   }
 
-  // Wildcard: [*]
-  if (query === '[*]') {
-    if (Array.isArray(data)) {
-      return data;
-    }
-    return data;
+  // Wildcard: [*] or [*].rest
+  const wildcardMatch = query.match(/^\[\*\](?:\.(.+))?$/);
+  if (wildcardMatch) {
+    if (!Array.isArray(data)) return [];
+    const rest = wildcardMatch[1];
+    if (rest === undefined) return data;
+    return data.map((item) => jmespathSearch(item, rest));
   }
 
   // Multi-select: foo.bar[*].baz
@@ -623,14 +624,24 @@ function jmespathSearch(data: unknown, query: string): unknown {
 
   // Filter: [?foo==`bar`]
   const filterMatch = query.match(
-    /^\[\\?([a-zA-Z_][a-zA-Z0-9_]*)(==|!=|<|>|<=|>=)(`[^`]+`|'[^']*')\](?:\.(.+))?$/,
+    /^\[\??([a-zA-Z_][a-zA-Z0-9_]*)(==|!=|<|>|<=|>=)(`[^`]+`|'[^']*')\](?:\.(.+))?$/,
   );
   if (filterMatch) {
     const field = filterMatch[1]!;
     const op = filterMatch[2]!;
     const rawVal = filterMatch[3]!;
     const rest = filterMatch[4];
-    const cmpVal = JSON.parse(rawVal.slice(1, -1));
+    let cmpVal: unknown;
+    if (rawVal.startsWith("'") && rawVal.endsWith("'")) {
+      cmpVal = rawVal.slice(1, -1);
+    } else {
+      const inner = rawVal.slice(1, -1);
+      try {
+        cmpVal = JSON.parse(inner);
+      } catch {
+        cmpVal = inner;
+      }
+    }
     const arr = data as Record<string, unknown>[];
     if (!Array.isArray(arr)) return [];
     const filtered = arr.filter((item) => {

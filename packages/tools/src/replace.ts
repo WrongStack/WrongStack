@@ -413,7 +413,7 @@ async function resolveFiles(
     }
   }
 
-  return resolved;
+  return [...new Set(resolved)];
 }
 
 async function globFiles(

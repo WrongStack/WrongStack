@@ -142,7 +142,7 @@ export const installTool = {
           type: 'final',
           output: {
             exit_code: run?.exitCode ?? 0,
-            packages: [],
+            packages: pkgList,
             output: normalizeCommandOutput(
               run?.output || outcome.manifestsChanged.join(', ') || 'ok',
             ),

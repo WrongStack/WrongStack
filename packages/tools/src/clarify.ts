@@ -104,12 +104,13 @@ export const clarifyTool: Tool<ClarifyQuestionInput, ClarifyOutput> = {
 
       if (typeof hostAsk === 'function') {
         const res = await hostAsk(input.question, options, input.isMultiSelect);
+        const selected = Array.isArray(res?.selected) ? res.selected : [];
         return {
           status: 'answered',
           question: input.question,
-          selectedOptions: res.selected,
-          customResponse: res.custom,
-          decisionSummary: `User selected: ${res.selected.join(', ')}${res.custom ? ` (Custom: ${res.custom})` : ''}`,
+          selectedOptions: selected,
+          customResponse: res?.custom,
+          decisionSummary: `User selected: ${selected.join(', ')}${res?.custom ? ` (Custom: ${res.custom})` : ''}`,
         };
       }
 

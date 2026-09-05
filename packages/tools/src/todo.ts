@@ -487,9 +487,9 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
       item.kanbanBoardId && item.kanbanTaskId
         ? `kanban:${item.kanbanBoardId}:${item.kanbanTaskId}`
         : item.promotedFromTask
-          ? `task:${item.promotedFromTask}`
+          ? `task:${item.promotedFromTask}:${item.id}`
           : item.promotedFromPlan
-            ? `plan:${item.promotedFromPlan}`
+            ? `plan:${item.promotedFromPlan}:${item.id}`
             : `todo:${item.id}`;
     const requestedIdentities = new Set(items.map(todoIdentity));
     for (const previous of ctx.todos ?? []) {

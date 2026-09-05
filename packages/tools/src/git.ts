@@ -404,9 +404,14 @@ function buildArgs(input: GitInput): string[] {
     case 'stash':
       return input.message ? ['stash', 'push', '-m', input.message] : ['stash', 'push'];
     case 'push':
-      return ['push'];
+      return [
+        'push',
+        ...(input.dry_run ? ['--dry-run'] : []),
+        ...(input.force ? ['--force'] : []),
+        ...(input.branch ? ['origin', input.branch] : []),
+      ];
     case 'pull':
-      return ['pull'];
+      return ['pull', ...(input.branch ? ['origin', input.branch] : [])];
     case 'fetch':
       return ['fetch', ...(input.branch ? [input.branch] : ['--all'])];
     case 'reset':

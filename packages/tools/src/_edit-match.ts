@@ -232,6 +232,13 @@ function fuzzyScan(
     if ((fileTrimmed[i + n - 1] as string) !== lastNeedle) continue;
     const windowInterior = fileTrimmed.slice(i + 1, i + n - 1).join('\n');
     if (windowInterior.length > FUZZY_MAX_INTERIOR_CHARS) continue;
+    const maxLen = Math.max(needleInterior.length, windowInterior.length);
+    if (
+      maxLen > 0 &&
+      Math.abs(needleInterior.length - windowInterior.length) / maxLen > 1 - FUZZY_MIN_SIMILARITY
+    ) {
+      continue;
+    }
     const score = similarity(needleInterior, windowInterior);
     if (score >= FUZZY_MIN_SIMILARITY) {
       candidates.push({
@@ -261,13 +268,6 @@ export function similarity(a: string, b: string): number {
   if (a === b) return 1;
   const max = Math.max(a.length, b.length);
   if (max === 0) return 1;
-  const lenDiff = Math.abs(a.length - b.length);
-  // Quick reject: Levenshtein distance is bounded below by |a.length - b.length|.
-  // If the length difference alone forces similarity below the threshold,
-  // skip the expensive O(n·m) DP entirely.
-  if (lenDiff / max > 1 - FUZZY_MIN_SIMILARITY) {
-    return 1 - lenDiff / max;
-  }
   return 1 - levenshtein(a, b) / max;
 }
 

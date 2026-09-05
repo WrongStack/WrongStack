@@ -156,7 +156,7 @@ async function prepareWrite(input: WriteInput, ctx: Context): Promise<PreparedWr
         // the user's intent to overwrite. Tag as 'write' (NOT 'user') so
         // this internal read-for-diff does not widen the permission bypass
         // — the user never saw the old content (P1 #1).
-        ctx.recordRead(absPath, stat.mtimeMs, 'write', sha256hex(prev));
+        ctx.recordRead?.(absPath, stat.mtimeMs, 'write', sha256hex(prev));
       }
     }
   } catch (err) {
@@ -208,7 +208,7 @@ async function finishWrite(
   // Tag as 'write' so the permission bypass does not auto-approve a later
   // write to this path — the user approved THIS write, not future ones
   // (P1 #1).
-  ctx.recordRead(prepared.absPath, stat.mtimeMs, 'write', contentHash);
+  ctx.recordRead?.(prepared.absPath, stat.mtimeMs, 'write', contentHash);
 
   // Record for session rewind
   ctx.session?.recordFileChange?.({

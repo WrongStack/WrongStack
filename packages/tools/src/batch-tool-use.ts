@@ -108,7 +108,7 @@ export const batchToolUseTool: Tool<BatchToolUseInput, BatchToolUseOutput> = {
       throw new Error(`batch_tool_use: calls must contain at most ${MAX_BATCH_CALLS} items`);
     }
 
-    const governedExecute = ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY] as
+    const governedExecute = ctx.meta?.[GOVERNED_TOOL_EXECUTOR_META_KEY] as
       | GovernedToolExecutor
       | undefined;
     if (typeof governedExecute !== 'function') {

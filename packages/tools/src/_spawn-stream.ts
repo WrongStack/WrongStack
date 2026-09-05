@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 import {
   emitProcessCompleted,
   emitProcessOutput,
@@ -149,20 +150,24 @@ export async function* spawnStream(
   // Note: chunks may still arrive briefly after pause() (already in flight) —
   // they are accumulated and queued rather than dropped, so the queue can
   // overshoot maxQueue by a few entries but no output is silently lost.
-  // Named handlers so the teardown in `finally` can detach them.
+  const stdoutDecoder = new StringDecoder('utf8');
+  const stderrDecoder = new StringDecoder('utf8');
+
   const onOut = (c: Buffer) => {
-    const s = c.toString();
+    const s = stdoutDecoder.write(c);
     stdoutBytes += c.byteLength;
     emitProcessOutput({ pid, stream: 'stdout', chunk: c });
-    if (stdoutRetainedBytes < max) {
-      const retained = utf8Prefix(s, max - stdoutRetainedBytes);
-      stdout += retained;
-      stdoutRetainedBytes += Buffer.byteLength(retained, 'utf8');
+    if (s.length > 0) {
+      if (stdoutRetainedBytes < max) {
+        const retained = utf8Prefix(s, max - stdoutRetainedBytes);
+        stdout += retained;
+        stdoutRetainedBytes += Buffer.byteLength(retained, 'utf8');
+      }
+      spool.write(s);
+      queue.push({ kind: 'out', data: s, bytes: c.byteLength });
+      queuedBytes += c.byteLength;
+      wake();
     }
-    spool.write(s);
-    queue.push({ kind: 'out', data: s, bytes: c.byteLength });
-    queuedBytes += c.byteLength;
-    wake();
     // Apply backpressure if queue is growing faster than we consume
     if (!paused && (queue.length >= maxQueue || queuedBytes >= maxQueueBytes)) {
       paused = true;
@@ -171,18 +176,20 @@ export async function* spawnStream(
     }
   };
   const onErr = (c: Buffer) => {
-    const s = c.toString();
+    const s = stderrDecoder.write(c);
     stderrBytes += c.byteLength;
     emitProcessOutput({ pid, stream: 'stderr', chunk: c });
-    if (stderrRetainedBytes < max) {
-      const retained = utf8Prefix(s, max - stderrRetainedBytes);
-      stderr += retained;
-      stderrRetainedBytes += Buffer.byteLength(retained, 'utf8');
+    if (s.length > 0) {
+      if (stderrRetainedBytes < max) {
+        const retained = utf8Prefix(s, max - stderrRetainedBytes);
+        stderr += retained;
+        stderrRetainedBytes += Buffer.byteLength(retained, 'utf8');
+      }
+      spool.write(s);
+      queue.push({ kind: 'err', data: s, bytes: c.byteLength });
+      queuedBytes += c.byteLength;
+      wake();
     }
-    spool.write(s);
-    queue.push({ kind: 'err', data: s, bytes: c.byteLength });
-    queuedBytes += c.byteLength;
-    wake();
     if (!paused && (queue.length >= maxQueue || queuedBytes >= maxQueueBytes)) {
       paused = true;
       child.stdout?.pause();
@@ -214,6 +221,26 @@ export async function* spawnStream(
   };
   child.on('close', (code, signal) => {
     if (typeof pid === 'number') registry.unregister(pid);
+    const restOut = stdoutDecoder.end();
+    if (restOut) {
+      if (stdoutRetainedBytes < max) {
+        const retained = utf8Prefix(restOut, max - stdoutRetainedBytes);
+        stdout += retained;
+        stdoutRetainedBytes += Buffer.byteLength(retained, 'utf8');
+      }
+      spool.write(restOut);
+      queue.push({ kind: 'out', data: restOut, bytes: 0 });
+    }
+    const restErr = stderrDecoder.end();
+    if (restErr) {
+      if (stderrRetainedBytes < max) {
+        const retained = utf8Prefix(restErr, max - stderrRetainedBytes);
+        stderr += retained;
+        stderrRetainedBytes += Buffer.byteLength(retained, 'utf8');
+      }
+      spool.write(restErr);
+      queue.push({ kind: 'err', data: restErr, bytes: 0 });
+    }
     const exitCode = code ?? (signal ? 1 : 0);
     completeTelemetry(exitCode, signal ?? undefined);
     queue.push({

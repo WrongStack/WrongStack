@@ -305,11 +305,13 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
   opts.totalFiles.value += fileCount;
   opts.onProgress?.();
 
-  const items = filtered.sort((a, b) => {
-    if (a.isDirectory() && !b.isDirectory()) return -1;
-    if (!a.isDirectory() && b.isDirectory()) return 1;
-    return a.name.localeCompare(b.name);
-  });
+  const items = filtered
+    .filter((e) => e.isDirectory() || opts.showFiles)
+    .sort((a, b) => {
+      if (a.isDirectory() && !b.isDirectory()) return -1;
+      if (!a.isDirectory() && b.isDirectory()) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
   for (let i = 0; i < items.length; i++) {
     opts.signal.throwIfAborted();

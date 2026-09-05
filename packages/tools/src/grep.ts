@@ -461,6 +461,7 @@ async function runNative(
   const maxBytes = NATIVE_MAX_FILE_BYTES;
   let total = 0;
   let stopped = false;
+  let countTruncated = false;
 
   const scanFile = async (full: string, name: string, rel: string): Promise<void> => {
     if (stopped || signal.aborted) return;
@@ -547,8 +548,12 @@ async function runNative(
         }
 
         if (fileHits > 0) {
-          if (mode === 'count' && matches.length < limit) {
-            matches.push(`${full}:${fileHits}`);
+          if (mode === 'count') {
+            if (matches.length < limit) {
+              matches.push(`${full}:${fileHits}`);
+            } else {
+              countTruncated = true;
+            }
           }
           if (mode === 'files_with_matches' && matches.length >= limit) stopped = true;
         }
@@ -606,7 +611,7 @@ async function runNative(
   return {
     matches,
     count: total,
-    truncated: stopped,
+    truncated: stopped || countTruncated,
     used: 'native',
   };
 }

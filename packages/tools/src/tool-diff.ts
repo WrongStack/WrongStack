@@ -100,8 +100,8 @@ export function diffFromToolInput(toolName: string | undefined, input: unknown):
  * generated-file rewrite).
  */
 export function computeLineDiff(oldText: string, newText: string): DiffRow[] | null {
-  const a = oldText.split('\n');
-  const b = newText.split('\n');
+  const a = oldText.split('\n').map((l) => l.replace(/\r$/, ''));
+  const b = newText.split('\n').map((l) => l.replace(/\r$/, ''));
   if (a.length > DIFF_MAX_LINES || b.length > DIFF_MAX_LINES) return null;
   const n = a.length;
   const m = b.length;
@@ -142,7 +142,8 @@ export function computeLineDiff(oldText: string, newText: string): DiffRow[] | n
 export function parseUnifiedDiff(patchText: string): DiffRow[] {
   const rows: DiffRow[] = [];
   const lines = patchText.split('\n');
-  for (const raw of lines) {
+  for (const r of lines) {
+    const raw = r.replace(/\r$/, '');
     if (
       raw.startsWith('@@') ||
       raw.startsWith('--- ') ||
@@ -343,7 +344,7 @@ export const TOOL_DIFF_BROWSER_SRC: string = [
   '  return null;',
   '}',
   'function computeLineDiff(oldText, newText){',
-  '  var a=oldText.split("\\n"), b=newText.split("\\n");',
+  '  var a=oldText.split("\\n").map(function(l){return l.replace(/\\r$/,"");}), b=newText.split("\\n").map(function(l){return l.replace(/\\r$/,"");});',
   '  if(a.length>DIFF_MAX_LINES||b.length>DIFF_MAX_LINES) return null;',
   '  var nn=a.length, mm=b.length, i, j;',
   '  var dp=new Array(nn+1); for(i=0;i<=nn;i++){ dp[i]=new Array(mm+1); for(j=0;j<=mm;j++) dp[i][j]=0; }',
@@ -356,7 +357,7 @@ export const TOOL_DIFF_BROWSER_SRC: string = [
   '}',
   'function parseUnifiedDiff(patchText){',
   '  var rows=[], lines=patchText.split("\\n"), k, raw;',
-  '  for(k=0;k<lines.length;k++){ raw=lines[k];',
+  '  for(k=0;k<lines.length;k++){ raw=lines[k].replace(/\\r$/,"");',
   '    if(raw.indexOf("@@")===0||raw.indexOf("--- ")===0||raw.indexOf("+++ ")===0||raw.indexOf("diff ")===0||raw.indexOf("index ")===0||raw.indexOf("\\\\ ")===0){ rows.push({kind:"meta",text:raw}); }',
   '    else if(raw.charAt(0)==="+"){ rows.push({kind:"add",text:raw.slice(1)}); }',
   '    else if(raw.charAt(0)==="-"){ rows.push({kind:"del",text:raw.slice(1)}); }',

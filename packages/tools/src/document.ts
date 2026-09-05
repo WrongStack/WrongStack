@@ -157,7 +157,7 @@ async function resolveFiles(filesInput: string, cwd: string, ctx: Context): Prom
     }
   }
 
-  return resolved;
+  return [...new Set(resolved)];
 }
 
 function processFile(

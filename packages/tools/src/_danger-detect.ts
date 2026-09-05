@@ -107,7 +107,15 @@ const RULES: readonly DangerRule[] = [
     id: 'powershell-remove-item-recursive-force',
     level: 'destructive',
     test: (cmd, args) => {
-      if (cmd !== 'powershell' && cmd !== 'pwsh') return false;
+      const isPwsh = cmd === 'powershell' || cmd === 'pwsh';
+      const isRemoveItemCmd = /^(?:remove-item|ri)$/i.test(cmd);
+      if (!isPwsh && !isRemoveItemCmd) return false;
+      if (
+        isPwsh &&
+        !args.some((a) => /^(?:Remove-Item|ri|rm|del|erase|rd|rmdir)(?:\.exe)?$/i.test(a))
+      ) {
+        return false;
+      }
       // PowerShell parameters are case-insensitive by language spec
       // (`-recurse` ≡ `-Recurse`), so match with the `/i` flag like the
       // sibling PowerShell rules below. Case-sensitive matching here let
@@ -339,7 +347,13 @@ const RULES: readonly DangerRule[] = [
       // For cargo: subcommand is "publish" OR "yank" (both touch the
       // public registry; yank is reversible, publish is not, but yank
       // is rare enough we treat it the same).
-      return args.includes('publish') || (cmd === 'cargo' && args.includes('yank'));
+      // Find the first positional subcommand (skip option flags).
+      const firstPositional = args.find((a) => !a.startsWith('-'));
+      if (!firstPositional) return false;
+      if (cmd === 'cargo') {
+        return firstPositional === 'publish' || firstPositional === 'yank';
+      }
+      return firstPositional === 'publish';
     },
     reason: 'publishing to a public package registry (hard to reverse)',
   },

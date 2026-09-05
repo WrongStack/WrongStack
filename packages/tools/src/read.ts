@@ -139,7 +139,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     // Determine whether to include symbols: per-call param overrides meta flag.
     const shouldIncludeSymbols =
       input.includeSymbols === true ||
-      (input.includeSymbols !== false && ctx.meta[ADVANCED_MODE_META_KEY] === true);
+      (input.includeSymbols !== false && ctx.meta?.[ADVANCED_MODE_META_KEY] === true);
 
     let stat: Awaited<ReturnType<typeof fs.stat>>;
     try {
@@ -230,8 +230,23 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     // on Windows). The full file is read even for offset/limit slices, so
     // the hash always covers the whole content.
     const contentHash = sha256hex(text);
-    const allLines = text.split(/\r?\n/);
+    const allLines = text.length === 0 ? [] : text.split(/\r?\n/);
     const total = allLines.length;
+
+    if (total === 0) {
+      ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
+      const symResult = shouldIncludeSymbols
+        ? await fetchSymbolsForFile(absPath, ctx, signal)
+        : undefined;
+      return {
+        text: '',
+        total_lines: 0,
+        encoding: 'utf8',
+        truncated: false,
+        ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
+        ...(symResult?.note ? { note: symResult.note } : {}),
+      };
+    }
 
     if (input.mode === 'summary') {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
@@ -396,6 +411,9 @@ const READ_RANGES_META_KEY = 'tools.read.ranges.v1';
 function getReadRanges(
   ctx: import('@wrongstack/core/agent').Context,
 ): Record<string, ReadRangeRecord> {
+  if (!ctx.meta) {
+    ctx.meta = {};
+  }
   const existing = ctx.meta[READ_RANGES_META_KEY];
   if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
     return existing as Record<string, ReadRangeRecord>;

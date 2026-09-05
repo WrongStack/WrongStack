@@ -169,6 +169,7 @@ export const auditTool = {
       output: parseAuditOutput(result.stdout, result.exitCode, {
         level: input.level,
         spawnTruncated: result.truncated,
+        rawError: result.stderr || result.error || '',
       }),
     };
   },
@@ -177,7 +178,7 @@ export const auditTool = {
 function parseAuditOutput(
   json: string,
   exitCode: number,
-  opts: { level?: AuditInput['level']; spawnTruncated?: boolean } = {},
+  opts: { level?: AuditInput['level']; spawnTruncated?: boolean; rawError?: string } = {},
 ): AuditOutput {
   if (!json) {
     return {
@@ -185,7 +186,7 @@ function parseAuditOutput(
       vulnerabilities: [],
       total: 0,
       summary: exitCode === 0 ? 'No vulnerabilities found' : 'Audit failed',
-      output: '',
+      output: normalizeCommandOutput(opts.rawError || ''),
       truncated: false,
     };
   }
@@ -207,10 +208,22 @@ function parseAuditOutput(
     }
 
     const total = advisories.length;
-    const summary =
-      total === 0
-        ? 'No vulnerabilities found'
-        : `Found ${total} vulnerabilities: ${advisories.filter((a) => a.severity === 'critical').length} critical, ${advisories.filter((a) => a.severity === 'high').length} high`;
+    let summary: string;
+    if (total === 0) {
+      if (exitCode !== 0) {
+        const errObj = data.error as Record<string, unknown> | undefined;
+        summary =
+          typeof errObj?.summary === 'string'
+            ? errObj.summary
+            : typeof errObj?.code === 'string'
+              ? `Audit failed (${errObj.code})`
+              : 'Audit failed';
+      } else {
+        summary = 'No vulnerabilities found';
+      }
+    } else {
+      summary = `Found ${total} vulnerabilities: ${advisories.filter((a) => a.severity === 'critical').length} critical, ${advisories.filter((a) => a.severity === 'high').length} high`;
+    }
 
     return {
       exit_code: exitCode,

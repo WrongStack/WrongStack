@@ -76,10 +76,10 @@ export function compileGitignore(lines: string[]): IgnoreMatcher {
   const hasNegation = rules.some((r) => r.negated);
 
   return (relPath: string, isDir: boolean): boolean => {
-    const p =
-      relPath.includes('\\') || relPath.startsWith('/')
-        ? relPath.replace(/\\/g, '/').replace(/^\/+/, '')
-        : relPath;
+    const p = relPath
+      .replace(/\\/g, '/')
+      .replace(/^\.\//, '')
+      .replace(/^\/+/, '');
     let ignored = false;
     for (const r of rules) {
       // A directory-only rule never matches a file by its own name; it only

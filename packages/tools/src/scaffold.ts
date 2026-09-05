@@ -223,7 +223,7 @@ function escapeRegexLiteral(value: string): string {
  */
 function substituteVars(content: string, name: string, vars: Record<string, string>): string {
   const kebab = name.toLowerCase().replace(/\s+/g, '-');
-  const pascal = name.replace(/(?:^|[-_\s]+)([a-z])/g, (_, c: string) => c.toUpperCase());
+  const pascal = name.replace(/(?:^|[-_\s]+)([a-zA-Z])/g, (_, c: string) => c.toUpperCase());
   let result = content;
   result = result.replace(/\{\{name\}\}/g, () => kebab);
   result = result.replace(/\{\{Name\}\}/g, () => pascal);

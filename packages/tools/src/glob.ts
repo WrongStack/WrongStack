@@ -181,7 +181,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
             // three should fail the walk without aborting the whole search.
           }
         }
-        if (truncated) return;
+        if (signal?.aborted) return;
       }
       await mapWithConcurrency(matchedFiles, WALK_CONCURRENCY, pushResult);
       await mapWithConcurrency(subdirs, WALK_CONCURRENCY, ({ full, rel }) => walk(full, rel));

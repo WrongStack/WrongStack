@@ -52,7 +52,12 @@ export async function detectNonJsEcosystem(
     let dir = path.resolve(cwd);
     const root = path.resolve(projectRoot);
 
-    for (let depth = 0; depth <= 4 && dir.startsWith(root); depth++) {
+    const isInsideOrSame = (d: string, r: string): boolean => {
+      const rel = path.relative(r, d);
+      return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+    };
+
+    for (let depth = 0; depth <= 4 && isInsideOrSame(dir, root); depth++) {
       for (const marker of NON_JS_MARKERS) {
         try {
           const s = await fs.stat(path.join(dir, marker.filename));
@@ -71,8 +76,10 @@ export async function detectNonJsEcosystem(
       } catch {
         // not a directory or not readable
       }
-      if (dir === root) break;
-      dir = path.dirname(dir);
+      if (path.relative(root, dir) === '') break;
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
     }
   } catch {
     // Module mocks or unusual environments may not provide all fs methods.

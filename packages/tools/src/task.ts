@@ -33,13 +33,13 @@ import { todoTool } from './todo.js';
 
 /** Find a task by 1-based index, exact id, or case-insensitive title substring. */
 function findTaskIndex(tasks: TaskItem[], query: string): number {
-  const asNum = Number.parseInt(query, 10);
-  if (!Number.isNaN(asNum)) {
-    const idx = asNum - 1;
-    if (tasks[idx]) return idx;
-  }
   const byId = tasks.findIndex((t) => t.id === query);
   if (byId >= 0) return byId;
+  const trimmed = query.trim();
+  if (/^[1-9]\d*$/.test(trimmed)) {
+    const idx = Number.parseInt(trimmed, 10) - 1;
+    if (tasks[idx]) return idx;
+  }
   const lower = query.toLowerCase();
   return tasks.findIndex((t) => t.title.toLowerCase().includes(lower));
 }

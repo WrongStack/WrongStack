@@ -677,13 +677,15 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
             risk: 'shell',
           });
 
+          const isAborted = callerSignal.aborted;
           yield {
             type: 'final',
             output: {
               output: finalResultText,
-              exit_code: timedOut ? 1 : c.code,
-              timed_out: timedOut,
-              pid,
+              exit_code: timedOut || isAborted ? 124 : c.code,
+              timed_out: timedOut || isAborted,
+              pid: pid ?? null,
+              ...(isAborted ? { error: 'Command aborted by user or signal' } : {}),
             },
           };
           return;
@@ -696,6 +698,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
       }
     } finally {
       for (const t of timers) clearTimeout(t);
+      callerSignal.removeEventListener('abort', onAbort);
     }
   },
 };

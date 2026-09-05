@@ -414,17 +414,17 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
               );
               return p;
             }
-            // Find plan item by 1-based index, exact id, or title substring
-            let itemIdx = -1;
-            const asNum = Number.parseInt(input.target, 10);
-            if (!Number.isNaN(asNum) && asNum >= 1 && asNum <= p.items.length) {
-              itemIdx = asNum - 1;
-            } else {
-              itemIdx = p.items.findIndex((it) => it.id === input.target);
-              if (itemIdx === -1) {
-                const lower = input.target.toLowerCase();
-                itemIdx = p.items.findIndex((it) => it.title.toLowerCase().includes(lower));
+            // Find plan item by exact id, 1-based index, or title substring
+            let itemIdx = p.items.findIndex((it) => it.id === input.target);
+            if (itemIdx === -1 && /^[1-9]\d*$/.test(input.target)) {
+              const asNum = Number.parseInt(input.target, 10) - 1;
+              if (asNum >= 0 && asNum < p.items.length) {
+                itemIdx = asNum;
               }
+            }
+            if (itemIdx === -1) {
+              const lower = input.target.toLowerCase();
+              itemIdx = p.items.findIndex((it) => it.title.toLowerCase().includes(lower));
             }
             if (itemIdx === -1 || !p.items[itemIdx]) {
               early = mkResult(p, false, `No plan item matched "${input.target}".`);

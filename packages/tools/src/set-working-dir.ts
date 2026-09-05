@@ -85,10 +85,13 @@ export const setWorkingDirTool: Tool<SetWorkingDirInput, SetWorkingDirOutput> = 
       // Rollback — setWorkingDir validated containment but the target is
       // missing or not a directory. Restore previous and report the error.
       try {
-        ctx.setWorkingDir(previous);
+        if (typeof previous === 'string') {
+          ctx.setWorkingDir(previous);
+        } else {
+          ctx.workingDir = previous;
+        }
       } catch {
-        // If rollback fails, the workingDir is in an inconsistent state.
-        // This shouldn't happen since `previous` was valid before.
+        ctx.workingDir = previous;
       }
       return {
         current: ctx.workingDir,
