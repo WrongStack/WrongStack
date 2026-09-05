@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T17:30:49.045Z",
+  "generatedAt": "2026-09-05T17:38:16.079Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3563,
+    "sourceFiles": 3566,
     "testFiles": 3071,
-    "sourceLines": 870024,
+    "sourceLines": 870070,
     "workspaceEdges": 127,
-    "moduleEdges": 11194,
+    "moduleEdges": 11220,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -24,7 +24,10 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 843
   },
-  "errors": [],
+  "errors": [
+    "1 unexcepted module cycle(s)",
+    "ARCH-CYCLE-TYPE-22: exception no longer matches an active cycle"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -755,7 +758,7 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 354,
+      "sourceFiles": 357,
       "testFiles": 331,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -1074,6 +1077,8 @@
         "kind": "type-module-cycle",
         "members": [
           "packages/tui/src/components/status-bar-chips.tsx",
+          "packages/tui/src/components/status-bar-rails-async.tsx",
+          "packages/tui/src/components/status-bar-rails-safety.tsx",
           "packages/tui/src/components/status-bar-rails.tsx",
           "packages/tui/src/components/status-bar.tsx",
           "packages/tui/src/components/status-line-registry.tsx"
@@ -1087,11 +1092,22 @@
       "ARCH-CYCLE-TYPE-12",
       "ARCH-CYCLE-TYPE-13",
       "ARCH-CYCLE-TYPE-14",
-      "ARCH-CYCLE-TYPE-22",
       "ARCH-CYCLE-TYPE-29",
       "ARCH-CYCLE-TYPE-30"
     ],
-    "unexcepted": []
+    "unexcepted": [
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/tui/src/components/status-bar-chips.tsx",
+          "packages/tui/src/components/status-bar-rails-async.tsx",
+          "packages/tui/src/components/status-bar-rails-safety.tsx",
+          "packages/tui/src/components/status-bar-rails.tsx",
+          "packages/tui/src/components/status-bar.tsx",
+          "packages/tui/src/components/status-line-registry.tsx"
+        ]
+      }
+    ]
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -20094,11 +20110,6 @@
       "relativeImports": 13
     },
     {
-      "file": "packages/tui/src/components/status-bar-rails.tsx",
-      "lines": 1217,
-      "relativeImports": 12
-    },
-    {
       "file": "packages/tui/src/hooks/use-picker-keys-tools-settings.ts",
       "lines": 827,
       "relativeImports": 6
@@ -20330,11 +20341,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/tui/src/components/status-bar-rails.tsx",
-      "lines": 1217,
-      "relativeImports": 12
-    },
     {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
       "lines": 1172,
@@ -20579,6 +20585,11 @@
       "file": "packages/tools/src/codebase-index/indexer.ts",
       "lines": 986,
       "relativeImports": 9
+    },
+    {
+      "file": "packages/tui/src/components/agents-monitor.tsx",
+      "lines": 984,
+      "relativeImports": 14
     }
   ],
   "testOnlyExports": [

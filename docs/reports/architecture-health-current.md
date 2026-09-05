@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T17:30:49.045Z
+**Generated:** 2026-09-05T17:38:16.079Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3563 |
-| Production source lines | 870024 |
+| Production source files | 3566 |
+| Production source lines | 870070 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11194 |
+| Relative module edges | 11220 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -21,7 +21,8 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- 1 unexcepted module cycle(s)
+- ARCH-CYCLE-TYPE-22: exception no longer matches an active cycle
 
 ## Workspace packages
 
@@ -55,7 +56,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 31 | @wrongstack/core |
 | @wrongstack/tools | 190 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 354 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 357 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 514 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -80,13 +81,12 @@ None.
 - packages/core/src/hq/protocol/client.ts ↔ packages/core/src/hq/protocol/core.ts ↔ packages/core/src/hq/protocol/fleet.ts ↔ packages/core/src/hq/protocol/session.ts
 - packages/core/src/index.ts ↔ packages/core/src/plugins/prompts-plugin.ts ↔ packages/core/src/plugins/skills-plugin.ts ↔ packages/core/src/plugins/sync-plugin.ts ↔ packages/core/src/tools/mcp-control.ts ↔ packages/core/src/tools/mcp-use.ts
 - packages/core/src/types/blocks.ts ↔ packages/core/src/types/context.ts ↔ packages/core/src/types/conversation-state.ts ↔ packages/core/src/types/messages.ts ↔ packages/core/src/types/provider.ts ↔ packages/core/src/types/run-env.ts ↔ packages/core/src/types/session.ts ↔ packages/core/src/types/token-counter.ts ↔ packages/core/src/types/tool.ts
-- packages/tui/src/components/status-bar-chips.tsx ↔ packages/tui/src/components/status-bar-rails.tsx ↔ packages/tui/src/components/status-bar.tsx ↔ packages/tui/src/components/status-line-registry.tsx
+- packages/tui/src/components/status-bar-chips.tsx ↔ packages/tui/src/components/status-bar-rails-async.tsx ↔ packages/tui/src/components/status-bar-rails-safety.tsx ↔ packages/tui/src/components/status-bar-rails.tsx ↔ packages/tui/src/components/status-bar.tsx ↔ packages/tui/src/components/status-line-registry.tsx
 
 ## Largest production files
 
 | Lines | File |
 |---:|---|
-| 1217 | `packages/tui/src/components/status-bar-rails.tsx` |
 | 1172 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1169 | `packages/webui/src/types/server-message.ts` |
 | 1128 | `packages/webui/src/components/ChatInput.tsx` |
@@ -136,6 +136,7 @@ None.
 | 992 | `packages/kanban/src/types.ts` |
 | 991 | `packages/kanban/src/manager/assignment.ts` |
 | 986 | `packages/tools/src/codebase-index/indexer.ts` |
+| 984 | `packages/tui/src/components/agents-monitor.tsx` |
 
 ## Exports only tests reference
 

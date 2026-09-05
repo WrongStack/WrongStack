@@ -8925,7 +8925,7 @@
     },
     {
       "specifier": "@wrongstack/core/statusline",
-      "file": "packages/tui/src/components/status-bar-rails.tsx",
+      "file": "packages/tui/src/components/status-bar-rails-common.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

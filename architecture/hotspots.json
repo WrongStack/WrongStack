@@ -382,10 +382,6 @@
       "lines": 1041,
       "relativeImports": 13
     },
-    "packages/tui/src/components/status-bar-rails.tsx": {
-      "lines": 1217,
-      "relativeImports": 12
-    },
     "packages/tui/src/hooks/use-picker-keys-tools-settings.ts": {
       "lines": 827,
       "relativeImports": 6
