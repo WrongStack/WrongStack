@@ -68,6 +68,22 @@ export function outcomeFromResult(result: TaskResult): TaskOutcome {
   };
 }
 
+/**
+ * Fold one attempt's outcome into the per-(task × cell) aggregate. Repeated runs
+ * surface multiple rows per cell; the cell's verdict is "passed when ANY graded
+ * attempt passed" (pass@k), graded when any attempt produced a verdict, and its
+ * status collapses to the first non-crash status encountered.
+ */
+function mergeOutcomes(a: TaskOutcome, b: TaskOutcome): TaskOutcome {
+  return {
+    passed: a.passed === true || b.passed === true ? true : a.passed === false && b.passed === false ? false : null,
+    graded: a.graded || b.graded,
+    status: a.status === 'crashed' ? b.status : a.status,
+    detail: a.detail ?? b.detail,
+    costUsd: a.costUsd + b.costUsd,
+  };
+}
+
 /** Build the per-task matrix and intra-run disagreements from raw rows. */
 export function buildIntraRunInsights(results: TaskResult[]): IntraRunInsights {
   const taskIds: string[] = [];
@@ -85,8 +101,22 @@ export function buildIntraRunInsights(results: TaskResult[]): IntraRunInsights {
       seenCells.add(row.cell.label);
       cellLabels.push(row.cell.label);
     }
-    const byCell = matrix[row.taskId] ?? (matrix[row.taskId] = {});
-    byCell[row.cell.label] = outcomeFromResult(row);
+    // With `repeats > 1` the same (task × cell) yields one row per attempt.
+    // Keep an AGGREGATE outcome per cell instead of overwriting with the last
+    // attempt: the cell counts as a pass when ANY graded attempt passed, which
+    // is consistent with the leaderboard's pass@k view.
+    let byCell = matrix[row.taskId];
+    if (!byCell) {
+      byCell = {};
+      matrix[row.taskId] = byCell;
+    }
+    const current = outcomeFromResult(row);
+    const existing = byCell[row.cell.label];
+    if (!existing) {
+      byCell[row.cell.label] = current;
+    } else {
+      byCell[row.cell.label] = mergeOutcomes(existing, current);
+    }
   }
 
   const disagreements: IntraRunDisagreement[] = [];
@@ -156,11 +186,20 @@ export function compareReports(baseline: BenchReport, candidate: BenchReport): R
     const cand = candidate.cells.find((c) => c.cell.label === label);
     const delta: CellDelta = { label, baseline: base, candidate: cand };
     if (base && cand) {
-      delta.passRateDelta = cand.passRate - base.passRate;
+      // A pass-rate delta is meaningful only when both runs actually produced a
+      // graded verdict. If either cell is all-ungraded (e.g. SWE-bench rows
+      // exported for offline grading), its passRate is the conventional 0 and a
+      // raw `0 - 0.5` would show a spurious regression. Timeout/edit-apply share
+      // the same convention.
+      const baseGraded = (base.gradedCount ?? 0) > 0;
+      const candGraded = (cand.gradedCount ?? 0) > 0;
+      if (baseGraded && candGraded) {
+        delta.passRateDelta = cand.passRate - base.passRate;
+        delta.timeoutRateDelta = cand.timeoutRate - base.timeoutRate;
+        delta.editApplyRateDelta = cand.editApplyRate - base.editApplyRate;
+      }
       delta.avgCostUsdDelta = cand.avgCostUsd - base.avgCostUsd;
       delta.p50ElapsedMsDelta = cand.p50ElapsedMs - base.p50ElapsedMs;
-      delta.timeoutRateDelta = cand.timeoutRate - base.timeoutRate;
-      delta.editApplyRateDelta = cand.editApplyRate - base.editApplyRate;
     }
     return delta;
   });

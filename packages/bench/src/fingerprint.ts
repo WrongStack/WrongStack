@@ -104,7 +104,16 @@ function stableStringify(value: unknown): string {
 function normalizeForHash(value: unknown): unknown {
   if (value === undefined) return null;
   if (value === null) return null;
-  if (Array.isArray(value)) return value.map((item) => normalizeForHash(item));
+  if (Array.isArray(value)) {
+    // Preserve sparse holes as null so `[1, <hole>]` and `[1, undefined]`
+    // (both "value then nothing") hash identically. A bare `.map()` would skip
+    // holes and silently collapse the array, diverging from JSON.stringify.
+    const out: unknown[] = [];
+    for (let i = 0; i < value.length; i++) {
+      out.push(value[i] === undefined ? null : normalizeForHash(value[i]));
+    }
+    return out;
+  }
   if (typeof value === 'bigint') return value.toString();
   if (typeof value !== 'object') return value;
 
