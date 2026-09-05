@@ -125,8 +125,18 @@ export {
   type ExecKillCheckResult,
 } from './exec-kill-guard.js';
 export { fetchTool } from './fetch.js';
-export { formatTool } from './format.js';
-export { gitTool } from './git.js';
+export {
+  formatTool,
+  type FormatContext,
+  type FormatInput,
+  type FormatOutput,
+} from './format.js';
+export {
+  gitTool,
+  type GitInput,
+  type GitOutput,
+  type GitSubcommand,
+} from './git.js';
 export { globTool } from './glob.js';
 export { grepTool } from './grep.js';
 export { installTool } from './install.js';
@@ -145,7 +155,11 @@ export { createModeTool } from './mode.js';
 export { nextStepsTool } from './next-steps-tool.js';
 export { outdatedTool } from './outdated.js';
 export { builtinToolsPack } from './pack.js';
-export { patchTool } from './patch.js';
+export {
+  patchTool,
+  type PatchInput,
+  type PatchOutput,
+} from './patch.js';
 export { planTool } from './plan.js';
 export {
   getProcessGuardian,
@@ -183,7 +197,13 @@ export { pwshTool, PWSH_TOOL_DESCRIPTION, type PwshInput, type PwshOutput } from
 export { readTool } from './read.js';
 export { replaceTool } from './replace.js';
 export { scaffoldTool } from './scaffold.js';
-export { searchTool } from './search.js';
+export {
+  searchTool,
+  type CacheEntry as SearchCacheEntry,
+  type SearchInput,
+  type SearchOutput,
+  type SearchResult,
+} from './search.js';
 export {
   analyzeSecurityAndPerformance,
   securityAstScanTool,
@@ -220,7 +240,11 @@ export {
   type ToolIconConfig,
   type ToolIconId,
 } from './tool-icon-map.js';
-export { toolSearchTool } from './tool-search.js';
+export {
+  toolSearchTool,
+  type ToolSearchInput,
+  type ToolSearchOutput,
+} from './tool-search.js';
 export {
   type RegisterBuiltinToolTierOptions,
   registerBuiltinToolTier,
