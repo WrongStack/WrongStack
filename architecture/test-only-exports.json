@@ -299,6 +299,9 @@
       "getUpdateNotification",
       "isNewer"
     ],
+    "packages/cli/src/wiring/external-plugins.ts": [
+      "resolveExternalPluginTrustMode"
+    ],
     "packages/cli/src/wiring/mailbox-bridge-bootstrap.ts": [
       "MAILBOX_BRIDGE_META_KEY"
     ],
@@ -468,6 +471,9 @@
       "kanbanServer",
       "mailboxServer",
       "requirementIntakeServer"
+    ],
+    "packages/core/src/mailbox-attach.ts": [
+      "resetMailboxHqPublishersForTests"
     ],
     "packages/core/src/plugins/perf-command.ts": [
       "buildPerfRunText",
@@ -680,6 +686,10 @@
     "packages/mcp/src/test-helpers/mock-server.ts": [
       "MockMCPServer"
     ],
+    "packages/mcp/src/transport-security.ts": [
+      "assertTransportAddressAllowed",
+      "classifyTransportAddress"
+    ],
     "packages/persistence/src/sqlite-runtime.ts": [
       "isRuntimeSqliteAvailable"
     ],
@@ -826,6 +836,9 @@
     ],
     "packages/providers/src/oauth/index.ts": [
       "OAUTH_PROVIDER_IDS"
+    ],
+    "packages/providers/src/openai-codex.ts": [
+      "codexCacheSessionId"
     ],
     "packages/providers/src/openai-shared.ts": [
       "OPENAI_EFFORT_ACCEPT"
@@ -1067,10 +1080,6 @@
       "cleanupEmptySessionKanbanBoards",
       "cleanupSessionKanbanBoard",
       "cleanupSessionKanbanBoardIfEmpty"
-    ],
-    "packages/tools/src/spawn-background.ts": [
-      "spawnBackground",
-      "spawnBackgroundExec"
     ],
     "packages/tools/src/tool-diff.ts": [
       "DIFF_LINE_SAFETY_CAP",
@@ -1367,6 +1376,9 @@
       "applySocketMessage",
       "armSnapshotRefresh",
       "hydrateFromHttp"
+    ],
+    "packages/webui-hq/src/domain/fleet-nav-tree.ts": [
+      "buildNav"
     ],
     "packages/webui-hq/src/domain/fleet-topology.ts": [
       "FLEET_COLUMN_GAP",

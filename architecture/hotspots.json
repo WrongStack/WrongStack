@@ -59,7 +59,7 @@
       "relativeImports": 5
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 949,
+      "lines": 975,
       "relativeImports": 21
     },
     "packages/core/src/boot.ts": {
@@ -151,11 +151,11 @@
       "relativeImports": 7
     },
     "packages/core/src/hq/protocol/core.ts": {
-      "lines": 944,
+      "lines": 945,
       "relativeImports": 13
     },
     "packages/core/src/hq/publisher.ts": {
-      "lines": 1049,
+      "lines": 1085,
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
@@ -183,7 +183,7 @@
       "relativeImports": 42
     },
     "packages/core/src/types/provider.ts": {
-      "lines": 884,
+      "lines": 890,
       "relativeImports": 7
     },
     "packages/core/src/types/session.ts": {
@@ -223,7 +223,7 @@
       "relativeImports": 0
     },
     "packages/mcp/src/client.ts": {
-      "lines": 1038,
+      "lines": 1046,
       "relativeImports": 11
     },
     "packages/mcp/src/server.ts": {
@@ -271,7 +271,7 @@
       "relativeImports": 1
     },
     "packages/providers/src/openai-codex.ts": {
-      "lines": 832,
+      "lines": 841,
       "relativeImports": 13
     },
     "packages/sage/src/domain-term-extractor.ts": {
@@ -523,7 +523,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/stores/session-tab-store.ts": {
-      "lines": 879,
+      "lines": 926,
       "relativeImports": 16
     },
     "packages/webui/src/stores/ui-store.ts": {
@@ -535,7 +535,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/client-message.ts": {
-      "lines": 860,
+      "lines": 869,
       "relativeImports": 7
     },
     "packages/webui/src/types/server-message.ts": {
