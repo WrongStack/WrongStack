@@ -386,10 +386,6 @@
       "lines": 893,
       "relativeImports": 13
     },
-    "packages/webui/src/components/AgentOfficeView.tsx": {
-      "lines": 1081,
-      "relativeImports": 5
-    },
     "packages/webui/src/components/AudienceMemoryPanel.tsx": {
       "lines": 909,
       "relativeImports": 0

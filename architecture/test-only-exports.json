@@ -1439,9 +1439,6 @@
       "calculateDesktopActivityCapacity",
       "splitDesktopActivityBarItems"
     ],
-    "packages/webui/src/components/AgentOfficeView.tsx": [
-      "AgentLane"
-    ],
     "packages/webui/src/components/AgentsPage.tsx": [
       "getIterations",
       "getLastEventAt"

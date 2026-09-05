@@ -5,18 +5,18 @@ import {
   FilePenLine,
   FolderSearch,
   Globe2,
-  type LucideIcon,
   ListTodo,
+  type LucideIcon,
   MemoryStick,
   Search,
   TerminalSquare,
 } from 'lucide-react';
 import {
   classifyOfficeTool,
-  synthesizeCurrentTool,
   type OfficeMailActivity,
   type OfficeToolCall,
   type OfficeToolKind,
+  synthesizeCurrentTool,
 } from '@/lib/agent-office';
 import type { ResolvedAgent, ResolvedClient } from '../OfficeMapCanvas/resolve.js';
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T19:18:57.756Z",
+  "generatedAt": "2026-09-05T19:28:59.433Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3612,
+    "sourceFiles": 3617,
     "testFiles": 3071,
-    "sourceLines": 871225,
+    "sourceLines": 871238,
     "workspaceEdges": 127,
-    "moduleEdges": 11357,
+    "moduleEdges": 11370,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 842
+    "testOnlyExports": 841
   },
   "errors": [],
   "packageCycles": [],
@@ -809,7 +809,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 526,
+      "sourceFiles": 531,
       "testFiles": 356,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20089,11 +20089,6 @@
       "relativeImports": 13
     },
     {
-      "file": "packages/webui/src/components/AgentOfficeView.tsx",
-      "lines": 1081,
-      "relativeImports": 5
-    },
-    {
       "file": "packages/webui/src/components/AudienceMemoryPanel.tsx",
       "lines": 909,
       "relativeImports": 0
@@ -20265,11 +20260,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/webui/src/components/AgentOfficeView.tsx",
-      "lines": 1081,
-      "relativeImports": 5
-    },
     {
       "file": "packages/tools/src/codebase-index/writer.ts",
       "lines": 1080,
@@ -20514,6 +20504,11 @@
       "file": "packages/tui/src/app-state.ts",
       "lines": 963,
       "relativeImports": 14
+    },
+    {
+      "file": "packages/tui/src/app-key-handler.ts",
+      "lines": 962,
+      "relativeImports": 18
     }
   ],
   "testOnlyExports": [
@@ -23300,10 +23295,6 @@
     {
       "file": "packages/webui/src/components/activity-bar/index.tsx",
       "name": "splitDesktopActivityBarItems"
-    },
-    {
-      "file": "packages/webui/src/components/AgentOfficeView.tsx",
-      "name": "AgentLane"
     },
     {
       "file": "packages/webui/src/components/AgentsPage.tsx",

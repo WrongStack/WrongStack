@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T19:18:57.756Z
+**Generated:** 2026-09-05T19:28:59.433Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3612 |
-| Production source lines | 871225 |
+| Production source files | 3617 |
+| Production source lines | 871238 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11357 |
+| Relative module edges | 11370 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -57,7 +57,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 190 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 359 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 526 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 531 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
 | @wrongstack/webui-server | 220 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1081 | `packages/webui/src/components/AgentOfficeView.tsx` |
 | 1080 | `packages/tools/src/codebase-index/writer.ts` |
 | 1078 | `packages/core/src/storage/file-session-writer.ts` |
 | 1068 | `packages/tools/src/codebase-index/project-server.ts` |
@@ -135,10 +134,11 @@ None.
 | 966 | `packages/core/src/coordination/director.ts` |
 | 965 | `packages/webui/src/components/SidePanel/SessionList.tsx` |
 | 963 | `packages/tui/src/app-state.ts` |
+| 962 | `packages/tui/src/app-key-handler.ts` |
 
 ## Exports only tests reference
 
-- 842 runtime exports are referenced by tests and by no other production file.
+- 841 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

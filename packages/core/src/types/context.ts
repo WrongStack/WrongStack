@@ -170,8 +170,6 @@ export interface AgentContext extends RunEnv {
   lastRealInputTokens: number | undefined;
   /** Lazy observable wrapper backing `state`. */
   _state: ConversationStateApi | null;
-  /** Backing manager for the conversation journal queue. */
-  readonly _journalQueueManager: ConversationJournalQueue;
   readonly _conversationJournalQueue: Array<{
     event: SessionEvent;
     bytes: number;
