@@ -41,11 +41,20 @@ export async function readResultsJsonl(outDir: string): Promise<TaskResult[]> {
   } catch {
     return [];
   }
-  const lines = raw
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  return lines.map((line) => JSON.parse(line) as TaskResult);
+  const rows: TaskResult[] = [];
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) continue;
+    try {
+      rows.push(JSON.parse(trimmed) as TaskResult);
+    } catch {
+      // `bench run` streams partial results.jsonl to disk during the run so a
+      // crash keeps partial results; a hard-killed write can leave a truncated
+      // trailing line. Tolerate it (like readSessionLogEvents) instead of
+      // throwing and losing the whole report read.
+    }
+  }
+  return rows;
 }
 
 /** Load summary.json plus results.jsonl so a report can be re-rendered or compared. */

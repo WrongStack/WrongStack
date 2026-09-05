@@ -123,14 +123,56 @@ export async function runBenchmark(opts: RunBenchmarkOptions): Promise<BenchRepo
   try {
     const results = await mapWithConcurrency(units, opts.config.concurrency, async (unit) => {
       const { task, cell, attempt } = unit;
-      const workdir = await prepareWorkdir(
-        sandbox,
-        task.templateDir,
-        task.id,
-        cell.label,
-        task.templateExclude,
-        attempt,
-      );
+      let workdir: string;
+      try {
+        workdir = await prepareWorkdir(
+          sandbox,
+          task.templateDir,
+          task.id,
+          cell.label,
+          task.templateExclude,
+          attempt,
+        );
+      } catch (err) {
+        // A task whose template cannot be copied (missing/broken template dir,
+        // fs error) must not abort the whole benchmark — persist the failure as
+        // a crashed, ungraded row so the report shows WHAT was skipped while the
+        // rest of the matrix keeps running. Mirrors the contained grader-error
+        // handling below.
+        const detail =
+          `template copy failed: ${err instanceof Error ? err.message : String(err)}`;
+        const result: TaskResult = {
+          taskId: task.id,
+          cell,
+          ...(repeats > 1 ? { attempt } : {}),
+          run: {
+            status: 'crashed',
+            finalText: null,
+            iterations: 0,
+            tokensIn: 0,
+            tokensOut: 0,
+            costUsd: 0,
+            elapsedMs: 0,
+            exitCode: null,
+            crashDetail: detail,
+          },
+          grade: { passed: false, graded: false, detail },
+          tools: { totalCalls: 0, editCalls: 0, editErrors: 0, rateLimitRetries: 0 },
+        };
+        completed++;
+        progress(
+          `  [${completed}/${units.length}] ${cell.label} · ${task.id}` +
+            `${repeats > 1 ? ` #${attempt}` : ''} → fail (template copy failed)`,
+        );
+        if (opts.onResult) {
+          try {
+            await opts.onResult(result);
+          } catch {
+            // Persisting a row must never fail the benchmark it is recording.
+          }
+        }
+        return result;
+      }
 
       const run = await runWstack({
         nodeBin: opts.nodeBin,

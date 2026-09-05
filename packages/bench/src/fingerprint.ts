@@ -115,6 +115,15 @@ function normalizeForHash(value: unknown): unknown {
     return out;
   }
   if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'number') {
+    // JSON.stringify would collapse NaN and Infinity to "null", making two
+    // genuinely-different config values hash identically to an explicit null.
+    // Normalize each non-finite number to a DISTINCT, stable string so the
+    // fingerprint can tell them apart.
+    if (Number.isNaN(value)) return 'NaN';
+    if (value === Infinity) return 'Infinity';
+    if (value === -Infinity) return '-Infinity';
+  }
   if (typeof value !== 'object') return value;
 
   const out: Record<string, unknown> = {};
