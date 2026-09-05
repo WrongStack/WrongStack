@@ -386,7 +386,10 @@ async function resolveFiles(
   // in Windows filenames (C:\Users\Foo[1]\...), so a literal path containing
   // them must stay on the literal branch.
   const parts = Array.isArray(filesInput)
-    ? filesInput.map((s) => s.trim()).filter(Boolean)
+    ? filesInput
+        .filter((s): s is string => typeof s === 'string')
+        .map((s) => s.trim())
+        .filter(Boolean)
     : filesInput
         .trim()
         .split(',')

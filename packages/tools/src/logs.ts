@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
-import { buildChildEnv } from '@wrongstack/core/utils';
+import * as fs from 'node:fs/promises';
+import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
-import { ToolValidationError } from '@wrongstack/core/types';
+import { FsError, ToolValidationError } from '@wrongstack/core/types';
 import { compileUserRegex } from './_regex.js';
 import { safeResolveReal } from './_util.js';
 
@@ -117,7 +118,37 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
     if (input.path) {
       // Realpath containment (not just the syntactic check): a symlink inside
       // the project pointing at /var/log/… must not be readable through here.
-      return await fileLogs(await safeResolveReal(input.path, ctx), lines, filterRe);
+      const resolved = await safeResolveReal(input.path, ctx);
+      let stat: import('node:fs').Stats;
+      try {
+        stat = await fs.stat(resolved);
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === 'ENOENT') {
+          throw new FsError({
+            message: `logs: file not found "${input.path}"`,
+            code: 'FS_READ_FAILED',
+            path: resolved,
+            context: { errno: 'ENOENT' },
+          });
+        }
+        throw new FsError({
+          message: `logs: failed to stat "${input.path}": ${toErrorMessage(err)}`,
+          code: 'FS_READ_FAILED',
+          path: resolved,
+          context: { errno: code },
+          cause: err,
+        });
+      }
+      if (!stat.isFile()) {
+        throw new FsError({
+          message: `logs: "${input.path}" is not a regular file`,
+          code: 'FS_READ_FAILED',
+          path: resolved,
+          context: { reason: 'not-a-regular-file' },
+        });
+      }
+      return await fileLogs(resolved, lines, filterRe);
     }
 
     return {

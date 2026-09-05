@@ -60,6 +60,15 @@ export const formatTool = {
       cwd: { type: 'string', description: 'Working directory (default: cwd)' },
     },
   },
+  writeTargets(input: FormatInput): string[] {
+    if (input?.check) return [];
+    if (!input?.files) return [];
+    const rawFiles = Array.isArray(input.files) ? input.files : input.files.split(',');
+    return rawFiles
+      .filter((f): f is string => typeof f === 'string')
+      .map((f) => f.trim().replace(/\\/g, '/'))
+      .filter(Boolean);
+  },
   async execute(input: FormatInput, ctx: FormatContext, opts?: { signal: AbortSignal }) {
     let final: FormatOutput | undefined;
     const executeStream = formatTool.executeStream;
@@ -137,6 +146,7 @@ export const formatTool = {
 
     const fileList = input.files
       ? (Array.isArray(input.files) ? input.files : input.files.split(','))
+          .filter((f): f is string => typeof f === 'string')
           .map((f) => f.trim().replace(/\\/g, '/'))
           .filter(Boolean)
       : [];

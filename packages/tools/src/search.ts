@@ -122,6 +122,13 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
         ? input.num_results
         : DEFAULT_NUM;
     const num = Math.max(1, Math.min(Math.floor(rawNum), MAX_RESULTS));
+    const VALID_SOURCES: ReadonlySet<string> = new Set(['duckduckgo', 'google', 'bing']);
+    if (input.source !== undefined && !VALID_SOURCES.has(input.source)) {
+      throw new ToolValidationError({
+        message: `search: unknown source "${input.source}"`,
+        field: 'source',
+      });
+    }
     const source = input.source ?? 'duckduckgo';
     const skipCache = input.skip_cache ?? false;
     const normalizedQuery = input.query.trim().toLowerCase().replace(/\s+/g, ' ');
