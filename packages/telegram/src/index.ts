@@ -11,6 +11,7 @@ import {
   readTelegramConfigFromConfig,
   TELEGRAM_CONFIG_FIELDS,
   telegramConfigSchema,
+  type TelegramPluginConfig,
 } from './config.js';
 import type { SessionEndedLike, ToolExecutedLike } from './format.js';
 import { formatDelegateCompleted, formatSessionEnded, formatToolExecuted } from './format.js';
@@ -61,7 +62,12 @@ let teardownState: RuntimeState | null = null;
 
 const DENY_ALL_INBOUND = '__wrongstack_telegram_inbound_disabled__';
 
-function inboundAllowlist(cfg: ReturnType<typeof readTelegramConfig>): {
+function inboundAllowlist(cfg: {
+  inboundMode?: TelegramPluginConfig['inboundMode'];
+  allowedUsers?: TelegramPluginConfig['allowedUsers'];
+  allowedChats?: TelegramPluginConfig['allowedChats'];
+  notifyChatId?: TelegramPluginConfig['notifyChatId'];
+}): {
   allowedUsers: Set<string>;
   allowedChats: Set<string>;
 } {
@@ -590,6 +596,20 @@ const plugin: Plugin = {
         ]);
         for (const [key, apply] of HOT_APPLIERS) {
           if (hotSet.has(key)) apply(runtimeCfg, fresh);
+        }
+
+        // Inbound identity keys are hot: rebuild the live gate's sets so a
+        // user/chat removal or an inboundMode change takes effect
+        // immediately. Without this, the classifier reports the change as
+        // hotApplied while the inbox gate (built once at setup) keeps
+        // admitting removed senders until a plugin restart.
+        if (
+          hotSet.has('inboundMode') ||
+          hotSet.has('allowedUsers') ||
+          hotSet.has('allowedChats')
+        ) {
+          const sets = inboundAllowlist(nextTg);
+          bot.inbox.updateAllowlist(sets.allowedUsers, sets.allowedChats);
         }
         // notifyChatId is RESTART-REQUIRED: the inbound allowlist
         // (built at setup) still uses the old value.  Applying the new

@@ -36,6 +36,19 @@ export class TelegramInbox {
     this.deps = deps;
   }
 
+  /**
+   * Replace the inbound identity policy sets. Called by the plugin's
+   * hot-reload path (api.onConfigChange) so changes to `inboundMode`,
+   * `allowedUsers`, and `allowedChats` — all classified `hot` — take effect
+   * on the live gate without a plugin restart. The new sets carry the same
+   * semantics as construction (empty set = that dimension unrestricted,
+   * non-empty = mandatory constraint, fail closed on missing identity).
+   */
+  updateAllowlist(allowedUsers: Set<string>, allowedChats: Set<string>): void {
+    this.deps.allowedUsers = allowedUsers;
+    this.deps.allowedChats = allowedChats;
+  }
+
   /** Return buffered messages, newest first. Optionally filter by chat. */
   getMessages(opts?: {
     chatId?: string | number | undefined;
