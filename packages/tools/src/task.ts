@@ -48,13 +48,13 @@ function findTaskIndex(tasks: TaskItem[], query: string): number {
 // Tool
 // ---------------------------------------------------------------------------
 
-type TaskReplacementItem = Omit<TaskItem, 'createdAt' | 'updatedAt'> &
+export type TaskReplacementItem = Omit<TaskItem, 'createdAt' | 'updatedAt'> &
   Partial<Pick<TaskItem, 'createdAt' | 'updatedAt'>>;
 
-type TaskAdditionItem = Omit<TaskItem, 'id' | 'createdAt' | 'updatedAt' | 'status'> &
+export type TaskAdditionItem = Omit<TaskItem, 'id' | 'createdAt' | 'updatedAt' | 'status'> &
   Partial<Pick<TaskItem, 'status'>>;
 
-interface TaskInput {
+export interface TaskInput {
   /** Replace: set new task list. Add: append a task. Status: update task status. Promote: convert a task to todo items. */
   action: 'replace' | 'add' | 'status' | 'show' | 'promote' | 'planify';
   /** Full task list for action=replace. */
@@ -78,7 +78,7 @@ interface TaskInput {
   scope?: 'session' | 'project';
 }
 
-interface TaskOutput {
+export interface TaskOutput {
   ok: boolean;
   message: string;
   count: number;

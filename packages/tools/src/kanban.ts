@@ -15,7 +15,8 @@ import {
 } from './kanban-tool-schema.js';
 import type { KanbanToolInput, KanbanToolOutput } from './kanban-tool-types.js';
 
-type KanbanContext = Parameters<Tool<KanbanToolInput, KanbanToolOutput>['execute']>[1];
+export type KanbanContext = Parameters<Tool<KanbanToolInput, KanbanToolOutput>['execute']>[1];
+export type { KanbanAction, KanbanToolInput, KanbanToolOutput } from './kanban-tool-types.js';
 
 export const kanbanTool = {
   name: 'kanban',

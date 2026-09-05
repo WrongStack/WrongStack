@@ -17,7 +17,7 @@ import {
   takeSessionMirrorFailure,
 } from './session-kanban.js';
 
-interface TodoInput {
+export interface TodoInput {
   todos: TodoItem[];
 }
 

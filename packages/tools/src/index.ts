@@ -19,7 +19,11 @@ export {
   type BashInput,
   type BashOutput,
 } from './bash.js';
-export { batchToolUseTool } from './batch-tool-use.js';
+export {
+  batchToolUseTool,
+  type BatchToolUseInput,
+  type BatchToolUseOutput,
+} from './batch-tool-use.js';
 export * from './browser/index.js';
 // builtinTools moved to './builtin.ts' so consumers that only need a subset of
 // tools don't transitively import all 30. Use `@wrongstack/tools/builtin`.
@@ -186,7 +190,12 @@ export {
   type JsonInput,
   type JsonOutput,
 } from './json.js';
-export { kanbanTool } from './kanban.js';
+export {
+  kanbanTool,
+  type KanbanAction,
+  type KanbanToolInput,
+  type KanbanToolOutput,
+} from './kanban.js';
 export {
   kanbanEvidenceKey,
   kanbanEvidencePointer,
@@ -199,7 +208,19 @@ export {
   type LintOutput,
 } from './lint.js';
 export { logsTool } from './logs.js';
-export { forgetTool, relatedMemoryTool, rememberTool, searchMemoryTool } from './memory.js';
+export {
+  forgetTool,
+  type ForgetInput,
+  type ForgetOutput,
+  relatedMemoryTool,
+  type RelatedMemoryInput,
+  rememberTool,
+  type RememberInput,
+  type RememberOutput,
+  searchMemoryTool,
+  type SearchMemoryInput,
+  type SearchMemoryOutput,
+} from './memory.js';
 export { createModeTool } from './mode.js';
 export { nextStepsTool } from './next-steps-tool.js';
 export {
@@ -299,13 +320,23 @@ export {
   SESSION_KANBAN_COLUMNS,
 } from './session-kanban.js';
 export { makeSkillTool } from './skill.js';
-export { taskTool } from './task.js';
+export {
+  taskTool,
+  type TaskAdditionItem,
+  type TaskInput,
+  type TaskOutput,
+  type TaskReplacementItem,
+} from './task.js';
 export {
   testTool,
   type TestInput,
   type TestOutput,
 } from './test.js';
-export { todoTool } from './todo.js';
+export {
+  todoTool,
+  type TodoInput,
+  type TodoOutput,
+} from './todo.js';
 export { toolHelpTool } from './tool-help.js';
 // Tool icon mapping — shared across all UIs (WebUI, TUI, REPL)
 export {

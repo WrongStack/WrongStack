@@ -26,7 +26,7 @@ import type {
   KanbanWorkbenchSnapshot,
 } from '@wrongstack/kanban';
 
-type KanbanAction =
+export type KanbanAction =
   | 'list_boards'
   | 'get_board'
   | 'create_board'

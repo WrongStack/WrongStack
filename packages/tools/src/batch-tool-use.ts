@@ -4,7 +4,7 @@ import {
   type Tool,
 } from '@wrongstack/core/types';
 
-interface BatchToolUseInput {
+export interface BatchToolUseInput {
   calls: {
     tool: string;
     input: Record<string, unknown>;
@@ -13,7 +13,7 @@ interface BatchToolUseInput {
   parallel?: boolean | undefined;
 }
 
-interface BatchToolUseOutput {
+export interface BatchToolUseOutput {
   results: {
     tool: string;
     success: boolean;

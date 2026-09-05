@@ -1,7 +1,7 @@
 import type { MemoryScope, MemoryStore, Tool } from '@wrongstack/core/types';
 import { ToolValidationError, type MemoryEntry } from '@wrongstack/core/types';
 
-interface RememberInput {
+export interface RememberInput {
   text: string;
   scope?: MemoryScope | undefined;
   /** Memory type for categorization. */
@@ -19,19 +19,19 @@ interface RememberInput {
   priority?: 'critical' | 'high' | 'medium' | 'low' | undefined;
 }
 
-interface RememberOutput {
+export interface RememberOutput {
   ok: true;
   scope: MemoryScope;
 }
 
-interface ForgetInput {
+export interface ForgetInput {
   query: string;
   scope?: MemoryScope | undefined;
   /** Preview: list what WOULD be deleted without deleting anything. */
   dry_run?: boolean | undefined;
 }
 
-interface ForgetOutput {
+export interface ForgetOutput {
   removed: number;
   scope: MemoryScope;
   /** True when this was a preview run — nothing was deleted. */
@@ -180,13 +180,13 @@ export function forgetTool(memory: MemoryStore): Tool<ForgetInput, ForgetOutput>
 
 // ── Enhanced memory query tools — use backend capabilities ───────────
 
-interface SearchMemoryInput {
+export interface SearchMemoryInput {
   query: string;
   scope?: MemoryScope | undefined;
   limit?: number | undefined;
 }
 
-interface SearchMemoryOutput {
+export interface SearchMemoryOutput {
   results: Array<{
     text: string;
     ts: string;
@@ -260,7 +260,7 @@ export function searchMemoryTool(memory: MemoryStore): Tool<SearchMemoryInput, S
   };
 }
 
-interface RelatedMemoryInput {
+export interface RelatedMemoryInput {
   text: string;
   scope?: MemoryScope | undefined;
   limit?: number | undefined;
