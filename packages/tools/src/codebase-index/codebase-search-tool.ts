@@ -238,7 +238,7 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-interface CodebaseSearchInput {
+export interface CodebaseSearchInput {
   query: string;
   kind?: string | undefined;
   lang?: string | undefined;
@@ -253,7 +253,7 @@ interface CodebaseSearchInput {
   preferLsp?: boolean | undefined;
 }
 
-interface CodebaseSearchOutput {
+export interface CodebaseSearchOutput {
   results: SearchResult[];
   total: number; // total candidates before limit
   query: string;

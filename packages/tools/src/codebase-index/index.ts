@@ -54,22 +54,75 @@ export {
   indexCircuitBreaker,
   resetIndexCircuitBreaker,
 } from './circuit-breaker.js';
-export { codebaseAstReplaceTool } from './codebase-ast-replace-tool.js';
-export { codebaseInvariantCheckTool } from './codebase-invariant-check-tool.js';
+export {
+  codebaseAstReplaceTool,
+  type CodebaseAstReplaceInput,
+  type CodebaseAstReplaceOutput,
+} from './codebase-ast-replace-tool.js';
+export {
+  codebaseInvariantCheckTool,
+  type CodebaseInvariantCheckInput,
+  type CodebaseInvariantCheckOutput,
+} from './codebase-invariant-check-tool.js';
 export {
   replaceSymbolInFile,
   type MutateSymbolOptions,
   type MutateSymbolResult,
 } from './ast-symbol-mutator.js';
-export { codebaseImpactAnalysisTool } from './codebase-impact-analysis-tool.js';
-export { codebaseIncomingCallsTool } from './codebase-incoming-calls-tool.js';
-export { codebaseIndexTool } from './codebase-index-tool.js';
-export { codebaseOutgoingCallsTool } from './codebase-outgoing-calls-tool.js';
-export { codebaseRepoMapTool } from './codebase-repo-map-tool.js';
-export { codebaseSearchTool } from './codebase-search-tool.js';
-export { codebaseSkeletonTool } from './codebase-skeleton-tool.js';
-export { codebaseStatsTool } from './codebase-stats-tool.js';
-export { codebaseTargetedTestTool } from './codebase-targeted-test-tool.js';
+export {
+  codebaseImpactAnalysisTool,
+  type CodebaseImpactAnalysisInput,
+  type CodebaseImpactAnalysisOutput,
+  type ImpactAnalysisInput,
+  type ImpactAnalysisOutput,
+  type ImpactCallSite,
+} from './codebase-impact-analysis-tool.js';
+export {
+  codebaseIncomingCallsTool,
+  type CodebaseIncomingCallsInput,
+  type CodebaseIncomingCallsOutput,
+  type IncomingCallsInput,
+  type IncomingCallsOutput,
+} from './codebase-incoming-calls-tool.js';
+export {
+  codebaseIndexTool,
+  type CodebaseIndexInput,
+  type CodebaseIndexOutput,
+} from './codebase-index-tool.js';
+export {
+  codebaseOutgoingCallsTool,
+  type CodebaseOutgoingCallsInput,
+  type CodebaseOutgoingCallsOutput,
+  type OutgoingCallsInput,
+  type OutgoingCallsOutput,
+} from './codebase-outgoing-calls-tool.js';
+export {
+  codebaseRepoMapTool,
+  type CodebaseRepoMapInput,
+  type CodebaseRepoMapOutput,
+} from './codebase-repo-map-tool.js';
+export {
+  codebaseSearchTool,
+  type CodebaseSearchInput,
+  type CodebaseSearchOutput,
+} from './codebase-search-tool.js';
+export {
+  codebaseSkeletonTool,
+  type CodebaseSkeletonInput,
+  type CodebaseSkeletonOutput,
+} from './codebase-skeleton-tool.js';
+export {
+  codebaseStatsTool,
+  type CodebaseStatsInput,
+  type CodebaseStatsOutput,
+} from './codebase-stats-tool.js';
+export {
+  codebaseTargetedTestTool,
+  type CodebaseTargetedTestInput,
+  type CodebaseTargetedTestOutput,
+  type TargetedTestInput,
+  type TargetedTestOutput,
+} from './codebase-targeted-test-tool.js';
 export {
   generateRepoMap,
   type RepoMapOptions,

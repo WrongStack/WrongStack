@@ -56,6 +56,8 @@ export interface EditOutput {
   note?: string | undefined;
 }
 
+export type { MatchTier };
+
 export const editTool: Tool<EditInput, EditOutput> = {
   name: 'edit',
   category: 'Filesystem',

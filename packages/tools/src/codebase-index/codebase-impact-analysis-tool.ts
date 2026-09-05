@@ -15,7 +15,7 @@ import { incomingCallsService } from './background-indexer.js';
 import type { CallSite } from './schema.js';
 import { codebaseIndexDirOverride } from './writer.js';
 
-interface ImpactAnalysisInput {
+export interface ImpactAnalysisInput {
   /** The symbol name (function, method, class, interface, type) to analyze. */
   symbol: string;
   /** Optional file path to disambiguate when multiple symbols share a name. */
@@ -24,7 +24,9 @@ interface ImpactAnalysisInput {
   transitive?: boolean | undefined;
 }
 
-interface ImpactCallSite {
+export type CodebaseImpactAnalysisInput = ImpactAnalysisInput;
+
+export interface ImpactCallSite {
   file: string;
   line: number;
   callerName: string;
@@ -33,7 +35,7 @@ interface ImpactCallSite {
   isTest: boolean;
 }
 
-interface ImpactAnalysisOutput {
+export interface ImpactAnalysisOutput {
   status: 'ok' | 'error';
   symbol: string;
   riskLevel: 'low' | 'medium' | 'high';
@@ -47,6 +49,8 @@ interface ImpactAnalysisOutput {
   symbolFound?: boolean;
   error?: string | undefined;
 }
+
+export type CodebaseImpactAnalysisOutput = ImpactAnalysisOutput;
 
 const TEST_FILE_REGEX = /(?:test|spec|mock|fixture|bench)[s]?[/\\._]/i;
 

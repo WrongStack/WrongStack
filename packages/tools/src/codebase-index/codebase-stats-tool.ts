@@ -13,7 +13,9 @@ import { IndexTimeoutError } from './circuit-breaker.js';
 import { SCHEMA_VERSION } from './schema.js';
 import { codebaseIndexDirOverride, resolveIndexDir } from './writer.js';
 
-export const codebaseStatsTool: Tool<Record<string, never>, CodebaseStatsOutput> = {
+export interface CodebaseStatsInput {}
+
+export const codebaseStatsTool: Tool<CodebaseStatsInput, CodebaseStatsOutput> = {
   name: 'codebase-stats',
   category: 'Project',
   icon: 'index',
@@ -131,7 +133,7 @@ export const codebaseStatsTool: Tool<Record<string, never>, CodebaseStatsOutput>
   },
 };
 
-interface CodebaseStatsOutput {
+export interface CodebaseStatsOutput {
   totalSymbols: number;
   totalFiles: number;
   byLang: Record<string, number>;

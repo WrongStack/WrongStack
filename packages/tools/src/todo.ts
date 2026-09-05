@@ -21,19 +21,19 @@ export interface TodoInput {
   todos: TodoItem[];
 }
 
+export interface TodoKanbanBinding {
+  todoId: string;
+  boardId: string;
+  taskId: string;
+  taskStatus: KanbanTask['status'];
+}
+
 export interface TodoOutput {
   count: number;
   in_progress: number;
   kanban_synced?: number | undefined;
   kanban_warnings?: string[] | undefined;
-  kanban_bindings?:
-    | Array<{
-        todoId: string;
-        boardId: string;
-        taskId: string;
-        taskStatus: KanbanTask['status'];
-      }>
-    | undefined;
+  kanban_bindings?: TodoKanbanBinding[] | undefined;
 }
 
 function normalizedTitle(value: string): string {

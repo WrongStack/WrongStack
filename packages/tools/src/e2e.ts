@@ -6,7 +6,7 @@ import { safeResolveReal } from './_util.js';
 export type E2EFramework = 'playwright' | 'cypress';
 export type E2EPackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun';
 
-interface E2EPlanInput {
+export interface E2EPlanInput {
   cwd?: string | undefined;
   framework?: E2EFramework | 'all' | undefined;
   maxDepth?: number | undefined;

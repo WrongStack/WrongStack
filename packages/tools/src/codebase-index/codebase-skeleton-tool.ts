@@ -23,14 +23,14 @@ import {
   type SkeletonOptions,
 } from './skeleton-extractor.js';
 
-interface CodebaseSkeletonInput extends SkeletonOptions {
+export interface CodebaseSkeletonInput extends SkeletonOptions {
   /** Relative or absolute file or directory path. */
   path: string;
   /** Maximum number of files to process if `path` is a directory. Defaults to 20. */
   maxFiles?: number;
 }
 
-interface CodebaseSkeletonOutput {
+export interface CodebaseSkeletonOutput {
   path: string;
   isDir: boolean;
   skeleton: string;

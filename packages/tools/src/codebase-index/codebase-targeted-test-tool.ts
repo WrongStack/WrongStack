@@ -17,7 +17,7 @@ import { normalizeCommandOutput } from '../_util.js';
 import { incomingCallsService } from './background-indexer.js';
 import { codebaseIndexDirOverride } from './writer.js';
 
-interface TargetedTestInput {
+export interface TargetedTestInput {
   /** Symbol name (function, class, method) whose tests should be discovered and run. */
   symbol?: string | undefined;
   /** Source file path whose corresponding test suite should be run. */
@@ -26,7 +26,9 @@ interface TargetedTestInput {
   testFiles?: string[] | undefined;
 }
 
-interface TargetedTestOutput {
+export type CodebaseTargetedTestInput = TargetedTestInput;
+
+export interface TargetedTestOutput {
   status: 'passed' | 'failed' | 'no_tests_found' | 'error';
   discoveredSuites: string[];
   testsRun: number;
@@ -36,6 +38,8 @@ interface TargetedTestOutput {
   output: string;
   error?: string | undefined;
 }
+
+export type CodebaseTargetedTestOutput = TargetedTestOutput;
 
 const TEST_FILE_REGEX = /(?:test|spec|mock|fixture|bench)[s]?[/\\._]/i;
 

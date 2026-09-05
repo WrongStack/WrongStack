@@ -36,7 +36,7 @@ export interface DangerAssessment {
   matchedRule?: string;
 }
 
-interface DangerRule {
+export interface DangerRule {
   id: string;
   level: DangerLevel;
   /** Match a (cmd, args) pair. Return true if this rule fires. */

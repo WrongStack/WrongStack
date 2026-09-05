@@ -33,6 +33,7 @@ export {
   browserUploadTool,
   browserWaitTool,
   shutdownBrowserTools,
+  type BrowserCloseInput,
   type BrowserDragInput,
   type BrowserEvaluateInput,
   type BrowserNavigateInput,
@@ -43,6 +44,7 @@ export {
   type BrowserSelectorInput,
   type BrowserSnapshotInput,
   type BrowserTypeInput,
+  type BrowserUploadInput,
   type BrowserWaitInput,
 } from './tools.js';
 export type {

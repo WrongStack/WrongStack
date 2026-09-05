@@ -32,18 +32,20 @@ import { todoTool } from './todo.js';
  * derive / template_use / clear via a single tool registration instead of
  * bloating the surface with nine near-identical tools.
  */
+export type PlanAction =
+  | 'show'
+  | 'add'
+  | 'status'
+  | 'start'
+  | 'done'
+  | 'remove'
+  | 'promote'
+  | 'template_use'
+  | 'clear'
+  | 'taskify';
+
 export interface PlanInput {
-  action:
-    | 'show'
-    | 'add'
-    | 'status'
-    | 'start'
-    | 'done'
-    | 'remove'
-    | 'promote'
-    | 'template_use'
-    | 'clear'
-    | 'taskify';
+  action: PlanAction;
   /** Required for add. */
   title?: string | undefined;
   /** Optional detail line for add. */

@@ -15,9 +15,9 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import { safeResolveProjectPath } from '../_util.js';
 import { type MutateSymbolOptions, replaceSymbolInFile } from './ast-symbol-mutator.js';
 
-interface CodebaseAstReplaceInput extends MutateSymbolOptions {}
+export interface CodebaseAstReplaceInput extends MutateSymbolOptions {}
 
-interface CodebaseAstReplaceOutput {
+export interface CodebaseAstReplaceOutput {
   status: 'ok' | 'error';
   file: string;
   symbol: string;

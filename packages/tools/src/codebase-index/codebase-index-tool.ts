@@ -131,12 +131,12 @@ export const codebaseIndexTool: Tool<CodebaseIndexInput, CodebaseIndexOutput> = 
 
 // ─── Types for tool I/O ────────────────────────────────────────────────────────
 
-interface CodebaseIndexInput {
+export interface CodebaseIndexInput {
   force?: boolean | undefined;
   langs?: string[] | undefined;
 }
 
-interface CodebaseIndexOutput {
+export interface CodebaseIndexOutput {
   filesIndexed: number;
   fileOutcomes?:
     | {

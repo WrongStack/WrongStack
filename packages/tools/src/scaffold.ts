@@ -21,7 +21,12 @@ export interface ScaffoldOutput {
   output: string;
 }
 
-const BUILT_IN_TEMPLATES: Record<string, { description: string; files: Record<string, string> }> = {
+export interface ScaffoldTemplate {
+  description: string;
+  files: Record<string, string>;
+}
+
+export const BUILT_IN_TEMPLATES: Record<string, ScaffoldTemplate> = {
   'npm-package': {
     description: 'Basic npm package with ESM',
     files: {

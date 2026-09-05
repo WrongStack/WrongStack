@@ -57,7 +57,7 @@ interface CallRecord {
   slow: boolean;
 }
 
-type BreakerState = 'closed' | 'open' | 'half-open';
+export type BreakerState = 'closed' | 'open' | 'half-open';
 
 const DEFAULT_MAX_CONSECUTIVE_FAILURES = 5;
 const DEFAULT_SLOW_CALL_THRESHOLD_MS = 180_000;

@@ -24,6 +24,8 @@ export interface ClarifyQuestionInput {
   allowCustomResponse?: boolean | undefined;
 }
 
+export type ClarifyInput = ClarifyQuestionInput;
+
 export interface ClarifyOutput {
   status: 'answered' | 'auto_decided' | 'skipped';
   question: string;

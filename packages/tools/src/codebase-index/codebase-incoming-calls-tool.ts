@@ -183,14 +183,16 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-interface IncomingCallsInput {
+export interface IncomingCallsInput {
   symbol: string;
   file?: string | undefined;
   limit?: number | undefined;
   transitive?: boolean | undefined;
 }
 
-interface IncomingCallsOutput {
+export type CodebaseIncomingCallsInput = IncomingCallsInput;
+
+export interface IncomingCallsOutput {
   symbol: string;
   calls: CallSite[];
   total: number;
@@ -205,3 +207,5 @@ interface IncomingCallsOutput {
   /** Advisory note when the symbol was not found in the index. */
   note?: string | undefined;
 }
+
+export type CodebaseIncomingCallsOutput = IncomingCallsOutput;

@@ -1,4 +1,9 @@
-export { type DangerAssessment, type DangerLevel, detectDanger } from './_danger-detect.js';
+export {
+  type DangerAssessment,
+  type DangerLevel,
+  type DangerRule,
+  detectDanger,
+} from './_danger-detect.js';
 export {
   type EnsureSessionShellOptions,
   ensureSessionShell,
@@ -20,6 +25,11 @@ export {
   type BashOutput,
 } from './bash.js';
 export {
+  checkAndBlockKillCommand,
+  type KillCheckResult,
+  type KillCommand,
+} from './bash-kill-guard.js';
+export {
   batchToolUseTool,
   type BatchToolUseInput,
   type BatchToolUseOutput,
@@ -36,6 +46,7 @@ export {
   TIER3_TOOLS,
 } from './builtin.js';
 export {
+  type BreakerState,
   CircuitBreaker,
   type CircuitBreakerConfig,
   type CircuitBreakerSnapshot,
@@ -44,6 +55,28 @@ export type {
   CircuitSnapshot,
   CircuitState,
   CodeMapGraph,
+  CodebaseAstReplaceInput,
+  CodebaseAstReplaceOutput,
+  CodebaseImpactAnalysisInput,
+  CodebaseImpactAnalysisOutput,
+  CodebaseIncomingCallsInput,
+  CodebaseIncomingCallsOutput,
+  CodebaseIndexInput,
+  CodebaseIndexOutput,
+  CodebaseInvariantCheckInput,
+  CodebaseInvariantCheckOutput,
+  CodebaseOutgoingCallsInput,
+  CodebaseOutgoingCallsOutput,
+  CodebaseRepoMapInput,
+  CodebaseRepoMapOutput,
+  CodebaseSearchInput,
+  CodebaseSearchOutput,
+  CodebaseSkeletonInput,
+  CodebaseSkeletonOutput,
+  CodebaseStatsInput,
+  CodebaseStatsOutput,
+  CodebaseTargetedTestInput,
+  CodebaseTargetedTestOutput,
   DeadCodeScanInput,
   DeadCodeScanOutput,
   DeadFile,
@@ -51,15 +84,25 @@ export type {
   DeadSymbol,
   GraphEdge,
   GraphNode,
+  ImpactAnalysisInput,
+  ImpactAnalysisOutput,
+  ImpactCallSite,
+  IncomingCallsInput,
+  IncomingCallsOutput,
+  OutgoingCallsInput,
+  OutgoingCallsOutput,
   ProjectIndexDaemonAvailability,
   ProjectIndexServerActivity,
   ProjectIndexServerClientHealth,
   ProjectIndexServerConnectionState,
   ProjectIndexServerConnectionStatus,
   ProjectIndexServerHealth,
+  TargetedTestInput,
+  TargetedTestOutput,
 } from './codebase-index/index.js';
 export {
   clarifyTool,
+  type ClarifyInput,
   type ClarifyQuestionInput,
   type ClarifyOutput,
 } from './clarify.js';
@@ -69,9 +112,11 @@ export {
   checkCodebaseIndexServerHealth,
   codebaseAstReplaceTool,
   codebaseImpactAnalysisTool,
+  codebaseIncomingCallsTool,
   codebaseIndexStats,
   codebaseIndexTool,
   codebaseInvariantCheckTool,
+  codebaseOutgoingCallsTool,
   codebaseRepoMapTool,
   codebaseSearchTool,
   codebaseSkeletonTool,
@@ -131,6 +176,7 @@ export {
   type E2EExecutionPlan,
   type E2EFramework,
   type E2EPackageManager,
+  type E2EPlanInput,
   type E2EPlanOutput,
   type E2EProjectPlan,
   type E2EServerHint,
@@ -140,6 +186,7 @@ export {
   editTool,
   type EditInput,
   type EditOutput,
+  type MatchTier,
 } from './edit.js';
 export {
   configureDangerBypass,
@@ -258,6 +305,7 @@ export {
 } from './patch.js';
 export {
   planTool,
+  type PlanAction,
   type PlanInput,
   type PlanOutput,
 } from './plan.js';
@@ -306,9 +354,11 @@ export {
   type ReplaceOutput,
 } from './replace.js';
 export {
+  BUILT_IN_TEMPLATES,
   scaffoldTool,
   type ScaffoldInput,
   type ScaffoldOutput,
+  type ScaffoldTemplate,
 } from './scaffold.js';
 export {
   searchTool,
@@ -353,6 +403,7 @@ export {
 } from './set-working-dir.js';
 export {
   taskTool,
+  type TaskAction,
   type TaskAdditionItem,
   type TaskInput,
   type TaskOutput,
@@ -366,6 +417,7 @@ export {
 export {
   todoTool,
   type TodoInput,
+  type TodoKanbanBinding,
   type TodoOutput,
 } from './todo.js';
 export {

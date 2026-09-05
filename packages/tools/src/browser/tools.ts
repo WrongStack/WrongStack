@@ -121,6 +121,14 @@ export interface BrowserEvaluateInput {
   expression: string;
 }
 
+export interface BrowserUploadInput extends BrowserSelectorInput {
+  files: string[];
+}
+
+export interface BrowserCloseInput {
+  sessionId: string;
+}
+
 export const browserOpenTool: Tool<BrowserOpenInput> = {
   name: 'browser_open',
   description:
@@ -256,8 +264,6 @@ export const browserScreenshotTool: Tool<BrowserScreenshotInput> = {
     );
   },
 };
-
-type SelectorInput = { sessionId: string; selector: string };
 
 function selectorTool(
   name: string,
@@ -499,7 +505,7 @@ export const browserEvaluateTool: Tool<BrowserEvaluateInput> = {
   },
 };
 
-export const browserUploadTool: Tool<SelectorInput & { files: string[] }> = {
+export const browserUploadTool: Tool<BrowserUploadInput> = {
   name: 'browser_upload',
   description: 'Upload project-local files through a file input in an owned browser session.',
   usageHint: 'browser_upload({ sessionId, selector, files })',
@@ -533,7 +539,7 @@ export const browserUploadTool: Tool<SelectorInput & { files: string[] }> = {
   },
 };
 
-export const browserCloseTool: Tool<{ sessionId: string }> = {
+export const browserCloseTool: Tool<BrowserCloseInput> = {
   name: 'browser_close',
   description:
     'Close an owned browser session, reclaim its context, and return sensitive trace metadata.',

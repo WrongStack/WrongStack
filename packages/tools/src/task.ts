@@ -54,9 +54,11 @@ export type TaskReplacementItem = Omit<TaskItem, 'createdAt' | 'updatedAt'> &
 export type TaskAdditionItem = Omit<TaskItem, 'id' | 'createdAt' | 'updatedAt' | 'status'> &
   Partial<Pick<TaskItem, 'status'>>;
 
+export type TaskAction = 'replace' | 'add' | 'status' | 'show' | 'promote' | 'planify';
+
 export interface TaskInput {
   /** Replace: set new task list. Add: append a task. Status: update task status. Promote: convert a task to todo items. */
-  action: 'replace' | 'add' | 'status' | 'show' | 'promote' | 'planify';
+  action: TaskAction;
   /** Full task list for action=replace. */
   tasks?: TaskReplacementItem[] | undefined;
   /** Single task for action=add. id, createdAt, updatedAt are auto-generated. */

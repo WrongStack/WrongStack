@@ -60,7 +60,7 @@ const SCRIPT_KILL_RE_POSIX = /^(?:\.\/)?(?:kill|terminate|stop)\S*\.sh(?:\s|$)/i
  */
 const SCRIPT_KILL_FALLBACK_RE = /^\S*(?:kill|terminate|stop)\S*\.(?:ps1|bat|cmd|sh)\b/i;
 
-interface KillCommand {
+export interface KillCommand {
   pid?: number;
   name?: string;
   signal?: string;
@@ -69,7 +69,7 @@ interface KillCommand {
   originalCommand: string;
 }
 
-interface KillCheckResult {
+export interface KillCheckResult {
   blocked: boolean;
   reason?: string;
 }
