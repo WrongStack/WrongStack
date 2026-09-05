@@ -1,9 +1,9 @@
 import * as fsp from 'node:fs/promises';
-import type { EventBus } from '../event-bus-port.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
 import type { SessionSummary } from '../../types/session.js';
 import { atomicWrite, withFileLock } from '../../utils/atomic-write.js';
 import { toErrorMessage } from '../../utils/index.js';
+import type { EventBus } from '../event-bus-port.js';
 import { sessionContentText } from '../session-helpers.js';
 import { emitSessionStoreError, emitSessionStoreWrite } from './events.js';
 

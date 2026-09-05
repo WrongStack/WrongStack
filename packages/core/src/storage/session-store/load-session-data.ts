@@ -1,5 +1,4 @@
 import { stat as fspStat } from 'node:fs/promises';
-import { createTranscriptLineReader } from './transcript-io.js';
 import type { ContentBlock } from '../../types/blocks.js';
 import type { Message } from '../../types/messages.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
@@ -14,6 +13,7 @@ import type { EventBus } from '../event-bus-port.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
 import { extractToolCallEnds } from '../session-tool-call-ends.js';
 import { applyContextSnapshot, replayableMessage, trackMessageToolState } from './replay.js';
+import { createTranscriptLineReader } from './transcript-io.js';
 
 type UsageTotals = { input: number; output: number; cacheRead: number; cacheWrite: number };
 

@@ -1,15 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { Dirent } from 'node:fs';
 import * as fsp from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
-import type { EventBus } from './event-bus-port.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import {
   resolveSessionCatalogProjectServerUrl,
   SessionCatalogProjectClient,
 } from '../session-catalog/client.js';
-import type { MaintenanceLease } from '../session-catalog/protocol.js';
 import type { Logger } from '../types/logger.js';
 import type { SecretScrubber } from '../types/secret-scrubber.js';
 import type {
@@ -28,35 +24,26 @@ import type {
   SessionWriter,
   WorkspaceCheckpointRef,
 } from '../types/session.js';
-import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
+import { withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
-import { isColdSessionTranscriptFileName } from '../utils/session-scoped-path.js';
-import { FileSessionWriter } from './file-session-writer.js';
+import type { EventBus } from './event-bus-port.js';
 import { SessionCheckpointCas } from './session-checkpoint-cas.js';
 import { captureCheckpoint, materializeCheckpoint, sessionContentText } from './session-helpers.js';
-import { generateSessionId } from './session-id.js';
 import { resolveSessionId, sessionIdResolutionError } from './session-id-resolver.js';
 import { scrubPersistedSessionSummary } from './session-read-scrubber.js';
+import { type CreateSessionHost, executeCreateSession } from './session-store/create-session.js';
 import { deleteSessionArtifacts } from './session-store/delete-session-artifacts.js';
 import { assertSessionCanBeDeleted } from './session-store/delete-session-guards.js';
-import { shouldSkipSessionDirectoryEntry } from './session-store/directory-scan.js';
-import {
-  collectSessionFiles as collectSessionFilesFromDirectory,
-  collectSessionIds as collectSessionIdsFromDirectory,
-} from './session-store/directory-session-files.js';
-import {
-  emitSessionStoreError,
-  emitSessionStoreRead,
-  emitSessionStoreWrite,
-} from './session-store/events.js';
+import { collectSessionIds as collectSessionIdsFromDirectory } from './session-store/directory-session-files.js';
+import { emitSessionStoreWrite } from './session-store/events.js';
 import { forkSession } from './session-store/fork-session.js';
-import { SessionLoadCache } from './session-store/load-cache.js';
-import { loadSessionDataFromFile } from './session-store/load-session-data.js';
 import {
-  archiveSessionTranscript,
-  rehydrateSessionTranscript,
-} from './session-store/transcript-archive.js';
-import { locateTranscript } from './session-store/transcript-location.js';
+  executeListFilteredSessions,
+  executeListSessions,
+  type ListSessionsHost,
+} from './session-store/list-sessions.js';
+import { SessionLoadCache } from './session-store/load-cache.js';
+import { executeLoadSession } from './session-store/load-session.js';
 import {
   ensureShardDir as ensureSessionShardDir,
   sessionPath as sessionStorePath,
@@ -64,9 +51,17 @@ import {
   shardManifestPath,
 } from './session-store/paths.js';
 import { pruneSessionFiles } from './session-store/prune-helpers.js';
+import { executeRebuildIndex } from './session-store/rebuild-index.js';
 import { executeRenameSession } from './session-store/rename-session.js';
 import { executeResumeSession } from './session-store/resume-session.js';
 import { searchSessionEvents } from './session-store/search-events.js';
+import {
+  executeArchive,
+  executeArchiveIdle,
+  executeEnsureHot,
+  executeRehydrate,
+  type SessionArchiveHost,
+} from './session-store/session-archive.js';
 import { executeClearSessionHistory } from './session-store/session-store-clear.js';
 import {
   appendToIndexStrict,
@@ -75,37 +70,27 @@ import {
   readIndexFile,
   writeTombstone,
 } from './session-store/session-store-index.js';
-import { readOrBuildShardManifestEntry } from './session-store/shard-manifest.js';
+import {
+  type CachedShardManifest,
+  listFromDirectoryScan,
+  type ShardScanHost,
+} from './session-store/shard-scan.js';
 import { isStrictlyEmptySessionFile } from './session-store/strict-empty-check.js';
 import { summarizeSessionFile } from './session-store/summary-builder.js';
 import { readSessionSummaryHeader } from './session-store/summary-header.js';
+import {
+  executeSummaryFor,
+  readSummaryManifestFile,
+  type SummaryManifestHost,
+} from './session-store/summary-manifest.js';
+import { locateTranscript } from './session-store/transcript-location.js';
 import type {
-  DirectorySummaryCandidate,
   IndexCacheEntry,
   SessionFileRef,
   SessionStoreOptions,
-  ShardManifestEntry,
 } from './session-store/types.js';
-import { compareSessionSummaries, matchesSessionFilter } from './session-summary.js';
-import { mapWithConcurrency } from './storage-concurrency.js';
-
-/** Upper bound for filtered-listing candidate pools (bounds pathological dirs). */
-const SESSION_FILTER_POOL_LIMIT = 10_000;
-
-function archiveConcurrency(): number {
-  const cpus =
-    typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
-  return Math.max(2, Math.min(4, Math.max(1, cpus)));
-}
 
 export type { SessionStoreOptions } from './session-store/types.js';
-
-interface CachedShardManifest {
-  entry: ShardManifestEntry;
-  mtimeMs: number;
-  size: number;
-  ino: number;
-}
 
 export class DefaultSessionStore implements SessionStore {
   private readonly dir: string;
@@ -152,7 +137,6 @@ export class DefaultSessionStore implements SessionStore {
    */
   private _indexFileDeletedIds: ReadonlySet<string> = new Set<string>();
   private readonly shardManifestCache = new Map<string, CachedShardManifest>();
-  private static readonly LIST_SCAN_CONCURRENCY = 32;
   private indexAppendCount = 0;
 
   constructor(opts: SessionStoreOptions) {
@@ -171,7 +155,10 @@ export class DefaultSessionStore implements SessionStore {
     this.onAppend = opts.onAppend;
     this.onAppendBatch = opts.onAppendBatch;
     this.storagePolicy = {
-      hotKeepSessions: Math.min(10_000, Math.max(1, Math.floor(opts.storage?.hotKeepSessions ?? 20))),
+      hotKeepSessions: Math.min(
+        10_000,
+        Math.max(1, Math.floor(opts.storage?.hotKeepSessions ?? 20)),
+      ),
       archiveAfterDays: Math.min(
         3_650,
         Math.max(0, Math.floor(opts.storage?.archiveAfterDays ?? 7)),
@@ -226,18 +213,6 @@ export class DefaultSessionStore implements SessionStore {
     return located;
   }
 
-  private decorateStorage(summary: SessionSummary, located: { state: 'hot' | 'cold'; size: number }): SessionSummary {
-    if (located.state === 'cold') {
-      return {
-        ...summary,
-        storageState: 'cold',
-        codec: 'gzip',
-        compressedBytes: located.size,
-      };
-    }
-    return { ...summary, storageState: 'hot', uncompressedBytes: located.size };
-  }
-
   private shardManifestPath(shardKey: string): string {
     return shardManifestPath(this.dir, shardKey);
   }
@@ -274,170 +249,56 @@ export class DefaultSessionStore implements SessionStore {
    * would leave a live writer whose id stays hidden forever — that append
    * is therefore required, not best-effort.
    */
-  async create(meta: Omit<SessionMetadata, 'startedAt'>): Promise<SessionWriter> {
-    const startedAt = new Date().toISOString();
-    const id = meta.id && meta.id.length > 0 ? meta.id : generateSessionId(startedAt);
-    const shardDir = await this.ensureShardDir(id);
-    const file = this.sessionPath(id, '.jsonl');
-    // Refuse creation over an ID another process still holds live BEFORE any
-    // destructive step (registry/lease check mirrors the delete-path guard).
-    const inUseBy = this.isSessionInUse ? await this.isSessionInUse(id) : null;
-    // Truthiness, deliberately matching assertSessionCanBeDeleted
-    // (session-store/delete-session-guards.ts): both gates read the same
-    // callback, so they must agree on what counts as a reason. An
-    // empty-string reason means "no reason" on BOTH paths —
-    // diverging here would let an id be deleted but not recreated.
-    if (inUseBy) {
-      throw new Error(`Refusing to create session ${id}: in use (${inUseBy}).`);
-    }
-    const t0 = Date.now();
-    // Failure-prone steps run BEFORE the truncating 'w' open below: once the
-    // transcript is created/truncated, a later rejection could never restore
-    // a prior session's bytes. Manifest invalidation therefore aborts
-    // creation up-front (nothing has been destroyed yet); after the open it
-    // degrades to best-effort because staleness self-heals via stat mismatch.
-    try {
-      await this.invalidateShardManifestBySessionId(id);
-    } catch (cause) {
-      throw new Error(
-        `Failed to invalidate stale shard manifest for ${id}: ${toErrorMessage(cause)}`,
-        { cause },
-      );
-    }
-    // Fresh-session hygiene: drop any stale sidecar from a prior session
-    // under this id so list() cannot publish old metadata before the first
-    // checkpoint/close. Transcript cleanliness is guaranteed by the 'w'
-    // open below (create-or-truncate).
-    await fsp.unlink(this.sessionPath(id, '.jsonl.gz')).catch(() => undefined);
-    const sidecar = path.join(shardDir, `${path.basename(id)}.summary.json`);
-    try {
-      await fsp.rm(sidecar, { force: true });
-    } catch (cause) {
-      emitSessionStoreError(this.events, id, sidecar, 'create', toErrorMessage(cause), true);
-      // A surviving sidecar would be published as THIS session's summary
-      // after the transcript is truncated. Only continue when the file is
-      // actually gone (ENOENT after a racing unlink).
-      try {
-        await fsp.access(sidecar);
-        throw new Error(
-          `Failed to remove stale session sidecar for ${id}: ${toErrorMessage(cause)}`,
-          { cause },
-        );
-      } catch (accessErr) {
-        // ENOENT: the racing unlink finished — the file is gone, continue.
-        // ENAMETOOLONG: the sidecar path is unrepresentable on this
-        // filesystem (Linux NAME_MAX=255), which PROVES the file cannot
-        // exist — absence is already established, so continuing is
-        // correct. Without this branch the raw errno escapes create()
-        // unwrapped on Linux while the transcript-open failure on the
-        // same unrepresentable path wraps as `Failed to open session
-        // file` below (the documented error contract this path follows).
-        const code = (accessErr as NodeJS.ErrnoException).code;
-        if (code !== 'ENOENT' && code !== 'ENAMETOOLONG') throw accessErr;
-      }
-    }
-    // Catalog stub upsert BEFORE the truncating 'w' open below: fallible
-    // remote IO must reject while prior bytes are still intact rather than
-    // destroying a transcript and then failing.
-    if (this.catalogClient) {
-      await this.catalogClient.call('upsert_summary', {
-        summary: {
-          id,
-          title: meta.title ?? '',
-          startedAt,
-          model: meta.model ?? '',
-          provider: meta.provider ?? '',
-          tokenTotal: 0,
-          lastActivityAt: startedAt,
-        },
-        transcriptRelativePath: `${id}.jsonl`,
-        summaryRelativePath: `${id}.summary.json`,
-      });
-    }
-    // A deliberate new session with a reused id overrides any prior
-    // tombstone — durably, and BEFORE the truncating open: the parser only
-    // undeletes on `{action:'create'}`, so a failed row would otherwise
-    // hide a live writer forever. In-memory eviction happens only after
-    // the control row lands CONFIRMED.
-    try {
-      await withFileLock(this.indexFile, async () => {
-        try {
-          await fsp.appendFile(this.indexFile, `${JSON.stringify({ action: 'create', id })}\n`, {
-            encoding: 'utf8',
-            mode: 0o600,
-          });
-        } finally {
-          // Drop the parsed snapshot whether or not the append reported
-          // success. A rejection does not prove nothing landed (a short write,
-          // or an error raised while closing after the bytes were already
-          // durable), and a cache predating a create row would keep serving a
-          // view in which this id is still tombstoned. Invalidation only costs
-          // a re-parse, so it is unconditional.
-          this._indexCache = null;
-        }
-        // The in-memory undelete stays on the SUCCESS path only: evicting the
-        // tombstone without a durable {action:'create'} row would make the id
-        // look live to this process while every other reader — and this one
-        // after a restart — still sees it deleted.
+
+  private asCreateHost(): CreateSessionHost {
+    return {
+      dir: this.dir,
+      events: this.events,
+      secretScrubber: this.secretScrubber,
+      checkpointCas: this.checkpointCas,
+      isSessionInUse: this.isSessionInUse,
+      catalogClient: this.catalogClient,
+      indexFile: this.indexFile,
+      onAppend: this.onAppend,
+      onAppendBatch: this.onAppendBatch,
+      storagePolicy: this.storagePolicy,
+      autoArchive: this.autoArchive,
+      logWarn: (msg, ctx) => this.logWarn(msg, ctx),
+      ensureShardDir: (id) => this.ensureShardDir(id),
+      sessionPath: (id, ext) => this.sessionPath(id, ext),
+      invalidateShardManifestBySessionId: (id) => this.invalidateShardManifestBySessionId(id),
+      readSummaryManifest: (id) => this.readSummaryManifest(id),
+      persistCatalogSummary: (summary) => this.persistCatalogSummary(summary),
+      archiveIdle: (policy) => this.archiveIdle(policy),
+      onIndexAppendCreate: (id) => {
         this._manualTombstones.delete(id);
         this._indexDeletedIds.delete(id);
-      });
-    } catch (cause) {
-      throw new Error(
-        `Failed to record session create in the index for ${id}: ${toErrorMessage(cause)}`,
-        { cause },
-      );
-    }
-    let handle: fsp.FileHandle;
-    try {
-      // 'w' (create-or-truncate): fresh sessions must never inherit bytes
-      // from a surviving transcript under a reused id. Append-mode ('a')
-      // would preserve them AND cannot be truncated later on Windows
-      // (EPERM — append handles lack FILE_WRITE_DATA).
-      handle = await fsp.open(file, 'w', 0o600);
-    } catch (err) {
-      emitSessionStoreError(this.events, id, file, 'create', toErrorMessage(err), false);
-      throw new Error(`Failed to open session file: ${toErrorMessage(err)}`, { cause: err });
-    }
-    // Re-invalidate AFTER the open/hygiene: a concurrent list() between the
-    // first invalidation and here could have rebuilt the manifest from the
-    // prior session's artifacts.
-    await this.invalidateShardManifestBySessionId(id).catch(() => undefined);
-    try {
-      const writer = new FileSessionWriter(id, handle, startedAt, meta, this.events, {
-        dir: shardDir,
-        filePath: file,
-        secretScrubber: this.secretScrubber,
-        checkpointCas: this.checkpointCas,
-        onAppend: this.onAppend,
-        onAppendBatch: this.onAppendBatch,
-        resolveName: async () => {
-          const current = await this.readSummaryManifest(id);
-          if (!current) return null;
-          return current.name === undefined
-            ? {}
-            : { name: sessionContentText(this.secretScrubber.scrub(current.name)) };
-        },
-        onClose: async (s) => {
-          await this.persistCatalogSummary(s);
-          if (this.autoArchive) void this.archiveIdle().catch(() => undefined);
-        },
-        // Mid-session metadata checkpoints reuse the same sink as close so
-        // killed sessions leave accurate index rows / catalog entries behind.
-        onMetadataCheckpoint: (s) => this.persistCatalogSummary(s),
-      });
-      emitSessionStoreWrite(this.events, id, file, 'create', 'success', Date.now() - t0);
-      return writer;
-    } catch (err) {
-      await handle.close().catch((e) =>
-        this.logWarn('Session handle close failed', {
-          event: 'session_store.handle_close_failed',
-          message: e instanceof Error ? e.message : String(e),
-        }),
-      );
-      emitSessionStoreError(this.events, id, file, 'create', toErrorMessage(err), true);
-      throw err;
-    }
+      },
+      clearIndexCache: () => {
+        this._indexCache = null;
+      },
+    };
+  }
+
+  private asArchiveHost(): SessionArchiveHost {
+    return {
+      dir: this.dir,
+      storagePolicy: this.storagePolicy,
+      isSessionInUse: this.isSessionInUse,
+      catalogClient: this.catalogClient,
+      maintenanceHolderId: this.maintenanceHolderId,
+      secretScrubber: this.secretScrubber,
+      clearLoadCache: (sessionId) => this.clearLoadCache(sessionId),
+      sessionPath: (id, ext) => this.sessionPath(id, ext),
+      summaryFor: (id) => this.summaryFor(id),
+      readSummaryManifest: (id) => this.readSummaryManifest(id),
+      invalidateShardManifestBySessionId: (id) => this.invalidateShardManifestBySessionId(id),
+      appendToIndex: (summary) => this.appendToIndex(summary),
+    };
+  }
+
+  async create(meta: Omit<SessionMetadata, 'startedAt'>): Promise<SessionWriter> {
+    return executeCreateSession(this.asCreateHost(), meta);
   }
 
   async fork(id: string, opts: SessionForkOptions = {}): Promise<ForkedSession> {
@@ -482,7 +343,7 @@ export class DefaultSessionStore implements SessionStore {
     onLoadProgress?: (progress: SessionLoadProgress) => void,
   ): Promise<ResumedSession> {
     const canonicalId = await this.resolveId(id);
-    await this.ensureHot(canonicalId, false);
+    await executeEnsureHot(this.asArchiveHost(), canonicalId, false);
     const file = this.sessionPath(canonicalId, '.jsonl');
     return executeResumeSession({
       id,
@@ -520,61 +381,15 @@ export class DefaultSessionStore implements SessionStore {
     onLoadProgress?: (progress: SessionLoadProgress) => void,
   ): Promise<SessionData> {
     const located = await this.requireTranscript(id);
-    const file = located.filePath;
-    const t0 = Date.now();
-    let outcome: 'success' | 'failure' = 'success';
-    let errorMsg: string | undefined;
-    let cacheHit = false;
-    try {
-      const s = await fsp.stat(file);
-      const stat: { mtimeMs: number; size: number } = { mtimeMs: s.mtimeMs, size: s.size };
-      const cached = this.loadCache.getFresh(id, stat, mode.full);
-      if (cached) {
-        cacheHit = true;
-        // A warm cache parses nothing — report a single completed event so a
-        // progress consumer still sees the load reach 100%.
-        onLoadProgress?.({ loadedBytes: stat.size, totalBytes: stat.size });
-        return cached;
-      }
-
-      const data = await loadSessionDataFromFile({
-        id,
-        file,
-        full: mode.full,
-        events: this.events,
-        secretScrubber: this.secretScrubber,
-        onLoadProgress,
-      });
-
-      if (mode.full) {
-        this.loadCache.set(id, stat, data);
-      }
-
-      return data;
-    } catch (err) {
-      outcome = 'failure';
-      errorMsg = toErrorMessage(err);
-      throw err;
-    } finally {
-      emitSessionStoreRead(
-        this.events,
-        id,
-        file,
-        mode.full ? 'load' : 'load_events_only',
-        outcome,
-        Date.now() - t0,
-        errorMsg,
-      );
-      if (cacheHit) {
-        this.events?.emit('storage.cache_hit', {
-          sessionId: id,
-          store: 'session',
-          filePath: file,
-          operation: mode.full ? 'load' : 'load_events_only',
-          durationMs: Date.now() - t0,
-        });
-      }
-    }
+    return executeLoadSession({
+      id,
+      file: located.filePath,
+      full: mode.full,
+      loadCache: this.loadCache,
+      events: this.events,
+      secretScrubber: this.secretScrubber,
+      onLoadProgress,
+    });
   }
 
   async searchEvents(
@@ -593,28 +408,18 @@ export class DefaultSessionStore implements SessionStore {
     });
   }
 
+  private asListSessionsHost(): ListSessionsHost {
+    return {
+      catalogClient: this.catalogClient,
+      readIndex: () => this.readIndex(),
+      listFromDirectoryScan: (limit) => this.listFromDirectoryScan(limit),
+      scrubSummaries: (summaries) => this.scrubSummaries(summaries),
+      getIndexDeletedIds: () => this._indexDeletedIds,
+    };
+  }
+
   async list(limit = 20): Promise<SessionSummary[]> {
-    if (this.catalogClient) {
-      const records = await this.catalogClient.call('list_catalog', { limit });
-      return this.scrubSummaries(records);
-    }
-    try {
-      // Union of close-time index rows and live JSONL transcripts. A process
-      // killed before close() never gets an index row, so an index-only read
-      // made killed sessions invisible (or left them as create-time stubs) in
-      // /resume whenever any older session had closed cleanly. Scanned
-      // metadata wins per id — it is derived from the transcript itself.
-      const [indexed, scanned] = await Promise.all([
-        this.readIndex(),
-        // Wide scan bound: mergeIndexWithScan slices to `limit`, so killed
-        // sessions deep in history stay visible instead of being dropped by
-        // the user-facing page size before the union runs.
-        this.listFromDirectoryScan(SESSION_FILTER_POOL_LIMIT).catch(() => [] as SessionSummary[]),
-      ]);
-      return this.scrubSummaries(this.mergeIndexWithScan(indexed, scanned, limit));
-    } catch {
-      return [];
-    }
+    return executeListSessions(this.asListSessionsHost(), limit);
   }
 
   async listFiltered(criteria: {
@@ -626,35 +431,7 @@ export class DefaultSessionStore implements SessionStore {
     titleContains?: string | undefined;
     limit?: number | undefined;
   }): Promise<SessionSummary[]> {
-    const limit = criteria.limit ?? 100;
-    if (this.catalogClient) {
-      const records = await this.catalogClient.call('list_catalog', {
-        limit,
-        ...criteria,
-      });
-      return this.scrubSummaries(records);
-    }
-    try {
-      // Filter BEFORE slicing over a wide merged pool: capping the pool at
-      // `limit` would silently drop matches older than the window (the old
-      // index-only path filtered the entire index). The 10k bound covers any
-      // realistic history while bounding pathological directories.
-      const [indexed, scanned] = await Promise.all([
-        this.readIndex(),
-        // Same best-effort contract as list(): scan failures enrich nothing
-        // but must not blank the filtered result set.
-        this.listFromDirectoryScan(SESSION_FILTER_POOL_LIMIT).catch(() => [] as SessionSummary[]),
-      ]);
-      const pool = this.mergeIndexWithScan(indexed, scanned, SESSION_FILTER_POOL_LIMIT);
-      // Scrub BEFORE filtering: matchesSessionFilter compares raw titles,
-      // while callers display scrubbed ones — filtering first leaked secrets
-      // into match decisions (match-oracle) and desynced hit highlighting.
-      return this.scrubSummaries(pool)
-        .filter((s) => matchesSessionFilter(s, criteria))
-        .slice(0, limit);
-    } catch {
-      return [];
-    }
+    return executeListFilteredSessions(this.asListSessionsHost(), criteria);
   }
 
   private async appendToIndexStrict(summary: SessionSummary): Promise<void> {
@@ -794,236 +571,52 @@ export class DefaultSessionStore implements SessionStore {
    * cannot know about. Indexed-only ids fill gaps; duplicates within the
    * index resolve last-wins, matching append order.
    */
-  private mergeIndexWithScan(
-    indexed: readonly SessionSummary[],
-    scanned: readonly SessionSummary[],
-    limit: number,
-  ): SessionSummary[] {
-    const byId = new Map<string, SessionSummary>();
-    for (const row of indexed) byId.set(row.id, row);
-    // Scanned entries fill gaps and refresh known ids with live metadata;
-    // tombstone filtering happens ONCE against the merged map below so a
-    // stale close-time row cannot survive a concurrent deletion either
-    // (asymmetric filtering would leak it).
-    for (const row of scanned) byId.set(row.id, row);
-    return [...byId.values()]
-      .filter((row) => !this._indexDeletedIds.has(row.id))
-      .sort(compareSessionSummaries)
-      .slice(0, limit);
+  async rebuildIndex(): Promise<number> {
+    return executeRebuildIndex({
+      catalogClient: this.catalogClient,
+      indexFile: this.indexFile,
+      dir: this.dir,
+      readIndex: () => this.readIndex(),
+      collectSessionIds: (dir) => this.collectSessionIds(dir),
+      summaryFor: (id) => this.summaryFor(id),
+      getIndexDeletedIds: () => this._indexDeletedIds,
+      clearIndexCache: () => {
+        this._indexCache = null;
+      },
+    });
   }
 
-  /**
-   * Rebuild the index from what is actually on disk.
-   *
-   * @returns the number of healthy, live entries in the rebuilt index. Both
-   * backends report that same quantity: ids whose summary could not be derived
-   * are excluded (the catalog counts them as `damaged`; the local scan drops
-   * them when `summaryFor` rejects), and ids carrying a surviving tombstone are
-   * excluded (the catalog rebuilds only from live files; the local branch skips
-   * them explicitly). It is NOT a count of rows written to the file — tombstone
-   * rows are persisted but never counted.
-   */
-  async rebuildIndex(): Promise<number> {
-    if (this.catalogClient) {
-      const result = await this.catalogClient.call('rebuild_catalog', {}, { timeoutMs: 120_000 });
-      return result.indexed;
-    }
-    // Snapshot + write under the same lock so a concurrent writeTombstone
-    // or create-row cannot land between the read and the atomic replace
-    // (that hole resurrected deleted ids or dropped a just-created row).
-    return withFileLock(this.indexFile, async () => {
-      await this.readIndex();
-      const ids = await this.collectSessionIds(this.dir);
-      const summaries = await Promise.all(ids.map((id) => this.summaryFor(id).catch(() => null)));
-      const valid = summaries.filter((s): s is SessionSummary => s !== null);
-      const parts: string[] = [];
-      // Scanned-but-tombstoned ids: their files still exist so the scan finds
-      // them, but writing a summary row would undelete them. Counted only to
-      // subtract from the documented return value.
-      let tombstoned = 0;
-      for (const s of valid) {
-        if (this._indexDeletedIds.has(s.id)) {
-          tombstoned++;
-          continue;
-        }
-        parts.push(JSON.stringify(s));
-      }
-      for (const id of this._indexDeletedIds) {
-        parts.push(JSON.stringify({ action: 'delete', id }));
-      }
-      const lines = parts.join('\n') + '\n';
-      await atomicWrite(this.indexFile, lines, { mode: 0o600 });
-      this._indexCache = null;
-      return valid.length - tombstoned;
-    });
+  private asShardScanHost(): ShardScanHost {
+    return {
+      dir: this.dir,
+      shardManifestCache: this.shardManifestCache,
+      shardManifestPath: (shardKey) => this.shardManifestPath(shardKey),
+      readSummaryManifest: (id) => this.readSummaryManifest(id),
+      summaryHeaderFor: (ref) => this.summaryHeaderFor(ref),
+      summaryFor: (id) => this.summaryFor(id),
+    };
   }
 
   private async listFromDirectoryScan(limit: number): Promise<SessionSummary[]> {
-    const shardKeys = await this.collectShardKeys();
-    const shardEntries = await mapWithConcurrency(
-      shardKeys,
-      DefaultSessionStore.LIST_SCAN_CONCURRENCY,
-      async (shardKey) => await this.readOrBuildShardManifest(shardKey),
-    );
-
-    const out: DirectorySummaryCandidate[] = [];
-    for (const entry of shardEntries) {
-      for (const summary of entry.summaries) {
-        out.push({ summary, needsBackfill: false });
-      }
-    }
-    out.sort((a, b) => compareSessionSummaries(a.summary, b.summary));
-
-    const selected = out.slice(0, limit);
-    const summaries = await mapWithConcurrency(
-      selected,
-      Math.min(DefaultSessionStore.LIST_SCAN_CONCURRENCY, Math.max(1, limit)),
-      async (candidate): Promise<SessionSummary | null> => candidate.summary,
-    );
-    return summaries.filter((s): s is SessionSummary => s !== null);
-  }
-
-  private async collectShardKeys(): Promise<string[]> {
-    let entries: Dirent[];
-    try {
-      entries = await fsp.readdir(this.dir, { withFileTypes: true });
-    } catch {
-      return [''];
-    }
-
-    const shardKeys = [''];
-    for (const entry of entries) {
-      if (shouldSkipSessionDirectoryEntry(entry.name)) continue;
-      if (entry.isDirectory()) shardKeys.push(entry.name);
-    }
-    return shardKeys;
-  }
-
-  private async readOrBuildShardManifest(shardKey: string): Promise<ShardManifestEntry> {
-    const manifestPath = this.shardManifestPath(shardKey);
-    const cached = await this.freshShardManifestCacheEntry(shardKey, manifestPath);
-    if (cached) return cached;
-
-    return withFileLock(manifestPath, async () => {
-      const lockedCached = await this.freshShardManifestCacheEntry(shardKey, manifestPath);
-      if (lockedCached) return lockedCached;
-      const entry = await readOrBuildShardManifestEntry({
-        shardKey,
-        manifestPath,
-        concurrency: DefaultSessionStore.LIST_SCAN_CONCURRENCY,
-        collectSessionFilesInShard: (key) => this.collectSessionFilesInShard(key),
-        readSummaryManifest: (id) => this.readSummaryManifest(id),
-        summaryHeaderFor: (ref) => this.summaryHeaderFor(ref),
-        summaryFor: (id) => this.summaryFor(id),
-      });
-      try {
-        const stat = await fsp.stat(manifestPath);
-        this.shardManifestCache.set(shardKey, {
-          entry,
-          mtimeMs: stat.mtimeMs,
-          size: stat.size,
-          ino: stat.ino,
-        });
-      } catch {
-        this.shardManifestCache.delete(shardKey);
-      }
-      return entry;
-    });
-  }
-
-  private async freshShardManifestCacheEntry(
-    shardKey: string,
-    manifestPath: string,
-  ): Promise<ShardManifestEntry | undefined> {
-    const cached = this.shardManifestCache.get(shardKey);
-    if (!cached) return undefined;
-    try {
-      const stat = await fsp.stat(manifestPath);
-      if (stat.mtimeMs === cached.mtimeMs && stat.size === cached.size && stat.ino === cached.ino) {
-        return cached.entry;
-      }
-    } catch {
-      // Invalidate
-    }
-    this.shardManifestCache.delete(shardKey);
-    return undefined;
-  }
-
-  private async collectSessionFilesInShard(shardKey: string): Promise<SessionFileRef[]> {
-    const dir = shardKey ? path.join(this.dir, shardKey) : this.dir;
-    const entries = await this.collectSessionFiles(dir, shardKey);
-    return shardKey
-      ? entries.filter((entry) => entry.id.startsWith(`${shardKey}/`))
-      : entries.filter((entry) => !entry.id.includes('/'));
-  }
-
-  private async collectSessionFiles(
-    dir: string,
-    prefix = '',
-    depth = 0,
-  ): Promise<SessionFileRef[]> {
-    return collectSessionFilesFromDirectory(dir, prefix, depth);
+    return listFromDirectoryScan(this.asShardScanHost(), limit);
   }
 
   private async collectSessionIds(dir: string, prefix = '', depth = 0): Promise<string[]> {
     return collectSessionIdsFromDirectory(dir, prefix, depth);
   }
 
-  private async summaryFor(id: string): Promise<SessionSummary> {
-    const manifest = this.sessionPath(id, '.summary.json');
-    const t0 = Date.now();
-    let outcome: 'success' | 'failure' = 'success';
-    let errorMsg: string | undefined;
-    const fromManifest = await this.readSummaryManifest(id, t0);
-    if (fromManifest) return fromManifest;
+  private asSummaryManifestHost(): SummaryManifestHost {
+    return {
+      events: this.events,
+      sessionPath: (id, ext) => this.sessionPath(id, ext),
+      requireTranscript: (id) => this.requireTranscript(id),
+      summarize: (id, mtime) => this.summarize(id, mtime),
+      logWarn: (msg, ctx) => this.logWarn(msg, ctx),
+    };
+  }
 
-    try {
-      const located = await this.requireTranscript(id);
-      const full = located.filePath;
-      const stat = await fsp.stat(full);
-      const summary = this.decorateStorage(await this.summarize(id, stat.mtime.toISOString()), located);
-      await atomicWrite(manifest, JSON.stringify(summary), { mode: 0o600 }).catch((err) => {
-        const msg = toErrorMessage(err);
-        emitSessionStoreError(this.events, id, manifest, 'summary_fallback', msg, true);
-        this.logWarn('Session manifest write failed', {
-          event: 'session_store.manifest_write_failed',
-          sessionId: id,
-          message: msg,
-        });
-      });
-      outcome = 'failure';
-      errorMsg = 'summary fallback — manifest rebuilt';
-      emitSessionStoreRead(
-        this.events,
-        id,
-        manifest,
-        'summary',
-        outcome,
-        Date.now() - t0,
-        errorMsg,
-      );
-      return summary;
-    } catch (err) {
-      outcome = 'failure';
-      errorMsg = toErrorMessage(err);
-      emitSessionStoreRead(
-        this.events,
-        id,
-        manifest,
-        'summary',
-        outcome,
-        Date.now() - t0,
-        errorMsg,
-      );
-      return {
-        id,
-        title: '(damaged)',
-        startedAt: new Date().toISOString(),
-        model: 'unknown',
-        provider: 'unknown',
-        tokenTotal: 0,
-      };
-    }
+  private async summaryFor(id: string): Promise<SessionSummary> {
+    return executeSummaryFor(this.asSummaryManifestHost(), id);
   }
 
   private async readSummaryManifest(
@@ -1031,13 +624,7 @@ export class DefaultSessionStore implements SessionStore {
     startTime = Date.now(),
   ): Promise<SessionSummary | null> {
     const manifest = this.sessionPath(id, '.summary.json');
-    try {
-      const raw = await fsp.readFile(manifest, 'utf8');
-      emitSessionStoreRead(this.events, id, manifest, 'summary', 'success', Date.now() - startTime);
-      return JSON.parse(raw) as SessionSummary;
-    } catch {
-      return null;
-    }
+    return readSummaryManifestFile(manifest, this.events, id, startTime);
   }
 
   private async summaryHeaderFor(ref: SessionFileRef): Promise<SessionSummary | null> {
@@ -1149,268 +736,23 @@ export class DefaultSessionStore implements SessionStore {
 
   async archive(id: string): Promise<SessionArchiveResult> {
     const canonical = await this.resolveId(id);
-    return this.archiveCanonical(canonical);
+    return executeArchive(this.asArchiveHost(), canonical);
   }
 
   async rehydrate(id: string): Promise<SessionArchiveResult> {
     const canonical = await this.resolveId(id);
-    return this.ensureHot(canonical, true);
+    return executeRehydrate(this.asArchiveHost(), canonical);
   }
 
   async archiveIdle(policy?: Partial<SessionStoragePolicy>): Promise<SessionArchiveIdleResult> {
     if (this.archiveIdleInFlight) return this.archiveIdleInFlight;
-    this.archiveIdleInFlight = this.runArchiveIdle({
+    this.archiveIdleInFlight = executeArchiveIdle(this.asArchiveHost(), {
       ...this.storagePolicy,
       ...policy,
     }).finally(() => {
       this.archiveIdleInFlight = null;
     });
     return this.archiveIdleInFlight;
-  }
-
-  private async runArchiveIdle(policy: SessionStoragePolicy): Promise<SessionArchiveIdleResult> {
-    const files = await collectSessionFilesFromDirectory(this.dir);
-    const hot: Array<{ id: string; mtimeMs: number }> = [];
-    for (const ref of files) {
-      if (isColdSessionTranscriptFileName(ref.filePath)) continue;
-      try {
-        const stat = await fsp.stat(ref.filePath);
-        if (!stat.isFile() || stat.size <= 0) continue;
-        hot.push({ id: ref.id, mtimeMs: stat.mtimeMs });
-      } catch {
-        continue;
-      }
-    }
-    hot.sort((a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id));
-    const keep = new Set(hot.slice(0, policy.hotKeepSessions).map((row) => row.id));
-    const cutoff = Date.now() - policy.archiveAfterDays * 86_400_000;
-    const ignoreAge = policy.backfill === true || policy.archiveAfterDays <= 0;
-    const candidates = hot.filter((row) => {
-      if (keep.has(row.id)) return false;
-      if (!ignoreAge && row.mtimeMs >= cutoff) return false;
-      return true;
-    });
-    const fast = true;
-    const gzipOpts = { level: 1 as const, verify: false };
-    const mapped = await mapWithConcurrency(candidates, archiveConcurrency(), async (row) => {
-      try {
-        return await this.archiveCanonical(row.id, {
-          fast,
-          gzipOpts,
-          skipManifestInvalidate: true,
-        });
-      } catch (error) {
-        return {
-          id: row.id,
-          action: 'skipped' as const,
-          reason: toErrorMessage(error),
-        };
-      }
-    });
-    const touched = new Set(candidates.map((row) => row.id));
-    for (const id of touched) {
-      await this.invalidateShardManifestBySessionId(id).catch(() => undefined);
-    }
-    let archived = 0;
-    let failed = 0;
-    for (const result of mapped) {
-      if (result.action === 'archived') archived++;
-      else if (
-        result.action === 'skipped' &&
-        result.reason &&
-        result.reason !== 'already-cold' &&
-        !/in use|live/i.test(result.reason)
-      ) {
-        failed++;
-      }
-    }
-    return {
-      archived,
-      skipped: hot.length - archived,
-      failed,
-      results: mapped,
-    };
-  }
-
-  /** Sidecar only — never re-parse a multi-hundred-MB journal just to gzip it. */
-  private async ensureArchiveSummarySidecar(id: string): Promise<void> {
-    if (await this.readSummaryManifest(id)) return;
-    const located = await locateTranscript(this.dir, id);
-    if (!located) return;
-    const header = await readSessionSummaryHeader(
-      { id, filePath: located.filePath },
-      this.secretScrubber,
-    );
-    if (!header) return;
-    await atomicWrite(this.sessionPath(id, '.summary.json'), JSON.stringify(header), {
-      mode: 0o600,
-    }).catch(() => undefined);
-  }
-
-  private async archiveCanonical(
-    id: string,
-    opts: {
-      fast?: boolean | undefined;
-      gzipOpts?: { level?: number; verify?: boolean } | undefined;
-      skipManifestInvalidate?: boolean | undefined;
-    } = {},
-  ): Promise<SessionArchiveResult> {
-    if (this.isSessionInUse) {
-      const reason = await this.isSessionInUse(id);
-      if (reason) return { id, action: 'skipped', reason };
-    }
-    const located = await locateTranscript(this.dir, id);
-    if (!located) throw new Error(`Session not found: ${id}`);
-    if (located.state === 'cold') {
-      return {
-        id,
-        action: 'already-cold',
-        compressedBytes: located.size,
-      };
-    }
-    let lease: MaintenanceLease | undefined;
-    if (this.catalogClient) {
-      try {
-        lease = await this.catalogClient.call('acquire_maintenance', {
-          sessionId: id,
-          operation: 'archive',
-          holderId: this.maintenanceHolderId,
-          holderPid: process.pid,
-        });
-      } catch (error) {
-        return { id, action: 'skipped', reason: toErrorMessage(error) };
-      }
-    }
-    try {
-      if (opts.fast) {
-        await this.ensureArchiveSummarySidecar(id);
-      } else {
-        await this.summaryFor(id);
-      }
-      const result = await archiveSessionTranscript(
-        this.dir,
-        id,
-        this.storagePolicy.includeSubagents,
-        opts.gzipOpts,
-      );
-      const summary = await this.readSummaryManifest(id);
-      if (summary) {
-        // Sync the per-session manifest with the new tier. The shard-manifest
-        // builder trusts this file verbatim (readSummaryManifest has no
-        // freshness check) and scanned rows win mergeIndexWithScan, so a stale
-        // hot-era manifest here hides the archive state from list() even
-        // though _index.jsonl carries it.
-        const coldSummary: SessionSummary = {
-          ...summary,
-          storageState: 'cold',
-          codec: 'gzip',
-          uncompressedBytes: result.uncompressedBytes,
-          compressedBytes: result.compressedBytes,
-          archivedAt: new Date().toISOString(),
-        };
-        await atomicWrite(this.sessionPath(id, '.summary.json'), JSON.stringify(coldSummary), {
-          mode: 0o600,
-        }).catch(() => undefined);
-        if (!opts.skipManifestInvalidate) {
-          await this.invalidateShardManifestBySessionId(id).catch(() => undefined);
-        }
-        if (this.catalogClient) {
-          await this.catalogClient.call('upsert_summary', {
-            summary,
-            transcriptRelativePath: result.relativePath,
-            summaryRelativePath: `${id}.summary.json`,
-            storageState: 'cold',
-            codec: 'gzip',
-            uncompressedSize: result.uncompressedBytes,
-            compressedSize: result.compressedBytes,
-            contentSha256: result.sha256,
-            archivedAt: new Date().toISOString(),
-          });
-        } else {
-          await this.appendToIndex(coldSummary);
-        }
-      }
-      this.clearLoadCache(id);
-      return {
-        id,
-        action: 'archived',
-        uncompressedBytes: result.uncompressedBytes,
-        compressedBytes: result.compressedBytes,
-      };
-    } finally {
-      if (this.catalogClient && lease) {
-        await this.catalogClient.call('release_maintenance', { lease }).catch(() => undefined);
-      }
-    }
-  }
-
-  private async ensureHot(id: string, leased: boolean): Promise<SessionArchiveResult> {
-    const located = await locateTranscript(this.dir, id);
-    if (!located) throw new Error(`Session not found: ${id}`);
-    if (located.state === 'hot') {
-      await rehydrateSessionTranscript(this.dir, id, this.storagePolicy.includeSubagents).catch(
-        () => undefined,
-      );
-      return { id, action: 'already-hot', uncompressedBytes: located.size };
-    }
-    let lease: MaintenanceLease | undefined;
-    if (leased && this.catalogClient) {
-      lease = await this.catalogClient.call('acquire_maintenance', {
-        sessionId: id,
-        operation: 'rehydrate',
-        holderId: this.maintenanceHolderId,
-        holderPid: process.pid,
-      });
-    }
-    try {
-      const result = await rehydrateSessionTranscript(
-        this.dir,
-        id,
-        this.storagePolicy.includeSubagents,
-      );
-      const summary = await this.readSummaryManifest(id);
-      if (summary) {
-        // Mirror of the archive-side manifest sync: after cold -> hot the
-        // manifest must stop claiming the gzip tier — the shard-manifest
-        // builder reads this file verbatim and scanned rows win the
-        // list() merge, so a stale cold manifest would misreport a live
-        // session as archived.
-        const hotSummary: SessionSummary = {
-          ...summary,
-          storageState: 'hot',
-          uncompressedBytes: result.uncompressedBytes,
-        };
-        delete hotSummary.codec;
-        delete hotSummary.compressedBytes;
-        delete hotSummary.archivedAt;
-        await atomicWrite(this.sessionPath(id, '.summary.json'), JSON.stringify(hotSummary), {
-          mode: 0o600,
-        }).catch(() => undefined);
-        await this.invalidateShardManifestBySessionId(id).catch(() => undefined);
-        if (this.catalogClient) {
-          await this.catalogClient.call('upsert_summary', {
-            summary,
-            transcriptRelativePath: result.relativePath,
-            summaryRelativePath: `${id}.summary.json`,
-            storageState: 'hot',
-            uncompressedSize: result.uncompressedBytes,
-            compressedSize: 0,
-            archivedAt: null,
-          });
-        }
-      }
-      this.clearLoadCache(id);
-      return {
-        id,
-        action: 'rehydrated',
-        uncompressedBytes: result.uncompressedBytes,
-        compressedBytes: result.compressedBytes,
-      };
-    } finally {
-      if (this.catalogClient && lease) {
-        await this.catalogClient.call('release_maintenance', { lease }).catch(() => undefined);
-      }
-    }
   }
 
   private async summarize(id: string, mtime: string): Promise<SessionSummary> {

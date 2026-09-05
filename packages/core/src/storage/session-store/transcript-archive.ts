@@ -178,10 +178,7 @@ function hotCompanionPath(gzipPath: string): string {
   return gzipPath;
 }
 
-async function walkNamedFiles(
-  dir: string,
-  keep: (name: string) => boolean,
-): Promise<string[]> {
+async function walkNamedFiles(dir: string, keep: (name: string) => boolean): Promise<string[]> {
   let entries: import('node:fs').Dirent[];
   try {
     entries = await fsp.readdir(dir, { withFileTypes: true });

@@ -5,15 +5,18 @@ import {
   isColdSessionTranscriptFileName,
   stripSessionTranscriptExtension,
 } from '../../utils/session-scoped-path.js';
-import type { SessionFileRef } from './types.js';
 import { isSessionJsonlFileName, shouldSkipSessionDirectoryEntry } from './directory-scan.js';
+import type { SessionFileRef } from './types.js';
 
 function sessionIdForFile(prefix: string, name: string): string {
   const base = stripSessionTranscriptExtension(name);
   return prefix ? `${prefix}/${base}` : base;
 }
 
-function preferHotTranscript(existing: SessionFileRef | undefined, next: SessionFileRef): SessionFileRef {
+function preferHotTranscript(
+  existing: SessionFileRef | undefined,
+  next: SessionFileRef,
+): SessionFileRef {
   if (!existing) return next;
   if (!isColdSessionTranscriptFileName(existing.filePath)) return existing;
   if (!isColdSessionTranscriptFileName(next.filePath)) return next;

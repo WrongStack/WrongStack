@@ -27,7 +27,9 @@ export function coldTranscriptRelativePath(id: string): string {
 
 export function isCanonicalTranscriptRelativePath(id: string, relative: string): boolean {
   const normalized = relative.replaceAll('\\', '/');
-  return normalized === hotTranscriptRelativePath(id) || normalized === coldTranscriptRelativePath(id);
+  return (
+    normalized === hotTranscriptRelativePath(id) || normalized === coldTranscriptRelativePath(id)
+  );
 }
 
 function locationFromStat(

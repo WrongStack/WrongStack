@@ -1,6 +1,5 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from '../event-bus-port.js';
 import type { ContentBlock } from '../../types/blocks.js';
 import type { Message } from '../../types/messages.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
@@ -11,9 +10,11 @@ import type {
   SessionSummary,
 } from '../../types/session.js';
 import { toErrorMessage } from '../../utils/index.js';
+import type { EventBus } from '../event-bus-port.js';
 import { FileSessionWriter } from '../file-session-writer.js';
 import type { SessionCheckpointCas } from '../session-checkpoint-cas.js';
 import { sessionContentText } from '../session-helpers.js';
+import { extractInterruptedTools, SessionRecovery } from '../session-recovery.js';
 import {
   formatCrashRecoveryNotice,
   formatInterruptedToolNotice,
@@ -21,7 +22,6 @@ import {
   isResumeNoticeMessage,
   validateResumeFileObservations,
 } from '../session-resume-validation.js';
-import { extractInterruptedTools, SessionRecovery } from '../session-recovery.js';
 import { emitSessionStoreError, emitSessionStoreWrite } from './events.js';
 import { summarizeSessionEvents, summarizeSessionFile } from './summary-builder.js';
 
