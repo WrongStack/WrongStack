@@ -502,10 +502,6 @@
       "lines": 926,
       "relativeImports": 16
     },
-    "packages/webui/src/stores/viz-store.ts": {
-      "lines": 1110,
-      "relativeImports": 0
-    },
     "packages/webui/src/types/client-message.ts": {
       "lines": 869,
       "relativeImports": 7

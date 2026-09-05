@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T18:13:00.304Z",
+  "generatedAt": "2026-09-05T18:15:13.903Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3581,
+    "sourceFiles": 3584,
     "testFiles": 3071,
-    "sourceLines": 870738,
+    "sourceLines": 870688,
     "workspaceEdges": 127,
-    "moduleEdges": 11273,
+    "moduleEdges": 11280,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -809,7 +809,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 523,
+      "sourceFiles": 526,
       "testFiles": 356,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20234,11 +20234,6 @@
       "relativeImports": 16
     },
     {
-      "file": "packages/webui/src/stores/viz-store.ts",
-      "lines": 1110,
-      "relativeImports": 0
-    },
-    {
       "file": "packages/webui/src/types/client-message.ts",
       "lines": 869,
       "relativeImports": 7
@@ -20300,11 +20295,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/webui/src/stores/viz-store.ts",
-      "lines": 1110,
-      "relativeImports": 0
-    },
     {
       "file": "packages/core/src/coordination/autonomous-coordinator.ts",
       "lines": 1103,
@@ -20549,6 +20539,11 @@
       "file": "packages/sage/src/tools/memory-tools.ts",
       "lines": 981,
       "relativeImports": 4
+    },
+    {
+      "file": "packages/webui/src/components/KanbanTaskInspector.tsx",
+      "lines": 980,
+      "relativeImports": 16
     }
   ],
   "testOnlyExports": [
