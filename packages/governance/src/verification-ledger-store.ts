@@ -735,7 +735,18 @@ export class SqliteVerificationLedger {
           'Verification lease was already consumed.',
         );
       }
-      if (nowMs >= Date.parse(leaseRow.expires_at)) {
+      // Guard the STORED value, not just the clock: Date.parse returns NaN for
+      // an unreadable expiry and `nowMs >= NaN` is false, so an unguarded
+      // comparison fails OPEN and the lease never expires. #issue() applies
+      // this same guard to the same field before persisting it.
+      const leaseExpiresAtMs = Date.parse(leaseRow.expires_at);
+      if (!Number.isSafeInteger(leaseExpiresAtMs)) {
+        return this.#finishConsumeFailure(
+          'expired',
+          'Verification lease expiry is unreadable; the lease is not honored.',
+        );
+      }
+      if (nowMs >= leaseExpiresAtMs) {
         return this.#finishConsumeFailure('expired', 'Verification lease has expired.');
       }
       let run: VerificationRunContract;
@@ -802,8 +813,12 @@ export class SqliteVerificationLedger {
     const consumption = consumptionRow ? this.#consumptionFromRow(consumptionRow) : null;
     const nowMs = Date.parse(this.#now());
     if (!Number.isSafeInteger(nowMs)) throw new Error('Verification store clock is invalid.');
+    // Same fail-open hazard as #consume(): an unreadable stored expiry must
+    // read as expired, not as an indefinitely active lease.
+    const expiresAtMs = Date.parse(row.expires_at);
+    const expired = !Number.isSafeInteger(expiresAtMs) || nowMs >= expiresAtMs;
     return deepFreeze({
-      state: consumption ? 'consumed' : nowMs >= Date.parse(row.expires_at) ? 'expired' : 'active',
+      state: consumption ? 'consumed' : expired ? 'expired' : 'active',
       lease: this.#leaseDescriptor(row),
       consumption,
     });

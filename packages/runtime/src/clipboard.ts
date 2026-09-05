@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { buildChildEnv } from '@wrongstack/core/utils';
 
 export interface ClipboardImage {
@@ -191,6 +192,11 @@ function runCmd(cmd: string, args: string[]): Promise<string | null> {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
+    // Decode across chunk boundaries: a multi-byte UTF-8 sequence is routinely
+    // split between two pipe reads (the default read is 64KiB), and decoding
+    // each chunk in isolation would turn both halves into U+FFFD. StringDecoder
+    // holds the partial sequence until the next chunk completes it.
+    const decoder = new StringDecoder('utf8');
     let out = '';
     let outBytes = 0;
     let settled = false;
@@ -218,12 +224,14 @@ function runCmd(cmd: string, args: string[]): Promise<string | null> {
         finish(null);
         return;
       }
-      out += chunk.toString('utf8');
+      out += decoder.write(chunk);
     };
     child.stdout.on('data', onStdoutData);
     child.on('error', () => finish(null));
     child.on('exit', (code) => {
       if (killedByTimeout) return finish(null);
+      // Flush any trailing partial sequence the child never completed.
+      out += decoder.end();
       finish(code === 0 ? out : null);
     });
   });

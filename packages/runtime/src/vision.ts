@@ -111,7 +111,6 @@ export async function routeImagesForModel(
 
   const out: ContentBlock[] = [];
   let convertedImages = 0;
-  let lastErr: unknown;
   let adapterName: string | undefined;
   for (const block of blocks) {
     if (block.type !== 'image') {
@@ -119,14 +118,21 @@ export async function routeImagesForModel(
       continue;
     }
     let description: string | undefined;
+    // Scoped per image: an error raised while describing an earlier image must
+    // not be reported as the reason this one could not be described.
+    let lastErr: unknown;
     for (const adapter of adapters) {
       try {
-        description = await adapter.describe({
+        const candidate = await adapter.describe({
           image: block,
           prompt: opts.prompt,
           ctx: opts.ctx,
           signal: opts.signal,
         });
+        // A blank answer is a failure, not a result — fall through to the next
+        // adapter instead of aborting the whole route on it.
+        if (!candidate?.trim()) continue;
+        description = candidate;
         adapterName = adapter.name;
         break;
       } catch (err) {

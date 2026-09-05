@@ -76,78 +76,79 @@ export async function applyWrongStackPack(
   const registeredCommandNames: string[] = [];
   const registeredProviderTypes: string[] = [];
 
-  if (pack.tools) {
-    const tools = [...pack.tools];
-    host.tools.registerAllOrThrow(tools, owner);
-    for (const t of tools) registeredToolNames.push(t.name);
-  }
-  if (pack.providers) {
-    const providers = [...pack.providers];
-    host.providers.registerAll(providers);
-    for (const p of providers) registeredProviderTypes.push(p.type);
-  }
-  if (pack.slashCommands) {
-    const cmds = [...pack.slashCommands];
-    host.slashCommands.registerAll(cmds, owner);
-    // SlashCommandRegistry stores plugin-owned commands under `${owner}:${name}`;
-    // track the real lookup key so teardown can unregister them.
-    for (const c of cmds)
-      registeredCommandNames.push(owner === 'core' ? c.name : `${owner}:${c.name}`);
-  }
-  if (pack.extensions && host.extensions) {
-    for (const ext of pack.extensions) {
-      unregisterExtensions.push(host.extensions.register(ext));
+  // Roll back in reverse order: extensions first, then commands, then tools,
+  // then providers. Extensions are unregistered before tools/commands because
+  // extensions may depend on those capabilities; tearing them down first
+  // avoids dangling refs.
+  const rollback = (): void => {
+    for (let i = unregisterExtensions.length - 1; i >= 0; i--) {
+      unregisterExtensions[i]!();
     }
-  }
+    for (let i = registeredCommandNames.length - 1; i >= 0; i--) {
+      host.slashCommands.unregister(registeredCommandNames[i]!);
+    }
+    for (let i = registeredToolNames.length - 1; i >= 0; i--) {
+      host.tools.unregister(registeredToolNames[i]!);
+    }
+    for (let i = registeredProviderTypes.length - 1; i >= 0; i--) {
+      host.providers.unregister(registeredProviderTypes[i]!);
+    }
+  };
 
-  // If setup() throws after registration, roll back everything we registered above.
-  // This makes applyWrongStackPack() transactional from the caller's perspective —
-  // either the pack is fully applied or it is not.
-  if (pack.setup) {
-    if (!opts.api) {
-      throw new Error(`Pack "${pack.name}" defines setup() but no PluginAPI was provided`);
+  // Registration and setup() are one transaction: any failure — a tool-name
+  // conflict, a duplicate extension, or a throwing setup() — unwinds
+  // everything this call registered. Each item is registered individually and
+  // recorded immediately after it succeeds, because the bulk registry helpers
+  // are not atomic: `registerAllOrThrow` throws on the first conflict and
+  // leaves the tools before it registered. Recording names only after a bulk
+  // call returned would lose exactly those, leaving them mounted forever and
+  // making a retry of the same pack fail on its very first tool.
+  try {
+    if (pack.tools) {
+      for (const t of pack.tools) {
+        host.tools.register(t, owner);
+        registeredToolNames.push(t.name);
+      }
     }
-    try {
+    if (pack.providers) {
+      for (const p of pack.providers) {
+        host.providers.register(p);
+        registeredProviderTypes.push(p.type);
+      }
+    }
+    if (pack.slashCommands) {
+      for (const c of pack.slashCommands) {
+        host.slashCommands.register(c, owner);
+        // SlashCommandRegistry stores plugin-owned commands under
+        // `${owner}:${name}`; track the real lookup key so teardown can
+        // unregister them.
+        registeredCommandNames.push(owner === 'core' ? c.name : `${owner}:${c.name}`);
+      }
+    }
+    if (pack.extensions && host.extensions) {
+      for (const ext of pack.extensions) {
+        unregisterExtensions.push(host.extensions.register(ext));
+      }
+    }
+
+    if (pack.setup) {
+      if (!opts.api) {
+        throw new Error(`Pack "${pack.name}" defines setup() but no PluginAPI was provided`);
+      }
       await pack.setup(opts.api);
-    } catch (setupErr) {
-      // Roll back in reverse order: extensions first, then commands,
-      // then tools, then providers. Extensions are unregistered before
-      // tools/commands because extensions may depend on those capabilities;
-      // tearing them down first avoids dangling refs.
-      for (let i = unregisterExtensions.length - 1; i >= 0; i--) {
-        unregisterExtensions[i]!();
-      }
-      for (let i = registeredCommandNames.length - 1; i >= 0; i--) {
-        host.slashCommands.unregister(registeredCommandNames[i]!);
-      }
-      for (let i = registeredToolNames.length - 1; i >= 0; i--) {
-        host.tools.unregister(registeredToolNames[i]!);
-      }
-      for (let i = registeredProviderTypes.length - 1; i >= 0; i--) {
-        host.providers.unregister(registeredProviderTypes[i]!);
-      }
-      throw setupErr;
     }
+  } catch (mountErr) {
+    rollback();
+    throw mountErr;
   }
 
   return {
     pack,
     owner,
     async teardown() {
-      for (let i = unregisterExtensions.length - 1; i >= 0; i--) {
-        unregisterExtensions[i]!();
-      }
-      // Unregister commands, tools, and providers so the same pack can be
-      // re-loaded cleanly without name/type conflicts.
-      for (let i = registeredCommandNames.length - 1; i >= 0; i--) {
-        host.slashCommands.unregister(registeredCommandNames[i]!);
-      }
-      for (let i = registeredToolNames.length - 1; i >= 0; i--) {
-        host.tools.unregister(registeredToolNames[i]!);
-      }
-      for (let i = registeredProviderTypes.length - 1; i >= 0; i--) {
-        host.providers.unregister(registeredProviderTypes[i]!);
-      }
+      // Unregister extensions, commands, tools, and providers so the same pack
+      // can be re-loaded cleanly without name/type conflicts.
+      rollback();
       if (pack.teardown) {
         if (!opts.api) {
           throw new Error(`Pack "${pack.name}" defines teardown() but no PluginAPI was provided`);

@@ -191,13 +191,24 @@ class GovernanceStoreCorruptionError extends Error {
   }
 }
 
+/**
+ * Ordering is deliberately byte-wise rather than locale-aware, matching the
+ * sibling canonicalizer in verification-ledger-store.ts and the rule stated at
+ * capability-grant.ts:470-476. `localeCompare` is unusable here twice over: it
+ * depends on the host's default locale and ICU data, and it is not a total
+ * order over distinct strings — it returns 0 for pairs that differ, and a
+ * stable sort then leaves those in INSERTION order, which is precisely what
+ * canonicalization exists to erase. The output feeds commandHash() and
+ * observationHash(), which are persisted and used as the idempotent-replay
+ * discriminator, so the hash must be a pure function of the payload.
+ */
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value)
         .filter(([, entryValue]) => entryValue !== undefined)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
         .map(([key, entryValue]) => [key, canonicalize(entryValue)]),
     );
   }

@@ -61,6 +61,19 @@ export function assertUnixSocketPathWithinLimit(
 ): void {
   const check = checkUnixSocketPath(socketPath, platform);
   if (check.ok) return;
+  // A NUL byte (or a non-string) is not a length problem. `checkUnixSocketPath`
+  // reports byteLength 0 for it, so the length message below would read "is 0
+  // bytes, over the limit of 107 usable bytes" and send the operator off to
+  // shorten TMPDIR, which cannot help. Name the actual defect instead.
+  if (typeof socketPath !== 'string') {
+    throw new Error(`${service} IPC socket path must be a string, received ${typeof socketPath}.`);
+  }
+  if (socketPath.includes('\u0000')) {
+    throw new Error(
+      `${service} IPC socket path contains a NUL byte, which no platform accepts. ` +
+        `Check whatever derives this endpoint; the value is not a usable path.`,
+    );
+  }
   throw new Error(
     `${service} IPC socket path is ${check.byteLength} bytes, over the ${platform} ` +
       `sun_path limit of ${check.maxBytes} usable bytes: ${socketPath}. ` +

@@ -167,7 +167,18 @@ function attemptListen(
     // faults without racing this one.
     server.once('error', onError);
     server.once('listening', onListening);
-    server.listen(endpoint);
+    // `listen()` can also throw synchronously (ERR_SERVER_ALREADY_LISTEN on a
+    // reused server, an invalid endpoint). Inside a Promise executor that
+    // becomes a rejection, which would break this module's contract — callers
+    // switch on an outcome, they do not classify exceptions — and would leave
+    // both handlers attached. Resolve with the error like every other failure.
+    try {
+      server.listen(endpoint);
+    } catch (error) {
+      server.removeListener('error', onError);
+      server.removeListener('listening', onListening);
+      resolve(error as NodeJS.ErrnoException);
+    }
   });
 }
 

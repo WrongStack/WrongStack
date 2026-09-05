@@ -442,7 +442,31 @@ describe('persistence primitive edge branches', () => {
     ).rejects.toBe(boom);
   });
 
-  it('atomicReplaceWithWriter tolerates a failing handle close in the finally', async () => {
+  it('atomicReplaceWithWriter fails the write when handle close fails', async () => {
+    usePlatform('linux');
+    const primitives = createPersistencePrimitives();
+    const closeError = new Error('close failed');
+    const handle = {
+      write: vi.fn(async () => undefined),
+      close: vi.fn(async () => {
+        throw closeError;
+      }),
+    };
+    doubles.fs.open.mockResolvedValue(handle);
+    // close() is where a buffered write failure lands (ENOSPC/EIO/EDQUOT).
+    // Swallowing it would rename a truncated temp over a healthy target, so
+    // the write must fail and leave the original in place.
+    await expect(
+      primitives.atomicReplaceWithWriter('/tmp/rotated.log', async (h) => {
+        await h.write(Buffer.from('x'));
+        return 42;
+      }),
+    ).rejects.toBe(closeError);
+    expect(doubles.fs.rename).not.toHaveBeenCalled();
+    expect(doubles.fs.unlink).toHaveBeenCalledWith(expect.stringContaining('.tmp'));
+  });
+
+  it('atomicReplaceWithWriter still swallows a close failure when the writer threw', async () => {
     usePlatform('linux');
     const primitives = createPersistencePrimitives();
     const handle = {
@@ -452,11 +476,13 @@ describe('persistence primitive edge branches', () => {
       }),
     };
     doubles.fs.open.mockResolvedValue(handle);
+    const boom = new Error('writer exploded');
+    // The writer's error is the real cause and must not be masked by the
+    // best-effort close on the failure path.
     await expect(
-      primitives.atomicReplaceWithWriter('/tmp/rotated.log', async (h) => {
-        await h.write(Buffer.from('x'));
-        return 42;
+      primitives.atomicReplaceWithWriter('/tmp/rotated.log', async () => {
+        throw boom;
       }),
-    ).resolves.toBe(42);
+    ).rejects.toBe(boom);
   });
 });

@@ -6,8 +6,15 @@
  *
  * The fusion is a Reciprocal Rank Fusion (RRF)-style blend rather than a
  * raw cosine-blend, so it stays robust when one side returns nothing
- * (e.g. embedding provider unavailable). All inputs are optional:
- *   - `lexical` may be `[]` → fusion falls back to pure vector ranking.
+ * (e.g. embedding provider unavailable).
+ *
+ * IMPORTANT — the vector channel can only RE-RANK the lexical list, never
+ * extend it. A vector hit is kept only when its `metadata.sageId` resolves to
+ * a memory already present in `lexical`, because the caller's lexical list is
+ * the authoritative source of `Sage` objects and this function will not
+ * fabricate one (pinned by tests/sage-fusion.test.ts). Therefore:
+ *   - `lexical` may be `[]` → the result is `[]`, whatever the vector channel
+ *     found. This is NOT a fallback to pure vector ranking.
  *   - `vector` may be `[]` → fusion falls back to pure lexical ranking.
  *   - either may be `undefined` → fusion silently drops that channel.
  *
@@ -46,6 +53,10 @@ export interface SageFusionOptions {
   /**
    * Cosine threshold below which a vector-only hit is dropped (no lexical
    * counterpart to lift it). Default 0 — keep all, let RRF decide.
+   *
+   * Currently inert: vector-only hits cannot occur (see the module docstring),
+   * so nothing ever reaches this threshold. Kept for API stability and for
+   * the day the vector channel is allowed to extend the candidate set.
    */
   vectorOnlyThreshold?: number | undefined;
 }
@@ -58,7 +69,11 @@ export interface SageFusionHit {
   lexicalScore: number | null;
   /** 0..1, monotonically higher = better. */
   finalScore: number;
-  /** Where the candidate came from. */
+  /**
+   * Where the candidate came from. `'vector'` is currently unreachable —
+   * every candidate originates in the lexical list (see the module
+   * docstring); the vector channel only upgrades one to `'both'`.
+   */
   source: 'lexical' | 'vector' | 'both';
 }
 
@@ -118,14 +133,6 @@ export async function fuseWithVectorMemory(
   // fusion — they're standalone vector entries, not mirrored SAGE data.
   const sageById = new Map<string, Sage>();
   for (const memory of lexical) sageById.set(memory.id, memory);
-  for (const hit of vectorHits) {
-    const sageId = (hit.entry.metadata as Record<string, unknown> | undefined)?.['sageId'];
-    if (typeof sageId === 'string' && !sageById.has(sageId)) {
-      // We don't have the Sage object on hand — caller's lexical list
-      // is authoritative for Sage shape. Skip standalone hits.
-      continue;
-    }
-  }
 
   // Build the lexical-side rank list.
   const lexicalRanked: LexicalCandidate[] = lexical.map((memory, index) => ({
@@ -153,7 +160,7 @@ export async function fuseWithVectorMemory(
   const fused = new Map<string, SageFusionHit>();
   for (let i = 0; i < lexicalRanked.length; i++) {
     const c = lexicalRanked[i]!;
-    const rrf = weight * 0 + (1 - weight) * (1 / (k + i + 1));
+    const rrf = (1 - weight) * (1 / (k + i + 1));
     fused.set(c.memory.id, {
       memory: c.memory,
       vectorScore: null,

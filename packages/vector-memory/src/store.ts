@@ -48,6 +48,16 @@ import type {
   VectorStoreStats,
 } from './types.js';
 
+/** Default `search` result cap, per the tool schema and the public docs. */
+const DEFAULT_SEARCH_LIMIT = 10;
+
+/** Clamp a caller-supplied `limit` to a usable positive integer. */
+function normalizeLimit(limit: number | undefined): number {
+  if (limit === undefined || !Number.isFinite(limit)) return DEFAULT_SEARCH_LIMIT;
+  const floored = Math.floor(limit);
+  return floored < 1 ? DEFAULT_SEARCH_LIMIT : floored;
+}
+
 const DEFAULT_DIRECTORY = '.wrongstack/vector-memory';
 const DEFAULT_FILENAME = 'vector-memory.db';
 /** Default file-lock acquire timeout. 5s is enough for embedding + insert. */
@@ -363,7 +373,14 @@ export class VectorMemoryStore {
 
   async search(query: string, opts: VectorSearchOptions = {}): Promise<VectorSearchHit[]> {
     this.assertOpen();
-    const limit = opts.limit ?? 10;
+    // Normalize before use: the top-k loop below compares against `limit` and
+    // assigns `top.length = limit`. A NaN defeats every comparison (n >= NaN
+    // and n > NaN are both false), so neither the skip guard nor the
+    // truncation fires and the whole corpus is returned; a negative value
+    // makes that assignment throw RangeError. Both are reachable from the
+    // model-facing `vector_memory_search` tool, whose schema advertises
+    // `minimum: 1` but does not enforce it at runtime.
+    const limit = normalizeLimit(opts.limit);
     const threshold = opts.threshold ?? 0;
     const includeVectors = opts.includeVectors === true;
     if (typeof query !== 'string' || query.trim().length === 0) return [];

@@ -187,6 +187,16 @@ export function encodeVector(vec: Float32Array): Buffer {
 
 /** Decode a SQLite BLOB (Buffer or Uint8Array) back to a Float32Array. */
 export function decodeVector(buf: Buffer | Uint8Array): Float32Array {
+  // A blob whose length is not a whole number of float32s is corrupt. Without
+  // this guard `new Float32Array(3 / 4)` truncates to length 0 rather than
+  // throwing, so the corruption reaches cosineSimilarity as a scoreable
+  // empty vector instead of being reported. Same message as the guard in
+  // vector-codec.ts, which tests/vector-codec.test.ts already pins.
+  if (buf.byteLength % 4 !== 0) {
+    throw new Error(
+      `decodeVector: invalid vector byteLength ${buf.byteLength} (must be a multiple of 4)`,
+    );
+  }
   const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const copy = new Float32Array(buf.byteLength / 4);
   for (let i = 0; i < copy.length; i++) {

@@ -194,9 +194,19 @@ export function createPersistencePrimitives(
       let result: T;
       try {
         result = await write(handle);
-      } finally {
+      } catch (error) {
+        // `write` already failed; a close error here would only mask the real
+        // cause, so it stays swallowed on this path.
         await handle.close().catch(() => undefined);
+        throw error;
       }
+      // NOT swallowed on the success path: close() is where a buffered write
+      // failure surfaces (ENOSPC/EIO/EDQUOT — the kernel accepts write() and
+      // only reports at the last descriptor close). Discarding it would let
+      // commitTemp rename a truncated temp file over a healthy target, which
+      // is the one thing this primitive exists to prevent. commitTemp's fsync
+      // cannot stand in for it: that block is deliberately best-effort.
+      await handle.close();
       await commitTemp(tmp, targetPath, opts);
       return result;
     } catch (error) {
