@@ -514,10 +514,6 @@
       "lines": 869,
       "relativeImports": 7
     },
-    "packages/webui/src/types/server-message.ts": {
-      "lines": 1169,
-      "relativeImports": 10
-    },
     "packages/webui-server/src/server/backend-services.ts": {
       "lines": 950,
       "relativeImports": 13

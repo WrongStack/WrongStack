@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T17:50:12.577Z
+**Generated:** 2026-09-05T18:04:06.529Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,22 +8,20 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3572 |
-| Production source lines | 870408 |
+| Production source files | 3577 |
+| Production source lines | 870381 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11249 |
+| Relative module edges | 11260 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 9 |
+| Type-inclusive module cycles | 8 |
 | Tests without TypeScript test-project coverage | 0 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-- 2 unexcepted module cycle(s)
-- ARCH-CYCLE-TYPE-22: exception no longer matches an active cycle
-- ARCH-CYCLE-TYPE-29: exception no longer matches an active cycle
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -59,7 +57,7 @@
 | @wrongstack/tools | 190 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 357 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 514 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 519 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
 | @wrongstack/webui-server | 211 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
@@ -76,19 +74,17 @@ None.
 
 - packages/cli/src/fleet/host.ts ↔ packages/cli/src/fleet/routing.ts
 - packages/cli/src/subcommands/handlers/audit.ts ↔ packages/cli/src/subcommands/index.ts
-- packages/core/src/coordination/agents/agent-prompts.ts ↔ packages/core/src/coordination/agents/index.ts ↔ packages/core/src/coordination/agents/phase1-discovery.ts ↔ packages/core/src/coordination/agents/phase2-planning.ts ↔ packages/core/src/coordination/agents/phase3-build.ts ↔ packages/core/src/coordination/agents/phase3-wave1-platform.ts ↔ packages/core/src/coordination/agents/phase3-wave2-meta.ts ↔ packages/core/src/coordination/agents/phase4-verify.ts ↔ packages/core/src/coordination/agents/phase5-review.ts ↔ packages/core/src/coordination/agents/phase6-domain.ts ↔ packages/core/src/coordination/agents/phase7-knowledge.ts ↔ packages/core/src/coordination/agents/phase8-delivery.ts ↔ packages/core/src/coordination/agents/phase8-wave3-products.ts ↔ packages/core/src/coordination/agents/phase9-meta.ts ↔ packages/core/src/coordination/agents/phase9-wave4-platform-meta.ts ↔ packages/core/src/coordination/agents/project-agent-auto-optimize.ts ↔ packages/core/src/coordination/agents/project-agent-identity.ts ↔ packages/core/src/coordination/agents/project-agent-optimizer.ts ↔ packages/core/src/coordination/dispatcher.ts ↔ packages/core/src/coordination/fleet.ts ↔ packages/core/src/coordination/multi-agent-coordinator.ts ↔ packages/core/src/coordination/multi-agent-runner-helpers.ts ↔ packages/core/src/execution/parallel-eternal-engine.ts ↔ packages/core/src/types/autonomy.ts ↔ packages/core/src/types/index.ts
+- packages/core/src/coordination/agents/agent-prompts.ts ↔ packages/core/src/coordination/agents/index.ts ↔ packages/core/src/coordination/agents/phase1-discovery.ts ↔ packages/core/src/coordination/agents/phase2-planning.ts ↔ packages/core/src/coordination/agents/phase3-build.ts ↔ packages/core/src/coordination/agents/phase3-wave1-platform.ts ↔ packages/core/src/coordination/agents/phase3-wave2-meta.ts ↔ packages/core/src/coordination/agents/phase4-verify.ts ↔ packages/core/src/coordination/agents/phase5-review.ts ↔ packages/core/src/coordination/agents/phase6-domain.ts ↔ packages/core/src/coordination/agents/phase7-knowledge.ts ↔ packages/core/src/coordination/agents/phase8-delivery.ts ↔ packages/core/src/coordination/agents/phase8-wave3-products.ts ↔ packages/core/src/coordination/agents/phase9-meta.ts ↔ packages/core/src/coordination/agents/phase9-wave4-platform-meta.ts ↔ packages/core/src/coordination/agents/project-agent-auto-optimize.ts ↔ packages/core/src/coordination/agents/project-agent-identity.ts ↔ packages/core/src/coordination/agents/project-agent-optimizer.ts ↔ packages/core/src/coordination/dispatcher.ts ↔ packages/core/src/coordination/fleet.ts ↔ packages/core/src/coordination/multi-agent-coordinator.ts ↔ packages/core/src/execution/parallel-eternal-engine.ts ↔ packages/core/src/types/autonomy.ts ↔ packages/core/src/types/index.ts
 - packages/core/src/coordination/brain-telemetry.ts ↔ packages/core/src/coordination/brain.ts ↔ packages/core/src/kernel/events.ts ↔ packages/core/src/kernel/events/brain-events.ts ↔ packages/core/src/kernel/events/session-events.ts
 - packages/core/src/core/agent-internals.ts ↔ packages/core/src/core/agent-loop-context.ts ↔ packages/core/src/core/agent-loop-detector.ts ↔ packages/core/src/core/agent-loop.ts ↔ packages/core/src/core/agent-response.ts ↔ packages/core/src/core/agent-tools.ts ↔ packages/core/src/core/agent-types.ts ↔ packages/core/src/core/agent.ts ↔ packages/core/src/extension/extension-points.ts ↔ packages/core/src/extension/registry.ts ↔ packages/core/src/mailbox-attach.ts ↔ packages/core/src/session-note-attach.ts ↔ packages/core/src/types/plugin.ts
 - packages/core/src/hq/protocol/client.ts ↔ packages/core/src/hq/protocol/core.ts ↔ packages/core/src/hq/protocol/fleet.ts ↔ packages/core/src/hq/protocol/session.ts
 - packages/core/src/index.ts ↔ packages/core/src/plugins/prompts-plugin.ts ↔ packages/core/src/plugins/skills-plugin.ts ↔ packages/core/src/plugins/sync-plugin.ts ↔ packages/core/src/tools/mcp-control.ts ↔ packages/core/src/tools/mcp-use.ts
 - packages/core/src/types/blocks.ts ↔ packages/core/src/types/context.ts ↔ packages/core/src/types/conversation-state.ts ↔ packages/core/src/types/messages.ts ↔ packages/core/src/types/provider.ts ↔ packages/core/src/types/run-env.ts ↔ packages/core/src/types/session.ts ↔ packages/core/src/types/token-counter.ts ↔ packages/core/src/types/tool.ts
-- packages/tui/src/components/status-bar-chips.tsx ↔ packages/tui/src/components/status-bar-rails-async.tsx ↔ packages/tui/src/components/status-bar-rails-safety.tsx ↔ packages/tui/src/components/status-bar-rails.tsx ↔ packages/tui/src/components/status-bar.tsx ↔ packages/tui/src/components/status-line-registry.tsx
 
 ## Largest production files
 
 | Lines | File |
 |---:|---|
-| 1169 | `packages/webui/src/types/server-message.ts` |
 | 1128 | `packages/webui/src/components/ChatInput.tsx` |
 | 1110 | `packages/webui/src/stores/viz-store.ts` |
 | 1103 | `packages/core/src/coordination/autonomous-coordinator.ts` |
@@ -138,6 +134,7 @@ None.
 | 986 | `packages/tools/src/codebase-index/indexer.ts` |
 | 984 | `packages/tui/src/components/agents-monitor.tsx` |
 | 983 | `apps/desktop/src/main/runtime-manager.ts` |
+| 983 | `packages/tui/src/input-validation.ts` |
 
 ## Exports only tests reference
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T17:50:12.577Z",
+  "generatedAt": "2026-09-05T18:04:06.529Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,23 +12,19 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3572,
+    "sourceFiles": 3577,
     "testFiles": 3071,
-    "sourceLines": 870408,
+    "sourceLines": 870381,
     "workspaceEdges": 127,
-    "moduleEdges": 11249,
+    "moduleEdges": 11260,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 9,
+    "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 843
   },
-  "errors": [
-    "2 unexcepted module cycle(s)",
-    "ARCH-CYCLE-TYPE-22: exception no longer matches an active cycle",
-    "ARCH-CYCLE-TYPE-29: exception no longer matches an active cycle"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -813,7 +809,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 514,
+      "sourceFiles": 519,
       "testFiles": 356,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -1007,7 +1003,6 @@
           "packages/core/src/coordination/dispatcher.ts",
           "packages/core/src/coordination/fleet.ts",
           "packages/core/src/coordination/multi-agent-coordinator.ts",
-          "packages/core/src/coordination/multi-agent-runner-helpers.ts",
           "packages/core/src/execution/parallel-eternal-engine.ts",
           "packages/core/src/types/autonomy.ts",
           "packages/core/src/types/index.ts"
@@ -1074,17 +1069,6 @@
           "packages/core/src/types/token-counter.ts",
           "packages/core/src/types/tool.ts"
         ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/tui/src/components/status-bar-chips.tsx",
-          "packages/tui/src/components/status-bar-rails-async.tsx",
-          "packages/tui/src/components/status-bar-rails-safety.tsx",
-          "packages/tui/src/components/status-bar-rails.tsx",
-          "packages/tui/src/components/status-bar.tsx",
-          "packages/tui/src/components/status-line-registry.tsx"
-        ]
       }
     ],
     "matchedExceptions": [
@@ -1094,51 +1078,10 @@
       "ARCH-CYCLE-TYPE-12",
       "ARCH-CYCLE-TYPE-13",
       "ARCH-CYCLE-TYPE-14",
+      "ARCH-CYCLE-TYPE-29",
       "ARCH-CYCLE-TYPE-30"
     ],
-    "unexcepted": [
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/core/src/coordination/agents/agent-prompts.ts",
-          "packages/core/src/coordination/agents/index.ts",
-          "packages/core/src/coordination/agents/phase1-discovery.ts",
-          "packages/core/src/coordination/agents/phase2-planning.ts",
-          "packages/core/src/coordination/agents/phase3-build.ts",
-          "packages/core/src/coordination/agents/phase3-wave1-platform.ts",
-          "packages/core/src/coordination/agents/phase3-wave2-meta.ts",
-          "packages/core/src/coordination/agents/phase4-verify.ts",
-          "packages/core/src/coordination/agents/phase5-review.ts",
-          "packages/core/src/coordination/agents/phase6-domain.ts",
-          "packages/core/src/coordination/agents/phase7-knowledge.ts",
-          "packages/core/src/coordination/agents/phase8-delivery.ts",
-          "packages/core/src/coordination/agents/phase8-wave3-products.ts",
-          "packages/core/src/coordination/agents/phase9-meta.ts",
-          "packages/core/src/coordination/agents/phase9-wave4-platform-meta.ts",
-          "packages/core/src/coordination/agents/project-agent-auto-optimize.ts",
-          "packages/core/src/coordination/agents/project-agent-identity.ts",
-          "packages/core/src/coordination/agents/project-agent-optimizer.ts",
-          "packages/core/src/coordination/dispatcher.ts",
-          "packages/core/src/coordination/fleet.ts",
-          "packages/core/src/coordination/multi-agent-coordinator.ts",
-          "packages/core/src/coordination/multi-agent-runner-helpers.ts",
-          "packages/core/src/execution/parallel-eternal-engine.ts",
-          "packages/core/src/types/autonomy.ts",
-          "packages/core/src/types/index.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/tui/src/components/status-bar-chips.tsx",
-          "packages/tui/src/components/status-bar-rails-async.tsx",
-          "packages/tui/src/components/status-bar-rails-safety.tsx",
-          "packages/tui/src/components/status-bar-rails.tsx",
-          "packages/tui/src/components/status-bar.tsx",
-          "packages/tui/src/components/status-line-registry.tsx"
-        ]
-      }
-    ]
+    "unexcepted": []
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -20306,11 +20249,6 @@
       "relativeImports": 7
     },
     {
-      "file": "packages/webui/src/types/server-message.ts",
-      "lines": 1169,
-      "relativeImports": 10
-    },
-    {
       "file": "packages/webui-server/src/server/backend-services.ts",
       "lines": 950,
       "relativeImports": 13
@@ -20367,11 +20305,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/webui/src/types/server-message.ts",
-      "lines": 1169,
-      "relativeImports": 10
-    },
     {
       "file": "packages/webui/src/components/ChatInput.tsx",
       "lines": 1128,
@@ -20616,6 +20549,11 @@
       "file": "apps/desktop/src/main/runtime-manager.ts",
       "lines": 983,
       "relativeImports": 4
+    },
+    {
+      "file": "packages/tui/src/input-validation.ts",
+      "lines": 983,
+      "relativeImports": 13
     }
   ],
   "testOnlyExports": [

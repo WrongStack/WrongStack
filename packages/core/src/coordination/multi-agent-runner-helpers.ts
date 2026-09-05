@@ -6,7 +6,6 @@ import type {
   TaskSpec,
 } from '../types/multi-agent.js';
 import { classifySubagentError } from './coordinator/error-classifier.js';
-import { applyRosterBudget } from './fleet.js';
 import { executeSubagentWithTimeout } from './multi-agent-timeout.js';
 import type { SubagentBudget } from './subagent-budget.js';
 import { BudgetExceededError, SubagentBudget as BudgetImpl } from './subagent-budget.js';
@@ -26,6 +25,7 @@ export interface CreateSubagentBudgetParams {
     | undefined;
   subagentId: string;
   sessionOf: (id: string) => string;
+  applyRosterBudget: (cfg: SubagentConfig) => SubagentConfig;
 }
 
 export function createSubagentTaskBudget(params: CreateSubagentBudgetParams): SubagentBudget {

@@ -22,7 +22,7 @@ import {
   styleForCycleTick,
   waveColor,
 } from './animation-style.js';
-import type { BrainStatusChip, StatusBarProps } from './status-bar.js';
+import type { BrainStatusChip, StatusBarProps } from './status-bar-types.js';
 
 // ─── BrainChip ───────────────────────────────────────────────────────────────
 

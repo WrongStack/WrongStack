@@ -21,6 +21,7 @@ import {
   pushAndTrimCompletedResult,
 } from './multi-agent-completion-helpers.js';
 import { executeRemoveSubagent, executeStopSession } from './multi-agent-lifecycle-helpers.js';
+import { applyRosterBudget } from './fleet.js';
 import {
   createPendingAbortedResult,
   hasLiveSubagentInMap,
@@ -666,6 +667,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       defaultBudget: this.config.defaultBudget,
       subagentId,
       sessionOf: (id) => this.sessionOf(id),
+      applyRosterBudget,
     });
     subagent.activeBudget = budget;
 
