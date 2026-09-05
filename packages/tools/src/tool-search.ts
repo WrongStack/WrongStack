@@ -1,6 +1,6 @@
 import type { Tool } from '@wrongstack/core/types';
 
-interface ToolSearchInput {
+export interface ToolSearchInput {
   query?: string | undefined;
   tags?: string[] | undefined;
   permission?: 'auto' | 'confirm' | 'deny' | undefined;
@@ -8,7 +8,7 @@ interface ToolSearchInput {
   limit?: number | undefined;
 }
 
-interface ToolSearchOutput {
+export interface ToolSearchOutput {
   tools: {
     name: string;
     description: string;

@@ -8,14 +8,14 @@ import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
 import { resolveRealInsideRoot, safeResolveReal, sha256hex } from './_util.js';
 import { enqueueReindex } from './codebase-index/background-indexer.js';
 
-interface PatchInput {
+export interface PatchInput {
   patch: string;
   directory?: string | undefined;
   strip?: number | undefined;
   dry_run?: boolean | undefined;
 }
 
-interface PatchOutput {
+export interface PatchOutput {
   applied: number;
   rejected: number;
   files: string[];

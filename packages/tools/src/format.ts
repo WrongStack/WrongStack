@@ -4,14 +4,14 @@ import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
-interface FormatInput {
+export interface FormatInput {
   files?: string | string[] | undefined;
   fixer?: 'biome' | 'prettier' | 'auto' | undefined;
   check?: boolean | undefined;
   cwd?: string | undefined;
 }
 
-interface FormatOutput {
+export interface FormatOutput {
   fixer: string;
   /** Parsed from formatter output when confidently available; undefined otherwise. */
   files_checked: number | undefined;
@@ -21,7 +21,7 @@ interface FormatOutput {
   truncated: boolean;
 }
 
-type FormatContext = Parameters<Tool<FormatInput, FormatOutput>['execute']>[1];
+export type FormatContext = Parameters<Tool<FormatInput, FormatOutput>['execute']>[1];
 
 export const formatTool = {
   name: 'format',

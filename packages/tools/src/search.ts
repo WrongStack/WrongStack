@@ -4,27 +4,27 @@ import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { guardedFetch } from './_fetch-guard.js';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
-interface SearchResult {
+export interface SearchResult {
   title: string;
   url: string;
   snippet: string;
   score: number;
 }
 
-interface CacheEntry {
+export interface CacheEntry {
   results: SearchResult[];
   source: string;
   timestamp: number;
 }
 
-interface SearchInput {
+export interface SearchInput {
   query: string;
   num_results?: number | undefined;
   source?: 'duckduckgo' | 'google' | 'bing' | undefined;
   skip_cache?: boolean | undefined;
 }
 
-interface SearchOutput {
+export interface SearchOutput {
   query: string;
   results: { title: string; url: string; snippet: string }[];
   source: string;

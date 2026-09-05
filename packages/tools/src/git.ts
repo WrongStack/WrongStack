@@ -8,7 +8,7 @@ import { ToolValidationError } from '@wrongstack/core/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import { COMMAND_OUTPUT_MAX_BYTES, normalizeCommandOutput } from './_util.js';
 
-type GitSubcommand =
+export type GitSubcommand =
   | 'status'
   | 'log'
   | 'diff'
@@ -22,7 +22,7 @@ type GitSubcommand =
   | 'reset'
   | 'worktree';
 
-interface GitInput {
+export interface GitInput {
   command: GitSubcommand;
   files?: string | string[] | undefined;
   dry_run?: boolean | undefined;
@@ -44,7 +44,7 @@ interface GitInput {
   force?: boolean | undefined;
 }
 
-interface GitOutput {
+export interface GitOutput {
   command: GitSubcommand;
   stdout: string;
   stderr: string;
