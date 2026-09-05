@@ -29,6 +29,7 @@ import type {
   KanbanVerificationReport,
   KanbanVerificationSubtasks,
 } from '../types.js';
+import { commandAllowlistFromEnv } from './command-security.js';
 import { createDefaultRegistry } from './plugins/index.js';
 import { VerificationContext } from './verification-context.js';
 import { buildVerificationReport } from './verification-report.js';
@@ -133,6 +134,10 @@ async function runVerifyTaskCompletion(
     projectRoot,
     board,
     task,
+    // Operator-widened command allowlist, e.g.
+    // WRONGSTACK_KANBAN_VERIFIER_COMMANDS=+tsc enables typecheck command
+    // checks. The hard blocklist always keeps precedence.
+    commandAllowlist: commandAllowlistFromEnv(process.env),
   });
 
   // Phase 1: Recursively verify subtasks (when atomic)
@@ -294,7 +299,12 @@ async function verifySubtasks(
       report = childResult.report;
     } else {
       // Simple child — run checks
-      const ctx = new VerificationContext({ projectRoot, board, task: child });
+      const ctx = new VerificationContext({
+        projectRoot,
+        board,
+        task: child,
+        commandAllowlist: commandAllowlistFromEnv(process.env),
+      });
       const checkResults: KanbanVerificationCheckResult[] = [];
 
       if (child.successCriteria?.length) {

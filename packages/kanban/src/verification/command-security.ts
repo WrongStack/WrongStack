@@ -223,6 +223,29 @@ export function buildAllowlist(config: CommandAllowlistConfig | undefined): {
   return { allow, block };
 }
 
+/** Environment variable that widens the verifier's command allowlist. */
+export const VERIFIER_COMMANDS_ENV = 'WRONGSTACK_KANBAN_VERIFIER_COMMANDS';
+
+/**
+ * Parse the verifier command-allowlist env var: comma-separated base
+ * commands using buildAllowlist syntax (`+tsc` adds, `-tsc` removes).
+ * Returns undefined when unset or empty so the defaults stay untouched.
+ * Deliberately never grants `allowAll` — an inherited environment variable
+ * must not be able to disable the verifier's command gate entirely, and the
+ * hard blocklist (pnpm, node, shells, …) always keeps precedence.
+ */
+export function commandAllowlistFromEnv(
+  env: NodeJS.ProcessEnv | Record<string, string | undefined>,
+): CommandAllowlistConfig | undefined {
+  const raw = env[VERIFIER_COMMANDS_ENV];
+  if (raw === undefined || raw.trim() === '') return undefined;
+  const allowedCommands = raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  return allowedCommands.length === 0 ? undefined : { allowedCommands };
+}
+
 /** Parse a command string into an executable and argv without invoking a shell. */
 export function parseCommandArguments(command: string): string[] | string {
   const args: string[] = [];

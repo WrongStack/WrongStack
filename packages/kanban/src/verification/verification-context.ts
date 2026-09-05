@@ -386,9 +386,13 @@ export class VerificationContext {
     if (isConfiguredCommand) {
       const [executable, ...args] = tokens;
       if (!executable) return this.rejectedCommand(command, start, 'Empty command.');
-      const result = await this.runProcess(executable, args, {
+      const resolved = await this.resolveConfiguredExecutable(executable);
+      const result = await this.runProcess(resolved.command, [...resolved.args, ...args], {
         cwd: this.projectRoot,
-        timeoutMs: opts?.timeoutMs ?? 60_000,
+        // Configured commands are typically build/verify tools (tsc, linters)
+        // that legitimately take minutes — match the test runner's budget.
+        timeoutMs: opts?.timeoutMs ?? 180_000,
+        shell: resolved.shell,
       });
       return { ...result, command };
     }
@@ -619,7 +623,7 @@ export class VerificationContext {
   private async runProcess(
     command: string,
     args: string[],
-    opts: { cwd: string; timeoutMs: number },
+    opts: { cwd: string; timeoutMs: number; shell?: boolean | undefined },
   ): Promise<CommandResult> {
     const start = Date.now();
     const displayCommand = [command, ...args].join(' ');
@@ -627,7 +631,7 @@ export class VerificationContext {
       const detachedProcessGroup = process.platform !== 'win32';
       const child = spawn(command, args, {
         cwd: opts.cwd,
-        shell: false,
+        shell: opts.shell ?? false,
         windowsHide: true,
         detached: detachedProcessGroup,
       });
@@ -676,6 +680,70 @@ export class VerificationContext {
         );
       });
     });
+  }
+
+  /**
+   * Resolve an allowlisted base command to something spawn can execute.
+   * Bare tokens like `tsc` are not executables — they are npm bin shims.
+   * Resolution order mirrors detectTestRunner:
+   *   1. Local package bin (`<base>/package.json` `bin` entry): JS entries
+   *      run under this process's node (fully cross-platform, no shell);
+   *      native binaries spawn directly.
+   *   2. node_modules/.bin shims. POSIX shebang scripts spawn directly.
+   *      Windows `.cmd` shims require cmd.exe, so they spawn with
+   *      `shell: true`. Node emits DEP0190 for args+shell (args are
+   *      concatenated, not escaped) — acceptable here only because the
+   *      caller's command already passed the operator/expansion gates, so
+   *      no `& | ; < > ` $() %..% $VAR !..!` can reach the shell, and cmd
+   *      only ever receives the resolved absolute shim path plus gated
+   *      args.
+   *   3. The raw token (POSIX PATH lookup).
+   */
+  private async resolveConfiguredExecutable(
+    base: string,
+  ): Promise<{ command: string; args: string[]; shell?: boolean }> {
+    // 1. Local package bin, e.g. `vitest` → vitest/bin/vitest.js under node.
+    try {
+      const req = createRequire(path.join(this.projectRoot, 'package.json'));
+      const pkgJsonPath = req.resolve(`${base}/package.json`);
+      const pkg = JSON.parse(await fsp.readFile(pkgJsonPath, 'utf8')) as {
+        bin?: string | Record<string, string>;
+      };
+      const rel = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.[base];
+      if (rel && !path.isAbsolute(rel)) {
+        const packageDir = path.dirname(pkgJsonPath);
+        const entry = path.resolve(packageDir, rel);
+        if (!path.relative(packageDir, entry).startsWith('..')) {
+          await fsp.access(entry);
+          const isJsEntry = /\.(?:c|m)?js$/.test(entry);
+          return isJsEntry
+            ? { command: process.execPath, args: [entry] }
+            : { command: entry, args: [] };
+        }
+      }
+    } catch {
+      // Not a locally installed package — fall through to the .bin shims.
+    }
+    // 2. node_modules/.bin shims (.cmd first on Windows — the extensionless
+    // shims some package managers also create cannot spawn without a shell).
+    const binShim = path.join(this.projectRoot, 'node_modules', '.bin', base);
+    if (process.platform === 'win32') {
+      const cmdShim = `${binShim}.cmd`;
+      try {
+        await fsp.access(cmdShim);
+        return { command: cmdShim, args: [], shell: true };
+      } catch {
+        // fall through
+      }
+    }
+    try {
+      await fsp.access(binShim);
+      return { command: binShim, args: [] };
+    } catch {
+      // fall through
+    }
+    // 3. Raw token — resolved by PATH on POSIX.
+    return { command: base, args: [] };
   }
 
   private async detectTestRunner(cwd: string): Promise<TestRunnerInvocation | null> {

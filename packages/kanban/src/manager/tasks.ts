@@ -568,6 +568,15 @@ export async function updateCheckOnTask(
     if (!task || !check) return null;
     const before = { ...check };
     Object.assign(check, patch);
+    if (patch.type !== undefined && patch.type !== before.type) {
+      // A converted check is a new assertion: the persisted status and audit
+      // trail belong to the OLD type (e.g. a failed command run must not
+      // keep failing the manual check it never applied to). An explicit
+      // status patch still wins; otherwise the check resets to pending.
+      if (patch.status === undefined) check.status = 'pending';
+      check.checkedAt = undefined;
+      check.checkedBy = undefined;
+    }
     if (patch.status && patch.status !== 'pending' && !check.checkedAt) {
       check.checkedAt = nowIso();
     }
