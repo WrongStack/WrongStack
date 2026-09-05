@@ -4,9 +4,11 @@ import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
+export type FormatFixer = 'biome' | 'prettier' | 'auto';
+
 export interface FormatInput {
   files?: string | string[] | undefined;
-  fixer?: 'biome' | 'prettier' | 'auto' | undefined;
+  fixer?: FormatFixer | undefined;
   check?: boolean | undefined;
   cwd?: string | undefined;
 }
@@ -23,7 +25,7 @@ export interface FormatOutput {
 
 export type FormatContext = Parameters<Tool<FormatInput, FormatOutput>['execute']>[1];
 
-export const formatTool = {
+export const formatTool: Tool<FormatInput, FormatOutput> = {
   name: 'format',
   category: 'Code Quality',
   description:
@@ -77,7 +79,8 @@ export const formatTool = {
     let final: FormatOutput | undefined;
     const executeStream = formatTool.executeStream;
     if (!executeStream) throw new Error('formatTool: stream execution unavailable');
-    for await (const ev of executeStream(input, ctx, opts)) {
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    for await (const ev of executeStream(input, ctx, { signal })) {
       if (ev.type === 'final') final = ev.output;
     }
     if (!final) throw new Error('format: stream ended without final event');

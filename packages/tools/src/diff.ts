@@ -17,13 +17,15 @@ import { safeResolveReal } from './_util.js';
  */
 const MAX_FILE_DUMP_BYTES = 5 * 1024 * 1024;
 
+export type DiffMode = 'unified' | 'side-by-side' | 'stat';
+
 export interface DiffInput {
   path?: string | undefined;
   files?: string | string[] | undefined;
   a?: string | undefined;
   b?: string | undefined;
   staged?: boolean | undefined;
-  mode?: 'unified' | 'side-by-side' | 'stat' | undefined;
+  mode?: DiffMode | undefined;
   context?: number | undefined;
 }
 

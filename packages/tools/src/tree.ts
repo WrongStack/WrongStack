@@ -14,8 +14,9 @@ const DEFAULT_IGNORE: ReadonlySet<string> = new Set([
   '.gnupg',
   '.aws',
 ]);
-const DEFAULT_MAX_ENTRIES = 5_000;
-const MAX_TREE_OUTPUT_BYTES = 256 * 1024;
+export const DEFAULT_MAX_TREE_ENTRIES = 5_000;
+const DEFAULT_MAX_ENTRIES = DEFAULT_MAX_TREE_ENTRIES;
+export const MAX_TREE_OUTPUT_BYTES = 256 * 1024;
 
 export interface TreeInput {
   path?: string | undefined;
@@ -35,6 +36,8 @@ export interface TreeOutput {
   truncated: boolean;
   path: string;
 }
+
+export type TreeContext = Parameters<Tool<TreeInput, TreeOutput>['execute']>[1];
 
 export const treeTool: Tool<TreeInput, TreeOutput> = {
   name: 'tree',

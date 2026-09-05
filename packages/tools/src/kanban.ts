@@ -18,7 +18,7 @@ import type { KanbanToolInput, KanbanToolOutput } from './kanban-tool-types.js';
 export type KanbanContext = Parameters<Tool<KanbanToolInput, KanbanToolOutput>['execute']>[1];
 export type { KanbanAction, KanbanToolInput, KanbanToolOutput } from './kanban-tool-types.js';
 
-export const kanbanTool = {
+export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
   name: 'kanban',
   category: 'Project',
   description: KANBAN_TOOL_DESCRIPTION,

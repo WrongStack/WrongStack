@@ -35,7 +35,7 @@ export interface OutdatedOutput {
 
 export type OutdatedContext = Parameters<Tool<OutdatedInput, OutdatedOutput>['execute']>[1];
 
-export const outdatedTool = {
+export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
   name: 'outdated',
   category: 'Package Management',
   description:

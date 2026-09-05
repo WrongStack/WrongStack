@@ -15,11 +15,13 @@ import { codebaseIndexDirOverride } from './codebase-index/writer-helpers.js';
  */
 const ADVANCED_MODE_META_KEY = 'tools.read.advancedMode';
 
+export type ReadMode = 'content' | 'summary';
+
 export interface ReadInput {
   path: string;
   offset?: number | undefined;
   limit?: number | undefined;
-  mode?: 'content' | 'summary' | undefined;
+  mode?: ReadMode | undefined;
   /**
    * When true, include the codebase-index symbol list for this file
    * as a structured `symbols` field in the result. Overrides the

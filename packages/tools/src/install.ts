@@ -9,9 +9,11 @@ import { spawnStream } from './_spawn-stream.js';
 import { detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyPackageOperation } from './languages/legacy-bridge.js';
 
+export type InstallSaveType = 'dependency' | 'dev' | 'optional';
+
 export interface InstallInput {
   packages?: string | string[] | undefined;
-  save?: 'dependency' | 'dev' | 'optional' | undefined;
+  save?: InstallSaveType | undefined;
   cwd?: string | undefined;
   dry_run?: boolean | undefined;
   global?: boolean | undefined;
@@ -34,7 +36,7 @@ export interface InstallOutput {
 
 export type InstallContext = Parameters<Tool<InstallInput, InstallOutput>['execute']>[1];
 
-export const installTool = {
+export const installTool: Tool<InstallInput, InstallOutput> = {
   name: 'install',
   category: 'Package Management',
   description:
@@ -95,7 +97,8 @@ export const installTool = {
     let final: InstallOutput | undefined;
     const executeStream = installTool.executeStream;
     if (!executeStream) throw new Error('installTool: stream execution unavailable');
-    for await (const ev of executeStream(input, ctx, opts)) {
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    for await (const ev of executeStream(input, ctx, { signal })) {
       if (ev.type === 'final') final = ev.output;
     }
     if (!final) throw new Error('install: stream ended without final event');

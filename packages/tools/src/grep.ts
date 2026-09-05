@@ -14,11 +14,15 @@ import { capSubject, compileUserRegex } from './_regex.js';
 import { isBinaryBuffer, safeResolveReal } from './_util.js';
 import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
 
+export type GrepOutputMode = 'content' | 'files_with_matches' | 'count';
+export type GrepEngine = 'rg' | 'native';
+export type GrepBackend = GrepEngine;
+
 export interface GrepInput {
   pattern: string;
   path?: string | undefined;
   glob?: string | undefined;
-  output_mode?: 'content' | 'files_with_matches' | 'count' | undefined;
+  output_mode?: GrepOutputMode | undefined;
   context_lines?: number | undefined;
   case_insensitive?: boolean | undefined;
   limit?: number | undefined;
@@ -28,7 +32,7 @@ export interface GrepOutput {
   matches: string[];
   count: number;
   truncated: boolean;
-  used: 'rg' | 'native';
+  used: GrepEngine;
 }
 
 /** Set-backed for O(1) `has()` in the per-entry native walk loop. */

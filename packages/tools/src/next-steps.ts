@@ -37,6 +37,10 @@ export interface ParsedNextStep {
   auto?: boolean;
 }
 
+export interface ParseNextStepsOptions {
+  requireHeading?: boolean;
+}
+
 export interface ParseNextStepsResult {
   /** Matched steps with their original index and stripped text. */
   steps: ParsedNextStep[];
@@ -363,3 +367,6 @@ export function stripNextStepsBlock(text: string): string {
   result += text.slice(cursor);
   return result.replace(/\n{3,}/g, '\n\n').trim();
 }
+
+export const stripNextSteps = stripNextStepsBlock;
+

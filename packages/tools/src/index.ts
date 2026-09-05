@@ -20,6 +20,16 @@ export {
   type AuditVulnerability,
 } from './audit.js';
 export {
+  type AutoProceedLoopGuard,
+  createAutoProceedLoopGuard,
+  GROUNDED_NO_PROGRESS_STEER,
+  type GroundedRepetitionAction,
+  type GroundedRepetitionSignal,
+  type LoopGuardOptions,
+  normalizeForRepetition,
+  type RepetitionSignal,
+} from './auto-proceed-loop-guard.js';
+export {
   bashTool,
   type BashInput,
   type BashOutput,
@@ -163,6 +173,7 @@ export {
 export {
   diffTool,
   type DiffInput,
+  type DiffMode,
   type DiffOutput,
 } from './diff.js';
 export {
@@ -206,12 +217,14 @@ export {
 } from './exec-kill-guard.js';
 export {
   fetchTool,
+  type FetchFormat,
   type FetchInput,
   type FetchOutput,
 } from './fetch.js';
 export {
   formatTool,
   type FormatContext,
+  type FormatFixer,
   type FormatInput,
   type FormatOutput,
 } from './format.js';
@@ -228,14 +241,18 @@ export {
 } from './glob.js';
 export {
   grepTool,
+  type GrepBackend,
+  type GrepEngine,
   type GrepInput,
   type GrepOutput,
+  type GrepOutputMode,
 } from './grep.js';
 export {
   installTool,
   type InstallContext,
   type InstallInput,
   type InstallOutput,
+  type InstallSaveType,
 } from './install.js';
 export {
   jsonTool,
@@ -246,6 +263,7 @@ export {
 export {
   kanbanTool,
   type KanbanAction,
+  type KanbanContext,
   type KanbanToolInput,
   type KanbanToolOutput,
 } from './kanban.js';
@@ -257,6 +275,8 @@ export {
 export * from './languages/index.js';
 export {
   lintTool,
+  type LintContext,
+  type LinterName,
   type LintInput,
   type LintOutput,
 } from './lint.js';
@@ -290,6 +310,13 @@ export {
   type NextStepsInput,
   type NextStepsOutput,
 } from './next-steps-tool.js';
+export {
+  type ParseNextStepsOptions,
+  type ParseNextStepsResult,
+  type ParsedNextStep,
+  parseNextSteps,
+  stripNextSteps,
+} from './next-steps.js';
 export {
   outdatedTool,
   type OutdatedContext,
@@ -341,10 +368,17 @@ export {
   type InstanceListOptions,
   listInstances,
 } from './ps-slash.js';
-export { pwshTool, PWSH_TOOL_DESCRIPTION, type PwshInput, type PwshOutput } from './pwsh.js';
+export {
+  pwshTool,
+  PWSH_TOOL_DESCRIPTION,
+  PWSH_TOOL_USAGE_HINT,
+  type PwshInput,
+  type PwshOutput,
+} from './pwsh.js';
 export {
   readTool,
   type ReadInput,
+  type ReadMode,
   type ReadOutput,
   type SymbolEntry,
 } from './read.js';
@@ -411,8 +445,10 @@ export {
 } from './task.js';
 export {
   testTool,
+  type TestContext,
   type TestInput,
   type TestOutput,
+  type TestRunnerName,
 } from './test.js';
 export {
   todoTool,
@@ -435,6 +471,19 @@ export {
   type ToolIconId,
 } from './tool-icon-map.js';
 export {
+  computeLineDiff,
+  DIFF_MAX_LINES,
+  diffFromToolInput,
+  type DiffRow,
+  type DiffRowKind,
+  type ToolDiff,
+} from './tool-diff.js';
+export {
+  FALLBACK_HEAD_FIELDS,
+  SUMMARIZE_TOOL_INPUT_BROWSER_SRC,
+  summarizeToolInput,
+} from './tool-summary.js';
+export {
   toolSearchTool,
   type ToolSearchInput,
   type ToolSearchOutput,
@@ -450,12 +499,16 @@ export {
   type ToolUseOutput,
 } from './tool-use.js';
 export {
+  DEFAULT_MAX_TREE_ENTRIES,
+  MAX_TREE_OUTPUT_BYTES,
   treeTool,
+  type TreeContext,
   type TreeInput,
   type TreeOutput,
 } from './tree.js';
 export {
   typecheckTool,
+  type TypecheckContext,
   type TypecheckInput,
   type TypecheckOutput,
 } from './typecheck.js';
@@ -464,3 +517,18 @@ export {
   type WriteInput,
   type WriteOutput,
 } from './write.js';
+export {
+  checkSyntax,
+  type SyntaxCheckResult,
+} from './_syntax-check.js';
+export {
+  mapWithConcurrency,
+} from './_concurrency.js';
+export {
+  capSubject,
+  compileUserRegex,
+  MAX_SUBJECT_LEN,
+  type CompileFail,
+  type CompileResult,
+} from './_regex.js';
+

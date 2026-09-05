@@ -5,9 +5,11 @@ import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
+export type TestRunnerName = 'vitest' | 'jest' | 'mocha' | 'auto';
+
 export interface TestInput {
   files?: string | string[] | undefined;
-  runner?: 'vitest' | 'jest' | 'mocha' | 'auto' | undefined;
+  runner?: TestRunnerName | undefined;
   watch?: boolean | undefined;
   coverage?: boolean | undefined;
   cwd?: string | undefined;
@@ -26,6 +28,8 @@ export interface TestOutput {
   output: string;
   truncated: boolean;
 }
+
+export type TestContext = Parameters<Tool<TestInput, TestOutput>['execute']>[1];
 
 export const testTool: Tool<TestInput, TestOutput> = {
   name: 'test',

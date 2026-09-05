@@ -4,10 +4,12 @@ import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
+export type LinterName = 'biome' | 'eslint' | 'tslint' | 'auto';
+
 export interface LintInput {
   files?: string | string[] | undefined;
   fix?: boolean | undefined;
-  linter?: 'biome' | 'eslint' | 'tslint' | 'auto' | undefined;
+  linter?: LinterName | undefined;
   cwd?: string | undefined;
 }
 
@@ -20,6 +22,8 @@ export interface LintOutput {
   fix_applied: boolean;
   truncated: boolean;
 }
+
+export type LintContext = Parameters<Tool<LintInput, LintOutput>['execute']>[1];
 
 export const lintTool: Tool<LintInput, LintOutput> = {
   name: 'lint',

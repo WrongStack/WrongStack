@@ -21,6 +21,8 @@ export interface TypecheckOutput {
   truncated: boolean;
 }
 
+export type TypecheckContext = Parameters<Tool<TypecheckInput, TypecheckOutput>['execute']>[1];
+
 export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
   name: 'typecheck',
   category: 'Code Quality',
