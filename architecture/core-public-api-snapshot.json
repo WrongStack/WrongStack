@@ -1435,7 +1435,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 11,
-      "sourceLines": 2466
+      "sourceLines": 2461
     },
     {
       "directory": "notifications",

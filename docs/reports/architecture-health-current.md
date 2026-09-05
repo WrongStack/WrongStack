@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T10:51:04.731Z
+**Generated:** 2026-09-05T15:54:54.127Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3536 |
-| Production source lines | 866677 |
-| Test files | 3060 |
+| Production source lines | 867568 |
+| Test files | 3063 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11069 |
+| Relative module edges | 11080 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -34,7 +34,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/core | 798 | 707 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 18 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 28 | @wrongstack/persistence |
-| @wrongstack/kanban | 87 | 65 | @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 5 | 5 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 5 | 7 | @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 37 | 33 | @wrongstack/core |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/security-scanner | 18 | 26 | @wrongstack/core |
 | @wrongstack/simpleui | 93 | 63 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
-| @wrongstack/telegram | 27 | 30 | @wrongstack/core |
+| @wrongstack/telegram | 27 | 31 | @wrongstack/core |
 | @wrongstack/tools | 191 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 354 | 330 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
@@ -139,7 +139,7 @@ None.
 
 ## Exports only tests reference
 
-- 841 runtime exports are referenced by tests and by no other production file.
+- 839 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

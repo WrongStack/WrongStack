@@ -994,9 +994,6 @@
       "resolvePath",
       "truncateHeadTail"
     ],
-    "packages/tools/src/auto-proceed-loop-guard.ts": [
-      "normalizeForRepetition"
-    ],
     "packages/tools/src/bash-kill-guard.ts": [
       "parseKillCommand"
     ],
@@ -1078,9 +1075,6 @@
     "packages/tools/src/tool-diff.ts": [
       "DIFF_LINE_SAFETY_CAP",
       "TOOL_DIFF_BROWSER_SRC"
-    ],
-    "packages/tools/src/tool-summary.ts": [
-      "SUMMARIZE_TOOL_INPUT_BROWSER_SRC"
     ],
     "packages/tui/src/app-ui-state.ts": [
       "effectiveShowSidebar",

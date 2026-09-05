@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T10:51:04.731Z",
+  "generatedAt": "2026-09-05T15:54:54.127Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3536,
-    "testFiles": 3060,
-    "sourceLines": 866677,
+    "testFiles": 3063,
+    "sourceLines": 867568,
     "workspaceEdges": 127,
-    "moduleEdges": 11069,
+    "moduleEdges": 11080,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 841
+    "testOnlyExports": 839
   },
   "errors": [],
   "packageCycles": [],
@@ -281,7 +281,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 87,
-      "testFiles": 65,
+      "testFiles": 67,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -295,7 +295,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 65
+          "testFiles": 67
         }
       ]
     },
@@ -711,7 +711,7 @@
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
       "sourceFiles": 27,
-      "testFiles": 30,
+      "testFiles": 31,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -724,7 +724,7 @@
         {
           "path": "packages/telegram/tsconfig.test.json",
           "error": null,
-          "testFiles": 30
+          "testFiles": 31
         }
       ]
     },
@@ -8950,6 +8950,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/check-type-change-reset.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/client-domain.test.ts",
         "projects": [
           "root-node"
@@ -9209,6 +9215,12 @@
       },
       {
         "file": "packages/kanban/tests/verification-context.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/verification/command-allowlist-env.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12467,6 +12479,12 @@
       },
       {
         "file": "packages/techstack/tests/store/sqlite.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/integration/inbound-allowlist-hotreload.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22503,10 +22521,6 @@
       "name": "truncateHeadTail"
     },
     {
-      "file": "packages/tools/src/auto-proceed-loop-guard.ts",
-      "name": "normalizeForRepetition"
-    },
-    {
       "file": "packages/tools/src/bash-kill-guard.ts",
       "name": "parseKillCommand"
     },
@@ -22641,10 +22655,6 @@
     {
       "file": "packages/tools/src/tool-diff.ts",
       "name": "TOOL_DIFF_BROWSER_SRC"
-    },
-    {
-      "file": "packages/tools/src/tool-summary.ts",
-      "name": "SUMMARIZE_TOOL_INPUT_BROWSER_SRC"
     },
     {
       "file": "packages/tui/src/app-ui-state.ts",
