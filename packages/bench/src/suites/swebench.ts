@@ -128,7 +128,7 @@ export function createSwebenchSuite(opts: SwebenchOptions = {}): BenchSuite {
       return tasks;
     },
     subsetId(tasks) {
-      const ids = tasks.map((t) => t.id).sort((a, b) => a.localeCompare(b));
+      const ids = tasks.map((t) => t.id).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
       return `swebench:${createHash('sha256').update(ids.join('\n')).digest('hex').slice(0, 12)}`;
     },
   };

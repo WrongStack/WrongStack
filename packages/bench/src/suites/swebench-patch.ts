@@ -95,7 +95,13 @@ export function filterPatchExcludingPaths(patch: string, exclude: Set<string>): 
 }
 
 /**
- * Drop each `diff --git` section for which `shouldDrop(aPath, bPath)` is true.
+ * Drop each per-file section for which `shouldDrop(aPath, bPath)` is true.
+ *
+ * Sections are delimited by `diff --git` headers (git's format) or, when the
+ * patch has none, by `---`/`+++` unified-diff headers (`diff -u`'s format) —
+ * matching the dual-format support in {@link extractPatchPaths}. A path cannot
+ * begin with a literal `--- `/`+++ ` content line, so those are unambiguous
+ * section starts in the absence of `diff --git` headers.
  */
 export function filterPatchSections(
   patch: string,
@@ -104,13 +110,58 @@ export function filterPatchSections(
   const lines = patch.split('\n');
   const out: string[] = [];
   let skipping = false;
+  let gitFormat = false;
+  // In diff -u mode a section's `--- old`/`+++ new` headers pair up; the drop
+  // decision depends on BOTH paths, so buffer the header lines and flush them
+  // only once the whole section's skip state is known (at the first content
+  // line, the next section start, or EOF). This keeps a dropped section from
+  // leaking a lone `---`/`+++` header.
+  let pending: string[] = [];
+  let pendingSkipping = false;
+  // Flush a buffered diff -u section. Returns true when a section was finalized
+  // (so the caller can then lock `skipping` from `pendingSkipping` exactly once).
+  const flushPending = (): boolean => {
+    if (pending.length === 0) return false;
+    if (!pendingSkipping) out.push(...pending);
+    pending = [];
+    return true;
+  };
   for (const line of lines) {
     const header = /^diff --git a\/(.+?) b\/(.+)$/.exec(line);
     if (header) {
+      flushPending();
+      gitFormat = true;
       skipping = shouldDrop(header[1] as string, header[2] as string);
+    } else if (!gitFormat) {
+      const minus = /^--- (?:a\/)?(.+)$/.exec(line);
+      const plus = /^\+\+\+ (?:b\/)?(.+)$/.exec(line);
+      if (minus) {
+        flushPending();
+        if (minus[1] !== '/dev/null') {
+          pendingSkipping = shouldDrop(stripTimestamp(minus[1] as string), '');
+        } else {
+          pendingSkipping = false;
+        }
+        pending.push(line);
+        continue;
+      }
+      if (plus) {
+        if (plus[1] !== '/dev/null') {
+          pendingSkipping = pendingSkipping || shouldDrop(stripTimestamp(plus[1] as string), '');
+        }
+        pending.push(line);
+        continue;
+      }
+      // Non-header content line: finalize the pending section's headers, then
+      // lock skipping for every remaining content line of this section.
+      if (flushPending()) {
+        skipping = pendingSkipping;
+        pendingSkipping = false;
+      }
     }
     if (!skipping) out.push(line);
   }
+  flushPending();
   return out.join('\n');
 }
 

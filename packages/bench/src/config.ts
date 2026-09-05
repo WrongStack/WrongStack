@@ -109,8 +109,23 @@ function parseCellSpec(spec: string, index: number): ModelCell {
   let label: string | undefined;
   let rest = spec;
   if (eq !== -1) {
+    // A lone `=`, an empty label, or an extra `=` on the right (e.g.
+    // `label==provider/model`) is ambiguous — reject it now rather than
+    // silently folding the junk into the provider id and failing only later
+    // at model/auth resolution.
+    if (eq === 0) {
+      throw new Error(
+        `cells[${index}] must be provider/model or label=provider/model (got ${JSON.stringify(spec)})`,
+      );
+    }
+    const remainder = spec.slice(eq + 1);
+    if (remainder.includes('=')) {
+      throw new Error(
+        `cells[${index}] must use a single "=" between label and provider/model (got ${JSON.stringify(spec)})`,
+      );
+    }
     label = spec.slice(0, eq).trim();
-    rest = spec.slice(eq + 1).trim();
+    rest = remainder.trim();
   }
   const slash = rest.indexOf('/');
   if (slash <= 0 || slash === rest.length - 1) {

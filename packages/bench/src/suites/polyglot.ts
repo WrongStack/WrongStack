@@ -87,7 +87,7 @@ export function createPolyglotSuite(opts: {
           slugs = (await fs.readdir(practiceDir, { withFileTypes: true }))
             .filter((d) => d.isDirectory())
             .map((d) => d.name)
-            .sort((a, b) => a.localeCompare(b));
+            .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
         } catch {
           continue; // language not present in this checkout
         }
@@ -102,7 +102,7 @@ export function createPolyglotSuite(opts: {
     },
     subsetId(tasks) {
       // Order-independent digest of the exact task ids in this run.
-      const ids = tasks.map((t) => t.id).sort((a, b) => a.localeCompare(b));
+      const ids = tasks.map((t) => t.id).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
       return `polyglot:${createHash('sha256').update(ids.join('\n')).digest('hex').slice(0, 12)}`;
     },
   };

@@ -110,7 +110,13 @@ function normalizeForHash(value: unknown): unknown {
 
   const out: Record<string, unknown> = {};
   const record = value as Record<string, unknown>;
-  for (const key of Object.keys(record).sort((a, b) => a.localeCompare(b))) {
+  // Sort byte-wise (not localeCompare) so the canonical serialization — and thus
+  // the fingerprint hash — is identical on any machine, per the guarantee above.
+  // An explicit `undefined` value is treated as an ABSENT key (skipped): that
+  // matches how JSON.stringify drops undefined and how config builders emit
+  // partial objects, so `{ a: undefined }` and `{}` hash identically.
+  for (const key of Object.keys(record).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+    if (record[key] === undefined) continue;
     out[key] = normalizeForHash(record[key]);
   }
   return out;

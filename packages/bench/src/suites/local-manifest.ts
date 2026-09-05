@@ -133,7 +133,7 @@ export function createLocalManifestSuite(opts: LocalSuiteOptions): BenchSuite {
               : null,
           };
         })
-        .sort((a, b) => a.id.localeCompare(b.id));
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
       return `local:${hashJson(entries)}`;
     },
   };
@@ -418,7 +418,7 @@ async function hashTemplateDir(root: string, exclude?: string[] | undefined): Pr
       throw new Error(`cannot read local bench template ${root}: ${detail}`);
     }
 
-    entries.sort((a, b) => a.name.localeCompare(b.name));
+    entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     for (const entry of entries) {
       const childRel = rel ? `${rel}/${entry.name}` : entry.name;
       if (isExcluded(childRel, excludeSet)) continue;

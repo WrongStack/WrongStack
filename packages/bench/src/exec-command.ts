@@ -117,7 +117,15 @@ export function execCommand(opts: {
       }
       // Keep only what fits, on a UTF-8 boundary, then cut the process off.
       if (remaining > 0) {
-        append(chunk.subarray(0, remaining).toString('utf8'));
+        // `remaining` is a byte budget, but slicing mid-sequence would leave a
+        // dangling multi-byte char that toString('utf8') turns into U+FFFD.
+        // Walk back to the start of the trailing incomplete sequence so the
+        // retained tail is always valid UTF-8 with no replacement chars.
+        let cut = remaining;
+        // `cut` stays < chunk.length (this branch runs only when chunk.length > remaining),
+        // so the index is always defined; `!` silences strict-mode possibly-undefined.
+        while (cut > 0 && (chunk[cut]! & 0xc0) === 0x80) cut--;
+        append(chunk.subarray(0, cut).toString('utf8'));
         bufferedBytes = maxBufferBytes;
       }
       truncated = true;

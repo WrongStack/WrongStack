@@ -58,7 +58,10 @@ export function aggregateCell(cell: ModelCell, results: TaskResult[]): CellResul
   const editErrors = sum(results, (r) => r.tools.editErrors);
   // Edit-apply rate is undefined when no edit was ever attempted; report 1
   // (nothing failed to apply) so a no-op run doesn't drag the column down.
-  const editApplyRate = editCalls === 0 ? 1 : (editCalls - editErrors) / editCalls;
+  // Clamp to [0,1]: a single over-reported error (editErrors > editCalls) must
+  // not emit a negative percentage in the leaderboard.
+  const editApplyRate =
+    editCalls === 0 ? 1 : Math.max(0, Math.min(1, (editCalls - editErrors) / editCalls));
   const traceEval = aggregateTraceEval(results);
 
   const stability = foldTaskStability(byTask);
@@ -79,9 +82,12 @@ export function aggregateCell(cell: ModelCell, results: TaskResult[]): CellResul
     gradedCount: graded.length,
     passRate: graded.length === 0 ? 0 : passed / graded.length,
     editApplyRate,
-    avgCostUsd: sum(results, (r) => r.run.costUsd) / attemptCount,
-    avgTokensIn: sum(results, (r) => r.run.tokensIn) / attemptCount,
-    avgTokensOut: sum(results, (r) => r.run.tokensOut) / attemptCount,
+    // Averages stay finite even when one row reports non-finite telemetry
+    // (runWstack guards its parse, but an injected/mocked TaskResult may not):
+    // non-finite values count as 0 in the average, matching the timeouts.
+    avgCostUsd: finiteSum(results, (r) => r.run.costUsd) / attemptCount,
+    avgTokensIn: finiteSum(results, (r) => r.run.tokensIn) / attemptCount,
+    avgTokensOut: finiteSum(results, (r) => r.run.tokensOut) / attemptCount,
     p50Iterations: median(results.map((r) => r.run.iterations)),
     p50ElapsedMs: median(results.map((r) => r.run.elapsedMs)),
     timeoutRate: timeouts / attemptCount,
@@ -171,5 +177,16 @@ export function median(values: number[]): number {
 function sum<T>(items: T[], pick: (item: T) => number): number {
   let total = 0;
   for (const item of items) total += pick(item);
+  return total;
+}
+
+/** Sum of finite values only; NaN/Infinity contribute 0 so the cell average
+ *  never becomes Infinity/NaN from a single malformed row. */
+function finiteSum<T>(items: T[], pick: (item: T) => number): number {
+  let total = 0;
+  for (const item of items) {
+    const v = pick(item);
+    if (Number.isFinite(v)) total += v;
+  }
   return total;
 }
