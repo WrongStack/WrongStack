@@ -1,7 +1,7 @@
 import type { TextBlock } from '../types/blocks.js';
 // Roadmap 10A: TodoItem's canonical home is the types/context.ts leaf
 // (single source of truth, acyclic); re-exported here for existing import paths.
-import type { AgentContext, ContextMessageLimits, TodoItem } from '../types/context.js';
+import type { AgentContext, ContextMessageLimits, ConversationJournalQueueApi, TodoItem } from '../types/context.js';
 import type { ContextEvidenceState } from '../types/context-evidence.js';
 import type { FileEventRecord } from '../types/file-event-record.js';
 import type { Message } from '../types/messages.js';
@@ -385,7 +385,7 @@ export class Context implements RunEnv, AgentContext {
    * `onChange`. New code should prefer the wrapper API.
    */
   _state: ConversationState | null = null;
-  readonly _journalQueueManager: ConversationJournalQueue = new ConversationJournalQueue({
+  readonly _journalQueueManager: ConversationJournalQueueApi = new ConversationJournalQueue({
     sessionIdGetter: () => this.session?.id,
     messagesGetter: () => this.messages,
   });

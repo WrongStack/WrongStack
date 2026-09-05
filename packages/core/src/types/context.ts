@@ -76,6 +76,34 @@ export interface ProviderMemoryEvidence {
 }
 
 /**
+ * Structural surface of the conversation-journal queue manager backing
+ * `Context._journalQueueManager`. Declared here (not imported from
+ * core/context-conversation-journal.js) so this dependency-leaf module needs
+ * no cross-layer import: the concrete class has a private `options` member,
+ * which makes it nominally typed — no structural type could otherwise satisfy
+ * a class-typed property, and value-import cleanup strips unused imports.
+ * `new ConversationJournalQueue(...)` satisfies this interface structurally.
+ */
+export interface ConversationJournalQueueApi {
+  readonly queue: Array<{
+    event: SessionEvent;
+    bytes: number;
+    writer: SessionWriter;
+    attempts?: number;
+  }>;
+  bytes: number;
+  drain: Promise<void> | null;
+  lastError: Error | null;
+  dropCount: number;
+  dropWarnAt: number;
+  conversationJournalBytes(event: SessionEvent): number;
+  warnConversationJournalDrop(eventType: SessionEvent['type']): void;
+  enqueueConversationJournal(event: SessionEvent, writer: SessionWriter): void;
+  startConversationJournalDrain(): void;
+  flushConversationJournal(): Promise<void>;
+}
+
+/**
  * The conversation-facing surface of the run object — the COMPLETE instance
  * surface of the `Context` class (Roadmap 10A close-out). Mirrored 1:1 from
  * the class declaration; `class Context implements RunEnv, AgentContext`
@@ -170,8 +198,8 @@ export interface AgentContext extends RunEnv {
   lastRealInputTokens: number | undefined;
   /** Lazy observable wrapper backing `state`. */
   _state: ConversationStateApi | null;
-  /** Backing journal-queue manager; class-typed (private `options` member makes structural inlining impossible). PAIRED with core/context.ts:388 — dropping either side re-breaks the tools build. */
-  readonly _journalQueueManager: ConversationJournalQueue;
+  /** Journal-queue manager, structurally typed via ConversationJournalQueueApi (leaf-safe, no cross-layer import). PAIRED with core/context.ts:388 — dropping either side re-breaks the tools build. */
+  readonly _journalQueueManager: ConversationJournalQueueApi;
   readonly _conversationJournalQueue: Array<{
     event: SessionEvent;
     bytes: number;
