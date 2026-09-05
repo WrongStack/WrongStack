@@ -138,6 +138,15 @@ export async function runWstack(opts: RunWstackOptions): Promise<RawRun> {
  */
 function parseOutputJson(stdout: string): Omit<RawRun, 'elapsedMs' | 'exitCode'> | undefined {
   const lines = stdout.split('\n');
+  // Scan from the end so any stray stdout/log lines before the payload are
+  // ignored, and trailing non-payload noise (e.g. a `{ "level": "info" }` log
+  // line AFTER the result) does not hide a valid payload that precedes it.
+  // We pick the LAST line that parses to a status-bearing object. If NO line
+  // parses but some line begins with `{`, the payload is genuinely malformed
+  // (a multiline finalText, an adapter emitting a raw newline, or a truncated
+  // write) — do not reach further back to a stale payload from an unrelated
+  // earlier run; report the run as unparseable (crashed) instead.
+  let foundStatus = false;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i]?.trim();
     if (!line?.startsWith('{')) continue;
@@ -145,14 +154,18 @@ function parseOutputJson(stdout: string): Omit<RawRun, 'elapsedMs' | 'exitCode'>
     try {
       obj = JSON.parse(line) as Record<string, unknown>;
     } catch {
-      // A trailing line that begins `{` but isn't complete JSON is the real
-      // (malformed) payload — a multiline finalText, an adapter that emitted a
-      // raw newline, or a hard-killed write. Treating it as noise and scanning
-      // further up could silently substitute an EARLIER, stale payload from a
-      // previous run, masking the failure. Abort instead of guessing.
-      return undefined;
+      // A malformed `{` line. If no valid status payload was found anywhere,
+      // this malformed line is the true (broken) payload — abort rather than
+      // substitute an earlier, unrelated run's JSON.
+      if (!foundStatus) return undefined;
+      continue;
     }
-    if (typeof obj['status'] !== 'string') return undefined;
+    if (typeof obj['status'] !== 'string') {
+      // A valid JSON object but not a run payload (e.g. a log line). Not the
+      // output we're looking for; keep scanning for an actual payload.
+      continue;
+    }
+    foundStatus = true;
     const usage = (obj['usage'] as Record<string, unknown> | undefined) ?? {};
     const parsed: Omit<RawRun, 'elapsedMs' | 'exitCode'> = {
       status: normalizeStatus(obj['status'] as string),

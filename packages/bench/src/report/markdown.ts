@@ -156,8 +156,9 @@ function renderCostQuality(cells: CellResult[]): string[] {
   const ranked = [...cells].sort((a, b) => passPerDollar(b) - passPerDollar(a));
   for (const c of ranked) {
     const passCell = c.gradedCount === 0 ? '—' : pct(c.passRate);
-    const efficiency = c.avgCostUsd > 0 && c.gradedCount > 0 ? passPerDollar(c).toFixed(1) : '—';
-    lines.push(`| ${markdownCell(c.cell.label)} | ${passCell} | $${c.avgCostUsd.toFixed(3)} | ${efficiency} |`);
+    const finiteCost = Number.isFinite(c.avgCostUsd);
+    const efficiency = finiteCost && c.avgCostUsd > 0 && c.gradedCount > 0 ? passPerDollar(c).toFixed(1) : '—';
+    lines.push(`| ${markdownCell(c.cell.label)} | ${passCell} | $${usd(c.avgCostUsd)} | ${efficiency} |`);
   }
   lines.push('');
   lines.push(
@@ -293,7 +294,7 @@ function renderDeltaRow(cell: CellDelta): string {
   const passArrow = `${basePass} → ${candPass}`;
   const costArrow =
     cell.baseline && cell.candidate
-      ? `$${cell.baseline.avgCostUsd.toFixed(3)} → $${cell.candidate.avgCostUsd.toFixed(3)}`
+      ? `$${usd(cell.baseline.avgCostUsd)} → $${usd(cell.candidate.avgCostUsd)}`
       : '—';
   return [
     '',
@@ -317,14 +318,14 @@ function formatCellPass(cell: CellResult | undefined): string {
 }
 
 function signedPct(delta: number | undefined): string {
-  if (delta === undefined) return '—';
+  if (delta === undefined || !Number.isFinite(delta)) return '—';
   const value = `${(delta * 100).toFixed(1)}pp`;
   if (delta > 0) return `+${value}`;
   return value;
 }
 
 function signedUsd(delta: number | undefined): string {
-  if (delta === undefined) return '—';
+  if (delta === undefined || !Number.isFinite(delta)) return '—';
   const value = `$${Math.abs(delta).toFixed(3)}`;
   if (delta > 0) return `+${value}`;
   if (delta < 0) return `-${value}`;
@@ -361,9 +362,9 @@ function renderRow(c: CellResult, hasTraceEval: boolean): string {
     passCell,
     ...traceCells,
     pct(c.editApplyRate),
-    `$${c.avgCostUsd.toFixed(3)}`,
+    `$${usd(c.avgCostUsd)}`,
     `${fmtK(c.avgTokensIn)}/${fmtK(c.avgTokensOut)}`,
-    String(Math.round(c.p50Iterations)),
+    fmtN(c.p50Iterations),
     fmtMs(c.p50ElapsedMs),
     pct(c.timeoutRate),
     String(c.totalRateLimitRetries),
@@ -390,9 +391,9 @@ function renderRepeatRow(c: CellResult): string {
     c.gradedCount === 0 ? '—' : pct(c.passAllRate ?? 0),
     `${c.flakyTaskCount ?? 0}/${c.taskCount}`,
     pct(c.editApplyRate),
-    `$${c.avgCostUsd.toFixed(3)}`,
+    `$${usd(c.avgCostUsd)}`,
     `${fmtK(c.avgTokensIn)}/${fmtK(c.avgTokensOut)}`,
-    String(Math.round(c.p50Iterations)),
+    fmtN(c.p50Iterations),
     fmtMs(c.p50ElapsedMs),
     pct(c.timeoutRate),
     String(c.totalRateLimitRetries),
@@ -410,15 +411,35 @@ function conditionalPct(
 }
 
 function pct(x: number): string {
-  return `${(x * 100).toFixed(1)}%`;
+  // The report can receive hand-built or legacy CellResult objects that did
+  // not go through aggregateCell's clamping; guard against NaN and out-of-range
+  // values so the rendered leaderboard never shows "NaN%" or a negative/over-1
+  // percentage.
+  if (!Number.isFinite(x)) return '—';
+  const clamped = Math.max(0, Math.min(1, x));
+  return `${(clamped * 100).toFixed(1)}%`;
+}
+
+/** Money column: guard non-finite cost so "$NaN" never leaks into a report. */
+function usd(n: number): string {
+  if (!Number.isFinite(n)) return '—';
+  return n.toFixed(3);
 }
 
 function fmtK(n: number): string {
+  if (!Number.isFinite(n)) return '—';
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(Math.round(n));
 }
 
+/** Whole-number column (e.g. iterations); NaN/Infinity never renders as "NaN". */
+function fmtN(n: number): string {
+  if (!Number.isFinite(n)) return '—';
+  return String(Math.round(n));
+}
+
 function fmtMs(ms: number): string {
+  if (!Number.isFinite(ms)) return '—';
   if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
   return `${Math.round(ms)}ms`;
 }
