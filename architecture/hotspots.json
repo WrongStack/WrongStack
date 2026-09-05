@@ -74,10 +74,6 @@
       "lines": 853,
       "relativeImports": 18
     },
-    "packages/core/src/chronicle/query.ts": {
-      "lines": 1309,
-      "relativeImports": 3
-    },
     "packages/core/src/coordination/autonomous-coordinator.ts": {
       "lines": 1103,
       "relativeImports": 14

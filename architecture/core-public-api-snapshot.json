@@ -1357,8 +1357,8 @@
       "directory": "chronicle",
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
-      "sourceFiles": 38,
-      "sourceLines": 11658
+      "sourceFiles": 41,
+      "sourceLines": 11699
     },
     {
       "directory": "coordination",

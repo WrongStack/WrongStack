@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T16:51:27.374Z",
+  "generatedAt": "2026-09-05T16:59:49.183Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3549,
-    "testFiles": 3070,
-    "sourceLines": 869591,
+    "sourceFiles": 3552,
+    "testFiles": 3071,
+    "sourceLines": 869632,
     "workspaceEdges": 127,
-    "moduleEdges": 11151,
+    "moduleEdges": 11165,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -212,7 +212,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 805,
+      "sourceFiles": 808,
       "testFiles": 708,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -732,7 +732,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 190,
-      "testFiles": 201,
+      "testFiles": 202,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -748,7 +748,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 201
+          "testFiles": 202
         }
       ]
     },
@@ -13108,6 +13108,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/description-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/design.test.ts",
         "projects": [
           "root-node"
@@ -19703,11 +19709,6 @@
       "relativeImports": 18
     },
     {
-      "file": "packages/core/src/chronicle/query.ts",
-      "lines": 1309,
-      "relativeImports": 3
-    },
-    {
       "file": "packages/core/src/coordination/autonomous-coordinator.ts",
       "lines": 1103,
       "relativeImports": 14
@@ -20350,11 +20351,6 @@
       "relativeImports": 11
     },
     {
-      "file": "packages/core/src/chronicle/query.ts",
-      "lines": 1309,
-      "relativeImports": 3
-    },
-    {
       "file": "packages/webui/src/stores/ui-store.ts",
       "lines": 1290,
       "relativeImports": 4
@@ -20593,6 +20589,11 @@
       "file": "packages/webui/src/stores/fleet-store.ts",
       "lines": 996,
       "relativeImports": 2
+    },
+    {
+      "file": "packages/core/src/types/session.ts",
+      "lines": 994,
+      "relativeImports": 4
     }
   ],
   "testOnlyExports": [
