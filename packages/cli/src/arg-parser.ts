@@ -40,8 +40,6 @@ export const BOOLEAN_FLAGS = new Set([
   'no-models-refresh',
   // (removed: 'director' and 'no-director' — Director Mode is always on)
   'no-autonomy',
-  'no-hints',
-  'hints',
   'no-menu',
   'no-hooks',
   'skip',

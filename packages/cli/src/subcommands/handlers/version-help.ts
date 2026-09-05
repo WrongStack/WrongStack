@@ -78,7 +78,6 @@ export const helpCmd: SubcommandHandler = async (_args, deps) => {
     '                               Serve the independent minimal chat UI',
     '  --full-auto                   SimpleUI: runtime-only YOLO + Director + autonomy override',
     '  --eternal "<mission>"        Start an eternal-autonomy loop',
-    '  --no-hints                   Hide launch hints',
     '  --skip-index                 Skip codebase indexing on startup',
     '  --chimera-auto-fix off|ask|auto',
     '                               How to handle Chimera review findings (default: config value)',

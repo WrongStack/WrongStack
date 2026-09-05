@@ -49,7 +49,6 @@ import { applySimpleUiFullAutoProfile, isSimpleUiFullAuto } from './boot/simpleu
 import { maybeRunSystemPromptMenu } from './boot/system-prompt-menu.js';
 import { bootConfig } from './boot-config.js';
 import { ReadlineInputReader } from './input-reader.js';
-import { printLaunchHints } from './launch-hints.js';
 import { type PickerResult, runPicker, saveToGlobalConfig } from './picker.js';
 import {
   hasAnyCredential,
@@ -797,9 +796,6 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
       }
     }
 
-    await printLaunchHints(renderer, flags, {
-      cursorFile: path.join(wpaths.cacheDir, 'hint-cursor'),
-    });
   } else {
     // When skipping interactive prompts (--webui or --no-interactive), use saved
     // preferences or sensible defaults. Director stays OFF in non-interactive mode.
