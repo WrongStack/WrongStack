@@ -57,7 +57,10 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
         description: 'Specific file path to document',
       },
       files: {
-        type: 'string',
+        oneOf: [
+          { type: 'string' },
+          { type: 'array', items: { type: 'string' } },
+        ],
         description: 'File(s) to process: single path, comma-separated list, or glob',
       },
       style: {

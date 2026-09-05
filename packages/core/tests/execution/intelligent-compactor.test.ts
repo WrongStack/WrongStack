@@ -5,7 +5,7 @@ import { CompactionSummaryCache } from '../../src/execution/compaction-summary-c
 import { IntelligentCompactor } from '../../src/execution/intelligent-compactor.js';
 import type { Logger } from '../../src/types/logger.js';
 import type { Message } from '../../src/types/messages.js';
-import type { Provider } from '../../src/types/provider.js';
+import type { Provider, Request } from '../../src/types/provider.js';
 
 function fakeContext(messages: Message[]): Context {
   const ctx = {
@@ -25,11 +25,16 @@ function fakeContext(messages: Message[]): Context {
   return ctx;
 }
 
-function makeFakeProvider(responses: string[]): Provider & { completeCalls: () => number } {
+function makeFakeProvider(responses: string[]): Provider & {
+  completeCalls: () => number;
+  lastRequest: () => Request | undefined;
+} {
   let idx = 0;
   let calls = 0;
+  let lastRequest: Request | undefined;
   return {
     completeCalls: () => calls,
+    lastRequest: () => lastRequest,
     id: 'test',
     capabilities: {
       tools: false,
@@ -45,8 +50,9 @@ function makeFakeProvider(responses: string[]): Provider & { completeCalls: () =
     stream() {
       return (async function* () {})();
     },
-    async complete(_req) {
+    async complete(req) {
       calls++;
+      lastRequest = req;
       const text = responses[idx++] ?? 'summary placeholder';
       return {
         content: [{ type: 'text', text }],
@@ -121,6 +127,13 @@ describe('IntelligentCompactor', () => {
     // Provider should have been called for summarization in aggressive mode.
     // The summary now also includes buildSmartDigest enrichment for critical content.
     expect(report.reductions.some((r) => r.phase === 'summary')).toBe(true);
+    // The legacy direct-provider route must retain a user input. In particular,
+    // the ChatGPT Codex Responses endpoint rejects `input: []` even when a
+    // system instruction is present.
+    expect(provider.lastRequest()).toMatchObject({
+      system: [{ type: 'text', text: expect.any(String) }],
+      messages: [{ role: 'user', content: expect.any(String) }],
+    });
   });
 
   it('reuses cached summaries for identical ancient context', async () => {

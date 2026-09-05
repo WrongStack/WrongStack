@@ -73,9 +73,11 @@ const projectRoot = parsed.projectRoot;
 const indexDir = resolveIndexDir(projectRoot, parsed.indexDir);
 const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
 const metadataPath = projectIndexServerMetadataPath(projectRoot, indexDir);
-const idleMsRaw = Number(process.env['WRONGSTACK_INDEX_SERVER_IDLE_MS']);
+const idleMsRaw = Number(process.env['WRONGSTACK_INDEX_SERVER_IDLE_MS']?.replaceAll('_', ''));
 const idleMs = Number.isFinite(idleMsRaw) && idleMsRaw >= 100 ? idleMsRaw : DEFAULT_IDLE_MS;
-const clientLeaseMsRaw = Number(process.env['WRONGSTACK_INDEX_SERVER_CLIENT_LEASE_MS']);
+const clientLeaseMsRaw = Number(
+  process.env['WRONGSTACK_INDEX_SERVER_CLIENT_LEASE_MS']?.replaceAll('_', ''),
+);
 const clientLeaseMs =
   Number.isFinite(clientLeaseMsRaw) && clientLeaseMsRaw >= 100
     ? clientLeaseMsRaw

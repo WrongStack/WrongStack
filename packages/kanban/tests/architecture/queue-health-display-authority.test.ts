@@ -27,6 +27,7 @@ const DISPLAY_SURFACES = [
   'packages/webui/src/components/KanbanQueueHealthBar.tsx',
   'packages/webui-hq/src/domain/kanban-queue-health.ts',
   'packages/webui-hq/src/views/kanban/queue-health.tsx',
+  'packages/webui-server/src/server/kanban-board-routes.ts',
   'packages/webui-server/src/server/kanban-routes.ts',
   'packages/webui-server/src/server/kanban-supervisor.ts',
   'packages/tools/src/kanban.ts',
@@ -94,7 +95,7 @@ describe('queue health display authority', () => {
     // Three surfaces each had their own union of health signals, so the same
     // board could be "healthy" in one pane and "attention" in another.
     for (const file of [
-      'packages/webui-server/src/server/kanban-routes.ts',
+      'packages/webui-server/src/server/kanban-board-routes.ts',
       'packages/webui-server/src/server/kanban-supervisor.ts',
     ]) {
       expect(read(file)).toContain('kanbanQueueAnomalyCount');

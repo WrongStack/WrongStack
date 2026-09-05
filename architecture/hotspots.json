@@ -19,7 +19,7 @@
       "relativeImports": 34
     },
     "packages/cli/src/execution.ts": {
-      "lines": 887,
+      "lines": 888,
       "relativeImports": 41
     },
     "packages/cli/src/fleet/host.ts": {
@@ -295,7 +295,7 @@
       "relativeImports": 5
     },
     "packages/tools/src/json.ts": {
-      "lines": 919,
+      "lines": 935,
       "relativeImports": 2
     },
     "packages/tools/src/session-kanban.ts": {

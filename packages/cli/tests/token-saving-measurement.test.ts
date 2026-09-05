@@ -5,7 +5,8 @@ import * as path from 'node:path';
 import type { Config } from '@wrongstack/core/types';
 import { builtinToolsPack, TIER1_TOOLS } from '@wrongstack/tools';
 import { selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { getWrongTrace } from '../src/wiring/wrongtrace-gate.js';
 import { buildCliToolSurface } from './cli-tool-surface.js';
 import { makeFakeMemoryStore } from './fake-memory-store.js';
 
@@ -28,6 +29,12 @@ import { makeFakeMemoryStore } from './fake-memory-store.js';
  *
  * Run: `pnpm --filter @wrongstack/cli test -- token-saving-measurement.test.ts`
  */
+
+beforeAll(async () => {
+  // Warm the WrongTrace gate singleton before prompt measurement runs so discovery
+  // latency never causes non-deterministic tier deltas on machines with a running daemon.
+  await getWrongTrace();
+});
 
 let tmp: string;
 beforeEach(async () => {

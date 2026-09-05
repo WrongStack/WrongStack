@@ -252,7 +252,9 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
           // is reachable, the leader prompt carries a compact atlas digest +
           // friction summary block. Fail-open and deadline-bounded (<1s), so
           // an absent/slow daemon never stalls the boot prompt.
-          createWrongTracePromptContributor(),
+          createWrongTracePromptContributor({
+            tokenSavingMode: deps.tokenSavingMode,
+          }),
         ],
       }),
   );

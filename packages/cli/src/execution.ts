@@ -498,6 +498,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
                 | { type: 'toolStreamClear' },
             ) => void,
           ) => {
+            void attachments.clear().catch(() => {});
             dispatch({ type: 'clearHistory', model: context.model, provider: context.provider.id });
             dispatch({ type: 'resetContextChip' });
             dispatch({ type: 'streamReset' });

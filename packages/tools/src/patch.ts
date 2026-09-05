@@ -284,7 +284,14 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
         // non-zero when the patch would conflict. Without this branch the code
         // fell through to the success path, reporting rejected: 0 for a patch
         // that would actually fail — a misleading "clean" preview.
-        const wouldPatch = extractPatchedFiles(result.stdout);
+        const wouldPatch =
+          result.engine === 'git'
+            ? [
+                ...new Set(
+                  resolvedTargets.map((target) => path.relative(dir, target.abs!) || target.abs!),
+                ),
+              ]
+            : extractPatchedFiles(result.stdout);
         return {
           applied: wouldPatch.length,
           rejected: 1,

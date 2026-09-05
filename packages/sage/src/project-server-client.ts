@@ -88,8 +88,23 @@ export function isSageProjectServerAvailable(): boolean {
   return resolveProjectServerUrl() !== null;
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    timer.unref?.();
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+      reject(cancellationError(signal!));
+    };
+    if (signal) {
+      signal.addEventListener('abort', onAbort, { once: true });
+      if (signal.aborted) onAbort();
+    }
+  });
 }
 
 function cancellationError(signal: AbortSignal): Error {
@@ -206,7 +221,7 @@ export class SageProjectServerConnection {
           error.name === 'UnauthorizedSageRequest' &&
           attempt < AUTH_RETRY_MAX_ATTEMPTS;
         if (!retriable) throw error;
-        await delay(AUTH_RETRY_DELAY_MS);
+        await delay(AUTH_RETRY_DELAY_MS, options.signal);
         if (options.signal?.aborted) throw cancellationError(options.signal);
       }
     }

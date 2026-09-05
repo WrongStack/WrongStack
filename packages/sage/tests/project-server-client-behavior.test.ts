@@ -161,4 +161,26 @@ describe('SageProjectServerConnection', () => {
     expect(frames.at(-1)).toEqual({ type: 'cancel', id: 1 });
     connection.close();
   });
+
+  it('cancels during auth retry backoff instead of waiting for the delay', async () => {
+    const connection = new SageProjectServerConnection('D:/repo') as unknown as {
+      ensureConnected: ReturnType<typeof vi.fn>;
+      request: ReturnType<typeof vi.fn>;
+      call: SageProjectServerConnection['call'];
+    };
+    connection.ensureConnected = vi.fn(async () => undefined);
+    const unauthorized = new Error('unauthorized');
+    unauthorized.name = 'UnauthorizedSageRequest';
+    connection.request = vi.fn().mockRejectedValue(unauthorized);
+    const controller = new AbortController();
+    const pending = connection.call('ping', {}, {
+      signal: controller.signal,
+      meta: { clientId: 'client-1' },
+    });
+
+    await Promise.resolve();
+    controller.abort(new Error('caller stopped during retry'));
+    await expect(pending).rejects.toThrow('caller stopped during retry');
+    expect(connection.request).toHaveBeenCalledTimes(1);
+  });
 });

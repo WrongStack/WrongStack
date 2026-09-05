@@ -38,12 +38,22 @@ async function waitForExit(child: ChildProcess, timeoutMs = 5_000): Promise<void
   });
 }
 
-async function connect(endpoint: string): Promise<net.Socket> {
-  return new Promise((resolve, reject) => {
-    const socket = net.createConnection(endpoint);
-    socket.once('connect', () => resolve(socket));
-    socket.once('error', reject);
-  });
+async function connect(endpoint: string, timeoutMs = 5_000): Promise<net.Socket> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      return await new Promise<net.Socket>((resolve, reject) => {
+        const socket = net.createConnection(endpoint);
+        socket.once('connect', () => resolve(socket));
+        socket.once('error', reject);
+      });
+    } catch (err) {
+      lastError = err;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+  throw lastError ?? new Error(`condition timed out connecting to ${endpoint}`);
 }
 
 describe.skipIf(!distReady)('project index server idle lifecycle', () => {
@@ -58,8 +68,8 @@ describe.skipIf(!distReady)('project index server idle lifecycle', () => {
       {
         env: {
           ...process.env,
-          WRONGSTACK_INDEX_SERVER_IDLE_MS: '150',
-          WRONGSTACK_INDEX_SERVER_CLIENT_LEASE_MS: '2_000',
+          WRONGSTACK_INDEX_SERVER_IDLE_MS: '350',
+          WRONGSTACK_INDEX_SERVER_CLIENT_LEASE_MS: '2000',
         },
         stdio: 'ignore',
         windowsHide: true,

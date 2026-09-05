@@ -97,6 +97,16 @@ export function execCommand(opts: {
 
     const timer = setTimeout(() => {
       timedOut = true;
+      try {
+        child.stdin?.destroy();
+      } catch {
+        /* ignore */
+      }
+      try {
+        child.kill();
+      } catch {
+        /* ignore */
+      }
       // A naive child.kill() only signals the direct child — with shell:true
       // that's the /bin/sh or cmd.exe wrapper, leaving the actual test process
       // (npm/gradle/etc.) orphaned. treeKill tears down the whole process tree

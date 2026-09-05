@@ -69,6 +69,8 @@ const flagLetters = (args: readonly string[]): Set<string> => {
   return seen;
 };
 
+const isPowerShellCmd = (cmd: string): boolean => /^(?:powershell|pwsh)(?:\.exe)?$/i.test(cmd);
+
 const RULES: readonly DangerRule[] = [
   // ----- rm / rmdir: recursive force delete (any path) -----
   // Note: BLOCKED_ARG_PATTERNS already hard-denies root/home/glob paths,
@@ -107,8 +109,8 @@ const RULES: readonly DangerRule[] = [
     id: 'powershell-remove-item-recursive-force',
     level: 'destructive',
     test: (cmd, args) => {
-      const isPwsh = cmd === 'powershell' || cmd === 'pwsh';
-      const isRemoveItemCmd = /^(?:remove-item|ri)$/i.test(cmd);
+      const isPwsh = isPowerShellCmd(cmd);
+      const isRemoveItemCmd = /^(?:remove-item|ri)(?:\.exe)?$/i.test(cmd);
       if (!isPwsh && !isRemoveItemCmd) return false;
       if (
         isPwsh &&
@@ -136,7 +138,7 @@ const RULES: readonly DangerRule[] = [
     id: 'powershell-disk-volume-destroy',
     level: 'destructive',
     test: (cmd, args) => {
-      if (cmd !== 'powershell' && cmd !== 'pwsh') return false;
+      if (!isPowerShellCmd(cmd)) return false;
       return args.some((a) =>
         /^(?:Format-Volume|Clear-Disk|Initialize-Disk|Remove-Partition|Clear-Volume)(?:\s|$)/i.test(
           a,
@@ -150,7 +152,7 @@ const RULES: readonly DangerRule[] = [
     id: 'powershell-stop-restart-computer',
     level: 'destructive',
     test: (cmd, args) => {
-      if (cmd !== 'powershell' && cmd !== 'pwsh') return false;
+      if (!isPowerShellCmd(cmd)) return false;
       return args.some((a) => /^(?:Stop-Computer|Restart-Computer)(?:\s|$)/i.test(a));
     },
     reason: 'PowerShell system shutdown or restart',
@@ -160,7 +162,7 @@ const RULES: readonly DangerRule[] = [
     id: 'powershell-execution-policy-bypass',
     level: 'caution',
     test: (cmd, args) => {
-      if (cmd !== 'powershell' && cmd !== 'pwsh') return false;
+      if (!isPowerShellCmd(cmd)) return false;
       return args.some((a) =>
         /Set-ExecutionPolicy\s+(?:Bypass|Unrestricted)|-(?:EncodedCommand|enc)\b/i.test(a),
       );

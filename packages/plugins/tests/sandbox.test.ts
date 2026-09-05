@@ -69,12 +69,15 @@ describe('safePath', () => {
     expect(safePath(escapePath, { projectRoot })).toBeNull();
   });
 
+  it('accepts a new in-project file by default while canonicalizing existing ancestors', () => {
+    const ghost = join(projectRoot, 'new-file.txt');
+    expect(safePath(ghost, { projectRoot })).toBe(ghost);
+  });
+
   it('returns the lexical path when followSymlinks is false and the target does not exist', () => {
     const ghost = join(projectRoot, 'does-not-exist-yet.txt');
-    // No symlink involved: realpath would throw; we fall back to lexical resolve.
-    // The file does not exist, so followSymlinks:true returns null; :false returns lexical.
     expect(safePath(ghost, { projectRoot, followSymlinks: false })).toBe(ghost);
-    expect(safePath(ghost, { projectRoot, followSymlinks: true })).toBeNull();
+    expect(safePath(ghost, { projectRoot, followSymlinks: true })).toBe(ghost);
   });
 
   it('rejects a non-string input', () => {

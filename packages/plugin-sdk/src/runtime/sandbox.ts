@@ -32,7 +32,7 @@
  */
 
 import { realpathSync } from 'node:fs';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 export interface SafePathOptions {
   /**
@@ -74,20 +74,31 @@ export function safePath(input: string, options: SafePathOptions = {}): string |
   // Now canonicalize: follow symlinks so a path that LIVES inside
   // the project but POINTS outside is rejected.
   if (options.followSymlinks !== false) {
-    let real: string;
-    try {
-      real = realpathSync(lexical);
-    } catch {
-      // ENOENT / EPERM: the path doesn't resolve. Treat as outside
-      // the project — the caller (a tool input) shouldn't name a
-      // path we can't see.
-      return null;
-    }
-    if (!withinLexical(projectRoot, real)) return null;
+    const real = realpathWithMissingLeaf(lexical);
+    if (real === null || !withinLexical(projectRoot, real)) return null;
     return real;
   }
 
   return lexical;
+}
+
+/** Canonicalize existing ancestors while preserving a new leaf path. */
+function realpathWithMissingLeaf(candidate: string): string | null {
+  let current = candidate;
+  const missing: string[] = [];
+  while (true) {
+    try {
+      const resolved = realpathSync(current);
+      return missing.reduceRight((parent, part) => join(parent, part), resolved);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') return null;
+      const parent = dirname(current);
+      if (parent === current) return null;
+      missing.push(basename(current));
+      current = parent;
+    }
+  }
 }
 
 function withinLexical(projectRoot: string, candidate: string): boolean {

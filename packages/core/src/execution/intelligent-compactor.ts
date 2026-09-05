@@ -296,15 +296,16 @@ export class IntelligentCompactor implements Compactor {
     }
 
     // Legacy path: direct provider.complete().
-    const prompt: TextBlock[] = [
-      { type: 'text', text: this.summarizerPrompt },
-      { type: 'text', text: '\n\nConversation to summarize:\n' },
-      { type: 'text', text: summaryInput },
-    ];
+    // Keep the source transcript in a real user turn. Responses-based
+    // providers (including the ChatGPT Codex backend) require a non-empty
+    // `input`; placing everything in `system` previously serialized this
+    // legacy path as `input: []`, which the backend rejects with a 400.
+    // This also matches the OneShot path above.
+    const prompt: TextBlock[] = [{ type: 'text', text: this.summarizerPrompt }];
     const req: Request = {
       model: summaryModel,
       system: prompt,
-      messages: [],
+      messages,
       maxTokens: 1024,
     };
 

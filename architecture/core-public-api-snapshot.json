@@ -1386,7 +1386,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 18551
+      "sourceLines": 18552
     },
     {
       "directory": "extension",
@@ -1428,7 +1428,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3946
+      "sourceLines": 3955
     },
     {
       "directory": "models",

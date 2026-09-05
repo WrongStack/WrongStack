@@ -591,11 +591,27 @@ function jmespathSearch(data: unknown, query: string): unknown {
     return jmespathSearch(val, rest);
   }
 
-  // Array access: [0]
-  const arrMatch = query.match(/^\[(\d+)\](?:\.(.+))?$/);
+  // Property indexing: foo[0], foo[0].bar, foo[0][1]
+  const propIdxMatch = query.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\](?:\.?(.*))?$/);
+  if (propIdxMatch) {
+    const key = propIdxMatch[1]!;
+    if (key === '__proto__' || key === 'prototype' || key === 'constructor') {
+      return undefined;
+    }
+    const idx = Number.parseInt(propIdxMatch[2]!, 10);
+    const rest = propIdxMatch[3] ? propIdxMatch[3] : undefined;
+    const arr = (data as Record<string, unknown> | undefined)?.[key];
+    if (!Array.isArray(arr)) return undefined;
+    const val = arr[idx];
+    if (rest === undefined) return val;
+    return jmespathSearch(val, rest);
+  }
+
+  // Array access: [0], [0].rest, or [0][1]
+  const arrMatch = query.match(/^\[(\d+)\](?:\.?(.*))?$/);
   if (arrMatch) {
     const idx = Number.parseInt(arrMatch[1]!, 10);
-    const rest = arrMatch[2];
+    const rest = arrMatch[2] ? arrMatch[2] : undefined;
     const arr = data as unknown[];
     const val = arr?.[idx];
     if (rest === undefined) return val;

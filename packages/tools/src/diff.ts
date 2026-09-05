@@ -108,7 +108,7 @@ export const diffTool: Tool<DiffInput, DiffOutput> = {
   async execute(input, ctx, opts) {
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
-    if (input.a !== undefined || input.b !== undefined) {
+    if (input.staged || input.a !== undefined || input.b !== undefined) {
       return await gitDiff(input, ctx, signal);
     }
 

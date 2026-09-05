@@ -171,7 +171,7 @@
     "@wrongstack/core/types": {
       "files": 1029,
       "typeOnly": 950,
-      "runtimeOrMixed": 267
+      "runtimeOrMixed": 268
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -11495,7 +11495,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/wrongtrace-prompt-contributor.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

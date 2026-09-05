@@ -244,7 +244,16 @@ export class EventBus {
       );
       return () => {};
     }
-    const entry = { match: (e: string) => regex.test(e), fn, owner };
+    const entry = {
+      match: (e: string) => {
+        // Global/sticky regexes retain lastIndex between calls; reset it so
+        // matching remains deterministic across independent event emissions.
+        if (regex.global || regex.sticky) regex.lastIndex = 0;
+        return regex.test(e);
+      },
+      fn,
+      owner,
+    };
     this.wildcards.push(entry);
     this.wildcardSnapshotCache = null;
     return () => {

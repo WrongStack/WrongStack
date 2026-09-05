@@ -155,6 +155,17 @@ describe('EventBus', () => {
     expect(fn).toHaveBeenCalledWith({ id: 'abc' });
   });
 
+  it('resets global regex state between matching emits', () => {
+    const bus = new EventBus();
+    const fn = vi.fn();
+    bus.onRegex(/^session\./g, fn);
+
+    bus.emit('session.started', { id: 'one' });
+    bus.emit('session.started', { id: 'two' });
+
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
   describe('wildcard owner tags + count accessors', () => {
     it('records an owner tag on onPattern', () => {
       const bus = new EventBus();

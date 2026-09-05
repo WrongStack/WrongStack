@@ -510,7 +510,7 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
           }
 
           case 'promote': {
-            const target = input.target?.trim();
+            const target = (input.target ?? input.id)?.trim();
             if (!target) {
               early = {
                 ok: false,
@@ -596,7 +596,7 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
           }
 
           case 'planify': {
-            const target = input.target?.trim();
+            const target = (input.target ?? input.id)?.trim();
             if (!target) {
               early = {
                 ok: false,

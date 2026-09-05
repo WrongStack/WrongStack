@@ -474,7 +474,7 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
           field: 'todos',
         });
       }
-      if (item.status !== undefined && !VALID_STATUSES.has(item.status)) {
+      if (!item.status || !VALID_STATUSES.has(item.status)) {
         throw new ToolValidationError({
           message: `todo: item "${item.id}" has invalid status "${item.status}". Allowed: pending, in_progress, completed`,
           field: 'todos',

@@ -15,7 +15,8 @@
  *     the ETERNAL AUTONOMY contributor (registration order is preserved).
  */
 
-import type { SystemPromptContributor } from '@wrongstack/core/types';
+import type { SystemPromptContributor, TokenSavingTier } from '@wrongstack/core/types';
+import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import { digestAtlas, summarizeFriction } from '@wrongstack/wrongtrace';
 
 import { getWrongTrace } from './wrongtrace-gate.js';
@@ -41,12 +42,21 @@ function raceWithDeadline<T>(p: Promise<T>, ms: number): Promise<T | null> {
   });
 }
 
+export interface WrongTracePromptContributorOptions {
+  tokenSavingMode?: TokenSavingTier | boolean | undefined;
+}
+
 /**
  * Build the contributor. Fresh instance per `bindSystemPromptBuilder` call
  * (i.e. per process); cheap since the gate singleton is process-shared.
  */
-export function createWrongTracePromptContributor(): SystemPromptContributor {
-  return async () => {
+export function createWrongTracePromptContributor(
+  options: WrongTracePromptContributorOptions = {},
+): SystemPromptContributor {
+  const tier = normalizeTokenSavingTier(options.tokenSavingMode);
+  return async (ctx) => {
+    if (ctx.subagent) return [];
+    if (tier === 'minimal' || tier === 'aggressive') return [];
     try {
       const wt = await raceWithDeadline(getWrongTrace(), CONTRIBUTOR_DEADLINE_MS);
       if (!wt?.isAvailable) return [];
