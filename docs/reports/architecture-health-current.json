@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T16:59:49.183Z",
+  "generatedAt": "2026-09-05T17:05:46.342Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3552,
+    "sourceFiles": 3554,
     "testFiles": 3071,
-    "sourceLines": 869632,
+    "sourceLines": 869662,
     "workspaceEdges": 127,
-    "moduleEdges": 11165,
+    "moduleEdges": 11170,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -885,7 +885,7 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 209,
+      "sourceFiles": 211,
       "testFiles": 187,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20299,11 +20299,6 @@
       "relativeImports": 52
     },
     {
-      "file": "packages/webui-server/src/server/file-handlers.ts",
-      "lines": 1105,
-      "relativeImports": 3
-    },
-    {
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
       "lines": 1019,
       "relativeImports": 2
@@ -20379,11 +20374,6 @@
       "file": "packages/webui/src/stores/viz-store.ts",
       "lines": 1110,
       "relativeImports": 0
-    },
-    {
-      "file": "packages/webui-server/src/server/file-handlers.ts",
-      "lines": 1105,
-      "relativeImports": 3
     },
     {
       "file": "packages/core/src/coordination/autonomous-coordinator.ts",
@@ -20594,6 +20584,11 @@
       "file": "packages/core/src/types/session.ts",
       "lines": 994,
       "relativeImports": 4
+    },
+    {
+      "file": "packages/kanban/src/types.ts",
+      "lines": 992,
+      "relativeImports": 1
     }
   ],
   "testOnlyExports": [

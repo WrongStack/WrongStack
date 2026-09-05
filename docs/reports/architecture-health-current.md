@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T16:59:49.183Z
+**Generated:** 2026-09-05T17:05:46.342Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3552 |
-| Production source lines | 869632 |
+| Production source files | 3554 |
+| Production source lines | 869662 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11165 |
+| Relative module edges | 11170 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -60,7 +60,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/webui | 505 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
-| @wrongstack/webui-server | 209 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 211 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/wrongtrace | 11 | 5 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
 
@@ -93,7 +93,6 @@ None.
 | 1169 | `packages/webui/src/types/server-message.ts` |
 | 1128 | `packages/webui/src/components/ChatInput.tsx` |
 | 1110 | `packages/webui/src/stores/viz-store.ts` |
-| 1105 | `packages/webui-server/src/server/file-handlers.ts` |
 | 1103 | `packages/core/src/coordination/autonomous-coordinator.ts` |
 | 1095 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1092 | `packages/core/src/coordination/provider-status-tracker.ts` |
@@ -136,6 +135,7 @@ None.
 | 996 | `packages/sage/src/types.ts` |
 | 996 | `packages/webui/src/stores/fleet-store.ts` |
 | 994 | `packages/core/src/types/session.ts` |
+| 992 | `packages/kanban/src/types.ts` |
 
 ## Exports only tests reference
 

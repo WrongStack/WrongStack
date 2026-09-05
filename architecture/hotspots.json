@@ -546,10 +546,6 @@
       "lines": 831,
       "relativeImports": 52
     },
-    "packages/webui-server/src/server/file-handlers.ts": {
-      "lines": 1105,
-      "relativeImports": 3
-    },
     "packages/webui-server/src/server/goal-ws-handler.ts": {
       "lines": 1019,
       "relativeImports": 2

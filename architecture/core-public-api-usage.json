@@ -15447,7 +15447,7 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/webui-server/src/server/file-handlers.ts",
+      "file": "packages/webui-server/src/server/file-handler-helpers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
