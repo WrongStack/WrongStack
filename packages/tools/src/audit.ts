@@ -9,20 +9,20 @@ import {
 } from './_util.js';
 import { tryLegacyPackageOperation } from './languages/legacy-bridge.js';
 
-interface AuditInput {
+export interface AuditInput {
   cwd?: string | undefined;
   level?: 'low' | 'moderate' | 'high' | 'critical' | undefined;
   fix?: boolean | undefined;
 }
 
-interface AuditVulnerability {
+export interface AuditVulnerability {
   severity: string;
   package: string;
   title: string;
   url: string;
 }
 
-interface AuditOutput {
+export interface AuditOutput {
   exit_code: number;
   vulnerabilities: AuditVulnerability[];
   total: number;
@@ -31,7 +31,7 @@ interface AuditOutput {
   truncated: boolean;
 }
 
-type AuditContext = Parameters<Tool<AuditInput, AuditOutput>['execute']>[1];
+export type AuditContext = Parameters<Tool<AuditInput, AuditOutput>['execute']>[1];
 
 const SEVERITY_RANK: Record<string, number> = {
   info: 0,

@@ -12,11 +12,11 @@ import {
 import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
 
-interface OutdatedInput {
+export interface OutdatedInput {
   cwd?: string | undefined;
 }
 
-interface OutdatedPackage {
+export interface OutdatedPackage {
   name: string;
   current: string;
   latest: string;
@@ -25,7 +25,7 @@ interface OutdatedPackage {
   location: string;
 }
 
-interface OutdatedOutput {
+export interface OutdatedOutput {
   exit_code: number;
   packages: OutdatedPackage[];
   total: number;
@@ -33,7 +33,7 @@ interface OutdatedOutput {
   truncated: boolean;
 }
 
-type OutdatedContext = Parameters<Tool<OutdatedInput, OutdatedOutput>['execute']>[1];
+export type OutdatedContext = Parameters<Tool<OutdatedInput, OutdatedOutput>['execute']>[1];
 
 export const outdatedTool = {
   name: 'outdated',

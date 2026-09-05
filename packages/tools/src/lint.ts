@@ -4,14 +4,14 @@ import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
-interface LintInput {
+export interface LintInput {
   files?: string | string[] | undefined;
   fix?: boolean | undefined;
   linter?: 'biome' | 'eslint' | 'tslint' | 'auto' | undefined;
   cwd?: string | undefined;
 }
 
-interface LintOutput {
+export interface LintOutput {
   linter: string;
   files_checked: number;
   errors: number;

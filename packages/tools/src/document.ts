@@ -4,7 +4,7 @@ import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
 import { ensureInsideRoot, safeResolveReal } from './_util.js';
 
-interface DocumentInput {
+export interface DocumentInput {
   target: 'file' | 'function' | 'class' | 'type' | 'all';
   path?: string | undefined;
   files?: string | string[] | undefined;
@@ -13,7 +13,7 @@ interface DocumentInput {
   cwd?: string | undefined;
 }
 
-interface DocumentedItem {
+export interface DocumentedItem {
   path: string;
   name: string;
   signature: string;
@@ -22,7 +22,7 @@ interface DocumentedItem {
   error?: string | undefined;
 }
 
-interface DocumentOutput {
+export interface DocumentOutput {
   files_processed: number;
   items_documented: number;
   results: DocumentedItem[];

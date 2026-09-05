@@ -7,7 +7,13 @@ export {
   resolveSessionShell,
 } from './_session-shell.js';
 export type { BashShell } from './_shell-pick.js';
-export { auditTool } from './audit.js';
+export {
+  auditTool,
+  type AuditContext,
+  type AuditInput,
+  type AuditOutput,
+  type AuditVulnerability,
+} from './audit.js';
 export {
   bashTool,
   type BashInput,
@@ -106,7 +112,12 @@ export {
   type DiffInput,
   type DiffOutput,
 } from './diff.js';
-export { documentTool } from './document.js';
+export {
+  documentTool,
+  type DocumentInput,
+  type DocumentOutput,
+  type DocumentedItem,
+} from './document.js';
 export {
   discoverE2EProjects,
   type E2EExecutionPlan,
@@ -173,12 +184,22 @@ export {
   recordKanbanVerificationEvidence,
 } from './kanban-evidence-bridge.js';
 export * from './languages/index.js';
-export { lintTool } from './lint.js';
+export {
+  lintTool,
+  type LintInput,
+  type LintOutput,
+} from './lint.js';
 export { logsTool } from './logs.js';
 export { forgetTool, relatedMemoryTool, rememberTool, searchMemoryTool } from './memory.js';
 export { createModeTool } from './mode.js';
 export { nextStepsTool } from './next-steps-tool.js';
-export { outdatedTool } from './outdated.js';
+export {
+  outdatedTool,
+  type OutdatedContext,
+  type OutdatedInput,
+  type OutdatedOutput,
+  type OutdatedPackage,
+} from './outdated.js';
 export { builtinToolsPack } from './pack.js';
 export {
   patchTool,
@@ -262,7 +283,11 @@ export {
 } from './session-kanban.js';
 export { makeSkillTool } from './skill.js';
 export { taskTool } from './task.js';
-export { testTool } from './test.js';
+export {
+  testTool,
+  type TestInput,
+  type TestOutput,
+} from './test.js';
 export { todoTool } from './todo.js';
 export { toolHelpTool } from './tool-help.js';
 // Tool icon mapping — shared across all UIs (WebUI, TUI, REPL)

@@ -5,7 +5,7 @@ import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
-interface TestInput {
+export interface TestInput {
   files?: string | string[] | undefined;
   runner?: 'vitest' | 'jest' | 'mocha' | 'auto' | undefined;
   watch?: boolean | undefined;
@@ -16,7 +16,7 @@ interface TestInput {
   verbose?: boolean | undefined;
 }
 
-interface TestOutput {
+export interface TestOutput {
   runner: string;
   exit_code: number;
   tests_run: number;
