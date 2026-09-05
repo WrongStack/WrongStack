@@ -17,7 +17,7 @@ import { safeResolveReal } from './_util.js';
  */
 const MAX_FILE_DUMP_BYTES = 5 * 1024 * 1024;
 
-interface DiffInput {
+export interface DiffInput {
   path?: string | undefined;
   files?: string | string[] | undefined;
   a?: string | undefined;
@@ -30,7 +30,7 @@ interface DiffInput {
 /** Character cap for the git-diff stdout returned to the model. */
 const MAX_GIT_DIFF_CHARS = 100_000;
 
-interface DiffOutput {
+export interface DiffOutput {
   diff: string;
   files: string[];
   truncated: boolean;

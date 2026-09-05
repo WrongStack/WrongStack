@@ -15,7 +15,7 @@ import { codebaseIndexDirOverride } from './codebase-index/writer-helpers.js';
  */
 const ADVANCED_MODE_META_KEY = 'tools.read.advancedMode';
 
-interface ReadInput {
+export interface ReadInput {
   path: string;
   offset?: number | undefined;
   limit?: number | undefined;
@@ -34,7 +34,7 @@ interface ReadInput {
  * advanced mode is on or `includeSymbols` is set. The LLM must treat
  * this as a symbol listing — not as file content.
  */
-interface SymbolEntry {
+export interface SymbolEntry {
   /** Symbol name (e.g. myFunction, MyClass). */
   name: string;
   /** Kind of symbol (function, class, interface, const, etc.). */
@@ -47,7 +47,7 @@ interface SymbolEntry {
   signature: string;
 }
 
-interface ReadOutput {
+export interface ReadOutput {
   text: string;
   total_lines: number;
   encoding: string;

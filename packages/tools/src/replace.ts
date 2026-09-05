@@ -22,7 +22,7 @@ import { enqueueReindex } from './codebase-index/background-indexer.js';
 /** Byte budget for the combined per-file diff payload — matches `maxOutputBytes`. */
 const MAX_DIFF_BYTES = 262_144;
 
-interface ReplaceInput {
+export interface ReplaceInput {
   pattern: string;
   replacement: string;
   files: string | string[];
@@ -31,7 +31,7 @@ interface ReplaceInput {
   dry_run?: boolean | undefined;
 }
 
-interface ReplaceOutput {
+export interface ReplaceOutput {
   files_modified: number;
   total_replacements: number;
   results: { path: string; replacements: number; diff?: string | undefined }[];

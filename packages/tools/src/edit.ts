@@ -24,7 +24,7 @@ import { enqueueReindex } from './codebase-index/background-indexer.js';
 /** Byte budget for the returned unified diff — matches `maxOutputBytes`. */
 const MAX_DIFF_BYTES = 262_144;
 
-interface EditInput {
+export interface EditInput {
   path: string;
   old_string: string;
   new_string: string;
@@ -37,7 +37,7 @@ interface EditInput {
   replace_all?: boolean | undefined;
 }
 
-interface EditOutput {
+export interface EditOutput {
   path: string;
   replacements: number;
   diff: string;

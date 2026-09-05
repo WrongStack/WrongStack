@@ -16,12 +16,12 @@ import { enqueueReindex } from './codebase-index/background-indexer.js';
 /** Byte budget for the returned unified diff — matches `maxOutputBytes`. */
 const MAX_DIFF_BYTES = 262_144;
 
-interface WriteInput {
+export interface WriteInput {
   path: string;
   content: string;
 }
 
-interface WriteOutput {
+export interface WriteOutput {
   path: string;
   bytes_written: number;
   created: boolean;

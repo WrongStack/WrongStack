@@ -97,7 +97,11 @@ export {
   symbolGraphService,
 } from './codebase-index/index.js';
 export { designTool } from './design.js';
-export { diffTool } from './diff.js';
+export {
+  diffTool,
+  type DiffInput,
+  type DiffOutput,
+} from './diff.js';
 export { documentTool } from './document.js';
 export {
   discoverE2EProjects,
@@ -109,7 +113,11 @@ export {
   type E2EServerHint,
   e2ePlanTool,
 } from './e2e.js';
-export { editTool } from './edit.js';
+export {
+  editTool,
+  type EditInput,
+  type EditOutput,
+} from './edit.js';
 export {
   configureDangerBypass,
   configureExecPolicy,
@@ -194,8 +202,17 @@ export {
   listInstances,
 } from './ps-slash.js';
 export { pwshTool, PWSH_TOOL_DESCRIPTION, type PwshInput, type PwshOutput } from './pwsh.js';
-export { readTool } from './read.js';
-export { replaceTool } from './replace.js';
+export {
+  readTool,
+  type ReadInput,
+  type ReadOutput,
+  type SymbolEntry,
+} from './read.js';
+export {
+  replaceTool,
+  type ReplaceInput,
+  type ReplaceOutput,
+} from './replace.js';
 export { scaffoldTool } from './scaffold.js';
 export {
   searchTool,
@@ -253,4 +270,8 @@ export {
 export { toolUseTool } from './tool-use.js';
 export { treeTool } from './tree.js';
 export { typecheckTool } from './typecheck.js';
-export { writeTool } from './write.js';
+export {
+  writeTool,
+  type WriteInput,
+  type WriteOutput,
+} from './write.js';
