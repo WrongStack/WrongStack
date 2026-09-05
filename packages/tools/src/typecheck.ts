@@ -5,14 +5,14 @@ import { spawnStream } from './_spawn-stream.js';
 import { detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
-interface TypecheckInput {
+export interface TypecheckInput {
   project?: string | undefined;
   cwd?: string | undefined;
   strict?: boolean | undefined;
   all?: boolean | undefined;
 }
 
-interface TypecheckOutput {
+export interface TypecheckOutput {
   project: string;
   exit_code: number;
   errors: number;

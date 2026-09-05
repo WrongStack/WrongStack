@@ -7,13 +7,13 @@ import { mapWithConcurrency } from './_concurrency.js';
 import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
 import { assertRealInsideRoot, safeResolveReal } from './_util.js';
 
-interface GlobInput {
+export interface GlobInput {
   pattern: string;
   path?: string | undefined;
   limit?: number | undefined;
 }
 
-interface GlobOutput {
+export interface GlobOutput {
   files: string[];
   truncated: boolean;
 }

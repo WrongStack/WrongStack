@@ -9,7 +9,7 @@ import { spawnStream } from './_spawn-stream.js';
 import { detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyPackageOperation } from './languages/legacy-bridge.js';
 
-interface InstallInput {
+export interface InstallInput {
   packages?: string | string[] | undefined;
   save?: 'dependency' | 'dev' | 'optional' | undefined;
   cwd?: string | undefined;
@@ -24,7 +24,7 @@ interface InstallInput {
   lifecycleScripts?: boolean | undefined;
 }
 
-interface InstallOutput {
+export interface InstallOutput {
   packages: string[];
   exit_code: number;
   output: string;
@@ -32,7 +32,7 @@ interface InstallOutput {
   truncated: boolean;
 }
 
-type InstallContext = Parameters<Tool<InstallInput, InstallOutput>['execute']>[1];
+export type InstallContext = Parameters<Tool<InstallInput, InstallOutput>['execute']>[1];
 
 export const installTool = {
   name: 'install',

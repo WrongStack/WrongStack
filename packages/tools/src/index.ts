@@ -8,7 +8,11 @@ export {
 } from './_session-shell.js';
 export type { BashShell } from './_shell-pick.js';
 export { auditTool } from './audit.js';
-export { bashTool } from './bash.js';
+export {
+  bashTool,
+  type BashInput,
+  type BashOutput,
+} from './bash.js';
 export { batchToolUseTool } from './batch-tool-use.js';
 export * from './browser/index.js';
 // builtinTools moved to './builtin.ts' so consumers that only need a subset of
@@ -145,9 +149,22 @@ export {
   type GitOutput,
   type GitSubcommand,
 } from './git.js';
-export { globTool } from './glob.js';
-export { grepTool } from './grep.js';
-export { installTool } from './install.js';
+export {
+  globTool,
+  type GlobInput,
+  type GlobOutput,
+} from './glob.js';
+export {
+  grepTool,
+  type GrepInput,
+  type GrepOutput,
+} from './grep.js';
+export {
+  installTool,
+  type InstallContext,
+  type InstallInput,
+  type InstallOutput,
+} from './install.js';
 export { jsonTool } from './json.js';
 export { kanbanTool } from './kanban.js';
 export {
@@ -269,7 +286,11 @@ export {
 } from './tool-tier.js';
 export { toolUseTool } from './tool-use.js';
 export { treeTool } from './tree.js';
-export { typecheckTool } from './typecheck.js';
+export {
+  typecheckTool,
+  type TypecheckInput,
+  type TypecheckOutput,
+} from './typecheck.js';
 export {
   writeTool,
   type WriteInput,

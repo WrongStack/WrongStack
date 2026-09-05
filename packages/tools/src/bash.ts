@@ -23,13 +23,13 @@ import { resolvePowerShell } from './_win32-resolve.js';
 import { checkAndBlockKillCommand } from './bash-kill-guard.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
 
-interface BashInput {
+export interface BashInput {
   command: string;
   timeout_ms?: number | undefined;
   background?: boolean | undefined;
 }
 
-interface BashOutput {
+export interface BashOutput {
   output: string;
   exit_code: number | null;
   timed_out: boolean;
@@ -739,6 +739,3 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     }
   },
 };
-
-// Re-export types so consumers can narrow on stream events.
-export type { BashInput, BashOutput };

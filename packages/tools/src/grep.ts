@@ -14,7 +14,7 @@ import { capSubject, compileUserRegex } from './_regex.js';
 import { isBinaryBuffer, safeResolveReal } from './_util.js';
 import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
 
-interface GrepInput {
+export interface GrepInput {
   pattern: string;
   path?: string | undefined;
   glob?: string | undefined;
@@ -24,7 +24,7 @@ interface GrepInput {
   limit?: number | undefined;
 }
 
-interface GrepOutput {
+export interface GrepOutput {
   matches: string[];
   count: number;
   truncated: boolean;
