@@ -26,7 +26,6 @@
  */
 import type { TextBlock } from './blocks.js';
 import type { ContextEvidenceState } from './context-evidence.js';
-import type { ConversationJournalQueue } from '../core/context-conversation-journal.js';
 import type { ConversationStateApi } from './conversation-state.js';
 import type { FileEventRecord } from './file-event-record.js';
 import type { Message } from './messages.js';

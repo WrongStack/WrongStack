@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T19:47:05.183Z",
+  "generatedAt": "2026-09-05T19:50:08.203Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 36,
     "sourceFiles": 3622,
     "testFiles": 3071,
-    "sourceLines": 871468,
+    "sourceLines": 871467,
     "workspaceEdges": 127,
-    "moduleEdges": 11393,
+    "moduleEdges": 11392,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -24,10 +24,7 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 841
   },
-  "errors": [
-    "1 unexcepted module cycle(s)",
-    "ARCH-CYCLE-TYPE-12: exception no longer matches an active cycle"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -1042,21 +1039,6 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/core/src/core/context-conversation-journal.ts",
-          "packages/core/src/types/blocks.ts",
-          "packages/core/src/types/context.ts",
-          "packages/core/src/types/conversation-state.ts",
-          "packages/core/src/types/messages.ts",
-          "packages/core/src/types/provider.ts",
-          "packages/core/src/types/run-env.ts",
-          "packages/core/src/types/session.ts",
-          "packages/core/src/types/token-counter.ts",
-          "packages/core/src/types/tool.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
           "packages/core/src/hq/protocol/client.ts",
           "packages/core/src/hq/protocol/core.ts",
           "packages/core/src/hq/protocol/fleet.ts",
@@ -1073,22 +1055,10 @@
           "packages/core/src/tools/mcp-control.ts",
           "packages/core/src/tools/mcp-use.ts"
         ]
-      }
-    ],
-    "matchedExceptions": [
-      "ARCH-CYCLE-TYPE-05",
-      "ARCH-CYCLE-TYPE-09",
-      "ARCH-CYCLE-TYPE-11",
-      "ARCH-CYCLE-TYPE-13",
-      "ARCH-CYCLE-TYPE-14",
-      "ARCH-CYCLE-TYPE-29",
-      "ARCH-CYCLE-TYPE-30"
-    ],
-    "unexcepted": [
+      },
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/core/src/core/context-conversation-journal.ts",
           "packages/core/src/types/blocks.ts",
           "packages/core/src/types/context.ts",
           "packages/core/src/types/conversation-state.ts",
@@ -1100,7 +1070,18 @@
           "packages/core/src/types/tool.ts"
         ]
       }
-    ]
+    ],
+    "matchedExceptions": [
+      "ARCH-CYCLE-TYPE-05",
+      "ARCH-CYCLE-TYPE-09",
+      "ARCH-CYCLE-TYPE-11",
+      "ARCH-CYCLE-TYPE-12",
+      "ARCH-CYCLE-TYPE-13",
+      "ARCH-CYCLE-TYPE-14",
+      "ARCH-CYCLE-TYPE-29",
+      "ARCH-CYCLE-TYPE-30"
+    ],
+    "unexcepted": []
   },
   "testOwnership": {
     "runtimeAssignments": [
