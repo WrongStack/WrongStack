@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T18:58:41.101Z",
+  "generatedAt": "2026-09-05T19:09:09.235Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3600,
+    "sourceFiles": 3606,
     "testFiles": 3071,
-    "sourceLines": 871029,
+    "sourceLines": 871184,
     "workspaceEdges": 127,
-    "moduleEdges": 11330,
+    "moduleEdges": 11343,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -212,7 +212,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 819,
+      "sourceFiles": 825,
       "testFiles": 708,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -19734,11 +19734,6 @@
       "relativeImports": 3
     },
     {
-      "file": "packages/core/src/core/context.ts",
-      "lines": 1088,
-      "relativeImports": 14
-    },
-    {
       "file": "packages/core/src/core/fallback-model.ts",
       "lines": 879,
       "relativeImports": 15
@@ -20276,11 +20271,6 @@
   ],
   "hotspots": [
     {
-      "file": "packages/core/src/core/context.ts",
-      "lines": 1088,
-      "relativeImports": 14
-    },
-    {
       "file": "packages/core/src/hq/publisher.ts",
       "lines": 1085,
       "relativeImports": 5
@@ -20524,6 +20514,11 @@
       "file": "packages/core/src/coordination/director.ts",
       "lines": 966,
       "relativeImports": 41
+    },
+    {
+      "file": "packages/webui/src/components/SidePanel/SessionList.tsx",
+      "lines": 965,
+      "relativeImports": 0
     }
   ],
   "testOnlyExports": [

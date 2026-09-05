@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T18:58:41.101Z
+**Generated:** 2026-09-05T19:09:09.235Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3600 |
-| Production source lines | 871029 |
+| Production source files | 3606 |
+| Production source lines | 871184 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11330 |
+| Relative module edges | 11343 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -31,7 +31,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 26 | 51 | @wrongstack/core |
 | @wrongstack/cli | 475 | 455 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 819 | 708 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 825 | 708 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 18 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 28 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1088 | `packages/core/src/core/context.ts` |
 | 1085 | `packages/core/src/hq/publisher.ts` |
 | 1081 | `packages/webui/src/components/AgentOfficeView.tsx` |
 | 1080 | `packages/tools/src/codebase-index/writer.ts` |
@@ -135,6 +134,7 @@ None.
 | 975 | `packages/cli/src/webui-server.ts` |
 | 973 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 966 | `packages/core/src/coordination/director.ts` |
+| 965 | `packages/webui/src/components/SidePanel/SessionList.tsx` |
 
 ## Exports only tests reference
 

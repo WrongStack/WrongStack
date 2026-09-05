@@ -1,6 +1,3 @@
-import { realpathSync } from 'node:fs';
-import * as path from 'node:path';
-import { requireSessionId } from '@wrongstack/primitives';
 import type { TextBlock } from '../types/blocks.js';
 // Roadmap 10A: TodoItem's canonical home is the types/context.ts leaf
 // (single source of truth, acyclic); re-exported here for existing import paths.
@@ -14,17 +11,28 @@ import type { SessionEvent, SessionWriter } from '../types/session.js';
 import type { TokenCounter } from '../types/token-counter.js';
 import type { Tool } from '../types/tool.js';
 import { createContextEvidenceState } from '../utils/context-evidence.js';
+import {
+  ConversationJournalQueue,
+  isAppendableSessionWriter,
+} from './context-conversation-journal.js';
+import {
+  clearMemoryEvidenceList,
+  type ProviderMemoryEvidence,
+  setMemoryEvidenceList,
+} from './context-evidence.js';
+import {
+  recordFileEventEntry,
+  recordFileObservation,
+  recordSideEffectEntry,
+  trimTrackedFiles,
+} from './context-file-tracker.js';
+import { drainHooks, registerHook } from './context-hooks.js';
+import { resolveEventSessionId, resolveOwningSessionId } from './context-session-id.js';
+import { resolveAndValidateWorkingDir } from './context-working-dir.js';
 import { ConversationState } from './conversation-state.js';
 
-function isAppendableSessionWriter(writer: unknown): writer is SessionWriter {
-  return Boolean(
-    writer &&
-      typeof writer === 'object' &&
-      typeof (writer as { append?: unknown }).append === 'function',
-  );
-}
-
-export type { TodoItem };
+export type { ProviderMemoryEvidence, TodoItem };
+export { isAppendableSessionWriter, resolveEventSessionId, resolveOwningSessionId };
 
 export interface RunOptions {
   signal?: AbortSignal | undefined;
@@ -73,13 +81,6 @@ export interface ContextInit {
    * `session.traceId` automatically.
    */
   traceId?: string | undefined;
-}
-
-export interface ProviderMemoryEvidence {
-  /** Stable owner key, for example `sage.tool-memory`. */
-  source: string;
-  /** Provider-bound evidence text; never appended to chat/tool history. */
-  text: string;
 }
 
 /**
@@ -321,25 +322,11 @@ export class Context implements RunEnv, AgentContext {
   memoryEvidence: ProviderMemoryEvidence[] = [];
 
   setMemoryEvidence(source: string, text: string | undefined, maxChars = 6_000): void {
-    const key = source.trim();
-    if (!key) return;
-    const clean = text?.trim();
-    const retained = this.memoryEvidence.filter((entry) => entry.source !== key);
-    if (clean) {
-      const boundedMax = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 0;
-      if (boundedMax > 0) retained.push({ source: key, text: clean.slice(0, boundedMax) });
-    }
-    // A plugin cannot grow this into an unbounded side channel. Oldest source
-    // slots are evicted; each surviving owner remains independently replaceable.
-    this.memoryEvidence = retained.slice(-8);
+    this.memoryEvidence = setMemoryEvidenceList(this.memoryEvidence, source, text, maxChars);
   }
 
   clearMemoryEvidence(source?: string): void {
-    if (source === undefined) {
-      this.memoryEvidence = [];
-      return;
-    }
-    this.memoryEvidence = this.memoryEvidence.filter((entry) => entry.source !== source);
+    this.memoryEvidence = clearMemoryEvidenceList(this.memoryEvidence, source);
   }
 
   /**
@@ -398,183 +385,68 @@ export class Context implements RunEnv, AgentContext {
    * `onChange`. New code should prefer the wrapper API.
    */
   _state: ConversationState | null = null;
-  readonly _conversationJournalQueue: Array<{
-    event: SessionEvent;
-    bytes: number;
-    writer: SessionWriter;
-    attempts?: number;
-  }> = [];
-  _conversationJournalBytes = 0;
-  _conversationJournalDrain: Promise<void> | null = null;
-  _conversationJournalLastError: Error | null = null;
-  private static readonly CONVERSATION_JOURNAL_MAX_EVENTS = 256;
-  private static readonly CONVERSATION_JOURNAL_MAX_BYTES = 4 * 1024 * 1024;
+  private readonly _journalQueueManager: ConversationJournalQueue = new ConversationJournalQueue({
+    sessionIdGetter: () => this.session?.id,
+    messagesGetter: () => this.messages,
+  });
+
+  get _conversationJournalQueue() {
+    return this._journalQueueManager.queue;
+  }
+  get _conversationJournalBytes(): number {
+    return this._journalQueueManager.bytes;
+  }
+  set _conversationJournalBytes(val: number) {
+    this._journalQueueManager.bytes = val;
+  }
+  get _conversationJournalDrain(): Promise<void> | null {
+    return this._journalQueueManager.drain;
+  }
+  set _conversationJournalDrain(val: Promise<void> | null) {
+    this._journalQueueManager.drain = val;
+  }
+  get _conversationJournalLastError(): Error | null {
+    return this._journalQueueManager.lastError;
+  }
+  set _conversationJournalLastError(val: Error | null) {
+    this._journalQueueManager.lastError = val;
+  }
+  get _journalDropCount(): number {
+    return this._journalQueueManager.dropCount;
+  }
+  set _journalDropCount(val: number) {
+    this._journalQueueManager.dropCount = val;
+  }
+  get _journalDropWarnAt(): number {
+    return this._journalQueueManager.dropWarnAt;
+  }
+  set _journalDropWarnAt(val: number) {
+    this._journalQueueManager.dropWarnAt = val;
+  }
+
   private static readonly MAX_FILE_EVENTS = 1000;
   private static readonly MAX_SIDE_EFFECTS = 500;
 
   /** Wait until every exact conversation-state event queued so far is in the writer buffer. */
   async flushConversationJournal(): Promise<void> {
-    for (;;) {
-      if (this._conversationJournalQueue.length > 0) this.startConversationJournalDrain();
-      const drain = this._conversationJournalDrain;
-      if (!drain) break;
-      await drain;
-      if (this._conversationJournalQueue.length > 0 && this._conversationJournalLastError) {
-        throw this._conversationJournalLastError;
-      }
-    }
-    // After the drain completes, forcefully clear the queue to release
-    // references to the old session's SessionEvent objects. The drain
-    // above processed every event, but the array slot references may
-    // still be held by V8's internal representation. Explicit nulling
-    // here makes the old objects unreachable immediately.
-    this._conversationJournalQueue.length = 0;
-    this._conversationJournalBytes = 0;
-    this._conversationJournalLastError = null;
+    return this._journalQueueManager.flushConversationJournal();
   }
 
   conversationJournalBytes(event: SessionEvent): number {
-    try {
-      return Buffer.byteLength(JSON.stringify(event), 'utf8');
-    } catch {
-      return Context.CONVERSATION_JOURNAL_MAX_BYTES + 1;
-    }
+    return this._journalQueueManager.conversationJournalBytes(event);
   }
-
-  _journalDropCount = 0;
-  _journalDropWarnAt = 0;
 
   /** Throttled notice that a conversation event never reached the journal. */
   warnConversationJournalDrop(eventType: SessionEvent['type']): void {
-    this._journalDropCount++;
-    const now = Date.now();
-    if (now - this._journalDropWarnAt < 5_000) return;
-    this._journalDropWarnAt = now;
-    const dropped = this._journalDropCount;
-    this._journalDropCount = 0;
-    console.warn(
-      JSON.stringify({
-        level: 'error',
-        event: 'session.conversation_journal_drop',
-        sessionId: this.session?.id,
-        eventType,
-        droppedEvents: dropped,
-        message: 'Session writer is not draining; replay of this session will be incomplete.',
-        timestamp: new Date().toISOString(),
-      }),
-    );
+    this._journalQueueManager.warnConversationJournalDrop(eventType);
   }
 
   enqueueConversationJournal(event: SessionEvent, writer: SessionWriter): void {
-    if (!isAppendableSessionWriter(writer)) {
-      this.warnConversationJournalDrop(event.type);
-      return;
-    }
-    this._conversationJournalLastError = null;
-    const bytes = this.conversationJournalBytes(event);
-    const shouldSnapshot =
-      event.type === 'messages_replaced' ||
-      this._conversationJournalQueue.length >= Context.CONVERSATION_JOURNAL_MAX_EVENTS ||
-      this._conversationJournalBytes + bytes > Context.CONVERSATION_JOURNAL_MAX_BYTES;
-
-    if (shouldSnapshot) {
-      const snapshot: SessionEvent =
-        event.type === 'messages_replaced'
-          ? event
-          : {
-              type: 'messages_replaced',
-              ts: new Date().toISOString(),
-              version: 1,
-              messages: [...this.messages],
-            };
-      const snapshotBytes = this.conversationJournalBytes(snapshot);
-      for (let index = this._conversationJournalQueue.length - 1; index >= 0; index -= 1) {
-        const queued = this._conversationJournalQueue[index];
-        if (queued?.writer !== writer) continue;
-        this._conversationJournalBytes = Math.max(0, this._conversationJournalBytes - queued.bytes);
-        this._conversationJournalQueue.splice(index, 1);
-      }
-      // The snapshot is enqueued whatever it weighs. Refusing an oversized one
-      // used to leave the queue holding nothing at all for this writer — the
-      // deltas were purged just above — so the journal silently stopped
-      // describing the conversation. That is worst exactly where it matters
-      // most: `applyRewindToConversation` truncates the JSONL and then relies
-      // on this snapshot to re-anchor it, and compaction relies on it to stop
-      // the journal replaying the pre-compaction history. The overshoot is
-      // also cheaper than the byte count suggests — `messages` is a shallow
-      // copy of message objects the Context already keeps alive — and the
-      // drain releases it on the next tick.
-      this._conversationJournalQueue.push({ event: snapshot, bytes: snapshotBytes, writer });
-      this._conversationJournalBytes += snapshotBytes;
-    } else {
-      this._conversationJournalQueue.push({ event, bytes, writer });
-      this._conversationJournalBytes += bytes;
-    }
-    // Backstop for a writer that stops draining entirely. Snapshots are never
-    // evicted: a dropped delta is one turn the next snapshot restores anyway,
-    // a dropped snapshot is state nothing can restore. Loud, because reaching
-    // here means the journal is about to be incomplete.
-    while (
-      this._conversationJournalQueue.length > Context.CONVERSATION_JOURNAL_MAX_EVENTS ||
-      this._conversationJournalBytes > Context.CONVERSATION_JOURNAL_MAX_BYTES
-    ) {
-      const index = this._conversationJournalQueue.findIndex(
-        (queued) => queued.event.type !== 'messages_replaced',
-      );
-      if (index === -1) break;
-      const [dropped] = this._conversationJournalQueue.splice(index, 1);
-      if (!dropped) break;
-      this._conversationJournalBytes = Math.max(0, this._conversationJournalBytes - dropped.bytes);
-      this.warnConversationJournalDrop(dropped.event.type);
-    }
-    this.startConversationJournalDrain();
+    this._journalQueueManager.enqueueConversationJournal(event, writer);
   }
 
   startConversationJournalDrain(): void {
-    if (this._conversationJournalDrain) return;
-    const drain = (async () => {
-      while (this._conversationJournalQueue.length > 0) {
-        const queued = this._conversationJournalQueue.shift();
-        if (!queued) continue;
-        this._conversationJournalBytes = Math.max(0, this._conversationJournalBytes - queued.bytes);
-        if (!isAppendableSessionWriter(queued.writer)) {
-          this.warnConversationJournalDrop(queued.event.type);
-          continue;
-        }
-        try {
-          await queued.writer.append(queued.event);
-          this._conversationJournalLastError = null;
-        } catch (err) {
-          const attempts = (queued.attempts ?? 0) + 1;
-          this._conversationJournalQueue.unshift({ ...queued, attempts });
-          this._conversationJournalBytes += queued.bytes;
-          const error = err instanceof Error ? err : new Error(String(err));
-          this._conversationJournalLastError = error;
-          if (attempts < 3) {
-            await new Promise((resolve) => setTimeout(resolve, attempts * 25));
-            continue;
-          }
-          console.warn(
-            JSON.stringify({
-              level: 'error',
-              event: 'session.conversation_journal_write_failed',
-              sessionId: this.session?.id,
-              eventType: queued.event.type,
-              attempts,
-              message: error.message,
-              timestamp: new Date().toISOString(),
-            }),
-          );
-          break;
-        }
-      }
-    })().finally(() => {
-      if (this._conversationJournalDrain === drain) this._conversationJournalDrain = null;
-      if (this._conversationJournalQueue.length > 0 && !this._conversationJournalLastError) {
-        this.startConversationJournalDrain();
-      }
-    });
-    this._conversationJournalDrain = drain;
+    this._journalQueueManager.startConversationJournalDrain();
   }
 
   get state(): ConversationState {
@@ -645,22 +517,10 @@ export class Context implements RunEnv, AgentContext {
   }
 
   registerAbortHook(fn: () => void | Promise<void>): () => void {
-    this.abortHooks.add(fn);
-    return () => this.abortHooks.delete(fn);
+    return registerHook(this.abortHooks, fn);
   }
   async drainAbortHooks(): Promise<void> {
-    const snapshot = [...this.abortHooks].reverse();
-    // Clear before running so new hooks registered during iteration
-    // fire on the next abort cycle (not the current one — hook chains
-    // are intentionally not supported).
-    this.abortHooks.clear();
-    for (const fn of snapshot) {
-      try {
-        await fn();
-      } catch {
-        // hooks must be best-effort; swallow so siblings still fire
-      }
-    }
+    return drainHooks(this.abortHooks);
   }
 
   /**
@@ -676,19 +536,10 @@ export class Context implements RunEnv, AgentContext {
   /** Session-lifetime teardown hooks (drained by drainAgentHooks). Public for structural typing (Roadmap 10A). */
   readonly agentHooks = new Set<() => void | Promise<void>>();
   registerAgentHook(fn: () => void | Promise<void>): () => void {
-    this.agentHooks.add(fn);
-    return () => this.agentHooks.delete(fn);
+    return registerHook(this.agentHooks, fn);
   }
   async drainAgentHooks(): Promise<void> {
-    const snapshot = [...this.agentHooks].reverse();
-    this.agentHooks.clear();
-    for (const fn of snapshot) {
-      try {
-        await fn();
-      } catch {
-        // hooks must be best-effort; swallow so siblings still fire
-      }
-    }
+    return drainHooks(this.agentHooks);
   }
 
   /**
@@ -721,27 +572,15 @@ export class Context implements RunEnv, AgentContext {
     source: 'user' | 'write' = 'user',
     contentHash?: string,
   ): void {
-    if (contentHash !== undefined) {
-      this.fileHashes.set(absPath, contentHash);
-    } else {
-      const prevMtime = this.fileMtimes.get(absPath);
-      if (prevMtime !== mtimeMs) this.fileHashes.delete(absPath);
-    }
-    this.fileMtimes.set(absPath, mtimeMs);
-    if (contentHash !== undefined) {
-      this.session.recordFileObservation?.({
-        path: absPath,
-        hash: contentHash,
-        mtimeMs,
-        source,
-      });
-    }
-    if (source === 'write') {
-      this.writtenFiles.add(absPath);
-    } else {
-      this.readFiles.add(absPath);
-    }
-    this.trimTrackedFiles();
+    recordFileObservation(
+      this,
+      this.session,
+      absPath,
+      mtimeMs,
+      source,
+      contentHash,
+      Context.MAX_TRACKED_FILES,
+    );
   }
 
   /**
@@ -750,37 +589,9 @@ export class Context implements RunEnv, AgentContext {
    * when the cap is exceeded. This prevents unbounded memory growth in
    * long-running sessions over very large codebases where the agent
    * touches thousands of distinct files.
-   *
-   * The order of eviction across structures is not synchronized (each
-   * structure independently drops its oldest), so after trimming the
-   * sets may reference paths whose mtime/hash have been evicted from the
-   * maps, and vice-versa. This is safe: paths in a Set are just strings
-   * (4-8 bytes per char in the heap), and a stale lookup in fileMtimes
-   * returns undefined, which `read`/`edit` treat as "first access" —
-   * the tool will re-stat the file and re-populate the entry. The agent
-   * never fails or misbehaves; it just pays one extra stat call.
    */
   trimTrackedFiles(): void {
-    Context.trimSet(this.readFiles, Context.MAX_TRACKED_FILES);
-    Context.trimSet(this.writtenFiles, Context.MAX_TRACKED_FILES);
-    Context.trimMap(this.fileMtimes, Context.MAX_TRACKED_FILES);
-    Context.trimMap(this.fileHashes, Context.MAX_TRACKED_FILES);
-  }
-
-  private static trimSet(set: Set<string>, max: number): void {
-    while (set.size > max) {
-      const oldest = set.values().next().value;
-      if (oldest === undefined) break;
-      set.delete(oldest);
-    }
-  }
-
-  private static trimMap(map: Map<string, unknown>, max: number): void {
-    while (map.size > max) {
-      const oldest = map.keys().next().value;
-      if (oldest === undefined) break;
-      map.delete(oldest);
-    }
+    trimTrackedFiles(this, Context.MAX_TRACKED_FILES);
   }
 
   /** Clear accumulated file-read metadata after compaction or at boundaries
@@ -797,37 +608,10 @@ export class Context implements RunEnv, AgentContext {
 
   /**
    * Record a structured side effect for the audit trail (P2 #5).
-   * Called by tools that perform non-filesystem mutations (bash, install,
-   * fetch) so /diag and session replay can show what the agent did beyond
-   * file edits.
-   *
-   * Unlike recordFileChange(), this does NOT support undo — it is purely
-   * for observability and audit. The event is appended to the session
-   * JSONL fire-and-forget; errors are swallowed so recording never blocks
-   * tool execution.
    */
   recordSideEffect(sideEffect: import('../types/side-effect.js').SideEffect): void {
-    this.sideEffects.push(sideEffect);
-    if (this.sideEffects.length > Context.MAX_SIDE_EFFECTS) {
-      this.sideEffects.splice(0, this.sideEffects.length - Context.MAX_SIDE_EFFECTS);
-    }
-    // Persist through the writer pinned to this run (if active) so a
-    // host-side session swap cannot route side effects into the new
-    // session's JSONL — same invariant as recordFileEvent.
     const sessionWriter = this.activeRunSessionWriter ?? this.session;
-    sessionWriter
-      .append({
-        type: 'side_effect',
-        ts: sideEffect.ts,
-        toolUseId: sideEffect.toolUseId,
-        toolName: sideEffect.toolName,
-        input: sideEffect.input,
-        outcome: sideEffect.outcome,
-        risk: sideEffect.risk,
-      })
-      .catch(() => {
-        /* best-effort — never block tool execution */
-      });
+    recordSideEffectEntry(this.sideEffects, sessionWriter, sideEffect, Context.MAX_SIDE_EFFECTS);
   }
 
   /**
@@ -853,17 +637,6 @@ export class Context implements RunEnv, AgentContext {
 
   /**
    * Record a comprehensive file event for the audit trail.
-   * Persists the event as a `file_event` session JSONL event.
-   * Consumers that need `file.event` EventBus events should subscribe
-   * at the executor level (see `ToolExecutor`'s auto-emission).
-   *
-   * The `scope` field is auto-derived from `currentKanbanTaskId`:
-   * - When a kanban task is set, scope = `'task'` and `taskId`/`boardId`
-   *   are populated from `currentKanbanTaskId`/`currentKanbanBoardId`.
-   * - Otherwise scope = `'session'`.
-   *
-   * Fire-and-forget: errors are swallowed so recording never blocks
-   * tool execution.
    */
   recordFileEvent(input: {
     operation: 'create' | 'read' | 'update' | 'delete' | 'rename';
@@ -876,74 +649,24 @@ export class Context implements RunEnv, AgentContext {
     lines?: number | undefined;
     bytes?: number | undefined;
   }): void {
-    const scope = this.currentKanbanTaskId ? 'task' : 'session';
-    const ts = new Date().toISOString();
-    const record: FileEventRecord = {
-      operation: input.operation,
-      filePath: input.filePath,
-      absPath: input.absPath,
-      sessionId: this.eventSessionId(),
-      agentId: this.agentId,
-      agentName: this.agentName,
-      provider:
-        typeof this.provider === 'object'
-          ? (this.provider as { id: string }).id
-          : String(this.provider),
-      model: this.model,
-      ...(this.activeLogicalRequestId ? { logicalRequestId: this.activeLogicalRequestId } : {}),
-      ...(this.activePromptManifestId ? { promptManifestId: this.activePromptManifestId } : {}),
-      provenanceConfidence:
-        this.activeLogicalRequestId && this.activePromptManifestId ? 'explicit' : 'unknown',
-      toolName: input.toolName,
-      toolUseId: input.toolUseId,
-      scope,
-      taskId: this.currentKanbanTaskId,
-      boardId: this.currentKanbanBoardId,
-      timestamp: ts,
-      durationMs: input.durationMs,
-      fileSize: input.fileSize,
-      lines: input.lines,
-      bytes: input.bytes,
-    };
-
-    this.fileEvents.push(record);
-    if (this.fileEvents.length > Context.MAX_FILE_EVENTS) {
-      this.fileEvents.splice(0, this.fileEvents.length - Context.MAX_FILE_EVENTS);
-    }
-
-    // Persist through the writer pinned to this run. The WebUI may replace
-    // `this.session` while a late tool operation is completing; pairing the
-    // writer with the already-pinned id keeps both JSONL routing and metadata
-    // on the session that started the run.
-    const sessionWriter = this.activeRunSessionWriter ?? this.session;
-    sessionWriter
-      .append({
-        type: 'file_event',
-        ts,
-        operation: input.operation,
-        filePath: input.filePath,
-        absPath: input.absPath,
-        sessionId: record.sessionId,
+    recordFileEventEntry(
+      this.fileEvents,
+      {
+        eventSessionId: () => this.eventSessionId(),
         agentId: this.agentId,
         agentName: this.agentName,
-        provider: record.provider,
-        model: record.model,
-        ...(record.logicalRequestId ? { logicalRequestId: record.logicalRequestId } : {}),
-        ...(record.promptManifestId ? { promptManifestId: record.promptManifestId } : {}),
-        provenanceConfidence: record.provenanceConfidence,
-        toolName: input.toolName,
-        toolUseId: input.toolUseId,
-        scope,
-        taskId: this.currentKanbanTaskId,
-        boardId: this.currentKanbanBoardId,
-        durationMs: input.durationMs,
-        fileSize: input.fileSize,
-        lines: input.lines,
-        bytes: input.bytes,
-      })
-      .catch(() => {
-        /* best-effort — never block tool execution */
-      });
+        provider: this.provider,
+        model: this.model,
+        activeLogicalRequestId: this.activeLogicalRequestId,
+        activePromptManifestId: this.activePromptManifestId,
+        currentKanbanTaskId: this.currentKanbanTaskId,
+        currentKanbanBoardId: this.currentKanbanBoardId,
+        activeRunSessionWriter: this.activeRunSessionWriter,
+        session: this.session,
+      },
+      input,
+      Context.MAX_FILE_EVENTS,
+    );
   }
 
   /**
@@ -977,44 +700,11 @@ export class Context implements RunEnv, AgentContext {
    * Returns the resolved absolute path.
    */
   setWorkingDir(dir: string): string {
-    const resolved = path.isAbsolute(dir) ? path.resolve(dir) : path.resolve(this.projectRoot, dir);
-
-    // Validate containment within projectRoot — unless filesystem access is
-    // unrestricted, in which case the working dir may leave the project root.
-    if (!this.allowOutsideProjectRoot) {
-      const root = path.resolve(this.projectRoot);
-      const rel = path.relative(root, resolved);
-      if (rel.startsWith('..') || path.isAbsolute(rel)) {
-        throw new Error(`Working directory "${resolved}" is outside project root "${root}"`);
-      }
-      // The lexical check above passes any path that merely SPELLS as if it
-      // were inside the root. A symlink or Windows junction committed inside
-      // the repo points outside while spelling as inside, and this setter is
-      // the amplifier for that class: once the working dir sits on the far
-      // side of the link, every tool that resolves a relative path against it
-      // inherits the escape without naming a suspicious path itself.
-      //
-      // Realpath both sides — the root may itself be a link (macOS
-      // `/var`→`/private/var`, Windows 8.3 short names), so a raw-vs-real
-      // comparison would reject legitimate setups. `realpathSync`, not the
-      // async form: this setter is synchronous and used across many callers.
-      // A path that cannot be realpath'd (not yet created, permission denied)
-      // keeps the lexical result, which the check above already validated.
-      let realTarget = resolved;
-      let realRoot = root;
-      try {
-        realTarget = realpathSync.native(resolved);
-        realRoot = realpathSync.native(root);
-      } catch {
-        /* unresolvable — fall back to the lexically-validated pair */
-      }
-      const realRel = path.relative(realRoot, realTarget);
-      if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
-        throw new Error(
-          `Working directory "${resolved}" resolves to "${realTarget}", outside project root "${realRoot}"`,
-        );
-      }
-    }
+    const resolved = resolveAndValidateWorkingDir(
+      dir,
+      this.projectRoot,
+      this.allowOutsideProjectRoot,
+    );
 
     const old = this.workingDir;
     this.workingDir = resolved;
@@ -1046,42 +736,4 @@ export class Context implements RunEnv, AgentContext {
   usage(): Usage {
     return this.tokenCounter.total();
   }
-}
-
-/**
- * Session id that events of the in-flight run must be stamped with: the
- * run-pinned id (`Context.activeRunSessionId`) when a run is active,
- * otherwise the live session id. Reads properties defensively because
- * tests and lightweight embedders stub Context with partial objects whose
- * `session` may be missing despite the non-optional type.
- */
-export function resolveEventSessionId(ctx: AgentContext): string {
-  if (ctx.activeRunSessionId) {
-    return requireSessionId(ctx.activeRunSessionId, 'agent event emission');
-  }
-  const session: SessionWriter | undefined = ctx.session;
-  return requireSessionId(session?.id, 'agent event emission');
-}
-
-/**
- * Session that OWNS this agent — the conversation a surface is showing.
- *
- * Different question from {@link resolveEventSessionId}, which answers "where
- * do this run's journal events go". A subagent spawned with `sessionsRoot`
- * configured (the real CLI always configures it) is handed its own journal, so
- * both `ctx.session.id` and the run-pinned id name a private transcript that no
- * tab is subscribed to. Anything routed BETWEEN agents of one conversation —
- * mailbox identity and registration, `@session` recipient normalisation,
- * `session_note` inboxes — has to key off the spawning conversation instead, or
- * a worker's report reaches nobody.
- *
- * `meta.sessionId` is that spawn-time stamp, fixed for the worker's lifetime
- * (deliberately not a live read of the host's session, which moves whenever the
- * user switches tabs). Leaders carry no stamp and fall through to the event id,
- * which for them is the same session and follows resume / session.new.
- */
-export function resolveOwningSessionId(ctx: AgentContext): string {
-  const owning = ctx.meta?.['sessionId'];
-  if (typeof owning === 'string' && owning.length > 0) return owning;
-  return resolveEventSessionId(ctx);
 }

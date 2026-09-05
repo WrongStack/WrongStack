@@ -1371,8 +1371,8 @@
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 47,
-      "sourceLines": 12123
+      "sourceFiles": 53,
+      "sourceLines": 12278
     },
     {
       "directory": "design",
