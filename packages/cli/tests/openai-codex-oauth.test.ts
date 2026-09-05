@@ -355,6 +355,8 @@ describe('resolveCodexModels', () => {
                 { id: 'gpt-5.5', family: 'gpt-codex' },
                 { id: 'gpt-5.6-terra', family: 'gpt-codex' },
                 { id: 'gpt-5.6-luna', family: 'gpt-codex' },
+                // No longer in core's CODEX_MODELS catalog: the resolver must
+                // narrow this away even though the models.dev catalog lists it.
                 { id: 'gpt-5.4', family: 'gpt-codex' },
                 { id: 'gpt-5.4-mini', family: 'gpt-codex' },
                 { id: 'gpt-5.3-codex-spark', family: 'gpt-codex-spark' },
@@ -372,7 +374,6 @@ describe('resolveCodexModels', () => {
       'gpt-5.5',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
-      'gpt-5.4',
       'gpt-5.4-mini',
       'gpt-5.3-codex-spark',
     ]);
@@ -393,7 +394,6 @@ describe('resolveCodexModels', () => {
       'gpt-5.5',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
-      'gpt-5.4',
       'gpt-5.4-mini',
       'gpt-5.3-codex-spark',
     ]);
