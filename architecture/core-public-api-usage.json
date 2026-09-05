@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 309,
-      "typeOnly": 244,
+      "files": 310,
+      "typeOnly": 245,
       "runtimeOrMixed": 82
     },
     "@wrongstack/core/agent-catalog": {
@@ -154,7 +154,7 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/storage": {
-      "files": 115,
+      "files": 116,
       "typeOnly": 31,
       "runtimeOrMixed": 115
     },
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1024,
+      "files": 1027,
       "typeOnly": 947,
-      "runtimeOrMixed": 266
+      "runtimeOrMixed": 267
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -199,9 +199,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 549,
+      "files": 551,
       "typeOnly": 55,
-      "runtimeOrMixed": 522
+      "runtimeOrMixed": 524
     },
     "@wrongstack/core/utils/error": {
       "files": 6,
@@ -1977,7 +1977,13 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "file": "packages/webui-server/src/server/session-handler-helpers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/session-mode-handlers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -3897,7 +3903,7 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
-      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "file": "packages/webui-server/src/server/session-handler-helpers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -6561,7 +6567,7 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
-      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "file": "packages/webui-server/src/server/session-handler-helpers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -7887,7 +7893,7 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
-      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "file": "packages/webui-server/src/server/session-handler-helpers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9585,9 +9591,15 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/src/server/session-checkpoint-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/src/server/session-handlers.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -15729,9 +15741,21 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/session-checkpoint-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/session-cleanup-scheduler.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/session-context-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -15741,15 +15765,21 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "file": "packages/webui-server/src/server/session-handler-helpers.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/session-history.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/session-mode-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -19396,6 +19426,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/session-cleanup-scheduler.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/session-context-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/session-handler-helpers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

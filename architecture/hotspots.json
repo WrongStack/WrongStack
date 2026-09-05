@@ -574,10 +574,6 @@
       "lines": 938,
       "relativeImports": 47
     },
-    "packages/webui-server/src/server/session-handlers.ts": {
-      "lines": 1715,
-      "relativeImports": 11
-    },
     "packages/webui-server/src/server/start-webui.ts": {
       "lines": 1092,
       "relativeImports": 29

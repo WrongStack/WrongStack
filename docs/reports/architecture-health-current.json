@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T16:11:23.240Z",
+  "generatedAt": "2026-09-05T16:34:10.193Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3538,
+    "sourceFiles": 3542,
     "testFiles": 3070,
-    "sourceLines": 869005,
+    "sourceLines": 869231,
     "workspaceEdges": 127,
-    "moduleEdges": 11089,
+    "moduleEdges": 11105,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -885,7 +885,7 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 205,
+      "sourceFiles": 209,
       "testFiles": 187,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20328,11 +20328,6 @@
       "relativeImports": 47
     },
     {
-      "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1715,
-      "relativeImports": 11
-    },
-    {
       "file": "packages/webui-server/src/server/start-webui.ts",
       "lines": 1092,
       "relativeImports": 29
@@ -20354,11 +20349,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1715,
-      "relativeImports": 11
-    },
     {
       "file": "packages/core/src/storage/session-store.ts",
       "lines": 1426,
@@ -20603,6 +20593,11 @@
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
       "lines": 1002,
       "relativeImports": 2
+    },
+    {
+      "file": "packages/sage/src/types.ts",
+      "lines": 996,
+      "relativeImports": 0
     }
   ],
   "testOnlyExports": [

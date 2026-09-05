@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T16:11:23.240Z
+**Generated:** 2026-09-05T16:34:10.193Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3538 |
-| Production source lines | 869005 |
+| Production source files | 3542 |
+| Production source lines | 869231 |
 | Test files | 3070 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11089 |
+| Relative module edges | 11105 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -60,7 +60,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/webui | 505 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
-| @wrongstack/webui-server | 205 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 209 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/wrongtrace | 11 | 5 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
 
@@ -86,7 +86,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1715 | `packages/webui-server/src/server/session-handlers.ts` |
 | 1426 | `packages/core/src/storage/session-store.ts` |
 | 1386 | `packages/webui/src/lib/ws-client.ts` |
 | 1309 | `packages/core/src/chronicle/query.ts` |
@@ -136,6 +135,7 @@ None.
 | 1007 | `packages/core/src/execution/brain-runtime.ts` |
 | 1005 | `packages/tui/src/kanban-slash.ts` |
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
+| 996 | `packages/sage/src/types.ts` |
 
 ## Exports only tests reference
 
