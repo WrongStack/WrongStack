@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T17:05:46.342Z",
+  "generatedAt": "2026-09-05T17:23:48.545Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3554,
+    "sourceFiles": 3560,
     "testFiles": 3071,
-    "sourceLines": 869662,
+    "sourceLines": 869956,
     "workspaceEdges": 127,
-    "moduleEdges": 11170,
+    "moduleEdges": 11181,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -809,7 +809,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 505,
+      "sourceFiles": 511,
       "testFiles": 356,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20239,11 +20239,6 @@
       "relativeImports": 7
     },
     {
-      "file": "packages/webui/src/lib/ws-client.ts",
-      "lines": 1386,
-      "relativeImports": 11
-    },
-    {
       "file": "packages/webui/src/stores/chat-lanes.ts",
       "lines": 923,
       "relativeImports": 4
@@ -20340,11 +20335,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/webui/src/lib/ws-client.ts",
-      "lines": 1386,
-      "relativeImports": 11
-    },
     {
       "file": "packages/webui/src/stores/ui-store.ts",
       "lines": 1290,
@@ -20589,6 +20579,11 @@
       "file": "packages/kanban/src/types.ts",
       "lines": 992,
       "relativeImports": 1
+    },
+    {
+      "file": "packages/kanban/src/manager/assignment.ts",
+      "lines": 991,
+      "relativeImports": 13
     }
   ],
   "testOnlyExports": [

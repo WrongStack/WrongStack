@@ -498,10 +498,6 @@
       "lines": 913,
       "relativeImports": 7
     },
-    "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1386,
-      "relativeImports": 11
-    },
     "packages/webui/src/stores/chat-lanes.ts": {
       "lines": 923,
       "relativeImports": 4

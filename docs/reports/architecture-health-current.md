@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T17:05:46.342Z
+**Generated:** 2026-09-05T17:23:48.545Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3554 |
-| Production source lines | 869662 |
+| Production source files | 3560 |
+| Production source lines | 869956 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11170 |
+| Relative module edges | 11181 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -57,7 +57,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 190 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 354 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 505 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 511 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
 | @wrongstack/webui-server | 211 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
@@ -86,7 +86,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1386 | `packages/webui/src/lib/ws-client.ts` |
 | 1290 | `packages/webui/src/stores/ui-store.ts` |
 | 1217 | `packages/tui/src/components/status-bar-rails.tsx` |
 | 1172 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
@@ -136,6 +135,7 @@ None.
 | 996 | `packages/webui/src/stores/fleet-store.ts` |
 | 994 | `packages/core/src/types/session.ts` |
 | 992 | `packages/kanban/src/types.ts` |
+| 991 | `packages/kanban/src/manager/assignment.ts` |
 
 ## Exports only tests reference
 
