@@ -113,12 +113,24 @@ export function handleClientResume(
   const cursor = frame.lastSeqSeen;
   const now = Date.now();
   // Build the matching history and missed-envelope set in one bounded pass.
-  // For non-zero cursors, require the retained log to still contain the exact
-  // `lastSeqSeen` envelope. That proves the cursor belongs to this server seq
-  // epoch; otherwise a client-side cursor from before server restart or log
-  // rotation could be misread as "caught up" and silently miss events.
+  // For non-zero cursors, require the retained log to still hold at least one
+  // envelope for this client AT OR BELOW `lastSeqSeen`. That proves the log
+  // spans the cursor point, so anything above it really is the whole gap;
+  // otherwise a cursor from before a server restart or log rotation could be
+  // misread as "caught up" and silently miss events.
+  //
+  // The anchor is deliberately NOT the exact `lastSeqSeen` envelope. The log
+  // is not a superset of what browsers receive: `session.transcript` is
+  // broadcast to browsers but never appended to `eventLog` (it lives in the
+  // per-session ring instead), while the browser's cursor advances on EVERY
+  // applied envelope. On any active session the cursor therefore lands on a
+  // seq the log has never held, and an exact match rejected every single
+  // reconnect — permanently degrading gap-fill to a snapshot handoff and
+  // dropping the tool/mailbox/brain/cost envelopes in between. A `<=` anchor
+  // is just as strong an epoch proof and tolerates the holes.
   const recent: HqEventEnvelope[] = [];
   let cursorTimestamp: string | undefined;
+  let cursorAnchorSeq = -1;
   // The browser tracks `peer.*` envelopes under its own synthetic
   // `clientId` (browser-side `HQ_BROWSER_PEER_RESUME_CLIENT_ID`). When
   // a real publisher's resume frame collides with that id (it should
@@ -134,7 +146,10 @@ export function handleClientResume(
     if (skipPeerEnvelopes && (env.type === 'peer.rehydrate' || env.type === 'peer.lost')) {
       continue;
     }
-    if (env.seq === cursor) cursorTimestamp = env.timestamp;
+    if (env.seq <= cursor && env.seq > cursorAnchorSeq) {
+      cursorAnchorSeq = env.seq;
+      cursorTimestamp = env.timestamp;
+    }
     if (env.seq > cursor) {
       recent.push(env);
     }
@@ -155,9 +170,10 @@ export function handleClientResume(
     );
     return;
   }
-  // Last-seen-too-old check measures the age of the reported cursor envelope,
-  // not the age of the missed gap envelopes. A fresh cursor should not be
-  // rejected just because low-frequency post-cursor events are old.
+  // Last-seen-too-old check measures the age of the anchor envelope (the
+  // newest retained envelope at or below the cursor), not the age of the
+  // missed gap envelopes. A fresh cursor should not be rejected just because
+  // low-frequency post-cursor events are old.
   const hasStale =
     cursorTimestamp !== undefined && now - Date.parse(cursorTimestamp) > HQ_RESUME_GAP_MAX_STALE_MS;
   if (hasStale) {

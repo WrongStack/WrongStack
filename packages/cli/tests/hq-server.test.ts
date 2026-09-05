@@ -2274,6 +2274,59 @@ describe('HQ control plane (Phase 3)', () => {
     browser.close();
   });
 
+  it('fails an undelivered command when the target disconnects before polling', async () => {
+    // The command queue lives on the per-socket ConnectedClient, so it dies
+    // with the socket and nothing re-queues it on the replacement connection.
+    // Its audit row used to stay `queued` forever — the Control rail showing a
+    // pending command that will never run.
+    const port = getPort();
+    handle = await startOpenHqServer({ port });
+
+    const client = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
+    await waitForOpen(client);
+    client.send(helloFrameControl('ctrl-lost', 'mach-L', 'projL'));
+    await new Promise((r) => setTimeout(r, 30));
+
+    const browser = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/browser`);
+    await waitForOpen(browser);
+    const failedStatusPromise = nextMessage(
+      browser,
+      (message) =>
+        message.type === 'hq.command_status' &&
+        (message as { command?: { ackStatus?: string } }).command?.ackStatus === 'failed',
+    );
+
+    const postRes = await fetch(`http://127.0.0.1:${handle.port}/api/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientId: 'ctrl-lost',
+        type: 'steer',
+        payload: { to: 'leader', subject: 'lost', body: 'never arrives' },
+      }),
+    });
+    expect(postRes.status).toBe(202);
+    const { commandId } = (await postRes.json()) as { commandId: string };
+
+    // The client never polls — it drops.
+    client.close();
+
+    await expect(failedStatusPromise).resolves.toMatchObject({
+      type: 'hq.command_status',
+      command: { commandId, status: 'acked', ackStatus: 'failed' },
+    });
+
+    const auditRes = await fetch(`http://127.0.0.1:${handle.port}/api/commands`);
+    const auditBody = (await auditRes.json()) as {
+      commands: { commandId: string; status: string; ackStatus?: string; ackMessage?: string }[];
+    };
+    const entry = auditBody.commands.find((c) => c.commandId === commandId);
+    expect(entry).toMatchObject({ status: 'acked', ackStatus: 'failed' });
+    expect(entry?.ackMessage).toContain('disconnected');
+
+    browser.close();
+  });
+
   it('rejects a command to a client without control.receive capability', async () => {
     const port = getPort();
     handle = await startOpenHqServer({ port });
@@ -2521,6 +2574,99 @@ describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
       expect(found?.type).toBe('steer');
       expect(found?.subject).toBe('HQ prompt');
       expect(found?.from).toMatch(/^hq@/);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('scopes a leader-addressed send to the named session', async () => {
+    // The bare `leader` alias is answered by EVERY leader in the project and
+    // unread state is per reader, so without the affinity stamp a steer aimed
+    // at one session is also consumed by every other terminal on that project.
+    // The route already knew which session the operator picked — it just threw
+    // the id away after resolving the project root.
+    const port = getPort();
+    handle = await startOpenHqServer({ port });
+
+    const globalRoot = globalRootForData(dataDir);
+    const projectRoot = path.join(dataDir, 'mb-project-scope');
+    await fs.mkdir(projectRoot, { recursive: true });
+    const cleanup = await seedSession(globalRoot, 'sess-scope-1', 'mb-project-scope', projectRoot);
+    try {
+      const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'sess-scope-1',
+          type: 'steer',
+          to: 'leader',
+          body: 'scoped steer',
+        }),
+      });
+      expect(res.status).toBe(202);
+
+      const { createProjectMailbox, resolveProjectDir } = await import(
+        '@wrongstack/core/coordination'
+      );
+      const mailbox = createProjectMailbox({
+        projectDir: resolveProjectDir(projectRoot, globalRoot),
+        isolatedConnection: true,
+      });
+      const stamped = (await mailbox.query({ to: 'leader' })).find(
+        (m) => m.body === 'scoped steer',
+      );
+      expect(stamped?.sessionAffinity).toEqual({ sessionId: 'sess-scope-1' });
+
+      // The receive-side filter every leader's inbox runs: another session's
+      // leader must not see it.
+      const forOther = await mailbox.query({ to: 'leader', currentSessionId: 'sess-scope-2' });
+      expect(forOther.some((m) => m.body === 'scoped steer')).toBe(false);
+      const forOwner = await mailbox.query({ to: 'leader', currentSessionId: 'sess-scope-1' });
+      expect(forOwner.some((m) => m.body === 'scoped steer')).toBe(true);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('leaves an explicitly addressed recipient unscoped', async () => {
+    // A subagent delegated from another tab carries THAT tab's owning session;
+    // stamping the leader's session would drop the message at the receiver.
+    const port = getPort();
+    handle = await startOpenHqServer({ port });
+
+    const globalRoot = globalRootForData(dataDir);
+    const projectRoot = path.join(dataDir, 'mb-project-unscoped');
+    await fs.mkdir(projectRoot, { recursive: true });
+    const cleanup = await seedSession(
+      globalRoot,
+      'sess-scope-3',
+      'mb-project-unscoped',
+      projectRoot,
+    );
+    try {
+      const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'sess-scope-3',
+          type: 'steer',
+          to: 'reviewer-3',
+          body: 'unscoped steer',
+        }),
+      });
+      expect(res.status).toBe(202);
+
+      const { createProjectMailbox, resolveProjectDir } = await import(
+        '@wrongstack/core/coordination'
+      );
+      const mailbox = createProjectMailbox({
+        projectDir: resolveProjectDir(projectRoot, globalRoot),
+        isolatedConnection: true,
+      });
+      const sent = (await mailbox.query({ to: 'reviewer-3' })).find(
+        (m) => m.body === 'unscoped steer',
+      );
+      expect(sent?.sessionAffinity).toBeUndefined();
     } finally {
       await cleanup();
     }

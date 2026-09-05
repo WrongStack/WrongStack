@@ -1,3 +1,4 @@
+import { mailboxSessionTag } from '@wrongstack/core/coordination';
 import type { HqClientCapability } from '@wrongstack/core/hq';
 import { createWebuiClientPresence } from '@wrongstack/webui-server';
 import { createHqCommandDispatcher, type HqCommandController } from '../hq-command-controller.js';
@@ -47,7 +48,13 @@ export function createWebuiClientRegistration(
               steerMailbox: mailbox,
               interruptLeader: control.interruptLeader,
               allowRunCommand: control.allowRunCommand,
-              sessionTag: deps.getSessionId,
+              // The session HQ actually SHOWS for this client — the boot
+              // session the telemetry bridge publishes under and the only one
+              // `interruptLeader` speaks for. `getSessionId` follows whichever
+              // browser tab is in front, which is a different session HQ has
+              // no view of and cannot control.
+              sessionTag: () => mailboxSessionTag(deps.hqSessionId),
+              sessionId: () => deps.hqSessionId,
               ...(control.spawnAgent ? { spawnAgent: control.spawnAgent } : {}),
               ...(control.killFleet ? { killFleet: control.killFleet } : {}),
               ...(control.terminateAgent ? { terminateAgent: control.terminateAgent } : {}),

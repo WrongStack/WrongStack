@@ -733,3 +733,87 @@ describe('HqPublisher', () => {
     vi.useRealTimers();
   });
 });
+
+describe('HqPublisher command redelivery', () => {
+  const batch = (commandId: string): string =>
+    JSON.stringify({
+      type: 'hq.command_batch',
+      commands: [{ commandId, type: 'spawn', createdAt: '2026-06-21T12:00:00.000Z', payload: {} }],
+    });
+
+  it('runs a redelivered command once while its handler is still in flight', async () => {
+    // `lastCommandId` only advances AFTER the handler returns, while
+    // `command_poll` fires on a fixed timer — so any handler slower than the
+    // poll interval is re-sent the same command. For `spawn` that used to mean
+    // a second subagent; for `abort`, a second kill.
+    const socket = new FakeSocket();
+    let calls = 0;
+    let release: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const publisher = new HqPublisher({
+      url: 'http://localhost:3499',
+      client,
+      project,
+      onCommand: async (command) => {
+        calls += 1;
+        await started;
+        return { commandId: command.commandId, status: 'completed', message: 'spawned' };
+      },
+      socketFactory: () => socket,
+    });
+    publisher.connect();
+    socket.open();
+
+    socket.message(batch('cmd_slow'));
+    await Promise.resolve();
+    socket.message(batch('cmd_slow'));
+    await Promise.resolve();
+    expect(calls).toBe(1);
+
+    release?.();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(calls).toBe(1);
+    const acks = parseSent(socket).filter(
+      (frame) => (frame as { type?: string }).type === 'client.command_ack',
+    );
+    expect(acks).toHaveLength(1);
+    publisher.close();
+  });
+
+  it('replays the original ack for a command redelivered after it finished', async () => {
+    // The audit row must converge on the real outcome, not be overwritten by
+    // a fresh placeholder ack for the same commandId.
+    const socket = new FakeSocket();
+    let calls = 0;
+    const publisher = new HqPublisher({
+      url: 'http://localhost:3499',
+      client,
+      project,
+      onCommand: (command) => {
+        calls += 1;
+        return { commandId: command.commandId, status: 'completed', message: 'spawned' };
+      },
+      socketFactory: () => socket,
+    });
+    publisher.connect();
+    socket.open();
+
+    socket.message(batch('cmd_done'));
+    await Promise.resolve();
+    socket.message(batch('cmd_done'));
+    await Promise.resolve();
+
+    expect(calls).toBe(1);
+    const acks = parseSent(socket).filter(
+      (frame) => (frame as { type?: string }).type === 'client.command_ack',
+    );
+    expect(acks).toHaveLength(2);
+    for (const ack of acks) {
+      expect(ack).toMatchObject({ commandId: 'cmd_done', status: 'completed', message: 'spawned' });
+    }
+    publisher.close();
+  });
+});

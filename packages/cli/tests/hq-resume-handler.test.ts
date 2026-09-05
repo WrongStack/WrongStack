@@ -204,6 +204,51 @@ describe('handleClientResume', () => {
     expect(reply.reason).toBe('log_unavailable');
   });
 
+  // ── 3c. Cursor seq the log never held (broadcast-only event types) ────
+
+  it('gap-fills when the cursor seq itself was never logged', () => {
+    const { ws, sent } = makeFakeWs();
+    const client = makeClient();
+    const clients = new Map<WebSocket, ConnectedClient>([[ws, client]]);
+    // `session.transcript` is broadcast to browsers but never appended to
+    // `eventLog`, while the browser's cursor advances on EVERY applied
+    // envelope. So on an active session the reported cursor routinely names a
+    // seq the log has never held. Requiring that exact envelope rejected every
+    // reconnect and dropped the tool/mailbox/brain envelopes in the gap; the
+    // anchor only has to prove the log SPANS the cursor.
+    const now = new Date().toISOString();
+    const eventLog: HqEventEnvelope[] = [makeEnvelope(40, now), makeEnvelope(60, now)];
+    const frame = makeFrame(50);
+
+    handleClientResume(ws, clients, eventLog, frame);
+
+    expect(sent).toHaveLength(1);
+    const reply = JSON.parse(sent[0]!);
+    expect(reply.type).toBe('hq.resume_gap');
+    expect(reply.envelopes.map((e: HqEventEnvelope) => e.seq)).toEqual([60]);
+  });
+
+  it('anchors on client.hello (seq 0) after a reconnect', () => {
+    const { ws, sent } = makeFakeWs();
+    const client = makeClient();
+    const clients = new Map<WebSocket, ConnectedClient>([[ws, client]]);
+    // A reconnecting publisher keeps its seq counter, so the fresh log holds
+    // the seq-0 hello plus everything after — enough to serve the gap.
+    const now = new Date().toISOString();
+    const eventLog: HqEventEnvelope[] = [
+      makeEnvelope(0, now),
+      makeEnvelope(501, now),
+      makeEnvelope(502, now),
+    ];
+    const frame = makeFrame(500);
+
+    handleClientResume(ws, clients, eventLog, frame);
+
+    const reply = JSON.parse(sent[0]!);
+    expect(reply.type).toBe('hq.resume_gap');
+    expect(reply.envelopes.map((e: HqEventEnvelope) => e.seq)).toEqual([501, 502]);
+  });
+
   // ── 4. cursor=0 (no gap) ──────────────────────────────────────────────
 
   it('emits hq.resume_gap with empty envelopes when cursor is 0 and log is empty', () => {

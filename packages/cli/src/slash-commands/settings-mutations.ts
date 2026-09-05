@@ -18,7 +18,6 @@ import { unknownSubcommand } from './helpers.js';
 const ALL_SETTINGS_KEYS = [
   'delay',
   'mode',
-  'hints',
   'debug-stream',
   'config-scope',
   'fs-access',
@@ -170,20 +169,6 @@ export async function executeSettingsSubcommand(
         autonomy.defaultMode = raw as 'off' | 'suggest' | 'auto';
       });
       return { message: `${color.green('✓')} default autonomy → ${color.bold(raw)}` };
-    }
-
-    if (sub === 'hints') {
-      const raw = (rest[0] ?? '').toLowerCase();
-      if (!['on', 'off'].includes(raw)) {
-        return { message: `${color.amber('Usage:')} /settings hints on|off` };
-      }
-      const on = raw === 'on';
-      await persistConfigSetting(persistDeps, (cfg) => {
-        cfg.hints = on;
-      });
-      return {
-        message: `${color.green('✓')} launch hints → ${on ? color.cyan('on') : color.dim('off')}`,
-      };
     }
 
     if (sub === 'debug-stream') {

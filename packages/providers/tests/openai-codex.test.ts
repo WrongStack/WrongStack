@@ -104,6 +104,36 @@ describe('resolveCodexUrl', () => {
 });
 
 describe('OpenAICodexProvider live context limit', () => {
+  it.each([
+    [1_050_000, 1_033_616],
+    [128_000, 111_616],
+    [0, 255_616],
+    ['1050000', 255_616],
+  ])('uses the catalog maximum %s rather than the default window', async (maximum, expected) => {
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          models: [
+            {
+              slug: 'gpt-6-astra',
+              context_window: 272_000,
+              max_context_window: maximum,
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as typeof fetch;
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl,
+    });
+    await expect(
+      provider.refreshContextLimit('gpt-6-astra', {
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toEqual({ maxContext: expected, source: 'provider' });
+  });
+
   it('reads context_window and conditionally re-checks the provider catalog', async () => {
     const calls: Array<{ url: string; headers: RequestInit['headers'] }> = [];
     const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {

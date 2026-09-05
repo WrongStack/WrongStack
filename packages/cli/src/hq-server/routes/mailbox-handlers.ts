@@ -225,6 +225,22 @@ export async function handleApiMailboxSend(
     const mailbox = getMailboxGateway(projectDir).mailbox;
     const from = `hq@${hqSessionTag}`;
     const deliveryTo = mailboxType === 'broadcast' ? 'all' : to;
+    // Session scoping. The bare `leader` alias is answered by EVERY leader in
+    // the project (unread state is per reader, so a second terminal on the
+    // same project consumes the same message). The caller already named one
+    // session — the route only used it to resolve the project root, so the
+    // operator's choice was thrown away. Stamping it makes
+    // `acceptMailboxMessageForSession` drop the message at every other leader.
+    // Only the bare alias is scoped: an explicit `leader@<tag>` or a subagent
+    // id already names one agent, and a worker delegated from another tab
+    // carries THAT tab's owning session, so stamping it would drop the
+    // message at the receiver instead of narrowing it.
+    const scopeSessionId =
+      typeof mbody.sessionId === 'string' &&
+      mbody.sessionId.length > 0 &&
+      deliveryTo.trim().toLowerCase() === 'leader'
+        ? mbody.sessionId
+        : undefined;
     const sent = await mailbox.send({
       from,
       to: deliveryTo,
@@ -233,6 +249,7 @@ export async function handleApiMailboxSend(
       body: mbody.body,
       priority,
       audience,
+      ...(scopeSessionId !== undefined ? { sessionAffinity: { sessionId: scopeSessionId } } : {}),
     });
     res.writeHead(202, { 'Content-Type': 'application/json' });
     res.end(

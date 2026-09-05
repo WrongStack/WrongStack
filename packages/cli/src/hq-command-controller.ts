@@ -37,6 +37,18 @@ export interface HqCommandController {
   spawnAgent?: (role: string, task?: string, maxIterations?: number) => Promise<string>;
   /** Derive the session-unique mailbox tag for addressing (e.g. `leader@<tag>`). */
   sessionTag: () => string;
+  /**
+   * The session HQ is speaking for, live.
+   *
+   * Steering addresses the bare `leader` alias, which EVERY leader in the
+   * project answers to — a second terminal on the same project consumes the
+   * same message (unread state is per reader, so both get it). Stamping the
+   * session id makes `acceptMailboxMessageForSession` drop it at every other
+   * leader, so an operator who picked one session in HQ reaches exactly that
+   * session. Optional: without it the message stays project-wide, which is
+   * the pre-existing behaviour rather than a silent drop.
+   */
+  sessionId?: (() => string | undefined) | undefined;
   /** Whether raw shell execution is explicitly opted-in by the operator. */
   allowRunCommand: () => boolean;
 }
@@ -74,6 +86,25 @@ export function createHqCommandDispatcher(
   };
 }
 
+/**
+ * Session-affinity stamp for a leader-addressed message.
+ *
+ * Only the bare `leader` alias is scoped. An explicit address
+ * (`leader@<tag>`, a subagent id) already names one agent, and a subagent
+ * delegated from another tab carries that tab's owning session — stamping it
+ * with the leader's session would drop the message at the receiver instead of
+ * narrowing it.
+ */
+function leaderSessionAffinity(
+  controller: HqCommandController,
+  to: string,
+): { sessionAffinity: { sessionId: string } } | Record<string, never> {
+  if (to.trim().toLowerCase() !== 'leader') return {};
+  const sessionId = controller.sessionId?.();
+  if (typeof sessionId !== 'string' || sessionId.length === 0) return {};
+  return { sessionAffinity: { sessionId } };
+}
+
 async function dispatch(
   controller: HqCommandController,
   commandId: string,
@@ -92,7 +123,15 @@ async function dispatch(
       const priority =
         payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
       const from = `hq@${controller.sessionTag()}`;
-      await mailbox.send({ from, to, type: 'steer', subject, body, priority });
+      await mailbox.send({
+        from,
+        to,
+        type: 'steer',
+        subject,
+        body,
+        priority,
+        ...leaderSessionAffinity(controller, to),
+      });
       return { commandId, status: 'accepted', message: `steered ${to}` };
     }
 
@@ -111,7 +150,15 @@ async function dispatch(
       const priority =
         payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
       const from = `hq@${controller.sessionTag()}`;
-      await mailbox.send({ from, to, type: 'btw', subject, body, priority });
+      await mailbox.send({
+        from,
+        to,
+        type: 'btw',
+        subject,
+        body,
+        priority,
+        ...leaderSessionAffinity(controller, to),
+      });
       return { commandId, status: 'accepted', message: `noted ${to}` };
     }
 
@@ -130,7 +177,15 @@ async function dispatch(
       const priority =
         payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
       const from = `hq@${controller.sessionTag()}`;
-      await mailbox.send({ from, to, type: 'note', subject, body, priority });
+      await mailbox.send({
+        from,
+        to,
+        type: 'note',
+        subject,
+        body,
+        priority,
+        ...leaderSessionAffinity(controller, to),
+      });
       return { commandId, status: 'accepted', message: `queued for ${to}` };
     }
 
@@ -212,6 +267,7 @@ async function dispatch(
           subject: 'Run command (HQ)',
           body: `Run the following shell command:\n\n\`\`\`\n${command}\n\`\`\``,
           priority: 'high',
+          ...leaderSessionAffinity(controller, 'leader'),
         });
         return { commandId, status: 'accepted', message: 'run-command routed to leader as steer' };
       }

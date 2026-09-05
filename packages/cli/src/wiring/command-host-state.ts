@@ -5,8 +5,10 @@ import {
   type BrainArbiter,
   type Director,
   FLEET_ROSTER,
+  mailboxSessionTag,
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
+import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 import {
   AgentError,
   type Config,
@@ -20,6 +22,11 @@ import type { HqCommandController } from '../hq-command-controller.js';
 import type { ReadlineInputReader } from '../input-reader.js';
 import type { MultiAgentHost } from '../multi-agent.js';
 import type { TerminalRenderer } from '../renderer.js';
+import {
+  loadStatuslineDensities,
+  loadStatuslineLines,
+  saveStatuslineLayout as persistStatuslineLayout,
+} from '../services/statusline-config.js';
 import { patchConfig } from '../utils.js';
 import {
   createAgentsMonitorController,
@@ -29,12 +36,6 @@ import {
   createStatuslineConfigDeps,
   loadStatuslineHiddenItems,
 } from './controllers.js';
-import {
-  loadStatuslineDensities,
-  loadStatuslineLines,
-  saveStatuslineLayout as persistStatuslineLayout,
-} from '../services/statusline-config.js';
-import type { StatuslineDensities, StatuslineLines } from '@wrongstack/core/statusline';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
 type CoordinatorController = NonNullable<BuiltinSlashCommandDeps['coordinatorController']>;
@@ -71,17 +72,19 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
   );
   const interruptController = createInterruptController();
   input.hqCommandController.interruptLeader = () => interruptController.abortLeader();
+  // Addressing follows the LIVE session, not the boot one: a resume /
+  // session.new swaps `ctx.session` for a new writer (see the session-writer
+  // swap invariant), and a stale id would stamp HQ steers with a session no
+  // leader is on any more — the receive-side affinity filter would then drop
+  // every one of them.
+  const liveSessionId = (): string => input.sessionRef.current?.id ?? input.session.id;
+  input.hqCommandController.sessionId = liveSessionId;
+  input.hqCommandController.sessionTag = () => mailboxSessionTag(liveSessionId());
   input.hqCommandController.killFleet = () => killFleet(input.getDirector());
   input.hqCommandController.terminateAgent = (subagentId) =>
     terminateAgent(input.getDirector(), subagentId);
   input.hqCommandController.spawnAgent = (role, task, maxIterations) =>
-    spawnAgent(
-      input.getDirector(),
-      input.sessionRef.current?.id ?? input.session.id,
-      role,
-      task,
-      maxIterations,
-    );
+    spawnAgent(input.getDirector(), liveSessionId(), role, task, maxIterations);
 
   const enhanceController = createEnhanceController(input.getConfig());
   const statuslineConfigDeps = createStatuslineConfigDeps();

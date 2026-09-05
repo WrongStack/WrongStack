@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 200,
+      "files": 201,
       "typeOnly": 80,
-      "runtimeOrMixed": 174
+      "runtimeOrMixed": 177
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -64,8 +64,8 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/hq": {
-      "files": 121,
-      "typeOnly": 78,
+      "files": 122,
+      "typeOnly": 79,
       "runtimeOrMixed": 73
     },
     "@wrongstack/core/hq/protocol": {
@@ -2649,6 +2649,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/webui-server/client-registration.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/webui-server/connection-handler.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -2861,7 +2867,7 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/hq-server.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 5
+      "runtimeOrMixed": 7
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -4798,6 +4804,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/tests/control-relative-time.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/tests/domain/session-transcript-refetch.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

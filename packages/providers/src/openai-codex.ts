@@ -282,16 +282,15 @@ export class OpenAICodexProvider extends WireAdapter {
 
   /**
    * Re-check the ChatGPT Codex model catalog at request boundaries. The
-   * official Codex client uses the same authenticated `/models` endpoint; its
-   * `context_window` can drop far below the public API catalog when a
-   * subscription is throttled (e.g. 272000 for gpt-5.6-sol while the public
-   * model advertises 1M). The catalog value is the TOTAL window, so the
-   * returned `maxContext` is the derived SEND ceiling — `context_window`
-   * minus the transport's output budget (see {@link codexSendCeiling}) —
-   * making preflight compaction trigger before the backend rejects with
-   * "Your input exceeds the context window of this model". A conditional GET
-   * runs before every request so a changed ETag is observed before the
-   * provider call.
+   * official Codex client treats `context_window` as the default and
+   * `max_context_window` as the ceiling allowed for configured overrides
+   * (codex-rs/models-manager/src/model_info.rs, with_config_overrides).
+   * Report that maximum, falling back to the default for older catalogs;
+   * the agent loop still clamps it to its configured baseline and any
+   * learned overflow limit. Using the default as a hard cap incorrectly
+   * reduces a configured 1M window to 272K even on long-context models.
+   * Return an input ceiling after reserving output headroom. A conditional
+   * GET observes catalog changes before each provider call.
    */
   async refreshContextLimit(
     model: string,
@@ -341,8 +340,8 @@ export class OpenAICodexProvider extends WireAdapter {
         const entry = raw as CodexModelMetadata;
         if (typeof entry.slug !== 'string') continue;
         const limit =
-          positiveContextLimit(entry.context_window) ??
-          positiveContextLimit(entry.max_context_window);
+          positiveContextLimit(entry.max_context_window) ??
+          positiveContextLimit(entry.context_window);
         if (limit) next.set(entry.slug, codexSendCeiling(limit));
       }
       if (next.size === 0) {

@@ -187,6 +187,10 @@ const DEFAULT_MAX_QUEUED_BYTES = Math.min(
 // close to WebSocket-real-time while retaining the existing bounded poll
 // protocol (which also provides replay after a brief disconnect).
 const DEFAULT_COMMAND_POLL_INTERVAL_MS = 500;
+/** Sentinel for a command whose handler has not returned yet. */
+const IN_FLIGHT_COMMAND = Symbol('hq.command.in_flight');
+/** Upper bound on the redelivery ledger (server queues at most 200 per client). */
+const MAX_TRACKED_COMMANDS = 500;
 const DEFAULT_COMMAND_POLL_LIMIT = 25;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 25_000;
 
@@ -318,10 +322,25 @@ export class HqPublisher {
   private reconnectAttempt = 0;
   private connectWarningEmitted = false;
   private lastAttempt: { url: string; hadToken: boolean } | null = null;
+  /** Removes the live socket's listeners. Held so a re-dial can detach the
+   * outgoing socket BEFORE replacing it: a stale `close` handler would
+   * otherwise stop the NEW connection's heartbeat and command polling. */
+  private detachSocket: (() => void) | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private commandPollTimer: ReturnType<typeof setInterval> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private lastCommandId: string | undefined;
+  /**
+   * Dispositions of recently delivered commands, keyed by `commandId`.
+   *
+   * `IN_FLIGHT_COMMAND` while the handler is running, the ack result once it
+   * finished. Guards against the server redelivering a command whose handler
+   * has not returned yet — see `handleCommandBatch`.
+   */
+  private readonly commandResults = new Map<
+    string,
+    HqPublisherCommandResult | typeof IN_FLIGHT_COMMAND
+  >();
 
   constructor(private readonly options: HqPublisherOptions) {
     this.socketFactory = options.socketFactory ?? defaultSocketFactory;
@@ -414,7 +433,10 @@ export class HqPublisher {
       removeSocketListener(socket, 'error', onCloseOrError);
       this.stopCommandPolling();
       this.stopHeartbeat();
-      if (this.socket === socket) this.socket = null;
+      if (this.socket === socket) {
+        this.socket = null;
+        this.detachSocket = null;
+      }
       this.scheduleReconnect();
     };
 
@@ -422,6 +444,12 @@ export class HqPublisher {
     addSocketListener(socket, 'message', onMessage);
     addSocketListener(socket, 'close', onCloseOrError);
     addSocketListener(socket, 'error', onCloseOrError);
+    this.detachSocket = () => {
+      removeSocketListener(socket, 'open', onOpen);
+      removeSocketListener(socket, 'message', onMessage);
+      removeSocketListener(socket, 'close', onCloseOrError);
+      removeSocketListener(socket, 'error', onCloseOrError);
+    };
 
     if (socket.readyState === OPEN_STATE) onOpen();
   }
@@ -438,7 +466,49 @@ export class HqPublisher {
     this.queueBytes = 0;
     const socket = this.socket;
     this.socket = null;
+    this.detachSocket = null;
     socket?.close(1000, 'hq publisher closed');
+  }
+
+  /**
+   * Re-resolve the discovery endpoint and move to it if it changed.
+   *
+   * `resolveEndpoint` is consulted on every CONNECT, which covers the normal
+   * case (HQ dies, the socket closes, the retry re-reads the marker). It does
+   * not cover a marker that repoints while this socket is still open — a
+   * second HQ taking over the runtime file, or a restart whose close we have
+   * not observed yet. The host polls for that; doing the move HERE keeps the
+   * publisher's identity (`clientId`) and its bounded outbound queue, which
+   * rebuilding the publisher would discard — and a new clientId makes one
+   * process show up in HQ as a fresh client plus a ghost of the old one.
+   *
+   * No-op without discovery, while stopped, or when the endpoint is unchanged.
+   */
+  refreshEndpoint(): void {
+    if (this.stopped || this.options.resolveEndpoint === undefined) return;
+    const endpoint = this.options.resolveEndpoint();
+    if (endpoint === undefined) return;
+    if (this.socket === null) {
+      // Dormant: `connect()` re-resolves on its own (and is a no-op while a
+      // retry/discovery poll is already scheduled).
+      this.connect();
+      return;
+    }
+    if (this.lastAttempt !== null && this.lastAttempt.url === endpoint.url) return;
+    // Detach BEFORE closing so the outgoing socket's close handler cannot stop
+    // the replacement's timers or schedule a competing reconnect.
+    this.detachSocket?.();
+    this.detachSocket = null;
+    this.stopCommandPolling();
+    this.stopHeartbeat();
+    const previous = this.socket;
+    this.socket = null;
+    try {
+      previous.close(1000, 'hq endpoint moved');
+    } catch {
+      // Already gone — the re-dial below is what matters.
+    }
+    this.connect();
   }
 
   publishEvent<TPayload>(
@@ -838,17 +908,38 @@ export class HqPublisher {
     if (handler === undefined) return;
 
     for (const command of message.commands) {
+      // Redelivery guard. `lastCommandId` only advances AFTER a command is
+      // handled (see below), while `command_poll` fires on a fixed timer — so
+      // any handler slower than the poll interval is re-sent the SAME command
+      // and, without this, runs it twice. `spawn` and `abort` routinely take
+      // seconds; a duplicate there means a second subagent or a second kill.
+      const seen = this.commandResults.get(command.commandId);
+      if (seen !== undefined) {
+        // Still running: the original invocation owns the ack. Already
+        // finished: replay the SAME ack so the server's audit row converges
+        // on the real outcome instead of being overwritten by a placeholder.
+        if (seen !== IN_FLIGHT_COMMAND) this.ackCommand(seen);
+        this.lastCommandId = command.commandId;
+        continue;
+      }
+      this.rememberCommand(command.commandId, IN_FLIGHT_COMMAND);
       try {
         const result = await handler(command);
+        const ack: HqPublisherCommandResult = result ?? {
+          commandId: command.commandId,
+          status: 'accepted',
+        };
+        this.rememberCommand(command.commandId, ack);
         if (result !== undefined) this.ackCommand(result);
-        else if (command.requiresAck)
-          this.ackCommand({ commandId: command.commandId, status: 'accepted' });
+        else if (command.requiresAck) this.ackCommand(ack);
       } catch (err) {
-        this.ackCommand({
+        const ack: HqPublisherCommandResult = {
           commandId: command.commandId,
           status: 'failed',
           message: err instanceof Error ? err.message : String(err),
-        });
+        };
+        this.rememberCommand(command.commandId, ack);
+        this.ackCommand(ack);
       }
       // Advance the poll cursor only AFTER the command is handled and acked.
       // Advancing it before `await handler` meant a socket flap mid-handler
@@ -857,6 +948,28 @@ export class HqPublisher {
       // skipped and never re-fetched. At-least-once (a possible duplicate on
       // reconnect, which these commands tolerate) beats losing one outright.
       this.lastCommandId = command.commandId;
+    }
+  }
+
+  /**
+   * Record a command's disposition in the bounded redelivery ledger.
+   *
+   * Insertion-ordered and trimmed from the front, so a long-lived publisher
+   * cannot accumulate one entry per command it has ever seen. The cap is far
+   * above any realistic in-flight window (the server itself keeps at most 200
+   * queued commands per client), so an entry is only ever evicted long after
+   * the server stopped redelivering it.
+   */
+  private rememberCommand(
+    commandId: string,
+    disposition: HqPublisherCommandResult | typeof IN_FLIGHT_COMMAND,
+  ): void {
+    this.commandResults.delete(commandId);
+    this.commandResults.set(commandId, disposition);
+    while (this.commandResults.size > MAX_TRACKED_COMMANDS) {
+      const oldest = this.commandResults.keys().next();
+      if (oldest.done === true) break;
+      this.commandResults.delete(oldest.value);
     }
   }
 

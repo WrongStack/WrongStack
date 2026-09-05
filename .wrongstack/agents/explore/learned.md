@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-29T12:07:54.956Z; applied=68; wins=68 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-29T12:07:54.956Z; applied=69; wins=69 -->
 - **- Always filter `slash-commands/index` importer greps to the owning package path (`packages/cli`, `packages/plug-lsp`, `packages/telegram`) — each package owns a same-named `slash-commands/index.ts`, so unscoped `grep slash-commands/index` caller sets include 4+ cross-package false positives in WrongStack. - Do not trust `codebase-skeleton` on import-dominated composition-root files (e.g. `packages/cli/src/slash-commands/index.ts` collapsed 215 lines to 1 at 99.6% "savings"); when the skeleton result looks degenerate, fall back to a full `read` before citing exports.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `slash-commands/index`

@@ -13,8 +13,10 @@ import type {
   HqTranscriptAppendPayload,
   HqTranscriptEntry,
 } from '@wrongstack/core/hq';
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import type { VListHandle } from 'virtua';
+import { fetchJson } from '../data/api.js';
+import { useHqStore } from '../data/store/index.js';
 import {
   applyFetch,
   applyLiveBatch,
@@ -22,8 +24,6 @@ import {
   isToolRunning,
   type TranscriptState,
 } from './transcript-store.js';
-import { fetchJson } from '../data/api.js';
-import { useHqStore } from '../data/store/index.js';
 
 interface TranscriptResponse {
   sessionId: string;
@@ -118,6 +118,20 @@ export function useSessionTranscript(
   agentId: string | null,
 ): SessionTranscript {
   const storeEvents = useHqStore((s) => s.events);
+  const connected = useHqStore((s) => s.connected);
+  // Refetch epoch. `session.transcript` envelopes are broadcast live but never
+  // retained in the server's `eventLog`, so the reconnect gap-fill cannot
+  // replay them: every turn that landed while the socket was down would be a
+  // permanent hole in the rendered chat. Bump a counter on each
+  // disconnected -> connected transition and re-seed from
+  // `/api/sessions/:id/events`; `applyFetch` folds the response into the
+  // existing state, so a refetch merges instead of duplicating.
+  const [reloadEpoch, setReloadEpoch] = useState(0);
+  const wasConnectedRef = useRef(connected);
+  useEffect(() => {
+    if (connected && !wasConnectedRef.current) setReloadEpoch((epoch) => epoch + 1);
+    wasConnectedRef.current = connected;
+  }, [connected]);
   // The session LEADER (id 'leader') is the main terminal agent — its
   // conversation IS the session transcript, not a per-agent ring (only
   // director-spawned subagents get their own agent.message ring). So a
@@ -172,7 +186,7 @@ export function useSessionTranscript(
     return () => {
       cancelled = true;
     };
-  }, [agentId, sessionId, viewingSubagent]);
+  }, [agentId, sessionId, viewingSubagent, reloadEpoch]);
 
   const agentEntries = useMemo(() => {
     if (!viewingSubagent || agentId === null) return [];
@@ -225,7 +239,7 @@ export function useSessionTranscript(
     return () => {
       cancelled = true;
     };
-  }, [sessionId, full, viewingSubagent]);
+  }, [sessionId, full, viewingSubagent, reloadEpoch]);
 
   // Reset when switching sessions or agents.
   useEffect(() => {

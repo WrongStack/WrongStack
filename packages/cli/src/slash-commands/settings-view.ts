@@ -12,7 +12,6 @@ export const SETTINGS_HELP = [
   '  /settings stream-fleet off|full   Fleet-chat verbosity (on = full)',
   '  /settings chime on|off          Ring terminal bell when a run completes',
   '  /settings confirm-exit on|off   Ask for confirmation before interrupt/exit',
-  '  /settings hints on|off        Show or suppress rotating launch hints',
   '  /settings debug-stream on|off   Raw SSE hex-dump to stderr for debugging',
   '  /settings config-scope global|project   Save settings globally or per-project',
   '  /settings fs-access unrestricted|project   File-tool access scope (project = confine to project root)',
@@ -70,7 +69,6 @@ export function formatSettingsDefaults(): string {
     '',
     `  auto-proceed delay:    ${color.cyan('45s')} ${color.dim('(WRONGSTACK_AUTO_PROCEED_DELAY_MS env)')}`,
     `  default autonomy mode: ${color.cyan('off')}`,
-    `  launch hints:          ${color.cyan('on')}`,
     `  iteration timeout:     ${color.cyan('5 min')}`,
     `  session timeout:       ${color.cyan('30 min')}`,
     `  max iterations:        ${color.cyan('100')}`,
@@ -91,7 +89,6 @@ export function formatCurrentSettingsView(opts: SlashCommandContext): string {
     | undefined;
   const delay = autonomy?.autoProceedDelayMs ?? 45_000;
   const mode = autonomy?.defaultMode ?? 'off';
-  const hints = opts.configStore.get().hints !== false;
   const debugStream = opts.configStore.get().debugStream === true;
   const configScope = opts.configStore.get().configScope ?? 'global';
   const fsAccess =
@@ -165,7 +162,6 @@ export function formatCurrentSettingsView(opts: SlashCommandContext): string {
     `  fleet chat:                 ${color.cyan(resolveFleetChatVerbosity(au as { fleetChatVerbosity?: FleetChatVerbosity } | undefined))}   ${color.dim('change: /settings stream-fleet off|full')}`,
     `  completion chime:           ${au?.chime === true ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings chime on|off')}`,
     `  confirm before exit:        ${au?.confirmExit !== false ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings confirm-exit on|off')}`,
-    `  launch hints:               ${hints ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings hints on|off')}`,
     `  debug stream:               ${debugStream ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings debug-stream on|off')}`,
     `  config scope:               ${color.cyan(configScope)}   ${color.dim('change: /settings config-scope global|project')}`,
     `  filesystem access:          ${color.cyan(fsAccess)}   ${color.dim('change: /settings fs-access unrestricted|project')}`,

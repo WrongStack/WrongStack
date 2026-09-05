@@ -86,7 +86,6 @@ describe('executeSettingsSubcommand — toggles, enums, and numbers', () => {
       at: 'autonomy.defaultMode',
       want: 'suggest',
     },
-    { sub: 'hints', args: 'off', msg: 'launch hints → off', at: 'hints', want: false },
     { sub: 'debug-stream', args: 'on', msg: 'debug stream → on', at: 'debugStream', want: true },
     {
       sub: 'config-scope',
@@ -339,7 +338,6 @@ describe('executeSettingsSubcommand — toggles, enums, and numbers', () => {
     { sub: 'delay', args: 'abc' },
     { sub: 'delay', args: '-5' },
     { sub: 'mode', args: 'berserk' },
-    { sub: 'hints', args: 'maybe' },
     { sub: 'debug-stream', args: 'maybe' },
     { sub: 'config-scope', args: 'galaxy' },
     { sub: 'fs-access', args: 'sandbox' },
@@ -488,7 +486,7 @@ describe('executeSettingsSubcommand — special paths', () => {
       configStore: store,
       paths: { profileConfig: () => dir, inProjectConfig },
     } as never as SlashCommandContext;
-    const out = await executeSettingsSubcommand('hints', ['on'], ctx);
+    const out = await executeSettingsSubcommand('delay', ['30'], ctx);
     expect(stripAnsi(out.message)).toContain('Settings error');
   });
 });

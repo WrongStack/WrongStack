@@ -32,8 +32,8 @@ import { browserResumeClient, handleClientResume } from './ws-resume.js';
 
 // ── Re-exports for backward compat and testing ────────────────────────────
 
-export { detectLeaderLoss } from './ws-leader.js';
 export { fanoutKanbanDelta } from './ws-client-events.js';
+export { detectLeaderLoss } from './ws-leader.js';
 export { handleClientResume } from './ws-resume.js';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -107,6 +107,43 @@ export function handleBrowser(
   ws.on('close', () => {
     browsers.delete(ws);
   });
+}
+
+/**
+ * Resolve every command the disconnecting client never picked up.
+ *
+ * The queue lives on the per-socket `ConnectedClient`, so it dies with the
+ * socket: a command enqueued in the window between the operator's dispatch and
+ * the next 500 ms `command_poll` is simply gone, and nothing re-queues it on
+ * the replacement connection. Left alone, its audit row stayed `queued`
+ * forever — the Control rail showed a command as pending that will never run,
+ * which is the one thing an operator must not have to guess about.
+ *
+ * `status: 'queued'` in the audit log is the exact undelivered set: the poll
+ * handler flips a command to `delivered` the moment it is put on the wire, so
+ * anything still `queued` never reached the client. Delivered-but-unacked
+ * commands are deliberately left alone — those DID run, and the ack may simply
+ * have been in flight when the socket closed.
+ */
+function failUndeliveredCommands(
+  lostClient: ConnectedClient,
+  browsers: Set<WebSocket>,
+  auditLog: HqCommandAuditLog | undefined,
+): void {
+  if (auditLog === undefined || lostClient.commandQueue.length === 0) return;
+  const disconnectedAt = new Date().toISOString();
+  for (const queued of lostClient.commandQueue) {
+    if (auditLog.get(queued.commandId)?.status !== 'queued') continue;
+    const updated = auditLog.updateForClient(queued.commandId, lostClient.clientId, {
+      status: 'acked',
+      ackStatus: 'failed',
+      ackMessage: 'client disconnected before the command was delivered',
+      ackedAt: disconnectedAt,
+    });
+    if (!updated) continue;
+    const entry = auditLog.get(queued.commandId);
+    if (entry !== undefined) broadcastCommandStatus(entry, browsers);
+  }
 }
 
 // ── handleClient ───────────────────────────────────────────────────────────
@@ -369,6 +406,7 @@ export function handleClient(
     const lostClient = clients.get(ws);
     clients.delete(ws);
     if (lostClient) {
+      failUndeliveredCommands(lostClient, browsers, auditLog);
       detectLeaderLoss(lostClient, clients, browsers, 'graceful', { eventLog, persistence });
     }
     snapshotBroadcaster.broadcast();

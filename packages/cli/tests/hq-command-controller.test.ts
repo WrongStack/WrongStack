@@ -170,3 +170,69 @@ describe('createHqCommandDispatcher', () => {
     expect(result.message).toContain('director exploded');
   });
 });
+
+describe('createHqCommandDispatcher — session scoping', () => {
+  // The bare `leader` alias is answered by EVERY leader in the project, and
+  // unread state is per reader, so without a session-affinity stamp a steer
+  // aimed at one HQ session is also consumed by every other terminal open on
+  // the same project.
+  it('stamps session affinity on leader-addressed steer/btw/queue', async () => {
+    for (const type of ['steer', 'btw', 'queue'] as const) {
+      const send = vi.fn().mockResolvedValue(undefined);
+      const dispatch = createHqCommandDispatcher(
+        makeController({ steerMailbox: { send } as never, sessionId: () => 'sess-42' }),
+      );
+      await dispatch({ commandId: 'c1', type, payload: { to: 'leader', body: 'b' } });
+      expect(send).toHaveBeenCalledWith(
+        expect.objectContaining({ to: 'leader', sessionAffinity: { sessionId: 'sess-42' } }),
+      );
+    }
+  });
+
+  it('leaves an explicitly addressed recipient unscoped', async () => {
+    // A subagent delegated from another tab carries THAT tab's owning session;
+    // stamping the leader's session would drop the message at the receiver.
+    const send = vi.fn().mockResolvedValue(undefined);
+    const dispatch = createHqCommandDispatcher(
+      makeController({ steerMailbox: { send } as never, sessionId: () => 'sess-42' }),
+    );
+    await dispatch({
+      commandId: 'c1',
+      type: 'steer',
+      payload: { to: 'reviewer-3', body: 'b' },
+    });
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: 'reviewer-3' }));
+    expect(send.mock.calls[0]![0]).not.toHaveProperty('sessionAffinity');
+  });
+
+  it('leaves a broadcast project-wide', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const dispatch = createHqCommandDispatcher(
+      makeController({ steerMailbox: { send } as never, sessionId: () => 'sess-42' }),
+    );
+    await dispatch({ commandId: 'c1', type: 'broadcast', payload: { body: 'b' } });
+    expect(send.mock.calls[0]![0]).not.toHaveProperty('sessionAffinity');
+  });
+
+  it('stays project-wide when no session id is known', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const dispatch = createHqCommandDispatcher(makeController({ steerMailbox: { send } as never }));
+    await dispatch({ commandId: 'c1', type: 'steer', payload: { to: 'leader', body: 'b' } });
+    expect(send.mock.calls[0]![0]).not.toHaveProperty('sessionAffinity');
+  });
+
+  it('routes run-command to the selected session only', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const dispatch = createHqCommandDispatcher(
+      makeController({
+        steerMailbox: { send } as never,
+        sessionId: () => 'sess-42',
+        allowRunCommand: () => true,
+      }),
+    );
+    await dispatch({ commandId: 'c1', type: 'run-command', payload: { command: 'ls' } });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'leader', sessionAffinity: { sessionId: 'sess-42' } }),
+    );
+  });
+});

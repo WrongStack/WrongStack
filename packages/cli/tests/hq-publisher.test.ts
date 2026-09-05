@@ -158,11 +158,66 @@ describe('CLI HQ publisher connection', () => {
     });
 
     // HQ restarts on a different port — the marker repoints, the client follows.
+    const before = conn.getPublisher();
     await writeHqRuntimeFile(dataDir, { url: 'http://127.0.0.1:45679', pid: process.pid });
 
     await vi.waitFor(() => {
       expect(urls.some((url) => url.includes('127.0.0.1:45679'))).toBe(true);
     });
+
+    // Following the marker must not REBUILD the publisher: a new instance
+    // mints a new clientId, so one process shows up in HQ as a fresh client
+    // plus a ghost of the old one, and the bounded outbound queue is dropped.
+    expect(conn.getPublisher()).toBe(before);
+
+    conn.stop();
+  });
+
+  it('keeps one publisher when the client token is minted after startup', async () => {
+    // First run: HQ writes auth.json only once it boots, so the token the
+    // discovery path resolves goes from absent to present under a live
+    // publisher. Keying the connection on the resolved token rebuilt it here.
+    dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-hq-late-token-'));
+    process.env['WRONGSTACK_HQ_DATA_DIR'] = dataDir;
+    delete process.env['WRONGSTACK_HQ_ENABLED'];
+    delete process.env['WRONGSTACK_HQ_URL'];
+    delete process.env['WRONGSTACK_HQ_TOKEN'];
+
+    await writeHqAuthFile(dataDir, {
+      version: HQ_AUTH_FILE_VERSION,
+      updatedAt: new Date().toISOString(),
+      browserTokens: [],
+      clientTokens: [],
+    });
+    await writeHqRuntimeFile(dataDir, { url: 'http://127.0.0.1:45680', pid: process.pid });
+
+    const urls: string[] = [];
+    const conn = startCliHqConnection({
+      clientKind: 'tui',
+      projectRoot: dataDir,
+      projectName: 'Late token',
+      retryIntervalMs: 20,
+      discoveryPollMs: 20,
+      socketFactory: (url) => {
+        urls.push(url);
+        return new FakeSocket();
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(urls.length).toBeGreaterThan(0);
+    });
+    const before = conn.getPublisher();
+
+    await writeHqAuthFile(dataDir, {
+      version: HQ_AUTH_FILE_VERSION,
+      updatedAt: new Date().toISOString(),
+      browserTokens: [],
+      clientTokens: [{ id: 'ct', token: 'minted-later', createdAt: new Date().toISOString() }],
+    });
+
+    await new Promise((r) => setTimeout(r, 120));
+    expect(conn.getPublisher()).toBe(before);
 
     conn.stop();
   });

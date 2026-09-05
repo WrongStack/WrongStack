@@ -88,6 +88,10 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
     steerMailbox: brainMailbox as never,
     interruptLeader: () => false,
     sessionTag: () => mailboxSessionTag(session.id),
+    // Boot-session seed. `setupCommandHostState` rebinds both to the LIVE
+    // writer ref, because an in-process resume / session.new swaps
+    // `ctx.session` for a new writer object and this captured one goes stale.
+    sessionId: () => session.id,
     allowRunCommand: () => flags['hq-allow-exec'] === true,
   };
   const hqOnCommand = createHqCommandDispatcher(hqCommandController);

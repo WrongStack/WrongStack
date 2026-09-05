@@ -71,7 +71,6 @@ The wordmark and route label render in the brand gradient (orange → pink).
 - **History pane** — assistant text, tool calls, tool results, errors, turn summaries
 - **Streaming text** — partial deltas render live; on abort, partial response is preserved
 - **Status bar** — model · provider · context-window % · YOLO chip · spinner
-- **Bottom bar** — shows `github.com/wrongstack/wrongstack` in idle state; context-aware hints (y/n/a/d for confirm prompts, ↑↓/↵/Esc for pickers, Esc/F2/F3/F4/F6/F9 for monitors) appear when interactive overlays are active
 - **Input box** — multi-line buffer with bracketed-paste detection, history (↑/↓), placeholder pills for attachments
 - **Pickers** — fuzzy file picker (`@`), slash picker (`/`), model picker (Ctrl+M)
 - **Permission dialog** — modal y/n/always/deny for `confirm`-permission tools
