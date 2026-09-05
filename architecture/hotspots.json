@@ -74,10 +74,6 @@
       "lines": 853,
       "relativeImports": 18
     },
-    "packages/core/src/coordination/autonomous-coordinator.ts": {
-      "lines": 1103,
-      "relativeImports": 14
-    },
     "packages/core/src/coordination/collab-debug.ts": {
       "lines": 915,
       "relativeImports": 10

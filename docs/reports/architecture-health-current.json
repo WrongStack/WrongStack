@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T18:15:13.903Z",
+  "generatedAt": "2026-09-05T18:17:38.439Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3584,
+    "sourceFiles": 3587,
     "testFiles": 3071,
-    "sourceLines": 870688,
+    "sourceLines": 870603,
     "workspaceEdges": 127,
-    "moduleEdges": 11280,
+    "moduleEdges": 11296,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -212,7 +212,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 814,
+      "sourceFiles": 817,
       "testFiles": 708,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -19699,11 +19699,6 @@
       "relativeImports": 18
     },
     {
-      "file": "packages/core/src/coordination/autonomous-coordinator.ts",
-      "lines": 1103,
-      "relativeImports": 14
-    },
-    {
       "file": "packages/core/src/coordination/collab-debug.ts",
       "lines": 915,
       "relativeImports": 10
@@ -20296,11 +20291,6 @@
   ],
   "hotspots": [
     {
-      "file": "packages/core/src/coordination/autonomous-coordinator.ts",
-      "lines": 1103,
-      "relativeImports": 14
-    },
-    {
       "file": "packages/tui/src/components/settings-picker-model.ts",
       "lines": 1095,
       "relativeImports": 4
@@ -20544,6 +20534,11 @@
       "file": "packages/webui/src/components/KanbanTaskInspector.tsx",
       "lines": 980,
       "relativeImports": 16
+    },
+    {
+      "file": "packages/core/src/execution/eternal-autonomy.ts",
+      "lines": 978,
+      "relativeImports": 8
     }
   ],
   "testOnlyExports": [
