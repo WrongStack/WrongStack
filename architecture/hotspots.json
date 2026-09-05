@@ -362,10 +362,6 @@
       "lines": 1036,
       "relativeImports": 4
     },
-    "packages/tui/src/components/settings-picker-model.ts": {
-      "lines": 1095,
-      "relativeImports": 4
-    },
     "packages/tui/src/components/settings-picker.tsx": {
       "lines": 821,
       "relativeImports": 12

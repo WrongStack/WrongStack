@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T18:17:38.439Z
+**Generated:** 2026-09-05T18:29:33.642Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3587 |
-| Production source lines | 870603 |
+| Production source files | 3589 |
+| Production source lines | 870511 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11296 |
+| Relative module edges | 11303 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -55,7 +55,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 31 | @wrongstack/core |
 | @wrongstack/tools | 190 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 357 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 359 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 526 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1095 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1092 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 1092 | `packages/webui-server/src/server/start-webui.ts` |
 | 1088 | `packages/core/src/core/context.ts` |
@@ -135,6 +134,7 @@ None.
 | 981 | `packages/sage/src/tools/memory-tools.ts` |
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 | 978 | `packages/core/src/execution/eternal-autonomy.ts` |
+| 975 | `packages/cli/src/webui-server.ts` |
 
 ## Exports only tests reference
 

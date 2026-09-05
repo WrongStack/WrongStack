@@ -201,6 +201,14 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       auditLevel: cfg.session?.auditLevel ?? 'standard',
       indexOnStart: cfg.indexing?.onSessionStart !== false,
       maxIterations: cfg.tools?.maxIterations ?? 500,
+      // Multi-diff summary threshold — mirrors the WebUI parity path
+      // (pref-helpers.ts reads/writes `decrypted.autonomy.multiDiffSummaryThreshold`;
+      // here we read from `decrypted.tools.multiDiffSummaryThreshold` to
+      // match the Tools-section write gate added in saveSettings).
+      multiDiffSummaryThreshold:
+        ((cfg.tools as Record<string, unknown> | undefined)?.multiDiffSummaryThreshold as
+          | number
+          | undefined) ?? 5,
       nextStepsTool: cfg.tools?.nextsteps?.enabled === true,
       restrictFsToRoot: resolvedRestrict,
       autoProceedMaxIterations:
@@ -310,6 +318,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.auditLevel !== undefined ||
         s.indexOnStart !== undefined ||
         s.maxIterations !== undefined ||
+        s.multiDiffSummaryThreshold !== undefined ||
         s.nextStepsTool !== undefined ||
         s.restrictFsToRoot !== undefined ||
         s.nextPrediction !== undefined ||
@@ -479,6 +488,14 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         ) {
           const tools = (decrypted.tools as Record<string, unknown>) ?? {};
           if (s.maxIterations !== undefined) tools.maxIterations = s.maxIterations;
+          // Multi-diff summary threshold — persisted on the Tools section so
+          // it travels with `maxIterations` (both gate on the Tools write
+          // trigger and land under `decrypted.tools`). Mirrors the WebUI
+          // pref-helpers.ts setAutonomy('multiDiffSummaryThreshold', ...)
+          // path and the overlay-key-router.ts:331 read.
+          if (s.multiDiffSummaryThreshold !== undefined) {
+            tools.multiDiffSummaryThreshold = s.multiDiffSummaryThreshold;
+          }
           if (s.nextStepsTool !== undefined) tools.nextsteps = { enabled: s.nextStepsTool };
           // Single source of truth for the inverse: deriveFsAccess above.
           if (fsAccess !== undefined) tools.restrictToProjectRoot = fsAccess.restrictToProjectRoot;
@@ -649,6 +666,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
               }
             : {}),
           ...(s.maxIterations !== undefined ||
+          s.multiDiffSummaryThreshold !== undefined ||
           s.nextStepsTool !== undefined ||
           fsAccess !== undefined ||
           // WrongProxy / WrongTrace: must be in the tools guard or the

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T18:17:38.439Z",
+  "generatedAt": "2026-09-05T18:29:33.642Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3587,
+    "sourceFiles": 3589,
     "testFiles": 3071,
-    "sourceLines": 870603,
+    "sourceLines": 870511,
     "workspaceEdges": 127,
-    "moduleEdges": 11296,
+    "moduleEdges": 11303,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -755,7 +755,7 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 357,
+      "sourceFiles": 359,
       "testFiles": 331,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20059,11 +20059,6 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/tui/src/components/settings-picker-model.ts",
-      "lines": 1095,
-      "relativeImports": 4
-    },
-    {
       "file": "packages/tui/src/components/settings-picker.tsx",
       "lines": 821,
       "relativeImports": 12
@@ -20290,11 +20285,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/tui/src/components/settings-picker-model.ts",
-      "lines": 1095,
-      "relativeImports": 4
-    },
     {
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
       "lines": 1092,
@@ -20539,6 +20529,11 @@
       "file": "packages/core/src/execution/eternal-autonomy.ts",
       "lines": 978,
       "relativeImports": 8
+    },
+    {
+      "file": "packages/cli/src/webui-server.ts",
+      "lines": 975,
+      "relativeImports": 21
     }
   ],
   "testOnlyExports": [
