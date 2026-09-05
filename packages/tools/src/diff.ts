@@ -54,7 +54,7 @@ export const diffTool: Tool<DiffInput, DiffOutput> = {
     '- `files` + no `a`/`b` → show file content with line numbers (NOT a unified diff; no +/- prefixes). Result `mode` is "dump".\n' +
     '- `a` and/or `b` → git-style commit/branch diff (unified format, real +/- prefixes).\n' +
     '- `staged: true` → only show staged changes.\n' +
-    '- `mode` only affects the git-diff path: "stat" runs `git diff --stat`; "side-by-side" is not supported and falls back to unified (result `mode` reports what was produced).\n' +
+    '- `mode` only affects the git-diff path: "stat" runs `git diff --stat`; "side-by-side" is unimplemented and falls back to unified (result `mode` reports what was produced).\n' +
     '- `context` sets the unified-diff context line count on the git path (`-U<n>`); the dump path has no context notion.\n' +
     '\n' +
     'NOTE: For a true file-vs-file unified diff, supply `a` and `b` so the tool ' +

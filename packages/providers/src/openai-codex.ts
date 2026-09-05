@@ -432,9 +432,9 @@ export class OpenAICodexProvider extends WireAdapter {
     if (req.reasoning?.enabled !== false && reasoningEffort !== 'none') {
       body['reasoning'] = { effort: reasoningEffort, summary: 'auto' };
     }
-    // Responses API accepts prompt_cache_key for cache routing (codex caps are
-    // cacheControl:'auto'). Best-effort — the field is dropped by backends that
-    // don't recognize it.
+    // OpenAI's official Codex client sends prompt_cache_key for server-side
+    // cache routing (codex caps are cacheControl:'auto'). The key is a routing
+    // hint, not a guarantee of a cache hit.
     applyPromptCacheKey(body, req, ctx?.capabilities);
     return body;
   }

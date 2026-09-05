@@ -107,7 +107,7 @@ export const jsonTool: Tool<JsonInput, JsonOutput> = {
   name: 'json',
   category: 'Data',
   description:
-    'Parse, pretty-print, query, validate, transform, and merge JSON/JSON5/YAML. Use `action` to select the operation: parse (default), query, validate, transform, or merge.',
+    'Parse, pretty-print, query, validate, transform, and merge JSON/JSON5/YAML (read-only — does not write files). Use `action` to select the operation: parse (default), query, validate, transform, or merge.',
   usageHint:
     'VERY USEFUL FOR DATA INSPECTION:\n\n' +
     '- `action: "parse"` (default): read/pretty-print/convert JSON, JSON5, or YAML from `file` or `data`.\n' +

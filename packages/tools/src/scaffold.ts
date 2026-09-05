@@ -84,7 +84,7 @@ export const scaffoldTool: Tool<ScaffoldInput, ScaffoldOutput> = {
   name: 'scaffold',
   category: 'Project',
   description:
-    'Generate new files and folder structures from built-in templates or custom definitions. ' +
+    'Generate or preview files and folder structures from built-in templates or custom definitions. Writes files to disk unless dry_run is set. ' +
     'This is the recommended way to bootstrap new packages, components, or modules instead of creating files one by one with `write`.',
   usageHint:
     'PREFERRED FOR SCAFFOLDING:\n\n' +

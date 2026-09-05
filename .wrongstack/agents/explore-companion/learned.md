@@ -17,7 +17,7 @@
   - *How:* `glob packages/<pkg>/src/**/*.ts*`
   - *How:* `ts*`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=2450; wins=2437 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=2453; wins=2440 -->
 - **Always grep the full `CallType` union in `packages/tools/src/codebase-index/schema.ts` before treating a todo's "type" clause as a gap — `type_ref` is emitted only by `ts-parser.ts`, never by tree-sitter `refRules` tables in `packages/tools/src/codebase-index/tree-sitter/queries.ts`, so WASM-language test todos need only `call`/`import`/`inherit`/`implement` assertions.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `CallType`
@@ -94,4 +94,4 @@
   - *How:* `packages/**/src`
 
 ---
-*Last capture: 2026-09-05T16:09:56.324Z · 8 entries*
+*Last capture: 2026-08-22T11:25:46.876Z · 8 entries*

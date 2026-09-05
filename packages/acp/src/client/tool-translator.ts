@@ -80,11 +80,10 @@ export function parseToolResponse(
   const blocks = response.result.content;
   const text = extractTextFromContent(blocks);
 
-  // Detect error state from isError flag or error-like text
-  const isError =
-    response.result.isError ||
-    text.toLowerCase().includes('error') ||
-    text.toLowerCase().includes('failed');
+  // Detect error state from the structured isError flag only.
+  // Textual heuristics (e.g. "0 errors") produce false positives for
+  // normal tool output that merely mentions the word "error" in context.
+  const isError = response.result.isError === true;
 
   return {
     taskId,

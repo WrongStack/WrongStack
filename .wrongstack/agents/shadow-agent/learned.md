@@ -41,7 +41,7 @@
   - *How:* `mail_inbox`
   - *How:* `submit_result`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-25T16:17:32.660Z; applied=23; wins=23 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-25T16:17:32.660Z; applied=24; wins=24 -->
 - **When `fleet action=status`/`action=health` are clean but `mail_inbox` returns "tool lacks allowed capability (has: coordination.mail, allowed: …)", still emit `shadow: quiet` as the fleet verdict and append exactly one caveat line naming the denied tool — do not retry, do not substitute `mailbox action=check/query`, and do not escalate the denial into an anomaly report.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `fleet action=status`
@@ -50,7 +50,7 @@
   - *How:* `shadow: quiet`
   - *How:* `mailbox action=check/query`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-25T17:46:29.663Z; applied=22; wins=22 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-25T17:46:29.663Z; applied=23; wins=23 -->
 - **When a shadow pass's `fleet action=status` roster is clean but `mail_inbox` returns "tool lacks allowed capability (has: coordination.mail, allowed: …)", emit `shadow: quiet` as the fleet verdict plus exactly one caveat line naming the denied tool — the denial is UNKNOWN (scan unavailable), never "no control messages," and never grounds for `terminate_subagent`, since interventions require a readable explicit command and an unreadable mailbox is not authorization.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `fleet action=status`
@@ -67,7 +67,7 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-25T14:44:25.260Z; applied=24; wins=24 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-25T14:44:25.260Z; applied=25; wins=25 -->
 - **Treat a `mail_inbox` capability denial (`tool lacks allowed capability (has: coordination.mail, allowed: …)`) as UNKNOWN scan-unavailable and still emit `shadow: quiet` for the fleet verdict when `fleet action=status`/`action=health` are clean — append a single-line caveat naming the denied tool rather than suppressing the finding or upgrading the pass to an anomaly report.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `mail_inbox`

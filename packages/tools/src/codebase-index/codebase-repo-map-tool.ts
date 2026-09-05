@@ -31,7 +31,7 @@ export const codebaseRepoMapTool: Tool<CodebaseRepoMapInput, CodebaseRepoMapOutp
   mutating: false,
   capabilities: ['fs.read'],
   description:
-    'Generate a reference-weighted, token-budgeted Repository Map (Repo Map) of the codebase. ' +
+    'Generate a reference-weighted, token-budgeted Repository Map of the codebase (~1200 token default). Use it for orientation before a cross-file change. ' +
     'Extracts the most architecturally central types, interfaces, classes, and function signatures ' +
     'across the repository into a compact outline (~800-1500 tokens). ' +
     'Use this at the beginning of tasks or when navigating unfamiliar repositories to get a bird-eye view of the architecture.',

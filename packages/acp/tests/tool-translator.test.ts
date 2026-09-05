@@ -102,14 +102,27 @@ describe('parseToolResponse', () => {
     expect(out.status).toBe('failed');
   });
 
-  it('marks failed when the text mentions "error"', () => {
-    const out = parseToolResponse('t1', 's1', resp([{ type: 'text', text: 'Fatal ERROR here' }]));
-    expect(out.status).toBe('failed');
+  // Regression: the isError flag is the sole error signal.
+  // Textual heuristics like "0 errors" must NOT cause false-positive failures —
+  // parseToolResponse is a translation layer, not a semantic parser.
+  it('does not false-positive on text that merely contains "error"', () => {
+    const cases: Array<{ text: string }> = [
+      { text: 'Lint complete. 0 errors, 2 warnings.' },
+      { text: 'error rate: 0.05%' },
+      { text: 'Previous error has been resolved.' },
+      { text: 'error-log-collector: collected 3 entries' },
+      { text: 'error.log does not exist — no errors found' },
+      { text: 'Please fix any error in the file before committing.' },
+    ];
+    for (const { text } of cases) {
+      const out = parseToolResponse('t1', 's1', resp([{ type: 'text', text }]));
+      expect(out.status).toBe('success');
+    }
   });
 
-  it('marks failed when the text mentions "failed"', () => {
-    const out = parseToolResponse('t1', 's1', resp([{ type: 'text', text: 'the job Failed' }]));
-    expect(out.status).toBe('failed');
+  it('text alone — even "failed" — does not mark failure without isError', () => {
+    const out = parseToolResponse('t1', 's1', resp([{ type: 'text', text: 'Build failed: module not found' }]));
+    expect(out.status).toBe('success');
   });
 });
 

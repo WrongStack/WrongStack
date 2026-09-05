@@ -12,6 +12,7 @@ describe('builtinTools', () => {
       expect(typeof t.name).toBe('string');
       expect(t.name.length).toBeGreaterThan(0);
       expect(typeof t.description).toBe('string');
+      expect(t.description.trim().length).toBeGreaterThan(0);
       expect(typeof t.execute).toBe('function');
       expect(t.permission).toMatch(/^(auto|confirm|deny)$/);
     }

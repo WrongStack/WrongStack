@@ -117,7 +117,7 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
   'codebase-skeleton':
     'Extract a compact structural skeleton from a source file or directory, preserving declarations while omitting implementation detail. Use it to understand unfamiliar code quickly.',
   'codebase-repo-map':
-    'Generate a concise map of important files, symbols, and relationships in a project area. Use it for orientation before a cross-file change.',
+    'Generate a reference-weighted, token-budgeted Repository Map of the codebase within ~1200 tokens by default. Use at the beginning of complex tasks or when navigating unfamiliar repositories to get a bird-eye view of the architecture.',
   'codebase-impact-analysis':
     'Find likely callers, dependents, related tests, and change risk for a named symbol. Use it before changing a public or widely used declaration.',
   'codebase-targeted-test':
@@ -151,8 +151,8 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
   git: 'Inspect or run scoped Git operations in the project, including status, diff, history, branches, and commits. Review the target and working tree before mutating operations.',
   patch:
     'Apply a unified diff to project files with patch-style context checking. Use it for a reviewed multi-file change when exact patch content is available.',
-  json: 'Read, query, validate, or update JSON files while preserving valid structure. Use it instead of raw text edits when changing structured JSON data.',
-  diff: 'Compare two files, revisions, or text inputs and return a readable unified diff. Use it to review intended changes before applying or committing them.',
+  json: 'Read, query, validate, or merge JSON/JSON5/YAML files while preserving valid structure (read-only — does not write). Use it instead of raw text edits when reading or querying structured data.',
+  diff: 'Show file content with line numbers, staged/working-tree diffs via git, or commit/branch diffs. A safer and more structured alternative to raw `git diff` via shell.',
   tree: 'Render a bounded directory tree with depth, file, hidden-file, and ignore controls. Use it for repository orientation without reading every file.',
   lint: 'Run the project’s configured linter for a target path or working directory and return diagnostics. Use it after code edits to catch style and static-analysis issues.',
   format:
@@ -174,11 +174,11 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
     'List outdated project dependencies and available versions without changing manifests or lockfiles. Use it to plan dependency maintenance.',
   logs: 'Read or tail configured local, container, or process logs with bounded output. Use it to investigate a known runtime failure or service behavior.',
   document:
-    'Generate or update project documentation from supplied scope and source context. Use it to record verified behavior; review generated text before treating it as authoritative.',
+    'List undocumented symbols as read-only candidates; this deprecated preview stub does not generate docstrings or write files. Use the auto-doc plugin when it is enabled.',
   scaffold:
-    'Preview or generate files from a built-in or custom scaffold template. Use dry_run first to inspect paths and content before creating project files.',
+    'Preview or generate files from a built-in or custom scaffold template. Writes files to disk unless dry_run is set. Use dry_run first to inspect paths and content before creating project files.',
   design:
-    'Create a structured implementation design with goals, constraints, approach, and risks. Use it before a substantial change that needs an explicit technical decision.',
+    'Choose, preview, or materialize a UI design kit (e.g. minimal-clarity, neo-brutalist) for the active stack. Lists available kits, previews tokens, or writes a design-token source file to the project.',
   tool_search:
     'Discover registered tools by name, description, tag, permission, or mutating status. Use it to find a lazy capability before calling it through tool-use.',
   tool_use:
