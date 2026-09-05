@@ -122,6 +122,7 @@ export const installTool = {
     if (!input.global) {
       const rawList = input.packages
         ? (Array.isArray(input.packages) ? input.packages : input.packages.split(','))
+            .filter((p): p is string => typeof p === 'string')
             .map((p) => p.trim())
             .filter(Boolean)
         : [];
@@ -166,6 +167,7 @@ export const installTool = {
 
     const rawList = input.packages
       ? (Array.isArray(input.packages) ? input.packages : input.packages.split(','))
+          .filter((p): p is string => typeof p === 'string')
           .map((p) => p.trim())
           .filter(Boolean)
       : [];

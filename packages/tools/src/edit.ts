@@ -154,7 +154,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
       });
     }
 
-    const autoRead = !ctx.hasRead(absPath);
+    const autoRead = ctx.hasRead ? !ctx.hasRead(absPath) : false;
     // Read BEFORE mtime check to eliminate TOCTOU window.
     // The sequence must be: read content → check mtime → apply edit.
     // If we check mtime first, a concurrent modification between the
@@ -179,7 +179,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
         });
       }
     } else {
-      const lastReadMtime = ctx.lastReadMtime(absPath);
+      const lastReadMtime = ctx.lastReadMtime?.(absPath);
       if (lastReadMtime !== undefined && updated.mtimeMs > lastReadMtime + mtimeTolerance) {
         throw new ToolValidationError({
           message: `edit: file "${input.path}" was modified externally. Re-read it first.`,
@@ -211,7 +211,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
       if (!fileLf.includes(oldLf)) {
         throw noMatchError(input.path, fileLf, oldLf);
       }
-      if (autoRead) ctx.recordRead(absPath, updated.mtimeMs, 'user', originalHash);
+      if (autoRead) ctx.recordRead?.(absPath, updated.mtimeMs, 'user', originalHash);
       return {
         path: absPath,
         replacements: 0,
@@ -323,7 +323,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
     // modification, but tag as 'write' so the permission policy's
     // write-smart-bypass does NOT treat this as "user already saw the
     // content" (P1 #1).
-    ctx.recordRead(absPath, written.mtimeMs, 'write', sha256hex(newFile));
+    ctx.recordRead?.(absPath, written.mtimeMs, 'write', sha256hex(newFile));
 
     // Record for session rewind
     ctx.session?.recordFileChange?.({

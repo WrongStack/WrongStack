@@ -346,11 +346,13 @@ function buildArgs(input: GitInput): string[] {
       ? Math.floor(input.limit)
       : 20;
   const limit = Math.max(1, rawLimit);
-  const files = input.files
+  const rawFiles = input.files
     ? (Array.isArray(input.files) ? input.files : input.files.split(','))
+        .filter((s): s is string => typeof s === 'string')
         .map((s: string) => s.trim().replace(/\\/g, '/'))
         .filter(Boolean)
     : [];
+  const files = [...new Set(rawFiles)];
 
   switch (input.command) {
     case 'status':

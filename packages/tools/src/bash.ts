@@ -659,7 +659,11 @@ export const bashTool: Tool<BashInput, BashOutput> = {
               exit_code: timedOut || isAborted ? 124 : c.code,
               timed_out: timedOut || isAborted,
               pid: pid ?? null,
-              error: isAborted ? 'Command aborted by user or signal' : undefined,
+              error: timedOut
+                ? 'Command timed out'
+                : isAborted
+                  ? 'Command aborted by user or signal'
+                  : undefined,
             },
           };
           // P2 #5: record the command execution as a structured side effect.

@@ -196,7 +196,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       offset <= requestedEnd &&
       coversRange(prior, stat.mtimeMs, stat.size, offset, requestedEnd)
     ) {
-      ctx.recordRead(absPath, stat.mtimeMs, 'user', ctx.lastReadHash?.(absPath));
+      ctx.recordRead?.(absPath, stat.mtimeMs, 'user', ctx.lastReadHash?.(absPath));
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
@@ -234,7 +234,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     const total = allLines.length;
 
     if (total === 0) {
-      ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
+      ctx.recordRead?.(absPath, stat.mtimeMs, 'user', contentHash);
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
@@ -249,7 +249,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     }
 
     if (input.mode === 'summary') {
-      ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
+      ctx.recordRead?.(absPath, stat.mtimeMs, 'user', contentHash);
       rememberReadRange(ctx, absPath, stat.mtimeMs, stat.size, total, 1, Math.min(total, 200));
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
@@ -268,7 +268,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       };
     }
     if (limit === 0) {
-      ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
+      ctx.recordRead?.(absPath, stat.mtimeMs, 'user', contentHash);
       rememberReadRange(ctx, absPath, stat.mtimeMs, stat.size, total, 1, 0);
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
@@ -288,7 +288,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     // same offset indefinitely — a tight tool-use loop that burns iterations
     // and context without making progress.
     if (offset > total) {
-      ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
+      ctx.recordRead?.(absPath, stat.mtimeMs, 'user', contentHash);
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
@@ -316,7 +316,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     }
     const numbered = parts.join('\n');
 
-    ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
+    ctx.recordRead?.(absPath, stat.mtimeMs, 'user', contentHash);
     rememberReadRange(
       ctx,
       absPath,
