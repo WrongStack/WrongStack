@@ -55,3 +55,16 @@ export function logFileWatcherMetrics(metrics: FileWatcherMetrics | undefined): 
       `${metrics.activeProjects} active projects`,
   );
 }
+
+export function createDefaultFileWatcherMetrics(): FileWatcherMetrics {
+  return {
+    fileChangesDetected: 0,
+    filesProcessed: 0,
+    broadcastsSent: 0,
+    debounceResets: 0,
+    totalDebounceDelayMs: 0,
+    activeProjects: 0,
+    averageDebounceDelayMs: 0,
+    watcherActive: false,
+  };
+}

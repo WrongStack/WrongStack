@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T18:38:18.324Z",
+  "generatedAt": "2026-09-05T18:58:41.101Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3591,
+    "sourceFiles": 3600,
     "testFiles": 3071,
-    "sourceLines": 870601,
+    "sourceLines": 871029,
     "workspaceEdges": 127,
-    "moduleEdges": 11310,
+    "moduleEdges": 11330,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -885,7 +885,7 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 211,
+      "sourceFiles": 220,
       "testFiles": 187,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20259,11 +20259,6 @@
       "relativeImports": 47
     },
     {
-      "file": "packages/webui-server/src/server/start-webui.ts",
-      "lines": 1092,
-      "relativeImports": 29
-    },
-    {
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
       "lines": 1038,
       "relativeImports": 1
@@ -20280,11 +20275,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/webui-server/src/server/start-webui.ts",
-      "lines": 1092,
-      "relativeImports": 29
-    },
     {
       "file": "packages/core/src/core/context.ts",
       "lines": 1088,
@@ -20529,6 +20519,11 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 973,
       "relativeImports": 12
+    },
+    {
+      "file": "packages/core/src/coordination/director.ts",
+      "lines": 966,
+      "relativeImports": 41
     }
   ],
   "testOnlyExports": [

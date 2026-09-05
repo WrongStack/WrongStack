@@ -522,10 +522,6 @@
       "lines": 938,
       "relativeImports": 47
     },
-    "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1092,
-      "relativeImports": 29
-    },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
       "lines": 1038,
       "relativeImports": 1

@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 310,
-      "typeOnly": 245,
+      "files": 312,
+      "typeOnly": 247,
       "runtimeOrMixed": 82
     },
     "@wrongstack/core/agent-catalog": {
@@ -79,8 +79,8 @@
       "runtimeOrMixed": 42
     },
     "@wrongstack/core/kernel": {
-      "files": 251,
-      "typeOnly": 133,
+      "files": 253,
+      "typeOnly": 135,
       "runtimeOrMixed": 131
     },
     "@wrongstack/core/kernel/events.js": {
@@ -169,8 +169,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1027,
-      "typeOnly": 947,
+      "files": 1029,
+      "typeOnly": 950,
       "runtimeOrMixed": 267
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -199,9 +199,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 551,
+      "files": 552,
       "typeOnly": 55,
-      "runtimeOrMixed": 524
+      "runtimeOrMixed": 525
     },
     "@wrongstack/core/utils/error": {
       "files": 6,
@@ -2031,6 +2031,18 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/start-webui-security.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/start-webui-session-runtime.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/start-webui.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3435,7 +3447,7 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
-      "file": "packages/webui-server/src/server/start-webui.ts",
+      "file": "packages/webui-server/src/server/start-webui-security.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6621,7 +6633,19 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/src/server/start-webui-logging.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/webui-server/src/server/start-webui-remediation.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/src/server/start-webui-security.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9639,13 +9663,13 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
-      "file": "packages/webui-server/src/server/start-webui-todos.ts",
+      "file": "packages/webui-server/src/server/start-webui-session-runtime.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
-      "file": "packages/webui-server/src/server/start-webui.ts",
+      "file": "packages/webui-server/src/server/start-webui-todos.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15819,6 +15843,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/start-webui-payload.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/start-webui-proxy-apply.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -15831,9 +15861,15 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/webui-server/src/server/start-webui.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "file": "packages/webui-server/src/server/start-webui-state.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/start-webui-vector.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -19486,6 +19522,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/start-webui-credential-watcher.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/start-webui-security.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

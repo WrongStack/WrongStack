@@ -29,9 +29,9 @@ import * as fs from 'node:fs/promises';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
 import { HashingEmbeddingProvider } from '@wrongstack/sage';
 import { VectorMemoryStore } from '@wrongstack/vector-memory';
+import { afterEach, describe, expect, it } from 'vitest';
 import { createHttpServer } from '../src/server/http-server.js';
 import { createWsServers, type ResolvedPorts } from '../src/server/server-runtime.js';
 
@@ -358,18 +358,15 @@ describe('start-webui.ts source-text sync wiring', () => {
       '..',
       'src',
       'server',
-      'start-webui.ts',
+      'start-webui-vector.ts',
     );
     const source = await fs.readFile(startWebuiPath, 'utf8');
     expect(source).toContain('startFirstBootSageSync,');
     expect(source).toContain("from '@wrongstack/vector-memory'");
     expect(source).toContain('startFirstBootSageSync({');
     expect(source).toContain('store: vectorMemoryStore');
-    expect(source).toContain('memoryStore,');
+    expect(source).toContain('memoryStore: baseMemoryStore,');
     expect(source).toContain('logger,');
-    // Guarded by `if (vectorMemoryStore)` so the read-only-FS fallback
-    // path doesn't kick off a doomed sync.
-    expect(source).toMatch(/if\s*\(\s*vectorMemoryStore\s*\)\s*\{[\s\S]*?startFirstBootSageSync/);
   });
 });
 

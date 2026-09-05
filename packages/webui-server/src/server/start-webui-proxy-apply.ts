@@ -21,8 +21,8 @@
  * so there is exactly one rebuilder per process.
  */
 
-import { createProxyInstantApply } from '@wrongstack/core/wiring/proxy-rewrite';
 import type { Provider, ProviderConfig } from '@wrongstack/core/types';
+import { createProxyInstantApply } from '@wrongstack/core/wiring/proxy-rewrite';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
 import { fanOutProviderRebuild } from './provider-fanout.js';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';

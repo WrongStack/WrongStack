@@ -10,20 +10,10 @@
 
 import * as path from 'node:path';
 import { createDefaultPipelines } from '@wrongstack/core/agent';
-import { getSharedProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
-import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
-import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/core/types';
-import { expectDefined, startSharedHeapWatchdog, wstackGlobalRoot } from '@wrongstack/core/utils';
+import { expectDefined, startSharedHeapWatchdog } from '@wrongstack/core/utils';
 import { ensureSessionShell } from '@wrongstack/tools';
-import {
-  startFirstBootSageSync,
-  subscribeVectorMemoryToSage,
-  sweepStaleSageMirrors,
-  TransformersEmbeddingProvider,
-  VectorMemoryStore,
-  wrapMemoryPortWithVectorRecall,
-} from '@wrongstack/vector-memory';
+import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 
 import { createAgentServices } from './backend-services.js';
 import { bootConfig, patchConfig } from './boot.js';
@@ -31,9 +21,7 @@ import { createConnectionHandler } from './connection-handler.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
 import { setupWebUiGovernance } from './governance-runtime.js';
 import { createMessageDispatcher } from './message-dispatcher.js';
-import { formatExternalAccessUrls } from './network-info.js';
 import type { PendingConfirm } from './pending-confirms.js';
-import { isStrictPort, listenWithRetry } from './port-utils.js';
 import { createPreContextServices } from './pre-context-services.js';
 import {
   type ConfigWriteLockHolder,
@@ -42,12 +30,6 @@ import {
   prefSnapshot as prefSnapshotImpl,
   updateGlobalConfig as updateGlobalConfigImpl,
 } from './pref-helpers.js';
-import {
-  ensureProjectDataDir,
-  generateProjectSlug,
-  loadManifest,
-  saveManifest,
-} from './projects-manifest.js';
 import { bootstrapWrongProxyFromConfig } from './proxy-runtime.js';
 import {
   buildRoutes,
@@ -55,27 +37,32 @@ import {
   type WebuiDeps,
   type WebuiMutableState,
 } from './routes.js';
-import {
-  armEvents,
-  createSessionStartPayload,
-  createWsServers,
-  resolvePorts,
-  startHttpServer,
-} from './server-runtime.js';
+import { armEvents, createWsServers, resolvePorts, startHttpServer } from './server-runtime.js';
 import { scheduleOwnerlessEmptySessionCleanup } from './session-cleanup-scheduler.js';
 import { collectDisplayedSessionIds, createSessionTransitionGate } from './session-handlers.js';
 import { toSessionHistoryEntries } from './session-history.js';
-import type { FileWatcherMetrics } from './setup-events.js';
+import { createDefaultFileWatcherMetrics, type FileWatcherMetrics } from './setup-events.js';
+import { bindSharedHttpServer } from './start-webui-bind.js';
 import { setupCompanionServer } from './start-webui-companion.js';
 import { setupWebuiCredentialWatcher } from './start-webui-credential-watcher.js';
+import { createWebuiCallbacks, createWebuiDeps } from './start-webui-deps.js';
+import { setupWebuiTerminalLogging } from './start-webui-logging.js';
+import { createStartWebuiSessionPayloadHelper } from './start-webui-payload.js';
+import { touchProjectEntry } from './start-webui-project.js';
 import { setupWebuiProxyInstantApply } from './start-webui-proxy-apply.js';
 import { createPackageOperationExecutor } from './start-webui-remediation.js';
+import { handleWebuiSecurityRejection } from './start-webui-security.js';
+import {
+  createRunLockControl,
+  createSessionBridgeManager,
+  stopSessionFleet,
+} from './start-webui-session-runtime.js';
 import { setupWebuiShutdown } from './start-webui-shutdown.js';
+import { createWebuiMutableState } from './start-webui-state.js';
 import { createStandaloneTodosCheckpointLifecycle } from './start-webui-todos.js';
-import { startTerminalDashboard } from './terminal-dashboard.js';
+import { initVectorMemoryStore, setupVectorMemoryMirror } from './start-webui-vector.js';
 import type { WebUIOptions } from './types.js';
-import { startWebUILiveStatusLogger } from './webui-status-logger.js';
-import { broadcast, buildWebUIAccessUrl, resolveAuthToken } from './ws-utils.js';
+import { broadcast, resolveAuthToken } from './ws-utils.js';
 
 export { createStandaloneTodosCheckpointLifecycle };
 
@@ -211,21 +198,12 @@ export async function startWebUI(
     'cache',
     'transformers-models',
   );
-  try {
-    if (config.Sage?.vector?.enabled === false) throw new Error('disabled by config');
-    vectorMemoryStore = new VectorMemoryStore({
-      provider: new TransformersEmbeddingProvider({
-        cacheDir: vectorMemoryModelCacheDir,
-      }),
-      projectRoot,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.warn(
-      `vector memory store disabled: ${message} — standalone WebUI will run on the SAGE-only surface.`,
-    );
-    vectorMemoryStore = undefined;
-  }
+  vectorMemoryStore = initVectorMemoryStore({
+    projectRoot,
+    config: config as unknown as Record<string, unknown>,
+    logger,
+    vectorMemoryModelCacheDir,
+  });
 
   // ── Pre-context services (registries, stores, session, system prompt,
   // provider, context) — built in ./pre-context-services.ts (Phase 1f).
@@ -243,7 +221,7 @@ export async function startWebUI(
     projectRoot,
     workingDir,
     needsProvider,
-    touchProject: (root, wd) => touchProjectEntry(root, wd),
+    touchProject: (root, wd) => touchProjectEntry(globalConfigPath, root, wd),
   });
   const {
     modelsRegistry,
@@ -293,40 +271,14 @@ export async function startWebUI(
   // constructor failed (read-only FS, etc.) — the SAGE-only fallback
   // already covers that path.
   if (vectorMemoryStore) {
-    void startFirstBootSageSync({
-      store: vectorMemoryStore,
-      memoryStore,
+    const mirror = setupVectorMemoryMirror({
+      vectorMemoryStore,
+      baseMemoryStore: memoryStore,
+      config: config as unknown as Record<string, unknown>,
       logger,
     });
-    // Parity with the CLI host (packages/cli/src/wiring/vector-memory-setup.ts):
-    // warm-starting the vector store is only half the wiring. Without the
-    // wrapper, `searchSage` here stays lexical-only and the mirrored corpus is
-    // never read back; without the live mirror, every SAGE write after boot is
-    // invisible to semantic recall until an operator forces a re-sync. The
-    // standalone WebUI shipped with only the sync, so its vector database was
-    // written once and never consulted.
-    const vectorTuning = config.Sage?.vector;
-    memoryStore = wrapMemoryPortWithVectorRecall(memoryStore, {
-      store: vectorMemoryStore,
-      weight: vectorTuning?.weight ?? 0.3,
-      ...(vectorTuning?.threshold !== undefined ? { threshold: vectorTuning.threshold } : {}),
-      ...(vectorTuning?.vectorOnlyThreshold !== undefined
-        ? { vectorOnlyThreshold: vectorTuning.vectorOnlyThreshold }
-        : {}),
-      ...(vectorTuning?.maxMaterializations !== undefined
-        ? { maxMaterializations: vectorTuning.maxMaterializations }
-        : {}),
-    });
-    const handle = subscribeVectorMemoryToSage({
-      store: vectorMemoryStore,
-      memoryStore,
-      logger,
-    });
-    disposeVectorMirror = () => handle.dispose();
-    // Bulk SAGE operations emit one top-level event rather than a
-    // `memory.deleted` per memory, so the live mirror never sees them.
-    // Throttled by a marker beside the vector db, shared with the CLI host.
-    void sweepStaleSageMirrors({ store: vectorMemoryStore, memoryStore, logger });
+    memoryStore = mirror.memoryStore;
+    disposeVectorMirror = mirror.disposeVectorMirror;
   }
 
   // Pref keys + snapshot + persistence live in ./pref-helpers.ts (Phase 1c).
@@ -449,38 +401,20 @@ export async function startWebUI(
   // Centralised so initial connect, post-/new, and post-model.switch all
   // broadcast the same shape — frontend treats this as the single source of
   // truth for everything in the status bar (model, context window, project).
-  const sessionStartPayload = createSessionStartPayload({
+  const sessionStartPayload = createStartWebuiSessionPayloadHelper({
     getConfig: () => config,
     getSessionId: () => session.id,
     getProjectRoot: () => projectRoot,
     getWorkingDir: () => workingDir,
     getModeId: () => modeId,
-    getContextMode: () =>
-      String(context.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID),
-    // `needsSetup` is the BOOT-time resolution (no provider+model configured
-    // then). Runtime provider.add must clear it without a server restart:
-    // once the live config has a provider AND model selected, setup is
-    // satisfied — otherwise every session.start frame keeps navigating the
-    // client back to the setup screen on fresh homes.
-    getNeedsSetup: () => needsSetup && !(state.getConfig().provider && state.getConfig().model),
+    getContextMeta: () => context.meta,
+    needsSetup,
+    stateGetter: () => state,
     modelsRegistry,
-    // Per-tab truth: a session that switched model/mode/context strategy
-    // reports its OWN values, not the process-wide defaults.
-    // `peek`: building a payload must not materialise an agent for a session
-    // id that arrived from a stale browser tab.
-    getSessionContext: (sessionId: string) => peekAgent?.(sessionId)?.ctx,
+    peekAgent,
   });
 
-  const watcherMetricsRef: FileWatcherMetrics = {
-    fileChangesDetected: 0,
-    filesProcessed: 0,
-    broadcastsSent: 0,
-    debounceResets: 0,
-    totalDebounceDelayMs: 0,
-    activeProjects: 0,
-    averageDebounceDelayMs: 0,
-    watcherActive: false,
-  };
+  const watcherMetricsRef: FileWatcherMetrics = createDefaultFileWatcherMetrics();
 
   // Resolve the auth token once so the HTTP /ws-auth cookie and the WS
   // verifyClient share the SAME token. When opts.accessToken is undefined
@@ -559,89 +493,21 @@ export async function startWebUI(
    * particular, so both accessors now require the session id and the pointer
    * is gone.
    */
-  const runLockControl = {
-    get: (sessionId: string): AbortController | null => _sessionRunLocks.get(sessionId) ?? null,
-    set: (ctrl: AbortController | null, sessionId: string) => {
-      if (ctrl) _sessionRunLocks.set(sessionId, ctrl);
-      else _sessionRunLocks.delete(sessionId);
-    },
-    has: (sessionId: string) => _sessionRunLocks.has(sessionId),
-    hasAny: () => _sessionRunLocks.size > 0,
-    delete: (sessionId: string) => {
-      _sessionRunLocks.delete(sessionId);
-    },
-    sessionIds: () => [..._sessionRunLocks.keys()],
-  };
-
-  /**
-   * Cascade a session's stop into the subagents it spawned. Fire-and-forget:
-   * the run is already aborted, and a fleet teardown failure must not turn
-   * Stop into an error the user sees instead of a stopped run.
-   */
-  const stopSessionFleet = (sessionId: string): void => {
-    if (!sessionId || !opts.stopSessionFleet) return;
-    try {
-      void Promise.resolve(opts.stopSessionFleet(sessionId)).catch((err) => {
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'webui.stop_session_fleet_failed',
-            sessionId,
-            message: err instanceof Error ? err.message : String(err),
-            timestamp: new Date().toISOString(),
-          }),
-        );
-      });
-    } catch {
-      // A synchronous throw from the host hook is best-effort too.
-    }
-  };
+  const runLockControl = createRunLockControl(_sessionRunLocks, (id) =>
+    stopSessionFleet(id, opts.stopSessionFleet),
+  );
 
   const pendingConfirms = new Map<string, PendingConfirm>();
 
   // One gate per host, shared by session transitions and run setup.
   const sessionTransitionGate = createSessionTransitionGate();
 
-  // Audit-level-aware session log bridge — persists tool/error/provider
-  // events to the session JSONL with the same contract as the CLI. The
-  // getter form resolves the CURRENT writer on every append so events
-  // follow session.new / session.resume swaps.
-  const sessionLogging = resolveSessionLoggingConfig(config);
-  const sessionBridge = createSessionEventBridge(
-    () => context.session ?? session,
-    sessionLogging.auditLevel,
-    { sampling: sessionLogging.sampling },
+  const { sessionBridge, bridgeForSession } = createSessionBridgeManager(
+    config as unknown as Record<string, unknown>,
+    context,
+    () => session,
+    () => deps?.getAgent,
   );
-
-  /**
-   * One audit bridge per session, bound to THAT session's writer.
-   *
-   * The single bridge above resolves "the current writer", so audit events for
-   * a background tab had nowhere to go and were dropped — the tab worked, but
-   * resuming it later showed a run with no tool history. Each tab's agent owns
-   * its own writer, so the bridge is built from the agent registry and cached
-   * per session; a session with no agent (never opened, already retired) has
-   * no writer to address and yields undefined.
-   */
-  const sessionBridges = new Map<string, ReturnType<typeof createSessionEventBridge>>();
-  const bridgeForSession = (sessionId: string) => {
-    if (!sessionId) return undefined;
-    const existing = sessionBridges.get(sessionId);
-    if (existing) return existing;
-    const agent = deps.getAgent?.(sessionId);
-    const writer = agent?.ctx?.session;
-    if (!writer) return undefined;
-    const bridge = createSessionEventBridge(
-      () => deps.getAgent?.(sessionId)?.ctx?.session,
-      sessionLogging.auditLevel,
-      { sampling: sessionLogging.sampling },
-    );
-    // Bounded: the tab ceiling is four, and a handful of retired sessions may
-    // linger until the next miss.
-    if (sessionBridges.size >= 16) sessionBridges.clear();
-    sessionBridges.set(sessionId, bridge);
-    return bridge;
-  };
 
   // Event arming + WS error handlers live in ./server-runtime.ts (Phase 1e).
   // The WS server's 'listening' event fires when the shared HTTP server
@@ -667,81 +533,18 @@ export async function startWebUI(
     watcherMetricsRef,
   );
 
-  // Start the shared HTTP+WebSocket server. The WS server is attached to this
-  // HTTP server via {server: httpServer}, so a single listen() binds both the
-  // HTTP frontend and the WS upgrade handler on the same port.
-  // listenWithRetry closes the findFreePort TOCTOU window: the probe's
-  // throwaway listener closed before this real bind, and a competitor may
-  // have taken the port in that gap. Non-strict mode advances past
-  // EADDRINUSE (bounded); strict mode (maxTries: 1) keeps the fail-fast
-  // contract but rejects cleanly instead of crashing the process with an
-  // unhandled 'error' event. Shared-port flake 2026-08-16.
-  const strictPort = isStrictPort();
-  const boundPort = await listenWithRetry(httpServer, wsHost, httpPort, {
-    maxTries: strictPort ? 1 : 10,
+  httpPort = await bindSharedHttpServer({
+    httpServer,
+    wsHost: wsHost ?? '127.0.0.1',
+    httpPort,
+    requireToken,
+    publicUrl,
   });
-  if (boundPort !== httpPort) {
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        event: 'webui.port_reassigned',
-        protocol: 'HTTP',
-        requested: httpPort,
-        assigned: boundPort,
-        reason: 'bind-time EADDRINUSE retry',
-        timestamp: new Date().toISOString(),
-      }),
-    );
-    httpPort = boundPort;
-  }
-  {
-    const authHint = requireToken
-      ? ' (authentication required; configure WEBUI_TOKEN out of band)'
-      : '';
-    console.log(`[WebUI] HTTP server listening on http://${wsHost}:${httpPort}${authHint}`);
-    const extraUrls = formatExternalAccessUrls({
-      bindHost: wsHost,
-      port: httpPort,
-      publicUrl,
-    });
-    if (extraUrls.length > 0) {
-      console.log('[WebUI] Protected endpoints on external interfaces:\n' + extraUrls.join('\n'));
-    }
-  }
 
   const companionServer = await setupCompanionServer(httpServer, wsHost, httpPort);
 
-  // ── Project manifest helpers ──────────────────────────────────────────
-
-  /**
-   * Idempotent manifest registration (mirrors the CLI's
-   * touchProjectInManifest): create the projects.json entry when missing,
-   * refresh lastSeen/lastWorkingDir when present.
-   */
-  async function touchProjectEntry(root: string, workDir?: string): Promise<void> {
-    const resolved = path.resolve(root);
-    const manifest = await loadManifest(globalConfigPath);
-    const now = new Date().toISOString();
-    const existing = manifest.projects.find((p) => path.resolve(p.root) === resolved);
-    if (existing) {
-      existing.lastSeen = now;
-      if (workDir) existing.lastWorkingDir = path.resolve(workDir);
-    } else {
-      manifest.projects.push({
-        name: path.basename(resolved),
-        root: resolved,
-        slug: generateProjectSlug(resolved),
-        createdAt: now,
-        lastSeen: now,
-        lastWorkingDir: workDir ? path.resolve(workDir) : undefined,
-      });
-    }
-    await saveManifest(manifest, globalConfigPath);
-    await ensureProjectDataDir(generateProjectSlug(resolved), globalConfigPath);
-  }
-
   // ---- Route table (extracted to ./routes.ts in Phase 1a) ----
-  const state: WebuiMutableState = {
+  const state: WebuiMutableState = createWebuiMutableState({
     getConfig: () => config,
     setConfig: (next) => {
       config = next;
@@ -770,57 +573,22 @@ export async function startWebUI(
     setModeId: (next) => {
       modeId = next;
     },
-    getModelCapabilities: () => modelCapabilitiesRef.current,
-    getConfigWriteLock: () => configWriteLock.lock,
-    setConfigWriteLock: (next) => {
-      configWriteLock.lock = next;
-    },
-    abortRunLock: (sessionId?: string) => {
-      if (sessionId) {
-        // Strictly session-scoped. The previous fallback — "if this is the
-        // most-recent run session, also abort the global controller" — is
-        // what let opening a new tab kill a different tab's in-flight run.
-        _sessionRunLocks.get(sessionId)?.abort();
-        _sessionRunLocks.delete(sessionId);
-        // Stopping a run means stopping the WORK, and this session's
-        // subagents are part of that work. Aborting the leader's controller
-        // only unwinds workers it is blocked on; async ones (spawn_subagent +
-        // assign_task) keep going unless someone asks them to stop. Scoped to
-        // this session so a tab's Stop never reaches another tab's fleet.
-        stopSessionFleet(sessionId);
-        return;
-      }
-      const running = [..._sessionRunLocks.keys()];
-      for (const ctrl of _sessionRunLocks.values()) ctrl.abort();
-      _sessionRunLocks.clear();
-      for (const id of running) stopSessionFleet(id);
-    },
-    isRunActive: (sessionId?: string) =>
-      sessionId ? _sessionRunLocks.has(sessionId) : runLockControl.hasAny(),
-    getRunningSessionIds: () => [..._sessionRunLocks.keys()],
-    withSessionTransition: sessionTransitionGate,
-    getClients: () => clients,
-  };
+    modelCapabilitiesRef,
+    configWriteLock,
+    runLockControl,
+    sessionRunLocks: _sessionRunLocks,
+    sessionTransitionGate,
+    clients,
+  });
 
-  const deps: WebuiDeps = {
+  const deps: WebuiDeps = createWebuiDeps({
     trustBoundary,
     agent,
     getAgent,
-    ...(peekAgent ? { peekAgent } : {}),
-    ...(sessionAgentIds ? { sessionAgentIds } : {}),
-    ...(isSessionLive ? { isSessionLive } : {}),
-    // Real ownership check: a request may name the root session, any session
-    // this runtime has an agent for, or any session a CONNECTED CLIENT
-    // displays. The previous `() => true` accepted ANY non-empty string, so
-    // garbage ids sailed through ensureCurrentSession and materialized
-    // placeholder agents. `peekAgent` is non-creating; the displayed-clients
-    // clause keeps legitimately-open-but-unresumed sessions servable (F5
-    // reload before resume, or after the registry retired an idle agent) —
-    // refusing those broke the client's session_not_ready auto-resume path.
-    hasSession: (id: string) =>
-      id === agent.ctx.session?.id ||
-      Boolean(peekAgent?.(id)) ||
-      [...clients.values()].some((c) => c.sessionId === id || c.sessionIds?.has(id) === true),
+    peekAgent,
+    sessionAgentIds,
+    isSessionLive,
+    clients,
     context,
     container,
     toolRegistry,
@@ -850,7 +618,6 @@ export async function startWebUI(
     requireToken,
     publicUrl,
     publicWsUrl,
-    wsPort: httpPort,
     httpPort,
     wssPrimary,
     wssSecondary,
@@ -865,22 +632,18 @@ export async function startWebUI(
     brainSettings,
     brainRuntime,
     brainLog,
-  };
+  });
 
-  const cb: WebuiCallbacks = {
+  const cb: WebuiCallbacks = createWebuiCallbacks({
     sessionStartPayload,
-    claimSession: (sessionId, target) => sessionIdentity.claim(sessionId, target),
-    onBeforeSessionTodosReplaced: todosCheckpoint.rebind,
-    onSessionSwapped: async (sessionId, target) => {
-      await sessionIdentity.activate(sessionId, target);
-      const { hydrateSessionKanban } = await import('@wrongstack/tools/session-kanban');
-      await hydrateSessionKanban(deps.context);
-    },
+    sessionIdentity,
+    todosCheckpoint,
+    deps,
     updateAutoCompactionMaxContext,
     updateGlobalConfig,
     persistPrefsToConfig,
     prefSnapshot,
-  };
+  });
 
   const credentialWatcherClose = setupWebuiCredentialWatcher({
     watchConfigPath: profileConfigPath,
@@ -920,46 +683,15 @@ export async function startWebUI(
     }),
   });
 
-  // The fixed bottom panel + ordered log stream for this terminal. Disabled
-  // by itself on non-TTY output or WEBUI_VERBOSE=1 (append-only logs).
-  const terminalDashboard = startTerminalDashboard({
-    title: 'WebUI',
-    // Keep the copyable, authenticated browser URL in the persistent TTY
-    // header. This is intentionally different from log banners, which stay
-    // token-free because they may be captured outside the operator terminal.
-    getUrl: () =>
-      buildWebUIAccessUrl({
-        host: wsHost,
-        port: httpPort,
-        token: accessToken,
-        publicUrl,
-      }),
-  });
-  const stopLiveStatusLogger = startWebUILiveStatusLogger({
+  const { terminalDashboard, stopLiveStatusLogger } = setupWebuiTerminalLogging({
+    wsHost: wsHost ?? '127.0.0.1',
+    httpPort,
+    accessToken,
+    publicUrl,
     events,
-    dashboard: terminalDashboard,
-    getSessionList: () => {
-      const activeIds = new Set<string>();
-      for (const client of clients.values()) {
-        if (client.sessionId) activeIds.add(client.sessionId);
-        for (const id of client.sessionIds ?? []) activeIds.add(id);
-      }
-      const currentId = state.getSession().id;
-      if (activeIds.size === 0 && currentId) {
-        activeIds.add(currentId);
-      }
-      return Array.from(activeIds).map((id) => {
-        const ag = deps.peekAgent?.(id) ?? undefined;
-        const cfg = state.getConfig();
-        const isRunning = state.isRunActive(id);
-        return {
-          id,
-          model: ag?.ctx?.model ?? cfg.model,
-          provider: ag?.ctx?.provider?.id ?? cfg.provider,
-          isRunning,
-        };
-      });
-    },
+    clients,
+    state,
+    deps,
   });
 
   const routes = buildRoutes(state, deps, cb);
@@ -996,10 +728,6 @@ export async function startWebUI(
     },
   });
 
-  const mailbox = getSharedProjectMailbox(
-    resolveProjectDir(context.projectRoot, wstackGlobalRoot()),
-    events,
-  );
   const handleConnection = createConnectionHandler({
     getSessionId: () => session.id,
     sessionStartPayload,
@@ -1012,34 +740,7 @@ export async function startWebUI(
     },
     clients,
     pendingConfirms,
-    onSecurityRejection: (ev) => {
-      void mailbox
-        .send({
-          from: context.agentId,
-          to: '*',
-          type: 'note',
-          audience: 'leaders',
-          subject: `Security rejection: ${ev.issueCode}`,
-          body:
-            `Decoder tripwire ${ev.issueCode}: ${ev.issueMessage}\n\n` +
-            `connectionId: ${ev.connectionId ?? '?'}\n` +
-            `sessionId: ${ev.sessionId ?? '?'}\n` +
-            `agentId: ${ev.agentId ?? '?'}\n` +
-            `projectRoot: ${ev.projectRoot ?? '?'}`,
-          priority: 'high',
-          senderSessionId: session.id,
-        })
-        .catch((err: unknown) => {
-          console.warn(
-            JSON.stringify({
-              level: 'warn',
-              event: 'webui.security_rejection_mailbox_note_failed',
-              message: String(err),
-              timestamp: new Date().toISOString(),
-            }),
-          );
-        });
-    },
+    onSecurityRejection: (ev) => handleWebuiSecurityRejection(context, events, session, ev),
     goalHandler,
     specsHandler,
     sddBoardHandler,

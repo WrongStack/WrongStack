@@ -126,19 +126,19 @@ describe('session-aware seams keep their sessionId parameter', () => {
  * as well as in the type.
  */
 describe('run locks are keyed by conversation, never by "the current one"', () => {
-  const START_WEBUI = 'packages/webui-server/src/server/start-webui.ts';
+  const RUNTIME_FILE = 'packages/webui-server/src/server/start-webui-session-runtime.ts';
 
   function runLockBody(): string {
-    const text = fs.readFileSync(path.join(REPO, START_WEBUI), 'utf8');
-    const open = text.indexOf('const runLockControl = {');
-    expect(open, `${START_WEBUI} no longer declares runLockControl`).toBeGreaterThan(-1);
+    const text = fs.readFileSync(path.join(REPO, RUNTIME_FILE), 'utf8');
+    const open = text.indexOf('export function createRunLockControl(');
+    expect(open, `${RUNTIME_FILE} no longer declares createRunLockControl`).toBeGreaterThan(-1);
     const start = text.indexOf('{', open);
     let depth = 0;
     for (let i = start; i < text.length; i++) {
       if (text[i] === '{') depth++;
       else if (text[i] === '}' && --depth === 0) return text.slice(start, i + 1);
     }
-    throw new Error('unterminated runLockControl');
+    throw new Error('unterminated createRunLockControl');
   }
 
   it('takes the session id on both accessors', () => {

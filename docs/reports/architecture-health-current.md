@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T18:38:18.324Z
+**Generated:** 2026-09-05T18:58:41.101Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3591 |
-| Production source lines | 870601 |
+| Production source files | 3600 |
+| Production source lines | 871029 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11310 |
+| Relative module edges | 11330 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -60,7 +60,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/webui | 526 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
-| @wrongstack/webui-server | 211 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 220 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/wrongtrace | 11 | 5 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
 
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1092 | `packages/webui-server/src/server/start-webui.ts` |
 | 1088 | `packages/core/src/core/context.ts` |
 | 1085 | `packages/core/src/hq/publisher.ts` |
 | 1081 | `packages/webui/src/components/AgentOfficeView.tsx` |
@@ -135,6 +134,7 @@ None.
 | 978 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 975 | `packages/cli/src/webui-server.ts` |
 | 973 | `packages/core/src/execution/auto-compaction-middleware.ts` |
+| 966 | `packages/core/src/coordination/director.ts` |
 
 ## Exports only tests reference
 

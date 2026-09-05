@@ -20,7 +20,10 @@ import { registerSetupEventsToolHandlers } from './setup-events-tool-handlers.js
 import type { FileWatcherMetrics } from './setup-events-watcher.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
-export type { FileWatcherMetrics } from './setup-events-watcher.js';
+export {
+  createDefaultFileWatcherMetrics,
+  type FileWatcherMetrics,
+} from './setup-events-watcher.js';
 
 export interface SetupEventsDeps {
   events: EventBus;
