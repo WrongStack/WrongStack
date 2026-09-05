@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T17:38:16.079Z",
+  "generatedAt": "2026-09-05T17:50:12.577Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3566,
+    "sourceFiles": 3572,
     "testFiles": 3071,
-    "sourceLines": 870070,
+    "sourceLines": 870408,
     "workspaceEdges": 127,
-    "moduleEdges": 11220,
+    "moduleEdges": 11249,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -25,8 +25,9 @@
     "testOnlyExports": 843
   },
   "errors": [
-    "1 unexcepted module cycle(s)",
-    "ARCH-CYCLE-TYPE-22: exception no longer matches an active cycle"
+    "2 unexcepted module cycle(s)",
+    "ARCH-CYCLE-TYPE-22: exception no longer matches an active cycle",
+    "ARCH-CYCLE-TYPE-29: exception no longer matches an active cycle"
   ],
   "packageCycles": [],
   "coreAreas": {
@@ -215,7 +216,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 808,
+      "sourceFiles": 814,
       "testFiles": 708,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -1006,6 +1007,7 @@
           "packages/core/src/coordination/dispatcher.ts",
           "packages/core/src/coordination/fleet.ts",
           "packages/core/src/coordination/multi-agent-coordinator.ts",
+          "packages/core/src/coordination/multi-agent-runner-helpers.ts",
           "packages/core/src/execution/parallel-eternal-engine.ts",
           "packages/core/src/types/autonomy.ts",
           "packages/core/src/types/index.ts"
@@ -1092,10 +1094,39 @@
       "ARCH-CYCLE-TYPE-12",
       "ARCH-CYCLE-TYPE-13",
       "ARCH-CYCLE-TYPE-14",
-      "ARCH-CYCLE-TYPE-29",
       "ARCH-CYCLE-TYPE-30"
     ],
     "unexcepted": [
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/core/src/coordination/agents/agent-prompts.ts",
+          "packages/core/src/coordination/agents/index.ts",
+          "packages/core/src/coordination/agents/phase1-discovery.ts",
+          "packages/core/src/coordination/agents/phase2-planning.ts",
+          "packages/core/src/coordination/agents/phase3-build.ts",
+          "packages/core/src/coordination/agents/phase3-wave1-platform.ts",
+          "packages/core/src/coordination/agents/phase3-wave2-meta.ts",
+          "packages/core/src/coordination/agents/phase4-verify.ts",
+          "packages/core/src/coordination/agents/phase5-review.ts",
+          "packages/core/src/coordination/agents/phase6-domain.ts",
+          "packages/core/src/coordination/agents/phase7-knowledge.ts",
+          "packages/core/src/coordination/agents/phase8-delivery.ts",
+          "packages/core/src/coordination/agents/phase8-wave3-products.ts",
+          "packages/core/src/coordination/agents/phase9-meta.ts",
+          "packages/core/src/coordination/agents/phase9-wave4-platform-meta.ts",
+          "packages/core/src/coordination/agents/project-agent-auto-optimize.ts",
+          "packages/core/src/coordination/agents/project-agent-identity.ts",
+          "packages/core/src/coordination/agents/project-agent-optimizer.ts",
+          "packages/core/src/coordination/dispatcher.ts",
+          "packages/core/src/coordination/fleet.ts",
+          "packages/core/src/coordination/multi-agent-coordinator.ts",
+          "packages/core/src/coordination/multi-agent-runner-helpers.ts",
+          "packages/core/src/execution/parallel-eternal-engine.ts",
+          "packages/core/src/types/autonomy.ts",
+          "packages/core/src/types/index.ts"
+        ]
+      },
       {
         "kind": "type-module-cycle",
         "members": [
@@ -19755,11 +19786,6 @@
       "relativeImports": 6
     },
     {
-      "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
-      "lines": 1172,
-      "relativeImports": 11
-    },
-    {
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
       "lines": 1092,
       "relativeImports": 3
@@ -20342,11 +20368,6 @@
   ],
   "hotspots": [
     {
-      "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
-      "lines": 1172,
-      "relativeImports": 11
-    },
-    {
       "file": "packages/webui/src/types/server-message.ts",
       "lines": 1169,
       "relativeImports": 10
@@ -20590,6 +20611,11 @@
       "file": "packages/tui/src/components/agents-monitor.tsx",
       "lines": 984,
       "relativeImports": 14
+    },
+    {
+      "file": "apps/desktop/src/main/runtime-manager.ts",
+      "lines": 983,
+      "relativeImports": 4
     }
   ],
   "testOnlyExports": [

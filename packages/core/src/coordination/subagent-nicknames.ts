@@ -203,3 +203,29 @@ function formatRole(role: string): string {
 export function getAllNicknameKeys(): string[] {
   return Object.keys(NICKNAME_POOL);
 }
+
+/**
+ * Upgrade a placeholder/role-derived name to a memorable scientist nickname
+ * (e.g. "Einstein (Executor)").
+ */
+export function applyCoordinatorNickname(
+  subagent: import('../types/multi-agent.js').SubagentConfig,
+  subagentId: string,
+  usedNicknames: Set<string>,
+  subagentNicknames: Map<string, string>,
+): import('../types/multi-agent.js').SubagentConfig {
+  const role = subagent.role ?? 'subagent';
+  const name = subagent.name?.trim() ?? '';
+  const isPlaceholder =
+    name === '' ||
+    name.toLowerCase() === role.toLowerCase() ||
+    name === 'subagent' ||
+    name === 'adhoc' ||
+    name === 'generic' ||
+    /^slot-/.test(name);
+  if (!isPlaceholder) return subagent;
+  const { key, display } = assignNickname(role, usedNicknames);
+  usedNicknames.add(key);
+  subagentNicknames.set(subagentId, key);
+  return { ...subagent, name: display };
+}

@@ -98,10 +98,6 @@
       "lines": 834,
       "relativeImports": 6
     },
-    "packages/core/src/coordination/multi-agent-coordinator.ts": {
-      "lines": 1172,
-      "relativeImports": 11
-    },
     "packages/core/src/coordination/provider-status-tracker.ts": {
       "lines": 1092,
       "relativeImports": 3

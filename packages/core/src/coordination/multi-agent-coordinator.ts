@@ -10,47 +10,33 @@ import type {
   SpawnResult,
   SubagentConfig,
   SubagentContext,
-  SubagentPartialResult,
-  SubagentRunContext,
   SubagentRunner,
   TaskResult,
   TaskSpec,
 } from '../types/multi-agent.js';
 import { classifySubagentError } from './coordinator/error-classifier.js';
-import { applyRosterBudget } from './fleet.js';
-import { executeSubagentWithTimeout } from './multi-agent-timeout.js';
 import {
-  BudgetExceededError,
-  type BudgetSessionIdSource,
-  SubagentBudget,
-} from './subagent-budget.js';
-import { type GracefulFinish, resolveGracefulFinish } from './subagent-finish.js';
-import { assignNickname } from './subagent-nicknames.js';
-
-type SubagentStatus = 'running' | 'idle' | 'stopped' | 'error';
-
-interface SubagentEntry {
-  config: SubagentConfig;
-  context: SubagentContext;
-  status: SubagentStatus;
-  currentTask?: string | undefined;
-  abortController: AbortController;
-  /** Lazily created on first dispatch — budget is per-task, not per-subagent. */
-  activeBudget?: SubagentBudget | undefined;
-  /**
-   * The session that SPAWNED this subagent, captured once and never re-read.
-   *
-   * A subagent belongs to the session that created it for its whole life. The
-   * coordinator's `sessionId` option is a live getter ("which session is the
-   * host on right now"), which is the correct source at spawn time and the
-   * wrong one at every moment after: with four tabs open, reading it again
-   * when an event fires stamps this worker's lifecycle, budget and spend with
-   * whichever tab happened to be in front — so tab A's subagent showed up
-   * under tab B, tab B looked busy when it was idle, and no caller could ask
-   * "stop the subagents belonging to session X" because nothing recorded X.
-   */
-  sessionId: string;
-}
+  handleRecordCompletionState,
+  isCoordinatorDone,
+  pushAndTrimCompletedResult,
+} from './multi-agent-completion-helpers.js';
+import { executeRemoveSubagent, executeStopSession } from './multi-agent-lifecycle-helpers.js';
+import {
+  createPendingAbortedResult,
+  hasLiveSubagentInMap,
+  type SubagentEntry,
+  takeNextDispatchableTaskFromQueue,
+} from './multi-agent-queue-helpers.js';
+import { createSubagentTaskBudget, executeSubagentTask } from './multi-agent-runner-helpers.js';
+import {
+  buildCoordinatorStatus,
+  computeCoordinatorStats,
+  emitCoordinatorStatsEvent,
+} from './multi-agent-stats-helpers.js';
+import { awaitCoordinatorTasks, awaitCoordinatorTasksAny } from './multi-agent-waiters.js';
+import type { BudgetSessionIdSource } from './subagent-budget.js';
+import { resolveGracefulFinish } from './subagent-finish.js';
+import { applyCoordinatorNickname } from './subagent-nicknames.js';
 
 export interface MultiAgentCoordinatorOptions {
   /**
@@ -176,23 +162,13 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * awaiting them (the delegate tool, report-back) resolves instead of hanging.
    */
   async stopSession(sessionId: string): Promise<void> {
-    if (!sessionId) return;
-    const ids = new Set(this.subagentIdsForSession(sessionId));
-    if (ids.size === 0) return;
-    const orphaned = this.pendingTasks.filter(
-      (t) => t.subagentId !== undefined && ids.has(t.subagentId),
-    );
-    this.pendingTasks = this.pendingTasks.filter(
-      (t) => t.subagentId === undefined || !ids.has(t.subagentId),
-    );
-    for (const t of orphaned) {
-      this.emitPendingAborted(
-        t,
-        `Session "${sessionId}" was stopped while task "${t.id}" was pending`,
-      );
-    }
-    // allSettled so one failure doesn't leave the rest of this session running.
-    await Promise.allSettled([...ids].map((id) => this.stop(id)));
+    return executeStopSession({
+      sessionId,
+      subagents: this.subagents,
+      pendingTasks: this.pendingTasks,
+      emitPendingAborted: (task, message) => this.emitPendingAborted(task, message),
+      stopSubagent: (id) => this.stop(id),
+    });
   }
 
   /**
@@ -236,20 +212,12 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * `Director.spawn()` — are left untouched, so this never double-assigns.
    */
   private withNickname(subagent: SubagentConfig, subagentId: string): SubagentConfig {
-    const role = subagent.role ?? 'subagent';
-    const name = subagent.name?.trim() ?? '';
-    const isPlaceholder =
-      name === '' ||
-      name.toLowerCase() === role.toLowerCase() ||
-      name === 'subagent' ||
-      name === 'adhoc' ||
-      name === 'generic' ||
-      /^slot-/.test(name);
-    if (!isPlaceholder) return subagent;
-    const { key, display } = assignNickname(role, this.usedNicknames);
-    this.usedNicknames.add(key);
-    this.subagentNicknames.set(subagentId, key);
-    return { ...subagent, name: display };
+    return applyCoordinatorNickname(
+      subagent,
+      subagentId,
+      this.usedNicknames,
+      this.subagentNicknames,
+    );
   }
 
   async spawn(subagent: SubagentConfig): Promise<SpawnResult> {
@@ -399,67 +367,36 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     pending: number;
     completed: number;
   } {
-    let running = 0;
-    let idle = 0;
-    let stopped = 0;
-    for (const [, entry] of this.subagents) {
-      if (entry.status === 'running') running++;
-      else if (entry.status === 'idle') idle++;
-      else stopped++;
-    }
-    return {
-      total: this.subagents.size,
-      running,
-      idle,
-      stopped,
-      inFlight: this.inFlight,
-      pending: this.pendingTasks.length,
-      completed: this.completedResults.length,
-    };
+    return computeCoordinatorStats(
+      this.subagents,
+      this.inFlight,
+      this.pendingTasks.length,
+      this.completedResults.length,
+    );
   }
 
   /** Emit a reactive coordinator.stats event on FleetBus so the TUI can subscribe. */
   private emitCoordinatorStats(): void {
-    const stats = this.getStats();
-    const subagentStatuses = Array.from(this.subagents.entries()).map(([id, s]) => ({
-      subagentId: id,
-      taskId: s.currentTask ?? '',
-      status: s.status,
-      assigned: s.context.parentBridge !== null,
-      // Each worker's OWN session, so a consumer can split one coordinator's
-      // roster across the tabs that spawned it.
-      sessionId: s.sessionId,
-    }));
-    // Coordinator-level, deliberately: this event describes the whole
-    // coordinator, not one worker. Per-worker attribution is on the entries
-    // above; never read this field to decide which tab a subagent belongs to.
-    const sessionId = this.currentSessionId();
-    this.fleetBus?.emit({
-      subagentId: this.coordinatorId,
-      ts: Date.now(),
-      type: 'coordinator.stats',
-      payload: {
-        sessionId,
-        ...stats,
-        subagentStatuses,
-      },
+    emitCoordinatorStatsEvent({
+      fleetBus: this.fleetBus,
+      coordinatorId: this.coordinatorId,
+      subagents: this.subagents,
+      inFlight: this.inFlight,
+      pendingCount: this.pendingTasks.length,
+      completedCount: this.completedResults.length,
+      currentSessionId: () => this.currentSessionId(),
     });
   }
 
   getStatus(): CoordinatorStatus {
-    return {
+    return buildCoordinatorStatus({
       coordinatorId: this.coordinatorId,
-      subagents: Array.from(this.subagents.entries()).map(([id, s]) => ({
-        id,
-        name: s.config.name,
-        status: s.status,
-        currentTask: s.currentTask,
-      })),
-      pendingTasks: this.pendingTasks.length,
-      completedTasks: this.completedResults.length,
+      subagents: this.subagents,
+      pendingCount: this.pendingTasks.length,
+      completedCount: this.completedResults.length,
       totalIterations: this.totalIterations,
-      done: this.isDone(),
-    };
+      isDone: this.isDone(),
+    });
   }
 
   /** Expose snapshot of completed results — useful for callers awaiting all done. */
@@ -499,33 +436,13 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * Resolves to an array in the same order as `taskIds`.
    */
   async awaitTasks(taskIds: string[], opts?: { timeoutMs?: number }): Promise<TaskResult[]> {
-    // Per-call override lets a caller with a longer budget (e.g. the eternal
-    // engine's multi-hour subagent window) wait past the default without
-    // being cut at config.timeoutMs. Defaults to config.timeoutMs, then 300s.
-    const timeoutMs = opts?.timeoutMs ?? this.config.timeoutMs ?? 300_000;
-    return Promise.all(
-      taskIds.map((id) => {
-        const cached = this.completedResultsById.get(id);
-        if (cached) return cached;
-        // Fallback: poll until the task completes (up to timeoutMs).
-        // The coordinator fires 'task.completed' on every result, so
-        // we use a promise-based waiter tied to that event.
-        return new Promise<TaskResult>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            this.off('task.completed', handler);
-            reject(new Error(`awaitTasks timed out waiting for task "${id}"`));
-          }, timeoutMs);
-          const handler = ({ result }: { task: TaskSpec; result: TaskResult }) => {
-            if (result.taskId === id) {
-              clearTimeout(timeout);
-              this.off('task.completed', handler);
-              resolve(result);
-            }
-          };
-          this.on('task.completed', handler);
-        });
-      }),
-    );
+    return awaitCoordinatorTasks({
+      emitter: this,
+      taskIds,
+      completedResultsById: this.completedResultsById,
+      defaultTimeoutMs: this.config.timeoutMs,
+      opts,
+    });
   }
 
   /**
@@ -539,34 +456,11 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * business timing out unless the caller asks for a window explicitly.
    */
   async awaitTasksAny(taskIds: string[], opts?: { timeoutMs?: number }): Promise<AwaitAnyResult> {
-    const completed: TaskResult[] = [];
-    for (const id of taskIds) {
-      const cached = this.completedResultsById.get(id);
-      if (cached) completed.push(cached);
-    }
-    if (completed.length > 0 || taskIds.length === 0) {
-      const done = new Set(completed.map((r) => r.taskId));
-      return { completed, pending: taskIds.filter((id) => !done.has(id)) };
-    }
-    const ids = new Set(taskIds);
-    return new Promise<AwaitAnyResult>((resolve) => {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const handler = ({ result }: { task: TaskSpec; result: TaskResult }) => {
-        if (!ids.has(result.taskId)) return;
-        if (timer) clearTimeout(timer);
-        this.off('task.completed', handler);
-        resolve({
-          completed: [result],
-          pending: taskIds.filter((id) => id !== result.taskId),
-        });
-      };
-      if (opts?.timeoutMs !== undefined) {
-        timer = setTimeout(() => {
-          this.off('task.completed', handler);
-          resolve({ completed: [], pending: [...taskIds], timedOut: true });
-        }, opts.timeoutMs);
-      }
-      this.on('task.completed', handler);
+    return awaitCoordinatorTasksAny({
+      emitter: this,
+      taskIds,
+      completedResultsById: this.completedResultsById,
+      opts,
     });
   }
 
@@ -656,41 +550,11 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
   }
 
   private canDispatch(): boolean {
-    const max = this.config.maxConcurrent ?? 16;
-    return this.inFlight < max && this.pendingTasks.length > 0;
+    return this.inFlight < (this.config.maxConcurrent ?? 16) && this.pendingTasks.length > 0;
   }
 
   private takeNextDispatchableTask(): { subagentId: string; task: TaskSpec } | null {
-    for (let i = 0; i < this.pendingTasks.length; i++) {
-      const task = this.pendingTasks[i];
-      if (!task) continue;
-      const subagentId = task.subagentId
-        ? this.isIdleSubagent(task.subagentId)
-          ? task.subagentId
-          : null
-        : this.findIdleSubagent();
-      if (!subagentId) continue;
-      this.pendingTasks.splice(i, 1);
-      return { subagentId, task };
-    }
-    return null;
-  }
-
-  private findIdleSubagent(): string | null {
-    for (const [id, s] of this.subagents) {
-      // Skip subagents that are mid-termination — `stop()` set the
-      // `terminating` flag and aborted the controller, but the
-      // status mutation happens synchronously after; checking both
-      // is belt-and-suspenders against any race where status is
-      // transiently still 'idle' while termination is in flight.
-      if (s.status === 'idle' && !this.terminating.has(id)) return id;
-    }
-    return null;
-  }
-
-  private isIdleSubagent(id: string): boolean {
-    const subagent = this.subagents.get(id);
-    return !!subagent && subagent.status === 'idle' && !this.terminating.has(id);
+    return takeNextDispatchableTaskFromQueue(this.pendingTasks, this.subagents, this.terminating);
   }
 
   /**
@@ -698,28 +562,14 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * process a task. A "live" subagent is one that is not stopped
    * AND not mid-termination — `running` workers count because they
    * will eventually finish and become idle.
-   *
-   * When no subagent has ever been spawned, returns `true` so a
-   * pre-spawn `assign()` simply queues (legacy behaviour). The
-   * dead-end detection only fires after `stop()` has retired every
-   * spawned worker.
-   *
-   * Used by `tryDispatchNext` to detect a dead-end pending queue.
    */
   private hasLiveSubagent(): boolean {
-    if (this.subagents.size === 0) return true;
-    for (const [id, s] of this.subagents) {
-      if (s.status !== 'stopped' && !this.terminating.has(id)) return true;
-    }
-    return false;
+    return hasLiveSubagentInMap(this.subagents, this.terminating);
   }
 
   /**
    * Drain every pending task with a synthetic `aborted_by_parent`
-   * completion event. Same shape as the `stopAll()` drain — we go
-   * around `recordCompletion` because pending tasks were never
-   * counted in `inFlight` and routing them through would trip the
-   * underflow guard on every task after the first.
+   * completion event.
    */
   private drainPendingAsAborted(message: string): void {
     const dropped = this.pendingTasks.splice(0, this.pendingTasks.length);
@@ -728,47 +578,21 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
 
   /**
    * Emit a synthetic `stopped`/`aborted_by_parent` completion for a single
-   * PENDING task — one that was never counted in `inFlight`. This MUST bypass
-   * `recordCompletion`: that path does `inFlight--`, which for a pending task
-   * steals a decrement from a genuinely in-flight task and trips the underflow
-   * guard — suppressing that real task's `task.completed` and hanging its
-   * `awaitTasks()` caller. Pushes the result and fires the event directly.
+   * PENDING task — one that was never counted in `inFlight`.
    */
   private emitPendingAborted(task: TaskSpec, message: string): void {
-    const synthetic: TaskResult = {
-      subagentId: task.subagentId ?? 'unassigned',
-      taskId: task.id,
-      status: 'stopped',
-      error: {
-        kind: 'aborted_by_parent',
-        message,
-        retryable: false,
-      },
-      iterations: 0,
-      toolCalls: 0,
-      durationMs: 0,
-    };
+    const synthetic = createPendingAbortedResult(task, message);
     this.pushCompletedResult(synthetic);
     this.emit('task.completed', { task, result: synthetic });
   }
 
   private pushCompletedResult(result: TaskResult): void {
-    this.completedResults.push(result);
-    this.completedResultsById.set(result.taskId, result);
-    this.trimCompletedResults();
-  }
-
-  private trimCompletedResults(): void {
-    if (this.completedResults.length > DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS) {
-      const dropCount =
-        this.completedResults.length - DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS;
-      const dropped = this.completedResults.splice(0, dropCount);
-      for (const item of dropped) {
-        if (this.completedResultsById.get(item.taskId) === item) {
-          this.completedResultsById.delete(item.taskId);
-        }
-      }
-    }
+    pushAndTrimCompletedResult(
+      this.completedResults,
+      this.completedResultsById,
+      result,
+      DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS,
+    );
   }
 
   private async runDispatched(subagentId: string, task: TaskSpec): Promise<void> {
@@ -837,59 +661,12 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     this.emit('task.assigned', { task, subagentId });
     this.emitCoordinatorStats();
 
-    // Budget combines coordinator defaults with per-subagent and per-task overrides.
-    // Precedence: task > subagent (raw, no roster fills) > coordinator default > roster default.
-    // We intentionally call applyRosterBudget LATE — only as a final fallback after
-    // the coordinator's defaultBudget has had a chance to apply. This prevents
-    // GENERIC_SUBAGENT_BUDGET (5000 iter) from shadowing the coordinator's explicit default.
-    const rawMaxIterations = subagent.config.maxIterations;
-    const rawMaxToolCalls = subagent.config.maxToolCalls;
-    const rawMaxTokens = subagent.config.maxTokens;
-    const rawMaxCostUsd = subagent.config.maxCostUsd;
-    const rawTimeoutMs = subagent.config.timeoutMs;
-    const rawIdleTimeoutMs = subagent.config.idleTimeoutMs;
-    const configWithRosterDefaults = applyRosterBudget(subagent.config);
-    const budget = new SubagentBudget(
-      {
-        maxIterations:
-          rawMaxIterations ??
-          this.config.defaultBudget?.maxIterations ??
-          configWithRosterDefaults.maxIterations,
-        maxToolCalls:
-          rawMaxToolCalls ??
-          this.config.defaultBudget?.maxToolCalls ??
-          configWithRosterDefaults.maxToolCalls,
-        maxTokens:
-          rawMaxTokens ??
-          this.config.defaultBudget?.maxTokens ??
-          configWithRosterDefaults.maxTokens,
-        maxCostUsd:
-          rawMaxCostUsd ??
-          this.config.defaultBudget?.maxCostUsd ??
-          configWithRosterDefaults.maxCostUsd,
-        // Wall-clock cap is opt-in (explicit config / defaultBudget only); the
-        // roster no longer supplies one. Idle is the default reaper.
-        timeoutMs:
-          rawTimeoutMs ??
-          this.config.defaultBudget?.timeoutMs ??
-          configWithRosterDefaults.timeoutMs,
-        idleTimeoutMs:
-          rawIdleTimeoutMs ??
-          this.config.defaultBudget?.idleTimeoutMs ??
-          configWithRosterDefaults.idleTimeoutMs,
-      },
-      'auto',
-      {
-        // The spawning session, not "whichever tab is in front now": this
-        // worker's token and cost accrual belongs to the tab that started it.
-        sessionId: () => this.sessionOf(subagentId),
-        subagentId,
-        // Graceful-finish runs own wall-clock enforcement to the watchdog so
-        // the notify-then-bound lifecycle cannot be raced by tool.progress
-        // heartbeats calling checkTimeout() (see subagent-budget.ts).
-        ...(resolveGracefulFinish(subagent.config) ? { wallClockWatchdogOwned: true } : {}),
-      },
-    );
+    const budget = createSubagentTaskBudget({
+      subagentConfig: subagent.config,
+      defaultBudget: this.config.defaultBudget,
+      subagentId,
+      sessionOf: (id) => this.sessionOf(id),
+    });
     subagent.activeBudget = budget;
 
     if (!this.runner) {
@@ -905,175 +682,43 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     // Only count inFlight when we actually own the execution lifecycle.
     this.inFlight++;
 
-    const startTime = Date.now();
-    let latestPartial: SubagentPartialResult | undefined;
-    const runCtx: SubagentRunContext = {
+    const result = await executeSubagentTask({
+      runner: this.runner,
+      task,
       subagentId,
       config: subagent.config,
       budget,
-      signal: subagent.abortController.signal,
-      // The spawning session travels with the run, so the runner stamps its
-      // own events with the tab that owns this worker rather than re-deriving
-      // "the host's current session" when the event happens to fire.
+      abortController: subagent.abortController,
       sessionId: subagent.sessionId,
-      bridge: subagent.context.parentBridge || null,
-      reportProgress: (partial) => {
-        const text = partial.text.trim();
-        if (!text) return;
-        latestPartial = {
-          ...partial,
-          // A partial is context recovery, not a transcript replacement.
-          text: text.slice(-4_000),
-        };
-      },
-    };
-
-    let result: TaskResult;
-
-    budget.start();
-    try {
-      const outcome = await this.executeWithTimeout(
-        this.runner,
-        task,
-        runCtx,
-        budget,
-        subagent.config.preemptFraction,
-        resolveGracefulFinish(subagent.config),
-      );
-      result = {
-        subagentId,
-        taskId: task.id,
-        status: 'success',
-        result: outcome.result,
-        ...(outcome.report ? { report: outcome.report } : {}),
-        iterations: outcome.iterations,
-        toolCalls: outcome.toolCalls,
-        durationMs: Date.now() - startTime,
-      };
-    } catch (err) {
-      // Order matters: a timeout calls abort() to signal cooperative runners,
-      // which also flips `signal.aborted=true`. Inspect the error first so we
-      // surface 'timeout' rather than masking it as 'stopped'.
-      const status: TaskResult['status'] =
-        err instanceof BudgetExceededError &&
-        (err.kind === 'timeout' || err.kind === 'idle_timeout')
-          ? 'timeout'
-          : subagent.abortController.signal.aborted
-            ? 'stopped'
-            : 'failed';
-      const usage = budget.usage();
-      result = {
-        subagentId,
-        taskId: task.id,
-        status,
-        error: classifySubagentError(err, {
-          parentAborted: subagent.abortController.signal.aborted,
-        }),
-        ...(latestPartial ? { partial: latestPartial } : {}),
-        iterations: usage.iterations,
-        toolCalls: usage.toolCalls,
-        durationMs: Date.now() - startTime,
-      };
-    }
+      parentBridge: subagent.context.parentBridge || null,
+      abortSubagent: (id) => this.subagents.get(id)?.abortController.abort(),
+      sessionOf: (id) => this.sessionOf(id),
+    });
 
     this.recordCompletion(result);
-  }
-
-  private async executeWithTimeout(
-    runner: SubagentRunner,
-    task: TaskSpec,
-    ctx: SubagentRunContext,
-    budget: SubagentBudget,
-    preemptFraction?: number | undefined,
-    gracefulFinish?: GracefulFinish | undefined,
-  ) {
-    return executeSubagentWithTimeout({
-      runner,
-      task,
-      ctx,
-      budget,
-      preemptFraction,
-      gracefulFinish,
-      abortSubagent: (subagentId) => this.subagents.get(subagentId)?.abortController.abort(),
-      currentSessionId: () => this.sessionOf(ctx.subagentId),
-    });
   }
 
   private recordCompletion(result: TaskResult): void {
     this.pushCompletedResult(result);
     this.totalIterations += result.iterations;
-    if (this.inFlight > 0) {
-      this.inFlight--;
-    } else if (this.runner) {
-      // Runner-driven path completed without an outstanding inFlight slot —
-      // shouldn't happen unless completeTask was called externally.
-      this.emit('warning', {
-        type: 'inFlight_underflow',
-        taskId: result.taskId,
-        subagentId: result.subagentId,
-      });
-      return;
-    }
 
-    const subagent = this.subagents.get(result.subagentId);
-    if (subagent && subagent.status !== 'stopped') {
-      const failed = result.status === 'failed' || result.status === 'timeout';
-      // Synchronously reset the worker to idle after either a clean
-      // finish or a transient failure. The previous code parked the
-      // subagent in 'error' and used a `queueMicrotask` to flip it
-      // back to 'idle' — that opened a window where `assign()` +
-      // `tryDispatchNext` could race the microtask, leaving the
-      // worker stuck in 'running' state while actually idle. By
-      // resetting now, no async gap can leak the state machine.
-      subagent.status = 'idle';
-      void failed; // kept for future telemetry hooks
-      subagent.currentTask = undefined;
-      // If the run aborted (timeout or explicit stop), the subagent's
-      // signal is now permanently aborted — recycling the controller lets
-      // the next dispatched task start with a fresh cancellation scope.
-      if (subagent.abortController.signal.aborted) {
-        subagent.abortController = new AbortController();
-      }
-
-      const sessionId = subagent.sessionId;
-      this.fleetBus?.emit({
-        subagentId: result.subagentId,
-        ts: Date.now(),
-        type: 'subagent.idle',
-        payload: {
-          sessionId,
-          subagentId: result.subagentId,
-        },
-      });
-    }
-    // Clear the terminating flag now that the worker has a terminal
-    // TaskResult on record. Subsequent stop() calls re-add it; new
-    // assign() calls can flow normally.
-    this.terminating.delete(result.subagentId);
-
-    this.emit('task.completed', {
-      task: subagent?.context.tasks.find((t) => t.id === result.taskId) ?? { id: result.taskId },
+    const outcome = handleRecordCompletionState({
       result,
+      subagents: this.subagents,
+      terminating: this.terminating,
+      inFlight: this.inFlight,
+      runner: this.runner,
+      fleetBus: this.fleetBus,
+      sessionOf: (id) => this.sessionOf(id),
+      emitWarning: (warning) => this.emit('warning', warning),
     });
 
-    const completedSessionId = this.sessionOf(result.subagentId);
-    this.fleetBus?.emit({
-      subagentId: result.subagentId,
-      taskId: result.taskId,
-      ts: Date.now(),
-      type: 'subagent.completed',
-      payload: {
-        sessionId: completedSessionId,
-        subagentId: result.subagentId,
-        taskId: result.taskId,
-        status: result.status,
-        result: result.result,
-        report: result.report,
-        partial: result.partial,
-        iterations: result.iterations,
-        toolCalls: result.toolCalls,
-        durationMs: result.durationMs,
-      },
+    this.inFlight = outcome.nextInFlight;
+    if (outcome.underflow) return;
+
+    this.emit('task.completed', {
+      task: outcome.taskObj,
+      result,
     });
 
     this.tryDispatchNext();
@@ -1096,70 +741,26 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * The subagent entry is deleted so the id can be reused in a future spawn.
    */
   async remove(subagentId: string): Promise<void> {
-    const subagent = this.subagents.get(subagentId);
-    if (!subagent) return;
-    // Captured before the entry is deleted below — after that there is nothing
-    // left to ask which session this worker belonged to.
-    const removedSessionId = subagent.sessionId;
-
-    // Gracefully stop first — same logic as stop() but don't block on it.
-    if (subagent.status === 'running' || subagent.status === 'idle') {
-      this.terminating.add(subagentId);
-      subagent.abortController.abort();
-      subagent.status = 'stopped';
-    }
-
-    // Release all resources associated with this subagent.
-    this.subagents.delete(subagentId);
-    this.terminating.delete(subagentId);
-    // Free the nickname slot so the same name can be reused by a future spawn.
-    const nicknameKey = this.subagentNicknames.get(subagentId);
-    if (nicknameKey) {
-      this.usedNicknames.delete(nicknameKey);
-      this.subagentNicknames.delete(subagentId);
-    }
-
-    // Clean up any pending tasks assigned to this subagent — emit synthetic
-    // 'stopped' completions so callers awaiting them via awaitTasks() unblock
-    // instead of hanging forever. Without this, a task queued for a removed
-    // subagent would leave its waiter permanently unresolved.
-    const orphaned = this.pendingTasks.filter((t) => t.subagentId === subagentId);
-    this.pendingTasks = this.pendingTasks.filter((t) => t.subagentId !== subagentId);
-    for (const t of orphaned) {
-      // Inline-emit, NOT recordCompletion: these are PENDING tasks that were
-      // never counted in inFlight. Routing them through recordCompletion would
-      // decrement inFlight on behalf of a still-running task and suppress that
-      // task's own completion via the underflow guard, hanging its awaiter.
-      this.emitPendingAborted(
-        t,
-        `Subagent "${subagentId}" was removed while task "${t.id}" was pending`,
-      );
-    }
-
-    this.fleetBus?.emit({
+    executeRemoveSubagent({
       subagentId,
-      ts: Date.now(),
-      type: 'subagent.removed',
-      payload: {
-        sessionId: removedSessionId,
-        subagentId,
-      },
+      subagents: this.subagents,
+      terminating: this.terminating,
+      usedNicknames: this.usedNicknames,
+      subagentNicknames: this.subagentNicknames,
+      pendingTasks: this.pendingTasks,
+      fleetBus: this.fleetBus,
+      emitCoordinatorStats: () => this.emitCoordinatorStats(),
+      emitPendingAborted: (task, message) => this.emitPendingAborted(task, message),
     });
-
-    this.emitCoordinatorStats();
   }
 
   private isDone(): boolean {
-    if (this.config.doneCondition.type === 'all_tasks_done') {
-      return this.pendingTasks.length === 0 && this.inFlight === 0;
-    }
-    if (
-      this.config.doneCondition.maxIterations !== undefined &&
-      this.totalIterations >= this.config.doneCondition.maxIterations
-    ) {
-      return true;
-    }
-    return false;
+    return isCoordinatorDone(
+      this.config.doneCondition,
+      this.pendingTasks.length,
+      this.inFlight,
+      this.totalIterations,
+    );
   }
 }
 
