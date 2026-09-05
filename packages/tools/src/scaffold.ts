@@ -4,7 +4,7 @@ import type { Tool } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import { safeResolveReal } from './_util.js';
 
-interface ScaffoldInput {
+export interface ScaffoldInput {
   template: string;
   name: string;
   cwd?: string | undefined;
@@ -12,7 +12,7 @@ interface ScaffoldInput {
   dry_run?: boolean | undefined;
 }
 
-interface ScaffoldOutput {
+export interface ScaffoldOutput {
   template: string;
   name: string;
   files_created: number;

@@ -147,7 +147,11 @@ export {
   checkExecKillCommand,
   type ExecKillCheckResult,
 } from './exec-kill-guard.js';
-export { fetchTool } from './fetch.js';
+export {
+  fetchTool,
+  type FetchInput,
+  type FetchOutput,
+} from './fetch.js';
 export {
   formatTool,
   type FormatContext,
@@ -176,7 +180,12 @@ export {
   type InstallInput,
   type InstallOutput,
 } from './install.js';
-export { jsonTool } from './json.js';
+export {
+  jsonTool,
+  type JsonAction,
+  type JsonInput,
+  type JsonOutput,
+} from './json.js';
 export { kanbanTool } from './kanban.js';
 export {
   kanbanEvidenceKey,
@@ -206,7 +215,11 @@ export {
   type PatchInput,
   type PatchOutput,
 } from './patch.js';
-export { planTool } from './plan.js';
+export {
+  planTool,
+  type PlanInput,
+  type PlanOutput,
+} from './plan.js';
 export {
   getProcessGuardian,
   type ProcessGuardianConfig,
@@ -251,7 +264,11 @@ export {
   type ReplaceInput,
   type ReplaceOutput,
 } from './replace.js';
-export { scaffoldTool } from './scaffold.js';
+export {
+  scaffoldTool,
+  type ScaffoldInput,
+  type ScaffoldOutput,
+} from './scaffold.js';
 export {
   searchTool,
   type CacheEntry as SearchCacheEntry,
@@ -310,7 +327,11 @@ export {
   selectBuiltinToolsForTier,
 } from './tool-tier.js';
 export { toolUseTool } from './tool-use.js';
-export { treeTool } from './tree.js';
+export {
+  treeTool,
+  type TreeInput,
+  type TreeOutput,
+} from './tree.js';
 export {
   typecheckTool,
   type TypecheckInput,

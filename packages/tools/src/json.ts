@@ -53,9 +53,9 @@ async function readJsonFileBounded(filePath: string, ctx: Context): Promise<stri
 // Types
 // ---------------------------------------------------------------------------
 
-type JsonAction = 'parse' | 'query' | 'validate' | 'transform' | 'merge';
+export type JsonAction = 'parse' | 'query' | 'validate' | 'transform' | 'merge';
 
-interface JsonInput {
+export interface JsonInput {
   /** Operation to perform. Defaults to 'parse'. */
   action?: JsonAction | undefined;
 
@@ -89,7 +89,7 @@ interface JsonInput {
   conflictResolution?: 'prefer-base' | 'prefer-patch' | undefined;
 }
 
-interface JsonOutput {
+export interface JsonOutput {
   data: unknown;
   formatted: string;
   type: string;

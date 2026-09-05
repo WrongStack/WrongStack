@@ -32,7 +32,7 @@ import { todoTool } from './todo.js';
  * derive / template_use / clear via a single tool registration instead of
  * bloating the surface with nine near-identical tools.
  */
-interface PlanInput {
+export interface PlanInput {
   action:
     | 'show'
     | 'add'
@@ -65,7 +65,7 @@ interface PlanInput {
   scope?: 'session' | 'project';
 }
 
-interface PlanOutput {
+export interface PlanOutput {
   ok: boolean;
   message: string;
   /** Formatted plan after the operation. Same string the user sees from `/plan show`. */

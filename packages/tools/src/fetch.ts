@@ -35,12 +35,12 @@ TD.addRule('stripDangerousElements', {
 const PRUNED_BOILERPLATE_TAGS = new Set(['nav', 'header', 'footer', 'aside', 'svg', 'iframe']);
 TD.remove((node) => PRUNED_BOILERPLATE_TAGS.has(node.nodeName.toLowerCase()));
 
-interface FetchInput {
+export interface FetchInput {
   url: string;
   format?: 'markdown' | 'text' | 'raw' | undefined;
 }
 
-interface FetchOutput {
+export interface FetchOutput {
   content: string;
   status: number;
   content_type: string;

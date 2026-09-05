@@ -17,7 +17,7 @@ const DEFAULT_IGNORE: ReadonlySet<string> = new Set([
 const DEFAULT_MAX_ENTRIES = 5_000;
 const MAX_TREE_OUTPUT_BYTES = 256 * 1024;
 
-interface TreeInput {
+export interface TreeInput {
   path?: string | undefined;
   depth?: number | undefined;
   glob?: string | undefined;
@@ -28,7 +28,7 @@ interface TreeInput {
   max_entries?: number | undefined;
 }
 
-interface TreeOutput {
+export interface TreeOutput {
   tree: string;
   total_files: number;
   total_dirs: number;
