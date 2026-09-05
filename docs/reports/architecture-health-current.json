@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-04T21:10:45.869Z",
+  "generatedAt": "2026-09-05T07:15:49.138Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3537,
-    "testFiles": 3055,
-    "sourceLines": 866196,
+    "sourceFiles": 3538,
+    "testFiles": 3056,
+    "sourceLines": 866210,
     "workspaceEdges": 127,
-    "moduleEdges": 11071,
+    "moduleEdges": 11074,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -212,8 +212,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 797,
-      "testFiles": 706,
+      "sourceFiles": 798,
+      "testFiles": 707,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -228,7 +228,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 706
+          "testFiles": 707
         }
       ]
     },
@@ -6251,6 +6251,12 @@
       },
       {
         "file": "packages/core/tests/execution/compactor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/execution/context-budget.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19684,8 +19690,8 @@
     },
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
-      "lines": 954,
-      "relativeImports": 10
+      "lines": 908,
+      "relativeImports": 12
     },
     {
       "file": "packages/core/src/execution/brain-runtime.ts",
