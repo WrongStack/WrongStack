@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-05T19:55:38.772Z
+**Generated:** 2026-09-05T19:58:35.522Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3627 |
-| Production source lines | 871576 |
+| Production source files | 3632 |
+| Production source lines | 871654 |
 | Test files | 3071 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11406 |
+| Relative module edges | 11417 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -57,7 +57,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 197 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 359 | 331 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 531 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 536 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 7 | @wrongstack/core |
 | @wrongstack/webui-server | 220 | 187 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
@@ -85,7 +85,6 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1062 | `packages/webui/src/components/FileActivityDrawer.tsx` |
 | 1058 | `packages/core/src/session-catalog/store.ts` |
 | 1056 | `packages/webui-server/src/server/kanban-routes.ts` |
 | 1051 | `packages/core/src/coordination/delegate-tool.ts` |
@@ -135,10 +134,11 @@ None.
 | 961 | `apps/desktop/src/renderer/src/renderer.ts` |
 | 955 | `packages/plugins/src/prompt-firewall/index.ts` |
 | 950 | `packages/webui-server/src/server/backend-services.ts` |
+| 948 | `packages/plugins/src/semantic-search-indexer/index.ts` |
 
 ## Exports only tests reference
 
-- 841 runtime exports are referenced by tests and by no other production file.
+- 837 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

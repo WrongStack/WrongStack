@@ -394,10 +394,6 @@
       "lines": 1044,
       "relativeImports": 2
     },
-    "packages/webui/src/components/FileActivityDrawer.tsx": {
-      "lines": 1062,
-      "relativeImports": 2
-    },
     "packages/webui/src/components/FileExplorer.tsx": {
       "lines": 848,
       "relativeImports": 6

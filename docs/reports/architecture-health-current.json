@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T19:55:38.772Z",
+  "generatedAt": "2026-09-05T19:58:35.522Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3627,
+    "sourceFiles": 3632,
     "testFiles": 3071,
-    "sourceLines": 871576,
+    "sourceLines": 871654,
     "workspaceEdges": 127,
-    "moduleEdges": 11406,
+    "moduleEdges": 11417,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 841
+    "testOnlyExports": 837
   },
   "errors": [],
   "packageCycles": [],
@@ -809,7 +809,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 531,
+      "sourceFiles": 536,
       "testFiles": 356,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -20099,11 +20099,6 @@
       "relativeImports": 2
     },
     {
-      "file": "packages/webui/src/components/FileActivityDrawer.tsx",
-      "lines": 1062,
-      "relativeImports": 2
-    },
-    {
       "file": "packages/webui/src/components/FileExplorer.tsx",
       "lines": 848,
       "relativeImports": 6
@@ -20245,11 +20240,6 @@
     }
   ],
   "hotspots": [
-    {
-      "file": "packages/webui/src/components/FileActivityDrawer.tsx",
-      "lines": 1062,
-      "relativeImports": 2
-    },
     {
       "file": "packages/core/src/session-catalog/store.ts",
       "lines": 1058,
@@ -20494,6 +20484,11 @@
       "file": "packages/webui-server/src/server/backend-services.ts",
       "lines": 950,
       "relativeImports": 13
+    },
+    {
+      "file": "packages/plugins/src/semantic-search-indexer/index.ts",
+      "lines": 948,
+      "relativeImports": 0
     }
   ],
   "testOnlyExports": [
@@ -23316,22 +23311,6 @@
     {
       "file": "packages/webui/src/components/codemap-model.ts",
       "name": "SMART_CANVAS_NODE_LIMIT"
-    },
-    {
-      "file": "packages/webui/src/components/FileActivityDrawer.tsx",
-      "name": "analyzeFileActivity"
-    },
-    {
-      "file": "packages/webui/src/components/FileActivityDrawer.tsx",
-      "name": "normalizeTrackedPath"
-    },
-    {
-      "file": "packages/webui/src/components/FileActivityDrawer.tsx",
-      "name": "pathsReferToSameFile"
-    },
-    {
-      "file": "packages/webui/src/components/FileActivityDrawer.tsx",
-      "name": "summarizeLineage"
     },
     {
       "file": "packages/webui/src/components/KanbanBoundaryEditor.tsx",

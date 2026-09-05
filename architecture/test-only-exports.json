@@ -1456,12 +1456,6 @@
       "SMART_CANVAS_EDGE_LIMIT",
       "SMART_CANVAS_NODE_LIMIT"
     ],
-    "packages/webui/src/components/FileActivityDrawer.tsx": [
-      "analyzeFileActivity",
-      "normalizeTrackedPath",
-      "pathsReferToSameFile",
-      "summarizeLineage"
-    ],
     "packages/webui/src/components/KanbanBoundaryEditor.tsx": [
       "formatBoundarySelectors",
       "parseBoundarySelectors"
