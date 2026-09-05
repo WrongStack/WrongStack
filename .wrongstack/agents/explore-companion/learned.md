@@ -94,4 +94,4 @@
   - *How:* `packages/**/src`
 
 ---
-*Last capture: 2026-09-05T15:48:19.565Z · 8 entries*
+*Last capture: 2026-09-05T16:09:56.324Z · 8 entries*

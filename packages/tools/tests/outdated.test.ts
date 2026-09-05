@@ -257,7 +257,7 @@ describe('runOutdated stderr collection', () => {
       child.stdout.emit('data', Buffer.from('{}'));
       child.emit('close', 0);
     });
-    const result = await outdatedTool.execute({}, makeCtx());
+    const result = await (outdatedTool.execute as any)({}, makeCtx());
     expect(result.exit_code).toBe(0);
     expect(result.packages).toEqual([]);
   });

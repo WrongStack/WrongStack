@@ -225,7 +225,7 @@ describe('formatTool', () => {
         /stream execution unavailable/,
       );
     } finally {
-      formatTool.executeStream = original;
+      (formatTool as any).executeStream = original;
     }
   });
 
@@ -261,7 +261,7 @@ describe('formatTool', () => {
 
   it('executes cleanly when opts parameter is omitted', async () => {
     spawnStreamMocks.spawnStream.mockImplementation(fakeSpawn('Checked 1 file. Fixed 0 files.'));
-    const result = await formatTool.execute({ fixer: 'biome' }, makeCtx());
+    const result = await (formatTool.execute as any)({ fixer: 'biome' }, makeCtx());
     expect(result.fixer).toBe('biome');
     expect(result.files_checked).toBe(1);
     expect(result.files_changed).toBe(0);

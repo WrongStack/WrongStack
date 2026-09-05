@@ -280,7 +280,7 @@ describe('kanban tool — contract map', () => {
   it('executes cleanly with a minimal context without eventSessionId', async () => {
     const { boardId, taskId } = await seed();
     const minimalCtx = { projectRoot: dir, cwd: dir } as any;
-    const result = await kanbanTool.execute(
+    const result = await (kanbanTool.execute as any)(
       { action: 'get_contract_graph', boardId, taskId },
       minimalCtx,
     );

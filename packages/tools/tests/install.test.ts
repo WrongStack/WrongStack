@@ -194,7 +194,7 @@ describe('installTool', () => {
         /stream execution unavailable/,
       );
     } finally {
-      installTool.executeStream = original;
+      (installTool as any).executeStream = original;
     }
   });
 
@@ -208,7 +208,7 @@ describe('installTool', () => {
         /without final event/,
       );
     } finally {
-      installTool.executeStream = original;
+      (installTool as any).executeStream = original;
     }
   });
 
@@ -451,7 +451,7 @@ describe('installTool', () => {
   it('executes cleanly when opts parameter is omitted and session is undefined', async () => {
     spawnStreamMock.mockClear();
     const minimalCtx = { cwd: '.', projectRoot: '.' } as any;
-    const result = await installTool.execute({ dry_run: true }, minimalCtx);
+    const result = await (installTool.execute as any)({ dry_run: true }, minimalCtx);
     expect(result.exit_code).toBe(0);
     expect(result.dry_run).toBe(true);
   });

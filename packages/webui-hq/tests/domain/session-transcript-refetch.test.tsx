@@ -11,7 +11,7 @@
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 import type { HqTranscriptEntry } from '@wrongstack/core/hq';
-import { act } from 'react';
+import { act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,7 +24,7 @@ const { useHqStore } = await import('../../src/data/store/index.js');
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
-function Probe({ sessionId }: { sessionId: string }): JSX.Element {
+function Probe({ sessionId }: { sessionId: string }): ReactElement {
   const transcript = useSessionTranscript(sessionId, null);
   return <div data-testid="turns">{String(transcript.entries.length)}</div>;
 }

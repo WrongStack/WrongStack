@@ -107,6 +107,21 @@
       "fingerprint": "387f2407d416c0b9"
     },
     {
+      "file": "packages/kanban/tests/verification/command-allowlist-env.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "34d6727c19bbbcf5"
+    },
+    {
+      "file": "packages/kanban/tests/verification/command-allowlist-env.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "8df1a093adc0167a"
+    },
+    {
+      "file": "packages/kanban/tests/verification/command-allowlist-env.test.ts",
+      "kind": "skip",
+      "fingerprint": "851959725da22f9f"
+    },
+    {
       "file": "packages/mcp/tests/client-windows-lifecycle.test.ts",
       "kind": "runIf",
       "fingerprint": "5760e7fd5b745740"
