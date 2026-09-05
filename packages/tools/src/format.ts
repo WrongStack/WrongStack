@@ -149,10 +149,14 @@ export const formatTool = {
     };
 
     const fileList = input.files
-      ? (Array.isArray(input.files) ? input.files : input.files.split(','))
-          .filter((f): f is string => typeof f === 'string')
-          .map((f) => f.trim().replace(/\\/g, '/'))
-          .filter(Boolean)
+      ? [
+          ...new Set(
+            (Array.isArray(input.files) ? input.files : input.files.split(','))
+              .filter((f): f is string => typeof f === 'string')
+              .map((f) => f.trim().replace(/\\/g, '/'))
+              .filter(Boolean),
+          ),
+        ]
       : [];
 
     let args: string[];
@@ -200,7 +204,7 @@ export const formatTool = {
  * prettier's per-file listing, whose shape varies by version and flags) yields
  * `undefined` rather than a guessed number.
  */
-function parseFormatterCounts(
+export function parseFormatterCounts(
   fixer: string,
   output: string,
   isCheck = false,

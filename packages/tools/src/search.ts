@@ -117,6 +117,17 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
     }
 
     const signal = opts?.signal ?? ctx?.signal ?? new AbortController().signal;
+    if (
+      input.num_results !== undefined &&
+      (typeof input.num_results !== 'number' ||
+        !Number.isFinite(input.num_results) ||
+        input.num_results <= 0)
+    ) {
+      throw new ToolValidationError({
+        message: 'search: num_results must be a positive integer',
+        field: 'num_results',
+      });
+    }
     const rawNum =
       typeof input.num_results === 'number' && !Number.isNaN(input.num_results)
         ? input.num_results
@@ -272,6 +283,11 @@ export function __clearSearchCache(): void {
 /** Exposed for tests so they can seed the module-level cache between cases. */
 export function __setSearchCacheForTest(key: string, entry: CacheEntry): void {
   cache.set(key, entry);
+}
+
+/** Exposed for tests so they can observe module-level cache size. */
+export function __getSearchCacheSizeForTest(): number {
+  return cache.size;
 }
 
 // ---------------------------------------------------------------------------

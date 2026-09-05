@@ -171,6 +171,13 @@ export const gitTool = {
       });
     }
 
+    if (input.limit !== undefined && (typeof input.limit !== 'number' || !Number.isFinite(input.limit) || input.limit <= 0)) {
+      throw new ToolValidationError({
+        message: 'git: limit must be a positive integer',
+        field: 'limit',
+      });
+    }
+
     if (input.command === 'commit' && !input.message) {
       return {
         command: 'commit',
