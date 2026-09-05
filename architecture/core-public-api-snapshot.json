@@ -1525,8 +1525,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 102,
-      "sourceLines": 22746
+      "sourceFiles": 105,
+      "sourceLines": 22961
     },
     {
       "directory": "tasking",
@@ -1547,7 +1547,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 13191
+      "sourceLines": 13192
     },
     {
       "directory": "utils",

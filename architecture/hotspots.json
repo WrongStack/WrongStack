@@ -150,10 +150,6 @@
       "lines": 1058,
       "relativeImports": 12
     },
-    "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 1078,
-      "relativeImports": 10
-    },
     "packages/core/src/types/provider.ts": {
       "lines": 890,
       "relativeImports": 7

@@ -7,45 +7,25 @@ import type {
   SessionMetadata,
   SessionSummary,
   SessionWriter,
-  WorkspaceCheckpointRef,
 } from '../types/session.js';
-import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
-import { toErrorMessage } from '../utils/index.js';
 import type { EventBus } from './event-bus-port.js';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
 import { SessionSummaryTracker } from './session-summary-tracker.js';
 import { SessionWriteBuffer } from './session-write-buffer.js';
+import { isClosedHandleError } from './session-writer/session-writer-flush.js';
+import {
+  executeClearSession,
+  persistSessionCloseSummary,
+  runMetadataCheckpointOperation,
+} from './session-writer-checkpoint.js';
+import { executeSessionTruncate } from './session-writer-rewind.js';
 import { scrubSessionWriterEvent } from './session-writer-scrubber.js';
 import {
-  findSessionCheckpointTruncatePlan,
-  rewriteSessionToCheckpoint,
-} from './session-writer-truncate.js';
-
-/** Node has used more than one code for operations on an already-closed FileHandle. */
-function isClosedHandleError(err: unknown): boolean {
-  const code = (err as NodeJS.ErrnoException | undefined)?.code;
-  return code === 'EBADF' || code === 'ERR_CLOSED_RESOURCE' || code === 'ERR_INVALID_HANDLE';
-}
-
-/**
- * Event types that must reach disk without waiting for FLUSH_SIZE /
- * FLUSH_INTERVAL_MS. Losing one of these to a SIGKILL makes a resumed
- * transcript lie about what actually happened: the user's prompt or the
- * assistant's response vanishes, or a dangling marker hides crash state
- * from recovery. Everything else keeps riding the batched buffer.
- */
-const CRITICAL_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new Set([
-  'user_input',
-  'llm_response',
-  'checkpoint',
-  'rewound',
-  'in_flight_start',
-  'in_flight_end',
-]);
-
-function isCriticalEvent(event: SessionEvent): boolean {
-  return CRITICAL_EVENT_TYPES.has(event.type);
-}
+  dispatchSynchronousBufferEvent,
+  isCriticalEvent,
+  SessionSnapshotTracker,
+  writeSessionCheckpoint,
+} from './session-writer-snapshot.js';
 
 /** Default throttle for mid-session metadata checkpoints (sidecar + index refresh). */
 const METADATA_CHECKPOINT_INTERVAL_MS = 10_000;
@@ -131,15 +111,7 @@ export class FileSessionWriter implements SessionWriter {
     this._onAppendBatch = cb;
   }
 
-  private pendingFileSnapshots: Array<{
-    path: string;
-    action: 'created' | 'modified' | 'deleted';
-    before: string | null;
-    after: string | null;
-  }> = [];
-  private pendingFileSnapshotBytes = 0;
-  private static readonly PENDING_FILE_SNAPSHOT_MAX_ENTRIES = 256;
-  private static readonly PENDING_FILE_SNAPSHOT_MAX_BYTES = 16 * 1024 * 1024;
+  private readonly snapshotTracker = new SessionSnapshotTracker();
   /** Prompt whose tool work is currently executing. Set by writeCheckpoint. */
   private activePromptIndex: number | null = null;
 
@@ -166,53 +138,16 @@ export class FileSessionWriter implements SessionWriter {
       /* best-effort */
     }
     const critical = isCriticalEvent(appendEvent);
-    if (!this.buffer.push(appendEvent)) {
-      // Buffer rejected the event (overflow). Drain what is there and
-      // re-push; a CRITICAL event must not wait out the 500ms window just
-      // because its first push lost the race against a full buffer.
-      this.buffer.cancelTimer();
-      void this.buffer
-        .flushBuffer(this.closed, { datasync: true })
-        .catch(() => undefined)
-        .then(() => {
-          if (this.buffer.push(appendEvent)) {
-            if (!critical) return;
-            this.buffer.cancelTimer();
-            void this.buffer.flushBuffer(this.closed, { datasync: true }).catch(() => undefined);
-            return;
-          }
-          // Buffer refilled faster than we could reclaim space: write the
-          // CRITICAL event through the serialized chain directly rather than
-          // dropping it (enqueueWrite preserves ordering; appendEvent is
-          // already scrubbed above).
-          void this.buffer
-            .drainWriteChain()
-            .then(() => this.buffer.enqueueWrite(`${JSON.stringify(appendEvent)}\n`))
-            .then(() => {
-              if (!critical) return;
-              return this.handle.datasync().catch(() => undefined);
-            })
-            .catch((err) => {
-              console.warn(
-                JSON.stringify({
-                  level: 'error',
-                  event: 'session.sync_journal_write_failed',
-                  sessionId: this.id,
-                  eventType: appendEvent.type,
-                  message: toErrorMessage(err),
-                  timestamp: new Date().toISOString(),
-                }),
-              );
-            });
-        });
-    } else if (critical || this.buffer.shouldFlushNow()) {
-      this.buffer.cancelTimer();
-      void this.buffer.flushBuffer(this.closed, { datasync: true }).catch(() => {
-        // Retained at the head of writeBuffer for the boundary retry.
-      });
-    } else {
-      this.buffer.scheduleFlush(this.closed);
-    }
+    dispatchSynchronousBufferEvent(
+      {
+        buffer: this.buffer,
+        closed: this.closed,
+        handle: this.handle,
+        sessionId: this.id,
+      },
+      appendEvent,
+      critical,
+    );
   }
 
   recordFileChange(input: {
@@ -222,47 +157,9 @@ export class FileSessionWriter implements SessionWriter {
     after: string | null;
   }): void {
     if (this.closed) return;
-    if (this.activePromptIndex === null) {
-      // Compatibility path for embedders that mutate before their first
-      // checkpoint. writeCheckpoint()/close() will attach these changes to the
-      // first available prompt index.
-      const bytes =
-        Buffer.byteLength(input.path, 'utf8') +
-        (input.before ? Buffer.byteLength(input.before, 'utf8') : 0) +
-        (input.after ? Buffer.byteLength(input.after, 'utf8') : 0);
-      if (
-        this.pendingFileSnapshots.length >= FileSessionWriter.PENDING_FILE_SNAPSHOT_MAX_ENTRIES ||
-        bytes > FileSessionWriter.PENDING_FILE_SNAPSHOT_MAX_BYTES ||
-        this.pendingFileSnapshotBytes + bytes > FileSessionWriter.PENDING_FILE_SNAPSHOT_MAX_BYTES
-      ) {
-        console.warn(
-          JSON.stringify({
-            level: 'error',
-            event: 'session.file_snapshot_buffer_overflow',
-            sessionId: this.id,
-            bufferedFiles: this.pendingFileSnapshots.length,
-            bufferedBytes: this.pendingFileSnapshotBytes,
-            timestamp: new Date().toISOString(),
-          }),
-        );
-        return;
-      }
-      this.pendingFileSnapshots.push(input);
-      this.pendingFileSnapshotBytes += bytes;
-      return;
-    }
-
-    // This method is intentionally synchronous because file tools call it
-    // immediately after their atomic mutation. Put the reconstruct event in
-    // the writer buffer before the tool returns; agent-tools flushes the buffer
-    // together with the matching tool_result boundary.
-    const event: SessionEvent = {
-      type: 'file_snapshot',
-      ts: new Date().toISOString(),
-      promptIndex: this.activePromptIndex,
-      files: [input],
-    };
-    this.bufferSynchronousEvent(event);
+    this.snapshotTracker.recordFileChange(this.id, this.activePromptIndex, input, (ev) =>
+      this.bufferSynchronousEvent(ev),
+    );
   }
 
   recordFileObservation(input: {
@@ -445,56 +342,27 @@ export class FileSessionWriter implements SessionWriter {
   private runMetadataCheckpoint(): Promise<void> {
     if (this.closed || !this.metadataDirty) return Promise.resolve();
     if (this.metadataCheckpointInFlight) return this.metadataCheckpointInFlight;
-    // Snapshot BEFORE any await so events observed during the write land in
-    // the NEXT checkpoint instead of racing this one. snapshot() materializes
-    // every live counter — currentSummary alone leaves counters stale until
-    // finalize().
-    // Resumed sessions seed the tracker from the PRIOR run's manifest, so
-    // snapshot() would carry stale endedAt/outcome:'completed' into live
-    // sidecar/catalog rows — making a running or SIGKILLed session look
-    // cleanly ended with a pre-resume timestamp. Strip terminal fields here;
-    // close-time finalize() re-stamps the real values.
-    const {
-      endedAt: _priorEndedAt,
-      outcome: _priorOutcome,
-      ...snapshot
-    } = this.summaryTracker.snapshot();
-    const run = (async () => {
-      const t0 = Date.now();
-      let outcome: 'success' | 'failure' = 'success';
-      let errorMsg: string | undefined;
-      try {
-        if (this.manifestFile) {
-          await withFileLock(this.manifestFile, async () => {
-            await atomicWrite(this.manifestFile, JSON.stringify(snapshot), { mode: 0o600 });
-          });
-        }
-        // Sidecar reached disk: clear dirty only NOW. A SIGKILL during the
-        // write leaves the flag true so the next observation re-arms instead
-        // of silently losing the counter mutation.
+    const run = runMetadataCheckpointOperation(
+      {
+        sessionId: this.id,
+        filePath: this.filePath,
+        manifestFile: this.manifestFile,
+        traceId: this.traceId,
+        events: this.events,
+        summaryTracker: this.summaryTracker,
+        onMetadataCheckpointCb: this.onMetadataCheckpointCb,
+      },
+      () => {
         this.metadataDirty = false;
-        await this.onMetadataCheckpointCb?.(snapshot);
-        // Events observed while persisting re-arm the next tick.
         if (this.metadataDirty && !this.closed) this.scheduleMetadataCheckpoint();
-      } catch (err) {
-        outcome = 'failure';
-        errorMsg = toErrorMessage(err);
+      },
+      () => {
         this.metadataDirty = true;
         this.scheduleMetadataCheckpoint();
-      } finally {
-        this.metadataCheckpointInFlight = null;
-        this.events?.emit('storage.write', {
-          sessionId: this.id,
-          store: 'session',
-          filePath: this.manifestFile || this.filePath,
-          operation: 'metadata_checkpoint',
-          outcome,
-          durationMs: Date.now() - t0,
-          ...(errorMsg !== undefined ? { error: errorMsg } : {}),
-          ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
-        });
-      }
-    })();
+      },
+    ).finally(() => {
+      this.metadataCheckpointInFlight = null;
+    });
     this.metadataCheckpointInFlight = run;
     return run;
   }
@@ -700,10 +568,8 @@ export class FileSessionWriter implements SessionWriter {
     // preamble is lazy. Materialize it even for an otherwise idle session so
     // a valid JSONL never becomes a zero-byte/headerless transcript.
     await this.ensureInit();
-    if (this.pendingFileSnapshots.length > 0) {
-      await this.writeFileSnapshot(this.activePromptIndex ?? 0, [...this.pendingFileSnapshots]);
-      this.pendingFileSnapshots = [];
-      this.pendingFileSnapshotBytes = 0;
+    if (this.snapshotTracker.length > 0) {
+      await this.writeFileSnapshot(this.activePromptIndex ?? 0, this.snapshotTracker.takePending());
     }
     // Flip closed only after every write that requires an open writer.
     this.closed = true;
@@ -731,55 +597,17 @@ export class FileSessionWriter implements SessionWriter {
 
     const summary = await this.summaryTracker.finalize();
 
-    const manifestT0 = Date.now();
-    let manifestOutcome: 'success' | 'failure' = 'success';
-    let manifestError: string | undefined;
-    const idxT0 = Date.now();
-    let idxOutcome: 'success' | 'failure' = 'success';
-    let idxError: string | undefined;
-    const persistSummary = async (): Promise<void> => {
-      if (this.manifestFile) {
-        try {
-          await atomicWrite(this.manifestFile, JSON.stringify(summary), { mode: 0o600 });
-        } catch (err) {
-          manifestOutcome = 'failure';
-          manifestError = toErrorMessage(err);
-        }
-      }
-      try {
-        await this.onCloseCb?.(summary);
-        /* v8 ignore start -- best-effort: appendToIndex swallows its own errors */
-      } catch (err) {
-        idxOutcome = 'failure';
-        idxError = toErrorMessage(err);
-        /* v8 ignore stop */
-      }
-    };
-    if (this.manifestFile) await withFileLock(this.manifestFile, persistSummary);
-    else await persistSummary();
-
-    if (this.manifestFile) {
-      this.events?.emit('storage.write', {
+    await persistSessionCloseSummary(
+      {
         sessionId: this.id,
-        store: 'session',
-        filePath: this.manifestFile,
-        operation: 'close',
-        outcome: manifestOutcome,
-        durationMs: Date.now() - manifestT0,
-        ...(manifestError !== undefined ? { error: manifestError } : {}),
-        ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
-      });
-    }
-    this.events?.emit('storage.write', {
-      sessionId: summary.id,
-      store: 'session',
-      filePath: this.filePath,
-      operation: 'index_append',
-      outcome: idxOutcome,
-      durationMs: Date.now() - idxT0,
-      ...(idxError !== undefined ? { error: idxError } : {}),
-      ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
-    });
+        filePath: this.filePath,
+        manifestFile: this.manifestFile,
+        traceId: this.traceId,
+        events: this.events,
+        onCloseCb: this.onCloseCb,
+      },
+      summary,
+    );
     try {
       await this.handle.close();
     } catch {
@@ -788,45 +616,21 @@ export class FileSessionWriter implements SessionWriter {
   }
 
   async writeCheckpoint(promptIndex: number, promptPreview: string): Promise<void> {
-    const fileCount = this.pendingFileSnapshots.length;
-    if (fileCount > 0) {
-      await this.writeFileSnapshot(promptIndex, [...this.pendingFileSnapshots]);
-      this.pendingFileSnapshots = [];
-      this.pendingFileSnapshotBytes = 0;
-    }
-    let workspaceCheckpoint: WorkspaceCheckpointRef | undefined;
-    try {
-      workspaceCheckpoint = await this.checkpointCas?.capture(this.id, promptIndex);
-    } catch (err) {
-      // Conversation checkpoints remain usable when Git/CAS capture is unavailable; missing
-      // workspaceCheckpoint makes the reduced guarantee explicit to fork/materialization callers.
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'session.workspace_checkpoint_capture_failed',
-          sessionId: this.id,
-          promptIndex,
-          message: toErrorMessage(err),
-          timestamp: new Date().toISOString(),
-        }),
-      );
-    }
-    await this.append({
-      type: 'checkpoint',
-      ts: new Date().toISOString(),
+    await writeSessionCheckpoint(
+      {
+        sessionId: this.id,
+        snapshotTracker: this.snapshotTracker,
+        checkpointCas: this.checkpointCas,
+        events: this.events,
+        append: (ev) => this.append(ev),
+        writeFileSnapshot: (idx, files) => this.writeFileSnapshot(idx, files),
+        setActivePromptIndex: (idx) => {
+          this.activePromptIndex = idx;
+        },
+      },
       promptIndex,
       promptPreview,
-      ...(workspaceCheckpoint ? { workspaceCheckpoint } : {}),
-    });
-    this.activePromptIndex = promptIndex;
-    this.events?.emit('checkpoint.written', {
-      sessionId: this.id,
-      promptIndex,
-      promptPreview,
-      ts: new Date().toISOString(),
-      fileCount,
-      ...(workspaceCheckpoint ? { workspaceCheckpoint } : {}),
-    });
+    );
   }
 
   async writeFileSnapshot(promptIndex: number, files: FileSnapshot[]): Promise<void> {
@@ -848,184 +652,56 @@ export class FileSessionWriter implements SessionWriter {
     targetPromptIndex: number,
     revertedFiles: readonly string[] = [],
   ): Promise<number> {
-    /* v8 ignore next -- defensive: filePath is always set for a live writer */
-    if (!this.filePath) return 0;
-
-    // Flush buffered events to disk before reading — otherwise the in-memory
-    // events that haven't hit the JSONL yet would be invisible to the
-    // truncation logic and would be silently dropped by the rewrite.
-    this.buffer.cancelTimer();
-    await this.buffer.flushBuffer(this.closed, { datasync: true });
-    // Drain the write chain so no in-flight write straddles the close/rename/reopen.
-    await this.buffer.drainWriteChain();
-    // Stop mid-session metadata checkpointing across the file rewrite: the
-    // summary counters are recomputed from disk below, and an armed timer or
-    // in-flight checkpoint could write pre-rewind state over them.
-    if (this.metadataTimer) {
-      clearTimeout(this.metadataTimer);
-      this.metadataTimer = null;
-    }
-    await this.metadataCheckpointInFlight?.catch(() => undefined);
-
-    const plan = await findSessionCheckpointTruncatePlan(this.filePath, targetPromptIndex).catch(
-      (err) => {
-        // Lookup failed: re-arm live checkpointing so dirty metadata is not
-        // stranded until the next unrelated event.
-        this.scheduleMetadataCheckpoint();
-        throw err;
-      },
-    );
-    if (!plan) {
-      // No matching checkpoint: same re-arm obligation as the error path.
-      this.scheduleMetadataCheckpoint();
-      return 0;
-    }
-
-    // Windows EPERM fix: close the append-mode handle before replacing the
-    // file. Windows rejects rename() when the destination still has an open
-    // handle, even if that handle belongs to this process.
-    await this.buffer.drainWriteChain();
-    try {
-      await this.handle.close();
-    } catch {
-      // Ignore — handle may already be closed (e.g. by clearSession).
-      // Consistent with the doClose() best-effort pattern.
-    }
-    try {
-      await rewriteSessionToCheckpoint(this.filePath, plan.checkpointByteOffset);
-      await this.deleteRewoundSubagentTranscripts(plan.removedSubagentTranscriptPaths);
-      // Re-open in append mode for continued use of this file.
-      this.handle = await fsp.open(this.filePath, 'a', 0o600);
-      /* v8 ignore start -- defensive: close/rename/reopen of a just-written temp file */
-    } catch (err) {
-      this.handle = await fsp.open(this.filePath, 'a', 0o600).catch(() => this.handle);
-      // Re-arm live checkpointing so a failed rewrite does not strand dirty
-      // metadata until the next unrelated event (mirrors the lookup / no-plan
-      // exits above, which both re-arm before returning).
-      this.scheduleMetadataCheckpoint();
-      throw err;
-    }
-    /* v8 ignore stop */
-
-    // The summary counters accumulate as events are observed and know nothing
-    // about truncation, so without this `close()` would write a .summary.json —
-    // and an _index.jsonl row, which list() reads — still counting the tool
-    // calls, file changes and tokens of the work just rewound.
-    await this.summaryTracker.recomputeFromDisk(this.filePath);
-
-    const reverted = [...revertedFiles];
-    await this.append({
-      type: 'rewound',
-      ts: new Date().toISOString(),
-      toPromptIndex: targetPromptIndex,
-      revertedFiles: reverted,
-    });
-    this.activePromptIndex = targetPromptIndex;
-
-    this.events?.emit('session.rewound', {
+    return executeSessionTruncate({
       sessionId: this.id,
-      toPromptIndex: targetPromptIndex,
-      revertedFiles: reverted,
-      removedEvents: plan.removedCount,
+      filePath: this.filePath,
+      targetPromptIndex,
+      revertedFiles,
+      closed: this.closed,
+      buffer: this.buffer,
+      handle: this.handle,
+      setHandle: (h) => {
+        this.handle = h;
+      },
+      events: this.events,
+      summaryTracker: this.summaryTracker,
+      append: (ev) => this.append(ev),
+      cancelMetadataTimer: () => {
+        if (this.metadataTimer) {
+          clearTimeout(this.metadataTimer);
+          this.metadataTimer = null;
+        }
+      },
+      metadataCheckpointInFlight: this.metadataCheckpointInFlight,
+      scheduleMetadataCheckpoint: () => this.scheduleMetadataCheckpoint(),
+      setActivePromptIndex: (idx) => {
+        this.activePromptIndex = idx;
+      },
     });
-
-    return plan.removedCount;
-  }
-
-  private async deleteRewoundSubagentTranscripts(
-    transcriptPaths: readonly string[],
-  ): Promise<void> {
-    if (transcriptPaths.length === 0) return;
-    const sessionsRoot = this.id.includes('/')
-      ? path.dirname(path.dirname(this.filePath))
-      : path.dirname(this.filePath);
-    const allowedRoot = path.join(sessionsRoot, 'subagents');
-    const realAllowedRoot = await fsp.realpath(allowedRoot).catch(() => null);
-    if (!realAllowedRoot) return;
-
-    const deleted: string[] = [];
-    for (const transcriptPath of transcriptPaths) {
-      const resolved = path.resolve(transcriptPath);
-      const relative = path.relative(realAllowedRoot, resolved);
-      if (relative.startsWith('..') || path.isAbsolute(relative)) continue;
-      await fsp.rm(resolved, { force: true }).then(
-        () => {
-          deleted.push(resolved);
-        },
-        (err) => {
-          console.warn(
-            JSON.stringify({
-              level: 'warn',
-              event: 'session.rewind_subagent_delete_failed',
-              sessionId: this.id,
-              filePath: resolved,
-              error: toErrorMessage(err),
-              timestamp: new Date().toISOString(),
-            }),
-          );
-        },
-      );
-    }
-    if (deleted.length > 0) {
-      this.events?.emit('session.rewind_subagents_deleted', {
-        sessionId: this.id,
-        transcriptPaths: deleted,
-      });
-    }
   }
 
   async clearSession(): Promise<void> {
-    /* v8 ignore next -- defensive: filePath is always set for a live writer */
-    if (!this.filePath) return;
-    // Discard any buffered events — the caller is explicitly resetting the
-    // session to a clean slate. Cancel the timer so it doesn't fire and
-    // append stale events to the freshly-cleared file.
-    this.buffer.cancelTimer();
-    // Wait for a currently-draining batch first. If it failed and re-queued
-    // itself, the explicit reset below discards it along with the rest of the
-    // old conversation; if it succeeded, writeChain has already serialized it.
-    await this.buffer.drainFlushPromise();
-    this.buffer.clear();
-    // Let any in-flight append land first — otherwise it would re-append
-    // stale events AFTER the reset record below.
-    await this.buffer.drainWriteChain();
-    // Same for an in-flight metadata checkpoint: stop the timer and drain it
-    // BEFORE the transcript is rewritten, so pre-reset summary state can
-    // never land on top of the freshly cleared files.
-    if (this.metadataTimer) {
-      clearTimeout(this.metadataTimer);
-      this.metadataTimer = null;
-    }
-    await this.metadataCheckpointInFlight?.catch(() => undefined);
-    const resetAt = new Date().toISOString();
-    const record = `${JSON.stringify({
-      type: 'session_start',
-      ts: resetAt,
+    await executeClearSession({
       id: this.id,
-      model: this.meta.model ?? 'unknown',
-      provider: this.meta.provider ?? 'unknown',
-    })}\n`;
-    // Windows EPERM fix: close the append-mode handle before replacing the
-    // file. Windows rejects rename() when the destination still has an open
-    // handle, even if that handle belongs to this process. The caller
-    // (/clear → buildClearCommand) may also call clearHistory which uses
-    // atomicWrite (tmp + rename) — so we do NOT reopen here. The handle is
-    // lazily reopened in enqueueWrite on the next append.
-    await this.handle.close();
-    // Atomic replace (tmp + rename): a crash mid-write must never leave a
-    // torn transcript behind — /clear is destructive by intent, not by
-    // accident. Matches clearHistory's durability discipline above.
-    await atomicWrite(this.filePath, record, { mode: 0o600 });
-    this.summaryTracker.reset(resetAt);
-    // Mark dirty and re-arm immediately: if a SIGKILL lands before the next
-    // observed append, the sidecar still holds PRE-reset counters while the
-    // JSONL is already clean — the scheduled checkpoint heals them (~10s).
-    // (No trailing dirty-clear here: it would self-cancel the armed timer.)
-    this.metadataDirty = true;
-    this.scheduleMetadataCheckpoint();
-    this.activePromptIndex = null;
-    this.pendingFileSnapshots = [];
-    this.pendingFileSnapshotBytes = 0;
+      filePath: this.filePath,
+      meta: this.meta,
+      handle: this.handle,
+      buffer: this.buffer,
+      summaryTracker: this.summaryTracker,
+      cancelMetadataTimer: () => {
+        if (this.metadataTimer) {
+          clearTimeout(this.metadataTimer);
+          this.metadataTimer = null;
+        }
+      },
+      metadataCheckpointInFlight: this.metadataCheckpointInFlight,
+      scheduleMetadataCheckpoint: () => this.scheduleMetadataCheckpoint(),
+      onCleared: () => {
+        this.metadataDirty = true;
+        this.activePromptIndex = null;
+        this.snapshotTracker.clear();
+      },
+    });
   }
 
   /**
@@ -1058,10 +734,8 @@ export class FileSessionWriter implements SessionWriter {
    * cleanly X times, then died without finishing Y".
    */
   async clearInFlightMarker(reason: 'clean' | 'aborted' | 'recovered'): Promise<void> {
-    if (this.pendingFileSnapshots.length > 0) {
-      await this.writeFileSnapshot(this.activePromptIndex ?? 0, [...this.pendingFileSnapshots]);
-      this.pendingFileSnapshots = [];
-      this.pendingFileSnapshotBytes = 0;
+    if (this.snapshotTracker.length > 0) {
+      await this.writeFileSnapshot(this.activePromptIndex ?? 0, this.snapshotTracker.takePending());
     }
     await this.append({
       type: 'in_flight_end',
