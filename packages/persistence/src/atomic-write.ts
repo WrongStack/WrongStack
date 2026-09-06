@@ -121,6 +121,14 @@ export function createPersistencePrimitives(
     }
     if (mode !== undefined) await fs.chmod(tmp, mode);
 
+    // On Windows, MoveFileEx(..., MOVEFILE_REPLACE_EXISTING) fails with EPERM
+    // if the existing destination file has the read-only attribute set. Temporarily
+    // clear the read-only attribute on targetPath so the atomic rename succeeds;
+    // the chmod below then re-applies the final intended mode.
+    if (process.platform === 'win32' && existing !== undefined && (existing & 0o200) === 0) {
+      await fs.chmod(targetPath, 0o666).catch(() => undefined);
+    }
+
     await renameWithRetry(tmp, targetPath);
     if (mode !== undefined && process.platform === 'win32') {
       await fs.chmod(targetPath, mode).catch(() => undefined);

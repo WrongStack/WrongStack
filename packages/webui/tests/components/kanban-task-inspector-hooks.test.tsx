@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { KanbanBoard, KanbanTask } from '@/types/kanban-types';
 
 // Hoisted reference so the vi.mock factories (which run before module
 // initialization) can read the same mutable that tests assign in
@@ -126,7 +126,8 @@ function makeBoard(task: KanbanTask | null): KanbanBoard {
   return {
     id: 'board-1',
     title: 'Test Board',
-    columns: [{ id: 'col-1', name: 'To Do', taskIds: task ? [task.id] : [], order: 0 }],
+    version: 1,
+    columns: [{ id: 'col-1', title: 'To Do', order: 0 }],
     tasks: task ? [task] : [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

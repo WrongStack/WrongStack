@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import type { Provider, Request } from '@wrongstack/core/types';
 import { ConfigError } from '@wrongstack/core/types';
@@ -7,7 +8,7 @@ import { BatchScanner } from './batch-scanner.js';
 import { ReportWriter } from './report-writer.js';
 import { SkillGenerator } from './skill-generator.js';
 import { defaultTechStackDetector } from './detector.js';
-import { defaultGitignoreUpdater } from './gitignore-updater.js';
+import { GitignoreUpdater, defaultGitignoreUpdater } from './gitignore-updater.js';
 import { retryProviderComplete } from './llm-client.js';
 import type { ReportOptions } from './report-generator.js';
 import type { ScanResult } from './scanner.js';
@@ -177,7 +178,19 @@ export class SecurityScannerOrchestrator {
         reportOptions,
       );
 
-      const gitignoreResult = skipGitignore ? undefined : await this.gitignoreUpdater.update();
+      let gitignoreResult: GitignoreUpdateResult | undefined;
+      if (!skipGitignore) {
+        if (this.gitignoreUpdater !== defaultGitignoreUpdater) {
+          gitignoreResult = await this.gitignoreUpdater.update();
+        } else {
+          const outputDir = reportOptions?.outputDir || 'security-reports';
+          const updater = new GitignoreUpdater({
+            gitignorePath: join(projectRoot, '.gitignore'),
+            entries: [`${outputDir}/`, `${outputDir}/*`],
+          });
+          gitignoreResult = await updater.update();
+        }
+      }
 
       return {
         detectionResult,

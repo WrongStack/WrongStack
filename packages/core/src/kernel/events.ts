@@ -425,6 +425,9 @@ export class ScopedEventBus extends EventBus {
    * `teardown()` will remove it automatically.
    */
   override on<E extends EventName>(event: E, fn: Listener<E>): () => void {
+    if (this.listenerCount() >= MAX_NAMED_LISTENERS) {
+      return super.on(event, fn);
+    }
     const key = this.nextKey++;
     const unsub = super.on(event, fn);
     this.registrations.set(key, unsub);
@@ -450,6 +453,13 @@ export class ScopedEventBus extends EventBus {
    * nothing to remove).
    */
   override once<E extends EventName>(event: E, fn: Listener<E>): () => void {
+    if (this.listenerCount() >= MAX_NAMED_LISTENERS) {
+      this.logger?.error(
+        `EventBus named listener limit (~${MAX_NAMED_LISTENERS}) reached — rejecting on("${event}"). ` +
+          'Callers must dispose their named listeners to prevent unbounded memory growth.',
+      );
+      return () => {};
+    }
     const key = this.nextKey++;
     const wrapper: Listener<E> = (payload) => {
       // Bypass ScopedEventBus.on() — go straight to EventBus.off() so we

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "1.0.0",
+  "packageVersion": "1.0.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1444,7 +1444,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3955
+      "sourceLines": 3978
     },
     {
       "directory": "models",

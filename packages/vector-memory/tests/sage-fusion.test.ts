@@ -156,6 +156,46 @@ describe('fuseWithVectorMemory', () => {
       close();
     }
   });
+
+  it('deduplicates multiple vector hits for the same sageId, keeping the highest score and single RRF rank', async () => {
+    const lexical = [
+      fakeSage('m1', 'alpha beta'),
+      fakeSage('m2', 'gamma delta'),
+    ];
+    const vectorHits = [
+      {
+        entry: { id: 'v1', text: 'm1 chunk 1', metadata: { sageId: 'm1' } },
+        score: 0.95,
+      },
+      {
+        entry: { id: 'v2', text: 'm1 chunk 2', metadata: { sageId: 'm1' } },
+        score: 0.20,
+      },
+      {
+        entry: { id: 'v3', text: 'm2 chunk 1', metadata: { sageId: 'm2' } },
+        score: 0.85,
+      },
+    ] as unknown as VectorSearchHit[];
+
+    const result = await fuseWithVectorMemory('query', lexical, {
+      vectorHits,
+      vectorWeight: 0.5,
+      rrfK: 60,
+    });
+
+    const m1 = result.find((r) => r.memory.id === 'm1')!;
+    const m2 = result.find((r) => r.memory.id === 'm2')!;
+
+    expect(m1.vectorScore).toBe(0.95);
+    // Single RRF contribution for m1 (rank 0 lexical + rank 0 vector)
+    const expectedM1Score = 0.5 * (1 / 61) + 0.5 * (1 / 61);
+    expect(m1.finalScore).toBeCloseTo(expectedM1Score, 5);
+
+    // m2 vector rank is 1, not 2
+    expect(m2.vectorScore).toBe(0.85);
+    const expectedM2Score = 0.5 * (1 / 62) + 0.5 * (1 / 62);
+    expect(m2.finalScore).toBeCloseTo(expectedM2Score, 5);
+  });
 });
 
 describe('asVectorRecallProvider', () => {

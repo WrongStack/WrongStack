@@ -179,6 +179,14 @@ describe('finalizeTaskCompletion', () => {
     const board = await createBoard(tmpDir, { title: 'Empty' });
     expect(await finalizeTaskCompletion(tmpDir, board.id, 'missing')).toBeNull();
   });
+
+  it('supports unique task id prefix in enforceCompletionGate', async () => {
+    const { boardId, taskId } = await boardWithTask({ gate: 'soft', checkStatus: 'passed' });
+    const prefix = taskId.slice(0, 8);
+    const gate = await enforceCompletionGate(tmpDir, boardId, prefix);
+    expect(gate).toBeDefined();
+    expect(gate.report?.taskId).toBe(taskId);
+  });
 });
 
 describe('validateDefinitionOfDone parity', () => {

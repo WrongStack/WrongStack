@@ -289,6 +289,28 @@ describe('Pipeline', () => {
       await expect(p.run(0)).rejects.toThrow('rethrown');
       expect(warnings).toHaveLength(0);
     });
+
+    it('does not re-invoke errorHandler for upstream middleware when downstream error rethrows', async () => {
+      const p = new Pipeline<number>();
+      const offenders: string[] = [];
+      useMiddleware(p, {
+        name: 'upstream',
+        handler: async (v, next) => next(v),
+      });
+      useMiddleware(p, {
+        name: 'crash',
+        handler: async () => {
+          throw new Error('downstream crash');
+        },
+      });
+      p.setErrorHandler((ev) => {
+        offenders.push(ev.middleware);
+        return 'rethrow';
+      });
+
+      await expect(p.run(1)).rejects.toThrow('downstream crash');
+      expect(offenders).toEqual(['crash']);
+    });
   });
 
   describe('asReadonly', () => {

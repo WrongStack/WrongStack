@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-06T18:33:52.452Z",
+  "generatedAt": "2026-09-06T19:49:35.842Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3644,
-    "testFiles": 3080,
-    "sourceLines": 872955,
+    "testFiles": 3081,
+    "sourceLines": 873079,
     "workspaceEdges": 127,
-    "moduleEdges": 11462,
+    "moduleEdges": 11463,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -371,7 +371,7 @@
       "name": "@wrongstack/persistence",
       "dir": "packages/persistence",
       "sourceFiles": 6,
-      "testFiles": 6,
+      "testFiles": 7,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -382,7 +382,7 @@
         {
           "path": "packages/persistence/tsconfig.test.json",
           "error": null,
-          "testFiles": 6
+          "testFiles": 7
         }
       ]
     },
@@ -9601,6 +9601,12 @@
       },
       {
         "file": "packages/persistence/tests/atomic-write-branches.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/persistence/tests/file-permissions.test.ts",
         "projects": [
           "root-node"
         ]

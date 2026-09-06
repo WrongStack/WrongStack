@@ -20,6 +20,7 @@
 // re-exports this file — importing the barrel would form a module cycle
 // (manager.ts ↔ verification/completion-protocol.ts) that check:architecture flags.
 import { getBoard } from '../manager/boards.js';
+import { findTask } from '../manager/task-lookup.js';
 import type {
   KanbanBoard,
   KanbanTask,
@@ -427,7 +428,7 @@ function collectAttachments(
   return attachments;
 }
 
-/** Find a task in the board's task array by id. */
+/** Find a task in the board's task array by id or prefix. */
 function findTaskInBoard(board: KanbanBoard, taskId: string): KanbanTask | undefined {
-  return board.tasks.find((t) => t.id === taskId);
+  return findTask(board, taskId);
 }

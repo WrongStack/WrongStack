@@ -135,12 +135,18 @@ export async function runSearchRace(
     });
   }
   // Patch vector scores + bucket.
+  const overlapById = new Map<string, (typeof overlap)[number]>();
+  for (const row of overlap) overlapById.set(row.id, row);
+
   for (const hit of vectorHits) {
     const sageId = (hit.entry.metadata as Record<string, unknown> | undefined)?.['sageId'];
     if (typeof sageId !== 'string') continue;
-    const existing = overlap.find((row) => row.id === sageId);
+    const existing = overlapById.get(sageId);
     if (existing) {
-      existing.vectorScore = hit.score;
+      // Keep the highest (first encountered) vector score
+      if (existing.vectorScore === null) {
+        existing.vectorScore = hit.score;
+      }
       continue;
     }
     if (seenIds.has(sageId)) continue;
@@ -152,9 +158,9 @@ export async function runSearchRace(
       preview: previewText(hit.entry.text, 140),
     });
   }
-  // Move "lexical only" (no vector hit) out of the overlap bucket.
-  for (let i = overlap.length - 1; i >= 0; i--) {
-    const row = overlap[i]!;
+  // Partition unpatched rows into lexicalOnly, preserving forward rank order.
+  const finalOverlap: SearchRaceResult['overlap'] = [];
+  for (const row of overlap) {
     if (row.vectorScore === null) {
       lexicalOnly.push({
         id: row.id,
@@ -162,27 +168,26 @@ export async function runSearchRace(
         vectorScore: null,
         preview: row.preview,
       });
-      overlap.splice(i, 1);
+    } else {
+      finalOverlap.push(row as SearchRaceResult['overlap'][number]);
     }
   }
 
-  const lexicalCount = lexicalOnly.length + overlap.length;
-  const vectorCount = vectorOnly.length + overlap.length;
+  const lexicalCount = lexicalOnly.length + finalOverlap.length;
+  const vectorCount = vectorOnly.length + finalOverlap.length;
   const denom = Math.max(lexicalCount, vectorCount, 1);
   return {
     query,
     lexicalOnly,
     vectorOnly,
-    // The sweep above removed every row still carrying a null vectorScore,
-    // so every remaining row holds a real number here.
-    overlap: overlap as SearchRaceResult['overlap'],
+    overlap: finalOverlap,
     metrics: {
       lexicalCount,
       vectorCount,
-      overlapCount: overlap.length,
+      overlapCount: finalOverlap.length,
       lexicalOnlyRatio: lexicalCount === 0 ? 0 : lexicalOnly.length / lexicalCount,
       vectorOnlyRatio: vectorCount === 0 ? 0 : vectorOnly.length / vectorCount,
-      agreementRatio: overlap.length / denom,
+      agreementRatio: finalOverlap.length / denom,
     },
   };
 }

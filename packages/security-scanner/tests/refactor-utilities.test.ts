@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { gatherFiles, shouldExcludeDir } from '../src/file-gathering.js';
+import { gatherFiles, shouldExcludeDir, shouldExcludeFile } from '../src/file-gathering.js';
 import { extractJsonBlock } from '../src/json-extractor.js';
 import { parseNodeDependencies } from '../src/manifest-parser.js';
 import { REDACTION_DIAGNOSTIC_RAW, runRedactionDiagnostic } from '../src/redaction-diagnostic.js';
@@ -51,6 +51,33 @@ describe('shared file gathering', () => {
     expect(shouldExcludeDir('cache', 'packages/cache', ['packages/*'])).toBe(true);
     expect(shouldExcludeDir('foo1', 'foo1', ['foo?'])).toBe(true);
     expect(shouldExcludeDir('src', 'src', ['', './'])).toBe(false);
+  });
+
+  it('filters individual files by pattern and hides dotfiles when excludeHidden is true', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'security-gather-files-'));
+    temporaryDirectories.push(root);
+
+    await fs.mkdir(path.join(root, 'src'), { recursive: true });
+    await fs.writeFile(path.join(root, 'src/main.ts'), 'content');
+    await fs.writeFile(path.join(root, 'src/main.test.ts'), 'test');
+    await fs.writeFile(path.join(root, 'src/.secret.ts'), 'secret');
+    await fs.writeFile(path.join(root, 'src/.env'), 'VAR=1');
+
+    expect(shouldExcludeFile('main.test.ts', 'src/main.test.ts', ['**/*.test.ts'])).toBe(true);
+    expect(shouldExcludeFile('main.ts', 'src/main.ts', ['**/*.test.ts'])).toBe(false);
+    expect(shouldExcludeFile('.secret.ts', 'src/.secret.ts', [], true)).toBe(true);
+    expect(shouldExcludeFile('.env', 'src/.env', [], true)).toBe(false);
+
+    const gathered = await gatherFiles({
+      root,
+      extensions: ['.ts', '.env'],
+      maxDepth: 5,
+      excludePatterns: ['**/*.test.ts'],
+      excludeHidden: true,
+    });
+
+    const relative = gathered.map((f) => path.relative(root, f).replace(/\\/g, '/')).sort();
+    expect(relative).toEqual(['src/.env', 'src/main.ts']);
   });
 });
 

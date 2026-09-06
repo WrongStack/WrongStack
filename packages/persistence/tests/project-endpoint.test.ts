@@ -176,4 +176,9 @@ describe('isProjectEndpointLive', () => {
       : path.join(os.tmpdir(), `wspe-absent-${process.pid}.sock`);
     expect(await isProjectEndpointLive(endpoint)).toBe(false);
   });
+
+  it('resolves to false without throwing when endpoint is malformed or invalid', async () => {
+    expect(await isProjectEndpointLive('')).toBe(false);
+    expect(await isProjectEndpointLive('invalid:99999')).toBe(false);
+  });
 });

@@ -102,13 +102,18 @@ export function isProjectEndpointLive(
 ): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     let settled = false;
+    let probe: net.Socket;
+    try {
+      probe = net.createConnection(endpoint);
+    } catch {
+      return resolve(false);
+    }
     const finish = (live: boolean): void => {
       if (settled) return;
       settled = true;
       probe.destroy();
       resolve(live);
     };
-    const probe = net.createConnection(endpoint);
     const timer = setTimeout(() => finish(false), timeoutMs);
     timer.unref?.();
     probe.once('connect', () => {

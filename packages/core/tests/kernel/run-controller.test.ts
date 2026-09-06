@@ -227,4 +227,40 @@ describe('RunController', () => {
     expect(fast1Count).toBe(1);
     expect(fast2Count).toBe(1);
   });
+
+  it('awaits in-flight hooks across concurrent and repeated dispose calls', async () => {
+    let hookFinished = false;
+    const c = new RunController();
+    c.onAbort(async () => {
+      await new Promise((r) => setTimeout(r, 40));
+      hookFinished = true;
+    });
+
+    const p1 = c.dispose();
+    const p2 = c.dispose();
+    await p2;
+    await p1;
+
+    expect(hookFinished).toBe(true);
+
+    // Sequential dispose calls after drain remain idempotent and resolved
+    await c.dispose();
+    expect(hookFinished).toBe(true);
+  });
+
+  it('retains _hooksPromise and awaits async hooks on pre-aborted parentSignal dispose', async () => {
+    const parent = new AbortController();
+    parent.abort('pre');
+    const c = new RunController({ parentSignal: parent.signal });
+    let hookFinished = false;
+    c.onAbort(async () => {
+      await new Promise((r) => setTimeout(r, 40));
+      hookFinished = true;
+    });
+
+    await new Promise((r) => queueMicrotask(r));
+    await c.dispose();
+    expect(hookFinished).toBe(true);
+  });
 });
+

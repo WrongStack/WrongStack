@@ -68,8 +68,9 @@ export interface RestrictPermissionsOptions {
  * block the write it protects, and `icacls` is absent in some minimal
  * environments (containers, WINE, restricted CI images).
  */
-export async function restrictFilePermissions(
-  filePath: string,
+async function applyPermissions(
+  targetPath: string,
+  isDir: boolean,
   opts?: RestrictPermissionsOptions,
 ): Promise<void> {
   const label = opts?.label ?? 'file-permissions';
@@ -79,17 +80,19 @@ export async function restrictFilePermissions(
       const user = windowsAccountName();
       if (!user) {
         warn(
-          `[${label}] Could not determine the current Windows user for ${filePath}; skipping icacls hardening.`,
+          `[${label}] Could not determine the current Windows user for ${targetPath}; skipping icacls hardening.`,
         );
         return;
       }
-      // Remove inherited ACEs, grant full control only to current user.
+      // Remove inherited ACEs. For directories, include (OI)(CI) so child files
+      // and subdirectories inherit full control only to the current user.
       const execFn = getExecFileAsync();
       if (!execFn) {
         warn(`[${label}] child_process.execFile unavailable on this platform.`);
         return;
       }
-      await execFn('icacls', [filePath, '/inheritance:r', '/grant:r', `${user}:(F)`], {
+      const perm = isDir ? `${user}:(OI)(CI)(F)` : `${user}:(F)`;
+      await execFn('icacls', [targetPath, '/inheritance:r', '/grant:r', perm], {
         windowsHide: true,
       });
     } catch (error) {
@@ -98,19 +101,36 @@ export async function restrictFilePermissions(
       // spawn) has nothing left to protect, so only real failures on live
       // files warn — and the warning carries icacls's own error so operators
       // can act on it instead of guessing.
-      if (await pathIsGone(filePath)) return;
+      if (await pathIsGone(targetPath)) return;
       const reason = error instanceof Error ? error.message : String(error);
       warn(
-        `[${label}] Could not restrict permissions on ${filePath} (${reason}) — it may be readable by other users on this system.`,
+        `[${label}] Could not restrict permissions on ${targetPath} (${reason}) — it may be readable by other users on this system.`,
       );
     }
   } else {
     try {
-      await chmod(filePath, SECRET_FILE_MODE);
+      await chmod(targetPath, isDir ? SECRET_DIR_MODE : SECRET_FILE_MODE);
     } catch {
       // Best-effort
     }
   }
+}
+
+/**
+ * Restrict a file to owner-only access.
+ *
+ * POSIX: `chmod 0600`. Windows: `chmod` cannot express this, so we use
+ * `icacls` to drop inherited ACEs and grant the current user alone.
+ *
+ * Failures are warned, never thrown — a hardening step must not be able to
+ * block the write it protects, and `icacls` is absent in some minimal
+ * environments (containers, WINE, restricted CI images).
+ */
+export async function restrictFilePermissions(
+  filePath: string,
+  opts?: RestrictPermissionsOptions,
+): Promise<void> {
+  return applyPermissions(filePath, false, opts);
 }
 
 /** True when the path no longer exists — there is nothing left to harden. */
@@ -133,15 +153,7 @@ export async function restrictDirPermissions(
   dirPath: string,
   opts?: RestrictPermissionsOptions,
 ): Promise<void> {
-  if (process.platform === 'win32') {
-    await restrictFilePermissions(dirPath, opts);
-    return;
-  }
-  try {
-    await chmod(dirPath, SECRET_DIR_MODE);
-  } catch {
-    // Best-effort
-  }
+  return applyPermissions(dirPath, true, opts);
 }
 
 function windowsAccountName(): string | undefined {

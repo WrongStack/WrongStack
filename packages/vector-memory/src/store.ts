@@ -432,7 +432,7 @@ export class VectorMemoryStore {
       const vec = decodeVector(row.vec_blob);
       const raw = cosineSimilarity(queryVec, vec);
       const score = Math.max(0, Math.min(1, raw));
-      if (score < threshold) continue;
+      if (!Number.isFinite(score) || score < threshold) continue;
       if (top.length >= limit && score <= (top[top.length - 1]?.score ?? 0)) continue;
       let at = top.length;
       while (at > 0 && (top[at - 1]?.score ?? 0) < score) at--;

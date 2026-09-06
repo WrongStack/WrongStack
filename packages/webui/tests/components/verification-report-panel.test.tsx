@@ -3,6 +3,13 @@
  * states, check results, file scope, sub-tasks, and attachments. Accounts for
  * the component's collapsible section defaults (Check Results opens when
  * verdict !== 'passed'; other sections start collapsed).
+ *
+ * The panel renders `activity:verifyReport.*` labels. Since the B-13 i18n
+ * slim-down (2cda2161b) the `activity` namespace is no longer bundled inline —
+ * it resolves through the async resourcesToBackend chunks, whose load timing is
+ * non-deterministic under vitest/jsdom (same constraint as
+ * tests/i18n/locale-switch.test.tsx). Register the English bundle synchronously
+ * so translated-label assertions stay deterministic.
  */
 
 import { render, screen } from '@testing-library/react';
@@ -13,8 +20,14 @@ import type {
   KanbanVerificationReport,
   KanbanVerificationSubtasks,
 } from '@wrongstack/kanban';
-import { expect, test } from 'vitest';
+import { beforeAll, expect, test } from 'vitest';
 import { VerificationReportPanel } from '../../src/components/VerificationReportPanel';
+import { i18n } from '../../src/i18n';
+import activity_en from '../../src/i18n/locales/en/activity.json';
+
+beforeAll(() => {
+  i18n.addResourceBundle('en', 'activity', activity_en, true, true);
+});
 
 const BASE: Omit<KanbanVerificationReport, 'verdict'> = {
   taskId: 't1',

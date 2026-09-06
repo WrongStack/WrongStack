@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BOOLEAN_FLAGS, parseArgs, parseAuthFlags, parseSpawnFlags } from '../src/arg-parser.js';
+import { resolveExecutionMode } from '../src/boot/execution-mode.js';
 
 describe('parseArgs', () => {
   it('keeps --tunnel boolean without consuming a following password flag', () => {
@@ -132,6 +133,40 @@ describe('parseArgs', () => {
   it('parses the explicit SimpleUI full-auto profile as a boolean flag', () => {
     expect(parseArgs(['simpleui', '--full-auto', '--open'])).toEqual({
       flags: { simpleui: true, webui: true, 'full-auto': true, open: true },
+      positional: [],
+    });
+  });
+
+  it('parses --prompt as a value flag (one-shot prompt text reaches the agent)', () => {
+    // Every consumer string-checks flags['prompt'] (execution.ts unshifts it
+    // into the query, boot/execution-mode.ts selects single-shot from it,
+    // boot.ts and boot/launch-menu.ts gate on it), and launch-menu documents
+    // `--prompt <x>`. While 'prompt' sat in BOOLEAN_FLAGS the value was
+    // demoted to a positional and the flag contract was dead on arrival.
+    expect(BOOLEAN_FLAGS.has('prompt')).toBe(false);
+    expect(parseArgs(['--prompt', 'deploy notes'])).toEqual({
+      flags: { prompt: 'deploy notes' },
+      positional: [],
+    });
+  });
+
+  it('runs a surface-keyword --prompt value as a one-shot query, not a surface launch', () => {
+    // Regression: `wstack --prompt hq` used to normalize the demoted
+    // positional into flags.hq / flags.webui with an empty positional, so the
+    // CLI launched that surface instead of running the user's prompt.
+    for (const kw of ['hq', 'webui']) {
+      const r = parseArgs(['--prompt', kw]);
+      expect(r.flags['prompt']).toBe(kw);
+      expect(r.positional).toEqual([]);
+      expect(resolveExecutionMode(r.positional, r.flags)).toBe('single-shot');
+    }
+  });
+
+  it('still treats a valueless --prompt as boolean true', () => {
+    // A bare --prompt (next token is another flag) stays truthy, which every
+    // string-checking consumer reads as "no prompt supplied".
+    expect(parseArgs(['--prompt', '--yolo'])).toEqual({
+      flags: { prompt: true, yolo: true },
       positional: [],
     });
   });

@@ -209,8 +209,15 @@ class KanbanServerConnection {
           continue;
         }
         if (parsed.type === 'event') {
-          for (const listener of this.eventListeners)
-            listener(parsed as unknown as KanbanServerEvent);
+          for (const listener of this.eventListeners) {
+            try {
+              listener(parsed as unknown as KanbanServerEvent);
+            } catch {
+              // One bad listener must not break the others — mirrors the
+              // disconnect-listener isolation in onClose() and the server-side
+              // emitter in event-emitter.ts.
+            }
+          }
           continue;
         }
         if (typeof parsed.id === 'number') {

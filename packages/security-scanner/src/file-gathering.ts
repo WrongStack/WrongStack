@@ -137,6 +137,28 @@ export function shouldExcludeDir(
   });
 }
 
+export function shouldExcludeFile(
+  name: string,
+  relativePath: string,
+  excludePatterns: string[] = DEFAULT_EXCLUDE_PATTERNS,
+  excludeHidden = false,
+): boolean {
+  if (excludeHidden && name.startsWith('.') && !name.startsWith('.env')) return true;
+
+  const normalizedPath = relativePath.includes('\\')
+    ? relativePath.replace(/\\/g, '/')
+    : relativePath;
+  return excludePatterns.some((rawPattern) => {
+    const pattern = rawPattern.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
+    if (!pattern) return false;
+    if (!pattern.includes('*') && !pattern.includes('?') && !pattern.includes('/')) {
+      return name === pattern;
+    }
+    const matcher = getGlobRegex(pattern);
+    return matcher.test(normalizedPath);
+  });
+}
+
 export async function gatherFiles(options: GatherFilesOptions): Promise<string[]> {
   const extensions = [
     ...new Set(
@@ -172,18 +194,30 @@ export async function gatherFiles(options: GatherFilesOptions): Promise<string[]
             continue;
           }
           await visit(fullPath, currentDepth + 1);
-        } else if (
-          entry.isFile() &&
-          (extensions.length === 0 ||
+        } else if (entry.isFile()) {
+          const relativeFilePath = relative(options.root, fullPath).replace(/\\/g, '/');
+          if (
+            shouldExcludeFile(
+              entry.name,
+              relativeFilePath,
+              options.excludePatterns,
+              options.excludeHidden,
+            )
+          ) {
+            continue;
+          }
+          if (
+            extensions.length === 0 ||
             extensions.some((extension) => {
               const lowerName = entry.name.toLowerCase();
               return (
                 lowerName.endsWith(extension) ||
                 (extension === '.env' && lowerName.startsWith('.env'))
               );
-            }))
-        ) {
-          files.push(fullPath);
+            })
+          ) {
+            files.push(fullPath);
+          }
         }
       }
     } catch {

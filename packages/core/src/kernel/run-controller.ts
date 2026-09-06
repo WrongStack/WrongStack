@@ -25,7 +25,6 @@ export interface RunControllerOptions {
 export class RunController {
   private readonly ctrl = new AbortController();
   private readonly hooks: Array<() => void | Promise<void>> = [];
-  private disposed = false;
   private hooksDrained = false;
   private readonly errorSink: (err: unknown, where: string) => void;
   /**
@@ -63,7 +62,7 @@ export class RunController {
         // returning and the next microtask checkpoint are captured by the
         // hook array before runHooks() snapshots it.
         queueMicrotask(() => {
-          void this.runHooks();
+          void this.ensureHooksRun();
         });
       } else {
         const onParentAbort = () => this.ctrl.abort(parent.reason);
@@ -131,8 +130,6 @@ export class RunController {
    * aborts become no-ops.
    */
   async dispose(): Promise<void> {
-    if (this.disposed) return;
-    this.disposed = true;
     await this.ensureHooksRun();
   }
 

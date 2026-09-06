@@ -99,6 +99,15 @@ describe('resolveKindFilter', () => {
     expect(result.exclude.has('session_mirror')).toBe(false);
   });
 
+  it('explicit empty excludeBoardKinds disables all default exclusions', () => {
+    const result = resolveKindFilter({
+      excludeBoardKinds: [],
+    });
+    expect(result.exclude.size).toBe(0);
+    expect(result.exclude.has('session_mirror')).toBe(false);
+    expect(result.exclude.has('archive')).toBe(false);
+  });
+
   it('boardPassesKindFilter checks include set', () => {
     const board: KanbanBoard = {
       id: 'b1',

@@ -202,9 +202,25 @@ export class Pipeline<T> {
       index = i;
       const mw = chain[i];
       if (!mw) return value;
+      let downstreamErr: unknown = undefined;
+      let hasDownstreamErr = false;
       try {
-        return await mw.handler(value, (v) => dispatch(i + 1, v));
+        return await mw.handler(value, async (v) => {
+          try {
+            return await dispatch(i + 1, v);
+          } catch (err) {
+            downstreamErr = err;
+            hasDownstreamErr = true;
+            throw err;
+          }
+        });
       } catch (err) {
+        // If the error originated downstream in next() and bubbled up through this
+        // middleware without being caught or replaced, this middleware did not crash.
+        // It simply propagated an error that was already processed by the error boundary.
+        if (hasDownstreamErr && err === downstreamErr) {
+          throw err;
+        }
         if (!errorHandler) throw err;
         const policy = await errorHandler({ middleware: mw.name, owner: mw.owner, err });
         if (policy === 'rethrow') throw err;

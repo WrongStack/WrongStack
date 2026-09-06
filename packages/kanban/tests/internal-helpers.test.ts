@@ -420,6 +420,12 @@ describe('findTask', () => {
   it('returns undefined when nothing matches', () => {
     expect(findTask(b, 'zzz')).toBeUndefined();
   });
+  it('returns undefined for empty or whitespace-only taskId', () => {
+    expect(findTask(b, '')).toBeUndefined();
+    expect(findTask(b, '   ')).toBeUndefined();
+    const single = board([task({ id: 'only-one' })]);
+    expect(findTask(single, '')).toBeUndefined();
+  });
 });
 
 describe('resolveTaskRefs', () => {

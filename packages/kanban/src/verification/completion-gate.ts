@@ -114,7 +114,7 @@ export async function enforceCompletionGate(
     return { allowed: true, enforcement, verdict: 'skipped', issues: [] };
   }
 
-  const result = await verifyTaskCompletion(projectRoot, boardId, taskId, {
+  const result = await verifyTaskCompletion(projectRoot, boardId, task.id, {
     ...(options.registry !== undefined ? { registry: options.registry } : {}),
     persist: false,
   });

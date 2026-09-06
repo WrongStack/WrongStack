@@ -235,6 +235,25 @@ describe('SecurityScannerOrchestrator.run — full flow', () => {
       /No supported tech stack/,
     );
   });
+
+  it('updates .gitignore inside projectRoot with custom report outputDir', async () => {
+    const complete = vi
+      .fn<Provider['complete']>()
+      .mockResolvedValueOnce(textResponse(SKILL_JSON))
+      .mockResolvedValue(textResponse('[]'));
+    const orch = new SecurityScannerOrchestrator();
+    const customReportDir = 'custom-reports-dir';
+    const res = await orch.run(fakeProvider(complete), {
+      projectRoot,
+      reportOptions: { outputDir: customReportDir },
+    });
+
+    const targetGitignore = path.join(projectRoot, '.gitignore');
+    const content = await fs.readFile(targetGitignore, 'utf-8');
+    expect(res.gitignoreResult?.added).toContain(`${customReportDir}/`);
+    expect(content).toContain(`${customReportDir}/`);
+    expect(content).toContain(`${customReportDir}/*`);
+  });
 });
 
 describe('SecurityScannerOrchestrator — LLM failure fallbacks', () => {

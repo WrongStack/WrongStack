@@ -458,46 +458,34 @@ describe('maybeRunSystemPromptMenu', () => {
   });
 
   it('captures a persistence failure in persistError instead of throwing', async () => {
-    // Own the parent directory: chmod'ing the root-owned shared /tmp fails
-    // with EPERM on Linux CI (the old tmpProfileConfig placed the file
-    // directly under os.tmpdir()). A mkdtemp dir is ours to chmod 0o555.
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-spm-ro-'));
-    const configPath = path.join(dir, 'config.json');
-    // Pre-create the file with a parseable JSON so the loader does NOT short-
-    // circuit. Then make the directory read-only so the atomicWrite fails.
+    // Failure is injected at the persistence seam instead of relying on
+    // chmod semantics: Windows only partially honors the read-only attribute
+    // for directory renames, so atomicWrite could succeed, persistError
+    // stayed undefined, and this test failed on win32.
+    const configPath = tmpProfileConfig();
+    // A parseable config keeps the read path real: the loader sees no saved
+    // variant, so the menu opens and the selection differs → the persist seam runs.
     await fs.writeFile(configPath, JSON.stringify({}), 'utf8');
-    await fs.chmod(configPath, 0o444);
-    await fs.chmod(path.dirname(configPath), 0o555);
     const { renderer, reader } = makeGateHarness(['2']); // pick 'default'
-    let res: SystemPromptMenuOutcome | undefined;
-    // On Windows the failing atomicWrite exhausts its rename retries and
-    // emits a diagnostic process warning by design; spy it out so this
-    // negative-path test stays silent.
-    const emitSpy = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
-    try {
-      res = await maybeRunSystemPromptMenu({
-        isInteractiveTTY: true,
-        flags: {},
-        renderer,
-        reader,
-        profileConfigPath: configPath,
-        paths: gatePaths(),
-      });
-    } finally {
-      emitSpy.mockRestore();
-      // Restore so the temp dir can be cleaned up.
-      try {
-        await fs.chmod(path.dirname(configPath), 0o755);
-        await fs.chmod(configPath, 0o644);
-      } catch {
-        // best-effort
-      }
-      await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
-    }
-    expect(res).toBeDefined();
-    expect(res?.aborted).toBe(false);
-    expect(res?.variant).toBe('default');
-    expect(res?.changed).toBe(true);
-    expect(res?.persistError).toBeDefined();
+    const persistCalls: Array<Parameters<typeof persistSystemPromptVariant>> = [];
+    const res: SystemPromptMenuOutcome = await maybeRunSystemPromptMenu({
+      isInteractiveTTY: true,
+      flags: {},
+      renderer,
+      reader,
+      profileConfigPath: configPath,
+      paths: gatePaths(),
+      persist: async (p, variant) => {
+        persistCalls.push([p, variant]);
+        throw new Error('injected persist failure');
+      },
+    });
+    expect(res.aborted).toBe(false);
+    expect(res.variant).toBe('default');
+    expect(res.changed).toBe(true);
+    // The captured error is the injected one — not a platform accident.
+    expect((res.persistError as Error | undefined)?.message).toBe('injected persist failure');
+    // The seam is only consulted for real writes, with the caller's args.
+    expect(persistCalls).toEqual([[configPath, 'default']]);
   });
 });

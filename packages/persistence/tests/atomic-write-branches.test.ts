@@ -485,4 +485,14 @@ describe('persistence primitive edge branches', () => {
       }),
     ).rejects.toBe(boom);
   });
+
+  it('temporarily clears Windows read-only attribute so atomicWrite can replace read-only target', async () => {
+    usePlatform('win32');
+    doubles.fs.stat.mockResolvedValue({ mode: 0o444, isDirectory: () => false });
+    const primitives = createPersistencePrimitives();
+
+    await primitives.atomicWrite('C:\\tmp\\readonly.txt', 'value', { mode: 0o444 });
+    expect(doubles.fs.chmod).toHaveBeenCalledWith('C:\\tmp\\readonly.txt', 0o666);
+    expect(doubles.fs.rename).toHaveBeenCalled();
+  });
 });

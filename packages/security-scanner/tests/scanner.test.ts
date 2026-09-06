@@ -143,6 +143,60 @@ describe('SecurityScanner', () => {
       await fs.rm(tmpDir, { recursive: true, force: true });
     });
 
+    it('emits at most one finding per pattern per line when multiple regexes match', async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-scanner-dedup-'));
+      const testFile = path.join(tmpDir, 'combo.ts');
+      await fs.writeFile(testFile, 'const api_key_secret = "sktestabcdefghij1234567890";\n');
+
+      const patterns: SecurityPattern[] = [
+        {
+          id: 'combo-pattern',
+          name: 'Combo Pattern',
+          severity: 'critical',
+          description: 'Matches both keywords',
+          patterns: [/api[_-]?key/i, /secret/i],
+          fileExtensions: ['.ts'],
+          falsePositiveMarkers: [],
+          remediation: 'Fix',
+        },
+      ];
+
+      const skill = createMockSkill(patterns);
+      const techStack = createMockTechStack();
+      const result = await scanner.scan(tmpDir, skill, techStack);
+
+      expect(result.findings).toHaveLength(1);
+      expect(result.findings[0]?.line).toBe(1);
+
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('handles patterns without falsePositiveMarkers without throwing', async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-scanner-no-markers-'));
+      const testFile = path.join(tmpDir, 'auth.ts');
+      await fs.writeFile(testFile, 'const token = "1234567890";\n');
+
+      const patterns = [
+        {
+          id: 'no-markers',
+          name: 'No Markers',
+          severity: 'low',
+          description: 'Detects token',
+          patterns: [/token/i],
+          fileExtensions: ['.ts'],
+          remediation: 'Fix',
+        },
+      ] as unknown as SecurityPattern[];
+
+      const skill = createMockSkill(patterns);
+      const techStack = createMockTechStack();
+      const result = await scanner.scan(tmpDir, skill, techStack);
+
+      expect(result.findings).toHaveLength(1);
+
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
     it('respects excludePaths option', async () => {
       const scannerWithExcludes = new SecurityScanner({
         excludePaths: ['node_modules', 'dist'],

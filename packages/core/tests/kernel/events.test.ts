@@ -144,6 +144,34 @@ describe('ScopedEventBus', () => {
     expect(a).not.toHaveBeenCalled();
     expect(b).toHaveBeenCalled();
   });
+
+  it('enforces MAX_NAMED_LISTENERS cap on on() and once() without leaking tracking entries', () => {
+    const bus = new ScopedEventBus();
+    const loggerErrors: string[] = [];
+    bus.setLogger({
+      error: (msg) => {
+        loggerErrors.push(String(msg));
+      },
+    });
+
+    for (let i = 0; i < 2000; i++) {
+      bus.on('session.started', () => {});
+    }
+    expect(bus.scopedListenerCount).toBe(2000);
+    expect(bus.listenerCount()).toBe(2000);
+
+    // Over-cap registrations must be rejected and not recorded in tracking map
+    const rejectedOff = bus.on('session.started', () => {});
+    const rejectedOnceOff = bus.once('session.started', () => {});
+
+    expect(bus.scopedListenerCount).toBe(2000);
+    expect(bus.listenerCount()).toBe(2000);
+    expect(loggerErrors.length).toBeGreaterThanOrEqual(2);
+
+    expect(() => rejectedOff()).not.toThrow();
+    expect(() => rejectedOnceOff()).not.toThrow();
+    expect(bus.scopedListenerCount).toBe(2000);
+  });
 });
 
 describe('EventBus', () => {

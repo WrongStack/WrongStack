@@ -32,9 +32,10 @@ export function resolveKindFilter(filter: BoardKindFilter | undefined): {
       exclude: new Set(),
     };
   }
-  const excluded = filter?.excludeBoardKinds?.length
-    ? new Set(filter.excludeBoardKinds)
-    : new Set(DEFAULT_EXCLUDED_KINDS);
+  const excluded =
+    filter?.excludeBoardKinds !== undefined
+      ? new Set(filter.excludeBoardKinds)
+      : new Set(DEFAULT_EXCLUDED_KINDS);
   return { include: undefined, exclude: excluded };
 }
 

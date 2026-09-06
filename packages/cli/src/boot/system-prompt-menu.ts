@@ -200,6 +200,13 @@ export async function maybeRunSystemPromptMenu(opts: {
   reader: ReadlineInputReader;
   profileConfigPath: string;
   paths: SystemPromptMenuPaths;
+  /**
+   * Persistence override — defaults to the real `persistSystemPromptVariant`.
+   * Test seam: lets the persistence-failure path be exercised deterministically
+   * on every platform instead of relying on chmod semantics, which Windows
+   * does not reliably honor for directory renames.
+   */
+  persist?: typeof persistSystemPromptVariant | undefined;
 }): Promise<SystemPromptMenuOutcome> {
   if (!opts.isInteractiveTTY) return { aborted: false, changed: false };
   if (shouldSkipSystemPromptMenu(opts.flags)) return { aborted: false, changed: false };
@@ -218,7 +225,7 @@ export async function maybeRunSystemPromptMenu(opts: {
     });
     if (chosen === savedVariant) return { variant: chosen, aborted: false, changed: false };
     try {
-      await persistSystemPromptVariant(opts.profileConfigPath, chosen);
+      await (opts.persist ?? persistSystemPromptVariant)(opts.profileConfigPath, chosen);
     } catch (err) {
       return { variant: chosen, aborted: false, changed: true, persistError: err };
     }

@@ -144,13 +144,17 @@ export async function fuseWithVectorMemory(
   // Build the vector-side rank list, only including hits that map to a
   // SAGE memory present in the lexical list (otherwise fusion would
   // inject foreign Sage objects the caller never asked for).
+  // Deduplicate by sageId so each SAGE memory has exactly one vector rank
+  // (its highest-scoring hit), preventing duplicate RRF score accumulation.
   const vectorRanked: Array<{ memory: Sage; vectorScore: number }> = [];
+  const seenVectorSageIds = new Set<string>();
   for (let i = 0; i < vectorHits.length; i++) {
     const hit = vectorHits[i]!;
     const sageId = (hit.entry.metadata as Record<string, unknown> | undefined)?.['sageId'];
-    if (typeof sageId !== 'string') continue;
+    if (typeof sageId !== 'string' || seenVectorSageIds.has(sageId)) continue;
     const memory = sageById.get(sageId);
     if (!memory) continue;
+    seenVectorSageIds.add(sageId);
     vectorRanked.push({ memory, vectorScore: hit.score });
   }
 

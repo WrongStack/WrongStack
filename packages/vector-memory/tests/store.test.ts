@@ -9,7 +9,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { VectorMemoryStore, type SageSyncSource } from '../src/index.js';
+import { VectorMemoryStore, encodeVector, type SageSyncSource } from '../src/index.js';
 import type { VectorMemoryStoreOptions } from '../src/index.js';
 import { FakeEmbeddingProvider } from './fake-provider.js';
 
@@ -136,4 +136,23 @@ describe('VectorMemoryStore', () => {
   it('records the active provider id in schema_meta', () => {
     expect(store.activeProviderId).toMatch(/^fake-v1-/);
   });
+
+  it('skips corrupted vectors that produce NaN cosine similarity in search', async () => {
+    const valid = await store.remember({ text: 'valid entry to find' });
+    const corrupted = await store.remember({ text: 'corrupted entry' });
+
+    // Corrupt the vector blob for the second entry with NaNs
+    const nanVector = new Float32Array(64).fill(Number.NaN);
+    const db = (store as unknown as { db: any }).db;
+    db.prepare('UPDATE vectors SET vector = ? WHERE entry_id = ?').run(
+      encodeVector(nanVector),
+      corrupted.id
+    );
+
+    const hits = await store.search('valid entry', { limit: 10, threshold: 0.1 });
+    expect(hits.map((h) => h.entry.id)).toContain(valid.id);
+    expect(hits.map((h) => h.entry.id)).not.toContain(corrupted.id);
+    expect(hits.every((h) => Number.isFinite(h.score))).toBe(true);
+  });
 });
+

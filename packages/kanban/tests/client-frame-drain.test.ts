@@ -92,3 +92,74 @@ describe('Kanban IPC client frame draining', () => {
     sockets[0]?.destroy();
   });
 });
+
+describe('Kanban IPC client event listener isolation', () => {
+  it('a throwing event listener does not block later subscribers', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-listener-iso-'));
+    roots.push(root);
+    const endpoint = kanbanProjectServerEndpoint(root);
+    sockEndpoints.push(endpoint);
+    await fs.mkdir(path.dirname(endpoint), { recursive: true }).catch(() => {});
+    const server = net.createServer((socket) => {
+      sockets.push(socket);
+      socket.setEncoding('utf8');
+      socket.write(
+        `${JSON.stringify({
+          type: 'hello',
+          protocolVersion: KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
+          pid: process.pid,
+          projectRoot: root,
+          endpoint,
+          storage: 'sqlite',
+          databasePath: path.join(root, '_kanban.sqlite'),
+          startedAt: new Date().toISOString(),
+        })}\n`,
+      );
+      socket.once('data', (chunk: string) => {
+        const request = JSON.parse(chunk.trim()) as { id: number };
+        const event = {
+          type: 'event',
+          event: 'board.updated',
+          data: { boardId: 'board-1' },
+        };
+        const response = {
+          id: request.id,
+          ok: true,
+          result: {
+            protocolVersion: KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
+            pid: process.pid,
+            projectRoot: root,
+            endpoint,
+            storage: 'sqlite',
+            databasePath: path.join(root, '_kanban.sqlite'),
+            startedAt: new Date().toISOString(),
+            clients: 1,
+            pendingRequests: 0,
+          },
+        };
+        socket.write(`${JSON.stringify(event)}\n${JSON.stringify(response)}\n`);
+      });
+    });
+    servers.push(server);
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(endpoint, resolve);
+    });
+
+    const connection = await getKanbanServerConnection(root);
+    expect(connection).not.toBeNull();
+    const seen: string[] = [];
+    // The ping response only resolves after BOTH frames in the coalesced chunk
+    // have been processed (event first, response second), so the assertion
+    // below is deterministic — no sleeps.
+    connection!.subscribe(() => {
+      throw new Error('listener boom');
+    });
+    connection!.subscribe((event) => seen.push(event.event));
+
+    await connection!.request('ping', {}, { timeoutMs: 1_000 });
+
+    expect(seen).toEqual(['board.updated']);
+    sockets[0]?.destroy();
+  });
+});

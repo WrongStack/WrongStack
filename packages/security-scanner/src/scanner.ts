@@ -177,8 +177,10 @@ export class SecurityScanner {
         if (!matchesExt) continue;
       }
 
-      for (const regex of pattern.patterns) {
+      const matchedLines = new Set<number>();
+      for (const regex of pattern.patterns ?? []) {
         for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+          if (matchedLines.has(lineNum)) continue;
           const line = lines[lineNum];
           if (!line) continue;
 
@@ -191,6 +193,7 @@ export class SecurityScanner {
           regex.lastIndex = 0;
 
           if (regex.test(line)) {
+            matchedLines.add(lineNum);
             // Check false positive markers
             if (this.isFalsePositive(line, pattern.falsePositiveMarkers)) {
               continue;
@@ -268,7 +271,8 @@ export class SecurityScanner {
     return levels[index] ?? 'medium';
   }
 
-  private isFalsePositive(line: string, markers: string[]): boolean {
+  private isFalsePositive(line: string, markers?: string[]): boolean {
+    if (!markers || markers.length === 0) return false;
     for (const marker of markers) {
       if (line.includes(marker)) {
         return true;

@@ -192,4 +192,36 @@ describe('runSearchRace — zero-score vector hits', () => {
     expect(race.metrics.lexicalOnlyRatio).toBe(0.5);
     expect(race.metrics.agreementRatio).toBe(0.5);
   });
+
+  it('preserves forward lexical ranking order in lexicalOnly', async () => {
+    const lexical = [
+      { id: 'm1', text: 'top hit' },
+      { id: 'm2', text: 'second hit' },
+      { id: 'm3', text: 'third hit' },
+    ] as unknown as Sage[];
+    const emptyStore = {
+      search: async () => [] as VectorSearchHit[],
+    } as unknown as VectorMemoryStore;
+
+    const race = await runSearchRace('query', lexical, emptyStore, { limit: 10 });
+    expect(race.lexicalOnly.map((r) => r.id)).toEqual(['m1', 'm2', 'm3']);
+    expect(race.lexicalOnly.map((r) => r.lexicalScore)).toEqual([1, 0.5, 0]);
+  });
+
+  it('retains the highest score when multiple vector hits reference the same sageId', async () => {
+    const lexical = [
+      { id: 'm1', text: 'top hit' },
+    ] as unknown as Sage[];
+    const store = {
+      search: async () => [
+        { entry: { id: 'v1', text: 'chunk 1', metadata: { sageId: 'm1' } }, score: 0.95 },
+        { entry: { id: 'v2', text: 'chunk 2', metadata: { sageId: 'm1' } }, score: 0.25 },
+      ] as unknown as VectorSearchHit[],
+    } as unknown as VectorMemoryStore;
+
+    const race = await runSearchRace('query', lexical, store, { limit: 10 });
+    const overlapHit = race.overlap.find((h) => h.id === 'm1');
+    expect(overlapHit?.vectorScore).toBe(0.95);
+  });
 });
+

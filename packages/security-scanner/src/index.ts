@@ -1,6 +1,6 @@
 export { defaultTechStackDetector, TechStackDetector } from './detector.js';
 export type { GatherFilesOptions } from './file-gathering.js';
-export { DEFAULT_EXCLUDE_PATTERNS, gatherFiles, shouldExcludeDir } from './file-gathering.js';
+export { DEFAULT_EXCLUDE_PATTERNS, gatherFiles, shouldExcludeDir, shouldExcludeFile } from './file-gathering.js';
 export {
   defaultGitignoreUpdater,
   GitignoreUpdater,

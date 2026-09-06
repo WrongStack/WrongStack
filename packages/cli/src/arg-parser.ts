@@ -26,7 +26,6 @@ export const BOOLEAN_FLAGS = new Set([
   'no-recovery',
   'recover',
   'output-json',
-  'prompt',
   'metrics',
   'webui',
   'webui-session-child',
