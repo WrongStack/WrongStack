@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { FullConfig } from '@playwright/test';
 
@@ -67,7 +68,18 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
       // any explicit `process.exit()` — which separates "something called
       // exit" from "the event loop simply emptied out".
       WRONGSTACK_LOG_LEVEL: process.env.WRONGSTACK_LOG_LEVEL ?? 'debug',
-      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--trace-exit'].filter(Boolean).join(' '),
+      // `--trace-exit` already ruled out an explicit `process.exit()` on CI, so
+      // the boot is losing the event loop while still awaiting something. The
+      // preload records where each promise was created and dumps the ones still
+      // pending when the loop goes idle — the only evidence that names the call
+      // site. CI-only: async_hooks tracking is not free.
+      NODE_OPTIONS: [
+        process.env.NODE_OPTIONS,
+        '--trace-exit',
+        process.env.CI ? `--require ${path.join(import.meta.dirname, 'boot-hang-probe.cjs')}` : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
     },
   });
 
