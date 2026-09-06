@@ -15,7 +15,12 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { asVectorRecallProvider, fuseWithVectorMemory, VectorMemoryStore } from '../src/index.js';
+import {
+  asVectorRecallProvider,
+  fuseWithVectorMemory,
+  type VectorSearchHit,
+  VectorMemoryStore,
+} from '../src/index.js';
 import { FakeEmbeddingProvider } from './fake-provider.js';
 
 const testRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
