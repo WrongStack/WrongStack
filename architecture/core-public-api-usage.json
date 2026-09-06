@@ -201,7 +201,7 @@
     "@wrongstack/core/utils": {
       "files": 553,
       "typeOnly": 55,
-      "runtimeOrMixed": 526
+      "runtimeOrMixed": 525
     },
     "@wrongstack/core/utils/error": {
       "files": 6,
@@ -18419,7 +18419,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/sage/src/sqlite-store-candidates.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

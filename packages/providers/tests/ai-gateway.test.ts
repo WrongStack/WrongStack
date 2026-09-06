@@ -781,3 +781,79 @@ describe('AI SDK conversion helpers', () => {
     expect(converted.search).not.toHaveProperty('execute');
   });
 });
+
+describe('ai-gateway factory credential envVars semantics (VULN-006 sentinel)', () => {
+  const ENV_DEFAULT_KEY = 'AI_GATEWAY_API_KEY';
+  const ENV_CUSTOM_KEY = 'WSK_TEST_CUSTOM_GATEWAY_KEY';
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  /**
+   * The exact cfg shape provider_manage's endpointChanged writes when the user
+   * re-points a provider: baseUrl changed, envVars stamped present-but-empty
+   * (the VULN-006 sentinel — "do NOT silently re-arm the credential").
+   */
+  function sentinelCfg() {
+    return { type: 'ai-gateway', baseUrl: 'https://gateway.repointed.example', envVars: [] };
+  }
+
+  function expectConfigError(fn: () => unknown): Error {
+    let thrown: unknown;
+    try {
+      fn();
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    const error = thrown as Error & { code?: unknown };
+    expect(error.code === 'CONFIG_INVALID' || /requires an API key/i.test(error.message)).toBe(
+      true,
+    );
+    return error;
+  }
+
+  it('a sentinel-stamped cfg must NOT re-arm AI_GATEWAY_API_KEY', () => {
+    vi.stubEnv(ENV_DEFAULT_KEY, 'env-credential-present');
+    expectConfigError(() => createAiGatewayProviderFactory().create(sentinelCfg()));
+  });
+
+  it('absent envVars keeps the canonical AI_GATEWAY_API_KEY default', () => {
+    vi.stubEnv(ENV_DEFAULT_KEY, 'env-credential-present');
+    expect(() => createAiGatewayProviderFactory().create({ type: 'ai-gateway' })).not.toThrow();
+  });
+
+  it('a non-empty custom envVars list is honored when its variable is set', () => {
+    vi.stubEnv(ENV_CUSTOM_KEY, 'env-credential-present');
+    expect(() =>
+      createAiGatewayProviderFactory().create({
+        type: 'ai-gateway',
+        envVars: [ENV_CUSTOM_KEY],
+      }),
+    ).not.toThrow();
+  });
+
+  it('a custom list does NOT fall back to AI_GATEWAY_API_KEY when its variable is absent', () => {
+    vi.stubEnv(ENV_DEFAULT_KEY, 'env-credential-present');
+    const error = expectConfigError(() =>
+      createAiGatewayProviderFactory().create({
+        type: 'ai-gateway',
+        envVars: [ENV_CUSTOM_KEY],
+      }),
+    );
+    expect(error.message).toContain(ENV_CUSTOM_KEY);
+  });
+
+  it('sentinel + no credentials anywhere yields the apiKey-in-config error', () => {
+    const error = expectConfigError(() => createAiGatewayProviderFactory().create(sentinelCfg()));
+    expect(error.message).toContain('apiKey in config');
+  });
+
+  it('an explicit apiKey still works under the sentinel', () => {
+    vi.stubEnv(ENV_DEFAULT_KEY, 'env-credential-present');
+    expect(() =>
+      createAiGatewayProviderFactory().create({ ...sentinelCfg(), apiKey: 'explicit-key-present' }),
+    ).not.toThrow();
+  });
+});

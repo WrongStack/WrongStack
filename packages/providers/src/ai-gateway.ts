@@ -673,13 +673,18 @@ function resolveActiveApiKey(cfg: ProviderConfig, defaultEnvVars: string[] = [])
     if (fallback?.apiKey) return fallback.apiKey;
   }
   if (cfg.apiKey) return cfg.apiKey;
-  for (const envVar of cfg.envVars?.length ? cfg.envVars : defaultEnvVars) {
+  // VULN-006 sentinel: a present-but-empty `envVars` array is written by
+  // provider_manage's endpointChanged — "endpoint changed; do NOT silently
+  // re-arm the credential from the catalog preset". Mirrors makeProvider's
+  // resolver (index.ts): only an absent/undefined envVars falls back to the
+  // gateway's canonical default (AI_GATEWAY_API_KEY).
+  const envVars = Array.isArray(cfg.envVars) ? cfg.envVars : defaultEnvVars;
+  for (const envVar of envVars) {
     const value = process.env[envVar];
     if (value) return value;
   }
-  const probed = cfg.envVars?.length ? cfg.envVars : defaultEnvVars;
   throw new ConfigError({
-    message: `Provider "${cfg.type}" requires an API key. Set ${probed.join(' or ') || 'apiKey in config'}.`,
+    message: `Provider "${cfg.type}" requires an API key. Set ${envVars.join(' or ') || 'apiKey in config'}.`,
     code: 'CONFIG_INVALID',
   });
 }
