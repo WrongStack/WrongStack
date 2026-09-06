@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T20:23:05.161Z",
+  "generatedAt": "2026-09-06T06:40:51.512Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3640,
     "testFiles": 3071,
-    "sourceLines": 872020,
+    "sourceLines": 872109,
     "workspaceEdges": 127,
     "moduleEdges": 11449,
     "nonCommandSlashImports": 0,
@@ -19630,7 +19630,7 @@
     },
     {
       "file": "packages/cli/src/execution.ts",
-      "lines": 887,
+      "lines": 888,
       "relativeImports": 41
     },
     {
@@ -19975,7 +19975,7 @@
     },
     {
       "file": "packages/tools/src/json.ts",
-      "lines": 919,
+      "lines": 935,
       "relativeImports": 2
     },
     {
