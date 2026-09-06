@@ -80,11 +80,18 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 
   // Wait for a readiness line (stdout or stderr), an early exit, or timeout.
   // Pass a getter — a by-value snapshot would freeze the empty initial string.
-  const url = await waitForServerOutput(server, () => combined, 60_000);
-  if (!url) {
+  const outcome = await waitForServerOutput(server, () => combined, 60_000);
+  if (outcome.url === null) {
     server.kill();
-    throw new Error('WebUI server failed to start within 60s');
+    // Distinguish the two failure shapes. They have nothing in common:
+    // "the banner never appeared in 60s" is a slow/hung boot, while
+    // "the process exited after 3s" is a crash — and a crash that produced
+    // no stderr (a signal kill, e.g. the OOM killer) leaves the exit status
+    // as the ONLY evidence there is. Reporting both as a timeout threw that
+    // evidence away and made every CI failure here unactionable.
+    throw new Error(describeStartFailure(outcome, combined));
   }
+  const url = outcome.url;
 
   if (new URL(url).origin !== expectedURL.origin) {
     server.kill();
@@ -106,12 +113,36 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   (config as FullConfig & { _serverProcess: typeof server })._serverProcess = server;
 }
 
+/** How `waitForServerOutput` finished: the banner, an early exit, or the deadline. */
+type StartOutcome =
+  | { url: string; reason: 'ready' }
+  | { url: null; reason: 'timeout'; timeout: number }
+  | { url: null; reason: 'exit'; code: number | null; signal: NodeJS.Signals | null }
+  | { url: null; reason: 'spawn-error'; error: Error };
+
+/** Human-readable cause plus the tail of whatever the server managed to print. */
+function describeStartFailure(
+  outcome: Extract<StartOutcome, { url: null }>,
+  combined: string,
+): string {
+  const head =
+    outcome.reason === 'exit'
+      ? `WebUI server exited before it was ready (code ${outcome.code ?? 'null'}, signal ${
+          outcome.signal ?? 'none'
+        })`
+      : outcome.reason === 'spawn-error'
+        ? `WebUI server could not be spawned: ${outcome.error.message}`
+        : `WebUI server failed to start within ${outcome.timeout / 1000}s`;
+  const tail = combined.trim().split(/\r?\n/).slice(-40).join('\n');
+  return tail ? `${head}\n── last output ──\n${tail}` : `${head} (it printed nothing)`;
+}
+
 /** Wait for either readiness line, an early exit, or the deadline. */
 async function waitForServerOutput(
   server: ReturnType<typeof spawn>,
   getCombined: () => string,
   timeout: number,
-): Promise<string | null> {
+): Promise<StartOutcome> {
   const patterns = [
     /\[WebUI\] HTTP server running on (https?:\/\/[^\s]+)/,
     /✦ WebUI running → (https?:\/\/[^\s]+)/,
@@ -134,24 +165,30 @@ async function waitForServerOutput(
     return null;
   };
   const already = poll();
-  if (already) return already;
+  if (already) return { url: already, reason: 'ready' };
   return new Promise((resolve) => {
     let settled = false;
-    const finish = (url: string | null): void => {
+    const finish = (outcome: StartOutcome): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       clearInterval(poller);
       server.off('exit', onExit);
       server.off('error', onError);
-      resolve(url);
+      resolve(outcome);
     };
-    const onExit = (): void => finish(null);
-    const onError = (): void => finish(null);
-    const timer = setTimeout(() => finish(null), timeout);
+    const onExit = (code: number | null, signal: NodeJS.Signals | null): void => {
+      // The banner may sit in a stdout chunk delivered in the same tick as
+      // the exit; poll once more so a fast-but-successful boot is not
+      // misreported as a crash.
+      const found = poll();
+      finish(found ? { url: found, reason: 'ready' } : { url: null, reason: 'exit', code, signal });
+    };
+    const onError = (error: Error): void => finish({ url: null, reason: 'spawn-error', error });
+    const timer = setTimeout(() => finish({ url: null, reason: 'timeout', timeout }), timeout);
     const poller = setInterval(() => {
       const found = poll();
-      if (found) finish(found);
+      if (found) finish({ url: found, reason: 'ready' });
     }, 250);
     server.once('exit', onExit);
     server.once('error', onError);
