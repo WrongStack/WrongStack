@@ -3,6 +3,8 @@ import type { SpawnSyncOptions, SpawnSyncReturns } from 'node:child_process';
 export interface CoverageRun {
   label: string;
   args: string[];
+  /** Whether this child command accepts Vitest retry flags. */
+  vitest?: boolean | undefined;
 }
 
 export type RunCoverageSpawn = (
