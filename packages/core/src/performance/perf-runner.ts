@@ -48,6 +48,24 @@ export interface MeasureOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * How long to wait for stdio to drain after the child has already exited.
+ *
+ * `close` only fires once EVERY stdio stream has ended, and a grandchild that
+ * outlived the kill still holds the inherited pipe open — so `close` may never
+ * arrive. The child's exit status is already known at that point, so settle on
+ * it after a short flush window instead of waiting forever.
+ */
+const STREAM_FLUSH_GRACE_MS = 250;
+
+/**
+ * Hard settle window after a timeout kill. If neither `exit` nor `close`
+ * follows the kill (an unkillable process, a shell that forked before it
+ * could exec), the run is still reported as timed out rather than hanging
+ * the caller — which is what the timeout existed to prevent.
+ */
+const KILL_SETTLE_GRACE_MS = 2_000;
+
 /** Append to a bounded tail buffer, keeping the last {@link MAX_STREAM_BYTES}. */
 function appendCapped(buffer: string, chunk: string): string {
   const next = buffer + chunk;
@@ -77,15 +95,25 @@ export async function runOnce(
     let stderr = '';
     let timedOut = false;
     let settled = false;
+    const pendingTimers: NodeJS.Timeout[] = [];
+
+    /** Settle after `delayMs` unless the normal path got there first. */
+    const settleLater = (exitCode: number | null, delayMs: number): void => {
+      const timer = setTimeout(() => finish(exitCode), delayMs);
+      timer.unref();
+      pendingTimers.push(timer);
+    };
 
     const timer = setTimeout(() => {
       timedOut = true;
       treeKill(child, { force: true });
+      settleLater(null, KILL_SETTLE_GRACE_MS);
     }, timeoutMs);
 
     const onAbort = () => {
       timedOut = true;
       treeKill(child, { force: true });
+      settleLater(null, KILL_SETTLE_GRACE_MS);
     };
     options.signal?.addEventListener('abort', onAbort, { once: true });
 
@@ -93,6 +121,7 @@ export async function runOnce(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      for (const pending of pendingTimers) clearTimeout(pending);
       options.signal?.removeEventListener('abort', onAbort);
       resolve({ stdout, stderr, wallMs: Date.now() - startedAt, exitCode, timedOut });
     };
@@ -108,6 +137,10 @@ export async function runOnce(
       stderr = appendCapped(stderr, `\n${(error as Error).message}\n`);
       finish(null);
     });
+    // `exit` means the status is known; `close` additionally waits for stdio
+    // to end, which a surviving grandchild can defer indefinitely. Prefer
+    // `close` when it comes, but never depend on it.
+    child.on('exit', (code) => settleLater(code, STREAM_FLUSH_GRACE_MS));
     child.on('close', (code) => finish(code));
   });
 }
