@@ -8,9 +8,9 @@
  */
 import type {
   KanbanVerificationAttachment,
-  KanbanVerificationReport,
   KanbanVerificationCheckResult,
   KanbanVerificationFileScope,
+  KanbanVerificationReport,
   KanbanVerificationSubtasks,
 } from '@wrongstack/kanban';
 import {
@@ -72,7 +72,12 @@ function formatDuration(start: string, end: string): string {
   if (Number.isNaN(ms) || ms < 0) return '';
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
-  return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
+  const m = Math.floor(ms / 60_000);
+  const s = Math.round((ms % 60_000) / 1000);
+  // Math.round(59.5) === 60: the last 500 ms of a minute must carry into the
+  // next minute instead of rendering "1m 60s".
+  if (s === 60) return `${m + 1}m 0s`;
+  return `${m}m ${s}s`;
 }
 
 function VerdictBadge({ verdict }: { verdict: KanbanVerificationReport['verdict'] }) {

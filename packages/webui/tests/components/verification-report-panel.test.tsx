@@ -4,16 +4,17 @@
  * the component's collapsible section defaults (Check Results opens when
  * verdict !== 'passed'; other sections start collapsed).
  */
-import { expect, test } from 'vitest';
+
 import { render, screen } from '@testing-library/react';
-import { VerificationReportPanel } from '../../src/components/VerificationReportPanel';
 import type {
-  KanbanVerificationReport,
+  KanbanVerificationAttachment,
   KanbanVerificationCheckResult,
   KanbanVerificationFileScope,
+  KanbanVerificationReport,
   KanbanVerificationSubtasks,
-  KanbanVerificationAttachment,
 } from '@wrongstack/kanban';
+import { expect, test } from 'vitest';
+import { VerificationReportPanel } from '../../src/components/VerificationReportPanel';
 
 const BASE: Omit<KanbanVerificationReport, 'verdict'> = {
   taskId: 't1',
@@ -180,4 +181,63 @@ test('all sections present with complete data', () => {
   expect(screen.getByText('File Scope')).toBeTruthy();
   expect(screen.getByText('Sub-Tasks')).toBeTruthy();
   expect(screen.getByText('Attachments (1)')).toBeTruthy();
+});
+
+// ── Header duration formatting ───────────────────────────────────────────────
+// formatDuration joins whole minutes with rounded seconds; a duration in the
+// last 500 ms of a minute must carry into the next minute instead of
+// rendering "1m 60s".
+
+const durationReport = (ms: number): KanbanVerificationReport => {
+  const startedAt = '2026-07-23T10:00:00.000Z';
+  return {
+    ...BASE,
+    verdict: 'passed',
+    markdownSummary: 'OK.',
+    startedAt,
+    completedAt: new Date(Date.parse(startedAt) + ms).toISOString(),
+  };
+};
+
+test('carry band: 119.5s renders as 2m 0s, not 1m 60s', () => {
+  render(<VerificationReportPanel report={durationReport(119_500)} />);
+  expect(screen.getByText('2m 0s')).toBeTruthy();
+});
+
+test('just below the carry band: 119.499s renders as 1m 59s', () => {
+  render(<VerificationReportPanel report={durationReport(119_499)} />);
+  expect(screen.getByText('1m 59s')).toBeTruthy();
+});
+
+test('exact two minutes renders as 2m 0s', () => {
+  render(<VerificationReportPanel report={durationReport(120_000)} />);
+  expect(screen.getByText('2m 0s')).toBeTruthy();
+});
+
+test('ordinary minute-second mix renders as 1m 3s', () => {
+  render(<VerificationReportPanel report={durationReport(63_000)} />);
+  expect(screen.getByText('1m 3s')).toBeTruthy();
+});
+
+test('sub-second and one-second boundaries render as 999ms and 1s', () => {
+  const { unmount } = render(<VerificationReportPanel report={durationReport(999)} />);
+  expect(screen.getByText('999ms')).toBeTruthy();
+  unmount();
+  render(<VerificationReportPanel report={durationReport(1_000)} />);
+  expect(screen.getByText('1s')).toBeTruthy();
+});
+
+test('end before start renders no duration text', () => {
+  render(
+    <VerificationReportPanel
+      report={{
+        ...BASE,
+        verdict: 'passed',
+        markdownSummary: 'OK.',
+        startedAt: '2026-07-23T10:05:00.000Z',
+        completedAt: '2026-07-23T10:00:00.000Z',
+      }}
+    />,
+  );
+  expect(screen.queryByText(/^\d/)).toBeNull();
 });
