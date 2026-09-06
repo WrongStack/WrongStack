@@ -1,4 +1,4 @@
-import type { SessionStore } from '@wrongstack/core/types';
+import type { Config, SessionStore } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { ConfigWriteLockHolder } from './pref-helpers.js';
 import type { WebuiMutableState } from './routes.js';
@@ -7,8 +7,8 @@ import type { ConnectedClient } from './types.js';
 type Session = Awaited<ReturnType<SessionStore['create']>>;
 
 export function createWebuiMutableState(params: {
-  getConfig: () => any;
-  setConfig: (c: any) => void;
+  getConfig: () => Config;
+  setConfig: (c: Config) => void;
   getProjectRoot: () => string;
   setProjectRoot: (r: string) => void;
   getWorkingDir: () => string;
@@ -21,7 +21,9 @@ export function createWebuiMutableState(params: {
   setSessionStore: (store: SessionStore) => void;
   getModeId: () => string;
   setModeId: (id: string) => void;
-  modelCapabilitiesRef: { current: any };
+  /** Mirrors `WebuiMutableState.getModelCapabilities()`, which is deliberately
+   *  opaque to the route layer. */
+  modelCapabilitiesRef: { current: ReturnType<WebuiMutableState['getModelCapabilities']> };
   configWriteLock: ConfigWriteLockHolder;
   runLockControl: {
     abortRunLock: (sessionId?: string) => void;

@@ -1,5 +1,11 @@
 ﻿import type { Context } from '@wrongstack/core/agent';
+import type { SessionWriter } from '@wrongstack/core/types';
 import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
+
+/** Exactly the config slice the session-logging resolver reads. */
+type SessionLoggingConfig = Parameters<typeof resolveSessionLoggingConfig>[0];
+/** The journal writer a bridge binds to (`null`/`undefined` = no live tab). */
+type SessionWriterLike = SessionWriter | null | undefined;
 
 export function stopSessionFleet(
   sessionId: string,
@@ -55,14 +61,14 @@ export function createRunLockControl(
 }
 
 export function createSessionBridgeManager(
-  config: unknown,
+  config: SessionLoggingConfig,
   context: Context,
   sessionGetter: () => { id: string },
   getAgentGetter: () =>
-    | ((sessionId: string) => { ctx?: { session?: any } } | undefined)
+    | ((sessionId: string) => { ctx?: { session?: SessionWriterLike } } | undefined)
     | undefined,
 ) {
-  const sessionLogging = resolveSessionLoggingConfig(config as any);
+  const sessionLogging = resolveSessionLoggingConfig(config);
   const sessionBridge = createSessionEventBridge(
     () => context.session ?? sessionGetter(),
     sessionLogging.auditLevel,

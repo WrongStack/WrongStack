@@ -8,49 +8,27 @@ import { useSessionInterruptController } from './use-session-interrupt-controlle
 import { useTuiControllers } from './use-tui-controllers.js';
 import { useTuiEventBridge } from './use-tui-event-bridge.js';
 
-export function useAppEventBridges(params: {
-  events: any;
-  agent: any;
-  dispatch: any;
-  streamingTextRef: any;
-  streamSegmentsRef: any;
-  pendingDeltaRef: any;
-  flushTimerRef: any;
-  sessionGenerationRef: any;
-  activeRunGenerationRef: any;
-  assistantCommittedThisRunRef: any;
-  setMemoryContextMonitor: any;
-  clientId: any;
-  tokenCounter: any;
-  getAutonomy: any;
-  registerDebugStreamCallback: any;
-  restoreDebugStreamCallback: any;
-  stateRef: any;
-  setActiveMaxContext: any;
-  subscribeGoal: any;
-  onClearHistory: any;
-  fleetChat: any;
-  enhanceEnabled: boolean;
-  agentsMonitorOpen: boolean;
-  fleetStreamController: any;
-  enhanceController: any;
-  agentsMonitorController: any;
-  interruptController: any;
-  activeCtrlRef: any;
-  activeRunSettledRef: any;
-  eternalLoopRunningRef: any;
-  parallelLoopRunningRef: any;
-  tokenPreviewsRef: any;
-  clearPendingConfirms: () => void;
-  getEternalEngine: any;
-  getParallelEngine: any;
-  getSddRun: any;
-  switchAutonomy: any;
-  slashRegistry: any;
-  exitConfirm: any;
-  liveDirector: any;
-  director: any;
-}) {
+/**
+ * This hook only fans its argument out to the seven bridge hooks below, so its
+ * parameter type is *taken from* them rather than restated. The decomposition
+ * that extracted it retyped all 38 fields as `any`, which silently unhooked
+ * every one of those already-typed contracts at the single point where the
+ * TUI wires them together.
+ */
+type AppEventBridgeParams = Parameters<typeof useProviderEventBridge>[0] &
+  Parameters<typeof useClientTelemetry>[0] &
+  Omit<Parameters<typeof useTuiEventBridge>[0], 'getSessionId'> &
+  Parameters<typeof useTuiControllers>[0] &
+  Parameters<typeof useSessionInterruptController>[0] &
+  Omit<Parameters<typeof useExitCommand>[0], 'getDirector'> &
+  Omit<Parameters<typeof useDirectorFleetBridge>[0], 'chatMode'> & {
+    /** Passed to `useExitCommand` as `getDirector`. */
+    liveDirector: Parameters<typeof useExitCommand>[0]['getDirector'];
+    /** Passed to `useDirectorFleetBridge` as `chatMode`. */
+    fleetChat: Parameters<typeof useDirectorFleetBridge>[0]['chatMode'];
+  };
+
+export function useAppEventBridges(params: AppEventBridgeParams) {
   const {
     events,
     agent,

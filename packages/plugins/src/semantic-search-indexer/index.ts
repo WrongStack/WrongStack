@@ -841,8 +841,8 @@ const plugin: Plugin = {
     });
 
     // Invalidate index cache when files are written or edited.
-    if (typeof (api as any).registerHook === 'function') {
-      state.hookUnregister = (api as any).registerHook(
+    if (typeof api.registerHook === 'function') {
+      state.hookUnregister = api.registerHook(
         'PostToolUse',
         'write|edit|write_to_file|replace_file_content',
         (() => {
@@ -861,8 +861,8 @@ const plugin: Plugin = {
     // event, so their PostToolUse fires a throttled stat-scan that prunes
     // exactly the dead entries instead of paying a full rebuild (see
     // pruneDeletedFiles). Scoped to shell + explicit-delete tools.
-    if (typeof (api as any).registerHook === 'function') {
-      state.deleteHookUnregister = (api as any).registerHook(
+    if (typeof api.registerHook === 'function') {
+      state.deleteHookUnregister = api.registerHook(
         'PostToolUse',
         'bash|exec|pwsh|delete_file|remove_file',
         (() => {

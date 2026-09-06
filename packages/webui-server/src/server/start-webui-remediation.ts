@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Context } from '@wrongstack/core/agent';
 import type { ToolExecutor } from '@wrongstack/core/execution';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { PermissionPolicy } from '@wrongstack/core/types';
+import type { PermissionPolicy, ToolConfirmPendingResult } from '@wrongstack/core/types';
 import { type PackageOperation, toLanguagePackageInput } from '@wrongstack/techstack';
 
 export function createPackageOperationExecutor(options: {
@@ -28,7 +28,7 @@ export function createPackageOperationExecutor(options: {
     };
     let output = await execute();
     if (output.result.type === 'tool_confirm_pending') {
-      const pending = output.result as any;
+      const pending = output.result as ToolConfirmPendingResult;
       const confirmTool = output.tool;
       if (!confirmTool) throw new Error('Permission confirmation is missing its tool');
       if (events.listenerCount('tool.confirm_needed') === 0) {

@@ -74,8 +74,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/infrastructure": {
-      "files": 42,
-      "typeOnly": 5,
+      "files": 43,
+      "typeOnly": 6,
       "runtimeOrMixed": 42
     },
     "@wrongstack/core/kernel": {
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/storage": {
-      "files": 116,
-      "typeOnly": 31,
+      "files": 117,
+      "typeOnly": 32,
       "runtimeOrMixed": 115
     },
     "@wrongstack/core/tasking": {
@@ -169,8 +169,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1029,
-      "typeOnly": 950,
+      "files": 1031,
+      "typeOnly": 952,
       "runtimeOrMixed": 268
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -5245,6 +5245,12 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/webui-server/src/server/start-webui-shutdown.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 0,
@@ -9695,6 +9701,12 @@
       "file": "packages/webui-server/src/server/start-webui-session-runtime.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/src/server/start-webui-shutdown.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -15885,6 +15897,18 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/start-webui-remediation.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/start-webui-session-runtime.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/start-webui-shutdown.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

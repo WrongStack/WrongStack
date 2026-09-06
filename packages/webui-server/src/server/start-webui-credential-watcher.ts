@@ -18,7 +18,7 @@ export function setupWebuiCredentialWatcher(options: {
   state: WebuiMutableState;
   deps: WebuiDeps;
   clients: Map<WebSocket, ConnectedClient>;
-  updateAutoCompactionMaxContext: (provider: any) => Promise<void>;
+  updateAutoCompactionMaxContext: (provider: WebuiDeps['provider']) => Promise<void>;
 }): (() => void) | undefined {
   if (process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'] === '1') {
     return undefined;

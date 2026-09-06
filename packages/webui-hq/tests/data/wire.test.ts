@@ -18,12 +18,8 @@ vi.mock('../../src/data/api.js', () => ({
   authorizedFetch: vi.fn(),
 }));
 
-const {
-  applySocketMessage,
-  armSnapshotRefresh,
-  createReconnectReauthorizer,
-  hydrateFromHttp,
-} = await import('../../src/data/wire.js');
+const { applySocketMessage, armSnapshotRefresh, createReconnectReauthorizer, hydrateFromHttp } =
+  await import('../../src/data/wire.js');
 const { useHqStore } = await import('../../src/data/store/index.js');
 const { alert, commandEntry, event, peerPayload, snapshot } = await import('../fixtures/hq.js');
 
@@ -194,7 +190,7 @@ describe('hydrateFromHttp', () => {
 describe('createReconnectReauthorizer', () => {
   it('re-mints the cookie when the transport starts reconnecting', async () => {
     const upgrade = vi.fn(async () => true);
-    let now = 1_000;
+    const now = 1_000;
     const reauthorize = createReconnectReauthorizer(upgrade, 30_000, () => now);
 
     reauthorize('connecting');

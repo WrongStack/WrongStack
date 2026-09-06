@@ -19,7 +19,7 @@
     "lint/correctness/noUnusedVariables|test|warning": 3,
     "lint/suspicious/noAssignInExpressions|production|warning": 6,
     "lint/suspicious/noAssignInExpressions|test|warning": 2,
-    "lint/suspicious/noExplicitAny|production|warning": 78,
+    "lint/suspicious/noExplicitAny|production|warning": 6,
     "lint/suspicious/noPrototypeBuiltins|test|warning": 2,
     "lint/suspicious/noTemplateCurlyInString|production|warning": 2,
     "lint/suspicious/noTemplateCurlyInString|test|warning": 8

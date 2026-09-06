@@ -1,14 +1,24 @@
 import type * as http from 'node:http';
 import * as path from 'node:path';
+import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import type { DefaultSessionStore } from '@wrongstack/core/storage';
+import type { Logger, MemoryPort } from '@wrongstack/core/types';
 import { addFatalSalvageHook, toErrorMessage } from '@wrongstack/core/utils';
+import type { MCPRegistry } from '@wrongstack/mcp';
 import type { WebSocket, WebSocketServer } from 'ws';
+import type { createAgentServices } from './backend-services.js';
 import { unregisterInstance } from './instance-registry.js';
-import { registerShutdown } from './server-runtime.js';
+import { registerShutdown, type armEvents } from './server-runtime.js';
+import type { StandaloneSessionIdentityLifecycle } from './standalone-session-identity.js';
 import type { ConnectedClient } from './types.js';
 
+/** The leader tab's journal writer — the one this host closes on the way out. */
+type LeaderSession = Awaited<ReturnType<DefaultSessionStore['create']>>;
+type AgentServices = Awaited<ReturnType<typeof createAgentServices>>;
+
 export function setupWebuiShutdown(options: {
-  session: any;
-  tokenCounter: any;
+  session: LeaderSession;
+  tokenCounter: DefaultTokenCounter;
   clients: Map<WebSocket, ConnectedClient>;
   httpServer: http.Server;
   companionServer: http.Server | null;
@@ -27,16 +37,16 @@ export function setupWebuiShutdown(options: {
   governanceHandle?:
     | { close: () => Promise<{ ok: boolean; action?: string; message?: string } | undefined> }
     | undefined;
-  logger: any;
-  brainMonitor: any;
-  agentServices: any;
-  mcpRegistry: any;
-  sessionIdentity: any;
-  eventArming: any;
+  logger: Logger;
+  brainMonitor: AgentServices['brainMonitor'];
+  agentServices: AgentServices;
+  mcpRegistry: MCPRegistry;
+  sessionIdentity: StandaloneSessionIdentityLifecycle;
+  eventArming: ReturnType<typeof armEvents>;
   getEternalSubscription: () => { dispose: () => void } | null;
   clearEternalSubscription: () => void;
-  codebaseIndexing: any;
-  memoryStore: any;
+  codebaseIndexing: AgentServices['codebaseIndexing'];
+  memoryStore: MemoryPort;
   /** Vector memory store (mirrors CLI's teardown). `undefined` when the
    *  standalone WebUI host failed to construct one (read-only FS, etc.). */
   vectorMemoryStore: { close(): void } | undefined;

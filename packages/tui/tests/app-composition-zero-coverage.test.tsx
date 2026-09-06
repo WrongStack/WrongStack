@@ -192,6 +192,7 @@ describe('useAppPanelsState composition', () => {
         hiddenItems: ['model'],
         setHiddenItems,
         subscribeCoordinatorEvents,
+        slashRegistry: { listWithOwner: () => [] } as never,
       }),
     );
 

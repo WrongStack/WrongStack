@@ -1,13 +1,13 @@
 import type { BrainArbiter } from '@wrongstack/core/coordination';
-import type { WebSocket } from 'ws';
-import { describe, expect, it, vi } from 'vitest';
 import {
-  handleBrainRoute,
   type BrainRouteHandlers,
+  handleBrainRoute,
   type WSClientMessage,
   type WSServerMessage,
 } from '@wrongstack/webui-server';
-import { handleBrainAsk, type BrainHandlerContext } from '../src/server/brain-handlers.js';
+import { describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
+import { type BrainHandlerContext, handleBrainAsk } from '../src/server/brain-handlers.js';
 
 function mockWs(): WebSocket & { send: ReturnType<typeof vi.fn> } {
   return { readyState: 1, send: vi.fn() } as never as WebSocket & {
@@ -104,7 +104,7 @@ describe('handleBrainAsk payload shape', () => {
     );
     const answer = findBrainAnswer(ws);
     expect(answer).toBeDefined();
-    expect(Object.prototype.hasOwnProperty.call(answer?.payload, 'sessionId')).toBe(false);
+    expect(Object.hasOwn(answer?.payload, 'sessionId')).toBe(false);
   });
 
   it('stamps sessionId when a session is bound', async () => {
@@ -116,7 +116,7 @@ describe('handleBrainAsk payload shape', () => {
     );
     const answer = findBrainAnswer(ws);
     expect(answer).toBeDefined();
-    expect(Object.prototype.hasOwnProperty.call(answer?.payload, 'sessionId')).toBe(true);
+    expect(Object.hasOwn(answer?.payload, 'sessionId')).toBe(true);
     expect(answer?.payload?.['sessionId']).toBe('sess-1');
   });
 });

@@ -71,7 +71,9 @@ class WrongStackWebSocketClientBase {
   private static readonly MAX_QUEUED_MESSAGES = 1000;
   /** Count-only limits are ineffective for image/base64 payloads. */
   private static readonly MAX_QUEUED_CHARS = 16 * 1024 * 1024;
-  private pendingConfirms: Map<string, PendingConfirm> = new Map();
+  /** Shared with the session-method mixin (`WsClientSessionHost`), which is
+   *  installed onto this prototype — hence not private. */
+  pendingConfirms: Map<string, PendingConfirm> = new Map();
   /**
    * Wall-clock TTL for a `pendingConfirms` entry. The map is keyed by a
    * server-issued id and is only deleted by `sendConfirm`; a permission
@@ -122,19 +124,15 @@ class WrongStackWebSocketClientBase {
    * transcript? True for a page's first declaration and after every
    * reconnect; cleared as soon as one goes out. See `subscribeSessions`.
    */
-  private replayOnNextSubscribe = true;
+  replayOnNextSubscribe = true;
   /** Last declared open-tab set — see `subscribeSessions`. */
-  private subscribedSessionIds: string[] = [];
-  /** Minimum spacing between automatic `session_not_ready` retries for ONE session. */
-  private static readonly NOT_READY_RETRY_COOLDOWN_MS = 15_000;
-  /** Upper bound on parked retries, so tab churn cannot grow the map forever. */
-  private static readonly MAX_ARMED_RESENDS = 8;
+  subscribedSessionIds: string[] = [];
   /**
    * Auto-retry parking for a `session_not_ready` refusal: the message the
    * server refused while its session had no live writer, held until that
    * session's `session.start` announces it open again. See `armNotReadyResend`.
    */
-  private readonly armedResends = new Map<
+  readonly armedResends = new Map<
     string,
     {
       content: string;

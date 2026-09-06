@@ -76,7 +76,7 @@ export interface WsClientSessionMethods {
 
 export const sessionMethods: WsClientSessionMethods = {
   sendMessage(
-    this: any,
+    this: WsClientSessionHost,
     content: string,
     images?: WSUserMessageImage[],
     freshContext = false,
@@ -101,7 +101,7 @@ export const sessionMethods: WsClientSessionMethods = {
   },
 
   /** Ask the server for the persisted Chimera review reports of a session. */
-  getChimeraReports(this: any, sessionId?: string | undefined): void {
+  getChimeraReports(this: WsClientSessionHost, sessionId?: string | undefined): void {
     this.send({
       type: 'chimera.reports.list',
       payload: this.withSession({ sessionId: sessionId ?? '' }, sessionId),
@@ -109,7 +109,7 @@ export const sessionMethods: WsClientSessionMethods = {
   },
 
   adviseTopic(
-    this: any,
+    this: WsClientSessionHost,
     prompt: string,
     timeoutMs = 10_000,
   ): Promise<Extract<WSServerMessage, { type: 'topic.advice_result' }>['payload']> {
@@ -124,7 +124,7 @@ export const sessionMethods: WsClientSessionMethods = {
         off();
         resolve(result);
       };
-      const off = (this as WsClientSessionHost).on('topic.advice_result', (message) => {
+      const off = this.on('topic.advice_result', (message) => {
         if (message.payload.requestId !== requestId) return;
         finish(message.payload);
       });
@@ -147,7 +147,7 @@ export const sessionMethods: WsClientSessionMethods = {
   /** Send a mailbox message of the given type (btw, steer, note, etc.)
    *  to a target agent/role. Returns the requestId for response tracking. */
   sendMailboxMessage(
-    this: any,
+    this: WsClientSessionHost,
     opts: WSMailboxSendOptions,
     sessionId?: string | undefined,
   ): string {
@@ -170,7 +170,7 @@ export const sessionMethods: WsClientSessionMethods = {
     return requestId;
   },
 
-  sendAbort(this: any, sessionId?: string | undefined): void {
+  sendAbort(this: WsClientSessionHost, sessionId?: string | undefined): void {
     this.send({
       type: 'abort',
       payload: this.withSession({}, sessionId),
@@ -187,7 +187,7 @@ export const sessionMethods: WsClientSessionMethods = {
    * it does not merge) and re-sent on reconnect, since the server forgets the
    * set with the connection.
    */
-  subscribeSessions(this: any, sessionIds: string[]): void {
+  subscribeSessions(this: WsClientSessionHost, sessionIds: string[]): void {
     const unique = Array.from(new Set(sessionIds.filter((id) => typeof id === 'string' && id)));
     if (unique.length === 0) return;
     if (unique.length === this.subscribedSessionIds.length) {
@@ -222,14 +222,14 @@ export const sessionMethods: WsClientSessionMethods = {
   },
 
   /** Forget the declared set so the next call re-sends it (used on reconnect). */
-  clearSessionSubscription(this: any): void {
+  clearSessionSubscription(this: WsClientSessionHost): void {
     this.subscribedSessionIds = [];
     // A fresh connection means the panes may be showing a stale or truncated
     // localStorage copy: ask for the journal again with the re-declaration.
     this.replayOnNextSubscribe = true;
   },
 
-  sendConfirm(this: any, id: string, decision: 'yes' | 'no' | 'always' | 'deny'): void {
+  sendConfirm(this: WsClientSessionHost, id: string, decision: 'yes' | 'no' | 'always' | 'deny'): void {
     if (this.pendingConfirms.has(id)) {
       this.pendingConfirms.delete(id);
     }
@@ -240,7 +240,7 @@ export const sessionMethods: WsClientSessionMethods = {
   },
 
   switchModel(
-    this: any,
+    this: WsClientSessionHost,
     provider: string,
     model: string,
     timeoutMs = 8_000,
@@ -255,7 +255,7 @@ export const sessionMethods: WsClientSessionMethods = {
         off();
         resolve(result);
       };
-      const off = (this as WsClientSessionHost).on('model.switch_result', (msg) => {
+      const off = this.on('model.switch_result', (msg) => {
         const payload = (msg as WSModelSwitchResult).payload;
         if (payload.requestId !== requestId) return;
         finish(payload);
@@ -278,7 +278,7 @@ export const sessionMethods: WsClientSessionMethods = {
   },
 
   shutdownCodebaseIndexServer(
-    this: any,
+    this: WsClientSessionHost,
     timeoutMs = 8_000,
   ): Promise<
     Extract<WSServerMessage, { type: 'codebase.index.server.shutdown_result' }>['payload']
@@ -297,7 +297,7 @@ export const sessionMethods: WsClientSessionMethods = {
         off();
         resolve(result);
       };
-      const off = (this as WsClientSessionHost).on(
+      const off = this.on(
         'codebase.index.server.shutdown_result',
         (message) => {
           if (message.payload.requestId && message.payload.requestId !== requestId) return;
@@ -326,6 +326,8 @@ export const sessionMethods: WsClientSessionMethods = {
   },
 };
 
-export function installWsClientSessionMethods(ctor: { prototype: any }): void {
+export function installWsClientSessionMethods(ctor: {
+  prototype: Partial<WsClientSessionHost>;
+}): void {
   Object.assign(ctor.prototype, sessionMethods);
 }
