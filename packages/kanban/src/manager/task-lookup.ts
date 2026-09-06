@@ -1,7 +1,7 @@
 import type { KanbanBoard, KanbanTask } from '../types.js';
 
 export function findTask(board: KanbanBoard, taskId: string): KanbanTask | undefined {
-  if (!taskId || !taskId.trim()) return undefined;
+  if (!taskId?.trim()) return undefined;
   const exact = board.tasks.find((task) => task.id === taskId);
   if (exact) return exact;
   const matches = board.tasks.filter((task) => task.id.startsWith(taskId));

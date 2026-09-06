@@ -9,7 +9,6 @@
     "lint/a11y/useSemanticElements|production|warning": 5,
     "lint/complexity/noCommaOperator|production|warning": 2,
     "lint/complexity/useArrowFunction|test|warning": 1,
-    "lint/complexity/useOptionalChain|production|warning": 4,
     "lint/complexity/useOptionalChain|test|warning": 1,
     "lint/complexity/useRegexLiterals|test|warning": 1,
     "lint/correctness/noUnusedFunctionParameters|production|warning": 2,
@@ -20,7 +19,6 @@
     "lint/suspicious/noAssignInExpressions|production|warning": 6,
     "lint/suspicious/noAssignInExpressions|test|warning": 2,
     "lint/suspicious/noExplicitAny|production|warning": 6,
-    "lint/suspicious/noPrototypeBuiltins|test|warning": 2,
     "lint/suspicious/noTemplateCurlyInString|production|warning": 2,
     "lint/suspicious/noTemplateCurlyInString|test|warning": 8
   }

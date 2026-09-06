@@ -209,7 +209,7 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
       const agents = new Map(state.agents);
       const agentTranscripts = new Map(state.agentTranscripts);
       for (const s of sessions) {
-        if (!s || !s.subagentId || s.subagentId === 'leader') continue;
+        if (!s?.subagentId || s.subagentId === 'leader') continue;
         const id = s.subagentId;
         const name = s.agentName?.trim() || id;
         const existingAgent = agents.get(id);
@@ -482,7 +482,7 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
             const taskText = e.description || e.taskId;
             const existing = agentTranscripts.get(e.subagentId) ?? [];
             const lastEntry = existing[existing.length - 1];
-            if (!lastEntry || !lastEntry.content.includes(taskText as string)) {
+            if (!lastEntry?.content.includes(taskText as string)) {
               agentTranscripts.set(
                 e.subagentId,
                 appendTranscriptEntry(existing, {

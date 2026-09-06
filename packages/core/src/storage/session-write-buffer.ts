@@ -342,7 +342,7 @@ export class SessionWriteBuffer {
     // `started` cannot flip while this synchronous method runs (it is set in a
     // microtask), so `stole` stays an accurate record for the rollback below.
     const stole = flight !== null && !flight.started && !flight.stolen;
-    if (flight !== null && flight.started && !flight.stolen) {
+    if (flight?.started && !flight.stolen) {
       // A started async append owns the file until it settles, and a
       // synchronous teardown function cannot wait for it: waiting requires
       // event-loop progress, which cannot happen while this call blocks the

@@ -62,7 +62,7 @@ export function useSpeechRecognition({ onTranscript }: { onTranscript: (text: st
         let finalTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const item = event.results[i];
-          if (item && item.isFinal && item[0]) {
+          if (item?.isFinal && item[0]) {
             finalTranscript += item[0].transcript;
           }
         }
