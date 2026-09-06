@@ -58,21 +58,37 @@ export function updateSqliteSage(
   }
   const existing = readSqliteSageRow(ctx.stmt, id);
   if (!existing) throw new Error(`SAGE ${id} not found.`);
-  if (input.status === 'deleted' && !input.force) {
-    if (
+  if (input.status === 'deleted') {
+    const permanentTarget =
       (existing.persistence ?? DEFAULT_PERSISTENCE) === 'permanent' ||
-      input.persistence === 'permanent'
-    ) {
+      input.persistence === 'permanent';
+    const authorized = input.force === true || input.deleteAuthorized === true;
+    if (!authorized) {
+      if (permanentTarget) {
+        throw new Error(
+          `SAGE "${id}" is marked 'permanent' and cannot be deleted. ` +
+            `Pass { force: true } to override; the override will be recorded in the audit log.`,
+        );
+      }
       throw new Error(
-        `SAGE "${id}" is marked 'permanent' and cannot be deleted. ` +
-          `Pass { force: true } to override; the override will be recorded in the audit log.`,
+        `SAGE "${id}" cannot be deleted without explicit authorization. ` +
+          `Pass { force: true } to the memory_delete tool. ` +
+          `The force flag is recorded in the audit log.`,
       );
     }
-    throw new Error(
-      `SAGE "${id}" cannot be deleted without explicit authorization. ` +
-        `Pass { force: true } to the memory_delete tool. ` +
-        `The force flag is recorded in the audit log.`,
-    );
+    // Candidate-resolution time-of-check: the resolution policy was computed
+    // from an earlier snapshot, while `existing` above is the fresh
+    // in-mutation reread. An authorized-but-not-forced delete must still
+    // refuse a target that is permanent NOW — a concurrent
+    // promotion-to-permanent wins the race; only user-level `force: true`
+    // overrides permanence.
+    if (permanentTarget && input.force !== true) {
+      throw new Error(
+        `SAGE "${id}" was promoted to 'permanent'; an authorized candidate ` +
+          `resolution cannot delete it. Re-review the candidate, or pass ` +
+          `{ force: true } to override; the override will be recorded in the audit log.`,
+      );
+    }
   }
   const updated: Sage = {
     ...existing,

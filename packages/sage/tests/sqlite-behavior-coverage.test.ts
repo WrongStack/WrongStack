@@ -551,15 +551,23 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
       put(store, { ...current!, persistence: 'permanent' });
       return originalUpdate(id, input);
     });
-    // Candidate resolution is an authorized internal operation that passes
-    // force:true, so the permanent-memory guard does not block it.
+    // Candidate resolution is authorized for non-permanent targets only: the
+    // update-layer permanent-persistence guard re-reads persistence inside
+    // the mutation, so a target promoted to permanent mid-flight SURVIVES the
+    // resolved delete. The resolution reports applied:false with the guard's
+    // error, and the candidate reverts to pending for re-review.
     const raceResult = await store.resolveCandidate(promotionRaceCandidate.id, 'delete');
     expect(raceResult).toBeDefined();
-    expect(raceResult!.applied).toBe(true);
-    // The target was deleted despite being promoted to permanent mid-flight.
-    const deletedTarget = await store.getSage(promotedDuringDelete.id);
-    expect(deletedTarget).not.toBeNull();
-    expect(deletedTarget!.status).toBe('deleted');
+    expect(raceResult!.applied).toBe(false);
+    expect(raceResult!.error).toContain('permanent');
+    const survivedTarget = await store.getSage(promotedDuringDelete.id);
+    expect(survivedTarget).not.toBeNull();
+    expect(survivedTarget!.status).toBe('active');
+    expect(survivedTarget!.persistence ?? 'long_lived').toBe('permanent');
+    const revertedRace = (await store.listCandidates()).find(
+      (candidate) => candidate.id === promotionRaceCandidate.id,
+    );
+    expect(revertedRace?.status).toBe('pending');
 
     const raced = await store.createCandidate({
       text: 'raced resolution',
@@ -633,7 +641,7 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     };
     await expect(store.getSage(target.id)).resolves.toBeNull();
     rowState.rowToMemory = originalRowToMemory;
-    expect(console.warn).toHaveBeenCalledTimes(6);
+    expect(console.warn).toHaveBeenCalledTimes(7);
   });
 
   it('cleans independent reference shapes and considers project candidates in consolidation', async () => {

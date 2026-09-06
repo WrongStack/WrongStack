@@ -1,6 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { withFileLock } from '@wrongstack/core/utils';
-
+import { ulid, withFileLock } from '@wrongstack/core/utils';
 import {
   computeResolution,
   rejectIfUnsafeInput,
@@ -26,7 +25,6 @@ import type {
   UpdateSageInput,
 } from './types.js';
 import { SAGE_SCHEMA_VERSION } from './types.js';
-import { ulid } from '@wrongstack/core/utils';
 
 interface SqliteCandidateContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
@@ -313,14 +311,17 @@ export async function resolveSqliteCandidate(
     if (policy.mutation.kind === 'delete_memory' && policy.mutation.targetId) {
       try {
         // Candidate-resolved deletes go through in-process `ctx.updateSage`,
-        // not over IPC. They pass `force: true` because candidate resolution
-        // is an authorized internal operation (the user or an autonomous
-        // review agent explicitly decided to delete). The store-side
-        // permanent-memory guard still fires when the target is permanent
-        // at delete-time — but `force: true` authorizes the override, and
-        // the audit log records it. This matches `deleteSqliteSage`'s
-        // behavior for explicit force-authorized deletions.
-        await ctx.updateSage(policy.mutation.targetId, { status: 'deleted', force: true });
+        // not over IPC, so the IPC force gate does not apply. They pass
+        // `deleteAuthorized: true` — NOT `force: true`: the resolution is an
+        // authorized internal operation for non-permanent targets, but the
+        // update-layer permanent-persistence guard must stay armed so a
+        // target promoted to 'permanent' between the review snapshot and
+        // this mutation survives (SAGE permanent-memory invariant; matches
+        // the two-path contract documented in project-server.ts).
+        await ctx.updateSage(policy.mutation.targetId, {
+          status: 'deleted',
+          deleteAuthorized: true,
+        });
         applied = true;
       } catch (err) {
         mutationError = err instanceof Error ? err.message : String(err);

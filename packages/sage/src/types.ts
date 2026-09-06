@@ -702,6 +702,15 @@ export interface UpdateSageInput {
    * traceable. Ignored for non-deletion patches.
    */
   force?: boolean | undefined;
+  /**
+   * Authorize a `status: 'deleted'` transition without user-level force.
+   * Candidate resolution uses this: the delete is authorized, but the
+   * update-layer permanent-persistence guard stays armed, so a target
+   * promoted to `'permanent'` between the review snapshot and the mutation
+   * is refused instead of destroyed. Only `force: true` overrides
+   * permanence. Ignored for non-deletion patches.
+   */
+  deleteAuthorized?: boolean | undefined;
 }
 
 /**
