@@ -72,6 +72,7 @@ export interface ReportFreshnessResult {
   watchedCommitMs?: number;
   reportCommitMs?: number;
 }
+export function committedEvidenceMatchesReport(repoRoot: string, freshReport: unknown): boolean;
 export function evaluateReportFreshness(repoRoot: string): ReportFreshnessResult;
 export const FRESHNESS_WATCHED_ROOTS: string[];
 // Tuple, not string[]: consumers index [0]/[1] in TypeScript tests, where a

@@ -11,6 +11,7 @@ import {
   collectModuleSpecifiers,
   collectRuntimeExports,
   evaluateReportFreshness,
+  committedEvidenceMatchesReport,
   FRESHNESS_REPORT_FILES,
   findNonCommandSlashImports,
   findTestOnlyExports,
@@ -844,6 +845,51 @@ describe('report freshness gate', () => {
     const verdict = evaluateReportFreshness(dir);
     expect(verdict.status).toBe('stale');
     expect(verdict.reportCommitMs).toBe(0);
+  });
+
+  it('recognises committed evidence that matches the measurements apart from its timestamp', async () => {
+    const dir = await initScratchRepo('content-match');
+    const report = { schemaVersion: 1, generatedAt: '2026-01-01T00:00:00.000Z', errors: [] };
+    await writeFile(
+      path.join(dir, FRESHNESS_REPORT_FILES[0] as string),
+      `${JSON.stringify({ ...report, generatedAt: '2020-05-05T05:05:05.000Z' }, null, 2)}\n`,
+    );
+    await writeFile(
+      path.join(dir, FRESHNESS_REPORT_FILES[1] as string),
+      renderArchitectureHealthMarkdown({ ...report, generatedAt: '2020-05-05T05:05:05.000Z' }),
+    );
+    // Only `generatedAt` differs, so the committed pair already states what a
+    // fresh run measures — no commit could make it truer.
+    expect(committedEvidenceMatchesReport(dir, report)).toBe(true);
+  });
+
+  it('rejects committed evidence whose measurements differ, and a half-regenerated pair', async () => {
+    const dir = await initScratchRepo('content-mismatch');
+    const report = { schemaVersion: 1, generatedAt: '2026-01-01T00:00:00.000Z', errors: [] };
+    const stale = { ...report, schemaVersion: 0 };
+    await writeFile(
+      path.join(dir, FRESHNESS_REPORT_FILES[0] as string),
+      `${JSON.stringify(stale, null, 2)}\n`,
+    );
+    await writeFile(
+      path.join(dir, FRESHNESS_REPORT_FILES[1] as string),
+      renderArchitectureHealthMarkdown(stale),
+    );
+    expect(committedEvidenceMatchesReport(dir, report)).toBe(false);
+
+    // Matching JSON with a stale markdown companion must not pass either.
+    await writeFile(
+      path.join(dir, FRESHNESS_REPORT_FILES[0] as string),
+      `${JSON.stringify(report, null, 2)}\n`,
+    );
+    expect(committedEvidenceMatchesReport(dir, report)).toBe(false);
+  });
+
+  it('treats unreadable or malformed evidence as unproven rather than fresh', async () => {
+    const dir = await initScratchRepo('content-malformed');
+    await writeFile(path.join(dir, FRESHNESS_REPORT_FILES[0] as string), 'not json{');
+    await writeFile(path.join(dir, FRESHNESS_REPORT_FILES[1] as string), '# r\n');
+    expect(committedEvidenceMatchesReport(dir, { schemaVersion: 1 })).toBe(false);
   });
 
   it('skips with a warning-shaped result when git history is unavailable', async () => {

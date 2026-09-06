@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import {
   buildArchitectureHealth,
+  committedEvidenceMatchesReport,
   evaluateReportFreshness,
   FRESHNESS_REPORT_FILES,
   loadArchitectureInputs,
@@ -94,50 +95,6 @@ if (args.has('--print-hotspot-baseline')) {
   console.log(JSON.stringify(report, null, 2));
 } else {
   console.log(renderArchitectureHealthMarkdown(report));
-}
-
-/**
- * Does the committed evidence already state exactly what this run measured?
- *
- * Commit order is a proxy for freshness, and it is wrong in one common
- * direction: the report embeds `generatedAt`, so regenerating after a source
- * change that moved no measurement still produces a diff. Every such change
- * then demanded a follow-up "refresh evidence" commit whose only content was a
- * new timestamp — pure ceremony, and a release-blocking one.
- *
- * When the committed pair is byte-identical to what this run would write
- * (timestamp excluded), the evidence provably reflects the current source, and
- * no commit could make it more accurate. Anything else falls through to the
- * commit-order rule, which still catches genuinely stale evidence.
- */
-function committedEvidenceMatchesReport(root, freshReport) {
-  const withoutTimestamp = (value) => {
-    const { generatedAt: _ignored, ...rest } = value;
-    return rest;
-  };
-  try {
-    const committed = JSON.parse(
-      readFileSync(path.join(root, 'docs/reports/architecture-health-current.json'), 'utf8'),
-    );
-    if (
-      JSON.stringify(withoutTimestamp(committed)) !== JSON.stringify(withoutTimestamp(freshReport))
-    ) {
-      return false;
-    }
-    // The markdown is rendered from the same object, so comparing it catches a
-    // hand-edited or half-regenerated companion rather than trusting the JSON.
-    const committedMd = readFileSync(
-      path.join(root, 'docs/reports/architecture-health-current.md'),
-      'utf8',
-    );
-    const stripGenerated = (text) => text.replace(/^\*\*Generated:\*\* .*$/mu, '');
-    return (
-      stripGenerated(committedMd) === stripGenerated(renderArchitectureHealthMarkdown(freshReport))
-    );
-  } catch {
-    // Unreadable or malformed evidence is not proof of freshness.
-    return false;
-  }
 }
 
 // ── Committed-evidence freshness gate ────────────────────────────────────

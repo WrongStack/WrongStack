@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -1147,6 +1148,43 @@ function newestReportCommitMs(repoRoot) {
  */
 function isShallowRepository(repoRoot) {
   return gitLogTimestamp(repoRoot, ['rev-parse', '--is-shallow-repository']) === 'true';
+}
+
+/**
+ * Does the committed evidence already state exactly what a run just measured?
+ *
+ * Commit order is a proxy for freshness, and it is wrong in one direction: the
+ * report embeds `generatedAt`, so regenerating after a source change that moved
+ * no measurement still produces a diff. Every such change then demanded a
+ * follow-up "refresh evidence" commit whose only content was a new timestamp —
+ * ceremony that blocked releases without making the evidence any truer.
+ *
+ * When the committed pair is identical to what this run would write (timestamp
+ * excluded), the evidence provably reflects the current source and no commit
+ * could improve it. Anything else — a differing measurement, a hand-edited or
+ * half-regenerated companion, unreadable JSON — returns false and leaves the
+ * verdict to {@link evaluateReportFreshness}.
+ */
+export function committedEvidenceMatchesReport(repoRoot, freshReport) {
+  const withoutTimestamp = ({ generatedAt: _ignored, ...rest }) => rest;
+  const stripGenerated = (text) => text.replace(/^\*\*Generated:\*\* .*$/mu, '');
+  try {
+    const [jsonFile, markdownFile] = FRESHNESS_REPORT_FILES;
+    const committed = JSON.parse(readFileSync(path.join(repoRoot, jsonFile), 'utf8'));
+    if (
+      JSON.stringify(withoutTimestamp(committed)) !== JSON.stringify(withoutTimestamp(freshReport))
+    ) {
+      return false;
+    }
+    const committedMarkdown = readFileSync(path.join(repoRoot, markdownFile), 'utf8');
+    return (
+      stripGenerated(committedMarkdown) ===
+      stripGenerated(renderArchitectureHealthMarkdown(freshReport))
+    );
+  } catch {
+    // Unreadable or malformed evidence is not proof of freshness.
+    return false;
+  }
 }
 
 /**
