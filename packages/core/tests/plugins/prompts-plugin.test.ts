@@ -49,10 +49,18 @@ async function withCommand(llm?: unknown): Promise<{
   return { cmd: registered[0]!, unregister, plugin };
 }
 
-/** SlashCommand.run returns void | result; tests always expect the result branch. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function runCmd(cmd: SlashCommand, args: string, c: Context): Promise<any> {
-  return cmd.run!(args, c);
+/** SlashCommand.run returns void | result; these assertions require the result branch. */
+type SlashCommandResult = {
+  exit?: boolean | undefined;
+  message?: string | undefined;
+  runText?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
+};
+
+async function runCmd(cmd: SlashCommand, args: string, c: Context): Promise<SlashCommandResult> {
+  const result = await cmd.run!(args, c);
+  if (!result) throw new Error(`expected /${cmd.name} to return a command result`);
+  return result;
 }
 
 describe('createPromptsPlugin lifecycle', () => {
@@ -273,39 +281,39 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
 
   it('/prompt with a query returns ranked results', async () => {
     const { search } = await withLoaderCommands();
-    const out = await search.run!('deploy', ctx());
+    const out = await runCmd(search, 'deploy', ctx());
     expect(out.message).toContain('Deploy Helper');
     expect(out.message).toContain('deploy-helper');
   });
 
   it('/prompt insert reports missing required variables', async () => {
     const { search } = await withLoaderCommands();
-    const out = await search.run!('insert deploy-helper', ctx());
+    const out = await runCmd(search, 'insert deploy-helper', ctx());
     expect(out.message).toContain('needs values for: service');
     expect(out.runText).toBeUndefined();
   });
 
   it('/prompt insert renders and returns runText when vars supplied', async () => {
     const { search } = await withLoaderCommands();
-    const out = await search.run!('insert deploy-helper service=api', ctx());
+    const out = await runCmd(search, 'insert deploy-helper service=api', ctx());
     expect(out.runText).toBe('Deploy api now');
   });
 
   it('/prompt insert records usage and /prompt recent surfaces it', async () => {
     const { search, usage } = await withLoaderCommands();
-    expect((await search.run!('recent', ctx())).message).toContain('No prompt usage yet');
-    await search.run!('insert deploy-helper service=api', ctx());
+    expect((await runCmd(search, 'recent', ctx())).message).toContain('No prompt usage yet');
+    await runCmd(search, 'insert deploy-helper service=api', ctx());
     expect((await usage.get('deploy-helper'))?.count).toBe(1);
-    const recent = await search.run!('recent', ctx());
+    const recent = await runCmd(search, 'recent', ctx());
     expect(recent.message).toContain('Deploy Helper');
     expect(recent.message).toContain('×1');
   });
 
   it('/prompt favorites lists only starred prompts', async () => {
     const { search, loader } = await withLoaderCommands();
-    expect((await search.run!('favorites', ctx())).message).toContain('No favorites yet');
+    expect((await runCmd(search, 'favorites', ctx())).message).toContain('No favorites yet');
     await loader.setFavorite('deploy-helper', true);
-    const out = await search.run!('fav', ctx());
+    const out = await runCmd(search, 'fav', ctx());
     expect(out.message).toContain('Deploy Helper');
     expect(out.message).toContain('Favorites (1)');
   });
@@ -313,7 +321,7 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
   it('/prompt with no loader reports unavailable', async () => {
     const { api, registered } = makeApi();
     createPromptsPlugin({ store }).setup!(api);
-    expect((await registered[1]!.run!('anything', ctx())).message).toContain('not available');
+    expect((await runCmd(registered[1]!, 'anything', ctx())).message).toContain('not available');
   });
 
   it('/prompts export then import round-trips user prompts', async () => {
@@ -326,7 +334,7 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
     createPromptsPlugin({ store, loader }).setup!(api);
     const prompts = registered[0]!;
 
-    const exp = await prompts.run!('export backup.json', ctx({ projectRoot: dir }));
+    const exp = await runCmd(prompts, 'export backup.json', ctx({ projectRoot: dir }));
     expect(exp.message).toContain('Exported 1 prompt');
 
     // Wipe the user store, then import the backup back in.
@@ -334,7 +342,7 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
     loader.invalidateCache();
     expect((await loader.list()).filter((e) => e.source !== 'builtin')).toHaveLength(0);
 
-    const imp = await prompts.run!('import backup.json', ctx({ projectRoot: dir }));
+    const imp = await runCmd(prompts, 'import backup.json', ctx({ projectRoot: dir }));
     expect(imp.message).toContain('Imported 1 prompt');
     const restored = (await loader.list()).find((e) => e.slug === 'backup-me');
     expect(restored?.content).toBe('keep {{x}}');
@@ -343,14 +351,14 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
 
   it('/prompt-gen returns runText to drive the agent', async () => {
     const { gen } = await withLoaderCommands();
-    const out = await gen.run!('', ctx());
+    const out = await runCmd(gen, '', ctx());
     expect(out.runText).toContain('prompt-engineering');
     expect(out.runText).toContain('/prompts add');
   });
 
   it('/prompt-gen list shows library entries', async () => {
     const { gen } = await withLoaderCommands();
-    const out = await gen.run!('list', ctx());
+    const out = await runCmd(gen, 'list', ctx());
     expect(out.message).toContain('Deploy Helper');
   });
 
@@ -364,14 +372,14 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
     const session = { id: 'bughunt-session', append: vi.fn(async () => undefined) };
     const commandContext = ctx({ messages: [], meta: {}, session });
 
-    const wholeProject = await bughunt.run!('', commandContext);
+    const wholeProject = await runCmd(bughunt, '', commandContext);
     expect(wholeProject.runText).toBe('Hunt exactly one proven bug.');
     expect(wholeProject.message).toContain('current project');
     expect(session.append).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'subagent_policy', allowed: false }),
     );
 
-    const targeted = await bughunt.run!('packages/core/storage', commandContext);
+    const targeted = await runCmd(bughunt, 'packages/core/storage', commandContext);
     expect(targeted.runText).toContain('Hunt exactly one proven bug.');
     expect(targeted.runText).toContain('packages/core/storage');
     expect(targeted.message).toContain('packages/core/storage');
@@ -386,14 +394,15 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
     );
     const { bughunt } = await withLoaderCommands();
     const session = { id: 'bughunt-rounds', append: vi.fn(async () => undefined) };
-    const out = await bughunt.run!(
+    const out = await runCmd(
+      bughunt,
       '--rounds 25 packages/tui',
       ctx({ messages: [], meta: {}, session }),
     );
     expect(out.runText).toContain('packages/tui');
     expect(out.runText).not.toContain('--rounds 25');
 
-    const invalid = await bughunt.run!('--rounds 26', ctx({ messages: [], meta: {}, session }));
+    const invalid = await runCmd(bughunt, '--rounds 26', ctx({ messages: [], meta: {}, session }));
     expect(invalid.message).toContain('1..25');
     expect(invalid.runText).toBeUndefined();
   });
@@ -407,7 +416,8 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
     const { bughunt, usage } = await withLoaderCommands();
     const session = { id: 'bughunt-locked', append: vi.fn(async () => undefined) };
 
-    const out = await bughunt.run!(
+    const out = await runCmd(
+      bughunt,
       '',
       ctx({
         messages: [{ role: 'user', content: 'already started' }],
@@ -425,7 +435,7 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
 
   it('/bughunt reports an unavailable canonical prompt without running', async () => {
     const { bughunt } = await withLoaderCommands();
-    const out = await bughunt.run!('', ctx());
+    const out = await runCmd(bughunt, '', ctx());
     expect(out.runText).toBeUndefined();
     expect(out.message).toContain('proof-driven-bug-hunter');
   });
