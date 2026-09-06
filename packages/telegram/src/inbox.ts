@@ -63,12 +63,37 @@ export class TelegramInbox {
     return msgs.slice(0, limit);
   }
 
-  /** Drop messages older than or equal to the given message ID from the buffer (optionally scoped to a specific chat). */
+  /**
+   * Drop messages older than or equal to the given message ID from the buffer
+   * (optionally scoped to a specific chat).
+   *
+   * Telegram `message_id` is a PER-CHAT counter: ids are ordered only inside
+   * one chat and are never comparable across chats. With an explicit
+   * `chatId`, the drop is scoped to that chat. Without one, the drop is
+   * scoped to the chat(s) that actually contain a buffered message with this
+   * exact id — the anchor names a message in a specific chat, and only that
+   * chat's `<= anchor` range is meaningful. Other chats keep their mail, so
+   * the documented read→ack_last pattern (read newest-first across all
+   * chats, ack the highest id seen) can never destroy mail from a chat the
+   * agent never read — including messages truncated away by `limit`. A
+   * single-chat deployment is unaffected: the one chat owns the anchor,
+   * exactly as before.
+   */
   acknowledge(lastMessageId: number, chatId?: string | number | undefined): number {
     const before = this.buffer.length;
     const cid =
       chatId !== undefined && chatId !== null && String(chatId).trim() !== ''
         ? String(chatId).trim()
+        : undefined;
+    // Unscoped: the chat(s) that own the anchor id. Derived from the buffer
+    // because a bare per-chat id cannot name a chat on its own.
+    const anchorChats =
+      cid === undefined
+        ? new Set(
+            this.buffer
+              .filter((buffered) => buffered.messageId === lastMessageId)
+              .map((buffered) => String(buffered.chatId)),
+          )
         : undefined;
     const remaining: TelegramIncomingMessage[] = [];
     for (const buffered of this.buffer) {
@@ -76,7 +101,7 @@ export class TelegramInbox {
         if (String(buffered.chatId) === cid && buffered.messageId <= lastMessageId) {
           continue;
         }
-      } else if (buffered.messageId <= lastMessageId) {
+      } else if (anchorChats?.has(String(buffered.chatId)) && buffered.messageId <= lastMessageId) {
         continue;
       }
       remaining.push(buffered);
