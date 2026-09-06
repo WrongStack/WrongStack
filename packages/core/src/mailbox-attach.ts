@@ -248,7 +248,18 @@ function attachMailboxCheckerInner(
     // by the filter are NOT marked as read by this agent.
     ack: false as const,
   };
-  const checkMailbox = createMailboxChecker(mailboxCheckerOptions);
+  const checkMailbox = createMailboxChecker({
+    ...mailboxCheckerOptions,
+    // The session-affinity wrapper owns delivered-message dedup (see
+    // applySessionAffinityFilter below). With inner tracking left enabled,
+    // a message dropped by the filter — its sessionAffinity token naming
+    // another session — was consumed by the inner `injectedIds` set on its
+    // first poll and could never redeliver after an in-process session
+    // swap (resume / session.new / project switch) to the matching
+    // session, even though the session is re-derived live by design.
+    // Dropped messages must stay redeliverable until they are acked.
+    trackInjected: false as const,
+  });
 
   // Session-affinity filter: wrap the checker so cross-session chimera
   // reports (those carrying a `sessionAffinity` token) are dropped at the
@@ -275,55 +286,21 @@ function attachMailboxCheckerInner(
   };
   /**
    * Filter messages by session affinity. Shared by inline and awareness
-   * checkers. The `ack` parameter controls whether the wrapper batch-acks
-   * accepted messages:
-   *   - inline checker: ack=true (messages are delivered to the agent loop)
-   *   - awareness checker: ack=false (preview only; actionable messages
-   *     must stay unread so the inline checker can still deliver them)
+   * checkers — see the exported applySessionAffinityFilter below for the
+   * contract. The deps are wired here so an in-process session swap is
+   * honored without recreating the checker.
    */
-  const applySessionAffinityFilter = (
-    checker: () => Promise<MailboxMessage[]>,
-    ack: boolean,
-  ): (() => Promise<MailboxMessage[]>) => {
-    return async (): Promise<MailboxMessage[]> => {
-      const currentSessionId = identitySessionId();
-      // Capture the identity BEFORE awaiting the checker, so the ack is
-      // stamped by the same identity that read the messages. `ensureRegistered`
-      // re-derives from `ctx.session.id` on every call, so an in-process
-      // session swap that lands mid-check would otherwise ack under the NEW
-      // identity messages the OLD one read — leaving them unread for the new
-      // session and marked read for a session that never saw them.
-      //
-      // `null` here means "awareness pass, do not ack" — it is the ternary,
-      // not a failure mode of `ensureRegistered` (which always returns a
-      // string). The `&& agentId` in the ack guard below is the narrowing
-      // that lets TypeScript see that.
-      const agentId = ack ? ensureRegistered() : null;
-      const messages = await checker();
-      const filtered: MailboxMessage[] = [];
-      for (const m of messages) {
-        if (await acceptMailboxMessageForSession(m, currentSessionId, sessionAffinityCtx)) {
-          filtered.push(m);
-        }
-      }
-      // Batch-ack only when requested (inline delivery). Awareness must
-      // NOT ack — otherwise actionable messages are consumed before the
-      // inline checker can deliver them.
-      if (ack && filtered.length > 0 && agentId) {
-        void getMailbox()
-          .ackMany({
-            acks: filtered.map((m) => ({
-              messageId: m.id,
-              readerId: agentId,
-              read: true,
-            })),
-          })
-          .catch(() => {});
-      }
-      return filtered;
-    };
+  const sessionAffinityWrapperDeps = {
+    getSessionId: identitySessionId,
+    getAgentId: ensureRegistered,
+    getMailbox,
+    affinityCtx: sessionAffinityCtx,
   };
-  const sessionScopedCheckMailbox = applySessionAffinityFilter(checkMailbox, true);
+  const sessionScopedCheckMailbox = applySessionAffinityFilter(
+    checkMailbox,
+    true,
+    sessionAffinityWrapperDeps,
+  );
 
   const checkMailboxAwareness = createMailboxChecker({
     ...mailboxCheckerOptions,
@@ -337,6 +314,7 @@ function attachMailboxCheckerInner(
   const sessionScopedCheckMailboxAwareness = applySessionAffinityFilter(
     checkMailboxAwareness,
     false,
+    sessionAffinityWrapperDeps,
   );
 
   // Background mailbox awareness: poll while tools or long provider calls are
@@ -418,6 +396,88 @@ function attachMailboxCheckerInner(
   // per-agent timer would have N sessions compacting the same store.
 
   return sessionScopedCheckMailbox;
+}
+
+/**
+ * Filter messages by session affinity. Shared by inline and awareness
+ * checkers. The `ack` flag controls whether the wrapper batch-acks accepted
+ * messages:
+ *   - inline checker: ack=true (messages are delivered to the agent loop)
+ *   - awareness checker: ack=false (preview only; actionable messages
+ *     must stay unread so the inline checker can still deliver them)
+ *
+ * Exported so the regression suite can exercise THIS composition directly —
+ * the swap-redelivery contract is a property of the wrapper and the inner
+ * checker's `trackInjected` setting together, not of either alone.
+ */
+export function applySessionAffinityFilter(
+  checker: () => Promise<MailboxMessage[]>,
+  ack: boolean,
+  deps: {
+    /** Current session id — re-derived per call, honoring in-process swaps. */
+    getSessionId: () => string;
+    /** Unique mailbox identity for ack receipts. Only called when ack=true. */
+    getAgentId: () => string;
+    getMailbox: () => Mailbox;
+    affinityCtx: MailboxSessionAffinityContext;
+  },
+): () => Promise<MailboxMessage[]> {
+  // Delivered-message dedup, owned by the wrapper because the INLINE inner
+  // checker is created with `trackInjected: false` — its own injectedIds
+  // dedup is disabled so a wrapper-DROPPED message (its sessionAffinity
+  // token names another session) stays redeliverable across an in-process
+  // session swap to the matching session. Until the ack lands and flips
+  // unreadBy server-side, the mailbox keeps returning a delivered message;
+  // this set keeps it from being delivered twice. Same 1000/500 GC shape
+  // as createMailboxChecker's injectedIds.
+  const deliveredIds = new Set<string>();
+  return async (): Promise<MailboxMessage[]> => {
+    const currentSessionId = deps.getSessionId();
+    // Capture the identity BEFORE awaiting the checker, so the ack is
+    // stamped by the same identity that read the messages. The identity
+    // getter re-derives from the live session on every call, so an
+    // in-process session swap that lands mid-check would otherwise ack
+    // under the NEW identity messages the OLD one read — leaving them
+    // unread for the new session and marked read for a session that
+    // never saw them.
+    //
+    // `null` here means "awareness pass, do not ack" — it is the ternary,
+    // not a failure mode of the identity getter (which always returns a
+    // string). The `&& agentId` in the ack guard below is the narrowing
+    // that lets TypeScript see that.
+    const agentId = ack ? deps.getAgentId() : null;
+    const messages = await checker();
+    const filtered: MailboxMessage[] = [];
+    for (const m of messages) {
+      if (deliveredIds.has(m.id)) continue;
+      if (await acceptMailboxMessageForSession(m, currentSessionId, deps.affinityCtx)) {
+        filtered.push(m);
+      }
+    }
+    // Batch-ack only when requested (inline delivery). Awareness must
+    // NOT ack — otherwise actionable messages are consumed before the
+    // inline checker can deliver them.
+    if (ack && filtered.length > 0 && agentId) {
+      for (const m of filtered) deliveredIds.add(m.id);
+      void deps
+        .getMailbox()
+        .ackMany({
+          acks: filtered.map((m) => ({
+            messageId: m.id,
+            readerId: agentId,
+            read: true,
+          })),
+        })
+        .catch(() => {});
+    }
+    // GC — mirrors createMailboxChecker's injectedIds trim.
+    if (deliveredIds.size > 1000) {
+      const recent = new Set([...deliveredIds].slice(-500));
+      deliveredIds.clear();
+      for (const id of recent) deliveredIds.add(id);
+    }
+    return filtered;
+  };
 }
 
 /**

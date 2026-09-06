@@ -61,6 +61,18 @@ export interface MailboxLoopOptions {
   /** Mark returned messages as read. Defaults to true for normal delivery. */
   ack?: boolean | undefined;
   /**
+   * When false, the checker does NOT record returned messages in its
+   * closure-level `injectedIds` dedup set. Composition layers that defer
+   * acknowledgement (`ack: false` + an external filter/ack wrapper) then own
+   * the dedup themselves. Required when the wrapper's drop condition can
+   * flip for a still-live process (an in-process session swap): a message
+   * the wrapper dropped must stay redeliverable, or redelivery after the
+   * swap is impossible — `injectedIds` otherwise consumes it permanently
+   * on the first poll. Defaults to true (current behavior for every other
+   * caller).
+   */
+  trackInjected?: boolean | undefined;
+  /**
    * ISO timestamp below which project-wide broadcasts (`to: '*'`) are ignored.
    * Defaults to the moment this checker is constructed — i.e. a broadcast is
    * delivered only to sessions that were live when it was sent.
@@ -96,6 +108,10 @@ export function createMailboxChecker(opts: MailboxLoopOptions): () => Promise<Ma
 
   const injectedIds = new Set<string>();
   const broadcastFloor = opts.broadcastFloor ?? new Date().toISOString();
+  // Composition layers that defer acknowledgement to an external wrapper
+  // (ack:false + filter) disable injected-tracking so wrapper-dropped
+  // messages stay redeliverable — see the option doc above.
+  const trackInjected = opts.trackInjected !== false;
 
   return async (): Promise<MailboxMessage[]> => {
     try {
@@ -139,9 +155,13 @@ export function createMailboxChecker(opts: MailboxLoopOptions): () => Promise<Ma
       // Filter out already-injected and completed messages
       const fresh = messages.filter((m) => !injectedIds.has(m.id) && !m.completed);
 
-      // Track as injected
-      for (const m of fresh) {
-        injectedIds.add(m.id);
+      // Track as injected — skipped when the composition layer owns dedup
+      // (trackInjected: false), so wrapper-dropped messages are returned
+      // again on later polls until they are acked or age out.
+      if (trackInjected) {
+        for (const m of fresh) {
+          injectedIds.add(m.id);
+        }
       }
 
       // Auto-read all fresh messages (adds read receipt) in a single batched

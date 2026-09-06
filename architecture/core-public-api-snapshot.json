@@ -1372,7 +1372,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 53,
-      "sourceLines": 12278
+      "sourceLines": 12298
     },
     {
       "directory": "design",
