@@ -4,6 +4,18 @@
     "packages/cli/src/wiring/director-announcement.ts",
     "packages/cli/src/wiring/session-establishment.ts",
     "packages/cli/src/wiring/session-runtime.ts",
-    "packages/cli/src/wiring/vector-memory-setup.ts"
+    "packages/cli/src/wiring/vector-memory-setup.ts",
+    "packages/tools/src/codebase-index/project-server-operations.ts",
+    "packages/tui/src/components/bug-hunt-continue-panel.tsx",
+    "packages/tui/src/components/bug-hunt-running-panel.tsx",
+    "packages/webui-server/src/server/start-webui-bind.ts",
+    "packages/webui-server/src/server/start-webui-deps.ts",
+    "packages/webui-server/src/server/start-webui-logging.ts",
+    "packages/webui-server/src/server/start-webui-payload.ts",
+    "packages/webui-server/src/server/start-webui-project.ts",
+    "packages/webui-server/src/server/start-webui-security.ts",
+    "packages/webui-server/src/server/start-webui-session-runtime.ts",
+    "packages/webui-server/src/server/start-webui-state.ts",
+    "packages/webui-server/src/server/start-webui-vector.ts"
   ]
 }
