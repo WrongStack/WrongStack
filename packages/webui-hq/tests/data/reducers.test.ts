@@ -18,6 +18,7 @@ import {
   MAX_ALERTS,
   MAX_COMMAND_STATUSES,
   MAX_EVENTS,
+  SNAPSHOT_RACE_GUARD_WINDOW_MS,
   reduceAlert,
   reduceCommandStatus,
   reduceEvent,
@@ -60,6 +61,46 @@ describe('reduceSnapshot', () => {
   it('drops a snapshot older than the one already rendered', () => {
     const state = fleetState({ snapshot: snapshot('2026-07-14T12:05:00.000Z') });
     expect(reduceSnapshot(state, snapshot(T0))).toEqual({});
+  });
+
+  it('still drops an older snapshot while the race window is open', () => {
+    // The guard's real job: a slow /api/snapshot refresh response must not
+    // roll the dashboard back behind a newer WS broadcast.
+    const state = fleetState({
+      snapshot: snapshot('2026-07-14T12:05:00.000Z'),
+      snapshotAcceptedAtMs: 1_000,
+    });
+    expect(reduceSnapshot(state, snapshot(T0), 5_000)).toEqual({});
+  });
+
+  it('accepts an older snapshot once the race window has closed', () => {
+    // A server clock that stepped backward (NTP correction, VM/laptop resume)
+    // must not poison the store: past the window, any snapshot is accepted.
+    // Without this bound the dashboard froze on pre-skew data until a refresh.
+    const state = fleetState({
+      snapshot: snapshot('2026-07-14T12:05:00.000Z'),
+      snapshotAcceptedAtMs: 0,
+    });
+    const patch = reduceSnapshot(state, snapshot(T0), SNAPSHOT_RACE_GUARD_WINDOW_MS + 1);
+    expect(patch.snapshot).toEqual(snapshot(T0));
+    expect(patch.snapshotAcceptedAtMs).toBe(SNAPSHOT_RACE_GUARD_WINDOW_MS + 1);
+  });
+
+  it('always accepts a newer snapshot, window open or not', () => {
+    const state = fleetState({ snapshot: snapshot(T0), snapshotAcceptedAtMs: 0 });
+    const patch = reduceSnapshot(state, snapshot('2026-07-14T12:05:00.000Z'), 1);
+    expect(patch.snapshot).toEqual(snapshot('2026-07-14T12:05:00.000Z'));
+  });
+
+  it('stamps the monotonic acceptance clock on accept', () => {
+    const patch = reduceSnapshot(fleetState(), snapshot(), 4242);
+    expect(patch.snapshotAcceptedAtMs).toBe(4242);
+  });
+
+  it('keeps the guard armed when no acceptance stamp exists (legacy state)', () => {
+    // A state written before the stamp existed must keep the old behaviour.
+    const state = fleetState({ snapshot: snapshot('2026-07-14T12:05:00.000Z') });
+    expect(reduceSnapshot(state, snapshot(T0), SNAPSHOT_RACE_GUARD_WINDOW_MS * 10)).toEqual({});
   });
 
   it('never touches needsSnapshotRefresh', () => {

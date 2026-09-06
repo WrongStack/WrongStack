@@ -31,6 +31,7 @@ export const useHqStore = create<HqStore>()((set) => ({
   peerEnvelope: null,
   connected: false,
   authRequired: false,
+  snapshotAcceptedAtMs: null,
 
   selectedSessionId: null,
   selectedAgentId: null,

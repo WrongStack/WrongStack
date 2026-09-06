@@ -48,6 +48,14 @@ export interface HqFleetState {
   peerEnvelope: HqPeerEnvelope | null;
   connected: boolean;
   authRequired: boolean;
+  /**
+   * Client-monotonic (`performance.now()`) timestamp of when the current
+   * snapshot was accepted, or null while none is held. Bounds the
+   * stale-frame guard in `reduceSnapshot` to client time, so a server clock
+   * stepping backward (NTP correction, VM/laptop resume) self-heals on the
+   * next snapshot instead of freezing the dashboard until a page refresh.
+   */
+  snapshotAcceptedAtMs?: number | null;
 }
 
 /** Operator-selected context, shared across views. */

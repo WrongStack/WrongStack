@@ -1,7 +1,8 @@
+import * as path from 'node:path';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
-import { normalizeCommandOutput, safeResolveReal } from './_util.js';
+import { ensureInsideRoot, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
 export type FormatFixer = 'biome' | 'prettier' | 'auto';
@@ -91,7 +92,22 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
     ctx: FormatContext,
     opts?: { signal: AbortSignal },
   ): AsyncGenerator<ToolStreamEvent<FormatOutput>> {
-    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    if (input.cwd !== undefined && (typeof input.cwd !== 'string' || !input.cwd.trim())) {
+      throw new ToolValidationError({
+        message: 'format: cwd must be a non-empty string when provided.',
+        field: 'cwd',
+      });
+    }
+
+    let cwd: string;
+    try {
+      cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    } catch (err) {
+      throw new ToolValidationError({
+        message: `format: ${(err as Error).message}`,
+        field: 'cwd',
+      });
+    }
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
     const VALID_FIXERS: ReadonlySet<string> = new Set(['biome', 'prettier', 'auto']);
@@ -161,6 +177,17 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
           ),
         ]
       : [];
+
+    for (const f of fileList) {
+      try {
+        ensureInsideRoot(path.resolve(cwd, f), ctx);
+      } catch (err) {
+        throw new ToolValidationError({
+          message: `format: file "${f}" ${(err as Error).message}`,
+          field: 'files',
+        });
+      }
+    }
 
     let args: string[];
     if (detected === 'prettier') {

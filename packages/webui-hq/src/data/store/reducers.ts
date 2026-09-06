@@ -61,22 +61,57 @@ export function reconcileSelection(
 }
 
 /**
+ * How long a freshly-accepted snapshot keeps the stale-frame guard armed.
+ *
+ * The guard exists for exactly one race: an in-flight `/api/snapshot` refresh
+ * response landing after a newer WS broadcast. That race resolves within
+ * seconds. Bounding the guard in CLIENT-monotonic time (`performance.now()`,
+ * immune to wall-clock changes) keeps that protection while making a server
+ * clock that steps BACKWARD self-healing: NTP corrections and VM or laptop
+ * resume used to poison the store — every later snapshot was discarded until
+ * a page refresh, freezing the fleet on pre-skew data that "isn't on the
+ * wire" while the socket still read as connected.
+ */
+export const SNAPSHOT_RACE_GUARD_WINDOW_MS = 60_000;
+
+function monotonicNow(): number {
+  return performance.now();
+}
+
+/**
+ * Whether the currently held snapshot was accepted recently enough that an
+ * older snapshot arriving now is plausibly the tail of the refresh race. A
+ * missing stamp (fresh or legacy state) counts as "just accepted": the guard
+ * stays armed unless we know otherwise.
+ */
+function wasAcceptedWithinRaceWindow(state: FleetSlice, nowPerfMs: number): boolean {
+  const acceptedAt = state.snapshotAcceptedAtMs;
+  if (acceptedAt === null || acceptedAt === undefined) return true;
+  return nowPerfMs - acceptedAt < SNAPSHOT_RACE_GUARD_WINDOW_MS;
+}
+
+/**
  * Boot-time HTTP seed. A live WS frame can win the race against the boot
  * request, and that older response must never replace the newer snapshot.
  */
 export function reduceHydrateSnapshot(
   state: FleetSlice,
   snapshot: HqSnapshot,
+  nowPerfMs: number = monotonicNow(),
 ): Partial<FleetSlice> {
   if (state.snapshot !== null) return {};
-  return { snapshot, ...reconcileSelection(state, snapshot) };
+  return { snapshot, snapshotAcceptedAtMs: nowPerfMs, ...reconcileSelection(state, snapshot) };
 }
 
 /**
  * Apply an authoritative snapshot (WS broadcast or `/api/snapshot` response).
  *
  * Stale-frame guard: a broadcast can arrive while a refresh fetch is in
- * flight; compare `generatedAt` and keep the newer one.
+ * flight; compare `generatedAt` and keep the newer one — but only while the
+ * held snapshot is fresh enough that such a race is plausible. The guard is
+ * bounded in client-monotonic time (see SNAPSHOT_RACE_GUARD_WINDOW_MS), so a
+ * server clock stepping backward cannot discard every later snapshot until
+ * the tab is refreshed.
  *
  * `needsSnapshotRefresh` is deliberately NOT touched here. The server mints a
  * fresh `generatedAt` on every `buildSnapshot()` call, so any gate keyed on
@@ -87,17 +122,27 @@ export function reduceHydrateSnapshot(
  * Resume cursors also survive a routine broadcast, so a later reconnect can
  * still advertise a meaningful gap. Only `hq.resume_reject` resets them.
  */
-export function reduceSnapshot(state: FleetSlice, snapshot: HqSnapshot): Partial<FleetSlice> {
+export function reduceSnapshot(
+  state: FleetSlice,
+  snapshot: HqSnapshot,
+  nowPerfMs: number = monotonicNow(),
+): Partial<FleetSlice> {
   const current = state.snapshot;
   if (
     current !== null &&
     typeof current.generatedAt === 'string' &&
     typeof snapshot.generatedAt === 'string' &&
-    Date.parse(snapshot.generatedAt) < Date.parse(current.generatedAt)
+    Date.parse(snapshot.generatedAt) < Date.parse(current.generatedAt) &&
+    wasAcceptedWithinRaceWindow(state, nowPerfMs)
   ) {
     return {};
   }
-  return { snapshot, connected: true, ...reconcileSelection(state, snapshot) };
+  return {
+    snapshot,
+    snapshotAcceptedAtMs: nowPerfMs,
+    connected: true,
+    ...reconcileSelection(state, snapshot),
+  };
 }
 
 /**

@@ -109,9 +109,35 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
     ctx: InstallContext,
     opts?: { signal: AbortSignal },
   ): AsyncGenerator<ToolStreamEvent<InstallOutput>> {
-    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    if (input.cwd !== undefined && (typeof input.cwd !== 'string' || !input.cwd.trim())) {
+      throw new ToolValidationError({
+        message: 'install: cwd must be a non-empty string when provided.',
+        field: 'cwd',
+      });
+    }
+
+    let cwd: string;
+    try {
+      cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    } catch (err) {
+      throw new ToolValidationError({
+        message: `install: ${(err as Error).message}`,
+        field: 'cwd',
+      });
+    }
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
+
+    if (
+      input.packages !== undefined &&
+      typeof input.packages !== 'string' &&
+      !Array.isArray(input.packages)
+    ) {
+      throw new ToolValidationError({
+        message: 'install: packages must be a string or array of strings',
+        field: 'packages',
+      });
+    }
 
     const VALID_SAVES: ReadonlySet<string> = new Set(['dependency', 'dev', 'optional']);
     if (input.save !== undefined && !VALID_SAVES.has(input.save)) {

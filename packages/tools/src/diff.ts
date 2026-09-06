@@ -108,6 +108,34 @@ export const diffTool: Tool<DiffInput, DiffOutput> = {
   async execute(input, ctx, opts) {
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
+    if (input.path !== undefined) {
+      if (typeof input.path !== 'string' || !input.path.trim()) {
+        throw new ToolValidationError({
+          message: "diff: 'path' must be a non-empty string when provided",
+          field: 'path',
+        });
+      }
+      try {
+        await safeResolveReal(input.path, ctx);
+      } catch (err) {
+        throw new ToolValidationError({
+          message: `diff: ${(err as Error).message}`,
+          field: 'path',
+        });
+      }
+    }
+    if (
+      input.context !== undefined &&
+      (typeof input.context !== 'number' ||
+        !Number.isInteger(input.context) ||
+        input.context < 0 ||
+        input.context > 100)
+    ) {
+      throw new ToolValidationError({
+        message: 'diff: context must be an integer between 0 and 100',
+        field: 'context',
+      });
+    }
     if (input.staged || input.a !== undefined || input.b !== undefined) {
       return await gitDiff(input, ctx, signal);
     }
@@ -162,7 +190,15 @@ async function gitDiff(
       ? 'side-by-side output is not supported; a unified diff was produced instead.'
       : undefined;
 
-  const basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
+  let basePath: string;
+  try {
+    basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
+  } catch (err) {
+    throw new ToolValidationError({
+      message: `diff: ${(err as Error).message}`,
+      field: 'path',
+    });
+  }
   const gitDir = findGitDir(basePath);
   if (!gitDir) {
     return {
@@ -315,14 +351,27 @@ async function fileDiff(
     };
   }
 
-  const basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
+  let basePath: string;
+  try {
+    basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
+  } catch (err) {
+    throw new ToolValidationError({
+      message: `diff: ${(err as Error).message}`,
+      field: 'path',
+    });
+  }
 
   const fileEntries = await mapWithConcurrency(files, 16, async (file) => {
     signal.throwIfAborted();
     // Realpath containment (WS-048): the dump path OPENS the resolved file, so
     // the syntactic check alone would follow an in-root symlink out of root.
     const fileToResolve = path.isAbsolute(file) ? file : path.resolve(basePath, file);
-    const absPath = await safeResolveReal(fileToResolve, ctx);
+    let absPath: string;
+    try {
+      absPath = await safeResolveReal(fileToResolve, ctx);
+    } catch {
+      return null;
+    }
     const stat = await fs.stat(absPath).catch(() => null);
     if (!stat?.isFile()) return null;
 

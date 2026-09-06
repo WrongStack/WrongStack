@@ -15,7 +15,13 @@ import {
   projectHqFleetMessage,
 } from '@wrongstack/webui-protocol';
 import { fetchJson } from './api.js';
-import { getHqSocket, type HqSocketMessage, type HqSocketOptions } from './transport/hq-socket.js';
+import { upgradeStoredTokenToCookie } from './auth/index.js';
+import {
+  getHqSocket,
+  type HqSocketMessage,
+  type HqSocketOptions,
+  type HqSocketState,
+} from './transport/hq-socket.js';
 import { useHqStore } from './store/index.js';
 
 type HqStoreApi = typeof useHqStore;
@@ -123,6 +129,36 @@ export function hydrateFromHttp(store: HqStoreApi): () => void {
 }
 
 /**
+ * Opportunistic cookie re-mint for reconnects.
+ *
+ * The HttpOnly session cookie is the ONLY credential a browser WebSocket can
+ * carry — `Authorization` headers do not exist on `WebSocket`, and the URL
+ * token is deliberately stripped off loopback. Server sessions are in-memory
+ * (30-min idle eviction, wiped by any server restart, rotated with the cookie
+ * secret), and the boot-time cookie upgrade in `main.tsx` runs exactly once
+ * per page load — so a tab left open across any of those events used to lose
+ * its live feed forever: the socket sat "reconnecting…" until a manual
+ * reload, which reads as "logged out". This re-mints the cookie from the
+ * still-stored browser token, throttled, whenever the transport starts
+ * reconnecting. A genuinely dead token fails the upgrade silently (the
+ * stored token is untouched), and a later REST 401 raises the gate as before.
+ */
+export function createReconnectReauthorizer(
+  upgrade: () => Promise<boolean> = upgradeStoredTokenToCookie,
+  minIntervalMs = 30_000,
+  now: () => number = Date.now,
+): (state: HqSocketState) => void {
+  let lastAttemptAt = Number.NEGATIVE_INFINITY;
+  return (state) => {
+    if (state !== 'reconnecting') return;
+    const at = now();
+    if (at - lastAttemptAt < minIntervalMs) return;
+    lastAttemptAt = at;
+    void upgrade().catch(() => undefined);
+  };
+}
+
+/**
  * Connect the live data plane. Returns a teardown that removes every
  * subscription (the socket singleton itself is torn down by `closeHqSocket`).
  */
@@ -134,6 +170,8 @@ export function connectHqDataPlane(options?: HqSocketOptions): () => void {
 
   const unsubscribeRefresh = armSnapshotRefresh(useHqStore);
   const cancelHydrate = hydrateFromHttp(useHqStore);
+  const reauthorizeOnReconnect = createReconnectReauthorizer();
+  const unsubscribeReauth = socket.onStateChange(reauthorizeOnReconnect);
   const unsubscribeState = socket.onStateChange((state) => {
     useHqStore.getState().setConnected(state === 'connected');
   });
@@ -144,6 +182,7 @@ export function connectHqDataPlane(options?: HqSocketOptions): () => void {
   return () => {
     unsubscribeMessages();
     unsubscribeState();
+    unsubscribeReauth();
     unsubscribeRefresh();
     cancelHydrate();
   };

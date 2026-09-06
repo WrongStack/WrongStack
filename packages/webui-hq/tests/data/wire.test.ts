@@ -18,9 +18,12 @@ vi.mock('../../src/data/api.js', () => ({
   authorizedFetch: vi.fn(),
 }));
 
-const { applySocketMessage, armSnapshotRefresh, hydrateFromHttp } = await import(
-  '../../src/data/wire.js'
-);
+const {
+  applySocketMessage,
+  armSnapshotRefresh,
+  createReconnectReauthorizer,
+  hydrateFromHttp,
+} = await import('../../src/data/wire.js');
 const { useHqStore } = await import('../../src/data/store/index.js');
 const { alert, commandEntry, event, peerPayload, snapshot } = await import('../fixtures/hq.js');
 
@@ -184,6 +187,49 @@ describe('hydrateFromHttp', () => {
   it('swallows a boot failure — the socket owns recovery', async () => {
     fetchJson.mockRejectedValue(new Error('401'));
     expect(() => hydrateFromHttp(useHqStore)).not.toThrow();
+    await Promise.resolve();
+  });
+});
+
+describe('createReconnectReauthorizer', () => {
+  it('re-mints the cookie when the transport starts reconnecting', async () => {
+    const upgrade = vi.fn(async () => true);
+    let now = 1_000;
+    const reauthorize = createReconnectReauthorizer(upgrade, 30_000, () => now);
+
+    reauthorize('connecting');
+    reauthorize('connected');
+    expect(upgrade).not.toHaveBeenCalled();
+
+    reauthorize('reconnecting');
+    expect(upgrade).toHaveBeenCalledTimes(1);
+    await Promise.resolve(); // settle the fire-and-forget upgrade
+  });
+
+  it('throttles a reconnect burst to one attempt per interval', () => {
+    const upgrade = vi.fn(async () => true);
+    let now = 1_000;
+    const reauthorize = createReconnectReauthorizer(upgrade, 30_000, () => now);
+
+    reauthorize('reconnecting');
+    now += 1_000;
+    reauthorize('reconnecting');
+    now += 10_000;
+    reauthorize('reconnecting');
+    expect(upgrade).toHaveBeenCalledTimes(1);
+
+    now += 30_000;
+    reauthorize('reconnecting');
+    expect(upgrade).toHaveBeenCalledTimes(2);
+  });
+
+  it('survives a failing upgrade — a dead token must not break the transport', async () => {
+    const upgrade = vi.fn(async () => {
+      throw new Error('network down');
+    });
+    const reauthorize = createReconnectReauthorizer(upgrade, 30_000, () => 0);
+    expect(() => reauthorize('reconnecting')).not.toThrow();
+    await Promise.resolve();
     await Promise.resolve();
   });
 });

@@ -678,6 +678,8 @@ export interface MemoryCandidateResolution {
   applied: boolean;
   /** True when the candidate was already resolved — the call was a no-op. */
   alreadyResolved?: boolean | undefined;
+  /** Mutation failure detail when a claimed candidate was restored for re-review. */
+  error?: string | undefined;
 }
 
 export interface UpdateSageInput {
