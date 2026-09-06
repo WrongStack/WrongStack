@@ -21,6 +21,18 @@ node scripts/guard-unresolved-imports.mjs --verbose
 # generated file that accidentally includes a teammate's WIP.
 node scripts/sync-core-public-api-snapshot.mjs
 
+# Architecture measurements are committed evidence, not a manual release
+# chore. When staged production/architecture inputs move, refresh the hotspot
+# ratchet and report pair before the commit is created so release checks never
+# fail merely because generated evidence lagged the source change.
+architecture_staged=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(packages/|apps/|architecture/|scripts/(check-architecture-health|snapshot-core-public-api|sync-core-public-api-snapshot)\.mjs$)' || true)
+if [ -n "$architecture_staged" ]; then
+  node scripts/check-architecture-health.mjs --write-hotspot-baseline
+  pnpm report:architecture
+  git add architecture/hotspots.json architecture/test-only-exports.json \
+    docs/reports/architecture-health-current.json docs/reports/architecture-health-current.md
+fi
+
 # ── Mailbox-bridge integrity ─────────────────────────────────────
 # If any mailbox-bridge source file is staged, run the route-table +
 # source-union guard. Cheap to skip when nothing relevant is staged.
