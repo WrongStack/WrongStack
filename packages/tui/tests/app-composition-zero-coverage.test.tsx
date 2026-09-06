@@ -123,7 +123,13 @@ describe('useAppEventBridges composition', () => {
       director: {},
     };
 
-    const { result } = renderHook(() => useAppEventBridges(params));
+    // Every bridge hook is mocked above, so this composition test only needs
+    // field identity — not real controllers. The hook's parameter type is the
+    // intersection of the seven real hook contracts, so the stub is asserted
+    // through it rather than restated.
+    const { result } = renderHook(() =>
+      useAppEventBridges(params as unknown as Parameters<typeof useAppEventBridges>[0]),
+    );
 
     expect(mocks.useProviderEventBridge).toHaveBeenCalledWith(
       expect.objectContaining({

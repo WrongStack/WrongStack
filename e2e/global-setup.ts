@@ -61,6 +61,13 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
       // Chalk emits ANSI codes when it (incorrectly) guesses a TTY; strip
       // them so the readiness regexes match the plain-text banner.
       NO_COLOR: '1',
+      // A boot that dies quietly is the failure mode this setup keeps hitting
+      // (CI: exit 0, no banner, three INFO lines of output). Debug logging
+      // shows how far boot got, and `--trace-exit` prints a stack trace for
+      // any explicit `process.exit()` — which separates "something called
+      // exit" from "the event loop simply emptied out".
+      WRONGSTACK_LOG_LEVEL: process.env.WRONGSTACK_LOG_LEVEL ?? 'debug',
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--trace-exit'].filter(Boolean).join(' '),
     },
   });
 
