@@ -357,16 +357,14 @@ async function runACPServer(deps: SubcommandDeps): Promise<number> {
   }
 
   // Graceful shutdown. The old code did `server.stop(); process.exit(0)`
-  // back-to-back, which cut off `server.stop()`'s async teardown (it
-  // initiates cleanup of underlying agents and the session store, but
-  // returns void rather than a promise — yet Node still has pending
-  // microtasks scheduled that `process.exit` would abandon). Use the
-  // same pattern as cli-main.ts: idempotent guard, await any cleanup,
-  // set exitCode, give Node a 500ms grace to drain, then force exit.
+  // back-to-back, which cut off `server.stop()`'s async teardown. `stop()`
+  // now resolves once the HTTP handle is closed, so awaiting it is the
+  // whole guarantee. Same pattern as cli-main.ts: idempotent guard, await
+  // cleanup, set exitCode, give Node a 500ms grace to drain, then force exit.
   createGracefulShutdown({
     run: async () => {
       try {
-        server.stop();
+        await server.stop();
       } catch (err) {
         deps.renderer.writeError(
           `ACP stop failed: ${err instanceof Error ? err.message : String(err)}\n`,

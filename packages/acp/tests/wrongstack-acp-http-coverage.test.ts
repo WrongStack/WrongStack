@@ -7,8 +7,8 @@ import {
 
 const servers: WrongStackACPServer[] = [];
 
-afterEach(() => {
-  for (const server of servers.splice(0)) server.stop();
+afterEach(async () => {
+  for (const server of servers.splice(0)) await server.stop();
 });
 
 async function startServer(options: ConstructorParameters<typeof WrongStackACPServer>[0] = {}) {

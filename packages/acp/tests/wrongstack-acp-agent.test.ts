@@ -116,10 +116,10 @@ describe('WrongStackACPServer', () => {
     expect(t.close).toHaveBeenCalledTimes(1);
   });
 
-  it('stop closes the transport', () => {
+  it('stop closes the transport', async () => {
     const server = new WrongStackACPServer();
     const t = lastTransport();
-    server.stop();
+    await server.stop();
     expect(t.close).toHaveBeenCalled();
   });
 });

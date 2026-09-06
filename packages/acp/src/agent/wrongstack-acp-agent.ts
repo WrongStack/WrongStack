@@ -27,7 +27,7 @@
 
 import { timingSafeEqual } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
-import { isIP } from 'node:net';
+import { isIP, type Socket } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { expandIPv6, writeErr } from '@wrongstack/core/utils';
 import type { ACPMessage } from '../types/acp-messages.js';
@@ -84,12 +84,18 @@ export interface WrongStackACPServerOptions {
   store?: SessionPersistence | undefined;
 }
 
+/** Bounded retry budget for a transient bind failure on an ephemeral port. */
+const LISTEN_RETRY_LIMIT = 5;
+const LISTEN_RETRY_BASE_MS = 25;
+
 export class WrongStackACPServer {
   private readonly transport: StdioTransport;
   private readonly handler: ACPProtocolHandler;
   private readonly options: WrongStackACPServerOptions;
   /** HTTP server when transport mode is HTTP. */
   private httpServer: Server | null = null;
+  /** Live sockets on `httpServer`; destroyed on `stop()` so `close()` settles. */
+  private readonly httpSockets = new Set<Socket>();
   private running = false;
 
   constructor(opts: WrongStackACPServerOptions = {}) {
@@ -154,7 +160,7 @@ export class WrongStackACPServer {
     // monkey-patched send capture, causing cross-talk or lost responses.
     let httpChain: Promise<void> = Promise.resolve();
 
-    this.httpServer = createServer(async (req, res) => {
+    const httpServer = createServer(async (req, res) => {
       // ── Authentication ──────────────────────────────────────────────
       // When an authToken is configured, require it on every request.
       // Accept `Authorization: Bearer <token>` header or `?token=<token>`
@@ -308,24 +314,82 @@ export class WrongStackACPServer {
       }
     });
 
-    return new Promise<void>((resolve) => {
-      this.httpServer!.listen(port, host, () => {
-        writeErr(`[wstack-acp] HTTP server listening on http://${host}:${port}\n`);
-        this.running = true;
+    // Track live sockets. `server.close()` only stops accepting new
+    // connections; keep-alive sockets (every `fetch` client holds one open)
+    // keep the handle — and its kernel buffers — alive indefinitely. On
+    // Windows that accumulation is what eventually surfaces as `ENOBUFS`.
+    this.httpServer = httpServer;
+    const sockets = this.httpSockets;
+    httpServer.on('connection', (socket) => {
+      sockets.add(socket);
+      socket.on('close', () => sockets.delete(socket));
+    });
+
+    await this.listenWithRetry(port, host);
+    // Report the port actually bound: `port: 0` means "pick an ephemeral one",
+    // so echoing the requested value would print a literal `:0`.
+    const bound = httpServer.address();
+    const shown = typeof bound === 'object' && bound ? bound.port : port;
+    writeErr(`[wstack-acp] HTTP server listening on http://${host}:${shown}\n`);
+    this.running = true;
+  }
+
+  /**
+   * `listen()` reports failure through an `'error'` event, not the callback.
+   * Without a listener that event is an unhandled exception *and* the start
+   * promise never settles — a hang rather than a diagnosable failure.
+   *
+   * An ephemeral bind (`port === 0`) additionally retries the transient
+   * resource-exhaustion codes: under a saturated parallel test run the OS can
+   * momentarily have no buffer or port to hand out even though nothing is wrong.
+   */
+  private listenWithRetry(port: number, host: string, attempt = 0): Promise<void> {
+    const server = this.httpServer;
+    if (!server) return Promise.resolve();
+    return new Promise<void>((resolve, reject) => {
+      const onListening = (): void => {
+        server.removeListener('error', onError);
         resolve();
-      });
+      };
+      const onError = (err: NodeJS.ErrnoException): void => {
+        server.removeListener('listening', onListening);
+        const transient =
+          err.code === 'ENOBUFS' || err.code === 'EADDRINUSE' || err.code === 'EADDRNOTAVAIL';
+        if (port === 0 && transient && attempt < LISTEN_RETRY_LIMIT) {
+          const timer = setTimeout(
+            () => {
+              this.listenWithRetry(port, host, attempt + 1).then(resolve, reject);
+            },
+            LISTEN_RETRY_BASE_MS * (attempt + 1),
+          );
+          timer.unref?.();
+          return;
+        }
+        reject(err);
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(port, host);
     });
   }
 
-  /** Stop the server. */
-  stop(): void {
+  /**
+   * Stop the server. Resolves once the HTTP handle is fully closed, so a
+   * caller (a test `afterEach`, a restart) cannot race its next bind against
+   * sockets this server still owns.
+   */
+  async stop(): Promise<void> {
     this.running = false;
     this.handler.close();
     this.transport.close();
-    if (this.httpServer) {
-      this.httpServer.close();
-      this.httpServer = null;
-    }
+    const server = this.httpServer;
+    this.httpServer = null;
+    if (!server) return;
+    for (const socket of this.httpSockets) socket.destroy();
+    this.httpSockets.clear();
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve());
+    });
   }
 }
 
