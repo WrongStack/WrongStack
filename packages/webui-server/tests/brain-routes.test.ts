@@ -104,7 +104,7 @@ describe('handleBrainAsk payload shape', () => {
     );
     const answer = findBrainAnswer(ws);
     expect(answer).toBeDefined();
-    expect(Object.hasOwn(answer?.payload, 'sessionId')).toBe(false);
+    expect(Object.hasOwn(answer?.payload ?? {}, 'sessionId')).toBe(false);
   });
 
   it('stamps sessionId when a session is bound', async () => {
@@ -116,7 +116,7 @@ describe('handleBrainAsk payload shape', () => {
     );
     const answer = findBrainAnswer(ws);
     expect(answer).toBeDefined();
-    expect(Object.hasOwn(answer?.payload, 'sessionId')).toBe(true);
+    expect(Object.hasOwn(answer?.payload ?? {}, 'sessionId')).toBe(true);
     expect(answer?.payload?.['sessionId']).toBe('sess-1');
   });
 });
