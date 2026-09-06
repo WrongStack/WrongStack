@@ -33,12 +33,12 @@
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",
-    "undici": "^8.10.0"
+    "undici": "^8.10.1"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "typescript": "^7.0.2",
-    "undici-types": "^8.10.0",
+    "undici-types": "^8.10.1",
     "vitest": "^4.1.11"
   },
   "publishConfig": {
