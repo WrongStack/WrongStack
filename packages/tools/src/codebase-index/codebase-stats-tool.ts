@@ -13,7 +13,13 @@ import { IndexTimeoutError } from './circuit-breaker.js';
 import { SCHEMA_VERSION } from './schema.js';
 import { codebaseIndexDirOverride, resolveIndexDir } from './writer.js';
 
-export interface CodebaseStatsInput {}
+/**
+ * `codebase-stats` takes no arguments (its JSON schema is
+ * `properties: {}, additionalProperties: false`). Expressed as a type alias
+ * rather than an empty interface, which is structurally `{}` — a type that
+ * accepts any non-nullish value and is flagged by `noEmptyInterface`.
+ */
+export type CodebaseStatsInput = Record<string, never>;
 
 export const codebaseStatsTool: Tool<CodebaseStatsInput, CodebaseStatsOutput> = {
   name: 'codebase-stats',
