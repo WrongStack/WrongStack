@@ -1,0 +1,500 @@
+{
+  "schemaVersion": 1,
+  "declarations": [
+    {
+      "file": "apps/desktop/tests/app-icon.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "1bc807cff96b4097"
+    },
+    {
+      "file": "apps/desktop/tests/app-icon.test.ts",
+      "kind": "skip",
+      "fingerprint": "492072a80623b06c"
+    },
+    {
+      "file": "packages/acp/tests/ensemble-registry.test.ts",
+      "kind": "runIf",
+      "fingerprint": "fe294960de54574e"
+    },
+    {
+      "file": "packages/acp/tests/security-hardening.test.ts",
+      "kind": "runtime-skip",
+      "fingerprint": "274cfc3c464b9e6d"
+    },
+    {
+      "file": "packages/acp/tests/security-hardening.test.ts",
+      "kind": "runtime-skip",
+      "fingerprint": "8c370e3250d384cb"
+    },
+    {
+      "file": "packages/acp/tests/security-hardening.test.ts",
+      "kind": "runtime-skip",
+      "fingerprint": "8c370e3250d384cb"
+    },
+    {
+      "file": "packages/cli/tests/auth-menu-oauth.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "0ea378c848b6d617"
+    },
+    {
+      "file": "packages/cli/tests/auth-panel-tui-e2e.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "6ec5e9ce19834641"
+    },
+    {
+      "file": "packages/cli/tests/hq-visual-smoke.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "cdceee059ef2523c"
+    },
+    {
+      "file": "packages/core/tests/chronicle/metrics-store-sqlite-source.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "1b4c70186dfe382c"
+    },
+    {
+      "file": "packages/core/tests/chronicle/metrics-store.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "2dcf51c9176eed57"
+    },
+    {
+      "file": "packages/core/tests/chronicle/metrics-token-attribution.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "830552a86ae53e38"
+    },
+    {
+      "file": "packages/core/tests/chronicle/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "b6bed90afffce85b"
+    },
+    {
+      "file": "packages/core/tests/coordination/mailbox-project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "6bdd4173c55aff28"
+    },
+    {
+      "file": "packages/core/tests/coordination/package-author-tracker.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "6c1dfd9f1895e5c4"
+    },
+    {
+      "file": "packages/core/tests/security/file-permissions.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "b16aeb2c1e88f226"
+    },
+    {
+      "file": "packages/core/tests/security/file-permissions.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "f455407a634ea1dd"
+    },
+    {
+      "file": "packages/core/tests/security/permission-write-bypass.test.ts",
+      "kind": "runtime-skip",
+      "fingerprint": "2159d553dd3ca0b1"
+    },
+    {
+      "file": "packages/core/tests/security/permission-write-bypass.test.ts",
+      "kind": "runtime-skip",
+      "fingerprint": "794eb1c5b323437a"
+    },
+    {
+      "file": "packages/core/tests/security/permission-write-bypass.test.ts",
+      "kind": "runtime-skip",
+      "fingerprint": "a75af38dbbc13e19"
+    },
+    {
+      "file": "packages/core/tests/worktree/worktree-manager.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "5fa25ae1a877547c"
+    },
+    {
+      "file": "packages/core/tests/worktree/worktree-manager.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "a869eae099367227"
+    },
+    {
+      "file": "packages/kanban/tests/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "387f2407d416c0b9"
+    },
+    {
+      "file": "packages/kanban/tests/verification/command-allowlist-env.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "34d6727c19bbbcf5"
+    },
+    {
+      "file": "packages/kanban/tests/verification/command-allowlist-env.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "8df1a093adc0167a"
+    },
+    {
+      "file": "packages/kanban/tests/verification/command-allowlist-env.test.ts",
+      "kind": "skip",
+      "fingerprint": "851959725da22f9f"
+    },
+    {
+      "file": "packages/mcp/tests/client-windows-lifecycle.test.ts",
+      "kind": "runIf",
+      "fingerprint": "5760e7fd5b745740"
+    },
+    {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "131cca6e516ac699"
+    },
+    {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "293aa23ec06883de"
+    },
+    {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "b39f194e031a55f9"
+    },
+    {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "skip",
+      "fingerprint": "507c258855317cf8"
+    },
+    {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "skip",
+      "fingerprint": "89c506dbd655693f"
+    },
+    {
+      "file": "packages/persistence/tests/skip-budget-guard.test.ts",
+      "kind": "skip",
+      "fingerprint": "25aa96f8ed288199"
+    },
+    {
+      "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "31cfbc566a723022"
+    },
+    {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "6372fdcdd20e4a1b"
+    },
+    {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "65e68dd2f29dd5a7"
+    },
+    {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "6f414424311cc3a8"
+    },
+    {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "d7463963b9764391"
+    },
+    {
+      "file": "packages/plugins/tests/runtime-local-bin.test.ts",
+      "kind": "runIf",
+      "fingerprint": "08467b893da83899"
+    },
+    {
+      "file": "packages/plugins/tests/runtime-local-bin.test.ts",
+      "kind": "runIf",
+      "fingerprint": "768679495e4526b0"
+    },
+    {
+      "file": "packages/plugins/tests/runtime-local-bin.test.ts",
+      "kind": "runIf",
+      "fingerprint": "a2087792cb832138"
+    },
+    {
+      "file": "packages/plugins/tests/runtime-local-bin.test.ts",
+      "kind": "runIf",
+      "fingerprint": "aa98e60796794e33"
+    },
+    {
+      "file": "packages/sage/tests/agent-anchor.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "9d62767f8ffa98c6"
+    },
+    {
+      "file": "packages/sage/tests/feedback-counters.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "838869ab26efd619"
+    },
+    {
+      "file": "packages/sage/tests/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "3a6ff4cff9bd0ee7"
+    },
+    {
+      "file": "packages/sage/tests/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "3c611f3df7189b61"
+    },
+    {
+      "file": "packages/tools/tests/_win32-resolve.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "1c95f6dfd19e4e92"
+    },
+    {
+      "file": "packages/tools/tests/_win32-resolve.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "453fcb50fcdbb44e"
+    },
+    {
+      "file": "packages/tools/tests/_win32-resolve.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "d191ac8ee9dbc9ac"
+    },
+    {
+      "file": "packages/tools/tests/_win32-resolve.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "d60623c9e3dedfea"
+    },
+    {
+      "file": "packages/tools/tests/_win32-resolve.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "fabe0658019e72c5"
+    },
+    {
+      "file": "packages/tools/tests/bash-kill-guard-paths.test.ts",
+      "kind": "runIf",
+      "fingerprint": "8da6adbe04ea2901"
+    },
+    {
+      "file": "packages/tools/tests/bash-treekill-win32.test.ts",
+      "kind": "runIf",
+      "fingerprint": "c0819fc3befcf009"
+    },
+    {
+      "file": "packages/tools/tests/browser-manager.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "8f0a065f34a0d18f"
+    },
+    {
+      "file": "packages/tools/tests/codebase-index-worker.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "73f47856be4c7a02"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "0ccc935af90c2f71"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "58b56cb289888b83"
+    },
+    {
+      "file": "packages/tools/tests/exec-spawn.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "3d8020154c36355e"
+    },
+    {
+      "file": "packages/tools/tests/exec-spawn.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "9e7be086e030a25e"
+    },
+    {
+      "file": "packages/tools/tests/exec-spawn.test.ts",
+      "kind": "skip",
+      "fingerprint": "8cbbdfc421d67cef"
+    },
+    {
+      "file": "packages/tools/tests/exec-spawn.test.ts",
+      "kind": "skip",
+      "fingerprint": "e9dd96a56b23b9cb"
+    },
+    {
+      "file": "packages/tools/tests/parser-batch.test.ts",
+      "kind": "runIf",
+      "fingerprint": "49f2952817ccabdf"
+    },
+    {
+      "file": "packages/tools/tests/parser-batch.test.ts",
+      "kind": "runIf",
+      "fingerprint": "5d73d6f64f8c803c"
+    },
+    {
+      "file": "packages/tools/tests/parser-batch.test.ts",
+      "kind": "runIf",
+      "fingerprint": "d6ab49a134965756"
+    },
+    {
+      "file": "packages/tools/tests/parser-worker-pool-failover.test.ts",
+      "kind": "runIf",
+      "fingerprint": "afe17d1aea5b792d"
+    },
+    {
+      "file": "packages/tools/tests/project-index-server-endpoint-invalid.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "69d4b3efe347daa8"
+    },
+    {
+      "file": "packages/tools/tests/project-server-auth-gate.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "2fd8a1e841259023"
+    },
+    {
+      "file": "packages/tools/tests/project-server-binary-framing.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "d8ee4737d1b868a2"
+    },
+    {
+      "file": "packages/tools/tests/project-server-idle.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "d6d5511c7bbb4262"
+    },
+    {
+      "file": "packages/tools/tests/win32-resolve.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "30afc64215499037"
+    },
+    {
+      "file": "packages/tools/tests/win32-resolve.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "e8a8b69ec14729ac"
+    },
+    {
+      "file": "packages/tui/tests/git-info-large-output.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "550496734a0391b3"
+    },
+    {
+      "file": "packages/tui/tests/git-info-large-output.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "8b3372766392ea9f"
+    },
+    {
+      "file": "packages/tui/tests/git-info-large-output.test.ts",
+      "kind": "skip",
+      "fingerprint": "140833e790330457"
+    },
+    {
+      "file": "packages/tui/tests/git-info.comprehensive.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "44f3d283d9f05369"
+    },
+    {
+      "file": "packages/tui/tests/git-info.comprehensive.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "8f55431b5ecc6852"
+    },
+    {
+      "file": "packages/tui/tests/git-info.comprehensive.test.ts",
+      "kind": "skip",
+      "fingerprint": "a742ee572fa819fa"
+    },
+    {
+      "file": "packages/tui/tests/git-info.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "eb2150f91f0f2c2a"
+    },
+    {
+      "file": "packages/tui/tests/git-info.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "8f55431b5ecc6852"
+    },
+    {
+      "file": "packages/tui/tests/git-info.test.ts",
+      "kind": "skip",
+      "fingerprint": "400d05d7964d2087"
+    },
+    {
+      "file": "packages/tui/tests/use-working-dir-chip.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "64d5454ccdda1aab"
+    },
+    {
+      "file": "packages/tui/tests/working-dir-chip.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "64d5454ccdda1aab"
+    },
+    {
+      "file": "packages/vector-memory/tests/integration.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "4ae929409f76117b"
+    },
+    {
+      "file": "packages/vector-memory/tests/integration.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "cb9602d14c74b1c5"
+    },
+    {
+      "file": "packages/vector-memory/tests/integration.test.ts",
+      "kind": "skip",
+      "fingerprint": "d848b77740397b34"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-augment-integration.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "a6048a5a7c31f4c2"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-augment-integration.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "61080b26fc6085db"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-augment-integration.test.ts",
+      "kind": "skip",
+      "fingerprint": "21406c79b555b6fc"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror-updates.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "228666240d768cdf"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror-updates.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "7866a1e0e4215d80"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror-updates.test.ts",
+      "kind": "skip",
+      "fingerprint": "5b5afd9456a381cc"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "ebfe563bb5ef4b0c"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "6b89fa49810afa04"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "c794ec541c3bd5d6"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror.test.ts",
+      "kind": "skip",
+      "fingerprint": "e2835886ee46c52c"
+    },
+    {
+      "file": "packages/vector-memory/tests/search-race.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "c1da7b5bfb907ea9"
+    },
+    {
+      "file": "packages/vector-memory/tests/search-race.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "cec0ca5ecc4f1e05"
+    },
+    {
+      "file": "packages/vector-memory/tests/search-race.test.ts",
+      "kind": "skip",
+      "fingerprint": "39bbb4246f5caff0"
+    },
+    {
+      "file": "packages/wrongtrace/src/__tests__/client.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "620d01b9947c33f5"
+    }
+  ]
+}

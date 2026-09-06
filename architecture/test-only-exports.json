@@ -470,6 +470,7 @@
       "requirementIntakeServer"
     ],
     "packages/core/src/mailbox-attach.ts": [
+      "applySessionAffinityFilter",
       "resetMailboxHqPublishersForTests"
     ],
     "packages/core/src/plugins/perf-command.ts": [
@@ -1249,6 +1250,9 @@
     "packages/tui/src/hooks/use-file-search.ts": [
       "detectAtToken"
     ],
+    "packages/tui/src/hooks/use-history-auto-scroll.ts": [
+      "HISTORY_AUTO_SCROLL_DELAY_MS"
+    ],
     "packages/tui/src/hooks/use-mode-picker.ts": [
       "buildModePickerOptions"
     ],
@@ -1361,6 +1365,9 @@
     "packages/webui-hq/src/data/selectors.ts": [
       "actionableAlertCount"
     ],
+    "packages/webui-hq/src/data/store/reducers.ts": [
+      "SNAPSHOT_RACE_GUARD_WINDOW_MS"
+    ],
     "packages/webui-hq/src/data/transport/hq-socket.ts": [
       "closeHqSocket",
       "resolveHqSocketUrl"
@@ -1372,6 +1379,7 @@
     "packages/webui-hq/src/data/wire.ts": [
       "applySocketMessage",
       "armSnapshotRefresh",
+      "createReconnectReauthorizer",
       "hydrateFromHttp"
     ],
     "packages/webui-hq/src/domain/fleet-nav-tree.ts": [

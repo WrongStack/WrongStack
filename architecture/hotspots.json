@@ -255,7 +255,7 @@
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
-      "lines": 996,
+      "lines": 1007,
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
@@ -303,16 +303,16 @@
       "relativeImports": 4
     },
     "packages/tui/src/app-key-handler.ts": {
-      "lines": 962,
+      "lines": 970,
       "relativeImports": 18
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 963,
+      "lines": 974,
       "relativeImports": 14
     },
     "packages/tui/src/app.tsx": {
-      "lines": 1036,
-      "relativeImports": 72
+      "lines": 1057,
+      "relativeImports": 74
     },
     "packages/tui/src/components/agents-monitor.tsx": {
       "lines": 984,
@@ -351,7 +351,7 @@
       "relativeImports": 8
     },
     "packages/tui/src/input-validation.ts": {
-      "lines": 983,
+      "lines": 987,
       "relativeImports": 13
     },
     "packages/tui/src/kanban-slash.ts": {
@@ -367,7 +367,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/submit-controller.ts": {
-      "lines": 893,
+      "lines": 905,
       "relativeImports": 13
     },
     "packages/webui/src/components/AudienceMemoryPanel.tsx": {
