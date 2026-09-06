@@ -45,7 +45,7 @@ beforeEach(() => {
   });
 });
 
-describe('WelcomeScreen Elite Bug Hunter shortcut', () => {
+describe('WelcomeScreen Proof-Driven Bug Hunter shortcut', () => {
   it('enables solo mode before loading and submitting the first chat turn', () => {
     render(<WelcomeScreen />);
 

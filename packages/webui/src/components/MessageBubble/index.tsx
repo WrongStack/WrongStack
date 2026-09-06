@@ -375,7 +375,7 @@ export const MessageBubble = memo(function MessageBubble({
               <div className="min-w-[15rem]">
                 <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                   <Crosshair className="h-4 w-4" />
-                  <span>Elite Bug Hunter</span>
+                  <span>Proof-Driven Bug Hunter</span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs">
                   <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-1">

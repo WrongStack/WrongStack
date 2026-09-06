@@ -22,7 +22,7 @@ describe('formatCount', () => {
     expect(formatCount(Number.NEGATIVE_INFINITY)).toBe('0');
   });
 
-  // Regression (elite bug-hunter round 2026-09-05-hq-formatcount-carry): the
+  // Regression (proof-driven bug-hunter round 2026-09-05-hq-formatcount-carry): the
   // unit used to be picked from the raw magnitude while the mantissa was
   // rounded afterwards, so every count whose kilo-mantissa rounded up to 1000
   // rendered as "1000.0k" — one full step past its own unit, and smaller than

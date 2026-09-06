@@ -64,7 +64,7 @@ export interface ChatMessage {
   content: string;
   /** Images the user attached to this message (user role only). */
   attachments?: ChatMessageAttachment[] | undefined;
-  /** A compact, presentation-only summary for a built-in Elite Bug Hunter
+  /** A compact, presentation-only summary for a built-in Proof-Driven Bug Hunter
    * request. The full instruction is still sent to the agent, but never
    * printed into the user's transcript. */
   bugHunt?:
