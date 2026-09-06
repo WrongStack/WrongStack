@@ -13,11 +13,15 @@
  * `probeRunnerCommand`), `withinProject`, `collectSourceFiles(Async)` and
  * `matchesExtension` are defined in the sdk's runtime barrel module itself.
  *
- * DO NOT re-try granular-rewiring this shim without fixing the blocker
- * first: round sdk-runner-r1 (2026-09-06, PERF_LOG) extracted the runner
- * module to `./runtime/runner` and rewired this shim — it REGRESSED
- * path-guard +46% and branch-guard +24% cold-import because
- * `@wrongstack/core/utils` (~43ms, measured) is unavoidable in the runner
- * graph and the split added per-entry resolution on top of the same
- * transitive chains. Everything was reverted. The unlock is a cheap
- * `@wrongstack/core/utils` (or a lazy `buildChildEnv`), LANDED 2026-09-06 (round core-utils-r1): @wrongstack/core/utils/child-env now imports in ~4.5ms and the plugin-sdk barrel uses it — the runner-extraction re-attempt is a fresh hypothesis (expect barrel consumers near the ~12ms tier), not a blind retry.
+ * The runner-extraction unlock LANDED 2026-09-06 (round core-utils-r1):
+ * `@wrongstack/core/utils/child-env` imports in ~4.5ms and the plugin-sdk
+ * barrel uses it. The extraction was re-attempted as round sdk-runner-r2
+ * and REVERTED on measurement: the primary arm's win landed inside the
+ * noise band (path-guard 12.33 -> 11.46ms, band ~5.4ms) because the
+ * child-env entry already banked the barrel's cost, and the granular
+ * 10-resolution shim measurably regressed multi-symbol consumers
+ * (branch-guard 10.87 -> 16.95ms). Do not re-attempt without a new
+ * hypothesis; see PERF_LOG round sdk-runner-r2.
+ */
+
+export * from '@wrongstack/plugin-sdk/runtime';
