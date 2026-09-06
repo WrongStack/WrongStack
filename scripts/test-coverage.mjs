@@ -61,12 +61,10 @@ export function runCoverage(options = {}) {
     env.CI === 'true'
       ? [
           '--',
-          '--retry.count',
+          // Vitest supports --retry, but not nested retry config flags. Keep
+          // this as an argv value so pnpm never hands a shell a `|` expression.
+          '--retry',
           '2',
-          '--retry.delay',
-          '250',
-          '--retry.condition',
-          'ENOBUFS|EADDRINUSE|EADDRNOTAVAIL|EACCES|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE',
         ]
       : [];
 

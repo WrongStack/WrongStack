@@ -455,7 +455,7 @@ describe('coverage runner script', () => {
     expect(log).toHaveBeenCalledTimes(2);
   });
 
-  it('retries only transient Vitest failures in CI', () => {
+  it('uses Vitest’s supported retry option in CI', () => {
     const spawnPnpm = vi.fn(() => spawnResult(0));
 
     expect(
@@ -480,12 +480,8 @@ describe('coverage runner script', () => {
         'pnpm.cjs',
         'test:coverage',
         '--',
-        '--retry.count',
+        '--retry',
         '2',
-        '--retry.delay',
-        '250',
-        '--retry.condition',
-        'ENOBUFS|EADDRINUSE|EADDRNOTAVAIL|EACCES|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE',
       ],
       expect.objectContaining({ cwd: 'repo', env: { CI: 'true' }, stdio: 'inherit' }),
     );
