@@ -42,7 +42,7 @@ import { createHash } from 'node:crypto';
 import { rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { hashFile, readCache, REPO_ROOT } from './lib/affected-cache.mjs';
+import { hashFile, REPO_ROOT, readCache } from './lib/affected-cache.mjs';
 
 /**
  * Files that can change what ANY test does. A change here invalidates the whole
@@ -136,7 +136,7 @@ const cache = readCache();
 const cachedFiles = Object.keys(cache.entries);
 
 let fullRunReason = null;
-let skip = [];
+const skip = [];
 if (options.all) {
   fullRunReason = '--all';
 } else if (cachedFiles.length === 0) {

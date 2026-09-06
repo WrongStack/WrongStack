@@ -33,9 +33,11 @@ function collectDeps(moduleGraph, filepath) {
     const node = queue.pop();
     if (!node || seen.has(node)) continue;
     seen.add(node);
-    // `file` is null for virtual modules (vite internals, inline mocks); they
-    // have no content to hash, so they cannot invalidate anything.
-    if (typeof node.file === 'string') {
+    // Virtual modules (vite internals, inline mocks) surface as a `file` that
+    // is null, or a bare specifier like ` vite/dynamic-import-helper.js`. They
+    // have no content on disk, so recording one makes its test look eternally
+    // dirty — `hashFile` can never resolve it. Only absolute paths are real.
+    if (typeof node.file === 'string' && path.isAbsolute(node.file)) {
       const rel = toRepoPath(node.file);
       // node_modules churn is covered by the lockfile in the salt, and hashing
       // it would dominate the cost for no signal.
@@ -99,10 +101,6 @@ export default class AffectedRecorder {
     }
 
     mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
-    writeFileSync(
-      CACHE_PATH,
-      JSON.stringify({ schemaVersion: 1, salt, entries, hashes }),
-      'utf8',
-    );
+    writeFileSync(CACHE_PATH, JSON.stringify({ schemaVersion: 1, salt, entries, hashes }), 'utf8');
   }
 }

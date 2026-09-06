@@ -13,7 +13,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const CACHE_PATH = path.join(REPO_ROOT, 'node_modules', '.cache', 'wrongstack-affected.json');
+export const CACHE_PATH = path.join(
+  REPO_ROOT,
+  'node_modules',
+  '.cache',
+  'wrongstack-affected.json',
+);
 
 /**
  * Repo-relative, forward-slashed path, or null when the file is outside the
