@@ -64,9 +64,33 @@ function makeServer(): MCPServer {
   });
 }
 
+/**
+ * Bind errors that say nothing about the guard under test.
+ *
+ * Every case here binds its own ephemeral listener, and a full-suite run does
+ * that thousands of times alongside every other server-spawning test. Windows
+ * answers with ENOBUFS once its socket table is momentarily full; the port
+ * picked by `port: 0` can also be taken between the pick and the bind. Both are
+ * the machine being busy, not the transport being wrong, so retry rather than
+ * report a red guard test.
+ */
+const TRANSIENT_BIND_CODES = new Set(['ENOBUFS', 'EADDRINUSE', 'EADDRNOTAVAIL', 'EACCES']);
+
 async function start(token?: string, host?: string): Promise<ServeHttpHandle> {
-  handle = await serveHttp(makeServer(), { port: 0, host, ...(token ? { token } : {}) });
-  return handle;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      handle = await serveHttp(makeServer(), { port: 0, host, ...(token ? { token } : {}) });
+      return handle;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException | undefined)?.code;
+      if (code === undefined || !TRANSIENT_BIND_CODES.has(code)) throw error;
+      lastError = error;
+      // Back off so the OS can reclaim descriptors before the next attempt.
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
+  throw lastError;
 }
 
 function callBody(args: Record<string, unknown>): string {

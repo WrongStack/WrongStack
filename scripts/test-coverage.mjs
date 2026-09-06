@@ -6,6 +6,7 @@ export const COVERAGE_RUNS = [
   {
     label: 'Node packages',
     args: ['test:coverage:root'],
+    vitest: true,
   },
   {
     label: 'Zero-statement file ratchet',
@@ -14,22 +15,27 @@ export const COVERAGE_RUNS = [
   {
     label: 'LSP package per-file gate',
     args: ['--filter', '@wrongstack/plug-lsp', 'test:coverage'],
+    vitest: true,
   },
   {
     label: 'WebUI package',
     args: ['--filter', '@wrongstack/webui', 'test:coverage'],
+    vitest: true,
   },
   {
     label: 'webui-protocol package',
     args: ['--filter', '@wrongstack/webui-protocol', 'test:coverage'],
+    vitest: true,
   },
   {
     label: 'Desktop package',
     args: ['--filter', '@wrongstack/desktop', 'test:coverage'],
+    vitest: true,
   },
   {
     label: 'Coverage runtime scripts',
     args: ['test:coverage:scripts'],
+    vitest: true,
   },
 ];
 
@@ -51,10 +57,23 @@ export function runCoverage(options = {}) {
   }
 
   let failed = false;
+  const transientRetryArgs =
+    env.CI === 'true'
+      ? [
+          '--',
+          '--retry.count',
+          '2',
+          '--retry.delay',
+          '250',
+          '--retry.condition',
+          'ENOBUFS|EADDRINUSE|EADDRNOTAVAIL|EACCES|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE',
+        ]
+      : [];
 
   for (const run of runs) {
     log(`\n=== Coverage: ${run.label} ===\n`);
-    const result = spawnPnpm(execPath, [pnpmCli, ...run.args], {
+    const args = run.vitest ? [...run.args, ...transientRetryArgs] : run.args;
+    const result = spawnPnpm(execPath, [pnpmCli, ...args], {
       cwd,
       env,
       stdio: 'inherit',

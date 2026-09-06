@@ -15,6 +15,8 @@
     "desktop:start": "pnpm --filter @wrongstack/desktop start",
     "test": "vitest run && pnpm --filter webui test",
     "test:watch": "vitest",
+    "test:affected": "node scripts/test-affected.mjs",
+    "test:affected:all": "node scripts/test-affected.mjs --all",
     "bench": "vitest bench --run --config vitest.bench.config.ts",
     "bench:perf": "node scripts/bench.mjs",
     "perf:guard": "node scripts/perf-guard.mjs",

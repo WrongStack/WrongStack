@@ -94,6 +94,20 @@ export default defineConfig({
     // tests, so keep it generous.
     testTimeout: 60_000,
     hookTimeout: 60_000,
+    // Do not rerun an entire 40k-test gate because a loopback listener hit a
+    // temporary OS resource limit. Vitest retries only the failed test, and
+    // only for connection/bind failures; assertion and type regressions still
+    // fail immediately. Keep this CI-only so local red/green feedback stays
+    // literal while the shared runner gets a short recovery window.
+    retry:
+      process.env.CI === 'true'
+        ? {
+            count: 2,
+            delay: 250,
+            condition:
+              /ENOBUFS|EADDRINUSE|EADDRNOTAVAIL|EACCES|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE/i,
+          }
+        : 0,
     // Bump Node heap to 4 GB for child processes spawned BY tests (vitest
     // worker processes themselves don't re-read NODE_OPTIONS set here).
     env: {

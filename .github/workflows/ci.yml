@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  checks: read
 
 # Only one CI run per ref at a time. Cancel the older one so a rapid
 # push sequence doesn't queue a backlog of stale runs.
@@ -22,8 +23,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A re-run of an unchanged SHA should retry only the checks that did not
+  # already pass. GitHub creates new check runs for every workflow attempt,
+  # so query the prior completed runs before scheduling expensive jobs.
+  reuse-checks:
+    name: Reuse unchanged checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      lint: ${{ steps.reuse.outputs.lint }}
+      typecheck: ${{ steps.reuse.outputs.typecheck }}
+      build: ${{ steps.reuse.outputs.build }}
+      test: ${{ steps.reuse.outputs.test }}
+      e2e: ${{ steps.reuse.outputs.e2e }}
+      tui-smoke: ${{ steps.reuse.outputs.tui-smoke }}
+      tui-heap-soak: ${{ steps.reuse.outputs.tui-heap-soak }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
+        with:
+          persist-credentials: false
+      - id: reuse
+        name: Find completed checks for this SHA
+        run: node scripts/ci-reuse-success.mjs
+
   lint:
     name: Lint (Biome)
+    needs: reuse-checks
+    if: ${{ needs['reuse-checks'].outputs.lint != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -96,6 +122,8 @@ jobs:
 
   typecheck:
     name: TypeCheck (tsc)
+    needs: reuse-checks
+    if: ${{ needs['reuse-checks'].outputs.typecheck != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -154,6 +182,8 @@ jobs:
 
   build:
     name: Build (esbuild + tsc declarations)
+    needs: reuse-checks
+    if: ${{ needs['reuse-checks'].outputs.build != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -239,7 +269,10 @@ jobs:
   # -----------------------------------------------------------------
   manifests:
     name: Manifest drift (catalog, projections, i18n, rulebook)
-    needs: build
+    needs: [build, reuse-checks]
+    # Manifest generation must still run on a same-SHA re-run. Its inputs can
+    # include repository metadata outside the compiled build artifact.
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -302,7 +335,8 @@ jobs:
 
   test:
     name: Test (Vitest + coverage ratchets)
-    needs: build
+    needs: [build, reuse-checks]
+    if: ${{ always() && needs['reuse-checks'].outputs.test != 'true' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -384,7 +418,8 @@ jobs:
   # narrow so the full coverage suite stays on ubuntu-latest.
   plugin-guards:
     name: Plugin guards (${{ matrix.os }})
-    needs: build
+    needs: [build, reuse-checks]
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -438,7 +473,8 @@ jobs:
   # -----------------------------------------------------------------
   e2e:
     name: E2E (Playwright)
-    needs: build
+    needs: [build, reuse-checks]
+    if: ${{ always() && needs['reuse-checks'].outputs.e2e != 'true' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     # 25 (was 15): the browser-install step can stall against the apt
     # mirror (observed 2026-08-19: 3 of 4 runs hung ~13 min in apt-get
@@ -569,7 +605,8 @@ jobs:
   # -----------------------------------------------------------------
   tui-smoke:
     name: TUI Smoke (non-TTY)
-    needs: build
+    needs: [build, reuse-checks]
+    if: ${{ always() && needs['reuse-checks'].outputs.tui-smoke != 'true' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -671,6 +708,8 @@ jobs:
   # -----------------------------------------------------------------
   tui-heap-soak:
     name: TUI Heap Soak
+    needs: reuse-checks
+    if: ${{ needs['reuse-checks'].outputs.tui-heap-soak != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -764,6 +803,7 @@ jobs:
   security-scan:
     name: Security Scan (secrets + SAST)
     needs: build
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

@@ -396,25 +396,29 @@ describe('coverage runner script', () => {
 
   it('defines every coverage gate including script coverage', () => {
     expect(COVERAGE_RUNS).toEqual([
-      { label: 'Node packages', args: ['test:coverage:root'] },
+      { label: 'Node packages', args: ['test:coverage:root'], vitest: true },
       { label: 'Zero-statement file ratchet', args: ['check:coverage-zero'] },
       {
         label: 'LSP package per-file gate',
         args: ['--filter', '@wrongstack/plug-lsp', 'test:coverage'],
+        vitest: true,
       },
       {
         label: 'WebUI package',
         args: ['--filter', '@wrongstack/webui', 'test:coverage'],
+        vitest: true,
       },
       {
         label: 'webui-protocol package',
         args: ['--filter', '@wrongstack/webui-protocol', 'test:coverage'],
+        vitest: true,
       },
       {
         label: 'Desktop package',
         args: ['--filter', '@wrongstack/desktop', 'test:coverage'],
+        vitest: true,
       },
-      { label: 'Coverage runtime scripts', args: ['test:coverage:scripts'] },
+      { label: 'Coverage runtime scripts', args: ['test:coverage:scripts'], vitest: true },
     ]);
   });
 
@@ -449,6 +453,48 @@ describe('coverage runner script', () => {
       stdio: 'inherit',
     });
     expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries only transient Vitest failures in CI', () => {
+    const spawnPnpm = vi.fn(() => spawnResult(0));
+
+    expect(
+      runCoverage({
+        pnpmCli: 'pnpm.cjs',
+        runs: [
+          { label: 'Vitest gate', args: ['test:coverage'], vitest: true },
+          { label: 'Node-only gate', args: ['check:coverage-zero'] },
+        ],
+        spawnPnpm,
+        execPath: 'node',
+        cwd: 'repo',
+        env: { CI: 'true' },
+        log: vi.fn(),
+      }),
+    ).toBe(0);
+
+    expect(spawnPnpm).toHaveBeenNthCalledWith(
+      1,
+      'node',
+      [
+        'pnpm.cjs',
+        'test:coverage',
+        '--',
+        '--retry.count',
+        '2',
+        '--retry.delay',
+        '250',
+        '--retry.condition',
+        'ENOBUFS|EADDRINUSE|EADDRNOTAVAIL|EACCES|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE',
+      ],
+      expect.objectContaining({ cwd: 'repo', env: { CI: 'true' }, stdio: 'inherit' }),
+    );
+    expect(spawnPnpm).toHaveBeenNthCalledWith(
+      2,
+      'node',
+      ['pnpm.cjs', 'check:coverage-zero'],
+      expect.objectContaining({ cwd: 'repo', env: { CI: 'true' }, stdio: 'inherit' }),
+    );
   });
 
   it('continues after failed gates and returns failure', () => {
