@@ -88,13 +88,24 @@ export function isSageProjectServerAvailable(): boolean {
   return resolveProjectServerUrl() !== null;
 }
 
+/**
+ * A sleep whose timer stays REF'd on purpose.
+ *
+ * Both callers (`connectWithElection`'s retry pause and the auth retry in
+ * `request`) are awaited by boot code that has nothing else pending on the
+ * loop: the previous socket is destroyed before the pause and the next one
+ * does not exist yet. An unref'd timer there let Node decide the loop was
+ * empty and exit 0 *in the middle of boot* — the WebUI process vanished
+ * before printing its banner, and CI reported only "exited before it was
+ * ready (code 0)". A pending promise must hold the process open; the hold is
+ * bounded by the caller's own deadline (10s election, 3 auth retries).
+ */
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       signal?.removeEventListener('abort', onAbort);
       resolve();
     }, ms);
-    timer.unref?.();
     const onAbort = () => {
       clearTimeout(timer);
       signal?.removeEventListener('abort', onAbort);

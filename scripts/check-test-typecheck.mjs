@@ -2,7 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile, readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -271,6 +271,19 @@ if (args.has('--print-baseline')) {
   );
   for (const item of byProject.filter((entry) => entry.diagnostics > 0)) {
     console.log(`  ${item.project}: ${item.diagnostics} (${item.newDiagnostics} new)`);
+  }
+  // A count alone is not actionable: the whole point of this gate is that a
+  // NEW diagnostic must be fixed, and the author cannot fix what the gate will
+  // not name. Print the offending file/code/message (the same fields --json
+  // carries) so the failure is self-explanatory in a CI log.
+  if (newDiagnostics.length > 0) {
+    console.error('');
+    console.error('New test-type diagnostics (fix these, or they are not allowed in):');
+    for (const item of newDiagnostics) {
+      const times = item.added > 1 ? ` (x${item.added})` : '';
+      console.error(`  ${item.file}${times}`);
+      console.error(`    ${item.code}: ${item.message}`);
+    }
   }
   if (unparsedFailures.length > 0) {
     console.error('TypeScript projects failed without parseable diagnostics:');

@@ -4,14 +4,15 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { ArchitectureHealthReport } from '../../../../scripts/lib/architecture-health.mjs';
 import {
   __architectureHealthTestInternals,
   buildArchitectureHealth,
   collectIdentifiers,
   collectModuleSpecifiers,
   collectRuntimeExports,
-  evaluateReportFreshness,
   committedEvidenceMatchesReport,
+  evaluateReportFreshness,
   FRESHNESS_REPORT_FILES,
   findNonCommandSlashImports,
   findTestOnlyExports,
@@ -848,13 +849,13 @@ describe('report freshness gate', () => {
   });
 
   /** The repository's own committed report — a real object the renderer accepts. */
-  async function loadRealReport(): Promise<Record<string, unknown>> {
+  async function loadRealReport(): Promise<ArchitectureHealthReport> {
     const root = path.resolve(import.meta.dirname, '../../../..');
     const raw = await readFile(path.join(root, FRESHNESS_REPORT_FILES[0] as string), 'utf8');
-    return JSON.parse(raw) as Record<string, unknown>;
+    return JSON.parse(raw) as ArchitectureHealthReport;
   }
 
-  async function writeEvidence(dir: string, report: Record<string, unknown>): Promise<void> {
+  async function writeEvidence(dir: string, report: ArchitectureHealthReport): Promise<void> {
     await writeFile(
       path.join(dir, FRESHNESS_REPORT_FILES[0] as string),
       `${JSON.stringify(report, null, 2)}\n`,
@@ -880,7 +881,7 @@ describe('report freshness gate', () => {
     // A measurement the markdown renders, so both halves of the pair differ.
     const drifted = {
       ...report,
-      summary: { ...(report['summary'] as Record<string, unknown>), sourceFiles: 1 },
+      summary: { ...report.summary, sourceFiles: 1 },
     };
     await writeEvidence(dir, drifted);
     expect(committedEvidenceMatchesReport(dir, report)).toBe(false);

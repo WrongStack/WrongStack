@@ -28,7 +28,22 @@ const RUN_ARGS = new Set(['run', '--run', '--run=true', '--watch=false']);
 /** Workers for watch mode — also the default when the mode is not stated. */
 const WATCH_MAX_WORKERS = 2;
 
-/** Workers for a single run. */
+/**
+ * Workers for a single run.
+ *
+ * Measured on the 32-core/135 GB development machine (2026-09-06), root
+ * coverage suite, 2,722 files / 39,827 tests:
+ *
+ *   maxWorkers=4   869 s, green
+ *   maxWorkers=10  565 s (-35%), 1 genuinely load-sensitive failure
+ *                  (auto-review-plugin's trailing-quiet-window test times out
+ *                  on `vi.waitFor`'s 1 s default, then EBUSY on temp rmdir)
+ *
+ * So the cap is not superstition and it is not free: it buys determinism for
+ * roughly five minutes of `release:check`. Raising it is a real option, but the
+ * prerequisite is hardening the handful of wall-clock-sensitive tests first —
+ * raise the number only together with that work, never on its own.
+ */
 const RUN_MAX_WORKERS = 4;
 
 /**

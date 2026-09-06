@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-06T14:36:37.079Z",
+  "generatedAt": "2026-09-06T15:40:44.522Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3644,
-    "testFiles": 3079,
-    "sourceLines": 872939,
+    "testFiles": 3080,
+    "sourceLines": 872950,
     "workspaceEdges": 127,
     "moduleEdges": 11462,
     "nonCommandSlashImports": 0,
@@ -568,7 +568,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 104,
-      "testFiles": 82,
+      "testFiles": 83,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -583,7 +583,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 82
+          "testFiles": 83
         }
       ]
     },
@@ -11245,6 +11245,12 @@
       },
       {
         "file": "packages/sage/tests/project-server-client-behavior.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/project-server-client-holds-loop.test.ts",
         "projects": [
           "root-node"
         ]
