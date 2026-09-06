@@ -1,6 +1,6 @@
-/** Shim: implementation moved to @wrongstack/plugin-sdk/runtime. */
+/** Shim: implementation moved to @wrongstack/plugin-sdk/runtime/sandbox (granular). */
 export {
   safePath,
   isInsideProject,
   type SafePathOptions,
-} from '@wrongstack/plugin-sdk/runtime';
+} from '@wrongstack/plugin-sdk/runtime/sandbox';

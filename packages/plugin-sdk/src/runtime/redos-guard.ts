@@ -48,6 +48,17 @@ export interface ReDoSOptions {
 }
 
 /**
+ * Single-slot warm worker pool. The worker is spawned lazily on the first
+ * guarded call, reused for subsequent sequential calls, and terminated
+ * whenever a budget expires or the worker errors — the
+ * runaway-regex-kills-its-thread contract is identical to the previous
+ * spawn-per-call design; only the spawn is amortized. Overlapping calls
+ * fall back to spawning their own worker (one idle slot is kept).
+ */
+let warm: Worker | null = null;
+let callSeq = 0;
+
+/**
  * Run `re.exec(input)` inside a worker thread with a wall-clock
  * watchdog. The worker is terminated when the budget elapses; the
  * regex cannot keep running.
@@ -62,58 +73,76 @@ export function withReDoSGuard(
 ): Promise<ReDoSResult> {
   const opts = { budgetMs, ...options };
   const start = Date.now();
-  // Embed source + input directly in the worker source string so we
-  // don't depend on `workerData` (which has cross-platform quirks:
-  // Windows + eval workers don't always receive workerData reliably).
-  // Source + input are JSON-stringified so backticks/quotes/newlines
-  // can't break the embedded literal.
-  const workerSource = buildWorkerSource(re.source, input, re.flags);
-  const worker = new Worker(workerSource, {
-    eval: true,
-    name: `redos-guard:${re.source.slice(0, 32)}`,
-  });
+  const id = ++callSeq;
+
+  // Take the idle warm worker, or spawn one. Clearing `warm` marks this
+  // worker in-flight: sequential callers reuse the pool, an overlapping
+  // caller falls back to spawning its own worker (spawn-per-call shape).
+  let worker: Worker;
+  if (warm !== null) {
+    worker = warm;
+  } else {
+    worker = spawnPoolWorker();
+  }
+  warm = null;
+  worker.ref(); // in-flight worker keeps the event loop alive until the reply
 
   return new Promise<ReDoSResult>((resolve) => {
     let settled = false;
 
-    const onMessage = (
-      msg: { ok: true; match: RegExpExecArray | null } | { ok: false; error: string },
-    ) => {
+    const settle = (result: ReDoSResult) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      worker.terminate().catch(() => {
-        // best-effort: terminate failure is not fatal, the worker
-        // already reported its result via postMessage.
-      });
+      // Remove the pending once-listeners: the happy path fires 'message'
+      // but never 'error', and per-call listeners would otherwise
+      // accumulate on the long-lived pooled worker
+      // (MaxListenersExceededWarning at call #11).
+      worker.off('message', onMessage);
+      worker.off('error', onError);
+      resolve(result);
+    };
+
+    const onMessage = (
+      msg:
+        | { id: number; ok: true; match: RegExpExecArray | null }
+        | { id: number; ok: false; error: string },
+    ) => {
+      if (settled || msg.id !== id) return;
+      // Park the worker back in the single idle slot; terminate extras.
+      worker.unref();
+      if (warm === null) {
+        warm = worker;
+      } else {
+        worker.terminate().catch(() => {
+          // best-effort: an extra idle worker beyond the single pool slot
+        });
+      }
       if (!msg.ok) {
-        // Worker reported a thrown error (e.g. RangeError). Treat as
-        // a timeout-equivalent — caller sees "this input is hostile".
-        resolve({ timedOut: true, match: null });
+        // Worker reported a thrown error (e.g. RangeError). Treat as a
+        // timeout-equivalent — caller sees "this input is hostile".
+        settle({ timedOut: true, match: null });
         return;
       }
-      resolve({ timedOut: false, match: msg.match });
+      settle({ timedOut: false, match: msg.match });
     };
 
     const onError = () => {
       if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      worker.terminate().catch(() => {
-        // best-effort
-      });
-      // Worker errored (e.g. crashed during construction). Treat as
-      // a timeout-equivalent.
-      resolve({ timedOut: true, match: null });
+      // Worker errored (e.g. crashed mid-run) and is unusable — the slot
+      // stays empty and the next call respawns. Treat as a
+      // timeout-equivalent.
+      settle({ timedOut: true, match: null });
     };
 
     const timer = setTimeout(() => {
       if (settled) return;
-      settled = true;
       const elapsedMs = Date.now() - start;
       // ACTUAL termination: worker.terminate() kills the regex
       // process. This is the structural fix for the bug class at
-      // `runtime/index.ts:313`.
+      // `runtime/index.ts:313`. The pooled worker is NOT parked after a
+      // timeout — a runaway pattern dies with its thread; the next call
+      // spawns a fresh worker.
       worker.terminate().catch(() => {
         // best-effort: terminate failure is fine, we're already
         // committed to timing out.
@@ -128,55 +157,56 @@ export function withReDoSGuard(
       } catch {
         // best-effort: a throwing onTimeout hook must not propagate
       }
-      resolve({ timedOut: true, match: null });
+      settle({ timedOut: true, match: null });
     }, opts.budgetMs);
     // Don't keep the process alive solely for this watchdog.
     (timer as { unref?: () => void }).unref?.();
 
-    worker.on('message', onMessage);
-    worker.on('error', onError);
+    worker.once('message', onMessage);
+    worker.once('error', onError);
+    worker.postMessage({ id, source: re.source, flags: re.flags, input });
   });
 }
 
 /**
- * Build the worker source string. The worker compiles a fresh
- * RegExp from `source`, applies `flags`, and runs `exec(input)`. We
- * deliberately use the regex source string (not the regex object)
+ * Persistent pooled worker source. Requests arrive at runtime via
+ * postMessage — { id, source, flags, input } — and replies carry the same
+ * id so replies always match their call. Source + flags travel as strings
  * because regex objects don't serialize cleanly across the worker
- * boundary — their `lastIndex` is host-side state.
+ * boundary (their `lastIndex` is host-side state); the worker compiles a
+ * fresh RegExp per request. We deliberately avoid `workerData` (Windows +
+ * eval workers don't always receive it reliably) and use
+ * `parentPort.postMessage`, NOT bare postMessage — with eval:true workers
+ * this Node version does not expose the bare postMessage global — the
+ * worker would throw ReferenceError at startup and the host would misread
+ * it as a timeout (positive-path regression).
  */
-/**
- * Build the worker source string. Source + input + flags are
- * embedded directly via JSON.stringify so the worker doesn't
- * depend on `workerData` (cross-platform quirks: Windows + eval
- * workers don't always receive workerData reliably). The
- * `try { postMessage(...) } catch { postMessage(...) }` shape
- * preserves the contract that `onMessage` always receives a
- * `{ ok, ... }` payload.
- */
-function buildWorkerSource(source: string, input: string, flags: string): string {
-  // JSON.stringify escapes backticks, quotes, and newlines so the
-  // embedded literal can't break the worker source.
-  const S = JSON.stringify(source);
-  const I = JSON.stringify(input);
-  const F = JSON.stringify(flags);
-  return `
+const POOLED_WORKER_SOURCE = `
 const { parentPort } = require('node:worker_threads');
-const source = ${S};
-const input = ${I};
-const flags = ${F};
-try {
-  const re = new RegExp(source, flags);
-  const match = re.exec(input);
-  // parentPort.postMessage, NOT bare postMessage: with eval:true
-  // workers this Node version does not expose the bare postMessage
-  // global — the worker throws ReferenceError at startup and the
-  // host misreads it as a timeout (positive-path regression).
-  parentPort.postMessage({ ok: true, match });
-} catch (err) {
-  parentPort.postMessage({ ok: false, error: err && err.message ? err.message : String(err) });
-}
+parentPort.on('message', (msg) => {
+  const { id, source, flags, input } = msg;
+  try {
+    const re = new RegExp(source, flags);
+    const match = re.exec(input);
+    parentPort.postMessage({ id, ok: true, match });
+  } catch (err) {
+    parentPort.postMessage({ id, ok: false, error: err && err.message ? err.message : String(err) });
+  }
+});
 `;
+
+/**
+ * Spawn a pooled worker. Unref'd immediately: an idle pooled worker must
+ * not keep the host process alive. It is ref()'d only while a guarded
+ * call is in flight (see withReDoSGuard).
+ */
+function spawnPoolWorker(): Worker {
+  const worker = new Worker(POOLED_WORKER_SOURCE, {
+    eval: true,
+    name: 'redos-guard:pool',
+  });
+  worker.unref();
+  return worker;
 }
 
 /**

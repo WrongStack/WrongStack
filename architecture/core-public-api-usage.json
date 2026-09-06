@@ -199,9 +199,14 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 553,
+      "files": 552,
       "typeOnly": 55,
-      "runtimeOrMixed": 525
+      "runtimeOrMixed": 524
+    },
+    "@wrongstack/core/utils/child-env": {
+      "files": 1,
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils/error": {
       "files": 6,
@@ -18189,12 +18194,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/plugin-sdk/src/runtime/index.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/plugins/src/context-pins/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -19660,6 +19659,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/tests/worklist-session-context.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/child-env",
+      "file": "packages/plugin-sdk/src/runtime/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -1,7 +1,7 @@
-/** Shim: implementation moved to @wrongstack/plugin-sdk/runtime. */
+/** Shim: implementation moved to @wrongstack/plugin-sdk/runtime/redos-guard (granular). */
 export {
   withReDoSGuard,
   guardedMatcher,
   type ReDoSResult,
   type ReDoSOptions,
-} from '@wrongstack/plugin-sdk/runtime';
+} from '@wrongstack/plugin-sdk/runtime/redos-guard';

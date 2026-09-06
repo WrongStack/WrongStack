@@ -59,6 +59,7 @@ const coreEntries = entryMap([
   'src/utils/index.ts',
   'src/utils/expect-defined.ts',
   'src/utils/error.ts',
+  'src/utils/child-env.ts',
   'src/utils/sage-output-block.ts',
   'src/utils/tree-kill.ts',
   'src/utils/heap-watchdog.ts',
@@ -277,7 +278,25 @@ const profiles = {
     external: ['@wrongstack/core', '@wrongstack/tools'],
   },
   '@wrongstack/plugin-sdk': {
-    entries: { index: 'src/index.ts', runtime: 'src/runtime/index.ts' },
+    // Granular runtime subpaths mirror the package.json exports entries:
+    // single-symbol consumers (e.g. only `safePath` from sandbox) must not
+    // pay the full 10-module runtime barrel on cold import. Entry names map
+    // 1:1 onto src module paths, so tsc's per-module .d.ts lands exactly
+    // where the exports map points (no shim overwrite — see the kanban
+    // `manager/lifecycle` note for the counter-example shape).
+    entries: {
+      index: 'src/index.ts',
+      runtime: 'src/runtime/index.ts',
+      'runtime/bounded-map': 'src/runtime/bounded-map.ts',
+      'runtime/credential-patterns': 'src/runtime/credential-patterns.ts',
+      'runtime/h1-state': 'src/runtime/h1-state.ts',
+      'runtime/handles': 'src/runtime/handles.ts',
+      'runtime/llm': 'src/runtime/llm.ts',
+      'runtime/local-bin': 'src/runtime/local-bin.ts',
+      'runtime/redos-guard': 'src/runtime/redos-guard.ts',
+      'runtime/safe-json': 'src/runtime/safe-json.ts',
+      'runtime/sandbox': 'src/runtime/sandbox.ts',
+    },
     // local-bin.ts imports + re-exports @wrongstack/tools/win32 — it must
     // stay external (like core) or the win32 helpers get silently bundled
     // while the emitted .d.ts still references the package.

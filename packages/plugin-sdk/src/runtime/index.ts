@@ -33,7 +33,7 @@ import { execFile } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, extname, isAbsolute, relative, resolve } from 'node:path';
 
-import { buildChildEnv } from '@wrongstack/core/utils';
+import { buildChildEnv } from '@wrongstack/core/utils/child-env';
 
 export {
   parseLlmJsonObject,

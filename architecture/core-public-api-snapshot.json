@@ -519,6 +519,22 @@
       ]
     },
     {
+      "subpath": "./utils/child-env",
+      "target": {
+        "types": "./dist/utils/child-env.d.ts",
+        "import": "./dist/utils/child-env.js"
+      },
+      "source": "packages/core/src/utils/child-env.ts",
+      "declarations": [
+        "export function buildChildEnv",
+        "export function configureChildEnvGitIdentity",
+        "export function getChildEnvGitIdentity",
+        "export function sanitizeNodeOptions",
+        "export interface BuildChildEnvOptions",
+        "export interface GitIdentity"
+      ]
+    },
+    {
       "subpath": "./utils/tree-kill",
       "target": {
         "types": "./dist/utils/tree-kill.d.ts",

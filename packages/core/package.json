@@ -68,6 +68,10 @@
       "types": "./dist/utils/error.d.ts",
       "import": "./dist/utils/error.js"
     },
+    "./utils/child-env": {
+      "types": "./dist/utils/child-env.d.ts",
+      "import": "./dist/utils/child-env.js"
+    },
     "./utils/tree-kill": {
       "types": "./dist/utils/tree-kill.d.ts",
       "import": "./dist/utils/tree-kill.js"

@@ -1,4 +1,4 @@
-/** Shim: implementation moved to @wrongstack/plugin-sdk/runtime. */
+/** Shim: implementation moved to @wrongstack/plugin-sdk/runtime/llm (granular). */
 export {
   parseLlmJsonObject,
   runOptionalPluginCouncil,
@@ -7,4 +7,4 @@ export {
   type OptionalCouncilRequest,
   type OptionalLlmRequest,
   type OptionalLlmResult,
-} from '@wrongstack/plugin-sdk/runtime';
+} from '@wrongstack/plugin-sdk/runtime/llm';

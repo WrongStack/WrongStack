@@ -16,6 +16,42 @@
       "types": "./dist/runtime.d.ts",
       "import": "./dist/runtime.js"
     },
+    "./runtime/bounded-map": {
+      "types": "./dist/runtime/bounded-map.d.ts",
+      "import": "./dist/runtime/bounded-map.js"
+    },
+    "./runtime/credential-patterns": {
+      "types": "./dist/runtime/credential-patterns.d.ts",
+      "import": "./dist/runtime/credential-patterns.js"
+    },
+    "./runtime/h1-state": {
+      "types": "./dist/runtime/h1-state.d.ts",
+      "import": "./dist/runtime/h1-state.js"
+    },
+    "./runtime/handles": {
+      "types": "./dist/runtime/handles.d.ts",
+      "import": "./dist/runtime/handles.js"
+    },
+    "./runtime/llm": {
+      "types": "./dist/runtime/llm.d.ts",
+      "import": "./dist/runtime/llm.js"
+    },
+    "./runtime/local-bin": {
+      "types": "./dist/runtime/local-bin.d.ts",
+      "import": "./dist/runtime/local-bin.js"
+    },
+    "./runtime/redos-guard": {
+      "types": "./dist/runtime/redos-guard.d.ts",
+      "import": "./dist/runtime/redos-guard.js"
+    },
+    "./runtime/safe-json": {
+      "types": "./dist/runtime/safe-json.d.ts",
+      "import": "./dist/runtime/safe-json.js"
+    },
+    "./runtime/sandbox": {
+      "types": "./dist/runtime/sandbox.d.ts",
+      "import": "./dist/runtime/sandbox.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
