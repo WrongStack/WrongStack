@@ -483,3 +483,51 @@ unlock note: this lands unlock (a) for the sdk-runner-r1 DO-NOT-RETRY — buildC
           round; treat it as a new hypothesis with a fresh round, not a blind retry.
 artifacts: .temp_files/perf-ratchet/core-utils-r1/ deleted after this entry
           (numbers above are the record).
+
+## 2026-09-06 — runner extraction re-attempt with narrow child-env import: SETTLED, REVERTED (round sdk-runner-r2)
+commit:   base = f3e06512e + the PERF_LOG docs commit (protection commits landed FIRST — see incident)
+machine:  same box; baseline window 20% CPU / 1 agent; after window noisier (bracket outliers to ~28ms)
+metric:   cold-import of dist/path-guard.js (primary) + dist/branch-guard.js (barrel-consumer control) — identical
+          bench shape to sdk-runner-r1 for comparability.
+commands: node .temp_files/perf-ratchet/sdk-runner-r2/run-bench.mjs 10 baseline|after
+protection commits (landed before the round): after a SECOND peer stash-wipe (new stash@{0}
+          "WIP on main: 354b57b5b" captured all 13 kept files mid-session), recovered via
+          `git checkout stash@{0} -- <paths>` + unstaged, fleet notified, then committed:
+          f3e06512e perf(runtime) — 12 code files, forced into ONE commit by the core-public-api
+          snapshot guard (all-or-nothing staging of API-surface inputs; peer webui-hq edits set
+          aside surgically for the window and restored byte-identical after) — plus the PERF_LOG
+          docs commit. Commit-first reordering is why this round's revert was a byte-exact
+          `git checkout HEAD`.
+baseline: path-guard 12.33ms (11.00–16.35, n=10) · branch-guard 10.87ms (9.85–24.92) ·
+          bracket path-guard-end 12.56ms — window stable. Band ≈ 5.4ms.
+change:   identical extraction shape to sdk-runner-r1 (runner.ts, 697 lines, verbatim barrel
+          definitions) with ONE delta per the instruction: `buildChildEnv` imported from the
+          NARROW '@wrongstack/core/utils/child-env' (4.52ms) instead of the core/utils barrel
+          (41.04ms). Round-4 lessons applied from the start: explicit named re-exports in the
+          plugins index shim (Unregister TS2308 seam), build-before-typecheck sequencing.
+after:    path-guard 11.46ms (10.08–17.61) = −0.87ms — INSIDE the 5.4ms band.
+          branch-guard 16.95ms (14.78–31.64) = +6.1ms — regression signal for multi-symbol
+          consumers: ten granular specifier resolutions cost more than parsing one 35.6KB
+          bundle. (Window noisier than baseline — bracket outliers ~28ms — but the control's
+          distribution shift is directionally consistent with the sdk-runner-r1 result.)
+verdict:  REVERT (executed byte-exact from HEAD; runner artifacts deleted both sides). The
+          hypothesis is now SETTLED WITH DATA FROM BOTH DIRECTIONS: sdk-runner-r1 showed the
+          extraction cannot win while buildChildEnv drags the 41ms core/utils barrel; this round
+          shows that once that blocker is removed the win was ALREADY BANKED for every consumer
+          by the narrow entry (sdk barrel ~8–10ms) and the extraction's residual upside (inline
+          leaf parse, <1ms median) is inside the noise band while its 10-resolution shim
+          regresses barrel consumers. The runner module stays in the barrel — by measurement,
+          not by blocker.
+mid-revert defect found & fixed: my earlier scripted note-edit had truncated the plugins
+          runtime index.ts comment (Substring replacement cut the closing */ and the export
+          statement) and that broken file rode into f3e06512e — advisory lint warnings do not
+          block commits. Repaired to the intended content; a fix commit follows this entry.
+restoration sanity: path-guard 10.55ms (9.79–11.75) · branch-guard 10.79ms (8.55–19.42) —
+          baseline tier restored, bracket stable.
+tests (final tree): core + plugin-sdk + plugins typechecks exit 0 · full plugins suite 122
+          files / 2696 passed / 2 skipped · sdk.test.ts 3/3.
+cumulative ladder (all measured 2026-09-06, all in PERF_LOG): guarded regex 18.02 → 0.10ms per
+          call · single-symbol sdk import 38.3 → ~5ms · prompt-firewall entry 44.1 → 5.6ms ·
+          barrel-consumer path-guard 42.8 → 12.4ms · core/utils child-env 41.0 → 4.5ms.
+artifacts: .temp_files/perf-ratchet/sdk-runner-r2/ deleted after this entry
+          (numbers above are the record).
