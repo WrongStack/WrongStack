@@ -44,7 +44,7 @@
     "@wrongstack/core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.1",
     "@wrongstack/core": "workspace:*",
     "typescript": "^7.0.2"
   },

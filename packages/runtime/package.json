@@ -78,7 +78,7 @@
     "@wrongstack/vector-memory": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.1",
     "@wrongstack/wrongtrace": "workspace:*",
     "typescript": "^7.0.2"
   },
