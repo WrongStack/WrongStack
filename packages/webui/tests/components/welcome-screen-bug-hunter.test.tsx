@@ -57,7 +57,7 @@ describe('WelcomeScreen Proof-Driven Bug Hunter shortcut', () => {
     });
     expect(send).not.toHaveBeenCalledWith({
       type: 'prompts.content',
-      payload: { slug: 'elite-bug-hunter' },
+      payload: { slug: 'proof-driven-bug-hunter' },
     });
 
     act(() => {
@@ -65,13 +65,13 @@ describe('WelcomeScreen Proof-Driven Bug Hunter shortcut', () => {
     });
     expect(send).toHaveBeenCalledWith({
       type: 'prompts.content',
-      payload: { slug: 'elite-bug-hunter' },
+      payload: { slug: 'proof-driven-bug-hunter' },
     });
 
     act(() => {
       handlers.get('prompts.content')?.({
         payload: {
-          slug: 'elite-bug-hunter',
+          slug: 'proof-driven-bug-hunter',
           found: true,
           content: 'Hunt exactly one proven bug.',
         },
@@ -92,7 +92,7 @@ describe('WelcomeScreen Proof-Driven Bug Hunter shortcut', () => {
     expect(useChatStore.getState().isLoading).toBe(true);
     expect(send).toHaveBeenCalledWith({
       type: 'prompts.used',
-      payload: { slug: 'elite-bug-hunter' },
+      payload: { slug: 'proof-driven-bug-hunter' },
     });
   });
 
@@ -110,7 +110,7 @@ describe('WelcomeScreen Proof-Driven Bug Hunter shortcut', () => {
     act(() => {
       handlers.get('prefs.updated')?.({ payload: { subagentsAllowed: false } });
       handlers.get('prompts.content')?.({
-        payload: { slug: 'elite-bug-hunter', found: true, content: 'Base prompt.' },
+        payload: { slug: 'proof-driven-bug-hunter', found: true, content: 'Base prompt.' },
       });
     });
 
@@ -130,7 +130,7 @@ describe('WelcomeScreen Proof-Driven Bug Hunter shortcut', () => {
     act(() => {
       handlers.get('prefs.updated')?.({ payload: { subagentsAllowed: false } });
       handlers.get('prompts.content')?.({
-        payload: { slug: 'elite-bug-hunter', found: false, content: '' },
+        payload: { slug: 'proof-driven-bug-hunter', found: false, content: '' },
       });
     });
 

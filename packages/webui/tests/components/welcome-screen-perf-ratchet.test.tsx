@@ -175,7 +175,7 @@ describe('WelcomeScreen performance ratchet shortcut', () => {
 
     act(() => {
       handlers.get('prompts.content')?.({
-        payload: { slug: 'elite-bug-hunter', found: true, content: 'Not mine.' },
+        payload: { slug: 'proof-driven-bug-hunter', found: true, content: 'Not mine.' },
       });
     });
     expect(sendMessage).not.toHaveBeenCalled();

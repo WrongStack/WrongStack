@@ -23,7 +23,7 @@ import type { TreeNode } from '@/stores/file-store';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
 
-const ELITE_BUG_HUNTER_SLUG = 'elite-bug-hunter';
+const BUG_HUNTER_SLUG = 'proof-driven-bug-hunter';
 
 function directoryPaths(tree: TreeNode[]): string[] {
   const paths: string[] = [];
@@ -101,7 +101,7 @@ export function WelcomeScreen() {
 
     launchBuiltinRound({
       client,
-      slug: ELITE_BUG_HUNTER_SLUG,
+      slug: BUG_HUNTER_SLUG,
       requireSoloSession: true,
       subagentsAllowed,
       sessionId,
