@@ -391,6 +391,8 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     refineCountdownGen: 0,
     refineFailure: null,
     continueConfirm: null,
+    bugHuntContinue: null,
+    bugHuntRunning: null,
     clearConfirm: null,
     exitConfirm: null,
     slashConfirm: null,

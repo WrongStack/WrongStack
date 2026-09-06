@@ -855,6 +855,10 @@ export function validateAction(action: {
     case 'refineFailureClose':
     case 'continueConfirmOpen':
     case 'continueConfirmClose':
+    case 'bugHuntContinueOpen':
+    case 'bugHuntContinueClose':
+    case 'bugHuntRunningOpen':
+    case 'bugHuntRunningClose':
     case 'rewindOverlayClose':
     case 'countdownEnded':
     case 'cancelSend':

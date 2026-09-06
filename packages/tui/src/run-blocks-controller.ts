@@ -187,7 +187,12 @@ export function createRunBlocksController(
         }
       }
 
-      if (result.status === 'done' && result.finalText && capabilities.onSuggestionsParsed) {
+      if (
+        result.status === 'done' &&
+        result.finalText &&
+        capabilities.onSuggestionsParsed &&
+        !capabilities.shouldSuppressNextSteps?.()
+      ) {
         try {
           capabilities.onSuggestionsParsed(result.finalText);
         } catch {
@@ -207,7 +212,7 @@ export function createRunBlocksController(
         });
       }
 
-      if (result.status === 'done' && capabilities.predictNext) {
+      if (result.status === 'done' && capabilities.predictNext && !capabilities.shouldSuppressNextSteps?.()) {
         try {
           const userRequest = blocks
             .filter((block) => block.type === 'text')
@@ -229,9 +234,11 @@ export function createRunBlocksController(
           // Prediction is best-effort.
         }
       }
+      capabilities.onRunFinished?.(result.status);
     } catch (error) {
       if (runGeneration === refs.sessionGeneration.current) {
         dispatch({ type: 'addEntry', entry: { kind: 'error', text: toErrorMessage(error) } });
+        capabilities.onRunFinished?.('failed');
       }
     } finally {
       refs.activeController.current = null;

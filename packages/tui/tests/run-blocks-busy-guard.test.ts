@@ -93,6 +93,37 @@ describe('runBlocks busy guard', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'status', status: 'idle' });
   });
 
+  it('reports a completed run to the optional lifecycle observer', async () => {
+    const refs = makeRefs();
+    const { host } = makeHost(refs);
+    const onRunFinished = vi.fn();
+    (
+      host as { capabilities: { onRunFinished?: typeof onRunFinished } }
+    ).capabilities.onRunFinished = onRunFinished;
+
+    await createRunBlocksController(host)(textBlocks('bughunt round'));
+
+    expect(onRunFinished).toHaveBeenCalledWith('done');
+  });
+
+  it('does not publish next steps while a self-managed bug-hunt loop is active', async () => {
+    const refs = makeRefs();
+    const { host, run } = makeHost(refs);
+    const onSuggestionsParsed = vi.fn();
+    const predictNext = vi.fn();
+    run.mockResolvedValueOnce({ status: 'done', iterations: 1, finalText: '<nextsteps>noise</nextsteps>' });
+    Object.assign((host as { capabilities: Record<string, unknown> }).capabilities, {
+      onSuggestionsParsed,
+      predictNext,
+      shouldSuppressNextSteps: () => true,
+    });
+
+    await createRunBlocksController(host)(textBlocks('bughunt round'));
+
+    expect(onSuggestionsParsed).not.toHaveBeenCalled();
+    expect(predictNext).not.toHaveBeenCalled();
+  });
+
   it('still drains the FIFO queue after the run (guard must not block the tail call)', async () => {
     const refs = makeRefs([{ displayText: 'queued', blocks: textBlocks('queued') }]);
     const { host, run, dispatch } = makeHost(refs);

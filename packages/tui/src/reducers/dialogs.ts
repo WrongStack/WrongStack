@@ -52,6 +52,10 @@ const dialogActionTypes = [
   'refineFailureClose',
   'continueConfirmOpen',
   'continueConfirmClose',
+  'bugHuntContinueOpen',
+  'bugHuntContinueClose',
+  'bugHuntRunningOpen',
+  'bugHuntRunningClose',
   'clearConfirmOpen',
   'clearConfirmSetValue',
   'clearConfirmClose',
@@ -307,6 +311,14 @@ export function reduceDialogs(state: State, action: DialogAction): State {
       return { ...state, continueConfirm: action.info };
     case 'continueConfirmClose':
       return { ...state, continueConfirm: null };
+    case 'bugHuntContinueOpen':
+      return { ...state, bugHuntContinue: action.info };
+    case 'bugHuntContinueClose':
+      return { ...state, bugHuntContinue: null };
+    case 'bugHuntRunningOpen':
+      return { ...state, bugHuntRunning: action.info };
+    case 'bugHuntRunningClose':
+      return { ...state, bugHuntRunning: null };
     case 'clearConfirmOpen':
       return { ...state, clearConfirm: action.info };
     case 'clearConfirmSetValue':

@@ -11,6 +11,8 @@ import { ClearConfirmPanel } from './components/clear-confirm-panel.js';
 import { type ConfirmDecision, ConfirmPrompt } from './components/confirm-prompt.js';
 import { ConnectionsPanel } from './components/connections-panel.js';
 import { ContinueConfirmPanel } from './components/continue-confirm-panel.js';
+import { BugHuntContinuePanel } from './components/bug-hunt-continue-panel.js';
+import { BugHuntRunningPanel } from './components/bug-hunt-running-panel.js';
 import { CoordinatorPanel } from './components/coordinator-panel.js';
 import { DesignPicker } from './components/design-picker.js';
 import { EnhancePanel, RefiningPanel } from './components/enhance-panel.js';
@@ -663,6 +665,30 @@ export function AppViewPickers({
             );
           })()
         : null}
+      {state.bugHuntContinue
+        ? (() => {
+            const info = state.bugHuntContinue;
+            let resolved = false;
+            const onDecision = (decision: 'yes' | 'stop') => {
+              if (resolved) return;
+              resolved = true;
+              info.resolve(decision);
+            };
+            return (
+              <BugHuntContinuePanel
+                completedRounds={info.completedRounds}
+                totalRounds={info.totalRounds}
+                onDecision={onDecision}
+              />
+            );
+          })()
+        : null}
+      {state.bugHuntRunning ? (
+        <BugHuntRunningPanel
+          currentRound={state.bugHuntRunning.currentRound}
+          totalRounds={state.bugHuntRunning.totalRounds}
+        />
+      ) : null}
     </>
   );
 }

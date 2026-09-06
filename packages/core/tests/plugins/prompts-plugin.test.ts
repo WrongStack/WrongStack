@@ -356,7 +356,7 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
 
   it('/bughunt runs the canonical prompt and appends an optional target', async () => {
     await store.save(
-      store.createNew('Elite Bug Hunter', 'Hunt exactly one proven bug.', ['bug'], {
+      store.createNew('Proof-Driven Bug Hunter', 'Hunt exactly one proven bug.', ['bug'], {
         category: 'debugging',
       }),
     );
@@ -375,12 +375,32 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
     expect(targeted.runText).toContain('Hunt exactly one proven bug.');
     expect(targeted.runText).toContain('packages/core/storage');
     expect(targeted.message).toContain('packages/core/storage');
-    expect((await usage.get('elite-bug-hunter'))?.count).toBe(2);
+    expect((await usage.get('proof-driven-bug-hunter'))?.count).toBe(2);
+  });
+
+  it('/bughunt parses an optional 1-25 TUI round limit without treating it as scope', async () => {
+    await store.save(
+      store.createNew('Proof-Driven Bug Hunter', 'Hunt exactly one proven bug.', ['bug'], {
+        category: 'debugging',
+      }),
+    );
+    const { bughunt } = await withLoaderCommands();
+    const session = { id: 'bughunt-rounds', append: vi.fn(async () => undefined) };
+    const out = await bughunt.run!(
+      '--rounds 25 packages/tui',
+      ctx({ messages: [], meta: {}, session }),
+    );
+    expect(out.runText).toContain('packages/tui');
+    expect(out.runText).not.toContain('--rounds 25');
+
+    const invalid = await bughunt.run!('--rounds 26', ctx({ messages: [], meta: {}, session }));
+    expect(invalid.message).toContain('1..25');
+    expect(invalid.runText).toBeUndefined();
   });
 
   it('/bughunt refuses to start after a non-solo session is locked', async () => {
     await store.save(
-      store.createNew('Elite Bug Hunter', 'Hunt exactly one proven bug.', ['bug'], {
+      store.createNew('Proof-Driven Bug Hunter', 'Hunt exactly one proven bug.', ['bug'], {
         category: 'debugging',
       }),
     );
@@ -400,14 +420,14 @@ describe('/prompt, /prompt-gen, and /bughunt', () => {
     expect(out.message).toContain('could not start');
     expect(out.message).toContain('locked after the session starts');
     expect(session.append).not.toHaveBeenCalled();
-    expect(await usage.get('elite-bug-hunter')).toBeUndefined();
+    expect(await usage.get('proof-driven-bug-hunter')).toBeUndefined();
   });
 
   it('/bughunt reports an unavailable canonical prompt without running', async () => {
     const { bughunt } = await withLoaderCommands();
     const out = await bughunt.run!('', ctx());
     expect(out.runText).toBeUndefined();
-    expect(out.message).toContain('elite-bug-hunter');
+    expect(out.message).toContain('proof-driven-bug-hunter');
   });
 });
 

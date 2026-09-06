@@ -178,6 +178,11 @@ function makeHost(
       setEnhanceDuration: vi.fn(),
       setRefineProvider: vi.fn(),
       setRefineModel: vi.fn(),
+      onBugHuntStarted: vi.fn(),
+      // Normal submissions are user initiated. The hook-specific tests cover
+      // the one-shot replay path; this controller harness must still satisfy
+      // the complete App action contract.
+      consumeBugHuntReplay: vi.fn(() => false),
       onAfterClear: vi.fn(),
     },
   } as unknown as SubmitControllerHost;

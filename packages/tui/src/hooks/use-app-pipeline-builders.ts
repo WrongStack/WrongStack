@@ -19,6 +19,7 @@ export function buildAppPipelineArgs(params: {
   state: K['state'];
   dispatch: K['dispatch'];
   historyScrollRef: K['historyScrollRef'];
+  onHistoryScrollActivity: K['onHistoryScrollActivity'];
   runInterruptLadder: K['runInterruptLadder'];
   enhanceCancelledRef: K['enhanceCancelledRef'];
   enhanceAbortRef: K['enhanceAbortRef'];
@@ -110,12 +111,17 @@ export function buildAppPipelineArgs(params: {
   setEnhanceDurationMs: S['actions']['setEnhanceDuration'];
   setRefineProviderId: S['actions']['setRefineProvider'];
   setRefineModel: S['actions']['setRefineModel'];
+  onBugHuntStarted: S['actions']['onBugHuntStarted'];
+  consumeBugHuntReplay: S['actions']['consumeBugHuntReplay'];
+  onBugHuntRunFinished: R['capabilities']['onRunFinished'];
+  shouldSuppressBugHuntNextSteps: () => boolean;
 }): AppExecutionPipelineArgs {
   const {
     props,
     state,
     dispatch,
     historyScrollRef,
+    onHistoryScrollActivity,
     runInterruptLadder,
     enhanceCancelledRef,
     enhanceAbortRef,
@@ -207,6 +213,10 @@ export function buildAppPipelineArgs(params: {
     setEnhanceDurationMs,
     setRefineProviderId,
     setRefineModel,
+    onBugHuntStarted,
+    consumeBugHuntReplay,
+    onBugHuntRunFinished,
+    shouldSuppressBugHuntNextSteps,
   } = params;
 
   return {
@@ -214,6 +224,7 @@ export function buildAppPipelineArgs(params: {
       state,
       dispatch,
       historyScrollRef,
+      onHistoryScrollActivity,
       runInterruptLadder,
       enhanceCancelledRef,
       enhanceAbortRef,
@@ -274,6 +285,8 @@ export function buildAppPipelineArgs(params: {
         onSDDOutput: props.onSDDOutput,
         onSuggestionsParsed: props.onSuggestionsParsed,
         predictNext: props.predictNext,
+        shouldSuppressNextSteps: shouldSuppressBugHuntNextSteps,
+        onRunFinished: onBugHuntRunFinished,
       },
       refs: {
         sessionGeneration: sessionGenerationRef,
@@ -374,6 +387,8 @@ export function buildAppPipelineArgs(params: {
         setEnhanceDuration: setEnhanceDurationMs,
         setRefineProvider: setRefineProviderId,
         setRefineModel,
+        onBugHuntStarted,
+        consumeBugHuntReplay,
         onAfterClear: () => {
           pasteAccumRef.current = null;
           if (pasteFlushTimerRef.current) {

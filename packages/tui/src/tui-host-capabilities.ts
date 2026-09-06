@@ -37,9 +37,13 @@ export interface RunBlocksCapabilities {
   visionAdapters?: VisionAdapters | undefined;
   onSDDOutput?: ((output: string) => Promise<string[]>) | undefined;
   onSuggestionsParsed?: ((finalText: string) => void) | undefined;
+  /** Suppresses next-step extraction and prediction for a self-managed loop. */
+  shouldSuppressNextSteps?: (() => boolean) | undefined;
   predictNext?:
     | ((input: { userRequest: string; assistantSummary: string }) => Promise<string[]>)
     | undefined;
+  /** Observes a completed foreground run after its result has been rendered. */
+  onRunFinished?: ((status: 'done' | 'aborted' | 'failed' | 'max_iterations') => void) | undefined;
 }
 
 type ClearAction = Extract<

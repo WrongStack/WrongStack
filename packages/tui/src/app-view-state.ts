@@ -52,6 +52,7 @@ export function deriveAppViewState(options: AppViewStateOptions) {
     enhanceActive ||
     state.refineFailure != null ||
     state.continueConfirm != null ||
+    state.bugHuntContinue != null ||
     state.clearConfirm != null ||
     state.slashConfirm != null ||
     state.confirmQueue.length > 0 ||

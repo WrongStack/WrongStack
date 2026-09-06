@@ -647,6 +647,17 @@ export type State = {
     grounded: boolean;
     resolve: (decision: 'proceed' | 'edit' | 'cancel') => void;
   } | null;
+  /** TUI-only follow-up gate shown after each completed `/bughunt` round. */
+  bugHuntContinue: {
+    completedRounds: number;
+    totalRounds?: number | undefined;
+    resolve: (decision: 'yes' | 'stop') => void;
+  } | null;
+  /** Visible, non-blocking progress card for the currently running bug-hunt round. */
+  bugHuntRunning: {
+    currentRound: number;
+    totalRounds?: number | undefined;
+  } | null;
   /**
    * Pending destructive `/clear` confirmation. Unlike ordinary yes/no
    * prompts this requires the user to type the full uppercase word `YES`.

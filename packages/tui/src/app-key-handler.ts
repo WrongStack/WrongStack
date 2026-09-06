@@ -38,6 +38,8 @@ interface AppKeyHandlerOptions {
   state: State;
   dispatch: Dispatch<Action>;
   historyScrollRef: MutableRefObject<HistoryScrollController | null>;
+  /** Resets the live-tail timeout after a user-driven history navigation. */
+  onHistoryScrollActivity?: (() => void) | undefined;
   runInterruptLadder: () => void;
   enhanceCancelledRef: MutableRefObject<boolean>;
   enhanceAbortRef: MutableRefObject<AbortController | null>;
@@ -144,6 +146,7 @@ export function createAppKeyHandler(
     state,
     dispatch,
     historyScrollRef,
+    onHistoryScrollActivity,
     runInterruptLadder,
     enhanceCancelledRef,
     enhanceAbortRef,
@@ -737,6 +740,7 @@ export function createAppKeyHandler(
           if (key.mouse.shift)
             historyScrollRef.current?.scrollPage(key.mouse.wheel > 0 ? 'up' : 'down');
           else historyScrollRef.current?.scrollBy(key.mouse.wheel > 0 ? 1 : -1);
+          onHistoryScrollActivity?.();
           // Scrolling always cancels any pending drag-select: the user is
           // moving through history, not committing a text selection. Without
           // this clear, a Right-Click after a wheel-flushed drag would copy a
@@ -809,6 +813,7 @@ export function createAppKeyHandler(
           // scrubbing chat, not selecting text.
           historyScrollRef.current?.clearSelection();
           historyScrollRef.current?.scrollToTrackCell(region.cell);
+          onHistoryScrollActivity?.();
           return;
         }
       }
@@ -894,10 +899,12 @@ export function createAppKeyHandler(
       }
       if (key.pageUp) {
         historyScrollRef.current?.scrollPage('up');
+        onHistoryScrollActivity?.();
         return;
       }
       if (key.pageDown) {
         historyScrollRef.current?.scrollPage('down');
+        onHistoryScrollActivity?.();
         return;
       }
       // Terminal-safe paging fallback for compact keyboards (notably MacBooks).
@@ -905,6 +912,7 @@ export function createAppKeyHandler(
       // text; on an empty draft these chords page through chat history.
       if (key.ctrl && draftRef.current.buffer === '' && (input === 'u' || input === 'd')) {
         historyScrollRef.current?.scrollPage(input === 'u' ? 'up' : 'down');
+        onHistoryScrollActivity?.();
         return;
       }
     }

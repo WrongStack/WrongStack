@@ -109,6 +109,8 @@ export interface SubmitControllerHost {
     setEnhanceDuration(value: number | null): void;
     setRefineProvider(value: string | null): void;
     setRefineModel(value: string | null): void;
+    onBugHuntStarted(command: string, totalRounds?: number): void;
+    consumeBugHuntReplay(command: string): boolean;
     /** Called after /clear dispatches clearHistory — app.tsx uses this to
      *  reset mutable refs that the reducer cannot reach (paste accumulator,
      *  next-steps auto-submit, prompt-usage store, enhance abort). */
@@ -211,6 +213,8 @@ export function createSubmitController(host: SubmitControllerHost) {
       setEnhanceDuration: setEnhanceDurationMs,
       setRefineProvider: setRefineProviderId,
       setRefineModel,
+      onBugHuntStarted,
+      consumeBugHuntReplay,
       onAfterClear,
     },
   } = host;
@@ -245,7 +249,9 @@ export function createSubmitController(host: SubmitControllerHost) {
     // Submitting anything snaps the managed viewport back to the newest output
     // (no-op when already pinned or outside mouse mode).
     host.refs.historyScroll.current?.scrollToBottom();
+    const isAutomaticBugHuntReplay = consumeBugHuntReplay(trimmed);
     const pushSubmittedHistory = () => {
+      if (isAutomaticBugHuntReplay) return;
       const decision = shouldPushSubmittedHistory(trimmed);
       if (decision.push) {
         dispatch({ type: 'historyPush', text: decision.trimmed });
@@ -314,14 +320,16 @@ export function createSubmitController(host: SubmitControllerHost) {
 
       const secretBearingSetup =
         /^\/(?:telegram-setup|tg-setup)\s+\d+:[A-Za-z0-9_-]+(?:\s|$)/i.test(trimmed);
-      dispatch({
-        type: 'addEntry',
-        entry: {
-          kind: 'user',
-          text: secretBearingSetup ? '/telegram-setup [token redacted]' : trimmed,
-          pasteContent,
-        },
-      });
+      if (!isAutomaticBugHuntReplay) {
+        dispatch({
+          type: 'addEntry',
+          entry: {
+            kind: 'user',
+            text: secretBearingSetup ? '/telegram-setup [token redacted]' : trimmed,
+            pasteContent,
+          },
+        });
+      }
       pushSubmittedHistory();
       clearDraft();
       try {
@@ -332,6 +340,10 @@ export function createSubmitController(host: SubmitControllerHost) {
         refreshGoalSummary();
         if (res?.message) {
           dispatch({ type: 'addEntry', entry: { kind: 'info', text: res.message } });
+        }
+        const bugHuntMatch = trimmed.match(/^\/bughunt(?:\s+--rounds(?:\s+|=)(\d+))?(?:\s|$)/);
+        if (bugHuntMatch && res?.runText) {
+          onBugHuntStarted(trimmed, bugHuntMatch[1] ? Number(bugHuntMatch[1]) : undefined);
         }
         // goalRunInit: when /goal start succeeds, the graph title is
         // embedded in metadata so the TUI can show the PhasePanel immediately

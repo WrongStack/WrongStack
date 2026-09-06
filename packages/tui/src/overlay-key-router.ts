@@ -232,6 +232,7 @@ export function routeModalOverlayKey(
     state.enhance ||
     state.refineFailure ||
     state.continueConfirm ||
+    state.bugHuntContinue ||
     state.escConfirm ||
     state.sendModePicker
   ) {

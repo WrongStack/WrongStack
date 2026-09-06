@@ -119,15 +119,15 @@ describe('builtin prompt dataset', () => {
     }
   });
 
-  it('ships the Elite Bug Hunter round and cleanup contract', () => {
+  it('ships the Proof-Driven Bug Hunter round and cleanup contract', () => {
     const entry = JSON.parse(
-      fs.readFileSync(path.join(promptsDir, 'debugging', 'elite-bug-hunter.json'), 'utf8'),
+      fs.readFileSync(path.join(promptsDir, 'debugging', 'proof-driven-bug-hunter.json'), 'utf8'),
     ) as { slug: string; content: string; variables?: unknown[] };
-    expect(entry.slug).toBe('elite-bug-hunter');
+    expect(entry.slug).toBe('proof-driven-bug-hunter');
     expect(entry.variables).toBeUndefined();
     expect(entry.content).toContain('exactly one concrete bug');
     expect(entry.content).toContain('exit non-zero and print an explicit `FAIL`');
-    expect(entry.content).toContain('.temp_files/elite-bug-hunter/<round-id>/');
+    expect(entry.content).toContain('.temp_files/proof-driven-bug-hunter/<round-id>/');
     expect(entry.content).toContain('Never delete `.temp_files/` wholesale');
     expect(entry.content).toContain('Do not hunt or fix a second issue');
   });

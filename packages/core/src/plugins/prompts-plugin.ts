@@ -29,7 +29,7 @@ interface PromptsPluginOptions {
  *   - `/prompts`     manage your library (list/view/add/edit/delete/favorite/extend)
  *   - `/prompt`      search the merged library (builtin + user + project) and insert
  *   - `/prompt-gen`  AI-guided authoring of a new high-quality prompt
- *   - `/bughunt`     run one proof-driven Elite Bug Hunter round
+ *   - `/bughunt`     run one Proof-Driven Bug Hunter round
  *   - `/perf`        run one measure-change-measure performance ratchet round
  *
  * Active by default for all WrongStack sessions. The host injects a
@@ -109,7 +109,7 @@ export function createPromptsPlugin(opts?: PromptsPluginOptions): Plugin {
   };
 }
 
-const ELITE_BUG_HUNTER_SLUG = 'elite-bug-hunter';
+const PROOF_DRIVEN_BUG_HUNTER_SLUG = 'proof-driven-bug-hunter';
 
 function buildBugHuntCommand(
   getLoader: () => PromptLoader | null,
@@ -117,49 +117,71 @@ function buildBugHuntCommand(
 ): SlashCommand {
   return {
     name: 'bughunt',
-    description: 'Start one proof-driven Elite Bug Hunter round.',
+    description: 'Start one Proof-Driven Bug Hunter round.',
     argsHint: '[package | path | feature | symptom]',
     help: [
       'Start one autonomous bug discovery, proof, fix, and verification round.',
       '',
       'Usage:',
       '  /bughunt                         Hunt across the current project',
+      '  /bughunt --rounds 5              Run up to 5 TUI rounds (1-25)',
       '  /bughunt packages/core/storage  Restrict the round to a target',
+      '  /bughunt --rounds 5 packages/tui Run up to 5 rounds in a target',
       '',
       'The agent handles exactly one bug and stops after its round report.',
     ].join('\n'),
     async run(args: string, ctx: Context) {
       const loader = getLoader();
       if (!loader) return { message: 'Prompt library not available.' };
-      const entry = await loader.find(ELITE_BUG_HUNTER_SLUG);
+      const entry = await loader.find(PROOF_DRIVEN_BUG_HUNTER_SLUG);
       if (!entry) {
         return {
-          message: `Builtin prompt "${ELITE_BUG_HUNTER_SLUG}" is unavailable. Rebuild or reinstall the prompt dataset.`,
+          message: `Builtin prompt "${PROOF_DRIVEN_BUG_HUNTER_SLUG}" is unavailable. Rebuild or reinstall the prompt dataset.`,
         };
       }
+      const parsed = parseBugHuntArgs(args);
+      if (parsed.error) return { message: parsed.error };
       try {
         await setSessionSubagentsAllowed(ctx, false);
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);
-        return { message: `Elite Bug Hunter could not start: ${reason}` };
+        return { message: `Proof-Driven Bug Hunter could not start: ${reason}` };
       }
       try {
         await getUsage()?.record(entry.slug);
       } catch {
         // Usage tracking must never block a hunt.
       }
-      const target = args.trim();
+      const target = parsed.target;
       const runText = target
         ? `${entry.content}\n\n## User-selected target\nStay within this package, area, feature, or symptom for this round: ${target}`
         : entry.content;
       return {
         message: target
-          ? `Elite Bug Hunter started for: ${target}`
-          : 'Elite Bug Hunter started for the current project.',
+          ? `Proof-Driven Bug Hunter started for: ${target}`
+          : 'Proof-Driven Bug Hunter started for the current project.',
         runText,
+        metadata: { bugHunt: { rounds: parsed.rounds } },
       };
     },
   };
+}
+
+function parseBugHuntArgs(args: string): {
+  target: string;
+  rounds?: number | undefined;
+  error?: string | undefined;
+} {
+  const match = args.trim().match(/^--rounds(?:\s+|=)(\S+)(?:\s+([\s\S]*))?$/);
+  if (!match) return { target: args.trim() };
+  const rounds = Number(match[1]);
+  if (!Number.isInteger(rounds) || rounds < 1 || rounds > 25) {
+    return {
+      target: '',
+      error: 'Usage: /bughunt [--rounds 1..25] [package | path | feature | symptom]',
+    };
+  }
+  return { target: match[2]?.trim() ?? '', rounds };
 }
 
 // ── /prompts — library manager ────────────────────────────────────────────────

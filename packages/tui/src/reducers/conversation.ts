@@ -198,6 +198,8 @@ export function reduceConversation(state: State, action: ConversationAction): St
         refineCountdown: null,
         refineFailure: null,
         continueConfirm: null,
+        bugHuntContinue: null,
+        bugHuntRunning: null,
         sendModePicker: null,
         shellCommandWarning: null,
         escConfirm: null,

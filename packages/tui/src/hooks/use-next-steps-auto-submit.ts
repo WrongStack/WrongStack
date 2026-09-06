@@ -177,7 +177,7 @@ export function useNextStepsAutoSubmit({
   useEffect(() => {
     const liveAutonomy = getAutonomy?.() ?? autonomyLive;
     // Only run when idle and in auto mode
-    if (state.status !== 'idle' || liveAutonomy !== 'auto') {
+    if (state.status !== 'idle' || liveAutonomy !== 'auto' || state.bugHuntRunning != null) {
       clearInterval(nextStepsAutoSubmitTimerRef.current);
       nextStepsAutoSubmitTimerRef.current = undefined;
       setNextStepsAutoSubmitCountdown(null);
@@ -213,6 +213,7 @@ export function useNextStepsAutoSubmit({
       state.refineCountdown != null ||
       state.refineFailure != null ||
       state.continueConfirm != null ||
+      state.bugHuntContinue != null ||
       state.clearConfirm != null ||
       state.slashConfirm != null ||
       state.escConfirm != null ||
@@ -545,6 +546,8 @@ export function useNextStepsAutoSubmit({
     state.refineCountdown,
     state.refineFailure,
     state.continueConfirm,
+    state.bugHuntContinue,
+    state.bugHuntRunning,
     state.clearConfirm,
     state.slashConfirm,
     state.escConfirm,

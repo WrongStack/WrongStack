@@ -475,6 +475,10 @@ export type Action =
   | { type: 'refineFailureClose' }
   | { type: 'continueConfirmOpen'; info: NonNullable<State['continueConfirm']> }
   | { type: 'continueConfirmClose' }
+  | { type: 'bugHuntContinueOpen'; info: NonNullable<State['bugHuntContinue']> }
+  | { type: 'bugHuntContinueClose' }
+  | { type: 'bugHuntRunningOpen'; info: NonNullable<State['bugHuntRunning']> }
+  | { type: 'bugHuntRunningClose' }
   | { type: 'clearConfirmOpen'; info: NonNullable<State['clearConfirm']> }
   | { type: 'clearConfirmSetValue'; value: string }
   | { type: 'clearConfirmClose' }

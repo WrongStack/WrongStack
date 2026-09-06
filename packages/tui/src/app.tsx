@@ -32,6 +32,8 @@ import { useFileSearch } from './hooks/use-file-search.js';
 import { useGitSessionStatus } from './hooks/use-git-session-status.js';
 import { useHelpPanel } from './hooks/use-help-panel.js';
 import { useHistoryArchive } from './hooks/use-history-archive.js';
+import { useHistoryAutoScroll } from './hooks/use-history-auto-scroll.js';
+import { useBugHuntLoop } from './hooks/use-bug-hunt-loop.js';
 import { useHistoryCopyNotice } from './hooks/use-history-copy-notice.js';
 import { useHistoryViewportSync } from './hooks/use-history-viewport-sync.js';
 import { useInitialPrompt } from './hooks/use-initial-prompt.js';
@@ -270,6 +272,10 @@ export function App(props: AppProps): React.ReactElement {
       dispatch({ type: 'setHistoryScrolled', scrolled: info.scrolled }),
     [dispatch],
   );
+  const onHistoryScrollActivity = useHistoryAutoScroll({
+    historyScrolled: state.historyScrolled,
+    historyScrollRef,
+  });
   const { onRequestOlderEntries } = useHistoryArchive({
     entries: state.entries,
     dispatch,
@@ -362,6 +368,16 @@ export function App(props: AppProps): React.ReactElement {
     dismissedEscAtRef,
     submitRef,
   } = useAppRuntimeRefs(attachments, state);
+
+  const bugHuntLoop = useBugHuntLoop(
+    dispatch,
+    (command) => {
+      void submitRef.current(command);
+    },
+    // Wholesale history replacement (notably /clear) must end any hunt —
+    // see the historyGen effect inside useBugHuntLoop.
+    state.historyGen,
+  );
 
   const projectName = React.useMemo(() => {
     const base = path.basename(projectRoot);
@@ -873,6 +889,7 @@ export function App(props: AppProps): React.ReactElement {
     state,
     dispatch,
     historyScrollRef,
+    onHistoryScrollActivity,
     runInterruptLadder,
     enhanceCancelledRef,
     enhanceAbortRef,
@@ -964,6 +981,10 @@ export function App(props: AppProps): React.ReactElement {
     setEnhanceDurationMs,
     setRefineProviderId,
     setRefineModel,
+    onBugHuntStarted: bugHuntLoop.onBugHuntStarted,
+    consumeBugHuntReplay: bugHuntLoop.consumeReplay,
+    onBugHuntRunFinished: bugHuntLoop.onRunFinished,
+    shouldSuppressBugHuntNextSteps: bugHuntLoop.shouldSuppressNextSteps,
   });
 
   const { stableOnKey } = useAppExecutionPipeline(pipelineArgs);

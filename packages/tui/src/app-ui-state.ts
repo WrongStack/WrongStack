@@ -302,6 +302,7 @@ function resolveSidebarLayout(
     state.refineCountdown != null ||
     state.refineFailure != null ||
     state.continueConfirm != null ||
+    state.bugHuntContinue != null ||
     state.brainPrompt != null ||
     mailboxPanelOpen ||
     ((state.goalRun?.monitorOpen ?? false) && !routedToSidebar('coordinator')) ||

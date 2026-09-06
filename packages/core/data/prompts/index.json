@@ -971,14 +971,14 @@
       "file": "prompts/debugging/diagnose-a-memory-leak.json"
     },
     {
-      "id": "elite-bug-hunter",
-      "slug": "elite-bug-hunter",
-      "title": "Elite Bug Hunter",
+      "id": "proof-driven-bug-hunter",
+      "slug": "proof-driven-bug-hunter",
+      "title": "Proof-Driven Bug Hunter",
       "description": "Autonomously discover, prove, fix, and verify exactly one real bug per round.",
       "category": "debugging",
       "tags": ["autonomous", "bug-hunt", "proof", "regression", "fix"],
-      "checksum": "55038a1f2f04a58ec5d0e1736944dbbe2b167d3f980a32522f91a302ee93fec9",
-      "file": "prompts/debugging/elite-bug-hunter.json"
+      "checksum": "465bd4be90b1e522f9c4d6206ee414e406d0f7d2154f84517431ea8b317aa19e",
+      "file": "prompts/debugging/proof-driven-bug-hunter.json"
     },
     {
       "id": "explain-this-error",
