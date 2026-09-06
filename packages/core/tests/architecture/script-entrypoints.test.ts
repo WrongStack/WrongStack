@@ -37,6 +37,7 @@ const executableScripts = [
   'scripts/lib/build-output-cleanup.mjs',
   'scripts/lib/build-lineage.mjs',
   'scripts/lib/test-inventory.mjs',
+  'scripts/lib/affected-cache.mjs',
   'scripts/lib/test-skip-budget.mjs',
   'scripts/lint-console-logging.mjs',
   'scripts/lint-distributive-types.mjs',
@@ -50,7 +51,9 @@ const executableScripts = [
   'scripts/sync-core-public-api-snapshot.mjs',
   'scripts/sync-models.mjs',
   'scripts/run-vitest-coverage.mjs',
+  'scripts/test-affected.mjs',
   'scripts/test-coverage.mjs',
+  'scripts/vitest-affected-recorder.mjs',
   'scripts/tui-heap-soak.mjs',
 ] as const;
 

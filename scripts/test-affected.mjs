@@ -136,6 +136,7 @@ const cache = readCache();
 const cachedFiles = Object.keys(cache.entries);
 
 let fullRunReason = null;
+let affectedCount = 0;
 const skip = [];
 if (options.all) {
   fullRunReason = '--all';
@@ -151,6 +152,7 @@ if (options.all) {
     if (why) reasons.set(file, why);
     else skip.push(file);
   }
+  affectedCount = reasons.size;
   for (const [file, why] of [...reasons].slice(0, 10)) console.log(`  run  ${file} — ${why}`);
   if (reasons.size > 10) console.log(`  … and ${reasons.size - 10} more`);
   console.log(
@@ -161,6 +163,14 @@ if (options.all) {
 
 if (fullRunReason) console.log(`test:affected: running the full suite (${fullRunReason})`);
 if (options.list) process.exit(0);
+
+// Nothing to prove. Handing Vitest a skip list that covers every file it can
+// see makes it exit with "No test files found", which reads like a broken
+// setup rather than the good news it is.
+if (!fullRunReason && affectedCount === 0) {
+  console.log('test:affected: nothing to run — every cached file is unchanged and green.');
+  process.exit(0);
+}
 
 const configArgs = [];
 if (skip.length > 0) {

@@ -35,11 +35,43 @@ pnpm --filter @wrongstack/core build   # Build a single package
 
 ```bash
 pnpm test                     # Run vitest + webui tests
+pnpm test:affected            # Run only what your changes can have broken
 pnpm test:watch               # Watch mode
 pnpm test:coverage            # Coverage report
 pnpm test:e2e                 # Playwright E2E suite
 node node_modules/vitest/vitest.mjs run packages/telegram/  # Tests for one package
 ```
+
+#### `pnpm test:affected`
+
+A full root run is ~13 minutes and 39,827 tests, and while you iterate almost
+all of it re-proves what it proved an hour ago. A test can only start failing if
+code it reaches changed, so `test:affected` skips the files whose entire import
+closure is byte-identical and which passed last time. On an untouched tree it
+answers in about two seconds; after editing one source file it typically runs a
+handful of suites in ten.
+
+The first run has no cache and does the full suite to build one. After that:
+
+```bash
+pnpm test:affected --list     # show the plan, run nothing
+pnpm test:affected --all      # force a full run and re-seed the cache
+pnpm test:affected -- -t foo  # anything after -- goes to vitest
+```
+
+It decides only what is safe to SKIP, never what to run — Vitest still
+enumerates the suite through its own `include` globs, so a file the cache has
+never seen runs by default. Everything else errs the same way: a new file, a
+file that did not pass, a changed or deleted dependency, or any edit to
+`vitest.config.ts`, the setup files, `package.json` or the lockfile all put a
+test back in the run.
+
+Do not treat it as a gate. It follows *import* edges, so a test that reads a
+fixture at runtime without importing it will not notice that fixture changing.
+CI and `pnpm release:check` always run everything; this is for the loop in
+between. `vitest --changed` and `vitest --related` are not usable here — both
+were measured against this repo and selected *zero* test files for an edit to
+`packages/core/src/types/session.ts`.
 
 ### Linting & Formatting
 

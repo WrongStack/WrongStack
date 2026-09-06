@@ -100,7 +100,22 @@ export default class AffectedRecorder {
       }
     }
 
+    // Rebuild the hash map from what the surviving entries actually reference.
+    // Carrying it forward untouched would grow it forever: every file that ever
+    // appeared in any closure would stay, including ones no test imports any
+    // more and paths recorded by older, buggier versions of this reporter.
+    const live = {};
+    for (const entry of Object.values(entries)) {
+      for (const dep of entry.deps) {
+        if (dep in hashes) live[dep] = hashes[dep];
+      }
+    }
+
     mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
-    writeFileSync(CACHE_PATH, JSON.stringify({ schemaVersion: 1, salt, entries, hashes }), 'utf8');
+    writeFileSync(
+      CACHE_PATH,
+      JSON.stringify({ schemaVersion: 1, salt, entries, hashes: live }),
+      'utf8',
+    );
   }
 }
