@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -847,37 +847,46 @@ describe('report freshness gate', () => {
     expect(verdict.reportCommitMs).toBe(0);
   });
 
-  it('recognises committed evidence that matches the measurements apart from its timestamp', async () => {
-    const dir = await initScratchRepo('content-match');
-    const report = { schemaVersion: 1, generatedAt: '2026-01-01T00:00:00.000Z', errors: [] };
+  /** The repository's own committed report — a real object the renderer accepts. */
+  async function loadRealReport(): Promise<Record<string, unknown>> {
+    const root = path.resolve(import.meta.dirname, '../../../..');
+    const raw = await readFile(path.join(root, FRESHNESS_REPORT_FILES[0] as string), 'utf8');
+    return JSON.parse(raw) as Record<string, unknown>;
+  }
+
+  async function writeEvidence(dir: string, report: Record<string, unknown>): Promise<void> {
     await writeFile(
       path.join(dir, FRESHNESS_REPORT_FILES[0] as string),
-      `${JSON.stringify({ ...report, generatedAt: '2020-05-05T05:05:05.000Z' }, null, 2)}\n`,
+      `${JSON.stringify(report, null, 2)}\n`,
     );
     await writeFile(
       path.join(dir, FRESHNESS_REPORT_FILES[1] as string),
-      renderArchitectureHealthMarkdown({ ...report, generatedAt: '2020-05-05T05:05:05.000Z' }),
+      renderArchitectureHealthMarkdown(report),
     );
-    // Only `generatedAt` differs, so the committed pair already states what a
-    // fresh run measures — no commit could make it truer.
+  }
+
+  it('recognises committed evidence that matches the measurements apart from its timestamp', async () => {
+    const dir = await initScratchRepo('content-match');
+    const report = await loadRealReport();
+    // Same measurements, different `generatedAt`: the committed pair already
+    // states what a fresh run measures, so no commit could make it truer.
+    await writeEvidence(dir, { ...report, generatedAt: '2020-05-05T05:05:05.000Z' });
     expect(committedEvidenceMatchesReport(dir, report)).toBe(true);
   });
 
   it('rejects committed evidence whose measurements differ, and a half-regenerated pair', async () => {
     const dir = await initScratchRepo('content-mismatch');
-    const report = { schemaVersion: 1, generatedAt: '2026-01-01T00:00:00.000Z', errors: [] };
-    const stale = { ...report, schemaVersion: 0 };
-    await writeFile(
-      path.join(dir, FRESHNESS_REPORT_FILES[0] as string),
-      `${JSON.stringify(stale, null, 2)}\n`,
-    );
-    await writeFile(
-      path.join(dir, FRESHNESS_REPORT_FILES[1] as string),
-      renderArchitectureHealthMarkdown(stale),
-    );
+    const report = await loadRealReport();
+    // A measurement the markdown renders, so both halves of the pair differ.
+    const drifted = {
+      ...report,
+      summary: { ...(report['summary'] as Record<string, unknown>), sourceFiles: 1 },
+    };
+    await writeEvidence(dir, drifted);
     expect(committedEvidenceMatchesReport(dir, report)).toBe(false);
 
-    // Matching JSON with a stale markdown companion must not pass either.
+    // Matching JSON with the stale markdown companion left behind must not
+    // pass either — that is the half-regenerated pair.
     await writeFile(
       path.join(dir, FRESHNESS_REPORT_FILES[0] as string),
       `${JSON.stringify(report, null, 2)}\n`,
@@ -889,7 +898,7 @@ describe('report freshness gate', () => {
     const dir = await initScratchRepo('content-malformed');
     await writeFile(path.join(dir, FRESHNESS_REPORT_FILES[0] as string), 'not json{');
     await writeFile(path.join(dir, FRESHNESS_REPORT_FILES[1] as string), '# r\n');
-    expect(committedEvidenceMatchesReport(dir, { schemaVersion: 1 })).toBe(false);
+    expect(committedEvidenceMatchesReport(dir, await loadRealReport())).toBe(false);
   });
 
   it('skips with a warning-shaped result when git history is unavailable', async () => {
