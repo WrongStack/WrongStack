@@ -39,8 +39,9 @@
  * The runner deliberately does not parse or interpret gate output — it only
  * propagates exit codes. Gate semantics stay owned by each gate script.
  */
-import { spawn } from 'node:child_process';
-import { createWriteStream, mkdirSync, readFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { createWriteStream, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -48,6 +49,21 @@ const LOG_DIRS = {
   release: path.resolve('.reports/release-check-matrix'),
   local: path.resolve('.reports/local-ci'),
 };
+const CACHE_SCHEMA_VERSION = 1;
+const CACHEABLE_GATES = new Set([
+  'architecture',
+  'test-inventory',
+  'test-skips',
+  'rulebook',
+  'i18n',
+  'typecheck',
+  'test-types',
+  'coverage',
+  'lint',
+  'test',
+  'hqdash',
+  'status-bar',
+]);
 const ANSI_ESCAPE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 const FAILED_TESTS_HEADER = /Failed Tests? \d+/i;
 const FAILURE_SUMMARY = /^\s*(?:Test Files|Tests)\s+\d+\s+failed\b/i;
@@ -56,6 +72,38 @@ const DIAGNOSTIC_LINE =
 
 function stripAnsi(line) {
   return line.replace(ANSI_ESCAPE, '');
+}
+
+function releaseInputFingerprint() {
+  const files = execFileSync('git', ['ls-files', '-co', '--exclude-standard'], {
+    encoding: 'utf8',
+  })
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .filter((file) => !file.startsWith('.reports/') && !file.startsWith('coverage/'))
+    .sort();
+  const hash = createHash('sha256').update(`node:${process.version}\n`);
+  for (const file of files) {
+    hash.update(`${file}\0`);
+    try {
+      hash.update(readFileSync(file));
+    } catch {
+      hash.update('unreadable');
+    }
+  }
+  return hash.digest('hex');
+}
+
+function readGateCache(file, fingerprint) {
+  try {
+    const cache = JSON.parse(readFileSync(file, 'utf8'));
+    if (cache.schemaVersion === CACHE_SCHEMA_VERSION && cache.fingerprint === fingerprint) {
+      return cache.gates ?? {};
+    }
+  } catch {
+    // Missing/corrupt cache is a cache miss, never a release failure.
+  }
+  return {};
 }
 
 /**
@@ -313,6 +361,7 @@ let tail = 25;
 let listOnly = false;
 let only = null;
 let profile = 'release';
+let noCache = false;
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--list') listOnly = true;
@@ -333,8 +382,11 @@ for (let i = 0; i < args.length; i++) {
         .map((s) => s.trim())
         .filter(Boolean),
     );
-  } else
-    fail(`unknown flag "${a}" (supported: --list, --only <ids>, --tail <n>, --profile <name>)`);
+  } else if (a === '--no-cache') noCache = true;
+  else
+    fail(
+      `unknown flag "${a}" (supported: --list, --only <ids>, --tail <n>, --profile <name>, --no-cache)`,
+    );
 }
 
 const profileGates = gatesForProfile(profile);
@@ -361,6 +413,9 @@ if (listOnly) {
 const selected = only ? profileGates.filter((g) => only.has(g.id)) : profileGates;
 const results = new Map(); // id -> { status, ms, code }
 mkdirSync(LOG_DIR, { recursive: true });
+const fingerprint = releaseInputFingerprint();
+const cacheFile = path.join(LOG_DIR, 'gate-cache.json');
+const cachedGates = noCache ? {} : readGateCache(cacheFile, fingerprint);
 
 console.log(`${title} gate matrix — running ${selected.length} gate(s)\n`);
 
@@ -381,6 +436,13 @@ for (const gate of selected) {
   if (skipReason) {
     results.set(gate.id, { status: 'skip', reason: skipReason });
     console.log(`[SKIP] ${gate.id} — ${skipReason}`);
+    continue;
+  }
+
+  const cached = cachedGates[gate.id];
+  if (CACHEABLE_GATES.has(gate.id) && cached?.cmd === gate.cmd && cached?.status === 'pass') {
+    results.set(gate.id, { status: 'pass', ms: 0, cached: true });
+    console.log(`[CACHED] ${gate.id} — unchanged inputs passed previously`);
     continue;
   }
 
@@ -411,6 +473,19 @@ for (const gate of selected) {
   }
 }
 
+const nextCache = { ...cachedGates };
+for (const [id, result] of results) {
+  const gate = selected.find((candidate) => candidate.id === id);
+  if (gate && CACHEABLE_GATES.has(id) && result.status === 'pass') {
+    nextCache[id] = { status: 'pass', cmd: gate.cmd, at: new Date().toISOString() };
+  }
+}
+writeFileSync(
+  cacheFile,
+  `${JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, fingerprint, gates: nextCache }, null, 2)}\n`,
+  'utf8',
+);
+
 // ── Matrix report ────────────────────────────────────────────────────────
 console.log(`\n═══ ${title} gate matrix ═══`);
 for (const g of selected) {
@@ -418,7 +493,9 @@ for (const g of selected) {
   const tag = res.status.toUpperCase();
   const detail =
     res.status === 'pass'
-      ? `${(res.ms / 1000).toFixed(1)}s`
+      ? res.cached
+        ? 'cached'
+        : `${(res.ms / 1000).toFixed(1)}s`
       : res.status === 'skip'
         ? res.reason
         : `${res.why} · ${(res.ms / 1000).toFixed(1)}s`;

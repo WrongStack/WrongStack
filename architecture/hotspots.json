@@ -191,7 +191,7 @@
       "relativeImports": 11
     },
     "packages/mcp/src/server.ts": {
-      "lines": 836,
+      "lines": 838,
       "relativeImports": 2
     },
     "packages/plugins/src/duplicate-code-detector/index.ts": {

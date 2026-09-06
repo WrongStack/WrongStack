@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-06T15:40:44.522Z",
+  "generatedAt": "2026-09-06T17:07:36.455Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3644,
     "testFiles": 3080,
-    "sourceLines": 872950,
+    "sourceLines": 872952,
     "workspaceEdges": 127,
     "moduleEdges": 11462,
     "nonCommandSlashImports": 0,
@@ -19899,7 +19899,7 @@
     },
     {
       "file": "packages/mcp/src/server.ts",
-      "lines": 836,
+      "lines": 838,
       "relativeImports": 2
     },
     {
