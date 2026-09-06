@@ -116,7 +116,10 @@ export class DesktopAgentBridge extends EventEmitter {
     this.cancelReconnect(conversation);
     conversation.reconnectAttempt = 0;
     conversation.connectionState = resetConnection(conversation.connectionState);
-    void this.ensureConnected(runtimeId, wsUrl);
+    // User-triggered reconnect returns void — there is no caller to receive a
+    // rejection, and connect()'s error path already records the failure state.
+    // Absorb it: a dead runtime must not raise an unhandled rejection.
+    void this.ensureConnected(runtimeId, wsUrl).catch(() => undefined);
   }
 
   async ensureConnected(runtimeId: string, wsUrl: string): Promise<DesktopConversationSnapshot> {
@@ -294,7 +297,14 @@ export class DesktopAgentBridge extends EventEmitter {
 
       // Check if still disconnected
       if (conversation.ws?.readyState !== WebSocket.OPEN) {
-        void this.connect(conversation.runtimeId, conversation.reconnectUrl);
+        // The reconnect loop owns failure handling: connect()'s error path
+        // already records status/error and schedules the next attempt (or
+        // exhausts the budget). Absorb the rejection — an automatic retry
+        // firing at a dead runtime must not surface as an unhandled promise
+        // rejection in the Electron main process.
+        void this.connect(conversation.runtimeId, conversation.reconnectUrl).catch(
+          () => undefined,
+        );
       }
     }, reconnect.plan.delayMs);
   }
