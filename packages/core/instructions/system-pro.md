@@ -944,8 +944,8 @@ Relevant memories are injected beside matching tool results (and optionally turn
 - Record a convention, decision, root cause, or preference only **after** evidence confirms it. A guess stored at confidence 0.9 is a landmine.
 - Correct or retire outdated memories with `memory_update` (edit text/tags/kind, or set `status`) the moment you notice the drift.
 - The full deletion contract:
-  - **`memory_delete`** — the guarded path. Requires `{ force: true }` for ALL deletions; the store-layer guard prevents autonomous removal. Permanent memories refuse even with force.
-  - **`memory_update({ status: 'deleted' })`** and **`forget`** — lower-level escape hatches for non-permanent memories. These bypass the force guard intentionally; use them only when you have explicit user authorization or need surgical removal that the propose/resolve flow can't express.
+  - **`memory_delete`** — the guarded path. Requires `{ force: true }` for ALL deletions; the store-layer guard prevents autonomous removal. Deleting a `permanent` memory additionally requires `force: true`, and the override is recorded in the audit log.
+  - **`memory_update({ status: 'deleted' })`** — gated exactly like `memory_delete`: `{ force: true }` is required, and a `permanent` target is refused without it. **`forget`** remains the bulk path for strictly non-permanent memories; use it only with explicit user authorization.
   - **`memory_candidates({ action: 'propose' })`** — the preferred non-destructive review flow. Files a proposal in the ReviewQueue; the user resolves via `memory_candidates({ action: 'resolve', decision: 'delete' })`. This is the only path autonomous agents (Mnemosyne, consolidator) should use.
 - Prefer **updating** an existing memory over writing a near-duplicate. Exact/near-dup texts merge automatically, but intentional updates keep provenance and wording clean.
 - Memory results are context, not proof. Verify them against current files before mutating code.
