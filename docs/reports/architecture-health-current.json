@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-06T14:00:03.452Z",
+  "generatedAt": "2026-09-06T14:36:37.079Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3644,
-    "testFiles": 3078,
-    "sourceLines": 872906,
+    "testFiles": 3079,
+    "sourceLines": 872939,
     "workspaceEdges": 127,
     "moduleEdges": 11462,
     "nonCommandSlashImports": 0,
@@ -213,7 +213,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 838,
-      "testFiles": 709,
+      "testFiles": 710,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -228,7 +228,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 709
+          "testFiles": 710
         }
       ]
     },
@@ -7033,6 +7033,12 @@
       },
       {
         "file": "packages/core/tests/performance/perf-log.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/performance/perf-runner-settle.test.ts",
         "projects": [
           "root-node"
         ]
