@@ -1,9 +1,27 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { DocumentTracker } from '../../src/document-tracker.js';
 import type { LSPRegistry } from '../../src/registry.js';
 import { buildLspCommand, lspCommandCoverage } from '../../src/slash-commands/lsp.js';
 import type { PlugLSPConfig } from '../../src/types.js';
+
+// `/lsp remove|enable|disable` now write to the project-private config, so
+// redirect WrongStack's state root at a temp dir before any of them run.
+const realHome = process.env['WRONGSTACK_HOME'];
+let tmpHome: string;
+
+beforeAll(async () => {
+  tmpHome = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-home-'));
+  process.env['WRONGSTACK_HOME'] = tmpHome;
+});
+
+afterAll(async () => {
+  if (realHome === undefined) delete process.env['WRONGSTACK_HOME'];
+  else process.env['WRONGSTACK_HOME'] = realHome;
+  await fs.rm(tmpHome, { recursive: true, force: true });
+});
 
 // ── Mock helpers ────────────────────────────────────────────────────────
 
@@ -35,6 +53,20 @@ function makeRegistry(servers: MockServer[]): LSPRegistry {
       const srv = map.get(name);
       if (srv) srv.state = 'stopped';
     }),
+    upsertServer: vi.fn(async () => {}),
+    removeServer: vi.fn(async (name: string) => {
+      const srv = map.get(name);
+      if (srv) srv.state = 'stopped';
+      map.delete(name);
+    }),
+    setServerEnabled: vi.fn(async (name: string, enabled: boolean) => {
+      const srv = map.get(name);
+      if (srv) {
+        srv.config.enabled = enabled;
+        if (!enabled) srv.state = 'disabled';
+      }
+      return srv?.config;
+    }),
   } as unknown as LSPRegistry;
 }
 
@@ -42,6 +74,15 @@ function makeTracker(files: string[] = []): DocumentTracker {
   return {
     list: vi.fn(() => files),
   } as unknown as DocumentTracker;
+}
+
+function srv(name: string, state: MockServer['state'], enabled = true): MockServer {
+  return {
+    name,
+    state,
+    config: { command: `${name}-ls`, languages: [name], enabled },
+    diagnostics: new Map(),
+  };
 }
 
 function makeCtx(servers: MockServer[] = [], files: string[] = []) {
@@ -53,7 +94,8 @@ function makeCtx(servers: MockServer[] = [], files: string[] = []) {
       severityFilter: ['hint'],
       maxDiagnosticsPerFile: 50,
       maxDiagnosticsTotal: 500,
-    } as PlugLSPConfig,
+      servers: Object.fromEntries(servers.map((s) => [s.name, s.config])),
+    } as unknown as PlugLSPConfig,
     cwd: '/proj',
   };
 }
@@ -434,10 +476,17 @@ describe('buildLspCommand — config mutations (add/remove/enable/disable)', () 
     expect(result.message).toContain('Usage:');
   });
 
-  it('remove returns config instructions', async () => {
-    const ctx = makeCtx([]);
+  it('remove stops the server and deletes the config entry', async () => {
+    const ctx = makeCtx([srv('foo', 'ready')]);
     const result = await runCmd(ctx, 'remove foo');
-    expect(result.message).toContain('To remove a server');
+    expect(result.message).toContain('Removed:');
+    expect(ctx.registry.removeServer).toHaveBeenCalledWith('foo');
+    expect(ctx.cfg.servers['foo']).toBeUndefined();
+  });
+
+  it('remove reports an unknown server instead of silently succeeding', async () => {
+    const ctx = makeCtx([]);
+    expect((await runCmd(ctx, 'remove foo')).message).toContain('No such server');
   });
 
   it('remove without name returns help', async () => {
@@ -447,27 +496,31 @@ describe('buildLspCommand — config mutations (add/remove/enable/disable)', () 
   });
 
   it('rm and delete are aliases for remove', async () => {
-    const ctx = makeCtx([]);
-    expect((await runCmd(ctx, 'rm foo')).message).toContain('To remove a server');
-    expect((await runCmd(ctx, 'delete foo')).message).toContain('To remove a server');
+    expect((await runCmd(makeCtx([srv('foo', 'ready')]), 'rm foo')).message).toContain('Removed:');
+    expect((await runCmd(makeCtx([srv('foo', 'ready')]), 'delete foo')).message).toContain(
+      'Removed:',
+    );
   });
 
-  it('enable returns config instructions', async () => {
-    const ctx = makeCtx([]);
+  it('enable flips the flag and starts the server', async () => {
+    const ctx = makeCtx([srv('foo', 'stopped', false)]);
     const result = await runCmd(ctx, 'enable foo');
-    expect(result.message).toContain('To enable a server');
+    expect(result.message).toContain('Enabled:');
+    expect(ctx.registry.setServerEnabled).toHaveBeenCalledWith('foo', true);
+    expect(ctx.cfg.servers['foo']?.enabled).toBe(true);
   });
 
-  it('enable without name returns help', async () => {
-    const ctx = makeCtx([]);
-    const result = await runCmd(ctx, 'enable');
-    expect(result.message).toContain('Usage:');
-  });
-
-  it('disable returns config instructions', async () => {
-    const ctx = makeCtx([]);
+  it('disable stops the server and keeps it off', async () => {
+    const ctx = makeCtx([srv('foo', 'ready')]);
     const result = await runCmd(ctx, 'disable foo');
-    expect(result.message).toContain('To disable a server');
+    expect(result.message).toContain('Disabled:');
+    expect(ctx.registry.setServerEnabled).toHaveBeenCalledWith('foo', false);
+    expect(ctx.cfg.servers['foo']?.enabled).toBe(false);
+  });
+
+  it('enable and disable report an unknown server', async () => {
+    expect((await runCmd(makeCtx([]), 'enable foo')).message).toContain('No such server');
+    expect((await runCmd(makeCtx([]), 'disable foo')).message).toContain('No such server');
   });
 
   it('disable without name returns help', async () => {

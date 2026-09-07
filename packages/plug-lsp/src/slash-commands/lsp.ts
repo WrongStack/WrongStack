@@ -1,9 +1,10 @@
 import * as path from 'node:path';
 import type { SlashCommand } from '@wrongstack/core/types';
+import { serverConfigPath } from '../config-persist.js';
 import type { DocumentTracker } from '../document-tracker.js';
 import { formatDiagnostics } from '../formatters/diagnostics.js';
 import type { LSPRegistry } from '../registry.js';
-import type { PlugLSPConfig } from '../types.js';
+import type { PlugLSPConfig, ServerConfig } from '../types.js';
 import { LANGUAGE_SERVERS, SUPPORTED_LANGUAGES } from './install.js';
 
 // Re-export for use from the plugin entry
@@ -107,6 +108,8 @@ export function buildLspCommand(ctx: LspContext): SlashCommand {
       '  /lsp stop [name]              Stop all servers, or a specific one by name',
       '  /lsp restart [name]           Restart all servers, or a specific one by name',
       '  /lsp diagnostics [file]      Show diagnostics for a file or the whole workspace',
+      '  /lsp remove <name>            Stop the server and delete it from the config',
+      '  /lsp enable|disable <name>    Flip a server on or off, now and on future sessions',
       '',
       'Examples:',
       '  /lsp                          (shows configured servers)',
@@ -119,9 +122,8 @@ export function buildLspCommand(ctx: LspContext): SlashCommand {
       '  /lsp diagnostics src/index.ts',
       '  /lsp status',
       '',
-      'After installing, add the server to your WrongStack config under:',
-      '  extensions["@wrongstack/plug-lsp"].servers',
-      'Then restart your WrongStack session.',
+      '`/lsp install` saves the server to the project-private config and starts it',
+      'right away — no restart and no hand-edited JSON.',
     ].join('\n'),
 
     async run(args) {
@@ -143,20 +145,11 @@ export function buildLspCommand(ctx: LspContext): SlashCommand {
         case 'diagnostics':
           return runDiagnosticsCommand(ctx, sub.file);
         case 'remove':
-          return {
-            message:
-              'To remove a server, remove its entry from `extensions["@wrongstack/plug-lsp"].servers`\nin your WrongStack config, then restart.',
-          };
+          return runRemoveCommand(ctx, sub.name);
         case 'enable':
-          return {
-            message:
-              'To enable a server, ensure `enabled: true` is set (or absent — it defaults to true)\nin its config entry, then run `/lsp start <name>`.',
-          };
+          return runSetEnabledCommand(ctx, sub.name, true);
         case 'disable':
-          return {
-            message:
-              'To disable a server, set `enabled: false` in its config entry,\nthen run `/lsp stop <name>` to stop it.',
-          };
+          return runSetEnabledCommand(ctx, sub.name, false);
         default:
           return { message: this.help ?? this.description };
       }
@@ -246,6 +239,7 @@ function runStatusCommand(ctx: LspContext): { message: string } {
   const activeFiles = ctx.tracker.list().length;
   lines.push(`  ${colorize('Active files tracked:', 'dim')} ${activeFiles}`);
   lines.push(`  ${colorize('Auto-start mode:', 'dim')} ${ctx.cfg.autoStart}`);
+  lines.push(`  ${colorize('Config file:', 'dim')} ${serverConfigPath(ctx.cwd)}`);
   lines.push('');
   lines.push('─'.repeat(60));
   lines.push('Use `/lsp diagnostics` to check for problems, or `/lsp restart <name>` to recover.');
@@ -262,9 +256,9 @@ async function runInstallCommand(ctx: LspContext, language: string): Promise<{ m
         `${colorize('Unknown language:', 'red')} ${lang}`,
         `Supported languages: ${SUPPORTED_LANGUAGES.join(', ')}`,
         '',
-        'If the language server is already installed on your system, you can add it',
-        'manually to your WrongStack config under `extensions["@wrongstack/plug-lsp"].servers`.',
-        'Run `/lsp help` for instructions.',
+        'For a server not on this list, add it under',
+        '`extensions["@wrongstack/plug-lsp"].servers` in your project config',
+        `(${colorize('/lsp status', 'cyan')} prints the file path), then run \`/lsp restart\`.`,
       ].join('\n'),
     };
   }
@@ -274,40 +268,6 @@ async function runInstallCommand(ctx: LspContext, language: string): Promise<{ m
   try {
     const { installLang } = await import('./install.js');
     const result = await installLang(lang, server, ctx.cwd);
-
-    if (result.alreadyInstalled) {
-      return {
-        message: [
-          `${colorize('Already installed:', 'green')} ${lang}`,
-          `  Binary: ${colorize(server.binary, 'cyan')}`,
-          '',
-          'The server is already available. Add it to your config to activate:',
-          '',
-          '```json',
-          JSON.stringify(
-            {
-              extensions: {
-                '@wrongstack/plug-lsp': {
-                  servers: {
-                    [lang]: {
-                      command: server.binary,
-                      args: server.args ?? ['--stdio'],
-                      languages: server.languages,
-                      rootPatterns: server.rootPatterns ?? [],
-                    },
-                  },
-                },
-              },
-            },
-            null,
-            2,
-          ),
-          '```',
-          '',
-          'Then restart your WrongStack session to load the server.',
-        ].join('\n'),
-      };
-    }
 
     if (result.dryRun) {
       return {
@@ -320,36 +280,28 @@ async function runInstallCommand(ctx: LspContext, language: string): Promise<{ m
       };
     }
 
+    const activation = await activateServer(ctx, lang, {
+      command: server.binary,
+      args: server.args ?? ['--stdio'],
+      languages: server.languages,
+      rootPatterns: server.rootPatterns ?? [],
+      startupTimeoutMs: 15_000,
+      enabled: true,
+    });
+
+    const header = result.alreadyInstalled
+      ? `${colorize('Already installed:', 'green')} ${lang}`
+      : `${colorize('Installed:', 'green')} ${lang}`;
+    const method = result.alreadyInstalled
+      ? undefined
+      : `  Method:  ${result.packageManager === 'system' ? server.toolchain?.label : result.installCommand}`;
+
     return {
       message: [
-        `${colorize('Installed:', 'green')} ${lang}`,
-        `  Binary: ${colorize(server.binary, 'cyan')}`,
-        `  Method:  ${result.packageManager === 'system' ? server.toolchain!.label : result.installCommand}`,
-        '',
-        'Add this to your WrongStack config to activate the server:',
-        '',
-        '```json',
-        JSON.stringify(
-          {
-            extensions: {
-              '@wrongstack/plug-lsp': {
-                servers: {
-                  [lang]: {
-                    command: server.binary,
-                    args: server.args ?? ['--stdio'],
-                    languages: server.languages,
-                    rootPatterns: server.rootPatterns ?? [],
-                  },
-                },
-              },
-            },
-          },
-          null,
-          2,
-        ),
-        '```',
-        '',
-        `Restart your WrongStack session to load the server, then run \`/lsp start \${lang}\`.`,
+        header,
+        `  Binary:  ${colorize(server.binary, 'cyan')}`,
+        ...(method ? [method] : []),
+        ...activation.lines,
       ].join('\n'),
     };
   } catch (err) {
@@ -358,6 +310,58 @@ async function runInstallCommand(ctx: LspContext, language: string): Promise<{ m
       message: `${colorize('Installation failed:', 'red')} ${lang}\n  ${msg}`,
     };
   }
+}
+
+/**
+ * Write the server into the project-private config, mount it in the live
+ * registry, and start it. Installing a binary and then telling the user to
+ * hand-edit JSON and restart was the whole reason `/lsp install` never
+ * actually activated anything.
+ */
+async function activateServer(
+  ctx: LspContext,
+  name: string,
+  cfg: ServerConfig,
+): Promise<{ lines: string[] }> {
+  const { persistServerConfig } = await import('../config-persist.js');
+  const { resolveServerCommand } = await import('../utils/command-resolver.js');
+
+  // Store the resolved path when we can find one: a bare name is not
+  // spawnable on Windows even when it is on PATH.
+  const resolved = (await resolveServerCommand(cfg.command, ctx.cwd)) ?? cfg.command;
+  const entry: ServerConfig = { ...cfg, command: resolved };
+
+  let target: string;
+  try {
+    target = await persistServerConfig(ctx.cwd, name, entry);
+  } catch (err) {
+    return {
+      lines: [
+        '',
+        `${colorize('Could not save the server to your config:', 'red')} ${toMessage(err)}`,
+        'The binary is installed; add it manually and run `/lsp start`.',
+      ],
+    };
+  }
+
+  await ctx.registry.upsertServer(name, entry);
+  ctx.cfg.servers[name] = entry;
+
+  const lines = ['', `  Saved to: ${colorize(target, 'dim')}`];
+  try {
+    await ctx.registry.start(name);
+    lines.push(`${colorize('Started:', 'green')} ${name} — LSP tools are live for this session.`);
+  } catch (err) {
+    lines.push(
+      `${colorize('Saved, but the server did not start:', 'yellow')} ${toMessage(err)}`,
+      `Run ${colorize(`/lsp restart ${name}`, 'cyan')} to retry.`,
+    );
+  }
+  return { lines };
+}
+
+function toMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 async function runStartCommand(ctx: LspContext, name?: string): Promise<{ message: string }> {
@@ -555,3 +559,64 @@ function collectServerDiagnostics(
 
 /** Direct-module test seam; not re-exported by the package barrel. */
 export const lspCommandCoverage = { colorize, collectServerDiagnostics, parseArgs };
+
+async function runRemoveCommand(ctx: LspContext, name: string): Promise<{ message: string }> {
+  if (!ctx.cfg.servers[name]) {
+    return { message: `${colorize('No such server:', 'red')} ${name}` };
+  }
+  const { persistServerConfig } = await import('../config-persist.js');
+  try {
+    await persistServerConfig(ctx.cwd, name, null);
+  } catch (err) {
+    return { message: `${colorize('Could not update the config:', 'red')} ${toMessage(err)}` };
+  }
+  await ctx.registry.removeServer(name);
+  delete ctx.cfg.servers[name];
+  return {
+    message: [
+      `${colorize('Removed:', 'green')} ${name}`,
+      // Auto-discovery re-adds any preset whose binary is still installed, so
+      // say so rather than letting the server reappear next session unexplained.
+      ctx.cfg.autoDiscover
+        ? `${colorize('Note:', 'dim')} autoDiscover is on — a preset server whose binary is still installed will be rediscovered next session. Use \`/lsp disable ${name}\` to keep it off.`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n'),
+  };
+}
+
+async function runSetEnabledCommand(
+  ctx: LspContext,
+  name: string,
+  enabled: boolean,
+): Promise<{ message: string }> {
+  const current = ctx.cfg.servers[name];
+  if (!current) {
+    return { message: `${colorize('No such server:', 'red')} ${name}` };
+  }
+  const next: ServerConfig = { ...current, enabled };
+  const { persistServerConfig } = await import('../config-persist.js');
+  try {
+    await persistServerConfig(ctx.cwd, name, next);
+  } catch (err) {
+    return { message: `${colorize('Could not update the config:', 'red')} ${toMessage(err)}` };
+  }
+  await ctx.registry.setServerEnabled(name, enabled);
+  ctx.cfg.servers[name] = next;
+
+  if (!enabled) {
+    return { message: `${colorize('Disabled:', 'green')} ${name} — stopped and it stays off.` };
+  }
+  try {
+    await ctx.registry.start(name);
+    return { message: `${colorize('Enabled:', 'green')} ${name} — started.` };
+  } catch (err) {
+    return {
+      message: [
+        `${colorize('Enabled:', 'green')} ${name}`,
+        `${colorize('But it did not start:', 'yellow')} ${toMessage(err)}`,
+      ].join('\n'),
+    };
+  }
+}

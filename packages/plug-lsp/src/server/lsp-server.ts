@@ -30,7 +30,7 @@ import type {
 import type { ServerConfig, ServerState } from '../types.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { safeSpawn } from '../utils/safe-spawn.js';
-import { pathToUri, uriToPath } from '../utils/uri.js';
+import { pathToUri, uriKey, uriToPath } from '../utils/uri.js';
 import { Connection } from './connection.js';
 import { initializeServer } from './initialize.js';
 
@@ -53,6 +53,14 @@ export class LSPServer {
   state: ServerState = 'exited';
   capabilities: ServerCapabilities | null = null;
   readonly diagnostics = new Map<string, Diagnostic[]>();
+  /**
+   * URIs for which the server has pushed at least one `publishDiagnostics`
+   * since the document was last opened or edited. A push-only server reports
+   * nothing until it has analysed the file, so "buffer is empty" and "file is
+   * clean" are indistinguishable without this.
+   */
+  private readonly diagnosticsFresh = new Set<string>();
+  private readonly diagnosticsWaiters = new Map<string, Set<() => void>>();
   private child: ChildProcessWithoutNullStreams | null = null;
   private connection: Connection | null = null;
   private processReachedReady = false;
@@ -278,14 +286,55 @@ export class LSPServer {
   }
 
   getDiagnostics(uri: string): Diagnostic[] {
-    return this.diagnostics.get(uri) ?? [];
+    return this.diagnostics.get(uriKey(uri)) ?? [];
+  }
+
+  /**
+   * Diagnostics for `uri`, waiting up to `timeoutMs` for the server's first
+   * `publishDiagnostics` after the document was opened or edited. Push-based
+   * servers analyse asynchronously, so reading the buffer the instant after
+   * `didOpen` reports "no diagnostics" for a file that is about to be flagged.
+   * Returns whatever is buffered once the wait ends — a timeout is not an
+   * error, it just means the server is still thinking.
+   */
+  async waitForDiagnostics(
+    uri: string,
+    timeoutMs: number,
+    signal?: AbortSignal | undefined,
+  ): Promise<Diagnostic[]> {
+    const key = uriKey(uri);
+    if (this.diagnosticsFresh.has(key) || timeoutMs <= 0 || this.state !== 'ready') {
+      return this.getDiagnostics(uri);
+    }
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = (): void => {
+        /* v8 ignore next -- defensive: each waiter unregisters itself, so no path calls it twice. */
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', finish);
+        this.diagnosticsWaiters.get(key)?.delete(finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, timeoutMs);
+      /* v8 ignore next -- Node timers always expose unref; the guard is for non-Node hosts. */
+      timer.unref?.();
+      signal?.addEventListener('abort', finish, { once: true });
+      const waiters = this.diagnosticsWaiters.get(key) ?? new Set<() => void>();
+      waiters.add(finish);
+      this.diagnosticsWaiters.set(key, waiters);
+    });
+    return this.getDiagnostics(uri);
   }
 
   notifyDidOpen(doc: TextDocumentItem): void {
+    this.diagnosticsFresh.delete(uriKey(doc.uri));
     this.notification('textDocument/didOpen', { textDocument: doc });
   }
 
   notifyDidChange(doc: VersionedTextDocumentIdentifier, text: string): void {
+    this.diagnosticsFresh.delete(uriKey(doc.uri));
     this.notification('textDocument/didChange', {
       textDocument: doc,
       contentChanges: [{ text }],
@@ -295,7 +344,8 @@ export class LSPServer {
   notifyDidClose(uri: string): void {
     // Eagerly drop the entry — the closed document's diagnostics are stale and
     // would otherwise be retained (and counted against the cap) forever.
-    this.diagnostics.delete(uri);
+    this.diagnostics.delete(uriKey(uri));
+    this.diagnosticsFresh.delete(uriKey(uri));
     this.notification('textDocument/didClose', { textDocument: { uri } });
   }
 
@@ -325,8 +375,17 @@ export class LSPServer {
    * most-recently-used, then evict the oldest entries past the cap.
    */
   private setDiagnostics(uri: string, diagnostics: Diagnostic[]): void {
-    if (this.diagnostics.has(uri)) this.diagnostics.delete(uri);
-    this.diagnostics.set(uri, diagnostics);
+    // Key on the canonical path, never the raw URI: a server may answer our
+    // `file:///C:/…` with `file:///c%3A/…` and the buffer would never match.
+    const key = uriKey(uri);
+    if (this.diagnostics.has(key)) this.diagnostics.delete(key);
+    this.diagnostics.set(key, diagnostics);
+    this.diagnosticsFresh.add(key);
+    const waiters = this.diagnosticsWaiters.get(key);
+    if (waiters) {
+      this.diagnosticsWaiters.delete(key);
+      for (const wake of waiters) wake();
+    }
     while (this.diagnostics.size > LSPServer.MAX_DIAGNOSTICS_ENTRIES) {
       const oldest = this.diagnostics.keys().next().value;
       if (oldest === undefined) break;

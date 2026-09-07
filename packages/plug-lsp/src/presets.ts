@@ -9,6 +9,19 @@ export const PRESETS: Record<string, ServerConfig> = {
     startupTimeoutMs: 15_000,
     enabled: true,
   },
+  /**
+   * TypeScript 7's native binary is its own language server. It is picked over
+   * `typescript` only when the workspace TypeScript is 7 or newer — see
+   * `typescript-flavor.ts`; the two presets claim the same languages.
+   */
+  'typescript-native': {
+    command: 'tsc',
+    args: ['--lsp', '--stdio'],
+    languages: ['typescript', 'typescriptreact', 'javascript', 'javascriptreact'],
+    rootPatterns: ['tsconfig.json', 'jsconfig.json', 'package.json'],
+    startupTimeoutMs: 15_000,
+    enabled: true,
+  },
   gopls: {
     command: 'gopls',
     args: ['serve'],

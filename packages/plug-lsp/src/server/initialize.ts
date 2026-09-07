@@ -22,6 +22,18 @@ const CLIENT_CAPABILITIES: InitializeParams['capabilities'] = {
       willSaveWaitUntil: false,
     },
     diagnostic: { dynamicRegistration: false },
+    // Push diagnostics. Servers gate `textDocument/publishDiagnostics` on the
+    // client declaring it — typescript-language-server stays silent without
+    // this, so every push-only server reported "no diagnostics" forever while
+    // the pull path (`diagnostic`, above) covered only the few servers that
+    // implement it.
+    publishDiagnostics: {
+      relatedInformation: true,
+      versionSupport: false,
+      tagSupport: { valueSet: [1, 2] },
+      codeDescriptionSupport: true,
+      dataSupport: true,
+    },
     definition: { linkSupport: true },
     references: {},
     hover: { contentFormat: ['markdown', 'plaintext'] },

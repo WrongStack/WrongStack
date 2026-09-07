@@ -12,6 +12,15 @@ describe('platform helper coverage', () => {
     expect(safeSpawnCoverage.serverArgs(['--stdio'])).toEqual(['--stdio']);
   });
 
+  it('quotes the shell command path exactly once', () => {
+    // cmd.exe gets one string, so an unquoted "C:\\Program Files\\..." breaks
+    // at the first space; quoting an already-quoted path breaks it differently.
+    expect(safeSpawnCoverage.quoteForShell('C:\\Program Files\\ls.cmd')).toBe(
+      '"C:\\Program Files\\ls.cmd"',
+    );
+    expect(safeSpawnCoverage.quoteForShell('"C:\\ls.cmd"')).toBe('"C:\\ls.cmd"');
+  });
+
   it('formats numeric and signal-based process exits', () => {
     expect(setupCoverage.formatExitCode(7)).toBe('7');
     expect(setupCoverage.formatExitCode(null)).toBe('null');

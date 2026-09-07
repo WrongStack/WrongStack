@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { installLang } = vi.hoisted(() => ({ installLang: vi.fn() }));
 
@@ -9,15 +12,36 @@ vi.mock('../../src/slash-commands/install.js', async (importOriginal) => {
 
 import { buildLspCommand, LANGUAGE_SERVERS } from '../../src/slash-commands/lsp.js';
 
+// `/lsp install` now saves and starts the server, so give it a registry that
+// can do both and a throwaway state root to write into.
+const realHome = process.env['WRONGSTACK_HOME'];
+let tmpHome: string;
+
+beforeAll(async () => {
+  tmpHome = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-install-'));
+  process.env['WRONGSTACK_HOME'] = tmpHome;
+});
+
+afterAll(async () => {
+  if (realHome === undefined) delete process.env['WRONGSTACK_HOME'];
+  else process.env['WRONGSTACK_HOME'] = realHome;
+  await fs.rm(tmpHome, { recursive: true, force: true });
+});
+
 function context() {
   return {
-    registry: { list: vi.fn(() => []) },
+    registry: {
+      list: vi.fn(() => []),
+      upsertServer: vi.fn(async () => {}),
+      start: vi.fn(async () => {}),
+    },
     tracker: { list: vi.fn(() => []) },
     cfg: {
       autoStart: 'lazy',
       severityFilter: ['error'],
       maxDiagnosticsPerFile: 10,
       maxDiagnosticsTotal: 20,
+      servers: {},
     },
     cwd: process.cwd(),
   } as never;

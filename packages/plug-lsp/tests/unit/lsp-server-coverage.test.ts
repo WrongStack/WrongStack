@@ -7,8 +7,8 @@ import { EventBus } from '@wrongstack/core/kernel';
 import { describe, expect, it, vi } from 'vitest';
 import { DocumentTracker } from '../../src/document-tracker.js';
 import { LSPRegistry } from '../../src/registry.js';
-import type { PlugLSPConfig } from '../../src/types.js';
 import { LSPServer, lspServerCoverage } from '../../src/server/lsp-server.js';
+import type { PlugLSPConfig } from '../../src/types.js';
 import { LSPErrorCode } from '../../src/types.js';
 
 const log = {

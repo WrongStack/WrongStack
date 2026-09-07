@@ -87,6 +87,18 @@ describe('tool error and edge paths', () => {
     ).toContain('buffered');
     server.capabilities = { diagnosticProvider: {}, renameProvider: true };
     expect(await createDiagnosticsTool(deps).execute({}, ctx, opts)).toContain('buffered');
+
+    // Workspace sweep with two files on ONE server: the wait happens once,
+    // because a server publishes for every document it has open.
+    const second = path.join(root, 'b.ts');
+    await fs.writeFile(second, 'const b = 2;');
+    const twoDocs = makeDeps(server, [
+      { path: file, uri },
+      { path: second, uri: pathToUri(second) },
+    ]);
+    server.waitForDiagnostics.mockClear();
+    expect(await createDiagnosticsTool(twoDocs).execute({}, ctx, opts)).toContain('buffered');
+    expect(server.waitForDiagnostics).toHaveBeenCalledTimes(1);
     expect(
       await createRenameTool(deps).execute(
         { path: file, line: 1, character: 1, new_name: 'b' },
@@ -297,6 +309,11 @@ function fakeServer(overrides: Record<string, unknown>) {
     rename: vi.fn(),
     pullDiagnostics: vi.fn(),
     getDiagnostics: vi.fn(() => []),
+    // Push-only servers go through waitForDiagnostics; the default mirrors the
+    // real one's "return whatever is buffered" contract.
+    waitForDiagnostics: vi.fn(function (this: { getDiagnostics: () => unknown[] }) {
+      return Promise.resolve(this.getDiagnostics());
+    }),
     ...overrides,
   };
 }

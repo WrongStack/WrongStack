@@ -6,14 +6,18 @@ for the agent (diagnostics, definition, rename, codebase search).
 
 ## Quick Start
 
-### 1. Enable the plugin
+### 1. Nothing — it is on by default
 
-Add to your WrongStack config (`~/.config/wrongstack/config.json` or project `.wrongstack/config.json`):
+The plugin is a built-in and runs unless you turn it off. With
+`autoStart: "lazy"` no server process starts until you touch a file of a
+matching language, and auto-discovery only adopts servers already installed on
+the machine, so a machine with no language servers pays nothing.
+
+To turn it off:
 
 ```json
 {
-  "features": { "plugins": true },
-  "plugins": ["@wrongstack/plug-lsp"]
+  "plugins": [{ "name": "lsp", "enabled": false }]
 }
 ```
 
@@ -25,32 +29,15 @@ Add to your WrongStack config (`~/.config/wrongstack/config.json` or project `.w
 /lsp install go
 ```
 
-### 3. Add to config and start
+### 3. That's it
 
-After installation, add the server to your config:
+`/lsp install` saves the server into your project-private config
+(`~/.wrongstack/projects/<slug>/config.local.json`) and starts it in the current
+session. No hand-edited JSON, no restart. `/lsp status` prints the file it wrote.
 
-```json
-{
-  "extensions": {
-    "@wrongstack/plug-lsp": {
-      "servers": {
-        "typescript": {
-          "command": "typescript-language-server",
-          "args": ["--stdio"],
-          "languages": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
-          "rootPatterns": ["tsconfig.json"]
-        }
-      }
-    }
-  }
-}
-```
-
-Then restart your WrongStack session and run:
-
-```text
-/lsp start typescript
-```
+Entries are never written to the repo-committed `.wrongstack/config.json`: the
+in-project config layer denies `extensions` outright, so a checked-in repo cannot
+point a language server at an arbitrary binary.
 
 ## `/lsp` Command
 
@@ -66,6 +53,9 @@ The primary interface for all LSP operations:
 | `/lsp stop [name]` | Stop all servers, or a specific one |
 | `/lsp restart [name]` | Restart all servers, or a specific one |
 | `/lsp diagnostics [file]` | Show diagnostics for a file or workspace |
+| `/lsp remove <name>` | Stop the server and delete its config entry |
+| `/lsp enable <name>` | Turn a server back on and start it |
+| `/lsp disable <name>` | Stop a server and keep it off across sessions |
 | `/lsp help` | Show full help |
 
 ### Available Languages for `/lsp install`
@@ -145,19 +135,44 @@ Full configuration options under `extensions["@wrongstack/plug-lsp"]`:
 |---|---|---|
 | `autoStart` | `"lazy"` | `"lazy"` = start on first file access; `"eager"` = all at session start; `"never"` = manual only |
 | `diagnosticsAfterEdit` | `"background"` | `"background"` = fetch after edits; `"manual"` = on request only |
-| `diagnosticsWaitMs` | `1500` | Milliseconds to wait after an edit before fetching diagnostics |
+| `diagnosticsWaitMs` | `1500` | How long `lsp_diagnostics` waits for a push-only server's first `publishDiagnostics` after a file is opened or edited. A cold `tsserver` needs a second or two; the tool returns as soon as the push lands. |
 | `severityFilter` | `["error","warning"]` | Which diagnostic severities to return |
 | `maxDiagnosticsPerFile` | `5` | Maximum diagnostics per file |
 | `maxDiagnosticsTotal` | `50` | Maximum diagnostics total |
 | `autoDiscover` | `true` | Auto-discover servers on PATH or `node_modules/.bin` |
 | `logServerOutput` | `false` | Log server stderr to WrongStack log |
 
+## TypeScript 5/6 vs TypeScript 7
+
+TypeScript 7 ships a native binary with **no `tsserver.js`**, so
+`typescript-language-server` cannot start against it at all:
+
+```text
+The TypeScript of the workspace (TypeScript 7.0.2 at ".../typescript/lib")
+provides no tsserver.js. No other valid TypeScript installation was found.
+```
+
+That same binary *is* a language server — `tsc --lsp --stdio` — so there are
+two presets and auto-discovery picks exactly one, from the **workspace's own**
+TypeScript version (`node_modules/typescript/package.json`, walking up):
+
+| Workspace TypeScript | Preset | Command |
+|---|---|---|
+| 7 or newer | `typescript-native` | `tsc --lsp --stdio` |
+| 6 or older, or none | `typescript` | `typescript-language-server --stdio` |
+
+Both presets claim the same language ids, so they can never be discovered
+together. A `typescript` or `typescript-native` entry you wrote yourself is
+always kept as-is and suppresses discovery of the other.
+
 ## Auto-Discovery
 
 With `autoDiscover: true` (the default), the plugin searches for servers in:
 
-1. **`PATH`** — any command on the system PATH is used
-2. **`node_modules/.bin`** — npm-installed binaries in the project
+1. **`node_modules/.bin`** — npm-installed binaries, walking up from the project
+2. **`PATH`** — resolved to a concrete file, not the bare name: on Windows Node
+   does not apply `PATHEXT`, so spawning a name that `where.exe` finds still
+   fails with `ENOENT` unless the `.cmd`/`.exe` shim is named explicitly.
 
 This means a minimal config is often sufficient:
 
@@ -180,6 +195,9 @@ The plugin handles:
 - **Document tracking** — sends `textDocument/didOpen` on first read, `textDocument/didChange` after edits
 - **Crash recovery** — 3 restart attempts with exponential backoff (1s, 4s, 16s)
 - **Graceful shutdown** — sends `shutdown` then `exit` on session end
+- **Diagnostics matching** — buffers are keyed by canonical path, not by the raw
+  URI string: a server may answer a `didOpen` for `file:///C:/dir/a.ts` with
+  diagnostics for `file:///c%3A/dir/a.ts`
 
 States: `disabled` → `starting` → `initializing` → `ready` → `shutting_down` → `exited`
 
@@ -241,6 +259,7 @@ packages/plug-lsp/src/
 ├── registry.ts         — manages all server instances
 ├── document-tracker.ts — tracks open/edited files across sessions
 ├── auto-discover.ts    — PATH and node_modules discovery
+├── config-persist.ts   — writes server entries to the project-private config
 └── presets.ts          — built-in server configurations
 ```
 

@@ -55,6 +55,7 @@ describe('Connection protocol completion coverage', () => {
 
     stdout.write(Buffer.from('Missing: length\r\n\r\njunk'));
     stdout.write(Buffer.from('Content-Length: 99999999\r\n\r\n'));
+    stdout.write(Buffer.from('Content-Length: 0\r\n\r\n'));
     stdout.write(Buffer.from('Content-Length: 1\r\n\r\n{'));
     const valid = frame({ jsonrpc: '2.0', method: 'valid', params: 1 });
     stdout.write(valid.subarray(0, 10));

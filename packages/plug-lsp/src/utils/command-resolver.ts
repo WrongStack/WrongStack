@@ -7,17 +7,22 @@ type ProbeProcess = {
   kill(): unknown;
   on(event: 'error', listener: () => void): unknown;
   on(event: 'close', listener: (code: number | null) => void): unknown;
+  stdout?: { on(event: 'data', listener: (chunk: Buffer | string) => void): unknown } | null;
 };
 type SpawnProbe = (
   command: string,
   args: string[],
-  options: { env: NodeJS.ProcessEnv; stdio: 'ignore'; windowsHide: true },
+  options: { env: NodeJS.ProcessEnv; stdio: ['ignore', 'pipe', 'ignore']; windowsHide: true },
 ) => ProbeProcess;
 
 export async function resolveServerCommand(command: string, cwd: string): Promise<string | null> {
   const local = await findLocalBinary(cwd, command);
   if (local) return local;
-  return (await commandExistsOnPath(command)) ? command : null;
+  // A bare name that `where.exe` finds is NOT spawnable on Windows: Node does
+  // not apply PATHEXT, so `spawn('typescript-language-server')` ENOENTs even
+  // though the `.cmd` shim sits right there on PATH. Resolve to the concrete
+  // file so safeSpawn can see the extension and pick the shell it needs.
+  return await resolveCommandOnPath(command);
 }
 
 export async function findLocalBinary(cwd: string, command: string): Promise<string | null> {
@@ -36,6 +41,18 @@ export async function findLocalBinary(cwd: string, command: string): Promise<str
 }
 
 export async function commandExistsOnPath(command: string, timeoutMs = 2000): Promise<boolean> {
+  return (await resolveCommandOnPath(command, timeoutMs)) !== null;
+}
+
+/**
+ * Absolute path of `command` as found on PATH, or null. On Windows the
+ * extension-less entry `where.exe` lists first is a POSIX shell script that
+ * `spawn` cannot execute — prefer a PATHEXT-executable sibling.
+ */
+export async function resolveCommandOnPath(
+  command: string,
+  timeoutMs = 2000,
+): Promise<string | null> {
   return commandProbe(command, timeoutMs, process.platform, spawn as unknown as SpawnProbe);
 }
 
@@ -44,29 +61,44 @@ function commandProbe(
   timeoutMs: number,
   platform: NodeJS.Platform,
   spawnProbe: SpawnProbe,
-): Promise<boolean> {
+): Promise<string | null> {
   const probe = platform === 'win32' ? 'where.exe' : 'sh';
   const args = platform === 'win32' ? [command] : ['-lc', `command -v ${shellQuote(command)}`];
   return new Promise((resolve) => {
+    let out = '';
     const child = spawnProbe(probe, args, {
       env: buildChildEnv(),
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'ignore'],
       windowsHide: true,
+    });
+    child.stdout?.on('data', (chunk) => {
+      out += String(chunk);
     });
     const timer = setTimeout(() => {
       child.kill();
-      resolve(false);
+      resolve(null);
     }, timeoutMs);
     timer.unref?.();
     child.on('error', () => {
       clearTimeout(timer);
-      resolve(false);
+      resolve(null);
     });
     child.on('close', (code) => {
       clearTimeout(timer);
-      resolve(code === 0);
+      resolve(code === 0 ? pickProbeHit(out, platform) : null);
     });
   });
+}
+
+function pickProbeHit(stdout: string, platform: NodeJS.Platform): string | null {
+  const hits = stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const first = hits[0];
+  if (first === undefined) return null;
+  if (platform !== 'win32') return first;
+  return hits.find((hit) => /\.(cmd|exe|bat|com)$/i.test(hit)) ?? first;
 }
 
 function commandCandidates(
@@ -97,5 +129,6 @@ export const commandResolverCoverage = {
   commandCandidates,
   commandProbe,
   fileExists,
+  pickProbeHit,
   shellQuote,
 };

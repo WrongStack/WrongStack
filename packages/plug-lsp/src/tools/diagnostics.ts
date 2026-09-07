@@ -35,13 +35,21 @@ export function createDiagnosticsTool(deps: ToolDeps): Tool<DiagnosticsInput, st
           const diagnostics =
             server.capabilities && supportsPullDiagnostics(server.capabilities)
               ? await server.pullDiagnostics(uri, LSP_CONSTANTS.TOOL_TIMEOUT_MS, signal)
-              : server.getDiagnostics(uri);
+              : await server.waitForDiagnostics(uri, deps.cfg.diagnosticsWaitMs, signal);
           byFile.set(file, diagnostics);
         } else {
+          // Workspace sweep: wait once per server, not once per document —
+          // servers publish for every open file, so the first push usually
+          // settles the rest and a per-file wait would multiply the latency.
+          const waited = new Set<string>();
           for (const doc of deps.tracker.list()) {
             const server = await deps.registry.findForPath(doc.path, signal);
             if (!server) continue;
-            byFile.set(uriToPath(doc.uri), server.getDiagnostics(doc.uri));
+            const diagnostics = waited.has(server.name)
+              ? server.getDiagnostics(doc.uri)
+              : await server.waitForDiagnostics(doc.uri, deps.cfg.diagnosticsWaitMs, signal);
+            waited.add(server.name);
+            byFile.set(uriToPath(doc.uri), diagnostics);
           }
         }
         return formatDiagnostics(byFile, {

@@ -16,6 +16,9 @@ and configure servers — all from the REPL.
 | `/lsp stop [name]` | Stop all running servers, or a specific one by name |
 | `/lsp restart [name]` | Restart all enabled servers, or a specific one by name |
 | `/lsp diagnostics [file]` | Show LSP diagnostics for a file or the whole workspace |
+| `/lsp remove <name>` | Stop the server and delete its config entry |
+| `/lsp enable <name>` | Turn a server back on and start it |
+| `/lsp disable <name>` | Stop a server and keep it off across sessions |
 | `/lsp help` | Show this help message |
 
 ## Examples
@@ -36,6 +39,15 @@ and configure servers — all from the REPL.
 /lsp status                    # Detailed status report
 ```
 
+## TypeScript 7
+
+TypeScript 7's native binary has no `tsserver.js`, so
+`typescript-language-server` refuses to start against it. The binary is its own
+language server instead, and auto-discovery picks the right one from the
+workspace's TypeScript version: `typescript-native` (`tsc --lsp --stdio`) for 7
+and newer, `typescript` (`typescript-language-server`) otherwise. Nothing to
+configure.
+
 ## Supported Languages for Installation
 
 The `/lsp install` command can automatically install these language servers:
@@ -53,7 +65,14 @@ The `/lsp install` command can automatically install these language servers:
 | `rust` | `rust-analyzer` | Rust toolchain (`rustup`) |
 | `ruby` | `ruby-lsp` | RubyGems (`gem install`) |
 
-After installation, add the server to your WrongStack config (see Configuration below).
+`/lsp install` writes the server into your project-private config and starts it
+immediately — no hand-edited JSON and no session restart. `/lsp status` prints
+the exact file it wrote to.
+
+The entry goes to `~/.wrongstack/projects/<slug>/config.local.json`, never to the
+repo-committed `.wrongstack/config.json`: the in-project config layer denies
+`extensions` outright so a checked-in repo cannot point a language server at an
+arbitrary binary. Anything written there would be stripped on load.
 
 ## Configuration
 
@@ -156,7 +175,11 @@ rustup component add rust-analyzer
 gem install ruby-lsp
 ```
 
-### Step 2: Add to WrongStack config
+### Step 2: Register it
+
+For a preset language, `/lsp install <language>` already did this. For anything
+else, add the entry to `~/.wrongstack/projects/<slug>/config.local.json`
+(`/lsp status` prints the path) and run `/lsp restart`:
 
 ```json
 {
@@ -174,6 +197,10 @@ gem install ruby-lsp
   }
 }
 ```
+
+On Windows, prefer the full path to the `.cmd` shim over the bare name: Node
+does not apply `PATHEXT`, so a bare name that `where.exe` resolves still fails to
+spawn. `/lsp install` and auto-discovery already store the resolved path.
 
 ### Step 3: Verify
 

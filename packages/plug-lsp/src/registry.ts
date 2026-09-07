@@ -6,7 +6,7 @@ import { languageIdFor } from './language-detect.js';
 import { nextReconnectDelay } from './server/lifecycle.js';
 import { LSPServer } from './server/lsp-server.js';
 import type { ReopenableTracker } from './shared-types.js';
-import type { AutoStartMode, PlugLSPConfig } from './types.js';
+import type { AutoStartMode, PlugLSPConfig, ServerConfig } from './types.js';
 import { LSPError, LSPErrorCode } from './types.js';
 import { findWorkspaceRoot } from './workspace-root.js';
 
@@ -107,6 +107,82 @@ export class LSPRegistry {
     await this.tracker.reopenForServer(server);
   }
 
+  /**
+   * Add or replace one server without touching the others. `rebuildServers`
+   * drops every LSPServer instance on the floor, so using it here would orphan
+   * the child processes of servers that are already running.
+   */
+  async upsertServer(name: string, cfg: ServerConfig): Promise<void> {
+    if (this.servers.size === 0) this.rebuildServers();
+    await this.dropServer(name);
+    this.cfg.servers[name] = cfg;
+    if (cfg.enabled === false) return;
+    this.mountServer(name, cfg);
+  }
+
+  /** Stop the server and forget its config entry. */
+  async removeServer(name: string): Promise<void> {
+    if (this.servers.size === 0) this.rebuildServers();
+    await this.dropServer(name);
+    delete this.cfg.servers[name];
+  }
+
+  /**
+   * Flip one server's `enabled` flag. Disabling stops it now; enabling mounts
+   * it so `/lsp start` can find it without a session restart.
+   */
+  async setServerEnabled(name: string, enabled: boolean): Promise<ServerConfig> {
+    if (this.servers.size === 0) this.rebuildServers();
+    const cfg = this.cfg.servers[name];
+    if (!cfg) {
+      throw new LSPError(LSPErrorCode.ServerNotFound, `No LSP server named "${name}"`);
+    }
+    const next = { ...cfg, enabled };
+    this.cfg.servers[name] = next;
+    await this.dropServer(name);
+    if (enabled) this.mountServer(name, next);
+    return next;
+  }
+
+  /** Stop `name` if it is mounted and release its language claims. */
+  private async dropServer(name: string): Promise<void> {
+    this.cancelReconnect(name);
+    this.reconnectAttempts.delete(name);
+    const existing = this.servers.get(name);
+    if (existing) {
+      await existing
+        .shutdown()
+        .catch((err) => this.ctx.log.warn(`LSP ${name} shutdown failed`, err));
+      this.servers.delete(name);
+    }
+    for (const [language, owner] of [...this.languageIndex]) {
+      if (owner === name) this.languageIndex.delete(language);
+    }
+  }
+
+  private mountServer(name: string, cfg: ServerConfig): void {
+    const rootPath = findWorkspaceRoot(
+      path.join(this.cwd, '__probe__'),
+      cfg.rootPatterns,
+      this.cwd,
+    );
+    const server = new LSPServer(name, cfg, {
+      cwd: this.cwd,
+      rootPath,
+      log: this.ctx.log,
+      events: this.ctx.events,
+      onCrash: (crashed) => this.scheduleReconnect(crashed),
+    });
+    this.servers.set(name, server);
+    for (const language of cfg.languages) {
+      if (this.languageIndex.has(language)) {
+        this.ctx.log.warn(`LSP language "${language}" is claimed by multiple servers; using first`);
+        continue;
+      }
+      this.languageIndex.set(language, name);
+    }
+  }
+
   private cancelReconnect(name: string): void {
     const timer = this.reconnectTimers.get(name);
     if (timer) {
@@ -120,28 +196,7 @@ export class LSPRegistry {
     this.languageIndex.clear();
     for (const [name, cfg] of Object.entries(this.cfg.servers)) {
       if (cfg.enabled === false) continue;
-      const rootPath = findWorkspaceRoot(
-        path.join(this.cwd, '__probe__'),
-        cfg.rootPatterns,
-        this.cwd,
-      );
-      const server = new LSPServer(name, cfg, {
-        cwd: this.cwd,
-        rootPath,
-        log: this.ctx.log,
-        events: this.ctx.events,
-        onCrash: (crashed) => this.scheduleReconnect(crashed),
-      });
-      this.servers.set(name, server);
-      for (const language of cfg.languages) {
-        if (this.languageIndex.has(language)) {
-          this.ctx.log.warn(
-            `LSP language "${language}" is claimed by multiple servers; using first`,
-          );
-          continue;
-        }
-        this.languageIndex.set(language, name);
-      }
+      this.mountServer(name, cfg);
     }
   }
 

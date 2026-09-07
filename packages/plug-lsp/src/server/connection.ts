@@ -215,7 +215,57 @@ export class Connection {
       else pending.resolve(msg.result);
       return;
     }
+    // A message carrying BOTH an id and a method is a server-initiated
+    // request, and the server blocks until it is answered. Ignoring these
+    // deadlocks servers that register capabilities during `initialized` —
+    // TypeScript 7's native server stalls every subsequent request.
+    if (msg.method && msg.id !== undefined && msg.id !== null) {
+      this.events.emit(msg.method, msg.params);
+      this.answerServerRequest(msg.id, msg.method, msg.params);
+      return;
+    }
     if (msg.method) this.events.emit(msg.method, msg.params);
+  }
+
+  /**
+   * Minimal but protocol-correct replies to the requests servers actually
+   * make of a client. Anything we do not implement gets MethodNotFound, which
+   * is a valid answer and unblocks the server just as well as a result would.
+   */
+  private answerServerRequest(id: number | string, method: string, params: unknown): void {
+    /* v8 ignore next -- defensive: closing detaches the stdout listener that feeds this. */
+    if (this.closed) return;
+    switch (method) {
+      // We accept every dynamic registration: the capabilities we care about
+      // are declared statically, and refusing here makes servers retry.
+      case 'client/registerCapability':
+      case 'client/unregisterCapability':
+      case 'window/workDoneProgress/create':
+        this.write({ jsonrpc: '2.0', id, result: null });
+        return;
+      case 'workspace/configuration': {
+        // One entry per requested item; null means "no setting configured".
+        const items = (params as { items?: unknown[] } | undefined)?.items;
+        const count = Array.isArray(items) ? items.length : 0;
+        this.write({ jsonrpc: '2.0', id, result: new Array<null>(count).fill(null) });
+        return;
+      }
+      case 'workspace/applyEdit':
+        // Edits arrive through the rename tool, which applies them itself. A
+        // server-pushed edit is declined rather than silently dropped.
+        this.write({
+          jsonrpc: '2.0',
+          id,
+          result: { applied: false, failureReason: 'client does not apply server-pushed edits' },
+        });
+        return;
+      default:
+        this.write({
+          jsonrpc: '2.0',
+          id,
+          error: { code: -32601, message: `Method not implemented by client: ${method}` },
+        });
+    }
   }
 
   private write(message: JsonRpcMessage): void {

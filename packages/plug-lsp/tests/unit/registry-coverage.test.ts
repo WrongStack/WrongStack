@@ -158,3 +158,89 @@ describe('registry completion coverage', () => {
     expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('attempts exhausted'));
   });
 });
+
+describe('runtime server mutation', () => {
+  const cfg = (name: string) => ({
+    command: process.execPath,
+    args: ['-e', 'setTimeout(() => {}, 60_000)'],
+    languages: [name],
+    enabled: true,
+  });
+
+  it('adds a server without tearing down the ones already mounted', async () => {
+    const { value } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    const first = value.get('a');
+    await value.upsertServer('b', cfg('go'));
+    // rebuildServers() would have replaced the 'a' instance and orphaned its
+    // child process; upsert must leave it exactly as it was.
+    expect(value.get('a')).toBe(first);
+    expect(
+      value
+        .list()
+        .map((s) => s.name)
+        .sort(),
+    ).toEqual(['a', 'b']);
+  });
+
+  it('replacing a server releases the old language claims', async () => {
+    const { value } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    await value.upsertServer('a', { ...cfg('go'), languages: ['go'] });
+    expect(value.list()).toHaveLength(1);
+    expect(value.get('a')?.config.languages).toEqual(['go']);
+    // A second server may now claim typescript — the stale claim is gone, so
+    // no "claimed by multiple servers" warning is emitted.
+    await value.upsertServer('b', cfg('typescript'));
+    expect(log.warn).not.toHaveBeenCalledWith(expect.stringContaining('claimed by multiple'));
+  });
+
+  it('an upsert of a disabled server mounts nothing', async () => {
+    const { value } = registry();
+    await value.upsertServer('a', { ...cfg('typescript'), enabled: false });
+    expect(value.get('a')).toBeNull();
+  });
+
+  it('removeServer on an untouched registry is a no-op, not a crash', async () => {
+    const { value } = registry();
+    await value.removeServer('never-mounted');
+    expect(value.list()).toHaveLength(0);
+  });
+
+  it('removeServer forgets the config entry so a restart cannot resurrect it', async () => {
+    const { value } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    await value.removeServer('a');
+    expect(value.get('a')).toBeNull();
+    expect(value.list()).toHaveLength(0);
+  });
+
+  it('setServerEnabled unmounts and remounts', async () => {
+    const { value } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    expect((await value.setServerEnabled('a', false)).enabled).toBe(false);
+    expect(value.get('a')).toBeNull();
+    expect((await value.setServerEnabled('a', true)).enabled).toBe(true);
+    expect(value.get('a')).not.toBeNull();
+  });
+
+  it('setServerEnabled rejects an unknown server', async () => {
+    const { value } = registry();
+    await expect(value.setServerEnabled('nope', true)).rejects.toThrow('No LSP server named');
+  });
+
+  it('logs but survives a server that fails to shut down', async () => {
+    const { value } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    const server = value.get('a')!;
+    server.shutdown = vi.fn(async () => {
+      throw new Error('stuck');
+    });
+    await value.removeServer('a');
+    expect(log.warn).toHaveBeenCalledWith(
+      'LSP a shutdown failed',
+      expect.objectContaining({ message: 'stuck' }),
+    );
+    expect(value.get('a')).toBeNull();
+  });
+});
