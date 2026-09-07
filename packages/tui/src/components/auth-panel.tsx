@@ -37,6 +37,7 @@ const LIST_ACTION_LABEL: Record<string, string> = {
 
 const PROVIDER_ACTION_LABEL: Record<string, string> = {
   'add-key': '＋ Add another key',
+  'edit-provider': '✎ Edit provider',
   'edit-family': '✎ Edit family',
   'edit-base-url': '✎ Edit base URL',
   'edit-models': '✎ Edit visible model list',

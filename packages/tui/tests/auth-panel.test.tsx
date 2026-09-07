@@ -23,6 +23,26 @@ function frameOf(state: AuthPanelState): string {
  * These tests pin that each one reaches the frame.
  */
 describe('AuthPanel feedback rendering', () => {
+  it('renders the edit-provider action in the provider menu', () => {
+    const frame = frameOf(
+      panel({
+        view: 'provider',
+        providerId: 'alibaba-token-plan',
+        providers: [
+          {
+            id: 'alibaba-token-plan',
+            type: 'alibaba-token-plan',
+            family: 'openai-compatible',
+            models: [],
+            envVars: [],
+            keys: [],
+          },
+        ],
+      }),
+    );
+    expect(frame).toContain('Edit provider');
+  });
+
   it('renders the hint so direct-action results and errors are visible', () => {
     expect(frameOf(panel({ hint: '✓ Active key → work' }))).toContain('Active key → work');
     expect(frameOf(panel({ hint: '✗ Catalog unavailable: offline' }))).toContain(
