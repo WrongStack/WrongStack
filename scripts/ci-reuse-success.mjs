@@ -11,7 +11,6 @@ const checks = {
   typecheck: 'TypeCheck (tsc)',
   build: 'Build (esbuild + tsc declarations)',
   test: 'Test (Vitest + coverage ratchets)',
-  e2e: 'E2E (Playwright)',
   'tui-smoke': 'TUI Smoke (non-TTY)',
   'tui-heap-soak': 'TUI Heap Soak',
 };

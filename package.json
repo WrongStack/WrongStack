@@ -32,6 +32,7 @@
     "test:coverage:scripts": "node scripts/coverage-lock.mjs node scripts/run-vitest-coverage.mjs run --config vitest.scripts.config.ts --coverage",
     "check:coverage-zero": "node scripts/check-zero-coverage.mjs",
     "coverage:matrix": "node scripts/coverage-matrix.mjs",
+    "check:e2e": "playwright test",
     "test:e2e": "playwright test",
     "lint": "biome lint .",
     "lint:distributive": "node scripts/lint-distributive-types.mjs",

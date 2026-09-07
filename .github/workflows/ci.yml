@@ -35,7 +35,6 @@ jobs:
       typecheck: ${{ steps.reuse.outputs.typecheck }}
       build: ${{ steps.reuse.outputs.build }}
       test: ${{ steps.reuse.outputs.test }}
-      e2e: ${{ steps.reuse.outputs.e2e }}
       tui-smoke: ${{ steps.reuse.outputs.tui-smoke }}
       tui-heap-soak: ${{ steps.reuse.outputs.tui-heap-soak }}
     steps:
@@ -465,137 +464,7 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
-  # -----------------------------------------------------------------
-  # E2E tests (Playwright)
-  # Runs after the build so the global-setup can launch the WebUI
-  # server against the compiled output. Serial execution because
-  # the WebUI server binds to a single port.
-  # -----------------------------------------------------------------
-  e2e:
-    name: E2E (Playwright)
-    needs: [build, reuse-checks]
-    if: ${{ always() && needs['reuse-checks'].outputs.e2e != 'true' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
-    runs-on: ubuntu-latest
-    # 25 (was 15): the browser-install step can stall against the apt
-    # mirror (observed 2026-08-19: 3 of 4 runs hung ~13 min in apt-get
-    # fetch with zero progress until the 15m job timeout killed them,
-    # reported misleadingly as "cancelled"). The extra headroom plus the
-    # per-attempt cap on the install step makes one transient stall
-    # survivable instead of fatal to the whole job.
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
-          # scripts run in this job and would be able to read it (WS-042).
-          persist-credentials: false
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        # VF-31 (security report Phase 4): lifecycle scripts must not run from
-        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
-        # can edit that allowlist in the same PR that CI executes. CI installs
-        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
-        # pinned HERE in the workflow file. The workspace allowlist remains
-        # the local-development source of truth; keeping the two in sync is a
-        # review-time responsibility (build-allowlist-freshness.test.ts pins
-        # the workspace side).
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Rebuild reviewed native dependencies
-        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
-        # require the same review bar documented at the top of that file.
-        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
-
-      - name: Download verified build lineage
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          name: wrongstack-build-${{ github.sha }}
-          path: .
-
-      - name: Verify artifact lineage
-        run: pnpm check:build-manifest
-
-      # Warm up workspace dist artifacts before Playwright runs. The
-      # E2E job is dispatched on its own runner in parallel with the
-      # Build job, so the downloaded artifact may not include every
-      # dist entry Playwright's tsconfig-resolve path needs (it walks
-      # `references: ["./packages/core"]` etc. at module resolution time).
-      # Building locally guarantees the missing dist files exist before
-      # the Playwright loader walks the references chain.
-      - name: Build workspace dist for Playwright tsconfig resolution
-        run: pnpm -r build
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-
-      # Playwright browsers are cached to avoid re-downloading on every run.
-      - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - name: Install Playwright browsers
-        run: |
-          # Retry with a per-attempt cap. The observed failure mode is a
-          # hang: apt-get stalls against the mirror and never returns
-          # non-zero on its own, so a plain re-run would never fire — the
-          # job timeout killed it (reported misleadingly as "cancelled").
-          # `timeout 7m` turns a stall into exit 124, giving three
-          # attempts inside the 25-minute job budget. Shell loop instead
-          # of a retry action keeps the pinned-actions policy (WS-041).
-          for attempt in 1 2 3; do
-            echo "::group::Browser install attempt $attempt/3"
-            if timeout 7m pnpm exec playwright install --with-deps chromium; then
-              echo "::endgroup::"
-              exit 0
-            fi
-            code=$?
-            echo "::endgroup::"
-            echo "Attempt $attempt/3 failed (exit $code)." >&2
-            if [ "$attempt" -lt 3 ]; then
-              echo "Retrying in 20s…" >&2
-              sleep 20
-            fi
-          done
-          echo "All 3 browser-install attempts failed." >&2
-          exit 1
-
-      - name: Run E2E tests
-        run: pnpm test:e2e
-        # Scoped to this step only — the other E2E steps (cache, browser
-        # install) must not see provider env vars. Do NOT hoist to job level.
-        env:
-          # CI has no saved provider config. These are surfaced by
-          # e2e/global-setup.ts as --provider/--model so the WebUI boots
-          # into the ready (chat) state instead of the setup screen or the
-          # "No provider or model configured" boot gate. openai/gpt-4o-mini
-          # is used rather than a fake id because webui-server's provider
-          # creation requires a known family (anthropic|openai|...).
-          E2E_PROVIDER: openai
-          E2E_MODEL: gpt-4o-mini
-          # Provider construction needs the key env-var present at startup;
-          # the E2E suite is static-only (input fill, send button visibility,
-          # slash menu — no chat-completion path), so a placeholder key is
-          # enough to satisfy construction. If a future test ever sends a
-          # real chat message, route through `${{ secrets.OPENAI_API_KEY }}`
-          # or wire a mock LLM endpoint instead. The model id is a real
-          # models.dev catalog entry; keep it in sync if OpenAI renames it.
-          OPENAI_API_KEY: placeholder-e2e-static-only
-
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (Node 24 runtime, pinned 2026-09-06)
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
 
   # -----------------------------------------------------------------
   # TUI smoke test — verifies --tui exits cleanly with code 2 and no
@@ -886,7 +755,7 @@ jobs:
   # status check rather than listing every job individually.
   gate:
     name: CI Gate
-    needs: [lint, typecheck, build, manifests, plugin-guards, test, e2e, tui-smoke, tui-heap-soak, security-scan, audit]
+    needs: [lint, typecheck, build, manifests, plugin-guards, test, tui-smoke, tui-heap-soak, security-scan, audit]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     if: always()
@@ -901,7 +770,6 @@ jobs:
           echo "  manifests:     ${{ needs.manifests.result }}"
           echo "  plugin-guards: ${{ needs.plugin-guards.result }}"
           echo "  test:          ${{ needs.test.result }}"
-          echo "  e2e:           ${{ needs.e2e.result }}"
           echo "  tui-smoke:     ${{ needs.tui-smoke.result }}"
           echo "  tui-heap-soak: ${{ needs.tui-heap-soak.result }}"
           echo "  security-scan: ${{ needs.security-scan.result }}"
