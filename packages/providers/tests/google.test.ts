@@ -661,7 +661,7 @@ describe('GoogleProvider', () => {
         return {
           ok: false,
           status: 400,
-          text: async () => 'Too few tokens',
+          text: async (): Promise<string> => 'Too few tokens',
         };
       }
       return {
@@ -671,7 +671,7 @@ describe('GoogleProvider', () => {
           candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] } }],
           usageMetadata: {},
         }),
-        text: async () => '',
+        text: async (): Promise<string> => '',
       };
     }) as never as typeof fetch;
 

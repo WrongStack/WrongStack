@@ -806,10 +806,10 @@ describe('TaskAuctioneer (extended coverage)', () => {
         ]);
 
         await vi.advanceTimersByTimeAsync(50);
-        expect(graph.get(id)?.status).toBe('pending');
+        expect((graph.get(id) as GoalNode | undefined)?.status).toBe('pending');
 
         await vi.advanceTimersByTimeAsync(50);
-        const failedGoal = graph.get(id);
+        const failedGoal = graph.get(id) as GoalNode | undefined;
         expect(failedGoal?.status).toBe('failed');
         expect(failedGoal?.result).toContain('No eligible bidders under capacity after 2 attempts');
         expect(a.getBidCount(id)).toBe(0);
