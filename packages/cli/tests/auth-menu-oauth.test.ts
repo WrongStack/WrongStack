@@ -23,6 +23,12 @@ import type { ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthMenuDeps } from '../src/auth-menu/types.js';
 
+// This suite runs real loopback servers and a real token poll loop; under a
+// full `pnpm -r test` run the extra load pushed individual 60s-default tests
+// over the line. Give the whole file headroom instead of chasing per-test
+// timeouts.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
+
 // `openBrowser` shells out to `cmd /c start` (or `open`/`xdg-open`). Left real,
 // every run of this suite pops a real browser window on the developer's
 // desktop — and the device-code flow below opens a second one. Stub the spawn

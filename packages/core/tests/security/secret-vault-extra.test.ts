@@ -23,6 +23,17 @@ vi.mock('node:fs', async (importOriginal) => {
   };
 });
 
+// node:os is a partial mock too: the Windows-user fallback test needs
+// os.userInfo to FAIL, and ESM module namespaces cannot be spied on after
+// import. Default stays the real implementation.
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:os')>();
+  return {
+    ...actual,
+    userInfo: vi.fn((...args: Parameters<typeof actual.userInfo>) => actual.userInfo(...args)),
+  };
+});
+
 let tmp: string;
 let keyFile: string;
 // Every vault created via the helper is tracked so afterEach can drain its
@@ -164,6 +175,15 @@ describe('migratePlaintextSecrets edges', () => {
       delete process.env.USERNAME;
       delete process.env.USER;
       delete process.env.USERDOMAIN;
+      // Deleting the env vars is not enough: windowsAccountName() falls back
+      // to os.userInfo().username, which succeeds on a real Windows host and
+      // silently upgrades the account name instead of warning. Force the
+      // "every source failed" branch the test exists to pin.
+      const userInfoMock = vi.mocked(os.userInfo);
+      const originalUserInfo = userInfoMock.getMockImplementation();
+      userInfoMock.mockImplementation(() => {
+        throw new Error('cannot determine the current user');
+      });
       const warn = vi.fn();
       // The key-file hardening scheduled under the mocked platform warns via
       // the console.warn fallback; spy it out so the asserted logger warning
@@ -175,6 +195,7 @@ describe('migratePlaintextSecrets edges', () => {
         await migratePlaintextSecrets(cfgPath, vault(), { warn });
         expect(warn).toHaveBeenCalledWith(expect.stringContaining('Windows user'));
       } finally {
+        if (originalUserInfo) userInfoMock.mockImplementation(originalUserInfo);
         warnSpy.mockRestore();
         if (savedUser !== undefined) process.env.USERNAME = savedUser;
         if (savedU !== undefined) process.env.USER = savedU;

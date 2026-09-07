@@ -32,7 +32,15 @@ afterEach(async () => {
     await serverDone;
     serverDone = null;
   }
-  await fs.promises.rm(tmpDir, { recursive: true, force: true });
+  // Windows: the just-shutdown server may still hold file handles for a few
+  // ticks, so a plain rm races into ENOTEMPTY. force + retries ride out the
+  // handle-release window instead of failing the suite on cleanup.
+  await fs.promises.rm(tmpDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 200,
+  });
 });
 
 /**
