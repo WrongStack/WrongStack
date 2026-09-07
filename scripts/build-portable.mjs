@@ -67,6 +67,7 @@ const pnpmCli = process.env.npm_execpath?.includes('pnpm')
 if (!existsSync(pnpmCli.script)) {
   throw new Error(`Unable to locate the pnpm CLI: ${pnpmCli.script}`);
 }
+const pnpmInvocation = resolvePnpmInvocation(pnpmCli);
 const deployDir = mkdtempSync(join(tmpdir(), 'wrongstack-portable-deploy-'));
 try {
   try {
@@ -226,8 +227,23 @@ function run(command, args, options = {}) {
   }
 }
 
+export function resolvePnpmInvocation(pnpmTarget, execPath = process.execPath) {
+  // Corepack on Windows can set npm_execpath to its native pnpm executable (.exe)
+  // or a .cmd/.bat shim. An executable must be spawned directly; passing an .exe
+  // to Node makes ESM reject the unknown file extension.
+  const isBatch = /\.(?:cmd|bat)$/i.test(pnpmTarget.script);
+  const isExecutable = isBatch || /\.exe$/i.test(pnpmTarget.script);
+  return {
+    command: isExecutable ? pnpmTarget.script : execPath,
+    args: isExecutable
+      ? [...pnpmTarget.prefix]
+      : [pnpmTarget.script, ...pnpmTarget.prefix],
+    options: isBatch ? { shell: true } : {},
+  };
+}
+
 function runPnpm(args) {
-  run(process.execPath, [pnpmCli.script, ...pnpmCli.prefix, ...args]);
+  run(pnpmInvocation.command, [...pnpmInvocation.args, ...args], pnpmInvocation.options);
 }
 
 function hashFile(path) {

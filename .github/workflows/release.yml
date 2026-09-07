@@ -204,7 +204,7 @@ jobs:
 
   publish:
     name: Publish to npm
-    needs: [verify, portable-windows, pack]
+    needs: [verify, pack]
     runs-on: ubuntu-latest
     # Raised from 30: the publish step now waits on registry propagation
     # between dependency layers (11 layers x 120s worst case) on top of
@@ -303,73 +303,14 @@ jobs:
             echo "Provenance attestations are attached automatically — no \`--provenance\` flag is needed."
           } >> "$GITHUB_STEP_SUMMARY"
 
-  portable-windows:
-    name: Build Windows portable executable
-    needs: verify
-    runs-on: windows-latest
-    timeout-minutes: 45
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          ref: ${{ needs.verify.outputs.sha }}
-          persist-credentials: false
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: 1.3.10
-
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build and smoke-test portable executable
-        run: pnpm release:portable:win
-
-      - name: Create portable ZIP
-        shell: pwsh
-        run: |
-          $bundle = Get-ChildItem -LiteralPath artifacts -Directory |
-            Where-Object Name -Like 'wrongstack-v*-windows-*' |
-            Select-Object -First 1
-          if (-not $bundle) { throw 'Portable bundle directory was not produced.' }
-          $archive = Join-Path artifacts ($bundle.Name + '.zip')
-          tar.exe -a -c -f $archive -C artifacts $bundle.Name
-          if ($LASTEXITCODE -ne 0) { throw "tar.exe exited with $LASTEXITCODE" }
-          $digest = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-          Set-Content -LiteralPath ($archive + '.sha256') -Value "$digest  $($bundle.Name).zip"
-
-      - name: Upload portable artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          name: wrongstack-windows-portable
-          path: |
-            artifacts/*.zip
-            artifacts/*.zip.sha256
-          if-no-files-found: error
-          compression-level: 0
-
   github-release:
-    name: Attach executable to GitHub release
-    needs: [verify, publish, portable-windows]
+    name: Create GitHub release
+    needs: [verify, publish]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - name: Download portable artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (Node 24 runtime, pinned 2026-09-06)
-        with:
-          name: wrongstack-windows-portable
-          path: release-assets
-
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -379,5 +320,3 @@ jobs:
           if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
           fi
-          gh release upload "$RELEASE_TAG" release-assets/* \
-            --repo "$GITHUB_REPOSITORY" --clobber

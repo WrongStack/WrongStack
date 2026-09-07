@@ -76,7 +76,7 @@
     "release:check": "node scripts/release-check-matrix.mjs",
     "release:dry": "node scripts/publish-workspace.mjs --dry-run -- --no-git-checks --force",
     "release:portable:win": "pnpm build && pnpm smoke:bun && node scripts/build-portable.mjs",
-    "release": "pnpm release:check && pnpm release:portable:win && node scripts/publish-workspace.mjs",
+    "release": "pnpm release:check && node scripts/publish-workspace.mjs",
     "release:ci": "node scripts/publish-workspace.mjs --verify-timeout 120 -- --no-git-checks",
     "release:packages": "node scripts/list-publishable-packages.mjs",
     "release:plan": "node scripts/publish-workspace.mjs --plan",
