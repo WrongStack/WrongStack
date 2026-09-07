@@ -25,6 +25,7 @@ export const SETTINGS_HELP = [
   '  /settings semver-part patch|minor|major|auto   Default part for /semver and the semver_bump tool',
   '  /settings breaker on|off   Enable/disable the process circuit breaker (gates bash/exec)',
   '  /settings breaker-timeout <seconds>   Auto kill/reset delay when the breaker trips (0 = manual)',
+  '  /settings reset [all|<section>...]   Reset behavior sections to factory defaults (asks first; identity kept)',
   '  /settings context-mode balanced|frugal|deep   Context window policy',
   '  /settings context-strategy hybrid|intelligent|selective   Compactor strategy',
   '  /settings context-auto-compact on|off   Auto-compact context when thresholds crossed',
