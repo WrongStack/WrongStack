@@ -170,6 +170,7 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
 
   const workflowId = kanbanWorkflowId('sdd', run.runId);
   const legacyControl = opts.controlTransport === 'legacy-file';
+  const controlTransportName = legacyControl ? 'legacy-file' : 'kanban';
   const legacyBoardState =
     opts.boardStateTransport === 'legacy-file' ||
     (opts.boardStateTransport === undefined && legacyControl);
@@ -254,7 +255,7 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
           event: 'sdd.control_drain_failed',
           runId: run.runId,
           workflowId,
-          transport: legacyControl ? 'legacy-file' : 'kanban',
+          transport: controlTransportName,
           message,
           timestamp: new Date().toISOString(),
         }),
@@ -266,16 +267,13 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
 
   if (!legacyControl) {
     void subscribeKanbanWorkflowCommands(opts.projectRoot, workflowId, () => {
-      // `drainControl` already logs a structured warning on rejection;
-      // the trailing `.catch` here only guards against unexpected throws
-      // *outside* the drain (defensive — should never fire).
-      void drainControl().catch(() => undefined);
+      void drainControl();
     })
       .then((unsubscribe) => {
         if (controlDisposed) unsubscribe();
         else {
           unsubscribeControl = unsubscribe;
-          void drainControl().catch(() => undefined);
+          void drainControl();
         }
       })
       .catch((error) => {
@@ -316,7 +314,7 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
 
   const drainMs = opts.controlDrainMs ?? 500;
   const controlTimer = setInterval(() => {
-    void drainControl().catch(() => undefined);
+    void drainControl();
   }, drainMs);
   // Best-effort: don't keep the event loop alive solely for the drain timer.
   (controlTimer as { unref?: () => void }).unref?.();

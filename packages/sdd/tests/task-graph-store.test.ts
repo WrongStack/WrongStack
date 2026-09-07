@@ -174,4 +174,13 @@ describe('TaskGraphStore', () => {
       .toBe('completed');
     expect(await recoveredStore.listGraphs()).toMatchObject([{ id: graph.id, title: graph.title }]);
   });
+
+  it('rejects invalid or path-traversal graph IDs on save', async () => {
+    const store = new TaskGraphStore({ baseDir: dir });
+    await expect(store.save(makeGraph({ id: '' }))).rejects.toThrow('Invalid task-graph id');
+    await expect(store.save(makeGraph({ id: 'a'.repeat(201) }))).rejects.toThrow('Invalid task-graph id');
+    await expect(store.save(makeGraph({ id: 'test\0bad' }))).rejects.toThrow('Invalid task-graph id');
+    await expect(store.save(makeGraph({ id: '../escaped' }))).rejects.toThrow('Invalid task-graph id');
+    await expect(store.save(makeGraph({ id: 'sub/nested' }))).rejects.toThrow('Invalid task-graph id');
+  });
 });

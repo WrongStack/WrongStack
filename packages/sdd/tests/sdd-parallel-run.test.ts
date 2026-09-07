@@ -1743,4 +1743,38 @@ describe('SddParallelRun — coverage edge paths', () => {
     await running;
     expect(exec).not.toHaveBeenCalled();
   });
+
+  it('handles safety fallback timer when already resumed or when timer fires', async () => {
+    vi.useFakeTimers();
+    try {
+      const { run } = await makeHarness();
+      // Case 1: safety timer fires after resume() already removed the waiter
+      run.pause();
+      const wait1 = (run as unknown as { waitWhilePaused: () => Promise<void> }).waitWhilePaused();
+      run.resume();
+      await wait1;
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // Case 2: safety timer fires while still waiting
+      run.pause();
+      const wait2 = (run as unknown as { waitWhilePaused: () => Promise<void> }).waitWhilePaused();
+      setTimeout(() => {
+        (run as unknown as { paused: boolean }).paused = false;
+      }, 990);
+      await vi.advanceTimersByTimeAsync(1000);
+      await wait2;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('covers abortRun fatalError surfacing', async () => {
+    const { run, tracker } = await makeHarness();
+    stubExecuteOne(run, tracker, () => {
+      (run as unknown as { abortRun: (reason: string) => void }).abortRun('fatal testing');
+    });
+    const res = await run.run();
+    expect(res.fatalError).toBe('fatal testing');
+    expect(res.stopRequested).toBe(true);
+  });
 });

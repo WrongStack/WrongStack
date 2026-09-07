@@ -111,9 +111,9 @@ export function tokenizeCommand(command: string): string[] | undefined {
   // Unbalanced quote — refuse to execute.
   if (inSingle || inDouble) return undefined;
 
-  if (hasToken) argv.push(current);
+  argv.push(current);
 
-  return argv.length > 0 ? argv : undefined;
+  return argv;
 }
 
 /** Shape shared by every SDD task verifier (matches SddParallelRunOptions.verifyTask). */

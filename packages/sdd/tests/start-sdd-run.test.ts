@@ -432,4 +432,27 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
     expect(seen).toContain('finished');
     expect(sessionIds).toEqual(['2026-06-29/sess_sdd', '2026-06-29/sess_sdd']);
   });
+
+  it('drains pre-existing control commands from legacy file storage on startup', async () => {
+    const { tracker, graph } = await makeGraph(1);
+    const boardStore = new SddBoardStore({ baseDir: tmp() });
+    const drainSpy = vi.spyOn(boardStore, 'drainControl').mockResolvedValueOnce([
+      { type: 'pause' },
+    ]);
+    const events = new EventBus();
+    const handle = startSddRun({
+      tracker,
+      graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
+      agent: fakeLeader(),
+      projectRoot: '/proj',
+      events,
+      subagentFactory: successFactory({ count: 0 }),
+      boardStore,
+      controlTransport: 'legacy-file',
+    });
+    await expect.poll(() => drainSpy.mock.calls.length > 0).toBe(true);
+    handle.run.resume();
+    await handle.completion;
+  });
 });

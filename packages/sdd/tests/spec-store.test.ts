@@ -88,4 +88,24 @@ describe('SpecStore', () => {
     const list = await store.list();
     expect(list).toEqual([]);
   });
+
+  // Regression for H-6 (PATH-001): the WS frame `specId` arrived via
+  // `specs-ws-handler.ts:96-97,152` as a raw `as string` cast, so a
+  // payload id of `../../Users/x/secret` resolved outside the store and
+  // `load()` returned its contents. Containment now rejects any id with
+  // `/` or `\`, NUL, excessive length, or one that escapes `baseDir`.
+  describe('path traversal containment (H-6)', () => {
+    it.each([
+      ['relative traversal', '../../../tmp/escaped'],
+      ['absolute path', '/etc/passwd'],
+      ['backslash traversal', '..\\..\\escaped'],
+      ['mixed slashes', '../foo/bar'],
+      ['embedded NUL', 'abc\0def'],
+      ['empty id', ''],
+      ['long id', 'x'.repeat(300)],
+    ])('rejects %s on load', async (_label, badId) => {
+      const store = new SpecStore({ baseDir: dir });
+      await expect(store.load(badId)).rejects.toThrow(/Invalid spec id/);
+    });
+  });
 });

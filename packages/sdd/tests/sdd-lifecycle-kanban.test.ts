@@ -167,6 +167,9 @@ describe('loadSddSnapshot — kanban transport', () => {
   });
 
   it('migrates a legacy-only board into kanban workflow state on read', async () => {
+    kanban.listStates.mockResolvedValue([
+      { workflowId: 'sdd:other', revision: 1, value: snapshot({ runId: 'other' }) },
+    ]);
     const store = new SddBoardStore({ baseDir: boardsDir() });
     await store.saveSnapshot(snapshot({ runId: 'run-legacy' }));
 

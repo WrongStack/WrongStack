@@ -17,7 +17,7 @@ function deriveTitle(value: string): string {
     .map((line) => line.trim())
     .find(Boolean);
   if (!firstLine) return 'New SDD Project';
-  const sentence = firstLine.split(/(?<=[.!?])\s/)[0] ?? firstLine;
+  const sentence = firstLine.split(/(?<=[.!?])\s/)[0]!;
   return sentence.length <= 64 ? sentence : `${sentence.slice(0, 63).trimEnd()}…`;
 }
 

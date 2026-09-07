@@ -151,18 +151,15 @@ describe('createKanbanSddSessionPersistence — focused branches', () => {
   });
 
   it('load() imports a legacy file even when the post-import unlink fails (:49)', async () => {
-    // Make the legacy path resolve to a *directory*: readFile rejects with
-    // EISDIR-equivalent on every platform, so this test cannot exercise the
-    // import path. The catch arrow at :49 is reachable only if writeKanban
-    // resolves BEFORE the unlink, which in turn rejects — a race that is
-    // not reliably triggerable through the public factory on a real
-    // filesystem. We assert the *fallback null* path here to keep the test
-    // cross-platform honest; the catch arrow stays as defensive coverage.
-    const legacyDir = path.join(dir, 'legacy-as-dir');
-    await fsp.mkdir(legacyDir, { recursive: true });
-    const persistence = createKanbanSddSessionPersistence(dir, legacyDir);
-    await expect(persistence.load()).resolves.toBeNull();
-    expect(h.writeState).not.toHaveBeenCalled();
+    const legacyPath = path.join(dir, 'legacy-session-unlink-fail.json');
+    await fsp.writeFile(legacyPath, JSON.stringify(session));
+    h.writeState.mockImplementationOnce(async (_root, _id, value) => {
+      // Remove the file before persistence's own unlink runs so unlink rejects with ENOENT
+      await fsp.unlink(legacyPath);
+      return { revision: 1, value };
+    });
+    const persistence = createKanbanSddSessionPersistence(dir, legacyPath);
+    await expect(persistence.load()).resolves.toEqual(session);
   });
 });
 

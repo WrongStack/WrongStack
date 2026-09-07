@@ -272,9 +272,71 @@ ${JSON.stringify([
       const { driver } = makeDriver();
       driver.start('OAuth');
       await driver.ingestAgentOutput(SPEC_OUTPUT);
-      // Second ingest of the same spec — specDetected should be false (already set)
       const res = await driver.ingestAgentOutput(SPEC_OUTPUT);
       expect(res.specDetected).toBe(false);
+    });
+
+    it('records specRequirementId or fallback requirementId on tasks', async () => {
+      const { driver } = makeDriver();
+      driver.start('OAuth');
+      await driver.ingestAgentOutput(SPEC_OUTPUT);
+      await driver.approve();
+      const res = await driver.ingestAgentOutput(
+        `Here is the complete implementation plan: build the middleware first and verify all tokens.
+\`\`\`json
+${JSON.stringify([
+  {
+    id: 't1',
+    title: 'Task 1',
+    specRequirementId: 'REQ-1',
+  },
+  {
+    id: 't2',
+    title: 'Task 2',
+    requirementId: 'REQ-2',
+  },
+])}
+\`\`\``,
+      );
+      expect(res.tasksDetected).toBe(true);
+      const nodes = driver.getTracker()?.getAllNodes();
+      expect(nodes?.find((n) => n.title === 'Task 1')?.specRequirementId).toBe('REQ-1');
+      expect(nodes?.find((n) => n.title === 'Task 2')?.specRequirementId).toBe('REQ-2');
+    });
+
+    it('rewinds to appropriate default phase depending on current phase', async () => {
+      const { driver } = makeDriver();
+      driver.start('OAuth');
+      await driver.ingestAgentOutput(SPEC_OUTPUT);
+      await driver.approve(); // moves to implementation
+      await driver.ingestAgentOutput(
+        `Here is the complete implementation plan: build the middleware first and verify all tokens.
+\`\`\`json
+[{"id":"t1","title":"Task 1"}]
+\`\`\``,
+      );
+      expect(driver.phase()).toBe('task_review');
+
+      // cur === 'task_review' -> default target: 'implementation'
+      const r1 = await driver.rewind();
+      expect(r1.phase).toBe('implementation');
+
+      // cur === 'implementation' -> default target: 'spec_review'
+      const r2 = await driver.rewind();
+      expect(r2.phase).toBe('spec_review');
+
+      // cur === 'spec_review' -> default target: 'questioning'
+      const r3 = await driver.rewind();
+      expect(r3.phase).toBe('questioning');
+
+      // cur === 'questioning' -> default target: 'questioning'
+      const r4 = await driver.rewind();
+      expect(r4.phase).toBe('questioning');
+
+      // Test cur === 'executing' -> default target: 'task_review'
+      (driver.builder as unknown as { session: { phase: string } }).session.phase = 'executing';
+      const r5 = await driver.rewind();
+      expect(r5.phase).toBe('task_review');
     });
   });
 });

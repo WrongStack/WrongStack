@@ -154,9 +154,7 @@ export class SddParallelRun {
     const sessionId = this.currentSessionId();
     this.events?.emit(
       event,
-      (sessionId
-        ? { ...payload, sessionId }
-        : payload) as import('@wrongstack/core/kernel').EventMap[K],
+      { ...payload, sessionId } as import('@wrongstack/core/kernel').EventMap[K],
     );
   }
 

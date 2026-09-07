@@ -109,7 +109,7 @@ describe('VIBE Three-Stage Verification Protocol — SDD Engine', () => {
   describe('Report Generator', () => {
     it('generates a full 3-stage markdown report', () => {
       const spec = synthesizeVibeSpec(chaoticPrompt);
-      const contract = buildCoderContract(spec);
+      const contract = buildCoderContract(spec, ['src/cart.ts']);
       const audit = auditVibeExecution({
         rawPrompt: chaoticPrompt,
         spec,
@@ -122,6 +122,53 @@ describe('VIBE Three-Stage Verification Protocol — SDD Engine', () => {
       expect(report).toContain('### 💻 [Coder Contract]');
       expect(report).toContain('### 🛡️ [Auditor Verdict]');
       expect(report).toContain('✅ PASS');
+    });
+
+    it('formats a report for rejected audit with rework directives and inferred files', () => {
+      const spec = synthesizeVibeSpec('', 'Some workspace context');
+      expect(spec.acceptanceCriteria).toEqual([
+        'Given standard input, action executes and updates state successfully',
+      ]);
+      expect(spec.formattedSpecMarkdown).toContain('### 📁 Context');
+
+      const contract = buildCoderContract(spec, []);
+      const audit = auditVibeExecution({
+        spec,
+        coderOutput: '   ',
+      });
+
+      expect(audit.verdict).toBe('REJECT');
+      expect(audit.reworkDirectives).toContain(
+        'Coder must generate implementation matching the spec.',
+      );
+
+      const report = formatVibeReport('', spec, contract, audit);
+      expect(report).not.toContain('**🗣️ Raw Prompt:**');
+      expect(report).toContain('**Target Files:** Inferred from project context');
+      expect(report).toContain('❌ REJECT');
+      expect(report).toContain('**🔧 Rework Instructions:**');
+    });
+
+    it('passes scope check when identifier-like exclusion is not mentioned in coder output', () => {
+      const spec = synthesizeVibeSpec(chaoticPrompt);
+      spec.scopeBoundaries.excluded.push('clean-nonexistent-identifier');
+      const audit = auditVibeExecution({
+        rawPrompt: chaoticPrompt,
+        spec,
+        coderOutput: 'export function handleAction() {}',
+      });
+      expect(audit.verdict).toBe('PASS');
+      expect(audit.checks.some((c) => c.id === 'scope-fidelity')).toBe(true);
+    });
+  });
+
+  describe('isIdentifierLikeExclusion', () => {
+    it('accurately identifies exclusions', async () => {
+      const { isIdentifierLikeExclusion } = await import('../src/vibe-protocol.js');
+      expect(isIdentifierLikeExclusion('a')).toBe(false);
+      expect(isIdentifierLikeExclusion('"custom-dep"')).toBe(true);
+      expect(isIdentifierLikeExclusion('my-pkg')).toBe(true);
+      expect(isIdentifierLikeExclusion('Some phrase with spaces')).toBe(false);
     });
   });
 });

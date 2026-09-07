@@ -44,8 +44,12 @@ export class SpecStore {
   }
 
   async load(id: string): Promise<Specification | null> {
+    // Resolve the path OUTSIDE the read try/catch so a containment
+    // failure (H-6 regression) propagates as a caller-visible error
+    // instead of being silently coerced to "not found".
+    const filePath = this.filePath(id);
     try {
-      const raw = await fsp.readFile(this.filePath(id), 'utf8');
+      const raw = await fsp.readFile(filePath, 'utf8');
       return JSON.parse(raw) as Specification;
     } catch {
       return null;
@@ -58,8 +62,11 @@ export class SpecStore {
   }
 
   async delete(id: string): Promise<boolean> {
+    // Same separation as `load`: validate the id first, then handle the
+    // I/O errors that mean "this id is not present" as a clean false.
+    const filePath = this.filePath(id);
     try {
-      await fsp.unlink(this.filePath(id));
+      await fsp.unlink(filePath);
       await this.removeFromIndex(id);
       return true;
     } catch {
@@ -112,8 +119,25 @@ export class SpecStore {
     return updated;
   }
 
+  /**
+   * Resolve a spec id to its file, refusing anything that escapes `baseDir`.
+   * `id` arrives from a WebSocket frame (`specs-ws-handler.ts:96-97,152`,
+   * raw `as string` casts) and from any persisted spec JSON. A bare
+   * `path.join` was the traversal primitive: `id = "../../../secret"`
+   * resolved outside the store and `load()` returned its contents. Mirrors
+   * the same containment `task-graph-store.ts:134-145` applies to its ids.
+   */
   private filePath(id: string): string {
-    return path.join(this.baseDir, `${id}.json`);
+    if (typeof id !== 'string' || id.length === 0 || id.length > 200 || /[\0/\\]/.test(id)) {
+      throw new Error(`Invalid spec id: ${JSON.stringify(id)}`);
+    }
+    const dir = path.resolve(this.baseDir);
+    const resolved = path.resolve(dir, `${id}.json`);
+    const rel = path.relative(dir, resolved);
+    if (rel.startsWith('..') || path.isAbsolute(rel) || rel.includes(path.sep)) {
+      throw new Error(`Invalid spec id: ${JSON.stringify(id)}`);
+    }
+    return resolved;
   }
 
   private async readIndex(): Promise<SpecIndex> {

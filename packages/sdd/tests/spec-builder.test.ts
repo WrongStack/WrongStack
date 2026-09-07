@@ -755,4 +755,28 @@ describe('AISpecBuilder', () => {
     await builder.saveSpec();
     expect(store.save).toHaveBeenCalledOnce();
   });
+
+  it('rewindTo handles each phase target properly', () => {
+    const builder = new AISpecBuilder({ store: mockStore() });
+    builder.startSession('y');
+    builder.setSpec(builder.parseSpecFromJSON(JSON.stringify({ title: 'T', overview: 'O' })));
+    builder.setImplementation('plan');
+
+    // rewinding to current phase is a no-op
+    expect(builder.rewindTo('task_review')).toBe('task_review');
+
+    // rewindTo implementation
+    expect(builder.rewindTo('implementation')).toBe('implementation');
+    expect(builder.getSession().implementation).toBeUndefined();
+
+    // rewindTo spec_review
+    builder.setImplementation('plan 2');
+    expect(builder.rewindTo('spec_review')).toBe('spec_review');
+    expect(builder.getSession().implementation).toBeUndefined();
+
+    // rewindTo questioning
+    expect(builder.rewindTo('questioning')).toBe('questioning');
+    expect(builder.getSession().spec).toBeUndefined();
+    expect(builder.getSession().implementation).toBeUndefined();
+  });
 });
