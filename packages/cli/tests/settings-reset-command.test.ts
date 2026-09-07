@@ -61,7 +61,7 @@ function run(args: string, ctx: SlashCommandContext) {
   return executeSettingsSubcommand('reset', args.length > 0 ? args.split(' ') : [], ctx);
 }
 
-function written(): Record<string, unknown> {
+function written(): Record<string, any> {
   return JSON.parse(readFileSync(globalConfig, 'utf8'));
 }
 
