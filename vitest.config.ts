@@ -204,20 +204,11 @@ export default defineConfig({
         'packages/webui-server/src/server/entry.ts',
         // LSP search — requires a live language server; integration-tested separately
         'packages/plug-lsp/src/tools/codebase-lsp-search.ts',
-        'packages/plug-lsp/src/tools/lsp-search.ts',
-        // Codebase index — requires real filesystem + sqlite; integration tested
-        'packages/plug-lsp/src/tools/codebase-index/index.ts',
         // Tools shim — thin sqlite wrapper; exercised via integration tests
         'packages/tools/src/shim/**/*.ts',
         // Worker-thread bootstrap is exercised through the parser pool. V8
         // coverage from the child worker is not merged into the parent suite.
         'packages/tools/src/codebase-index/parser-worker-script.ts',
-        // Language parsers — external-language support tested via integration
-        'packages/plug-lsp/src/auto-doc/ts-parser.ts',
-        'packages/plug-lsp/src/auto-doc/rs-parser.ts',
-        'packages/plug-lsp/src/auto-doc/go-parser.ts',
-        'packages/plug-lsp/src/auto-doc/py-parser.ts',
-        'packages/plug-lsp/src/auto-doc/sh-parser.ts',
       ],
       // Aggregate ratchet: keep the expanded TS/TSX inventory covered without
       // pretending the existing workspace is already at 100% per file.
