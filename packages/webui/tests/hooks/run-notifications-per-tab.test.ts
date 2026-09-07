@@ -11,8 +11,9 @@ vi.mock('@/lib/notify', () => ({
   ensureNotificationPermission: vi.fn(),
   notifyIfHidden: vi.fn(),
 }));
+const sendMessage = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/ws-client', () => ({
-  getWSClient: () => ({ send: vi.fn(), sendMessage: vi.fn() }),
+  getWSClient: () => ({ send: vi.fn(), sendMessage }),
 }));
 vi.mock('@/components/Toaster', () => ({
   toast: { success: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn() },
@@ -21,9 +22,11 @@ vi.mock('@/components/Toaster', () => ({
 import { toast } from '@/components/Toaster';
 import { notifyIfHidden } from '@/lib/notify';
 import { handleRunResult } from '../../src/hooks/ws-handlers/chat-handlers';
+import { useBugHuntRunStore } from '../../src/stores/bug-hunt-run-store';
 import {
   DEFAULT_LANE_ID,
   ensureLane,
+  readLane,
   setActiveLane,
   useChatLanes,
 } from '../../src/stores/chat-lanes';
@@ -47,13 +50,18 @@ import type { WSServerMessage } from '../../src/types';
  * arrived last: three finished runs the user was never told about.
  */
 
-const runResult = (sessionId: string, status: 'done' | 'error'): WSServerMessage =>
+const runResult = (
+  sessionId: string,
+  status: 'done' | 'error',
+  requestId?: string,
+): WSServerMessage =>
   ({
     type: 'run.result',
     payload: {
       sessionId,
       status,
       iterations: 2,
+      ...(requestId ? { requestId } : {}),
       ...(status === 'error' ? { error: { message: 'boom' } } : { finalText: 'ok' }),
     },
   }) as unknown as WSServerMessage;
@@ -79,10 +87,45 @@ beforeEach(() => {
   vi.mocked(toast.error).mockClear();
   vi.mocked(toast.success).mockClear();
   vi.mocked(notifyIfHidden).mockClear();
+  sendMessage.mockReset();
+  sendMessage.mockReturnValue('next-round');
+  useBugHuntRunStore.setState({ runs: {} });
   hidePage();
 });
 
 describe('a finished run is announced as its own tab’s', () => {
+  it('starts the next bug-hunt round only for the matching completed session', () => {
+    withTabs(['tab-a', 'tab-b']);
+    useBugHuntRunStore.getState().start('tab-b', {
+      scope: 'packages/webui',
+      totalRounds: 3,
+      currentRound: 1,
+      requestId: 'round-one',
+    });
+
+    handleRunResult(runResult('tab-a', 'done'));
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    handleRunResult(runResult('tab-b', 'done', 'round-one'));
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.stringContaining("This is round 2/3; we're continuing the bug hunt."),
+      undefined,
+      false,
+      'tab-b',
+    );
+    expect(useBugHuntRunStore.getState().runs['tab-b']).toMatchObject({
+      currentRound: 2,
+      requestId: 'next-round',
+    });
+
+    // The old result can be delivered twice. It must not settle the new
+    // round's spinner or emit another continuation.
+    handleRunResult(runResult('tab-b', 'done', 'round-one'));
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(readLane('tab-b').isLoading).toBe(true);
+  });
+
   it('does not toast a background tab’s failure over the tab in front', () => {
     withTabs(['tab-a', 'tab-b']);
     setActiveLane('tab-a');

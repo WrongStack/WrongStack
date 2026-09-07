@@ -1,5 +1,7 @@
 // ── Barrel re-exports — all stores and types ──
 
+export type { BugHuntRun } from './bug-hunt-run-store.js';
+export { useBugHuntRunStore } from './bug-hunt-run-store.js';
 export { useChatStore } from './chat-store.js';
 export type { ChimeraReportNotice } from './chimera-reports-store.js';
 export { useChimeraReportsStore } from './chimera-reports-store.js';

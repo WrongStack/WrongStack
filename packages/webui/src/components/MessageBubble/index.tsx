@@ -2,9 +2,9 @@ import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import {
   Bot,
   Brain,
-  Crosshair,
   ChevronDown,
   ChevronRight,
+  Crosshair,
   FileCode2,
   Gauge,
   Info,
@@ -26,10 +26,10 @@ import { useChatStore, useConfigStore, useSessionStore, useUIStore } from '@/sto
 import { useAutoSubmitStreak } from '@/stores/auto-submit-streak.js';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { toWireImages } from '../ChatInput/image-attachments.js';
-import { fillInput, NextStepsBar } from '../NextStepsBar';
-import { toast } from '../Toaster';
 import { BrainDecisionCard, parseBrainMarkdown } from '../ChatView/BrainDecisionCard.js';
 import { CouncilDecisionCard, parseCouncilMarkdown } from '../ChatView/CouncilDecisionCard.js';
+import { fillInput, NextStepsBar } from '../NextStepsBar';
+import { toast } from '../Toaster';
 import { AttachmentGallery } from './AttachmentGallery.js';
 import { CopyButton } from './CopyButton.js';
 import { ErrorBodyWithStack } from './ErrorBody.js';
@@ -379,7 +379,7 @@ export const MessageBubble = memo(function MessageBubble({
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs">
                   <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-1">
-                    {bugHunt?.maxBugs} {bugHunt?.maxBugs === 1 ? 'bug' : 'bugs'} max
+                    Round {bugHunt?.currentRound ?? 1} of {bugHunt?.maxBugs}
                   </span>
                   <span
                     className="max-w-full truncate rounded-full border border-border bg-background/60 px-2 py-1"

@@ -79,14 +79,16 @@ describe('WelcomeScreen Proof-Driven Bug Hunter shortcut', () => {
     });
 
     expect(sendMessage).toHaveBeenCalledWith(
-      expect.stringContaining('This run may complete up to 1 proven bug round.'),
+      expect.stringContaining('This is round 1/1. Complete exactly one proven bug in this round'),
     );
     expect(useChatStore.getState().messages).toEqual([
       expect.objectContaining({
         id: 'msg_bug_hunt',
         role: 'user',
-        content: expect.stringContaining('<!-- wrongstack-bug-hunt scope="" max-bugs="1" -->'),
-        bugHunt: { scope: '', maxBugs: 1 },
+        content: expect.stringContaining(
+          '<!-- wrongstack-bug-hunt scope="" max-bugs="1" round="1" -->',
+        ),
+        bugHunt: { scope: '', maxBugs: 1, currentRound: 1 },
       }),
     ]);
     expect(useChatStore.getState().isLoading).toBe(true);
@@ -114,12 +116,16 @@ describe('WelcomeScreen Proof-Driven Bug Hunter shortcut', () => {
       });
     });
 
-    expect(sendMessage).toHaveBeenCalledWith(expect.stringContaining('up to 3 proven bug rounds'));
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.stringContaining('This is round 1/3. Complete exactly one proven bug in this round'),
+    );
     expect(sendMessage).toHaveBeenCalledWith(
       expect.stringContaining('packages/webui and all of its descendants'),
     );
     expect(useChatStore.getState().messages.at(-1)).toEqual(
-      expect.objectContaining({ bugHunt: { scope: 'packages/webui', maxBugs: 3 } }),
+      expect.objectContaining({
+        bugHunt: { scope: 'packages/webui', maxBugs: 3, currentRound: 1 },
+      }),
     );
   });
 

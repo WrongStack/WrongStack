@@ -28,6 +28,7 @@ vi.mock('@/lib/ws-client', () => ({
 import { SessionPanel } from '../../src/components/SidePanel/SessionPanel.js';
 import { chatLane, readLane, setActiveLane } from '../../src/stores/chat-lanes.js';
 import {
+  useBugHuntRunStore,
   useChatStore,
   useConfigStore,
   useFleetStore,
@@ -74,11 +75,30 @@ describe('SessionPanel quick actions', () => {
         queuePanelOpen: false,
       });
       useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
+      useBugHuntRunStore.setState({ runs: {} });
       useSystemPromptStore.getState().closePicker();
     });
   });
 
   afterEach(() => cleanup());
+
+  it('shows the active bug-hunt round immediately above Quick settings', () => {
+    useBugHuntRunStore.setState({
+      runs: {
+        'sess-a': {
+          scope: 'packages/webui',
+          totalRounds: 3,
+          currentRound: 2,
+          requestId: 'round-two',
+        },
+      },
+    });
+
+    renderPanel();
+
+    expect(screen.getByText('Bug hunt in progress')).toBeTruthy();
+    expect(screen.getByText('Round 2 of 3 · packages/webui')).toBeTruthy();
+  });
 
   it('New session opens the identity-prompt picker that starts a NEW tab', () => {
     renderPanel();

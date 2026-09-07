@@ -12,6 +12,7 @@ import {
   Circle,
   CircleDot,
   Cpu,
+  Crosshair,
   Download,
   Eraser,
   History,
@@ -34,6 +35,7 @@ import { getWSClient } from '@/lib/ws-client';
 import {
   MAX_OPEN_TABS,
   useActiveSessionId,
+  useBugHuntRunStore,
   useChatStore,
   useConfigStore,
   useFleetStore,
@@ -235,6 +237,9 @@ export function SessionPanel() {
   }, [startedAt]);
 
   const currentSessionId = useActiveSessionId() ?? session?.id;
+  const bugHuntRun = useBugHuntRunStore((state) =>
+    currentSessionId ? state.runs[currentSessionId] : undefined,
+  );
   const runningAgents = useMemo(
     () =>
       Array.from(fleetAgents.values()).filter(
@@ -570,6 +575,19 @@ export function SessionPanel() {
             compact
             itemLabel="pinned answers"
           />
+        </div>
+      )}
+
+      {bugHuntRun && (
+        <div className="border-b border-primary/25 bg-primary/[0.06] px-3 py-2.5">
+          <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+            <Crosshair className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Bug hunt in progress</span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Round {bugHuntRun.currentRound} of {bugHuntRun.totalRounds}
+            {bugHuntRun.scope ? ` · ${bugHuntRun.scope}` : ' · Whole project'}
+          </p>
         </div>
       )}
 

@@ -3,6 +3,7 @@ import { parseNextSteps, projectNextStepsToolInput } from '@wrongstack/tools/nex
 import { projectChatMessage, projectToolMessage } from '@wrongstack/webui-protocol';
 import { toWireImages } from '@/components/ChatInput/image-attachments';
 import { toast } from '@/components/Toaster';
+import { buildBugHuntContinuation, buildBugHuntMessage } from '@/lib/bug-hunt-message';
 import { playCompletionChime, playPermissionChime } from '@/lib/chime';
 import { setFaviconStatus } from '@/lib/favicon';
 import { ensureNotificationPermission, notifyIfHidden } from '@/lib/notify';
@@ -10,6 +11,7 @@ import { streamCoalescer } from '@/lib/stream-coalescer';
 import { getWSClient } from '@/lib/ws-client';
 import { chatFor, pipeViz, safePayload, sessionFor } from '@/lib/ws-client-utils';
 import { useConfigStore, useSessionStore, useSessionTabStore, useUIStore } from '@/stores';
+import { useBugHuntRunStore } from '@/stores/bug-hunt-run-store';
 import { activeLaneId, type ChatLaneActions, onLaneDisposed } from '@/stores/chat-lanes';
 import type { QueuedItem } from '@/stores/chat-store';
 import { sessionPref } from '@/stores/local-prefs';
@@ -404,6 +406,18 @@ export function handleRunResult(msg: WSServerMessage) {
     },
   );
   if (!payload) return;
+  const bugHuntRuns = useBugHuntRunStore.getState();
+  const activeBugHunt = bugHuntRuns.runs[chat.sessionId];
+  // A duplicated or late result from the previous round must not finalize the
+  // continuation that already owns this session. Generic runs have no entry,
+  // and recovered hunts use `null` until their first result is claimed.
+  if (
+    activeBugHunt?.requestId &&
+    payload.requestId !== undefined &&
+    !bugHuntRuns.ownsRequest(chat.sessionId, payload.requestId)
+  ) {
+    return;
+  }
   // iterations is optional on the wire (some server builds omit it on
   // early-exit paths); default to 1 so downstream math + copy stays sane.
   const iterations = payload.iterations ?? 1;
@@ -495,6 +509,42 @@ export function handleRunResult(msg: WSServerMessage) {
     }
   }
   chat.setRunStart(null);
+
+  if (payload.status !== 'done') {
+    bugHuntRuns.stop(chat.sessionId, payload.requestId);
+  } else {
+    const nextRound = bugHuntRuns.advance(chat.sessionId, payload.requestId);
+    if (nextRound) {
+      const summary = {
+        scope: nextRound.scope,
+        maxBugs: nextRound.totalRounds,
+        currentRound: nextRound.currentRound,
+      };
+      const continuation = buildBugHuntMessage(buildBugHuntContinuation(summary), summary);
+      const requestId = getWSClient(useConfigStore.getState().wsUrl).sendMessage(
+        continuation,
+        undefined,
+        false,
+        chat.sessionId,
+      );
+      if (!requestId) {
+        bugHuntRuns.stop(chat.sessionId);
+        chat.addMessage({
+          role: 'assistant',
+          content: 'Proof-Driven Bug Hunter stopped because the next round could not be submitted.',
+          isError: true,
+        });
+      } else {
+        bugHuntRuns.setRequestId(chat.sessionId, requestId);
+        chat.addMessage({ role: 'user', content: continuation, bugHunt: summary });
+        chat.setLoading(true);
+        // The bug-hunt continuation owns the next turn; do not let ordinary
+        // suggestions or a queued prompt race this one into the same session.
+        return;
+      }
+    }
+  }
+
   if (payload.status !== 'done' && payload.error) {
     if (payload.requestId) {
       chat.updateMessage(payload.requestId, { status: 'failed' });

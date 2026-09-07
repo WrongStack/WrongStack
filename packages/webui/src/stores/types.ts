@@ -71,6 +71,7 @@ export interface ChatMessage {
     | {
         scope: string;
         maxBugs: 1 | 2 | 3;
+        currentRound: number;
       }
     | undefined;
   /** The same treatment for a built-in performance ratchet round: the full

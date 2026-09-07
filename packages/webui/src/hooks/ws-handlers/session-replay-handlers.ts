@@ -24,6 +24,7 @@ import {
   useSessionTabStore,
   useUIStore,
 } from '@/stores';
+import { useBugHuntRunStore } from '@/stores/bug-hunt-run-store';
 import {
   activeLaneId,
   adoptDefaultLane,
@@ -551,8 +552,33 @@ export function handleSessionStart(msg: WSServerMessage) {
   } else if (isReset && payload.reset === true && hydrated.length === 0 && !isRunning) {
     chat.clearMessages();
   }
-  if (!isRunning) chat.clearThinking();
+  if (!isRunning) {
+    chat.clearThinking();
+    // A redisplay may overlay an older idle snapshot while this tab retains a
+    // newer live transcript. Keep its loop state: treating that snapshot as a
+    // terminal result would erase a still-running hunt before its run.result.
+    if (!(isRedisplay && hasLiveTranscript)) {
+      useBugHuntRunStore.getState().clear(sessionId);
+    }
+  }
   chat.setLoading(isRunning);
+
+  // A page refresh loses the in-memory request id, but the latest bug-hunt
+  // user turn retains scope, budget, and round in the session journal. Recover
+  // only while the server says this session is still running; a completed hunt
+  // must not restart just because its transcript is replayed.
+  if (isRunning && !useBugHuntRunStore.getState().runs[sessionId]) {
+    const latestBugHunt = [...hydrated]
+      .reverse()
+      .find((message) => message.role === 'user' && message.bugHunt)?.bugHunt;
+    if (latestBugHunt && latestBugHunt.currentRound < latestBugHunt.maxBugs) {
+      useBugHuntRunStore.getState().recover(sessionId, {
+        scope: latestBugHunt.scope,
+        totalRounds: latestBugHunt.maxBugs,
+        currentRound: latestBugHunt.currentRound,
+      });
+    }
+  }
 
   // -- Replay accounting ------------------------------------------------
   const usage = payload.replayUsage;
@@ -585,6 +611,7 @@ export function handleSessionStart(msg: WSServerMessage) {
   // Retiring one session must not wipe the fleets of the tabs still running.
   const retiredSessionId = payload.clearedSessionId;
   if (retiredSessionId) {
+    useBugHuntRunStore.getState().clear(retiredSessionId);
     const survivors = new Map<string, SubagentView>();
     for (const [id, agent] of useFleetStore.getState().agents) {
       if (agent.sessionId !== retiredSessionId) survivors.set(id, agent);

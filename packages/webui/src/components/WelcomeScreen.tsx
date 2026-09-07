@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { openMainView } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import { useChatStore, useConfigStore, useFileStore, useSessionStore } from '@/stores';
+import { useBugHuntRunStore } from '@/stores/bug-hunt-run-store';
 import type { TreeNode } from '@/stores/file-store';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
@@ -114,16 +115,24 @@ export function WelcomeScreen() {
           `${content}
 
 ## WebUI run configuration (mandatory)
-This run may complete up to ${bugHuntMaxBugs} proven bug ${bugHuntMaxBugs === 1 ? 'round' : 'rounds'}. Work on only one bug at a time; after its proof, fix, verification, and cleanup are complete, continue to the next round only while below this limit. Stop early when no further proven bug is available. Stay strictly within ${scopeText}. This configuration overrides the prompt's one-issue total limit, but not its one-issue-per-round discipline.`,
-          { scope: bugHuntScope, maxBugs: bugHuntMaxBugs },
+This is round 1/${bugHuntMaxBugs}. Complete exactly one proven bug in this round: discovery, proof, fix, verification, and cleanup. Stop after the round report; the WebUI will start another round only after this one finishes successfully and only while below the configured limit. Stay strictly within ${scopeText}.`,
+          { scope: bugHuntScope, maxBugs: bugHuntMaxBugs, currentRound: 1 },
         );
       },
       onSent: (id, content) => {
+        if (sessionId) {
+          useBugHuntRunStore.getState().start(sessionId, {
+            scope: bugHuntScope,
+            totalRounds: bugHuntMaxBugs,
+            currentRound: 1,
+            requestId: id,
+          });
+        }
         addMessage({
           id,
           role: 'user',
           content,
-          bugHunt: { scope: bugHuntScope, maxBugs: bugHuntMaxBugs },
+          bugHunt: { scope: bugHuntScope, maxBugs: bugHuntMaxBugs, currentRound: 1 },
         });
         setLoading(true);
       },
