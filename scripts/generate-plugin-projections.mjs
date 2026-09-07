@@ -47,9 +47,17 @@ function formatTypeScript(path, content) {
   if (!packageManagerCli) {
     throw new Error('npm_execpath is required to format generated plugin projections');
   }
+  const packageManagerIsExecutable = /\.(?:cmd|exe|bat)$/i.test(packageManagerCli);
   const result = spawnSync(
-    process.execPath,
-    [packageManagerCli, 'exec', 'biome', 'format', '--stdin-file-path', path],
+    packageManagerIsExecutable ? packageManagerCli : process.execPath,
+    [
+      ...(packageManagerIsExecutable ? [] : [packageManagerCli]),
+      'exec',
+      'biome',
+      'format',
+      '--stdin-file-path',
+      path,
+    ],
     {
       cwd: ROOT,
       encoding: 'utf8',
