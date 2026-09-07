@@ -211,7 +211,10 @@ describe('MCPRegistry coverage', () => {
     });
     api.servers.set('catalog', slot);
     registry.markDisabled({ name: 'disabled-catalog', transport: 'stdio', command: 'echo' });
-    expect(registry.getCatalog('disabled-catalog')).toEqual({ name: 'disabled-catalog', state: 'idle' });
+    expect(registry.getCatalog('disabled-catalog')).toEqual({
+      name: 'disabled-catalog',
+      state: 'idle',
+    });
     expect(registry.getCatalog('catalog')).toMatchObject({ name: 'catalog' });
     expect(await registry.listResources('catalog')).toEqual(resources);
     expect(await registry.listResourceTemplates('catalog')).toEqual(templates);
@@ -537,7 +540,7 @@ describe('MCPRegistry coverage', () => {
     vi.useFakeTimers();
     const { registry } = fixture();
     const clientClose = vi.fn().mockResolvedValue(undefined);
-    vi.spyOn(MCPClient.prototype, 'connect').mockImplementation(async function () {
+    vi.spyOn(MCPClient.prototype, 'connect').mockImplementation(async () => {
       registry.forget('forgotten-slot');
     });
     vi.spyOn(MCPClient.prototype, 'close').mockImplementation(clientClose);
@@ -553,7 +556,6 @@ describe('MCPRegistry coverage', () => {
     expect(clientClose).toHaveBeenCalled();
     vi.restoreAllMocks();
   });
-
 
   it('attemptConnect cleans up when the slot disconnects during connect', async () => {
     vi.useFakeTimers();

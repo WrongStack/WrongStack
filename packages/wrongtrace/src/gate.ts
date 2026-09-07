@@ -26,8 +26,8 @@
  *     agent-helpers already ignores them.
  */
 
+import { type CrossAgentRisk, getCrossAgentRisk } from './agent-helpers.js';
 import { createWrongTraceClient, type WrongTraceClientInternal } from './client.js';
-import { getCrossAgentRisk, type CrossAgentRisk } from './agent-helpers.js';
 
 /** Outcome the caller dispatches on. `allow` is always the safe default. */
 export type PreflightVerdict =

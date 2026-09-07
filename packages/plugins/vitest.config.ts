@@ -7,6 +7,18 @@ export default defineConfig({
     globals: false,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    exclude: ['**/node_modules/**', '**/dist/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'json-summary'],
+      reportOnFailure: true,
+      include: ['src/**/*.ts'],
+      exclude: ['src/index.ts'],
+      thresholds: {
+        lines: 94,
+        functions: 95,
+        statements: 91,
+        branches: 79,
+      },
+    },
   },
 });

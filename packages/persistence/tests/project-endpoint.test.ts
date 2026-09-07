@@ -13,13 +13,14 @@
  * severs every connected client and elects a second writer over the same
  * database — a worse failure than the wedge, and a silent one.
  */
+import { EventEmitter } from 'node:events';
 import * as fs from 'node:fs/promises';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { bindProjectEndpoint, isProjectEndpointLive } from '../src/project-endpoint.js';
+import { bindProjectEndpoint, _projectEndpointOps, isProjectEndpointLive } from '../src/project-endpoint.js';
 
 const isWindows = process.platform === 'win32';
 const describeUnix = isWindows ? describe.skip : describe;
@@ -166,6 +167,55 @@ describeWindows('bindProjectEndpoint on Windows named pipes', () => {
     });
     expect(contender).toEqual({ outcome: 'already-owned' });
     expect(owner.listening).toBe(true);
+  });
+});
+
+// Regression for G1 (DIP-002/DIP-003): endpoint names are derived from
+// the project path, so they are fully predictable; without a 0o700 +
+// ownership check on the parent directory, a same-host squatter can
+// pre-bind the name and the real daemon concludes "a live owner
+// exists" — then hands its IPC token to the squatter. The new check
+// forces a chmod AND refuses to start when the directory is owned by
+// another uid, breaking the squatter's listen path and the silent
+// client-handoff.
+describe('bindProjectEndpoint — G1 ownership/mode enforcement', () => {
+  let savedOps: typeof _projectEndpointOps;
+  beforeEach(() => {
+    savedOps = { ..._projectEndpointOps };
+  });
+  afterEach(() => {
+    Object.assign(_projectEndpointOps, savedOps);
+  });
+
+  it('forces chmod 0o700 on the parent directory even if it pre-exists', async () => {
+    _projectEndpointOps.platform = 'linux';
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'g1-chmod-'));
+    try {
+      const dir = path.join(tmpDir, 'ep');
+      await fs.mkdir(dir, { recursive: true, mode: 0o755 });
+      // Pre-existing dir was 0755 — must be tightened by ensureDir.
+      _projectEndpointOps.chmod = vi.fn(async (p: string, mode: number) => {
+        if (p === dir) expect(mode).toBe(0o700);
+      }) as any;
+      _projectEndpointOps.stat = vi.fn(async (p: string) => {
+        const st = await fs.stat(p);
+        return st as any;
+      }) as any;
+
+      const fakeServer = new EventEmitter() as any;
+      fakeServer.listen = vi.fn(() => {
+        setTimeout(() => fakeServer.emit('listening'), 2);
+      });
+      const res = await bindProjectEndpoint({
+        server: fakeServer,
+        endpoint: path.join(dir, 'test.sock'),
+        service: 'test',
+      });
+      expect(res.outcome).toBe('bound');
+      expect(_projectEndpointOps.chmod).toHaveBeenCalledWith(dir, 0o700);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
   });
 });
 

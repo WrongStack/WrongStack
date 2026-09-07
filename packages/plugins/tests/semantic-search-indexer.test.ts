@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('node:fs/promises', () => ({
-  readdir: vi.fn(),
-  readFile: vi.fn(),
-  stat: vi.fn(),
-}));
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    readdir: vi.fn(),
+    readFile: vi.fn(),
+    stat: vi.fn(),
+  };
+});
 
 const { readdir, readFile, stat } = await import('node:fs/promises');
 const { semanticIndexerCoverage, readConfig } = await import(

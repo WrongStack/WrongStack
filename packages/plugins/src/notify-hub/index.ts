@@ -109,7 +109,15 @@ const DEFAULTS: NotifyHubConfig = {
 };
 
 function isPrivateIPv4(hostname: string): boolean {
-  const parts = hostname.split('.').map((p) => Number(p));
+  // S8 (J1): `::ffff:127.0.0.1` (IPv4-mapped IPv6) used to slip past
+  // the dot-split because `split('.')` produced four segments but the
+  // first was `::ffff:127` and `Number('::ffff:127')` was `NaN` — so
+  // `isPrivateIPv4` returned false and `http://[::ffff:127.0.0.1]:3456`
+  // was considered a public, sendable webhook host. Normalise the
+  // mapped form down to its embedded IPv4 first; the rest of the
+  // check is unchanged.
+  const normalised = hostname.replace(/^::ffff:/i, '');
+  const parts = normalised.split('.').map((p) => Number(p));
   if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) {
     return false;
   }

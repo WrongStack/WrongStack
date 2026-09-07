@@ -39,6 +39,15 @@ import * as path from 'node:path';
 
 import { assertUnixSocketPathWithinLimit } from './socket-path.js';
 
+export const _projectEndpointOps = {
+  platform: process.platform,
+  mkdir: fsPromises.mkdir,
+  chmod: fsPromises.chmod,
+  stat: fsPromises.stat,
+  rm: fsPromises.rm,
+  createConnection: net.createConnection,
+};
+
 /** How long a liveness probe waits before calling the endpoint unreachable. */
 const PROBE_TIMEOUT_MS = 500;
 
@@ -104,7 +113,7 @@ export function isProjectEndpointLive(
     let settled = false;
     let probe: net.Socket;
     try {
-      probe = net.createConnection(endpoint);
+      probe = _projectEndpointOps.createConnection(endpoint);
     } catch {
       return resolve(false);
     }
@@ -141,15 +150,34 @@ export function isProjectEndpointLive(
  * that skipped the liveness probe.
  */
 async function ensureProjectEndpointDirectory(endpoint: string, service: string): Promise<void> {
-  if (process.platform === 'win32') return;
+  if (_projectEndpointOps.platform === 'win32') return;
   // Fail loudly and early on an over-long `sun_path`. Left to `bind()`, it
   // surfaces as EINVAL/ENAMETOOLONG inside a detached child whose stderr is
   // discarded, which reaches the operator as a bare connect timeout.
-  assertUnixSocketPathWithinLimit(endpoint, service);
-  await fsPromises.mkdir(path.dirname(endpoint), {
+  assertUnixSocketPathWithinLimit(endpoint, service, _projectEndpointOps.platform);
+  const dir = path.dirname(endpoint);
+  await _projectEndpointOps.mkdir(dir, {
     recursive: true,
     mode: ENDPOINT_DIR_MODE,
   });
+  // G1 (DIP-002/DIP-003): the mkdir above is a no-op when the directory
+  // already exists, and a no-op is exactly what a squatter wants — the
+  // directory keeps the wider mode it had when *they* created it. Force
+  // the 0o700 chmod and verify ownership before letting `bind()` take
+  // the predictable name from inside it. A mis-owned directory means
+  // another local user can see and impersonate the IPC channel; refuse
+  // to start, do not silently exit into a squatter.
+  await _projectEndpointOps.chmod(dir, ENDPOINT_DIR_MODE).catch(() => {
+    // Filesystems that reject chmod (e.g. FAT mounts) still keep the
+    // ownership check as the second line of defence below.
+  });
+  const st = await _projectEndpointOps.stat(dir);
+  const myUid = typeof process.getuid === 'function' ? process.getuid() : undefined;
+  if (myUid !== undefined && st.uid !== myUid) {
+    throw new Error(
+      `project endpoint directory ${dir} is owned by uid ${st.uid}, expected ${myUid} (G1: refuse to bind inside a squatted IPC dir)`,
+    );
+  }
 }
 
 /** One `listen()` attempt. Resolves with the error instead of throwing it. */
@@ -201,7 +229,7 @@ export async function bindProjectEndpoint(
 ): Promise<BindProjectEndpointOutcome> {
   const { server, endpoint, service } = options;
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
-  const isWindows = process.platform === 'win32';
+  const isWindows = _projectEndpointOps.platform === 'win32';
 
   try {
     await ensureProjectEndpointDirectory(endpoint, service);
@@ -217,7 +245,7 @@ export async function bindProjectEndpoint(
     const error = await attemptListen(server, endpoint);
     if (!error) {
       if (!isWindows) {
-        await fsPromises.chmod(endpoint, ENDPOINT_FILE_MODE).catch(() => {
+        await _projectEndpointOps.chmod(endpoint, ENDPOINT_FILE_MODE).catch(() => {
           // The 0700 parent directory still restricts access to this user.
         });
       }
@@ -233,7 +261,7 @@ export async function bindProjectEndpoint(
     if (await isProjectEndpointLive(endpoint)) return { outcome: 'already-owned' };
 
     try {
-      await fsPromises.rm(endpoint, { force: true });
+      await _projectEndpointOps.rm(endpoint, { force: true });
       reclaimed = true;
     } catch (removeError) {
       // A competing contender may have removed it first, which is fine — the

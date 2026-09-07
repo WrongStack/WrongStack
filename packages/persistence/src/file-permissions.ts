@@ -29,7 +29,7 @@ import { chmod, stat } from 'node:fs/promises';
 import * as os from 'node:os';
 import { promisify } from 'node:util';
 
-let _execFileAsync:
+let _cachedExecFileAsync:
   | ((
       file: string,
       args: readonly string[],
@@ -37,14 +37,26 @@ let _execFileAsync:
     ) => Promise<{ stdout: string; stderr: string }>)
   | undefined;
 
+export const _filePermOps = {
+  platform: process.platform,
+  chmod,
+  stat,
+  userInfo: os.userInfo,
+  execFileAsync: undefined as
+    | ((
+        file: string,
+        args: readonly string[],
+        options?: object,
+      ) => Promise<{ stdout: string; stderr: string }>)
+    | undefined,
+};
+
 function getExecFileAsync() {
-  if (!_execFileAsync) {
-    const fn = childProcess.execFile;
-    if (typeof fn === 'function') {
-      _execFileAsync = promisify(fn);
-    }
+  if (_filePermOps.execFileAsync !== undefined) return _filePermOps.execFileAsync;
+  if (!_cachedExecFileAsync) {
+    _cachedExecFileAsync = promisify(childProcess.execFile);
   }
-  return _execFileAsync;
+  return _cachedExecFileAsync;
 }
 
 /** Owner read/write, nothing for group or other. */
@@ -76,7 +88,7 @@ async function applyPermissions(
 ): Promise<void> {
   const label = opts?.label ?? 'file-permissions';
   const warn = opts?.warn ?? ((msg: string) => console.warn(msg));
-  if (process.platform === 'win32') {
+  if (_filePermOps.platform === 'win32') {
     try {
       const user = windowsAccountName();
       if (!user) {
@@ -110,7 +122,7 @@ async function applyPermissions(
     }
   } else {
     try {
-      await chmod(targetPath, isDir ? SECRET_DIR_MODE : SECRET_FILE_MODE);
+      await _filePermOps.chmod(targetPath, isDir ? SECRET_DIR_MODE : SECRET_FILE_MODE);
     } catch {
       // Best-effort
     }
@@ -137,7 +149,7 @@ export async function restrictFilePermissions(
 /** True when the path no longer exists — there is nothing left to harden. */
 async function pathIsGone(filePath: string): Promise<boolean> {
   try {
-    await stat(filePath);
+    await _filePermOps.stat(filePath);
     return false;
   } catch {
     return true;
@@ -161,7 +173,7 @@ function windowsAccountName(): string | undefined {
   let username = process.env['USERNAME'] ?? process.env['USER'];
   if (!username) {
     try {
-      username = os.userInfo().username;
+      username = _filePermOps.userInfo().username;
     } catch {
       username = undefined;
     }

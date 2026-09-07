@@ -15,16 +15,17 @@ export default defineConfig({
         'src/index.ts',
         'src/transport.ts',
         // Type-only modules — interfaces only, no runnable code
+        'src/contracts.ts',
         'src/registry-slots.ts',
         'src/registry-types.ts',
         // Test helpers — only exist to support tests, not production code
         'src/test-helpers/**',
       ],
       thresholds: {
-        lines: 90,
-        functions: 90,
-        statements: 90,
-        branches: 85,
+        lines: 100,
+        functions: 100,
+        statements: 100,
+        branches: 100,
       },
     },
   },

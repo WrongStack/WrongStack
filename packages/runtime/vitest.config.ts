@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
-import { getVitestMaxWorkers } from '../../vitest.workers.ts';
 import { coreAliases } from '../../scripts/vitest-core-aliases.mjs';
+import { getVitestMaxWorkers } from '../../vitest.workers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,10 +28,10 @@ export default defineConfig({
         'src/pack.ts',
       ],
       thresholds: {
-        lines: 99,
-        functions: 91,
-        branches: 95,
-        statements: 96,
+        lines: 100,
+        functions: 99,
+        statements: 99,
+        branches: 97,
       },
     },
   },

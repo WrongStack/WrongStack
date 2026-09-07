@@ -75,7 +75,19 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
     '- Redirects are followed but re-validated at each hop.\n' +
     '- Output is capped (128KB by default) to avoid flooding context.\n' +
     'Prefer this over raw `bash curl` or `bash wget`.',
-  permission: 'auto',
+  // H-9 (AT-02): `fetch` was `permission:'auto'` with `mutating:false`, so
+  // the `tool.permission === 'auto' && !isMutating` branch at
+  // `permission-policy.ts:408-424` returned `{permission:'auto'}` for
+  // every call, in every mode (YOLO or not) — a complete, prompt-free
+  // exfiltration primitive when chained with the equally-unprompted
+  // `read` of `.env`/`~/.ssh/*` (sensitive-read gate is `!effectiveYolo`
+  // and therefore also skipped under the shipped default). Promoting to
+  // `permission:'confirm'` is the narrowest change that closes the
+  // exfiltration path: it prompts the user, and an "always" answer is
+  // persisted to `trust.json` against the URL subject declared below.
+  // The SSRF guard (`guardedFetch`) still constrains where the request
+  // can land; this change just ensures the *whether* is no longer silent.
+  permission: 'confirm',
   mutating: false,
   capabilities: ['net.outbound'],
   icon: 'web',

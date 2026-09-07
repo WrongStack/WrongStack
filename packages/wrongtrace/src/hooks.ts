@@ -192,7 +192,7 @@ function acquireLock(counters: Map<string, number>, path: string): void {
 }
 
 function releaseLock(counters: Map<string, number>, path: string, onZero: () => void): void {
-  const next = (counters.get(path) ?? 1) - 1;
+  const next = counters.get(path)! - 1;
   if (next > 0) {
     counters.set(path, next);
     return;

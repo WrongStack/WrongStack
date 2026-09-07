@@ -495,4 +495,35 @@ describe('persistence primitive edge branches', () => {
     expect(doubles.fs.chmod).toHaveBeenCalledWith('C:\\tmp\\readonly.txt', 0o666);
     expect(doubles.fs.rename).toHaveBeenCalled();
   });
+
+  it('tolerates chmod rejection when temporarily clearing Windows read-only attribute', async () => {
+    usePlatform('win32');
+    doubles.fs.stat.mockResolvedValue({ mode: 0o444, isDirectory: () => false });
+    doubles.fs.chmod.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('EACCES'));
+    const primitives = createPersistencePrimitives();
+
+    await primitives.atomicWrite('C:\\tmp\\readonly.txt', 'value', { mode: 0o444 });
+    expect(doubles.fs.rename).toHaveBeenCalled();
+  });
+
+  it('writes buffer content with custom mode', async () => {
+    usePlatform('linux');
+    const primitives = createPersistencePrimitives();
+    await primitives.atomicWrite('/tmp/buffer.bin', Buffer.from('binary-data'), { mode: 0o644 });
+    expect(doubles.fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining('.tmp'),
+      Buffer.from('binary-data'),
+      expect.objectContaining({ mode: 0o644 }),
+    );
+  });
+
+  it('uses default createLockTimeoutError when not provided', async () => {
+    usePlatform('linux');
+    doubles.fs.open.mockRejectedValue(errorWithCode('EEXIST'));
+    doubles.fs.stat.mockResolvedValue({ mtimeMs: Date.now() });
+    const primitives = createPersistencePrimitives();
+    await expect(
+      primitives.withFileLock('/tmp/locked.txt', async () => {}, { timeoutMs: 5, staleMs: 1000 }),
+    ).rejects.toThrow('Timed out waiting for file lock: /tmp/locked.txt');
+  });
 });

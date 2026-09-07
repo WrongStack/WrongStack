@@ -3,6 +3,7 @@ import type { FSWatcher } from 'node:fs';
 import { watch as watchDir } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictFilePermissions } from './file-permissions.js';
 
 export interface AtomicWriteOptions {
   mode?: number | undefined;
@@ -133,6 +134,18 @@ export function createPersistencePrimitives(
     if (mode !== undefined && process.platform === 'win32') {
       await fs.chmod(targetPath, mode).catch(() => undefined);
     }
+    // S3 (F2/G2/G3/G4): the `mode: 0o600` declaration on a write is the
+    // caller's promise that the file is secret. POSIX honours it via
+    // `chmod`; Windows does not — `chmod` only flips the read-only bit
+    // and the renamed file inherits the parent directory's ACEs, so a
+    // `CodexSandboxUsers`-style sibling account can read the secret.
+    // Apply `restrictFilePermissions` unconditionally when the mode is
+    // the SECRET_FILE_MODE — it shells out to `icacls` on Windows and
+    // re-applies the owning-user-only ACE. The helper is idempotent and
+    // a no-op on POSIX (the `chmod` above already narrowed the mode).
+    if (mode === 0o600) {
+      await restrictFilePermissions(targetPath, { warn: () => undefined }).catch(() => undefined);
+    }
   }
 
   function tempPathFor(targetPath: string): string {
@@ -240,6 +253,9 @@ export function createPersistencePrimitives(
     let handle: fs.FileHandle | undefined;
     let attempt = 0;
     let mkdirRetries = 0;
+    // Hoisted: the release path in `finally` compares the lock file's
+    // contents against our token, so it must outlive the acquire loop.
+    let myToken = '';
 
     // Every retry path funnels through here. Two of them used to `continue`
     // straight back to `fs.open` without consulting the deadline and without
@@ -259,13 +275,23 @@ export function createPersistencePrimitives(
       if (elapsed >= timeoutMs) throw createLockTimeoutError({ targetPath, timeoutMs });
       const backoffMs = Math.min(2 ** attempt, 100, timeoutMs - elapsed);
       attempt++;
-      if (backoffMs > 0) await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
     };
 
     for (;;) {
       try {
         handle = await fs.open(lockPath, 'wx');
-        await handle.writeFile(`${process.pid}:${Date.now()}`);
+        // S7 (RACE-002 / G5): the previous lock wrote `${pid}:${mtime}`
+        // and the `finally` branch unconditionally unlinked the file.
+        // After a stale-break (a synchronous `bun:sqlite`/`node:sqlite`
+        // burst blocks the heartbeat past `staleMs`), process A's
+        // release would delete process B's live lock and admit a
+        // third holder. The fix writes a 16-byte random token alongside
+        // the pid; both the release path and the stale-break path read
+        // it back and only unlink on a match, so an unrelated
+        // live-actor lock is never stolen.
+        myToken = randomBytes(16).toString('hex');
+        await handle.writeFile(`${process.pid}:${myToken}`);
         break;
       } catch (error) {
         if (handle) {
@@ -344,7 +370,22 @@ export function createPersistencePrimitives(
     } finally {
       clearInterval(heartbeat);
       await handle?.close().catch(() => undefined);
-      await fs.unlink(lockPath).catch(() => undefined);
+      // S7 (RACE-002 / G5): only unlink the lock if its current
+      // content still names our pid+token. If a stale-break had to
+      // re-acquire the lock because a heartbeat missed the staleMs
+      // window, the file is now a *different* live holder's lock and
+      // unlinking it would be a lock-stealing bug.
+      if (handle) {
+        try {
+          const contents = await fs.readFile(lockPath, 'utf8').catch(() => '');
+          if (contents === `${process.pid}:${myToken}`) {
+            await fs.unlink(lockPath).catch(() => undefined);
+          }
+        } catch {
+          // Best-effort cleanup; the heartbeat loop will reap it on
+          // the next stale break if anything went wrong here.
+        }
+      }
     }
   }
 

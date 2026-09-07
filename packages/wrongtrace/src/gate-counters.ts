@@ -30,6 +30,15 @@ import * as path from 'node:path';
 
 import type { WrongTraceGateDecisionEvent } from './hooks.js';
 
+export const _fsOps = {
+  mkdir: fs.mkdir,
+  writeFile: fs.writeFile,
+  rename: fs.rename,
+  copyFile: fs.copyFile,
+  unlink: fs.unlink,
+  readFile: fs.readFile,
+};
+
 export interface WrongTraceGateCounterSnapshot {
   deny: number;
   allowFragile: number;
@@ -135,8 +144,8 @@ export function persistWrongTraceGateCounters(
     const file = countersFilePath(projectRoot);
     const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
     try {
-      await fs.mkdir(path.dirname(file), { recursive: true });
-      await fs.writeFile(
+      await _fsOps.mkdir(path.dirname(file), { recursive: true });
+      await _fsOps.writeFile(
         tmp,
         JSON.stringify({ at: new Date().toISOString(), ...snapshot }, null, 2),
         'utf8',
@@ -144,22 +153,22 @@ export function persistWrongTraceGateCounters(
       let renamed = false;
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
-          await fs.rename(tmp, file);
+          await _fsOps.rename(tmp, file);
           renamed = true;
           break;
         } catch {
-          await new Promise((r) => setTimeout(r, 50));
+          await new Promise((r) => setTimeout(r, 10));
         }
       }
       if (!renamed) {
-        await fs.copyFile(tmp, file);
-        await fs.unlink(tmp).catch(() => {});
+        await _fsOps.copyFile(tmp, file);
+        await _fsOps.unlink(tmp).catch(() => {});
       }
     } catch {
       // best-effort: leave the prior file intact (rename is atomic; a failed
       // write before it only orphans the tmp file).
       try {
-        await fs.unlink(tmp).catch(() => {});
+        await _fsOps.unlink(tmp).catch(() => {});
       } catch {
         /* ignore */
       }
@@ -172,7 +181,7 @@ export async function loadWrongTraceGateCounters(
   projectRoot: string,
 ): Promise<WrongTraceGateCounterSnapshot | null> {
   try {
-    const raw = await fs.readFile(countersFilePath(projectRoot), 'utf8');
+    const raw = await _fsOps.readFile(countersFilePath(projectRoot), 'utf8');
     const parsed = JSON.parse(raw) as Partial<WrongTraceGateCounterSnapshot> & {
       at?: string;
     };

@@ -266,4 +266,17 @@ describe('formatTool', () => {
     expect(result.files_checked).toBe(1);
     expect(result.files_changed).toBe(0);
   });
+
+  // Regression for C1 (CMDI-005) — argument injection via `files[]`.
+  // The prettier branch pushes `files` into the argv WITHOUT a `--`
+  // separator, so a value like `--config=.cache/evil.js` is parsed as
+  // a CLI option. Prettier's `--config` is also executable JavaScript.
+  // The containment check above accepts `--config=path` because
+  // `<cwd>/--config=path` resolves inside the root, so this leading-dash
+  // guard is the only thing that closes the injection.
+  it('rejects file paths beginning with "-" (flag injection)', async () => {
+    await expect(
+      (formatTool.execute as any)({ fixer: 'prettier', files: ['--config=.cache/evil.js'] }, makeCtx()),
+    ).rejects.toThrow(/flag injection/);
+  });
 });

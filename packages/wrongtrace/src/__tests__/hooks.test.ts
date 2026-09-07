@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
-import { createWrongTraceHookPair } from '../hooks.js';
 import { resetWrongTraceGate } from '../gate.js';
+import { createWrongTraceHookPair } from '../hooks.js';
 
 /**
  * Hermetic hook-pair contract tests. Overrides globalThis.fetch with a stub

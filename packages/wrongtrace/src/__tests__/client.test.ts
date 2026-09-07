@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createWrongTraceClient } from '../client.js';
-import { discover, defaultSocketPath } from '../discovery.js';
+import { defaultSocketPath, discover } from '../discovery.js';
 
 /**
  * Minimal fetch stub. The cast through `unknown` is required because the

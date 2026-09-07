@@ -8,6 +8,27 @@
  *   if (wt.isAvailable) { /* safe to use lock/lineage/telemetry APIs *\/ }
  */
 
+export type { IpcCallResult, IpcTimeouts, IpcTransport } from './adapters/ipc.js';
+export { createIpcTransport } from './adapters/ipc.js';
+export type { McpToolBag, McpToolHandler, McpToolName, McpTransport } from './adapters/mcp.js';
+export { createMcpTransport } from './adapters/mcp.js';
+export type {
+  AtlasDigest,
+  CrossAgentRisk,
+  FrictionSummary,
+  RecentActivityEntry,
+} from './agent-helpers.js';
+
+export {
+  digestAtlas,
+  getCrossAgentRisk,
+  getRecentActivity,
+  summarizeFriction,
+} from './agent-helpers.js';
+export type { WrongTraceClientInternal, WrongTraceClientOptions } from './client.js';
+export { createWrongTraceClient } from './client.js';
+export type { DiscoveryOptions, DiscoveryResult } from './discovery.js';
+export { defaultSocketPath, discover } from './discovery.js';
 export type {
   WrongTraceAtlasFile,
   WrongTraceAtlasQuery,
@@ -27,57 +48,22 @@ export type {
   WrongTraceUnlockRequest,
 } from './types.js';
 
-export { discover, defaultSocketPath } from './discovery.js';
-export type { DiscoveryOptions, DiscoveryResult } from './discovery.js';
-
-export { createWrongTraceClient } from './client.js';
-export type { WrongTraceClientOptions, WrongTraceClientInternal } from './client.js';
-
-export {
-  getCrossAgentRisk,
-  summarizeFriction,
-  getRecentActivity,
-  digestAtlas,
-} from './agent-helpers.js';
-export type {
-  CrossAgentRisk,
-  FrictionSummary,
-  AtlasDigest,
-  RecentActivityEntry,
-} from './agent-helpers.js';
-
-export { createIpcTransport } from './adapters/ipc.js';
-export type { IpcTransport, IpcCallResult, IpcTimeouts } from './adapters/ipc.js';
-
-export { createMcpTransport } from './adapters/mcp.js';
-export type { McpTransport, McpToolBag, McpToolHandler, McpToolName } from './adapters/mcp.js';
-
 // ── Shared guardrail gate + hooks (CLI leader, fleet subagents, WebUI server) ──
 
+export type { PreflightOptions, PreflightVerdict } from './gate.js';
 export {
   getWrongTrace,
   preflightFileEdit,
   resetWrongTraceGate,
   withFileLock,
 } from './gate.js';
-export type { PreflightOptions, PreflightVerdict } from './gate.js';
-
-export {
-  createWrongTraceHookPair,
-  createWrongTracePostToolUseHook,
-  createWrongTracePreToolUseHook,
-} from './hooks.js';
 export type {
-  WrongTraceGateDecisionEvent,
-  WrongTraceHookInput,
-  WrongTraceHookOptions,
-  WrongTraceHookPair,
-  WrongTracePreToolUseOutcome,
-} from './hooks.js';
-
+  WrongTraceGateCounter,
+  WrongTraceGateCounterSnapshot,
+} from './gate-counters.js';
 export {
-  createWrongTraceGateCounter,
   countersFilePath,
+  createWrongTraceGateCounter,
   formatGateCounterReport,
   loadWrongTraceGateCounters,
   persistWrongTraceGateCounters,
@@ -86,9 +72,17 @@ export {
   snapshotGateDecisions,
 } from './gate-counters.js';
 export type {
-  WrongTraceGateCounter,
-  WrongTraceGateCounterSnapshot,
-} from './gate-counters.js';
+  WrongTraceGateDecisionEvent,
+  WrongTraceHookInput,
+  WrongTraceHookOptions,
+  WrongTraceHookPair,
+  WrongTracePreToolUseOutcome,
+} from './hooks.js';
+export {
+  createWrongTraceHookPair,
+  createWrongTracePostToolUseHook,
+  createWrongTracePreToolUseHook,
+} from './hooks.js';
 
 /**
  * Drop-in replacement for the legacy `getWrongTraceClient()` from the

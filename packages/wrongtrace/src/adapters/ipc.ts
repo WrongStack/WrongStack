@@ -21,6 +21,8 @@
 
 import { connect } from 'node:net';
 
+export const _connectSocket = { connect };
+
 const CONNECT_TIMEOUT_MS = 2_000;
 const READ_TIMEOUT_MS = 5_000;
 
@@ -47,25 +49,18 @@ export interface IpcTransport {
   call<T = unknown>(method: string, params: Record<string, unknown>): Promise<IpcCallResult<T>>;
 }
 
-class TimeoutError extends Error {
+export class TimeoutError extends Error {
   constructor(ms: number) {
     super(`IPC request exceeded ${ms}ms`);
     this.name = 'TimeoutError';
   }
 }
 
-function once<T extends unknown[]>(
-  emitter: NodeJS.EventEmitter,
-  event: string,
-  predicate: (...args: T) => boolean = () => true,
-): Promise<T> {
+function once<T extends unknown[]>(emitter: NodeJS.EventEmitter, event: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const onAny = (...args: unknown[]) => {
-      if (predicate(...(args as T))) {
-        emitter.removeListener('error', onError);
-        emitter.removeListener(event, onAny);
-        resolve(args as T);
-      }
+      emitter.removeListener('error', onError);
+      resolve(args as T);
     };
     const onError = (err: Error) => {
       emitter.removeListener(event, onAny);
@@ -96,11 +91,11 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
   return {
     isWired: true,
     async call<T>(method: string, params: Record<string, unknown>): Promise<IpcCallResult<T>> {
-      const sock = connect(socketPath);
+      const sock = _connectSocket.connect(socketPath);
       const id = nextRequestId++;
       let timer: NodeJS.Timeout | undefined;
       const cleanup = () => {
-        if (timer) clearTimeout(timer);
+        clearTimeout(timer);
         sock.destroy();
       };
       try {

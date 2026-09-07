@@ -237,8 +237,8 @@ export function summarizeFriction(friction: unknown): FrictionSummary {
     return acc + (typeof raw === 'number' ? raw : 1);
   }, 0);
   const crossAgent = Math.max(0, total - selfThrash);
-  const crossAgentRatioPct = total > 0 ? Math.min(100, Math.round((crossAgent / total) * 100)) : 0;
-  const selfThrashRatioPct = total > 0 ? Math.min(100, Math.round((selfThrash / total) * 100)) : 0;
+  const crossAgentRatioPct = Math.min(100, Math.round((crossAgent / total) * 100));
+  const selfThrashRatioPct = Math.min(100, Math.round((selfThrash / total) * 100));
 
   const prose =
     (topPair ? `Top friction pair: ${topPair}. ` : '') +

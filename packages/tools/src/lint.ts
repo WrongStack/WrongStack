@@ -132,6 +132,23 @@ export const lintTool: Tool<LintInput, LintOutput> = {
           .filter(Boolean)
       : [];
 
+    // C1 (CMDI-005) — argument injection: model-controlled `files[]` is
+    // pushed BEFORE the `--` separator in the eslint branch, so a value
+    // like `--config=.cache/evil.js` would be parsed as a CLI option.
+    // eslint's `--config` is executable JavaScript, and the attack
+    // succeeds even when `bash`/`exec` are explicitly denied because
+    // `lint` is a `shell.restricted` tool the user is likely to have
+    // trusted. Reject any entry starting with `-` unconditionally —
+    // mirrors the guard in `diff.ts:170-181`.
+    for (const f of files) {
+      if (f.startsWith('-')) {
+        throw new ToolValidationError({
+          message: `lint: file path "${f}" may not begin with '-' (flag injection)`,
+          field: 'files',
+        });
+      }
+    }
+
     const args: string[] = [];
     if (detected === 'eslint') {
       if (input.fix) args.push('--fix');

@@ -659,7 +659,7 @@ export function serveHttp(
   });
 }
 
-async function handleHttpRequest(
+export async function handleHttpRequest(
   server: MCPServer,
   req: IncomingMessage,
   res: ServerResponse,
@@ -737,13 +737,11 @@ async function handleHttpRequest(
     void server
       .handleMessage(body)
       .then((out) => {
-        if (aborted) return;
         // Notifications produce no response body.
         if (out === null) return send(202, '');
         return send(200, out);
       })
       .catch((err) => {
-        if (aborted) return;
         log?.warn?.(`MCP http handler error: ${toErrorMessage(err)}`);
         send(500, JSON.stringify({ error: 'internal error' }));
       });

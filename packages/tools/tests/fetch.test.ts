@@ -34,11 +34,16 @@ afterEach(() => {
 });
 
 describe('fetchTool', () => {
-  it('has read-only network metadata', () => {
+  it('has network metadata that prompts in every mode (H-9 regression)', () => {
     expect(fetchTool.name).toBe('fetch');
-    expect(fetchTool.permission).toBe('auto');
+    // H-9 (AT-02): the previous `permission:'auto'` made fetch a zero-approval
+    // exfiltration channel. The tool now requires explicit confirmation on
+    // every call, in every mode, even under YOLO. An "always" answer is
+    // persisted to trust.json against the URL subject.
+    expect(fetchTool.permission).toBe('confirm');
     expect(fetchTool.mutating).toBe(false);
     expect(fetchTool.capabilities).toEqual(['net.outbound']);
+    expect(fetchTool.subjectKey).toBe('url');
   });
 
   it('rejects non-http(s) protocols', async () => {

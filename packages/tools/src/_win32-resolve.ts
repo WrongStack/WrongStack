@@ -1,5 +1,16 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+// S4 (C2/C5): promote the canonical Windows `.cmd`/`.bat` shim
+// builder. The previous copy in this file (`assertSafeWin32ShellArgs`)
+// was a weaker quoting helper that predated the core-side
+// metacharacter block (`assertSafeWin32CmdArgs` / `WIN32_CMD_META`).
+// Re-export from core so the two cannot drift again; the metacharacter
+// block is the CVE-2024-27980 / "BatBadBut" defence, and having it
+// in two places is exactly the failure mode S4 is closing.
+export {
+  buildWin32CmdShimInvocation,
+  type Win32CmdShimInvocation,
+} from '@wrongstack/core/utils';
 
 /**
  * On Windows, Node.js `spawn()` without a shell does NOT resolve .cmd/.bat
@@ -109,12 +120,6 @@ export function resolvePowerShell(cmd: string): string {
  */
 const WIN32_SHELL_META = /[&|<>"%\r\n\0]/;
 
-export interface Win32CmdShimInvocation {
-  command: string;
-  args: string[];
-  windowsVerbatimArguments: true;
-}
-
 /**
  * Throw if any argument contains a cmd.exe command-injection metacharacter.
  * Call this ONLY on the Windows `.cmd`/`.bat` shim path. A no-op for safe args.
@@ -132,20 +137,5 @@ export function assertSafeWin32ShellArgs(args: readonly unknown[]): void {
   }
 }
 
-export function buildWin32CmdShimInvocation(
-  command: string,
-  args: readonly string[] = [],
-): Win32CmdShimInvocation {
-  assertSafeWin32ShellArgs([command, ...args]);
-  const line = ['call', quoteWin32CmdArg(command), ...args.map(quoteWin32CmdArg)].join(' ');
-  return {
-    command: process.env['COMSPEC'] ?? 'cmd.exe',
-    args: ['/d', '/c', line],
-    windowsVerbatimArguments: true,
-  };
-}
-
-function quoteWin32CmdArg(arg: string): string {
-  const escaped = arg.replace(/(\\+)$/, '$1$1');
-  return `"${escaped}"`;
-}
+// `buildWin32CmdShimInvocation` and `Win32CmdShimInvocation` are
+// re-exported from core at the top of this file (S4).

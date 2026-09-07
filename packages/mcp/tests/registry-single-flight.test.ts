@@ -1,8 +1,8 @@
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { Logger } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import { MCPRegistry } from '../src/registry.js';
-import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Logger } from '@wrongstack/core/types';
 
 describe('MCPRegistry single-flight & cancellation', () => {
   const dummyToolRegistry = {
@@ -165,4 +165,3 @@ describe('MCPRegistry single-flight & cancellation', () => {
     expect(wakeEvents).toHaveLength(1);
   });
 });
-

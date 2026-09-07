@@ -189,6 +189,23 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
       }
     }
 
+    // C1 (CMDI-005) — argument injection: model-controlled `files[]` is
+    // pushed into the prettier argv WITHOUT a `--` separator, so a value
+    // like `--config=.cache/evil.js` would be parsed as a CLI option.
+    // Prettier's `--config` is also executable JavaScript. Reject any
+    // entry starting with `-` unconditionally — the containment check
+    // above accepts `--config=path` because `<cwd>/--config=path`
+    // resolves inside the root, so this guard is the only thing that
+    // closes the injection.
+    for (const f of fileList) {
+      if (f.startsWith('-')) {
+        throw new ToolValidationError({
+          message: `format: file path "${f}" may not begin with '-' (flag injection)`,
+          field: 'files',
+        });
+      }
+    }
+
     let args: string[];
     if (detected === 'prettier') {
       // Prettier's CLI is `prettier --write <files|.>` / `prettier --check <files|.>`

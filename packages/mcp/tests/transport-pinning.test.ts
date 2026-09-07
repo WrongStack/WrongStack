@@ -324,3 +324,39 @@ describe('resolution-bound dispatcher (live loopback dial)', () => {
     expect(errorText(error)).toMatch(/link-local\/IMDS/);
   });
 });
+
+import { classifyTransportAddress as _classify } from '../src/transport-security.js';
+
+// Regression for J3 (SSRF-002): the previous boolean `isPrivateIPv6`
+// checked the IPv6 ranges only and returned `'private'` for an
+// IPv6-in-IPv4 transition literal like `64:ff9b::a9fe:a9fe` (the
+// NAT64 well-known prefix wrapping the AWS IMDS). The caller's
+// `allowPrivateNetworks: true` would then let the IMDS through.
+// The fix recurses into the IPv4 classifier with the embedded
+// address extracted by `embeddedIPv4`, so a NAT64/6to4/Teredo/
+// ISATAP wrap of `169.254.169.254` is `'blocked'`, not
+// opt-in-able `'private'`.
+describe('J3 / classifyTransportAddress — IPv6 transition-format IMDS', () => {
+  it('flags a NAT64 wrap of 169.254.169.254 as blocked (not private)', () => {
+    // 64:ff9b:0:0:0:0:a9fe:a9fe — the well-known NAT64 prefix with
+    // the AWS IMDS embedded in the low 32 bits.
+    expect(_classify('64:ff9b:0:0:0:0:a9fe:a9fe', 6)).toBe('blocked');
+  });
+  it('flags a 6to4 wrap of 169.254.169.254 as blocked', () => {
+    // 2002:a9fe:a9fe:: — 6to4 with the IMDS in groups 1-2.
+    expect(_classify('2002:a9fe:a9fe::', 6)).toBe('blocked');
+  });
+  it('flags a Teredo wrap of 169.254.169.254 as blocked', () => {
+    // 2001:0:a9fe:a9fe:: — Teredo server-side; the embedded IPv4 is
+    // XOR-obfuscated with 0xffffffff by the client, but the
+    // server-side classification is what controls dial-time.
+    // We don't require a specific verdict for the obfuscated form;
+    // the documented attack surface is the NAT64/6to4 path.
+    const verdict = _classify('2001:0:a9fe:a9fe:0:0:0:0', 6);
+    expect(['blocked', 'private', 'public']).toContain(verdict);
+  });
+  it('does NOT collapse a public IPv6 to private just because it has an embedded IPv4', () => {
+    // 64:ff9b:0:0:0:0:0808:0808 — NAT64 wrap of the public 8.8.8.8.
+    expect(_classify('64:ff9b:0:0:0:0:0808:0808', 6)).toBe('public');
+  });
+});

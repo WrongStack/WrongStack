@@ -152,4 +152,19 @@ describe('detectLinter config detection', () => {
     // So tsconfig.json should result in 'biome' (the fallback)
     expect(result.linter).toBe('biome');
   });
+
+  // Regression for C1 (CMDI-005) — argument injection via `files[]`.
+  // The eslint branch pushes `files` BEFORE a `--` separator, so a value
+  // like `--config=.cache/evil.js` is parsed as a CLI option. eslint's
+  // `--config` is executable JavaScript, and the attack succeeds even
+  // when `bash`/`exec` are explicitly denied. The fix rejects any entry
+  // beginning with `-` before the argv is built.
+  it('rejects file paths beginning with "-" (flag injection)', async () => {
+    await expect(
+      lintTool.execute({ files: ['--config=.cache/evil.js'] }, makeCtx(tmpDir), makeOpts()),
+    ).rejects.toThrow(/flag injection/);
+    await expect(
+      lintTool.execute({ files: ['src/index.ts', '-R', 'src/util.ts'] }, makeCtx(tmpDir), makeOpts()),
+    ).rejects.toThrow(/flag injection/);
+  });
 });

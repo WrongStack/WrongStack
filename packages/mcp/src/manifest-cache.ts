@@ -69,13 +69,13 @@ export function manifestConfigHash(cfg: {
 }
 
 function sortedEntries(values: Record<string, string> | undefined): [string, string][] | null {
-  return values ? Object.entries(values).sort(([left], [right]) => left.localeCompare(right)) : null;
+  return values
+    ? Object.entries(values).sort(([left], [right]) => left.localeCompare(right))
+    : null;
 }
 
 function passthroughEntries(names: string[] | undefined): [string, string | null][] | null {
-  return names
-    ? [...new Set(names)].sort().map((name) => [name, process.env[name] ?? null])
-    : null;
+  return names ? [...new Set(names)].sort().map((name) => [name, process.env[name] ?? null]) : null;
 }
 
 /** Filesystem-safe file name for a server within the manifest cache dir. */

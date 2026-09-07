@@ -1,7 +1,7 @@
 import * as dns from 'node:dns/promises';
 import * as net from 'node:net';
 import { ConfigError } from '@wrongstack/core/types';
-import { isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils';
+import { embeddedIPv4, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils';
 
 export function isTlsUnsafeAllowed(): boolean {
   return process.env['WRONGSTACK_UNSAFE_MCP_TLS'] === '1';
@@ -163,6 +163,20 @@ export function classifyTransportAddress(address: string, family: number): Trans
         }
       }
       return 'blocked';
+    }
+    // J3 (SSRF-002): transition-format IPv6 addresses (NAT64
+    // `64:ff9b::<v4>`, 6to4 `2002::<v4>::`, Teredo `2001:0::<v4>`,
+    // ISATAP `<v4>::5efe`) embed an IPv4 in their low 32 bits. The
+    // previous boolean `isPrivateIPv6(v6)` checked the IPv6 ranges
+    // only and returned `'private'` for the embedded `169.254.169.254`
+    // — the AWS IMDS — which the caller's `allowPrivateNetworks: true`
+    // would then let through. Recurse into the IPv4 classifier with
+    // the extracted address so the embedded IMDS hits `'blocked'`
+    // exactly like the literal IPv4 form.
+    const groups = expandIPv6(v6);
+    if (groups !== null) {
+      const embedded = embeddedIPv4(groups);
+      if (embedded !== undefined) return classifyTransportAddress(embedded, 4);
     }
     return isPrivateIPv6(v6) ? 'private' : 'public';
   }

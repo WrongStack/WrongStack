@@ -32,7 +32,7 @@ vi.mock('@wrongstack/core/utils', async (orig) => {
   };
 });
 
-import { MCPServer, serveHttp, type MCPServerToolHost } from '../src/server.js';
+import { MCPServer, type MCPServerToolHost, serveHttp } from '../src/server.js';
 
 const ORIGINAL_SPLIT = String.prototype.split;
 

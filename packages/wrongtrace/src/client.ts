@@ -31,11 +31,12 @@
  * "pass" when WrongTrace is offline.
  */
 
-import { createMcpTransport, type McpToolBag } from './adapters/mcp.js';
 import { createIpcTransport, type IpcTransport } from './adapters/ipc.js';
+import { createMcpTransport, type McpToolBag } from './adapters/mcp.js';
 import { DEFAULT_TRANSPORT_TIMEOUT_MS } from './constants.js';
-import { discover, type DiscoveryOptions, type DiscoveryResult } from './discovery.js';
+import { type DiscoveryOptions, type DiscoveryResult, discover } from './discovery.js';
 import type {
+  WrongTraceAtlasQuery,
   WrongTraceAtlasSummary,
   WrongTraceClient,
   WrongTraceFileHealth,
@@ -45,10 +46,9 @@ import type {
   WrongTraceLockOwnership,
   WrongTraceLockRequest,
   WrongTraceLockResult,
-  WrongTraceAtlasQuery,
-  WrongTraceSymbolEvent,
   WrongTraceRecentEvent,
   WrongTraceRecentEventsQuery,
+  WrongTraceSymbolEvent,
   WrongTraceTelemetryReport,
   WrongTraceUnlockRequest,
 } from './types.js';
@@ -73,7 +73,7 @@ export interface WrongTraceClientInternal extends WrongTraceClient {
   readonly _discovery: DiscoveryResult;
 }
 
-async function httpJson<T>(
+export async function _httpJson<T>(
   baseUrl: string,
   path: string,
   init?: { method?: string; body?: unknown; timeoutMs?: number; acceptStatus?: number[] },
@@ -113,6 +113,8 @@ async function httpJson<T>(
     clearTimeout(timer);
   }
 }
+
+const httpJson = _httpJson;
 
 export async function createWrongTraceClient(
   opts: WrongTraceClientOptions = {},

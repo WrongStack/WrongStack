@@ -23,6 +23,8 @@ import type { WrongTraceHealth } from './types.js';
 export interface DiscoveryOptions {
   /** Override the base URL. Default: process.env.WRONGTRACE_URL ?? "http://localhost:3444". */
   baseUrl?: string;
+  /** Override the IPC socket/pipe path. */
+  socketPath?: string;
   /** Probe timeout in ms. Default: 1000. */
   timeoutMs?: number;
   /**
@@ -41,9 +43,10 @@ export interface DiscoveryResult {
 
 /** Default IPC paths per platform — only consulted when `/api/health` did not return `socket_path`. */
 export function defaultSocketPath(
-  home = process.env['HOME'] ?? process.env['USERPROFILE'] ?? '',
+  home = process.env['HOME'] || process.env['USERPROFILE'] || '',
+  currentPlatform = platform(),
 ): string {
-  if (platform() === 'win32') return '\\\\.\\pipe\\wrongtrace';
+  if (currentPlatform === 'win32') return '\\\\.\\pipe\\wrongtrace';
   if (home) return join(home, '.wrongtrace', 'ipc.sock');
   return '/tmp/wrongtrace.sock';
 }
@@ -71,7 +74,8 @@ export async function discover(opts: DiscoveryOptions = {}): Promise<DiscoveryRe
     //   * { status: "ok" }                (current WrongProxy-style schema)
     if (body?.ok !== true && body?.status !== 'ok') return { available: false, baseUrl };
     const result: DiscoveryResult = { available: true, baseUrl };
-    if (typeof body.socket_path === 'string') result.socketPath = body.socket_path;
+    if (typeof opts.socketPath === 'string') result.socketPath = opts.socketPath;
+    else if (typeof body.socket_path === 'string') result.socketPath = body.socket_path;
     else result.socketPath = defaultSocketPath();
     if (typeof body.version === 'string') result.version = body.version;
     return result;

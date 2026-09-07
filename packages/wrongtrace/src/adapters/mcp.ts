@@ -80,7 +80,7 @@ export function createMcpTransport(
         // race, a ref'ed setTimeout would hold the event loop open for the
         // remaining timeoutMs (and abandoned timers stack at higher call
         // rates). Clear it on every settlement path.
-        if (timer !== undefined) clearTimeout(timer);
+        clearTimeout(timer);
       }
     },
   };

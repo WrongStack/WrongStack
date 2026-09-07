@@ -643,7 +643,7 @@ export class MCPClient {
           gracefulTimer.unref?.();
         }),
       ]);
-      if (gracefulTimer) clearTimeout(gracefulTimer);
+      clearTimeout(gracefulTimer);
       if (gracefulRace === 'timeout') {
         // A Windows server that does not exit on stdin EOF is rooted at the
         // still-live cmd.exe wrapper, so taskkill /T /F can reliably remove
@@ -657,7 +657,7 @@ export class MCPClient {
             forceTimer.unref?.();
           }),
         ]);
-        if (forceTimer) clearTimeout(forceTimer);
+        clearTimeout(forceTimer);
       }
       // Detach all listeners and drop the reference so the child process
       // object and its stdio streams can be garbage-collected.

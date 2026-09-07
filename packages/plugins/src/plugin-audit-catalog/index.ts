@@ -81,7 +81,11 @@ export const HOST_PLUGIN_AUDIT_ENTRIES: readonly PluginAuditEntry[] = [
     name: '@wrongstack/plug-lsp',
     risk: 'medium',
     summary: 'Language Server Protocol tools and slash commands.',
-    defaultState: 'inactive',
+    // Active by default: with `autoStart: 'lazy'` nothing is spawned until a
+    // file of a matching language is touched, and auto-discovery only adopts
+    // servers already installed on the machine. Disable with
+    // `{ name: 'lsp', enabled: false }` in config.plugins.
+    defaultState: 'active',
     canDisable: true,
   },
   {

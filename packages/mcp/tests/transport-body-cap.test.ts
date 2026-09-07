@@ -39,10 +39,7 @@ function jsonResponse(id: number, result: unknown): Response {
   });
 }
 
-function oversizedResponse(
-  tally: BodyTally,
-  contentType?: string,
-): Response {
+function oversizedResponse(tally: BodyTally, contentType?: string): Response {
   return new Response(overCapBody(tally), {
     status: 200,
     ...(contentType ? { headers: { 'content-type': contentType } } : {}),
