@@ -256,11 +256,11 @@ describe('form lifecycle', () => {
     let s = reducer(initial(), { type: 'authOpen' });
     s = reducer(s, { type: 'authFormStart', form: setupForm });
     const live = s.authPanel.form;
-    s = reducer(s, { type: 'authView', view: 'list' });
     s = reducer(s, { type: 'authView', view: 'form' });
     // Re-entering the form view keeps the slice the user is editing only
     // because nothing else touched it; the guard in the previous case is
     // for cross-view transitions, not for a no-op round trip.
+    expect(s.authPanel.form).toBe(live);
     expect(s.authPanel.view).toBe('form');
   });
 });

@@ -2,7 +2,11 @@ import { render } from 'ink-testing-library';
 import React, { act, useEffect } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type Action, reducer, type State } from '../src/app-reducer.js';
-import { AUTH_PANEL_INITIAL, type AuthPanelHost } from '../src/components/auth-panel-model.js';
+import {
+  AUTH_PANEL_INITIAL,
+  type AuthPanelHost,
+  type AuthProviderSetup,
+} from '../src/components/auth-panel-model.js';
 import { type AuthPanelController, useAuthPanel } from '../src/hooks/use-auth-panel.js';
 import { Text } from '../src/ink.js';
 
@@ -171,7 +175,7 @@ describe('useAuthPanel standalone secret prompts', () => {
   });
 
   it('the form-based add-provider flow opens a form, then Save calls the host and routes back', async () => {
-    const saveProviderSetup = vi.fn(async () => null as string | null);
+    const saveProviderSetup = vi.fn(async (_setup: AuthProviderSetup) => null as string | null);
     const host = {
       listProviders: vi.fn(async () => []),
       listCatalog: vi.fn(async () => []),
