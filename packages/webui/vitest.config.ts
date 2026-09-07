@@ -179,16 +179,14 @@ export default defineConfig({
       // Measured: 52.95% statements, 44.46% branches, 44.93% functions,
       // 54.35% lines.
       //
-      // Raised after the first two rendered-component suites
-      // (SessionWatchPanel, QuickModelSwitcher) — the start of the `.tsx`
-      // render-tree work that is now the bulk of the remainder.
-      // Measured: 53.97% statements, 45.24% branches, 45.83% functions,
-      // 55.38% lines.
+      // Raised after component coverage expansion (ToolStatsModal, SideEffectTimeline,
+      // ProviderWaitingRoom, CustomRosterPanel, GoalView & BoardView).
+      // Measured: 62.62% statements, 53.44% branches, 55.65% functions, 64.16% lines.
       thresholds: {
-        statements: 53,
-        branches: 44,
-        functions: 45,
-        lines: 55,
+        statements: 62,
+        branches: 53,
+        functions: 55,
+        lines: 63,
         perFile: false,
       },
     },

@@ -30,6 +30,7 @@ export const STATUSLINE_ICONS = {
   processes: glyphs.process,
   project: glyphs.folder,
   prompt_variant: glyphs.terminal,
+  quota: glyphs.target,
   queue: glyphs.queue,
   sessions: glyphs.sessions,
   side_effects: glyphs.audit,

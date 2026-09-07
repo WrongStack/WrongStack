@@ -469,8 +469,18 @@ export function handleRunResult(msg: WSServerMessage) {
       chat.finalizeMessage(messageId, { final: true });
     }
   }
+  // Bug Hunter owns the next turn while it is active. Showing the generic
+  // next-step bar here invites a second, manual request (usually "start round
+  // 2") before the bounded loop has advanced its own request id. That leaves
+  // the sidebar on the old round and races the continuation against a normal
+  // chat run. A hunt either submits its continuation below or clears itself;
+  // it never exposes the generic next-step automation between rounds.
   const laneNextStepSuggestions = completedToolNextSteps.get(chat.sessionId) ?? [];
-  if (payload.status === 'done' && laneNextStepSuggestions.length > 0) {
+  if (activeBugHunt) {
+    // Do not leave the completed tool result around to resurface after the
+    // final hunt round or on a later ordinary chat turn.
+    completedToolNextSteps.delete(chat.sessionId);
+  } else if (payload.status === 'done' && laneNextStepSuggestions.length > 0) {
     const hasRenderedSuggestions = chat.messages.some(
       (message) => message.role === 'assistant' && (message.nextSteps?.steps.length ?? 0) > 0,
     );

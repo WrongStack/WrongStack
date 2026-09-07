@@ -70,6 +70,13 @@ export type Action =
   | { type: 'compactHistory' }
   | { type: 'setBuffer'; buffer: string; cursor: number }
   | { type: 'clearInput' }
+  /**
+   * Flip the composer into bash mode (`!` pressed on an empty draft): the
+   * input becomes a shell-command line and Enter runs it via the `!` path.
+   */
+  | { type: 'bashModeEnter' }
+  /** Leave bash mode and restore the normal chat composer. */
+  | { type: 'bashModeExit' }
   | { type: 'clearHistory'; model?: string | undefined; provider?: string | undefined }
   | { type: 'streamDelta'; delta: string }
   | { type: 'streamReset' }

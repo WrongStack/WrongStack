@@ -10,10 +10,14 @@ import { Text } from '../src/ink.js';
 import { TokenPreviewStore } from '../src/token-previews.js';
 
 // Mock node:fs/promises for file reading tests
-vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn(),
-  stat: vi.fn(),
-}));
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    readFile: vi.fn(),
+    stat: vi.fn(),
+  };
+});
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

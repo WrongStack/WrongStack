@@ -49,7 +49,6 @@ const build = () =>
 const ctx = {} as never;
 
 /** Strip ANSI so assertions read the text, not the escape codes. */
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matching ANSI escapes is the point
 const plain = (s: string) => s.replace(/\[[0-9;]*m/g, '');
 
 type RunResult = Awaited<ReturnType<ReturnType<typeof buildCodebaseMapCommand>['run']>>;
@@ -170,6 +169,13 @@ describe('/codebase-map --export', () => {
   let projectRoot: string;
 
   beforeEach(async () => {
+    // The mock-clearing beforeEach in the first describe is scoped there, so
+    // clear here too: calls leaked from earlier describes (e.g. the /proj
+    // print-map test) would fail the not.toHaveBeenCalled() assertion below.
+    generateRepoMapMock.mockClear();
+    writeProjectAtlasMock.mockClear();
+    checkProjectAtlasFreshnessMock.mockClear();
+    exportProjectAtlasHtmlMock.mockClear();
     projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-mapexport-'));
   });
 

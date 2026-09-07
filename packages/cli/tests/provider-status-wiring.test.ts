@@ -14,12 +14,16 @@ const mocks = vi.hoisted(() => ({
   }>,
 }));
 
-vi.mock('node:fs/promises', () => ({
-  readFile: mocks.readFile,
-  appendFile: mocks.appendFile,
-  stat: mocks.stat,
-  rename: mocks.rename,
-}));
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    readFile: mocks.readFile,
+    appendFile: mocks.appendFile,
+    stat: mocks.stat,
+    rename: mocks.rename,
+  };
+});
 
 vi.mock('@wrongstack/core/utils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@wrongstack/core/utils')>();

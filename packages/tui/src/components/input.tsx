@@ -37,6 +37,8 @@ function ComposerTopRail({
   animationStyle,
   disabled,
   workingTime,
+  icon = glyphs.brand,
+  accent,
 }: {
   width: number;
   title: string;
@@ -44,12 +46,12 @@ function ComposerTopRail({
   animationStyle: AnimationStyle | 'cycle';
   disabled: boolean;
   workingTime?: number | undefined;
+  /** Glyph drawn before the title; defaults to the brand glyph. */
+  icon?: string | undefined;
+  /** Rail color override (e.g. warn color while bash mode is active). */
+  accent?: string | undefined;
 }): React.ReactElement {
   const available = Math.max(0, width - 2);
-  // Width-stable placeholder for the activity icon: every animation frame and
-  // the resting brand glyph measure exactly one column, so the rail geometry is
-  // computed once here and never shifts as the icon animates below.
-  const icon = glyphs.brand;
   // The 'static' style flattens the whole working surface: the left orb rests
   // on the brand glyph instead of pulsing (the right chip renders flat text).
   // 'cycle' keeps animating — it means "shuffle all styles".
@@ -76,7 +78,7 @@ function ComposerTopRail({
   const remaining = Math.max(0, available - titleW - statusSectionW);
 
   return (
-    <Text bold color={disabled ? theme.error : theme.brandPrimary}>
+    <Text bold color={disabled ? theme.error : (accent ?? theme.brandPrimary)}>
       {'╭'}
       {title ? (
         <>
@@ -119,6 +121,14 @@ export interface InputProps {
   hint?: string | undefined;
   /** Label embedded in the composer's top rail. */
   title?: string | undefined;
+  /** Glyph shown before the title in the top rail (defaults to the brand glyph). */
+  railIcon?: string | undefined;
+  /**
+   * Frame/prompt color override for a special composer mode (e.g. the warn
+   * color while bash mode is active). Defaults to the theme brand colors;
+   * `disabled` still wins with the error color.
+   */
+  accent?: string | undefined;
   /**
    * Right-aligned live status descriptor for the composer's top rail. Renders
    * as an animated {@link ComposerStatusChip} (the thinking word while working,
@@ -308,6 +318,8 @@ export const Input = memo(function Input({
   disabled,
   hint,
   title = 'ASK WRONGSTACK',
+  railIcon,
+  accent,
   status,
   animationStyle = 'rainbow',
   workingTime,
@@ -555,8 +567,9 @@ export const Input = memo(function Input({
   const { columns: cols } = useTerminalSize({ maxWidth });
 
   // Disabled (aborting an iteration) is the only signal that needs a
-  // hard visual cue — paint the prompt red.
-  const promptColor = disabled ? theme.error : theme.brandAccent;
+  // hard visual cue — paint the prompt red. A mode override (bash mode's
+  // warn color) otherwise replaces the brand accent.
+  const promptColor = disabled ? theme.error : (accent ?? theme.brandAccent);
 
   // One <Text> per wrapped row: the column box's height becomes the row count,
   // so a long message that soft-wraps (or any embedded newlines) gives the
@@ -658,6 +671,8 @@ export const Input = memo(function Input({
       <ComposerTopRail
         width={cols}
         title={title}
+        icon={railIcon}
+        accent={accent}
         status={railStatus}
         animationStyle={animationStyle}
         disabled={disabled ?? false}
@@ -668,19 +683,19 @@ export const Input = memo(function Input({
         const padding = ' '.repeat(Math.max(0, contentWidth - rowWidth));
         return (
           <Text key={i}>
-            <Text color={disabled ? theme.error : theme.brandPrimary}>{'│ '}</Text>
+            <Text color={disabled ? theme.error : (accent ?? theme.brandPrimary)}>{'│ '}</Text>
             {row.length === 0 ? null : renderRow(row, `r${i}`, promptColor)}
             <Text>{padding}</Text>
-            <Text color={disabled ? theme.error : theme.brandPrimary}>{' │'}</Text>
+            <Text color={disabled ? theme.error : (accent ?? theme.brandPrimary)}>{' │'}</Text>
           </Text>
         );
       })}
-      {/* Bottom frame: border matches top rail (brandPrimary), hint text is muted */}
+      {/* Bottom frame: border matches top rail, hint text is muted */}
       <Text>
-        <Text color={disabled ? theme.error : theme.brandPrimary}>{leftBorder}</Text>
+        <Text color={disabled ? theme.error : (accent ?? theme.brandPrimary)}>{leftBorder}</Text>
         <Text color={theme.textMuted}>{shownHint}</Text>
         {scrollIndicator ? <Text color={theme.textMuted}>{scrollIndicator}</Text> : null}
-        <Text color={disabled ? theme.error : theme.brandPrimary}>
+        <Text color={disabled ? theme.error : (accent ?? theme.brandPrimary)}>
           {fillW > 0 ? ' ' : ''}
           {'─'.repeat(fillW)}
           {'╯'}

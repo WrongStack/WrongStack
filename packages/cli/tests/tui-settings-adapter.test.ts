@@ -664,3 +664,47 @@ describe('TUI settings adapter', () => {
     expect(s['restrictFsToRoot']).toBe(false);
   });
 });
+
+describe('preRefineSeconds persistence (SettingsPicker field 41)', () => {
+  // The TUI auto-save hook sends `preRefineSeconds` in every saveSettings()
+  // payload (packages/tui/src/hooks/use-settings-auto-save.ts:65) and lists it
+  // in the effect deps (:125). The adapter must persist it to
+  // `autonomy.preRefineSeconds` (next to the enhance* knobs it belongs to)
+  // and read it back in getSettings() — mirroring the picker default of 3
+  // (settings-picker-model.ts:295).
+  it('saveSettings persists preRefineSeconds and getSettings reads it back', async () => {
+    const { adapter, globalConfig } = makeAdapter();
+    const err = await adapter.saveSettings({ preRefineSeconds: 7 } as never);
+    expect(err).toBeNull();
+    const written = JSON.parse(readFileSync(globalConfig, 'utf8')) as {
+      autonomy?: { preRefineSeconds?: number };
+    };
+    expect(written.autonomy?.preRefineSeconds).toBe(7);
+    expect(adapter.getSettings().preRefineSeconds).toBe(7);
+  });
+
+  it('defaults preRefineSeconds to the picker default (3) when config has no value', () => {
+    const { adapter } = makeAdapter();
+    expect(adapter.getSettings().preRefineSeconds).toBe(3);
+  });
+
+  it('round-trips 0 (skip) and re-saves without disturbing autonomy siblings', async () => {
+    const { adapter, globalConfig } = makeAdapter();
+    const err = await adapter.saveSettings({ preRefineSeconds: 0, enhanceEnabled: false } as never);
+    expect(err).toBeNull();
+    const first = JSON.parse(readFileSync(globalConfig, 'utf8')) as {
+      autonomy?: { preRefineSeconds?: number; enhance?: boolean; autoProceedDelayMs?: number };
+    };
+    expect(first.autonomy?.preRefineSeconds).toBe(0);
+    expect(first.autonomy?.enhance).toBe(false);
+    expect(first.autonomy?.autoProceedDelayMs).toBe(45_000);
+
+    const err2 = await adapter.saveSettings({ preRefineSeconds: 9 } as never);
+    expect(err2).toBeNull();
+    const second = JSON.parse(readFileSync(globalConfig, 'utf8')) as {
+      autonomy?: { preRefineSeconds?: number };
+    };
+    expect(second.autonomy?.preRefineSeconds).toBe(9);
+    expect(adapter.getSettings().preRefineSeconds).toBe(9);
+  });
+});

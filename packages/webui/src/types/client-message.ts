@@ -394,6 +394,7 @@ export type WSClientMessageCore =
   | { type: 'auth.oauth.start'; payload: { kind: OAuthKind; providerId?: string | undefined } }
   | { type: 'auth.oauth.code'; payload: { kind: OAuthKind; input: string } }
   | { type: 'auth.oauth.cancel'; payload: { kind: OAuthKind } }
+  | { type: 'provider.quota.get' }
   | { type: 'provider.status.get' }
   | { type: 'provider.audit.get'; payload?: { count?: number | undefined } }
   | { type: 'provider.status.retry'; payload: { providerId: string; model: string } }

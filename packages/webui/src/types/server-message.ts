@@ -52,6 +52,7 @@ import type {
   WSProviderError,
   WSProviderFallback,
   WSProviderFallbackPending,
+  WSProviderQuota,
   WSProviderResponse,
   WSProviderRetry,
   WSProviderStatusChanged,
@@ -171,6 +172,7 @@ export type WSServerMessage =
   | WSProviderFallback
   | WSProviderFallbackPending
   | WSProviderStatusChanged
+  | WSProviderQuota
   | WSProviderStatusSnapshot
   | WSProviderActiveBlocked
   | WSProviderStreamError

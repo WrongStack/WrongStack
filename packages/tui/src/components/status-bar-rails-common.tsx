@@ -1,9 +1,10 @@
-import type { StatuslineDensity } from "@wrongstack/core/statusline";
-import type React from "react";
-import type { AnimationStyle } from "./animation-style.js";
-import type { RailSpanEntry } from "./powerline-rail.js";
-import type { FleetAgentDetail, MailboxStatus, StatusBarProps } from "./status-bar-types.js";
-import type { StatuslineItem } from "./statusline-picker.js";
+import type { StatuslineDensity } from '@wrongstack/core/statusline';
+import type React from 'react';
+import type { ProviderQuotaChip } from '../hooks/use-provider-quota.js';
+import type { AnimationStyle } from './animation-style.js';
+import type { RailSpanEntry } from './powerline-rail.js';
+import type { FleetAgentDetail, MailboxStatus, StatusBarProps } from './status-bar-types.js';
+import type { StatuslineItem } from './statusline-picker.js';
 
 export interface StatusBarRailBuildParams {
   showChip: (item: StatuslineItem) => boolean;
@@ -36,6 +37,13 @@ export interface StatusBarRailBuildParams {
   queueCount?: number | undefined;
   hint?: string | undefined;
   breakerCountdown?: StatusBarProps['breakerCountdown'];
+  /**
+   * Most-consumed subscription window across every metered provider, or
+   * undefined until one has reported. Resolved inside `<StatusBar />` from the
+   * provider-neutral quota store, not threaded from app state: the value is
+   * push-driven and belongs to no single session.
+   */
+  quota?: ProviderQuotaChip | undefined;
   projectName?: string | undefined;
   workingDir?: string | undefined;
   git?: StatusBarProps['git'];

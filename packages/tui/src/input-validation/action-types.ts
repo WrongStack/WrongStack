@@ -204,6 +204,8 @@ export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'refineFailureOpen',
   'replaceHistory',
   'autoProceedRelease',
+  'bashModeEnter',
+  'bashModeExit',
   'resumeLoadStart',
   'resumeLoadTick',
   'resumeStreamChunk',

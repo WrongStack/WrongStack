@@ -1,5 +1,6 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { EventBus, EventName, Listener } from '@wrongstack/core/kernel';
+import { onProviderQuota } from '@wrongstack/core/quota';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
@@ -334,6 +335,24 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
       },
     });
   });
+
+  // Subscription quota. Deliberately UNSTAMPED for the same reason as
+  // `provider.status_changed` above: how much of a plan is left is a fact about
+  // the account, not about a conversation. Every tab needs it, and a stamped
+  // frame would be dropped for any page that has not declared the runtime's
+  // current session.
+  //
+  // This is a store subscription rather than an EventBus event because the
+  // reporters are transports in `providers`, which is below the kernel and has
+  // no bus to publish on. The store is the seam.
+  disposers.push(
+    onProviderQuota((providerId, snapshots) => {
+      broadcast(clients, {
+        type: 'provider.quota',
+        payload: { providerId, snapshots },
+      });
+    }),
+  );
 
   on('provider.active_blocked', (e) => {
     broadcast(clients, {

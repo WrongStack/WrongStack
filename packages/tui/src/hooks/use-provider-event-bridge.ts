@@ -77,6 +77,33 @@ interface ProviderEventBridgeOptions {
   setMemoryContextMonitor: Dispatch<SetStateAction<MemoryContextMonitorState>>;
 }
 
+/**
+ * `tool.executed.output` is deliberately a transport preview. The canonical
+ * tool result is appended to the conversation immediately after the event is
+ * emitted, so resolve it from the agent state before creating the copyable
+ * history entry. Keeping this lookup here preserves the compact event wire
+ * contract for every other subscriber.
+ */
+function fullToolResultFromState(
+  agent: AppProps['agent'],
+  toolUseId: string | undefined,
+): string | undefined {
+  if (!toolUseId) return undefined;
+  const messages = agent.ctx.state?.messages;
+  if (!Array.isArray(messages)) return undefined;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const content = messages[i]?.content;
+    if (!Array.isArray(content)) continue;
+    for (let j = content.length - 1; j >= 0; j--) {
+      const block = content[j];
+      if (block?.type === 'tool_result' && block.tool_use_id === toolUseId) {
+        return block.content;
+      }
+    }
+  }
+  return undefined;
+}
+
 /** Bridges provider/tool/delegate/memory events into render-neutral TUI actions. */
 export function useProviderEventBridge({
   events,
@@ -225,27 +252,37 @@ export function useProviderEventBridge({
       // delegate.started / delegate.completed events below — skip the
       // generic tool entry so history doesn't also show the big JSON blob.
       if (e.name !== 'delegate') {
-        dispatch({
-          type: 'addEntry',
-          entry: {
-            kind: 'tool',
-            name: e.name,
-            durationMs: e.durationMs,
-            ok: e.ok,
-            input: e.input,
-            output: e.output,
-            // SAGE-injected memory travels beside the output preview so it
-            // always renders as a memory block, never as tool text.
-            sageLines: e.sage,
-            ...(pendingSageStats.has(e.name) ? { sageStats: pendingSageStats.get(e.name)! } : {}),
-            // Real model-visible sizes — forwarded so the size chip beside
-            // the tool header can show what the model paid for instead of
-            // the misleading preview-byte count we used to surface.
-            outputBytes: e.outputBytes,
-            outputTokens: e.outputTokens,
-            outputLines: e.outputLines,
-          },
-        });
+        const addToolEntry = (output: string | undefined): void => {
+          dispatch({
+            type: 'addEntry',
+            entry: {
+              kind: 'tool',
+              name: e.name,
+              durationMs: e.durationMs,
+              ok: e.ok,
+              input: e.input,
+              output,
+              // SAGE-injected memory travels beside the output preview so it
+              // always renders as a memory block, never as tool text.
+              sageLines: e.sage,
+              ...(pendingSageStats.has(e.name) ? { sageStats: pendingSageStats.get(e.name)! } : {}),
+              // Real model-visible sizes — forwarded so the size chip beside
+              // the tool header can show what the model paid for instead of
+              // the misleading preview-byte count we used to surface.
+              outputBytes: e.outputBytes,
+              outputTokens: e.outputTokens,
+              outputLines: e.outputLines,
+            },
+          });
+        };
+        // The core appends the full tool_result after emitting tool.executed.
+        // A microtask runs after that synchronous append, while retaining a
+        // preview fallback for legacy/test hosts without conversation state.
+        if (agent.ctx.state?.messages) {
+          queueMicrotask(() => addToolEntry(fullToolResultFromState(agent, e.id) ?? e.output));
+        } else {
+          addToolEntry(e.output);
+        }
       }
       pendingSageStats.delete(e.name);
       // Prefer the tool_use id (paired with `tool.started.id`) so parallel

@@ -17,7 +17,8 @@ vi.mock('@/lib/notify', () => ({
   ensureNotificationPermission: vi.fn(),
   notifyIfHidden: vi.fn(),
 }));
-vi.mock('@/lib/ws-client', () => ({ getWSClient: () => ({ send: vi.fn() }) }));
+const sendMessage = vi.hoisted(() => vi.fn(() => 'next-round'));
+vi.mock('@/lib/ws-client', () => ({ getWSClient: () => ({ send: vi.fn(), sendMessage }) }));
 
 // ── SUT (imported after mocks) ────────────────────────────────────────────
 import {
@@ -26,6 +27,7 @@ import {
   handleToolStarted,
 } from '../../src/hooks/ws-handlers/chat-handlers';
 import { streamCoalescer } from '../../src/lib/stream-coalescer';
+import { useBugHuntRunStore } from '../../src/stores/bug-hunt-run-store';
 import { disposeLane, useChatLanes } from '../../src/stores/chat-lanes';
 import type { WSServerMessage } from '../../src/types';
 
@@ -62,6 +64,8 @@ beforeEach(() => {
   // `payload.sessionId`, exactly as they do when a window holds several tabs.
   useChatLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
   streamCoalescer.dropAll();
+  sendMessage.mockClear();
+  useBugHuntRunStore.setState({ runs: {} });
 });
 
 afterEach(() => {
@@ -140,6 +144,32 @@ describe('next-steps survive interleaved runs across two sessions', () => {
     expect(laneA?.messages.filter((m) => (m.nextSteps?.steps.length ?? 0) > 0)).toHaveLength(0);
     // Bookkeeping is consumed; a later run cannot inherit the failed attempt.
     expect(laneA?.messages).toHaveLength(1); // only the tool bubble
+  });
+
+  it('lets the bug-hunt loop own completion instead of showing next-step chips', () => {
+    useBugHuntRunStore.getState().start(SESSION_A, {
+      scope: 'packages/webui',
+      totalRounds: 3,
+      currentRound: 1,
+      requestId: 'round-one',
+    });
+    handleToolStarted(nextStepsStarted(SESSION_A, 'tool_a', stepsA));
+    handleToolExecuted(nextStepsExecuted(SESSION_A, 'tool_a'));
+
+    handleRunResult(runResult(SESSION_A));
+
+    const laneA = useChatLanes.getState().lanes[SESSION_A];
+    expect(laneA?.messages.filter((m) => (m.nextSteps?.steps.length ?? 0) > 0)).toHaveLength(0);
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.stringContaining("This is round 2/3; we're continuing the bug hunt."),
+      undefined,
+      false,
+      SESSION_A,
+    );
+    expect(useBugHuntRunStore.getState().runs[SESSION_A]).toMatchObject({
+      currentRound: 2,
+      requestId: 'next-round',
+    });
   });
 
   it('releases a retired session so its steps cannot resurface', () => {

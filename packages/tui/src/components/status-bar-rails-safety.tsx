@@ -1,17 +1,12 @@
-import { Text } from "../ink.js";
-import { theme } from "../theme.js";
-import { glyphs } from "../ui-glyphs.js";
-import type { RailSpanEntry } from "./powerline-rail.js";
-import { EternalStageChip } from "./status-bar-chips.js";
-import { truncateChip } from "./status-bar-format.js";
-import { countdownColor } from "./status-bar-helpers.js";
-import { chipColor, STATUSLINE_ICONS } from "./status-bar-icons.js";
-import {
-  type StatusBarRailBuildParams,
-  entry,
-  compact,
-  icon,
-} from "./status-bar-rails-common.js";
+import { Text } from '../ink.js';
+import { theme } from '../theme.js';
+import { glyphs } from '../ui-glyphs.js';
+import type { RailSpanEntry } from './powerline-rail.js';
+import { EternalStageChip } from './status-bar-chips.js';
+import { truncateChip } from './status-bar-format.js';
+import { countdownColor } from './status-bar-helpers.js';
+import { chipColor, STATUSLINE_ICONS } from './status-bar-icons.js';
+import { compact, entry, icon, type StatusBarRailBuildParams } from './status-bar-rails-common.js';
 
 /**
  * Standing posture (is this session dangerous? is it throttled?) followed by
@@ -30,6 +25,7 @@ export function buildSafetyWorkEntries(p: StatusBarRailBuildParams): RailSpanEnt
     showEternalStage,
     eternalStage,
     breakerCountdown,
+    quota,
     droppedTools,
     todos,
     todosCleared,
@@ -83,6 +79,36 @@ export function buildSafetyWorkEntries(p: StatusBarRailBuildParams): RailSpanEnt
             </Text>,
             <Text color={isNoColor ? undefined : color} bold>
               {STATUSLINE_ICONS.breaker} {secs}s
+            </Text>,
+          ]);
+        })()
+      : null,
+    // Standing budget, beside the standing throttle: `breaker` says "this
+    // session is paused for N seconds", `quota` says "this plan is N% spent".
+    // A reader scanning for "why can't it just run" wants both in one place.
+    quota && showChip('quota')
+      ? (() => {
+          const pct = Math.round(quota.usedPercent);
+          // Amber from 70% is early enough to change what you spend the rest
+          // of the window on; red at 90% (or once the backend has actually cut
+          // the account off) is the point where the next turn may not run.
+          const color = chipColor(
+            quota.reached || pct >= 90 ? theme.error : pct >= 70 ? theme.warn : theme.textSecondary,
+            isNoColor,
+          );
+          const reset = quota.resetIn ? ` ${glyphs.clock}${quota.resetIn}` : '';
+          return entry('quota', 'quota', p, [
+            <Text color={color}>
+              {icon(STATUSLINE_ICONS.quota, isNoColor)}
+              {quota.windowLabel} {pct}%{reset}
+            </Text>,
+            <Text color={color}>
+              {icon(STATUSLINE_ICONS.quota, isNoColor)}
+              {quota.windowLabel} {pct}%
+            </Text>,
+            <Text color={color}>
+              {isNoColor ? '' : STATUSLINE_ICONS.quota}
+              {pct}%
             </Text>,
           ]);
         })()

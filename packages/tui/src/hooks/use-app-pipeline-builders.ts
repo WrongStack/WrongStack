@@ -251,7 +251,7 @@ export function buildAppPipelineArgs(params: {
       lastEnterAtRef,
       draftRef,
       setDraft,
-      submit: () => submitRef.current(),
+      submit: (overrideRaw?: string) => submitRef.current(overrideRaw),
       mouseMode,
       termRows,
       terminalColumns,

@@ -36,5 +36,26 @@ export default defineConfig({
     hookTimeout: 60_000,
     setupFiles: ['../../vitest.setup.ts'],
     maxWorkers: getVitestMaxWorkers(),
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'json-summary'],
+      reportOnFailure: true,
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
+      exclude: [
+        'src/index.ts',
+        'src/clipboard.ts',
+        'src/components/history.tsx',
+        'src/components/audit-panel-model.ts',
+        'src/components/brain-panel-model.ts',
+        'src/suggestions.ts',
+        'src/theme-presets/**',
+      ],
+      thresholds: {
+        lines: 75,
+        statements: 73,
+        functions: 77,
+        branches: 64,
+      },
+    },
   },
 });

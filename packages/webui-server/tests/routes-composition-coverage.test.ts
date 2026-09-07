@@ -43,7 +43,7 @@ vi.mock('../src/server/session-handlers.js', () => ({
 import { buildRoutes } from '../src/server/routes.js';
 
 describe('buildRoutes composition', () => {
-  it('constructs every route family from live state and shared dependencies', () => {
+  it('constructs every route family from live state and shared dependencies', async () => {
     const clients = new Map();
     const config = { provider: 'openai', model: 'gpt-5.6', providers: {} };
     const fallback = vi.fn();
@@ -80,6 +80,7 @@ describe('buildRoutes composition', () => {
         sddWizardHandler: { handleMessage: vi.fn() },
         globalConfigPath: 'D:\\global\\config.json',
         profileConfigPath: 'D:\\global\\profiles\\default.json',
+        trustBoundary: { evaluate: vi.fn().mockResolvedValue({ kind: 'allow', allowed: true }) },
       },
       { get: (target, property) => Reflect.get(target, property) ?? {} },
     );
@@ -128,6 +129,39 @@ describe('buildRoutes composition', () => {
     ).toHaveBeenCalledWith(ws);
     routes.goalRoutes.handleMessage(ws, { type: 'goal.get' } as never);
     expect(deps.goalHandler.handleMessage).toHaveBeenCalledWith(ws, { type: 'goal.get' });
+
+    routes.specsRoutes.handleMessage({ type: 'specs.list' } as never);
+    expect(deps.specsHandler.handleMessage).toHaveBeenCalledWith({ type: 'specs.list' });
+
+    routes.sddBoardRoutes.handleMessage({ type: 'sdd.list' } as never);
+    expect(deps.sddBoardHandler.handleMessage).toHaveBeenCalledWith({ type: 'sdd.list' });
+
+    routes.sddWizardRoutes.handleMessage({ type: 'wizard.step' } as never);
+    expect(deps.sddWizardHandler.handleMessage).toHaveBeenCalledWith({ type: 'wizard.step' });
+
+    // mcpRoutes delegation
+    await routes.mcpRoutes.list(ws, { type: 'mcp.list' } as never);
+    await routes.mcpRoutes.add(ws, { type: 'mcp.add' } as never);
+    await routes.mcpRoutes.update(ws, { type: 'mcp.update' } as never);
+    await routes.mcpRoutes.remove(ws, { type: 'mcp.remove' } as never);
+    await routes.mcpRoutes.enable(ws, { type: 'mcp.enable' } as never);
+    await routes.mcpRoutes.disable(ws, { type: 'mcp.disable' } as never);
+    await routes.mcpRoutes.sleep(ws, { type: 'mcp.sleep' } as never);
+    await routes.mcpRoutes.wake(ws, { type: 'mcp.wake' } as never);
+    await routes.mcpRoutes.restart(ws, { type: 'mcp.restart' } as never);
+    await routes.mcpRoutes.discover(ws, { type: 'mcp.discover' } as never);
+    await routes.mcpRoutes.resources(ws, { type: 'mcp.resources' } as never);
+    await routes.mcpRoutes.prompts(ws, { type: 'mcp.prompts' } as never);
+    await routes.mcpRoutes.resourceRead(ws, { type: 'mcp.resourceRead' } as never);
+    await routes.mcpRoutes.promptGet(ws, { type: 'mcp.promptGet' } as never);
+
+    // shellGitRoutes validation error paths
+    await routes.shellGitRoutes.gitDiff(ws, { payload: 'invalid' } as never);
+    await routes.shellGitRoutes.gitStage(ws, { payload: 'invalid' } as never);
+    await routes.shellGitRoutes.gitUnstage(ws, { payload: 'invalid' } as never);
+    await routes.shellGitRoutes.gitDiscard(ws, { payload: 'invalid' } as never);
+    await routes.shellGitRoutes.gitCommit(ws, { payload: 'invalid' } as never);
+    await routes.shellGitRoutes.shellOpen(ws, { payload: 'invalid' } as never);
   });
 
   /**

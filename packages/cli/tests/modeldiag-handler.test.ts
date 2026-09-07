@@ -20,10 +20,14 @@ const FAKE_CACHE = JSON.stringify({
 });
 
 const mockReadFile = vi.hoisted(() => vi.fn(async () => FAKE_CACHE));
-vi.mock('node:fs/promises', () => ({
-  readFile: mockReadFile,
-  writeFile: vi.fn(async () => undefined),
-}));
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    readFile: mockReadFile,
+    writeFile: vi.fn(async () => undefined),
+  };
+});
 
 // Mock the modeldiag-profiles module
 vi.mock('../src/subcommands/handlers/modeldiag-profiles.js', () => ({
@@ -119,7 +123,8 @@ describe('modeldiag handler', () => {
     const { deps } = makeDeps();
     deps.paths.modelsCache = undefined;
     const code = await modeldiagCmd(['full'], deps);
-    expect(code).toBeGreaterThanOrEqual(0);
+    // Hard failure: no cache path is configured at all.
+    expect(code).toBe(1);
   });
 
   it('keys subcommand lists provider key status', async () => {
@@ -166,7 +171,7 @@ describe('modeldiag handler', () => {
   it('defaults to "full" subcommand when no args', async () => {
     const { deps } = makeDeps();
     const code = await modeldiagCmd([], deps);
-    expect(code).toBeGreaterThanOrEqual(0);
+    expect(code).toBe(0);
   });
 
   it('handles corrupted models cache gracefully', async () => {
@@ -176,10 +181,25 @@ describe('modeldiag handler', () => {
     expect(code).toBeGreaterThanOrEqual(0);
   });
 
+  it('missing cache FILE is advisory: exit 0 regardless of color/TTY state', async () => {
+    // Regression (round2-modeldiag-exit): the exit code was chosen by
+    // `cacheResult.includes(color.red(''))` — a sentinel that is '' when
+    // colors are off (always true → advisory exited 1) and an ANSI pair on a
+    // TTY (never adjacent in a real message → hard failure exited 0). Exit
+    // codes must be color-independent: advisory (cache configured but
+    // missing/unreadable) exits 0; only a missing cache PATH exits 1.
+    const { deps } = makeDeps();
+    mockReadFile.mockRejectedValueOnce(
+      Object.assign(new Error('ENOENT: no such file'), { code: 'ENOENT' }),
+    );
+    const code = await modeldiagCmd(['full'], deps);
+    expect(code).toBe(0);
+  });
+
   it('handles missing models cache path', async () => {
     const { deps } = makeDeps();
     deps.paths.modelsCache = undefined;
     const code = await modeldiagCmd(['suggest'], deps);
-    expect(code).toBeGreaterThanOrEqual(0);
+    expect(code).toBe(1);
   });
 });

@@ -24,6 +24,8 @@ const composerActionTypes = [
   'queueClear',
   'queueDelete',
   'queueToggleRefine',
+  'bashModeEnter',
+  'bashModeExit',
   'slashPickerOpen',
   'slashPickerClose',
   'slashPickerMove',
@@ -123,6 +125,17 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       const next = (state.picker.selected + action.delta + n) % n;
       return { ...state, picker: { ...state.picker, selected: next } };
     }
+    case 'bashModeEnter':
+      // Reset history navigation so the Up/Down walk restarts cleanly —
+      // bash mode filters the walk to past shell commands (see historyUp),
+      // and a stale normal-mode index would land on an arbitrary entry.
+      return state.bashMode
+        ? state
+        : { ...state, bashMode: true, historyIndex: 0, historyDraft: '' };
+    case 'bashModeExit':
+      return state.bashMode
+        ? { ...state, bashMode: false, historyIndex: 0, historyDraft: '' }
+        : state;
     case 'toolStarted': {
       const next = new Map(state.runningTools);
       next.set(action.id, { name: action.name, startedAt: Date.now() });
@@ -256,9 +269,17 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       return { ...state, inputHistory: [action.text, ...state.inputHistory].slice(0, 100) };
     }
     case 'historyUp': {
-      if (state.inputHistory.length === 0) return state;
-      const next = Math.min(state.historyIndex + 1, state.inputHistory.length);
-      const entry = state.inputHistory[next - 1] ?? '';
+      // Bash mode walks ONLY past shell commands (stored with their `!`
+      // prefix) — loading an arbitrary chat prompt above a shell line would
+      // be one Enter away from executing it as a command. The prefix is
+      // stripped so the line shows exactly what would run.
+      const entries = state.bashMode
+        ? state.inputHistory.filter((entry) => entry.startsWith('!'))
+        : state.inputHistory;
+      if (entries.length === 0) return state;
+      const next = Math.min(state.historyIndex + 1, entries.length);
+      const raw = entries[next - 1] ?? '';
+      const entry = state.bashMode ? raw.slice(1) : raw;
       // On the first Up (index 0 -> 1), snapshot the in-progress draft so
       // historyDown back to index 0 can restore it instead of clearing the
       // buffer. Without this, peeking at history loses a half-typed prompt.
@@ -272,11 +293,15 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       };
     }
     case 'historyDown': {
+      const entries = state.bashMode
+        ? state.inputHistory.filter((entry) => entry.startsWith('!'))
+        : state.inputHistory;
       if (state.historyIndex === 0) return state;
       const next = state.historyIndex - 1;
       // Returning to index 0 restores the draft captured on the first Up,
       // so the user's in-progress prompt survives a history peek.
-      const entry = next === 0 ? state.historyDraft : (state.inputHistory[next - 1] ?? '');
+      const raw = next === 0 ? state.historyDraft : (entries[next - 1] ?? '');
+      const entry = state.bashMode && next !== 0 ? raw.slice(1) : raw;
       return {
         ...state,
         historyIndex: next,

@@ -66,7 +66,9 @@ interface AppKeyHandlerOptions {
   lastEnterAtRef: MutableRefObject<number>;
   draftRef: MutableRefObject<{ buffer: string; cursor: number }>;
   setDraft: (buffer: string, cursor: number) => void;
-  submit: () => void;
+  /** Submits the composer. `overrideRaw` bypasses the buffer (bash mode
+   *  forwards its draft through the `!` shell path this way). */
+  submit: (overrideRaw?: string) => void;
   mouseMode: boolean;
   termRows: number;
   terminalColumns: number;
@@ -393,6 +395,14 @@ export function createAppKeyHandler(
         lastEscAtRef.current = 0;
         return;
       }
+      // Bash mode owns Esc too — but only after the panel router above, so
+      // an open monitor still closes first. Exiting the shell composer must
+      // NOT read as a busy-interrupt, hence the ladder below stays untouched.
+      if (state.bashMode) {
+        dispatch({ type: 'bashModeExit' });
+        lastEscAtRef.current = 0;
+        return;
+      }
     }
 
     if (
@@ -498,7 +508,15 @@ export function createAppKeyHandler(
     // which are destructive and (per the fallback path) bypass the
     // confirmation ladder. This mirrors the `?` help-shortcut gate above
     // and the established non-modal pattern (F2/F3/F4/F6/F7 monitors).
-    if (state.sddBoard?.monitorOpen && !key.ctrl && !key.meta && draftRef.current.buffer === '') {
+    // Bash mode opts out: there the draft is a raw shell command, so even
+    // on an empty line c/z/x must type literally, never fire a lifecycle op.
+    if (
+      state.sddBoard?.monitorOpen &&
+      !key.ctrl &&
+      !key.meta &&
+      draftRef.current.buffer === '' &&
+      !state.bashMode
+    ) {
       if (key.rightArrow) {
         dispatch({ type: 'sddBoardFocusNext' });
         return;
@@ -623,8 +641,31 @@ export function createAppKeyHandler(
     // message is never swallowed. Guarded via overlayOpen — when any panel
     // or picker is active the key is ignored so overlay-internal `?` usage
     // (none currently) is never stolen.
-    if (input === '?' && !key.ctrl && !key.meta && draftRef.current.buffer === '' && !overlayOpen) {
+    if (
+      input === '?' &&
+      !key.ctrl &&
+      !key.meta &&
+      draftRef.current.buffer === '' &&
+      !overlayOpen &&
+      !state.bashMode
+    ) {
       dispatch({ type: 'toggleHelp' });
+      return;
+    }
+    // `!` on an empty prompt flips the composer into bash mode: a dedicated
+    // shell-command line whose Enter runs the draft via the `!` path (`/dev`).
+    // With any draft text it types normally, so a literal `!` mid-message is
+    // never swallowed — and inside bash mode itself `!` is just a character.
+    // Mirrors the `?` help-shortcut gate above.
+    if (
+      input === '!' &&
+      !key.ctrl &&
+      !key.meta &&
+      draftRef.current.buffer === '' &&
+      !overlayOpen &&
+      !state.bashMode
+    ) {
+      dispatch({ type: 'bashModeEnter' });
       return;
     }
     // No panel below uses Enter for itself (ProcessList has its own
@@ -638,6 +679,20 @@ export function createAppKeyHandler(
         const next = buffer.slice(0, cursor) + '\n' + buffer.slice(cursor);
         setDraft(next, cursor + 1);
         lastEnterAtRef.current = Date.now(); // prevent duplicate from \r
+        return;
+      }
+
+      // ── Bash mode: Enter runs the draft as a shell command ────────────
+      // Forwarded through the SAME `!` entry point a typed `!cmd` uses —
+      // warning dialog included — so `/dev` remains the single shell
+      // execution path. An empty line just leaves bash mode. A leading `!`
+      // in the draft is stripped so `!!cmd` never reaches /dev doubled.
+      if (state.bashMode) {
+        const body = draftRef.current.buffer.trim();
+        const command = body.startsWith('!') ? body.slice(1).trim() : body;
+        dispatch({ type: 'bashModeExit' });
+        lastEnterAtRef.current = Date.now(); // prevent duplicate from \r
+        if (command) detach(Promise.resolve(submit(`!${command}`)), 'Send');
         return;
       }
 

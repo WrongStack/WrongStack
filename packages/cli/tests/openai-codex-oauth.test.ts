@@ -12,7 +12,16 @@ import {
   resolveCodexModels,
   startLoopbackServer,
 } from '../src/auth-menu/openai-codex-oauth.js';
+import { readFile } from 'node:fs/promises';
 import { expectFetchError } from './helpers/fetch-error.js';
+
+/** providers package.json version — the value fetchCodexModels must send as client_version. */
+async function expectedClientVersion(): Promise<string | undefined> {
+  const pkg = JSON.parse(
+    await readFile(new URL('../../providers/package.json', import.meta.url), 'utf8'),
+  ) as { version?: string };
+  return pkg.version;
+}
 
 function b64url(s: string): string {
   return Buffer.from(s).toString('base64url');
@@ -236,6 +245,19 @@ describe('fetchCodexModels', () => {
     expect(ids).toEqual(['gpt-5.3-codex-spark', 'gpt-5.2']);
   });
 
+  it('falls back to slug when the live response omits id', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          models: [{ slug: 'gpt-6-astra' }, { slug: 'gpt-5.6-terra' }],
+        }),
+      ),
+    );
+    const ids = await fetchCodexModels('test-token');
+    expect(ids).toEqual(['gpt-6-astra', 'gpt-5.6-terra']);
+  });
+
   it('returns [] on HTTP error', async () => {
     vi.stubGlobal(
       'fetch',
@@ -275,7 +297,11 @@ describe('fetchCodexModels', () => {
       }),
     );
     await fetchCodexModels('tok', 'https://my-proxy.example.com');
-    expect(capturedUrl).toBe('https://my-proxy.example.com/models');
+    const url = new URL(capturedUrl);
+    expect(url.origin + url.pathname).toBe('https://my-proxy.example.com/models');
+    // The backend rejects /models without a semver client_version (400),
+    // so the live fetch must always carry the providers package version.
+    expect(url.searchParams.get('client_version')).toBe(await expectedClientVersion());
   });
 
   it('strips trailing slashes from baseUrl before appending /models', async () => {
@@ -288,7 +314,9 @@ describe('fetchCodexModels', () => {
       }),
     );
     await fetchCodexModels('tok', 'https://chatgpt.com/backend-api/');
-    expect(capturedUrl).toBe('https://chatgpt.com/backend-api/models');
+    const url = new URL(capturedUrl);
+    expect(url.origin + url.pathname).toBe('https://chatgpt.com/backend-api/models');
+    expect(url.searchParams.get('client_version')).toBe(await expectedClientVersion());
   });
 
   it('skips entries without a string id', async () => {
@@ -333,7 +361,6 @@ describe('resolveCodexModels', () => {
     await expect(resolveCodexModels(registry, 'test-token')).resolves.toEqual([
       'gpt-6-astra',
       'gpt-5.6-sol',
-      'gpt-5.5',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
       'gpt-5.4-mini',
@@ -371,7 +398,6 @@ describe('resolveCodexModels', () => {
     await expect(resolveCodexModels(registry, 'test-token')).resolves.toEqual([
       'gpt-6-astra',
       'gpt-5.6-sol',
-      'gpt-5.5',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
       'gpt-5.4-mini',
@@ -391,7 +417,6 @@ describe('resolveCodexModels', () => {
     await expect(resolveCodexModels(registry, 'test-token')).resolves.toEqual([
       'gpt-6-astra',
       'gpt-5.6-sol',
-      'gpt-5.5',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
       'gpt-5.4-mini',

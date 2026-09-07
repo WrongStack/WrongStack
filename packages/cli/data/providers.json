@@ -48,21 +48,6 @@
           "output": 128000
         }
       },
-      "gpt-5.5": {
-        "id": "gpt-5.5",
-        "name": "GPT-5.5",
-        "description": "Frontier model for complex coding, research, and real-world work.",
-        "reasoning": true,
-        "tool_call": true,
-        "modalities": {
-          "input": ["text", "image"],
-          "output": ["text"]
-        },
-        "limit": {
-          "context": 1050000,
-          "output": 128000
-        }
-      },
       "gpt-5.6-terra": {
         "id": "gpt-5.6-terra",
         "name": "GPT-5.6 Terra",

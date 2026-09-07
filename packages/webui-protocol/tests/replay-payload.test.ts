@@ -115,6 +115,19 @@ describe('buildReplayPayload — events / markers', () => {
     const out = buildReplayPayload({ messages: [message('a')], events: [event] });
     expect(out.replayMarkers).toBeUndefined();
   });
+
+  it('includes replayMarkers when events project to markers', () => {
+    const event = {
+      type: 'compaction',
+      ts: '2026-01-01T00:00:01Z',
+      before: 2000,
+      after: 1000,
+    } as unknown as NonNullable<ReplaySource['events']>[number];
+    const out = buildReplayPayload({ messages: [message('a')], events: [event] });
+    expect(out.replayMarkers).toBeDefined();
+    expect(out.replayMarkers?.length).toBe(1);
+    expect(out.replayMarkers?.[0]?.source).toBe('compaction');
+  });
 });
 
 describe('buildReplayPayload — field omission policy', () => {

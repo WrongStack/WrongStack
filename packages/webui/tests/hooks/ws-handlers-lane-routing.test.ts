@@ -134,6 +134,10 @@ const PROJECT_WIDE_STORES = new Set([
   'useMailboxStore',
   'useMonitorStore',
   'useOfficeMapStore',
+  // Plan quota belongs to the ACCOUNT, not a conversation: the server
+  // broadcasts it unstamped for exactly that reason, and every tab shows the
+  // same windows.
+  'useProviderQuotaStore',
   'useProviderStatusStore',
   'useSddBoardStore',
   'useSddWizardStore',

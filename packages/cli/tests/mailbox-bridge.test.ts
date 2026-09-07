@@ -273,6 +273,23 @@ describe('mailbox-bridge — auth gate', () => {
     });
     expect(res.status).toBe(200);
   });
+  it('returns 401 for an unparseable Credential header (no id:secret)', async () => {
+    // Regression for H-1: the local gate previously matched /^Credential\s+/i
+    // while the authoritative parser required `Credential <id>:<secret>`, so
+    // any header starting with "Credential " was treated as an authenticated
+    // actor-less allow and bypassed every capability/scope check.
+    const res = await http('GET', '/mailbox/agents', undefined, {
+      Authorization: 'Credential x',
+    });
+    expect(res.status).toBe(401);
+    expect((res.body as { error: { code: string } }).error.code).toBe('UNAUTHORIZED');
+  });
+  it('returns 401 for a Credential header with empty id', async () => {
+    const res = await http('GET', '/mailbox/agents', undefined, {
+      Authorization: 'Credential :x',
+    });
+    expect(res.status).toBe(401);
+  });
 });
 
 describe('mailbox-bridge — POST /mailbox/send', () => {

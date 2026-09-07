@@ -13,6 +13,7 @@ import {
   useSessionTabStore,
 } from '@/stores';
 import { activeLaneId, type ChatLaneActions, readLane } from '@/stores/chat-lanes';
+import { type QuotaSnapshot, useProviderQuotaStore } from '@/stores/provider-quota-store';
 import { activeSessionLaneId, SESSION_DEFAULT_LANE_ID } from '@/stores/session-lanes';
 import { useToolStatsStore } from '@/stores/tool-stats-store';
 import { useVizStore } from '@/stores/viz-store';
@@ -341,6 +342,19 @@ export function handleProviderStatusSnapshot(msg: WSServerMessage) {
     return;
   }
   useProviderStatusStore.getState().applySnapshot(payload as Record<string, unknown>);
+}
+
+/**
+ * `provider.quota` — a metered provider reported how much of its plan is spent.
+ *
+ * Pushed after every metered response and replayed once per tab on
+ * `provider.quota.get`; both carry the same `snapshots` array, so one handler
+ * covers the push and the catch-up.
+ */
+export function handleProviderQuota(msg: WSServerMessage) {
+  const payload = msg.payload as { snapshots?: unknown };
+  if (!Array.isArray(payload?.snapshots)) return;
+  useProviderQuotaStore.getState().apply(payload.snapshots as QuotaSnapshot[]);
 }
 
 /** `provider.audit.history` — durable block/open tail for the waiting room. */

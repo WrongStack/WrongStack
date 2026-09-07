@@ -19,6 +19,12 @@ export function useSlashPicker({
   setDraft,
 }: SlashPickerOptions): () => void {
   useEffect(() => {
+    // Bash mode owns the whole buffer as a raw shell command — `/etc/hosts`
+    // or `/ping` must NOT pop the slash menu there.
+    if (state.bashMode) {
+      if (state.slashPicker.open) dispatch({ type: 'slashPickerClose' });
+      return;
+    }
     const trimmed = state.buffer.trimStart();
     if (!trimmed.startsWith('/') || /\s/.test(trimmed)) {
       if (state.slashPicker.open) dispatch({ type: 'slashPickerClose' });
@@ -29,7 +35,7 @@ export function useSlashPicker({
     if (!state.slashPicker.open || state.slashPicker.query !== query) {
       dispatch({ type: 'slashPickerOpen', query, matches });
     }
-  }, [state.buffer, state.slashPicker.open, state.slashPicker.query, slashRegistry, dispatch]);
+  }, [state.buffer, state.bashMode, state.slashPicker.open, state.slashPicker.query, slashRegistry, dispatch]);
 
   return useCallback(() => {
     const { open, matches, selected } = state.slashPicker;

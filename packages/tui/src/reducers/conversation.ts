@@ -202,6 +202,7 @@ export function reduceConversation(state: State, action: ConversationAction): St
         bugHuntRunning: null,
         sendModePicker: null,
         shellCommandWarning: null,
+        bashMode: false,
         escConfirm: null,
         exitConfirm: null,
         // Auto-proceed countdown from the old conversation.

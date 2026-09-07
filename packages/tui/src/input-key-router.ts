@@ -17,7 +17,7 @@ import type { MutableCell } from './shared-types.js';
 const PASTE_THRESHOLD_CHARS = 200;
 
 export interface InputKeyRouterHost {
-  readonly state: Pick<State, 'status' | 'inputHistory' | 'historyIndex'>;
+  readonly state: Pick<State, 'status' | 'inputHistory' | 'historyIndex' | 'bashMode'>;
   readonly draft: { readonly buffer: string; readonly cursor: number };
   readonly overlayOpen: boolean;
   readonly prompt: string;
@@ -51,15 +51,20 @@ export async function routeInputKey(
 ): Promise<boolean> {
   const { buffer, cursor } = host.draft;
 
-  if (key.tab && host.nextSteps.timer.current != null) {
-    const pending = host.nextSteps.suggestion.current ?? host.nextSteps.label ?? '';
-    clearInterval(host.nextSteps.timer.current);
-    host.nextSteps.timer.current = undefined;
-    host.nextSteps.setCountdown(null);
-    host.nextSteps.setLabel(null);
-    host.nextSteps.suggestion.current = null;
-    const text = pending.trim();
-    if (text) host.setDraft(text, text.length);
+  // Tab accepts the pending next-steps suggestion — but NEVER in bash mode,
+  // where it would silently rewrite a shell command into a chat suggestion
+  // and one Enter away from executing it. There Tab is a harmless no-op.
+  if (key.tab) {
+    if (!host.state.bashMode && host.nextSteps.timer.current != null) {
+      const pending = host.nextSteps.suggestion.current ?? host.nextSteps.label ?? '';
+      clearInterval(host.nextSteps.timer.current);
+      host.nextSteps.timer.current = undefined;
+      host.nextSteps.setCountdown(null);
+      host.nextSteps.setLabel(null);
+      host.nextSteps.suggestion.current = null;
+      const text = pending.trim();
+      if (text) host.setDraft(text, text.length);
+    }
     return true;
   }
 
@@ -70,6 +75,12 @@ export async function routeInputKey(
         host.nextSteps.cancel();
         host.setDraft(result.buffer, result.cursor);
       }
+      return true;
+    }
+    // Backspace on an empty bash-mode line leaves the mode: the composer
+    // returns to the normal chat prompt without touching the buffer.
+    if (host.state.bashMode && buffer === '') {
+      host.dispatch({ type: 'bashModeExit' });
       return true;
     }
     const token = deleteTokenBackward(buffer, cursor);

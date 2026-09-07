@@ -214,4 +214,10 @@ describe('enqueueBounded', () => {
     expect(result.dropped).toBe(1);
     expect(result.queue).toEqual([4, 5, 6]);
   });
+
+  it('handles nullish elements when dropping', () => {
+    const result = enqueueBounded([undefined as unknown as number], 1, 1);
+    expect(result.dropped).toBeNull();
+    expect(result.queue).toEqual([1]);
+  });
 });

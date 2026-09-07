@@ -14,6 +14,23 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     testTimeout: 60_000,
     hookTimeout: 60_000,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'json-summary'],
+      reportOnFailure: true,
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/index.ts',
+        'src/server/index.ts',
+        'src/server/entry.ts',
+      ],
+      thresholds: {
+        lines: 78,
+        statements: 76,
+        functions: 69,
+        branches: 66,
+      },
+    },
   },
   resolve: {
     alias: {

@@ -2,6 +2,7 @@ import type { SlashCommand } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { UpdateSageInput } from '@wrongstack/sage';
 import { getSageSurface } from '@wrongstack/sage';
+import { runSearchRace } from '@wrongstack/vector-memory';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import { runAudienceMemory } from './memory-audience.js';
@@ -21,10 +22,9 @@ import {
   formatSageStats,
   formatSearchRace,
   formatVerification,
-  requiresSage,
   type MemoryDiagnostics,
+  requiresSage,
 } from './memory-formatters.js';
-import { runSearchRace } from '@wrongstack/vector-memory';
 import { runGatherCommand, runPathMemory } from './memory-gather.js';
 import { runStats } from './memory-stats.js';
 import { runTriageCommand } from './memory-triage.js';
@@ -727,8 +727,10 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
                 'import-legacy',
                 'clear',
                 'compact',
+                'compact-log',
                 'stats',
                 'audience',
+                'diagnostics',
                 'purge-domain-terms',
               ],
               'memory',

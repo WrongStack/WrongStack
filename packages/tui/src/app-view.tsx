@@ -16,9 +16,15 @@ import {
 } from './hooks/use-sidebar-panel-data.js';
 import { useTerminalSize } from './hooks/use-terminal-size.js';
 import { Box } from './ink.js';
+import { theme } from './theme.js';
+import { glyphs } from './ui-glyphs.js';
 import { PANEL_IDS, type PanelId, SIDEBAR_PANEL_LIMIT } from './ui-contracts.js';
 
 const INPUT_PROMPT = DEFAULT_INPUT_PROMPT;
+/** Bash-mode composer: shell-prompt glyph, dedicated rail label, run/exit hint. */
+const BASH_PROMPT = '$ ';
+const BASH_TITLE = 'BASH MODE';
+const BASH_HINT = 'shell command — Enter run · Esc exit';
 
 export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   const { agent, appVersion, setSuggestions } = host;
@@ -39,6 +45,9 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   const { workingTimeMs } = activity;
   const { autonomyLive } = environment;
   const { inputHint, composerStatus, composerAnimationStyle, inputHeight, hideInput } = viewState;
+  // Bash mode relabels the whole composer (`$` prompt, warn-colored rail,
+  // BASH MODE title) so the shell-command state is unmistakable at a glance.
+  const bashMode = state.bashMode;
 
   // ── Sidebar layout ──────────────────────────────────────────────────
   const { columns: termCols } = useTerminalSize({ fallbackColumns: 80 });
@@ -132,10 +141,12 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               width={mainColumnWidth}
             >
               <Input
-                prompt={INPUT_PROMPT}
+                prompt={bashMode ? BASH_PROMPT : INPUT_PROMPT}
                 value={state.buffer}
                 cursor={state.cursor}
-                title={`WRONGSTACK${appVersion ? ` v${appVersion}` : ''}`}
+                title={bashMode ? BASH_TITLE : `WRONGSTACK${appVersion ? ` v${appVersion}` : ''}`}
+                railIcon={bashMode ? glyphs.terminal : undefined}
+                accent={bashMode ? theme.warn : undefined}
                 status={composerStatus}
                 animationStyle={composerAnimationStyle}
                 hidden={hideInput}
@@ -145,7 +156,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   (state.status === 'aborting' && !state.steeringPending) ||
                   state.confirmQueue.length > 0
                 }
-                hint={inputHint}
+                hint={bashMode ? BASH_HINT : inputHint}
                 onKey={stableOnKey}
                 workingTime={workingTimeMs}
               />

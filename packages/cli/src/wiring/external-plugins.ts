@@ -361,9 +361,19 @@ async function gateExternalPluginTrust(args: {
   // was resolved (config path, discovery, module resolution).
   const entryPath = normalizeTrustKey(args.entryPath);
   if (!store) return { ok: true, pinned: false };
+  // I3 (TS-005): the previous pin was a single-file hash of the
+  // entry, so a plugin whose closure imports `dist/impl.js` from
+  // the same directory could be re-written at any time and the
+  // trust gate would still say "trusted". Hash the entire directory
+  // closure (sorted list of relative-path:size:content-hash
+  // triples, hashed together) when the entry has a containing
+  // directory. For bare specifiers (no containing directory) the
+  // single-file hash remains the only signal we can compute here;
+  // the lockfile-based check in `installCommand` is the matching
+  // defence.
   let integrity: string;
   try {
-    integrity = await hashFileContents(entryPath);
+    integrity = await hashPluginClosure(entryPath);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (mode === 'required') {
@@ -411,3 +421,84 @@ async function gateExternalPluginTrust(args: {
   log.error(`[plugins] REFUSING external plugin "${label}" — ${changedMessage}`);
   return { ok: false, pinned: false };
 }
+
+/**
+ * I3 (TS-005): compute an integrity hash that covers the entire plugin
+ * closure, not just the entry file. The previous single-file hash let a
+ * plugin whose entry was `dist/index.js` have its sibling `dist/impl.js`
+ * rewritten with the entry byte-identical — the trust gate reported
+ * "trusted" while the loaded code was new.
+ *
+ * When the entry's parent directory exists, walk the directory and
+ * produce a sorted list of `relative-path:size:sha256` triples, then
+ * SHA-256 the concatenation. When the entry has no containing directory
+ * (bare specifier, or a path outside the working tree), fall back to
+ * hashing the entry alone — the lockfile-based check in `installCommand`
+ * is the matching defence for that case.
+ */
+import { createHash } from 'node:crypto';
+import { readdir, stat } from 'node:fs/promises';
+import { basename, dirname, relative, sep } from 'node:path';
+
+const CLOSURE_HASH_LIMIT = 2000;
+const CLOSURE_FILE_LIMIT = 16 * 1024 * 1024; // 16 MiB per file
+
+export async function hashPluginClosure(entryPath: string): Promise<string> {
+  const dir = dirname(entryPath);
+  let dirStat;
+  try {
+    dirStat = await stat(dir);
+  } catch {
+    return hashFileContents(entryPath);
+  }
+  if (!dirStat.isDirectory()) return hashFileContents(entryPath);
+  const entryBase = basename(entryPath);
+  // Collect every regular file under the directory (recursive). Sort by
+  // relative POSIX path so the closure hash is path-order-independent.
+  const files: string[] = [];
+  async function walk(d: string): Promise<void> {
+    if (files.length > CLOSURE_HASH_LIMIT) return;
+    const entries = await readdir(d, { withFileTypes: true }).catch(() => []);
+    for (const e of entries) {
+      const full = d + sep + e.name;
+      if (e.isDirectory()) {
+        if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+        await walk(full);
+      } else if (e.isFile()) {
+        files.push(full);
+      }
+    }
+  }
+  await walk(dir);
+  files.sort();
+  // Manifest: each line `relpath\0size\0sha256` joined by `\n`, then hashed.
+  const manifest: string[] = [];
+  for (const full of files) {
+    const rel = relative(dir, full).split(sep).join('/');
+    let bytes: Buffer;
+    try {
+      const st = await stat(full);
+      if (!st.isFile() || st.size > CLOSURE_FILE_LIMIT) continue;
+      bytes = await readFile(full);
+    } catch {
+      continue;
+    }
+    const sha = createHash('sha256').update(bytes).digest('hex');
+    manifest.push(`${rel}\0${bytes.length}\0${sha}`);
+  }
+  // The entry must be present in the manifest; if the walk missed it
+  // (entry outside the walked root), append it explicitly.
+  if (!manifest.some((line) => line.startsWith(`${entryBase}\0`))) {
+    const entryBytes = await readFile(entryPath);
+    const entrySha = createHash('sha256').update(entryBytes).digest('hex');
+    manifest.push(`${entryBase}\0${entryBytes.length}\0${entrySha}`);
+  }
+  manifest.sort();
+  const outer = createHash('sha256');
+  outer.update(manifest.join('\n'));
+  return outer.digest('hex');
+}
+
+// Lightweight wrapper kept separate from the closure walk so a single-file
+// entry (e.g. a bare specifier) still produces a stable hash.
+import { readFile } from 'node:fs/promises';

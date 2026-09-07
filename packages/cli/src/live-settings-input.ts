@@ -40,6 +40,8 @@ export interface LiveSettingsInput {
   enhanceDelayMs?: number | undefined;
   enhanceEnabled?: boolean | undefined;
   enhanceLanguage?: string | undefined;
+  /** Pre-refine grace period (seconds) before the refiner LLM call starts. 0 = skip. Default: 3. */
+  preRefineSeconds?: number | undefined;
   /** Mid-run send-mode picker (queue/btw/steer) toggle. Default on. */
   midRunSendPicker?: boolean | undefined;
   /** Skip the confirmation prompt for the TUI `!<command>` shell shortcut. */

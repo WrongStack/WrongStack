@@ -267,7 +267,7 @@ export async function runCodexOAuthLogin(
     const saved = await saveCodexTokens(deps, providerId, tokens, accountId, models);
     if (!saved) return 1;
 
-    const modelHint = models[0] ?? 'gpt-5.5';
+    const modelHint = models[0] ?? 'gpt-6-astra';
     deps.renderer.write(color.green('\n  ✓ Signed in with ChatGPT!\n'));
     deps.renderer.writeInfo(
       `  Saved as provider ${color.bold(providerId)}${models.length > 0 ? ` (${models.length} models)` : ''}.\n` +

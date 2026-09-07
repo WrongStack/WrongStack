@@ -6,6 +6,7 @@ import {
   createChronicleProjectAccess,
 } from '@wrongstack/core/chronicle';
 import type { WebSocket } from 'ws';
+import { clampLimit } from './ws-payload-validation.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
 
 export interface ChronicleRouteContext {
@@ -168,7 +169,8 @@ export async function handleChronicleRoute(
             ...(await access.call('facet', {
               field: payload.field,
               query: payload.query ?? {},
-              ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
+              // S10 (H1): mirror the HTTP chronicle.query limit cap (10000).
+              limit: clampLimit(payload.limit, 1000, 10000),
             })),
           },
         });
@@ -196,7 +198,7 @@ export async function handleChronicleRoute(
           payload: await access.call('facets', {
             fields: payload.fields,
             query: payload.query ?? {},
-            ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
+            limit: clampLimit(payload.limit, 1000, 10000),
           }),
         });
         return true;
@@ -209,10 +211,15 @@ export async function handleChronicleRoute(
         };
         ctx.send(ws, {
           type: 'chronicle.graph_result',
+          // S10 (H1): `chronicle.graph {maxNodes: 1e9}` previously
+          // materialised the entire journal (measured at 7.2 GB / 7
+          // days) into a Map and then ran a cubic edge build. Cap it
+          // to 1000 — the existing HTTP `chronicle.graph` route caps
+          // at 1000 too, so the WebSocket surface now matches.
           payload: await access.call('graph', {
             seed: payload.seed ?? {},
-            ...(payload.hops !== undefined ? { hops: payload.hops } : {}),
-            ...(payload.maxNodes !== undefined ? { maxNodes: payload.maxNodes } : {}),
+            hops: clampLimit(payload.hops, 1, 5),
+            maxNodes: clampLimit(payload.maxNodes, 1000, 1000),
           }),
         });
         return true;

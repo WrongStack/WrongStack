@@ -264,3 +264,48 @@ describe('input history reducer — clearInputHistory', () => {
     expect(s.historyDraft).toBe('');
   });
 });
+
+describe('input history in bash mode — shell-command-only walk', () => {
+  it('bashModeEnter resets history navigation so the filtered walk starts clean', () => {
+    const s = reducer(
+      historyState({ historyIndex: 3, historyDraft: 'leftover', bashMode: false }),
+      { type: 'bashModeEnter' },
+    );
+    expect(s.bashMode).toBe(true);
+    expect(s.historyIndex).toBe(0);
+    expect(s.historyDraft).toBe('');
+  });
+
+  it('historyUp walks only `!` entries and strips the prefix', () => {
+    let s = historyState({
+      inputHistory: ['!git status', 'explain the diff', '!npm test'],
+      bashMode: true,
+    });
+    s = reducer(s, { type: 'historyUp' }); // newest `!` entry
+    expect(s.buffer).toBe('git status');
+    s = reducer(s, { type: 'historyUp' }); // older `!` entry
+    expect(s.buffer).toBe('npm test');
+    s = reducer(s, { type: 'historyUp' }); // clamped at the oldest `!` entry
+    expect(s.buffer).toBe('npm test');
+  });
+
+  it('historyDown in bash mode restores the bash draft at index 0', () => {
+    let s = historyState({
+      inputHistory: ['!git status'],
+      bashMode: true,
+      buffer: 'git lo',
+      cursor: 6,
+    });
+    s = reducer(s, { type: 'historyUp' }); // -> "git status"
+    expect(s.buffer).toBe('git status');
+    s = reducer(s, { type: 'historyDown' }); // back to the draft
+    expect(s.buffer).toBe('git lo');
+    expect(s.historyDraft).toBe('');
+  });
+
+  it('is a no-op when bash history has no `!` entries', () => {
+    const before = historyState({ inputHistory: ['plain chat'], bashMode: true });
+    const after = reducer(before, { type: 'historyUp' });
+    expect(after).toBe(before);
+  });
+});

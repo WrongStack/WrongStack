@@ -179,7 +179,6 @@ export function buildKanbanCommand(opts: SlashCommandContext): SlashCommand {
             'graph',
             'deps',
             'task',
-            'column',
           ],
           'kanban',
         ),

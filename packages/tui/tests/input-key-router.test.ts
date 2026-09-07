@@ -26,7 +26,7 @@ function key(overrides: Partial<KeyEvent> = {}): KeyEvent {
 
 function host(overrides: Partial<InputKeyRouterHost> = {}): InputKeyRouterHost {
   return {
-    state: { status: 'idle', inputHistory: [], historyIndex: 0 },
+    state: { status: 'idle', inputHistory: [], historyIndex: 0, bashMode: false },
     draft: { buffer: '', cursor: 0 },
     overlayOpen: false,
     prompt: '❯ ',
@@ -67,16 +67,33 @@ describe('routeInputKey', () => {
     expect(fixture.setDraft).toHaveBeenCalledWith('inspect ', 8);
   });
 
+  it('leaves bash mode on backspace over an empty line, deletes normally otherwise', async () => {
+    const bashEmpty = host({
+      state: { status: 'idle', inputHistory: [], historyIndex: 0, bashMode: true },
+    });
+    await routeInputKey(bashEmpty, '', key({ backspace: true }));
+    expect(bashEmpty.dispatch).toHaveBeenCalledWith({ type: 'bashModeExit' });
+    expect(bashEmpty.setDraft).not.toHaveBeenCalled();
+
+    const bashWithText = host({
+      state: { status: 'idle', inputHistory: [], historyIndex: 0, bashMode: true },
+      draft: { buffer: 'ls', cursor: 2 },
+    });
+    await routeInputKey(bashWithText, '', key({ backspace: true }));
+    expect(bashWithText.dispatch).not.toHaveBeenCalledWith({ type: 'bashModeExit' });
+    expect(bashWithText.setDraft).toHaveBeenCalledWith('l', 1);
+  });
+
   it('routes single-line up-arrow into input history unless an overlay owns it', async () => {
     const fixture = host({
-      state: { status: 'idle', inputHistory: ['previous'], historyIndex: 0 },
+      state: { status: 'idle', inputHistory: ['previous'], historyIndex: 0, bashMode: false },
     });
 
     await routeInputKey(fixture, '', key({ upArrow: true }));
     expect(fixture.dispatch).toHaveBeenCalledWith({ type: 'historyUp' });
 
     const overlayFixture = host({
-      state: { status: 'idle', inputHistory: ['previous'], historyIndex: 0 },
+      state: { status: 'idle', inputHistory: ['previous'], historyIndex: 0, bashMode: false },
       overlayOpen: true,
     });
     await routeInputKey(overlayFixture, '', key({ upArrow: true }));
@@ -88,7 +105,9 @@ describe('routeInputKey', () => {
     await routeInputKey(idle, 'v', key({ ctrl: true }));
     expect(idle.pasteClipboardText).toHaveBeenCalledOnce();
 
-    const busy = host({ state: { status: 'running', inputHistory: [], historyIndex: 0 } });
+    const busy = host({
+      state: { status: 'running', inputHistory: [], historyIndex: 0, bashMode: false },
+    });
     await routeInputKey(busy, 'v', key({ ctrl: true }));
     expect(busy.pasteClipboardText).not.toHaveBeenCalled();
     expect(busy.dispatch).toHaveBeenCalledWith({

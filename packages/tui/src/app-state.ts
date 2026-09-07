@@ -114,6 +114,14 @@ export type State = {
   resumeLoad: ResumeLoadState | null;
   buffer: string;
   cursor: number;
+  /**
+   * Bash mode: the composer is dedicated to shell commands. Entered by
+   * pressing `!` on an empty draft, exited by Esc / Backspace-on-empty (or a
+   * successful run). While on, Enter submits the draft through the `!` shell
+   * path (`/dev`) instead of sending it to the model, and the composer rail
+   * relabels itself so the mode is unmistakable.
+   */
+  bashMode: boolean;
   streamingText: string;
   /**
    * Live tail of the currently streaming tool's stdout/progress text. Mirrors

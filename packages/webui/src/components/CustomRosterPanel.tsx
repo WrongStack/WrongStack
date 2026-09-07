@@ -14,18 +14,18 @@
  * - Conflict detection display
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
+  BookOpen,
   Bot,
+  Database,
   FileText,
   RefreshCw,
   Settings,
   Sparkles,
   Trash2,
-  AlertTriangle,
-  Database,
-  BookOpen,
 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 
@@ -52,7 +52,7 @@ export interface ProjectAgentLearnStats {
 
 let wsRef: WebSocket | null = null;
 
-function setCustomRosterWS(ws: WebSocket | null): void {
+export function setCustomRosterWS(ws: WebSocket | null): void {
   wsRef = ws;
 }
 

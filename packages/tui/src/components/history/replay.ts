@@ -87,9 +87,9 @@ function markerToEntry(marker: SessionMarker): PreEntry | null {
   return { kind: 'info', text: marker.text };
 }
 
-/** Truncate a tool_result body to the same ~400-char preview used live. */
-function toolOutputPreview(content: unknown): string {
-  return (typeof content === 'string' ? content : JSON.stringify(content)).slice(0, 400);
+/** Preserve the journal's complete tool result for rendering and copying. */
+function toolOutputText(content: unknown): string {
+  return typeof content === 'string' ? content : JSON.stringify(content);
 }
 
 /**
@@ -163,7 +163,7 @@ function timelineToEntry(item: SessionTimelineEntry): PreEntry | null {
         durationMs: item.durationMs ?? 0,
         ok: item.ok ?? false,
         input: item.input,
-        output: item.output === undefined ? undefined : toolOutputPreview(item.output),
+        output: item.output === undefined ? undefined : toolOutputText(item.output),
         outputBytes: item.outputBytes,
         outputTokens: item.outputTokens,
         outputLines: item.outputLines,
@@ -288,7 +288,7 @@ function eventToEntry(
       const completed = completedTools.get(ev.id);
       if (completed) {
         const serialized = typeof ev.content === 'string' ? ev.content : JSON.stringify(ev.content);
-        completed.output = serialized?.slice(0, 400);
+        completed.output = serialized;
         completed.ok = !ev.isError;
         completedTools.delete(ev.id);
         return null;
@@ -302,7 +302,7 @@ function eventToEntry(
         durationMs: 0, // duration not available from tool_result alone
         ok: !ev.isError,
         input: tu?.input,
-        output: typeof ev.content === 'string' ? ev.content.slice(0, 400) : undefined,
+        output: typeof ev.content === 'string' ? ev.content : undefined,
       };
     }
 

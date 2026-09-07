@@ -59,6 +59,7 @@ export function createTestState(
     resumeLoad: null,
     buffer: '',
     cursor: 0,
+    bashMode: false,
     streamingText: '',
     toolStream: null,
     status: 'idle',

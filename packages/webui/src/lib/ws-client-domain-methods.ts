@@ -49,6 +49,19 @@ const domainMethods = {
     this.send({ type: 'git.commit', payload: { message } });
   },
 
+  /**
+   * Ask for the current plan-quota readings.
+   *
+   * Sent once per connection. Quota is pushed as it changes, so a tab that was
+   * open all along needs nothing — but one that connects mid-session has missed
+   * every push, and the server will not re-fetch from the provider (that costs
+   * a request against the very budget being checked). This replays what the
+   * server already holds.
+   */
+  getProviderQuota(this: WsClientDomainHost) {
+    this.send({ type: 'provider.quota.get' });
+  },
+
   getProviderStatus(this: WsClientDomainHost) {
     this.send({ type: 'provider.status.get' });
   },

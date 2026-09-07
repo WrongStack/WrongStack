@@ -294,6 +294,11 @@ class WrongStackWebSocketClientBase {
             this.lastErrorText = undefined;
             this.setStatus({ state: 'open' });
             this.flushMessageQueue();
+            // Replay the plan-quota readings the server already holds. Quota is
+            // pushed as it changes, so this only matters for a tab that
+            // connected (or reconnected) after a reading landed — without it
+            // the chip stays blank until the next turn completes.
+            this.send({ type: 'provider.quota.get' });
             resolve();
           },
           onMessage: (msg) => {

@@ -89,6 +89,15 @@ export {
   WAIT_THRESHOLD_PRESETS,
 } from './office-map-store.js';
 export {
+  formatQuotaResetIn,
+  type QuotaCredits,
+  type QuotaSnapshot,
+  type QuotaWindow,
+  quotaWindowLabel,
+  selectWorstQuotaWindow,
+  useProviderQuotaStore,
+} from './provider-quota-store.js';
+export {
   type ProviderAuditEntry,
   type ProviderHealthEntry,
   type ProviderHealthState,

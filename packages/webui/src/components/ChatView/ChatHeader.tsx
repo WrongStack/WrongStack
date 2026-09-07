@@ -20,6 +20,7 @@ import { ContextFillBar } from '../ContextBar';
 import { ContextModePicker } from '../ContextModePicker';
 import { CostChip } from '../CostChip';
 import { ModePicker } from '../ModePicker';
+import { QuotaChip } from '../QuotaChip';
 import { Button } from '../ui/button';
 import { fmtTok } from './utils.js';
 
@@ -369,6 +370,7 @@ export function ChatHeader({
                   <span>completion</span>
                 </span>
                 <CostChip />
+                <QuotaChip />
               </>
             )}
           </div>

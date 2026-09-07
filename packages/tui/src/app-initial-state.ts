@@ -202,6 +202,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     resumeLoad: null,
     buffer: '',
     cursor: 0,
+    bashMode: false,
     streamingText: '',
     toolStream: null,
     status: 'idle',

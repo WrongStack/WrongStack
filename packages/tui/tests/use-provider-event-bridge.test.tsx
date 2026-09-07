@@ -167,6 +167,73 @@ describe('useProviderEventBridge', () => {
     unmount();
   });
 
+  it('uses the complete tool_result from conversation state instead of the event preview', async () => {
+    const events = new EventBus();
+    const dispatch = vi.fn();
+    const fullOutput = `${'full tool output '.repeat(40)}tail-marker`;
+    const agent = {
+      ctx: {
+        session: { id: 'session-1' },
+        todos: [],
+        state: {
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'tool_result',
+                  tool_use_id: 'tool-full',
+                  content: fullOutput,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    const { unmount } = renderHook(() => {
+      const streamingTextRef = useRef('');
+      const streamSegmentsRef = useRef<Array<{ kind: 'assistant' | 'thinking'; text: string }>>([]);
+      const pendingDeltaRef = useRef('');
+      const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+      const sessionGenerationRef = useRef(1);
+      const activeRunGenerationRef = useRef(1);
+      const assistantCommittedThisRunRef = useRef(false);
+      useProviderEventBridge({
+        events,
+        agent: agent as never,
+        dispatch,
+        streamingTextRef,
+        streamSegmentsRef,
+        pendingDeltaRef,
+        flushTimerRef,
+        sessionGenerationRef,
+        activeRunGenerationRef,
+        assistantCommittedThisRunRef,
+        setMemoryContextMonitor: vi.fn(),
+      });
+    });
+
+    await act(async () => {
+      events.emit('tool.executed', {
+        id: 'tool-full',
+        name: 'read',
+        durationMs: 12,
+        ok: true,
+        output: fullOutput.slice(0, 400),
+      });
+      await Promise.resolve();
+    });
+
+    const toolAction = dispatch.mock.calls
+      .map(([action]) => action)
+      .find((action) => action.type === 'addEntry' && action.entry.kind === 'tool');
+    expect(toolAction.entry.output).toBe(fullOutput);
+    expect(toolAction.entry.output).not.toContain('…');
+    unmount();
+  });
+
   // ── Memory event session filtering ──────────────────────────────
   // Regression: memory lifecycle events from other sessions/agents
   // were appearing in the leader's chat history because four handlers

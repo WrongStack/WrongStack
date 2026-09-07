@@ -14,6 +14,7 @@ export function initial(over: Partial<State> = {}): State {
     entries: [],
     buffer: '',
     cursor: 0,
+    bashMode: false,
     streamingText: '',
     toolStream: null,
     status: 'idle' as const,
@@ -951,6 +952,24 @@ describe('TUI reducer', () => {
     expect(s.shellCommandWarning).toEqual({ command: 'git status', resolve });
     s = reducer(s, { type: 'shellCommandWarningClose' });
     expect(s.shellCommandWarning).toBeNull();
+  });
+
+  it('bashModeEnter flips the composer on, bashModeExit off, and /clear resets it', () => {
+    let s = initial();
+    expect(s.bashMode).toBe(false);
+
+    s = reducer(s, { type: 'bashModeEnter' });
+    expect(s.bashMode).toBe(true);
+    // Idempotent: pressing `!` again must not schedule a pointless render.
+    expect(reducer(s, { type: 'bashModeEnter' })).toBe(s);
+
+    s = reducer(s, { type: 'bashModeExit' });
+    expect(s.bashMode).toBe(false);
+    expect(reducer(s, { type: 'bashModeExit' })).toBe(s);
+
+    s = reducer(s, { type: 'bashModeEnter' });
+    s = reducer(s, { type: 'clearHistory' });
+    expect(s.bashMode).toBe(false);
   });
 
   it('continueConfirmOpen sets the panel state and continueConfirmClose clears it', () => {

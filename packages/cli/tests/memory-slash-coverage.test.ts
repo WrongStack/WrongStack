@@ -379,4 +379,20 @@ describe('memory slash command', () => {
       expect(runMessage(result)).toContain('SAGE');
     });
   });
+
+  describe('unknown-subcommand Valid list', () => {
+    it('names every implemented subcommand, including compact-log and diagnostics', async () => {
+      // Regression (round3-memory-valid-list): `compact-log` (case L545) and
+      // `diagnostics` (case L614) were implemented and documented in the
+      // command description but missing from the unknownSubcommand Valid
+      // list — the same omission class the gather fix (memory
+      // 01KYQ59WBHNG8Z4T9N8507DPS7) established as a convention violation.
+      const cmd = buildMemoryCommand(makeCtx());
+      const message = runMessage(await cmd.run('definitely-not-a-memory-command')) ?? '';
+      expect(message).toContain('Unknown subcommand "definitely-not-a-memory-command" for /memory');
+      expect(message).toContain('compact-log');
+      expect(message).toContain('diagnostics');
+      expect(message).toContain('gather');
+    });
+  });
 });

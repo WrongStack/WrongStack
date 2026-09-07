@@ -292,6 +292,20 @@ export interface WSProviderStatusChanged {
   };
 }
 
+/**
+ * `provider.quota` — subscription plan readings, pushed on every metered
+ * response and replayed on `provider.quota.get`. `providerId` is present on a
+ * push (it names the provider that just reported) and absent on a replay,
+ * which carries every provider at once.
+ */
+export interface WSProviderQuota {
+  type: 'provider.quota';
+  payload: {
+    providerId?: string | undefined;
+    snapshots: unknown[];
+  };
+}
+
 export interface WSProviderStatusSnapshot {
   type: 'provider.status.snapshot';
   payload: Record<string, unknown>;

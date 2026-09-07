@@ -1,11 +1,12 @@
-import { expectDefined } from '@wrongstack/core/utils';
 import { effectiveDensity, type StatuslineDensity } from '@wrongstack/core/statusline';
+import { expectDefined } from '@wrongstack/core/utils';
 import type React from 'react';
 import { useMemo } from 'react';
 import {
   computeTokenFingerprint,
   useChipStalenessGuard,
 } from '../hooks/use-chip-staleness-guard.js';
+import { useProviderQuota } from '../hooks/use-provider-quota.js';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { useTodosAutoClear } from '../hooks/use-todos-auto-clear.js';
 import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
@@ -34,8 +35,8 @@ import {
   buildMinimumChips,
   type StatusBarRailBuildParams,
 } from './status-bar-rails.js';
-import { buildDetailedRails, type DetailedRail } from './status-line-registry.js';
 import type { StatusBarProps } from './status-bar-types.js';
+import { buildDetailedRails, type DetailedRail } from './status-line-registry.js';
 import type { StatuslineItem } from './statusline-picker.js';
 
 export {
@@ -277,6 +278,11 @@ export function StatusBar({
 
   const indexStatusChip = buildIndexStatusChip(indexState, showChip, isNoColor);
 
+  // Subscription quota is push-driven and provider-neutral, so it is resolved
+  // here rather than threaded through app state: no session owns it, and every
+  // metered provider feeds the same store.
+  const quota = useProviderQuota();
+
   const buildParams: StatusBarRailBuildParams = {
     showChip,
     chipDensity,
@@ -300,6 +306,7 @@ export function StatusBar({
     queueCount,
     hint,
     breakerCountdown,
+    quota,
     projectName,
     workingDir,
     git,

@@ -24,32 +24,49 @@ import { runModeldiagTest } from './modeldiag-test.js';
  * heuristic suggestions, and real model benchmarking. Never modifies config.
  */
 
-async function readProviders(cachePath: string | undefined): Promise<CacheProvider[] | string> {
+/**
+ * Result of loading the models cache. `hard` distinguishes "no cache is
+ * configured" (exit 1) from "configured but missing/unreadable" (exit 0,
+ * advisory) — kept as structured data so exit codes never depend on ANSI
+ * colors or TTY state.
+ */
+type ReadProvidersResult =
+  | { ok: true; providers: CacheProvider[] }
+  | { ok: false; message: string; hard: boolean };
+
+async function readProviders(cachePath: string | undefined): Promise<ReadProvidersResult> {
   if (!cachePath) {
-    return `${color.red('Models cache not available')}.`;
+    return { ok: false, message: `${color.red('Models cache not available')}.`, hard: true };
   }
   try {
     const raw = await fs.readFile(cachePath, 'utf8');
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const payload = (parsed.payload ?? parsed) as Record<string, Record<string, unknown>>;
-    return Object.entries(payload).map(([id, p]) => ({
-      id: (p.id as string) ?? id,
-      name: (p.name as string) ?? id,
-      family: (p.npm as string) ?? id,
-      models: Object.values((p.models as Record<string, Record<string, unknown>>) ?? {}).map(
-        (m) => ({
-          id: m.id as string,
-          name: m.name as string | undefined,
-          capabilities: {
-            contextWindow: (m.limit as { context?: number } | undefined)?.context,
-            maxOutputTokens: (m.limit as { output?: number } | undefined)?.output,
-          },
-          pricing: m.cost as { input?: number; output?: number } | undefined,
-        }),
-      ),
-    }));
+    return {
+      ok: true,
+      providers: Object.entries(payload).map(([id, p]) => ({
+        id: (p.id as string) ?? id,
+        name: (p.name as string) ?? id,
+        family: (p.npm as string) ?? id,
+        models: Object.values((p.models as Record<string, Record<string, unknown>>) ?? {}).map(
+          (m) => ({
+            id: m.id as string,
+            name: m.name as string | undefined,
+            capabilities: {
+              contextWindow: (m.limit as { context?: number } | undefined)?.context,
+              maxOutputTokens: (m.limit as { output?: number } | undefined)?.output,
+            },
+            pricing: m.cost as { input?: number; output?: number } | undefined,
+          }),
+        ),
+      })),
+    };
   } catch {
-    return `${color.amber('Models cache not available')}. Run wstack sync-models.`;
+    return {
+      ok: false,
+      message: `${color.amber('Models cache not available')}. Run wstack sync-models.`,
+      hard: false,
+    };
   }
 }
 
@@ -66,11 +83,11 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
   const sub = args[0]?.toLowerCase() || 'full';
 
   const cacheResult = await readProviders(deps.paths.modelsCache);
-  if (typeof cacheResult === 'string') {
-    deps.renderer.write(`${cacheResult}\n`);
-    return cacheResult.includes(color.red('')) ? 1 : 0;
+  if (!cacheResult.ok) {
+    deps.renderer.write(`${cacheResult.message}\n`);
+    return cacheResult.hard ? 1 : 0;
   }
-  const providers = cacheResult;
+  const providers = cacheResult.providers;
 
   const config = deps.config as ModelDiagConfig;
   const modelMatrix = (config.modelMatrix ?? {}) as Record<string, ModelMatrixEntry>;

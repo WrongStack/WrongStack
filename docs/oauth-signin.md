@@ -94,6 +94,38 @@ wstack auth login chatgpt
 - **Requires** a ChatGPT **Plus / Pro / Team** plan with Codex access. A plain
   free account will authenticate but be rejected at request time.
 
+### Quota and prompt cache
+
+A ChatGPT-login account is metered on rolling windows (typically 5 hours and a
+week), and the backend reports the burn only in **response headers**
+(`x-codex-*-used-percent`, `-window-minutes`, `-reset-at`, plus credits and, on
+a cut-off, `x-codex-rate-limit-reached-type`). WrongStack reads those on every
+request and keeps the latest reading:
+
+```bash
+/openai-quota   # windows used, % left, and time to reset
+```
+
+The reading is observational — it appears after the first request of a session
+and never costs a request of its own. When a `429` does arrive, its
+`-reset-at` becomes the exact retry time, so an exhausted plan parks until the
+window reopens instead of being re-probed on a backoff schedule.
+
+Three things keep the ChatGPT-side prompt cache hitting, and all three matter
+because everything they save is quota that is not spent twice:
+
+- `prompt_cache_key` routes prefix-sharing requests to one cache partition.
+- `x-codex-turn-state`, the backend's sticky routing token, is echoed on the
+  follow-up requests of the same session so they land where the prefix is
+  already cached.
+- Reasoning is replayed. The transport asks for
+  `include: ['reasoning.encrypted_content']` and sends the encrypted items back
+  on the next turn; because `store: false` leaves no server-side state, a
+  reasoning model that cannot see its own prior reasoning re-derives it — and
+  bills for it — every turn. If the backend ever rejects a replayed item the
+  transport drops the replay and retries, so this can only cost tokens, never a
+  turn.
+
 ## Sign in with Claude
 
 ```bash

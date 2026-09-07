@@ -16,9 +16,13 @@ vi.mock('@wrongstack/core/utils', () => ({
   atomicWrite: mockAtomicWrite,
 }));
 
-vi.mock('node:fs/promises', () => ({
-  readFile: mockReadFile,
-}));
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    readFile: mockReadFile,
+  };
+});
 
 import { createConfigWriteLock, createProviderStore } from '../src/server/provider-store.js';
 

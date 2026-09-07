@@ -217,10 +217,15 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
     credentialStore,
     projectId,
     authorize: (request) => {
-      if (/^Credential\s+/i.test(request.headers.authorization ?? '')) {
+      const header = request.headers.authorization;
+      if (typeof header === 'string' && /^Credential\s+/i.test(header)) {
         // The shared router performs the authoritative async verification
         // against the project owner and injects the credential actor.
-        return { allowed: true };
+        // Returning undefined here lets the router's strict
+        // `parseCredentialAuthorization` path run, so a `Credential` header
+        // that does not match the `id:secret` format is rejected instead
+        // of being treated as an unauthenticated allow with no actor.
+        return undefined;
       }
       return authorizeMailboxBearerToken(request, tentative.token);
     },

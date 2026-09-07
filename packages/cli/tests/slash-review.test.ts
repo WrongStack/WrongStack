@@ -1,6 +1,9 @@
 import { EventEmitter } from 'node:events';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import { buildReviewCommand } from '../src/slash-commands/review.js';
 
@@ -15,17 +18,32 @@ vi.mock('node:child_process', () => {
   return { spawn: mockSpawn };
 });
 
-vi.mock('node:fs/promises', () => {
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
   return {
+    ...actual,
     access: mockAccess,
     readFile: mockReadFile,
   };
 });
 
-beforeEach(() => {
+/**
+ * Per-test working tree. `emitReviewIfChanged` writes a REAL claim ledger at
+ * `<cwd>/.wrongstack/review-claims.jsonl` guarded by a host:pid lock; sharing
+ * one literal cwd put these tests through the 5s + 30s claim-lock retry ladder
+ * against every other run's leftover locks and 30-min-TTL claims.
+ */
+let cwd: string;
+
+beforeEach(async () => {
   mockSpawn.mockReset();
   mockAccess.mockReset();
   mockReadFile.mockReset();
+  cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-slash-review-'));
+});
+
+afterEach(async () => {
+  await fs.rm(cwd, { recursive: true, force: true });
 });
 
 /**
@@ -65,14 +83,14 @@ describe('buildReviewCommand', () => {
   it('returns no-changed-files when git status is empty', async () => {
     mockSpawn.mockReturnValue(fakeChild([''], 0));
     const cmd = buildReviewCommand(makeOpts());
-    const res = await cmd.run('', { cwd: '/tmp' } as never);
+    const res = await cmd.run('', { cwd } as never);
     expect(res?.message).toMatch(/No changed files/);
   });
 
   it('returns no-changed-files when git status has only .wrongstack/', async () => {
     mockSpawn.mockReturnValue(fakeChild(['M  .wrongstack/config.json\n'], 0));
     const cmd = buildReviewCommand(makeOpts());
-    const res = await cmd.run('', { cwd: '/tmp' } as never);
+    const res = await cmd.run('', { cwd } as never);
     expect(res?.message).toMatch(/No changed files/);
   });
 
@@ -80,7 +98,7 @@ describe('buildReviewCommand', () => {
     mockSpawn.mockReturnValue(fakeChild(['M  src/foo.ts\n'], 0));
     mockAccess.mockRejectedValue(new Error('not found'));
     const cmd = buildReviewCommand(makeOpts());
-    const res = await cmd.run('--files nonexistent', { cwd: '/tmp' } as never);
+    const res = await cmd.run('--files nonexistent', { cwd } as never);
     expect(res?.message).toContain('nonexistent');
   });
 
@@ -92,7 +110,7 @@ describe('buildReviewCommand', () => {
     const emitCustom = vi.fn();
     const cmd = buildReviewCommand(makeOpts({ events: { emitCustom } as never }));
     const res = await cmd.run('', {
-      cwd: '/tmp',
+      cwd,
       provider: { id: 'test' },
       model: 'm1',
     } as never);
@@ -102,7 +120,7 @@ describe('buildReviewCommand', () => {
     expect(emitCustom).toHaveBeenCalledWith(
       'chimera.review_needed',
       expect.objectContaining({
-        cwd: '/tmp',
+        cwd,
         files: expect.arrayContaining([
           expect.objectContaining({
             path: 'src/foo.ts',
@@ -122,7 +140,7 @@ describe('buildReviewCommand', () => {
     const emitCustom = vi.fn();
     const cmd = buildReviewCommand(makeOpts({ events: { emitCustom } as never }));
     const res = await cmd.run('--files foo', {
-      cwd: '/tmp',
+      cwd,
       provider: { id: 'test' },
       model: 'm1',
     } as never);
@@ -145,7 +163,7 @@ describe('buildReviewCommand', () => {
     const emitCustom = vi.fn();
     const cmd = buildReviewCommand(makeOpts({ events: { emitCustom } as never }));
     const res = await cmd.run('--limit 2', {
-      cwd: '/tmp',
+      cwd,
       provider: { id: 'test' },
       model: 'm1',
     } as never);
@@ -163,7 +181,7 @@ describe('buildReviewCommand', () => {
   it('handles git error gracefully', async () => {
     mockSpawn.mockReturnValue(fakeChild([''], 1));
     const cmd = buildReviewCommand(makeOpts());
-    const res = await cmd.run('', { cwd: '/tmp' } as never);
+    const res = await cmd.run('', { cwd } as never);
     expect(res?.message).toMatch(/No changed files/);
   });
 
@@ -178,7 +196,7 @@ describe('buildReviewCommand', () => {
     mockSpawn.mockReturnValue(child);
 
     const cmd = buildReviewCommand(makeOpts());
-    const res = await cmd.run('', { cwd: '/tmp' } as never);
+    const res = await cmd.run('', { cwd } as never);
     expect(res?.message).toMatch(/No changed files/);
   });
 });

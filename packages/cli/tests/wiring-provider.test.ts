@@ -183,7 +183,6 @@ describe('setupProvider', () => {
     expect(out.resolvedProvider?.models.map((m) => m.id)).toEqual([
       'gpt-6-astra',
       'gpt-5.6-sol',
-      'gpt-5.5',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
       'gpt-5.4-mini',
@@ -215,7 +214,7 @@ describe('setupProvider', () => {
     const out = await setupProvider({
       config: fakeConfig({
         provider: 'openai-codex',
-        model: 'gpt-5.5',
+        model: 'gpt-5.6-sol',
         providers: {
           'openai-codex': {
             type: 'openai-codex',
@@ -229,7 +228,6 @@ describe('setupProvider', () => {
 
     expect(out.resolvedProvider?.models.map((m) => m.id)).toEqual([
       'gpt-5.6-sol',
-      'gpt-5.5',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
       'gpt-5.4-mini',

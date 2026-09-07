@@ -21,7 +21,7 @@ look — each rail changes at a predictable rate.
 |---|---|---|---|
 | 1 | IDENTITY | never, mid-session | `project` `working_dir` `git` `model` `mode` `prompt_variant` `theme` `sessions` `tools` · right: `version` |
 | 2 | VITALS | every token | `state` `context` `tokens` `cost` `cache` `elapsed` `queue` `hint` · right: `index` |
-| 3 | SAFETY & WORK | a few times per turn | `yolo` `autonomy` `eternal_stage` `breaker` `token_saving` `processes` `side_effects` `dropped_tools` `goal` `todos` `plan` `tasks` |
+| 3 | SAFETY & WORK | a few times per turn | `yolo` `autonomy` `eternal_stage` `breaker` `quota` `token_saving` `processes` `side_effects` `dropped_tools` `goal` `todos` `plan` `tasks` |
 | 4 | ASYNC | on its own schedule | `fleet` `fleet_agents` `mailbox` `brain` `debug_stream` `memory_context` `next_steps` `auto_proceed` `enhance` |
 
 Lines 1–2 always render; 3 and 4 open only when they have content, so a

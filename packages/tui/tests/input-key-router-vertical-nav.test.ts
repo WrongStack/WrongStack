@@ -38,7 +38,7 @@ function makeHost(
   return {
     drafts,
     host: {
-      state: { status: 'idle', inputHistory: [], historyIndex: 0 },
+      state: { status: 'idle', inputHistory: [], historyIndex: 0, bashMode: false },
       draft: { buffer, cursor },
       overlayOpen: false,
       prompt,

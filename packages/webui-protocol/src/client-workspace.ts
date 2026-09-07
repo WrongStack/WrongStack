@@ -52,6 +52,7 @@ export const CLIENT_CONFIGURATION_MESSAGE_TYPES = [
   'provider.models',
   'provider.models.search',
   'provider.probe',
+  'provider.quota.get',
   'provider.remove',
   'provider.status.clear',
   'provider.status.get',

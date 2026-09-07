@@ -235,6 +235,8 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         ((cfg.autonomy as Record<string, unknown> | undefined)?.enhanceDelayMs as number) ?? 15_000,
       enhanceEnabled:
         ((cfg.autonomy as Record<string, unknown> | undefined)?.enhance as boolean) ?? true,
+      preRefineSeconds:
+        ((cfg.autonomy as Record<string, unknown> | undefined)?.preRefineSeconds as number) ?? 3,
       enhanceLanguage:
         (cfg.autonomy as Record<string, unknown> | undefined)?.enhanceLanguage === 'english'
           ? ('english' as const)
@@ -331,6 +333,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.configScope !== undefined ||
         s.enhanceDelayMs !== undefined ||
         s.enhanceEnabled !== undefined ||
+        s.preRefineSeconds !== undefined ||
         s.enhanceLanguage !== undefined ||
         s.midRunSendPicker !== undefined ||
         s.statuslineMode !== undefined ||
@@ -403,6 +406,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         if (s.mouseMode !== undefined) autonomy.mouseMode = s.mouseMode;
         if (s.enhanceDelayMs !== undefined) autonomy.enhanceDelayMs = s.enhanceDelayMs;
         if (s.enhanceEnabled !== undefined) autonomy.enhance = s.enhanceEnabled;
+        if (s.preRefineSeconds !== undefined) autonomy.preRefineSeconds = s.preRefineSeconds;
         if (s.enhanceLanguage !== undefined) autonomy.enhanceLanguage = s.enhanceLanguage;
         if (s.midRunSendPicker !== undefined) autonomy.midRunSendPicker = s.midRunSendPicker;
         if (s.shellBangWarningDontShowAgain !== undefined)

@@ -15,8 +15,8 @@ import {
  */
 describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
   it('has exactly 40 fields', () => {
-    expect(STATUSLINE_ITEMS.length).toBe(40);
-    expect(STATUSLINE_FIELD_COUNT).toBe(40);
+    expect(STATUSLINE_ITEMS.length).toBe(41);
+    expect(STATUSLINE_FIELD_COUNT).toBe(41);
   });
 
   it('follows line 1 → line 2 → line 3 → line 4 order', () => {
@@ -68,6 +68,7 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
         'autonomy',
         'eternal_stage',
         'breaker',
+        'quota',
         'token_saving',
         'processes',
         'side_effects',
@@ -175,6 +176,7 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
       'project',
       'prompt_variant',
       'queue',
+      'quota',
       'sessions',
       'side_effects',
       'state',

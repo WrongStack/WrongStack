@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import { modelsDevModelSchema } from '@wrongstack/core/models';
+import { getAllProviderQuota } from '@wrongstack/core/quota';
 import type { ProviderConfig } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage } from './types.js';
@@ -492,6 +493,19 @@ export async function handleProviderRoute(
       const kind = oauthKind(asPayloadRecord(msg));
       if (!kind) return invalidPayload(ws, msg.type);
       routes.providerHandlers.handleOAuthCancel(ws, kind);
+      return true;
+    }
+
+    case 'provider.quota.get': {
+      // A tab that connects mid-session has missed every push so far, and the
+      // reading is never re-fetched from the provider — asking a metered plan
+      // "how much have I spent" costs a request. Replaying what the store
+      // already holds is the only way a late tab sees anything before the next
+      // turn completes.
+      send(ws, {
+        type: 'provider.quota',
+        payload: { snapshots: getAllProviderQuota() },
+      });
       return true;
     }
 

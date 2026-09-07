@@ -49,6 +49,7 @@ export const SERVER_CONFIGURATION_MESSAGE_TYPES = [
   'provider.models',
   'provider.models.search_result',
   'provider.probe',
+  'provider.quota',
   'provider.status.snapshot',
   'providers.saved',
   'system_prompt.info',

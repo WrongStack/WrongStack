@@ -135,6 +135,8 @@ describe('projectChatMessage', () => {
       text: 'hi',
       messageId: '',
     });
+    expect(projectChatMessage(envelope('provider.text_delta', { text: '' }))).toBeNull();
+    expect(projectChatMessage(envelope('provider.text_delta', {}))).toBeNull();
   });
 
   it('projects responses with content and stop reason', () => {
