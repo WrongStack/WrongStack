@@ -278,11 +278,22 @@ describe('ReplayLogStore', () => {
       response: makeResponse({ content: [{ type: 'text', text: 'second' }] }),
     });
 
+    // `node:fs/promises` is module-mocked at the top of this file, so
+    // `fs.readFile` is already a `vi.fn` and `spyOn` hands back that same
+    // function *with the arrange phase's calls still in it* — the two
+    // `record()` calls above each release a file lock, and the release path
+    // reads the lock file to prove it still owns it. Clear at the
+    // arrange/act boundary, then assert on the replay log specifically:
+    // what this test forbids is `lookup` slurping the whole JSONL, not
+    // incidental lock bookkeeping.
     const readFileSpy = vi.spyOn(fs, 'readFile');
+    readFileSpy.mockClear();
     const entry = await store.lookup('s1', hashA);
 
     expect(entry?.response.content[0]).toMatchObject({ text: 'first' });
-    expect(readFileSpy).not.toHaveBeenCalled();
+    const logPath = path.join(dir, 's1.replay.jsonl');
+    const logReads = readFileSpy.mock.calls.filter(([target]) => String(target) === logPath);
+    expect(logReads).toEqual([]);
   });
 
   it('appends to file rather than rewriting entire file on each record', async () => {

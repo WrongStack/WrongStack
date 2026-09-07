@@ -19,6 +19,17 @@ import { execSync } from 'node:child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../../../..');
 
+/** `git grep` emits backslashes on Windows; compare paths in one shape. */
+const toPosix = (p: string): string => p.split(String.fromCharCode(92)).join('/');
+
+/**
+ * This file states the rule, so it necessarily writes the pattern it forbids —
+ * in the docblock, in the allow-list, and in the failure message. Excluding it
+ * by identity rather than by an allow-list string keeps a later reword of that
+ * message from re-triggering the rule against itself.
+ */
+const SELF = toPosix(path.relative(REPO_ROOT, fileURLToPath(import.meta.url)));
+
 function listTsFiles(dir: string): string[] {
   const out: string[] = [];
   if (!fs.existsSync(dir)) return out;
@@ -98,7 +109,8 @@ describe('S4: every shell:true spawn site is paired with the cmd-shim helper', (
     for (const line of lines) {
       const filePath = line.split(':')[0] ?? '';
       // Normalise Windows backslashes from `git grep` output.
-      const normalised = filePath.replace(/\\/g, '/');
+      const normalised = toPosix(filePath);
+      if (normalised === SELF) continue;
       if (proseExcludes.some((re) => re.test(normalised))) continue;
       // Skip lines that are themselves comments / strings — git grep
       // matches anywhere in the line, so a `// … shell: true …`

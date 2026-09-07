@@ -44,9 +44,7 @@ describe('WS-088: restrictFilePermissions spy on fresh-key path', () => {
   it('does not fire from the fresh-key create path when key file already exists', async () => {
     // Pre-create a valid versioned v2 key file so readFileSync succeeds on
     // the first try — the create path (and its restrictFilePermissions call)
-    // is never reached. checkKeyFilePermissions may still call it (self-heal
-    // for wrong mode), but the key was created with correct 0o600 so even
-    // that path is a no-op on POSIX.
+    // is never reached.
     const { randomBytes } = await import('node:crypto');
     const magic = Buffer.from('WSKV', 'ascii');
     const buf = Buffer.alloc(magic.length + 1 + 32);
@@ -55,16 +53,30 @@ describe('WS-088: restrictFilePermissions spy on fresh-key path', () => {
     randomBytes(32).copy(buf, magic.length + 1);
     await fs.writeFile(keyFile, buf, { mode: 0o600 });
 
+    const before = await fs.readFile(keyFile);
+
     vi.mocked(restrictFilePermissions).mockClear();
 
     const vault = new DefaultSecretVault({ keyFile });
     const enc = vault.encrypt('test');
     expect(vault.decrypt(enc)).toBe('test');
 
-    // On a correctly-permissioned key file, checkKeyFilePermissions is a
-    // no-op (mode already 0o600 on POSIX), so no restrictFilePermissions call.
-    // On Windows the mode check is skipped entirely. Either way, no call.
-    // This proves the spy fires specifically on the fresh-key create path.
-    expect(restrictFilePermissions).not.toHaveBeenCalled();
+    // The load-bearing proof that the create path was not taken: the key file
+    // is byte-identical. A fresh-key create would have written a new random
+    // key, and `decrypt` above would be decrypting with a different key.
+    expect(await fs.readFile(keyFile)).toEqual(before);
+
+    if (process.platform === 'win32') {
+      // H-7: `keyFileNeedsHardening` deliberately returns true unconditionally
+      // on Windows — mode bits say nothing there, and the previous early
+      // return left every pre-existing `.key` carrying the parent directory's
+      // inherited ACEs forever. So exactly one self-heal call is expected, and
+      // it is `checkKeyFilePermissions`, not the create path.
+      expect(restrictFilePermissions).toHaveBeenCalledTimes(1);
+    } else {
+      // POSIX: the key was written 0o600, so the mode check finds nothing to
+      // repair and nothing else can fire.
+      expect(restrictFilePermissions).not.toHaveBeenCalled();
+    }
   });
 });
