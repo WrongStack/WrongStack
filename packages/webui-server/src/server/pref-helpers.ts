@@ -21,7 +21,12 @@ import * as path from 'node:path';
 import { pluginEntryMatchesName } from '@wrongstack/core/plugin';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
 import type { SecretVault } from '@wrongstack/core/types';
-import { atomicWrite, backupConfigFile, FORBIDDEN_PROTO_KEYS } from '@wrongstack/core/utils';
+import {
+  atomicWrite,
+  backupConfigFile,
+  FORBIDDEN_PROTO_KEYS,
+  withFileLock,
+} from '@wrongstack/core/utils';
 
 /** Pref keys exposed to the settings panel via prefs.get / prefs.updated. */
 export const PREF_KEYS = [
@@ -176,26 +181,38 @@ async function writeGlobalConfigFile(
   logger: { warn(msg: string): void },
   errorLabel: string,
 ): Promise<void> {
-  // Back up the current file before overwriting
-  const globalRoot = path.dirname(filePath);
-  await backupConfigFile(filePath, { globalRoot });
-  let raw: string;
-  try {
-    raw = await fs.readFile(filePath, 'utf8');
-  } catch {
-    raw = '{}';
-  }
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    logger.warn(`${errorLabel}: refusing to overwrite corrupt config at ${filePath}`);
-    return;
-  }
-  const decrypted = decryptConfigSecrets(parsed, vault) as Record<string, unknown>;
-  mutate(decrypted);
-  const encrypted = encryptConfigSecrets(decrypted, vault);
-  await atomicWrite(filePath, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
+  // G6 (RACE-003): the previous read-modify-write cycle held no
+  // cross-process lock. The TUI and the WebUI server are normal,
+  // concurrently-running writers of `~/.wrongstack/config.json`; a
+  // user turning YOLO off in the terminal had it silently reverted
+  // milliseconds later by an unrelated `prefs.update` written from
+  // the WebUI from a pre-change snapshot — the same window loses
+  // `tools.disabledTools`, `hq.token` rotations, and provider
+  // credential changes. `withFileLock` is the cross-process
+  // serialization primitive S7 hardened (token-checked release
+  // prevents the steal-back failure mode).
+  await withFileLock(filePath, async () => {
+    // Back up the current file before overwriting
+    const globalRoot = path.dirname(filePath);
+    await backupConfigFile(filePath, { globalRoot });
+    let raw: string;
+    try {
+      raw = await fs.readFile(filePath, 'utf8');
+    } catch {
+      raw = '{}';
+    }
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      logger.warn(`${errorLabel}: refusing to overwrite corrupt config at ${filePath}`);
+      return;
+    }
+    const decrypted = decryptConfigSecrets(parsed, vault) as Record<string, unknown>;
+    mutate(decrypted);
+    const encrypted = encryptConfigSecrets(decrypted, vault);
+    await atomicWrite(filePath, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
+  });
 }
 
 /**
