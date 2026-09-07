@@ -2,33 +2,26 @@
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useTheme } from '../src/hooks/use-theme.js';
 
 /**
- * PR-1 safety net for `useTheme`. The hook was extracted verbatim from
- * `app.tsx` — these tests pin the contract so the next PR cannot regress it.
- *
- * The harness mirrors the existing `agent-chat-pane.test.tsx` pattern: real
- * `createRoot` + `act`, no extra testing-library dependency.
- *
- * Coverage:
- *  - Initial resolution: saved localStorage value wins; otherwise the OS
- *    `prefers-color-scheme: light` media query; otherwise `'dark'`.
- *  - DOM side-effects: `documentElement.dataset.theme` and
- *    `documentElement.style.colorScheme` stay in sync with state.
- *  - Persistence: each change writes to localStorage under the canonical key.
- *  - Privacy mode: a thrown `localStorage.getItem` / `setItem` falls back to
- *    `'dark'` and never crashes.
- *  - `toggleTheme()` flips dark↔light without losing the resolver chain.
+ * The theme is persisted as the user's CHOICE ('system' | 'light' | 'dark');
+ * what reaches the DOM and consumers is always the RESOLVED theme. 'system'
+ * is the default and tracks prefers-color-scheme LIVE (not just at boot).
+ * jsdom has no matchMedia, so a stub is installed per test — and the hook
+ * must degrade to 'dark' when even that API is missing.
  */
 
-const THEME_KEY = 'wrongstack.simpleui.theme';
+const BASE = 'WrongStack SimpleUI';
+
+const roots: Root[] = [];
+const hosts: HTMLElement[] = [];
 
 interface MatchMediaStub {
   matches: boolean;
-  addEventListener: () => void;
-  removeEventListener: () => void;
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
 }
 
 function installMatchMedia(matches: boolean): MatchMediaStub {
@@ -38,181 +31,188 @@ function installMatchMedia(matches: boolean): MatchMediaStub {
     removeEventListener: vi.fn(),
   };
   Object.defineProperty(window, 'matchMedia', {
-    writable: true,
     configurable: true,
+    writable: true,
     value: vi.fn(() => stub),
   });
   return stub;
 }
 
-interface CapturedTheme {
-  current: ReturnType<typeof useTheme>;
+interface ThemeProbe {
+  theme: () => 'system' | 'light' | 'dark' | undefined;
+  resolvedTheme: () => 'light' | 'dark' | undefined;
+  setTheme: (t: 'system' | 'light' | 'dark') => void;
+  toggle: () => void;
 }
 
-/**
- * Render `<Probe/>`, which calls the hook and copies its return value into the
- * `captured` holder on every render. Returns the holder plus the React root so
- * the caller can `act()` on it and unmount at teardown.
- */
-function renderHookViaRoot(captured: CapturedTheme): Root {
+function renderTheme(): ThemeProbe {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  roots.push(root);
+  hosts.push(host);
+
+  let latest: ReturnType<typeof useTheme>;
   function Probe(): null {
-    captured.current = useTheme();
+    latest = useTheme();
     return null;
   }
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  act(() => root.render(<Probe />));
-  return root;
+  act(() => {
+    root.render(<Probe />);
+  });
+  return {
+    theme: () => latest.theme,
+    resolvedTheme: () => latest.resolvedTheme,
+    setTheme: (t) =>
+      act(() => {
+        latest.setTheme(t);
+      }),
+    toggle: () =>
+      act(() => {
+        latest.toggleTheme();
+      }),
+  };
 }
-
-const roots: Root[] = [];
-
-beforeEach(() => {
-  localStorage.clear();
-  document.documentElement.dataset.theme = '';
-  document.documentElement.style.colorScheme = '';
-});
 
 afterEach(() => {
   for (const root of roots.splice(0)) act(() => root.unmount());
-  document.body.replaceChildren();
+  for (const host of hosts.splice(0)) host.remove();
+  localStorage.clear();
+  delete (document.documentElement as { dataset: Record<string, unknown> }).dataset.theme;
+  document.documentElement.style.colorScheme = '';
   vi.restoreAllMocks();
 });
 
 describe('useTheme — initial resolution', () => {
-  it('uses a saved localStorage value when present', () => {
-    localStorage.setItem(THEME_KEY, 'light');
-    installMatchMedia(false);
-
-    const captured: CapturedTheme = { current: undefined as never };
-    renderHookViaRoot(captured);
-
-    expect(captured.current.theme).toBe('light');
-  });
-
-  it('falls back to prefers-color-scheme: light when no saved value exists', () => {
+  it('defaults to system mode, resolved from the OS', () => {
     installMatchMedia(true);
-
-    const captured: CapturedTheme = { current: undefined as never };
-    renderHookViaRoot(captured);
-
-    expect(captured.current.theme).toBe('light');
+    const t = renderTheme();
+    expect(t.theme()).toBe('system');
+    expect(t.resolvedTheme()).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem('wrongstack.simpleui.theme')).toBe('system');
   });
 
-  it('defaults to dark when no saved value and the OS prefers dark', () => {
+  it('honors a saved light/dark choice and skips the OS query', () => {
+    const stub = installMatchMedia(true);
+    localStorage.setItem('wrongstack.simpleui.theme', 'dark');
+    const t = renderTheme();
+    expect(t.theme()).toBe('dark');
+    expect(t.resolvedTheme()).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    // Explicit choice: no live tracking while not in system mode.
+    expect(stub.addEventListener).not.toHaveBeenCalled();
+  });
+
+  it('honors a saved system choice', () => {
     installMatchMedia(false);
-
-    const captured: CapturedTheme = { current: undefined as never };
-    renderHookViaRoot(captured);
-
-    expect(captured.current.theme).toBe('dark');
+    localStorage.setItem('wrongstack.simpleui.theme', 'system');
+    const t = renderTheme();
+    expect(t.theme()).toBe('system');
+    expect(t.resolvedTheme()).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
-  it('ignores a corrupted localStorage value (not "dark"/"light")', () => {
-    localStorage.setItem(THEME_KEY, 'midnight');
-    installMatchMedia(true);
-
-    const captured: CapturedTheme = { current: undefined as never };
-    renderHookViaRoot(captured);
-
-    expect(captured.current.theme).toBe('light');
+  it('treats a corrupted saved value as system', () => {
+    installMatchMedia(false);
+    localStorage.setItem('wrongstack.simpleui.theme', 'midnight');
+    const t = renderTheme();
+    expect(t.theme()).toBe('system');
+    expect(t.resolvedTheme()).toBe('dark');
   });
 
-  it('falls back to dark when localStorage throws on read (privacy mode)', () => {
-    const original = Storage.prototype.getItem;
-    Storage.prototype.getItem = vi.fn(() => {
-      throw new Error('storage denied');
+  it('falls back to system/dark when localStorage throws (privacy mode)', () => {
+    installMatchMedia(false);
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
     });
-    installMatchMedia(true); // would normally select light
+    const t = renderTheme();
+    expect(t.theme()).toBe('system');
+    expect(t.resolvedTheme()).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+  });
 
-    const captured: CapturedTheme = { current: undefined as never };
-    renderHookViaRoot(captured);
-
-    expect(captured.current.theme).toBe('dark');
-
-    Storage.prototype.getItem = original;
+  it('degrades to dark when matchMedia is missing entirely', () => {
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined });
+    const t = renderTheme();
+    expect(t.theme()).toBe('system');
+    expect(t.resolvedTheme()).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
   });
 });
 
-describe('useTheme — DOM side-effects', () => {
-  it('writes data-theme and colorScheme on mount', () => {
-    localStorage.setItem(THEME_KEY, 'dark');
+describe('useTheme — persistence and DOM side-effects', () => {
+  it('persists explicit choices and applies them to the document', () => {
     installMatchMedia(false);
-
-    const captured: CapturedTheme = { current: undefined as never };
-    renderHookViaRoot(captured);
-
-    expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(document.documentElement.style.colorScheme).toBe('dark');
-  });
-
-  it('re-writes the DOM attributes when the theme changes', () => {
-    installMatchMedia(false);
-
-    const captured: CapturedTheme = { current: undefined as never };
-    const root = renderHookViaRoot(captured);
-
-    act(() => captured.current.setTheme('light'));
-
+    const t = renderTheme();
+    t.setTheme('light');
+    expect(t.theme()).toBe('light');
+    expect(t.resolvedTheme()).toBe('light');
     expect(document.documentElement.dataset.theme).toBe('light');
     expect(document.documentElement.style.colorScheme).toBe('light');
-    expect(captured.current.theme).toBe('light');
-    // Keep the root alive for the afterEach cleanup.
-    roots.push(root);
-  });
-});
-
-describe('useTheme — persistence', () => {
-  it('persists each theme change under the canonical key', () => {
-    installMatchMedia(false);
-
-    const captured: CapturedTheme = { current: undefined as never };
-    const root = renderHookViaRoot(captured);
-
-    act(() => captured.current.setTheme('light'));
-    expect(localStorage.getItem(THEME_KEY)).toBe('light');
-
-    act(() => captured.current.toggleTheme());
-    expect(localStorage.getItem(THEME_KEY)).toBe('dark');
-
-    roots.push(root);
+    expect(localStorage.getItem('wrongstack.simpleui.theme')).toBe('light');
   });
 
-  it('swallows a thrown setItem (privacy mode) without crashing', () => {
+  it('swallows persistence failures (storage blocked) and still applies the DOM', () => {
     installMatchMedia(false);
-    const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = vi.fn(() => {
-      throw new Error('quota / denied');
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('full');
     });
-
-    const captured: CapturedTheme = { current: undefined as never };
-    const root = renderHookViaRoot(captured);
-
-    expect(() => {
-      act(() => captured.current.setTheme('light'));
-    }).not.toThrow();
-    expect(captured.current.theme).toBe('light');
-
-    Storage.prototype.setItem = original;
-    roots.push(root);
+    const t = renderTheme();
+    t.setTheme('light');
+    expect(t.theme()).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 });
 
-describe('useTheme — toggleTheme', () => {
-  it('flips dark → light → dark', () => {
+describe('useTheme — toggle cycle', () => {
+  it('cycles system → light → dark → system', () => {
     installMatchMedia(false);
+    const t = renderTheme();
+    expect(t.theme()).toBe('system');
+    t.toggle();
+    expect(t.theme()).toBe('light');
+    expect(t.resolvedTheme()).toBe('light');
+    t.toggle();
+    expect(t.theme()).toBe('dark');
+    expect(t.resolvedTheme()).toBe('dark');
+    t.toggle();
+    expect(t.theme()).toBe('system');
+    expect(t.resolvedTheme()).toBe('dark'); // OS still dark
+    expect(localStorage.getItem('wrongstack.simpleui.theme')).toBe('system');
+  });
+});
 
-    const captured: CapturedTheme = { current: undefined as never };
-    const root = renderHookViaRoot(captured);
-    expect(captured.current.theme).toBe('dark');
+describe('useTheme — live OS tracking', () => {
+  it('re-resolves when the OS preference flips while in system mode', () => {
+    const stub = installMatchMedia(true);
+    const t = renderTheme();
+    expect(t.resolvedTheme()).toBe('light');
 
-    act(() => captured.current.toggleTheme());
-    expect(captured.current.theme).toBe('light');
+    // Simulate the OS flipping to dark: flip the stub, then fire the
+    // registered change listener.
+    stub.matches = false;
+    const handler = stub.addEventListener.mock.calls.at(-1)?.[1] as () => void;
+    act(() => {
+      handler();
+    });
+    expect(t.resolvedTheme()).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+  });
 
-    act(() => captured.current.toggleTheme());
-    expect(captured.current.theme).toBe('dark');
-
-    roots.push(root);
+  it('detaches the OS listener on unmount', () => {
+    const stub = installMatchMedia(true);
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    function Probe(): null {
+      useTheme();
+      return null;
+    }
+    act(() => {
+      root.render(<Probe />);
+    });
+    act(() => root.unmount());
+    expect(stub.removeEventListener).toHaveBeenCalled();
   });
 });

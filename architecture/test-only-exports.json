@@ -299,6 +299,10 @@
       "getUpdateNotification",
       "isNewer"
     ],
+    "packages/cli/src/wiring/atlas-prompt-contributor.ts": [
+      "DEFAULT_BRIEF_MAX_TOKENS",
+      "renderAtlasBrief"
+    ],
     "packages/cli/src/wiring/external-plugins.ts": [
       "resolveExternalPluginTrustMode"
     ],
@@ -908,6 +912,10 @@
     "packages/simpleui/src/agent-chat-pane.tsx": [
       "agentConversationEntries"
     ],
+    "packages/simpleui/src/chat-message-list.tsx": [
+      "applyScrollAnchoring",
+      "CHAT_WINDOW_SIZE"
+    ],
     "packages/simpleui/src/context-breakdown-modal.tsx": [
       "parseContextDebugPayload"
     ],
@@ -1052,9 +1060,6 @@
       "buildRankMap",
       "RRF_K",
       "VECTOR_DIMENSIONS"
-    ],
-    "packages/tools/src/codebase-index/writer-helpers.ts": [
-      "posixIndexPath"
     ],
     "packages/tools/src/codebase-index/writer-refs.ts": [
       "FAMILY_MATCH_SQL"
@@ -1394,9 +1399,6 @@
     ],
     "packages/webui-hq/src/domain/mailbox-live.ts": [
       "buildLiveFeed"
-    ],
-    "packages/webui-hq/src/domain/transcript-store.ts": [
-      "entryKey"
     ],
     "packages/webui-hq/src/domain/use-session-transcript.ts": [
       "coalesceStreamedText"

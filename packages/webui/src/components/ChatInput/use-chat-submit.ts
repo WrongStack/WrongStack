@@ -161,6 +161,22 @@ export function useChatSubmit({
     ],
   );
 
+  /**
+   * The ONE composer reset: file references, input state, history cursor,
+   * sticky draft, and the DOM textarea (session draft + height + focus via
+   * the injected clearTextarea). Every submitWith exit that consumed the
+   * draft funnels through here — a new piece of composer state must be
+   * added HERE, not re-inlined per call site. Pending images are
+   * intentionally excluded: queue/steer branches own their timing.
+   */
+  const resetComposerState = useCallback(() => {
+    clearRefs();
+    setInput('');
+    setHistoryIdx(-1);
+    stickyDraftRef.current = null;
+    clearTextarea();
+  }, [clearRefs, setInput, setHistoryIdx, stickyDraftRef, clearTextarea]);
+
   const submitWith = useCallback(
     async (mode: QueueMode) => {
       resetAutoSubmitStreak();
@@ -174,12 +190,8 @@ export function useChatSubmit({
       const combined = [content, refsMarkdown].filter(Boolean).join('\n\n');
 
       if (content.startsWith('/') && runSlashCommand(combined)) {
-        clearRefs();
+        resetComposerState();
         pushPrompt(content);
-        setInput('');
-        setHistoryIdx(-1);
-        stickyDraftRef.current = null;
-        clearTextarea();
         return;
       }
 
@@ -226,11 +238,7 @@ export function useChatSubmit({
         }
       }
 
-      clearRefs();
-      setInput('');
-      setHistoryIdx(-1);
-      stickyDraftRef.current = null;
-      clearTextarea();
+      resetComposerState();
       pushPrompt(content);
 
       const images = pendingImagesRef.current;
@@ -387,6 +395,7 @@ export function useChatSubmit({
       runSlashCommand,
       pushPrompt,
       clearTextarea,
+      resetComposerState,
       resetAutoSubmitStreak,
       clearPendingImages,
       pendingImagesRef,

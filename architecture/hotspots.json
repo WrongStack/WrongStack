@@ -227,7 +227,7 @@
       "relativeImports": 1
     },
     "packages/primitives/src/regex-ambiguity.ts": {
-      "lines": 834,
+      "lines": 843,
       "relativeImports": 0
     },
     "packages/primitives/src/regex-guard.ts": {
@@ -271,20 +271,20 @@
       "relativeImports": 16
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1025,
-      "relativeImports": 48
+      "lines": 1058,
+      "relativeImports": 50
     },
     "packages/tools/src/bash.ts": {
       "lines": 883,
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {
-      "lines": 909,
-      "relativeImports": 7
+      "lines": 932,
+      "relativeImports": 8
     },
     "packages/tools/src/codebase-index/indexer.ts": {
-      "lines": 986,
-      "relativeImports": 9
+      "lines": 1011,
+      "relativeImports": 10
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
       "lines": 823,
@@ -295,8 +295,12 @@
       "relativeImports": 1
     },
     "packages/tools/src/codebase-index/writer-graph-reader.ts": {
-      "lines": 831,
-      "relativeImports": 5
+      "lines": 884,
+      "relativeImports": 6
+    },
+    "packages/tools/src/codebase-index/writer.ts": {
+      "lines": 991,
+      "relativeImports": 24
     },
     "packages/tools/src/json.ts": {
       "lines": 935,
