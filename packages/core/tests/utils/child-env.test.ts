@@ -69,6 +69,31 @@ describe('buildChildEnv', () => {
     expect(result.HOME).toBe('/home/user');
   });
 
+  // Regression for F5 (SECRETS-004): the personal-access-token
+  // convention `_PAT` (used by `GH_PAT`, `DIGITALOCEAN_PAT`,
+  // `AZURE_DEVOPS_PAT`, etc.) was missed by the secret-name
+  // classifier, so a CI-set `GH_PAT=ghp_…` was forwarded to every
+  // child process (agent exec, MCP stdio servers). Plain substring
+  // match would flag `PATH` / `PATHEXT` — the bare token suffix
+  // is checked with a word-boundary regex instead.
+  it('strips *PAT personal access tokens but preserves PATH/PATHEXT', () => {
+    process.env = {
+      PATH: '/usr/bin',
+      PATHEXT: '.COM;.EXE;.BAT;.CMD',
+      GH_PAT: 'ghp_…',
+      DIGITALOCEAN_PAT: 'dop_v1_…',
+      AZURE_DEVOPS_PAT: '…',
+      SOMETHING_PAT: 'should-be-stripped',
+    };
+    const result = buildChildEnv();
+    expect(result.PATH).toBe('/usr/bin');
+    expect(result.PATHEXT).toBe('.COM;.EXE;.BAT;.CMD');
+    expect(result.GH_PAT).toBeUndefined();
+    expect(result.DIGITALOCEAN_PAT).toBeUndefined();
+    expect(result.AZURE_DEVOPS_PAT).toBeUndefined();
+    expect(result.SOMETHING_PAT).toBeUndefined();
+  });
+
   it('should strip vars with TOKEN in the name', () => {
     process.env = { PATH: '/usr/bin', MY_TOKEN: 'abc123' };
     const result = buildChildEnv();

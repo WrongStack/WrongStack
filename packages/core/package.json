@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/core",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "MIT",
   "description": "WrongStack core: kernel, types, and shared utilities for the WrongStack CLI agent.",
   "repository": {
@@ -72,6 +72,10 @@
       "types": "./dist/utils/child-env.d.ts",
       "import": "./dist/utils/child-env.js"
     },
+    "./utils/ip-guard": {
+      "types": "./dist/utils/ip-guard.d.ts",
+      "import": "./dist/utils/ip-guard.js"
+    },
     "./utils/tree-kill": {
       "types": "./dist/utils/tree-kill.d.ts",
       "import": "./dist/utils/tree-kill.js"
@@ -136,6 +140,10 @@
     "./statusline": {
       "types": "./dist/statusline/index.d.ts",
       "import": "./dist/statusline/index.js"
+    },
+    "./quota": {
+      "types": "./dist/quota/index.d.ts",
+      "import": "./dist/quota/index.js"
     },
     "./infrastructure": {
       "types": "./dist/infrastructure/index.d.ts",

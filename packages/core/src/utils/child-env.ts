@@ -74,6 +74,11 @@ const SECRET_NAME_PARTS = [
   'BEARER',
   'COOKIE',
   'PRIVATE',
+  // F5 (SECRETS-004): `_PAT` (personal-access-token) convention used by
+  // `GH_PAT`, `DIGITALOCEAN_PAT`, `AZURE_DEVOPS_PAT`, etc. Plain
+  // substring match would catch `PATH` / `PATHEXT` — the bare token
+  // suffix `_PAT` is checked separately (see below) so the false
+  // positives here are zero.
 ];
 
 function looksSecret(name: string): boolean {
@@ -81,6 +86,11 @@ function looksSecret(name: string): boolean {
   for (const p of SECRET_NAME_PARTS) {
     if (upper.includes(p)) return true;
   }
+  // F5 (SECRETS-004): match the `_PAT` personal-access-token suffix
+  // on its own. A substring match would flag `PATH` / `PATHEXT`; a
+  // word-boundary regex catches `GH_PAT`, `DIGITALOCEAN_PAT`,
+  // `AZURE_DEVOPS_PAT`, etc. without the false positives.
+  if (/(?:^|_)PAT(?:$|_)/.test(upper)) return true;
   // KEY is tricky — PUBLIC_KEY is fine to forward but most _KEY vars are
   // secrets. Require word boundary so KEYBOARD_LAYOUT etc. are not flagged.
   if (/(?:^|_)KEY(?:$|_|S$)/i.test(upper)) return true;
