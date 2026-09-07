@@ -145,7 +145,14 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # I1 (SC-SUPPLY-001): nine of ten `pnpm install` invocations across
+        # all workflows pass `--ignore-scripts`; this one (the only
+        # release-pipeline install) did not, and `needs: verify` upstream
+        # of `pack` means a compromised transitive postinstall could
+        # tamper with the pnpm store cache that `pack` restores and ships
+        # under the repo's provenance attestation. Mirror the rest of
+        # the repo and refuse to run lifecycle scripts.
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Release gate
         run: pnpm release:check
@@ -181,7 +188,7 @@ jobs:
       - name: Rebuild reviewed native dependencies
         # Kept in sync with pnpm-workspace.yaml allowBuilds — pinned by
         # packages/core/tests/architecture/build-allowlist-freshness.test.ts.
-        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
+        run: pnpm rebuild esbuild node-pty onnxruntime-node protobufjs
 
       - name: Build
         run: pnpm build

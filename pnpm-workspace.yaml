@@ -36,10 +36,6 @@ auditConfig:
   ignoreGhsas:
     - GHSA-gv7w-rqvm-qjhr
 allowBuilds:
-  '@biomejs/biome': true
-  # Electron's install script fetches the platform runtime used by
-  # apps/desktop. Keep this explicit so new installs can run the desktop app.
-  electron: true
   esbuild: true
   # node-pty is an optional WebUI terminal dependency (used by the
   # integrated shell panel). We allow its prebuild-install script so the
@@ -67,23 +63,17 @@ allowBuilds:
   # detection no-op that logs a deprecation hint on old Node; it downloads
   # and executes nothing. Reviewed 2026-08-16.
   protobufjs: true
-  # sharp: optionalDependency of @huggingface/transformers (pulled in by
-  # @wrongstack/vector-memory). Sharp's postinstall downloads a prebuilt
-  # native libvips binary for the current platform from npm; it does not
-  # execute arbitrary remote code beyond the package's own published
-  # release artifacts. Reviewed 2026-08-15 — the binary is fetched from
-  # sharp's own `@img/sharp-linux-x64` / `@img/sharp-darwin-arm64` etc.
-  # subpackages on the public npm registry (no third-party hosts), and
-  # the binary URL is pinned by version in sharp's package.json.
-  sharp: true
+  # sharp: removed in 2026-09-07 cleanup. The installed `sharp`
+  # package no longer declares an install lifecycle script, so the
+  # entry was a dead authorisation that would have re-armed the
+  # gate silently if sharp ever gained a postinstall. The sibling
+  # architecture test (`build-allowlist-freshness.test.ts`) prevents
+  # this from coming back.
 onlyBuiltDependencies:
-  - "@biomejs/biome"
-  - electron
   - esbuild
   - node-pty
   - onnxruntime-node
   - protobufjs
-  - sharp
 # Install cooldown: refuse versions published less than 24h ago. This is the
 # single most effective defence against a compromised-maintainer / npm account
 # takeover, where a malicious version is published and yanked within hours.

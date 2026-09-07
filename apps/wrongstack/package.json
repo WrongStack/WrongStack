@@ -1,6 +1,6 @@
 {
   "name": "wrongstack",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "MIT",
   "description": "WrongStack — terminal AI coding agent. Installs `wrongstack` and `wstack` binaries (re-export of @wrongstack/cli).",
   "keywords": [
@@ -24,7 +24,8 @@
     "wrongstack": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.map"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
