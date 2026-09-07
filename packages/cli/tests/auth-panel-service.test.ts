@@ -232,12 +232,20 @@ describe('direct mutations', () => {
         },
         fallbackProfile: 'anthropicOnly',
         modelMatrix: {
-          reviewer: { provider: 'anthropic', model: 'claude-old', fallbackProfile: 'anthropicOnly' },
+          reviewer: {
+            provider: 'anthropic',
+            model: 'claude-old',
+            fallbackProfile: 'anthropicOnly',
+          },
           writer: { fallbackProfile: 'mixed' },
         },
         modelTiers: {
           levels: {
-            premium: { provider: 'anthropic', model: 'claude-old', fallbackProfile: 'anthropicOnly' },
+            premium: {
+              provider: 'anthropic',
+              model: 'claude-old',
+              fallbackProfile: 'anthropicOnly',
+            },
             standard: { fallbackProfile: 'mixed' },
           },
         },
@@ -547,6 +555,26 @@ describe('flow delegation', () => {
       { baseUrl?: string },
     ];
     expect(opts.baseUrl).toBeUndefined();
+  });
+
+  it('addLocal opts path skips the URL prompt and forwards baseUrl + apiKey', async () => {
+    const { host } = await setup();
+    const { io, prompts } = makeIo();
+    expect(
+      (await host.addLocal('vllm', io, { baseUrl: 'http://host:8000/v1', apiKey: '' })).ok,
+    ).toBe(true);
+    // The form path must not raise any interactive prompt.
+    expect(prompts).toHaveLength(0);
+    const [, opts] = flowMocks.runAuthLocal.mock.calls.at(-1) as unknown as [
+      unknown,
+      { name?: string; baseUrl?: string; apiKey?: string; models?: string },
+    ];
+    expect(opts).toMatchObject({
+      name: 'vllm',
+      baseUrl: 'http://host:8000/v1',
+      apiKey: '',
+      models: '999',
+    });
   });
 
   it('addLocal rejects an unknown preset id', async () => {

@@ -13,8 +13,8 @@ import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
 import { COMMAND_OUTPUT_MAX_BYTES, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
-import { checkExecKillCommand } from './exec-kill-guard.js';
 import { DEFAULT_ALLOWED_COMMANDS } from './exec-allowlist.js';
+import { checkExecKillCommand } from './exec-kill-guard.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
 
 const isWin = process.platform === 'win32';
@@ -133,10 +133,9 @@ const BLOCKED_ARG_PATTERNS: Record<string, RegExp[]> = {
     /^--exec=/,
     /^--upload-pack=/,
     /^--receive-pack=/,
-    /^-C$/,
-    /^-c$/,
+    /^-C/,
+    /^-c/,
     /^--config$/,
-    /^-c=/,
     /^--config=/,
     /^--config-env=/,
   ],
@@ -273,6 +272,7 @@ function validateArgs(cmd: string, args: string[]): string | null {
   if (!blocked) return null;
 
   for (const arg of args) {
+    if (arg === '--') break;
     for (const pattern of blocked) {
       if (pattern.test(arg)) {
         return `Blocked argument "${arg}" for command "${cmd}" (matches security pattern ${pattern})`;
@@ -566,15 +566,6 @@ function runCommand(
       return;
     }
 
-    // On Windows, .cmd/.bat files are not natively executable by CreateProcess.
-    // resolveWin32Command() finds the full path, then the shim helper launches
-    // it through cmd.exe without Node's deprecated shell+args path.
-    const resolved = resolveWin32Command(cmd);
-    const needsShell = isWin && (resolved.endsWith('.cmd') || resolved.endsWith('.bat'));
-    const shim = needsShell ? buildWin32CmdShimInvocation(resolved, args) : null;
-    const spawnCmd = shim?.command ?? resolved;
-    const spawnArgs = shim?.args ?? args;
-
     const emitCompletedOnce = (
       exitCode: number,
       pid: number | undefined,
@@ -595,13 +586,22 @@ function runCommand(
     };
 
     // Wrap the entire spawn lifecycle in try/catch so a synchronous throw
-    // (bad argv, ENOENT for missing binary, ERR_INVALID_ARG_TYPE for bad
-    // signal, etc.) resolves the promise with an error response instead
-    // of producing an unhandled rejection. Without this guard the
-    // promise executor itself can throw, which Node treats as an
+    // (bad argv, win32 cmd shim metacharacter error, ENOENT for missing binary,
+    // ERR_INVALID_ARG_TYPE for bad signal, etc.) resolves the promise with an
+    // error response instead of producing an unhandled rejection. Without this
+    // guard the promise executor itself can throw, which Node treats as an
     // unhandled rejection and surfaces in process.on('unhandledRejection').
     let child: ReturnType<typeof spawn>;
     try {
+      // On Windows, .cmd/.bat files are not natively executable by CreateProcess.
+      // resolveWin32Command() finds the full path, then the shim helper launches
+      // it through cmd.exe without Node's deprecated shell+args path.
+      const resolved = resolveWin32Command(cmd);
+      const needsShell = isWin && (resolved.endsWith('.cmd') || resolved.endsWith('.bat'));
+      const shim = needsShell ? buildWin32CmdShimInvocation(resolved, args) : null;
+      const spawnCmd = shim?.command ?? resolved;
+      const spawnArgs = shim?.args ?? args;
+
       // On Windows the abort signal is handled manually below: Node's built-in
       // handling kills only the direct child, orphaning grandchildren (vitest
       // forks, dev servers, anything under a .cmd shim) that keep the inherited
@@ -620,6 +620,9 @@ function runCommand(
       // isn't on PATH. Convert to a graceful result so the tool caller
       // sees a structured error instead of an unhandled rejection that
       // would crash the host.
+      // Mirror the child-'error' handler: a failed spawn is a breaker-counted
+      // failure. (registry is declared below the catch — use the getter here.)
+      getProcessRegistry().afterCall(Date.now() - startedAt, true);
       spool.finalize();
       emitProcessStarted({
         parentPid: process.pid,
@@ -653,6 +656,16 @@ function runCommand(
       startedAt: new Date(startedAt).toISOString(),
     });
 
+    const registry = getProcessRegistry();
+    const pid = child.pid;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const onAbort = () => {
+      killed = true;
+      if (typeof pid === 'number') registry.kill(pid, { force: true });
+      else child.kill('SIGTERM');
+    };
+
     // Attach the 'error' listener IMMEDIATELY after spawn, BEFORE any other
     // async setup (process registry call, setTimeout, abort listener). The
     // Node EventEmitter contract is that an 'error' event with no listener
@@ -667,7 +680,7 @@ function runCommand(
       // converts the abort into an AbortError with `code: 'ABORT_ERR'`.
       const isAbort = err && (err as NodeJS.ErrnoException).code === 'ABORT_ERR';
       const stderrText = isAbort ? `Aborted: ${err.message}` : err.message;
-      clearTimeout(timer);
+      if (timer !== undefined) clearTimeout(timer);
       if (isWin) signal.removeEventListener('abort', onAbort);
       if (typeof pid === 'number') registry.unregister(pid);
       registry.afterCall(Date.now() - startedAt, true);
@@ -685,8 +698,6 @@ function runCommand(
       });
     });
 
-    const registry = getProcessRegistry();
-    const pid = child.pid;
     if (typeof pid === 'number') {
       const fullCommand = `${cmd} ${args.join(' ')}`;
       registry.register({
@@ -699,18 +710,13 @@ function runCommand(
       });
     }
 
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       killed = true;
       timedOut = true;
       if (typeof pid === 'number') registry.kill(pid);
       else child.kill('SIGTERM');
     }, timeout);
 
-    const onAbort = () => {
-      killed = true;
-      if (typeof pid === 'number') registry.kill(pid, { force: true });
-      else child.kill('SIGTERM');
-    };
     if (isWin) {
       if (signal.aborted) onAbort();
       else signal.addEventListener('abort', onAbort, { once: true });
@@ -740,9 +746,10 @@ function runCommand(
     });
 
     child.on('close', (code) => {
-      clearTimeout(timer);
+      if (timer !== undefined) clearTimeout(timer);
       if (isWin) signal.removeEventListener('abort', onAbort);
       if (typeof pid === 'number') registry.unregister(pid);
+      if (resolvedOnce.value) return;
       const durationMs = Date.now() - startedAt;
       const exitCode = killed ? 124 : (code ?? 1);
       emitCompletedOnce(exitCode, pid);

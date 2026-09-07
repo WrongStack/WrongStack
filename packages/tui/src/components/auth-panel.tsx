@@ -1,5 +1,6 @@
 import type React from 'react';
 import { Box, Text, useStdout } from '../ink.js';
+import { catppuccin } from '../theme.js';
 import {
   type AuthKeyRow,
   type AuthPanelRow,
@@ -14,7 +15,6 @@ import {
   OAUTH_KIND_COLORS,
   UI_COLORS,
 } from './provider-colors.js';
-import { catppuccin } from '../theme.js';
 
 interface AuthPanelProps {
   panel: AuthPanelState;
@@ -183,6 +183,53 @@ function renderRow(row: AuthPanelRow, focused: boolean, i: number): React.ReactE
         </Text>
       );
     }
+    case 'form-field': {
+      // Secret fields render masked (the value is already in panel state);
+      // the family row shows the current family with arrows when focused so
+      // the keyboard affordance is visible on screen.
+      const placeholder = row.field === 'family' ? (focused ? '◀ ▶' : '   ') : focused ? '▏' : '';
+      const display =
+        row.field === 'family'
+          ? row.value || '—'
+          : row.secret
+            ? '•'.repeat(row.value.length)
+            : row.value.length > 0
+              ? row.value
+              : focused
+                ? ' '
+                : '';
+      const valueColor =
+        row.field === 'family'
+          ? focused
+            ? UI_COLORS.focused
+            : UI_COLORS.active
+          : row.value.length > 0
+            ? undefined
+            : UI_COLORS.hint;
+      return (
+        <Text key={`ff-${row.field}`} color={rowColor} wrap="truncate-end">
+          {marker} <Text dimColor>{row.label.padEnd(22)}</Text>{' '}
+          <Text color={valueColor}>{display}</Text>
+          {focused ? <Text color={UI_COLORS.focused}>{placeholder}</Text> : null}
+        </Text>
+      );
+    }
+    case 'form-action': {
+      const label = row.action === 'save' ? '✔ Save' : '✕ Cancel';
+      const color =
+        row.action === 'save'
+          ? focused
+            ? UI_COLORS.focused
+            : UI_COLORS.active
+          : focused
+            ? UI_COLORS.focused
+            : UI_COLORS.warning;
+      return (
+        <Text key={`fa-${row.action}`} color={rowColor} wrap="truncate-end">
+          {marker} <Text color={color}>{label}</Text>
+        </Text>
+      );
+    }
     default:
       return <Text key={`r-${i}`}> </Text>;
   }
@@ -238,6 +285,13 @@ function viewTitle(panel: AuthPanelState): string {
       return 'Sign in with OAuth';
     case 'flow':
       return panel.flowTitle || 'Working…';
+    case 'form':
+      if (panel.form?.kind === 'edit') return `Edit provider — ${panel.form.providerId ?? ''}`;
+      if (panel.form?.kind === 'local') {
+        const preset = panel.presets.find((p) => p.id === panel.form?.presetId);
+        return `Add local server — ${preset?.label ?? panel.form.presetId ?? ''}`;
+      }
+      return 'Add provider';
   }
 }
 
@@ -259,6 +313,10 @@ function viewLegend(panel: AuthPanelState): string {
       return '↑/↓ select · Enter sign in · Esc back';
     case 'flow':
       return panel.flowDone ? 'Enter/Esc back' : 'Esc cancel';
+    case 'form':
+      return panel.form?.kind === 'local'
+        ? 'type to edit · Enter select · Esc cancel'
+        : 'type to edit · ←/→ cycle family · Enter select · Esc cancel';
   }
 }
 

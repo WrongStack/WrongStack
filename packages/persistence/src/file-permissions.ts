@@ -26,6 +26,7 @@
 
 import * as childProcess from 'node:child_process';
 import { chmod, stat } from 'node:fs/promises';
+import * as os from 'node:os';
 import { promisify } from 'node:util';
 
 let _execFileAsync:
@@ -157,7 +158,14 @@ export async function restrictDirPermissions(
 }
 
 function windowsAccountName(): string | undefined {
-  const username = process.env['USERNAME'] ?? process.env['USER'];
+  let username = process.env['USERNAME'] ?? process.env['USER'];
+  if (!username) {
+    try {
+      username = os.userInfo().username;
+    } catch {
+      username = undefined;
+    }
+  }
   if (!username || username.includes('\0')) return undefined;
   const domain = process.env['USERDOMAIN'];
   if (domain && !domain.includes('\0')) return `${domain}\\${username}`;

@@ -258,9 +258,8 @@ describe('RunController', () => {
       hookFinished = true;
     });
 
-    await new Promise((r) => queueMicrotask(r));
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
     await c.dispose();
     expect(hookFinished).toBe(true);
   });
 });
-

@@ -178,8 +178,62 @@ export async function* parseSSE(
   };
 
   if (isNodeReadable(body)) {
-    for await (const chunk of body as NodeJS.ReadableStream) {
-      for (const msg of consumeChunk(asBytes(chunk))) yield msg;
+    const nodeStream = body as NodeJS.ReadableStream & {
+      destroy?: (err?: Error) => void;
+      [Symbol.asyncIterator]?: () => AsyncIterator<unknown>;
+    };
+    try {
+      if (typeof nodeStream[Symbol.asyncIterator] === 'function') {
+        for await (const chunk of body as NodeJS.ReadableStream) {
+          for (const msg of consumeChunk(asBytes(chunk))) yield msg;
+        }
+      } else {
+        const chunks: Uint8Array[] = [];
+        let ended = false;
+        let error: Error | null = null;
+        let resume: (() => void) | null = null;
+
+        const onData = (chunk: unknown) => {
+          chunks.push(asBytes(chunk));
+          resume?.();
+        };
+        const onEnd = () => {
+          ended = true;
+          resume?.();
+        };
+        const onError = (err: Error) => {
+          error = err;
+          resume?.();
+        };
+
+        nodeStream.on('data', onData);
+        nodeStream.on('end', onEnd);
+        nodeStream.on('error', onError);
+
+        try {
+          while (!ended || chunks.length > 0) {
+            if (chunks.length === 0) {
+              await new Promise<void>((r) => {
+                resume = r;
+              });
+              resume = null;
+            }
+            if (error) throw error;
+            while (chunks.length > 0) {
+              const nextChunk = chunks.shift()!;
+              for (const msg of consumeChunk(nextChunk)) yield msg;
+            }
+          }
+        } finally {
+          nodeStream.removeListener?.('data', onData);
+          nodeStream.removeListener?.('end', onEnd);
+          nodeStream.removeListener?.('error', onError);
+        }
+      }
+    } finally {
+      if (typeof nodeStream.destroy === 'function') {
+        nodeStream.destroy();
+      }
     }
   } else {
     const reader = (body as ReadableStream<Uint8Array>).getReader();
@@ -229,6 +283,7 @@ export function createSseLineFoldingTransform(
 
   const encoder = new TextEncoder();
   let lineBuf = new Uint8Array(0);
+  let skipLeadingLf = false;
 
   const emitFoldedDataLine = (
     controller: ReadableStreamDefaultController<Uint8Array>,
@@ -276,7 +331,12 @@ export function createSseLineFoldingTransform(
         const { done, value } = await reader.read();
         if (done) {
           if (lineBuf.length > 0) {
-            controller.enqueue(lineBuf);
+            let line = lineBuf;
+            if (line.length > 0 && line[line.length - 1] === 0x0d) {
+              line = line.subarray(0, line.length - 1);
+            }
+            lineBuf = new Uint8Array(0);
+            emitLine(controller, line);
           }
           controller.close();
           return;
@@ -286,9 +346,16 @@ export function createSseLineFoldingTransform(
         let chunkStart = 0;
         let emittedThisChunk = false;
         for (let i = 0; i < value.length; i++) {
-          if (value[i] !== 0x0a) continue;
-          const isCr = i > chunkStart && value[i - 1] === 0x0d;
-          const lineEnd = isCr ? i - 1 : i;
+          const byte = value[i]!;
+          if (skipLeadingLf && i === chunkStart) {
+            skipLeadingLf = false;
+            if (byte === 0x0a) {
+              chunkStart = i + 1;
+              continue;
+            }
+          }
+          if (byte !== 0x0a && byte !== 0x0d) continue;
+          const lineEnd = i;
           const lineTail = value.subarray(chunkStart, lineEnd);
           let line =
             lineBuf.length === 0 ? Uint8Array.from(lineTail) : concatBytes(lineBuf, lineTail);
@@ -299,6 +366,7 @@ export function createSseLineFoldingTransform(
           emitLine(controller, line);
           emittedThisChunk = true;
           chunkStart = i + 1;
+          skipLeadingLf = byte === 0x0d;
         }
 
         if (chunkStart < value.length) {

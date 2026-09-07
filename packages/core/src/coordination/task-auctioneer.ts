@@ -342,8 +342,9 @@ export class TaskAuctioneer {
       updatedAt: new Date().toISOString(),
     });
 
-    // Clear pending bids
+    // Clear pending bids and retry count
     this.pendingBids.delete(taskId);
+    this.bidRetryCounts.delete(taskId);
 
     // Update agent task count
     this.agentTaskCount(agentId, +1);
@@ -681,7 +682,21 @@ export class TaskAuctioneer {
     bids.sort((a, b) => b.score - a.score);
     const winner = bids.find((b) => this._getAgentTaskCount(b.agentId) < this.maxTasksPerAgent);
     if (!winner) {
-      // Every bidder is now at capacity — re-broadcast and try again later.
+      // Every bidder is now at capacity — check retry budget before retrying
+      const retryCount = (this.bidRetryCounts.get(taskId) ?? 0) + 1;
+      this.bidRetryCounts.set(taskId, retryCount);
+
+      if (retryCount >= this.maxBidRetries) {
+        await this.fail(
+          taskId,
+          `No eligible bidders under capacity after ${this.maxBidRetries} attempts`,
+        );
+        this.bidRetryCounts.delete(taskId);
+        this.pendingBids.delete(taskId);
+        return;
+      }
+
+      // Re-broadcast so additional agents can bid or existing bidders can be re-evaluated when capacity frees up
       const goal = this.graph.get(taskId) as GoalNode | undefined;
       if (goal) {
         await this._broadcastTask(goal);

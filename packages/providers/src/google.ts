@@ -140,21 +140,20 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
       await res.text().catch(() => undefined);
       // Remember negative result so repeated turns in this session don't spam
       // failing /cachedContents POSTs when the prefix is below Gemini's token threshold.
-      this.explicitCache.set(hash, {
-        name: null,
-        expiresAt: Date.now() + 60_000,
-      });
+      this.setCacheEntry(hash, null, Date.now() + 60_000);
       return undefined;
     }
     const json = (await res.json()) as { name?: unknown };
     const name = typeof json.name === 'string' && json.name.trim().length > 0 ? json.name : undefined;
     if (!name) {
-      this.explicitCache.set(hash, {
-        name: null,
-        expiresAt: Date.now() + 60_000,
-      });
+      this.setCacheEntry(hash, null, Date.now() + 60_000);
       return undefined;
     }
+    this.setCacheEntry(hash, name, Date.now() + GEMINI_CACHE_TTL_SECONDS * 1000 - 60_000);
+    return name;
+  }
+
+  private setCacheEntry(hash: string, name: string | null, expiresAt: number): void {
     const now = Date.now();
     for (const [key, entry] of this.explicitCache) {
       if (entry.expiresAt <= now) this.explicitCache.delete(key);
@@ -164,10 +163,6 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
       if (oldest === undefined) break;
       this.explicitCache.delete(oldest);
     }
-    this.explicitCache.set(hash, {
-      name,
-      expiresAt: now + GEMINI_CACHE_TTL_SECONDS * 1000 - 60_000,
-    });
-    return name;
+    this.explicitCache.set(hash, { name, expiresAt });
   }
 }

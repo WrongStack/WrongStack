@@ -989,22 +989,37 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
       return runFlow(() => addCustomProvider(flowDeps(deps, io)), deps.onProvidersChanged);
     },
 
-    addLocal(presetId: string, io: AuthFlowIo): Promise<AuthFlowResult> {
+    addLocal(
+      presetId: string,
+      io: AuthFlowIo,
+      opts?: { baseUrl?: string; apiKey?: string },
+    ): Promise<AuthFlowResult> {
       return runFlow(async () => {
         const preset = LOCAL_LLM_PRESETS.find((p) => p.id === presetId);
         if (!preset) {
           io.onLog(`✗ Unknown local preset "${presetId}".`);
           return false;
         }
-        const url = (
-          await io.prompt(`Base URL (Enter = ${preset.defaultBaseUrl})`, { secret: false })
-        ).trim();
+        // Form-shaped path (opts present): no interactive prompts — the TUI
+        // form hands over the URL and the key decision up front. An empty
+        // apiKey string means "save without a key" (the old Enter-to-skip).
+        // Legacy path (no opts): prompt for the URL; runAuthLocal then
+        // prompts for the optional key itself.
+        const url =
+          opts?.baseUrl !== undefined
+            ? opts.baseUrl.trim()
+            : (
+                await io.prompt(`Base URL (Enter = ${preset.defaultBaseUrl})`, {
+                  secret: false,
+                })
+              ).trim();
         // `models: '999'` — capture every model id the health probe discovers
         // (resolveModelList caps at the available list size) so the model
         // picker is immediately useful after the add.
         const code = await runAuthLocal(flowDeps(deps, io), {
           name: preset.id,
           baseUrl: url || undefined,
+          apiKey: opts !== undefined ? (opts.apiKey ?? '').trim() : undefined,
           models: '999',
         });
         return code === 0;

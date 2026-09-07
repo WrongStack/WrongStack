@@ -1,7 +1,7 @@
 // Pure data model for the interactive /auth panel — NO React or Ink imports.
 //
 // Three consumers share this module so the row layout can never drift:
-//   - app-reducer.ts      → cursor clamping via `authPanelRows(...).length`
+//   - reducers/dialogs.ts → cursor clamping via `authPanelRows(...).length`
 //   - hooks/use-auth-panel.ts → Enter/shortcut dispatch on the selected row
 //   - components/auth-panel.tsx → rendering
 //
@@ -181,7 +181,18 @@ export interface AuthPanelHost {
   resetModelToCatalog(providerId: string, modelId: string): Promise<string | null>;
   addCatalogProvider(catalogId: string, io: AuthFlowIo): Promise<AuthFlowResult>;
   addCustomProvider(io: AuthFlowIo): Promise<AuthFlowResult>;
-  addLocal(presetId: string, io: AuthFlowIo): Promise<AuthFlowResult>;
+  /**
+   * Probe-and-add a local preset. With `opts` present (the form path) no
+   * interactive prompts run — the form supplies the base URL and the key
+   * decision (empty apiKey string = save without a key). Without `opts`
+   * the flow prompts for the URL, and runAuthLocal prompts for the
+   * optional key itself. The health probe still streams into the flow log.
+   */
+  addLocal(
+    presetId: string,
+    io: AuthFlowIo,
+    opts?: { baseUrl?: string; apiKey?: string },
+  ): Promise<AuthFlowResult>;
   oauthLogin(kind: AuthOAuthKind, io: AuthFlowIo): Promise<AuthFlowResult>;
   /**
    * Form-shaped counterparts to the `io`-driven flows above: the panel hands
@@ -199,7 +210,15 @@ export interface AuthPanelHost {
 
 // ── Panel state slice ──────────────────────────────────────────────────────
 
-export type AuthPanelView = 'list' | 'provider' | 'models' | 'catalog' | 'local' | 'oauth' | 'flow';
+export type AuthPanelView =
+  | 'list'
+  | 'provider'
+  | 'models'
+  | 'catalog'
+  | 'local'
+  | 'oauth'
+  | 'flow'
+  | 'form';
 
 export type AuthConfirmAction =
   | { kind: 'delete-key'; providerId: string; label: string }
@@ -229,6 +248,67 @@ export interface AuthPanelState {
   input?: { label: string; masked: boolean; draft: string } | undefined;
   /** Modal y/N confirmation for destructive actions. */
   confirm?: { question: string; action: AuthConfirmAction } | undefined;
+  /**
+   * Live add/edit form (view === 'form'). The form lists every input
+   * field vertically on one screen with a Cancel/Save row at the bottom.
+   * `authFormStart` opens it with pre-filled defaults; `authFormChange`
+   * updates fields; `authFormCancel` / `authView` clear it.
+   */
+  form?: AuthFormState | undefined;
+}
+
+/**
+ * Provider-add / provider-edit form. Every input field sits on its own
+ * row above a Cancel/Save pair at the bottom — no question-and-answer
+ * prompt bridge, no per-field modal.
+ *
+ * `kind` chooses which fields are editable:
+ *   - `setup`: full add form (catalog prefilled or fully custom).
+ *   - `edit`: non-secret settings of an existing provider.
+ *
+ * The `family` field is cycled with left/right arrow keys in the key
+ * router; the text fields accept printable input + backspace.
+ */
+export interface AuthFormState {
+  kind: 'setup' | 'edit' | 'local';
+  /** Provider being edited (`edit` only). */
+  providerId?: string;
+  /** Local preset being added (`local` only). */
+  presetId?: string;
+  /** Pre-filled defaults the user can edit in place. */
+  fields: AuthFormFields;
+}
+
+export type AuthFormFieldId =
+  | 'type'
+  | 'name'
+  | 'family'
+  | 'baseUrl'
+  | 'alias'
+  | 'keyLabel'
+  | 'apiKey'
+  | 'models'
+  | 'envVars';
+
+/**
+ * Mirrors `validateFamily` in packages/cli/src/auth-menu/shared.ts.
+ * Kept in sync by the shared form screen — a new value requires both
+ * sites to change. The list drives the ←/→ cycling on the family row.
+ */
+export const WIRE_FAMILIES = ['anthropic', 'openai', 'openai-compatible', 'google'] as const;
+
+export type WireFamily = (typeof WIRE_FAMILIES)[number];
+
+export interface AuthFormFields {
+  type: string;
+  name: string;
+  family: WireFamily | '';
+  baseUrl: string;
+  alias: string;
+  keyLabel: string;
+  apiKey: string;
+  models: string;
+  envVars: string;
 }
 
 export const AUTH_PANEL_INITIAL: AuthPanelState = {
@@ -255,9 +335,7 @@ export type AuthPanelRow =
       kind: 'provider-action';
       action:
         | 'add-key'
-        | 'edit-family'
-        | 'edit-base-url'
-        | 'edit-models'
+        | 'edit-provider'
         | 'edit-model-details'
         | 'add-model'
         | 'reset-model-to-catalog'
@@ -267,7 +345,18 @@ export type AuthPanelRow =
   | { kind: 'model-row'; providerId: string; modelId: string; name: string }
   | { kind: 'catalog-entry'; entry: AuthCatalogRow }
   | { kind: 'local-preset'; preset: AuthLocalPresetRow }
-  | { kind: 'oauth-option'; oauth: AuthOAuthKind };
+  | { kind: 'oauth-option'; oauth: AuthOAuthKind }
+  | {
+      kind: 'form-field';
+      field: AuthFormFieldId;
+      /** One-line field label shown on the left of the row. */
+      label: string;
+      /** Text fields render their value verbatim; family shows the active family; secret masks the value. */
+      value: string;
+      /** True for the API-key field — masked on screen, raw in panel state. */
+      secret: boolean;
+    }
+  | { kind: 'form-action'; action: 'cancel' | 'save' };
 
 /** Case-insensitive substring filter over id + name + family. */
 export function filterAuthCatalog(catalog: AuthCatalogRow[], filter: string): AuthCatalogRow[] {
@@ -323,9 +412,7 @@ export function authPanelRows(state: AuthPanelState): AuthPanelRow[] {
       }
       rows.push(
         { kind: 'provider-action', action: 'add-key' },
-        { kind: 'provider-action', action: 'edit-family' },
-        { kind: 'provider-action', action: 'edit-base-url' },
-        { kind: 'provider-action', action: 'edit-models' },
+        { kind: 'provider-action', action: 'edit-provider' },
         { kind: 'provider-action', action: 'add-model' },
         { kind: 'provider-action', action: 'remove' },
       );
@@ -343,7 +430,7 @@ export function authPanelRows(state: AuthPanelState): AuthPanelRow[] {
       }));
       rows.push(
         { kind: 'provider-action', action: 'add-model' },
-        { kind: 'provider-action', action: 'edit-models' },
+        { kind: 'provider-action', action: 'edit-provider' },
         { kind: 'provider-action', action: 'back-to-list' },
       );
       return rows;
@@ -362,6 +449,75 @@ export function authPanelRows(state: AuthPanelState): AuthPanelRow[] {
       }));
     case 'flow':
       return [];
+    case 'form': {
+      const form = state.form;
+      if (!form) return [];
+      let fieldIds = FORM_FIELD_ORDER[form.kind];
+      // noAuth local presets (Ollama) reject Authorization headers — an
+      // API key row would be dead input, so hide it for those.
+      if (form.kind === 'local' && form.presetId) {
+        const preset = state.presets.find((p) => p.id === form.presetId);
+        if (preset?.noAuth) fieldIds = fieldIds.filter((f) => f !== 'apiKey');
+      }
+      const rows: AuthPanelRow[] = fieldIds.map((field) => ({
+        kind: 'form-field' as const,
+        field,
+        label: FORM_FIELD_LABELS[field],
+        value: formValue(form, field),
+        secret: field === 'apiKey',
+      }));
+      rows.push({ kind: 'form-action', action: 'cancel' }, { kind: 'form-action', action: 'save' });
+      return rows;
+    }
+  }
+}
+
+/**
+ * Field order on the form screen. Setup shows every input; edit shows
+ * only the non-secret provider settings (key/label live on the add
+ * screen and on the per-key edit flow); local shows the server URL and
+ * (unless the preset is noAuth) the optional Bearer key. Order is the
+ * on-screen order.
+ */
+const FORM_FIELD_ORDER: Record<AuthFormState['kind'], readonly AuthFormFieldId[]> = {
+  setup: ['type', 'name', 'family', 'baseUrl', 'alias', 'keyLabel', 'apiKey', 'models', 'envVars'],
+  edit: ['family', 'baseUrl', 'models', 'envVars'],
+  local: ['baseUrl', 'apiKey'],
+};
+
+const FORM_FIELD_LABELS: Record<AuthFormFieldId, string> = {
+  type: 'Type (provider id)',
+  name: 'Name',
+  family: 'Family (← →)',
+  baseUrl: 'Base URL',
+  alias: 'Alias (config key)',
+  keyLabel: 'Key label',
+  apiKey: 'API key',
+  models: 'Models (comma-separated)',
+  envVars: 'Env vars (comma-separated)',
+};
+
+function formValue(form: AuthFormState, field: AuthFormFieldId): string {
+  const f = form.fields;
+  switch (field) {
+    case 'type':
+      return f.type;
+    case 'name':
+      return f.name;
+    case 'family':
+      return f.family;
+    case 'baseUrl':
+      return f.baseUrl;
+    case 'alias':
+      return f.alias;
+    case 'keyLabel':
+      return f.keyLabel;
+    case 'apiKey':
+      return f.apiKey;
+    case 'models':
+      return f.models;
+    case 'envVars':
+      return f.envVars;
   }
 }
 

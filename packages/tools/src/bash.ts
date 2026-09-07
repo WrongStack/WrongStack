@@ -316,17 +316,56 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       // Background mode is fully detached from the host's output pipes. If
       // stdout/stderr stayed piped, closing the CLI would close the read ends
       // and a later write could terminate the preserved job with EPIPE/SIGPIPE.
-      const child = spawn(shell, args, {
-        cwd: spawnCwd,
-        env,
-        stdio: ['ignore', 'ignore', 'ignore'],
-        detached: !isWin,
-        windowsHide: true,
-      });
+      let child: ReturnType<typeof spawn>;
+      try {
+        child = spawn(shell, args, {
+          cwd: spawnCwd,
+          env,
+          stdio: ['ignore', 'ignore', 'ignore'],
+          detached: !isWin,
+          windowsHide: true,
+        });
+      } catch (err: any) {
+        // Spawn threw (e.g. shell binary missing) — release the breaker
+        // reservation the successful beforeCall() took, mirroring the
+        // child 'error' handler below.
+        registry.afterCall(Date.now() - startedAt, true, bypassBreaker);
+        emitProcessStarted({
+          parentPid: process.pid,
+          command: redactCommand(`${shell} ${args.join(' ')}`),
+          args: redactCommand(args.join(' ')).split(' ').filter(Boolean),
+          cwd: spawnCwd,
+          background: true,
+          startedAt: new Date(startedAt).toISOString(),
+        });
+        emitProcessCompleted({
+          exitCode: 1,
+          durationMs: Date.now() - startedAt,
+          stdoutBytes: 0,
+          stderrBytes: 0,
+          timedOut: false,
+          endedAt: new Date().toISOString(),
+        });
+        yield {
+          type: 'final',
+          output: {
+            output: '',
+            exit_code: 1,
+            timed_out: false,
+            pid: null,
+            error: `spawn failed: ${err?.message ?? String(err)}`,
+          },
+        };
+        return;
+      }
       const pid = child.pid;
       const stdoutBytes = 0;
       const stderrBytes = 0;
       let telemetryCompleted = false;
+      let bgErrorOccurred = false;
+      // Set by the settle 'close' handler below so a late 'error' after
+      // 'close' cannot double-record an already-settled call.
+      let bgSettled = false;
       emitProcessStarted({
         ...(pid !== undefined ? { pid } : {}),
         parentPid: process.pid,
@@ -367,7 +406,13 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         child.on('close', () => registry.unregister(pid));
       }
       child.on('error', () => {
-        if (typeof pid === 'number') registry.unregister(pid);
+        if (bgSettled) return;
+        // No unregister on 'error': it does not imply the child terminated
+        // (Node also emits it for failed kills while the child is still
+        // alive), and the 'close' handler above owns unregistering.
+        // Keeping the entry keeps a still-alive process visible to /ps,
+        // killAll and session cleanup (chimera Medium, mirrors pwsh.ts).
+        bgErrorOccurred = true;
         registry.afterCall(Date.now() - startedAt, true, bypassBreaker);
         completeBackground(1);
       });
@@ -376,10 +421,27 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       // does not release stdio. A one-shot (--print) run could never exit
       // while a background dev server kept its pipes open.
       child.on('close', (code, signal) => {
-        registry.afterCall(Date.now() - startedAt, false, bypassBreaker);
+        bgSettled = true;
+        if (bgErrorOccurred) return;
+        const failed = (code !== 0 && code !== null) || !!signal;
+        registry.afterCall(Date.now() - startedAt, failed, bypassBreaker);
         completeBackground(code ?? (signal ? 1 : 0), signal ?? undefined);
       });
-      if (typeof pid === 'number') child.unref(); // unref() so the event loop can exit while this background process runs.
+      if (typeof pid !== 'number') {
+        completeBackground(1);
+        yield {
+          type: 'final',
+          output: {
+            output: '',
+            exit_code: 1,
+            timed_out: false,
+            pid: null,
+            error: 'Failed to launch background process: invalid PID',
+          },
+        };
+        return;
+      }
+      child.unref(); // unref() so the event loop can exit while this background process runs.
       yield {
         type: 'final',
         output: {
@@ -410,14 +472,48 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     // and orphans the actual command (node/vitest/dev server). The orphan
     // keeps the inherited stdio pipes open and streams into this process
     // for the rest of the session.
-    const child = spawn(shell, args, {
-      cwd: spawnCwd,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      detached,
-      windowsHide: true,
-      ...(isWin ? {} : { signal: callerSignal }),
-    });
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(shell, args, {
+        cwd: spawnCwd,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached,
+        windowsHide: true,
+        ...(isWin ? {} : { signal: callerSignal }),
+      });
+    } catch (err: any) {
+      // Spawn threw — release the breaker reservation the successful
+      // beforeCall() took, mirroring the background catch above.
+      registry.afterCall(Date.now() - startedAt, true, bypassBreaker);
+      emitProcessStarted({
+        parentPid: process.pid,
+        command: redactCommand(`${shell} ${args.join(' ')}`),
+        args: redactCommand(args.join(' ')).split(' ').filter(Boolean),
+        cwd: spawnCwd,
+        background: false,
+        startedAt: new Date(startedAt).toISOString(),
+      });
+      emitProcessCompleted({
+        exitCode: 1,
+        durationMs: Date.now() - startedAt,
+        stdoutBytes: 0,
+        stderrBytes: 0,
+        timedOut: false,
+        endedAt: new Date().toISOString(),
+      });
+      yield {
+        type: 'final',
+        output: {
+          output: '',
+          exit_code: 1,
+          timed_out: false,
+          pid: null,
+          error: `spawn failed: ${err?.message ?? String(err)}`,
+        },
+      };
+      return;
+    }
 
     // Register with global registry so Ctrl+C / /kill can find and kill it.
     const pid = child.pid;
@@ -605,15 +701,28 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     child.stdout?.on('data', onStdoutData);
     child.stderr?.on('data', onStderrData);
 
+    let fgErrorOccurred = false;
+    // Set in the 'close' handler below so a late 'error' after 'close'
+    // cannot double-record an already-settled call (mirrors pwsh.ts).
+    let sawClose = false;
     child.on('error', (err) => {
+      if (sawClose) return;
+      fgErrorOccurred = true;
       for (const t of timers) clearTimeout(t);
+      // No unregister on 'error': it does not imply the child terminated
+      // (Node also emits it for failed kills while the child is still
+      // alive), and the finally-block enforcement kill needs the registry
+      // entry to find the pid. The 'close' handler owns unregistering
+      // (chimera Medium).
       registry.afterCall(Date.now() - startedAt, true);
       completeForeground(1);
       push({ kind: 'error', err });
     });
     child.on('close', (code, signal) => {
+      sawClose = true;
       for (const t of timers) clearTimeout(t);
       if (typeof pid === 'number') registry.unregister(pid);
+      if (fgErrorOccurred) return;
       registry.afterCall(Date.now() - startedAt, code !== 0 && code !== null);
       completeForeground(timedOut ? 124 : (code ?? (signal ? 1 : 0)), signal ?? undefined);
       // Flush any buffered partial UTF-8 sequence held by the decoders so a
@@ -632,7 +741,34 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       while (true) {
         const c = await next();
         resumeIfDrained();
-        if (c.kind === 'error') throw c.err;
+        if (c.kind === 'error') {
+          const isAbort = (c.err as any)?.code === 'ABORT_ERR' || callerSignal.aborted;
+          const remainder = flush();
+          if (remainder !== null) {
+            yield { type: 'partial_output', text: remainder };
+          }
+          const spooled = spool.finalize();
+          yield {
+            type: 'final',
+            output: {
+              output:
+                normalizeCommandOutput(buf) + (spooled ? spoolNote(spooled) : '') + pipeToShellNote,
+              exit_code: isAbort ? 124 : 1,
+              timed_out: isAbort,
+              pid: pid ?? null,
+              error: isAbort ? 'Command aborted by user or signal' : c.err.message,
+            },
+          };
+          ctx.recordSideEffect?.({
+            toolUseId: `bash-${Date.now()}`,
+            toolName: 'bash',
+            ts: new Date().toISOString(),
+            input: { command: redactCommand(input.command) },
+            outcome: isAbort ? 'aborted' : `error (${c.err.message})`,
+            risk: 'shell',
+          });
+          return;
+        }
         if (c.kind === 'end') {
           const remainder = flush();
           if (remainder !== null) {
@@ -698,7 +834,12 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       child.stderr?.off('data', onStderrData);
       child.stdout?.destroy();
       child.stderr?.destroy();
-      if (child.exitCode === null && !child.killed) {
+      // sawClose is set synchronously by the 'close' handler before `end` is
+      // queued, so a normal completion can never race exitCode assignment
+      // into a spurious SIGKILL (chimera Critical; ported from pwsh.ts).
+      // Only a generator that exited WITHOUT close (consumer break/throw
+      // while the child still runs) reaches the kill here.
+      if (!sawClose && child.exitCode === null && !child.killed) {
         if (typeof pid === 'number') registry.kill(pid, { force: true });
         else killWithTimeout(child, 2000);
       }

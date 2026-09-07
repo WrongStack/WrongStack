@@ -2,11 +2,7 @@ import { render } from 'ink-testing-library';
 import React, { act, useEffect } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type Action, reducer, type State } from '../src/app-reducer.js';
-import {
-  AUTH_PANEL_INITIAL,
-  type AuthFlowIo,
-  type AuthPanelHost,
-} from '../src/components/auth-panel-model.js';
+import { AUTH_PANEL_INITIAL, type AuthPanelHost } from '../src/components/auth-panel-model.js';
 import { type AuthPanelController, useAuthPanel } from '../src/hooks/use-auth-panel.js';
 import { Text } from '../src/ink.js';
 
@@ -174,9 +170,8 @@ describe('useAuthPanel standalone secret prompts', () => {
     await expect(secret).rejects.toMatchObject({ name: 'AbortError', message: 'Cancelled' });
   });
 
-  it('aborts a live auth flow on unmount and ignores its late completion', async () => {
-    let capturedIo: AuthFlowIo | undefined;
-    let finishFlow!: (result: { ok: boolean; message?: string }) => void;
+  it('the form-based add-provider flow opens a form, then Save calls the host and routes back', async () => {
+    const saveProviderSetup = vi.fn(async () => null as string | null);
     const host = {
       listProviders: vi.fn(async () => []),
       listCatalog: vi.fn(async () => []),
@@ -192,16 +187,89 @@ describe('useAuthPanel standalone secret prompts', () => {
       removeModel: vi.fn(async () => null),
       resetModelToCatalog: vi.fn(async () => null),
       addCatalogProvider: vi.fn(async () => ({ ok: true })),
-      addCustomProvider: vi.fn(
-        (io: AuthFlowIo) =>
-          new Promise<{ ok: boolean; message?: string }>((resolve) => {
-            capturedIo = io;
-            finishFlow = resolve;
-          }),
-      ),
+      addCustomProvider: vi.fn(async () => ({ ok: true })),
       addLocal: vi.fn(async () => ({ ok: true })),
       oauthLogin: vi.fn(async () => ({ ok: true })),
-      saveProviderSetup: vi.fn(async () => null),
+      saveProviderSetup,
+      saveProviderEdit: vi.fn(async () => null),
+      getModelEdit: vi.fn(async () => null),
+      saveModelEdit: vi.fn(async () => null),
+      saveKeyEdit: vi.fn(async () => null),
+    } satisfies AuthPanelHost;
+    let harness!: Harness;
+    act(() => {
+      harness = createHarness(host);
+    });
+    act(() => {
+      harness.controller.openAuthPanel();
+      harness.rerender();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // "＋ Add custom provider" is the 3rd list-action (catalog, local,
+    // custom) — move down 2 rows from the top of the empty list.
+    act(() => {
+      harness.dispatch({ type: 'authMove', delta: 2 });
+      harness.controller.onAuthEnter();
+    });
+    // The form view is now open with the form slice populated.
+    expect(harness.state.authPanel.view).toBe('form');
+    expect(harness.state.authPanel.form?.kind).toBe('setup');
+
+    // Edit the alias field by dispatching a form change + moving to Save.
+    act(() => {
+      harness.dispatch({
+        type: 'authFormChange',
+        field: 'alias',
+        value: 'my-provider',
+      });
+    });
+    expect(harness.state.authPanel.form?.fields.alias).toBe('my-provider');
+
+    // Walk to the Save row (Cancel + Save are the last two rows in the
+    // form view, so 9 fields below cursor-0 → 10 steps down).
+    act(() => {
+      harness.dispatch({ type: 'authMove', delta: 10 });
+      harness.controller.onAuthEnter();
+    });
+    // Save dispatches the host call; once it resolves the panel routes
+    // back to the list and reloads providers.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(saveProviderSetup).toHaveBeenCalledTimes(1);
+    const savedSetup = saveProviderSetup.mock.calls[0]?.[0];
+    expect(savedSetup?.alias).toBe('my-provider');
+    expect(savedSetup?.family).toBe('openai-compatible');
+    expect(harness.state.authPanel.view).toBe('list');
+    expect(harness.state.authPanel.form).toBeUndefined();
+  });
+
+  it('keeps the form open and surfaces the error when the host rejects Save', async () => {
+    const saveProviderSetup = vi.fn(async () => 'Alias already exists.');
+    const host = {
+      listProviders: vi.fn(async () => []),
+      listCatalog: vi.fn(async () => []),
+      localPresets: vi.fn(() => []),
+      setActiveKey: vi.fn(async () => null),
+      deleteKey: vi.fn(async () => null),
+      removeProvider: vi.fn(async () => null),
+      addKey: vi.fn(async () => ({ ok: true })),
+      updateKey: vi.fn(async () => ({ ok: true })),
+      editField: vi.fn(async () => ({ ok: true })),
+      editModelDetails: vi.fn(async () => ({ ok: true })),
+      addModel: vi.fn(async () => ({ ok: true })),
+      removeModel: vi.fn(async () => null),
+      resetModelToCatalog: vi.fn(async () => null),
+      addCatalogProvider: vi.fn(async () => ({ ok: true })),
+      addCustomProvider: vi.fn(async () => ({ ok: true })),
+      addLocal: vi.fn(async () => ({ ok: true })),
+      oauthLogin: vi.fn(async () => ({ ok: true })),
+      saveProviderSetup,
       saveProviderEdit: vi.fn(async () => null),
       getModelEdit: vi.fn(async () => null),
       saveModelEdit: vi.fn(async () => null),
@@ -222,15 +290,101 @@ describe('useAuthPanel standalone secret prompts', () => {
       harness.dispatch({ type: 'authMove', delta: 2 });
       harness.controller.onAuthEnter();
     });
-    expect(capturedIo?.signal.aborted).toBe(false);
-    const actionCountAtUnmount = harness.actions.length;
+    expect(harness.state.authPanel.view).toBe('form');
+    act(() => {
+      // Walk to the Save row (10 down from row 0).
+      harness.dispatch({ type: 'authMove', delta: 10 });
+      harness.controller.onAuthEnter();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(saveProviderSetup).toHaveBeenCalledTimes(1);
+    // The form is still open so the user can fix the conflict without
+    // re-entering every field.
+    expect(harness.state.authPanel.view).toBe('form');
+    expect(harness.state.authPanel.form?.kind).toBe('setup');
+    expect(harness.state.authPanel.hint).toContain('Alias already exists.');
+  });
 
-    act(() => harness.unmount());
-    expect(capturedIo?.signal.aborted).toBe(true);
-    finishFlow({ ok: true, message: 'late result' });
-    await Promise.resolve();
-    await Promise.resolve();
+  it('local preset Enter opens the form; Save probes via the flow path', async () => {
+    const addLocal = vi.fn(async () => ({ ok: true }) as { ok: boolean; message?: string });
+    const host = {
+      listProviders: vi.fn(async () => []),
+      listCatalog: vi.fn(async () => []),
+      localPresets: vi.fn(() => [
+        {
+          id: 'ollama',
+          label: 'Ollama',
+          defaultBaseUrl: 'http://localhost:11434',
+          noAuth: true,
+          hint: '',
+        },
+      ]),
+      setActiveKey: vi.fn(async () => null),
+      deleteKey: vi.fn(async () => null),
+      removeProvider: vi.fn(async () => null),
+      addKey: vi.fn(async () => ({ ok: true })),
+      updateKey: vi.fn(async () => ({ ok: true })),
+      editField: vi.fn(async () => ({ ok: true })),
+      editModelDetails: vi.fn(async () => ({ ok: true })),
+      addModel: vi.fn(async () => ({ ok: true })),
+      removeModel: vi.fn(async () => null),
+      resetModelToCatalog: vi.fn(async () => null),
+      addCatalogProvider: vi.fn(async () => ({ ok: true })),
+      addCustomProvider: vi.fn(async () => ({ ok: true })),
+      addLocal,
+      oauthLogin: vi.fn(async () => ({ ok: true })),
+      saveProviderSetup: vi.fn(async () => null),
+      saveProviderEdit: vi.fn(async () => null),
+      getModelEdit: vi.fn(async () => null),
+      saveModelEdit: vi.fn(async () => null),
+      saveKeyEdit: vi.fn(async () => null),
+    } satisfies AuthPanelHost;
+    let harness!: Harness;
+    act(() => {
+      harness = createHarness(host);
+    });
+    act(() => {
+      harness.controller.openAuthPanel();
+      harness.rerender();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
-    expect(harness.actions).toHaveLength(actionCountAtUnmount);
+    // List view: 0 providers + 4 actions → 'local' at index 1 → preset list.
+    act(() => {
+      harness.dispatch({ type: 'authMove', delta: 1 });
+      harness.controller.onAuthEnter();
+    });
+    expect(harness.state.authPanel.view).toBe('local');
+
+    // Enter on the preset row opens the form pre-filled from the preset.
+    act(() => harness.controller.onAuthEnter());
+    expect(harness.state.authPanel.view).toBe('form');
+    expect(harness.state.authPanel.form?.kind).toBe('local');
+    expect(harness.state.authPanel.form?.presetId).toBe('ollama');
+    expect(harness.state.authPanel.form?.fields.baseUrl).toBe('http://localhost:11434');
+
+    // noAuth preset → rows are baseUrl(0), cancel(1), save(2) → Save.
+    act(() => {
+      harness.dispatch({ type: 'authMove', delta: 2 });
+      harness.controller.onAuthEnter();
+    });
+    // Save routed to the flow path — the probe view takes over, no prompts.
+    expect(harness.state.authPanel.view).toBe('flow');
+    expect(harness.state.authPanel.flowTitle).toBe('Add Ollama');
+    expect(addLocal).toHaveBeenCalledWith('ollama', expect.anything(), {
+      baseUrl: 'http://localhost:11434',
+      apiKey: '',
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(harness.state.authPanel.flowDone).toBe(true);
   });
 });

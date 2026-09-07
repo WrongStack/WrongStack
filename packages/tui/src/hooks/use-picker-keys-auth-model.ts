@@ -1,3 +1,4 @@
+import { authPanelRows, WIRE_FAMILIES } from '../auth-panel-model.js';
 import type { KeyEvent } from '../components/input.js';
 import type { PickerKeysHost } from './use-picker-keys-types.js';
 
@@ -121,6 +122,57 @@ export function tryAuthModelPickerKeys(
     ) {
       host.onAuthShortcut?.(input);
       return true;
+    }
+    if (ap.view === 'form' && ap.form) {
+      // Look up the currently focused row so we can route input correctly:
+      // text fields accept printable chars + backspace; the family row
+      // cycles through WireFamily values on left/right; Cancel/Save are
+      // dispatched by Enter (handled above by onAuthEnter).
+      const rows = authPanelRows(ap);
+      const row = rows[ap.selected];
+      if (row?.kind === 'form-field') {
+        if (row.field === 'family') {
+          if (key.leftArrow || key.rightArrow) {
+            const current = row.value as (typeof WIRE_FAMILIES)[number] | '';
+            const idx = current === '' ? -1 : (WIRE_FAMILIES as readonly string[]).indexOf(current);
+            const nextIdx =
+              idx === -1
+                ? 0
+                : (idx + (key.rightArrow ? 1 : -1) + WIRE_FAMILIES.length) % WIRE_FAMILIES.length;
+            dispatch({
+              type: 'authFormChange',
+              field: 'family',
+              value: WIRE_FAMILIES[nextIdx] ?? 'openai-compatible',
+            });
+            return true;
+          }
+          // Ignore printable input on the family row — arrows own this field.
+          return true;
+        }
+        // Plain text field — backspace deletes the last character,
+        // printable input appends.
+        if (key.backspace) {
+          dispatch({
+            type: 'authFormChange',
+            field: row.field,
+            value: row.value.slice(0, -1),
+          });
+          return true;
+        }
+        if (input && !key.ctrl && !key.meta) {
+          const printable = Array.from(input)
+            .filter((ch) => ch.charCodeAt(0) >= 0x20 && ch.charCodeAt(0) !== 0x7f)
+            .join('');
+          if (printable.length > 0) {
+            dispatch({
+              type: 'authFormChange',
+              field: row.field,
+              value: row.value + printable,
+            });
+          }
+          return true;
+        }
+      }
     }
     return true;
   }

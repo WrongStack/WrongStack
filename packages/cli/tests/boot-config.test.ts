@@ -62,15 +62,17 @@ describe('bootConfig', () => {
     expect(bootstrap.version).toBe(1);
     expect(bootstrap.activeProfile).toBe('default');
 
-    // Full default settings live in the profile config
+    // Full default settings live in the profile config. Values pin the
+    // owner factory defaults (2026-09-06 sync — CONFIG_BEHAVIOR_DEFAULTS
+    // in packages/core/src/storage/config-loader/defaults.ts).
     const profileCfgPath = result.paths.wpaths.profileConfig('default');
     const written = JSON.parse(await fs.readFile(profileCfgPath, 'utf8'));
     expect(written.configScope).toBe('global');
-    expect(written.maxConcurrent).toBe(4);
+    expect(written.maxConcurrent).toBe(10);
     expect(written.autonomy.defaultMode).toBe('auto');
-    expect(written.autonomy.autoProceedDelayMs).toBe(45_000);
-    expect(written.autonomy.enhanceDelayMs).toBe(60_000);
-    expect(written.modelRuntime.reasoning.effort).toBeUndefined();
+    expect(written.autonomy.autoProceedDelayMs).toBe(15_000);
+    expect(written.autonomy.enhanceDelayMs).toBe(15_000);
+    expect(written.modelRuntime.reasoning.effort).toBe('medium');
     expect(written.provider).toBeUndefined();
     expect(written.model).toBeUndefined();
   });

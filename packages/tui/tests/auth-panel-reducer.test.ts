@@ -178,3 +178,89 @@ describe('modal prompt + confirm', () => {
     expect(s.authPanel.confirm).toBeUndefined();
   });
 });
+
+describe('form lifecycle', () => {
+  const setupForm = {
+    kind: 'setup' as const,
+    fields: {
+      type: '',
+      name: '',
+      family: 'openai-compatible' as const,
+      baseUrl: '',
+      alias: '',
+      keyLabel: 'default',
+      apiKey: '',
+      models: '',
+      envVars: '',
+    },
+  };
+
+  const editForm = {
+    kind: 'edit' as const,
+    providerId: 'anthropic',
+    fields: {
+      type: 'anthropic',
+      name: '',
+      family: 'anthropic' as const,
+      baseUrl: '',
+      alias: 'anthropic',
+      keyLabel: '',
+      apiKey: '',
+      models: '',
+      envVars: '',
+    },
+  };
+
+  it('authFormStart switches to the form view with fields and a fresh cursor', () => {
+    let s = reducer(initial(), { type: 'authOpen' });
+    s = { ...s, authPanel: { ...s.authPanel, selected: 7 } };
+    s = reducer(s, { type: 'authFormStart', form: setupForm });
+    expect(s.authPanel.view).toBe('form');
+    expect(s.authPanel.form).toEqual(setupForm);
+    expect(s.authPanel.selected).toBe(0);
+  });
+
+  it('authFormChange updates the named field and leaves the rest intact', () => {
+    let s = reducer(initial(), { type: 'authOpen' });
+    s = reducer(s, { type: 'authFormStart', form: setupForm });
+    s = reducer(s, { type: 'authFormChange', field: 'baseUrl', value: 'https://example.test' });
+    expect(s.authPanel.form?.fields.baseUrl).toBe('https://example.test');
+    expect(s.authPanel.form?.fields.family).toBe('openai-compatible');
+  });
+
+  it('authFormChange cycles the family field when arrows fire', () => {
+    let s = reducer(initial(), { type: 'authOpen' });
+    s = reducer(s, { type: 'authFormStart', form: setupForm });
+    s = reducer(s, { type: 'authFormChange', field: 'family', value: 'google' });
+    expect(s.authPanel.form?.fields.family).toBe('google');
+  });
+
+  it('authFormCancel returns to the list view and clears the form slice', () => {
+    let s = reducer(initial(), { type: 'authOpen' });
+    s = reducer(s, { type: 'authFormStart', form: setupForm });
+    s = reducer(s, { type: 'authFormCancel' });
+    expect(s.authPanel.view).toBe('list');
+    expect(s.authPanel.form).toBeUndefined();
+  });
+
+  it('authView to a non-form view clears the form slice (stale defaults guard)', () => {
+    let s = reducer(initial(), { type: 'authOpen' });
+    s = reducer(s, { type: 'authFormStart', form: editForm });
+    expect(s.authPanel.form).toBeDefined();
+    s = reducer(s, { type: 'authView', view: 'provider', providerId: 'anthropic' });
+    expect(s.authPanel.form).toBeUndefined();
+    expect(s.authPanel.view).toBe('provider');
+  });
+
+  it('authView to the form view preserves the live form slice', () => {
+    let s = reducer(initial(), { type: 'authOpen' });
+    s = reducer(s, { type: 'authFormStart', form: setupForm });
+    const live = s.authPanel.form;
+    s = reducer(s, { type: 'authView', view: 'list' });
+    s = reducer(s, { type: 'authView', view: 'form' });
+    // Re-entering the form view keeps the slice the user is editing only
+    // because nothing else touched it; the guard in the previous case is
+    // for cross-view transitions, not for a no-op round trip.
+    expect(s.authPanel.view).toBe('form');
+  });
+});

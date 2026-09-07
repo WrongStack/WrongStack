@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-06T23:02:11.193Z",
+  "generatedAt": "2026-09-07T07:00:48.862Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3646,
     "testFiles": 3084,
-    "sourceLines": 874280,
+    "sourceLines": 874455,
     "workspaceEdges": 127,
     "moduleEdges": 11469,
     "nonCommandSlashImports": 0,
@@ -20028,7 +20028,7 @@
     },
     {
       "file": "packages/tools/src/bash.ts",
-      "lines": 860,
+      "lines": 883,
       "relativeImports": 7
     },
     {
@@ -20063,7 +20063,7 @@
     },
     {
       "file": "packages/tools/src/pwsh.ts",
-      "lines": 875,
+      "lines": 893,
       "relativeImports": 8
     },
     {

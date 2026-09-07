@@ -17,6 +17,7 @@ const hoisted = vi.hoisted(() => ({
     chunkCount: 0,
     spawnCalls: [] as Array<{ cmd: string; args: readonly string[]; opts: { stdio?: unknown } }>,
     wrongstackShell: undefined as string | undefined,
+    throwOnSpawn: false as boolean,
   },
 }));
 
@@ -32,6 +33,8 @@ const cfg: {
   spawnCalls: Array<{ cmd: string; args: readonly string[]; opts: { stdio?: unknown } }>;
   /** Override WRONGSTACK_SHELL for the duration of one test. */
   wrongstackShell: string | undefined;
+  /** Make the mocked spawn() throw synchronously (spawn-throw catch paths). */
+  throwOnSpawn: boolean;
 } = hoisted.cfg;
 
 let _lastChild: EventEmitter & { killSignals: string[]; killed: boolean; exitCode: number | null };
@@ -46,6 +49,7 @@ vi.mock('node:child_process', async (orig) => {
   return {
     ...actual,
     spawn: (cmd: string, args: readonly string[], opts: { stdio?: unknown } = {}) => {
+      if (hoisted.cfg.throwOnSpawn) throw new Error('spawn ENOENT');
       const child = new EventEmitter() as EventEmitter & {
         stdout: EventEmitter;
         stderr: EventEmitter;
@@ -149,6 +153,7 @@ beforeEach(() => {
   cfg.chunkCount = 0;
   cfg.spawnCalls = [];
   cfg.wrongstackShell = undefined;
+  cfg.throwOnSpawn = false;
   _resetProcessRegistry();
 });
 afterEach(() => {
@@ -164,9 +169,26 @@ describe('bashTool foreground (faked shell)', () => {
     expect(out.exit_code).toBe(0);
   });
 
-  it('throws on a spawn error', async () => {
+  it('surfaces a foreground spawn error as a final error output', async () => {
+    // Contract (post error-path rework): a child 'error' event no longer
+    // rejects the stream — it yields a final output with exit_code 1 and
+    // the error message, and the registry reservation is released.
     cfg.mode = 'error';
-    await expect(runFinal({ command: 'nope' })).rejects.toThrow(/spawn EACCES/);
+    const afterCall = vi.spyOn(getProcessRegistry(), 'afterCall');
+    const out = await runFinal({ command: 'nope' });
+    expect(out.exit_code).toBe(1);
+    expect(out.error).toBe('spawn EACCES');
+    expect(out.timed_out).toBe(false);
+    expect(afterCall).toHaveBeenCalledWith(expect.any(Number), true);
+  });
+
+  it('releases the breaker reservation when spawn() throws synchronously', async () => {
+    cfg.throwOnSpawn = true;
+    const afterCall = vi.spyOn(getProcessRegistry(), 'afterCall');
+    const out = await runFinal({ command: 'nope' });
+    expect(out.exit_code).toBe(1);
+    expect(out.error).toMatch(/spawn failed/);
+    expect(afterCall).toHaveBeenCalledWith(expect.any(Number), true, false);
   });
 
   it('truncates very large output (spool marker)', async () => {
@@ -198,6 +220,15 @@ describe('bashTool background (faked shell)', () => {
     const out = await runFinal({ command: 'server', background: true });
     expect(out.pid).toBe(7777);
     expect(out.exit_code).toBeNull();
+  });
+
+  it('releases the breaker reservation when spawn() throws synchronously', async () => {
+    cfg.throwOnSpawn = true;
+    const afterCall = vi.spyOn(getProcessRegistry(), 'afterCall');
+    const out = await runFinal({ command: 'nope', background: true });
+    expect(out.exit_code).toBe(1);
+    expect(out.error).toMatch(/spawn failed/);
+    expect(afterCall).toHaveBeenCalledWith(expect.any(Number), true, true);
   });
 
   it('disconnects background stdout/stderr so the job survives host exit', async () => {

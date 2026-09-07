@@ -1,12 +1,12 @@
 import { spawn } from 'node:child_process';
 import * as os from 'node:os';
 import { StringDecoder } from 'node:string_decoder';
+import type { Context } from '@wrongstack/core/agent';
 import {
   emitProcessCompleted,
   emitProcessOutput,
   emitProcessStarted,
 } from '@wrongstack/core/observability';
-import type { Context } from '@wrongstack/core/agent';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
 import { type DangerAssessment, detectDanger } from './_danger-detect.js';
@@ -342,15 +342,81 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
     const detached = !isWin;
 
     if (isBackground) {
-      const child = spawn(bin, args, {
-        cwd: targetCwd,
-        env,
-        detached,
-        stdio: ['ignore', 'ignore', 'ignore'],
-        windowsHide: true,
-      });
+      let child: ReturnType<typeof spawn>;
+      try {
+        child = spawn(bin, args, {
+          cwd: targetCwd,
+          env,
+          detached,
+          stdio: ['ignore', 'ignore', 'ignore'],
+          windowsHide: true,
+        });
+      } catch (err: any) {
+        // Spawn threw — release the breaker reservation the successful
+        // beforeCall(isBackground) took, mirroring the child 'error'/'close'
+        // handlers below.
+        registry.afterCall(Date.now() - startedAt, true, isBackground);
+        emitProcessStarted({
+          parentPid: process.pid,
+          command: redactCommand(`${bin} ${args.join(' ')}`),
+          args: redactCommand(args.join(' ')).split(' ').filter(Boolean),
+          cwd: targetCwd,
+          background: true,
+          startedAt: new Date(startedAt).toISOString(),
+        });
+        emitProcessCompleted({
+          exitCode: 1,
+          durationMs: Date.now() - startedAt,
+          stdoutBytes: 0,
+          stderrBytes: 0,
+          timedOut: false,
+          endedAt: new Date().toISOString(),
+        });
+        yield {
+          type: 'final',
+          output: {
+            output: '',
+            exit_code: 1,
+            timed_out: false,
+            pid: null,
+            error: `pwsh: spawn failed: ${err?.message ?? String(err)}`,
+          },
+        };
+        return;
+      }
 
       const pid = child.pid;
+      let bgTelemetryCompleted = false;
+      let bgErrorOccurred = false;
+      // Set by the close handler below so a late 'error' after 'close'
+      // cannot double-record an already-settled call.
+      let bgSettled = false;
+
+      emitProcessStarted({
+        ...(pid !== undefined ? { pid } : {}),
+        parentPid: process.pid,
+        command: redactCommand(`${bin} ${args.join(' ')}`),
+        args: redactCommand(args.join(' ')).split(' ').filter(Boolean),
+        cwd: targetCwd,
+        background: true,
+        startedAt: new Date(startedAt).toISOString(),
+      });
+
+      const completeBackground = (exitCode: number, sig?: string | undefined) => {
+        if (bgTelemetryCompleted) return;
+        bgTelemetryCompleted = true;
+        emitProcessCompleted({
+          ...(pid !== undefined ? { pid } : {}),
+          exitCode,
+          ...(sig ? { signal: sig } : {}),
+          durationMs: Date.now() - startedAt,
+          stdoutBytes: 0,
+          stderrBytes: 0,
+          timedOut: false,
+          endedAt: new Date().toISOString(),
+        });
+      };
+
       if (typeof pid === 'number') {
         registry.register({
           pid,
@@ -363,10 +429,25 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
           background: true,
         });
 
-        child.on('close', () => registry.unregister(pid));
-        child.on('error', () => {
+        child.on('close', (code, signal) => {
+          bgSettled = true;
           registry.unregister(pid);
+          if (bgErrorOccurred) return;
+          const failed = (code !== 0 && code !== null) || !!signal;
+          registry.afterCall(Date.now() - startedAt, failed, isBackground);
+          completeBackground(code ?? (signal ? 1 : 0), signal ?? undefined);
+        });
+
+        child.on('error', () => {
+          if (bgSettled) return;
+          // No unregister on 'error': it does not imply the child terminated
+          // (Node also emits it for failed kills while the child is still
+          // alive), and the 'close' handler above owns unregistering.
+          // Keeping the entry keeps a still-alive process visible to /ps,
+          // killAll and session cleanup (chimera Medium, mirrors bash.ts).
+          bgErrorOccurred = true;
           registry.afterCall(Date.now() - startedAt, true, isBackground);
+          completeBackground(1);
         });
 
         child.unref();
@@ -394,6 +475,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
         return;
       }
 
+      completeBackground(1);
       yield {
         type: 'final',
         output: {
@@ -409,13 +491,48 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
 
     // Foreground / Synchronous execution
     const spool = createOutputSpool({ tool: 'pwsh', thresholdBytes: MAX_OUTPUT });
-    const child = spawn(bin, args, {
-      cwd: targetCwd,
-      env,
-      detached,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true,
-    });
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(bin, args, {
+        cwd: targetCwd,
+        env,
+        detached,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+      });
+    } catch (err: any) {
+      // Spawn threw — release the breaker reservation the successful
+      // beforeCall(isBackground) took, mirroring the child 'error' handler.
+      registry.afterCall(Date.now() - startedAt, true, isBackground);
+      spool.finalize();
+      emitProcessStarted({
+        parentPid: process.pid,
+        command: redactCommand(`${bin} ${args.join(' ')}`),
+        args: redactCommand(args.join(' ')).split(' ').filter(Boolean),
+        cwd: targetCwd,
+        background: false,
+        startedAt: new Date(startedAt).toISOString(),
+      });
+      emitProcessCompleted({
+        exitCode: 1,
+        durationMs: Date.now() - startedAt,
+        stdoutBytes: 0,
+        stderrBytes: 0,
+        timedOut: false,
+        endedAt: new Date().toISOString(),
+      });
+      yield {
+        type: 'final',
+        output: {
+          output: '',
+          exit_code: 1,
+          timed_out: false,
+          pid: null,
+          error: `pwsh: spawn failed: ${err?.message ?? String(err)}`,
+        },
+      };
+      return;
+    }
 
     const pid = child.pid;
     let stdoutBytes = 0;
@@ -591,19 +708,41 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
       pauseIfFlooded();
     };
 
-    child.stdout?.on('data', (chunk: Buffer) => onData(chunk, 'stdout'));
-    child.stderr?.on('data', (chunk: Buffer) => onData(chunk, 'stderr'));
+    const onStdoutData = (chunk: Buffer) => onData(chunk, 'stdout');
+    const onStderrData = (chunk: Buffer) => onData(chunk, 'stderr');
+    child.stdout?.on('data', onStdoutData);
+    child.stderr?.on('data', onStderrData);
 
+    let fgErrorOccurred = false;
+    // Set synchronously inside the 'close' handler BEFORE pushing `end`, so
+    // the generator can never observe end-of-stream without this flag being
+    // observable in the finally block. Without it, the synchronous `return`
+    // after consuming `end` raced Node's exitCode assignment and the finally
+    // SIGKILLed a successfully-finished child (chimera Critical).
+    let sawClose = false;
     child.on('error', (err) => {
+      // Mirror of the close-handler guard below: Node may deliver 'error'
+      // after 'close' (e.g. a failed kill on an already-reaped child). The
+      // call has already settled, so a second afterCall would double-count
+      // a breaker failure and this error chunk would never be consumed.
+      if (sawClose) return;
+      fgErrorOccurred = true;
       for (const t of timers) clearTimeout(t);
+      // No unregister on 'error': it does not imply the child terminated
+      // (Node also emits it for failed kills while the child is still
+      // alive), and the finally-block enforcement kill needs the registry
+      // entry to find the pid. The 'close' handler owns unregistering
+      // (chimera Medium).
       registry.afterCall(Date.now() - startedAt, true);
       completeForeground(1);
       push({ kind: 'error', err });
     });
 
     child.on('close', (code, signal) => {
+      sawClose = true;
       for (const t of timers) clearTimeout(t);
       if (typeof pid === 'number') registry.unregister(pid);
+      if (fgErrorOccurred) return;
       registry.afterCall(Date.now() - startedAt, code !== 0 && code !== null);
       completeForeground(timedOut ? 124 : (code ?? (signal ? 1 : 0)), signal ?? undefined);
 
@@ -620,7 +759,33 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
       while (true) {
         const c = await next();
         resumeIfDrained();
-        if (c.kind === 'error') throw c.err;
+        if (c.kind === 'error') {
+          const isAbort = (c.err as any)?.code === 'ABORT_ERR' || callerSignal.aborted;
+          const remainder = flush();
+          if (remainder !== null) {
+            yield { type: 'partial_output', text: remainder };
+          }
+          const spooled = spool.finalize();
+          yield {
+            type: 'final',
+            output: {
+              output: normalizeCommandOutput(buf) + (spooled ? spoolNote(spooled) : ''),
+              exit_code: isAbort ? 124 : 1,
+              timed_out: isAbort,
+              pid: pid ?? null,
+              error: isAbort ? 'Command aborted by user or signal' : c.err.message,
+            },
+          };
+          ctx.recordSideEffect?.({
+            toolUseId: `pwsh-${Date.now()}`,
+            toolName: 'pwsh',
+            ts: new Date().toISOString(),
+            input: { command: redactCommand(input.command) },
+            outcome: isAbort ? 'aborted' : `error (${c.err.message})`,
+            risk: 'shell',
+          });
+          return;
+        }
         if (c.kind === 'end') {
           const remainder = flush();
           if (remainder !== null) {
@@ -668,14 +833,19 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
             (hint ? `\n\n${hint}` : '') +
             cautionText;
 
-          ctx.recordSideEffect?.({
-            toolUseId: `pwsh-${Date.now()}`,
-            toolName: 'pwsh',
-            ts: new Date().toISOString(),
-            input: { command: redactCommand(input.command) },
-            outcome: timedOut ? `timed out (exit ${c.code})` : `exit ${c.code}`,
-            risk: 'shell',
-          });
+          // One audit record per command: the error branch (above) already
+          // recorded and returned when fgErrorOccurred is set — this
+          // close-derived branch must never double-record (chimera Medium).
+          if (!fgErrorOccurred) {
+            ctx.recordSideEffect?.({
+              toolUseId: `pwsh-${Date.now()}`,
+              toolName: 'pwsh',
+              ts: new Date().toISOString(),
+              input: { command: redactCommand(input.command) },
+              outcome: timedOut ? `timed out (exit ${c.code})` : `exit ${c.code}`,
+              risk: 'shell',
+            });
+          }
 
           const isAborted = callerSignal.aborted;
           yield {
@@ -702,7 +872,21 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
       }
     } finally {
       for (const t of timers) clearTimeout(t);
+      spool.finalize();
       callerSignal.removeEventListener('abort', onAbort);
+      child.stdout?.off('data', onStdoutData);
+      child.stderr?.off('data', onStderrData);
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      // sawClose is set synchronously by the 'close' handler before `end` is
+      // queued, so a normal completion can never race exitCode assignment
+      // into a spurious SIGKILL (chimera Critical). Only a generator that
+      // exited WITHOUT close (consumer break/throw while the child still
+      // runs) reaches the kill here.
+      if (!sawClose && child.exitCode === null && !child.killed) {
+        if (typeof pid === 'number') registry.kill(pid, { force: true });
+        else killWithTimeout(2000);
+      }
     }
   },
 };

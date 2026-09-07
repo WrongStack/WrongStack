@@ -33,10 +33,16 @@ const MAX_REDIRECTS = 20;
  */
 function isCredentialHeader(name: string): boolean {
   const lower = name.toLowerCase();
-  if (lower === 'authorization' || lower === 'cookie' || lower === 'proxy-authorization') {
+  if (
+    lower === 'authorization' ||
+    lower === 'authentication' ||
+    lower === 'cookie' ||
+    lower === 'proxy-authorization' ||
+    lower === 'proxy-authenticate'
+  ) {
     return true;
   }
-  return /(^|[-_])(api[-_]?key|key|token|secret|auth|credential|password|session)([-_]|$)/.test(
+  return /(^|[-_])(api[-_]?key|key|token|secret|auth(entication|enticate)?|credential|password|session)([-_]|$)/.test(
     lower,
   );
 }
@@ -49,11 +55,37 @@ function stripCredentials(headers: Record<string, string>): Record<string, strin
   return safe;
 }
 
+const PAYLOAD_HEADERS = new Set([
+  'content-encoding',
+  'content-language',
+  'content-length',
+  'content-location',
+  'content-range',
+  'content-type',
+]);
+
+function stripPayloadHeaders(headers: Record<string, string>): Record<string, string> {
+  const safe: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (!PAYLOAD_HEADERS.has(name.toLowerCase())) safe[name] = value;
+  }
+  return safe;
+}
+
 function sameOrigin(a: string, b: string): boolean {
   try {
     return new URL(a).origin === new URL(b).origin;
   } catch {
     return false;
+  }
+}
+
+function checkAborted(signal?: AbortSignal): void {
+  if (!signal) return;
+  if (typeof signal.throwIfAborted === 'function') {
+    signal.throwIfAborted();
+  } else if (signal.aborted) {
+    throw signal.reason ?? new DOMException('The operation was aborted', 'AbortError');
   }
 }
 
@@ -83,6 +115,8 @@ export async function redirectSafeFetch(
   let method = init.method ?? 'GET';
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    checkAborted(init.signal);
+
     const res = await fetchImpl(currentUrl, {
       method,
       headers,
@@ -101,21 +135,64 @@ export async function redirectSafeFetch(
     const location = res.headers?.get?.('location');
     if (!location) return res;
 
-    const nextUrl = new URL(location, currentUrl).toString();
+    let nextUrlParsed: URL;
+    try {
+      nextUrlParsed = new URL(location, currentUrl);
+    } catch {
+      return res;
+    }
+
+    if (nextUrlParsed.protocol !== 'http:' && nextUrlParsed.protocol !== 'https:') {
+      throw new Error(
+        `Redirect to non-HTTP(S) protocol: ${nextUrlParsed.protocol} (${nextUrlParsed.toString()})`,
+      );
+    }
+
+    const nextUrl = nextUrlParsed.toString();
     if (!sameOrigin(currentUrl, nextUrl)) headers = stripCredentials(headers);
 
     // 301/302 after a POST, and 303 after any method except HEAD, become GET
     // without a body — the same normalisation fetch performs internally.
+    const upperMethod = method.toUpperCase();
     if (
-      (status === 303 && method.toUpperCase() !== 'HEAD') ||
-      ((status === 301 || status === 302) && method === 'POST')
+      (status === 303 && upperMethod !== 'HEAD') ||
+      ((status === 301 || status === 302) && upperMethod === 'POST')
     ) {
       method = 'GET';
       body = undefined;
+      headers = stripPayloadHeaders(headers);
     }
 
-    // Drain so the connection can be reused.
-    await res.text?.().catch(() => undefined);
+    // Drain so the connection can be reused, respecting signal.
+    if (init.signal) {
+      checkAborted(init.signal);
+      let cleanup: (() => void) | undefined;
+      const abortPromise = new Promise<void>((_, reject) => {
+        const onAbort = () => {
+          try {
+            res.body?.cancel?.(init.signal?.reason).catch?.(() => undefined);
+          } catch {}
+          try {
+            checkAborted(init.signal);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        init.signal!.addEventListener('abort', onAbort, { once: true });
+        cleanup = () => init.signal!.removeEventListener('abort', onAbort);
+      });
+      try {
+        await Promise.race([
+          res.text?.().catch(() => undefined),
+          abortPromise,
+        ]);
+      } finally {
+        cleanup?.();
+      }
+      checkAborted(init.signal);
+    } else {
+      await res.text?.().catch(() => undefined);
+    }
     currentUrl = nextUrl;
   }
 

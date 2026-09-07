@@ -275,7 +275,7 @@
       "relativeImports": 48
     },
     "packages/tools/src/bash.ts": {
-      "lines": 860,
+      "lines": 883,
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {
@@ -303,7 +303,7 @@
       "relativeImports": 2
     },
     "packages/tools/src/pwsh.ts": {
-      "lines": 875,
+      "lines": 893,
       "relativeImports": 8
     },
     "packages/tools/src/session-kanban.ts": {

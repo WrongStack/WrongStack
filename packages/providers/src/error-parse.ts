@@ -119,6 +119,19 @@ export function parseProviderErrorBody(rawText: string): ProviderErrorBody {
   // Anthropic / MiniMax / Kimi: { type: "error", error: { type, message }, request_id }
   // OpenAI / OpenAI-compatible: { error: { message, type, code, param } }
   // Google: { error: { code, message, status } }
+function extractDetail(val: unknown): string | undefined {
+  const str = stringOf(val);
+  if (str) return str;
+  if (Array.isArray(val) && val.length > 0) {
+    const first = val[0];
+    if (isPlainObject(first) && typeof first['msg'] === 'string') {
+      return stringOf(first['msg']);
+    }
+    if (typeof first === 'string') return stringOf(first);
+  }
+  return undefined;
+}
+
   const responseField = parsed['response'];
   const responseError = isPlainObject(responseField) ? responseField['error'] : undefined;
   const statusDetails = isPlainObject(responseField) ? responseField['status_details'] : undefined;
@@ -127,7 +140,7 @@ export function parseProviderErrorBody(rawText: string): ProviderErrorBody {
   if (isPlainObject(errField)) {
     const t =
       stringOf(errField['type']) ?? stringOf(errField['status']) ?? stringOf(errField['code']);
-    const m = stringOf(errField['message']);
+    const m = stringOf(errField['message']) ?? extractDetail(errField['detail']);
     if (t) body.type = t;
     if (m) body.message = m;
   } else if (typeof errField === 'string') {
@@ -141,7 +154,7 @@ export function parseProviderErrorBody(rawText: string): ProviderErrorBody {
     else if (code) body.type = code;
   }
   if (!body.message) {
-    const m = stringOf(parsed['message']);
+    const m = stringOf(parsed['message']) ?? extractDetail(parsed['detail']);
     if (m) body.message = m;
   }
 
@@ -199,28 +212,25 @@ export function retryAfterMsFromBody(body: ProviderErrorBody): number | undefine
     if (hours >= 1 && hours <= 24) return hours * 3_600_000;
   }
 
-  // 3. Relative seconds: "retry after X seconds", "retry_after X"
-  const retryRe = /retry[_\s-]*(?:after|in)\s*(\d+)\s*(?:seconds?|secs?|s)?/i;
+  // 3. Relative duration: "retry after X seconds/minutes/hours", "retry_after X",
+  //    "try again in X seconds", "please retry in X minutes", "back in X seconds/minutes", "wait X ms"
+  const retryRe =
+    /(?:retry[_\s-]*(?:after|in)|(?:try|retry|back|wait)\s*(?:again)?\s*(?:in|for|after)?)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|milliseconds?|millis?|msecs?|ms|minutes?|mins?|m|seconds?|secs?|s)?(?!\w)/i;
   const retryMatch = retryRe.exec(text);
   if (retryMatch) {
-    const secs = Number.parseInt(retryMatch[1] ?? '', 10);
-    if (secs >= 1) return secs * 1_000;
-  }
-
-  // 4. Common in 502 / gateway responses: "try again in X seconds",
-  //    "please retry in X seconds", "back in X seconds/minutes"
-  const tryAgainRe =
-    /(?:try|retry|back|wait)\s*(?:again)?\s*(?:in|for|after)\s*(\d+)\s*(seconds?|secs?|s|minutes?|mins?|m)?/i;
-  const tryAgainMatch = tryAgainRe.exec(text);
-  if (tryAgainMatch) {
-    const num = Number.parseInt(tryAgainMatch[1] ?? '', 10);
-    const unit = (tryAgainMatch[2] ?? '').toLowerCase();
-    if (unit.startsWith('m')) {
-      // minutes
-      if (num >= 1 && num <= 60) return num * 60_000;
-    } else {
-      // seconds (default)
-      if (num >= 1 && num <= 300) return num * 1_000;
+    const num = Number.parseFloat(retryMatch[1] ?? '');
+    if (Number.isFinite(num) && num > 0) {
+      const unit = (retryMatch[2] ?? '').toLowerCase();
+      if (unit.startsWith('h')) {
+        if (num <= 24) return Math.round(num * 3_600_000);
+      } else if (unit.startsWith('ms') || unit.startsWith('milli')) {
+        return Math.round(num);
+      } else if (unit.startsWith('m')) {
+        if (num <= 180) return Math.round(num * 60_000);
+      } else {
+        // seconds (default when unit is seconds, secs, s, or omitted)
+        return Math.round(num * 1_000);
+      }
     }
   }
 

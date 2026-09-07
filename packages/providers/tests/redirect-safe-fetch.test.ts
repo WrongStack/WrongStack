@@ -101,6 +101,40 @@ describe('redirectSafeFetch', () => {
     expect(methods).toEqual(['POST', 'GET']);
   });
 
+  it('strips payload headers (content-type, content-length, etc.) on POST to GET downgrade', async () => {
+    const calls: Array<{ method?: string; headers: Record<string, string>; body?: string }> = [];
+    const impl = vi.fn(async (_url: string, init: any) => {
+      calls.push({ method: init.method, headers: { ...init.headers }, body: init.body });
+      return calls.length === 1 ? response(303, 'https://api.example/done') : response(200);
+    });
+
+    await redirectSafeFetch(impl as unknown as typeof fetch, 'https://api.example/v1', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': '25',
+        'content-encoding': 'gzip',
+        'content-language': 'en',
+        'content-location': '/v1',
+        'content-range': 'bytes 0-24/25',
+        'x-request-id': 'keep-me',
+      },
+      body: '{"message":"hello world"}',
+    });
+
+    expect(calls).toHaveLength(2);
+    const hop2 = calls[1]!;
+    expect(hop2.method).toBe('GET');
+    expect(hop2.body).toBeUndefined();
+    expect(hop2.headers['content-type']).toBeUndefined();
+    expect(hop2.headers['content-length']).toBeUndefined();
+    expect(hop2.headers['content-encoding']).toBeUndefined();
+    expect(hop2.headers['content-language']).toBeUndefined();
+    expect(hop2.headers['content-location']).toBeUndefined();
+    expect(hop2.headers['content-range']).toBeUndefined();
+    expect(hop2.headers['x-request-id']).toBe('keep-me');
+  });
+
   it('resolves a relative Location against the current URL', async () => {
     const urls: string[] = [];
     const impl = vi.fn(async (url: string) => {

@@ -28,6 +28,9 @@ const dialogActionTypes = [
   'authPromptEnd',
   'authConfirmStart',
   'authConfirmEnd',
+  'authFormStart',
+  'authFormChange',
+  'authFormCancel',
   'projectPickerOpen',
   'projectPickerClose',
   'projectPickerMove',
@@ -121,6 +124,9 @@ export function reduceDialogs(state: State, action: DialogAction): State {
           ...state.authPanel,
           view: action.view,
           providerId: action.providerId ?? state.authPanel.providerId,
+          // Leaving the form view clears the form slice so Esc-back from
+          // a re-opened form doesn't surface stale defaults.
+          form: action.view === 'form' ? state.authPanel.form : undefined,
           selected: 0,
           filter: '',
           hint: undefined,
@@ -205,6 +211,31 @@ export function reduceDialogs(state: State, action: DialogAction): State {
       };
     case 'authConfirmEnd':
       return { ...state, authPanel: { ...state.authPanel, confirm: undefined } };
+    case 'authFormStart':
+      return {
+        ...state,
+        authPanel: {
+          ...state.authPanel,
+          view: 'form',
+          form: action.form,
+          selected: 0,
+          hint: undefined,
+        },
+      };
+    case 'authFormChange': {
+      const cur = state.authPanel.form;
+      if (!cur) return state;
+      const fields: typeof cur.fields = { ...cur.fields, [action.field]: action.value };
+      return {
+        ...state,
+        authPanel: { ...state.authPanel, form: { ...cur, fields } },
+      };
+    }
+    case 'authFormCancel':
+      return {
+        ...state,
+        authPanel: { ...state.authPanel, view: 'list', form: undefined },
+      };
     case 'projectPickerOpen':
       return {
         ...state,

@@ -51,4 +51,38 @@ describe('file-permissions', () => {
     const { stdout: childStdout } = await execFile('icacls', [childFile]);
     expect(childStdout).toContain('(I)(F)');
   });
+
+  it('hardens on Windows even when USERNAME and USER environment variables are unset', async () => {
+    if (process.platform !== 'win32') return;
+    const origUsername = process.env['USERNAME'];
+    const origUser = process.env['USER'];
+    delete process.env['USERNAME'];
+    delete process.env['USER'];
+
+    try {
+      const testFile = path.join(dir, 'secret.json');
+      await fs.writeFile(testFile, 'token');
+
+      let warned = false;
+      await restrictFilePermissions(testFile, {
+        warn: () => {
+          warned = true;
+        },
+      });
+
+      expect(warned).toBe(false);
+
+      const cp = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execFile = promisify(cp.execFile);
+      const { stdout } = await execFile('icacls', [testFile]);
+
+      const expectedUser = os.userInfo().username;
+      expect(stdout).toContain(expectedUser);
+      expect(stdout).toContain(':(F)');
+    } finally {
+      if (origUsername !== undefined) process.env['USERNAME'] = origUsername;
+      if (origUser !== undefined) process.env['USER'] = origUser;
+    }
+  });
 });

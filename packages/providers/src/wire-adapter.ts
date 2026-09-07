@@ -141,7 +141,7 @@ export abstract class WireAdapter implements Provider {
     public readonly fetchImpl: typeof fetch = fetch,
     streamOpts: WireAdapterStreamOptions = {},
   ) {
-    if (!apiKey) {
+    if (!apiKey?.trim()) {
       throw new ConfigError({
         message: `${this.constructor.name}: apiKey required`,
         code: 'CONFIG_INVALID',
@@ -350,8 +350,8 @@ export abstract class WireAdapter implements Provider {
         // Transport-shaped errors below this point become retryable network errors.
         const message = toErrorMessage(err);
         if (
-          err instanceof TypeError &&
-          /terminated|fetch failed|ECONNRESET|ETIMEDOUT|UND_ERR_/i.test(message)
+          (err instanceof TypeError || err instanceof Error) &&
+          /terminated|fetch failed|ECONNRESET|ETIMEDOUT|EPIPE|UND_ERR_/i.test(message)
         ) {
           throw new ProviderError(message, 0, true, this.id, {
             cause: err,
@@ -386,10 +386,22 @@ export abstract class WireAdapter implements Provider {
     let lastChunkTime = Date.now();
     let chunkIndex = 0;
     const providerId = this.id;
+    let streamSource: NodeJS.ReadableStream;
+    if (typeof (body as any)[Symbol.asyncIterator] === 'function') {
+      streamSource = body;
+    } else if (body instanceof Readable) {
+      streamSource = body;
+    } else {
+      const r = new Readable({ read() {} });
+      body.on('data', (chunk: unknown) => r.push(chunk));
+      body.on('end', () => r.push(null));
+      body.on('error', (err: Error) => r.destroy(err));
+      streamSource = r;
+    }
 
     return Readable.from(
       (async function* () {
-        for await (const chunk of body) {
+        for await (const chunk of streamSource) {
           const bytes: Uint8Array =
             typeof chunk === 'string'
               ? STREAM_DEBUG_TEXT_ENCODER.encode(chunk)
@@ -424,7 +436,7 @@ export abstract class WireAdapter implements Provider {
         controller.enqueue(value);
       },
       cancel(reason) {
-        reader.cancel(reason);
+        return reader.cancel(reason);
       },
     });
   }
@@ -449,7 +461,18 @@ export abstract class WireAdapter implements Provider {
     // web wrapper that properly detects hangs even when no chunks arrive.
     // The for-await approach only checks BETWEEN chunks — a stalled stream
     // that never yields another chunk would freeze indefinitely.
-    const webStream = Readable.toWeb(body as Readable);
+    let readable: Readable;
+    if (body instanceof Readable) {
+      readable = body;
+    } else if (typeof (body as any)[Symbol.asyncIterator] === 'function') {
+      readable = Readable.from(body as any);
+    } else {
+      readable = new Readable({ read() {} });
+      body.on('data', (chunk: unknown) => readable.push(chunk));
+      body.on('end', () => readable.push(null));
+      body.on('error', (err: Error) => readable.destroy(err));
+    }
+    const webStream = Readable.toWeb(readable);
     const wrappedWeb = this.wrapHangWebStream(webStream as ReadableStream<Uint8Array>, model);
     return Readable.fromWeb(
       wrappedWeb as never as ReadableStream,
@@ -511,7 +534,7 @@ export abstract class WireAdapter implements Provider {
         controller.enqueue(value);
       },
       cancel(reason) {
-        reader.cancel(reason);
+        return reader.cancel(reason);
       },
     });
   }

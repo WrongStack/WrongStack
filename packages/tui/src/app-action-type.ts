@@ -25,6 +25,8 @@ import type { FleetEntry } from './app-state-fleet.js';
 import type {
   AuthCatalogRow,
   AuthConfirmAction,
+  AuthFormFieldId,
+  AuthFormState,
   AuthLocalPresetRow,
   AuthPanelView,
   AuthProviderRow,
@@ -441,6 +443,9 @@ export type Action =
   | { type: 'authPromptEnd' }
   | { type: 'authConfirmStart'; question: string; action: AuthConfirmAction }
   | { type: 'authConfirmEnd' }
+  | { type: 'authFormStart'; form: AuthFormState }
+  | { type: 'authFormChange'; field: AuthFormFieldId; value: string }
+  | { type: 'authFormCancel' }
   | { type: 'projectPickerOpen'; items: ProjectPickerItem[] }
   | { type: 'projectPickerClose' }
   | { type: 'projectPickerMove'; delta: number }

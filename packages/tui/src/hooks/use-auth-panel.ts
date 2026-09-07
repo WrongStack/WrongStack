@@ -18,10 +18,17 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { Action, State } from '../app-reducer.js';
 import {
+  type AuthCatalogRow,
   type AuthFlowIo,
   type AuthFlowResult,
+  type AuthFormState,
+  type AuthLocalPresetRow,
   type AuthPanelHost,
+  type AuthProviderEdit,
+  type AuthProviderSetup,
   authPanelRows,
+  WIRE_FAMILIES,
+  type WireFamily,
 } from '../auth-panel-model.js';
 
 interface UseAuthPanelOptions {
@@ -207,6 +214,194 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
     })();
   }, [authHost, dispatch]);
 
+  /**
+   * Open the add-provider form with the user-typed values fresh from the
+   * screen — every input field sits on its own row with Cancel/Save at
+   * the bottom. The form is pre-filled with sensible defaults so the
+   * user only edits what differs.
+   */
+  const openCustomSetupForm = useCallback(() => {
+    dispatch({
+      type: 'authFormStart',
+      form: {
+        kind: 'setup',
+        fields: {
+          type: '',
+          name: '',
+          family: 'openai-compatible',
+          baseUrl: '',
+          alias: '',
+          keyLabel: 'default',
+          apiKey: '',
+          models: '',
+          envVars: '',
+        },
+      },
+    });
+  }, [dispatch]);
+
+  /** Prefill from a models.dev catalog row and open the add-provider form. */
+  const openCatalogSetupForm = useCallback(
+    (entry: AuthCatalogRow) => {
+      // The catalog may carry a family we don't validate (e.g. external
+      // providers); fall back to 'openai-compatible' so the arrows always
+      // have a meaningful cycle and the host accepts the value.
+      const family: WireFamily = (WIRE_FAMILIES as readonly string[]).includes(entry.family)
+        ? (entry.family as WireFamily)
+        : 'openai-compatible';
+      dispatch({
+        type: 'authFormStart',
+        form: {
+          kind: 'setup',
+          fields: {
+            type: entry.id,
+            name: entry.name,
+            family,
+            baseUrl: entry.apiBase ?? '',
+            alias: entry.id,
+            keyLabel: 'default',
+            apiKey: '',
+            models: '',
+            envVars: entry.envVars.join(', '),
+          },
+        },
+      });
+    },
+    [dispatch],
+  );
+
+  /** Open the edit-provider form pre-filled from the saved AuthProviderRow. */
+  const openEditProviderForm = useCallback(
+    (providerId: string) => {
+      const provider = stateRef.current.authPanel.providers.find((p) => p.id === providerId);
+      if (!provider) {
+        dispatch({ type: 'authHint', text: `✗ Provider "${providerId}" no longer in config.` });
+        return;
+      }
+      const family: WireFamily = (WIRE_FAMILIES as readonly string[]).includes(
+        provider.family ?? '',
+      )
+        ? (provider.family as WireFamily)
+        : 'openai-compatible';
+      dispatch({
+        type: 'authFormStart',
+        form: {
+          kind: 'edit',
+          providerId,
+          fields: {
+            type: provider.type ?? providerId,
+            name: '',
+            family,
+            baseUrl: provider.baseUrl ?? '',
+            alias: providerId,
+            keyLabel: '',
+            apiKey: '',
+            models: provider.models.join(', '),
+            envVars: provider.envVars.join(', '),
+          },
+        },
+      });
+    },
+    [dispatch, stateRef],
+  );
+
+  /** Send the live form to the host. Errors stay on the form via the hint. */
+  const submitAuthForm = useCallback(async () => {
+    if (!authHost) return;
+    const form = stateRef.current.authPanel.form;
+    if (!form) return;
+    dispatch({ type: 'authBusy', busy: true });
+    let err: string | null;
+    if (form.kind === 'setup') {
+      const setup: AuthProviderSetup = {
+        source: form.fields.type ? 'catalog' : 'custom',
+        type: form.fields.type,
+        name: form.fields.name,
+        family: form.fields.family,
+        baseUrl: form.fields.baseUrl,
+        alias: form.fields.alias,
+        keyLabel: form.fields.keyLabel,
+        apiKey: form.fields.apiKey,
+        models: form.fields.models,
+        envVars: form.fields.envVars,
+      };
+      err = await authHost.saveProviderSetup(setup);
+    } else {
+      const edit: AuthProviderEdit = {
+        providerId: form.providerId ?? '',
+        family: form.fields.family,
+        baseUrl: form.fields.baseUrl,
+        models: form.fields.models,
+        envVars: form.fields.envVars,
+      };
+      err = await authHost.saveProviderEdit(edit);
+    }
+    if (!mountedRef.current) return;
+    dispatch({ type: 'authBusy', busy: false });
+    if (err) {
+      // Stay on the form — the hint carries the message; the user's edits
+      // remain in panel state because we never touched `form`.
+      dispatch({ type: 'authHint', text: `✗ ${err}` });
+      return;
+    }
+    dispatch({ type: 'authHint', text: '✓ Provider saved.' });
+    const nextView: 'list' | 'provider' =
+      form.kind === 'edit' && form.providerId ? 'provider' : 'list';
+    const nextProviderId = form.kind === 'edit' ? form.providerId : undefined;
+    dispatch({
+      type: 'authView',
+      view: nextView,
+      providerId: nextProviderId,
+    });
+    await reloadProviders();
+  }, [authHost, stateRef, dispatch, reloadProviders]);
+
+  /** Open the local-server form pre-filled from the preset defaults. */
+  const openLocalForm = useCallback(
+    (preset: AuthLocalPresetRow) => {
+      dispatch({
+        type: 'authFormStart',
+        form: {
+          kind: 'local',
+          presetId: preset.id,
+          fields: {
+            type: '',
+            name: '',
+            family: '',
+            baseUrl: preset.defaultBaseUrl,
+            alias: '',
+            keyLabel: '',
+            apiKey: '',
+            models: '',
+            envVars: '',
+          },
+        },
+      });
+    },
+    [dispatch],
+  );
+
+  /**
+   * Local adds health-probe the server — run them as a flow after the form
+   * Save so the probe output streams into the flow view. The form already
+   * collected URL + key, so addLocal runs without interactive prompts
+   * (an empty apiKey string means "save without a key").
+   */
+  const startLocalFlow = useCallback(
+    (form: AuthFormState) => {
+      if (!authHost) return;
+      const presetId = form.presetId ?? '';
+      const preset = stateRef.current.authPanel.presets.find((p) => p.id === presetId);
+      runFlow(`Add ${preset?.label ?? presetId}`, (io) =>
+        authHost.addLocal(presetId, io, {
+          baseUrl: form.fields.baseUrl,
+          apiKey: form.fields.apiKey,
+        }),
+      );
+    },
+    [authHost, stateRef, runFlow],
+  );
+
   const onAuthEnter = useCallback(() => {
     if (!authHost) return;
     const panel = stateRef.current.authPanel;
@@ -242,7 +437,7 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
         if (row.action === 'catalog') openCatalog();
         else if (row.action === 'local') dispatch({ type: 'authView', view: 'local' });
         else if (row.action === 'oauth') dispatch({ type: 'authView', view: 'oauth' });
-        else runFlow('Add custom provider', (io) => authHost.addCustomProvider(io));
+        else openCustomSetupForm();
         return;
       case 'key': {
         const providerId = panel.providerId;
@@ -263,20 +458,8 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
           case 'add-key':
             runFlow(`Add key — ${providerId}`, (io) => authHost.addKey(providerId, io));
             break;
-          case 'edit-family':
-            runFlow(`Edit family — ${providerId}`, (io) =>
-              authHost.editField(providerId, 'family', io),
-            );
-            break;
-          case 'edit-base-url':
-            runFlow(`Edit base URL — ${providerId}`, (io) =>
-              authHost.editField(providerId, 'baseUrl', io),
-            );
-            break;
-          case 'edit-models':
-            runFlow(`Edit models — ${providerId}`, (io) =>
-              authHost.editField(providerId, 'models', io),
-            );
+          case 'edit-provider':
+            openEditProviderForm(providerId);
             break;
           case 'add-model':
             runFlow(`Add model — ${providerId}`, (io) => authHost.addModel(providerId, io));
@@ -300,11 +483,29 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
         }
         return;
       }
+      case 'form-field':
+        // Field rows are typed into directly via the key router; Enter on a
+        // field row advances focus one step down so a double-tap reaches Save.
+        dispatch({ type: 'authMove', delta: 1 });
+        return;
+      case 'form-action':
+        if (row.action === 'cancel') {
+          dispatch({ type: 'authFormCancel' });
+          return;
+        }
+        // Local adds probe the server — they run as a flow (log streaming),
+        // not as a direct save; the form already collected URL + key.
+        if (stateRef.current.authPanel.form?.kind === 'local') {
+          startLocalFlow(stateRef.current.authPanel.form);
+          return;
+        }
+        void submitAuthForm();
+        return;
       case 'catalog-entry':
-        runFlow(`Add ${row.entry.id}`, (io) => authHost.addCatalogProvider(row.entry.id, io));
+        openCatalogSetupForm(row.entry);
         return;
       case 'local-preset':
-        runFlow(`Add ${row.preset.label}`, (io) => authHost.addLocal(row.preset.id, io));
+        openLocalForm(row.preset);
         return;
       case 'oauth-option':
         runFlow(OAUTH_TITLE[row.oauth] ?? 'Sign in', (io) => authHost.oauthLogin(row.oauth, io));
@@ -322,6 +523,13 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
     }
     if (panel.view === 'list') {
       dispatch({ type: 'authClose' });
+      return;
+    }
+    // Esc on the add/edit form returns to the screen the form was opened
+    // from — setup forms go back to the provider list, edit forms go back
+    // to that provider's detail view.
+    if (panel.view === 'form' && panel.form?.kind === 'edit' && panel.form.providerId) {
+      dispatch({ type: 'authView', view: 'provider', providerId: panel.form.providerId });
       return;
     }
     dispatch({ type: 'authView', view: 'list' });

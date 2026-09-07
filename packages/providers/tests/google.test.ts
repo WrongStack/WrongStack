@@ -653,4 +653,37 @@ describe('GoogleProvider', () => {
     }>;
     expect(toolsWrapper[0]!.functionDeclarations).toHaveLength(3);
   });
+
+  it('bounds explicitCache entries even when multiple cachedContents calls fail', async () => {
+    const fetchImpl = vi.fn(async (url: unknown) => {
+      const s = String(url);
+      if (s.includes('cachedContents')) {
+        return {
+          ok: false,
+          status: 400,
+          text: async () => 'Too few tokens',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] } }],
+          usageMetadata: {},
+        }),
+        text: async () => '',
+      };
+    }) as never as typeof fetch;
+
+    const p = new GoogleProvider({ apiKey: 'k', fetchImpl });
+    for (let i = 0; i < 150; i++) {
+      await (p as any).resolveCachedContent({
+        model: 'gemini-2.5-pro',
+        system: [{ text: `Instruction ${i}` }],
+      });
+    }
+
+    const cache = (p as any).explicitCache;
+    expect(cache.size).toBeLessThanOrEqual(128);
+  });
 });

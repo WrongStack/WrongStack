@@ -66,8 +66,10 @@ export async function aggregateStream(
         // A tool_use block starts — close any open text block so subsequent
         // text_delta starts a new one.
         currentTextIndex = -1;
-        toolBuffers.set(ev.id, { name: ev.name, chunks: [] });
-        blockOrder.push({ kind: 'tool', id: ev.id });
+        if (!toolBuffers.has(ev.id)) {
+          toolBuffers.set(ev.id, { name: ev.name, chunks: [] });
+          blockOrder.push({ kind: 'tool', id: ev.id });
+        }
         break;
       case 'tool_use_input_delta': {
         const b = toolBuffers.get(ev.id);
@@ -106,13 +108,13 @@ export async function aggregateStream(
         if (currentThinkingIndex === -1 || !thinkingBuffers[currentThinkingIndex]) {
           currentThinkingIndex = thinkingBuffers.length;
           thinkingBuffers.push({ chunks: [] });
+          blockOrder.push({ kind: 'thinking', idx: currentThinkingIndex });
         }
         // Always set providerMeta on the target block (thinking_start may carry
         // metadata even when the prior signature event did not).
         if (ev.providerMeta && currentThinkingIndex >= 0) {
           expectDefined(thinkingBuffers[currentThinkingIndex]).providerMeta = ev.providerMeta;
         }
-        blockOrder.push({ kind: 'thinking', idx: currentThinkingIndex });
         break;
       }
       case 'thinking_delta': {
@@ -120,6 +122,7 @@ export async function aggregateStream(
         // created the block (currentThinkingIndex >= 0), reuse it so the
         // signature and content end up in the same buffer.
         if (currentThinkingIndex === -1 || !thinkingBuffers[currentThinkingIndex]) {
+          currentTextIndex = -1;
           currentThinkingIndex = thinkingBuffers.length;
           thinkingBuffers.push({ chunks: [] });
           blockOrder.push({ kind: 'thinking', idx: currentThinkingIndex });
@@ -133,6 +136,7 @@ export async function aggregateStream(
         // handles out-of-order delivery where thinking_signature arrives before
         // thinking_start.
         if (currentThinkingIndex === -1 || !thinkingBuffers[currentThinkingIndex]) {
+          currentTextIndex = -1;
           currentThinkingIndex = thinkingBuffers.length;
           thinkingBuffers.push({ chunks: [] });
           blockOrder.push({ kind: 'thinking', idx: currentThinkingIndex });
@@ -143,6 +147,7 @@ export async function aggregateStream(
       }
       case 'thinking_stop': {
         currentThinkingIndex = -1;
+        currentTextIndex = -1;
         break;
       }
       case 'message_stop':

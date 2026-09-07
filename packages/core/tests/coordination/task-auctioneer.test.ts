@@ -775,5 +775,47 @@ describe('TaskAuctioneer (extended coverage)', () => {
       expect(stats.totalBids).toBe(1);
       expect(stats.avgBidsPerTask).toBeGreaterThan(0);
     });
+
+    it('marks task as failed after maxBidRetries when all bidders are at capacity', async () => {
+      vi.useFakeTimers();
+      try {
+        const a = new TaskAuctioneer({
+          graph,
+          fleet,
+          mailbox,
+          selfAgentId: 't',
+          bidWindowMs: 50,
+          maxTasksPerAgent: 1,
+          minConfidence: 0.3,
+          maxBidRetries: 2,
+        });
+        await a.publishTask({ title: 'Busy', description: 'd', targetAgent: 'agent-1' });
+        const id = await a.publishTask({ title: 'Needs Worker', description: 'd' });
+
+        (a as any).pendingBids.set(id, [
+          {
+            id: 'bid-1',
+            taskId: id,
+            agentId: 'agent-1',
+            agentName: 'Alice',
+            agentRole: 'bug-hunter',
+            score: 0.9,
+            rationale: 'ready',
+            submittedAt: new Date().toISOString(),
+          },
+        ]);
+
+        await vi.advanceTimersByTimeAsync(50);
+        expect(graph.get(id)?.status).toBe('pending');
+
+        await vi.advanceTimersByTimeAsync(50);
+        const failedGoal = graph.get(id);
+        expect(failedGoal?.status).toBe('failed');
+        expect(failedGoal?.result).toContain('No eligible bidders under capacity after 2 attempts');
+        expect(a.getBidCount(id)).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

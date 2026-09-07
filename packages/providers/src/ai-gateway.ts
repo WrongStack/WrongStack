@@ -271,7 +271,28 @@ export function convertMessages(messages: Message[]): ModelMessage[] {
     }
 
     if (typeof message.content === 'string') {
-      converted.push({ role: message.role, content: message.content });
+      if ((message.role as string) === 'tool') {
+        const raw = message as unknown as Record<string, unknown>;
+        converted.push({
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result',
+              toolCallId:
+                (raw['tool_use_id'] as string | undefined) ??
+                (raw['id'] as string | undefined) ??
+                'tool_call',
+              toolName: (raw['name'] as string | undefined) ?? 'tool',
+              output: {
+                type: 'text',
+                value: message.content,
+              },
+            },
+          ],
+        });
+      } else {
+        converted.push({ role: message.role, content: message.content });
+      }
       continue;
     }
 
@@ -331,7 +352,10 @@ export function convertTools(tools: WrongStackTool[]): ToolSet {
   );
 }
 
-export function convertUsage(usage: LanguageModelUsage): Usage {
+export function convertUsage(usage?: LanguageModelUsage | null): Usage {
+  if (!usage || typeof usage !== 'object') {
+    return { input: 0, output: 0 };
+  }
   // `inputTokenDetails` is required by the AI SDK type but arrives from the
   // wire — a gateway response missing it must not crash the whole stream.
   const details = usage.inputTokenDetails ?? {};
@@ -591,6 +615,15 @@ function convertAssistantBlock(block: Exclude<ContentBlock, { type: 'tool_result
   }
 }
 
+function safeImageUrl(url: string | undefined): URL | string {
+  if (!url) return '';
+  try {
+    return new URL(url);
+  } catch {
+    return url;
+  }
+}
+
 function convertUserBlock(block: Exclude<ContentBlock, { type: 'tool_result' }>) {
   switch (block.type) {
     case 'text':
@@ -599,7 +632,7 @@ function convertUserBlock(block: Exclude<ContentBlock, { type: 'tool_result' }>)
       return {
         type: 'image' as const,
         image:
-          block.source.type === 'url' ? new URL(block.source.url ?? '') : (block.source.data ?? ''),
+          block.source.type === 'url' ? safeImageUrl(block.source.url) : (block.source.data ?? ''),
         ...(block.source.media_type ? { mediaType: block.source.media_type } : {}),
       };
     case 'thinking':
@@ -611,7 +644,7 @@ function convertUserBlock(block: Exclude<ContentBlock, { type: 'tool_result' }>)
 
 function imageData(block: Extract<ContentBlock, { type: 'image' }>) {
   return block.source.type === 'url'
-    ? new URL(block.source.url ?? '')
+    ? safeImageUrl(block.source.url)
     : `data:${block.source.media_type ?? 'image/png'};base64,${block.source.data ?? ''}`;
 }
 
@@ -628,7 +661,7 @@ function blockText(block: Exclude<ContentBlock, { type: 'tool_result' }>): strin
   }
 }
 
-function convertFinishReason(reason: FinishReason): StopReason {
+function convertFinishReason(reason: FinishReason | string | undefined): StopReason {
   switch (reason) {
     case 'tool-calls':
       return 'tool_use';
@@ -639,6 +672,8 @@ function convertFinishReason(reason: FinishReason): StopReason {
       return 'refusal';
     case 'stop':
     case 'other':
+    case 'unknown':
+    default:
       return 'end_turn';
   }
 }
@@ -670,9 +705,9 @@ function resolveActiveApiKey(cfg: ProviderConfig, defaultEnvVars: string[] = [])
       ? cfg.apiKeys.find((entry) => entry.label === cfg.activeKey)
       : undefined;
     const fallback = selected ?? cfg.apiKeys[0];
-    if (fallback?.apiKey) return fallback.apiKey;
+    if (fallback?.apiKey?.trim()) return fallback.apiKey;
   }
-  if (cfg.apiKey) return cfg.apiKey;
+  if (cfg.apiKey?.trim()) return cfg.apiKey;
   // VULN-006 sentinel: a present-but-empty `envVars` array is written by
   // provider_manage's endpointChanged — "endpoint changed; do NOT silently
   // re-arm the credential from the catalog preset". Mirrors makeProvider's
