@@ -5,10 +5,10 @@
  * files in the tests/fixtures/ directory.
  */
 
-import { describe, it, expect } from 'vitest';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import { NpmAdapter } from '../src/adapters/npm.js';
 import { workspaceId } from '../src/discovery/index.js';
 import type { Workspace } from '../src/types.js';

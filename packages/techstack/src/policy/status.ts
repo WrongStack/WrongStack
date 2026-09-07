@@ -75,7 +75,7 @@ export function compareVersions(a: string, b: string): number {
   }
 
   // Base parts equal → prerelease handling
-  if (aPre === bPre) return 0;
+  if (aPre === undefined && bPre === undefined) return 0;
   if (aPre === undefined) return 1; // no prerelease > has prerelease
   if (bPre === undefined) return -1; // has prerelease < no prerelease
   // Both have prerelease — compare dot-separated identifiers
@@ -94,11 +94,7 @@ export function compareVersions(a: string, b: string): number {
       Number.isFinite(aNum) &&
       Number.isFinite(bNum)
     ) {
-      if (aNum > bNum) return 1;
-      if (aNum < bNum) return -1;
-    } else {
-      if (aId > bId) return 1;
-      if (aId < bId) return -1;
+      return aNum > bNum ? 1 : -1;
     }
     return aId > bId ? 1 : -1;
   }
@@ -158,15 +154,7 @@ function isBreakingUpgrade(locked: string, latestStable: string, constraint?: st
     return lockedMajor !== latestMajor;
   }
 
-  // Exact pin (`"biome": "2.5.3"`). The pin means "don't move without a
-  // decision", but that is a manifest question, not a compatibility one —
-  // breaking is still a major bump. Treating every pinned patch release as
-  // breaking flags most of a pin-heavy repo as a major upgrade.
-  if (isValidSemver(constraintNorm)) {
-    return lockedMajor !== latestMajor;
-  }
-
-  // Unknown constraint type — assume breaking
+  // Exact pin (`"biome": "2.5.3"`).
   return lockedMajor !== latestMajor;
 }
 

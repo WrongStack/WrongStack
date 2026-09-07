@@ -1,7 +1,7 @@
 /** Shared dependency-service HTTP transport with cancellation and bounded retry. */
 
-import { get as httpGet, request as httpRequest } from 'node:http';
 import type { IncomingHttpHeaders, IncomingMessage, RequestOptions } from 'node:http';
+import { get as httpGet, request as httpRequest } from 'node:http';
 import { get as httpsGet, request as httpsRequest } from 'node:https';
 
 export interface HttpResponse {
@@ -57,6 +57,10 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
     }, ms);
     signal?.addEventListener('abort', onAbort, { once: true });
   });
+}
+
+export function _delayForTesting(ms: number, signal?: AbortSignal): Promise<void> {
+  return delay(ms, signal);
 }
 
 function requestOnce(options: HttpRequestOptions): Promise<HttpResponse> {

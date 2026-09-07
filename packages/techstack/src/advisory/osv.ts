@@ -8,8 +8,8 @@
  * @see https://osv.dev/docs/
  */
 
-import type { Evidence } from '../types.js';
 import { parseJsonResponse, requestWithRetry } from '../registry/http-fetch.js';
+import type { Evidence } from '../types.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 

@@ -205,10 +205,6 @@ export class DartAdapter implements EcosystemAdapter {
         } else if (constraint.startsWith('git:')) {
           status = 'git_dependency';
           sourceType = 'git';
-        } else if (constraint.startsWith('{')) {
-          // Inline map: e.g. {sdk: flutter}
-          status = 'local_path';
-          sourceType = 'path';
         }
 
         const isRegistry = sourceType === 'registry';

@@ -97,4 +97,40 @@ describe('requestWithRetry body cap', () => {
     expect(out.body).toBe('hello');
     expect(res.destroyed).toBe(false);
   });
+
+  it('rejects on request timeout', async () => {
+    let timeoutCb: (() => void) | undefined;
+    let destroyed = false;
+    vi.mocked(httpsGet).mockImplementation((() => {
+      const req: Partial<ClientRequest> = {
+        on: vi.fn((event: string, cb: () => void) => {
+          if (event === 'timeout') timeoutCb = cb;
+          return req as ClientRequest;
+        }),
+        end: vi.fn(),
+        destroy: vi.fn(() => {
+          destroyed = true;
+        }),
+      };
+      setTimeout(() => timeoutCb?.(), 0);
+      return req as ClientRequest;
+    }) as typeof httpsGet);
+
+    await expect(
+      requestWithRetry({
+        hostname: 'registry.example',
+        path: '/timeout',
+        maxAttempts: 1,
+      }),
+    ).rejects.toThrow(/Request timeout for registry.example\/timeout/);
+    expect(destroyed).toBe(true);
+  });
+
+  it('rejects when delay signal is aborted during delay', async () => {
+    const { _delayForTesting } = await import('../src/registry/http-fetch.js');
+    const controller = new AbortController();
+    const p = _delayForTesting(500, controller.signal);
+    setTimeout(() => controller.abort(), 10);
+    await expect(p).rejects.toThrow(/Request aborted/);
+  });
 });

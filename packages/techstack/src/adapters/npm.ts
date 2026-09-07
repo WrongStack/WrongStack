@@ -249,10 +249,8 @@ function scopeForSection(section: string): DependencyScope {
       return 'development';
     case 'peerDependencies':
       return 'peer';
-    case 'optionalDependencies':
-      return 'optional';
     default:
-      return 'runtime';
+      return 'optional';
   }
 }
 

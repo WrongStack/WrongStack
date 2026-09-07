@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { execFile } from 'node:child_process';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock execFile so we can feed JSON output to the parsers without requiring
 // the actual audit tools to be installed on the machine.
@@ -58,6 +58,32 @@ describe('runNpmAudit', () => {
     expect(result.advisories[0]!.id).toBe('CVE-2019-1');
     expect(result.advisories[0]!.aliases).toContain('CVE-2019-1');
     expect(result.evidence.kind).toBe('audit');
+  });
+
+  it('handles npm audit low and info/default severities', async () => {
+    const { runNpmAudit } = await import('../../src/advisory/native-audit.js');
+    mockResult(
+      JSON.stringify({
+        vulnerabilities: {
+          pkgCrit: {
+            severity: 'critical',
+            via: [{ title: 'Crit vuln', cve: 'CVE-0' }],
+          },
+          pkgA: {
+            severity: 'low',
+            via: [{ title: 'Low vuln', cve: 'CVE-1' }],
+          },
+          pkgB: {
+            severity: 'something_else',
+            via: [{ title: 'Info vuln', cve: 'CVE-2' }],
+          },
+        },
+      }),
+    );
+    const result = await runNpmAudit('/fake');
+    expect(result.advisories[0]!.severity).toBe('critical');
+    expect(result.advisories[1]!.severity).toBe('low');
+    expect(result.advisories[2]!.severity).toBe('info');
   });
 
   it('skips string-only via entries', async () => {
@@ -177,6 +203,35 @@ describe('runCargoAudit', () => {
     const result = await runCargoAudit('/fake');
     expect(result.advisories).toHaveLength(0);
     expect(result.evidence.detail).toContain('code 1');
+  });
+
+  it('handles cargo audit invalid JSON output', async () => {
+    const { runCargoAudit } = await import('../../src/advisory/native-audit.js');
+    mockResult('invalid-json', 0);
+    const result = await runCargoAudit('/fake');
+    expect(result.advisories).toHaveLength(0);
+    expect(result.evidence.detail).toContain('Failed to parse cargo audit JSON output');
+  });
+
+  it('parses cargo audit severities (high, medium, low, info)', async () => {
+    const { runCargoAudit } = await import('../../src/advisory/native-audit.js');
+    mockResult(
+      JSON.stringify({
+        vulnerabilities: {
+          list: [
+            { advisory: { id: 'A1', cvss: 'HIGH' }, package: { name: 'p1' } },
+            { advisory: { id: 'A2', cvss: 'MEDIUM' }, package: { name: 'p2' } },
+            { advisory: { id: 'A3', cvss: 'LOW' }, package: { name: 'p3' } },
+            { advisory: { id: 'A4', cvss: 'OTHER' }, package: { name: 'p4' } },
+          ],
+        },
+      }),
+    );
+    const result = await runCargoAudit('/fake');
+    expect(result.advisories[0]!.severity).toBe('high');
+    expect(result.advisories[1]!.severity).toBe('medium');
+    expect(result.advisories[2]!.severity).toBe('low');
+    expect(result.advisories[3]!.severity).toBe('info');
   });
 });
 

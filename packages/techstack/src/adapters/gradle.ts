@@ -145,7 +145,7 @@ export class GradleAdapter implements EcosystemAdapter {
       catalog,
     );
     const lockPath =
-      workspace.lockfiles.find((path) => path.endsWith('gradle.lockfile')) ??
+      workspace.lockfiles?.find((path) => path.endsWith('gradle.lockfile')) ??
       join(root, 'gradle.lockfile');
     const locked = (await fileExistsAsync(resolveIn(root, lockPath)))
       ? parseGradleLock(await readFile(resolveIn(root, lockPath), 'utf8'))

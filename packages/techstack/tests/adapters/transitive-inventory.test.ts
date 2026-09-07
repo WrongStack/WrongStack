@@ -2,10 +2,10 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { EcosystemAdapter } from '../../src/adapters/interface.js';
 import { npmAdapter } from '../../src/adapters/npm.js';
 import { pythonAdapter } from '../../src/adapters/python.js';
 import { rustAdapter } from '../../src/adapters/rust.js';
-import type { EcosystemAdapter } from '../../src/adapters/interface.js';
 import type { EcosystemId, Workspace } from '../../src/types.js';
 
 const roots: string[] = [];

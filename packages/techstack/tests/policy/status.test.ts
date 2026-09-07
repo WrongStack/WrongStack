@@ -13,14 +13,14 @@
  * @see packages/techstack/src/policy/status.ts
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type { AdvisoryStatusData, RegistryStatusData } from '../../src/policy/status.js';
 import {
   classifyStatus,
   compareVersions,
-  privateOrUnresolvedStatus,
   failedLookupStatus,
+  privateOrUnresolvedStatus,
 } from '../../src/policy/status.js';
-import type { RegistryStatusData, AdvisoryStatusData } from '../../src/policy/status.js';
 
 // ── Helper factories ───────────────────────────────────────────────────────
 

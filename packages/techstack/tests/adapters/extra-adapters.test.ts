@@ -1,16 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { workspaceId } from '../../src/discovery/index.js';
-import type { Workspace } from '../../src/types.js';
-import { DartAdapter } from '../../src/adapters/dart.js';
-import { PhpAdapter } from '../../src/adapters/php.js';
-import { DotNetAdapter } from '../../src/adapters/dotnet.js';
-import { RubyAdapter } from '../../src/adapters/ruby.js';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import { CppAdapter } from '../../src/adapters/cpp.js';
+import { DartAdapter } from '../../src/adapters/dart.js';
+import { DotNetAdapter } from '../../src/adapters/dotnet.js';
 import { ElixirAdapter } from '../../src/adapters/elixir.js';
 import { MavenAdapter } from '../../src/adapters/maven.js';
+import { PhpAdapter } from '../../src/adapters/php.js';
+import { RubyAdapter } from '../../src/adapters/ruby.js';
+import { workspaceId } from '../../src/discovery/index.js';
+import type { Workspace } from '../../src/types.js';
 
 function mkWorkspace(
   ecosystem: Workspace['ecosystem'],

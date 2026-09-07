@@ -7,9 +7,9 @@
  * @see packages/techstack/src/store/sqlite.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdirSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { SageCachePragmas } from '@wrongstack/core/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── Mock node:fs ─────────────────────────────────────────────────────────
 
@@ -86,9 +86,9 @@ vi.mock('../../src/store/schema.js', () => ({
   SCHEMA_VERSION: 1,
 }));
 
-import { TechStackStore } from '../../src/store/sqlite.js';
 import { applySchema } from '../../src/store/schema.js';
-import type { Snapshot, TechStackJob, DeliveryStatus } from '../../src/types.js';
+import { TechStackStore } from '../../src/store/sqlite.js';
+import type { DeliveryStatus, Snapshot, TechStackJob } from '../../src/types.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────
 

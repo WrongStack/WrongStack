@@ -10,10 +10,10 @@
  * @see packages/techstack/src/adapters/paths.ts
  */
 
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join, resolve, sep } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { NpmAdapter } from '../../src/adapters/npm.js';
 import { resolveIn, workspaceRoot } from '../../src/adapters/paths.js';
 import type { Workspace } from '../../src/types.js';

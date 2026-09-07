@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateUpgradePlan, renderPlanMarkdown } from '../src/remediation.js';
-import type { Snapshot, Finding, DependencyObservation } from '../src/types.js';
+import type { DependencyObservation, Finding, Snapshot } from '../src/types.js';
 
 const DEPS: readonly DependencyObservation[] = [
   {

@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TechStackEngine } from '../src/service.js';
 import type {
   Snapshot,
   TechStackJob,
-  TechStackJobStatus,
   TechStackJobProgress,
+  TechStackJobStatus,
 } from '../src/types.js';
-import { TechStackEngine } from '../src/service.js';
 
 // ── Mock the registry + OSV so analyze() stays hermetic ────────────────
 
@@ -37,8 +37,8 @@ vi.mock('../src/advisory/osv.js', () => ({
   queryOsvBatch: vi.fn(async () => EMPTY_OSV_RESULT),
 }));
 
-import { lookupRegistry } from '../src/registry/client.js';
 import { queryOsvBatch } from '../src/advisory/osv.js';
+import { lookupRegistry } from '../src/registry/client.js';
 
 const mockedLookupRegistry = vi.mocked(lookupRegistry);
 const mockedQueryOsv = vi.mocked(queryOsvBatch);

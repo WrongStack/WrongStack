@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { EcosystemAdapter, InventoryOptions } from '../adapters/interface.js';
 import { cppAdapter } from '../adapters/cpp.js';
 import { dartAdapter } from '../adapters/dart.js';
 import { dotNetAdapter } from '../adapters/dotnet.js';
 import { elixirAdapter } from '../adapters/elixir.js';
 import { goAdapter } from '../adapters/go.js';
 import { gradleAdapter } from '../adapters/gradle.js';
+import type { EcosystemAdapter, InventoryOptions } from '../adapters/interface.js';
 import { mavenAdapter } from '../adapters/maven.js';
 import { npmAdapter } from '../adapters/npm.js';
 import { phpAdapter } from '../adapters/php.js';

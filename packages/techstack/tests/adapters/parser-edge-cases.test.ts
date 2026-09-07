@@ -1,12 +1,12 @@
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { EcosystemAdapter, InventoryOptions } from '../../src/adapters/interface.js';
 import { dartAdapter } from '../../src/adapters/dart.js';
 import { dotNetAdapter } from '../../src/adapters/dotnet.js';
 import { elixirAdapter } from '../../src/adapters/elixir.js';
 import { goAdapter } from '../../src/adapters/go.js';
+import type { EcosystemAdapter, InventoryOptions } from '../../src/adapters/interface.js';
 import { mavenAdapter } from '../../src/adapters/maven.js';
 import { npmAdapter } from '../../src/adapters/npm.js';
 import { phpAdapter } from '../../src/adapters/php.js';

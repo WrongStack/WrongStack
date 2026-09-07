@@ -365,13 +365,6 @@ export class PythonAdapter implements EcosystemAdapter {
       const evidence: Evidence[] = [];
       if (manifestEv) evidence.push(manifestEv);
       if (lockEv && locked) evidence.push(lockEv);
-      if (evidence.length === 0) {
-        evidence.push({
-          kind: 'manifest',
-          source: dep.source,
-          retrievedAt: new Date().toISOString(),
-        });
-      }
 
       const status: DependencyObservation['status'] =
         dep.constraint && (dep.constraint.startsWith('file:') || dep.constraint.startsWith('-e'))

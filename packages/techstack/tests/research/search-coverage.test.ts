@@ -1,7 +1,7 @@
 /**
  * Coverage for techstack/src/research/search.ts
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createToolSearch } from '../../src/research/search.js';
 
 // Mock the searchTool to avoid actual web requests

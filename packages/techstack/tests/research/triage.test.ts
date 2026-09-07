@@ -9,7 +9,7 @@
  * @see packages/techstack/src/research/triage.ts
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { clusterCandidates, triageCandidates } from '../../src/research/triage.js';
 import type { DependencyObservation, DependencyStatus } from '../../src/types.js';
 

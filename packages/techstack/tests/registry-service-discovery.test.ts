@@ -1,18 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  mapEcosystem,
-  deriveCoverage,
-  workspaceId,
   computeFingerprint,
+  deriveCoverage,
+  mapEcosystem,
+  workspaceId,
 } from '../src/discovery/index.js';
 import {
-  parseNpmPackument,
-  supportedRegistryEcosystems,
   clearRegistryCache,
   invalidateRegistryCache,
+  parseNpmPackument,
+  supportedRegistryEcosystems,
 } from '../src/registry/client.js';
-import type { Snapshot, DependencyObservation, Finding, Workspace } from '../src/types.js';
 import { TechStackEngine } from '../src/service.js';
+import type { DependencyObservation, Finding, Snapshot, Workspace } from '../src/types.js';
 
 // ── discovery/index.ts pure functions ─────────────────────────────────
 

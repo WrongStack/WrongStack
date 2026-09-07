@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diffSnapshots, toSpdx, toCycloneDX } from '../src/index.js';
+import { diffSnapshots, toCycloneDX, toSpdx } from '../src/index.js';
 import type { Snapshot } from '../src/types.js';
 
 const BASE_SNAPSHOT: Snapshot = {

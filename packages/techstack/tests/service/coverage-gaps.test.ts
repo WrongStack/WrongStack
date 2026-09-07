@@ -2,12 +2,12 @@
  * Coverage for techstack finding-factory.ts and enrich-phase.ts
  */
 import { describe, expect, it } from 'vitest';
+import { runEnrichPhase } from '../../src/service/enrich-phase.js';
 import {
   computeDependencyFingerprint,
   createFindingForStatus,
 } from '../../src/service/finding-factory.js';
-import { runEnrichPhase } from '../../src/service/enrich-phase.js';
-import type { DependencyObservation, Snapshot, EcosystemId } from '../../src/types.js';
+import type { DependencyObservation, EcosystemId, Snapshot } from '../../src/types.js';
 
 function makeDep(
   name: string,

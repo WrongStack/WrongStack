@@ -8,16 +8,16 @@
  * @see packages/techstack/src/registry/client.ts
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   clearRegistryCache,
-  parseNpmPackument,
-  supportedRegistryEcosystems,
   invalidateRegistryCache,
-  RegistryNotFoundError,
+  parseNpmPackument,
   RegistryAuthError,
-  RegistryRateLimitError,
   RegistryNetworkError,
+  RegistryNotFoundError,
+  RegistryRateLimitError,
+  supportedRegistryEcosystems,
 } from '../../src/registry/client.js';
 
 // ── npm packument parsing ──────────────────────────────────────────────────

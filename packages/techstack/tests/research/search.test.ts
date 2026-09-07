@@ -8,7 +8,7 @@
  * - search tool failure returns empty array
  * - search result mapping
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createToolSearch } from '../../src/research/search.js';
 import type { ResearchSearch } from '../../src/research/types.js';
 

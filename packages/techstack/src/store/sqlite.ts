@@ -33,6 +33,10 @@ import { applySchema } from './schema.js';
 
 let DatabaseSyncCtor: typeof DatabaseSync | undefined;
 
+export function _resetDatabaseSyncForTesting(): void {
+  DatabaseSyncCtor = undefined;
+}
+
 /** Load SQLite lazily while suppressing only its module-load experimental warning. */
 function loadDatabaseSync(): typeof DatabaseSync {
   if (DatabaseSyncCtor) return DatabaseSyncCtor;

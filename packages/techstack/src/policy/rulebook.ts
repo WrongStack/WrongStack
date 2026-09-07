@@ -176,7 +176,7 @@ export interface RulebookFileSystem {
 }
 
 /** Default file system backed by `node:fs/promises`. */
-const realFs: RulebookFileSystem = {
+export const defaultRulebookFileSystem: RulebookFileSystem = {
   async exists(path) {
     try {
       await fsAccess(path);
@@ -235,7 +235,7 @@ function selectorHasAtLeastOneField(selector: unknown): boolean {
 export async function loadRulebook(
   targetRoot: string,
   overridePath?: string,
-  io: RulebookFileSystem = realFs,
+  io: RulebookFileSystem = defaultRulebookFileSystem,
 ): Promise<LoadRulebookResult> {
   const defaultPaths = [
     `${targetRoot}/.wrongstack/techstack.rulebook.json`,

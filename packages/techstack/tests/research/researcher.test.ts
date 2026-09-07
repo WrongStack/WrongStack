@@ -13,7 +13,7 @@
  * @see docs/specs/techstack-sdd.md §31, §472
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createResearcher } from '../../src/research/researcher.js';
 import { triageCandidates } from '../../src/research/triage.js';
 import type { ResearchLlm, ResearchSearch } from '../../src/research/types.js';
@@ -360,6 +360,19 @@ describe('research — degradation', () => {
 
     expect(await researcher.research(candidates)).toEqual([]);
   });
+
+  it('skips non-object or null entries in parsed findings', async () => {
+    const candidates = triageCandidates([makeDep({ name: 'pkg' })]);
+    const researcher = createResearcher({
+      search: fakeSearch(),
+      now: FIXED_NOW,
+      llm: fakeLlm({
+        findings: [null, 'invalid', [1, 2, 3]],
+      }),
+    });
+
+    expect(await researcher.research(candidates)).toEqual([]);
+  });
 });
 
 // ── Cluster batching ──────────────────────────────────────────────────────
@@ -389,6 +402,21 @@ describe('research — batching', () => {
     expect(llm).not.toHaveBeenCalled();
   });
 
+  it('aborts after search completes before LLM call', async () => {
+    const candidates = triageCandidates([makeDep({ name: 'pkg' })]);
+    const controller = new AbortController();
+    const search: ResearchSearch = async () => {
+      controller.abort();
+      return [];
+    };
+    const llm = vi.fn<ResearchLlm>(async () => JSON.stringify({ findings: [] }));
+    const researcher = createResearcher({ llm, search, now: FIXED_NOW });
+
+    const findings = await researcher.research(candidates, { signal: controller.signal });
+    expect(findings).toEqual([]);
+    expect(llm).not.toHaveBeenCalled();
+  });
+
   it('reports progress per cluster', async () => {
     const candidates = triageCandidates([
       makeDep({ id: 'v', name: 'vuln-pkg', status: 'vulnerable' }),
@@ -407,5 +435,27 @@ describe('research — batching', () => {
       [1, 2],
       [2, 2],
     ]);
+  });
+
+  it('uses default now when now option is omitted', async () => {
+    const candidates = triageCandidates([makeDep({ name: 'pkg' })]);
+    const researcher = createResearcher({
+      llm: fakeLlm({
+        findings: [
+          {
+            package: 'pkg',
+            severity: 'high',
+            action: 'upgrade_major',
+            confidence: 0.8,
+            rationale: 'breaking release',
+          },
+        ],
+      }),
+      search: fakeSearch(SOURCES),
+    });
+
+    const findings = await researcher.research(candidates);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.evidence[0]?.retrievedAt).toBeDefined();
   });
 });

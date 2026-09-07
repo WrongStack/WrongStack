@@ -1,9 +1,9 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { TechStackEngine, TechStackStore } from '../src/index.js';
 import type { Snapshot } from '../src/types.js';
-import * as os from 'node:os';
-import * as path from 'node:path';
-import * as fs from 'node:fs';
 
 function createTestStore(): TechStackStore {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'techstack-report-'));
@@ -122,6 +122,30 @@ describe('TechStackEngine.generateReport', () => {
     expect(report).not.toContain('## Workspaces');
     expect(report).not.toContain('## Findings');
     expect(report).not.toContain('## Dependencies');
+  });
+
+  it('handles finding referencing missing dependency', () => {
+    const store = createTestStore();
+    const engine = new TechStackEngine(store);
+    const snap: Snapshot = {
+      ...SAMPLE_SNAPSHOT,
+      dependencies: [],
+      findings: [
+        {
+          id: 'f-missing',
+          dependencyId: 'unknown-dep-id',
+          type: 'vulnerability',
+          severity: 'high',
+          action: 'investigate',
+          confidence: 1,
+          evidence: [],
+          rationale: 'Missing dep test',
+        },
+      ],
+    };
+    const report = engine.generateReport(snap, 'markdown');
+    expect(report).toContain('**unknown-dep-id** — vulnerability — Missing dep test');
+    store.close();
   });
 
   it('generates valid SPDX 2.3 SBOM output', () => {

@@ -1,8 +1,8 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import * as fs from 'node:fs';
-import { TechStackStore, attemptDelivery, drainPendingDeliveries } from '../src/index.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { attemptDelivery, drainPendingDeliveries, TechStackStore } from '../src/index.js';
 import type { Snapshot } from '../src/types.js';
 
 let tmpDir: string;

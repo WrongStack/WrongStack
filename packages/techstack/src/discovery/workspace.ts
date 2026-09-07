@@ -19,13 +19,13 @@
  * @see docs/specs/techstack-sdd.md §3.2, §6
  */
 
-import { detectLanguageWorkspaces } from '@wrongstack/tools/languages';
 import type {
-  DetectLanguageOptions,
   DetectedWorkspace,
+  DetectLanguageOptions,
   LanguageEvidence,
   LanguageProfileId,
 } from '@wrongstack/tools/languages';
+import { detectLanguageWorkspaces } from '@wrongstack/tools/languages';
 import type { Coverage, EcosystemId, Workspace } from '../types.js';
 
 /**

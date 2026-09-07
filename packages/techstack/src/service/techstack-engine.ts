@@ -3,10 +3,10 @@ import type { InventoryOptions } from '../adapters/interface.js';
 import type { TechStackResearcher } from '../research/types.js';
 import type { TechStackStore } from '../store/sqlite.js';
 import type { Snapshot, TechStackJob, TechStackJobProgress, TechStackJobStatus } from '../types.js';
-import { runEnrichPhase, type EnrichOptions } from './enrich-phase.js';
+import { type EnrichOptions, runEnrichPhase } from './enrich-phase.js';
 import { runInventoryPhase } from './inventory-phase.js';
 import { generateReport, type ReportFormat } from './report-generator.js';
-import { runResearchPhase, type ResearchPhaseOptions } from './research-phase.js';
+import { type ResearchPhaseOptions, runResearchPhase } from './research-phase.js';
 
 export type { EnrichOptions } from './enrich-phase.js';
 export type { ReportFormat } from './report-generator.js';

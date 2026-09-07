@@ -5,5 +5,5 @@
  * `service/`; existing imports from `service.js` remain stable.
  */
 
-export { TechStackEngine } from './service/techstack-engine.js';
 export type { AnalyzeOptions, EnrichOptions, ReportFormat } from './service/techstack-engine.js';
+export { TechStackEngine } from './service/techstack-engine.js';

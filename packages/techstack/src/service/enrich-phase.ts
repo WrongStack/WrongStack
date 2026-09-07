@@ -2,15 +2,15 @@ import { queryOsvBatch } from '../advisory/osv.js';
 import { createLicenseFinding } from '../policy/license.js';
 import { detectWorkspaceMisalignments } from '../policy/misalignment.js';
 import {
-  classifyStatus,
   type AdvisoryStatusData,
+  classifyStatus,
   type RegistryStatusData,
 } from '../policy/status.js';
 import {
   lookupRegistry,
   RegistryAuthError,
-  RegistryNotFoundError,
   type RegistryEntry,
+  RegistryNotFoundError,
 } from '../registry/client.js';
 import type { DependencyObservation, EcosystemId, Evidence, Finding, Snapshot } from '../types.js';
 import { createFindingForStatus } from './finding-factory.js';

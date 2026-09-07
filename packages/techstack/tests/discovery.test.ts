@@ -20,19 +20,18 @@
  * fixtures that isolate the mapping logic from filesystem state.
  */
 
-import { describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
+import type { DetectedWorkspace } from '@wrongstack/tools/languages';
+import { describe, expect, it } from 'vitest';
 import {
   coverageForEcosystem,
   discoverWorkspaces,
   mapDetectedWorkspace,
   type Workspace,
 } from '../src/index.js';
-import type { DetectedWorkspace } from '@wrongstack/tools/languages';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -180,6 +179,19 @@ describe('discovery — mapDetectedWorkspace', () => {
     );
     expect(ws?.ecosystem).toBe('gradle');
     expect(ws?.coverage).toBe('partial');
+  });
+
+  it('maps java (build.gradle manifest only) → gradle', () => {
+    const ws = mapDetectedWorkspace(
+      mkDetectedWorkspace({
+        language: 'java',
+        evidence: [
+          { kind: 'manifest', path: '/proj/build.gradle', value: 'build.gradle', weight: 85 },
+        ],
+      }),
+      '/proj',
+    );
+    expect(ws?.ecosystem).toBe('gradle');
   });
 
   it('maps cpp → cpp with `unsupported` coverage (Tier C)', () => {

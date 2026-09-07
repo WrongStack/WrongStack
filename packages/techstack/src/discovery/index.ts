@@ -10,7 +10,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { EcosystemId, Coverage } from '../types.js';
+import type { Coverage, EcosystemId } from '../types.js';
 
 /**
  * Raw workspace shape returned by detectLanguageWorkspaces().

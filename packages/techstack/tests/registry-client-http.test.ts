@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ClientRequest, IncomingMessage } from 'node:http';
 import { Socket } from 'node:net';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type HttpGetImplementation = (...args: unknown[]) => ClientRequest;
 
@@ -66,9 +66,9 @@ vi.mock('node:http', async (importOriginal) => ({
   get: vi.fn(),
 }));
 
-import { get as httpsGet } from 'node:https';
 import { get as httpGet } from 'node:http';
-import { lookupRegistry, clearRegistryCache } from '../src/registry/client.js';
+import { get as httpsGet } from 'node:https';
+import { clearRegistryCache, lookupRegistry } from '../src/registry/client.js';
 
 const mockedHttpsGet = vi.mocked(httpsGet);
 const mockedHttpGet = vi.mocked(httpGet);

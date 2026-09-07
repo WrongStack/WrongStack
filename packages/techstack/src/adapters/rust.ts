@@ -96,13 +96,6 @@ function extractTomlDeps(sectionLines: string[]): Array<{
     const simpleMatch = entry.value.match(/^"([^"]*)"$/);
     if (simpleMatch) {
       deps.push({ name: entry.key, version: simpleMatch[1] || undefined, sourceType: 'registry' });
-      continue;
-    }
-
-    // Try partial inline table (may span lines)
-    if (!entry.value.startsWith('{') && !entry.value.startsWith('"')) {
-      // Might be a path or git dep: serde = { path = "../foo" }
-      // Ignore these for now
     }
   }
   return deps;
@@ -161,10 +154,8 @@ function scopeForCargoSection(section: string): DependencyScope {
       return 'runtime';
     case 'dev-dependencies':
       return 'development';
-    case 'build-dependencies':
-      return 'build';
     default:
-      return 'runtime';
+      return 'build';
   }
 }
 
