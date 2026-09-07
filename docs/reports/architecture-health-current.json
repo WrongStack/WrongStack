@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-07T22:44:31.826Z",
+  "generatedAt": "2026-09-07T22:47:02.050Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3681,
-    "testFiles": 3168,
-    "sourceLines": 884704,
+    "testFiles": 3169,
+    "sourceLines": 884712,
     "workspaceEdges": 127,
     "moduleEdges": 11593,
     "nonCommandSlashImports": 0,
@@ -888,7 +888,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 224,
-      "testFiles": 204,
+      "testFiles": 205,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -914,7 +914,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 204
+          "testFiles": 205
         }
       ]
     },
@@ -16785,6 +16785,12 @@
       },
       {
         "file": "packages/webui-server/tests/config-doctor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/config-write-lock.test.ts",
         "projects": [
           "root-node"
         ]

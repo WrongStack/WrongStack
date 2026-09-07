@@ -15,18 +15,32 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { withFileLock } from '@wrongstack/core/utils';
 import { updateGlobalConfig } from '../src/server/pref-helpers.js';
-import { createTestVault } from './pref-helpers-test-helpers.js';
+import { DefaultSecretVault } from '@wrongstack/core/security';
+import type { SecretVault } from '@wrongstack/core/types';
+
+async function makeTestVault(): Promise<SecretVault> {
+  // The vault writes its key file to `globalRoot`; use a fresh
+  // tmp dir for each test so we do not depend on the home-dir
+  // default. The returned vault encrypts / decrypts against the
+  // same key.
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'g6-vault-'));
+  const vault = new DefaultSecretVault({ keyFile: path.join(dir, '.key') });
+  // Prime the key so the first encrypt does not write to disk
+  // concurrently with the test's own read-modify-write cycle.
+  vault.encrypt('seed');
+  return vault;
+}
 
 describe('G6 / updateGlobalConfig — cross-process serialisation', () => {
   let tmpDir: string;
   let configPath: string;
-  let vault: ReturnType<typeof createTestVault>;
+  let vault: SecretVault;
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'g6-config-lock-'));
     configPath = path.join(tmpDir, 'config.json');
     await fs.writeFile(configPath, JSON.stringify({ yolo: true }));
-    vault = createTestVault();
+    vault = await makeTestVault();
   });
 
   afterEach(async () => {
@@ -37,10 +51,18 @@ describe('G6 / updateGlobalConfig — cross-process serialisation', () => {
     // Acquire the file lock from "another process". The helper
     // must block until the holder releases — if it raced past the
     // lock it would overwrite the holder's write.
-    const externalRelease = await withFileLock(
+    let releaseExternal: (() => void) | undefined;
+    const externalHolder = withFileLock(
       configPath,
-      () => new Promise<void>((r) => setTimeout(r, 200)),
+      () =>
+        new Promise<void>((r) => {
+          releaseExternal = r;
+        }),
     );
+    // Let the external lock acquire before we ask the helper to
+    // write — otherwise the helper wins the race and the assertion
+    // below is meaningless.
+    await new Promise<void>((r) => setTimeout(r, 30));
     const start = Date.now();
     const writeDone = updateGlobalConfig(
       { profileConfigPath: configPath, vault, logger: { warn: () => undefined } },
@@ -50,11 +72,11 @@ describe('G6 / updateGlobalConfig — cross-process serialisation', () => {
       },
       'g6-test',
     );
-    // The helper is now blocked on the external lock; release it
-    // mid-flight so the assertion below has a deterministic
-    // observable transition.
-    setTimeout(() => externalRelease(undefined), 120);
+    // Release the external holder after 120ms; the helper must
+    // then complete.
+    setTimeout(() => releaseExternal?.(), 120);
     await writeDone;
+    await externalHolder;
     const elapsed = Date.now() - start;
     // Must have waited for the external holder — at least ~100ms.
     expect(elapsed).toBeGreaterThanOrEqual(100);

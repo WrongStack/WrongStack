@@ -139,9 +139,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
-      "files": 137,
+      "files": 138,
       "typeOnly": 26,
-      "runtimeOrMixed": 114
+      "runtimeOrMixed": 115
     },
     "@wrongstack/core/session-catalog": {
       "files": 8,
@@ -174,8 +174,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1048,
-      "typeOnly": 969,
+      "files": 1049,
+      "typeOnly": 970,
       "runtimeOrMixed": 271
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -204,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 561,
+      "files": 562,
       "typeOnly": 55,
-      "runtimeOrMixed": 533
+      "runtimeOrMixed": 534
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -8916,6 +8916,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/tests/config-write-lock.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/tests/connections-health-route.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16188,6 +16194,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/config-write-lock.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/context-editor.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -19921,6 +19933,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/ws-payload-preferences.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/config-write-lock.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
