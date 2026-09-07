@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-06T20:17:44.879Z
+**Generated:** 2026-09-06T23:02:11.193Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3644 |
-| Production source lines | 873079 |
-| Test files | 3081 |
+| Production source files | 3646 |
+| Production source lines | 874280 |
+| Test files | 3084 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11463 |
+| Relative module edges | 11469 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -29,7 +29,7 @@ PASS — no blocking architecture-health errors.
 |---|---:|---:|---|
 | @wrongstack/acp | 42 | 36 | @wrongstack/core |
 | @wrongstack/bench | 26 | 51 | @wrongstack/core |
-| @wrongstack/cli | 475 | 455 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
+| @wrongstack/cli | 477 | 457 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/core | 838 | 710 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 20 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -55,7 +55,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 32 | @wrongstack/core |
 | @wrongstack/tools | 197 | 202 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 363 | 333 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 363 | 334 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 16 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 536 | 356 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-hq | 111 | 34 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -92,6 +92,8 @@ None.
 | 1048 | `packages/core/src/index.ts` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
 | 1046 | `packages/mcp/src/client.ts` |
+| 1045 | `packages/cli/src/slash-commands/settings-mutations.ts` |
+| 1044 | `packages/cli/src/auth-menu/panel-service.ts` |
 | 1044 | `packages/webui/src/components/ContextDashboard.tsx` |
 | 1041 | `packages/tui/src/components/sidebar-content.tsx` |
 | 1039 | `packages/webui-server/src/server/context-editor.ts` |
@@ -101,7 +103,6 @@ None.
 | 1033 | `packages/sage/src/sqlite-store.ts` |
 | 1030 | `packages/plugins/src/git-autocommit/index.ts` |
 | 1030 | `packages/tui/src/components/history/utils.tsx` |
-| 1029 | `packages/cli/src/auth-menu/panel-service.ts` |
 | 1025 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
 | 1019 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
@@ -134,7 +135,6 @@ None.
 | 950 | `packages/webui-server/src/server/backend-services.ts` |
 | 948 | `packages/plugins/src/semantic-search-indexer/index.ts` |
 | 945 | `packages/core/src/hq/protocol/core.ts` |
-| 944 | `packages/cli/src/slash-commands/settings-mutations.ts` |
 
 ## Exports only tests reference
 

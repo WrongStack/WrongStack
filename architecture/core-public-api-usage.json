@@ -154,9 +154,9 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/storage": {
-      "files": 117,
+      "files": 118,
       "typeOnly": 32,
-      "runtimeOrMixed": 115
+      "runtimeOrMixed": 116
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -199,9 +199,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 552,
+      "files": 555,
       "typeOnly": 55,
-      "runtimeOrMixed": 524
+      "runtimeOrMixed": 527
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -9164,6 +9164,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/src/slash-commands/settings-mutations.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/slash-commands/tasks.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -17492,6 +17498,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/subcommands/handlers/config-transfer.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/diag-doctor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -17852,6 +17864,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/config-transfer.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/event-wiring.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -17973,6 +17991,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/settings-mutations.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/settings-reset-command.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

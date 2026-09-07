@@ -3,7 +3,7 @@
   "thresholdLines": 800,
   "files": {
     "packages/cli/src/auth-menu/panel-service.ts": {
-      "lines": 1029,
+      "lines": 1044,
       "relativeImports": 9
     },
     "packages/cli/src/boot/tui-session-resume.ts": {
@@ -47,8 +47,8 @@
       "relativeImports": 14
     },
     "packages/cli/src/slash-commands/settings-mutations.ts": {
-      "lines": 944,
-      "relativeImports": 4
+      "lines": 1045,
+      "relativeImports": 5
     },
     "packages/cli/src/slash-commands/tool.ts": {
       "lines": 802,
@@ -274,6 +274,10 @@
       "lines": 1025,
       "relativeImports": 48
     },
+    "packages/tools/src/bash.ts": {
+      "lines": 860,
+      "relativeImports": 7
+    },
     "packages/tools/src/codebase-index/background-indexer.ts": {
       "lines": 909,
       "relativeImports": 7
@@ -297,6 +301,10 @@
     "packages/tools/src/json.ts": {
       "lines": 935,
       "relativeImports": 2
+    },
+    "packages/tools/src/pwsh.ts": {
+      "lines": 875,
+      "relativeImports": 8
     },
     "packages/tools/src/session-kanban.ts": {
       "lines": 837,
