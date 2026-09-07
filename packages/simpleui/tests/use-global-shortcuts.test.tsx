@@ -6,6 +6,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useGlobalShortcuts } from '../src/hooks/use-global-shortcuts.js';
 import type { PendingConfirm } from '../src/types.js';
 
+type GlobalShortcutsOptions = Parameters<typeof useGlobalShortcuts>[0];
+type MockFor<T extends (...args: any[]) => any> = ReturnType<typeof vi.fn<T>>;
+
 /**
  * Global shortcuts: Escape closes the topmost panel (diff → settings →
  * mailbox → refine-escape restore), Y/N/A answer the pending permission
@@ -30,20 +33,20 @@ function pressKey(key: string, init: KeyboardEventInit = {}): void {
 }
 
 interface Harness {
-  setDiffFiles: ReturnType<typeof vi.fn>;
-  setSettingsOpen: ReturnType<typeof vi.fn>;
-  setMailboxOpen: ReturnType<typeof vi.fn>;
-  setRefineState: ReturnType<typeof vi.fn>;
-  setDraft: ReturnType<typeof vi.fn>;
-  setAttachedImages: ReturnType<typeof vi.fn>;
-  setCommandPaletteOpen: ReturnType<typeof vi.fn>;
+  setDiffFiles: MockFor<GlobalShortcutsOptions['setDiffFiles']>;
+  setSettingsOpen: MockFor<GlobalShortcutsOptions['setSettingsOpen']>;
+  setMailboxOpen: MockFor<GlobalShortcutsOptions['setMailboxOpen']>;
+  setRefineState: MockFor<GlobalShortcutsOptions['setRefineState']>;
+  setDraft: MockFor<GlobalShortcutsOptions['setDraft']>;
+  setAttachedImages: MockFor<GlobalShortcutsOptions['setAttachedImages']>;
+  setCommandPaletteOpen: MockFor<GlobalShortcutsOptions['setCommandPaletteOpen']>;
   draftRef: { current: string };
   textareaRef: { current: HTMLTextAreaElement | null };
   runningRef: { current: boolean };
   messagesRef: { current: Array<{ id: string; role: string; text: string }> };
-  submitWith: ReturnType<typeof vi.fn>;
+  submitWith: MockFor<(mode: string) => void>;
   pendingConfirmRef: { current: PendingConfirm | null };
-  decideConfirm: ReturnType<typeof vi.fn>;
+  decideConfirm: MockFor<(decision: 'yes' | 'no' | 'always') => void>;
   refineEpochRef: { current: number };
   socketRef: { current: { send: ReturnType<typeof vi.fn> } | null };
   sessionIdRef: { current: string | null };
@@ -62,21 +65,21 @@ function renderHarness(): Harness {
   // must be IN the document to be focusable.
   const textarea = document.createElement('textarea');
   document.body.append(textarea);
-  const h: Harness = {
-    setDiffFiles: vi.fn(),
-    setSettingsOpen: vi.fn(),
-    setMailboxOpen: vi.fn(),
-    setRefineState: vi.fn(),
-    setDraft: vi.fn(),
-    setAttachedImages: vi.fn(),
-    setCommandPaletteOpen: vi.fn(),
+  const h = {
+    setDiffFiles: vi.fn<GlobalShortcutsOptions['setDiffFiles']>(),
+    setSettingsOpen: vi.fn<GlobalShortcutsOptions['setSettingsOpen']>(),
+    setMailboxOpen: vi.fn<GlobalShortcutsOptions['setMailboxOpen']>(),
+    setRefineState: vi.fn<GlobalShortcutsOptions['setRefineState']>(),
+    setDraft: vi.fn<GlobalShortcutsOptions['setDraft']>(),
+    setAttachedImages: vi.fn<GlobalShortcutsOptions['setAttachedImages']>(),
+    setCommandPaletteOpen: vi.fn<GlobalShortcutsOptions['setCommandPaletteOpen']>(),
     draftRef: { current: '' },
     textareaRef: { current: textarea },
     runningRef: { current: false },
     messagesRef: { current: [] },
-    submitWith: vi.fn(),
+    submitWith: vi.fn<(mode: string) => void>(),
     pendingConfirmRef: { current: null },
-    decideConfirm: vi.fn(),
+    decideConfirm: vi.fn<(decision: 'yes' | 'no' | 'always') => void>(),
     refineEpochRef: { current: 0 },
   };
 
@@ -137,7 +140,7 @@ function renderHarness(): Harness {
     refineStartFiredRef,
     submitWithRef,
     decideConfirmRef,
-  });
+  }) as Harness;
 }
 
 describe('useGlobalShortcuts — Escape panel priority', () => {

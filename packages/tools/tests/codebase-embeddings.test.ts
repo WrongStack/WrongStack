@@ -59,12 +59,13 @@ function fakePort(
       return batch.map((text) => {
         const vector = new Float32Array(dimensions);
         for (let i = 0; i < text.length; i++) {
-          vector[text.charCodeAt(i) % dimensions] += 1;
+          const index = text.charCodeAt(i) % dimensions;
+          vector[index] = vector[index]! + 1;
         }
         let norm = 0;
         for (const value of vector) norm += value * value;
         norm = Math.sqrt(norm);
-        if (norm > 0) for (let i = 0; i < dimensions; i++) vector[i] /= norm;
+        if (norm > 0) for (let i = 0; i < dimensions; i++) vector[i] = vector[i]! / norm;
         return vector;
       });
     }),
