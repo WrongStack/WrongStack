@@ -31,6 +31,15 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { renderAtlasHtml } from './atlas-export.js';
+import type {
+  AtlasDocument,
+  AtlasEdge,
+  AtlasFile,
+  AtlasManifest,
+  AtlasPackage,
+  AtlasProjection,
+  AtlasSymbol,
+} from './atlas-types.js';
 import type { FileRankRow } from './graph-rank.js';
 import { type IndexStore, indexStorePool } from './writer.js';
 import { posixIndexPath, resolveIndexDir } from './writer-helpers.js';
@@ -74,81 +83,15 @@ function round(value: number): number {
   return Number(value.toFixed(RANK_PRECISION));
 }
 
-export interface AtlasSymbol {
-  name: string;
-  kind: string;
-  line: number;
-}
-
-export interface AtlasFile {
-  path: string;
-  rank: number;
-  inDeg: number;
-  outDeg: number;
-  package: string;
-  symbols: AtlasSymbol[];
-  /** Concept-layer summary. Omitted entirely when the layer has not run. */
-  concept?: string;
-}
-
-export interface AtlasPackage {
-  name: string;
-  files: number;
-  /** Highest-ranked file in the package. */
-  hub: string;
-  rank: number;
-  /** Subsystem summary for this package, when the concept layer derived one. */
-  summary?: string;
-}
-
-/**
- * A package-level dependency, aggregated from the reference graph.
- *
- * Only the package level is projected. File-level edges would be tens of
- * thousands of rows — a diff nobody can read and a file nobody can render,
- * for a level of detail the index itself answers better on demand.
- */
-export interface AtlasEdge {
-  from: string;
-  to: string;
-  weight: number;
-  refType: string;
-}
-
-export interface AtlasDocument {
-  schema: number;
-  counts: { files: number; symbols: number; packages: number };
-  packages: AtlasPackage[];
-  edges: AtlasEdge[];
-  files: AtlasFile[];
-}
-
-export interface AtlasManifest {
-  schema: number;
-  /**
-   * `files`/`symbols` are the index's own totals, for display.
-   *
-   * `tracked` is the size of the file set the digest was computed over — the
-   * only number a freshness check may compare its own file set against. The
-   * two can differ (a file with no symbols is tracked but may not count
-   * towards `files`), and comparing across them reported phantom additions.
-   */
-  counts: { files: number; symbols: number; tracked: number };
-  /**
-   * sha-256 over every indexed file's `path\0contentHash`, sorted. Catches a
-   * change anywhere in the repository, including files the atlas does not
-   * itself carry.
-   */
-  digest: string;
-  /** Per-file content hashes, for the files the atlas describes. */
-  files: Record<string, string>;
-}
-
-export interface AtlasProjection {
-  document: AtlasDocument;
-  manifest: AtlasManifest;
-  markdown: string;
-}
+export type {
+  AtlasDocument,
+  AtlasEdge,
+  AtlasFile,
+  AtlasManifest,
+  AtlasPackage,
+  AtlasProjection,
+  AtlasSymbol,
+};
 
 function relativeFactory(projectRoot: string): (file: string) => string {
   return (file) => {

@@ -20,7 +20,7 @@
  * a committed export diffs meaningfully.
  */
 
-import type { AtlasDocument, AtlasPackage } from './atlas-projection.js';
+import type { AtlasDocument, AtlasPackage } from './atlas-types.js';
 
 /** Packages drawn on the canvas. Beyond this the picture stops being readable. */
 export const EXPORT_PACKAGE_LIMIT = 40;

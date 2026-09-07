@@ -9,7 +9,7 @@ const {
   checkProjectAtlasFreshnessMock,
   exportProjectAtlasHtmlMock,
 } = vi.hoisted(() => ({
-  generateRepoMapMock: vi.fn(async () => ({
+  generateRepoMapMock: vi.fn(async (_options: { projectRoot: string; maxTokens?: number }) => ({
     map: '// Repo map — ranked by graph centrality (1.00 = most central).',
     filesCount: 7,
     totalFilesScanned: 8412,
@@ -52,6 +52,21 @@ const ctx = {} as never;
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matching ANSI escapes is the point
 const plain = (s: string) => s.replace(/\[[0-9;]*m/g, '');
 
+type RunResult = Awaited<ReturnType<ReturnType<typeof buildCodebaseMapCommand>['run']>>;
+
+/**
+ * `run` is declared `void | {...}` because some slash commands render
+ * themselves and answer with nothing. Every /codebase-map path returns a
+ * message, so narrow that here once — a missing message is a real failure,
+ * not something each assertion should paper over with `?? ''`.
+ */
+const messageOf = (result: RunResult): string => {
+  if (!result || result.message === undefined) {
+    throw new Error('/codebase-map returned no message');
+  }
+  return plain(result.message);
+};
+
 describe('buildCodebaseMapCommand', () => {
   beforeEach(() => {
     generateRepoMapMock.mockClear();
@@ -71,8 +86,8 @@ describe('buildCodebaseMapCommand', () => {
 
     expect(generateRepoMapMock).toHaveBeenCalledTimes(1);
     expect(writeProjectAtlasMock).not.toHaveBeenCalled();
-    expect(plain(result.message ?? '')).toContain('graph centrality');
-    expect(plain(result.message ?? '')).toContain('7 of 8412 files');
+    expect(messageOf(result)).toContain('graph centrality');
+    expect(messageOf(result)).toContain('7 of 8412 files');
   });
 
   it('passes a token budget through', async () => {
@@ -85,15 +100,15 @@ describe('buildCodebaseMapCommand', () => {
 
     expect(writeProjectAtlasMock).toHaveBeenCalledTimes(1);
     expect(generateRepoMapMock).not.toHaveBeenCalled();
-    expect(plain(result.message ?? '')).toContain('.wrongstack/atlas');
-    expect(plain(result.message ?? '')).toContain('300 files');
+    expect(messageOf(result)).toContain('.wrongstack/atlas');
+    expect(messageOf(result)).toContain('300 files');
   });
 
   it('reports a current atlas on --check', async () => {
     const result = await build().run('--check', ctx);
 
     expect(checkProjectAtlasFreshnessMock).toHaveBeenCalledTimes(1);
-    expect(plain(result.message ?? '')).toContain('atlas is current');
+    expect(messageOf(result)).toContain('atlas is current');
   });
 
   it('names the drifted files on --check', async () => {
@@ -106,7 +121,7 @@ describe('buildCodebaseMapCommand', () => {
       digestMatches: false,
     } as never);
 
-    const message = plain((await build().run('--check', ctx)).message ?? '');
+    const message = messageOf(await build().run('--check', ctx));
 
     expect(message).toContain('drifted');
     expect(message).toContain('packages/core/src/types/provider.ts');
@@ -122,7 +137,7 @@ describe('buildCodebaseMapCommand', () => {
       digestMatches: false,
     } as never);
 
-    expect(plain((await build().run('--check', ctx)).message ?? '')).toContain('outside the atlas');
+    expect(messageOf(await build().run('--check', ctx))).toContain('outside the atlas');
   });
 
   it('points at --write when no atlas exists yet', async () => {
@@ -135,21 +150,19 @@ describe('buildCodebaseMapCommand', () => {
       digestMatches: false,
     } as never);
 
-    expect(plain((await build().run('--check', ctx)).message ?? '')).toContain(
-      'No atlas written yet',
-    );
+    expect(messageOf(await build().run('--check', ctx))).toContain('No atlas written yet');
   });
 
   it('points at /codebase-reindex when the project has no index', async () => {
     writeProjectAtlasMock.mockResolvedValueOnce({ indexed: false } as never);
 
-    expect(plain((await build().run('--write', ctx)).message ?? '')).toContain('/codebase-reindex');
+    expect(messageOf(await build().run('--write', ctx))).toContain('/codebase-reindex');
   });
 
   it('reports a failure instead of throwing', async () => {
     generateRepoMapMock.mockRejectedValueOnce(new Error('index exploded'));
 
-    expect(plain((await build().run('', ctx)).message ?? '')).toContain('index exploded');
+    expect(messageOf(await build().run('', ctx))).toContain('index exploded');
   });
 });
 
@@ -171,7 +184,7 @@ describe('/codebase-map --export', () => {
     } as never).run(args, ctx);
 
   it('writes atlas.html into the project root by default', async () => {
-    const message = plain((await run('--export')).message ?? '');
+    const message = messageOf(await run('--export'));
 
     const written = await fs.readFile(path.join(projectRoot, 'atlas.html'), 'utf8');
     expect(written.startsWith('<!doctype html>')).toBe(true);
@@ -191,7 +204,7 @@ describe('/codebase-map --export', () => {
   it('points at /codebase-reindex instead of writing an empty file', async () => {
     exportProjectAtlasHtmlMock.mockResolvedValueOnce({ indexed: false } as never);
 
-    const message = plain((await run('--export')).message ?? '');
+    const message = messageOf(await run('--export'));
 
     expect(message).toContain('/codebase-reindex');
     await expect(fs.access(path.join(projectRoot, 'atlas.html'))).rejects.toThrow();

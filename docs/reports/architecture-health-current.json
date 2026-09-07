@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-07T15:39:43.805Z",
+  "generatedAt": "2026-09-07T15:45:24.727Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,21 +12,19 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3671,
+    "sourceFiles": 3672,
     "testFiles": 3108,
-    "sourceLines": 881242,
+    "sourceLines": 881274,
     "workspaceEdges": 127,
-    "moduleEdges": 11568,
+    "moduleEdges": 11569,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 9,
+    "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 845
   },
-  "errors": [
-    "1 unexcepted module cycle(s)"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -733,7 +731,7 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 215,
+      "sourceFiles": 216,
       "testFiles": 214,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -1071,13 +1069,6 @@
           "packages/core/src/types/token-counter.ts",
           "packages/core/src/types/tool.ts"
         ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/tools/src/codebase-index/atlas-export.ts",
-          "packages/tools/src/codebase-index/atlas-projection.ts"
-        ]
       }
     ],
     "matchedExceptions": [
@@ -1090,15 +1081,7 @@
       "ARCH-CYCLE-TYPE-29",
       "ARCH-CYCLE-TYPE-30"
     ],
-    "unexcepted": [
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/tools/src/codebase-index/atlas-export.ts",
-          "packages/tools/src/codebase-index/atlas-projection.ts"
-        ]
-      }
-    ]
+    "unexcepted": []
   },
   "testOwnership": {
     "runtimeAssignments": [
