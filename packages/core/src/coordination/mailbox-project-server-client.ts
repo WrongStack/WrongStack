@@ -44,6 +44,14 @@ const AUTH_RETRY_DELAY_MS = 150;
  * fast when the token is genuinely wrong.
  */
 const AUTH_RETRY_MAX_ATTEMPTS = 13;
+/**
+ * Minimum spacing between detached-server spawn attempts inside one
+ * `connectWithElection` window. The first spawn still fires immediately;
+ * re-arming is cadence-bounded so a dead first daemon is recovered without
+ * flooding the machine with losing candidates (the endpoint bind IS the
+ * election, so an extra spawn that cannot win exits without side effects).
+ */
+const SPAWN_RETRY_CADENCE_MS = 750;
 
 interface PendingRequest {
   resolve(value: unknown): void;
@@ -296,7 +304,7 @@ export class MailboxProjectServerConnection {
   private async connectWithElection(spawnIfMissing: boolean): Promise<void> {
     const deadline =
       Date.now() + (spawnIfMissing ? SERVER_START_TIMEOUT_MS : CONNECT_ATTEMPT_TIMEOUT_MS);
-    let spawned = false;
+    let lastSpawnAt = 0;
     let lastError: unknown = new Error('Mailbox project server unavailable');
     while (Date.now() < deadline) {
       try {
@@ -306,9 +314,16 @@ export class MailboxProjectServerConnection {
         lastError = error;
       }
       if (!spawnIfMissing) break;
-      if (!spawned) {
+      // Re-arm the spawn on SPAWN_RETRY_CADENCE_MS. A single spawn attempt made
+      // a silently dead daemon (crash before bind, spawn-level error) fatal for
+      // the whole window: every remaining retry hit `connect ENOENT` against a
+      // pipe nothing would ever create, and the caller saw that raw error after
+      // SERVER_START_TIMEOUT_MS (observed under full-suite load). The first
+      // spawn still fires immediately because lastSpawnAt starts at 0.
+      const now = Date.now();
+      if (now - lastSpawnAt >= SPAWN_RETRY_CADENCE_MS) {
         this.spawnDetachedServer();
-        spawned = true;
+        lastSpawnAt = now;
       }
       await delay(75);
     }
@@ -567,6 +582,12 @@ export class MailboxProjectServerConnection {
       windowsHide: true,
       env: process.env,
     });
+    // stdio is ignored and nothing else consumes lifecycle events; without a
+    // listener a spawn-level 'error' (e.g. a transient EMFILE under load)
+    // would crash this process instead of failing the connect. The
+    // cadence-bounded re-spawn in connectWithElection owns recovery, so the
+    // event only needs to be safely observable here.
+    child.on('error', () => undefined);
     child.unref();
   }
 }
