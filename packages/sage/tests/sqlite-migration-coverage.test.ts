@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import type { DatabaseSync as DatabaseSyncType } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SqliteSageStore } from '../src/sqlite-store.js';
+import { initSchema } from '../src/sqlite-store-schema.js';
 import type { Sage } from '../src/types.js';
 
 const require = createRequire(import.meta.url);
@@ -580,5 +581,45 @@ describe('SQLite migration completion coverage', () => {
     expect(version.value).toBe(5);
 
     migrated.close();
+  });
+
+  it('preserves error and rolls back when V4 migration fails', async () => {
+    const dbFile = path.join(directory, '.wrongstack', 'memories', 'sage.db');
+    await fs.mkdir(path.dirname(dbFile), { recursive: true });
+    const db = new DatabaseSync(dbFile);
+    initSchema(db);
+    db.exec("UPDATE schema_meta SET value = 3 WHERE key = 'version'");
+    db.close();
+
+    const origExec = DatabaseSync.prototype.exec;
+    vi.spyOn(DatabaseSync.prototype, 'exec').mockImplementation(function (this: any, sql: string) {
+      if (sql.includes('idx_legacy_scope')) {
+        throw new Error('mock v4 migration error');
+      }
+      return origExec.call(this, sql);
+    });
+
+    const s = store();
+    await expect(s.initialize()).rejects.toThrow('mock v4 migration error');
+  });
+
+  it('preserves error and rolls back when V5 migration fails', async () => {
+    const dbFile = path.join(directory, '.wrongstack', 'memories', 'sage.db');
+    await fs.mkdir(path.dirname(dbFile), { recursive: true });
+    const db = new DatabaseSync(dbFile);
+    initSchema(db);
+    db.exec("UPDATE schema_meta SET value = 4 WHERE key = 'version'");
+    db.close();
+
+    const origExec = DatabaseSync.prototype.exec;
+    vi.spyOn(DatabaseSync.prototype, 'exec').mockImplementation(function (this: any, sql: string) {
+      if (sql.includes('idx_owner_session')) {
+        throw new Error('mock v5 migration error');
+      }
+      return origExec.call(this, sql);
+    });
+
+    const s = store();
+    await expect(s.initialize()).rejects.toThrow('mock v5 migration error');
   });
 });

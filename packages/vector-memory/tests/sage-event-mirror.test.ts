@@ -15,9 +15,9 @@
  */
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EventBus } from '@wrongstack/core/kernel';
 import { getSageSurface, isSqliteAvailable, SqliteMemoryPort } from '@wrongstack/sage';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   forgetStaleSageMirrors,

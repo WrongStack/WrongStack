@@ -55,9 +55,10 @@ interface TransformersModule {
 }
 
 /** Minimal shape we need from the feature-extraction pipeline output. */
-interface FeatureExtractor {
-  (texts: string | string[], options?: Record<string, unknown>): Promise<TensorLike>;
-}
+type FeatureExtractor = (
+  texts: string | string[],
+  options?: Record<string, unknown>,
+) => Promise<TensorLike>;
 interface TensorLike {
   data: Float32Array | number[];
   dims?: number[];

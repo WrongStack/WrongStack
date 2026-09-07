@@ -229,8 +229,35 @@ describe('ProjectSageMemoryPort', () => {
 
     expect(service.withTraceId('trace-4')).toBe(service);
     await service.unifiedSearchService('needle', { limit: 4 });
+    await service.read('project' as never);
+    await service.remember('text', 'project' as never);
+    await service.forget('needle', 'project' as never);
+    await service.consolidate('project' as never);
+    await service.clear('session' as never);
+    await service.list('project' as never, 5);
+    expect(service.getBackend()).toBeDefined();
+    await service.findRelated('text', 'project' as never, 3);
+    await service.scoreRelevant({ query: 'ipc' } as never, 'project' as never, 2);
+    await service.retrieveForPath({ path: 'src/app.ts' });
+    await service.searchSage('needle', { limit: 2 });
+    await service.retrieveForAudience({ role: 'assistant' }, 2, vi.fn(), 'session-4', false);
+    await service.graphFor('needle', 2, 10);
+    await service.verify('m1', signal);
+    await service.listCandidates(true);
+    await service.createCandidate({ text: 'cand' });
+    await service.acceptCandidate('c1');
+    await service.rejectCandidate('c1', 'reason');
+    await service.rememberSage({ text: 'rem' });
+    await service.updateSage('m1', { text: 'up' });
+    await service.deleteSage('m1', 'reason', { hard: true });
+    await service.recoverSage('m1', 'reason');
+    await service.backfillRecoverable({ dryRun: true });
+    await service.findMemoriesForFile('src/app.ts', { limit: 5 });
+    await service.getSage('m1');
+    await service.listSagePage({ limit: 5 });
     await service.resolveCandidate('c1', 'accepted', 'good');
     await service.hygiene({ dryRun: false }, signal);
+
     expect(mocks.call).toHaveBeenCalledWith(
       'resolveCandidate',
       { candidateId: 'c1', decision: 'accepted', reason: 'good' },
@@ -245,6 +272,85 @@ describe('ProjectSageMemoryPort', () => {
         meta: expect.objectContaining({ traceId: 'trace-4' }),
       }),
     );
+  });
+
+  it('handles searchSageWithBreakdown success, daemon not-available fallback, and re-throw', async () => {
+    const port = new ProjectSageMemoryPort({ projectRoot: 'D:/repo' });
+    const retrieval = port.getCapability({ id: 'wrongstack.memory.retrieval.v1' } as never) as any;
+    const surface = port.getCapability({ id: 'wrongstack.memory.surface.v1' } as never) as any;
+    const service = port.getCapability({ id: 'wrongstack.memory.sage-service.v1' } as never) as any;
+
+    // 1. Success on retrieval capability
+    mocks.call.mockResolvedValueOnce([{ memory: { id: 'm1' }, score: 0.9 }]);
+    const res1 = await retrieval.searchSageWithBreakdown('test', { limit: 2 });
+    expect(res1).toEqual([{ memory: { id: 'm1' }, score: 0.9 }]);
+
+    // 2. "not available" error -> falls back to searchSage and maps lexical breakdown
+    mocks.call.mockRejectedValueOnce(new Error('Operation searchSageWithBreakdown not available'));
+    mocks.call.mockResolvedValueOnce([{ id: 'm1' }, { id: 'm2' }]);
+    const res2 = await retrieval.searchSageWithBreakdown('test', { limit: 2 });
+    expect(res2).toHaveLength(2);
+    expect(res2[0]).toMatchObject({ memory: { id: 'm1' }, source: 'lexical', finalScore: 1 });
+    expect(res2[1]).toMatchObject({ memory: { id: 'm2' }, source: 'lexical', finalScore: 0 });
+
+    // Single item edge case (total <= 1)
+    mocks.call.mockRejectedValueOnce(new Error('searchSageWithBreakdown not available'));
+    mocks.call.mockResolvedValueOnce([{ id: 'm1' }]);
+    const res2single = await retrieval.searchSageWithBreakdown('test', { limit: 1 });
+    expect(res2single[0]?.finalScore).toBe(1);
+
+    // 3. Other error -> re-thrown
+    mocks.call.mockRejectedValueOnce(new Error('database error'));
+    await expect(retrieval.searchSageWithBreakdown('test', { limit: 2 })).rejects.toThrow(
+      'database error',
+    );
+
+    // 4. surface.searchSageWithBreakdown maps rows directly
+    mocks.call.mockResolvedValueOnce([{ id: 'm1' }, { id: 'm2' }]);
+    const res3 = await surface.searchSageWithBreakdown('test', { limit: 2 });
+    expect(res3).toHaveLength(2);
+
+    // 5. service.searchSageWithBreakdown maps rows directly
+    mocks.call.mockResolvedValueOnce([{ id: 'm1' }]);
+    const res4 = await service.searchSageWithBreakdown('test', { limit: 2 });
+    expect(res4).toHaveLength(1);
+  });
+
+  it('enriches event payload with meta traceId and sessionId when omitted in payload', async () => {
+    const emit = vi.fn();
+    const port = new ProjectSageMemoryPort({
+      projectRoot: 'D:/repo',
+      events: { emit } as never,
+    });
+
+    // Enriches when missing
+    eventListener?.('memory.test', { id: 'm1' }, { traceId: 't1', sessionId: 's1' });
+    expect(emit).toHaveBeenCalledWith('memory.test', { id: 'm1', traceId: 't1', sessionId: 's1' });
+
+    // Preserves when already present
+    emit.mockClear();
+    eventListener?.(
+      'memory.test',
+      { id: 'm2', traceId: 't-existing', sessionId: 's-existing' },
+      { traceId: 't1', sessionId: 's1' },
+    );
+    expect(emit).toHaveBeenCalledWith('memory.test', {
+      id: 'm2',
+      traceId: 't-existing',
+      sessionId: 's-existing',
+    });
+
+    // Handles non-object payload
+    emit.mockClear();
+    eventListener?.('memory.primitive', 'simple-payload', { traceId: 't1' });
+    expect(emit).toHaveBeenCalledWith('memory.primitive', 'simple-payload');
+
+    await port.dispose();
+
+    // When events is undefined
+    const portWithoutEvents = new ProjectSageMemoryPort({ projectRoot: 'D:/repo' });
+    eventListener?.('memory.no_events', { id: 'm1' });
+    await portWithoutEvents.dispose();
   });
 
   it('reports an unavailable health result when the daemon call fails', async () => {

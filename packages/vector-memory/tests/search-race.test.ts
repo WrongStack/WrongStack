@@ -209,14 +209,13 @@ describe('runSearchRace — zero-score vector hits', () => {
   });
 
   it('retains the highest score when multiple vector hits reference the same sageId', async () => {
-    const lexical = [
-      { id: 'm1', text: 'top hit' },
-    ] as unknown as Sage[];
+    const lexical = [{ id: 'm1', text: 'top hit' }] as unknown as Sage[];
     const store = {
-      search: async () => [
-        { entry: { id: 'v1', text: 'chunk 1', metadata: { sageId: 'm1' } }, score: 0.95 },
-        { entry: { id: 'v2', text: 'chunk 2', metadata: { sageId: 'm1' } }, score: 0.25 },
-      ] as unknown as VectorSearchHit[],
+      search: async () =>
+        [
+          { entry: { id: 'v1', text: 'chunk 1', metadata: { sageId: 'm1' } }, score: 0.95 },
+          { entry: { id: 'v2', text: 'chunk 2', metadata: { sageId: 'm1' } }, score: 0.25 },
+        ] as unknown as VectorSearchHit[],
     } as unknown as VectorMemoryStore;
 
     const race = await runSearchRace('query', lexical, store, { limit: 10 });
@@ -224,4 +223,3 @@ describe('runSearchRace — zero-score vector hits', () => {
     expect(overlapHit?.vectorScore).toBe(0.95);
   });
 });
-

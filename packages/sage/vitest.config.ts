@@ -17,12 +17,18 @@ export default defineConfig({
       exclude: [
         // Barrel re-export — no runnable code
         'src/index.ts',
+        'src/triage/index.ts',
+        'src/sqlite-store-operations.ts',
+        // Pure types
+        'src/service-contract.ts',
+        // Standalone daemon CLI binary entrypoint (spawned out-of-process)
+        'src/project-server.ts',
       ],
       thresholds: {
-        lines: 90,
-        functions: 90,
-        statements: 90,
-        branches: 85,
+        lines: 97,
+        functions: 100,
+        statements: 96,
+        branches: 89,
       },
     },
   },

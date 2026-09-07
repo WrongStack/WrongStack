@@ -17,16 +17,15 @@
  */
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
 import {
   getSageSurface,
   isSqliteAvailable,
   SAGE_RETRIEVAL_CAPABILITY,
   SqliteMemoryPort,
 } from '@wrongstack/sage';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { wrapMemoryPortWithVectorRecall, VectorMemoryStore } from '../src/index.js';
+import { VectorMemoryStore, wrapMemoryPortWithVectorRecall } from '../src/index.js';
 import { FakeEmbeddingProvider } from './fake-provider.js';
 
 const testRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -6,9 +6,9 @@
  * field mapping (id/text/summary/tags + sage metadata), and the privacy
  * default (statuses:['active'], no sessionId, no includeAllSessions).
  */
-import { describe, expect, it } from 'vitest';
 
 import type { SageSurface } from '@wrongstack/sage';
+import { describe, expect, it } from 'vitest';
 
 import { createSageSurfaceSyncSource } from '../src/sage-sync-source.js';
 

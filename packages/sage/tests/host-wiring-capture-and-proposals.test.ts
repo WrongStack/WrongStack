@@ -78,6 +78,267 @@ describe('SAGE host wiring', () => {
       expect.objectContaining({ retentionDays: 30, sessionRetentionDays: 7 }),
     );
   });
+
+  it('handles early exit branches when memory or sage is disabled or unretrievable', async () => {
+    const toolUse = vi.fn();
+    const requestUse = vi.fn();
+    const pipelines = { toolCall: { use: toolUse }, request: { use: requestUse } } as never;
+    const logger = { debug: vi.fn() } as never;
+
+    // features.memory === false
+    const t1 = setupSage({
+      config: { features: { memory: false } } as never,
+      pipelines,
+      memoryStore: {} as never,
+      logger,
+      events: {} as never,
+    });
+    await t1();
+
+    // Sage.enabled === false
+    const t2 = setupSage({
+      config: { features: { memory: true }, Sage: { enabled: false } } as never,
+      pipelines,
+      memoryStore: {} as never,
+      logger,
+      events: {} as never,
+    });
+    await t2();
+
+    // memoryStore is undefined
+    const t3 = setupSage({
+      config: { features: { memory: true }, Sage: { enabled: true } } as never,
+      pipelines,
+      memoryStore: undefined,
+      logger,
+      events: {} as never,
+    });
+    await t3();
+
+    // memoryStore without retrieval capability
+    const t4 = setupSage({
+      config: { features: { memory: true }, Sage: { enabled: true } } as never,
+      pipelines,
+      memoryStore: { getCapability: () => undefined } as never,
+      logger,
+      events: {} as never,
+    });
+    await t4();
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('memory store does not support retrieval'),
+    );
+    expect(toolUse).not.toHaveBeenCalled();
+  });
+
+  it('runs daily dry run via fake timers and exercises full triage, proposals, and error branches', async () => {
+    vi.useFakeTimers();
+    try {
+      _resetAutoHygieneThrottleForTesting();
+      const toolUse = vi.fn();
+      const requestUse = vi.fn();
+      const pipelines = { toolCall: { use: toolUse }, request: { use: requestUse } } as never;
+      const debugLogs: string[] = [];
+      const logger = { debug: (msg: string) => debugLogs.push(msg) } as never;
+
+      const memories = [
+        {
+          id: 'mem-1',
+          status: 'active',
+          text: 'Memory for daily dry-run with low score',
+          kind: 'fact',
+          scope: 'project',
+          confidence: 0.5,
+          importance: 0.3,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          anchors: [{ type: 'file', path: 'src/x.ts' }],
+          tags: [],
+          sources: [],
+        },
+      ];
+
+      const surface = {
+        listSagePage: vi.fn(async () => ({ memories })),
+        listCandidates: vi.fn(async () => [{ status: 'pending', id: 'c-1' }]),
+        createCandidate: vi.fn(async (input) => ({ id: 'c-2', ...input })),
+      };
+
+      const retrieval = { flushPendingCounters: vi.fn(async () => {}) };
+      const hygiene = vi.fn(async () => ({}));
+      const memory = {
+        hygiene,
+        getCapability(capability: { id: string }) {
+          if (capability.id === RETRIEVAL_CAPABILITY_ID) return retrieval;
+          if (capability.id === SURFACE_CAPABILITY_ID) return surface;
+          return undefined;
+        },
+      } as never;
+
+      const config = {
+        features: { memory: true },
+        Sage: {
+          enabled: true,
+          capture: { errorPatterns: true },
+          inject: { turnContext: true },
+          triage: { dailyDryRun: true },
+          hygiene: { autoAfterSession: true },
+        },
+      };
+
+      // 1. First run with LLM returning '2 | transient' -> produces proposals (lines 221-223)
+      const teardown = setupSage({
+        config: config as never,
+        pipelines,
+        memoryStore: memory,
+        logger,
+        events: { on: vi.fn(), emit: vi.fn() } as never,
+        projectRoot: 'D:/repo',
+        getLlmCall: () => async () => '2 | transient',
+      });
+
+      // Advance by 1 hour (initial daily delay)
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      expect(surface.listSagePage).toHaveBeenCalled();
+      expect(debugLogs.some((l) => l.includes('sage daily dry-run: hygiene complete'))).toBe(true);
+
+      // 2. Advance by 24 hours (interval daily run)
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60_000);
+
+      await teardown();
+      expect(hygiene).toHaveBeenCalled();
+
+      // 3. Second run with default LLM stub (line 211: async () => '3')
+      _resetAutoHygieneThrottleForTesting();
+      const teardownDefaultLlm = setupSage({
+        config: config as never,
+        pipelines,
+        memoryStore: memory,
+        logger,
+        events: { on: vi.fn(), emit: vi.fn() } as never,
+        projectRoot: 'D:/repo',
+      });
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      await teardownDefaultLlm();
+
+      // Subsequent teardown within 1 hour: skips hygiene due to throttle
+      const teardown2 = setupSage({
+        config: config as never,
+        pipelines,
+        memoryStore: memory,
+        logger,
+        events: { on: vi.fn(), emit: vi.fn() } as never,
+      });
+      await teardown2();
+      expect(debugLogs.some((l) => l.includes('sage auto-hygiene skipped'))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('handles errors gracefully in daily dry run', async () => {
+    vi.useFakeTimers();
+    try {
+      _resetAutoHygieneThrottleForTesting();
+      const debugLogs: string[] = [];
+      const logger = { debug: (msg: string) => debugLogs.push(msg) } as never;
+
+      // 1. memoryStore has no surface capability
+      const memNoSurface = {
+        hygiene: vi.fn(async () => ({})),
+        getCapability(capability: { id: string }) {
+          if (capability.id === RETRIEVAL_CAPABILITY_ID) return { flushPendingCounters: vi.fn() };
+          return undefined;
+        },
+      } as never;
+
+      const teardown1 = setupSage({
+        config: {
+          features: { memory: true },
+          Sage: { enabled: true, triage: { dailyDryRun: true } },
+        } as never,
+        pipelines: { toolCall: { use: vi.fn() }, request: { use: vi.fn() } } as never,
+        memoryStore: memNoSurface,
+        logger,
+        events: {} as never,
+      });
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      expect(debugLogs.some((l) => l.includes('sage daily dry-run: no surface capability'))).toBe(
+        true,
+      );
+      await teardown1();
+
+      // 2. triage throws error
+      debugLogs.length = 0;
+      const memTriageError = {
+        hygiene: vi.fn(async () => ({})),
+        getCapability(capability: { id: string }) {
+          if (capability.id === RETRIEVAL_CAPABILITY_ID) return { flushPendingCounters: vi.fn() };
+          if (capability.id === SURFACE_CAPABILITY_ID) {
+            return {
+              listSagePage: vi.fn(async () => {
+                throw new Error('boom in triage');
+              }),
+            };
+          }
+          return undefined;
+        },
+      } as never;
+
+      const teardown2 = setupSage({
+        config: {
+          features: { memory: true },
+          Sage: {
+            enabled: true,
+            triage: { dailyDryRun: true },
+            hygiene: { autoAfterSession: false },
+          },
+        } as never,
+        pipelines: { toolCall: { use: vi.fn() }, request: { use: vi.fn() } } as never,
+        memoryStore: memTriageError,
+        logger,
+        events: {} as never,
+      });
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      expect(debugLogs.some((l) => l.includes('sage daily triage skipped: boom in triage'))).toBe(
+        true,
+      );
+      await teardown2();
+
+      // 3. hygiene in runDaily throws
+      debugLogs.length = 0;
+      const memHygieneError = {
+        hygiene: vi.fn(async () => {
+          throw new Error('hygiene failed');
+        }),
+        getCapability(capability: { id: string }) {
+          if (capability.id === RETRIEVAL_CAPABILITY_ID) return { flushPendingCounters: vi.fn() };
+          return undefined;
+        },
+      } as never;
+
+      const teardown3 = setupSage({
+        config: {
+          features: { memory: true },
+          Sage: {
+            enabled: true,
+            triage: { dailyDryRun: true },
+            hygiene: { autoAfterSession: false },
+          },
+        } as never,
+        pipelines: { toolCall: { use: vi.fn() }, request: { use: vi.fn() } } as never,
+        memoryStore: memHygieneError,
+        logger,
+        events: {} as never,
+      });
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      expect(debugLogs.some((l) => l.includes('sage daily dry-run failed: hygiene failed'))).toBe(
+        true,
+      );
+      await teardown3();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('SAGE outcome and anchor capture', () => {

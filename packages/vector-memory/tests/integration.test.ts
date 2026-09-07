@@ -21,14 +21,13 @@
  */
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { cosineSimilarity } from '@wrongstack/sage';
 import { describe, expect, it } from 'vitest';
-
 import {
   DEFAULT_VECTOR_DIMENSIONS,
   TransformersEmbeddingProvider,
   VectorMemoryStore,
 } from '../src/index.js';
-import { cosineSimilarity } from '@wrongstack/sage';
 
 const ENABLED = process.env['WRONGSTACK_VECTOR_INTEGRATION'] === '1';
 const describeIf = ENABLED ? describe : describe.skip;

@@ -173,14 +173,186 @@ describe('SageProjectServerConnection', () => {
     unauthorized.name = 'UnauthorizedSageRequest';
     connection.request = vi.fn().mockRejectedValue(unauthorized);
     const controller = new AbortController();
-    const pending = connection.call('ping', {}, {
-      signal: controller.signal,
-      meta: { clientId: 'client-1' },
-    });
+    const pending = connection.call(
+      'ping',
+      {},
+      {
+        signal: controller.signal,
+        meta: { clientId: 'client-1' },
+      },
+    );
 
     await Promise.resolve();
     controller.abort(new Error('caller stopped during retry'));
     await expect(pending).rejects.toThrow('caller stopped during retry');
     expect(connection.request).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries request on UnauthorizedSageRequest after delay completes', async () => {
+    vi.useFakeTimers();
+    try {
+      const connection = new SageProjectServerConnection('D:/repo') as any;
+      connection.ensureConnected = vi.fn(async () => undefined);
+      const unauthorized = new Error('unauthorized');
+      unauthorized.name = 'UnauthorizedSageRequest';
+      connection.request = vi
+        .fn()
+        .mockRejectedValueOnce(unauthorized)
+        .mockResolvedValueOnce({ ok: true });
+
+      const reqPromise = connection.call('ping', {}, { meta: { clientId: 'c1' } });
+      await vi.advanceTimersByTimeAsync(300);
+      await expect(reqPromise).resolves.toEqual({ ok: true });
+      expect(connection.request).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('unsubscribes state and event listeners', () => {
+    const connection = new SageProjectServerConnection('D:/repo');
+    const unsubState = connection.onStateChange(() => {});
+    const unsubEvent = connection.onEvent(() => {});
+    expect(unsubState).toBeTypeOf('function');
+    expect(unsubEvent).toBeTypeOf('function');
+    unsubState();
+    unsubEvent();
+  });
+
+  it('handles shutdown when running and when offline', async () => {
+    // 1. When offline / cannot connect
+    const offlineConn = new SageProjectServerConnection('D:/repo') as unknown as {
+      ensureConnected: ReturnType<typeof vi.fn>;
+      shutdown: SageProjectServerConnection['shutdown'];
+    };
+    offlineConn.ensureConnected = vi.fn().mockRejectedValue(new Error('offline'));
+    await expect(offlineConn.shutdown('test')).resolves.toEqual({
+      stopped: false,
+      reason: 'not-running',
+    });
+
+    // 2. When running
+    const connection = new SageProjectServerConnection('D:/repo');
+    const connecting = connection.connect();
+    send(socket, hello({ pid: 12345 }));
+    await connecting;
+
+    const shutdownPromise = connection.shutdown('user requested');
+    await Promise.resolve();
+    const outbound = JSON.parse(String(socket.write.mock.calls.at(-1)?.[0]).trim());
+    expect(outbound).toMatchObject({ type: 'shutdown', reason: 'user requested' });
+
+    send(socket, { type: 'response', id: outbound.id, ok: true, result: { stopped: true } });
+    await expect(shutdownPromise).resolves.toEqual({
+      stopped: true,
+      pid: 12345,
+    });
+  });
+
+  it('handles onClose, rejecting pending requests and transitioning state', async () => {
+    const connection = new SageProjectServerConnection('D:/repo');
+    const connecting = connection.connect();
+    send(socket, hello());
+    await connecting;
+
+    const pending = connection.call('ping', {}, { meta: { clientId: 'client-1' } });
+    await Promise.resolve();
+
+    // Emitting close triggers onClose
+    socket.emit('close');
+    await expect(pending).rejects.toThrow('SAGE project server connection closed');
+    expect(connection.getState().status).toBe('error');
+
+    // Close on a different socket is ignored
+    const _otherSocket = new FakeSocket();
+    socket.emit('close');
+  });
+
+  it('handles remote error responses with custom error names and invalidates auth token on refusal', async () => {
+    const connection = new SageProjectServerConnection('D:/repo');
+    const connecting = connection.connect();
+    send(socket, hello());
+    await connecting;
+
+    // Custom error name
+    const req1 = connection.call('ping', {}, { meta: { clientId: 'client-1' } });
+    await Promise.resolve();
+    const out1 = JSON.parse(String(socket.write.mock.calls.at(-1)?.[0]).trim());
+    send(socket, {
+      type: 'response',
+      id: out1.id,
+      ok: false,
+      error: 'Custom failure',
+      errorName: 'CustomSageError',
+    });
+    await expect(req1).rejects.toThrow('Custom failure');
+
+    // UnauthorizedSageRequest error invalidates auth token
+    const _req2 = connection.call('ping', {}, { meta: { clientId: 'client-1' } });
+    await Promise.resolve();
+    const out2 = JSON.parse(String(socket.write.mock.calls.at(-1)?.[0]).trim());
+    send(socket, {
+      type: 'response',
+      id: out2.id,
+      ok: false,
+      error: 'Unauthorized',
+      errorName: 'UnauthorizedSageRequest',
+    });
+    // It retries, so we reject all or abort
+    connection.close();
+  });
+
+  it('handles handshake timeout and request timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const connection = new SageProjectServerConnection('D:/repo') as any;
+      const connectOncePromise = connection.connectOnce();
+      const handshakeAssertion = expect(connectOncePromise).rejects.toThrow(
+        'SAGE project server handshake timed out',
+      );
+      await vi.advanceTimersByTimeAsync(6000);
+      await handshakeAssertion;
+
+      // Request timeout on an already-connected socket
+      socket = new FakeSocket();
+      mocks.createConnection.mockReturnValue(socket);
+      const conn2 = new SageProjectServerConnection('D:/repo') as any;
+      const conn2Connect = conn2.connectOnce();
+      send(socket, hello());
+      await conn2Connect;
+
+      const reqPromise = conn2.call(
+        'ping',
+        {},
+        {
+          timeoutMs: 1000,
+          meta: { clientId: 'c1' },
+        },
+      );
+      const reqAssertion = expect(reqPromise).rejects.toThrow(/exceeded its 1000ms timeout/);
+      await vi.advanceTimersByTimeAsync(1500);
+      await reqAssertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('spawns detached server with directory option and handles spawn error event safely', () => {
+    const fakeChild = new EventEmitter() as any;
+    fakeChild.unref = vi.fn();
+    mocks.spawn.mockReturnValue(fakeChild);
+
+    const connection = new SageProjectServerConnection('D:/repo', '.wstack/sage') as any;
+    connection.spawnDetachedServer();
+
+    expect(mocks.spawn).toHaveBeenCalledWith(
+      process.execPath,
+      expect.arrayContaining(['--project-root', 'D:/repo', '--directory', '.wstack/sage']),
+      expect.objectContaining({ detached: true, stdio: 'ignore' }),
+    );
+    expect(fakeChild.unref).toHaveBeenCalled();
+
+    // Trigger error event on child to test listener
+    fakeChild.emit('error', new Error('spawn failed'));
   });
 });

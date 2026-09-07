@@ -81,7 +81,6 @@ interface LexicalCandidate {
   memory: Sage;
   /** 1 / rank (0-indexed). 1 for the top hit, 1/2 for second, etc. */
   rankScore: number;
-  /** Map of the lexical score (0..1) for diagnostics. */
   lexicalScore: number;
 }
 
@@ -111,7 +110,6 @@ export async function fuseWithVectorMemory(
   const weight = clamp01(options.vectorWeight ?? DEFAULT_VECTOR_WEIGHT);
   const k = options.rrfK ?? DEFAULT_RRF_K;
   const limit = options.limit ?? 25;
-  const vectorOnlyThreshold = options.vectorOnlyThreshold ?? 0;
 
   // Resolve the vector channel.
   let vectorHits: VectorSearchHit[] = [];
@@ -181,15 +179,6 @@ export async function fuseWithVectorMemory(
       existing.finalScore += rrf;
       existing.vectorScore = v.vectorScore;
       existing.source = 'both';
-    } else if (v.vectorScore >= vectorOnlyThreshold) {
-      // Vector-only hit: must clear the standalone threshold.
-      fused.set(v.memory.id, {
-        memory: v.memory,
-        vectorScore: v.vectorScore,
-        lexicalScore: null,
-        finalScore: rrf,
-        source: 'vector',
-      });
     }
   }
 

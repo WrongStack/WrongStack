@@ -21,7 +21,7 @@
  * "store", which is the only shape that can catch this class of bug. A unit
  * test against an in-process fake passes either way.
  */
-import { describe, expect, it } from 'vitest';
+
 import type { MemoryPort } from '@wrongstack/core/types';
 import {
   SAGE_RETRIEVAL_CAPABILITY,
@@ -30,8 +30,9 @@ import {
   type SageRetrievalCapability,
   type SageSurface,
 } from '@wrongstack/sage';
+import { describe, expect, it } from 'vitest';
 
-import { wrapMemoryPortWithVectorRecall, type VectorMemoryStore } from '../src/index.js';
+import { type VectorMemoryStore, wrapMemoryPortWithVectorRecall } from '../src/index.js';
 
 function sage(id: string, text: string, overrides: Partial<Sage> = {}): Sage {
   return {

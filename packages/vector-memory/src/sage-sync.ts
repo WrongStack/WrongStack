@@ -28,10 +28,11 @@
  *    calls throw inside syncFromSage's per-entry guard, the report comes
  *    back with failures, and no marker is written — next boot retries.
  */
-import { getSageSurface } from '@wrongstack/sage';
-import type { MemoryPort } from '@wrongstack/core/types';
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { MemoryPort } from '@wrongstack/core/types';
+import { getSageSurface } from '@wrongstack/sage';
 
 import { createSageSurfaceSyncSource } from './sage-sync-source.js';
 import type { VectorMemoryStore } from './store.js';

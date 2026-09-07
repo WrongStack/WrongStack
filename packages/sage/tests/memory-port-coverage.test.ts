@@ -4,11 +4,13 @@ import * as path from 'node:path';
 import type { MemoryCapability, MemoryStore } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  createProjectSageMemoryPort,
   createSqliteMemoryPort,
   getSageRetrieval,
   getSageService,
   getSageSurface,
   LegacyMemoryPortAdapter,
+  ProjectSageMemoryPort,
   SqliteMemoryPort,
 } from '../src/memory-port.js';
 import { isSqliteAvailable } from '../src/sqlite-store.js';
@@ -98,6 +100,7 @@ describe('SqliteMemoryPort coverage', () => {
     try {
       const sqlite = port as SqliteMemoryPort;
       expect(sqlite.withTraceId('capability-trace')).toBe(sqlite);
+      await expect(sqlite.health()).resolves.toEqual({ status: 'ready', backend: 'sqlite' });
       const surface = getSageSurface(sqlite)!;
       const retrieval = getSageRetrieval(sqlite)!;
       const memory = await surface.rememberSage({
@@ -150,6 +153,81 @@ describe('SqliteMemoryPort coverage', () => {
       await expect(
         surface.deleteSage(memory.id, 'cleanup', { force: true }),
       ).resolves.toBeUndefined();
+      // Test remaining surface capability delegates
+      await expect(surface.searchSageWithBreakdown('adapter')).resolves.toEqual(expect.any(Array));
+      const cand = await surface.createCandidate({
+        text: 'candidate text',
+        suggestedAction: 'archive',
+        reason: 'test candidate',
+        targetMemoryId: memory.id,
+      });
+      await expect(surface.findMemoriesForFile('src/example.ts')).resolves.toEqual(
+        expect.objectContaining({ totalCount: expect.any(Number) }),
+      );
+      await expect(surface.backfillRecoverable({ dryRun: true })).resolves.toBeDefined();
+      await expect(surface.recoverSage(memory.id)).resolves.toEqual(
+        expect.objectContaining({ id: memory.id }),
+      );
+
+      // Test importLegacyFiles via surface.importLegacy
+      const legacyFile = path.join(projectRoot, 'legacy-memories.md');
+      await fs.writeFile(legacyFile, '# Memories\n- [project] A legacy memory\n', 'utf8');
+      const importResult = await surface.importLegacy([legacyFile]);
+      expect(importResult).toEqual(expect.objectContaining({ files: 1, imported: 1 }));
+
+      // Test remaining retrieval capability delegates
+      await expect(retrieval.searchSageWithBreakdown('Capability')).resolves.toEqual(
+        expect.any(Array),
+      );
+
+      // Test unknown capability
+      expect(sqlite.getCapability({ id: 'unknown-cap' } as never)).toBeUndefined();
+
+      // Test complete service capability delegates
+      const service = getSageService(sqlite)!;
+      expect(service.withTraceId('service-trace')).toBe(service);
+      await expect(service.unifiedSearchService('Capability')).resolves.toBeDefined();
+      await expect(service.readAll()).resolves.toBeDefined();
+      await expect(service.read('project-memory')).resolves.toBeDefined();
+      await expect(service.remember('Service text', 'project-memory')).resolves.toBeUndefined();
+      await expect(service.search('Service', 'project-memory')).resolves.toBeDefined();
+      await expect(service.findRelated('Service', 'project-memory')).resolves.toBeDefined();
+      await expect(
+        service.scoreRelevant({ currentTask: 'Service' }, 'project-memory'),
+      ).resolves.toBeDefined();
+      await expect(service.list('project-memory')).resolves.toBeDefined();
+      await expect(service.forget('Service', 'project-memory')).resolves.toBeDefined();
+      await expect(service.consolidate('project-memory')).resolves.toBeUndefined();
+      await expect(service.clear('project-memory')).resolves.toBeUndefined();
+      await expect(service.hygiene()).resolves.toBeDefined();
+      await expect(service.retrieveForPath({ path: 'src/example.ts' })).resolves.toBeDefined();
+      await expect(service.searchSage('Capability')).resolves.toBeDefined();
+      await expect(service.searchSageWithBreakdown('Capability')).resolves.toBeDefined();
+      await expect(service.retrieveForAudience({})).resolves.toBeDefined();
+      await expect(service.graphFor(memory.id, 1, 10)).resolves.toBeDefined();
+      await expect(service.verify(memory.id)).resolves.toBeDefined();
+      await expect(service.listCandidates(true)).resolves.toBeDefined();
+      const cand2 = await service.createCandidate({
+        text: 'service candidate text',
+        suggestedAction: 'investigate',
+        reason: 'service candidate',
+        targetMemoryId: memory.id,
+      });
+      await expect(service.resolveCandidate(cand.id, 'rejected', 'test')).resolves.toBeDefined();
+      await expect(service.acceptCandidate(cand2.id)).resolves.toBeDefined();
+      await expect(service.rejectCandidate(cand2.id, 'test reject')).resolves.toBe(false);
+      const rem2 = await service.rememberSage({ text: 'service remember sage' });
+      await expect(service.getSage(rem2.id)).resolves.toBeDefined();
+      await expect(
+        service.updateSage(rem2.id, { text: 'service updated text' }),
+      ).resolves.toBeDefined();
+      await expect(service.listSagePage({ limit: 5 })).resolves.toBeDefined();
+      await expect(
+        service.deleteSage(rem2.id, 'service cleanup', { force: true }),
+      ).resolves.toBeUndefined();
+      await expect(service.recoverSage(rem2.id)).resolves.toBeDefined();
+      await expect(service.backfillRecoverable({ dryRun: true })).resolves.toBeDefined();
+      await expect(service.findMemoriesForFile('src/example.ts')).resolves.toBeDefined();
     } finally {
       await port.dispose();
     }
@@ -177,13 +255,33 @@ describe('SqliteMemoryPort coverage', () => {
     });
   });
 
-  it('exposes the complete service capability through its typed adapter', () => {
-    const port = new SqliteMemoryPort({ projectRoot: 'complete-service' });
-    const service = getSageService(port);
-    expect(service).toBeDefined();
-    expect(service).not.toBe(port);
-    expect(service?.recoverSage).toEqual(expect.any(Function));
-    expect(service?.backfillRecoverable).toEqual(expect.any(Function));
-    expect(service?.findMemoriesForFile).toEqual(expect.any(Function));
+  it('exercises createProjectSageMemoryPort factory across both inline and remote branches', () => {
+    // Default test env -> SqliteMemoryPort
+    const inlinePort = createProjectSageMemoryPort({ projectRoot: 'D:/repo' });
+    expect(inlinePort).toBeInstanceOf(SqliteMemoryPort);
+
+    // Production non-test env -> ProjectSageMemoryPort
+    const savedVitest = process.env['VITEST'];
+    const savedWorker = process.env['VITEST_WORKER_ID'];
+    const savedNodeEnv = process.env['NODE_ENV'];
+    const savedInline = process.env['WRONGSTACK_SAGE_INLINE'];
+    try {
+      delete process.env['VITEST'];
+      delete process.env['VITEST_WORKER_ID'];
+      process.env['WRONGSTACK_SAGE_INLINE'] = '0';
+      process.env['NODE_ENV'] = 'production';
+
+      const remotePort = createProjectSageMemoryPort({ projectRoot: 'D:/repo' });
+      expect(remotePort).toBeInstanceOf(ProjectSageMemoryPort);
+    } finally {
+      if (savedVitest !== undefined) process.env['VITEST'] = savedVitest;
+      else delete process.env['VITEST'];
+      if (savedWorker !== undefined) process.env['VITEST_WORKER_ID'] = savedWorker;
+      else delete process.env['VITEST_WORKER_ID'];
+      if (savedNodeEnv !== undefined) process.env['NODE_ENV'] = savedNodeEnv;
+      else delete process.env['NODE_ENV'];
+      if (savedInline !== undefined) process.env['WRONGSTACK_SAGE_INLINE'] = savedInline;
+      else delete process.env['WRONGSTACK_SAGE_INLINE'];
+    }
   });
 });

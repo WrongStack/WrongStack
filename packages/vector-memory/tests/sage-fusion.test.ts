@@ -18,8 +18,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   asVectorRecallProvider,
   fuseWithVectorMemory,
-  type VectorSearchHit,
   VectorMemoryStore,
+  type VectorSearchHit,
 } from '../src/index.js';
 import { FakeEmbeddingProvider } from './fake-provider.js';
 
@@ -163,10 +163,7 @@ describe('fuseWithVectorMemory', () => {
   });
 
   it('deduplicates multiple vector hits for the same sageId, keeping the highest score and single RRF rank', async () => {
-    const lexical = [
-      fakeSage('m1', 'alpha beta'),
-      fakeSage('m2', 'gamma delta'),
-    ];
+    const lexical = [fakeSage('m1', 'alpha beta'), fakeSage('m2', 'gamma delta')];
     const vectorHits = [
       {
         entry: { id: 'v1', text: 'm1 chunk 1', metadata: { sageId: 'm1' } },
@@ -174,7 +171,7 @@ describe('fuseWithVectorMemory', () => {
       },
       {
         entry: { id: 'v2', text: 'm1 chunk 2', metadata: { sageId: 'm1' } },
-        score: 0.20,
+        score: 0.2,
       },
       {
         entry: { id: 'v3', text: 'm2 chunk 1', metadata: { sageId: 'm2' } },

@@ -8,9 +8,8 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
-import { VectorMemoryStore, encodeVector, type SageSyncSource } from '../src/index.js';
 import type { VectorMemoryStoreOptions } from '../src/index.js';
+import { encodeVector, type SageSyncSource, VectorMemoryStore } from '../src/index.js';
 import { FakeEmbeddingProvider } from './fake-provider.js';
 
 const testRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -146,7 +145,7 @@ describe('VectorMemoryStore', () => {
     const db = (store as unknown as { db: any }).db;
     db.prepare('UPDATE vectors SET vector = ? WHERE entry_id = ?').run(
       encodeVector(nanVector),
-      corrupted.id
+      corrupted.id,
     );
 
     const hits = await store.search('valid entry', { limit: 10, threshold: 0.1 });
@@ -155,4 +154,3 @@ describe('VectorMemoryStore', () => {
     expect(hits.every((h) => Number.isFinite(h.score))).toBe(true);
   });
 });
-

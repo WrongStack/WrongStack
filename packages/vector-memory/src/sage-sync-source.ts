@@ -99,7 +99,7 @@ export function createSageSurfaceSyncSource(
             },
           });
         }
-        if (!page.nextCursor || rows.length === 0) break;
+        if (!page.nextCursor) break;
         if (rows.length === 0) {
           noProgressPages++;
           if (noProgressPages > 3) break;

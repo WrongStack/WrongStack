@@ -28,8 +28,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { MemoryPort } from '@wrongstack/core/types';
-import { getSageSurface } from '@wrongstack/sage';
 import type { Sage } from '@wrongstack/sage';
+import { getSageSurface } from '@wrongstack/sage';
 
 import type { VectorMemoryStore } from './store.js';
 
@@ -269,7 +269,9 @@ export const DEFAULT_SWEEP_INTERVAL_MS = 60 * 60_000;
 export interface SweepStaleSageMirrorsOptions {
   store: VectorMemoryStore;
   memoryStore: MemoryPort;
-  logger?: { debug?(msg: string): void | undefined; warn?(msg: string): void | undefined } | undefined;
+  logger?:
+    | { debug?(msg: string): void | undefined; warn?(msg: string): void | undefined }
+    | undefined;
   /** Skip when the last sweep was more recent than this. Default 1 hour. */
   minIntervalMs?: number | undefined;
   /** Run regardless of the throttle (operator-forced re-sync). */

@@ -14,7 +14,7 @@
  * silently becomes `{}` and the whole semantic channel dies fail-open. The
  * two tests below pin that the forwarded options stay serializable.
  */
-import { describe, expect, it, vi } from 'vitest';
+
 import type { MemoryPort } from '@wrongstack/core/types';
 import {
   SAGE_RETRIEVAL_CAPABILITY,
@@ -23,11 +23,12 @@ import {
   type SageRetrievalCapability,
   type SageSurface,
 } from '@wrongstack/sage';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   VectorMemoryStore,
-  wrapMemoryPortWithVectorRecall,
   type VectorMemoryStoreOptions,
+  wrapMemoryPortWithVectorRecall,
 } from '../src/index.js';
 import { FakeEmbeddingProvider } from './fake-provider.js';
 

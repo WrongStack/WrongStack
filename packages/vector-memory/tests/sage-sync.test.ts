@@ -17,22 +17,20 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
 import type { MemoryPort } from '@wrongstack/core/types';
 import type { EmbeddingProvider, SageSurface } from '@wrongstack/sage';
 import { SAGE_SURFACE_CAPABILITY } from '@wrongstack/sage';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  decideWhetherToSync,
+  SAGE_SYNC_MARKER_FILENAME,
+  startFirstBootSageSync,
+} from '../src/sage-sync.js';
 // src-side import: sage-sync.ts types `store` against src/store.js, so a
 // dist-side import creates two nominally-incompatible VectorMemoryStore
 // identities (TS2322/TS2345 x17).
 import { VectorMemoryStore } from '../src/store.js';
-
 import { FakeEmbeddingProvider } from './fake-provider.js';
-import {
-  SAGE_SYNC_MARKER_FILENAME,
-  decideWhetherToSync,
-  startFirstBootSageSync,
-} from '../src/sage-sync.js';
 
 function tmpProjectRoot(): string {
   return path.join(
