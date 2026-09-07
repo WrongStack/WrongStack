@@ -88,8 +88,27 @@ describe('TerminalServer deterministic edge coverage', () => {
     });
     vi.advanceTimersByTime(10);
     expect(() => server.kill(terminalId)).not.toThrow();
+    // First release cleans up onData
     expect(() => server.release(terminalId)).not.toThrow();
+    // Second release on same terminal (onData is now undefined) tests state.onData falsy branch
+    const internal = server as unknown as { terminals: Map<string, any> };
+    internal.terminals.set('t-empty', {
+      proc,
+      timeoutHandle: null,
+      outputChunks: [],
+      outputHead: 0,
+      retainedBytes: 0,
+    });
+    expect(() => server.release('t-empty')).not.toThrow();
     expect(() => server.release('missing')).not.toThrow();
+  });
+
+  it('handles proc close with signal and null exitCode', async () => {
+    const server = new TerminalServer({ projectRoot: process.cwd() });
+    const { terminalId } = server.create({ sessionId: 's', command: 'agent' });
+    proc.emit('close', null, 'SIGTERM');
+    const status = await server.waitForExit(terminalId);
+    expect(status).toEqual({ exitCode: null, signal: 'SIGTERM' });
   });
 
   it('resolves filesystem roots and falls back from missing working directories', () => {

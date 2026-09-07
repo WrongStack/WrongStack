@@ -239,7 +239,7 @@ async function authorizeAcpCallback(
           title: partial.title,
           kind: partial.kind,
           status: 'pending',
-          ...(partial.rawInput ? { rawInput: partial.rawInput } : {}),
+          rawInput: partial.rawInput,
         },
         options: [
           { optionId: 'allow', name: 'Allow', kind: 'allow_once' },

@@ -5,12 +5,12 @@
  * `readOnlyPermissionPolicy`, and `makePermissionPolicy` functions.
  */
 import { describe, expect, it } from 'vitest';
+import type { PermissionRequest } from '../src/client/permission.js';
 import {
   defaultPermissionPolicy,
-  readOnlyPermissionPolicy,
   makePermissionPolicy,
+  readOnlyPermissionPolicy,
 } from '../src/client/permission.js';
-import type { PermissionRequest } from '../src/client/permission.js';
 import type { ToolCallId } from '../src/types/acp-v1.js';
 
 function toolCallId(value: string): ToolCallId {

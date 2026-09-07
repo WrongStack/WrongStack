@@ -13,9 +13,8 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { FileServer, FsError } from '../src/client/file-server.js';
 import type { FileServerOperations } from '../src/client/file-server.js';
+import { FileServer, FsError } from '../src/client/file-server.js';
 
 let projectRoot: string;
 let server: FileServer;
@@ -310,5 +309,50 @@ describe('FileServer', () => {
     await expect(
       missing.readTextFile({ sessionId: 's1', path: path.join(root, 'never', 'exists') }),
     ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('writeTextFile rejects non-string content', async () => {
+    await expect(
+      server.writeTextFile({
+        sessionId: 's1',
+        path: path.join(projectRoot, 'test.txt'),
+        content: 123 as any,
+      }),
+    ).rejects.toMatchObject({
+      code: 'INVALID_PATH',
+      message: expect.stringContaining('content must be a string'),
+    });
+  });
+
+  it('rejects when realpath resolves outside root', async () => {
+    const symlinkServer = new FileServer({
+      projectRoot,
+      operations: fakeOperations({
+        realpath: async () => path.resolve(projectRoot, '..', 'escaped'),
+      }),
+    });
+    await expect(
+      symlinkServer.readTextFile({
+        sessionId: 's1',
+        path: path.join(projectRoot, 'file.txt'),
+      }),
+    ).rejects.toMatchObject({ code: 'OUTSIDE_ROOT' });
+  });
+
+  it('covers non-Windows normalization when platform is not win32', async () => {
+    const originalPlatform = process.platform;
+    try {
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+      const linuxServer = new FileServer({
+        projectRoot,
+        operations: fakeOperations(),
+      });
+      await linuxServer.readTextFile({
+        sessionId: 's1',
+        path: path.join(projectRoot, 'file.txt'),
+      });
+    } finally {
+      Object.defineProperty(process, 'platform', { value: originalPlatform });
+    }
   });
 });

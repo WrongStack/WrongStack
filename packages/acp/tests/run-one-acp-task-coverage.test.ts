@@ -53,4 +53,23 @@ describe('runOneAcpTask option coverage', () => {
       expect.objectContaining({ signal: controller.signal, subagentId: 'reviewer' }),
     );
   });
+
+  it('forwards sessionId when provided', async () => {
+    mocks.runner.mockResolvedValueOnce({ result: 'done', iterations: 1, toolCalls: 1 });
+    mocks.stop.mockResolvedValueOnce(undefined);
+    mocks.makeRunner.mockResolvedValueOnce({ runner: mocks.runner, stop: mocks.stop });
+
+    const out = await runOneAcpTask({
+      command: 'agent',
+      projectRoot: '/project',
+      role: 'coder',
+      task: 'code something',
+      sessionId: 'custom-session-123' as any,
+    });
+    expect(out.result).toBe('done');
+    expect(mocks.runner).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ sessionId: 'custom-session-123' }),
+    );
+  });
 });

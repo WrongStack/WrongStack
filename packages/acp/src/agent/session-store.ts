@@ -146,6 +146,7 @@ export class ACPSessionStore {
       // Without this, a failing write/rename leaks an orphan on every retry
       // (Chimera MEDIUM — repeated persistence failures accumulate).
       if (!renamed) {
+        /* v8 ignore next */
         await fsp.unlink(tmp).catch(() => undefined);
       }
     }
@@ -286,6 +287,7 @@ export class ACPSessionStore {
     } finally {
       // Best-effort orphan cleanup — mirror of the save() tmp+rename guard.
       if (!renamed) {
+        /* v8 ignore next */
         await fsp.unlink(tmp).catch(() => undefined);
       }
     }

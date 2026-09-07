@@ -19,12 +19,11 @@
  * across versions and works under the strict flag set this package uses.
  */
 import { describe, it } from 'vitest';
-
-import type { assertNeverSessionUpdate } from '../src/types/acp-v1.js';
 import type {
   AgentMessageChunkUpdate,
   AnySessionUpdate,
   AvailableCommandsUpdate,
+  assertNeverSessionUpdate,
   ConfigOptionUpdate,
   CurrentModeUpdate,
   PlanUpdate,

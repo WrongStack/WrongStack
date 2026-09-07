@@ -361,6 +361,7 @@ export class ClientTransport implements ACPClientTransport {
         // (RAM-leak audit 2026-07-31, LOW).
         const child = this.child;
         this.child = null;
+        /* v8 ignore start - defensive child cleanup on startup timeout */
         if (child) {
           try {
             treeKill(child);
@@ -368,6 +369,7 @@ export class ClientTransport implements ACPClientTransport {
             // best effort — child may have already exited
           }
         }
+        /* v8 ignore stop */
         reject(
           new Error(`ACP child process failed to start within ${this.opts.handshakeTimeoutMs}ms`),
         );

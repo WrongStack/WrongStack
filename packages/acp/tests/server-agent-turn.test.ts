@@ -9,13 +9,12 @@
  *  - on parent abort, the result stopReason is `cancelled`
  *  - non-text content blocks are converted to bracketed placeholders
  */
-import { describe, expect, it, vi } from 'vitest';
+
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
-
-import type { AgentServerTransport } from '../src/agent/stdio-transport.js';
+import { describe, expect, it, vi } from 'vitest';
 import { ACPProtocolHandler } from '../src/agent/protocol-handler.js';
 import {
   disposeACPServerAgentTurn,
@@ -23,6 +22,7 @@ import {
   serverAgentTurnCoverage,
 } from '../src/agent/server-agent-turn.js';
 import { ACPSessionStore } from '../src/agent/session-store.js';
+import type { AgentServerTransport } from '../src/agent/stdio-transport.js';
 
 // The v1 handler validates `params.cwd` on session/new|load|fork (WS-015):
 // it must be an absolute path to an existing directory. The old literal

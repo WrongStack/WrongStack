@@ -10,13 +10,14 @@
  * catalog's `probe` commands on a developer's machine. Skipped by default
  * to keep CI deterministic.
  */
+
+import type { ChildProcess, spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import type { ChildProcess, spawn } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { AGENTS_CATALOG, findAgentDescriptor } from '../src/registry/agents.catalog.js';
-import { defaultProbe, EnsembleRegistry } from '../src/registry/ensemble-registry.js';
 import type { ACPAgentDescriptor, DetectedAgent } from '../src/registry/ensemble-registry.js';
+import { defaultProbe, EnsembleRegistry } from '../src/registry/ensemble-registry.js';
 
 const CLAUDE: ACPAgentDescriptor = {
   id: 'claude-code',

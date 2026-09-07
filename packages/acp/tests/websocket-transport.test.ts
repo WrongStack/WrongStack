@@ -334,4 +334,23 @@ describe('ACPSession.connectWebSocket', () => {
     expect(result.stopReason).toBe('end_turn');
     await session.close();
   });
+
+  it('rejects start() when handshake times out', async () => {
+    const transport = new WebSocketClientTransport({
+      url: 'ws://localhost:9999',
+      handshakeTimeoutMs: 10,
+    });
+    const startP = transport.start();
+    await expect(startP).rejects.toThrow('WebSocket failed to open within 10ms');
+  });
+
+  it('rejects start() on error event without message property', async () => {
+    const transport = new WebSocketClientTransport({
+      url: 'ws://localhost:9999',
+    });
+    const startP = transport.start();
+    const ws = last();
+    ws.fire('error', 'simple error string');
+    await expect(startP).rejects.toThrow('WebSocket error');
+  });
 });

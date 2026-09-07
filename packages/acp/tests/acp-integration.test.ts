@@ -5,7 +5,7 @@
  * the REAL ACPSession client, and executes every protocol method.
  * No mocks — real JSON-RPC over stdio.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('ACP v1 End-to-End Integration', () => {
   // ── Test: initialize request wire format ──

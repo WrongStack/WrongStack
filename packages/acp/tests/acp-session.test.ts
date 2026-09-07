@@ -8,14 +8,14 @@
  *
  * Tested scenarios mirror the design doc's test strategy section.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-
-import type { ACPMessage } from '../src/types/acp-messages.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ACPSession, ACPSessionError, textContent } from '../src/client/acp-session.js';
 import { defaultPermissionPolicy } from '../src/client/permission.js';
+import type { ACPMessage } from '../src/types/acp-messages.js';
 
 const hoisted = vi.hoisted(() => ({ instances: [] as FakeTransport[] }));
 
@@ -517,10 +517,9 @@ describe('ACPSession', () => {
     // Do not assume a child Node process receives a fixed CPU slice under the
     // full coverage suite. Wait for the protocol response instead of making
     // this end-to-end assertion depend on an arbitrary wall-clock delay.
-    await vi.waitFor(
-      () => expect(t.sent.find((m) => m.id === waitId)).toBeDefined(),
-      { timeout: 5_000 },
-    );
+    await vi.waitFor(() => expect(t.sent.find((m) => m.id === waitId)).toBeDefined(), {
+      timeout: 5_000,
+    });
     const waitResp = t.sent.find((m) => m.id === waitId);
     expect(waitResp).toBeDefined();
     expect((waitResp!.result as { exitCode: number | null }).exitCode).toBe(0);
@@ -743,5 +742,193 @@ describe('ACPSession', () => {
     await reply('providers/disable', session.disableProvider());
     await session.close();
     await session.close();
+  });
+
+  it('rejects session operations when closed or unsupported', async () => {
+    const session = await startSession({
+      protocolVersion: 1,
+      agentCapabilities: {},
+    });
+    // Unsupported capabilities
+    await expect(session.logout()).rejects.toMatchObject({ kind: 'unsupported_capability' });
+    await expect(session.loadSession('sid' as never)).rejects.toMatchObject({
+      kind: 'unsupported_capability',
+    });
+    await expect(session.resumeSession('sid' as never)).rejects.toMatchObject({
+      kind: 'unsupported_capability',
+    });
+    await expect(session.listSessions()).rejects.toMatchObject({ kind: 'unsupported_capability' });
+    await expect(session.deleteSession('sid' as never)).rejects.toMatchObject({
+      kind: 'unsupported_capability',
+    });
+
+    // Close session
+    await session.close();
+
+    // Closed session operations
+    await expect(session.authenticate('tok')).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.logout()).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.loadSession('sid' as never)).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.resumeSession('sid' as never)).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.listSessions()).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.deleteSession('sid' as never)).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.forkSession('sid' as never)).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.setMode('sid' as never, 'code')).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.setConfigOption('sid' as never, 'c', 'v')).rejects.toMatchObject({
+      kind: 'closed',
+    });
+    await expect(session.listProviders()).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.setProvider('p')).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.disableProvider()).rejects.toMatchObject({ kind: 'closed' });
+    await expect(session.mcpMessage('conn', {})).rejects.toMatchObject({ kind: 'closed' });
+  });
+
+  it('handles ops error responses from agent', async () => {
+    const session = await startSession({
+      protocolVersion: 1,
+      agentCapabilities: {
+        loadSession: true,
+        sessionCapabilities: {
+          resume: {},
+          list: {},
+          delete: {},
+          fork: {},
+        },
+      },
+    });
+    const t = lastTransport();
+    const replyError = async <T>(method: string, action: Promise<T>): Promise<void> => {
+      await new Promise((r) => setImmediate(r));
+      const req = t.sent.findLast((m) => m.method === method);
+      expect(req).toBeDefined();
+      // An ACP agent returns an error either as msg.error or as a JsonRpcError in result
+      t.respond(req!.id!, method, { code: -32603, message: `${method} error` });
+      await expect(action).rejects.toMatchObject({ kind: 'prompt_failed' });
+    };
+
+    await replyError('session/load', session.loadSession('s' as never));
+    await replyError('session/resume', session.resumeSession('s' as never));
+    await replyError('session/list', session.listSessions());
+    await replyError('session/delete', session.deleteSession('s' as never));
+    await replyError('session/fork', session.forkSession('s' as never));
+    await replyError('session/set_mode', session.setMode('s' as never, 'code'));
+    await replyError('session/set_config_option', session.setConfigOption('s' as never, 'c', 'v'));
+    await replyError('providers/list', session.listProviders());
+    await replyError('providers/set', session.setProvider('p'));
+    await replyError('providers/disable', session.disableProvider());
+    await replyError('mcp/message', session.mcpMessage('c', {}));
+
+    // Fork returning empty sessionId
+    const forkP = session.forkSession('s' as never);
+    await new Promise((r) => setImmediate(r));
+    const forkReq = t.sent.findLast((m) => m.method === 'session/fork');
+    t.respond(forkReq!.id!, 'session/fork', { sessionId: '' });
+    await expect(forkP).rejects.toMatchObject({ kind: 'protocol_error' });
+
+    await session.close();
+  });
+
+  it('rejects pending requests when session is closed', async () => {
+    const session = await startSession();
+    const t = lastTransport();
+    // Start a prompt but close before response
+    const promptP = session.prompt([textContent('hello')], new AbortController().signal);
+    await new Promise((r) => setImmediate(r));
+    const newReq = t.sent.find((m) => m.method === 'session/new');
+    t.respond(newReq!.id!, 'session/new', { sessionId: 's1' });
+    await new Promise((r) => setImmediate(r));
+    // Now session/prompt is pending
+    const closePromise = session.close();
+    await expect(promptP).rejects.toMatchObject({ kind: 'prompt_failed' });
+    await closePromise;
+  });
+
+  it('handles agent error in session/prompt and JSON-RPC error response in handleMessage', async () => {
+    const session = await startSession();
+    const t = lastTransport();
+    const promptP = session.prompt([textContent('hello')], new AbortController().signal);
+    await new Promise((r) => setImmediate(r));
+    const newReq = t.sent.find((m) => m.method === 'session/new');
+    t.respond(newReq!.id!, 'session/new', { sessionId: 's1' });
+    await new Promise((r) => setImmediate(r));
+    const promptReq = t.sent.find((m) => m.method === 'session/prompt');
+    // Reply with a JSON-RPC error directly
+    t.respondError(promptReq!.id!, 'session/prompt', { code: -32000, message: 'Agent crashed' });
+    await expect(promptP).rejects.toMatchObject({
+      kind: 'prompt_failed',
+      message: expect.stringContaining('Agent crashed'),
+    });
+    await session.close();
+  });
+
+  it('handles session/new returning JSON-RPC error or empty sessionId', async () => {
+    const session = await startSession();
+    const t = lastTransport();
+    const promptP = session.prompt([textContent('test')], new AbortController().signal);
+    await new Promise((r) => setImmediate(r));
+    const newReq = t.sent.find((m) => m.method === 'session/new');
+    t.respond(newReq!.id!, 'session/new', { code: -32603, message: 'cannot create' });
+    await expect(promptP).rejects.toMatchObject({
+      kind: 'session_create_failed',
+      message: expect.stringContaining('cannot create'),
+    });
+
+    const promptP2 = session.prompt([textContent('test2')], new AbortController().signal);
+    await new Promise((r) => setImmediate(r));
+    const newReq2 = t.sent.findLast((m) => m.method === 'session/new');
+    t.respond(newReq2!.id!, 'session/new', { sessionId: '' });
+    await expect(promptP2).rejects.toMatchObject({
+      kind: 'protocol_error',
+      message: expect.stringContaining('returned no sessionId'),
+    });
+    await session.close();
+  });
+
+  it('closeSession closes an active sessionId on session/load or session/resume', async () => {
+    const session = await startSession({
+      protocolVersion: 1,
+      agentCapabilities: {
+        loadSession: true,
+        sessionCapabilities: { close: {}, resume: {} },
+      },
+    });
+    const t = lastTransport();
+    const answered = new Set<string | number>();
+    const answer = async (method: string, result: unknown = {}) => {
+      for (let i = 0; i < 50; i++) {
+        const req = t.sent.find((m) => m.method === method && !answered.has(m.id!));
+        if (req) {
+          answered.add(req.id!);
+          t.respond(req.id!, method, result);
+          return req;
+        }
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      throw new Error(`Timed out waiting for unanswered request: ${method}`);
+    };
+
+    // 1. Initial load
+    const load1P = session.loadSession('s1' as never);
+    await answer('session/load');
+    await load1P;
+    expect(session.getSessionId()).toBe('s1');
+
+    // 2. Second load: triggers session/close for s1, then session/load for s2
+    const load2P = session.loadSession('s2' as never);
+    await answer('session/close');
+    await answer('session/load');
+    await load2P;
+    expect(session.getSessionId()).toBe('s2');
+
+    // 3. Resume: triggers session/close for s2, then session/resume for s3
+    const resumeP = session.resumeSession('s3' as never);
+    await answer('session/close');
+    await answer('session/resume');
+    await resumeP;
+    expect(session.getSessionId()).toBe('s3');
+
+    const closeP = session.close();
+    await answer('session/close');
+    await closeP;
   });
 });

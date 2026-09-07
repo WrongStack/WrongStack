@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ACPMessage, ACPToolCallResponse, ContentBlock } from '../src/types/acp-messages.js';
 import {
-  ToolTranslator,
   acpToolToSchema,
   buildTaskSpec,
   extractTextFromContent,
   parseToolResponse,
+  ToolTranslator,
 } from '../src/client/tool-translator.js';
+import type { ACPMessage, ACPToolCallResponse, ContentBlock } from '../src/types/acp-messages.js';
 
 describe('acpToolToSchema', () => {
   it('returns the definition inputSchema when present', () => {
@@ -121,7 +121,11 @@ describe('parseToolResponse', () => {
   });
 
   it('text alone — even "failed" — does not mark failure without isError', () => {
-    const out = parseToolResponse('t1', 's1', resp([{ type: 'text', text: 'Build failed: module not found' }]));
+    const out = parseToolResponse(
+      't1',
+      's1',
+      resp([{ type: 'text', text: 'Build failed: module not found' }]),
+    );
     expect(out.status).toBe('success');
   });
 });

@@ -222,6 +222,21 @@ describe('StdioTransport', () => {
     expect(stderr.written.some((s) => s.includes('handler error'))).toBe(true);
   });
 
+  it('onMessageClaim registers, claims, and logs claim handler throwing error', () => {
+    const t = new StdioTransport();
+    const unsub = t.onMessageClaim(() => {
+      throw new Error('claim handler explosion');
+    });
+    expect(() => stdin.emit('data', JSON.stringify({ method: 'test' }) + '\n')).not.toThrow();
+    expect(
+      stderr.written.some((entry) =>
+        entry.includes('[wstack-acp handler error] Error: claim handler explosion'),
+      ),
+    ).toBe(true);
+    expect(typeof unsub).toBe('function');
+    unsub();
+  });
+
   it('close resolves an outstanding read with null', async () => {
     const t = new StdioTransport();
     const p = t.read();
@@ -628,5 +643,24 @@ describe('ClientTransport', () => {
     expect(stdioTransportCoverage.verbatimOptions({ windowsVerbatimArguments: true })).toEqual({
       windowsVerbatimArguments: true,
     });
+  });
+
+  it('ClientTransport onMessageClaim registers and unsubscribes handler', () => {
+    const transport = new ClientTransport({ command: 'agent' });
+    const unsub = transport.onMessageClaim(() => true);
+    expect(typeof unsub).toBe('function');
+    expect(() => unsub()).not.toThrow();
+  });
+
+  it('ClientTransport start trims preamble when exceeding maxFrameChars', async () => {
+    const child = new FakeChild();
+    spawnMock.fn.mockReturnValue(child);
+    const transport = new ClientTransport({ command: 'agent', maxFrameChars: 20 });
+    const p = transport.start();
+    await vi.waitFor(() => expect(spawnMock.fn).toHaveBeenCalled());
+    // Send a long chunk without marker
+    child.stdout.emit('data', '01234567890123456789extra_long_prefix_');
+    child.stdout.emit('data', '[wstack-acp]\n');
+    await expect(p).resolves.toBeUndefined();
   });
 });

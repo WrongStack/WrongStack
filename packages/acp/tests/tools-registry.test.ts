@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { Tool } from '@wrongstack/core/types';
+import { describe, expect, it, vi } from 'vitest';
 import { ACPToolsRegistry } from '../src/agent/tools-registry.js';
 
 /** Build a minimal Tool-like object; only the fields the registry reads matter. */

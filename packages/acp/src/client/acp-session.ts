@@ -205,6 +205,7 @@ export class ACPSession {
     } catch (err) {
       try {
         transport.stop();
+        /* v8 ignore next 3 - defensive catch around stop */
       } catch {
         // best effort
       }
@@ -260,6 +261,7 @@ export class ACPSession {
       session.transportOff = null;
       try {
         transport.stop();
+        /* v8 ignore next 3 - defensive catch around stop */
       } catch {
         // best effort
       }
@@ -372,9 +374,12 @@ export class ACPSession {
   // ──────────────────────────────────────────────────────────────────────
 
   private opContext(): ACPSessionOpContext {
+    const self = this;
     return {
       closed: this.closed,
-      sessionId: this.sessionId,
+      get sessionId() {
+        return self.sessionId;
+      },
       agentCapabilities: this.agentCapabilities,
       opts: this.opts,
       allocId: () => this.allocId(),
@@ -546,6 +551,7 @@ export class ACPSession {
       const id = this.allocId();
       try {
         await this.sendRequest(id, 'session/close', { sessionId: sid }, 10_000);
+        /* v8 ignore next 3 - best-effort close request */
       } catch {
         // Best-effort
       }
@@ -568,6 +574,7 @@ export class ACPSession {
     if (this.sessionId && this.agentCapabilities.sessionCapabilities?.close) {
       try {
         await this.closeSession();
+        /* v8 ignore next 3 - best-effort close on teardown */
       } catch {
         // best-effort
       }

@@ -5,8 +5,9 @@
  * (input shape → ACPSession.start / prompt call → output) is the
  * unit under test, with no child processes involved.
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+
 import type { SubagentError, SubagentRunContext, TaskSpec } from '@wrongstack/core/types';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface MockSession {
   prompt: ReturnType<typeof vi.fn>;
@@ -96,6 +97,7 @@ vi.mock('../src/client/acp-session.js', () => {
   return { ACPSession, ACPSessionError, textContent: (t: string) => ({ type: 'text', text: t }) };
 });
 
+import { ACPSessionError } from '../src/client/acp-session.js';
 import {
   ACP_AGENT_COMMANDS,
   describeAgent,
@@ -106,7 +108,6 @@ import {
   REGISTRY_ID_ALIASES,
   resolveAcpAgentCommand,
 } from '../src/integration/acp-subagent-runner.js';
-import { ACPSessionError } from '../src/client/acp-session.js';
 import { runOneAcpTask } from '../src/integration/run-one-acp-task.js';
 import { findAgentDescriptor } from '../src/registry/agents.catalog.js';
 

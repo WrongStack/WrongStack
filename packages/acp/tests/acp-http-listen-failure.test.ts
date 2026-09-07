@@ -8,7 +8,7 @@
  * until some outer timeout instead of seeing the real `EADDRINUSE`/`ENOBUFS`.
  */
 import { Agent, createServer, request, type Server } from 'node:http';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WrongStackACPServer } from '../src/agent/wrongstack-acp-agent.js';
 
 let blocker: Server | null = null;
@@ -77,5 +77,131 @@ describe('ACP HTTP bind failures', () => {
     server = null;
     await expect(stopped).resolves.toBeUndefined();
     agent.destroy();
+  });
+
+  it('retries transient listen errors on port 0', async () => {
+    server = new WrongStackACPServer({ transport: 0, host: '127.0.0.1', authToken: 'secret' });
+    const s = server as any;
+    // Mock httpServer listen to fail once with EADDRINUSE then succeed
+    let calls = 0;
+    const fakeHttpServer = {
+      listen: vi.fn().mockImplementation(() => {
+        calls++;
+        setTimeout(() => {
+          if (calls === 1) {
+            const err: any = new Error('transient');
+            err.code = 'EADDRINUSE';
+            fakeHttpServer.emit('error', err);
+          } else {
+            fakeHttpServer.emit('listening');
+          }
+        }, 5);
+      }),
+      _listeners: new Map<string, Array<(...args: any[]) => void>>(),
+      once(ev: string, fn: any) {
+        if (!this._listeners.has(ev)) this._listeners.set(ev, []);
+        this._listeners.get(ev)!.push(fn);
+      },
+      removeListener(ev: string, fn: any) {
+        const arr = this._listeners.get(ev) || [];
+        const idx = arr.indexOf(fn);
+        if (idx !== -1) arr.splice(idx, 1);
+      },
+      emit(ev: string, ...args: any[]) {
+        const arr = [...(this._listeners.get(ev) || [])];
+        this._listeners.set(ev, []);
+        for (const fn of arr) fn(...args);
+      },
+    };
+    s.httpServer = fakeHttpServer;
+    await expect(s.listenWithRetry(0, '127.0.0.1')).resolves.toBeUndefined();
+    expect(calls).toBe(2);
+    server = null;
+  });
+
+  it('listenWithRetry resolves immediately if httpServer is null', async () => {
+    server = new WrongStackACPServer({ transport: 0, host: '127.0.0.1', authToken: 'secret' });
+    const s = server as any;
+    s.httpServer = null;
+    await expect(s.listenWithRetry(0, '127.0.0.1')).resolves.toBeUndefined();
+    server = null;
+  });
+
+  it('retries transient listen errors for ENOBUFS and EADDRNOTAVAIL', async () => {
+    server = new WrongStackACPServer({ transport: 0, host: '127.0.0.1', authToken: 'secret' });
+    const s = server as any;
+    for (const code of ['ENOBUFS', 'EADDRNOTAVAIL']) {
+      let calls = 0;
+      const fake = {
+        listen: vi.fn().mockImplementation(() => {
+          calls++;
+          setTimeout(() => {
+            if (calls === 1) {
+              const err: any = new Error('transient');
+              err.code = code;
+              fake.emit('error', err);
+            } else {
+              fake.emit('listening');
+            }
+          }, 5);
+        }),
+        _listeners: new Map<string, Array<(...args: any[]) => void>>(),
+        once(ev: string, fn: any) {
+          if (!this._listeners.has(ev)) this._listeners.set(ev, []);
+          this._listeners.get(ev)!.push(fn);
+        },
+        removeListener(ev: string, fn: any) {
+          const arr = this._listeners.get(ev) || [];
+          const idx = arr.indexOf(fn);
+          if (idx !== -1) arr.splice(idx, 1);
+        },
+        emit(ev: string, ...args: any[]) {
+          const arr = [...(this._listeners.get(ev) || [])];
+          this._listeners.set(ev, []);
+          for (const fn of arr) fn(...args);
+        },
+      };
+      s.httpServer = fake;
+      await expect(s.listenWithRetry(0, '127.0.0.1')).resolves.toBeUndefined();
+      expect(calls).toBe(2);
+    }
+    server = null;
+  });
+
+  it('uses requested port in shown message when address() returns non-object', async () => {
+    server = new WrongStackACPServer({ transport: 9999, host: '127.0.0.1', authToken: 'secret' });
+    const s = server as any;
+    const fakeHttpServer = {
+      address: () => '/var/run/pipe.sock',
+      listen: vi.fn().mockImplementation((_p: number, _h: string, cb?: () => void) => {
+        setTimeout(() => {
+          fakeHttpServer.emit('listening');
+          cb?.();
+        }, 5);
+      }),
+      _listeners: new Map<string, Array<(...args: any[]) => void>>(),
+      once(ev: string, fn: any) {
+        if (!this._listeners.has(ev)) this._listeners.set(ev, []);
+        this._listeners.get(ev)!.push(fn);
+      },
+      removeListener(ev: string, fn: any) {
+        const arr = this._listeners.get(ev) || [];
+        const idx = arr.indexOf(fn);
+        if (idx !== -1) arr.splice(idx, 1);
+      },
+      emit(ev: string, ...args: any[]) {
+        const arr = [...(this._listeners.get(ev) || [])];
+        this._listeners.set(ev, []);
+        for (const fn of arr) fn(...args);
+      },
+      on: vi.fn(),
+      close: vi.fn((cb: any) => cb?.()),
+    };
+    s.httpServer = fakeHttpServer;
+    s.listenWithRetry = vi.fn().mockResolvedValue(undefined);
+    await expect(s.startHttp(9999, '127.0.0.1')).resolves.toBeUndefined();
+    expect(s.running).toBe(true);
+    await s.stop();
+    server = null;
   });
 });

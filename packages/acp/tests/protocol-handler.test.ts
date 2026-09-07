@@ -1087,6 +1087,64 @@ describe('ACPProtocolHandler', () => {
       }
     });
 
+    it('rejects session/load with invalid cwd when loading from store', async () => {
+      const transport = fakeTransport();
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: CWD_TEST,
+        runTurn: PASSON_RUN_TURN,
+        store: {
+          load: vi.fn(async () => ({ id: 'persisted-1', cwd: CWD_LOAD })),
+          save: vi.fn(async () => {}),
+        } as never,
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({
+        id: 2,
+        method: 'session/load',
+        params: { sessionId: 'persisted-1', cwd: '/nonexistent/path/for/acp/test' },
+      });
+      expect(transport.sent.at(-1)).toMatchObject({
+        error: {
+          code: -32602,
+          message: 'cwd must be an absolute path to an existing directory',
+        },
+      });
+    });
+
+    it('handles emit notification rejection in runTurn', async () => {
+      const transport = fakeTransport();
+      const origSend = transport.send;
+      transport.send = vi.fn().mockImplementation(async (msg: any) => {
+        if (
+          msg.method === 'session/update' &&
+          msg.params?.update?.sessionUpdate === 'agent_message_chunk'
+        ) {
+          throw new Error('send notification failed');
+        }
+        return origSend(msg);
+      });
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: CWD_TEST,
+        runTurn: async (_params, emit) => {
+          emit({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'hi' } });
+          return { stopReason: 'end_turn' };
+        },
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: CWD_TEST } });
+      const sid = (transport.sent.at(-1) as { result: { sessionId: string } }).result.sessionId;
+      await handler.handleMessage({
+        id: 3,
+        method: 'session/prompt',
+        params: { sessionId: sid, prompt: [] },
+      });
+      expect(transport.sent.at(-1)).toMatchObject({
+        result: { stopReason: 'end_turn' },
+      });
+    });
+
     it('falls through when a persistence store has no requested session', async () => {
       const transport = fakeTransport();
       const handler = new ACPProtocolHandler({
@@ -1366,6 +1424,54 @@ describe('ACPProtocolHandler', () => {
   });
 
   describe('protocol helper coverage', () => {
+    it('restores session with defaultCwd when persisted cwd no longer exists', async () => {
+      const sessionStore = {
+        load: vi.fn().mockResolvedValue({
+          id: 'sess_nonexistent_cwd',
+          cwd: '/this/path/does/not/exist/anywhere',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
+        init: vi.fn().mockResolvedValue(undefined),
+        save: vi.fn(),
+        list: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+      };
+      const transport = fakeTransport();
+      const handler = new ACPProtocolHandler({
+        transport: transport as never as AgentServerTransport,
+        defaultCwd: CWD_X,
+        runTurn: PASSON_RUN_TURN,
+        store: sessionStore as never,
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
+      await handler.handleMessage({
+        id: 2,
+        method: 'session/load',
+        params: { sessionId: 'sess_nonexistent_cwd' },
+      });
+      const resp = transport.sent.find((m) => (m as any).id === 2) as any;
+      expect(resp.result).toBeDefined();
+      const state = (handler as any).sessions.get('sess_nonexistent_cwd');
+      expect(state.cwd).toBe(CWD_X);
+    });
+
+    it('runs prompt turn when clientCapabilities is null', async () => {
+      const { handler, transport } = makeHandler();
+      await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
+      await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: CWD_X } });
+      const sessionId = (transport.sent[transport.sent.length - 1] as any).result?.sessionId;
+      // Set clientCapabilities to null to exercise ?? {} branch
+      (handler as any).clientCapabilities = null;
+      await handler.handleMessage({
+        id: 3,
+        method: 'session/prompt',
+        params: { sessionId, prompt: [{ type: 'text', text: 'hi' }] },
+      });
+      const resp = transport.sent.find((m) => (m as any).id === 3) as any;
+      expect(resp.result).toBeDefined();
+    });
+
     it('maps every JSON-RPC error shape', () => {
       const map = protocolHandlerCoverage.errorToJsonRpc;
       expect(map(null)).toEqual({ code: -32603, message: 'null' });
