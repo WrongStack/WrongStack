@@ -17,6 +17,7 @@ import { Poller } from '../../src/poller.js';
 function makePoller(opts: {
   updates: TelegramApiUpdate[];
   onMessageUpdate?: (msg: { text?: string | undefined }) => void;
+  onCallbackQuery?: (cq: unknown) => void;
   savedOffsets?: number[];
 }) {
   const getUpdatesOffsets: number[] = [];
@@ -35,7 +36,7 @@ function makePoller(opts: {
     log: log as never,
     controller: new AbortController(),
     standbyRetryMs: 1000,
-    onCallbackQuery: () => {},
+    onCallbackQuery: opts.onCallbackQuery ?? (() => {}),
     onMessageUpdate: (opts.onMessageUpdate ?? (() => {})) as never,
     ...(opts.savedOffsets
       ? {
@@ -118,6 +119,40 @@ describe('Poller offset contract', () => {
     expect(processed).toEqual(['hello']);
     await poller.poll();
     expect(getUpdatesOffsets[1]).toBe(5);
+  });
+
+  // Regression (bug-hunt round 20260907-r4): the callback branch called the
+  // handler WITHOUT the poison guard the message path has had since round 17.
+  // A sync-throwing onCallbackQuery broke the update loop without advancing
+  // the offset, so the callback update was redelivered and re-failed on every
+  // poll and every later update stayed blocked behind it.
+  it('advances the offset past a callback_query whose handler throws (poison-safety parity)', async () => {
+    const processed: string[] = [];
+    const callbackUpdate: TelegramApiUpdate = {
+      update_id: 10,
+      callback_query: { id: 'cb1', data: 'approve:req1:yes' },
+    };
+    const { poller, getUpdatesOffsets, log } = makePoller({
+      updates: [callbackUpdate, textUpdate(11, 'good')],
+      onCallbackQuery: () => {
+        throw new Error('callback handler exploded');
+      },
+      onMessageUpdate: (msg) => processed.push(msg.text ?? ''),
+    });
+
+    await poller.poll();
+    // The callback failure is logged and skipped; the rest of the batch flows.
+    expect(processed).toEqual(['good']);
+    expect(log.debug).toHaveBeenCalledWith(
+      expect.stringContaining('Telegram callback handler failed'),
+    );
+
+    // The failed callback is acknowledged — the next poll requests offset 12,
+    // strictly past it (id 10), so the poison callback is never redelivered.
+    // (The double re-sends the raw batch; the Poller's own staleness guard
+    // skips update 10 and re-acknowledges 11 — at-least-once, Telegram-normal.)
+    await poller.poll();
+    expect(getUpdatesOffsets[1]).toBe(12);
   });
 });
 

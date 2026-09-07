@@ -138,7 +138,17 @@ export class Poller {
       for (const upd of updates) {
         if (upd.update_id < this.offset) continue;
         if (upd.callback_query) {
-          this.onCallbackQuery(upd.callback_query);
+          // Same poison-safety contract as the message path below: a failing
+          // handler must not wedge the offset, or Telegram redelivers this
+          // update on every poll and blocks everything behind it. Log,
+          // acknowledge, move on.
+          try {
+            this.onCallbackQuery(upd.callback_query);
+          } catch (err) {
+            this.log.debug(
+              `Telegram callback handler failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
           this.offset = upd.update_id + 1;
           continue;
         }
