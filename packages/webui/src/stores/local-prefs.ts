@@ -392,14 +392,14 @@ const DEFAULTS: LocalPrefsData = {
   // are synced from the server's prefs snapshot on connect (handlePrefsUpdated),
   // so this only seeds fresh browsers before the first connect.
   autonomy: 'auto',
-  autonomyDelayMs: 45_000,
-  autoProceedMaxIterations: 50,
+  autonomyDelayMs: 15_000,
+  autoProceedMaxIterations: 0,
   yolo: true,
-  maxIterations: 500,
-  chime: false,
+  maxIterations: 0,
+  chime: true,
   confirmExit: true,
   fleetChatVerbosity: 'off',
-  nextPrediction: false,
+  nextPrediction: true,
   nextStepsTool: false,
   fallbackModels: [],
   fallbackProfiles: {},
@@ -421,12 +421,12 @@ const DEFAULTS: LocalPrefsData = {
   tokenSavingTier: 'auto',
   maxConcurrent: 10,
   titleAnimation: true,
-  logLevel: 'info',
-  auditLevel: 'standard',
+  logLevel: 'warn',
+  auditLevel: 'full',
   enhanceEnabled: true,
-  enhanceDelayMs: 60_000,
+  enhanceDelayMs: 15_000,
   enhanceCountdownMs: 3_000,
-  enhanceLanguage: 'original',
+  enhanceLanguage: 'english',
   refinerProvider: '',
   refinerModel: '',
   refinerFallbackProfile: '',
@@ -436,17 +436,17 @@ const DEFAULTS: LocalPrefsData = {
   showThinkingLogs: true,
   groupToolCalls: true,
   autoCollapseInput: false,
-  showModelReasoning: true,
+  showModelReasoning: false,
   showAgentSwarmPanel: 'bottom',
   allowOutsideProjectRoot: true,
   reasoningMode: 'auto',
-  reasoningEffort: 'high',
+  reasoningEffort: 'medium',
   reasoningPreserve: false,
   cacheTtl: 'default',
   breakerEnabled: false,
   breakerAutoKillResetMs: 60_000,
   fsAccess: 'unrestricted',
-  debugStream: false,
+  debugStream: true,
   hqEnabled: false,
   hqUrl: '',
   hqToken: '',
@@ -706,10 +706,10 @@ export const useLocalPrefs = create<LocalPrefs>()(
         }
         if ((p as Record<string, unknown>)['auditLevel'] === 'verbose') p.auditLevel = 'full';
         if (!['minimal', 'standard', 'full'].includes(p.auditLevel as string)) {
-          p.auditLevel = 'standard';
+          p.auditLevel = 'full';
         }
         if (typeof p.autoProceedMaxIterations !== 'number') {
-          p.autoProceedMaxIterations = 50;
+          p.autoProceedMaxIterations = 0;
         }
         if (
           !p.fallbackProfiles ||

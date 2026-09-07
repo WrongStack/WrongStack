@@ -228,7 +228,7 @@ async function spawnAgent(
   const base = FLEET_ROSTER[role] ?? {
     id: `manual-${Date.now()}`,
     name: role,
-    maxIterations: maxIterations ?? 50,
+    maxIterations: maxIterations ?? 0,
     maxToolCalls: 200,
   };
   const config = task !== undefined ? { ...base, task } : base;

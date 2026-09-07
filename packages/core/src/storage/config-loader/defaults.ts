@@ -43,7 +43,7 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     loopDetection: DEFAULT_TOOLS_CONFIG.loopDetection,
     autoThin: { ...DEFAULT_TOOLS_CONFIG.autoThin },
   },
-  log: { level: 'info' },
+  log: { level: 'warn' },
   features: {
     mcp: true,
     plugins: true,
@@ -78,19 +78,19 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
       // caused retrieval is known and the hint can be independently capped.
       turnContext: false,
       toolResults: true,
-      // Off: task text searches for what the operator is doing, not for the
-      // file the tool touched, and every match it adds is unrelated to the
-      // result it lands on.
-      taskAware: false,
+      // Task-aware retrieval ON (owner default, profiles/default 2026-09-06).
+      taskAware: true,
       maxHintsPerTool: 8,
       maxCharsPerTool: 2800,
       maxTurnMemories: 8,
       maxCharsPerTurn: 2400,
-      minScore: 0.72,
+      minScore: 0.65,
       minImportance: 0.5,
-      // 0 = once per session. Re-showing a memory the model has already been
-      // given spends context and adds nothing.
-      repeatCooldownMs: 0,
+      // Re-show a memory after a 30-minute cooldown instead of once per
+      // session (owner default) — long autonomous sessions benefit from
+      // periodic re-surfacing at a bounded context cost.
+      repeatCooldownMs: 1_800_000,
+      relationFloor: 0.9,
     },
     hygiene: {
       autoAfterSession: true,
@@ -105,15 +105,16 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
   skills: { readClaudeSkills: true, mode: 'progressive' },
   mcpServers: {},
   fallbackAuto: true,
-  maxConcurrent: 4,
-  // YOLO opt-in: users who want auto-approve behaviour set `yolo: true`.
-  // Off by default so prompt injection in repository content, fetched
-  // content, or mailbox messages cannot induce arbitrary shell calls or
-  // write operations without human confirmation.
-  yolo: false,
-  nextPrediction: false,
+  maxConcurrent: 10,
+  // YOLO is ON by default (owner product decision, 2026-09-06 — mirrors
+  // profiles/default). Trade-off accepted: auto-approve is the shipped
+  // experience; prompt-injection defenses remain the loop detector, the
+  // permission surfaces, and /settings yolo off for users who want manual
+  // confirmation of shell/write operations.
+  yolo: true,
+  nextPrediction: true,
   hints: true,
-  debugStream: false,
+  debugStream: true,
   configScope: 'global',
   indexing: {
     onSessionStart: true,
@@ -130,34 +131,35 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     // in a config file is preserved (opt-out respected).
     defaultMode: 'auto',
     autoProceedDelayMs: DEFAULT_AUTONOMY_CONFIG.autoProceedDelayMs,
-    autoProceedMaxIterations: 50,
+    // 0 = unlimited: auto-proceed keeps going until the user stops it
+    // (Ctrl+C / [GOAL_COMPLETE] / loop guard), matching tools.maxIterations.
+    autoProceedMaxIterations: 0,
     autonomyNextPrompt: 'auto {{suggestion}}',
     terminalTitleAnimation: true,
     // Mirrored from the top-level yolo default so the autonomy subsystem
     // (which reads autonomy.yolo) stays consistent with config.yolo.
-    yolo: false,
+    yolo: true,
     fleetChatVerbosity: 'off',
-    chime: false,
+    chime: true,
     confirmExit: true,
     mouseMode: false,
     enhance: true,
-    enhanceDelayMs: 60_000,
-    enhanceLanguage: 'original',
+    enhanceDelayMs: 15_000,
+    enhanceLanguage: 'english',
     // Product-wide statusline density default. Mirrored by the TUI's
     // DEFAULT_STATUSLINE_MODE (packages/tui/src/components/settings-picker-model.ts).
     statuslineMode: 'minimum',
     thinkingWord: DEFAULT_TUI_THINKING_WORD,
     showAgentSwarmPanel: 'bottom',
+    showModelReasoning: false,
   },
   circuitBreaker: { ...DEFAULT_CIRCUIT_BREAKER_CONFIG },
   modelRuntime: {
-    // `effort` is intentionally undefined by default. Leaving it unset lets
-    // each model use its provider-recommended reasoning effort (or none at
-    // all) instead of forcing an opinionated value that may be unsupported,
-    // silently omitted, and surfaced as a per-request warning. Users who
-    // want a specific effort can opt in via `/settings` or the WebUI panel.
-    reasoning: { mode: 'auto' },
+    // Owner default (profiles/default 2026-09-06): explicit medium effort,
+    // no thinking preservation. Sent only to models advertising the
+    // capability flags; `mode: 'auto'` keeps provider defaults for the rest.
+    reasoning: { mode: 'auto', effort: 'medium', preserve: false },
     cache: { ttl: '1h' },
   },
-  systemPrompt: { variant: 'default' },
+  systemPrompt: { variant: 'pro' },
 };

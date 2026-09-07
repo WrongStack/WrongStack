@@ -78,13 +78,13 @@ describe('WebUI Config Doctor', () => {
     const fixed = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(fixed['provider']).toBe('custom');
     expect(fixed['model']).toBe('model-1');
-    expect(fixed['maxConcurrent']).toBe(4);
+    expect(fixed['maxConcurrent']).toBe(10);
     expect(fixed['context']).toMatchObject({ autoCompact: true, strategy: 'hybrid' });
     const backupPath = ws.sent[0]?.payload['backupPath'];
     expect(backupPath).toEqual(expect.any(String));
     expect(backupPath as string).toMatch(/\.last-\d+$/);
     expect(await fs.readFile(backupPath as string, 'utf8')).toBe(original);
-    expect(applyRuntimeConfig).toHaveBeenCalledWith(expect.objectContaining({ maxConcurrent: 4 }));
+    expect(applyRuntimeConfig).toHaveBeenCalledWith(expect.objectContaining({ maxConcurrent: 10 }));
     expect(ws.sent[0]?.payload['applied']).toBe(true);
   });
 

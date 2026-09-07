@@ -62,8 +62,8 @@ describe('DefaultConfigLoader', () => {
     expect(cfg.provider).toBeUndefined();
     expect(cfg.model).toBeUndefined();
     expect(cfg.context.mode).toBe('balanced');
-    expect(cfg.context.softThreshold).toBe(0.7);
-    expect(cfg.tools.maxIterations).toBe(100);
+    expect(cfg.context.softThreshold).toBe(0.75);
+    expect(cfg.tools.maxIterations).toBe(0);
     expect(cfg.features.mcp).toBe(true);
     expect(cfg.mcpServers).toEqual({});
 
@@ -78,15 +78,17 @@ describe('DefaultConfigLoader', () => {
     expect(written.model).toBeUndefined();
     expect(written.version).toBe(1);
     expect(written.configScope).toBe('global');
-    expect(written.maxConcurrent).toBe(4);
+    expect(written.maxConcurrent).toBe(10);
     expect(written.context.mode).toBe('balanced');
     expect(written.context.strategy).toBe('hybrid');
     expect(written.autonomy.defaultMode).toBe('auto');
-    expect(written.autonomy.autoProceedDelayMs).toBe(45_000);
-    expect(written.autonomy.enhanceDelayMs).toBe(60_000);
-    expect(written.autonomy.autoProceedMaxIterations).toBe(50);
+    expect(written.autonomy.autoProceedDelayMs).toBe(15_000);
+    expect(written.autonomy.enhanceDelayMs).toBe(15_000);
+    expect(written.autonomy.autoProceedMaxIterations).toBe(0);
     expect(written.modelRuntime.reasoning).toEqual({
       mode: 'auto',
+      effort: 'medium',
+      preserve: false,
     });
   });
 
@@ -153,9 +155,9 @@ describe('DefaultConfigLoader', () => {
     expect(cfg.model).toBe('anthropic-test-model');
     expect(cfg.maxConcurrent).toBe(12);
     expect(cfg.autonomy?.defaultMode).toBe('auto');
-    expect(cfg.autonomy?.autoProceedDelayMs).toBe(45_000);
+    expect(cfg.autonomy?.autoProceedDelayMs).toBe(15_000);
     expect(cfg.modelRuntime?.parameters?.user).toBe('kept');
-    expect(cfg.modelRuntime?.reasoning?.effort).toBeUndefined();
+    expect(cfg.modelRuntime?.reasoning?.effort).toBe('medium');
     expect(cfg.Sage?.storage?.directory).toBe('custom-memory');
     expect((cfg.Sage?.storage as Record<string, unknown> | undefined)?.['engine']).toBeUndefined();
 
@@ -165,9 +167,9 @@ describe('DefaultConfigLoader', () => {
     expect(written.model).toBe('anthropic-test-model');
     expect(written.maxConcurrent).toBe(12);
     expect(written.autonomy.defaultMode).toBe('auto');
-    expect(written.autonomy.autoProceedDelayMs).toBe(45_000);
+    expect(written.autonomy.autoProceedDelayMs).toBe(15_000);
     expect(written.modelRuntime.parameters.user).toBe('kept');
-    expect(written.modelRuntime.reasoning.effort).toBeUndefined();
+    expect(written.modelRuntime.reasoning.effort).toBe('medium');
     expect(written.Sage.storage.directory).toBe('custom-memory');
     expect(written.Sage.storage.engine).toBeUndefined();
   });
@@ -617,7 +619,7 @@ describe('DefaultConfigLoader', () => {
     await fs.writeFile(paths.globalConfig, '{not json');
     // should not throw — just use defaults
     const cfg = await l.load();
-    expect(cfg.context.softThreshold).toBe(0.7);
+    expect(cfg.context.softThreshold).toBe(0.75);
   });
 
   it('merges primitive arrays by concatenation with deduplication', async () => {
@@ -950,7 +952,7 @@ describe('repairConfigDefaults', () => {
     expect(report.changed).toBe(true);
     expect(report.fixed['provider']).toBe('custom-provider');
     expect(report.fixed['model']).toBe('custom-model');
-    expect(report.fixed['maxConcurrent']).toBe(4);
+    expect(report.fixed['maxConcurrent']).toBe(10);
     expect(report.fixed['context']).toMatchObject({
       mode: 'balanced',
       autoCompact: true,
@@ -978,7 +980,7 @@ describe('repairConfigDefaults', () => {
       maxConcurrent: NaN,
       context: { warnThreshold: Infinity },
     });
-    expect(report.fixed['maxConcurrent']).toBe(4);
-    expect((report.fixed['context'] as Record<string, unknown>)['warnThreshold']).toBe(0.55);
+    expect(report.fixed['maxConcurrent']).toBe(10);
+    expect((report.fixed['context'] as Record<string, unknown>)['warnThreshold']).toBe(0.6);
   });
 });

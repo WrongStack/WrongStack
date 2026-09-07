@@ -154,7 +154,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       reasoningEffortRaw === 'xhigh' ||
       reasoningEffortRaw === 'max'
         ? reasoningEffortRaw
-        : 'high';
+        : 'medium';
     // Resolve the filesystem-access pair from whichever side of the
     // duplicated config (features.allowOutsideProjectRoot vs
     // tools.restrictToProjectRoot) the user actually wrote. They MUST
@@ -173,13 +173,13 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
     const resolvedRestrict = !resolvedAllow;
     return {
       mode,
-      delayMs: (autonomy?.autoProceedDelayMs as number) ?? 45_000,
+      delayMs: (autonomy?.autoProceedDelayMs as number) ?? 15_000,
       titleAnimation: autonomy?.terminalTitleAnimation !== false,
-      yolo: cfg.yolo ?? (autonomy?.yolo as boolean | undefined) ?? false,
+      yolo: cfg.yolo ?? (autonomy?.yolo as boolean | undefined) ?? true,
       fleetChatVerbosity: resolveFleetChatVerbosity(cfg.autonomy),
-      chime: (autonomy?.chime as boolean) ?? false,
+      chime: (autonomy?.chime as boolean) ?? true,
       confirmExit: autonomy?.confirmExit !== false,
-      nextPrediction: cfg.nextPrediction ?? false,
+      nextPrediction: cfg.nextPrediction ?? true,
       featureMcp: cfg.features?.mcp !== false,
       featurePlugins: cfg.features?.plugins !== false,
       featureMemory: cfg.features?.memory !== false,
@@ -196,11 +196,11 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       contextAutoCompact: cfg.context?.autoCompact !== false,
       contextStrategy: cfg.context?.strategy ?? 'hybrid',
       contextMode,
-      maxConcurrent: cfg.maxConcurrent ?? 4,
-      logLevel: cfg.log?.level ?? 'info',
-      auditLevel: cfg.session?.auditLevel ?? 'standard',
+      maxConcurrent: cfg.maxConcurrent ?? 10,
+      logLevel: cfg.log?.level ?? 'warn',
+      auditLevel: cfg.session?.auditLevel ?? 'full',
       indexOnStart: cfg.indexing?.onSessionStart !== false,
-      maxIterations: cfg.tools?.maxIterations ?? 500,
+      maxIterations: cfg.tools?.maxIterations ?? 0,
       // Multi-diff summary threshold — mirrors the WebUI parity path
       // (pref-helpers.ts reads/writes `decrypted.autonomy.multiDiffSummaryThreshold`;
       // here we read from `decrypted.tools.multiDiffSummaryThreshold` to
@@ -213,7 +213,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       restrictFsToRoot: resolvedRestrict,
       autoProceedMaxIterations:
         ((cfg.autonomy as Record<string, unknown> | undefined)
-          ?.autoProceedMaxIterations as number) ?? 50,
+          ?.autoProceedMaxIterations as number) ?? 0,
       debugStream: cfg.debugStream ?? false,
       shellBangWarningDontShowAgain: autonomy?.shellBangWarningDontShowAgain === true,
       statuslineMode:
@@ -228,15 +228,19 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       systemPromptVariant:
         cfg.systemPrompt?.variant === 'lite' || cfg.systemPrompt?.variant === 'pro'
           ? cfg.systemPrompt.variant
-          : 'default',
+          : cfg.systemPrompt?.variant === 'default'
+            ? 'default'
+            : 'pro',
       enhanceDelayMs:
-        ((cfg.autonomy as Record<string, unknown> | undefined)?.enhanceDelayMs as number) ?? 60_000,
+        ((cfg.autonomy as Record<string, unknown> | undefined)?.enhanceDelayMs as number) ?? 15_000,
       enhanceEnabled:
         ((cfg.autonomy as Record<string, unknown> | undefined)?.enhance as boolean) ?? true,
       enhanceLanguage:
         (cfg.autonomy as Record<string, unknown> | undefined)?.enhanceLanguage === 'english'
           ? ('english' as const)
-          : ('original' as const),
+          : (cfg.autonomy as Record<string, unknown> | undefined)?.enhanceLanguage === 'original'
+            ? ('original' as const)
+            : ('english' as const),
       midRunSendPicker:
         ((cfg.autonomy as Record<string, unknown> | undefined)?.midRunSendPicker as boolean) ??
         true,
@@ -257,7 +261,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           : 'default',
       breakerEnabled: cfg.circuitBreaker?.enabled === true,
       breakerAutoKillResetMs: cfg.circuitBreaker?.autoKillResetMs ?? 60_000,
-      showModelReasoning: autonomy?.showModelReasoning ?? true,
+      showModelReasoning: autonomy?.showModelReasoning ?? false,
       showAgentSwarmPanel: coerceAgentSwarmMode(autonomy?.showAgentSwarmPanel),
       showSidebar: autonomy?.showSidebar ?? true,
       // Migrate the legacy `autonomy.showAgentSwarmPanel: 'sidebar'` into

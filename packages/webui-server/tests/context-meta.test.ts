@@ -37,10 +37,10 @@ describe('seedContextMeta', () => {
     expect(context.meta['autonomy']).toBe('off');
   });
 
-  it('sets default autonomyDelayMs to 45000', () => {
+  it('sets default autonomyDelayMs to 15000', () => {
     const context = { meta: {} };
     seedContextMeta(makeConfig(), context);
-    expect(context.meta['autonomyDelayMs']).toBe(45000);
+    expect(context.meta['autonomyDelayMs']).toBe(15000);
   });
 
   it('sets the default auto-review quiet window to 15000ms', () => {
@@ -55,10 +55,10 @@ describe('seedContextMeta', () => {
     expect(context.meta['autonomyDelayMs']).toBe(30000);
   });
 
-  it('sets autoProceedMaxIterations with default 50', () => {
+  it('sets autoProceedMaxIterations with default 0 (unlimited)', () => {
     const context = { meta: {} };
     seedContextMeta(makeConfig(), context);
-    expect(context.meta['autoProceedMaxIterations']).toBe(50);
+    expect(context.meta['autoProceedMaxIterations']).toBe(0);
   });
 
   it('reads autoProceedMaxIterations from config', () => {
@@ -115,16 +115,16 @@ describe('seedContextMeta', () => {
     expect(context.meta['enhanceEnabled']).toBe(true);
   });
 
-  it('sets enhanceDelayMs default to 60000', () => {
+  it('sets enhanceDelayMs default to 15000', () => {
     const context = { meta: {} };
     seedContextMeta(makeConfig(), context);
-    expect(context.meta['enhanceDelayMs']).toBe(60000);
+    expect(context.meta['enhanceDelayMs']).toBe(15000);
   });
 
-  it('sets enhanceLanguage default to "original"', () => {
+  it('sets enhanceLanguage default to "english"', () => {
     const context = { meta: {} };
     seedContextMeta(makeConfig(), context);
-    expect(context.meta['enhanceLanguage']).toBe('original');
+    expect(context.meta['enhanceLanguage']).toBe('english');
   });
 
   it('sets nextPrediction from config', () => {
@@ -265,22 +265,22 @@ describe('seedContextMeta', () => {
     expect(context.meta['contextStrategy']).toBe('hybrid');
   });
 
-  it('sets logLevel default to info', () => {
+  it('sets logLevel default to warn', () => {
     const context = { meta: {} };
     seedContextMeta(makeConfig(), context);
-    expect(context.meta['logLevel']).toBe('info');
+    expect(context.meta['logLevel']).toBe('warn');
   });
 
-  it('sets auditLevel default to standard', () => {
+  it('sets auditLevel default to full', () => {
     const context = { meta: {} };
     seedContextMeta(makeConfig(), context);
-    expect(context.meta['auditLevel']).toBe('standard');
+    expect(context.meta['auditLevel']).toBe('full');
   });
 
-  it('sets maxIterations default to 500', () => {
+  it('sets maxIterations default to 0 (unlimited)', () => {
     const context: { meta: Record<string, unknown> } = { meta: {} };
     seedContextMeta(makeConfig(), context);
-    expect(context.meta['maxIterations']).toBe(500);
+    expect(context.meta['maxIterations']).toBe(0);
   });
 
   it('sets contextMode default to balanced', () => {

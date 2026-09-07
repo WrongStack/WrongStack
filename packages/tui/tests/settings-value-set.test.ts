@@ -556,11 +556,11 @@ describe('resetSettingsFieldValue', () => {
   });
 
   it('returns the default value for an enum field', () => {
-    const r = resetSettingsFieldValue(31); // logLevel default = 'info'
+    const r = resetSettingsFieldValue(31); // logLevel default = 'warn'
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.displayValue).toBe('info');
-      expect(r.patch.logLevel).toBe('info');
+      expect(r.displayValue).toBe('warn');
+      expect(r.patch.logLevel).toBe('warn');
     }
   });
 
@@ -568,8 +568,8 @@ describe('resetSettingsFieldValue', () => {
     const r = resetSettingsFieldValue(15); // maxIterations default = 500
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.displayValue).toBe('500');
-      expect(r.patch.maxIterations).toBe(500);
+      expect(r.displayValue).toBe('unlimited');
+      expect(r.patch.maxIterations).toBe(0);
     }
   });
 

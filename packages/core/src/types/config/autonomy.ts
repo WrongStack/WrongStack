@@ -12,15 +12,15 @@ export interface AutonomyConfig {
    * restart, and so the standalone server matches the embedded
    * server's autocomplete parity (TUI settings picker). */
   defaultMode?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel' | undefined;
-  /** ms to wait before auto-proceeding in 'auto' mode. Default: 45000. */
+  /** ms to wait before auto-proceeding in 'auto' mode. Default: 15000. */
   autoProceedDelayMs?: number | undefined;
-  /** Maximum consecutive auto-proceed turns before pausing. 0 = unlimited. Default: 50. */
+  /** Maximum consecutive auto-proceed turns before pausing. 0 = unlimited. Default: 0 (unlimited). */
   autoProceedMaxIterations?: number | undefined;
   /** Template used for YOLO+auto suggestions. Must include {{suggestion}}. */
   autonomyNextPrompt?: string | undefined;
   /** Animate the terminal/window title while the agent is active. Default: true. */
   terminalTitleAnimation?: boolean | undefined;
-  /** Persisted YOLO preference mirrored into top-level config.yolo at runtime. Default: false. */
+  /** Persisted YOLO preference mirrored into top-level config.yolo at runtime. Default: true. */
   yolo?: boolean | undefined;
   /**
    * How much fleet/subagent activity is streamed into the main TUI chat.
@@ -29,7 +29,7 @@ export interface AutonomyConfig {
    * Resolved via {@link resolveFleetChatVerbosity}. Default: 'off'.
    */
   fleetChatVerbosity?: FleetChatVerbosity | undefined;
-  /** Ring terminal bell when an agent run completes. Default: false. */
+  /** Ring terminal bell when an agent run completes. Default: true. */
   chime?: boolean | undefined;
   /** Ask for confirmation before interrupt/exit. Default: true. */
   confirmExit?: boolean | undefined;
@@ -62,9 +62,9 @@ export interface AutonomyConfig {
    * Default: unset (uses refinerProvider+refinerModel, or session defaults).
    */
   refinerFallbackProfile?: string | undefined;
-  /** Prompt-refinement preview countdown in ms. Default: 60000. */
+  /** Prompt-refinement preview countdown in ms. Default: 15000. */
   enhanceDelayMs?: number | undefined;
-  /** Prompt-refinement language mode. Default: "original". */
+  /** Prompt-refinement language mode. Default: "english". */
   enhanceLanguage?: 'original' | 'english' | undefined;
   /**
    * `provider/model` ref used for the one-key "retry with another model" action
@@ -87,7 +87,7 @@ export interface AutonomyConfig {
    * Show the "Model Reasoning" collapsible blocks in chat history that display
    * the LLM's structured reasoning / COT output. Separate from the `thinkingWord`
    * status-bar chip and from model-provisioning `reasoning` settings.
-   * Default: true.
+   * Default: false.
    */
   showModelReasoning?: boolean | undefined;
   /**
@@ -198,9 +198,10 @@ export interface SessionLoggingConfig {
    * How much detail to write to the persistent session log.
    *
    * - "minimal"  → Only events required for resume/rewind/recovery
-   * - "standard" → (default) + high-value lightweight audit events
+   * - "standard" → high-value lightweight audit events
    *                (compaction, tool timing, retries, errors, etc.)
-   * - "full"     → Also persist full request payloads (very large).
+   * - "full"     → (default) Also persist full request payloads (very large;
+   *                owner default since 2026-09-06).
    *                Consider enabling a separate replay log instead.
    */
   auditLevel?: 'minimal' | 'standard' | 'full' | undefined;

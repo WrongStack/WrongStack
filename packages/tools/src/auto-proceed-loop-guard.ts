@@ -9,7 +9,7 @@
  * on every reply — which happens whenever the model's output is stable but
  * autonomy treats the next step as "still actionable" — the loop self-feeds
  * the same instruction 2–3 times in a row before the longer
- * `autoProceedMaxIterations` cap (default 50) trips.
+ * `autoProceedMaxIterations` cap (default 0 = unlimited) trips.
  *
  * The user reports the visible symptom: the same response, including the same
  * `<nextsteps>` block, repeats. Manual input from the user is the only thing

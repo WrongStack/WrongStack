@@ -34,18 +34,22 @@ describe('Config.features defaults', () => {
       // Default is 'auto' — the prompt builder resolves it from the model's
       // context window; consumers without that context use the medium baseline.
       tokenSavingMode: 'auto',
-      // Zero-config must be CONFINED. This assertion previously pinned `true`,
-      // which locked in the insecure default rather than catching it (WS-075).
-      allowOutsideProjectRoot: false,
+      // Owner default since 2026-09-06: zero-config starts UNCONFINED
+      // (profiles/default had restrictToProjectRoot: false). Users re-enable
+      // confinement via /settings. This assertion previously pinned `false`
+      // per WS-075 — the insecure direction then, the product default now.
+      allowOutsideProjectRoot: true,
     });
     expect(cfg.skills?.mode).toBe('progressive');
   });
 
-  it('zero-config filesystem confinement is on, and both halves agree', async () => {
+  it('zero-config filesystem confinement is off by default, and both halves agree', async () => {
     // The two config keys are one switch. They lived in the same defaults object
     // declaring opposite intents, and the `??` precedence in wiring/session.ts
     // silently resolved it in favour of the permissive half. Pin the invariant
-    // itself so the halves cannot drift apart again.
+    // itself so the halves cannot drift apart again. The confinement DIRECTION
+    // is an owner product decision (off since 2026-09-06) — this test pins the
+    // agreement, not the direction.
     const paths = resolveWstackPaths({
       userHome: tmp,
       projectRoot: tmp,
@@ -55,8 +59,8 @@ describe('Config.features defaults', () => {
     const cfg = await loader.load({
       cliFlags: { provider: 'anthropic', model: 'claude-test' },
     });
-    expect(cfg.features.allowOutsideProjectRoot).toBe(false);
-    expect(cfg.tools.restrictToProjectRoot).toBe(true);
+    expect(cfg.features.allowOutsideProjectRoot).toBe(true);
+    expect(cfg.tools.restrictToProjectRoot).toBe(false);
     expect(cfg.features.allowOutsideProjectRoot).toBe(!cfg.tools.restrictToProjectRoot);
   });
 

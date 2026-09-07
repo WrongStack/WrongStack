@@ -89,7 +89,7 @@ describe('TUI settings adapter', () => {
     const initial = baseConfig({ maxConcurrent: undefined as never });
     const { adapter } = makeAdapter(initial);
 
-    expect(adapter.getSettings().maxConcurrent).toBe(4);
+    expect(adapter.getSettings().maxConcurrent).toBe(10);
   });
 
   it('partial saves preserve existing autonomy fields', async () => {

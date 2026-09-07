@@ -248,14 +248,14 @@ describe('reset', () => {
     useLocalPrefs.getState().reset();
     const state = useLocalPrefs.getState();
     expect(state.autonomy).toBe('auto');
-    expect(state.autonomyDelayMs).toBe(45_000);
-    expect(state.autoProceedMaxIterations).toBe(50);
+    expect(state.autonomyDelayMs).toBe(15_000);
+    expect(state.autoProceedMaxIterations).toBe(0);
     expect(state.yolo).toBe(true);
-    expect(state.maxIterations).toBe(500);
-    expect(state.chime).toBe(false);
+    expect(state.maxIterations).toBe(0);
+    expect(state.chime).toBe(true);
     expect(state.confirmExit).toBe(true);
     expect(state.fleetChatVerbosity).toBe('off');
-    expect(state.nextPrediction).toBe(false);
+    expect(state.nextPrediction).toBe(true);
     expect(state.featureMcp).toBe(true);
     expect(state.featurePlugins).toBe(true);
     expect(state.featureMemory).toBe(true);
@@ -264,11 +264,11 @@ describe('reset', () => {
     expect(state.indexOnStart).toBe(true);
     expect(state.contextAutoCompact).toBe(true);
     expect(state.contextStrategy).toBe('hybrid');
-    expect(state.logLevel).toBe('info');
-    expect(state.auditLevel).toBe('standard');
+    expect(state.logLevel).toBe('warn');
+    expect(state.auditLevel).toBe('full');
     expect(state.enhanceEnabled).toBe(true);
-    expect(state.enhanceDelayMs).toBe(60_000);
-    expect(state.enhanceLanguage).toBe('original');
+    expect(state.enhanceDelayMs).toBe(15_000);
+    expect(state.enhanceLanguage).toBe('english');
     expect(state.tgConfigured).toBe(false);
     expect(state.tgSessionEnd).toBe(false);
     expect(state.tgDelegate).toBe(true);
@@ -280,7 +280,7 @@ describe('reset', () => {
     useLocalPrefs.getState().reset();
     const state = useLocalPrefs.getState();
     expect(state.autonomy).toBe('auto');
-    expect(state.maxIterations).toBe(500);
+    expect(state.maxIterations).toBe(0);
   });
 });
 

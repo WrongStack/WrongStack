@@ -267,7 +267,7 @@ export function useNextStepsAutoSubmit({
 
     // Consecutive-cap: pause (don't even show a countdown that won't fire)
     // once the streak hits the limit. 0 = unlimited (user's explicit choice).
-    const maxAuto = cfg?.autoProceedMaxIterations ?? 50;
+    const maxAuto = cfg?.autoProceedMaxIterations ?? 0;
     if (maxAuto > 0 && autoSubmitStreakRef.current >= maxAuto) {
       if (!autoSubmitCapWarnedRef.current) {
         autoSubmitCapWarnedRef.current = true;

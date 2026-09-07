@@ -139,7 +139,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     const maxIt =
       typeof iterMeta['maxIterations'] === 'number'
         ? iterMeta['maxIterations']
-        : (config.tools?.maxIterations ?? 100);
+        : (config.tools?.maxIterations ?? 0);
     broadcast(clients, {
       type: 'iteration.started',
       payload: sessionPayload({ sessionId: e.sessionId, index: e.index, maxIterations: maxIt }),

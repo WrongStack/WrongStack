@@ -30,15 +30,15 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
   it('produces a fully-populated pref set from null (fresh install)', () => {
     const p = migrate(null);
     expect(p.contextStrategy).toBe('hybrid');
-    expect(p.auditLevel).toBe('standard');
+    expect(p.auditLevel).toBe('full');
     expect(p.fleetChatVerbosity).toBe('off');
-    expect(p.autoProceedMaxIterations).toBe(50);
+    expect(p.autoProceedMaxIterations).toBe(0);
   });
 
   it('produces the same defaults from an empty object', () => {
     expect(migrate({})).toMatchObject({
       contextStrategy: 'hybrid',
-      auditLevel: 'standard',
+      auditLevel: 'full',
       fleetChatVerbosity: 'off',
     });
   });
@@ -91,14 +91,14 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
     expect(migrate({ auditLevel: v }).auditLevel).toBe(v);
   });
 
-  it('remaps an unknown auditLevel to standard', () => {
-    expect(migrate({ auditLevel: 'chatty' }).auditLevel).toBe('standard');
+  it('remaps an unknown auditLevel to full (current default)', () => {
+    expect(migrate({ auditLevel: 'chatty' }).auditLevel).toBe('full');
   });
 
   // ── numeric / collection backfills ───────────────────────────────────────
 
   it('backfills autoProceedMaxIterations when it is not a number', () => {
-    expect(migrate({ autoProceedMaxIterations: '10' }).autoProceedMaxIterations).toBe(50);
+    expect(migrate({ autoProceedMaxIterations: '10' }).autoProceedMaxIterations).toBe(0);
     expect(migrate({ autoProceedMaxIterations: 7 }).autoProceedMaxIterations).toBe(7);
     // 0 is a legitimate "unlimited" choice and must survive.
     expect(migrate({ autoProceedMaxIterations: 0 }).autoProceedMaxIterations).toBe(0);

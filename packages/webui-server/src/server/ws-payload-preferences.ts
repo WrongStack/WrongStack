@@ -168,8 +168,9 @@ const NUMBER_PREF_KEYS = new Set([
  * of silently landing in `config.tools` / `config.maxConcurrent`.
  */
 const NUMBER_PREF_BOUNDS: Record<string, { min: number; max: number }> = {
-  // Iteration / concurrency — must be at least 1 to make progress (0 = unlimited for autoProceedMaxIterations).
-  maxIterations: { min: 1, max: Number.POSITIVE_INFINITY },
+  // Iteration / concurrency — maxIterations 0 = unlimited (the core default);
+  // maxConcurrent must be at least 1 to make progress.
+  maxIterations: { min: 0, max: Number.POSITIVE_INFINITY },
   maxConcurrent: { min: 1, max: Number.POSITIVE_INFINITY },
   autoProceedMaxIterations: { min: 0, max: Number.POSITIVE_INFINITY },
   chimeraMaxFiles: { min: 1, max: Number.POSITIVE_INFINITY },

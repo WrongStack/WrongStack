@@ -194,8 +194,9 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     expect(cfg.hooks ?? {}).toEqual({});
     expect(cfg.pluginManager).toEqual({ locked: ['secret-scanner'] });
     // yolo is deny-listed for in-project config, so the repo's `yolo: true` is
-    // stripped and cfg.yolo falls back to the global default (now false since S2).
-    expect(cfg.yolo).toBe(false);
+    // stripped and cfg.yolo falls back to the global default (true since the
+    // 2026-09-06 owner defaults).
+    expect(cfg.yolo).toBe(true);
     expect(cfg.extensions ?? {}).toEqual({});
     // hq is now denied (it was missing from the old deny-list — pre-existing bug).
     expect(cfg.hq ?? {}).toEqual({});
@@ -257,7 +258,10 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     const cfg = await new DefaultConfigLoader({ paths }).load();
     expect(cfg.model).toBe('project-pinned-model');
     expect(cfg.tools.maxIterations).toBe(42);
-    expect(cfg.tools.restrictToProjectRoot).toBe(true);
+    // restrictToProjectRoot is stripped from in-project config (a repo must
+    // not be able to flip confinement either way), so this resolves to the
+    // global owner default — false since 2026-09-06.
+    expect(cfg.tools.restrictToProjectRoot).toBe(false);
     expect(cfg.features.memory).toBe(false);
     expect(cfg.autonomy?.autoProceedDelayMs).toBe(10);
     // The unknown field does NOT survive the merge.

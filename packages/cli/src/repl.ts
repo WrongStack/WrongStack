@@ -35,7 +35,7 @@ import { getSuggestions } from './services/suggestion-store.js';
 import { fmtTok } from './utils.js';
 
 /** Default ceiling on consecutive auto-proceed turns; 0 in settings means unlimited. */
-const DEFAULT_MAX_CONSECUTIVE_AUTO_PROCEED = 50;
+const DEFAULT_MAX_CONSECUTIVE_AUTO_PROCEED = 0;
 
 export type { ReplOptions } from './repl-options.js';
 export { parseSuggestionsFromOutput } from './repl-suggestions.js';

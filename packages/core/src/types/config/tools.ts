@@ -1,5 +1,6 @@
 export interface ToolsConfig {
   defaultExecutionStrategy: 'parallel' | 'sequential' | 'smart';
+  /** Hard cap on LLM turns per agent.run(). 0 = unlimited. Default: 0. */
   maxIterations: number;
   iterationTimeoutMs: number;
   /** Hard upper bound for a single tool call timeout. Defaults to 5 minutes. */

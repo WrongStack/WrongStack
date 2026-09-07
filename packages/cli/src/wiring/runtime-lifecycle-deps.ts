@@ -48,7 +48,7 @@ export function createRuntimeLifecycleDeps(input: RuntimeLifecycleDepsInput): Li
       return shared.length > 0 ? shared : input.getCurrentSuggestions();
     },
     autoProceedDelayMs: (autonomy?.autoProceedDelayMs as number) ?? 45_000,
-    autoProceedMaxIterations: (autonomy?.autoProceedMaxIterations as number) ?? 50,
+    autoProceedMaxIterations: (autonomy?.autoProceedMaxIterations as number) ?? 0,
     onValidateAutoProceed: (suggestion, lastOutput) =>
       validateAutoProceed(input.context, suggestion, lastOutput),
     getEternalEngine: input.getEternalEngine,
