@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-07T16:00:41.039Z",
+  "generatedAt": "2026-09-07T16:28:36.634Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3672,
     "testFiles": 3108,
-    "sourceLines": 881274,
+    "sourceLines": 881277,
     "workspaceEdges": 127,
     "moduleEdges": 11569,
     "nonCommandSlashImports": 0,
@@ -20177,7 +20177,7 @@
     },
     {
       "file": "packages/tools/src/codebase-index/background-indexer.ts",
-      "lines": 965,
+      "lines": 968,
       "relativeImports": 8
     },
     {
@@ -20688,14 +20688,14 @@
       "relativeImports": 18
     },
     {
+      "file": "packages/tools/src/codebase-index/background-indexer.ts",
+      "lines": 968,
+      "relativeImports": 8
+    },
+    {
       "file": "packages/core/src/coordination/director.ts",
       "lines": 966,
       "relativeImports": 41
-    },
-    {
-      "file": "packages/tools/src/codebase-index/background-indexer.ts",
-      "lines": 965,
-      "relativeImports": 8
     },
     {
       "file": "packages/webui/src/components/SidePanel/SessionList.tsx",

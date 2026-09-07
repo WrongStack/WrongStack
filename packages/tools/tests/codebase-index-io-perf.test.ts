@@ -2,7 +2,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { assertPairingValid, captureLoad } from './bench-pairing.js';
 import {
   cancelPendingReindexes,
@@ -28,6 +28,19 @@ const summarize = (values: number[]) => ({
 
 describe('codebase-index controlled I/O benchmark', () => {
   const roots: string[] = [];
+  const previousInlineMode = process.env['WRONGSTACK_INDEX_INLINE'];
+
+  beforeAll(() => {
+    // This benchmark measures the controlled source-tree index path. Daemon
+    // IPC requires a separately launched built server and is not part of this
+    // deterministic suite.
+    process.env['WRONGSTACK_INDEX_INLINE'] = '1';
+  });
+
+  afterAll(() => {
+    if (previousInlineMode === undefined) delete process.env['WRONGSTACK_INDEX_INLINE'];
+    else process.env['WRONGSTACK_INDEX_INLINE'] = previousInlineMode;
+  });
 
   afterEach(async () => {
     cancelPendingReindexes();

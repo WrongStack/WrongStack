@@ -562,11 +562,14 @@ function reindexBatchKey(projectRoot: string, indexDir: string | undefined): str
 
 function settleReindexCompletions(
   completions: Set<{ resolve: () => void; reject: (err: unknown) => void }>,
-  error?: unknown,
+  _error?: unknown,
 ): void {
   for (const completion of completions) {
-    if (error === undefined) completion.resolve();
-    else completion.reject(error);
+    // Incremental reindexing is background work. Errors are delivered through
+    // onError, but the completion promise must settle successfully so callers
+    // that intentionally ignore the fire-and-forget return value cannot create
+    // an unhandled rejection.
+    completion.resolve();
   }
 }
 

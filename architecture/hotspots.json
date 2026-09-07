@@ -279,7 +279,7 @@
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {
-      "lines": 965,
+      "lines": 968,
       "relativeImports": 8
     },
     "packages/tools/src/codebase-index/indexer.ts": {

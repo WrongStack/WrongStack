@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-07T16:00:41.039Z
+**Generated:** 2026-09-07T16:28:36.634Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3672 |
-| Production source lines | 881274 |
+| Production source lines | 881277 |
 | Test files | 3108 |
 | Workspace dependency edges | 127 |
 | Relative module edges | 11569 |
@@ -129,8 +129,8 @@ None.
 | 974 | `packages/tui/src/app-state.ts` |
 | 973 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 970 | `packages/tui/src/app-key-handler.ts` |
+| 968 | `packages/tools/src/codebase-index/background-indexer.ts` |
 | 966 | `packages/core/src/coordination/director.ts` |
-| 965 | `packages/tools/src/codebase-index/background-indexer.ts` |
 | 965 | `packages/webui/src/components/SidePanel/SessionList.tsx` |
 | 961 | `apps/desktop/src/renderer/src/renderer.ts` |
 | 955 | `packages/plugins/src/prompt-firewall/index.ts` |
