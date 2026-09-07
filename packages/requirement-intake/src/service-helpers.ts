@@ -3,6 +3,8 @@ import {
   ANSWER_ID_PREFIX,
   ATTACHMENT_ID_PREFIX,
   INTAKE_PRIORITIES,
+  type IntakePriority,
+  type IntakeQuestionTemplate,
   MAX_ARRAY_ITEMS,
   MAX_ATTACHMENTS,
   MAX_RELATED_RESOURCES,
@@ -10,13 +12,11 @@ import {
   MAX_SUMMARY_LENGTH,
   MAX_TITLE_LENGTH,
   RELATED_RESOURCE_ID_PREFIX,
-  type IntakePriority,
-  type IntakeQuestionTemplate,
 } from './constants.js';
 import { IntakeValidationError, type IntakeValidationIssue } from './errors.js';
 import { buildInitialQuestions, upsertQuestion } from './questions.js';
-import { assertSuggestionString } from './suggestions.js';
 import { newIntakeId } from './store.js';
+import { assertSuggestionString } from './suggestions.js';
 import type {
   AddAnswerInput,
   AttachResourceInput,

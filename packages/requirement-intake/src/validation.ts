@@ -11,6 +11,7 @@ import {
   INTAKE_ATTACHMENT_KINDS,
   INTAKE_PRIORITIES,
   INTAKE_QUESTION_STATUSES,
+  type IntakeFieldSource,
   MAX_ANSWER_LENGTH,
   MAX_ARRAY_ITEMS,
   MAX_ATTACHMENTS,
@@ -25,7 +26,6 @@ import {
   MAX_TITLE_LENGTH,
   RELATED_RESOURCE_KINDS,
   REQUEST_TYPES,
-  type IntakeFieldSource,
   type RequestType,
 } from './constants.js';
 import { IntakeValidationError, type IntakeValidationIssue } from './errors.js';
@@ -150,6 +150,8 @@ export const createIntakeSchema = z
     idempotencyKey: z.string().trim().max(MAX_IDEMPOTENCY_KEY_LENGTH).optional(),
     knownFields: z.array(z.string().trim().min(1).max(64)).max(MAX_ARRAY_ITEMS).optional(),
     questions: z.array(questionTemplateInputSchema).max(50).optional(),
+    isVibeMode: z.boolean().optional(),
+    vibeProtocol: z.any().optional(),
   })
   .strict();
 
@@ -165,6 +167,8 @@ export const updateIntakeSchema = z
     constraints: optionalStringArray,
     providedContext: optionalStringArray,
     metadata: metadataSchema.optional(),
+    isVibeMode: z.boolean().optional(),
+    vibeProtocol: z.any().optional(),
   })
   .strict();
 
@@ -266,7 +270,10 @@ export function deterministicSummary(originalRequest: string, maxLength = 240): 
 
 /** Deterministic fallback title derived from the original request. */
 export function deterministicTitle(originalRequest: string, maxLength = MAX_TITLE_LENGTH): string {
-  const firstLine = originalRequest.split(/\r?\n/, 1)[0]?.trim() ?? '';
+  const newlineIdx = originalRequest.search(/\r?\n/);
+  const firstLine = (
+    newlineIdx >= 0 ? originalRequest.slice(0, newlineIdx) : originalRequest
+  ).trim();
   if (firstLine.length === 0) return 'Untitled request';
   if (firstLine.length <= maxLength) return firstLine;
   return `${firstLine.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;

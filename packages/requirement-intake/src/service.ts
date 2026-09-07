@@ -13,14 +13,15 @@
  * The original request is immutable after creation: no API path can change
  * `originalRequest`, and LLM suggestions can never write to it.
  */
+
+import type { IntakeAuthorizer, IntakeOperation } from './authorization.js';
 import {
   DEFAULT_INTAKE_QUESTIONS,
   INTAKE_FIELDS,
-  MAX_SUGGESTIONS,
   type IntakeQuestionTemplate,
   type IntakeStatus,
+  MAX_SUGGESTIONS,
 } from './constants.js';
-import type { IntakeAuthorizer, IntakeOperation } from './authorization.js';
 import {
   IntakeAuthorizationError,
   IntakeConflictError,
@@ -30,16 +31,28 @@ import {
   IntakeValidationError,
 } from './errors.js';
 import { IntakeEventEmitter } from './events.js';
-import { isMutableStatus, assertTransition } from './lifecycle.js';
+import { assertTransition, isMutableStatus } from './lifecycle.js';
 import { type IntakeLogger, NoopIntakeLogger } from './logger.js';
-import { type IntakeMetrics, InMemoryIntakeMetrics } from './metrics.js';
+import { InMemoryIntakeMetrics, type IntakeMetrics } from './metrics.js';
 import { pendingQuestions } from './questions.js';
+import {
+  applyAnswerToRecord,
+  applyAnswerUpdateToRecord,
+  applyAttachmentToRecord,
+  applyOptionalString,
+  applyRelatedResourceToRecord,
+  applySuggestionProposal,
+  assertIntakeSubmitReady,
+  buildNewIntakeRecord,
+  findSuggestionProposal,
+  markUserSources,
+} from './service-helpers.js';
+import type { RequirementIntakeStore, StoreUpdateOptions } from './store.js';
 import {
   type LlmSuggestionGenerator,
   toProposals,
   validateLlmSuggestionOutput,
 } from './suggestions.js';
-import type { RequirementIntakeStore, StoreUpdateOptions } from './store.js';
 import type {
   AddAnswerInput,
   AttachResourceInput,
@@ -59,18 +72,6 @@ import {
   validateCreateInput,
   validateUpdateInput,
 } from './validation.js';
-import {
-  applyAnswerToRecord,
-  applyAnswerUpdateToRecord,
-  applyAttachmentToRecord,
-  applyOptionalString,
-  applyRelatedResourceToRecord,
-  applySuggestionProposal,
-  assertIntakeSubmitReady,
-  buildNewIntakeRecord,
-  findSuggestionProposal,
-  markUserSources,
-} from './service-helpers.js';
 
 export interface RequirementIntakeServiceOptions {
   store: RequirementIntakeStore;

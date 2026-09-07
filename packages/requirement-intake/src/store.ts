@@ -24,7 +24,7 @@ import {
   ulid,
   withFileLock,
 } from '@wrongstack/core/utils';
-import { MAX_HISTORY_ENTRIES, type IntakeStatus } from './constants.js';
+import { type IntakeStatus, MAX_HISTORY_ENTRIES } from './constants.js';
 import { IntakeConflictError, IntakeNotFoundError } from './errors.js';
 import type { ChangeHistoryEntry, RequirementIntakeRecord } from './types.js';
 

@@ -13,8 +13,8 @@
 import { ulid } from '@wrongstack/core/utils';
 import {
   DEFAULT_INTAKE_QUESTIONS,
-  QUESTION_ID_PREFIX,
   type IntakeQuestionTemplate,
+  QUESTION_ID_PREFIX,
 } from './constants.js';
 import type { CreateIntakeInput, IntakeQuestion, RequirementIntakeRecord } from './types.js';
 

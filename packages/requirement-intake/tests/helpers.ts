@@ -10,8 +10,8 @@ import { IntakeEventEmitter } from '../src/events.js';
 import { InMemoryIntakeLogger } from '../src/logger.js';
 import { InMemoryIntakeMetrics } from '../src/metrics.js';
 import { RequirementIntakeService } from '../src/service.js';
-import type { LlmSuggestionGenerator, LlmSuggestionOutput } from '../src/suggestions.js';
 import { RequirementIntakeStore } from '../src/store.js';
+import type { LlmSuggestionGenerator, LlmSuggestionOutput } from '../src/suggestions.js';
 import type { IntakeContext, IntakeEvent } from '../src/types.js';
 
 export interface Harness {

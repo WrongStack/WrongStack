@@ -9,19 +9,20 @@
  *  5. accept/reject is an explicit user decision,
  *  6. never controls persistence, authorization, or workflow state directly.
  */
-import { z } from 'zod';
+
 import { ulid } from '@wrongstack/core/utils';
+import { z } from 'zod';
 import {
   INTAKE_PRIORITIES,
+  type IntakePriority,
   MAX_ANSWER_LENGTH,
   MAX_ARRAY_ITEMS,
   MAX_QUESTION_LENGTH,
   MAX_STRING_FIELD_LENGTH,
   MAX_SUMMARY_LENGTH,
   MAX_TITLE_LENGTH,
-  SUGGESTION_ID_PREFIX,
-  type IntakePriority,
   type RequestType,
+  SUGGESTION_ID_PREFIX,
   type SuggestionKind,
 } from './constants.js';
 import { IntakeSuggestionError, IntakeValidationError } from './errors.js';

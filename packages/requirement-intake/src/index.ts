@@ -6,192 +6,184 @@
  * development; this module never plans, specifies, or implements.
  */
 
+// Authorization
+export {
+  AllowAllIntakeAuthorizer,
+  DenyAllIntakeAuthorizer,
+  INTAKE_OPERATIONS,
+  type IntakeAuthorizer,
+  type IntakeOperation,
+  ProjectMembershipIntakeAuthorizer,
+  type ProjectMembershipIntakeAuthorizerOptions,
+} from './authorization.js';
 // Constants & enums
 export {
-  INTAKE_ID_PREFIX,
-  REQUEST_TYPES,
-  INTAKE_STATUSES,
-  INTAKE_PRIORITIES,
+  DEFAULT_INTAKE_QUESTIONS,
+  INTAKE_ATTACHMENT_KINDS,
   INTAKE_FIELD_SOURCES,
   INTAKE_FIELDS,
-  INTAKE_ATTACHMENT_KINDS,
-  RELATED_RESOURCE_KINDS,
+  INTAKE_ID_PREFIX,
+  INTAKE_PRIORITIES,
   INTAKE_QUESTION_STATUSES,
-  SUGGESTION_STATUSES,
-  SUGGESTION_KINDS,
-  MAX_REQUEST_LENGTH,
-  MAX_TITLE_LENGTH,
-  MAX_SUMMARY_LENGTH,
-  MAX_STRING_FIELD_LENGTH,
+  INTAKE_STATUSES,
+  type IntakeAttachmentKind,
+  type IntakeField,
+  type IntakeFieldSource,
+  type IntakePriority,
+  type IntakeQuestionStatus,
+  type IntakeQuestionTemplate,
+  type IntakeStatus,
+  MAX_ANSWER_LENGTH,
   MAX_ARRAY_ITEMS,
   MAX_ATTACHMENTS,
-  MAX_RELATED_RESOURCES,
-  MAX_METADATA_ENTRIES,
-  MAX_METADATA_BYTES,
-  MAX_ANSWER_LENGTH,
-  MAX_IDEMPOTENCY_KEY_LENGTH,
-  MAX_REFERENCE_LENGTH,
-  MAX_QUESTION_LENGTH,
   MAX_HISTORY_ENTRIES,
+  MAX_IDEMPOTENCY_KEY_LENGTH,
+  MAX_METADATA_BYTES,
+  MAX_METADATA_ENTRIES,
+  MAX_QUESTION_LENGTH,
+  MAX_REFERENCE_LENGTH,
+  MAX_RELATED_RESOURCES,
+  MAX_REQUEST_LENGTH,
+  MAX_STRING_FIELD_LENGTH,
   MAX_SUGGESTIONS,
-  DEFAULT_INTAKE_QUESTIONS,
-  type RequestType,
-  type IntakeStatus,
-  type IntakePriority,
-  type IntakeFieldSource,
-  type IntakeField,
-  type IntakeAttachmentKind,
+  MAX_SUMMARY_LENGTH,
+  MAX_TITLE_LENGTH,
+  RELATED_RESOURCE_KINDS,
+  REQUEST_TYPES,
   type RelatedResourceKind,
-  type IntakeQuestionStatus,
-  type SuggestionStatus,
+  type RequestType,
+  SUGGESTION_KINDS,
+  SUGGESTION_STATUSES,
   type SuggestionKind,
-  type IntakeQuestionTemplate,
+  type SuggestionStatus,
 } from './constants.js';
-
-// Types
-export {
-  INTAKE_EVENT_NAMES,
-  type IntakeActor,
-  type IntakeContext,
-  type IntakeAttachment,
-  type RelatedResource,
-  type IntakeAnswer,
-  type IntakeQuestion,
-  type ChangeHistoryEntry,
-  type LlmSuggestionProposal,
-  type RequirementIntakeRecord,
-  type CreateIntakeInput,
-  type IntakeAttachmentInput,
-  type RelatedResourceInput,
-  type IntakeQuestionTemplateInput,
-  type UpdateIntakeInput,
-  type AddAnswerInput,
-  type AttachResourceInput,
-  type IntakeEvent,
-  type IntakeEventName,
-} from './types.js';
 
 // Errors
 export {
+  IntakeAuthorizationError,
+  IntakeConflictError,
   IntakeError,
-  IntakeValidationError,
+  type IntakeErrorCode,
   IntakeNotFoundError,
   IntakeStateTransitionError,
   IntakeStatusLockedError,
-  IntakeConflictError,
-  IntakeAuthorizationError,
   IntakeSuggestionError,
-  type IntakeErrorCode,
+  IntakeValidationError,
   type IntakeValidationIssue,
 } from './errors.js';
-
-// Validation
-export {
-  requestTypeSchema,
-  prioritySchema,
-  metadataSchema,
-  attachmentInputSchema,
-  relatedResourceInputSchema,
-  questionTemplateInputSchema,
-  createIntakeSchema,
-  updateIntakeSchema,
-  answerInputSchema,
-  attachResourceInputSchema,
-  normalizeRequestType,
-  isBlank,
-  parseWithIssues,
-  validateCreateInput,
-  validateUpdateInput,
-  validateAnswerInput,
-  validateAttachResourceInput,
-  validateAttachmentInput,
-  validateRelatedResourceInput,
-  validateQuestionTemplateInput,
-  validateFieldSource,
-  deterministicSummary,
-  deterministicTitle,
-} from './validation.js';
+export { IntakeEventEmitter } from './events.js';
 
 // Lifecycle
 export {
   ALLOWED_TRANSITIONS,
-  MUTABLE_STATUSES,
-  canTransition,
   assertTransition,
+  canTransition,
+  isKnownStatus,
   isMutableStatus,
   isTerminalStatus,
-  isKnownStatus,
+  MUTABLE_STATUSES,
 } from './lifecycle.js';
-
-// Questions
-export { buildInitialQuestions, pendingQuestions, upsertQuestion } from './questions.js';
-
-// Authorization
-export {
-  INTAKE_OPERATIONS,
-  AllowAllIntakeAuthorizer,
-  DenyAllIntakeAuthorizer,
-  ProjectMembershipIntakeAuthorizer,
-  type IntakeAuthorizer,
-  type IntakeOperation,
-  type ProjectMembershipIntakeAuthorizerOptions,
-} from './authorization.js';
-
 // Observability
 export {
-  NoopIntakeLogger,
   InMemoryIntakeLogger,
-  type IntakeLogger,
   type IntakeLogFields,
+  type IntakeLogger,
+  NoopIntakeLogger,
 } from './logger.js';
 export {
   INTAKE_COUNTERS,
   INTAKE_TIMERS,
-  NoopIntakeMetrics,
   InMemoryIntakeMetrics,
   type IntakeCounter,
-  type IntakeTimer,
   type IntakeMetrics,
+  type IntakeTimer,
+  NoopIntakeMetrics,
 } from './metrics.js';
-export { IntakeEventEmitter } from './events.js';
-
-// Store
-export {
-  RequirementIntakeStore,
-  newIntakeId,
-  type RequirementIntakeStoreOptions,
-  type IntakeIndexEntry,
-  type StoreUpdateOptions,
-  type StoreCreateResult,
-} from './store.js';
-
-// Suggestions
-export {
-  llmSuggestionOutputSchema,
-  validateLlmSuggestionOutput,
-  toProposals,
-  assertSuggestionString,
-  type LlmSuggestionRequest,
-  type LlmSuggestionOutput,
-  type LlmSuggestionGenerator,
-  type NormalizedLlmSuggestion,
-} from './suggestions.js';
-
+// Questions
+export { buildInitialQuestions, pendingQuestions, upsertQuestion } from './questions.js';
 // Service
 export {
+  type IntakeCreateResult,
+  type IntakeListFilter,
+  type IntakeSubmitResult,
   RequirementIntakeService,
   type RequirementIntakeServiceOptions,
-  type IntakeCreateResult,
-  type IntakeSubmitResult,
-  type IntakeListFilter,
 } from './service.js';
+// Store
+export {
+  type IntakeIndexEntry,
+  newIntakeId,
+  RequirementIntakeStore,
+  type RequirementIntakeStoreOptions,
+  type StoreCreateResult,
+  type StoreUpdateOptions,
+} from './store.js';
+// Suggestions
+export {
+  assertSuggestionString,
+  type LlmSuggestionGenerator,
+  type LlmSuggestionOutput,
+  type LlmSuggestionRequest,
+  llmSuggestionOutputSchema,
+  type NormalizedLlmSuggestion,
+  toProposals,
+  validateLlmSuggestionOutput,
+} from './suggestions.js';
+// Types
+export {
+  type AddAnswerInput,
+  type AttachResourceInput,
+  type ChangeHistoryEntry,
+  type CreateIntakeInput,
+  INTAKE_EVENT_NAMES,
+  type IntakeActor,
+  type IntakeAnswer,
+  type IntakeAttachment,
+  type IntakeAttachmentInput,
+  type IntakeContext,
+  type IntakeEvent,
+  type IntakeEventName,
+  type IntakeQuestion,
+  type IntakeQuestionTemplateInput,
+  type LlmSuggestionProposal,
+  type RelatedResource,
+  type RelatedResourceInput,
+  type RequirementIntakeRecord,
+  type UpdateIntakeInput,
+} from './types.js';
+// Validation
+export {
+  answerInputSchema,
+  attachmentInputSchema,
+  attachResourceInputSchema,
+  createIntakeSchema,
+  deterministicSummary,
+  deterministicTitle,
+  isBlank,
+  metadataSchema,
+  normalizeRequestType,
+  parseWithIssues,
+  prioritySchema,
+  questionTemplateInputSchema,
+  relatedResourceInputSchema,
+  requestTypeSchema,
+  updateIntakeSchema,
+  validateAnswerInput,
+  validateAttachmentInput,
+  validateAttachResourceInput,
+  validateCreateInput,
+  validateFieldSource,
+  validateQuestionTemplateInput,
+  validateRelatedResourceInput,
+  validateUpdateInput,
+} from './validation.js';
 
 // Vibe Protocol
 export {
-  VIBE_TAG_REGEX,
+  deriveVibeState,
   hasVibeTag,
   stripVibeTag,
-  deriveVibeState,
+  VIBE_TAG_REGEX,
   type VibeProtocolStage,
   type VibeProtocolState,
 } from './vibe.js';
