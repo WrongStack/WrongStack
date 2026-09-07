@@ -232,6 +232,11 @@
       "fingerprint": "3c611f3df7189b61"
     },
     {
+      "file": "packages/sage/tests/project-server-client-respawn.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "58d00f7ced87f24e"
+    },
+    {
       "file": "packages/tools/tests/_win32-resolve.test.ts",
       "kind": "skipIf",
       "fingerprint": "1c95f6dfd19e4e92"
