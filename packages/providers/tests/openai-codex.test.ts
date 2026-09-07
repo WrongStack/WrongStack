@@ -110,6 +110,32 @@ describe('codexCacheSessionId', () => {
   });
 });
 
+describe('Responses response.metadata', () => {
+  it('captures normalized headers and request metadata', async () => {
+    const metadata: unknown[] = [];
+    const stream = parseOpenAIResponsesStream(
+      sseBody(`data: {"type":"response.metadata","metadata":{"headers":{"X-Codex-Turn-State":"state-1","X-Models-Etag":"etag-1"},"request_id":"req-1","model":"gpt-5-codex"}}
+
+data: {"type":"response.completed","response":{"status":"completed"}}
+
+`),
+      'gpt-5-codex',
+      'openai-codex',
+      (value) => metadata.push(value),
+    );
+    for await (const _event of stream) {
+      // Drain the stream so metadata delivery is exercised.
+    }
+    expect(metadata).toEqual([
+      {
+        headers: { 'x-codex-turn-state': 'state-1', 'x-models-etag': 'etag-1' },
+        requestId: 'req-1',
+        model: 'gpt-5-codex',
+      },
+    ]);
+  });
+});
+
 describe('OpenAICodexProvider live context limit', () => {
   it.each([
     [1_050_000, 1_033_616],

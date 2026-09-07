@@ -19,9 +19,30 @@
  * @module oauth/codex-models
  */
 
+import { createRequire } from 'node:module';
 import { CODEX_MODELS } from '@wrongstack/core/models';
 import type { ModelsRegistry } from '@wrongstack/core/types';
 import { CODEX_BASE_URL, CODEX_ORIGINATOR } from './codex-protocol.js';
+
+/**
+ * The backend requires a semver `client_version` on /models — missing or
+ * invalid values are rejected with 400 "Invalid client_version format", and
+ * models whose `minimal_client_version` exceeds it are gated away. This must
+ * be the providers package's own version: the same value the production
+ * `fetchContextLimits` probe in `../openai-codex.ts` sends.
+ */
+const CODEX_MODELS_CLIENT_VERSION = ((): string => {
+  const req = createRequire(import.meta.url);
+  for (const rel of ['../../package.json', '../../../package.json']) {
+    try {
+      const pkg = req(rel) as { version?: unknown };
+      if (typeof pkg.version === 'string' && pkg.version.length > 0) return pkg.version;
+    } catch {
+      // try the next candidate
+    }
+  }
+  return '0.309.1';
+})();
 
 /** Model-listing request timeout. Short: this is best-effort enrichment. */
 const MODELS_TIMEOUT_MS = 8_000;
@@ -69,7 +90,9 @@ export async function fetchCodexModels(
   baseUrl?: string | undefined,
   signal?: AbortSignal,
 ): Promise<string[]> {
-  const url = `${(baseUrl ?? CODEX_BASE_URL).replace(/\/+$/, '')}/models`;
+  const url = `${(baseUrl ?? CODEX_BASE_URL).replace(/\/+$/, '')}/models?client_version=${encodeURIComponent(
+    CODEX_MODELS_CLIENT_VERSION,
+  )}`;
   try {
     const res = await fetch(url, {
       headers: {
@@ -84,8 +107,8 @@ export async function fetchCodexModels(
     });
     if (!res.ok) return [];
     const json = (await res.json()) as
-      | { data?: Array<{ id?: string }> }
-      | { models?: Array<{ id?: string }> }
+      | { data?: Array<{ id?: string; slug?: string }> }
+      | { models?: Array<{ id?: string; slug?: string }> }
       | null;
     if (!json) return [];
     // Standard OpenAI-compatible is `{ data: [...] }`; some deployments answer
@@ -99,7 +122,10 @@ export async function fetchCodexModels(
     const ids: string[] = [];
     for (const entry of rawList) {
       if (!entry || typeof entry !== 'object') continue;
-      const id = (entry as Record<string, unknown>).id;
+      // The live ChatGPT backend identifies models by `slug` and omits `id`;
+      // accept either so the identifier survives both response dialects.
+      const rec = entry as Record<string, unknown>;
+      const id = rec.id ?? rec.slug;
       if (typeof id === 'string' && id.length > 0) ids.push(id);
     }
     return ids;

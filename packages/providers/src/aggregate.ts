@@ -1,4 +1,3 @@
-import { expectDefined } from '@wrongstack/core/utils';
 import type {
   ContentBlock,
   Response,
@@ -6,6 +5,7 @@ import type {
   StreamEvent,
   Usage,
 } from '@wrongstack/core/types';
+import { expectDefined } from '@wrongstack/core/utils';
 import { parseToolInput } from './_tool-input.js';
 /**
  * Consume an `AsyncIterable<StreamEvent>` and reduce it to a non-streaming
@@ -145,6 +145,17 @@ export async function aggregateStream(
         if (t) t.signature = ev.signature;
         break;
       }
+      case 'thinking_meta': {
+        if (currentThinkingIndex === -1 || !thinkingBuffers[currentThinkingIndex]) {
+          currentTextIndex = -1;
+          currentThinkingIndex = thinkingBuffers.length;
+          thinkingBuffers.push({ chunks: [] });
+          blockOrder.push({ kind: 'thinking', idx: currentThinkingIndex });
+        }
+        const t = thinkingBuffers[currentThinkingIndex];
+        if (t) t.providerMeta = { ...t.providerMeta, ...ev.providerMeta };
+        break;
+      }
       case 'thinking_stop': {
         currentThinkingIndex = -1;
         currentTextIndex = -1;
@@ -170,7 +181,7 @@ export async function aggregateStream(
       const thinkingText = t?.chunks.join('') ?? '';
       // Drop completely empty thinking blocks — emitting one would make
       // Anthropic 400 on the round-trip ("thinking: cannot be empty").
-      if (!t || (!thinkingText && !t.signature)) continue;
+      if (!t || (!thinkingText && !t.signature && !t.providerMeta)) continue;
       const block: ContentBlock = { type: 'thinking', thinking: thinkingText };
       if (t.signature) (block as { signature?: string | undefined }).signature = t.signature;
       if (t.providerMeta && Object.keys(t.providerMeta).length > 0) {

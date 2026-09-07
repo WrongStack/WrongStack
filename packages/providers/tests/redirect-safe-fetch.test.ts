@@ -167,4 +167,28 @@ describe('redirectSafeFetch', () => {
     });
     expect(res.ok).toBe(true);
   });
+
+  // Regression for J2 (NEW-02): the previous redirect loop only
+  // checked the protocol of the redirect target — a provider
+  // endpoint that 302s to `http://169.254.169.254/…` (AWS IMDS) or
+  // to any loopback service was followed and the redirected
+  // request went out with the same headers. The fix rejects
+  // literal-IP redirect targets that classify as private/loopback.
+  it('rejects a redirect to a literal loopback IP', async () => {
+    const impl = vi.fn(async () => response(307, 'http://127.0.0.1:8080/internal'));
+    await expect(
+      redirectSafeFetch(impl as unknown as typeof fetch, 'https://api.example/v1', {
+        headers: { 'x-api-key': 'secret' },
+      }),
+    ).rejects.toThrow(/private\/loopback/);
+  });
+
+  it('rejects a redirect to a literal link-local metadata IP (169.254.169.254)', async () => {
+    const impl = vi.fn(async () => response(302, 'http://169.254.169.254/latest/meta-data/'));
+    await expect(
+      redirectSafeFetch(impl as unknown as typeof fetch, 'https://api.example/v1', {
+        headers: { 'x-api-key': 'secret' },
+      }),
+    ).rejects.toThrow(/private\/loopback/);
+  });
 });

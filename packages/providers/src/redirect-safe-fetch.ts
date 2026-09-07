@@ -20,8 +20,37 @@
  * answers 401 — visible and debuggable — instead of silently receiving the key.
  */
 
+import { isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils/ip-guard';
+
 /** Redirect hops to follow before giving up. Matches undici's default. */
 const MAX_REDIRECTS = 20;
+
+/**
+ * J2 (NEW-02): reject redirect targets whose host is a literal
+ * private / loopback / metadata address. The DNS-rebinding vector
+ * (a hostname that resolves to a private IP at dial time) is a
+ * separate gap and is closed by `guardedFetch`'s pinned dispatcher
+ * for outbound provider traffic; this function closes the
+ * lower-effort literal-host case (e.g. `http://169.254.169.254/…`)
+ * that the original `redirect-safe-fetch` missed while still
+ * advertising "Verified clean".
+ */
+function assertNotPrivateRedirectHost(url: URL): void {
+  const host = url.hostname;
+  if (!host) throw new Error(`redirect to URL with no host: ${url}`);
+  // Only literal IP addresses are checked here — a hostname's
+  // resolved-IP rebinding case is the separate `guardedFetch` /
+  // pinned-dispatcher concern. `isPrivateIPv4` returns true for
+  // any string that is not a dotted-quad, and `isPrivateIPv6`
+  // returns true for any string that fails IPv6 expansion
+  // (deliberately conservative for *untrusted input*); together
+  // that would classify every hostname as private, which is the
+  // opposite of what we want. Restrict the literal check to inputs
+  // that look like an IP (digits/colons/dots, no letters).
+  if (/^[0-9.:]+$/.test(host) && (isPrivateIPv4(host) || isPrivateIPv6(host))) {
+    throw new Error(`redirect to private/loopback host blocked: ${url}`);
+  }
+}
 
 /**
  * Header names that carry a credential.
@@ -150,6 +179,13 @@ export async function redirectSafeFetch(
 
     const nextUrl = nextUrlParsed.toString();
     if (!sameOrigin(currentUrl, nextUrl)) headers = stripCredentials(headers);
+    // J2: revalidate the redirect target's resolved IP against the
+    // private/loopback classifier before letting `fetch` dial it.
+    // This runs *before* the protocol check's throw above for cross-
+    // origin hops, and on same-origin hops too — a compromised CDN
+    // that points a single-origin endpoint at a private address is
+    // the same hazard at a smaller blast radius.
+    assertNotPrivateRedirectHost(nextUrlParsed);
 
     // 301/302 after a POST, and 303 after any method except HEAD, become GET
     // without a body — the same normalisation fetch performs internally.

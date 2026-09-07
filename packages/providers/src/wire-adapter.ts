@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream';
 import type {
   Capabilities,
   Provider,
@@ -6,13 +7,12 @@ import type {
   StreamEvent,
 } from '@wrongstack/core/types';
 import { ConfigError, ParseError, ProviderError, StreamHangError } from '@wrongstack/core/types';
-import { parseProviderHttpError, type HeadersLike } from './error-parse.js';
+import { toErrorMessage } from '@wrongstack/core/utils';
+import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import type { BuildBodyContext } from './model-output-limits.js';
-import { isDebugStreamEnabled, pushDebugChunkStats } from './stream-debug-state.js';
 import { isNodeReadable } from './object-utils.js';
 import { redirectSafeFetch } from './redirect-safe-fetch.js';
-import { Readable } from 'node:stream';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { isDebugStreamEnabled, pushDebugChunkStats } from './stream-debug-state.js';
 import { filterToolsByMaxCount } from './tool-priority.js';
 
 const STREAM_DEBUG_TEXT_ENCODER = new TextEncoder();
@@ -319,6 +319,17 @@ export abstract class WireAdapter implements Provider {
         throw this.translateError(httpRes.status, text, httpRes.headers);
       }
 
+      // Successful-response headers carry out-of-band signals that never appear
+      // in the SSE body: subscription quota (`x-codex-*`), sticky routing
+      // tokens, catalog etags. `translateError` already receives the headers on
+      // the failure path; this is the same courtesy for the success path.
+      // Base implementation is a no-op, so no wire family pays for it.
+      try {
+        this.onResponseHeaders(httpRes.headers, effectiveReq);
+      } catch {
+        // Observability must never break a live stream.
+      }
+
       let sseBody = httpRes.body;
       if (!sseBody) {
         // No body — emit nothing
@@ -569,6 +580,15 @@ export abstract class WireAdapter implements Provider {
     fallbackModel: string,
     req: Request,
   ): AsyncIterable<StreamEvent>;
+
+  /**
+   * Observe the headers of a **successful** response, before the body is read.
+   *
+   * Called once per request, inside a try/catch — an override may record
+   * telemetry or capture routing state but must not assume it can fail loudly.
+   * The default implementation does nothing.
+   */
+  protected onResponseHeaders(_headers: HeadersLike | undefined, _req: Request): void {}
 
   /** Build a ProviderError from an HTTP failure response. `headers` (when the
    *  fetch impl provides them) lets the parser honour Retry-After hints. */

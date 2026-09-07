@@ -58,7 +58,8 @@ function mergeAnthropicUsage(state: AnthropicStreamState, u: AnthropicUsageWire 
   if (!u) return;
   if (u.input_tokens !== undefined) state.usage.input = nonNegative(u.input_tokens);
   if (u.output_tokens !== undefined) state.usage.output = nonNegative(u.output_tokens);
-  if (u.cache_read_input_tokens !== undefined) state.usage.cacheRead = nonNegative(u.cache_read_input_tokens);
+  if (u.cache_read_input_tokens !== undefined)
+    state.usage.cacheRead = nonNegative(u.cache_read_input_tokens);
   if (u.cache_creation?.ephemeral_5m_input_tokens !== undefined) {
     state.usage.cacheWrite5m = nonNegative(u.cache_creation.ephemeral_5m_input_tokens);
   }
@@ -373,7 +374,18 @@ function deriveThinkingBudget(
  */
 function normalizeMessageContent(m: Message): unknown {
   if (typeof m.content === 'string') return m.content;
-  return (m.content as ContentBlock[]).map((b) => sanitizeAnthropicBlock(b));
+  return (
+    (m.content as ContentBlock[])
+      // A thinking block with no text is rejected outright
+      // ("content[].thinking.thinking: cannot be empty"). Other wires legitimately
+      // produce one — the Codex Responses wire returns reasoning whose value is
+      // the encrypted payload in `providerMeta`, with the summary text often
+      // empty — and a history built there can reach Anthropic through a `/model`
+      // switch or a fallback hop. Dropping it is the correct translation: the
+      // payload means nothing to this provider anyway.
+      .filter((b) => b.type !== 'thinking' || b.thinking.length > 0)
+      .map((b) => sanitizeAnthropicBlock(b))
+  );
 }
 
 /**

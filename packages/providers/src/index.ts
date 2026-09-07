@@ -1,7 +1,5 @@
 import { CODEX_MODELS } from '@wrongstack/core/models';
 import type { ProviderFactory } from '@wrongstack/core/registry';
-import { ConfigError } from '@wrongstack/core/types';
-import { expectDefined } from '@wrongstack/core/utils';
 import type {
   Logger,
   ModelsRegistry,
@@ -11,42 +9,144 @@ import type {
   ResolvedProvider,
   WireFamily,
 } from '@wrongstack/core/types';
-import { ERROR_CODES, WrongStackError } from '@wrongstack/core/types';
+import { ConfigError, ERROR_CODES, WrongStackError } from '@wrongstack/core/types';
+import { expectDefined } from '@wrongstack/core/utils';
 import { AiGatewayProvider, createAiGatewayProviderFactory } from './ai-gateway.js';
-import { CATALOG_ALIAS_BY_PROVIDER_TYPE, capabilitiesFor } from './capabilities.js';
 import { AnthropicProvider } from './anthropic.js';
 import { AnthropicOAuthProvider } from './anthropic-oauth.js';
+import { CATALOG_ALIAS_BY_PROVIDER_TYPE, capabilitiesFor } from './capabilities.js';
 import { GitHubCopilotProvider } from './github-copilot.js';
 import { GoogleProvider } from './google.js';
-import { OpenAICodexProvider } from './openai-codex.js';
 import { MiniMaxProvider } from './minimax.js';
-import { OpenCodeZenProvider } from './opencode.js';
-import { OpenCodeGoProvider } from './opencode-go.js';
+import { OpenAIProvider } from './openai.js';
+import { OpenAICodexProvider } from './openai-codex.js';
 import {
   type CompatibilityQuirks,
   isCompatibilityQuirks,
   OpenAICompatibleProvider,
 } from './openai-compatible.js';
-import { OpenAIProvider } from './openai.js';
+import { OpenCodeZenProvider } from './opencode.js';
+import { OpenCodeGoProvider } from './opencode-go.js';
+import { lmstudioWireFormat, ollamaWireFormat, vllmWireFormat } from './presets/local-llm.js';
+import { mistralWireFormat } from './presets/mistral.js';
 import { projectCompatibleProviderPresets } from './provider-definitions.js';
 import { createWireFormatFactory } from './wire-format.js';
-import { mistralWireFormat } from './presets/mistral.js';
-import { ollamaWireFormat, vllmWireFormat, lmstudioWireFormat } from './presets/local-llm.js';
-export { AnthropicProvider, type AnthropicProviderOptions } from './anthropic.js';
-export { OpenAIProvider, type OpenAIProviderOptions } from './openai.js';
+
 export {
+  type AiGatewayFactoryOptions,
   AiGatewayProvider,
-  createAiGatewayProviderFactory,
+  type AiGatewayProviderOptions,
   convertAiSdkStreamPart,
   convertMessages as convertMessagesToAiSdk,
   convertTools as convertToolsToAiSdk,
   convertUsage as convertAiSdkUsage,
+  createAiGatewayProviderFactory,
   toProviderError as convertAiSdkProviderError,
-  type AiGatewayFactoryOptions,
-  type AiGatewayProviderOptions,
 } from './ai-gateway.js';
+export { AnthropicProvider, type AnthropicProviderOptions } from './anthropic.js';
+export {
+  type AnthropicOAuthCredentials,
+  AnthropicOAuthProvider,
+  type AnthropicOAuthProviderOptions,
+  type AnthropicOAuthTokens,
+  CLAUDE_CODE_SYSTEM_PROMPT,
+  refreshAnthropicOAuthToken,
+} from './anthropic-oauth.js';
+export {
+  type DiscoverOptions,
+  type DiscoveryTarget,
+  discoverOpenAICompatibleModels,
+  mapCompatibleModel,
+  resolveDiscoveryTargets,
+} from './auto-discover.js';
+export { ANTHROPIC_MAX_BREAKPOINTS, capAnthropicCacheBreakpoints } from './cache-breakpoint-cap.js';
+export {
+  CATALOG_ALIAS_BY_PROVIDER_TYPE,
+  capabilitiesFor,
+  catalogProviderIdFor,
+} from './capabilities.js';
+export { parseProviderHttpError } from './error-parse.js';
+export { CAPABILITIES_BY_FAMILY, capabilitiesForFamily } from './family-capabilities.js';
+export {
+  type CopilotCredentials,
+  type CopilotTokenResult,
+  copilotBaseUrlFromToken,
+  GitHubCopilotProvider,
+  type GitHubCopilotProviderOptions,
+  refreshCopilotToken,
+} from './github-copilot.js';
+export { GoogleProvider, type GoogleProviderOptions } from './google.js';
 export { MiniMaxProvider, type MiniMaxProviderOptions } from './minimax.js';
+export {
+  type BuildBodyContext,
+  clearModelOutputLimitResolver,
+  type InstallCatalogOutputLimitsOptions,
+  installCatalogModelOutputLimits,
+  type ModelOutputLimitResolver,
+  REQUIRED_FIELD_LAST_RESORT_MAX_OUTPUT,
+  resolveCatalogMaxOutput,
+  resolveMaxOutputTokens,
+  resolveRequiredMaxOutputTokens,
+  setModelOutputLimitResolver,
+} from './model-output-limits.js';
+export { OpenAIProvider, type OpenAIProviderOptions } from './openai.js';
+export {
+  type CodexCredentials,
+  type CodexOAuthTokens,
+  type CodexResponseMetadata,
+  codexOutputCap,
+  extractAccountId,
+  OpenAICodexProvider,
+  type OpenAICodexProviderOptions,
+  refreshCodexAccessToken,
+  resolveCodexModelsUrl,
+  resolveCodexUrl,
+  resolveCodexWebSocketUrl,
+} from './openai-codex.js';
+export { extractPlanType } from './openai-codex-account.js';
+export {
+  CodexWebSocketFallbackError,
+  CodexWebSocketPool,
+  defaultCodexWebSocketFactory,
+  type CodexResponsesParser,
+  type CodexWebSocketFactory,
+  type CodexWebSocketLike,
+  type CodexWebSocketOptions,
+  type CodexWebSocketStreamOptions,
+} from './codex-websocket.js';
+export {
+  CODEX_QUOTA_PROVIDER_ID,
+  parseCodexRateLimitEvent,
+  parseCodexRateLimitForLimit,
+  parseCodexRateLimitHeaders,
+} from './openai-codex-rate-limits.js';
+export {
+  type CompatibilityQuirks,
+  type OpenAICompatibleOptions,
+  OpenAICompatibleProvider,
+} from './openai-compatible.js';
 export { OpenCodeGoProvider, type OpenCodeGoProviderOptions } from './opencode-go.js';
+export { anthropicWireFormat } from './presets/anthropic.js';
+export { googleWireFormat } from './presets/google.js';
+export { lmstudioWireFormat, ollamaWireFormat, vllmWireFormat } from './presets/local-llm.js';
+export { mistralWireFormat } from './presets/mistral.js';
+export { openaiWireFormat } from './presets/openai.js';
+export {
+  type CompatibleProviderProjection,
+  LOCAL_PROVIDER_DEFINITIONS,
+  type LocalProviderPresetProjection,
+  type OpenAICompatiblePolicyId,
+  type PopularProviderProjection,
+  PROVIDER_DEFINITIONS,
+  type ProviderCatalogMetadata,
+  type ProviderDefinition,
+  type ProviderReferral,
+  type ProviderUsage,
+  projectCompatibleProviderPresets,
+  projectLocalProviderPresets,
+  projectPopularProviderCatalog,
+  resolveProviderDefinition,
+} from './provider-definitions.js';
 export {
   createSetupProviderFactory,
   isSetupProvider,
@@ -55,125 +155,44 @@ export {
   SETUP_PROVIDER_NAME,
   setupProviderResolved,
 } from './setup-provider.js';
+export { normalizeAnthropic, normalizeOpenAI } from './stop-reason.js';
 export {
-  OpenAICompatibleProvider,
-  type OpenAICompatibleOptions,
-  type CompatibilityQuirks,
-} from './openai-compatible.js';
+  type DebugStreamCallback,
+  type DebugStreamStats,
+  defaultDebugStreamCallback,
+  isDebugStreamEnabled,
+  pushDebugChunkStats,
+  setDebugStreamCallback,
+  setDebugStreamEnabled,
+} from './stream-debug-state.js';
+export { contentFromAnthropic } from './tool-format/from-anthropic.js';
+export { contentFromOpenAI, type OpenAIChoice } from './tool-format/from-openai.js';
+export { toolsToAnthropic } from './tool-format/to-anthropic.js';
 export {
-  TRUSTED_PROVIDER_PRESETS,
+  type ConvertOptions,
+  messagesToOpenAI,
+  type OpenAIMessage,
+  type OpenAIToolCall,
+  toolsToOpenAI,
+} from './tool-format/to-openai.js';
+export {
   buildProviderConfigFromPreset,
   getTrustedProviderPreset,
   isTrustedProviderId,
   listTrustedProviderPresetIds,
   rehydrateCanonicalProviderConfig,
   resolvePresetForAlias,
+  TRUSTED_PROVIDER_PRESETS,
   type TrustedProviderPreset,
 } from './trusted-presets.js';
-export { GoogleProvider, type GoogleProviderOptions } from './google.js';
-export {
-  codexOutputCap,
-  OpenAICodexProvider,
-  type OpenAICodexProviderOptions,
-  type CodexCredentials,
-  type CodexOAuthTokens,
-  refreshCodexAccessToken,
-  extractAccountId,
-  resolveCodexUrl,
-  resolveCodexModelsUrl,
-} from './openai-codex.js';
-export {
-  AnthropicOAuthProvider,
-  type AnthropicOAuthProviderOptions,
-  type AnthropicOAuthCredentials,
-  type AnthropicOAuthTokens,
-  refreshAnthropicOAuthToken,
-  CLAUDE_CODE_SYSTEM_PROMPT,
-} from './anthropic-oauth.js';
-export {
-  GitHubCopilotProvider,
-  type GitHubCopilotProviderOptions,
-  type CopilotCredentials,
-  type CopilotTokenResult,
-  refreshCopilotToken,
-  copilotBaseUrlFromToken,
-} from './github-copilot.js';
 export { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 export {
-  isDebugStreamEnabled,
-  setDebugStreamEnabled,
-  setDebugStreamCallback,
-  pushDebugChunkStats,
-  defaultDebugStreamCallback,
-  type DebugStreamStats,
-  type DebugStreamCallback,
-} from './stream-debug-state.js';
-export {
-  WireFormatProvider,
-  defineWireFormat,
   createWireFormatFactory,
-  type WireFormatConfig,
+  defineWireFormat,
   type WireFactoryOptions,
+  type WireFormatConfig,
+  WireFormatProvider,
 } from './wire-format.js';
-export { mistralWireFormat } from './presets/mistral.js';
-export { anthropicWireFormat } from './presets/anthropic.js';
-export { ANTHROPIC_MAX_BREAKPOINTS, capAnthropicCacheBreakpoints } from './cache-breakpoint-cap.js';
-export { openaiWireFormat } from './presets/openai.js';
-export { googleWireFormat } from './presets/google.js';
-export { ollamaWireFormat, vllmWireFormat, lmstudioWireFormat } from './presets/local-llm.js';
-export {
-  capabilitiesFor,
-  catalogProviderIdFor,
-  CATALOG_ALIAS_BY_PROVIDER_TYPE,
-} from './capabilities.js';
-export {
-  type BuildBodyContext,
-  clearModelOutputLimitResolver,
-  installCatalogModelOutputLimits,
-  type InstallCatalogOutputLimitsOptions,
-  type ModelOutputLimitResolver,
-  REQUIRED_FIELD_LAST_RESORT_MAX_OUTPUT,
-  resolveCatalogMaxOutput,
-  resolveMaxOutputTokens,
-  resolveRequiredMaxOutputTokens,
-  setModelOutputLimitResolver,
-} from './model-output-limits.js';
-export { capabilitiesForFamily, CAPABILITIES_BY_FAMILY } from './family-capabilities.js';
-export {
-  LOCAL_PROVIDER_DEFINITIONS,
-  PROVIDER_DEFINITIONS,
-  projectCompatibleProviderPresets,
-  projectLocalProviderPresets,
-  projectPopularProviderCatalog,
-  resolveProviderDefinition,
-  type CompatibleProviderProjection,
-  type LocalProviderPresetProjection,
-  type PopularProviderProjection,
-  type ProviderCatalogMetadata,
-  type ProviderDefinition,
-  type OpenAICompatiblePolicyId,
-  type ProviderReferral,
-  type ProviderUsage,
-} from './provider-definitions.js';
-export { parseProviderHttpError } from './error-parse.js';
-export { normalizeAnthropic, normalizeOpenAI } from './stop-reason.js';
-export { toolsToAnthropic } from './tool-format/to-anthropic.js';
-export { contentFromAnthropic } from './tool-format/from-anthropic.js';
-export {
-  toolsToOpenAI,
-  messagesToOpenAI,
-  type OpenAIMessage,
-  type OpenAIToolCall,
-  type ConvertOptions,
-} from './tool-format/to-openai.js';
-export { contentFromOpenAI, type OpenAIChoice } from './tool-format/from-openai.js';
-export {
-  discoverOpenAICompatibleModels,
-  mapCompatibleModel,
-  resolveDiscoveryTargets,
-  type DiscoverOptions,
-  type DiscoveryTarget,
-} from './auto-discover.js';
 
 /**
  * Built-in tuning for known openai-compatible providers that aren't in the

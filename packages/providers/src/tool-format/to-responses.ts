@@ -8,10 +8,26 @@
  *   - assistant tool call   → { type:'function_call', call_id, name, arguments }
  *   - tool result           → { type:'function_call_output', call_id, output }
  *
- * `thinking` blocks are intentionally dropped from the input: replaying them
- * would require the opaque `reasoning.encrypted_content` blob (which we don't
- * persist), and omitting them — plus omitting function-call item ids — sidesteps
- * the Responses reasoning/tool-call pairing validation entirely.
+ * `thinking` blocks are dropped by default: replaying them requires the opaque
+ * `reasoning.encrypted_content` blob, and omitting them — plus omitting
+ * function-call item ids — sidesteps the Responses reasoning/tool-call pairing
+ * validation entirely.
+ *
+ * The Codex (ChatGPT-login) transport opts back in via `includeReasoning`. It
+ * asks for `include: ['reasoning.encrypted_content']` and stores what comes
+ * back on the thinking block, so it CAN replay it — and must, for two reasons
+ * that both cost the user quota when skipped:
+ *
+ *   1. `store: false` means the backend keeps no server-side state. A reasoning
+ *      model that cannot see its own previous reasoning re-derives it every
+ *      turn, and those are billed reasoning tokens against a 5h/weekly window.
+ *   2. The cached prefix is the input array. Replaying the same reasoning items
+ *      the backend produced keeps the prefix byte-identical to what it already
+ *      has cached; synthesising a different history each turn does not.
+ *
+ * Only complete pairs are replayed (item id + encrypted content), and only when
+ * the assistant turn also produced the item that followed the reasoning — the
+ * Responses API rejects a reasoning item that is not followed by its output.
  */
 
 import type {
@@ -19,6 +35,7 @@ import type {
   ImageBlock,
   Message,
   TextBlock,
+  ThinkingBlock,
   Tool,
   ToolResultBlock,
   ToolUseBlock,
@@ -47,8 +64,7 @@ function stringifyToolInputOnce(input: Record<string, unknown>): string {
 export function toolsToResponses(tools: Tool[]): ResponsesTool[] {
   const hit = _toolCache.get(tools);
   if (hit) return hit;
-  const sorted =
-    tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
+  const sorted = tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
   const result = sorted.map((t): ResponsesTool => {
     const compact = compactToolDefinitionForWire(t);
     return {
@@ -73,7 +89,39 @@ function imageUrl(b: ImageBlock): string {
     : `data:${b.source.media_type ?? 'image/png'};base64,${b.source.data ?? ''}`;
 }
 
-export function messagesToResponsesInput(messages: Message[]): Record<string, unknown>[] {
+/**
+ * Keys under which the Codex transport stashes what it needs to replay a
+ * reasoning item: the server's item id and the encrypted payload.
+ *
+ * Deliberately `providerMeta` and not `signature`. `signature` is echoed
+ * verbatim by the Anthropic wire, so parking an OpenAI blob there would poison
+ * every history that later crosses to Claude via a `/model` switch or a
+ * fallback hop. `providerMeta` is stripped at that boundary by design.
+ */
+export const CODEX_REASONING_ID_META = 'codexReasoningId';
+export const CODEX_REASONING_ENCRYPTED_META = 'codexReasoningEncrypted';
+
+export interface ResponsesInputOptions {
+  /**
+   * Replay assistant reasoning items that carry both a server item id and
+   * encrypted content. Off by default — only the Codex transport requests the
+   * encrypted payload, and replaying a half-formed reasoning item is a 400.
+   */
+  includeReasoning?: boolean | undefined;
+}
+
+/** The reasoning item for a thinking block, or null when it cannot be replayed. */
+function reasoningItem(block: ThinkingBlock): Record<string, unknown> | null {
+  const id = block.providerMeta?.[CODEX_REASONING_ID_META];
+  const encrypted = block.providerMeta?.[CODEX_REASONING_ENCRYPTED_META];
+  if (typeof id !== 'string' || !id || typeof encrypted !== 'string' || !encrypted) return null;
+  return { type: 'reasoning', id, encrypted_content: encrypted, summary: [] };
+}
+
+export function messagesToResponsesInput(
+  messages: Message[],
+  opts: ResponsesInputOptions = {},
+): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = [];
 
   for (const msg of messages) {
@@ -105,7 +153,20 @@ export function messagesToResponsesInput(messages: Message[]): Record<string, un
         if (content.length > 0) out.push({ role: 'user', content });
       }
     } else if (msg.role === 'assistant') {
+      // A reasoning item must be followed, in the same turn, by the item it
+      // produced. An assistant message that is nothing but thinking (an
+      // interrupted turn, a truncated replay) has no such follower, so its
+      // reasoning is dropped rather than sent and rejected.
+      const hasFollower = blocks.some(
+        (b) => (b.type === 'text' && b.text.length > 0) || b.type === 'tool_use',
+      );
       for (const block of blocks) {
+        if (block.type === 'thinking') {
+          if (!opts.includeReasoning || !hasFollower) continue;
+          const item = reasoningItem(block);
+          if (item) out.push(item);
+          continue;
+        }
         if (block.type === 'text' && block.text.length > 0) {
           out.push({
             type: 'message',
