@@ -24,6 +24,18 @@ describe('normalizeForHash edge cases', () => {
     expect(a).toHaveLength(12);
     const b = computeStableJsonHash({ x: { z: 1, y: null } });
     expect(a).toBe(b);
+
+    const withUndef = computeStableJsonHash({ a: undefined, b: 1 });
+    const withoutUndef = computeStableJsonHash({ b: 1 });
+    expect(withUndef).toBe(withoutUndef);
+  });
+
+  it('handles non-finite numbers distinctly', () => {
+    const hashNaN = computeStableJsonHash({ val: Number.NaN });
+    const hashInf = computeStableJsonHash({ val: Number.POSITIVE_INFINITY });
+    const hashNegInf = computeStableJsonHash({ val: Number.NEGATIVE_INFINITY });
+    expect(hashNaN).not.toBe(hashInf);
+    expect(hashInf).not.toBe(hashNegInf);
   });
 
   it('normalizes arrays with mixed types', () => {
@@ -38,6 +50,7 @@ describe('normalizeForHash edge cases', () => {
     expect(computeStableJsonHash(42)).toHaveLength(12);
     expect(computeStableJsonHash(true)).toHaveLength(12);
     expect(computeStableJsonHash(null)).toHaveLength(12);
+    expect(computeStableJsonHash(undefined)).toHaveLength(12);
   });
 });
 
@@ -71,5 +84,10 @@ describe('computeToolManifestHash edge cases', () => {
     const a = computeToolManifestHash([{ name: 'bash', riskTier: 'high' }]);
     const b = computeToolManifestHash([{ name: 'bash', riskTier: 'medium' }]);
     expect(a).not.toBe(b);
+  });
+
+  it('handles duplicate tool names in computeToolManifestHash', () => {
+    const hash = computeToolManifestHash([{ name: 'b' }, { name: 'a' }, { name: 'b' }]);
+    expect(hash).toHaveLength(12);
   });
 });

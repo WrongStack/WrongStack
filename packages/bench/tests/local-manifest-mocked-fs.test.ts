@@ -131,4 +131,58 @@ describe('local manifest non-Error filesystem failures', () => {
       1,
     );
   });
+
+  it('handles duplicate entry names when sorting template directory entries', async () => {
+    const dir = await makeDir();
+    const fixture = path.join(dir, 'fixture');
+    await fs.mkdir(fixture);
+    await fs.writeFile(path.join(fixture, 'alpha'), 'hello');
+    await fs.writeFile(path.join(fixture, 'beta'), 'world');
+    await manifest(dir, {
+      id: 'dup',
+      prompt: 'Dup',
+      templateDir: './fixture',
+      assertions: [{ type: 'file_exists', path: 'value.txt' }],
+    });
+    const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
+    controls.readdir = (...args) => {
+      const p = path.resolve(String(args[0])).toLowerCase();
+      if (p === path.resolve(fixture).toLowerCase()) {
+        return Promise.resolve([
+          {
+            name: 'beta',
+            isDirectory: () => false,
+            isFile: () => true,
+            isSymbolicLink: () => false,
+          },
+          {
+            name: 'alpha',
+            isDirectory: () => false,
+            isFile: () => true,
+            isSymbolicLink: () => false,
+          },
+          {
+            name: 'beta',
+            isDirectory: () => false,
+            isFile: () => true,
+            isSymbolicLink: () => false,
+          },
+        ]);
+      }
+      return actual.readdir(args[0] as never, args[1] as never);
+    };
+
+    await expect(createLocalManifestSuite({ suiteDir: dir }).loadTasks({})).resolves.toHaveLength(
+      1,
+    );
+  });
+
+  it('handles duplicate task ids in subsetId', () => {
+    const suite = createLocalManifestSuite({ suiteDir: '/any' });
+    const id = suite.subsetId([
+      { id: 'local/same', meta: {} } as any,
+      { id: 'local/same', meta: {} } as any,
+    ]);
+    expect(id).toMatch(/^local:/);
+  });
 });

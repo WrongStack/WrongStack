@@ -98,4 +98,21 @@ describe('aggregateCell — trace-eval edge cases', () => {
     const agg = aggregateCell(cell, [result({ taskId: 'a', passed: true })]);
     expect(agg.traceEval).toBeUndefined();
   });
+
+  it('ignores non-finite values in finiteSum', () => {
+    const agg = aggregateCell(cell, [
+      result({
+        taskId: 'a',
+        passed: true,
+        run: {
+          costUsd: Number.NaN,
+          tokensIn: Number.POSITIVE_INFINITY,
+          tokensOut: Number.NEGATIVE_INFINITY,
+        } as any,
+      }),
+    ]);
+    expect(agg.avgCostUsd).toBe(0);
+    expect(agg.avgTokensIn).toBe(0);
+    expect(agg.avgTokensOut).toBe(0);
+  });
 });

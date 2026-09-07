@@ -77,5 +77,12 @@ describe('parseCellList / configFromCells', () => {
     expect(() => parseCellList('/model')).toThrow(/provider\/model/);
     expect(() => parseCellList('provider/')).toThrow(/provider\/model/);
     expect(() => parseCellList('p /')).toThrow(/provider\/model/);
+    expect(() => parseCellList('=openai/gpt-5.4')).toThrow(
+      /must be provider\/model or label=provider\/model/,
+    );
+    expect(() => parseCellList('label=openai/gpt-5.4=extra')).toThrow(/must use a single "="/);
+    expect(() => parseCellList('label= /model')).toThrow(
+      /must be provider\/model or label=provider\/model/,
+    );
   });
 });

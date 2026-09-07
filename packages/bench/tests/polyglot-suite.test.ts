@@ -151,3 +151,24 @@ describe('LANGUAGE_RUNNERS', () => {
     });
   });
 });
+
+describe('createPolyglotSuite.subsetId', () => {
+  it('computes a stable subsetId and handles duplicate tasks', () => {
+    const suite = createPolyglotSuite({ polyglotDir: root });
+    const id1 = suite.subsetId([
+      { id: 'polyglot/python/a' } as any,
+      { id: 'polyglot/python/b' } as any,
+    ]);
+    const id2 = suite.subsetId([
+      { id: 'polyglot/python/b' } as any,
+      { id: 'polyglot/python/a' } as any,
+    ]);
+    expect(id1).toBe(id2);
+
+    const idDup = suite.subsetId([
+      { id: 'polyglot/python/same' } as any,
+      { id: 'polyglot/python/same' } as any,
+    ]);
+    expect(idDup).toMatch(/^polyglot:/);
+  });
+});

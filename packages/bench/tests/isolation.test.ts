@@ -76,6 +76,89 @@ describe('createSandbox', () => {
       await fs.rm(sandbox.root, { recursive: true, force: true });
     }
   });
+
+  it('handles hostHome without profiles dir and profile without config.json', async () => {
+    // Case 1: hostHome without profiles dir
+    const host1 = path.join(base, 'host1');
+    await fs.mkdir(host1, { recursive: true });
+    await fs.writeFile(path.join(host1, 'config.json'), '{}', 'utf8');
+    const sb1 = await createSandbox({
+      baseDir: path.join(base, 'sb1'),
+      maxIterations: 1,
+      yolo: false,
+      hostHomeDir: host1,
+    });
+    expect(sb1.homeDir).toBeDefined();
+
+    // Case 2: profile dir exists without config.json (hits writeOverlayConfig !required)
+    const host2 = path.join(base, 'host2');
+    await fs.mkdir(path.join(host2, 'profiles', 'empty-prof'), { recursive: true });
+    await fs.writeFile(
+      path.join(host2, 'config.json'),
+      JSON.stringify({ activeProfile: 'empty-prof' }),
+      'utf8',
+    );
+    const sb2 = await createSandbox({
+      baseDir: path.join(base, 'sb2'),
+      maxIterations: 1,
+      yolo: false,
+      hostHomeDir: host2,
+    });
+    expect(sb2.homeDir).toBeDefined();
+
+    // Case 3: hostHome with missing config.json (required: true fails read)
+    const host3 = path.join(base, 'host3');
+    await fs.mkdir(host3, { recursive: true });
+    const sb3 = await createSandbox({
+      baseDir: path.join(base, 'sb3'),
+      maxIterations: 1,
+      yolo: false,
+      hostHomeDir: host3,
+    });
+    expect(sb3.homeDir).toBeDefined();
+
+    // Case 4: hostHome with non-object config.json (primitive) and non-record tools/session
+    const host4 = path.join(base, 'host4');
+    await fs.mkdir(host4, { recursive: true });
+    await fs.writeFile(host4 + '/config.json', '"just a string"', 'utf8');
+    const sb4 = await createSandbox({
+      baseDir: path.join(base, 'sb4'),
+      maxIterations: 1,
+      yolo: false,
+      hostHomeDir: host4,
+    });
+    expect(sb4.homeDir).toBeDefined();
+
+    const host5 = path.join(base, 'host5');
+    await fs.mkdir(host5, { recursive: true });
+    await fs.writeFile(
+      host5 + '/config.json',
+      JSON.stringify({ tools: 'bad', session: 'bad' }),
+      'utf8',
+    );
+    const sb5 = await createSandbox({
+      baseDir: path.join(base, 'sb5'),
+      maxIterations: 1,
+      yolo: false,
+      hostHomeDir: host5,
+    });
+    expect(sb5.homeDir).toBeDefined();
+
+    const host6 = path.join(base, 'host6');
+    await fs.mkdir(host6, { recursive: true });
+    await fs.writeFile(
+      host6 + '/config.json',
+      JSON.stringify({ tools: { customProp: 1 }, session: { customProp: 2 } }),
+      'utf8',
+    );
+    const sb6 = await createSandbox({
+      baseDir: path.join(base, 'sb6'),
+      maxIterations: 1,
+      yolo: false,
+      hostHomeDir: host6,
+    });
+    expect(sb6.homeDir).toBeDefined();
+  });
 });
 
 describe('prepareWorkdir', () => {

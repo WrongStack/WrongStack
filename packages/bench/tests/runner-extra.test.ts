@@ -95,6 +95,29 @@ describe('parseOutputJson via runWstack', () => {
     expect(res.iterations).toBe(0);
     expect(res.costUsd).toBe(0);
   });
+
+  it('extracts error code and message or ignores non-string error messages', async () => {
+    // Non-string message
+    const entry1 = await fakeEntry(
+      'console.log(JSON.stringify({status:"failed",error:{message:123}})); process.exit(0);',
+    );
+    const res1 = await run(entry1);
+    expect(res1.errorMessage).toBeUndefined();
+
+    // With error code
+    const entry2 = await fakeEntry(
+      'console.log(JSON.stringify({status:"failed",error:{code:"ERR_429",message:"quota exceeded"}})); process.exit(0);',
+    );
+    const res2 = await run(entry2);
+    expect(res2.errorMessage).toBe('ERR_429: quota exceeded');
+  });
+
+  it('returns clean prefix when crash output is completely empty', async () => {
+    const entry = await fakeEntry('process.exit(0);');
+    const res = await run(entry);
+    expect(res.status).toBe('crashed');
+    expect(res.crashDetail).toBe('exit 0');
+  });
 });
 
 describe('mapWithConcurrency edge cases', () => {
@@ -110,5 +133,17 @@ describe('treeKill (POSIX branch)', () => {
     const entry = await fakeEntry('setTimeout(() => {}, 30000);');
     const res = await run(entry, { timeoutMs: 200 });
     expect(res.status).toBe('timeout');
+  });
+});
+
+describe('errorMessage and crashDetail helpers', () => {
+  it('handles empty error code string', async () => {
+    const { errorMessage } = await import('../src/runner.js');
+    expect(errorMessage({ code: '', message: 'fail' })).toBe('fail');
+  });
+
+  it('handles null exitCode with empty output in crashDetail', async () => {
+    const { crashDetail } = await import('../src/runner.js');
+    expect(crashDetail(null, '', '')).toBe('exit null');
   });
 });

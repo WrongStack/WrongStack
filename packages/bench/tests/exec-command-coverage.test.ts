@@ -47,4 +47,22 @@ describe('execCommand — edge branches', () => {
     expect(res.stdout.length).toBeLessThanOrEqual(100);
     expect(res.timedOut).toBe(false);
   });
+
+  it('walks back cut index when maxBufferBytes lands on a UTF-8 continuation byte', async () => {
+    // 0x78 ('x') + 0xE2 0x82 0xAC ('€'). With maxBufferBytes=2, lands on 0x82.
+    // The loop decrements cut back to 1.
+    const res = await execCommand({
+      command: NODE,
+      args: [
+        '-e',
+        'process.stdout.write(Buffer.from([0x78, 0xe2, 0x82, 0xac])); setTimeout(() => {}, 30000);',
+      ],
+      cwd: process.cwd(),
+      timeoutMs: 10_000,
+      shell: false,
+      maxBufferBytes: 2,
+    });
+    expect(res.truncated).toBe(true);
+    expect(res.stdout).toBe('x');
+  });
 });

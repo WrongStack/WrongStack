@@ -21,3 +21,30 @@ describe('extractPatchPaths', () => {
     expect(paths.has('created.py')).toBe(true);
   });
 });
+
+describe('filterPatchExcludingPaths — non-git unified diffs', () => {
+  it('filters non-git unified diffs correctly including /dev/null headers', async () => {
+    const { filterPatchExcludingPaths } = await import('../src/suites/swebench-patch.js');
+    const diff = [
+      '--- /dev/null',
+      '+++ b/created.py',
+      '@@ -0,0 +1 @@',
+      '+created',
+      '--- a/deleted.py',
+      '+++ /dev/null',
+      '@@ -1 +0,0 @@',
+      '-deleted',
+      '--- a/modified.py',
+      '+++ b/modified.py',
+      '@@ -1 +1 @@',
+      '-old',
+      '+new',
+    ].join('\n');
+
+    const filtered = filterPatchExcludingPaths(diff, new Set(['created.py', 'modified.py']));
+    expect(filtered).not.toContain('created.py');
+    expect(filtered).not.toContain('+created');
+    expect(filtered).toContain('deleted.py');
+    expect(filtered).not.toContain('modified.py');
+  });
+});

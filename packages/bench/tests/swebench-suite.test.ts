@@ -108,5 +108,11 @@ describe('createSwebenchSuite.subsetId', () => {
     const b = suite.subsetId([{ id: 'swebench/y' }, { id: 'swebench/x' }] as never);
     expect(a).toBe(b);
     expect(a).toMatch(/^swebench:[0-9a-f]{12}$/);
+
+    const dup = suite.subsetId([
+      { id: 'swebench/same' } as never,
+      { id: 'swebench/same' } as never,
+    ]);
+    expect(dup).toMatch(/^swebench:[0-9a-f]{12}$/);
   });
 });

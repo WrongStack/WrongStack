@@ -76,7 +76,12 @@ export function outcomeFromResult(result: TaskResult): TaskOutcome {
  */
 function mergeOutcomes(a: TaskOutcome, b: TaskOutcome): TaskOutcome {
   return {
-    passed: a.passed === true || b.passed === true ? true : a.passed === false && b.passed === false ? false : null,
+    passed:
+      a.passed === true || b.passed === true
+        ? true
+        : a.passed === false && b.passed === false
+          ? false
+          : null,
     graded: a.graded || b.graded,
     status: a.status === 'crashed' ? b.status : a.status,
     detail: a.detail ?? b.detail,
@@ -125,7 +130,7 @@ export function buildIntraRunInsights(results: TaskResult[]): IntraRunInsights {
   const ungraded: string[] = [];
 
   for (const taskId of taskIds) {
-    const byCell = matrix[taskId] ?? {};
+    const byCell = matrix[taskId]!;
     const outcomes = cellLabels.map((label) => ({
       label,
       outcome: byCell[label] ?? {

@@ -135,11 +135,6 @@ function parseCellSpec(spec: string, index: number): ModelCell {
   }
   const provider = rest.slice(0, slash).trim();
   const model = rest.slice(slash + 1).trim();
-  if (!provider || !model) {
-    throw new Error(
-      `cells[${index}] must be provider/model or label=provider/model (got ${JSON.stringify(spec)})`,
-    );
-  }
   const cell: ModelCell = {
     label: label && label.length > 0 ? label : `${provider}/${model}`,
     provider,

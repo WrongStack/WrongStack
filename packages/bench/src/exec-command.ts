@@ -100,12 +100,12 @@ export function execCommand(opts: {
       try {
         child.stdin?.destroy();
       } catch {
-        /* ignore */
+        /* v8 ignore next -- defensive catch never throws in node */
       }
       try {
         child.kill();
       } catch {
-        /* ignore */
+        /* v8 ignore next -- defensive catch never throws in node */
       }
       // A naive child.kill() only signals the direct child — with shell:true
       // that's the /bin/sh or cmd.exe wrapper, leaving the actual test process

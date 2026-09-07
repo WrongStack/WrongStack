@@ -14,9 +14,7 @@ export function resolveBundledSuiteDir(name: string): string {
   for (let i = 0; i < 6; i++) {
     const candidate = path.join(dir, 'fixtures', name);
     if (existsSync(path.join(candidate, 'bench.local.json'))) return candidate;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
+    dir = path.dirname(dir);
   }
   throw new Error(`cannot locate the bundled WrongStack ${name} suite (fixtures/${name})`);
 }
@@ -36,7 +34,7 @@ export function createBundledLocalSuite(name: Extract<SuiteId, 'smoke' | 'core'>
       const innerId = inner.subsetId(
         tasks.map((task) => relabel(task, prefix, localPrefix, 'local')),
       );
-      return innerId.startsWith('local:') ? `${name}:${innerId.slice('local:'.length)}` : innerId;
+      return `${name}:${innerId.slice('local:'.length)}`;
     },
   };
 }

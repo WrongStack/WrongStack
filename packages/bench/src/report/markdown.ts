@@ -157,8 +157,11 @@ function renderCostQuality(cells: CellResult[]): string[] {
   for (const c of ranked) {
     const passCell = c.gradedCount === 0 ? '—' : pct(c.passRate);
     const finiteCost = Number.isFinite(c.avgCostUsd);
-    const efficiency = finiteCost && c.avgCostUsd > 0 && c.gradedCount > 0 ? passPerDollar(c).toFixed(1) : '—';
-    lines.push(`| ${markdownCell(c.cell.label)} | ${passCell} | $${usd(c.avgCostUsd)} | ${efficiency} |`);
+    const efficiency =
+      finiteCost && c.avgCostUsd > 0 && c.gradedCount > 0 ? passPerDollar(c).toFixed(1) : '—';
+    lines.push(
+      `| ${markdownCell(c.cell.label)} | ${passCell} | $${usd(c.avgCostUsd)} | ${efficiency} |`,
+    );
   }
   lines.push('');
   lines.push(

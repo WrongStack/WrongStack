@@ -61,4 +61,17 @@ describe('createSmokeSuite', () => {
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('throws when bundled suite cannot be located', async () => {
+    const { resolveBundledSuiteDir } = await import('../src/suites/bundled.js');
+    expect(() => resolveBundledSuiteDir('nonexistent_suite_xyz')).toThrow(
+      'cannot locate the bundled WrongStack nonexistent_suite_xyz suite',
+    );
+  });
+
+  it('handles task ids not matching the suite prefix in subsetId', () => {
+    const suite = createSmokeSuite();
+    const id = suite.subsetId([{ id: 'unprefixed-task-id', meta: {} } as any]);
+    expect(id).toMatch(/^smoke:/);
+  });
 });

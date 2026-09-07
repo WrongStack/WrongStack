@@ -107,4 +107,88 @@ describe('runBenchmark', () => {
     expect(report.results[0]!.grade.detail).toMatch(/agent crashed:[\s\S]*unknown provider/);
     expect(report.results[0]!.grade.detail).toMatch(/expected README.md/);
   });
+
+  it('records a template copy failure as a crashed ungraded result', async () => {
+    const badTask: BenchTask = {
+      ...task,
+      templateDir: path.join(dir, 'nonexistent-template-dir'),
+    };
+    let onResultCalled = false;
+    const report = await runBenchmark({
+      suite: suiteWith([badTask]),
+      grade: async () => ({ passed: true }),
+      config: { ...config, repeats: 2 },
+      cliVersion: '0.0.0',
+      toolNames: ['read'],
+      nodeBin: process.execPath,
+      wstackEntry: fakeWstack,
+      sandboxBaseDir: path.join(dir, 'sandbox-template-fail'),
+      onResult: async () => {
+        onResultCalled = true;
+        throw new Error('onResult failure should be caught');
+      },
+    });
+    expect(report.results).toHaveLength(2);
+    expect(report.results[0]!.run.status).toBe('crashed');
+    expect(report.results[0]!.run.crashDetail).toContain('template copy failed:');
+    expect(report.results[0]!.grade.graded).toBe(false);
+    expect(onResultCalled).toBe(true);
+
+    // Also with repeats: 1 and no onResult callback
+    const reportSingle = await runBenchmark({
+      suite: suiteWith([badTask]),
+      grade: async () => ({ passed: true }),
+      config: { ...config, repeats: 1 },
+      cliVersion: '0.0.0',
+      toolNames: ['read'],
+      nodeBin: process.execPath,
+      wstackEntry: fakeWstack,
+      sandboxBaseDir: path.join(dir, 'sandbox-template-fail-single'),
+    });
+    expect(reportSingle.results).toHaveLength(1);
+    expect(reportSingle.results[0]!.attempt).toBeUndefined();
+
+    // Non-Error exception thrown during workspace preparation
+    const nonErrorTask: BenchTask = {
+      ...task,
+      get templateDir() {
+        throw 'non-error copy failure';
+      },
+    };
+    const reportNonError = await runBenchmark({
+      suite: suiteWith([nonErrorTask]),
+      grade: async () => ({ passed: true }),
+      config: { ...config, repeats: 1 },
+      cliVersion: '0.0.0',
+      toolNames: ['read'],
+      nodeBin: process.execPath,
+      wstackEntry: fakeWstack,
+      sandboxBaseDir: path.join(dir, 'sandbox-template-fail-string'),
+    });
+    expect(reportNonError.results[0]!.run.crashDetail).toContain('non-error copy failure');
+  });
+
+  it('prefixes grade detail when agent completed with non-zero exit code', async () => {
+    const exitOneEntry = path.join(dir, 'exit-one-wstack.cjs');
+    await fs.writeFile(
+      exitOneEntry,
+      'process.stdout.write(JSON.stringify({status:"completed",finalText:"ok",usage:{input:1,output:1,iterations:1,cost:0}})+"\\n"); process.exit(1);',
+      'utf8',
+    );
+    const report = await runBenchmark({
+      suite: suiteWith([{ ...task, templateDir }]),
+      grade: async () => ({
+        passed: true,
+      }),
+      config,
+      cliVersion: '0.0.0',
+      toolNames: ['read'],
+      nodeBin: process.execPath,
+      wstackEntry: exitOneEntry,
+      sandboxBaseDir: path.join(dir, 'sandbox-exit-one'),
+    });
+    expect(report.results[0]!.grade.detail).toContain(
+      'agent exited with code 1 after reporting completed',
+    );
+  });
 });

@@ -146,7 +146,6 @@ function parseOutputJson(stdout: string): Omit<RawRun, 'elapsedMs' | 'exitCode'>
   // (a multiline finalText, an adapter emitting a raw newline, or a truncated
   // write) — do not reach further back to a stale payload from an unrelated
   // earlier run; report the run as unparseable (crashed) instead.
-  let foundStatus = false;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i]?.trim();
     if (!line?.startsWith('{')) continue;
@@ -154,18 +153,16 @@ function parseOutputJson(stdout: string): Omit<RawRun, 'elapsedMs' | 'exitCode'>
     try {
       obj = JSON.parse(line) as Record<string, unknown>;
     } catch {
-      // A malformed `{` line. If no valid status payload was found anywhere,
-      // this malformed line is the true (broken) payload — abort rather than
-      // substitute an earlier, unrelated run's JSON.
-      if (!foundStatus) return undefined;
-      continue;
+      // A malformed `{` line. Since we scan backwards from the end, a broken
+      // `{` line before finding a status payload means the payload is corrupted —
+      // abort rather than substitute an earlier, unrelated run's JSON.
+      return undefined;
     }
     if (typeof obj['status'] !== 'string') {
       // A valid JSON object but not a run payload (e.g. a log line). Not the
       // output we're looking for; keep scanning for an actual payload.
       continue;
     }
-    foundStatus = true;
     const usage = (obj['usage'] as Record<string, unknown> | undefined) ?? {};
     const parsed: Omit<RawRun, 'elapsedMs' | 'exitCode'> = {
       status: normalizeStatus(obj['status'] as string),
@@ -184,8 +181,8 @@ function parseOutputJson(stdout: string): Omit<RawRun, 'elapsedMs' | 'exitCode'>
   return undefined;
 }
 
-/** Pull a readable reason out of the `--output-json` `error` object. */
-function errorMessage(raw: unknown): string | undefined {
+/** Pull a readable reason out of the `--output-json` `error` object. Exported for tests. */
+export function errorMessage(raw: unknown): string | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
   const err = raw as Record<string, unknown>;
   const message = typeof err['message'] === 'string' ? err['message'].trim() : '';
@@ -208,7 +205,8 @@ function normalizeStatus(s: string): RawRun['status'] {
   }
 }
 
-function crashDetail(code: number | null, stderr: string, stdout: string): string {
+/** Format crash diagnostic tail. Exported for tests. */
+export function crashDetail(code: number | null, stderr: string, stdout: string): string {
   const tail = [stderr, stdout]
     .map((text) => text.trim())
     .filter((text) => text.length > 0)

@@ -119,4 +119,16 @@ describe('execCommand', () => {
     expect(res.truncated).toBe(false);
     expect(res.stdout).toBe('hi');
   });
+
+  it('reports synchronous spawn errors as exitCode null', async () => {
+    const res = await execCommand({
+      command: `bad${String.fromCharCode(0)}cmd`,
+      args: [],
+      cwd: process.cwd(),
+      timeoutMs: 10_000,
+      shell: false,
+    });
+    expect(res.exitCode).toBeNull();
+    expect(res.stderr).toMatch(/null|EINVAL|ERR_INVALID_ARG_VALUE/);
+  });
 });

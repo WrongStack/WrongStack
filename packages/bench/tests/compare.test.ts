@@ -252,4 +252,48 @@ describe('renderMarkdownReport edge outcomes', () => {
     );
     expect(md).toContain('No disagreements');
   });
+
+  it('handles missing cell in task results for intra-run insights and cross-run comparisons', () => {
+    // Task ran on opus but not on haiku
+    const results1 = [result('task-a', opus, true), result('task-b', haiku, true)];
+    const insights = buildIntraRunInsights(results1);
+    expect(insights.disagreements.length).toBeGreaterThanOrEqual(0);
+
+    // Cross-run comparison where base has task-a on opus only, cand has task-a on haiku only
+    const rep1 = report(results1);
+    const rep2 = report([result('task-a', haiku, true), result('task-b', opus, true)]);
+    const cmp = compareReports(rep1, rep2);
+    expect(cmp.sharedTaskCount).toBe(2);
+
+    // gradedCount undefined
+    const rep3 = report([result('task-a', opus, true)]);
+    const rep4 = report([result('task-a', opus, true)]);
+    delete (rep3.cells[0] as any).gradedCount;
+    delete (rep4.cells[0] as any).gradedCount;
+    const cmp2 = compareReports(rep3, rep4);
+    expect(cmp2.cells[0]?.passRateDelta).toBeUndefined();
+  });
+
+  it('merges repeated attempts with mixed crash/pass outcomes', () => {
+    const results = [
+      {
+        ...result('task-repeat', opus, false, { status: 'crashed' }),
+        grade: { passed: false, graded: false },
+      },
+      result('task-repeat', opus, false, { status: 'completed' }),
+    ];
+    const insights = buildIntraRunInsights(results);
+    expect(insights.matrix['task-repeat']!['opus']!.status).toBe('completed');
+    expect(insights.matrix['task-repeat']!['opus']!.passed).toBeNull();
+
+    // False then true -> true
+    const resultsPass = [result('task-repeat2', opus, false), result('task-repeat2', opus, true)];
+    const insightsPass = buildIntraRunInsights(resultsPass);
+    expect(insightsPass.matrix['task-repeat2']!['opus']!.passed).toBe(true);
+
+    // False then false -> false
+    const resultsFail = [result('task-repeat3', opus, false), result('task-repeat3', opus, false)];
+    const insightsFail = buildIntraRunInsights(resultsFail);
+    expect(insightsFail.matrix['task-repeat3']!['opus']!.passed).toBe(false);
+  });
 });

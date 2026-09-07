@@ -56,7 +56,11 @@
       },
       "assertions": [
         { "type": "file_contains", "path": "test.mjs", "text": "CORE_SENTINEL_frozen-contract" },
-        { "type": "file_contains", "path": "src/contract.js", "text": "export const FRACTION_DIGITS = 2;" },
+        {
+          "type": "file_contains",
+          "path": "src/contract.js",
+          "text": "export const FRACTION_DIGITS = 2;"
+        },
         { "type": "file_contains", "path": "src/contract.js", "text": "CORE_CONTRACT_FROZEN" }
       ]
     },

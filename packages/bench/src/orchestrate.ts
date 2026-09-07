@@ -139,8 +139,7 @@ export async function runBenchmark(opts: RunBenchmarkOptions): Promise<BenchRepo
         // a crashed, ungraded row so the report shows WHAT was skipped while the
         // rest of the matrix keeps running. Mirrors the contained grader-error
         // handling below.
-        const detail =
-          `template copy failed: ${err instanceof Error ? err.message : String(err)}`;
+        const detail = `template copy failed: ${err instanceof Error ? err.message : String(err)}`;
         const result: TaskResult = {
           taskId: task.id,
           cell,

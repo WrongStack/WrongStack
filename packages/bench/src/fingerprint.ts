@@ -33,7 +33,7 @@ export function computeHarnessFingerprint(input: {
   systemPromptHash?: string | undefined;
   configHash?: string | undefined;
 }): HarnessFingerprint {
-  const toolNames = [...input.toolNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const toolNames = [...input.toolNames].sort();
   // Canonical, order-stable serialization of every field that affects results.
   const canonical = JSON.stringify({
     cliVersion: input.cliVersion,
@@ -133,7 +133,7 @@ function normalizeForHash(value: unknown): unknown {
   // An explicit `undefined` value is treated as an ABSENT key (skipped): that
   // matches how JSON.stringify drops undefined and how config builders emit
   // partial objects, so `{ a: undefined }` and `{}` hash identically.
-  for (const key of Object.keys(record).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+  for (const key of Object.keys(record).sort()) {
     if (record[key] === undefined) continue;
     out[key] = normalizeForHash(record[key]);
   }
