@@ -48,6 +48,22 @@ describe('detectQuantifiedAmbiguity — subsumption of rounds 11-14', () => {
   });
 });
 
+describe('detectQuantifiedAmbiguity — out-of-subset escapes (ADR-004 never over-reject)', () => {
+  // Regression (bug-hunt round 20260907-r5): without the u flag, `\u{...}` is
+  // an Annex B identity escape (literal `u` plus the brace run as an interval
+  // quantifier or literal), so `\u{41}` and `A` match disjoint text and no
+  // overlap is provable. The parser modeled `\u{...}` as the codepoint U+0041
+  // anyway and returned 'ambiguous' with a witness ('A') that does not match
+  // branch 1's real language — an over-reject violating the never-over-reject
+  // doctrine. Out-of-subset content must allow.
+  it('treats non-u identity escapes as out-of-subset: never over-rejects', () => {
+    expect(detectQuantifiedAmbiguity(String.raw`\u{41}|A`).verdict).toBe('unparsable');
+    // With the u flag the modeled codepoint IS the real language: the branches
+    // genuinely both match 'A', so 'ambiguous' is correct and must stay.
+    expect(detectQuantifiedAmbiguity(String.raw`\u{41}|A`, 'u').verdict).toBe('ambiguous');
+  });
+});
+
 describe('detectQuantifiedAmbiguity — static-layer misses now caught', () => {
   it('catches quantifier-amplified 1-vs-2 char overlap', () => {
     // Round 13 pinned `(\w|ab)+` as allowed ("a 1-char branch can never
@@ -536,8 +552,19 @@ describe('detectQuantifiedAmbiguity — raw astral literals model as one atom', 
     // 😀|[\u{1F600}] were reported unambiguous though both branches match
     // the same word (the (a|a)+ class under (?:X)+). Proven failing
     // pre-fix in the 2026-09-02 round-6 repro.
-    expect(detectQuantifiedAmbiguity('\u{1F600}a|\\u{1F600}a').verdict).toBe('ambiguous');
-    expect(detectQuantifiedAmbiguity('\u{1F600}|[\\u{1F600}]').verdict).toBe('ambiguous');
+    //
+    // "Both branches match the same word" is true in u-MODE, where
+    // `\u{1F600}` decodes to U+1F600 — so the identity is flagged there.
+    // In non-u mode `\u` is an Annex B identity escape (literal `u`; the
+    // brace run is literal too, since `1F600` is not a valid quantifier),
+    // making the branches 😀a vs literal `u{1F600}a` — disjoint, and the
+    // content is out-of-subset for the parser's codepoint model, so the
+    // ADR-004 gate returns 'unparsable' (allow) instead of the old
+    // flag-blind 'ambiguous' false positive (round 20260907-r5).
+    expect(detectQuantifiedAmbiguity('\u{1F600}a|\\u{1F600}a', 'u').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('\u{1F600}|[\\u{1F600}]', 'u').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('\u{1F600}a|\\u{1F600}a').verdict).toBe('unparsable');
+    expect(detectQuantifiedAmbiguity('\u{1F600}|[\\u{1F600}]').verdict).toBe('unparsable');
   });
 
   it('keeps genuinely disjoint astral branches unambiguous', () => {

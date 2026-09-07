@@ -797,6 +797,15 @@ function decompositionAmbiguity(
 export function detectQuantifiedAmbiguity(content: string, flags = ''): AmbiguityResult {
   const foldCase = /i/.test(flags);
   const dotAll = /s/.test(flags);
+  // Out-of-subset gate (ADR-004: never over-reject). Without the u flag,
+  // `\u{...}` is an Annex B identity escape — the literal text `u` with the
+  // brace run as interval quantifier or literal — NOT the codepoint the
+  // parser below models. Model ≠ engine here would let the stages prove
+  // overlaps on text the real branches cannot share ('ambiguous' with an
+  // unmatched witness). Declare such content unparsable: allow.
+  if (!/u/.test(flags) && content.includes('\\u{')) {
+    return { verdict: 'unparsable' };
+  }
   const budget = new Budget();
   const cursor = new Cursor(content);
   const ast = parseAlt(cursor, budget, foldCase, dotAll);
