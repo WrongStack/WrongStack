@@ -5,10 +5,11 @@
  * - Catch block in handleReport when readdir fails → line 222-224
  * - report with non-numeric ID that doesn't match any file → line 221
  */
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const orchestratorMocks = vi.hoisted(() => ({
   run: vi.fn(),

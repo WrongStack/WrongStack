@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SecurityScannerOrchestrator } from '../src/orchestrator.js';
 import type { ErrorHandler, RetryPolicy } from '../src/_compat-types.js';
+import { SecurityScannerOrchestrator } from '../src/orchestrator.js';
 
 const mockRetryPolicy = (): RetryPolicy =>
   ({

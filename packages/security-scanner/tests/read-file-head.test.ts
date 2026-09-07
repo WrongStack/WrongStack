@@ -3,10 +3,11 @@
  * slicing afterwards pulled a minified bundle or lockfile fully into memory to
  * keep a couple of kilobytes, so the read itself has to be bounded.
  */
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** Records every byte count requested through a file handle's `read`. */
 const spy = vi.hoisted(() => ({ bytesRead: [] as number[] }));

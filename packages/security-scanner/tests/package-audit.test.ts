@@ -3,8 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  PackageAuditRunner,
   detectAuditablePackageManager,
+  PackageAuditRunner,
   parsePackageAuditOutput,
 } from '../src/package-audit.js';
 

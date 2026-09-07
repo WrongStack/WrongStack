@@ -13,6 +13,15 @@
 import * as path from 'node:path';
 
 import type { Provider, Request } from '@wrongstack/core/types';
+import {
+  readBundledInstructionText,
+  renderInstructionTemplate,
+  sanitizeJsonString,
+  toErrorMessage,
+} from '@wrongstack/core/utils';
+import { readFileHead } from './file-gathering.js';
+import { extractJsonBlock } from './json-extractor.js';
+import { retryProviderComplete } from './llm-client.js';
 import type {
   GeneratedSkill,
   GeneratedSkillContent,
@@ -20,16 +29,6 @@ import type {
   TechStack,
   TechStackInfo,
 } from './types.js';
-import {
-  readBundledInstructionText,
-  renderInstructionTemplate,
-  sanitizeJsonString,
-  toErrorMessage,
-} from '@wrongstack/core/utils';
-
-import { retryProviderComplete } from './llm-client.js';
-import { extractJsonBlock } from './json-extractor.js';
-import { readFileHead } from './file-gathering.js';
 
 /**
  * Public skill payload returned from `generateSkillLLM` and the static
@@ -89,12 +88,12 @@ function getSecretPatterns(stack: TechStack): SecurityPattern[] {
     severity: 'critical',
     description: 'Detects hardcoded API keys, tokens, passwords, and private keys',
     patterns: [
-      /(?:api[_-]?key|apikey|secret|token|password|passwd|pwd)\s*[:=]\s*['"][a-zA-Z0-9_\-]{8,}['"]/gi,
+      /(?:api[_-]?key|apikey|secret|token|password|passwd|pwd)\s*[:=]\s*['"][a-zA-Z0-9_-]{8,}['"]/gi,
       /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----/g,
       /ghp_[a-zA-Z0-9]{36}/g,
-      /glpat-[a-zA-Z0-9_\-]{20}/g,
+      /glpat-[a-zA-Z0-9_-]{20}/g,
       /sk-[a-zA-Z0-9]{32,}/g,
-      /xox[baprs]-[a-zA-Z0-9\-]{10,}/g,
+      /xox[baprs]-[a-zA-Z0-9-]{10,}/g,
       /AIza[0-9A-Za-z\-_]{35}/g,
       /AKIA[0-9A-Z]{16}/g,
     ],
@@ -229,7 +228,7 @@ function getSecretPatterns(stack: TechStack): SecurityPattern[] {
   return [commonSecrets, ...(stackSpecific[stack] ?? [])].map((pattern) => ({
     ...pattern,
     category: 'secrets',
-    confidence: pattern.confidence ?? 'medium',
+    confidence: pattern.confidence,
   }));
 }
 
@@ -387,7 +386,7 @@ function getInjectionPatterns(stack: TechStack): SecurityPattern[] {
   return [commonInjection, ...(stackSpecific[stack] ?? [])].map((pattern) => ({
     ...pattern,
     category: 'injection',
-    confidence: pattern.confidence ?? 'medium',
+    confidence: pattern.confidence,
   }));
 }
 
@@ -445,7 +444,7 @@ function getTargetFilesForStack(techStack: TechStackInfo): string[] {
     unknown: ['**/*'],
   };
 
-  return filesByStack[techStack.stack] || filesByStack.unknown || ['**/*'];
+  return filesByStack[techStack.stack] || filesByStack.unknown;
 }
 
 function buildSkillContent(
@@ -674,9 +673,7 @@ export class SkillGenerator {
     }
 
     const minSeverity = SEVERITY_LEVELS[this.options.severityThreshold ?? 'all'] ?? 0;
-    const filteredPatterns = allPatterns.filter(
-      (p) => (SEVERITY_LEVELS[p.severity] ?? 0) >= minSeverity,
-    );
+    const filteredPatterns = allPatterns.filter((p) => SEVERITY_LEVELS[p.severity]! >= minSeverity);
 
     const targetFiles = getTargetFilesForStack(techStack);
     const content = buildSkillContent(techStack, filteredPatterns);

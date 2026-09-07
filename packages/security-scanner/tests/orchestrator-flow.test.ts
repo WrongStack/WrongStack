@@ -1,11 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SecurityScannerOrchestrator } from '../src/orchestrator.js';
-import { ProviderError } from '@wrongstack/core/types';
 import type { Provider, Request, Response } from '@wrongstack/core/types';
+import { ProviderError } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ErrorHandler, RetryPolicy } from '../src/_compat-types.js';
+import { SecurityScannerOrchestrator } from '../src/orchestrator.js';
 
 const textResponse = (text: string): Response =>
   ({

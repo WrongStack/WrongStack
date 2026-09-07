@@ -9,9 +9,6 @@
 import * as path from 'node:path';
 
 import type { Provider, Request } from '@wrongstack/core/types';
-
-import { retryProviderComplete } from './llm-client.js';
-import { extractJsonBlock } from './json-extractor.js';
 import {
   readBundledInstructionText,
   renderInstructionTemplate,
@@ -20,6 +17,8 @@ import {
 } from '@wrongstack/core/utils';
 import type { ErrorHandler, RetryPolicy } from './_compat-types.js';
 import { DEFAULT_EXCLUDE_PATTERNS, gatherFiles, readFileHead } from './file-gathering.js';
+import { extractJsonBlock } from './json-extractor.js';
+import { retryProviderComplete } from './llm-client.js';
 import type { Finding, ScanResult } from './scanner.js';
 import type { GeneratedSkill } from './skill-generator.js';
 import type { TechStackInfo } from './types.js';
@@ -63,13 +62,11 @@ export class BatchScanner {
     ];
     const extensions: string[] = Array.from(
       new Set(
-        targetFiles
-          .map((p: string) => {
-            const stripped = p.replace(/\*+$/, '');
-            const match = stripped.match(/\.[a-z0-9]+$/i);
-            return match ? [match[0].toLowerCase()] : [];
-          })
-          .flat(),
+        targetFiles.flatMap((p: string) => {
+          const stripped = p.replace(/\*+$/, '');
+          const match = stripped.match(/\.[a-z0-9]+$/i);
+          return match ? [match[0].toLowerCase()] : [];
+        }),
       ),
     );
     const maxDepth = options.depth === 'quick' ? 2 : options.depth === 'deep' ? 20 : 5;

@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { relative } from 'node:path';
 import { DEFAULT_EXCLUDE_PATTERNS, gatherFiles } from './file-gathering.js';
+import type { GeneratedSkill } from './skill-generator.js';
 import type {
   SecurityFindingCategory,
   SecurityPattern,
   SecurityPatternConfidence,
   TechStackInfo,
 } from './types.js';
-import type { GeneratedSkill } from './skill-generator.js';
 
 export interface Finding {
   id: string;
@@ -164,7 +164,8 @@ export class SecurityScanner {
       if (!this.matchesCategory(pattern)) continue;
       if (pattern.fileExtensions && pattern.fileExtensions.length > 0) {
         const lowerPath = relativePath.toLowerCase();
-        const baseName = lowerPath.split('/').pop() ?? lowerPath;
+        const segments = lowerPath.split('/');
+        const baseName = segments[segments.length - 1]!;
         const matchesExt = pattern.fileExtensions.some((ext) => {
           if (!ext || typeof ext !== 'string') return false;
           const lowerExt = ext.toLowerCase().trim();

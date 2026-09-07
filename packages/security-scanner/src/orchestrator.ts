@@ -5,13 +5,13 @@ import { ConfigError } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import type { ErrorHandler, RetryPolicy } from './_compat-types.js';
 import { BatchScanner } from './batch-scanner.js';
-import { ReportWriter } from './report-writer.js';
-import { SkillGenerator } from './skill-generator.js';
 import { defaultTechStackDetector } from './detector.js';
-import { GitignoreUpdater, defaultGitignoreUpdater } from './gitignore-updater.js';
+import { defaultGitignoreUpdater, GitignoreUpdater } from './gitignore-updater.js';
 import { retryProviderComplete } from './llm-client.js';
 import type { ReportOptions } from './report-generator.js';
+import { ReportWriter } from './report-writer.js';
 import type { ScanResult } from './scanner.js';
+import { SkillGenerator } from './skill-generator.js';
 import type {
   GeneratedSkill,
   GitignoreUpdateResult,
