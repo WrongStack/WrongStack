@@ -21,6 +21,11 @@
  */
 
 import { createRequire } from 'node:module';
+import {
+  type ProviderQuotaSnapshot,
+  quotaResetInMs,
+  recordProviderQuota,
+} from '@wrongstack/core/quota';
 import { scrubErrorText } from '@wrongstack/core/security';
 import {
   type Capabilities,
@@ -45,11 +50,30 @@ import { capabilitiesForFamily } from './family-capabilities.js';
 import type { BuildBodyContext } from './model-output-limits.js';
 import { CODEX_BASE_URL, type CodexTokens, refreshCodexTokens } from './oauth/codex-protocol.js';
 import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
-import { extractAccountId } from './openai-codex-account.js';
+import { extractAccountId, extractPlanType } from './openai-codex-account.js';
+import {
+  parseCodexRateLimitEvent,
+  parseCodexRateLimitHeaders,
+} from './openai-codex-rate-limits.js';
+import {
+  CodexWebSocketFallbackError,
+  CodexWebSocketPool,
+  defaultCodexWebSocketFactory,
+  type CodexResponseMetadata,
+  type CodexWebSocketFactory,
+} from './codex-websocket.js';
+// Owned by `codex-websocket.ts` (both transports carry it); re-exported here
+// so the long-standing public name keeps resolving from the provider module.
+export type { CodexResponseMetadata };
 import { applyPromptCacheKey } from './prompt-cache-key.js';
 import { redirectSafeFetch } from './redirect-safe-fetch.js';
 import { createSseLineFoldingTransform, parseSSE } from './sse.js';
-import { messagesToResponsesInput, toolsToResponses } from './tool-format/to-responses.js';
+import {
+  CODEX_REASONING_ENCRYPTED_META,
+  CODEX_REASONING_ID_META,
+  messagesToResponsesInput,
+  toolsToResponses,
+} from './tool-format/to-responses.js';
 import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
 // ── OAuth refresh (shared protocol — see ./oauth/codex-protocol.ts) ──────────
@@ -79,6 +103,52 @@ function readOwnVersion(): string {
     }
   }
   return '0.0.0';
+}
+
+/**
+ * How many conversations' sticky routing tokens (`x-codex-turn-state`) one
+ * provider instance keeps. A project daemon can serve many sessions over its
+ * lifetime; the tokens are small, but unbounded growth is not a thing to leave
+ * to chance. Least-recently-refreshed entries are evicted first.
+ */
+const MAX_TRACKED_TURN_STATES = 64;
+
+/**
+ * Does this 400 blame a replayed reasoning item?
+ *
+ * The Responses API's reasoning validation errors all name the item type or a
+ * `rs_`-prefixed id ("Item 'rs_…' of type 'reasoning' was provided without its
+ * required following item"). Matching narrowly matters: a 400 for a malformed
+ * tool schema must keep surfacing as an error, not be silently retried with
+ * reasoning stripped and then fail again with a confusing second message.
+ */
+function isReasoningReplayRejection(err: ProviderError): boolean {
+  const message = `${err.message} ${JSON.stringify(err.body ?? '')}`;
+  return /reasoning item|item\s+['"]?rs_[\w-]+|required following item/i.test(message);
+}
+
+/**
+ * The soonest reset among the windows that are actually exhausted.
+ *
+ * "Exhausted" is the window the backend named as reached
+ * (`x-codex-rate-limit-reached-type`), falling back to any window at or above
+ * 100%. A window at 60% has a reset time too, and parking a model until it
+ * arrives would be a self-inflicted outage — only a window we cannot currently
+ * spend against is worth waiting for.
+ */
+function codexResetHintMs(snapshots: readonly ProviderQuotaSnapshot[]): number | undefined {
+  let soonest: number | undefined;
+  for (const snapshot of snapshots) {
+    for (const window of snapshot.windows) {
+      const isReached =
+        snapshot.reachedWindowId === window.id ||
+        (snapshot.reachedWindowId === undefined && window.usedPercent >= 100);
+      if (!isReached) continue;
+      const ms = quotaResetInMs(window);
+      if (ms !== undefined && (soonest === undefined || ms < soonest)) soonest = ms;
+    }
+  }
+  return soonest;
 }
 
 const CODEX_MODELS_FAILURE_COOLDOWN_MS = 5_000;
@@ -190,6 +260,14 @@ export interface OpenAICodexProviderOptions {
         accountId: string | undefined;
       }) => void)
     | undefined;
+  /** Observe response metadata surfaced inside the Responses stream. */
+  onResponseMetadata?: ((metadata: CodexResponseMetadata) => void) | undefined;
+  /** Enable the Responses WebSocket transport; defaults on for the real fetch. */
+  webSocket?: boolean | undefined;
+  /** Injectable WebSocket factory for hosts and tests. */
+  webSocketFactory?: CodexWebSocketFactory | undefined;
+  /** Best-effort WebSocket prewarm before the first real response. */
+  webSocketPrewarm?: boolean | undefined;
   /** Override the refresh call (tests). */
   refreshFn?:
     | ((refreshToken: string, signal?: AbortSignal) => Promise<CodexOAuthTokens>)
@@ -220,7 +298,27 @@ export class OpenAICodexProvider extends WireAdapter {
     NonNullable<OpenAICodexProviderOptions['onRefresh']> extends (p: infer P) => void ? P : never
   >;
   private readonly reasoningEffort: ReasoningEffort;
+  private readonly onResponseMetadata?:
+    | ((metadata: CodexResponseMetadata) => void)
+    | undefined;
+  private readonly useWebSocket: boolean;
+  private readonly webSocketPrewarm: boolean;
+  private readonly webSocketPool: CodexWebSocketPool | undefined;
   private contextLimits = new Map<string, number>();
+  /**
+   * Sticky routing token the backend hands out per turn (`x-codex-turn-state`).
+   * Echoing it back keeps the follow-up requests of one conversation on the
+   * machine that already holds its cached prefix — on a load-balanced backend
+   * `prompt_cache_key` alone is a hint, this is the confirmation. Keyed by the
+   * session affinity id so two conversations never trade each other's token.
+   */
+  private turnState = new Map<string, string>();
+  /**
+   * Reasoning replay is disabled for the rest of the process once the backend
+   * rejects it. See `stream()` — a 400 on a reasoning item must degrade to the
+   * old (working) behaviour, never strand the session.
+   */
+  private reasoningReplayDisabled = false;
   private contextLimitsEtag: string | undefined;
   private contextLimitsRefresh: Promise<void> | undefined;
   private contextLimitsRetryAfter = 0;
@@ -276,6 +374,12 @@ export class OpenAICodexProvider extends WireAdapter {
       },
     });
     this.reasoningEffort = opts.reasoningEffort ?? 'medium';
+    this.onResponseMetadata = opts.onResponseMetadata;
+    this.webSocketPrewarm = opts.webSocketPrewarm ?? false;
+    this.useWebSocket = opts.webSocket ?? opts.fetchImpl === undefined;
+    this.webSocketPool = this.useWebSocket
+      ? new CodexWebSocketPool(opts.webSocketFactory ?? defaultCodexWebSocketFactory)
+      : undefined;
     this.capabilities = capabilitiesForFamily('openai-codex', { ...opts.capabilities });
   }
 
@@ -359,21 +463,95 @@ export class OpenAICodexProvider extends WireAdapter {
   }
 
   override async *stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
-    await this.ensureFreshToken(opts.signal);
-    try {
-      yield* super.stream(req, opts);
-    } catch (err) {
-      // A 401 means the token went stale between the pre-flight check and the
-      // request (or we had no expiry to check). Refresh once and retry — the
-      // error is thrown before any StreamEvent is emitted, so no output is
-      // duplicated.
-      if (err instanceof ProviderError && err.status === 401 && this.refresh) {
-        await this.doRefresh(opts.signal);
-        yield* super.stream(req, opts);
-        return;
-      }
-      throw err;
+  await this.ensureFreshToken(opts.signal);
+  let emitted = false;
+  const track = async function* (source: AsyncIterable<StreamEvent>): AsyncIterable<StreamEvent> {
+    for await (const event of source) {
+      emitted = true;
+      yield event;
     }
+  };
+  let transportError: unknown;
+  try {
+    if (this.useWebSocket && this.webSocketPool) {
+      yield* track(this.streamWebSocket(req, opts));
+    } else {
+      yield* track(super.stream(req, opts));
+    }
+    return;
+  } catch (err) {
+    transportError = err;
+    if (err instanceof CodexWebSocketFallbackError && !emitted) {
+      try {
+        yield* track(super.stream(req, opts));
+        return;
+      } catch (sseError) {
+        transportError = sseError;
+      }
+    }
+  }
+
+  const err = transportError;
+  // A 401 means the token went stale between the pre-flight check and the
+  // request (or we had no expiry to check). Refresh once and retry only before
+  // any output has been emitted, so a mid-stream auth failure cannot duplicate it.
+  if (!emitted && err instanceof ProviderError && err.status === 401 && this.refresh) {
+    await this.doRefresh(opts.signal);
+    yield* track(super.stream(req, opts));
+    return;
+  }
+  // Reasoning replay is a token-and-quota optimisation, never a requirement.
+  // If the backend rejects a replayed reasoning item before output starts, retry
+  // over SSE without replay rather than stranding the session.
+  if (
+    !emitted &&
+    !this.reasoningReplayDisabled &&
+    err instanceof ProviderError &&
+    err.status === 400 &&
+    isReasoningReplayRejection(err)
+  ) {
+    this.reasoningReplayDisabled = true;
+    yield* track(super.stream(req, opts));
+    return;
+  }
+  throw err;
+}
+
+  private streamWebSocket(
+    req: Request,
+    opts: { signal: AbortSignal },
+  ): AsyncIterable<StreamEvent> {
+    const effectiveReq = this.applyMaxToolsFilter(req);
+    const body = this.buildBody(effectiveReq, {
+      capabilities: this.capabilities,
+      providerId: this.id,
+    });
+    const headers = this.buildHeaders(effectiveReq);
+    headers['OpenAI-Beta'] = 'responses_websockets=2026-02-06';
+    return this.webSocketPool!.stream(
+      {
+        url: resolveCodexWebSocketUrl(this.baseUrl),
+        headers,
+        request: effectiveReq,
+        body,
+        fallbackModel: effectiveReq.model,
+        providerId: this.id,
+        signal: opts.signal,
+        prewarm: this.webSocketPrewarm,
+        onMetadata: (metadata) => this.handleResponseMetadata(effectiveReq, metadata),
+        onHeaders: (responseHeaders) => this.onResponseHeaders(responseHeaders, effectiveReq),
+      },
+      parseOpenAIResponsesStream,
+    );
+  }
+
+  private handleResponseMetadata(req: Request, metadata: CodexResponseMetadata): void {
+    const key = codexCacheSessionId(req.cache?.sessionId);
+    const state = metadata.headers['x-codex-turn-state'];
+    if (state && key) this.rememberTurnState(key, state);
+    const etag = metadata.headers['x-models-etag'];
+    if (etag) this.contextLimitsEtag = etag;
+    this.onResponseMetadata?.(metadata);
   }
 
   private async ensureFreshToken(signal: AbortSignal): Promise<void> {
@@ -388,6 +566,49 @@ export class OpenAICodexProvider extends WireAdapter {
     return resolveCodexUrl(this.baseUrl);
   }
 
+  /**
+   * Harvest the two out-of-band signals the ChatGPT backend only sends in
+   * response headers.
+   *
+   * Quota (`x-codex-*-used-percent`, window minutes, reset-at, credits) is the
+   * ONLY place a ChatGPT-login user's remaining 5h/weekly allowance is
+   * reported. Without reading it the first sign of an exhausted plan is a 429
+   * mid-turn; with it, surfaces can show the burn rate before it bites.
+   *
+   * `x-codex-turn-state` is a sticky routing token. Sending it back on the
+   * follow-up requests of the same conversation keeps them on the backend that
+   * already holds the cached prefix, which is what turns `prompt_cache_key`
+   * from a hint into a hit.
+   */
+  protected override onResponseHeaders(headers: HeadersLike | undefined, request: Request): void {
+    if (!headers) return;
+    const planLabel = extractPlanType(this.access) ?? undefined;
+    const snapshots = parseCodexRateLimitHeaders(headers).map((snapshot) =>
+      snapshot.planLabel === undefined && planLabel !== undefined
+        ? { ...snapshot, planLabel }
+        : snapshot,
+    );
+    if (snapshots.length > 0) recordProviderQuota(this.id, snapshots);
+    const state = headers.get('x-codex-turn-state');
+    const key = codexCacheSessionId(request.cache?.sessionId);
+    if (state && key) this.rememberTurnState(key, state);
+  }
+
+  /**
+   * Store a session's routing token, bounding the map so a long-lived daemon
+   * serving many sessions cannot grow it without limit.
+   */
+  private rememberTurnState(sessionKey: string, state: string): void {
+    if (this.turnState.get(sessionKey) === state) return;
+    this.turnState.delete(sessionKey);
+    this.turnState.set(sessionKey, state);
+    while (this.turnState.size > MAX_TRACKED_TURN_STATES) {
+      const oldest = this.turnState.keys().next();
+      if (oldest.done) break;
+      this.turnState.delete(oldest.value);
+    }
+  }
+
   protected override buildHeaders(_req: Request): Record<string, string> {
     const headers: Record<string, string> = {
       ...super.buildHeaders(_req),
@@ -397,7 +618,11 @@ export class OpenAICodexProvider extends WireAdapter {
     };
     if (this.accountId) headers['chatgpt-account-id'] = this.accountId;
     const cacheSessionId = codexCacheSessionId(_req.cache?.sessionId);
-    if (cacheSessionId) headers['session-id'] = cacheSessionId;
+    if (cacheSessionId) {
+      headers['session-id'] = cacheSessionId;
+      const state = this.turnState.get(cacheSessionId);
+      if (state) headers['x-codex-turn-state'] = state;
+    }
     headers['x-client-request-id'] = crypto.randomUUID();
     return headers;
   }
@@ -415,7 +640,13 @@ export class OpenAICodexProvider extends WireAdapter {
       store: false,
       stream: true,
       instructions,
-      input: messagesToResponsesInput(req.messages),
+      // `include: reasoning.encrypted_content` below asks the backend to hand
+      // back the reasoning it produced; replaying it here is the half that
+      // makes asking for it worth anything. Skipped once the backend has
+      // rejected a replay (see `stream`).
+      input: messagesToResponsesInput(req.messages, {
+        includeReasoning: !this.reasoningReplayDisabled,
+      }),
       include: ['reasoning.encrypted_content'],
       parallel_tool_calls: true,
     };
@@ -442,16 +673,38 @@ export class OpenAICodexProvider extends WireAdapter {
   protected override parseStream(
     body: ReadableStream<Uint8Array> | NodeJS.ReadableStream | null,
     fallbackModel: string,
+    req: Request,
   ): AsyncIterable<StreamEvent> {
-    return parseOpenAIResponsesStream(body, fallbackModel, this.id);
+    return parseOpenAIResponsesStream(body, fallbackModel, this.id, (metadata) => {
+      this.handleResponseMetadata(req, metadata);
+    });
   }
 
+  /**
+   * Translate an HTTP failure, and mine the same quota headers off it.
+   *
+   * A 429 is the response that matters most here: it carries the quota
+   * headers like any other, and its `x-codex-*-reset-at` is an EXACT epoch for
+   * when the window reopens. Without it the waiting room falls back to
+   * exponential backoff and re-probes a five-hour (or weekly) cap every few
+   * minutes — every probe a request against an account that has none left.
+   * With it, the model parks until the published reset and wakes once.
+   */
   protected override translateError(
     status: number,
     text: string,
     headers?: HeadersLike,
   ): ProviderError {
-    return parseProviderHttpError(this.id, status, text, headers);
+    const error = parseProviderHttpError(this.id, status, text, headers);
+    if (!headers) return error;
+
+    const snapshots = parseCodexRateLimitHeaders(headers);
+    if (snapshots.length > 0) recordProviderQuota(this.id, snapshots);
+
+    if (!error.body || error.body.retryAfterMs !== undefined) return error;
+    const resetIn = codexResetHintMs(snapshots);
+    if (resetIn !== undefined) error.body.retryAfterMs = resetIn;
+    return error;
   }
 }
 
@@ -471,6 +724,12 @@ export function resolveCodexUrl(baseUrl: string | undefined): string {
   if (normalized.endsWith('/codex/responses')) return normalized;
   if (normalized.endsWith('/codex')) return `${normalized}/responses`;
   return `${normalized}/codex/responses`;
+}
+
+/** Convert the HTTP Responses endpoint to the Codex WebSocket endpoint. */
+export function resolveCodexWebSocketUrl(baseUrl: string | undefined): string {
+  const httpUrl = resolveCodexUrl(baseUrl);
+  return httpUrl.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:');
 }
 
 /** Resolve the authenticated Codex model-catalog endpoint beside `/responses`. */
@@ -537,10 +796,35 @@ function extractOutputText(content: unknown): string {
   return out;
 }
 
+function responseMetadataFromEvent(evt: Record<string, unknown>): CodexResponseMetadata | undefined {
+  const raw =
+    (evt['metadata'] as Record<string, unknown> | undefined) ??
+    ((evt['response'] as Record<string, unknown> | undefined)?.['metadata'] as
+      | Record<string, unknown>
+      | undefined);
+  if (!raw || typeof raw !== 'object') return undefined;
+  const rawHeaders = raw['headers'];
+  if (!rawHeaders || typeof rawHeaders !== 'object') return undefined;
+  const headers: Record<string, string> = {};
+  for (const [name, value] of Object.entries(rawHeaders as Record<string, unknown>)) {
+    if (typeof value === 'string' && value.trim()) headers[name.toLowerCase()] = value;
+  }
+  if (Object.keys(headers).length === 0) return undefined;
+  const requestId =
+    typeof raw['request_id'] === 'string'
+      ? raw['request_id']
+      : typeof raw['requestId'] === 'string'
+        ? raw['requestId']
+        : undefined;
+  const model = typeof raw['model'] === 'string' ? raw['model'] : undefined;
+  return { headers, ...(requestId ? { requestId } : {}), ...(model ? { model } : {}) };
+}
+
 export async function* parseOpenAIResponsesStream(
   body: ReadableStream<Uint8Array> | NodeJS.ReadableStream | null,
   fallbackModel: string,
   providerId = 'openai-codex',
+  onResponseMetadata?: ((metadata: CodexResponseMetadata) => void) | undefined,
 ): AsyncIterable<StreamEvent> {
   let model = fallbackModel;
   let started = false;
@@ -551,6 +835,10 @@ export async function* parseOpenAIResponsesStream(
   // or `[DONE]`) is seen. If the stream closes without one after we started,
   // the response was cut mid-stream and must surface as retryable.
   let sawTerminal = false;
+
+  // Server id of the reasoning item currently streaming, so its encrypted
+  // payload can be paired with it when the item closes.
+  let reasoningItemId: string | undefined;
 
   // Currently-streaming function call (Responses streams one item at a time).
   let toolCallId: string | undefined;
@@ -602,6 +890,12 @@ export async function* parseOpenAIResponsesStream(
     const type = typeof evt['type'] === 'string' ? (evt['type'] as string) : '';
 
     switch (type) {
+      case 'response.metadata': {
+        const metadata = responseMetadataFromEvent(evt);
+        if (metadata) onResponseMetadata?.(metadata);
+        break;
+      }
+
       case 'response.created':
       case 'response.in_progress': {
         const resp = evt['response'] as { model?: string } | undefined;
@@ -626,7 +920,17 @@ export async function* parseOpenAIResponsesStream(
           | undefined;
         if (!item) break;
         if (item.type === 'reasoning') {
-          yield { type: 'thinking_start' };
+          // Keep the server's item id on the block. Replaying a reasoning item
+          // needs BOTH the id and the encrypted payload (which only arrives on
+          // `output_item.done`), so the id is stashed now and the payload is
+          // attached below as the block's signature.
+          reasoningItemId = typeof item.id === 'string' ? item.id : undefined;
+          yield reasoningItemId
+            ? {
+                type: 'thinking_start',
+                providerMeta: { [CODEX_REASONING_ID_META]: reasoningItemId },
+              }
+            : { type: 'thinking_start' };
         } else if (item.type === 'function_call') {
           toolCallId = item.call_id ?? item.id ?? `call_${Math.random().toString(36).slice(2)}`;
           toolArgBuf = { chunks: [], length: 0 };
@@ -645,6 +949,16 @@ export async function* parseOpenAIResponsesStream(
           const ev0 = flushRemainingText(prefilled);
           if (ev0) yield ev0;
         }
+        break;
+      }
+
+      case 'codex.rate_limits': {
+        // Some ChatGPT backends restate the quota windows as an SSE event
+        // instead of (or in addition to) the response headers. Same numbers,
+        // same store — a surface reading the quota must not care which path
+        // delivered it.
+        const snapshot = parseCodexRateLimitEvent(evt);
+        if (snapshot) recordProviderQuota(providerId, [snapshot]);
         break;
       }
 
@@ -707,6 +1021,18 @@ export async function* parseOpenAIResponsesStream(
           | undefined;
         if (!item) break;
         if (item.type === 'reasoning') {
+          const encrypted = (item as { encrypted_content?: unknown }).encrypted_content;
+          const itemId = reasoningItemId ?? (typeof item.id === 'string' ? item.id : undefined);
+          if (typeof encrypted === 'string' && encrypted.length > 0 && itemId) {
+            yield {
+              type: 'thinking_meta',
+              providerMeta: {
+                [CODEX_REASONING_ID_META]: itemId,
+                [CODEX_REASONING_ENCRYPTED_META]: encrypted,
+              },
+            };
+          }
+          reasoningItemId = undefined;
           yield { type: 'thinking_stop' };
         } else if (item.type === 'function_call') {
           const id = item.call_id ?? toolCallId ?? `call_${Math.random().toString(36).slice(2)}`;

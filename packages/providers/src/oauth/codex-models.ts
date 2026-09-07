@@ -19,7 +19,9 @@
  * @module oauth/codex-models
  */
 
+import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
+import { release as osRelease, type as osType } from 'node:os';
 import { CODEX_MODELS } from '@wrongstack/core/models';
 import type { ModelsRegistry } from '@wrongstack/core/types';
 import { CODEX_BASE_URL, CODEX_ORIGINATOR } from './codex-protocol.js';
@@ -94,11 +96,17 @@ export async function fetchCodexModels(
     CODEX_MODELS_CLIENT_VERSION,
   )}`;
   try {
+    // Official Codex CLI client headers (user-agent + session_id): the /models
+    // endpoint sits behind a header-level challenge that Node's default UA
+    // fails; the full official set verified 200 live (client_version=0.309.1).
+    const platformTag = process.platform === 'win32' ? 'Windows 11' : `${osType} ${osRelease}`;
     const res = await fetch(url, {
       headers: {
         accept: 'application/json',
         authorization: `Bearer ${accessToken}`,
         originator: CODEX_ORIGINATOR,
+        'user-agent': `codex_cli_rs/${CODEX_MODELS_CLIENT_VERSION} (${platformTag}; ${process.arch}) unknown`,
+        session_id: randomUUID(),
         'OpenAI-Beta': 'responses=experimental',
       },
       signal: signal
