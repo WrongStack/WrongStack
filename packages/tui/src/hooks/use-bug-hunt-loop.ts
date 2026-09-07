@@ -1,7 +1,26 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { Action } from '../app-reducer.js';
 
-type ActiveBugHunt = { command: string; totalRounds?: number | undefined; completedRounds: number };
+type ActiveBugHunt = {
+  command: string;
+  scope?: string | undefined;
+  totalRounds?: number | undefined;
+  completedRounds: number;
+};
+
+function parseBugHuntScope(command: string): string | undefined {
+  const args = command.replace(/^\/bughunt(?:\s+|$)/, '').trim();
+  const match = args.match(/^--rounds(?:\s+|=)\d+(?:\s+([\s\S]*))?$/);
+  const scope = (match?.[1] ?? (match ? '' : args)).trim();
+  return scope || undefined;
+}
+
+function buildContinuationMessage(active: ActiveBugHunt): string {
+  const round = active.completedRounds + 1;
+  const roundLabel = active.totalRounds ? `round ${round}/${active.totalRounds}` : `round ${round}`;
+  const scope = active.scope ? ` Stay within the original scope: ${active.scope}.` : '';
+  return `This is ${roundLabel}; we're continuing the bug hunt.${scope}`;
+}
 
 /** Coordinates bounded or user-stopped `/bughunt` rounds in the TUI. */
 export function useBugHuntLoop(
@@ -31,21 +50,29 @@ export function useBugHuntLoop(
     replayCommandRef.current = null;
   }, [historyGen]);
 
-  const onBugHuntStarted = useCallback((command: string, totalRounds?: number) => {
-    const active = activeRef.current;
-    if (active?.command === command) {
-      dispatch({
-        type: 'bugHuntRunningOpen',
-        info: {
-          currentRound: active.completedRounds + 1,
-          totalRounds: active.totalRounds,
-        },
-      });
-      return;
-    }
-    activeRef.current = { command, totalRounds, completedRounds: 0 };
-    dispatch({ type: 'bugHuntRunningOpen', info: { currentRound: 1, totalRounds } });
-  }, [dispatch]);
+  const onBugHuntStarted = useCallback(
+    (command: string, totalRounds?: number) => {
+      const active = activeRef.current;
+      if (active?.command === command) {
+        dispatch({
+          type: 'bugHuntRunningOpen',
+          info: {
+            currentRound: active.completedRounds + 1,
+            totalRounds: active.totalRounds,
+          },
+        });
+        return;
+      }
+      activeRef.current = {
+        command,
+        scope: parseBugHuntScope(command),
+        totalRounds,
+        completedRounds: 0,
+      };
+      dispatch({ type: 'bugHuntRunningOpen', info: { currentRound: 1, totalRounds } });
+    },
+    [dispatch],
+  );
 
   const onRunFinished = useCallback(
     (status: 'done' | 'aborted' | 'failed' | 'max_iterations') => {
@@ -91,10 +118,19 @@ export function useBugHuntLoop(
               });
               return;
             }
-            // Preserve normal slash setup, but hide this internal replay from
-            // the chat transcript so the command is not printed each round.
-            replayCommandRef.current = snapshot.command;
-            submit(snapshot.command);
+            // Round 1 is the slash command that expands the full prompt. Later
+            // rounds only need a compact reminder; keep it out of the transcript
+            // while preserving the running indicator normally opened by slash setup.
+            const continuation = buildContinuationMessage(snapshot);
+            replayCommandRef.current = continuation;
+            dispatch({
+              type: 'bugHuntRunningOpen',
+              info: {
+                currentRound: snapshot.completedRounds + 1,
+                totalRounds: snapshot.totalRounds,
+              },
+            });
+            submit(continuation);
           },
         },
       });
