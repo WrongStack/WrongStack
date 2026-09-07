@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-07T22:47:02.050Z
+**Generated:** 2026-09-07T23:12:52.973Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3681 |
-| Production source lines | 884712 |
-| Test files | 3169 |
+| Production source lines | 884785 |
+| Test files | 3170 |
 | Workspace dependency edges | 127 |
 | Relative module edges | 11593 |
 | Non-command slash imports | 0 |
@@ -54,7 +54,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/simpleui | 95 | 67 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/techstack | 50 | 37 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 32 | @wrongstack/core |
-| @wrongstack/tools | 216 | 217 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/tools | 216 | 218 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 364 | 336 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 18 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 539 | 365 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
@@ -112,6 +112,7 @@ None.
 | 1014 | `packages/cli/src/slash-commands/sdd.ts` |
 | 1014 | `packages/tui/src/components/context-panel.tsx` |
 | 1013 | `packages/tools/src/codebase-index/indexer.ts` |
+| 1007 | `packages/cli/src/webui-server.ts` |
 | 1007 | `packages/core/src/execution/brain-runtime.ts` |
 | 1007 | `packages/sage/src/types.ts` |
 | 1005 | `packages/tui/src/kanban-slash.ts` |
@@ -128,7 +129,6 @@ None.
 | 981 | `packages/sage/src/tools/memory-tools.ts` |
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 | 978 | `packages/core/src/execution/eternal-autonomy.ts` |
-| 975 | `packages/cli/src/webui-server.ts` |
 | 973 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 968 | `packages/tools/src/codebase-index/background-indexer.ts` |
 | 966 | `packages/core/src/coordination/director.ts` |

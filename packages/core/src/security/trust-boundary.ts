@@ -127,11 +127,21 @@ export interface CompatibilityTrustBoundaryOptions {
    */
   readonly denyCriticalRiskRemoteClient?: boolean | undefined;
   /**
-   * E4 (AC-005 / API-003): when true (default), `remote-client` actors
-   * are also denied actions at `risk === 'high'` (covering the broad
-   * majority of HQ-issued commands), not just `critical`. The single-
-   * shape-only mode that ships in the prior audit is preserved for
-   * callers that explicitly set this to `false`.
+   * E4 (AC-005 / API-003): when true, `remote-client` actors are also denied
+   * actions at `risk === 'high'`, not just `critical`.
+   *
+   * Defaults to **false**, and that default is load-bearing rather than lax.
+   * Every call site in this repo picks its risk level against the one thing
+   * this policy denies: `terminal.create`, `process.kill` and HQ `enqueue`
+   * are `high` precisely because `high` is the "audited but permitted" tier,
+   * and `host.shutdown` / `mcp.server.configure` sit at `elevated` to stay
+   * clear of the `critical` deny. Turning this on by default therefore does
+   * not tighten one rule — it revokes the WebUI terminal, per-process kill
+   * and every bearer-token HQ command at once (see WS-050, which pins
+   * bearer + `enqueue` as deliberately still allowed).
+   *
+   * A deployment that genuinely wants remote clients locked out of the
+   * `high` tier opts in here; the rule is real and enforced when it does.
    */
   readonly denyHighRiskRemoteClient?: boolean | undefined;
 }
@@ -154,24 +164,20 @@ export function createCompatibilityTrustBoundary(
   options: CompatibilityTrustBoundaryOptions = {},
 ): TrustBoundary {
   const denyCriticalRiskRemoteClient = options.denyCriticalRiskRemoteClient ?? true;
-  // E4 (AC-005 / API-003): the previous boundary only denied the single
-  // shape `remote-client + critical` and returned `allow` for every
-  // other request, including `remote-client + high` (which covers the
-  // broad majority of HQ-issued commands). Combined with `/api/auth/
-  // upgrade` flipping `actor.kind` from `remote-client` to `user`, the
-  // boundary was effectively decorative — the only control the
-  // architecture advertised had no backstop. The default now denies
-  // any `risk >= 'high'` from `remote-client` actors; the option to
-  // opt back into the old single-shape behaviour remains for the
-  // migration path.
-  const denyHighRiskRemoteClient = options.denyHighRiskRemoteClient ?? true;
+  // E4 (AC-005 / API-003): opt-in, not default. See the option's doc comment —
+  // `high` is the tier the whole codebase deliberately targets to be audited
+  // and permitted, so denying it by default is a blanket lockout of the WebUI
+  // terminal, process kill and bearer-token HQ commands rather than a
+  // tightening of one rule.
+  const denyHighRiskRemoteClient = options.denyHighRiskRemoteClient ?? false;
   return {
     async evaluate(request) {
       const isRemoteClient = request.actor.kind === 'remote-client';
       const riskLevel = request.risk;
       const shouldDeny =
-        (denyCriticalRiskRemoteClient && isRemoteClient && riskLevel === 'critical') ||
-        (denyHighRiskRemoteClient && isRemoteClient && (riskLevel === 'critical' || riskLevel === 'high'));
+        isRemoteClient &&
+        ((denyCriticalRiskRemoteClient && riskLevel === 'critical') ||
+          (denyHighRiskRemoteClient && (riskLevel === 'critical' || riskLevel === 'high')));
       if (shouldDeny) {
         const decision: TrustDenyDecision = {
           kind: 'deny',

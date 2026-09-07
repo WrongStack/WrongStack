@@ -432,6 +432,9 @@ const profiles = {
       index: 'src/index.ts',
       'server/entry': 'src/server/entry.ts',
       'server/handlers': 'src/server/handlers/index.ts',
+      // WS handshake policy. Its own entry so the CLI host can wire the same
+      // `verifyClient` the standalone server uses instead of keeping a copy.
+      'server/ws-auth': 'src/server/ws-auth.ts',
     },
     external: ['@wrongstack/core', '@wrongstack/webui-protocol'],
     postBuild: prependServerShebang,

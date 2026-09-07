@@ -25,7 +25,7 @@
  */
 
 import * as childProcess from 'node:child_process';
-import { chmod, stat } from 'node:fs/promises';
+import * as fsPromises from 'node:fs/promises';
 import * as os from 'node:os';
 import { promisify } from 'node:util';
 
@@ -37,11 +37,21 @@ let _cachedExecFileAsync:
     ) => Promise<{ stdout: string; stderr: string }>)
   | undefined;
 
+type ChmodFn = (path: string, mode: number) => Promise<void>;
+type StatFn = (path: string) => Promise<unknown>;
+
+/**
+ * Test seam. `chmod`/`stat` are deliberately left undefined here and resolved
+ * from `node:fs/promises` at call time (see `getChmod`/`getStat`): reading
+ * those bindings at module load makes every suite that partially mocks
+ * `node:fs/promises` fail on *import* of this module — and this module is
+ * pulled in transitively by `atomicWrite`, so that is most of them.
+ */
 export const _filePermOps = {
   platform: process.platform,
-  chmod,
-  stat,
-  userInfo: os.userInfo,
+  chmod: undefined as ChmodFn | undefined,
+  stat: undefined as StatFn | undefined,
+  userInfo: undefined as typeof os.userInfo | undefined,
   execFileAsync: undefined as
     | ((
         file: string,
@@ -50,6 +60,18 @@ export const _filePermOps = {
       ) => Promise<{ stdout: string; stderr: string }>)
     | undefined,
 };
+
+function getUserInfo(): typeof os.userInfo {
+  return _filePermOps.userInfo ?? os.userInfo;
+}
+
+function getChmod(): ChmodFn {
+  return _filePermOps.chmod ?? (fsPromises.chmod as unknown as ChmodFn);
+}
+
+function getStat(): StatFn {
+  return _filePermOps.stat ?? (fsPromises.stat as unknown as StatFn);
+}
 
 function getExecFileAsync() {
   if (_filePermOps.execFileAsync !== undefined) return _filePermOps.execFileAsync;
@@ -122,7 +144,7 @@ async function applyPermissions(
     }
   } else {
     try {
-      await _filePermOps.chmod(targetPath, isDir ? SECRET_DIR_MODE : SECRET_FILE_MODE);
+      await getChmod()(targetPath, isDir ? SECRET_DIR_MODE : SECRET_FILE_MODE);
     } catch {
       // Best-effort
     }
@@ -149,7 +171,7 @@ export async function restrictFilePermissions(
 /** True when the path no longer exists — there is nothing left to harden. */
 async function pathIsGone(filePath: string): Promise<boolean> {
   try {
-    await _filePermOps.stat(filePath);
+    await getStat()(filePath);
     return false;
   } catch {
     return true;
@@ -173,7 +195,7 @@ function windowsAccountName(): string | undefined {
   let username = process.env['USERNAME'] ?? process.env['USER'];
   if (!username) {
     try {
-      username = _filePermOps.userInfo().username;
+      username = getUserInfo()().username;
     } catch {
       username = undefined;
     }

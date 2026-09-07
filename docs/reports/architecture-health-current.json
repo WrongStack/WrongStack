@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-07T22:47:02.050Z",
+  "generatedAt": "2026-09-07T23:12:52.973Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3681,
-    "testFiles": 3169,
-    "sourceLines": 884712,
+    "testFiles": 3170,
+    "sourceLines": 884785,
     "workspaceEdges": 127,
     "moduleEdges": 11593,
     "nonCommandSlashImports": 0,
@@ -734,7 +734,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 216,
-      "testFiles": 217,
+      "testFiles": 218,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -750,7 +750,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 217
+          "testFiles": 218
         }
       ]
     },
@@ -13028,6 +13028,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/architecture/cli-ws-verifyclient.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/architecture/shell-true-parity.test.ts",
         "projects": [
           "root-node"
@@ -20270,7 +20276,7 @@
     },
     {
       "file": "packages/cli/src/webui-server.ts",
-      "lines": 975,
+      "lines": 1007,
       "relativeImports": 21
     },
     {
@@ -20971,6 +20977,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/cli/src/webui-server.ts",
+      "lines": 1007,
+      "relativeImports": 21
+    },
+    {
       "file": "packages/core/src/execution/brain-runtime.ts",
       "lines": 1007,
       "relativeImports": 14
@@ -21049,11 +21060,6 @@
       "file": "packages/core/src/execution/eternal-autonomy.ts",
       "lines": 978,
       "relativeImports": 8
-    },
-    {
-      "file": "packages/cli/src/webui-server.ts",
-      "lines": 975,
-      "relativeImports": 21
     },
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",

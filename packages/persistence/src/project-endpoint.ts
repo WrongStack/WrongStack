@@ -39,14 +39,27 @@ import * as path from 'node:path';
 
 import { assertUnixSocketPathWithinLimit } from './socket-path.js';
 
+/**
+ * Test seam. The `node:fs/promises` members are deliberately left undefined
+ * and resolved at call time (`fsOp` below): reading them at module load makes
+ * every suite that partially mocks `node:fs/promises` fail on *import* of this
+ * module, and this module is reachable from the package index.
+ */
 export const _projectEndpointOps = {
   platform: process.platform,
-  mkdir: fsPromises.mkdir,
-  chmod: fsPromises.chmod,
-  stat: fsPromises.stat,
-  rm: fsPromises.rm,
+  mkdir: undefined as typeof fsPromises.mkdir | undefined,
+  chmod: undefined as typeof fsPromises.chmod | undefined,
+  stat: undefined as typeof fsPromises.stat | undefined,
+  rm: undefined as typeof fsPromises.rm | undefined,
   createConnection: net.createConnection,
 };
+
+function fsOp<K extends 'mkdir' | 'chmod' | 'stat' | 'rm'>(
+  name: K,
+): NonNullable<(typeof _projectEndpointOps)[K]> {
+  return (_projectEndpointOps[name] ??
+    fsPromises[name]) as NonNullable<(typeof _projectEndpointOps)[K]>;
+}
 
 /** How long a liveness probe waits before calling the endpoint unreachable. */
 const PROBE_TIMEOUT_MS = 500;
@@ -156,7 +169,7 @@ async function ensureProjectEndpointDirectory(endpoint: string, service: string)
   // discarded, which reaches the operator as a bare connect timeout.
   assertUnixSocketPathWithinLimit(endpoint, service, _projectEndpointOps.platform);
   const dir = path.dirname(endpoint);
-  await _projectEndpointOps.mkdir(dir, {
+  await fsOp('mkdir')(dir, {
     recursive: true,
     mode: ENDPOINT_DIR_MODE,
   });
@@ -167,11 +180,11 @@ async function ensureProjectEndpointDirectory(endpoint: string, service: string)
   // the predictable name from inside it. A mis-owned directory means
   // another local user can see and impersonate the IPC channel; refuse
   // to start, do not silently exit into a squatter.
-  await _projectEndpointOps.chmod(dir, ENDPOINT_DIR_MODE).catch(() => {
+  await fsOp('chmod')(dir, ENDPOINT_DIR_MODE).catch(() => {
     // Filesystems that reject chmod (e.g. FAT mounts) still keep the
     // ownership check as the second line of defence below.
   });
-  const st = await _projectEndpointOps.stat(dir);
+  const st = await fsOp('stat')(dir);
   const myUid = typeof process.getuid === 'function' ? process.getuid() : undefined;
   if (myUid !== undefined && st.uid !== myUid) {
     throw new Error(
@@ -245,7 +258,7 @@ export async function bindProjectEndpoint(
     const error = await attemptListen(server, endpoint);
     if (!error) {
       if (!isWindows) {
-        await _projectEndpointOps.chmod(endpoint, ENDPOINT_FILE_MODE).catch(() => {
+        await fsOp('chmod')(endpoint, ENDPOINT_FILE_MODE).catch(() => {
           // The 0700 parent directory still restricts access to this user.
         });
       }
@@ -261,7 +274,7 @@ export async function bindProjectEndpoint(
     if (await isProjectEndpointLive(endpoint)) return { outcome: 'already-owned' };
 
     try {
-      await _projectEndpointOps.rm(endpoint, { force: true });
+      await fsOp('rm')(endpoint, { force: true });
       reclaimed = true;
     } catch (removeError) {
       // A competing contender may have removed it first, which is fine — the

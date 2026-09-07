@@ -87,12 +87,12 @@ describe('resolveProviderModelList', () => {
   });
 
   it('enriches openai-codex ids with canonical name + description (no catalog)', () => {
-    const list = resolveProviderModelList(['gpt-5.5', 'gpt-5.4-mini'], undefined);
+    const list = resolveProviderModelList(['gpt-5.6-sol', 'gpt-5.4-mini'], undefined);
     expect(list).toEqual([
       {
-        id: 'gpt-5.5',
-        name: 'GPT-5.5',
-        description: 'Frontier model for complex coding, research, and real-world work.',
+        id: 'gpt-5.6-sol',
+        name: 'GPT-5.6 Sol',
+        description: 'Latest frontier agentic coding model.',
         capabilities: [],
       },
       {
@@ -106,14 +106,16 @@ describe('resolveProviderModelList', () => {
 
   it('layers the codex description onto a catalog hit for the same id', () => {
     const list = resolveProviderModelList(
-      ['gpt-5.5'],
-      catalog([catalogModel({ id: 'gpt-5.5', name: 'GPT-5.5', limit: { context: 400000 } })]),
+      ['gpt-5.6-sol'],
+      catalog([
+        catalogModel({ id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', limit: { context: 400000 } }),
+      ]),
     );
     expect(list[0]).toMatchObject({
-      id: 'gpt-5.5',
-      name: 'GPT-5.5',
+      id: 'gpt-5.6-sol',
+      name: 'GPT-5.6 Sol',
       contextWindow: 400000,
-      description: 'Frontier model for complex coding, research, and real-world work.',
+      description: 'Latest frontier agentic coding model.',
     });
   });
 
@@ -129,7 +131,6 @@ describe('resolveProviderModelList', () => {
     expect(list.map((m) => m.id)).toEqual([
       'gpt-6-astra',
       'gpt-5.6-sol',
-      'gpt-5.5',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
       'gpt-5.4-mini',
@@ -148,7 +149,6 @@ describe('resolveProviderModelList', () => {
     expect(list.map((m) => m.id)).toEqual([
       'gpt-6-astra',
       'gpt-5.6-sol',
-      'gpt-5.5',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
       'gpt-5.4-mini',

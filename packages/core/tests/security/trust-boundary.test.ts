@@ -113,13 +113,31 @@ describe('TrustBoundary contract', () => {
     expect(killAllDecision.kind).toBe('deny');
   });
 
-  // E4 (AC-005 / API-003): the previous single-shape boundary
-  // (`remote-client + critical`) let every other request through,
-  // including `remote-client + high` (terminal spawn, process kill).
-  // The fix denies `high` and `critical` for `remote-client` actors by
-  // default; the legacy opt-out is preserved for migration paths.
-  it('denies high risk from remote-client (terminal spawn, process kill)', async () => {
+  // E4 (AC-005 / API-003): `remote-client + high` (terminal spawn, process
+  // kill, HQ enqueue) is deniable, but only for a deployment that opts in.
+  // It is NOT the default: every call site in the repo picks `high` precisely
+  // because that is the audited-but-permitted tier, so a default-on rule here
+  // revokes the WebUI terminal and bearer-token HQ commands wholesale rather
+  // than tightening one shape. WS-050 pins the other half of that contract.
+  it('allows high risk from remote-client by default (terminal spawn, process kill)', async () => {
+    // The default that the WebUI terminal, per-process kill and bearer-token
+    // HQ `enqueue` all depend on. If this flips, those surfaces go dark.
     const boundary = createCompatibilityTrustBoundary();
+    const decision = await boundary.evaluate({
+      version: 1,
+      requestId: 'rc-high-default',
+      actor: { kind: 'remote-client' },
+      surface: 'webui',
+      capability: 'process.spawn',
+      subject: { kind: 'command', id: 'pnpm test' },
+      risk: 'high',
+      scope: {},
+    });
+    expect(isTrustDecisionAllowed(decision)).toBe(true);
+  });
+
+  it('denies high risk from remote-client when the opt-in is set', async () => {
+    const boundary = createCompatibilityTrustBoundary({ denyHighRiskRemoteClient: true });
     const decision = await boundary.evaluate({
       version: 1,
       requestId: 'rc-high',
@@ -133,10 +151,9 @@ describe('TrustBoundary contract', () => {
     expect(isTrustDecisionAllowed(decision)).toBe(false);
   });
 
-  it('allows critical risk from remote-client only when BOTH opt-outs are set', async () => {
+  it('allows critical risk from remote-client only when the critical deny is off', async () => {
     const boundary = createCompatibilityTrustBoundary({
       denyCriticalRiskRemoteClient: false,
-      denyHighRiskRemoteClient: false,
     });
     const decision = await boundary.evaluate({
       version: 1,

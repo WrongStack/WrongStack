@@ -48,6 +48,7 @@ import {
   toSessionHistoryEntries,
 } from '@wrongstack/webui-server';
 import { type WebSocket, WebSocketServer } from 'ws';
+import { verifyClient as verifyWsClient } from '@wrongstack/webui-server/server/ws-auth';
 import { createWebuiClientRegistration } from './webui-server/client-registration.js';
 import type {
   WSClientMessage as EmbeddedWSClientMessage,
@@ -336,9 +337,40 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       : {}),
   });
 
+  // E5 (DOS-004): the previous CLI path constructed the
+  // `WebSocketServer` with no `verifyClient` callback, so a hostile
+  // page (or any random non-browser client) could complete the WS
+  // handshake and only then be rejected at the application-layer
+  // `authenticate` step. Every accepted handshake allocates a `ws`
+  // instance, two buffers, and a per-connection upgrade — the
+  // `for(;;) new WebSocket(...)` loop in a hostile tab is cheap
+  // memory/FD pressure on the agent host. The standalone server
+  // already wires `verifyClient`; mirror that on the CLI host.
+  // `WS-003` is left to its standalone setting (the Vite dev loop).
+  const verifyClient = (info: {
+    origin: string;
+    secure: boolean;
+    req: import('node:http').IncomingMessage;
+  }) =>
+    verifyWsClient({
+      origin: info.origin,
+      url: info.req.url ?? '',
+      hostHeader: info.req.headers.host,
+      remoteAddress: info.req.socket.remoteAddress,
+      cookieHeader: info.req.headers.cookie,
+      wsHost: host,
+      expectedToken: wsToken,
+      requireToken,
+      allowedHostnames: [publicUrl, publicWsUrl].filter(
+        (value): value is string => Boolean(value),
+      ),
+      allowBrowserUrlToken: Boolean(publicWsUrl),
+      allowCrossPortLoopbackCookie: process.env['WRONGSTACK_WEBUI_DEV_CROSS_PORT_WS'] === '1',
+    });
+
   const wss = httpServer
-    ? new WebSocketServer({ server: httpServer.server, maxPayload: 20 * 1024 * 1024 })
-    : new WebSocketServer({ port: httpPort, host, maxPayload: 20 * 1024 * 1024 });
+    ? new WebSocketServer({ server: httpServer.server, verifyClient, maxPayload: 20 * 1024 * 1024 })
+    : new WebSocketServer({ port: httpPort, host, verifyClient, maxPayload: 20 * 1024 * 1024 });
 
   // Armed at construction, not at wiring time. Constructing a WebSocketServer
   // with {server} makes `ws` forward that HTTP server's 'error' events onto

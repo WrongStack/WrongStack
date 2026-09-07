@@ -59,7 +59,7 @@
       "relativeImports": 5
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 975,
+      "lines": 1007,
       "relativeImports": 21
     },
     "packages/core/src/boot.ts": {

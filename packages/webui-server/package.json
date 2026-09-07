@@ -28,6 +28,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./server/ws-auth": {
+      "types": "./dist/server/ws-auth.d.ts",
+      "import": "./dist/server/ws-auth.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
