@@ -175,9 +175,10 @@ export class DefaultDesignKitLoader implements DesignKitLoader {
           const raw = await fs.readFile(kitFile, 'utf8');
           const fm = parseKitFrontmatter(raw);
           const id = fm.id ?? e.name;
+          const normalizedId = id.toLowerCase();
           if (!fm.name) continue;
-          if (seen.has(id)) continue;
-          seen.add(id);
+          if (seen.has(normalizedId)) continue;
+          seen.add(normalizedId);
           found.push({
             id,
             name: fm.name,

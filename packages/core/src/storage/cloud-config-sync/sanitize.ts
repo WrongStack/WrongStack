@@ -478,9 +478,17 @@ export const LOCAL_ONLY_TOP_LEVEL = [
 ] as const;
 
 const ENCRYPTED_VALUE = /enc:v\d+:/;
-/** Mirrors the server's key scan; anchored so `tokenSavingMode` survives. */
+// S2 (F3): the previous regex was anchored (`^…$`) and missing the
+// hyphenated form `api-key` / `x-api-key` / `anthropic-api-key` that
+// `config-secrets.ts:88` already covers for the encrypt path — meaning
+// the cloud-sync sweeper (the defence-in-depth layer for the rare
+// drift that lands a secret into `headers`/`env`) would not strip
+// them. Mirror the config-secrets pattern (unanchored, so the
+// `x-…` HTTP header spellings match) so the same spelling is
+// recognised in both places. We do still need a length lower bound
+// to avoid matching `token` inside an unrelated identifier.
 const SECRET_KEY =
-  /^(api[-_]?key|apikeys|.*token|secret.*|.*secret|password|passwd|credential.*|private[-_]?key|authorization)$/i;
+  /(?:api[-_]?key|auth[-_]?token|authorization|proxy-authorization|cookie|bearer|secret|password|passwd|pwd|refresh[-_]?token|session[-_]?key|access[_-]?token|private[_-]?key|token\b|.*token|.*secret|password|passwd|credential.*|private[-_]?key)/i;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

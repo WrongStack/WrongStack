@@ -61,7 +61,11 @@ export interface MailboxHttpRouterOptions {
   eventEmitter?: MailboxEventEmitter;
   authorize?: (
     request: IncomingMessage,
-  ) => MailboxHttpAccessDecision | Promise<MailboxHttpAccessDecision>;
+  ) =>
+    | MailboxHttpAccessDecision
+    | Promise<MailboxHttpAccessDecision>
+    | undefined
+    | Promise<undefined>;
   credentialStore?: MailboxCredentialVerifier;
   projectId?: string;
   rateLimiter?: MailboxHttpRateLimiter;

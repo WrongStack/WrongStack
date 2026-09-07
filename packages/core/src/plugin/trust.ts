@@ -31,7 +31,7 @@ import { ERROR_CODES, FsError } from '../types/errors.js';
 export interface PluginTrustEntry {
   /** Absolute entry file path that was hashed at pin time. */
   entry: string;
-  /** `sha256-<hex>` of the entry file contents at pin time. */
+  /** Bare hex sha256 digest of the entry file contents at pin time (same format as hashPluginClosure). */
   integrity: string;
   /** ISO timestamp of when the pin was written. */
   pinnedAt: string;
@@ -67,7 +67,10 @@ export async function hashFileContents(
   readFileFn: (path: string) => Promise<Buffer> = defaultReadFile,
 ): Promise<string> {
   const contents = await readFileFn(entryPath);
-  return `sha256-${createHash('sha256').update(contents).digest('hex')}`;
+  // Bare hex — must match hashPluginClosure's single-file digest format in the
+  // CLI wiring so a plugin pinned via one access shape (directory closure)
+  // still verifies when loaded via the other (bare specifier fallback).
+  return createHash('sha256').update(contents).digest('hex');
 }
 
 async function defaultReadFile(path: string): Promise<Buffer> {

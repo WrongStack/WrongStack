@@ -358,6 +358,15 @@ export type StreamEvent =
   | { type: 'thinking_start'; providerMeta?: Record<string, unknown> }
   | { type: 'thinking_delta'; text: string }
   | { type: 'thinking_signature'; signature: string }
+  /**
+   * Provider-specific metadata for the reasoning block currently streaming,
+   * delivered when the provider only reveals it as the block closes (the Codex
+   * Responses wire hands back `reasoning.encrypted_content` on
+   * `output_item.done`, not on `added`). Merged into the block's
+   * `providerMeta`; unlike `thinking_signature` it carries no cross-provider
+   * meaning, so a wire that does not understand the keys simply drops them.
+   */
+  | { type: 'thinking_meta'; providerMeta: Record<string, unknown> }
   | { type: 'thinking_stop' }
   | { type: 'message_stop'; stopReason: StopReason; usage: Usage };
 

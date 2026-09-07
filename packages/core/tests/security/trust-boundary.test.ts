@@ -113,7 +113,12 @@ describe('TrustBoundary contract', () => {
     expect(killAllDecision.kind).toBe('deny');
   });
 
-  it('still allows high risk from remote-client (terminal spawn, process kill)', async () => {
+  // E4 (AC-005 / API-003): the previous single-shape boundary
+  // (`remote-client + critical`) let every other request through,
+  // including `remote-client + high` (terminal spawn, process kill).
+  // The fix denies `high` and `critical` for `remote-client` actors by
+  // default; the legacy opt-out is preserved for migration paths.
+  it('denies high risk from remote-client (terminal spawn, process kill)', async () => {
     const boundary = createCompatibilityTrustBoundary();
     const decision = await boundary.evaluate({
       version: 1,
@@ -125,11 +130,14 @@ describe('TrustBoundary contract', () => {
       risk: 'high',
       scope: {},
     });
-    expect(isTrustDecisionAllowed(decision)).toBe(true);
+    expect(isTrustDecisionAllowed(decision)).toBe(false);
   });
 
-  it('allows critical risk from remote-client when denyCriticalRiskRemoteClient is false', async () => {
-    const boundary = createCompatibilityTrustBoundary({ denyCriticalRiskRemoteClient: false });
+  it('allows critical risk from remote-client only when BOTH opt-outs are set', async () => {
+    const boundary = createCompatibilityTrustBoundary({
+      denyCriticalRiskRemoteClient: false,
+      denyHighRiskRemoteClient: false,
+    });
     const decision = await boundary.evaluate({
       version: 1,
       requestId: 'rc-critical-allowed',

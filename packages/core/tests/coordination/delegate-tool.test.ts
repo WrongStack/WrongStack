@@ -116,6 +116,22 @@ describe('createDelegateTool', () => {
     expect(tool.capabilities).toContain(ToolCapabilities.SUBAGENT_SPAWN);
   });
 
+  // Regression for H-10 (AT-03):
+  //   part (a): the previous `permission:'auto'` combined with the
+  //     spawned worker's `WIDE_SUBAGENT_CAPABILITIES` (SHELL_ARBITRARY,
+  //     SHELL_RESTRICTED, SHELL_EXEC, PACKAGE_INSTALL, FS_WRITE) made
+  //     every delegation a zero-prompt-surface shell+install+write grant
+  //     to a model-chosen nickname.
+  //   part (b): no `subjectKey`/`subjectFields` meant the approval
+  //     subject fell through to `input.name` — the worker nickname
+  //     the model picked.
+  // The fix: `permission:'confirm'` and `subjectKey:'name'`.
+  it('prompts on every call (part a) and exposes the name as subject (part b)', () => {
+    const tool = createDelegateTool({ host: buildHost(null) });
+    expect(tool.permission).toBe('confirm');
+    expect(tool.subjectKey).toBe('name');
+  });
+
   it('runs a delegated task end-to-end via roster role', async () => {
     director = buildLiveDirector();
     const tool = createDelegateTool({ host: buildHost(director), roster: FLEET_ROSTER });

@@ -3,6 +3,7 @@ import { deriveCachePrefixKey } from '../../src/utils/cache-key.js';
 import { applyModelRuntime } from '../../src/execution/model-runtime.js';
 import type { TextBlock } from '../../src/types/blocks.js';
 import type { Request } from '../../src/types/provider.js';
+import type { Tool } from '../../src/types/tool.js';
 
 const block = (text: string): TextBlock => ({ type: 'text', text });
 
@@ -40,6 +41,54 @@ describe('deriveCachePrefixKey', () => {
     expect(keyWithToolsOrder1).toMatch(/^ws-[0-9a-f]{32}$/);
     expect(keyWithToolsOrder1).toBe(keyWithToolsOrder2);
     expect(keyWithToolsOrder1).not.toBe(keyWithoutTools);
+  });
+
+  it('changes when a tool description or input schema changes', () => {
+    const system = [block('identity')];
+    const base: Tool = {
+      name: 'search',
+      description: 'Search files',
+      inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
+      permission: 'auto',
+      mutating: false,
+    };
+    const changedDescription = { ...base, description: 'Search project files' };
+    const changedSchema = {
+      ...base,
+      inputSchema: {
+        type: 'object',
+        properties: { query: { type: 'string' }, path: { type: 'string' } },
+      },
+    };
+
+    expect(deriveCachePrefixKey(system, [base])).not.toBe(
+      deriveCachePrefixKey(system, [changedDescription]),
+    );
+    expect(deriveCachePrefixKey(system, [base])).not.toBe(
+      deriveCachePrefixKey(system, [changedSchema]),
+    );
+  });
+
+  it('ignores schema object insertion order and runtime-only tool fields', () => {
+    const system = [block('identity')];
+    const first: Tool = {
+      name: 'search',
+      description: 'Search files',
+      inputSchema: { type: 'object', properties: { query: { type: 'string' }, path: { type: 'string' } } },
+      permission: 'auto',
+      mutating: false,
+    };
+    const reordered: Tool = {
+      ...first,
+      inputSchema: { properties: { path: { type: 'string' }, query: { type: 'string' } }, type: 'object' },
+      permission: 'deny',
+      mutating: true,
+      _estDefTokens: 999,
+    };
+
+    expect(deriveCachePrefixKey(system, [first])).toBe(
+      deriveCachePrefixKey(system, [reordered]),
+    );
   });
 });
 

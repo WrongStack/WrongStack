@@ -24,6 +24,7 @@ export type StatuslineItem =
   | 'hint'
   | 'index'
   | 'breaker'
+  | 'quota'
   | 'todos'
   | 'plan'
   | 'tasks'
@@ -122,6 +123,7 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
   'autonomy',
   'eternal_stage',
   'breaker',
+  'quota',
   'token_saving',
   'processes',
   'side_effects',
@@ -192,6 +194,7 @@ export const DEFAULT_LINES: Record<StatuslineItem, StatuslineLine> = {
   autonomy: 3,
   eternal_stage: 3,
   breaker: 3,
+  quota: 3,
   token_saving: 3,
   processes: 3,
   side_effects: 3,
@@ -298,6 +301,7 @@ export const CHIP_DESCRIPTIONS: Record<StatuslineItem, string> = {
   hint: 'Transient status hint text',
   index: 'Codebase index server and indexing status',
   breaker: 'Process breaker countdown',
+  quota: 'Subscription plan quota — the most-consumed rolling window across metered providers',
   todos: 'Todo items (pending/in-progress/done)',
   plan: 'Plan board items',
   tasks: 'Task board items',

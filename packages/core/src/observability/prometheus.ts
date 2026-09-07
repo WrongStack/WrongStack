@@ -102,6 +102,17 @@ export function renderPrometheus(snapshot: MetricsSnapshot): string {
 /** MIME type Prometheus servers must respond with on /metrics. */
 export const PROMETHEUS_CONTENT_TYPE = 'text/plain; version=0.0.4; charset=utf-8';
 
+// S6 (E1): the listener only binds to a loopback interface, so a
+// request whose Host header does not point back at one of our loopback
+// addresses is necessarily not a same-host caller. The Host check
+// rejects DNS-rebinding attacks where a hostile page resolves to the
+// same IP the exporter is bound on. The Origin check rejects
+// cross-origin navigations that nevertheless speak our Host.
+const LOOPBACK_HOST_RE =
+  /^(?:127\.(?:\d{1,3})\.(?:\d{1,3})\.(?:\d{1,3})|\[::1\]|localhost)(?::\d+)?$/i;
+const LOOPBACK_ORIGIN_RE =
+  /^https?:\/\/(?:127\.(?:\d{1,3})\.(?:\d{1,3})\.(?:\d{1,3})|\[::1\]|localhost)(?::\d+)?$/i;
+
 export interface MetricsServerOptions {
   port: number;
   /** Bind address. Defaults to 127.0.0.1 so we don't accidentally expose metrics publicly. */
@@ -195,6 +206,31 @@ export async function startMetricsServer(opts: MetricsServerOptions): Promise<Me
     if (!req.url || req.method !== 'GET') {
       res.statusCode = req.url ? 405 : 400;
       res.end();
+      return;
+    }
+    // S6 (E1): DNS rebinding makes a hostile page same-origin with the
+    // exporter at the deterministic loopback port, so /metrics and
+    // /healthz become fully readable. The listener only binds to the
+    // loopback interface, so a request whose Host header does not
+    // point back at one of *our* loopback addresses is necessarily
+    // not a same-host caller and is rejected with 421 (the closest
+    // standard code for "the request targeted a host this server
+    // does not serve"). 421 was not in Node's stock set in 2022 but
+    // http.ServerResponse writes any 4xx string the caller passes, so
+    // we set it directly. The Origin check rejects cross-origin
+    // navigations that nevertheless speak our Host.
+    const host = req.headers.host;
+    if (typeof host !== 'string' || !LOOPBACK_HOST_RE.test(host)) {
+      res.statusCode = 421;
+      res.setHeader('content-type', 'text/plain; charset=utf-8');
+      res.end('Misdirected Request: metrics endpoint serves loopback only');
+      return;
+    }
+    const origin = req.headers.origin;
+    if (typeof origin === 'string' && !LOOPBACK_ORIGIN_RE.test(origin)) {
+      res.statusCode = 403;
+      res.setHeader('content-type', 'text/plain; charset=utf-8');
+      res.end('Cross-origin requests to the metrics endpoint are not allowed');
       return;
     }
     if (token && !bearerMatches(req.headers.authorization, token)) {

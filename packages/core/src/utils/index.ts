@@ -64,7 +64,7 @@ export {
   parseIncomingImages,
 } from './incoming-images.js';
 export { readBundledInstructionText, renderInstructionTemplate } from './instruction-file.js';
-export { assertNotPrivateHost, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from './ip-guard.js';
+export { assertNotPrivateHost, embeddedIPv4, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from './ip-guard.js';
 export { completePartialObject } from './json-repair.js';
 export {
   type CoercionResult,

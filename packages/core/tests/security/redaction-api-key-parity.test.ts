@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { stripSecretMaterial } from '../../src/storage/cloud-config-sync/sanitize.js';
 import { redactHqValue } from '../../src/hq/redaction.js';
 import { isSecretField } from '../../src/security/config-secrets.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
@@ -37,4 +38,19 @@ describe('redaction parity: api[-_]?key across all three layers (H-7 / VF-08)', 
     const out = redactHqValue({ [key]: value });
     expect(String((out.value as Record<string, unknown>)[key])).not.toContain(value);
   });
+
+  // S2 (F3) — extend the parity test to the fourth redaction layer:
+  // cloud-config-sync/sanitize.ts. The previous anchored regex missed
+  // every hyphenated spelling, so a `headers` map carrying
+  // `x-api-key: sk-…` would be copied to the cloud unchanged.
+  it.each(KEY_SPELLINGS)(
+    'cloud-config-sync sanitizer strips a "headers" entry keyed "%s"',
+    (key) => {
+      const value = ['sk-parity-', 'C'.repeat(28)].join('');
+      const out = stripSecretMaterial({ headers: { [key]: value } }) as {
+        headers: Record<string, string>;
+      };
+      expect(out.headers[key]).toBeUndefined();
+    },
+  );
 });

@@ -145,14 +145,26 @@ function unwrapDataKey(buf: Buffer, keyFile: string): { key: Buffer; version: nu
 
 /**
  * Check and warn if the key file has incorrect permissions on POSIX.
- * On Windows this is a no-op (mode bits don't apply).
+ * On Windows the mode bits are irrelevant — what matters is the inherited
+ * ACL, which `restrictFilePermissions` re-applies via `icacls` regardless
+ * of what mode bits say. The previous "no-op on Windows" returned `false`
+ * and so never re-hardened pre-existing keys, leaving every `~/.wrongstack/.key`
+ * and `profiles/default/config.json` readable by other local accounts
+ * (`CodexSandboxUsers` etc.) — the H-7 condition. We now always schedule
+ * a hardening pass; `restrictFilePermissions` is idempotent (it
+ * re-applies the owning-user-only ACL on every call, and a no-op for
+ * the user is acceptable boot-time cost).
  */
-function keyFileNeedsHardening(
+export function keyFileNeedsHardening(
   keyFile: string,
   opts?: { warn?: (msg: string) => void } | undefined,
 ): boolean {
-  if (process.platform === 'win32') return false; // No mode bits on Windows
   const warn = opts?.warn ?? ((msg: string) => console.warn(msg));
+  if (process.platform === 'win32') {
+    // Always re-apply the owning-user-only ACL on Windows. The previous
+    // early-return made every pre-existing key file un-hardened forever.
+    return true;
+  }
   try {
     const stat = fs.statSync(keyFile);
     const actualMode = stat.mode & 0o777;

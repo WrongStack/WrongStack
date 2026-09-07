@@ -36,6 +36,14 @@ const CATASTROPHIC_PATTERNS: RegExp[] = [
 
 const HIGH_IMPACT_PATTERNS: RegExp[] = [
   /\b(?:curl|wget|fetch|httpie|http|irm|iwr|Invoke-WebRequest|Invoke-RestMethod)\b[\s\S]{0,300}\|\s*(?:sudo\s+)?(?:sh|bash|zsh|fish|pwsh|powershell|iex|Invoke-Expression)\b/i,
+  // B2 (AT-08 / CMDI-004): the literal `curl … | sh` shape was the only
+  // pipe-to-shell recognised. `bash -c "$(curl …)"`, `bash -c '<curl>'`,
+  // and the equivalent `node -e "require('child_process').execSync(...)"`
+  // / `python -c "import os; os.system(...)"` were all missed — they
+  // ship a downloaded payload into a brand-new interpreter that the
+  // classifier never sees as a network command.
+  /\b(?:bash|sh|zsh|ksh|fish|pwsh|powershell)\b[\s\S]{0,200}-c\s*[\s$"'(]/i,
+  /\b(?:node|python[0-9.]*|perl|ruby)\b[\s\S]{0,200}-[ecE]\b/i,
   /\b(?:powershell|pwsh)(?:\.exe)?\b[\s\S]{0,120}-(?:enc|encodedcommand)\b/i,
   /\b(?:shutdown|reboot)\b/i,
 ];
@@ -400,13 +408,27 @@ function hasCatastrophicDelete(command: string): boolean {
 function hasWriteToAgentStateRoot(command: string): boolean {
   // Strategy: extract every plausible file-path token from the command, then
   // check each against isProtectedAgentStatePath. We scan:
-  // 1. Redirection targets: `> path`, `>> path`
+  // 1. Redirection targets: `> path`, `>> path`, plus glued forms (`>path`,
+  //    `>>path`, `2>path`, `2>>path`, `&>path`, `&>>path`, `>|path`, `>>|path`)
   // 2. `tee path` / `tee -a path`
   // 3. `cp src dst` / `mv src dst` — the last non-flag argument
   // 4. Heredoc-less `cat > path` patterns (covered by #1)
   const tokens = tokenizeShell(command);
 
-  // 1. Redirection targets — `>` or `>>` followed by a path.
+  // 1a. Glued redirect targets — the token-based loop below only matches
+  // `>` / `>>` as a standalone token, so `>~/.wrongstack/trust.json`
+  // (no space) and `2>file` / `&>file` (fd-redirect with no space) are
+  // missed. Scan the raw string for these forms before falling back to the
+  // token loop. The `\|?` makes the bash noclobber-overriding forms
+  // (`>|file`, `>>|file`) match too; the character class excludes fd-to-fd
+  // redirects like `2>&1` (the `&` is in the excluded set).
+  const GLUED_WRITE_REDIRECT_RE = /(?:>|>>|[&2]>|[&2]>>)\|?(?!\s)([^\s|&;()<>]+)/g;
+  for (const m of command.matchAll(GLUED_WRITE_REDIRECT_RE)) {
+    const target = m[1];
+    if (target && looksLikeAgentStateTarget(target)) return true;
+  }
+
+  // 1b. Redirection targets — `>` or `>>` followed by a path.
   for (let i = 0; i < tokens.length - 1; i++) {
     const t = tokens[i];
     if (t === '>' || t === '>>') {
@@ -450,6 +472,18 @@ function hasWriteToAgentStateRoot(command: string): boolean {
  * full path resolution to isProtectedAgentStatePath, but we pre-filter on
  * the path containing `.wrongstack` or starting with `~/.wrongstack` so we
  * don't call realpath on every token in every command.
+ *
+ * Coverage:
+ *   1. The protected config basenames (config.json, trust.json, etc.) — the
+ *      original "agent state" set: a write here can disable the approval
+ *      system or inject boot-time RCE via hooks/mcpServers/plugins.
+ *   2. Anything under the global plugin root (`~/.wrongstack/plugins/`) —
+ *      H-4: the global plugin root ships `defaultState: 'active'`, so a
+ *      single bash `> ~/.wrongstack/plugins/x.mjs` becomes boot-time code
+ *      execution on the next launch (the TOFU gate pins with no prompt).
+ *      No basename whitelist is needed: the global plugin root is itself
+ *      the trust anchor, and every file inside it is part of the closure
+ *      a plugin load imports.
  */
 function looksLikeAgentStateTarget(rawPath: string): boolean {
   // Expand ~ to the home directory for the comparison.
@@ -463,8 +497,19 @@ function looksLikeAgentStateTarget(rawPath: string): boolean {
   if (!resolvedNorm.startsWith(rootNorm) && !resolvedNorm.includes('.wrongstack')) {
     return false;
   }
-  // Check basename against the protected list (inlined to avoid a circular
-  // import with permission-helpers.ts).
+  // Coverage (2): any path inside the global plugin root is a protected
+  // write target — not just the .mjs/.js entry, but the whole closure the
+  // entry imports. We resolve the plugins root once per call; cheap.
+  const pluginsRoot = path.resolve(rootStr, 'plugins');
+  const pluginsRootNorm = pluginsRoot.replace(/\\/g, '/').toLowerCase();
+  if (
+    resolvedNorm === pluginsRootNorm ||
+    resolvedNorm.startsWith(`${pluginsRootNorm}/`)
+  ) {
+    return true;
+  }
+  // Coverage (1): basename against the protected list (inlined to avoid a
+  // circular import with permission-helpers.ts).
   return PROTECTED_STATE_BASENAMES.test(path.basename(resolved));
 }
 

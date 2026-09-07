@@ -1,3 +1,6 @@
+import * as fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { colorToHex, oklchToHex } from '../../src/execution/design-color.js';
 import {
@@ -17,6 +20,40 @@ function bundledLoader(): DefaultDesignKitLoader {
 }
 
 describe('DefaultDesignKitLoader', () => {
+  it('shadows lower-priority kit ids case-insensitively', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-design-kit-shadow-'));
+    const projectDir = path.join(tmp, 'project');
+    const bundledDir = path.join(tmp, 'bundled');
+    const kit = (id: string, name: string) =>
+      `---\nid: ${id}\nname: ${name}\naesthetic: test\nstacks: [web]\nthemes: [light, dark]\nbestFor: test\n---\n`;
+
+    try {
+      await fs.mkdir(path.join(projectDir, 'project-kit'), { recursive: true });
+      await fs.mkdir(path.join(bundledDir, 'bundled-kit'), { recursive: true });
+      await fs.writeFile(
+        path.join(projectDir, 'project-kit', 'KIT.md'),
+        kit('Minimal-Clarity', 'Project override'),
+      );
+      await fs.writeFile(
+        path.join(bundledDir, 'bundled-kit', 'KIT.md'),
+        kit('minimal-clarity', 'Bundled fallback'),
+      );
+
+      const loader = new DefaultDesignKitLoader({
+        inProjectDir: projectDir,
+        globalDir: path.join(tmp, 'missing'),
+        bundledDir,
+      });
+      const matching = (await loader.listEntries()).filter(
+        (entry) => entry.id.toLowerCase() === 'minimal-clarity',
+      );
+      expect(matching).toHaveLength(1);
+      expect(matching[0]?.source).toBe('project');
+    } finally {
+      await fs.rm(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('discovers the bundled kits and excludes _foundations from the menu', async () => {
     const loader = bundledLoader();
     const all = await loader.list();

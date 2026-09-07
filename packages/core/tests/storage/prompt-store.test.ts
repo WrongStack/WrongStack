@@ -312,4 +312,59 @@ describe('DefaultPromptStore', () => {
       expect(onDisk.version).toBe(1);
     });
   });
+
+  // Regression for H-6 (PATH-001): a hostile repo shipping a
+  // `.wrongstack/prompts/<id>.json` whose `id` is a path-traversal
+  // sequence was used by `get`/`save`/`delete` as the literal
+  // `path.join(this.dir, \`${id}.json\`)` — a one-★-click overwrite of any
+  // file the user can write. The same primitive lets `delete()` unlink
+  // arbitrary paths. Containment now rejects any id with `/` or `\`, NUL,
+  // excessive length, or one that resolves outside the store dir.
+  describe('path traversal containment (H-6)', () => {
+    const OUT_OF_STORE = '../../../tmp/escaped-target';
+    const ABS_PATH = '/etc/passwd';
+
+    it.each([
+      ['relative traversal', OUT_OF_STORE],
+      ['absolute path', ABS_PATH],
+      ['backslash traversal', '..\\..\\escaped'],
+      ['mixed slashes', '../foo/bar'],
+      ['embedded NUL', 'abc\0def'],
+      ['empty id', ''],
+      ['long id', 'x'.repeat(300)],
+    ])('rejects %s on get', async (_label, badId) => {
+      const store = new DefaultPromptStore(paths);
+      const result = await store.get(badId);
+      expect(result).toBeNull();
+    });
+
+    it('rejects traversal on save', async () => {
+      const store = new DefaultPromptStore(paths);
+      const entry = {
+        id: OUT_OF_STORE,
+        slug: 'evil',
+        title: 't',
+        description: '',
+        content: 'c',
+        category: 'uncategorized',
+        tags: [],
+        source: 'user' as const,
+        favorite: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await expect(store.save(entry)).rejects.toThrow(/Invalid prompt id/);
+    });
+
+    it('rejects traversal on delete (returns false, no unlink)', async () => {
+      const store = new DefaultPromptStore(paths);
+      // Place a sentinel outside the store to verify it is NOT unlinked.
+      const outside = path.join(tmpDir, 'sentinel.txt');
+      await fs.writeFile(outside, 'do-not-delete');
+      const traversalId = `../${path.basename(outside).replace(/\.txt$/, '')}`;
+      const result = await store.delete(traversalId);
+      expect(result).toBe(false);
+      await expect(fs.access(outside)).resolves.toBeUndefined();
+    });
+  });
 });

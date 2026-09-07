@@ -118,13 +118,13 @@ describe('verifyPluginTrust', () => {
 });
 
 describe('hashFileContents', () => {
-  it('produces a stable sha256- prefix of file contents', async () => {
+  it('produces a stable bare hex digest of file contents', async () => {
     const dir = await tempDir();
     const file = join(dir, 'plugin.js');
     await writeFile(file, 'export default 1;', 'utf8');
     const a = await hashFileContents(file);
     const b = await hashFileContents(file);
-    expect(a).toMatch(/^sha256-[0-9a-f]{64}$/);
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
     expect(a).toBe(b);
     await writeFile(file, 'export default 2;', 'utf8');
     const c = await hashFileContents(file);

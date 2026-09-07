@@ -158,7 +158,14 @@ describe('DefaultSystemPromptBuilder', () => {
     expect(blocks[0]?.text?.indexOf(bundled)).toBeLessThan(
       blocks[0]!.text!.indexOf('PROJECT IDENTITY'),
     );
-    expect(blocks.at(-1)?.text).toBe('PROJECT LEADER');
+    // H-8 (AT-01): a repo-committed `leader-after-task.md` is now fenced
+    // with the same `<project-supplied-instructions>` wrapper the
+    // identity layer uses, so the model treats it as project guidance
+    // rather than as first-party system text.
+    const last = blocks.at(-1)?.text ?? '';
+    expect(last).toContain('PROJECT LEADER');
+    expect(last).toContain('<project-supplied-instructions');
+    expect(last).toContain('leader-after-task.md');
   });
 
   it('selects variant system markdown from bundled and override instruction directories', async () => {

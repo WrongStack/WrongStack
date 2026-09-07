@@ -165,8 +165,32 @@ export class PhaseStore {
     }
   }
 
+  /**
+   * Resolve a phase-graph id to its file, refusing anything that escapes
+   * `baseDir`. `graphId` arrives from a WebSocket frame
+   * (`goal-ws-handler.ts:254-256`, raw `as string` casts) and from any
+   * persisted graph JSON. A bare `path.join` was the traversal primitive:
+   * `graphId = "../../../secret"` resolved outside the store and
+   * `loadGraph()` returned its contents (broadcast as `goal.state`).
+   * Mirrors the same containment `task-graph-store.ts:134-145` applies
+   * to its ids.
+   */
   private getFilePath(graphId: string): string {
-    return path.join(this.baseDir, `${graphId}.json`);
+    if (
+      typeof graphId !== 'string' ||
+      graphId.length === 0 ||
+      graphId.length > 200 ||
+      /[\0/\\]/.test(graphId)
+    ) {
+      throw new Error(`Invalid phase-graph id: ${JSON.stringify(graphId)}`);
+    }
+    const dir = path.resolve(this.baseDir);
+    const resolved = path.resolve(dir, `${graphId}.json`);
+    const rel = path.relative(dir, resolved);
+    if (rel.startsWith('..') || path.isAbsolute(rel) || rel.includes(path.sep)) {
+      throw new Error(`Invalid phase-graph id: ${JSON.stringify(graphId)}`);
+    }
+    return resolved;
   }
 
   private async loadFromPath(filePath: string): Promise<PhaseGraph | null> {

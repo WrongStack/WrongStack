@@ -125,4 +125,24 @@ describe('PhaseStore', () => {
     expect(fs.existsSync(path.join(currentDir, `${graph.id}.json`))).toBe(true);
     expect(fs.existsSync(legacyDir)).toBe(false);
   });
+
+  // Regression for H-6 (PATH-001): the WS frame `graphId` arrived via
+  // `goal-ws-handler.ts:254-256` as a raw `as string` cast, so a payload
+  // id of `../../secret` resolved outside the store and `loadGraph()`
+  // returned its contents (broadcast as `goal.state`). Containment now
+  // rejects any id with `/` or `\`, NUL, excessive length, or one that
+  // escapes `baseDir`.
+  describe('path traversal containment (H-6)', () => {
+    it.each([
+      ['relative traversal', '../../../tmp/escaped'],
+      ['absolute path', '/etc/passwd'],
+      ['backslash traversal', '..\\..\\escaped'],
+      ['mixed slashes', '../foo/bar'],
+      ['embedded NUL', 'abc\0def'],
+      ['empty id', ''],
+      ['long id', 'x'.repeat(300)],
+    ])('rejects %s on load', async (_label, badId) => {
+      await expect(store.load(badId)).rejects.toThrow(/Invalid phase-graph id/);
+    });
+  });
 });

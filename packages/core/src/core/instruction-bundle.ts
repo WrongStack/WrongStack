@@ -18,11 +18,31 @@ export interface SystemInstructionBundle {
    * project.
    */
   identitySource?: 'bundled' | 'global' | 'project' | 'file' | undefined;
+  /**
+   * Which discovery layer supplied `leaderAfterTask`. H-8 (AT-01): the
+   * identity layer was hardened with a `<project-supplied-instructions>`
+   * wrapper, but the sibling `leaderAfterTask` channel — read from the
+   * same untrusted `<project>/.wrongstack/instructions/leader-after-task.md`
+   * — was rendered raw. The consumer uses this to fence the override
+   * when the source is the project.
+   */
+  leaderAfterTaskSource?: 'bundled' | 'global' | 'project' | 'file' | undefined;
 }
 
 export interface InstructionBundle {
   version?: number | undefined;
   system?: SystemInstructionBundle | undefined;
+  /**
+   * Which discovery layer supplied the `sections` map. H-8 (AT-01):
+   * `<project>/.wrongstack/instructions/sections/*.md` is repo-committed
+   * and rendered verbatim by `instructionSection()`, with no provenance
+   * marker the way `identity` has. Filename → key mapping is mechanical
+   * (`instruction-bundle.ts:176-178`), so a single `nice.md` file in a
+   * cloned repo takes over a slot the genuine bundled section would
+   * occupy. The consumer uses this to fence the override when the source
+   * is the project.
+   */
+  sectionsSource?: 'bundled' | 'global' | 'project' | 'file' | undefined;
   sections?: Record<string, string> | undefined;
 }
 
@@ -74,8 +94,15 @@ export async function loadInstructionBundle(
 
   for (const [index, dir] of dirs.entries()) {
     const layer = await readInstructionDir(dir, { systemFile });
+    const source = layerNames[index] ?? 'bundled';
     if (layer.system?.identity !== undefined) {
-      layer.system = { ...layer.system, identitySource: layerNames[index] ?? 'bundled' };
+      layer.system = { ...layer.system, identitySource: source };
+    }
+    if (layer.system?.leaderAfterTask !== undefined) {
+      layer.system = { ...layer.system, leaderAfterTaskSource: source };
+    }
+    if (layer.sections !== undefined && Object.keys(layer.sections).length > 0) {
+      layer.sectionsSource = source;
     }
     bundle = mergeInstructionBundle(bundle, layer);
   }
@@ -83,6 +110,12 @@ export async function loadInstructionBundle(
     const layer = await readInstructionJson(file);
     if (layer.system?.identity !== undefined) {
       layer.system = { ...layer.system, identitySource: 'file' };
+    }
+    if (layer.system?.leaderAfterTask !== undefined) {
+      layer.system = { ...layer.system, leaderAfterTaskSource: 'file' };
+    }
+    if (layer.sections !== undefined && Object.keys(layer.sections).length > 0) {
+      layer.sectionsSource = 'file';
     }
     bundle = mergeInstructionBundle(bundle, layer);
   }

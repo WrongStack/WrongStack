@@ -7,6 +7,7 @@ import {
   DefaultSecretVault,
   decryptConfigSecrets,
   encryptConfigSecrets,
+  keyFileNeedsHardening,
   rewriteConfigEncrypted,
   rotateConfigKeys,
 } from '../../src/security/secret-vault.js';
@@ -482,5 +483,45 @@ describe('Key rotation', () => {
     expect(after.providers.anthropic.apiKey).toBe(good);
     expect(after.providers.openai.apiKey).toBe(corrupt);
     expect(vault.decrypt(after.providers.anthropic.apiKey)).toBe('api-key-good');
+  });
+
+  // Regression for H-7 (SECRETS-001): the previous `if (process.platform ===
+  // 'win32') return false;` made every pre-existing `~/.wrongstack/.key`
+  // and `profiles/default/config.json` un-hardened forever on Windows —
+  // they kept the inherited `CodexSandboxUsers:(I)(RX)` ACE and any local
+  // account could read the encrypted provider keys. The check now
+  // schedules a hardening pass on every load on every platform;
+  // `restrictFilePermissions` (via `icacls` on Windows, `chmod` on POSIX)
+  // is idempotent so the cost is one syscall per vault open.
+  describe('keyFileNeedsHardening (H-7)', () => {
+    it('returns true for any pre-existing key on the current platform', async () => {
+      // Create a key file with the OPPOSITE of the desired mode, so the
+      // POSIX branch would also classify it as needing hardening.
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'h7-needs-hardening-'));
+      try {
+        const keyFile = path.join(tmpDir, '.key');
+        await fs.writeFile(keyFile, Buffer.alloc(32, 0));
+        if (process.platform !== 'win32') {
+          await fs.chmod(keyFile, 0o644);
+        }
+        const needs = keyFileNeedsHardening(keyFile);
+        expect(needs).toBe(true);
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('on Windows, a missing key file also needs hardening (vacuous: the create path hardens)', () => {
+      const missing = path.join(os.tmpdir(), `h7-missing-${Date.now()}`, '.key');
+      if (process.platform === 'win32') {
+        // Post-H-7, every load schedules a hardening pass on Windows so
+        // a never-yet-touched key file is treated the same as a stale
+        // one. On POSIX the function still does the stat check and
+        // returns false on ENOENT.
+        expect(keyFileNeedsHardening(missing)).toBe(true);
+      } else {
+        expect(keyFileNeedsHardening(missing)).toBe(false);
+      }
+    });
   });
 });

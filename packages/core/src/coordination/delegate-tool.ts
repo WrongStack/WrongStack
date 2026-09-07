@@ -214,10 +214,26 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
       "Hand a piece of work to a subagent and block until it returns. This call is synchronous: the leader's iteration pauses for the full duration of the subagent's run. (Multiple `delegate` calls fired in the same assistant turn still parallelize through the provider's parallel-tool-call surface, but each one eats wall-clock time — so for fan-out you actually control, reach for the async path below.) Use `delegate` when your next step genuinely needs the subagent's verdict — a review, a fact-check, a sign-off. Has own context, own LLM call, auto-extending budget, and a partial-completion handoff path (maxHandoffs, default 1). Workers cannot recursively spawn.\n\n**Do NOT use `delegate` for long-running work.** While `delegate` is in flight, the leader is fully blocked — it cannot act on other tools, read mail, or react to the user. If the work might run for tens of minutes or hours (multi-file refactor, monorepo audit, long-running build/test, sweeping migration), the blocking call wastes the leader's time. Use the async tool family instead: `spawn_subagent` to create each worker (returns a `subagentId` immediately), `assign_task` to queue work on it (returns a `taskId` immediately), then `await_tasks` to retrieve results later. The leader keeps doing other work while the worker churns, and a worker that realizes its task will run long can tell the leader (type `steer` or `ask` via `session_note`, otherwise `mail_send`) saying *\"my task is going to run long, please spawn a subagent instead\"* so the leader re-dispatches asynchronously instead of waiting.\n\n**Do NOT use `delegate` for fan-out you control.** Multiple sequential `delegate` calls each block the leader, wasting wall-clock time. For independent investigations you want to run in parallel — security scan + bug hunt + perf review on the same PR — use the async tool family: `spawn_subagent` to create each worker (returns a `subagentId` immediately), `assign_task` to queue work on it (returns a `taskId` immediately), then the `await_tasks` tool with `{mode: 'any'}` to fold the first useful result into the next decision while the rest keep churning. Reach for `delegate` only when the result gates your next move AND the work is short enough that blocking the leader is acceptable.",
     usageHint:
       'Set `task` to the objective, then make the edges explicit: `scope` (what the work covers) and `outOfScope` (at least one concrete non-goal) are REQUIRED — the call is rejected without them, and the worker treats the rendered boundary block as a hard contract. Pick `role` from roster or pass `name` for free-form. Reach for `delegate` only when the result gates your next move AND the work is short enough that blocking the leader is acceptable (minutes, not hours). For long-running work or fan-out you control, use `spawn_subagent` + `assign_task` + `await_tasks` instead. Raise `maxHandoffs` (default 1, cap 8) for multi-day or multi-refactor tasks; pass larger `timeoutMs`/`maxIterations`/`maxToolCalls` only when needed.',
-    permission: 'auto',
+    // H-10 (AT-03) part (a): delegate previously shipped
+    // `permission:'auto'` and the spawned worker inherited
+    // `WIDE_SUBAGENT_CAPABILITIES` (SHELL_ARBITRARY, SHELL_RESTRICTED,
+    // SHELL_EXEC, PACKAGE_INSTALL, FS_WRITE) all returning
+    // `{permission:'auto'}` with no prompt surface. Promoting to
+    // `permission:'confirm'` forces a prompt on every call, in every
+    // mode (YOLO or not) — the spawned worker's wide capabilities no
+    // longer ride on a single innocuous-looking approval.
+    permission: 'confirm',
     mutating: false,
     managesOwnTimeout: true,
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
+    // H-10 (AT-03) part (b): previously no `subjectKey`/`subjectFields`,
+    // so the approval subject fell through to `input.name` — a
+    // model-chosen nickname the user had no way to verify. Declaring
+    // `subjectKey: 'name'` makes the subject explicit; the prompt now
+    // shows the nickname the user is approving, and an "always" answer
+    // is stored against that exact name (no more silent over-grant
+    // across renamed workers).
+    subjectKey: 'name',
     inputSchema,
     async execute(input: unknown, _ctx?: unknown, execOpts?: { signal?: AbortSignal }) {
       const sessionId = callerSessionId(_ctx, opts.directorRunId) ?? opts.directorRunId;

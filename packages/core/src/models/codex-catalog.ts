@@ -50,11 +50,6 @@ export const CODEX_MODELS: ReadonlyArray<CodexModelMeta> = [
     description: 'Latest frontier agentic coding model.',
   },
   {
-    id: 'gpt-5.5',
-    name: 'GPT-5.5',
-    description: 'Frontier model for complex coding, research, and real-world work.',
-  },
-  {
     id: 'gpt-5.6-terra',
     name: 'GPT-5.6 Terra',
     description: 'Balanced agentic coding model for everyday work.',

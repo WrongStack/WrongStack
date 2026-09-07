@@ -285,7 +285,14 @@ function stripShellQuotes(value: string): string {
  * meaningless through sheer volume.
  */
 const AGENT_STATE_SENSITIVE_BASENAMES =
-  /^(?:config\.json|config\.local\.json|trust\.json|auth\.json|\.key)$/i;
+  // F1 (SECRETS-002): the previous `$`-anchored regex missed
+  // `config.json.last` and `config.json.<ts>.bak` — verbatim copies
+  // of the live config (secrets included) written by `config-history`.
+  // The `(?:\\..+)?` captures the dot-suffix so the prompt fires for
+  // any backup the writer produces, while the still-anchored `^…$`
+  // keeps the prompt narrow (we still don't want every file under
+  // `~/.wrongstack` to trip this).
+  /^(?:config(?:\.local)?\.json(?:\..+)?|trust\.json|auth\.json|\.key)$/i;
 
 /** Undo `escapeGlobSubject`'s backslash escapes so a subject compares as a path. */
 function unescapeGlobSubject(value: string): string {

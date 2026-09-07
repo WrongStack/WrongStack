@@ -126,6 +126,14 @@ export interface CompatibilityTrustBoundaryOptions {
    * {@code false}.
    */
   readonly denyCriticalRiskRemoteClient?: boolean | undefined;
+  /**
+   * E4 (AC-005 / API-003): when true (default), `remote-client` actors
+   * are also denied actions at `risk === 'high'` (covering the broad
+   * majority of HQ-issued commands), not just `critical`. The single-
+   * shape-only mode that ships in the prior audit is preserved for
+   * callers that explicitly set this to `false`.
+   */
+  readonly denyHighRiskRemoteClient?: boolean | undefined;
 }
 
 /**
@@ -146,16 +154,28 @@ export function createCompatibilityTrustBoundary(
   options: CompatibilityTrustBoundaryOptions = {},
 ): TrustBoundary {
   const denyCriticalRiskRemoteClient = options.denyCriticalRiskRemoteClient ?? true;
+  // E4 (AC-005 / API-003): the previous boundary only denied the single
+  // shape `remote-client + critical` and returned `allow` for every
+  // other request, including `remote-client + high` (which covers the
+  // broad majority of HQ-issued commands). Combined with `/api/auth/
+  // upgrade` flipping `actor.kind` from `remote-client` to `user`, the
+  // boundary was effectively decorative — the only control the
+  // architecture advertised had no backstop. The default now denies
+  // any `risk >= 'high'` from `remote-client` actors; the option to
+  // opt back into the old single-shape behaviour remains for the
+  // migration path.
+  const denyHighRiskRemoteClient = options.denyHighRiskRemoteClient ?? true;
   return {
     async evaluate(request) {
-      if (
-        denyCriticalRiskRemoteClient &&
-        request.actor.kind === 'remote-client' &&
-        request.risk === 'critical'
-      ) {
+      const isRemoteClient = request.actor.kind === 'remote-client';
+      const riskLevel = request.risk;
+      const shouldDeny =
+        (denyCriticalRiskRemoteClient && isRemoteClient && riskLevel === 'critical') ||
+        (denyHighRiskRemoteClient && isRemoteClient && (riskLevel === 'critical' || riskLevel === 'high'));
+      if (shouldDeny) {
         const decision: TrustDenyDecision = {
           kind: 'deny',
-          reason: `Compatibility policy denies critical risk actions from remote-client actors`,
+          reason: `Compatibility policy denies ${riskLevel} risk actions from remote-client actors`,
           policyId: options.policyId ?? 'trusted-host-compat-v1',
         };
         await options.audit?.({ request, decision, evaluatedAt: new Date().toISOString() });

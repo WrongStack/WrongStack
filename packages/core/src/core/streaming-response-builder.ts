@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { EventBus } from '../kernel/events.js';
-import type { Logger } from '../types/logger.js';
 import type { ContentBlock, ThinkingBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Provider, Request, Response } from '../types/provider.js';
-import { resolveEventSessionId } from './context.js';
 import type { AgentContext } from '../types/context.js';
+import type { Logger } from '../types/logger.js';
+import type { Provider, Request, Response } from '../types/provider.js';
 import { completePartialObject } from '../utils/json-repair.js';
+import { resolveEventSessionId } from './context.js';
 
 const STREAM_DRAIN_TIMEOUT_MS = 500;
 
@@ -49,7 +49,11 @@ export function buildResponse(state: StreamingState): Response {
       // empty {type:'thinking', thinking:''} block makes Anthropic 400
       // ("content[].thinking.thinking: cannot be empty").
       if (!t) continue;
-      if (!t.textBuf && !t.signature) continue;
+      // …but a block whose only payload is provider metadata is kept: the Codex
+      // wire returns reasoning whose encrypted content is the whole point and
+      // whose summary text is frequently empty. Wires that would reject an
+      // empty thinking block drop it at their own boundary.
+      if (!t.textBuf && !t.signature && !t.providerMeta) continue;
       const block: ThinkingBlock = { type: 'thinking', thinking: t.textBuf };
       if (t.signature) block.signature = t.signature;
       if (t.providerMeta && Object.keys(t.providerMeta).length > 0) {
@@ -221,6 +225,23 @@ export function handleThinkingSignature(state: StreamingState, signature: string
   if (t) t.signature = signature;
 }
 
+/**
+ * Merge late-arriving provider metadata into the reasoning block in flight.
+ *
+ * Additive rather than replacing: `thinking_start` may already have recorded
+ * the item id, and the closing event carries the payload.
+ */
+export function handleThinkingMeta(
+  state: StreamingState,
+  providerMeta: Record<string, unknown>,
+): void {
+  if (state.currentThinkingIndex === -1) {
+    handleThinkingStart(state, {});
+  }
+  const t = state.thinking[state.currentThinkingIndex];
+  if (t) t.providerMeta = { ...t.providerMeta, ...providerMeta };
+}
+
 export function handleThinkingStop(state: StreamingState): void {
   state.currentThinkingIndex = -1;
 }
@@ -317,6 +338,9 @@ export async function streamProviderToResponse(
             break;
           case 'thinking_signature':
             handleThinkingSignature(state, ev.signature);
+            break;
+          case 'thinking_meta':
+            handleThinkingMeta(state, ev.providerMeta);
             break;
           case 'thinking_stop':
             handleThinkingStop(state);

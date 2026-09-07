@@ -139,8 +139,40 @@ export class DefaultPromptStore implements PromptStore {
     return entries.sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
   }
 
+  /**
+   * Resolve a prompt id to its file path, refusing anything that escapes
+   * the store dir. `id` arrives from a repo-committed
+   * `.wrongstack/prompts/*.json` file via `migratePromptEntry` (which only
+   * checks `typeof r['id'] === 'string'`), from the WebUI ★ button
+   * (`setFavorite`), and from the `/prompts favorite`/`import` slash
+   * commands — all of which treat the id as trusted even though project
+   * policy classifies the source directory as UNTRUSTED. A bare
+   * `path.join(this.dir, \`${id}.json\`)` was the precedent traversal
+   * primitive: an `id` of `../../../../Users/x/.ssh/authorized_keys`
+   * would write the prompt JSON over that file. Mirrors the same
+   * containment `task-graph-store.ts:134-145` and `kanban/storage.ts`
+   * apply to their ids.
+   */
+  private filePath(id: string): string {
+    if (typeof id !== 'string' || id.length === 0 || id.length > 200 || /[\0/\\]/.test(id)) {
+      throw new Error(`Invalid prompt id: ${JSON.stringify(id)}`);
+    }
+    const dir = path.resolve(this.dir);
+    const resolved = path.resolve(dir, `${id}.json`);
+    const rel = path.relative(dir, resolved);
+    if (rel.startsWith('..') || path.isAbsolute(rel) || rel.includes(path.sep)) {
+      throw new Error(`Invalid prompt id: ${JSON.stringify(id)}`);
+    }
+    return resolved;
+  }
+
   async get(id: string): Promise<PromptEntry | null> {
-    const file = path.join(this.dir, `${id}.json`);
+    let file: string;
+    try {
+      file = this.filePath(id);
+    } catch {
+      return null;
+    }
     try {
       const raw: RawPromptFile = JSON.parse(await fs.readFile(file, 'utf8'));
       return migratePromptEntry(raw.entry);
@@ -151,13 +183,18 @@ export class DefaultPromptStore implements PromptStore {
 
   async save(entry: PromptEntry): Promise<void> {
     await ensureDir(this.dir);
-    const file = path.join(this.dir, `${entry.id}.json`);
+    const file = this.filePath(entry.id);
     const raw: RawPromptFile = { version: SCHEMA_VERSION, entry };
     await atomicWrite(file, JSON.stringify(raw, null, 2));
   }
 
   async delete(id: string): Promise<boolean> {
-    const file = path.join(this.dir, `${id}.json`);
+    let file: string;
+    try {
+      file = this.filePath(id);
+    } catch {
+      return false;
+    }
     try {
       await fs.unlink(file);
       return true;

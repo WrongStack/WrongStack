@@ -107,7 +107,21 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
   }
 
   private hasAgentStateWriteTarget(tool: Tool, input: unknown, ctx: Context): boolean {
-    if (!hasCapability(tool, ToolCapabilities.FS_WRITE)) return false;
+    // B1 (AC-008 / RCE-007): the original `FS_WRITE` gate let
+    // `CONFIG_MUTATE` tools — chiefly `mcp_control({action:'enable'})` —
+    // escape the carve-out and run an unprompted
+    // `npx -y <preset>` + persisted `mcpServers.<name>.enabled = true`
+    // in the fully-trusted profile. `CONFIG_MUTATE` writes config keys
+    // the in-project config strip-list explicitly forbids, so a
+    // successful enable is just as state-rooting as a `fs.write` of
+    // `trust.json` — and must be checked the same way. `riskTier` is
+    // also widened so a future tool declaring a destructive tier
+    // (without the legacy capability constants) still classifies
+    // correctly.
+    const isFsWrite = hasCapability(tool, ToolCapabilities.FS_WRITE);
+    const isConfigMutate = hasCapability(tool, ToolCapabilities.CONFIG_MUTATE);
+    const isDestructiveTier = tool.riskTier === 'destructive';
+    if (!isFsWrite && !isConfigMutate && !isDestructiveTier) return false;
     for (const targetPath of fsWriteTargetPaths(tool, input)) {
       const base = ctx.workingDir ?? ctx.cwd;
       const resolved = base ? path.resolve(base, targetPath) : path.resolve(targetPath);

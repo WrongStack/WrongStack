@@ -86,6 +86,45 @@ describe('build-script allowlists stay in sync with the tree (WS-072)', () => {
     expect(onlyBuilt.filter((name) => !inLockfile(name))).toEqual([]);
   });
 
+  // I4 (SC-SUPPLY-003 / Phase 3 S4 bonus): a stronger version of the
+  // staleness check — a name in `allowBuilds` / `onlyBuiltDependencies`
+  // must not only exist in the tree, it must also actually declare
+  // an install lifecycle script. The previous reviewer-gate-spends-
+  // in-advance shape was: an entry for a package with NO install
+  // script authorises nothing today, but the moment the package gains
+  // a `postinstall` (via npm-publish, a transitive update, anything)
+  // the gate fires silently. The fix is the test below: every entry
+  // must point to a `package.json` that already declares
+  // `preinstall` / `install` / `postinstall` / `prepare` — and a
+  // missing node_modules is also flagged, since "package exists in
+  // the lockfile but is not installed" is the same shape.
+  it('every allowBuilds entry resolves to a package.json that declares an install script', () => {
+    const missing: string[] = [];
+    const deadEntries: string[] = [];
+    for (const name of allowBuilds) {
+      const pkgPath = resolve(repoRoot, 'node_modules', name, 'package.json');
+      let pkg: { scripts?: Record<string, string> };
+      try {
+        pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { scripts?: Record<string, string> };
+      } catch {
+        missing.push(name);
+        continue;
+      }
+      const scripts = pkg.scripts ?? {};
+      const hasInstall = ['preinstall', 'install', 'postinstall', 'prepare'].some(
+        (k) => typeof scripts[k] === 'string' && scripts[k]!.length > 0,
+      );
+      if (!hasInstall) deadEntries.push(name);
+    }
+    expect(missing, 'allowBuilds entries that are not installed in node_modules').toEqual([]);
+    expect(
+      deadEntries,
+      'allowBuilds entries whose package.json declares no install lifecycle script — ' +
+        'these spend the review gate in advance. Remove from pnpm-workspace.yaml ' +
+        'and re-add when (and only when) the package gains a real script.',
+    ).toEqual([]);
+  });
+
   it('the removed better-sqlite3 authorisation has not crept back', () => {
     // Named explicitly so a re-add has to be a deliberate act with a reason,
     // rather than a copy-paste that quietly re-opens the gate. If the project
