@@ -6,8 +6,15 @@
  * `WRONGSTACK_BENCH_MAX_CPU_DRIFT_PCT` (default 10 percentage points) between
  * the start and end of the measured section, and the online-peer count
  * (`WRONGSTACK_BENCH_ONLINE_AGENTS`, captured by the runner before the run)
- * does not change mid-run. An invalid pair THROWS so the samples can never be
- * recorded as a valid comparison.
+ * does not change mid-run. An invalid pair is NEVER recorded as a comparison.
+ *
+ * How an invalid pair ends the test depends on the mode:
+ *   - default (developer box, `pnpm test`): the test SKIPS. The sample is
+ *     unusable, but an unusable sample is not a product defect, so a loaded
+ *     box must not turn the suite red.
+ *   - `WRONGSTACK_BENCH_STRICT_PAIRING=1` (runner-driven perf legs): it
+ *     THROWS, so a leg that cannot produce a valid comparison fails loudly.
+ * Callers that pass no test context always get the strict (throwing) path.
  */
 import * as os from 'node:os';
 
@@ -16,6 +23,11 @@ export interface LoadSnapshot {
   /** Online-peer count captured by the runner via WRONGSTACK_BENCH_ONLINE_AGENTS. */
   agents: number | null;
   at: string;
+}
+
+/** Minimal shape of the vitest test context bits this helper needs. */
+export interface PairingSkipContext {
+  skip: (note?: string) => never;
 }
 
 /** Sample aggregate CPU busy% over `sampleMs` using os.cpus() deltas (Windows-safe). */
@@ -47,12 +59,24 @@ export async function captureLoad(): Promise<LoadSnapshot> {
   };
 }
 
-/** Fail the run when shared-box load drifts beyond the configured pairing thresholds. */
+/** True when the runner asked for the strict (fail-the-leg) pairing contract. */
+export function isStrictPairing(): boolean {
+  const raw = process.env['WRONGSTACK_BENCH_STRICT_PAIRING'];
+  return raw !== undefined && raw !== '' && raw !== '0' && raw.toLowerCase() !== 'false';
+}
+
+/**
+ * Reject the pair when shared-box load drifted beyond the configured thresholds.
+ *
+ * Pass the vitest test context to skip (instead of fail) on a developer box;
+ * omit it — or set `WRONGSTACK_BENCH_STRICT_PAIRING=1` — to throw.
+ */
 export function assertPairingValid(
   start: LoadSnapshot,
   end: LoadSnapshot,
   suite: string,
   detail = '',
+  ctx?: PairingSkipContext,
 ): void {
   const maxDriftPct = Number(process.env['WRONGSTACK_BENCH_MAX_CPU_DRIFT_PCT'] ?? 10);
   const driftPct = Math.abs(end.cpu - start.cpu);
@@ -64,11 +88,11 @@ export function assertPairingValid(
       `cpuEnd=${end.cpu.toFixed(1)}% cpuDrift=${driftPct.toFixed(1)}pp ` +
       `agents=${end.agents ?? 'unknown'} valid=${valid}`,
   );
-  if (!valid) {
-    throw new Error(
-      `benchmark pairing invalid: CPU drifted ${driftPct.toFixed(1)}pp ` +
-        `(max ${maxDriftPct}pp)${agentsStable ? '' : ' or online-agent count changed mid-run'} ` +
-        '— comparison samples must not be used',
-    );
-  }
+  if (valid) return;
+  const reason =
+    `benchmark pairing invalid: CPU drifted ${driftPct.toFixed(1)}pp ` +
+    `(max ${maxDriftPct}pp)${agentsStable ? '' : ' or online-agent count changed mid-run'} ` +
+    '— comparison samples must not be used';
+  if (ctx && !isStrictPairing()) ctx.skip(reason);
+  throw new Error(reason);
 }

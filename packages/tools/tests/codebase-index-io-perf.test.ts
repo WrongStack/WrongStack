@@ -48,17 +48,19 @@ describe('codebase-index controlled I/O benchmark', () => {
     await Promise.all(roots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
   });
 
-  it('records repeated p50/p95 latency for a controlled incremental burst', async () => {
+  it('records repeated p50/p95 latency for a controlled incremental burst', async (ctx) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-io-perf-'));
     roots.push(root);
     const indexDir = path.join(root, '.index');
     const files = Array.from({ length: 12 }, (_, i) => path.join(root, `file-${i}.ts`));
     await Promise.all(files.map((file, i) => fs.writeFile(file, `export function f${i}() { return ${i}; }\n`)));
 
-    const loadStart = await captureLoad();
     resetCodebaseIndexPerfMetrics();
     await runStartupIndex({ projectRoot: root, indexDir, force: true, timeoutMs: 30_000 });
 
+    // Bracket the measured burst only; the forced startup index above is
+    // warm-up load and would otherwise show up as pairing drift.
+    const loadStart = await captureLoad();
     const latencies: number[] = [];
     for (let round = 0; round < 3; round++) {
       await Promise.all(files.map((file) => fs.appendFile(file, `\nexport const changed${round} = true;\n`)));
@@ -72,7 +74,7 @@ describe('codebase-index controlled I/O benchmark', () => {
     }
 
     const loadEnd = await captureLoad();
-    assertPairingValid(loadStart, loadEnd, 'codebase-index-inline', 'mode=incremental-burst');
+    assertPairingValid(loadStart, loadEnd, 'codebase-index-inline', 'mode=incremental-burst', ctx);
 
     const metrics = getCodebaseIndexPerfSnapshot();
     const summary = summarize(latencies);
@@ -91,7 +93,7 @@ describe('codebase-index controlled I/O benchmark', () => {
     );
   });
 
-  it('awaits a direct debounced enqueue burst', async () => {
+  it('awaits a direct debounced enqueue burst', async (ctx) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-enqueue-perf-'));
     roots.push(root);
     const indexDir = path.join(root, '.index');
@@ -112,7 +114,7 @@ describe('codebase-index controlled I/O benchmark', () => {
     });
     const latency = elapsedMs(start);
     const loadEnd = await captureLoad();
-    assertPairingValid(loadStart, loadEnd, 'codebase-index-inline', 'mode=enqueue-burst');
+    assertPairingValid(loadStart, loadEnd, 'codebase-index-inline', 'mode=enqueue-burst', ctx);
     const metrics = getCodebaseIndexPerfSnapshot();
     expect(latency).toBeLessThan(30_000);
     expect(metrics.filesystemBytesRead).toBeGreaterThan(0);

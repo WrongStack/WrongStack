@@ -328,7 +328,7 @@ The baseline command also completed the 50/100/250ms sweep; the contended comman
 
 - `captureCpuPercent()` — aggregate CPU busy% from `os.cpus()` deltas (Windows-safe, 300ms sample).
 - `captureLoad()` — CPU plus the runner-captured online-agent count (`WRONGSTACK_BENCH_ONLINE_AGENTS`).
-- `assertPairingValid()` — emitted as a `[codebase-index-daemon-pairing]` line; fails the run (marking the comparison invalid) when in-run CPU drift exceeds `WRONGSTACK_BENCH_MAX_CPU_DRIFT_PCT` (default 10pp) or the agent count changes.
+- `assertPairingValid()` — emitted as a `[codebase-index-daemon-pairing]` line; marks the comparison invalid when in-run CPU drift exceeds `WRONGSTACK_BENCH_MAX_CPU_DRIFT_PCT` (default 10pp) or the agent count changes. An invalid pair skips the case by default and fails the run under `WRONGSTACK_BENCH_STRICT_PAIRING=1` (see the 2026-09-07 pairing-window entry at the end of this log).
 
 ### Synchronized legs
 
@@ -392,3 +392,30 @@ Both primary legs were re-run after the pairing helpers moved to `bench-pairing.
 
 **Verdict: KEEP — refactor confirmed non-shifting.** Every leg-to-leg delta is inside shared-box noise (p50 ±1.5%, p95 ≤6.2%, queue waits identical), the attribution ratio is preserved at ~5.3×, and the pairing guard rejected a genuinely drifted sample exactly as designed. The attribution verdict ("attributed with high confidence") carries over unchanged to the shared-module harness.
 
+
+## Pairing window narrowed; invalid pairs skip instead of failing — 2026-09-07
+
+### Why
+
+The daemon sweep failed on a developer box with `cpuStart=65.4% cpuEnd=52.3% cpuDrift=13.1pp`
+at the very first sweep point (`hold=50`). Neither number described the measured burst: the
+`loadStart` sample was taken right after `mkdtemp`, while the *previous* case's daemons were
+still tearing down, and `loadEnd` was taken once the box had quiesced. The pair bracketed a
+cooldown, not the benchmark.
+
+### Two changes
+
+1. **Window narrowed to the measured section.** All four paired cases now take `loadStart`
+   *after* the forced startup index and `resetCodebaseIndexPerfMetrics()`, immediately before
+   the burst — matching what `enqueue-burst` already did. Warm-up load and prior-case teardown
+   no longer register as in-run drift.
+2. **An unusable sample no longer reddens the suite.** `assertPairingValid()` now takes the
+   vitest test context and **skips** the case on an invalid pair (default, developer boxes):
+   the sample is unusable, but an unusable sample is not a product defect. Set
+   `WRONGSTACK_BENCH_STRICT_PAIRING=1` — the contract for runner-driven perf legs — and it
+   **throws** exactly as before, so a leg that cannot produce a valid comparison fails loudly.
+   A caller that passes no context always gets the strict path.
+
+The invariant is unchanged: **an invalid pair is never recorded as a valid comparison.** Only
+the way it ends the case is mode-dependent. The `[<suite>-pairing]` line with
+`valid=true|false` is still emitted in both modes, so a skipped case still leaves its evidence.

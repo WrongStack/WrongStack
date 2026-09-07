@@ -50,7 +50,7 @@ describe('built-dist detached codebase-index benchmark', () => {
     }
   });
 
-  it('captures repeated daemon p50/p95/max and non-zero queue metrics', async () => {
+  it('captures repeated daemon p50/p95/max and non-zero queue metrics', async (ctx) => {
     expect(process.env['WRONGSTACK_INDEX_INLINE']).toBeUndefined();
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-daemon-perf-'));
     process.env['WRONGSTACK_INDEX_BENCH_NO_HOST_MUTEX'] =
@@ -58,7 +58,6 @@ describe('built-dist detached codebase-index benchmark', () => {
     process.env['WRONGSTACK_INDEX_BENCH_WRITE_HOLD_MS'] =
       process.env['WRONGSTACK_BENCH_HOLD_MS'] ?? '250';
     const holdMs = Number(process.env['WRONGSTACK_INDEX_BENCH_WRITE_HOLD_MS'] ?? '250');
-    const loadStart = await captureLoad();
     roots.push(root);
 
     const indexDir = path.join(root, '.index');
@@ -67,6 +66,10 @@ describe('built-dist detached codebase-index benchmark', () => {
 
     await runStartupIndex({ projectRoot: root, indexDir, force: true, timeoutMs: 30_000 });
     resetCodebaseIndexPerfMetrics();
+    // Bracket the measured burst only: sampling before the forced startup index
+    // (or before the previous case's daemon teardown has drained) reads that
+    // warm-up as drift and invalidates an otherwise clean pair.
+    const loadStart = await captureLoad();
     const latencies: number[] = [];
     for (let round = 0; round < 3; round++) {
       await Promise.all(files.map((file) => fs.appendFile(file, `\nexport const daemonChanged${round} = true;\n`)));
@@ -80,7 +83,7 @@ describe('built-dist detached codebase-index benchmark', () => {
     }
 
     const loadEnd = await captureLoad();
-    assertPairingValid(loadStart, loadEnd, 'codebase-index-daemon', `hold=${holdMs}`);
+    assertPairingValid(loadStart, loadEnd, 'codebase-index-daemon', `hold=${holdMs}`, ctx);
 
     const metrics = getCodebaseIndexPerfSnapshot();
     const health = await checkCodebaseIndexServerHealth(root, indexDir, { timeoutMs: 5_000 });
@@ -99,7 +102,7 @@ describe('built-dist detached codebase-index benchmark', () => {
     );
   }, 180_000);
 
-  it('sweeps benchmark hold values and reports queue-wait sensitivity', async () => {
+  it('sweeps benchmark hold values and reports queue-wait sensitivity', async (ctx) => {
     const sweep: Array<{
       holdMs: number;
       p50: number;
@@ -119,10 +122,12 @@ describe('built-dist detached codebase-index benchmark', () => {
       const files = Array.from({ length: 8 }, (_, i) => path.join(root, `sweep-${i}.ts`));
       process.env['WRONGSTACK_INDEX_BENCH_NO_HOST_MUTEX'] = '1';
       process.env['WRONGSTACK_INDEX_BENCH_WRITE_HOLD_MS'] = String(holdMs);
-      const loadStart = await captureLoad();
       await Promise.all(files.map((file, i) => fs.writeFile(file, `export const s${i} = ${i};\n`)));
       await runStartupIndex({ projectRoot: root, indexDir, force: true, timeoutMs: 30_000 });
       resetCodebaseIndexPerfMetrics();
+      // Sample after the warm-up so the pair brackets the burst, not the
+      // previous sweep point's daemon shutdown.
+      const loadStart = await captureLoad();
       await Promise.all(files.map((file) => fs.appendFile(file, '\nexport const sweepChanged = true;\n')));
       const latencies: number[] = [];
       const starts = files.map(() => process.hrtime.bigint());
@@ -133,7 +138,7 @@ describe('built-dist detached codebase-index benchmark', () => {
         }),
       );
       const loadEnd = await captureLoad();
-      assertPairingValid(loadStart, loadEnd, 'codebase-index-daemon', `hold=${holdMs} sweep`);
+      assertPairingValid(loadStart, loadEnd, 'codebase-index-daemon', `hold=${holdMs} sweep`, ctx);
       const health = await checkCodebaseIndexServerHealth(root, indexDir, { timeoutMs: 5_000 });
       const stats = summary(latencies);
       const waitMs = health.server?.writeQueueWaitMs ?? 0;
