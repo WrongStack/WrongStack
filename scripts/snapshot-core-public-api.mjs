@@ -52,6 +52,10 @@ const ownership = {
   plugin: ['agent-domain contract', 'Core plugin API'],
   plugins: ['product feature', '@wrongstack/plugins'],
   prompts: ['product feature', 'plugin/runtime implementation'],
+  // quota: provider-neutral subscription-budget shape plus the process-local
+  // store the status surfaces read. In Core so a chip can render the last
+  // reading without constructing a transport; the parsers live in Providers.
+  quota: ['concrete runtime default', 'Runtime or Providers'],
   registry: ['concrete runtime default', 'Runtime composition'],
   replay: ['storage/repository implementation', 'repository/runtime implementation'],
   security: ['concrete runtime default', 'Runtime security subsystem'],

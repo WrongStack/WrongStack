@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "1.0.2",
+  "packageVersion": "1.0.3",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -447,7 +447,7 @@
         "export { addFatalSalvageHook, runFatalSalvageSync, type CrashShieldOptions, installCrashShield, } from './crash-shield.js';",
         "export { applyToolDescriptionModes, applyToolDescriptionModeToTool, DEFAULT_TOOL_DESCRIPTION_MODE, getToolDescriptionMode, normalizeToolDescriptionMode, resolveToolDescriptionMode, setToolDescriptionMode, simplifyToolDescription, type ToolDescriptionRegistryLike, } from './tool-description-mode.js';",
         "export { applyToolResultRenderModes, DEFAULT_TOOL_RESULT_RENDER_MODE, getToolResultRenderMode, normalizeToolResultRenderMode, resolveToolResultRenderMode, setToolResultRenderMode, type ToolResultRenderModeRegistryLike, } from './tool-result-render-mode.js';",
-        "export { assertNotPrivateHost, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from './ip-guard.js';",
+        "export { assertNotPrivateHost, embeddedIPv4, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from './ip-guard.js';",
         "export { buildCompletedWorkLedgerBlock, buildContextEvidenceDigest, COMPLETED_WORK_LEDGER_MARKER, createContextEvidenceState, formatCompletedWorkLedger, markAssistantReferencedEvidence, type RecordCompletedWorkInput, type RecordToolOutputEvidenceInput, recordCompletedWorkEvidence, recordToolOutputEvidence, recordUserIntentEvidence, repeatedReadPressure, syncCompletedWorkLedgerBlock, } from './context-evidence.js';",
         "export { buildSgrSequence, buildTitleSequence, type ColorDepth, detectTerminal, ESCAPE_TERMINATOR, type EscapeEmitResult, type EscapeSequence, isStdinTTY, type MouseProtocol, onResize, safeEmit, setOutputLineGuard, setRawMode, setTitle, type TerminalCapability, TerminalLifecycle, writeErr, writeOut, } from './term.js';",
         "export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';",
@@ -532,6 +532,20 @@
         "export function sanitizeNodeOptions",
         "export interface BuildChildEnvOptions",
         "export interface GitIdentity"
+      ]
+    },
+    {
+      "subpath": "./utils/ip-guard",
+      "target": {
+        "types": "./dist/utils/ip-guard.d.ts",
+        "import": "./dist/utils/ip-guard.js"
+      },
+      "source": "packages/core/src/utils/ip-guard.ts",
+      "declarations": [
+        "export function embeddedIPv4",
+        "export function expandIPv6",
+        "export function isPrivateIPv4",
+        "export function isPrivateIPv6"
       ]
     },
     {
@@ -1006,6 +1020,34 @@
       ]
     },
     {
+      "subpath": "./quota",
+      "target": {
+        "types": "./dist/quota/index.d.ts",
+        "import": "./dist/quota/index.js"
+      },
+      "source": "packages/core/src/quota/index.ts",
+      "declarations": [
+        "export const DEFAULT_QUOTA_METER",
+        "export function formatQuotaPercent",
+        "export function formatQuotaResetIn",
+        "export function getAllProviderQuota",
+        "export function getProviderQuota",
+        "export function hasQuotaData",
+        "export function listQuotaProviders",
+        "export function onProviderQuota",
+        "export function quotaResetInMs",
+        "export function quotaWindowLabel",
+        "export function reachedQuotaWindow",
+        "export function recordProviderQuota",
+        "export function resetProviderQuota",
+        "export function worstProviderQuotaWindow",
+        "export interface ProviderQuotaCredits",
+        "export interface ProviderQuotaSnapshot",
+        "export interface ProviderQuotaWindow",
+        "export type ProviderQuotaListener"
+      ]
+    },
+    {
       "subpath": "./infrastructure",
       "target": {
         "types": "./dist/infrastructure/index.d.ts",
@@ -1381,14 +1423,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 185,
-      "sourceLines": 52182
+      "sourceLines": 52202
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 53,
-      "sourceLines": 12298
+      "sourceLines": 12389
     },
     {
       "directory": "design",
@@ -1402,7 +1444,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 18552
+      "sourceLines": 18553
     },
     {
       "directory": "extension",
@@ -1416,7 +1458,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repository behind persistence primitive",
       "sourceFiles": 14,
-      "sourceLines": 3502
+      "sourceLines": 3526
     },
     {
       "directory": "hooks",
@@ -1451,7 +1493,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 11,
-      "sourceLines": 2461
+      "sourceLines": 2456
     },
     {
       "directory": "notifications",
@@ -1465,7 +1507,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 13,
-      "sourceLines": 1950
+      "sourceLines": 1986
     },
     {
       "directory": "performance",
@@ -1479,7 +1521,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 6,
-      "sourceLines": 2394
+      "sourceLines": 2397
     },
     {
       "directory": "plugins",
@@ -1494,6 +1536,13 @@
       "intendedOwner": "plugin/runtime implementation",
       "sourceFiles": 4,
       "sourceLines": 631
+    },
+    {
+      "directory": "quota",
+      "classification": "concrete runtime default",
+      "intendedOwner": "Runtime or Providers",
+      "sourceFiles": 1,
+      "sourceLines": 268
     },
     {
       "directory": "registry",
@@ -1514,7 +1563,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 7037
+      "sourceLines": 7135
     },
     {
       "directory": "session-catalog",
@@ -1535,14 +1584,14 @@
       "classification": "host/application concern",
       "intendedOwner": "CLI/TUI presentation contract; host rendering stays outside Core",
       "sourceFiles": 1,
-      "sourceLines": 334
+      "sourceLines": 338
     },
     {
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 105,
-      "sourceLines": 22980
+      "sourceLines": 23025
     },
     {
       "directory": "tasking",
@@ -1563,14 +1612,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 13298
+      "sourceLines": 13307
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10923
+      "sourceLines": 10960
     },
     {
       "directory": "wiring",

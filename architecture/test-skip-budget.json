@@ -167,6 +167,11 @@
       "fingerprint": "25aa96f8ed288199"
     },
     {
+      "file": "packages/plug-lsp/tests/e2e/typescript-native.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "0c9a8be7723f3e7e"
+    },
+    {
       "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
       "kind": "skipIf",
       "fingerprint": "31cfbc566a723022"
@@ -210,6 +215,11 @@
       "file": "packages/plugins/tests/runtime-local-bin.test.ts",
       "kind": "runIf",
       "fingerprint": "aa98e60796794e33"
+    },
+    {
+      "file": "packages/providers/tests/codex-websocket-live.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "dacfbee73d96ae66"
     },
     {
       "file": "packages/sage/tests/agent-anchor.test.ts",

@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 317,
-      "typeOnly": 252,
+      "files": 318,
+      "typeOnly": 253,
       "runtimeOrMixed": 82
     },
     "@wrongstack/core/agent-catalog": {
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 42
     },
     "@wrongstack/core/kernel": {
-      "files": 253,
-      "typeOnly": 135,
-      "runtimeOrMixed": 131
+      "files": 256,
+      "typeOnly": 136,
+      "runtimeOrMixed": 133
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -118,10 +118,15 @@
       "typeOnly": 0,
       "runtimeOrMixed": 7
     },
+    "@wrongstack/core/quota": {
+      "files": 10,
+      "typeOnly": 0,
+      "runtimeOrMixed": 10
+    },
     "@wrongstack/core/registry": {
-      "files": 112,
+      "files": 113,
       "typeOnly": 57,
-      "runtimeOrMixed": 56
+      "runtimeOrMixed": 57
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -134,9 +139,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
-      "files": 136,
+      "files": 137,
       "typeOnly": 26,
-      "runtimeOrMixed": 113
+      "runtimeOrMixed": 114
     },
     "@wrongstack/core/session-catalog": {
       "files": 8,
@@ -154,9 +159,9 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/storage": {
-      "files": 118,
+      "files": 119,
       "typeOnly": 32,
-      "runtimeOrMixed": 116
+      "runtimeOrMixed": 117
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -169,9 +174,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1036,
-      "typeOnly": 957,
-      "runtimeOrMixed": 270
+      "files": 1048,
+      "typeOnly": 969,
+      "runtimeOrMixed": 271
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -199,9 +204,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 558,
+      "files": 561,
       "typeOnly": 55,
-      "runtimeOrMixed": 530
+      "runtimeOrMixed": 533
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -217,6 +222,11 @@
       "files": 13,
       "typeOnly": 0,
       "runtimeOrMixed": 13
+    },
+    "@wrongstack/core/utils/ip-guard": {
+      "files": 1,
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils/sage-output-block": {
       "files": 3,
@@ -234,8 +244,8 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/worktree": {
-      "files": 12,
-      "typeOnly": 4,
+      "files": 13,
+      "typeOnly": 5,
       "runtimeOrMixed": 9
     }
   },
@@ -1125,6 +1135,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/sage/src/middleware/tool-call-memory.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage/tests/middleware/middleware-100-coverage.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -6092,6 +6108,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/plug-lsp/tests/e2e/typescript-native.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6201,6 +6223,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/runtime/tests/runtime-100-coverage.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6731,6 +6759,12 @@
       "file": "packages/webui-server/tests/collaboration-ws-handler.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/tests/provider-quota-wiring.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/kernel",
@@ -7321,6 +7355,66 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/cli/src/slash-commands/openai-quota.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/cli/tests/slash-openai-quota.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/providers/src/openai-codex-rate-limits.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/providers/src/openai-codex.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/providers/tests/openai-codex-rate-limits.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/tui/src/hooks/use-provider-quota.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/tui/tests/status-bar-quota.test.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/webui-server/src/server/provider-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/webui-server/src/server/setup-events.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/webui-server/tests/provider-quota-wiring.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 0,
@@ -7841,6 +7935,12 @@
       "file": "packages/runtime/tests/pack.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/tests/runtime-100-coverage.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -8571,6 +8671,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/tests/runtime-100-coverage.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9441,6 +9547,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/tests/runtime-100-coverage.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10965,6 +11077,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/next.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/slash-commands/openai-quota.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12548,6 +12666,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/plug-lsp/tests/e2e/typescript-native.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -13040,6 +13164,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/codex-websocket.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/error-parse.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -13072,7 +13202,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/index.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -13316,6 +13446,18 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/codex-websocket-live.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/codex-websocket.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/effort-vocabulary.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13377,6 +13519,18 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/model-output-limits.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/openai-codex-cache.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/openai-codex-rate-limits.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13976,6 +14130,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/sdd/tests/sdd-worktree-integration.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/tests/start-sdd-run-kanban.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14045,6 +14205,12 @@
       "file": "packages/security-scanner/tests/orchestrator-flow.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/security-scanner/tests/scanner-100-coverage.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -16076,6 +16242,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/provider-keys-and-probe.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/provider-operations-oauth.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16106,6 +16278,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/sdd-wizard-and-agent-sessions.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/session-cleanup-scheduler.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16127,6 +16305,12 @@
       "file": "packages/webui-server/tests/setup-screen.proxy.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/specs-ws-handler.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -17324,6 +17508,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/openai-quota.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/plan.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18260,6 +18450,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/plug-lsp/src/config-persist.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/plug-lsp/src/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18765,6 +18961,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/_util.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/_win32-resolve.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -19891,6 +20093,12 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/utils/ip-guard",
+      "file": "packages/providers/src/redirect-safe-fetch.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/utils/sage-output-block",
       "file": "packages/tui/src/components/history/sage-output-format.ts",
       "typeOnly": 0,
@@ -20079,6 +20287,12 @@
     {
       "specifier": "@wrongstack/core/worktree",
       "file": "packages/sdd/src/start-sdd-run.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/worktree",
+      "file": "packages/sdd/tests/sdd-worktree-integration.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

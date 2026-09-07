@@ -304,6 +304,7 @@
       "renderAtlasBrief"
     ],
     "packages/cli/src/wiring/external-plugins.ts": [
+      "hashPluginClosure",
       "resolveExternalPluginTrustMode"
     ],
     "packages/cli/src/wiring/mailbox-bridge-bootstrap.ts": [
@@ -516,8 +517,16 @@
       "buildSkillUpdateCommand",
       "resolveImportSourceDir"
     ],
+    "packages/core/src/quota/index.ts": [
+      "listQuotaProviders",
+      "reachedQuotaWindow",
+      "resetProviderQuota"
+    ],
     "packages/core/src/security/permission-policy.ts": [
       "mergeTrustEntries"
+    ],
+    "packages/core/src/security/secret-vault.ts": [
+      "keyFileNeedsHardening"
     ],
     "packages/core/src/security/totp.ts": [
       "hotp"
@@ -685,12 +694,21 @@
     "packages/mcp/src/registry-idle.ts": [
       "sleepIdleSlot"
     ],
+    "packages/mcp/src/server.ts": [
+      "handleHttpRequest"
+    ],
     "packages/mcp/src/test-helpers/mock-server.ts": [
       "MockMCPServer"
     ],
     "packages/mcp/src/transport-security.ts": [
       "assertTransportAddressAllowed",
       "classifyTransportAddress"
+    ],
+    "packages/persistence/src/file-permissions.ts": [
+      "_filePermOps"
+    ],
+    "packages/persistence/src/project-endpoint.ts": [
+      "_projectEndpointOps"
     ],
     "packages/persistence/src/sqlite-runtime.ts": [
       "isRuntimeSqliteAvailable"
@@ -734,6 +752,9 @@
     "packages/plug-lsp/src/tools/workspace-edit.ts": [
       "applyTextEdits"
     ],
+    "packages/plug-lsp/src/typescript-flavor.ts": [
+      "workspaceTypeScriptMajor"
+    ],
     "packages/plug-lsp/src/utils/command-resolver.ts": [
       "commandResolverCoverage",
       "findLocalBinary"
@@ -757,6 +778,7 @@
       "mergeIntoChangelog"
     ],
     "packages/plugins/src/config-validator/index.ts": [
+      "validateFile",
       "validateJson",
       "validateToml",
       "validateYaml"
@@ -854,10 +876,17 @@
     "packages/providers/src/tool-priority.ts": [
       "scoreTool"
     ],
+    "packages/requirement-intake/src/service-helpers.ts": [
+      "ANSWER_FIELD_MAPPING",
+      "appendItems"
+    ],
     "packages/runtime/src/governance-bootstrap.ts": [
       "bootstrapGovernanceRuntimeWithFactory",
       "MAX_PENDING_GOVERNANCE_OBSERVATIONS",
       "readGovernanceDaemonOperatorStatusWithDependencies"
+    ],
+    "packages/runtime/src/governance-mutation-snapshot-bridge.ts": [
+      "MAX_PENDING_GOVERNANCE_MUTATION_SNAPSHOTS"
     ],
     "packages/runtime/src/host.ts": [
       "applyWrongStackPack",
@@ -888,6 +917,9 @@
     "packages/sage/src/retrieval/format.ts": [
       "memoryFormatCoverage"
     ],
+    "packages/sage/src/retrieval/hybrid-rerank.ts": [
+      "hybridRerankCoverage"
+    ],
     "packages/sage/src/shared/pagination.ts": [
       "compareByUpdatedDesc",
       "DEFAULT_PAGE_LIMIT",
@@ -901,6 +933,9 @@
     ],
     "packages/sdd/src/start-sdd-run.ts": [
       "applySddControlCommand"
+    ],
+    "packages/security-scanner/src/llm-client.ts": [
+      "sleepWithAbort"
     ],
     "packages/security-scanner/src/redaction-diagnostic.ts": [
       "REDACTION_DIAGNOSTIC_RAW"
@@ -943,6 +978,9 @@
       "exchangeAuthCookie",
       "scrubPageToken"
     ],
+    "packages/techstack/src/adapters/parse-utils.ts": [
+      "stripInlineComment"
+    ],
     "packages/techstack/src/adapters/python.ts": [
       "parsePoetryLock"
     ],
@@ -969,11 +1007,18 @@
     "packages/techstack/src/policy/rulebook.ts": [
       "asIsoDateTime",
       "asVersionRange",
+      "defaultRulebookFileSystem",
       "loadRulebook",
       "validateRulebook"
     ],
     "packages/techstack/src/registry/client.ts": [
       "parseNpmPackument"
+    ],
+    "packages/techstack/src/registry/http-fetch.ts": [
+      "_delayForTesting"
+    ],
+    "packages/techstack/src/store/sqlite.ts": [
+      "_resetDatabaseSyncForTesting"
     ],
     "packages/telegram/src/api-client.ts": [
       "buildTelegramBotApiBaseUrl",
@@ -1055,6 +1100,11 @@
     ],
     "packages/tools/src/codebase-index/project-server-endpoint.ts": [
       "projectIndexServerKey"
+    ],
+    "packages/tools/src/codebase-index/project-server-operations.ts": [
+      "isShareableFullIndex",
+      "preservesQueryCaches",
+      "runFullIndex"
     ],
     "packages/tools/src/codebase-index/vector-search.ts": [
       "buildRankMap",
@@ -1362,6 +1412,9 @@
     "packages/tui/src/workbench-slash.ts": [
       "renderWorkbenchReport"
     ],
+    "packages/vector-memory/src/sage-fusion.ts": [
+      "__testing"
+    ],
     "packages/webui-hq/src/data/local-prefs.ts": [
       "getHqLocalPrefsSnapshot",
       "reloadHqLocalPrefs",
@@ -1469,6 +1522,10 @@
     "packages/webui/src/components/CodeMapVisuals.tsx": [
       "HUB_RANK",
       "rankAccentWidth"
+    ],
+    "packages/webui/src/components/CustomRosterPanel.tsx": [
+      "CustomRosterPanel",
+      "setCustomRosterWS"
     ],
     "packages/webui/src/components/KanbanBoundaryEditor.tsx": [
       "formatBoundarySelectors",
@@ -1703,6 +1760,15 @@
       "restoreOpenTabsOnBoot",
       "TAB_STORAGE_KEY",
       "writeStoredTabs"
+    ],
+    "packages/wrongtrace/src/adapters/ipc.ts": [
+      "_connectSocket"
+    ],
+    "packages/wrongtrace/src/client.ts": [
+      "_httpJson"
+    ],
+    "packages/wrongtrace/src/gate-counters.ts": [
+      "_fsOps"
     ]
   }
 }

@@ -46,6 +46,9 @@ const coreEntries = entryMap([
   'src/kernel/index.ts',
   'src/core/index.ts',
   'src/statusline/index.ts',
+  // The provider-neutral quota store. Its own entry for the same reason as
+  // statusline: status surfaces read it without pulling in the `core` barrel.
+  'src/quota/index.ts',
   // Narrow, dependency-free entries so browser bundles (webui, webui-hq,
   // simpleui) can import these helpers without dragging the `types` / `core`
   // barrels — those reach `types/mode-prompts.ts`, which reads instruction
@@ -61,6 +64,10 @@ const coreEntries = entryMap([
   'src/utils/error.ts',
   'src/utils/child-env.ts',
   'src/utils/sage-output-block.ts',
+  // Private/loopback/metadata address literals. Its own entry so the
+  // redirect guard in `providers` can import the check without pulling the
+  // `utils` barrel into a security-critical fetch path.
+  'src/utils/ip-guard.ts',
   'src/utils/tree-kill.ts',
   'src/utils/heap-watchdog.ts',
   'src/execution/prompt-enhancer.ts',
