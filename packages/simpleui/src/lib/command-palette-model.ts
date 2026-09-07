@@ -1,6 +1,7 @@
 export type CommandPaletteAction =
   | 'new-session'
   | 'focus-composer'
+  | 'copy-transcript'
   | 'toggle-theme'
   | 'open-settings'
   | 'open-tools'
@@ -47,6 +48,12 @@ const BASE_ITEMS: Array<Omit<CommandPaletteItem, 'disabled'>> = [
     keywords: ['input', 'prompt', 'chat', 'message'],
   },
   {
+    id: 'copy-transcript',
+    title: 'Copy transcript',
+    section: 'Session',
+    keywords: ['copy', 'export', 'markdown', 'transcript', 'conversation', 'download'],
+  },
+  {
     id: 'compact-context',
     title: 'Compact context',
     section: 'Session',
@@ -66,9 +73,9 @@ const BASE_ITEMS: Array<Omit<CommandPaletteItem, 'disabled'>> = [
   },
   {
     id: 'toggle-theme',
-    title: 'Toggle theme',
+    title: 'Cycle theme',
     section: 'Interface',
-    keywords: ['dark', 'light', 'appearance'],
+    keywords: ['dark', 'light', 'system', 'auto', 'appearance'],
   },
   {
     id: 'open-settings',

@@ -117,6 +117,7 @@ function shallowEqualPrefs(a: SimplePrefs, b: SimplePrefs): boolean {
     'enhanceEnabled',
     'preRefineSeconds',
     'showModelReasoning',
+    'showTimestamps',
     'chime',
     'confirmExit',
     'refinerProvider',

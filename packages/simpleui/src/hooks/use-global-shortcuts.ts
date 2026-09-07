@@ -1,8 +1,8 @@
 import { type RefObject, useEffect } from 'react';
-import { composePromptWithFileReferences } from '../lib/file-mention.js';
+import type { QueueMode } from '../lib/queue-model.js';
 import { type RefineState, resolveEscapeRestore } from '../lib/refine-model.js';
 import type { SimpleSocket } from '../lib/ws.js';
-import type { ChatMessage, FileEditMeta } from '../types.js';
+import type { ChatMessage, FileEditMeta, PendingConfirm } from '../types.js';
 
 export interface UseGlobalShortcutsOptions {
   socketRef: RefObject<SimpleSocket | null>;
@@ -25,31 +25,31 @@ export interface UseGlobalShortcutsOptions {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   setCommandPaletteOpen: (open: boolean) => void;
   runningRef: RefObject<boolean>;
-  startSend: (
-    content: string,
-    images?: { data: string; mime: string; mediaType?: string }[],
-  ) => void;
   messagesRef: RefObject<ChatMessage[]>;
-  /**
-   * Composer state the Ctrl/Cmd+Enter send must respect to behave like the
-   * composer's own send path: composed file references, attached images, and
-   * clearing the composer after the send. Optional for backwards-compatible
-   * embedders; when absent the shortcut degrades to the raw-draft send.
-   */
-  fileRefsRef?: RefObject<string[]>;
-  attachedImagesRef?: RefObject<Array<{ data: string; mime: string; name: string; id: string }>>;
-  setFileRefs?: (refs: string[]) => void;
-  clearComposerDraft?: (sessionId: string) => void;
+  /** Live mirror of the composer's own `submitWith` dispatcher. Ctrl/Cmd+Enter
+   *  delegates here so the global shortcut and the composer share ONE send
+   *  path (compose @file references, forward attached images, clear the
+   *  composer + its persisted draft). The inline re-implementation this
+   *  replaces drifted from `submitWith` once already — a raw-draft send that
+   *  silently stripped references/images. Delegate, never duplicate. */
+  submitWithRef: RefObject<(mode: QueueMode) => void>;
+  /** Live mirror of the pending permission prompt. When set, Y/N/A answer it —
+   *  unless the keystroke lands in an editable target or carries modifiers. */
+  pendingConfirmRef?: RefObject<PendingConfirm | null>;
+  /** Live mirror of the prompt's decideConfirm dispatcher (recreated per
+   *  render upstream, hence the ref instead of a closure). */
+  decideConfirmRef?: RefObject<((decision: 'yes' | 'no' | 'always') => void) | undefined>;
 }
 
 /**
  * Registers the SimpleUI global keyboard shortcuts: Escape closes the
  * topmost open panel (file diff → settings → mailbox → refine-escape
- * restore), Ctrl/Cmd+K opens the command palette, Ctrl/Cmd+Enter sends the
- * composer, ArrowUp recalls the last user message into an empty composer,
- * and Ctrl/Cmd+L starts a new session. Extracted verbatim from
- * `simple-ui-session.tsx` (plan B1 final slice) — all refs are read live at
- * dispatch time, so the listeners never go stale.
+ * restore), Y/N/A answer the pending permission prompt, Ctrl/Cmd+K opens
+ * the command palette, Ctrl/Cmd+Enter delegates the idle send to the
+ * composer's own `submitWith` dispatcher, ArrowUp recalls the last user
+ * message into an empty composer, and Ctrl/Cmd+L starts a new session.
+ * Everything is read through refs or stable state setters at dispatch
+ * time, so the listeners never go stale and are registered exactly once.
  */
 export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
   const {
@@ -71,12 +71,10 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
     textareaRef,
     setCommandPaletteOpen,
     runningRef,
-    startSend,
     messagesRef,
-    fileRefsRef,
-    attachedImagesRef,
-    setFileRefs,
-    clearComposerDraft,
+    submitWithRef,
+    pendingConfirmRef,
+    decideConfirmRef,
   } = options;
 
   // ── Global keyboard shortcuts ──────────────────────────────────
@@ -145,6 +143,28 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
         return;
       }
 
+      // ── Y/N/A: answer the pending permission prompt ──
+      // Deliberately inert when the keystroke lands in an editable target
+      // (typing "y" in the composer must stay typing) or carries modifiers.
+      if (pendingConfirmRef?.current && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const target = event.target;
+        const editable =
+          target instanceof HTMLTextAreaElement ||
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLSelectElement ||
+          (target instanceof HTMLElement && target.isContentEditable);
+        if (!editable) {
+          const key = event.key.toLowerCase();
+          const decision =
+            key === 'y' ? 'yes' : key === 'n' ? 'no' : key === 'a' ? 'always' : null;
+          if (decision) {
+            event.preventDefault();
+            decideConfirmRef?.current?.(decision);
+            return;
+          }
+        }
+      }
+
       // ── Ctrl/Cmd+K: open command palette ──
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
@@ -154,35 +174,15 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
 
       // ── Ctrl/Cmd+Enter: send the composer ──
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-        if (!runningRef.current && draftRef.current.trim()) {
+        if (!runningRef.current) {
           event.preventDefault();
-          // Mirror the composer's own idle send (submitWith's 'send' path):
-          // compose the @file references, forward attached images, and clear
-          // the composer. Sending the raw draft from here silently stripped
-          // the references and images, and left the draft behind so the next
-          // Enter re-sent the same message.
-          const content = composePromptWithFileReferences(
-            draftRef.current,
-            fileRefsRef?.current ?? [],
-          );
-          const images = (attachedImagesRef?.current ?? []).map((img) => ({
-            data: img.data,
-            mime: img.mime,
-            mediaType: img.mime,
-          }));
-          if (!content && images.length === 0) return;
-          if (images.length > 0) startSend(content, images);
-          else startSend(content);
-          setDraft('');
-          setFileRefs?.([]);
-          setAttachedImages([]);
-          const sessionId = sessionIdRef.current;
-          if (sessionId) {
-            draftRef.current = '';
-            if (fileRefsRef) fileRefsRef.current = [];
-            if (attachedImagesRef) attachedImagesRef.current = [];
-            clearComposerDraft?.(sessionId);
-          }
+          // Delegate to the composer's own dispatcher (submitWith's idle
+          // 'send' plan) instead of re-implementing it: composed @file
+          // references, forwarded attached images, cleared composer state
+          // and persisted draft. An empty draft is the dispatcher's own
+          // no-op, and images-only sends now work from here too — the old
+          // inline trim() guard silently dropped them.
+          submitWithRef.current('btw');
         }
         return;
       }
@@ -212,7 +212,9 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [startSend]);
+    // Everything the handler reads is a ref or a stable useState setter —
+    // register exactly once for the component's lifetime.
+  }, []);
 
   // Ctrl/Cmd+L: new session (second, independent listener).
   useEffect(() => {

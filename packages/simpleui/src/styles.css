@@ -36,6 +36,9 @@
   --grid-line: rgba(253, 159, 2, 0.045);
   --accent-ink: #121210;
   --shadow: rgba(0, 0, 0, 0.3);
+  /* Focus ring: accent-driven so palettes re-theme it automatically. */
+  --focus-ring-color: var(--accent);
+  --focus-ring: 2px solid var(--focus-ring-color);
   /* ── Sidebar elevation system ──
      Layered shadows, accent glows, and gradient halos shared across the
      workspace launcher, the drawer panel, and all card surfaces inside. */
@@ -105,6 +108,9 @@
   --grid-line: rgba(217, 119, 6, 0.06);
   --accent-ink: #ffffff;
   --shadow: rgba(48, 33, 49, 0.16);
+  /* Focus ring: accent-driven so palettes re-theme it automatically. */
+  --focus-ring-color: var(--accent);
+  --focus-ring: 2px solid var(--focus-ring-color);
 }
 
 /* ── Color palettes ──────────────────────────────────────────────────────
@@ -315,8 +321,10 @@ select {
 button:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--accent);
+a:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -715,7 +723,6 @@ a:focus-visible {
   background: transparent;
   color: var(--text);
   font-size: 16px;
-  outline: none;
 }
 
 .model-picker kbd {
@@ -1510,6 +1517,12 @@ a:focus-visible {
   font-size: 9px;
   font-weight: 500;
   letter-spacing: 0.1em;
+}
+
+.message-time {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
 }
 
 .message-copy {
@@ -6721,4 +6734,53 @@ a:focus-visible {
   color: var(--subtle);
   font-family: var(--font-mono);
   font-size: 9px;
+}
+
+/* ── Transcript windowing ─────────────────────────────────────────── */
+
+
+/* ── Forced colors (Windows High Contrast) ─────────────────────────
+   The UA recolors everything, so what breaks is boundaries that were
+   only shadows or background deltas. Restore structural borders with
+   System Colors; brand tokens are deliberately NOT overridden here. */
+@media (forced-colors: active) {
+  .topbar,
+  .composer,
+  .permission-bar,
+  .file-picker,
+  .next-steps,
+  .window-earlier,
+  .update-banner,
+  .settings-panel,
+  .command-palette {
+    border: 1px solid CanvasText;
+  }
+  button,
+  [role='button'] {
+    border: 1px solid ButtonBorder;
+  }
+  .stream-caret {
+    background: CanvasText;
+  }
+}
+/* ── Transcript windowing expander ──
+   Centered muted pill above the oldest visible entry; expands the window. */
+.window-earlier {
+  display: block;
+  margin: 10px auto 18px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.window-earlier:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }

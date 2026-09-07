@@ -123,6 +123,14 @@ export const SETTINGS_CATALOG: readonly SettingsEntry[] = [
     kind: 'toggle',
   },
   {
+    id: 'session.showTimestamps',
+    group: 'session',
+    label: 'Message timestamps',
+    hint: 'Show the local time next to each chat message.',
+    keywords: ['timestamp', 'time', 'clock', 'chat', 'show'],
+    kind: 'toggle',
+  },
+  {
     id: 'session.chime',
     group: 'session',
     label: 'Chime',

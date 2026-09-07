@@ -1,72 +1,90 @@
 import { useCallback, useEffect, useState } from 'react';
 
-/**
- * Theme key — kept module-local so callers cannot construct it by hand and
- * accidentally desync from `useTheme`. Mirrors the legacy constant that lived
- * in `app.tsx` before PR-1; any new consumer must use this hook instead.
- */
 const THEME_STORAGE_KEY = 'wrongstack.simpleui.theme';
 
-export type Theme = 'dark' | 'light';
+export type Theme = 'system' | 'light' | 'dark';
+export type ResolvedTheme = 'light' | 'dark';
 
-/**
- * Resolve the initial theme without throwing in privacy-restricted browsers
- * (Safari private mode throws on `localStorage` access).
- *
- * Precedence (matches pre-PR-1 `app.tsx` semantics exactly):
- *  1. previously saved value in localStorage
- *  2. the OS `prefers-color-scheme: light` media query
- *  3. `'dark'` (the project default)
- */
 function initialTheme(): Theme {
   try {
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    if (saved === 'dark' || saved === 'light') return saved;
-    return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    if (saved === 'system' || saved === 'light' || saved === 'dark') return saved;
+    return 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+function resolvedFromOs(): ResolvedTheme {
+  try {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   } catch {
     return 'dark';
   }
 }
 
 export interface UseThemeResult {
+  /** The user's chosen mode, including 'system' (follow the OS). */
   theme: Theme;
-  /** Replace the current theme. Also persists to localStorage and the DOM. */
+  /** The theme actually applied — 'system' resolved against the OS setting. */
+  resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
-  /** Convenience: flip between dark and light. */
+  /** Cycle system → light → dark → system. */
   toggleTheme: () => void;
 }
 
 /**
- * Owns the dark/light theme lifecycle: initial resolution, DOM side-effects
- * (`data-theme` + `color-scheme`), and persistence to `localStorage`.
- *
- * Behavioural contract (must survive the PR-1 extraction from `app.tsx`):
- *  - Privacy-restricted browsers (localStorage throws) never crash; they fall
- *    back to `'dark'` and skip persistence.
- *  - The DOM attributes are kept in sync on every change, not only on mount.
- *  - Persistence is best-effort: a thrown `setItem` is swallowed so the UI
- *    keeps working even when storage is full or blocked.
+ * The theme is persisted as the user's CHOICE ('system' | 'light' | 'dark');
+ * what gets applied to the DOM and handed to consumers is always the
+ * RESOLVED theme — 'system' tracked live against prefers-color-scheme.
+ * A missing matchMedia API (jsdom, embedded webviews) degrades to 'dark'.
  */
 export function useTheme(): UseThemeResult {
   const [theme, setThemeState] = useState<Theme>(initialTheme);
+  const [resolved, setResolved] = useState<ResolvedTheme>(resolvedFromOs);
 
+  // While following the OS, track prefers-color-scheme changes live so the
+  // UI flips the moment the OS does. matchMedia can be missing entirely
+  // (jsdom, locked-down webviews) — degrade to the boot-time resolution
+  // instead of throwing mid-effect.
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.style.colorScheme = theme;
+    if (theme !== 'system') return;
+    let mq: MediaQueryList;
+    try {
+      mq = window.matchMedia('(prefers-color-scheme: light)');
+    } catch {
+      return;
+    }
+    const onChange = () => setResolved(mq.matches ? 'light' : 'dark');
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [theme]);
+
+  // Mirror the effective theme onto the document (CSS tokens switch on
+  // data-theme; color-scheme keeps form controls native) and persist the
+  // choice. Persistence is best-effort: privacy-restricted browsers throw
+  // on localStorage access and the theme still works in-memory.
+  useEffect(() => {
+    const applied = theme === 'system' ? resolved : theme;
+    document.documentElement.dataset.theme = applied;
+    document.documentElement.style.colorScheme = applied;
     try {
       localStorage.setItem(THEME_STORAGE_KEY, theme);
     } catch {
       // Theme persistence is best-effort in privacy-restricted browsers.
     }
-  }, [theme]);
+  }, [theme, resolved]);
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState((current) => (current === 'dark' ? 'light' : 'dark'));
+    setThemeState((current) =>
+      current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system',
+    );
   }, []);
 
-  return { theme, setTheme, toggleTheme };
+  return { theme, resolvedTheme: theme === 'system' ? resolved : theme, setTheme, toggleTheme };
 }

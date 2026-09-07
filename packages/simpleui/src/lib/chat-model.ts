@@ -102,6 +102,17 @@ export function contentToText(content: unknown): string {
 }
 
 /**
+ * Local-time label for a chat message: `HH:MM` in the viewer's locale, or
+ * null when the timestamp is missing/unparseable (callers render nothing).
+ */
+export function formatMessageTime(ts: string | undefined): string | null {
+  if (!ts) return null;
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
  * Rebuild the visible chat history from a `session.start` replay.
  *
  * `markers` carries the audit timeline (compaction, mode/skill switches,

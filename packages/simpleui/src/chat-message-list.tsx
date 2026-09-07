@@ -1,7 +1,8 @@
 import { Check, Copy, ListChecks, LoaderCircle } from 'lucide-react';
-import { memo, useMemo } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MarkdownHooks as ReactMarkdown } from 'react-markdown';
 import { FileEditEntry } from './file-edit-entry.js';
+import { formatMessageTime } from './lib/chat-model.js';
 import {
   markdownComponents,
   markdownRehypePlugins,
@@ -11,6 +12,45 @@ import { projectAssistantMessage } from './lib/message-projection.js';
 import { buildTimeline } from './lib/timeline-model.js';
 import { ToolCallEntry } from './tool-call-entry.js';
 import type { ChatMessage, FileEditMeta, ResumeProgressInfo, ToolCallInfo } from './types.js';
+
+/** Entries rendered per window before the SHOW EARLIER expander appears.
+ *  Sized so a typical message + tool-call interleave stays well under the
+ *  point where re-render and layout costs become visible; the expander
+ *  widens the window in steps instead of unbounded growth. */
+export const CHAT_WINDOW_SIZE = 60;
+
+/** Timeline entry shape — mirrors the union built by the container below. */
+type TimelineEntry =
+  | { kind: 'message'; ts: string; message: ChatMessage }
+  | { kind: 'tool_call'; ts: string; toolCall: ToolCallInfo }
+  | { kind: 'file_edit'; ts: string; edit: FileEditMeta };
+
+/** Stable identity of a timeline entry — drives transcript-replacement
+ *  detection for the window reset. Keying on the identity of the FIRST
+ *  entry (not the array reference) means ordinary appends — including
+ *  streaming token flushes — never reset the window; only a wholesale
+ *  transcript replacement (session resume/new) does. */
+function entryKey(entry: TimelineEntry): string {
+  if (entry.kind === 'message') return `m:${entry.message.id}`;
+  if (entry.kind === 'tool_call') return `t:${entry.toolCall.id}`;
+  return `f:${entry.edit?.path ?? ''}:${entry.edit?.ts ?? ''}`;
+}
+
+/**
+ * Preserve the reading position across an expansion that inserts height
+ * ABOVE the viewport: the browser keeps scrollTop numerically fixed, which
+ * would otherwise pull the content the reader was looking at out from
+ * under them. Compensation = the height delta. No-op when the scroller is
+ * missing or nothing grew.
+ */
+export function applyScrollAnchoring(
+  scroller: Element | null | undefined,
+  heightBefore: number,
+  heightAfter: number,
+): void {
+  const delta = heightAfter - heightBefore;
+  if (delta > 0 && scroller) scroller.scrollTop += delta;
+}
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -24,6 +64,8 @@ interface ChatMessageListProps {
   resumeProgress?: ResumeProgressInfo | null | undefined;
   emptyState: React.ReactNode;
   theme: 'dark' | 'light';
+  /** Show a local-time stamp next to each message label. */
+  showTimestamps?: boolean | undefined;
   onCopyMessage: (id: string, text: string) => void;
   onSelectNextStep: (messageId: string, text: string) => void;
   /** Message IDs whose next-steps have been consumed (selected or auto-run). */
@@ -39,6 +81,7 @@ interface MessageItemProps {
   showNextSteps: boolean;
   copiedMessageId: string | null;
   theme: 'dark' | 'light';
+  showTimestamps?: boolean | undefined;
   onCopyMessage: (id: string, text: string) => void;
   onSelectNextStep: (messageId: string, text: string) => void;
   consumedNextSteps: Set<string>;
@@ -49,6 +92,7 @@ const MessageItem = memo(function MessageItem({
   showNextSteps,
   copiedMessageId,
   theme,
+  showTimestamps = false,
   onCopyMessage,
   onSelectNextStep,
   consumedNextSteps,
@@ -77,8 +121,20 @@ const MessageItem = memo(function MessageItem({
       ? (message.nextSteps ?? projection.nextSteps)
       : [];
 
+  // Both roles get a copy affordance: assistant copies the projected text
+  // (nextsteps XML already stripped), user copies the raw sent text.
+  const copyableText =
+    message.role === 'assistant'
+      ? projection.text
+      : message.role === 'user'
+        ? message.text.trim()
+        : '';
+  const copyLabel = message.role === 'assistant' ? 'Copy response' : 'Copy message';
+  const copiedLabel = message.role === 'assistant' ? 'Response copied' : 'Message copied';
+  const formattedTime = formatMessageTime(message.ts);
+
   return (
-    <article className={`message ${message.role}`}>
+    <article className={`message ${message.role}`} data-message-id={message.id}>
       <div className="message-label">
         <span>
           {message.role === 'user'
@@ -89,13 +145,18 @@ const MessageItem = memo(function MessageItem({
                 ? 'WRONGSTACK'
                 : 'SYSTEM'}
         </span>
-        {message.role === 'assistant' && projection.text && !message.streaming && (
+        {showTimestamps && formattedTime && (
+          <time className="message-time" dateTime={message.ts}>
+            {formattedTime}
+          </time>
+        )}
+        {copyableText && !message.streaming && (
           <button
             type="button"
             className={`message-copy${copiedMessageId === message.id ? ' copied' : ''}`}
-            aria-label={copiedMessageId === message.id ? 'Response copied' : 'Copy response'}
-            title={copiedMessageId === message.id ? 'Copied' : 'Copy response'}
-            onClick={() => onCopyMessage(message.id, projection.text)}
+            aria-label={copiedMessageId === message.id ? copiedLabel : copyLabel}
+            title={copiedMessageId === message.id ? 'Copied' : copyLabel}
+            onClick={() => onCopyMessage(message.id, copyableText)}
           >
             {copiedMessageId === message.id ? (
               <Check size={12} aria-hidden="true" />
@@ -173,6 +234,7 @@ export function ChatMessageList({
   resumeProgress,
   emptyState,
   theme,
+  showTimestamps = false,
   onCopyMessage,
   onSelectNextStep,
   consumedNextSteps,
@@ -194,11 +256,7 @@ export function ChatMessageList({
   // the same timestamp. File edits are kept only as a legacy fallback when no
   // tool-call timeline is supplied by the parent.
   const timeline = useMemo(() => {
-    const entries: Array<
-      | { kind: 'message'; ts: string; message: ChatMessage }
-      | { kind: 'tool_call'; ts: string; toolCall: ToolCallInfo }
-      | { kind: 'file_edit'; ts: string; edit: FileEditMeta }
-    > = [];
+    const entries: TimelineEntry[] = [];
 
     for (const entry of buildTimeline(messages, toolCalls ?? [])) {
       entries.push(entry);
@@ -225,6 +283,40 @@ export function ChatMessageList({
 
     return entries;
   }, [messages, toolCalls, fileEdits]);
+
+  // Transcript windowing: long sessions render only the latest window of
+  // timeline entries; the expander widens it in steps. State keys on the
+  // FIRST entry's identity, so a wholesale transcript replacement (session
+  // resume/new) resets the window while ordinary appends — including
+  // streaming flushes — never do.
+  const first = timeline[0];
+  const firstKey = first ? entryKey(first) : '';
+  const [windowState, setWindowState] = useState({ firstKey, extraWindows: 0 });
+  if (windowState.firstKey !== firstKey) {
+    // React's documented "adjust state when a prop changes" reset: the
+    // re-render happens in the same pass, so no committed frame ever shows
+    // the wrong window.
+    setWindowState({ firstKey, extraWindows: 0 });
+  }
+  const visibleCount = CHAT_WINDOW_SIZE * (1 + windowState.extraWindows);
+  const hiddenCount = Math.max(0, timeline.length - visibleCount);
+  const visible = hiddenCount > 0 ? timeline.slice(-visibleCount) : timeline;
+
+  // Scroll anchoring for the expander: capture .conversation's height before
+  // the expansion; this layout effect (runs after the DOM commit, before
+  // paint) compensates the scroll container by the inserted height so the
+  // reading position stays put.
+  const conversationRef = useRef<HTMLDivElement | null>(null);
+  const pendingExpandHeightRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const before = pendingExpandHeightRef.current;
+    if (before === null) return;
+    pendingExpandHeightRef.current = null;
+    const convo = conversationRef.current;
+    if (!convo) return;
+    applyScrollAnchoring(convo.closest('.chat-scroll'), before, convo.scrollHeight);
+  });
 
   if (resumeProgress) {
     const pct =
@@ -258,8 +350,21 @@ export function ChatMessageList({
   }
 
   return (
-    <div className="conversation">
-      {timeline.map((entry) => {
+    <div className="conversation" ref={conversationRef}>
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          className="window-earlier"
+          onClick={() => {
+            const convo = conversationRef.current;
+            pendingExpandHeightRef.current = convo ? convo.scrollHeight : null;
+            setWindowState((s) => ({ ...s, extraWindows: s.extraWindows + 1 }));
+          }}
+        >
+          SHOW EARLIER MESSAGES ({hiddenCount} HIDDEN)
+        </button>
+      )}
+      {visible.map((entry) => {
         if (entry.kind === 'message') {
           return (
             <MessageItem
@@ -268,6 +373,7 @@ export function ChatMessageList({
               showNextSteps={entry.message.id === latestAssistantId}
               copiedMessageId={copiedMessageId}
               theme={theme}
+              showTimestamps={showTimestamps}
               onCopyMessage={onCopyMessage}
               onSelectNextStep={onSelectNextStep}
               consumedNextSteps={consumedNextSteps}

@@ -9,6 +9,7 @@ import {
   Split,
   X,
 } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import type { PendingConfirm, SessionInfo } from './types.js';
 import type { StatusNoticeProjection } from './lib/status-notice.js';
 import { detectFileMention, fileBasename } from './lib/file-mention.js';
@@ -107,23 +108,70 @@ export function Composer({
   // second submit for the same message.
   const locked = offline || refineState !== null;
 
+  // Permission-prompt a11y: the bar is an alertdialog — focus lands on the
+  // safest action when it appears (Deny for destructive tools, Allow for
+  // standard ones) so keyboard operators and screen readers can act
+  // immediately, and focus returns to the composer once it resolves.
+  const denyButtonRef = useRef<HTMLButtonElement | null>(null);
+  const allowButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hadConfirmRef = useRef(false);
+  useEffect(() => {
+    if (!pendingConfirm) return;
+    // Absent tier behaves as standard (mirrors the className fallback);
+    // any non-default tier the server sends — today 'destructive' — is
+    // treated as risky, so an unknown future tier fails safe to Deny.
+    const risky =
+      pendingConfirm.riskTier != null &&
+      pendingConfirm.riskTier !== 'standard' &&
+      pendingConfirm.riskTier !== 'safe';
+    (risky ? denyButtonRef : allowButtonRef).current?.focus();
+  }, [pendingConfirm]);
+  useEffect(() => {
+    if (pendingConfirm) {
+      hadConfirmRef.current = true;
+      return;
+    }
+    if (hadConfirmRef.current) {
+      hadConfirmRef.current = false;
+      // The decision unmounted the bar's buttons — hand focus back to the
+      // composer instead of dropping it to <body>.
+      textareaRef.current?.focus();
+    }
+  }, [pendingConfirm, textareaRef]);
+
   return (
     <div className="composer-inner">
       {pendingConfirm && (
-        <div className={`permission-bar ${pendingConfirm.riskTier ?? 'standard'}`}>
-          <ShieldAlert size={17} />
+        <div
+          className={`permission-bar ${pendingConfirm.riskTier ?? 'standard'}`}
+          role="alertdialog"
+          aria-labelledby="permission-confirm-title"
+          aria-describedby="permission-confirm-input"
+        >
+          <ShieldAlert size={17} aria-hidden="true" />
           <div className="permission-copy">
-            <strong>Allow {pendingConfirm.toolName}?</strong>
-            <span>{safeLine(pendingConfirm.input)}</span>
+            <strong id="permission-confirm-title">Allow {pendingConfirm.toolName}?</strong>
+            <span id="permission-confirm-input">{safeLine(pendingConfirm.input)}</span>
           </div>
           <div className="permission-actions">
-            <button type="button" onClick={() => decideConfirm('no')}>
+            <button
+              type="button"
+              ref={denyButtonRef}
+              aria-keyshortcuts="n"
+              onClick={() => decideConfirm('no')}
+            >
               Deny
             </button>
-            <button type="button" onClick={() => decideConfirm('always')}>
+            <button type="button" aria-keyshortcuts="a" onClick={() => decideConfirm('always')}>
               Always
             </button>
-            <button type="button" className="primary" onClick={() => decideConfirm('yes')}>
+            <button
+              type="button"
+              className="primary"
+              ref={allowButtonRef}
+              aria-keyshortcuts="y"
+              onClick={() => decideConfirm('yes')}
+            >
               Allow
             </button>
           </div>

@@ -21,6 +21,7 @@ import { useSimpleSessionState } from './hooks/use-simple-session-state.js';
 import { useSimpleSocket } from './hooks/use-simple-socket.js';
 import { useStatusNotice } from './hooks/use-status-notice.js';
 import { useStickyScroll } from './hooks/use-sticky-scroll.js';
+import { useTabTitle } from './hooks/use-tab-title.js';
 import { useTheme } from './hooks/use-theme.js';
 import { useWorklists } from './hooks/use-worklists.js';
 import { resetAgentNameCache } from './lib/agent-model.js';
@@ -40,7 +41,7 @@ import { createMessageHandler } from './lib/message-handler.js';
 import { isVisionModel } from './lib/model-capabilities.js';
 import { dispatchSimplePanel } from './lib/panel-events.js';
 import { onPersistedWriteFailure } from './lib/persisted.js';
-import { type QueuedItem, removeQueuedAt } from './lib/queue-model.js';
+import { type QueueMode, type QueuedItem, removeQueuedAt } from './lib/queue-model.js';
 import type { RefineState } from './lib/refine-model.js';
 import {
   compactTokens,
@@ -51,6 +52,7 @@ import {
 } from './lib/session-helpers.js';
 import { aggregateFileEdits } from './lib/timeline-model.js';
 import { agentTranscriptToToolCalls } from './lib/tool-model.js';
+import { buildTranscriptMarkdown } from './lib/transcript-export.js';
 import type { SimpleSocket } from './lib/ws.js';
 import { SessionAgentStrip } from './session-agent-strip.js';
 import { SessionMailboxDrawer } from './session-mailbox-drawer.js';
@@ -70,7 +72,7 @@ import { UpdateBanner } from './update-banner.js';
 export { compactTokens, isIncomingMailboxPayload, messageId, payloadSucceeded, payloadText };
 
 export function SimpleUiSession() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, toggleTheme } = useTheme();
   const {
     session,
     setSession,
@@ -159,6 +161,8 @@ export function SimpleUiSession() {
   const refineStartFiredRef = useRef(false);
   const queueRef = useRef<QueuedItem[]>([]);
   const attachedImagesRef = useRef<{ data: string; mime: string; name: string; id: string }[]>([]);
+  const pendingConfirmRef = useRef<PendingConfirm | null>(null);
+  pendingConfirmRef.current = pendingConfirm;
   draftRef.current = draft;
   fileRefsRef.current = fileRefs;
   runningRef.current = running;
@@ -182,6 +186,9 @@ export function SimpleUiSession() {
     handleMailboxAction,
     applyMailboxMessage,
   } = useSimpleMailbox({ socketRef, setNotice, prefsRef });
+
+  // Tab-strip presence: running marker + unread mailbox count (D10).
+  useTabTitle({ running, unreadCount: mailboxUnreadCount });
 
   /** Send a message to the agent and reflect it locally. The single send
    *  path — the composer, the queue drain, and every refine decision all
@@ -415,42 +422,6 @@ export function SimpleUiSession() {
 
   const { palette, setPalette } = usePalette();
 
-  useGlobalShortcuts({
-    socketRef,
-    sessionIdRef,
-    diffFilesRef,
-    setDiffFiles,
-    settingsOpenRef,
-    setSettingsOpen,
-    mailboxOpenRef,
-    setMailboxOpen,
-    refineStateRef,
-    setRefineState,
-    refineEpochRef,
-    refineStartFiredRef,
-    draftRef,
-    setDraft,
-    setAttachedImages,
-    textareaRef,
-    setCommandPaletteOpen,
-    runningRef,
-    startSend,
-    messagesRef,
-    fileRefsRef,
-    attachedImagesRef,
-    setFileRefs,
-    clearComposerDraft,
-  });
-
-  const {
-    scrollRef,
-    showJumpToLatest,
-    setShowJumpToLatest,
-    jumpToLatest,
-    onScroll: onScrollSticky,
-    stickToBottomRef,
-  } = useStickyScroll({ messages, activity, pendingConfirm });
-
   const { submitWith, refineDecision, refineRetry, refineRetryFallback, abort } =
     useComposerActions({
       sessionIdRef,
@@ -471,6 +442,64 @@ export function SimpleUiSession() {
       attachedImagesRef,
       setRefineState,
     });
+  /** Live mirror of the composer dispatcher — the global Ctrl/Cmd+Enter
+   *  shortcut delegates here so both paths share ONE send implementation. */
+  const submitWithRef = useRef(submitWith);
+  submitWithRef.current = submitWith;
+
+  /** Answer the pending permission prompt on the wire and clear it. Reads
+   *  through pendingConfirmRef (not the render closure) so the dispatch is
+   *  correct regardless of when the ref mirror last refreshed. */
+  const decideConfirm = (decision: 'yes' | 'no' | 'always') => {
+    const confirm = pendingConfirmRef.current;
+    if (!confirm) return;
+    socketRef.current?.send('tool.confirm_result', {
+      sessionId: sessionIdRef.current ?? undefined,
+      id: confirm.id,
+      decision,
+    });
+    setPendingConfirm(null);
+  };
+  /** Mirror for the global Y/N/A shortcut — decideConfirm is recreated per
+   *  render, and the shortcut listener must not re-register on every render. */
+  const decideConfirmRef = useRef<((decision: 'yes' | 'no' | 'always') => void) | undefined>(
+    undefined,
+  );
+  decideConfirmRef.current = decideConfirm;
+
+  useGlobalShortcuts({
+    socketRef,
+    sessionIdRef,
+    diffFilesRef,
+    setDiffFiles,
+    settingsOpenRef,
+    setSettingsOpen,
+    mailboxOpenRef,
+    setMailboxOpen,
+    refineStateRef,
+    setRefineState,
+    refineEpochRef,
+    refineStartFiredRef,
+    draftRef,
+    setDraft,
+    setAttachedImages,
+    textareaRef,
+    setCommandPaletteOpen,
+    runningRef,
+    messagesRef,
+    submitWithRef,
+    pendingConfirmRef,
+    decideConfirmRef,
+  });
+
+  const {
+    scrollRef,
+    showJumpToLatest,
+    setShowJumpToLatest,
+    jumpToLatest,
+    onScroll: onScrollSticky,
+    stickToBottomRef,
+  } = useStickyScroll({ messages, activity, pendingConfirm });
 
   const handlerDeps: MessageHandlerDeps = {
     prefsRef,
@@ -669,16 +698,6 @@ export function SimpleUiSession() {
     socketRef.current?.send('mode.switch', { id });
   };
 
-  const decideConfirm = (decision: 'yes' | 'no' | 'always') => {
-    if (!pendingConfirm) return;
-    socketRef.current?.send('tool.confirm_result', {
-      sessionId: sessionIdRef.current ?? undefined,
-      id: pendingConfirm.id,
-      decision,
-    });
-    setPendingConfirm(null);
-  };
-
   const runCommandPaletteAction = useCallback(
     (action: CommandPaletteAction) => {
       switch (action) {
@@ -688,6 +707,19 @@ export function SimpleUiSession() {
         case 'focus-composer':
           textareaRef.current?.focus();
           return;
+        case 'copy-transcript': {
+          const markdown = buildTranscriptMarkdown(messagesRef.current, {
+            title: session?.projectName,
+          });
+          void copyText(markdown).then((copied) => {
+            setNotice({
+              id: messageId('notice'),
+              text: copied ? 'Transcript copied to clipboard' : 'Could not copy transcript',
+              tone: copied ? 'info' : 'error',
+            });
+          });
+          return;
+        }
         case 'toggle-theme':
           toggleTheme();
           return;
@@ -738,7 +770,7 @@ export function SimpleUiSession() {
           return;
       }
     },
-    [createSession, openWorkspacePanel, toggleTheme],
+    [createSession, openWorkspacePanel, toggleTheme, session],
   );
 
   // Single source of truth for "a genuine newer version is available" — the
@@ -850,7 +882,8 @@ export function SimpleUiSession() {
             running={running}
             activity={activity}
             resumeProgress={resumeProgress}
-            theme={theme}
+            theme={resolvedTheme}
+            showTimestamps={prefs.showTimestamps}
             onOpenDiff={(meta) => setDiffFiles([meta])}
             emptyState={
               <div className="empty-state">
@@ -875,7 +908,7 @@ export function SimpleUiSession() {
               entries={agentTranscripts[agent.id] ?? []}
               running={agent.status === 'running' || agent.status === 'busy'}
               hidden={activeAgentId !== agent.id}
-              theme={theme}
+              theme={resolvedTheme}
             />
           ))}
       </ErrorBoundary>

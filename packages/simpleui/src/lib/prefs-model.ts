@@ -18,6 +18,7 @@ export interface SimplePrefs {
   /** Pre-refine grace countdown (seconds). 0 = skip. */
   preRefineSeconds: number;
   showModelReasoning: boolean;
+  showTimestamps: boolean;
   chime: boolean;
   confirmExit: boolean;
   refinerProvider: string;
@@ -34,6 +35,7 @@ export const DEFAULT_PREFS: SimplePrefs = {
   enhanceEnabled: false,
   preRefineSeconds: 3,
   showModelReasoning: true,
+  showTimestamps: false,
   chime: false,
   confirmExit: false,
   refinerProvider: '',
@@ -71,6 +73,7 @@ export function parsePrefs(payload: unknown, previous: SimplePrefs = DEFAULT_PRE
         ? raw['preRefineSeconds']
         : previous.preRefineSeconds,
     showModelReasoning: bool(raw['showModelReasoning'], previous.showModelReasoning),
+    showTimestamps: bool(raw['showTimestamps'], previous.showTimestamps),
     chime: bool(raw['chime'], previous.chime),
     confirmExit: bool(raw['confirmExit'], previous.confirmExit),
     refinerProvider:

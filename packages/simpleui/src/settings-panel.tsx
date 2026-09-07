@@ -486,6 +486,15 @@ export function SettingsPanel({
               hidden={rowHidden('session.showModelReasoning')}
             />
             <ToggleRow
+              label="Message timestamps"
+              hint="Show the local time next to each chat message."
+              checked={prefs.showTimestamps}
+              disabled={offline}
+              onChange={(showTimestamps) => onPrefChange({ showTimestamps })}
+              settingId="session.showTimestamps"
+              hidden={rowHidden('session.showTimestamps')}
+            />
+            <ToggleRow
               label="Chime"
               hint="Play a sound when a run finishes."
               checked={prefs.chime}

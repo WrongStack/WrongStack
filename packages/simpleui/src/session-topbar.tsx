@@ -1,4 +1,4 @@
-import { Command, FolderCode, Mail, Moon, Settings, Sun, Wifi, WifiOff } from 'lucide-react';
+import { Command, FolderCode, Mail, Moon, Settings, Sun, SunMoon, Wifi, WifiOff } from 'lucide-react';
 import type { PendingModelSwitch } from './hooks/use-model-catalog.js';
 import type { Theme } from './hooks/use-theme.js';
 import { compactTokens } from './lib/session-helpers.js';
@@ -96,6 +96,11 @@ export function SessionTopbar(props: SessionTopbarProps) {
     onToggleMailbox,
     onOpenSettings,
   } = props;
+  // Three-state theme: system → light → dark → system. useTheme applies the
+  // RESOLVED theme everywhere else; this bar shows the CHOSEN mode and names
+  // the next stop of the cycle.
+  const nextTheme = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
+  const nextThemeLabel = nextTheme === 'system' ? 'system (auto)' : nextTheme;
   const {
     selectedModel,
     groupedModels,
@@ -185,10 +190,16 @@ export function SessionTopbar(props: SessionTopbarProps) {
           type="button"
           className="topbar-icon-btn"
           onClick={onToggleTheme}
-          aria-label={`Use ${theme === 'dark' ? 'light' : 'dark'} theme`}
-          title={`Use ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          aria-label={`Use ${nextThemeLabel} theme`}
+          title={`Use ${nextThemeLabel} theme`}
         >
-          {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          {theme === 'dark' ? (
+            <Sun size={15} />
+          ) : theme === 'system' ? (
+            <SunMoon size={15} />
+          ) : (
+            <Moon size={15} />
+          )}
         </button>
         <button
           type="button"
