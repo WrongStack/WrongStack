@@ -22,6 +22,7 @@ import {
 import {
   COVERAGE_RUNS,
   isDirectRun as isTestCoverageDirectRun,
+  resolvePnpmInvocation,
   runCoverage,
 } from '../../../../scripts/test-coverage.mjs';
 import { getVitestMaxWorkers } from '../../../../vitest.workers.js';
@@ -428,6 +429,13 @@ describe('coverage runner script', () => {
     );
   });
 
+  it('executes a native Corepack pnpm launcher directly', () => {
+    expect(resolvePnpmInvocation('C:\\corepack\\pnpm-native.exe', 'node')).toEqual({
+      command: 'C:\\corepack\\pnpm-native.exe',
+      args: [],
+    });
+  });
+
   it('runs every gate and succeeds when all children pass', () => {
     const spawnPnpm = vi.fn(() => spawnResult(0));
     const log = vi.fn();
@@ -476,13 +484,7 @@ describe('coverage runner script', () => {
     expect(spawnPnpm).toHaveBeenNthCalledWith(
       1,
       'node',
-      [
-        'pnpm.cjs',
-        'test:coverage',
-        '--',
-        '--retry',
-        '2',
-      ],
+      ['pnpm.cjs', 'test:coverage', '--', '--retry', '2'],
       expect.objectContaining({ cwd: 'repo', env: { CI: 'true' }, stdio: 'inherit' }),
     );
     expect(spawnPnpm).toHaveBeenNthCalledWith(

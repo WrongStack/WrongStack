@@ -43,6 +43,15 @@ export function isDirectRun(metaUrl = import.meta.url, argvEntry = process.argv[
   return typeof argvEntry === 'string' && path.resolve(argvEntry) === fileURLToPath(metaUrl);
 }
 
+export function resolvePnpmInvocation(pnpmCli, execPath = process.execPath) {
+  // Corepack 0.34+ can set npm_execpath to its native pnpm executable on
+  // Windows. Unlike pnpm's JavaScript CLI, an .exe must be spawned directly;
+  // passing it to Node makes ESM reject the unknown extension.
+  return path.extname(pnpmCli).toLowerCase() === '.exe'
+    ? { command: pnpmCli, args: [] }
+    : { command: execPath, args: [pnpmCli] };
+}
+
 export function runCoverage(options = {}) {
   const pnpmCli = options.pnpmCli ?? process.env.npm_execpath;
   const runs = options.runs ?? COVERAGE_RUNS;
@@ -55,6 +64,8 @@ export function runCoverage(options = {}) {
   if (!pnpmCli) {
     throw new Error('test:coverage must be started through pnpm');
   }
+
+  const pnpm = resolvePnpmInvocation(pnpmCli, execPath);
 
   let failed = false;
   const transientRetryArgs =
@@ -71,7 +82,7 @@ export function runCoverage(options = {}) {
   for (const run of runs) {
     log(`\n=== Coverage: ${run.label} ===\n`);
     const args = run.vitest ? [...run.args, ...transientRetryArgs] : run.args;
-    const result = spawnPnpm(execPath, [pnpmCli, ...args], {
+    const result = spawnPnpm(pnpm.command, [...pnpm.args, ...args], {
       cwd,
       env,
       stdio: 'inherit',

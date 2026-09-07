@@ -27,4 +27,8 @@ export interface RunCoverageOptions {
 
 export const COVERAGE_RUNS: CoverageRun[];
 export function isDirectRun(metaUrl?: string, argvEntry?: string): boolean;
+export function resolvePnpmInvocation(
+  pnpmCli: string,
+  execPath?: string,
+): { command: string; args: string[] };
 export function runCoverage(options?: RunCoverageOptions): number;
