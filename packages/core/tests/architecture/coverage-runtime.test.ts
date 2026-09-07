@@ -436,6 +436,15 @@ describe('coverage runner script', () => {
     });
   });
 
+  it('executes a native Linux pnpm binary directly', () => {
+    expect(
+      resolvePnpmInvocation('/home/runner/setup-pnpm/node_modules/pnpm/pnpm', 'node'),
+    ).toEqual({
+      command: '/home/runner/setup-pnpm/node_modules/pnpm/pnpm',
+      args: [],
+    });
+  });
+
   it('runs every gate and succeeds when all children pass', () => {
     const spawnPnpm = vi.fn(() => spawnResult(0));
     const log = vi.fn();

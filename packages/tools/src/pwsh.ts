@@ -351,7 +351,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
           stdio: ['ignore', 'ignore', 'ignore'],
           windowsHide: true,
         });
-      } catch (err: any) {
+      } catch (err) {
         // Spawn threw — release the breaker reservation the successful
         // beforeCall(isBackground) took, mirroring the child 'error'/'close'
         // handlers below.
@@ -379,7 +379,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
             exit_code: 1,
             timed_out: false,
             pid: null,
-            error: `pwsh: spawn failed: ${err?.message ?? String(err)}`,
+            error: `pwsh: spawn failed: ${err instanceof Error ? err.message : String(err)}`,
           },
         };
         return;
@@ -500,7 +500,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });
-    } catch (err: any) {
+    } catch (err) {
       // Spawn threw — release the breaker reservation the successful
       // beforeCall(isBackground) took, mirroring the child 'error' handler.
       registry.afterCall(Date.now() - startedAt, true, isBackground);
@@ -528,7 +528,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
           exit_code: 1,
           timed_out: false,
           pid: null,
-          error: `pwsh: spawn failed: ${err?.message ?? String(err)}`,
+          error: `pwsh: spawn failed: ${err instanceof Error ? err.message : String(err)}`,
         },
       };
       return;
@@ -760,7 +760,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
         const c = await next();
         resumeIfDrained();
         if (c.kind === 'error') {
-          const isAbort = (c.err as any)?.code === 'ABORT_ERR' || callerSignal.aborted;
+          const isAbort = (c.err as { code?: string })?.code === 'ABORT_ERR' || callerSignal.aborted;
           const remainder = flush();
           if (remainder !== null) {
             yield { type: 'partial_output', text: remainder };

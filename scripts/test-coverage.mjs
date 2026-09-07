@@ -44,10 +44,11 @@ export function isDirectRun(metaUrl = import.meta.url, argvEntry = process.argv[
 }
 
 export function resolvePnpmInvocation(pnpmCli, execPath = process.execPath) {
-  // Corepack 0.34+ can set npm_execpath to its native pnpm executable on
-  // Windows. Unlike pnpm's JavaScript CLI, an .exe must be spawned directly;
-  // passing it to Node makes ESM reject the unknown extension.
-  return path.extname(pnpmCli).toLowerCase() === '.exe'
+  // Corepack / pnpm 12 can set npm_execpath to a native executable (.exe on
+  // Windows, or ELF binary without extension on Linux). Unlike pnpm's JavaScript CLI
+  // (.js/.cjs/.mjs), a native executable must be spawned directly; passing it to
+  // Node makes Node try to parse it as JavaScript and fail (ERR_UNKNOWN_FILE_EXTENSION or ELF SyntaxError).
+  return !/\.[cm]?js$/i.test(pnpmCli)
     ? { command: pnpmCli, args: [] }
     : { command: execPath, args: [pnpmCli] };
 }

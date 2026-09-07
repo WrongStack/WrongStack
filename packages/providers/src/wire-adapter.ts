@@ -387,7 +387,10 @@ export abstract class WireAdapter implements Provider {
     let chunkIndex = 0;
     const providerId = this.id;
     let streamSource: NodeJS.ReadableStream;
-    if (typeof (body as any)[Symbol.asyncIterator] === 'function') {
+    if (
+      Symbol.asyncIterator in body &&
+      typeof (body as unknown as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function'
+    ) {
       streamSource = body;
     } else if (body instanceof Readable) {
       streamSource = body;
@@ -464,8 +467,11 @@ export abstract class WireAdapter implements Provider {
     let readable: Readable;
     if (body instanceof Readable) {
       readable = body;
-    } else if (typeof (body as any)[Symbol.asyncIterator] === 'function') {
-      readable = Readable.from(body as any);
+    } else if (
+      Symbol.asyncIterator in body &&
+      typeof (body as unknown as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function'
+    ) {
+      readable = Readable.from(body as unknown as AsyncIterable<unknown>);
     } else {
       readable = new Readable({ read() {} });
       body.on('data', (chunk: unknown) => readable.push(chunk));

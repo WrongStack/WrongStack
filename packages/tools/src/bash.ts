@@ -325,7 +325,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
           detached: !isWin,
           windowsHide: true,
         });
-      } catch (err: any) {
+      } catch (err) {
         // Spawn threw (e.g. shell binary missing) — release the breaker
         // reservation the successful beforeCall() took, mirroring the
         // child 'error' handler below.
@@ -353,7 +353,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
             exit_code: 1,
             timed_out: false,
             pid: null,
-            error: `spawn failed: ${err?.message ?? String(err)}`,
+            error: `spawn failed: ${err instanceof Error ? err.message : String(err)}`,
           },
         };
         return;
@@ -482,7 +482,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         windowsHide: true,
         ...(isWin ? {} : { signal: callerSignal }),
       });
-    } catch (err: any) {
+    } catch (err) {
       // Spawn threw — release the breaker reservation the successful
       // beforeCall() took, mirroring the background catch above.
       registry.afterCall(Date.now() - startedAt, true, bypassBreaker);
@@ -509,7 +509,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
           exit_code: 1,
           timed_out: false,
           pid: null,
-          error: `spawn failed: ${err?.message ?? String(err)}`,
+          error: `spawn failed: ${err instanceof Error ? err.message : String(err)}`,
         },
       };
       return;
@@ -742,7 +742,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         const c = await next();
         resumeIfDrained();
         if (c.kind === 'error') {
-          const isAbort = (c.err as any)?.code === 'ABORT_ERR' || callerSignal.aborted;
+          const isAbort = (c.err as { code?: string })?.code === 'ABORT_ERR' || callerSignal.aborted;
           const remainder = flush();
           if (remainder !== null) {
             yield { type: 'partial_output', text: remainder };

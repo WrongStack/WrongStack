@@ -47,7 +47,8 @@ function formatTypeScript(path, content) {
   if (!packageManagerCli) {
     throw new Error('npm_execpath is required to format generated plugin projections');
   }
-  const packageManagerIsExecutable = /\.(?:cmd|exe|bat)$/i.test(packageManagerCli);
+  const packageManagerIsExecutable = !/\.[cm]?js$/i.test(packageManagerCli);
+  const isWindowsBatch = process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(packageManagerCli);
   const result = spawnSync(
     packageManagerIsExecutable ? packageManagerCli : process.execPath,
     [
@@ -62,6 +63,7 @@ function formatTypeScript(path, content) {
       cwd: ROOT,
       encoding: 'utf8',
       input: content,
+      ...(isWindowsBatch ? { shell: true } : {}),
     },
   );
   if (result.status !== 0) {

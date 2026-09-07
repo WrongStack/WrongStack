@@ -232,7 +232,7 @@ export function resolvePnpmInvocation(pnpmTarget, execPath = process.execPath) {
   // or a .cmd/.bat shim. An executable must be spawned directly; passing an .exe
   // to Node makes ESM reject the unknown file extension.
   const isBatch = /\.(?:cmd|bat)$/i.test(pnpmTarget.script);
-  const isExecutable = isBatch || /\.exe$/i.test(pnpmTarget.script);
+  const isExecutable = !/\.[cm]?js$/i.test(pnpmTarget.script);
   return {
     command: isExecutable ? pnpmTarget.script : execPath,
     args: isExecutable
