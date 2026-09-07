@@ -8,13 +8,14 @@ describe('createCodebaseIndexMcpToolHost', () => {
     });
     const tools = await host.listTools();
     expect(tools.map((tool) => tool.name)).toEqual([
+      'codebase_context',
       'codebase_search',
       'codebase_stats',
       'codebase_package_graph',
       'codebase_file_graph',
       'codebase_symbol_graph',
     ]);
-    const search = tools[0]!.inputSchema as { properties: Record<string, unknown> };
+    const search = tools[1]!.inputSchema as { properties: Record<string, unknown> };
     expect(search.properties).not.toHaveProperty('preferLsp');
   });
 

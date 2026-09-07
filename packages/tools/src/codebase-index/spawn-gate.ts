@@ -6,6 +6,8 @@
  * each file still gets the same parse result, just not all at once.
  */
 
+import { recordParserGateWait } from './perf-metrics.js';
+
 let chain: Promise<unknown> = Promise.resolve();
 
 /**
@@ -13,7 +15,17 @@ let chain: Promise<unknown> = Promise.resolve();
  * in this process. Errors propagate to the caller and do not break the queue.
  */
 export function withSpawnGate<T>(fn: () => Promise<T>): Promise<T> {
-  const run = chain.then(fn, fn);
+  const queuedAt = performance.now();
+  const run = chain.then(
+    () => {
+      recordParserGateWait(performance.now() - queuedAt);
+      return fn();
+    },
+    () => {
+      recordParserGateWait(performance.now() - queuedAt);
+      return fn();
+    },
+  );
   // Keep the chain alive even when `fn` rejects.
   chain = run.then(
     () => undefined,

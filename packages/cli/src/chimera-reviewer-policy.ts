@@ -283,6 +283,7 @@ export const CHIMERA_REVIEW_READ_ONLY_TOOLS = Object.freeze([
   'codebase-stats',
   'codebase-search',
   'codebase-skeleton',
+  'codebase-context',
   'codebase-repo-map',
   'codebase-incoming-calls',
   'codebase-outgoing-calls',

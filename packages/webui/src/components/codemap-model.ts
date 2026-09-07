@@ -16,6 +16,19 @@ export interface GraphNodeData {
   signature?: string;
   scope?: string;
   external?: boolean;
+  /**
+   * Global PageRank centrality, re-normalised to a 1.0 maximum within the
+   * drill-down level being rendered. Absent until the rank pass has run.
+   */
+  rank?: number;
+  /** Plain-language description from the concept layer, when enriched. */
+  concept?: string;
+  /** 1-based inclusive source span the concept summary was drawn from. */
+  crux?: { start: number; end: number };
+  /** Subsystem this node belongs to, when one was derived. */
+  subsystem?: string;
+  /** `files.mtime_ms`, for recency shading. */
+  lastModifiedMs?: number;
 }
 
 export interface GraphEdgeData {
@@ -35,7 +48,7 @@ export type CodeMapScope =
   | { level: 'files'; package: string }
   | { level: 'symbols'; file: string; package?: string };
 
-export type CodeMapLayout = 'layers' | 'orbit';
+export type CodeMapLayout = 'layers' | 'orbit' | 'subsystems';
 
 interface PositionedGraphNode {
   node: GraphNodeData;
@@ -267,7 +280,79 @@ export function layoutGraph(
   layout: CodeMapLayout,
   focusId?: string,
 ): PositionedGraphNode[] {
-  return layout === 'orbit' ? orbitLayout(graph, focusId) : layeredLayout(graph);
+  if (layout === 'orbit') return orbitLayout(graph, focusId);
+  if (layout === 'subsystems') return subsystemLayout(graph);
+  return layeredLayout(graph);
+}
+
+/** Band that collects nodes belonging to no subsystem and no package. */
+export const UNGROUPED_BAND = '(ungrouped)';
+
+/** Band label for a node in the subsystem layout. */
+export function subsystemOf(node: GraphNodeData): string {
+  return node.subsystem ?? node.package ?? UNGROUPED_BAND;
+}
+
+/** Cards per row inside one subsystem band before it wraps. */
+const BAND_COLUMNS = 6;
+/** Vertical gap between two bands, on top of the row gap. */
+const BAND_GAP = 96;
+
+/**
+ * Group nodes into horizontal bands, one per subsystem.
+ *
+ * The other two layouts answer "what depends on what". This one answers "what
+ * is this repository made of" — the question a newcomer actually opens the map
+ * with, and the one the concept layer exists to answer. Bands are ordered by
+ * the centrality they contain, so the subsystem that carries the codebase is
+ * the first thing on screen rather than whichever package sorts first
+ * alphabetically.
+ */
+function subsystemLayout(graph: CodeMapGraphResponse): PositionedGraphNode[] {
+  if (graph.nodes.length === 0) return [];
+  const degrees = graphDegrees(graph, new Set(graph.nodes.map((node) => node.id)));
+  const weightOf = (node: GraphNodeData): number => node.rank ?? (degrees.get(node.id) ?? 0) / 1000;
+
+  const bands = new Map<string, GraphNodeData[]>();
+  for (const node of graph.nodes) {
+    const band = subsystemOf(node);
+    const bucket = bands.get(band);
+    if (bucket === undefined) bands.set(band, [node]);
+    else bucket.push(node);
+  }
+
+  const ordered = [...bands.entries()]
+    .map(([name, nodes]) => ({
+      name,
+      nodes: [...nodes].sort(
+        (left, right) => weightOf(right) - weightOf(left) || left.label.localeCompare(right.label),
+      ),
+      weight: nodes.reduce((total, node) => total + weightOf(node), 0),
+    }))
+    // The catch-all band is never the headline, however much it happens to
+    // contain — it is the absence of a grouping, not a grouping.
+    .sort((left, right) => {
+      if (left.name === UNGROUPED_BAND) return 1;
+      if (right.name === UNGROUPED_BAND) return -1;
+      return right.weight - left.weight || left.name.localeCompare(right.name);
+    });
+
+  const positioned: PositionedGraphNode[] = [];
+  let y = 0;
+  for (const band of ordered) {
+    band.nodes.forEach((node, index) => {
+      positioned.push({
+        node,
+        position: {
+          x: (index % BAND_COLUMNS) * (NODE_WIDTH + X_GAP / 2),
+          y: y + Math.floor(index / BAND_COLUMNS) * (NODE_HEIGHT + Y_GAP),
+        },
+      });
+    });
+    const rows = Math.ceil(band.nodes.length / BAND_COLUMNS);
+    y += rows * (NODE_HEIGHT + Y_GAP) + BAND_GAP;
+  }
+  return positioned;
 }
 
 /** Default SMART canvas node budget — keeps React Flow DOM under control. */
@@ -315,10 +400,17 @@ export function smartCanvasGraph(
       scores.set(edge.source, (scores.get(edge.source) ?? 0) + edge.weight);
       scores.set(edge.target, (scores.get(edge.target) ?? 0) + edge.weight);
     }
+    // Edge weight inside the current scope is a local proxy for importance;
+    // PageRank is the real thing, computed over the whole index. Prefer it
+    // when the rank pass has run, and keep the proxy for indexes where it has
+    // not — a scope where no node carries a rank must not sort by a column
+    // that is uniformly undefined.
+    const hasRank = graph.nodes.some((node) => node.rank !== undefined);
+    const importance = (node: GraphNodeData): number =>
+      hasRank ? (node.rank ?? 0) : (scores.get(node.id) ?? 0);
     const ranked = [...graph.nodes].sort(
       (left, right) =>
-        (scores.get(right.id) ?? 0) - (scores.get(left.id) ?? 0) ||
-        left.label.localeCompare(right.label),
+        importance(right) - importance(left) || left.label.localeCompare(right.label),
     );
     const retained = new Set<string>();
     const add = (id: string): void => {

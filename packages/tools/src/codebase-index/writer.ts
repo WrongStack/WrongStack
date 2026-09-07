@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { type Bm25Index, buildBm25Index } from './bm25.js';
+import type { FileRankRow, SymbolRankRow } from './graph-rank.js';
 import type {
   CallSite,
   CodeMapGraph,
@@ -25,6 +26,19 @@ import {
   type IndexSummary,
 } from './writer-admin.js';
 import { bulkInsertRefsWithStatement } from './writer-bulk-insert.js';
+import type { ConceptCoverage, ConceptEdge, FileConcept, Subsystem } from './writer-concepts.js';
+import {
+  getAllFileConceptsWithStatement,
+  getConceptCoverageWithStatement,
+  getConceptEdgesWithStatement,
+  getFileConceptWithStatement,
+  getReadyConceptSummariesWithStatement,
+  getSubsystemsWithStatement,
+  markStaleConceptsWithStatement,
+  pruneOrphanConceptsWithStatement,
+  replaceSubsystemsWithStatement,
+  upsertFileConceptWithStatement,
+} from './writer-concepts.js';
 import {
   findIncomingCallsByName,
   findOutgoingCallsByName,
@@ -34,8 +48,10 @@ import {
   findTransitiveIncomingCallsByName,
   findTransitiveOutgoingCallsByName,
   getFileGraphWithStatement,
+  getFileSymbolsWithStatement,
   getPackageGraphWithStatement,
   getSymbolGraphWithStatement,
+  getSymbolsByIdsWithStatement,
 } from './writer-graph-reader.js';
 import { inListChunks, padToInBucket, placeholders, resolveIndexDir } from './writer-helpers.js';
 import { allocateSymbolIds, initIndexSchema, NEXT_SYMBOL_ID_KEY } from './writer-init.js';
@@ -53,6 +69,19 @@ import {
   upsertFileWithStatement,
 } from './writer-mutations.js';
 import { applyIndexStorePragmas } from './writer-pragmas.js';
+import type { RankedFileRow } from './writer-rank.js';
+import {
+  getFileRankMapWithStatement,
+  getImportVisibilityWithStatement,
+  getPackageFileCountsWithStatement,
+  getRankCountsWithStatement,
+  getRankedFilesWithStatement,
+  getSymbolNameCandidatesWithStatement,
+  getTopFileRanksWithStatement,
+  getTopSymbolRanksWithStatement,
+  replaceFileRanksWithStatement,
+  replaceSymbolRanksWithStatement,
+} from './writer-rank.js';
 import {
   applyImportResolutionsWithStatement,
   getAllImportRefsWithStatement,
@@ -70,6 +99,15 @@ import {
 } from './writer-search.js';
 import type { WriterSearchFilter } from './writer-search-helpers.js';
 import { StorePool } from './writer-store-pool.js';
+import type { FileVectorRow, VectorHit } from './writer-vectors.js';
+import {
+  countFileVectorsWithStatement,
+  getFileVectorStatesWithStatement,
+  pruneOrphanFileVectorsWithStatement,
+  reconcileVectorProviderWithStatement,
+  searchFileVectorsWithStatement,
+  upsertFileVectorsWithStatement,
+} from './writer-vectors.js';
 
 export { codebaseIndexDirOverride, resolveIndexDir } from './writer-helpers.js';
 export { StorePool } from './writer-store-pool.js';
@@ -433,6 +471,12 @@ export class IndexStore {
         this.db.exec('DROP TABLE IF EXISTS metadata');
         if (this.ftsAvailable) this.db.exec('DROP TABLE IF EXISTS symbols_fts');
         this.db.exec('DROP TABLE IF EXISTS symbol_vectors');
+        this.db.exec('DROP TABLE IF EXISTS symbol_rank');
+        this.db.exec('DROP TABLE IF EXISTS file_rank');
+        this.db.exec('DROP TABLE IF EXISTS file_concepts');
+        this.db.exec('DROP TABLE IF EXISTS subsystems');
+        this.db.exec('DROP TABLE IF EXISTS concept_edges');
+        this.db.exec('DROP TABLE IF EXISTS file_vectors');
         this.stmtCache.clear();
         this.initSchema();
         this.stmt('INSERT OR REPLACE INTO metadata(key, value) VALUES (?, ?)').run(
@@ -727,12 +771,195 @@ export class IndexStore {
     ).map((r) => ({ ...r, kind: r.kind as SymbolKind }));
   }
 
+  /** Declarations in one file, in source order. */
+  getFileSymbols(
+    file: string,
+    limit: number,
+  ): Array<{ id: number; name: string; kind: string; line: number; signature: string }> {
+    return getFileSymbolsWithStatement((sql) => this.stmt(sql), file, limit);
+  }
+
+  /** Declarations behind an arbitrary id list, for the retrieval walk. */
+  getSymbolsByIds(ids: readonly number[]): Array<{
+    id: number;
+    name: string;
+    kind: string;
+    lang: string;
+    file: string;
+    line: number;
+    signature: string;
+    scope: string;
+  }> {
+    return getSymbolsByIdsWithStatement((sql) => this.stmt(sql), ids);
+  }
+
   getAllResolvedRefs(): Array<{
     fromId: number;
     toId: number;
     callType: string;
   }> {
     return getAllResolvedRefsWithStatement((sql) => this.stmt(sql));
+  }
+
+  /**
+   * Replace both rank tables in one write. Called once per index run, after
+   * ref resolution has settled — a rank computed against half-resolved refs
+   * would describe a graph that never existed.
+   */
+  replaceRanks(symbols: readonly SymbolRankRow[], files: readonly FileRankRow[]): void {
+    this.runWithRetry(() => {
+      const ownsTransaction = this.beginWriteTransaction();
+      try {
+        replaceSymbolRanksWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, symbols);
+        replaceFileRanksWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, files);
+        this.commitWriteTransaction(ownsTransaction);
+      } catch (err) {
+        this.rollbackWriteTransaction(ownsTransaction);
+        throw err;
+      }
+    });
+  }
+
+  // ── Semantic file vectors ────────────────────────────────────────────────
+
+  /** Wipe stored vectors when the embedding model changed. */
+  reconcileVectorProvider(provider: string): boolean {
+    return this.runWithRetry(() =>
+      reconcileVectorProviderWithStatement(
+        (sql) => this.stmt(sql),
+        (key) => this.getMetadata(key),
+        (key, value) => this.setMetadata(key, value),
+        provider,
+      ),
+    );
+  }
+
+  getFileVectorStates(provider: string): Map<string, string> {
+    return getFileVectorStatesWithStatement((sql) => this.stmt(sql), provider);
+  }
+
+  upsertFileVectors(rows: readonly FileVectorRow[]): void {
+    this.runWithRetry(() => {
+      const ownsTransaction = this.beginWriteTransaction();
+      try {
+        upsertFileVectorsWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, rows);
+        this.commitWriteTransaction(ownsTransaction);
+      } catch (err) {
+        this.rollbackWriteTransaction(ownsTransaction);
+        throw err;
+      }
+    });
+  }
+
+  pruneOrphanFileVectors(): number {
+    return this.runWithRetry(() => pruneOrphanFileVectorsWithStatement((sql) => this.stmt(sql)));
+  }
+
+  countFileVectors(): number {
+    return countFileVectorsWithStatement((sql) => this.stmt(sql));
+  }
+
+  searchFileVectors(query: Float32Array, limit: number, minScore: number): VectorHit[] {
+    return searchFileVectorsWithStatement((sql) => this.stmt(sql), query, limit, minScore);
+  }
+
+  // ── Concept layer ────────────────────────────────────────────────────────
+
+  upsertFileConcept(concept: FileConcept): void {
+    this.runWithRetry(() => {
+      const ownsTransaction = this.beginWriteTransaction();
+      try {
+        upsertFileConceptWithStatement((sql) => this.stmt(sql), concept);
+        this.commitWriteTransaction(ownsTransaction);
+      } catch (err) {
+        this.rollbackWriteTransaction(ownsTransaction);
+        throw err;
+      }
+    });
+  }
+
+  getFileConcept(file: string): FileConcept | undefined {
+    return getFileConceptWithStatement((sql) => this.stmt(sql), file);
+  }
+
+  getAllFileConcepts(): FileConcept[] {
+    return getAllFileConceptsWithStatement((sql) => this.stmt(sql));
+  }
+
+  getReadyConceptSummaries(): Map<string, string> {
+    return getReadyConceptSummariesWithStatement((sql) => this.stmt(sql));
+  }
+
+  getConceptCoverage(): ConceptCoverage {
+    return getConceptCoverageWithStatement((sql) => this.stmt(sql));
+  }
+
+  /** Flag summaries whose file has changed since they were written. */
+  markStaleConcepts(): number {
+    return this.runWithRetry(() => markStaleConceptsWithStatement((sql) => this.stmt(sql)));
+  }
+
+  /** Drop summaries for files that are no longer indexed. */
+  pruneOrphanConcepts(): number {
+    return this.runWithRetry(() => pruneOrphanConceptsWithStatement((sql) => this.stmt(sql)));
+  }
+
+  replaceSubsystems(subsystems: readonly Subsystem[], edges: readonly ConceptEdge[]): void {
+    this.runWithRetry(() => {
+      const ownsTransaction = this.beginWriteTransaction();
+      try {
+        replaceSubsystemsWithStatement(
+          (sql) => this.stmt(sql),
+          IndexStore.MAX_SQL_VARS,
+          subsystems,
+          edges,
+        );
+        this.commitWriteTransaction(ownsTransaction);
+      } catch (err) {
+        this.rollbackWriteTransaction(ownsTransaction);
+        throw err;
+      }
+    });
+  }
+
+  getSubsystems(): Subsystem[] {
+    return getSubsystemsWithStatement((sql) => this.stmt(sql));
+  }
+
+  getConceptEdges(): ConceptEdge[] {
+    return getConceptEdgesWithStatement((sql) => this.stmt(sql));
+  }
+
+  getPackageFileCounts(): Map<string, number> {
+    return getPackageFileCountsWithStatement((sql) => this.stmt(sql));
+  }
+
+  getRankedFiles(limit: number): RankedFileRow[] {
+    return getRankedFilesWithStatement((sql) => this.stmt(sql), limit);
+  }
+
+  getTopFileRanks(limit: number): FileRankRow[] {
+    return getTopFileRanksWithStatement((sql) => this.stmt(sql), limit);
+  }
+
+  getTopSymbolRanks(limit: number): SymbolRankRow[] {
+    return getTopSymbolRanksWithStatement((sql) => this.stmt(sql), limit);
+  }
+
+  getFileRankMap(): Map<string, number> {
+    return getFileRankMapWithStatement((sql) => this.stmt(sql));
+  }
+
+  getRankCounts(): { symbols: number; files: number } {
+    return getRankCountsWithStatement((sql) => this.stmt(sql));
+  }
+
+  getSymbolNameCandidates(): Map<number, number> {
+    return getSymbolNameCandidatesWithStatement((sql) => this.stmt(sql));
+  }
+
+  getImportVisibility(): Map<string, Set<string>> {
+    return getImportVisibilityWithStatement((sql) => this.stmt(sql));
   }
 
   getAllImportRefs(): Array<{

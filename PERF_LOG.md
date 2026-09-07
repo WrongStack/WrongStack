@@ -6,6 +6,36 @@ command it names; nothing here is recorded from reading the code.
 Rules: one variable per attempt; a delta inside the run spread or under the
 noise floor is REVERTED, not kept; correctness gates everything.
 
+## 2026-09-07 — PageRank pass cost inside a full index (round atlas-rank-r1, scope packages/tools/src/codebase-index)
+commit:   c0600448a (worktree dirty: the Codebase Atlas layers under measurement)
+machine:  AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0
+metric:   share of a full index run spent computing global PageRank — the cost the ranking
+          layer adds to every forced/full reindex, which happens on schema change and on
+          `/codebase-reindex force`.
+commands: node <scratch>/perf-rank.mjs   (3 forced full indexes of packages/tools into a
+          scratch index dir, rank pass timed separately on the resulting store)
+          pnpm perf:guard                (regression gate for the three ratcheted metrics)
+corpus:   packages/tools — 443 files / 3549 symbols → 2812 symbol ranks, 384 file ranks
+baseline: none — this layer is new; the number below IS the baseline.
+after:    full index median 1711ms (runs 1724 / 1346 / 1711)
+          rank pass  median   25ms (runs   21 /   28 /   25)
+          rank share 1.5% of a full index
+          Live repo cross-check: 8459 files / 66991 symbols / 184052 resolved refs →
+          rank pass 570ms against a full index of the same tree in the ~30s range, ≈1.8%.
+verdict:  KEEP — 1.5% (corpus) and ≈1.8% (live) are both well inside the <5% budget the
+          plan set for this layer. The pass is O(edges x iterations) with a fixed 25
+          iterations, so it scales with the reference graph rather than with parse work;
+          that is why its share stays roughly flat as the corpus grows.
+          Incremental runs do not pay it at all unless `rank_version` changed or the
+          changed-file count crosses RANK_REFRESH_FILE_THRESHOLD (25) — rank is a global
+          quantity and recomputing it for a one-file edit is waste.
+guard:    pnpm perf:guard — wstack --version cold start -9.8% (inside band),
+          @wrongstack/core barrel import 1.8% (inside band),
+          @wrongstack/tui barrel import 15.9% better than baseline (GAIN, unrelated to
+          this change). No regression.
+tests:    packages/tools 3352 passed / 6 skipped (excluding an unrelated in-flight
+          perf test from another session).
+
 ## 2026-09-01 — guarded startup probes
 commit:   b608d82f6
 machine:  AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0
@@ -531,3 +561,85 @@ cumulative ladder (all measured 2026-09-06, all in PERF_LOG): guarded regex 18.0
           barrel-consumer path-guard 42.8 → 12.4ms · core/utils child-env 41.0 → 4.5ms.
 artifacts: .temp_files/perf-ratchet/sdk-runner-r2/ deleted after this entry
           (numbers above are the record).
+
+## 2026-09-07 — TUI barrel cold-start ratchet (round tui-barrel-r1, scope packages/tui)
+commit:   HEAD (source-only change to connections-health.ts; dist rebuilt each run)
+machine:  AMD Ryzen 9 9950X3D / node 24.13.0 / pnpm managed deps / Windows 10
+metric:   @wrongstack/tui barrel import cold-start (process launch → module graph resolved)
+          — what every TUI invocation pays before the first frame draws.
+
+### Baseline
+command:  node .temp_files/perf-ratchet/tui-barrel-r1/run-bench.mjs (fresh subprocess per run)
+baseline: median=885ms, min=804ms / max=1115ms, spread=221ms.  Noise-band ≈ 221ms.  5% floor ≈ 40ms.
+          Four passes gave medians: 916, 790, 908, 859ms — large spread is environmental.
+
+### Module-level cost accounting
+Subprocess probing (5 runs each, median):
+  @wrongstack/tools        434ms  ← largest single consumer
+  @wrongstack/sdd         268ms
+  @wrongstack/core         232ms
+  @wrongstack/sage         203ms
+  @wrongstack/core/coordination  162ms
+  @wrongstack/core/chronicle     162ms
+  @wrongstack/core/utils         97ms
+  @wrongstack/kanban              64ms
+
+### Hypothesis 1 — REVERTED
+target:   packages/tui/src/connections-health.ts
+change:   Removed 3 static @wrongstack/tools imports
+          (checkCodebaseIndexServerHealth, getIndexState, resolveProjectIndexDaemonAvailability)
+          from module scope and re-imported them via `await import('@wrongstack/tools')`
+          inside codebaseIndexHealth() — deferring from cold-start to first panel-open.
+expected: ~430ms improvement (the full tools barrel cost)
+verdict:  REVERT.  After: median=1086ms (+201ms regression vs baseline).
+          Why the hypothesis was wrong: the dist still carries 22 static
+          @wrongstack/tools imports from 11 other source files.  Removing 3
+          from connections-health.ts barely moves the needle because
+          getProcessRegistry (used by ~9 other files) is the dominant @wrongstack/tools
+          consumer and was unaffected.  Additionally, @wrongstack/tools may already be
+          loaded by sibling dependencies in the eager module graph regardless of whether
+          connections-health imports it statically, so lazy-importing within one function
+          does not reliably avoid the graph load.
+          TUI barrel dist still has 22 static @wrongstack/tools imports (grep count
+          on dist/index.js); a meaningful win requires either: (a) lazy-importing
+          getProcessRegistry from all its callers (run-tui.ts, ps-slash.ts, kill-slash.ts,
+          use-tui-environment-state.ts, use-sidebar-panel-data.ts, use-exit-command.ts,
+          use-interrupt-ladder.ts, use-core-tui-commands.ts, app-status-region.tsx,
+          process-list.tsx) or (b) a narrow subpath export from @wrongstack/tools
+          for the process-registry utilities that does not drag the 434ms barrel.
+baseline: median=885ms (four-pass composite, 806–1115ms spread) — NOT IMPROVED.
+artifacts: .temp_files/perf-ratchet/tui-barrel-r1/ deleted after this entry.
+
+## 2026-09-07 — tui barrel subpath import (round tui-barrel-r2, scope packages/tui)
+commit:   HEAD (16 modified, 0 staged)
+machine:  AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0
+metric:   @wrongstack/tui barrel import cold-start (process launch → module graph resolved)
+          — what every TUI invocation pays before the first frame draws.
+
+### Baseline
+command:  node .temp_files/perf-ratchet/tui-barrel-r2/run-bench.mjs (fresh subprocess per run)
+baseline: median=648ms, min=620ms / max=703ms, spread=83ms.  5% floor ≈ 32ms.
+          Noise band = max(spread, 5% floor) = 83ms.
+
+### Hypothesis — REVERTED
+target:   10 TUI source files importing getProcessRegistry from @wrongstack/tools barrel
+change:   Retargeted all 10 to @wrongstack/tools/process-registry subpath; added
+          subpath mock in 2 test files (kill-ps-slash.test.ts, interrupt-ladder-window.test.ts)
+expected: ~130ms improvement (≈20% of 648ms baseline), based on @wrongstack/tools being
+          the largest single barrel consumer at 434ms in the previous round's module-probe.
+after:    median=682ms (min=664 / max=740, spread=76ms) — +34ms regression vs baseline.
+verdict:  REVERT.  Improvement is inside the noise band (34ms < 83ms threshold).
+          Why the hypothesis was wrong: getProcessRegistry is only one of 22 static
+          @wrongstack/tools imports in the TUI barrel.  Removing 10 barrel imports
+          and routing them through the subpath does not measurably reduce load time —
+          the remaining 12 barrel imports (including process-registry-persistent, exec,
+          bash, circuit-breaker, etc.) still load the full graph, and
+          getProcessRegistry itself was not the dominant consumer.  Additionally, the
+          process-registry subpath itself imports circuit-breaker, which is still
+          loaded by other barrel consumers anyway.
+          The subpath is architecturally correct but buys nothing for cold-start.
+hypothesis-to-log: tui-barrel-r2 — switching barrel imports to subpath does not
+          reduce startup time because the barrel's remaining imports already load
+          the full module graph; a win would require splitting the barrel itself
+          or lazy-importing more broadly at the barrel level.
+artifacts: .temp_files/perf-ratchet/tui-barrel-r2/ deleted after this entry.

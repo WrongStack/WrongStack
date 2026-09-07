@@ -55,6 +55,7 @@ import { makeAutonomyPromptContributor } from '@wrongstack/core/execution';
 import type { TokenSavingTier } from '@wrongstack/core/types';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
+import { createAtlasPromptContributor } from '../wiring/atlas-prompt-contributor.js';
 import { createWrongTracePromptContributor } from '../wiring/wrongtrace-prompt-contributor.js';
 
 export interface MutableRef<T> {
@@ -151,6 +152,12 @@ interface BindSystemPromptBuilderDeps {
   /** `config.systemPrompt.variant` — selects system.md, system-lite.md, or system-pro.md. */
   systemPromptVariant?: SystemInstructionVariant | undefined;
   paths: SystemPromptBuilderPaths;
+  /** Project root, for the Atlas brief. Omit to leave the brief out entirely. */
+  projectRoot?: string | undefined;
+  /** `config.indexing.atlas` — gates and budgets the session-start brief. */
+  atlas?:
+    | { injectOnSessionStart?: boolean | undefined; briefMaxTokens?: number | undefined }
+    | undefined;
   /**
    * Optional narrow `domain-term` adapter for the prompt glossary block.
    * The CLI provides a closure over the resolved SAGE `memoryStore` that
@@ -255,6 +262,23 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
           createWrongTracePromptContributor({
             tokenSavingMode: deps.tokenSavingMode,
           }),
+          // Puts the repository's shape — its packages, its hub files, and
+          // (when the concept layer has run) what each subsystem is for — in
+          // front of the agent, instead of leaving it to be rediscovered by
+          // search every session. Fail-open and deadline-bounded: no index,
+          // or a slow one, simply contributes nothing.
+          ...(deps.projectRoot === undefined
+            ? []
+            : [
+                createAtlasPromptContributor({
+                  projectRoot: deps.projectRoot,
+                  enabled: deps.atlas?.injectOnSessionStart ?? true,
+                  ...(deps.atlas?.briefMaxTokens !== undefined
+                    ? { maxTokens: deps.atlas.briefMaxTokens }
+                    : {}),
+                  tokenSavingMode: deps.tokenSavingMode,
+                }),
+              ]),
         ],
       }),
   );

@@ -46,8 +46,11 @@ self-contained handoff; do not take over fleet orchestration.
 1. Restate the deliverable internally and identify the smallest evidence needed
    to establish it.
 2. Inspect the relevant surface and its direct contracts before acting.
+<!--ws:if tool=codebase-context-->
+   Locate code with `codebase-context` when you cannot name the symbol; it returns ranked files and the symbols inside them in one call.
+<!--ws:end-->
 <!--ws:if tool=codebase-search-->
-   Locate code with `codebase-search` before broad `grep`/`glob`/`tree`.
+   Locate code with `codebase-search` when you know the symbol name, before broad `grep`/`glob`/`tree`.
 <!--ws:end-->
 3. Execute the smallest coherent solution or investigation.
 4. Verify the exact behavior with the narrowest meaningful check, broadening
@@ -71,7 +74,7 @@ deletion, history rewriting, force-push, or database destruction unless the
 task explicitly requires the action and identifies the exact target. Recheck
 the target before any destructive step.
 
-<!--ws:if tool=codebase-search,codebase-stats,codebase-skeleton,codebase-repo-map,codebase-incoming-calls,codebase-outgoing-calls,codebase-impact-analysis-->
+<!--ws:if tool=codebase-context,codebase-search,codebase-stats,codebase-skeleton,codebase-repo-map,codebase-incoming-calls,codebase-outgoing-calls,codebase-impact-analysis-->
 ## Codebase discovery
 
 Index tools registered for this task are the default path. Do not start with
@@ -80,8 +83,11 @@ broad `grep`/`glob`/`tree` when they can answer.
 <!--ws:if tool=codebase-stats-->
 1. **Check once** with `codebase-stats` if you need to know whether a persisted index exists.
 <!--ws:end-->
+<!--ws:if tool=codebase-context-->
+2. **Orient first** with `codebase-context` when the target is described rather than named; it replaces a search -> skeleton -> calls chain.
+<!--ws:end-->
 <!--ws:if tool=codebase-search-->
-2. **Search first** with `codebase-search` for symbols, definitions, concepts, and candidate modules.
+2. **Search first** with `codebase-search` for a symbol you can already name.
 <!--ws:end-->
 <!--ws:if tool=codebase-repo-map-->
 3. **Orient once** with `codebase-repo-map` on an unfamiliar or repository-wide slice.

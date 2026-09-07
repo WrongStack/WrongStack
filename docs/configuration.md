@@ -1054,6 +1054,82 @@ Override with `--verbose` (`debug`), `--trace` (`trace`), or `--log-level <level
 
 ---
 
+## `indexing` — Codebase index
+
+The structural index that backs `codebase-search`, `codebase-context`,
+`codebase-repo-map` and the CodeMap view.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `onSessionStart` | `true` | Run an incremental index at session start. |
+| `onEdit` | `true` | Reindex files the agent writes or edits, in the background. |
+| `watchExternal` | `true` | Watch the project root for changes made outside the agent. |
+| `debounceMs` | `400` | Coalescing window for rapid edits to the same file. |
+| `indexTimeoutMs` | `240000` | Watchdog for a full run; an overrun is aborted and counts against the index circuit breaker. |
+
+### `indexing.concepts` — the concept layer
+
+Plain-English summaries of what each file is *for*, which the structural index
+cannot express. **Off by default: this is the only part of indexing that spends
+money.** A first pass over a large repository is thousands of model calls;
+every pass after it costs only the files whose bytes changed, because the
+existing `content_hash` is the cache key.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | `false` | Master switch. |
+| `model` | — | Model override. Unset routes through the model-tier layer at the cheapest configured level, which is what you want here. |
+| `concurrency` | `5` | Files summarised in parallel. |
+| `maxFiles` | — | Ceiling per pass — the way to sample the cost before committing. |
+| `subsystems` | `true` | Also derive the per-package subsystem layer. |
+
+Start with `/codebase-map --enrich --max-files 50` to measure the cost on your
+repository before running a full pass.
+
+### `indexing.embeddings` — semantic search
+
+One vector per file, over the concept layer's description of that file. Lets a
+query phrased in the problem's vocabulary reach code whose identifiers never
+use those words.
+
+**Off by default:** it needs the optional `@huggingface/transformers` runtime
+and downloads a model on first use. Without it, retrieval stays lexical, which
+is what shipped before.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | `false` | Master switch. |
+| `model` | `Xenova/all-MiniLM-L6-v2` | Must emit 384-dimensional vectors, the width the index stores. |
+| `batchSize` | `16` | Texts per inference call. |
+
+Two models produce incomparable vector spaces, so changing `model` wipes the
+stored vectors and re-embeds rather than leaving half the index in each space.
+
+### `indexing.atlas` — projection and session brief
+
+| Key | Default | Meaning |
+|---|---|---|
+| `injectOnSessionStart` | `true` | Put the Atlas brief in the system prompt at session start. |
+| `briefMaxTokens` | `800` | Hard ceiling for that brief. |
+
+The brief costs a few hundred tokens once per session and rides the
+live-context tail, so it does not disturb the prompt cache. It contributes
+nothing at all when the index has not been built. See
+[`/codebase-map`](slash/codebase-map.md).
+
+```jsonc
+{
+  "indexing": {
+    "onSessionStart": true,
+    "concepts": { "enabled": false, "concurrency": 5, "subsystems": true },
+    "embeddings": { "enabled": false, "batchSize": 16 },
+    "atlas": { "injectOnSessionStart": true, "briefMaxTokens": 800 }
+  }
+}
+```
+
+---
+
 ## `session` — Session logging & audit trail
 
 Controls what gets persisted to the per-project session JSONL file

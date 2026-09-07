@@ -187,3 +187,111 @@ describe('codemap model', () => {
     expect(smart.edges.length).toBeLessThanOrEqual(SMART_CANVAS_EDGE_LIMIT);
   });
 });
+
+describe('subsystem layout', () => {
+  function node(id: string, subsystem?: string, rank?: number): GraphNodeData {
+    return {
+      id,
+      label: id,
+      kind: 'file',
+      ...(subsystem !== undefined ? { subsystem } : {}),
+      ...(rank !== undefined ? { rank } : {}),
+    };
+  }
+
+  it('places every node exactly once', () => {
+    const graph: CodeMapGraphResponse = {
+      nodes: [node('a', 'core'), node('b', 'ui'), node('c', 'core')],
+      edges: [],
+    };
+
+    const positioned = layoutGraph(graph, 'subsystems');
+
+    expect(positioned).toHaveLength(3);
+    expect(new Set(positioned.map((entry) => entry.node.id)).size).toBe(3);
+  });
+
+  it('keeps a subsystem on one horizontal band', () => {
+    const graph: CodeMapGraphResponse = {
+      nodes: [node('a', 'core'), node('b', 'ui'), node('c', 'core')],
+      edges: [],
+    };
+
+    const byId = new Map(layoutGraph(graph, 'subsystems').map((e) => [e.node.id, e.position]));
+
+    expect(byId.get('a')?.y).toBe(byId.get('c')?.y);
+    expect(byId.get('b')?.y).not.toBe(byId.get('a')?.y);
+  });
+
+  it('puts the subsystem carrying the most centrality first', () => {
+    const graph: CodeMapGraphResponse = {
+      nodes: [node('light', 'peripheral', 0.1), node('heavy', 'core', 0.9)],
+      edges: [],
+    };
+
+    expect(layoutGraph(graph, 'subsystems')[0]?.node.id).toBe('heavy');
+  });
+
+  it('sinks the catch-all band below every real subsystem', () => {
+    const graph: CodeMapGraphResponse = {
+      // The ungrouped node carries far more rank and still must not lead:
+      // no grouping is not a grouping.
+      nodes: [node('loose', undefined, 0.99), node('grouped', 'core', 0.01)],
+      edges: [],
+    };
+
+    const byId = new Map(layoutGraph(graph, 'subsystems').map((e) => [e.node.id, e.position]));
+
+    expect(byId.get('loose')!.y).toBeGreaterThan(byId.get('grouped')!.y);
+  });
+
+  it('falls back to the package when no subsystem was derived', () => {
+    const graph: CodeMapGraphResponse = {
+      nodes: [
+        { id: 'a', label: 'a', kind: 'file', package: 'core' },
+        { id: 'b', label: 'b', kind: 'file', package: 'core' },
+        { id: 'c', label: 'c', kind: 'file', package: 'ui' },
+      ],
+      edges: [],
+    };
+
+    const byId = new Map(layoutGraph(graph, 'subsystems').map((e) => [e.node.id, e.position]));
+
+    expect(byId.get('a')?.y).toBe(byId.get('b')?.y);
+    expect(byId.get('c')?.y).not.toBe(byId.get('a')?.y);
+  });
+});
+
+describe('smart culling with rank', () => {
+  it('keeps the highest-ranked nodes even when they have the fewest edges', () => {
+    const nodes: GraphNodeData[] = Array.from({ length: SMART_CANVAS_NODE_LIMIT + 40 }, (_, i) => ({
+      id: `n${i}`,
+      label: `n${i}`,
+      kind: 'file',
+      // Rank runs opposite to edge count: the top-ranked node is the least
+      // connected inside this scope, exactly the case a local edge-weight
+      // proxy gets wrong.
+      rank: 1 - i / 1000,
+    }));
+    const edges: GraphEdgeData[] = nodes
+      .slice(10)
+      .map((n, i) => ({ source: n.id, target: nodes[i]!.id, weight: 100 + i, refType: 'call' }));
+
+    const result = smartCanvasGraph({ nodes, edges }, null, 'smart');
+
+    expect(result.nodes.some((n) => n.id === 'n0')).toBe(true);
+  });
+
+  it('still uses edge weight when no node carries a rank', () => {
+    const nodes: GraphNodeData[] = Array.from({ length: SMART_CANVAS_NODE_LIMIT + 20 }, (_, i) => ({
+      id: `n${i}`,
+      label: `n${i}`,
+      kind: 'file',
+    }));
+    const edges: GraphEdgeData[] = [{ source: 'n0', target: 'n1', weight: 5_000, refType: 'call' }];
+
+    const result = smartCanvasGraph({ nodes, edges }, null, 'smart');
+
+    expect(result.nodes.some((n) => n.id === 'n0')).toBe(true);
+  });
+});

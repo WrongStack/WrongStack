@@ -1,4 +1,5 @@
 import {
+  contextService,
   fileGraphService,
   incomingCallsService,
   indexService,
@@ -7,6 +8,7 @@ import {
   searchService,
   statsService,
   symbolGraphService,
+  vectorSearchService,
 } from './index-service.js';
 import type {
   ProjectIndexServerActivity,
@@ -21,12 +23,14 @@ import {
 import type { ActiveFullIndex, ClientState, FullIndexSubscriber } from './project-server-types.js';
 import type {
   CallRefsOpArgs,
+  ContextOpArgs,
   FileGraphOpArgs,
   IndexOpArgs,
   OpShapes,
   SearchOpArgs,
   StatsOpArgs,
   SymbolGraphOpArgs,
+  VectorSearchOpArgs,
 } from './worker-protocol.js';
 
 export interface OperationContext {
@@ -166,6 +170,24 @@ export async function dispatchOperation(
         JSON.stringify(message.args),
         indexActivity,
         () => searchService(fixedArgs(ctx, message.args as SearchOpArgs)),
+      );
+      return stale ? { ...value, stale: true } : value;
+    }
+    case 'context': {
+      const { value, stale } = staleAwareRead(
+        ctx.queryCaches.contextCache,
+        JSON.stringify(message.args),
+        indexActivity,
+        () => contextService(fixedArgs(ctx, message.args as ContextOpArgs)),
+      );
+      return stale ? { ...value, stale: true } : value;
+    }
+    case 'vectorSearch': {
+      const { value, stale } = staleAwareRead(
+        ctx.queryCaches.vectorSearchCache,
+        JSON.stringify(message.args),
+        indexActivity,
+        () => vectorSearchService(fixedArgs(ctx, message.args as VectorSearchOpArgs)),
       );
       return stale ? { ...value, stale: true } : value;
     }

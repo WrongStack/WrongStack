@@ -25,8 +25,10 @@ import {
   ensureCodebaseIndexServer,
   isIndexableFile,
   runStartupIndex,
+  setContextQueryEmbedder,
   shutdownCodebaseIndexHost,
 } from '@wrongstack/tools';
+import { createCodebaseEmbeddingPort } from './codebase-embeddings.js';
 
 /** Mutating builtin tools whose input carries a single `path`. */
 const FILE_EDIT_TOOLS = new Set(['write', 'edit']);
@@ -61,6 +63,20 @@ export async function setupCodebaseIndexing(deps: CodebaseIndexingDeps): Promise
     watchExternal: idx.watchExternal ?? false,
     debounceMs,
   }).catch(onError);
+
+  // Semantic retrieval needs a model on the HOST: a function cannot cross the
+  // daemon's IPC boundary, so the host embeds the query and only the resulting
+  // numbers travel. Loading it is deliberately not awaited — a first-run model
+  // download must never delay the prompt, and until it resolves retrieval
+  // simply stays lexical, which is what shipped before embeddings existed.
+  void createCodebaseEmbeddingPort(idx.embeddings)
+    .then((port) => {
+      if (port !== undefined) {
+        setContextQueryEmbedder(port);
+        logger.debug(`codebase semantic retrieval ready (${port.id})`);
+      }
+    })
+    .catch(onError);
 
   // 1. Background startup index. The prompt is available immediately; the
   //    index runs asynchronously and the TUI already tracks progress via

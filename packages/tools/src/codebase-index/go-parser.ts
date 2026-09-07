@@ -13,6 +13,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { resolveWin32Command } from '../_win32-resolve.js';
 import { parseParserOutput } from './parser-output.js';
+import { recordParserSubprocess } from './perf-metrics.js';
 import type { FileSymbols, Symbol as IndexSymbol, SymbolLang } from './schema.js';
 import { withSpawnGate } from './spawn-gate.js';
 
@@ -470,6 +471,7 @@ async function syncGoParse(
       (resolve, reject) => {
         let settled = false;
 
+        recordParserSubprocess();
         const proc: ChildProcess = spawn(goBinary, ['run', scriptPath], {
           stdio: ['pipe', 'pipe', 'pipe'],
           windowsHide: true,

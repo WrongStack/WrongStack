@@ -42,6 +42,8 @@ export interface ProjectIndexServerHealth {
   activeRequests: number;
   activeWrites: number;
   queuedWrites: number;
+  maxQueuedWrites?: number;
+  writeQueueWaitMs?: number;
   pendingExternalFiles: number;
   watchingExternal: boolean;
   /** Clients currently requesting ownership of the shared external watcher. */

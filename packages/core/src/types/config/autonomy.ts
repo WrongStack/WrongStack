@@ -140,6 +140,75 @@ export interface IndexingConfig {
    * and counts toward the indexing circuit breaker. Default: 240000.
    */
   indexTimeoutMs?: number | undefined;
+  /** Optional LLM concept layer over the index. Off unless explicitly enabled. */
+  concepts?: IndexingConceptsConfig | undefined;
+  /** Optional semantic embeddings over the index. Off unless explicitly enabled. */
+  embeddings?: IndexingEmbeddingsConfig | undefined;
+  /** The committable atlas projection and its session-start brief. */
+  atlas?: IndexingAtlasConfig | undefined;
+}
+
+/**
+ * The codebase index's concept layer: plain-English summaries of what each
+ * file is FOR, which the structural index cannot express.
+ *
+ * Off by default because it is the one part of indexing that spends money. A
+ * first pass over a large repository is thousands of model calls; every pass
+ * after it costs only the files that changed, because the existing
+ * `files.content_hash` is the cache key.
+ */
+export interface IndexingConceptsConfig {
+  /** Master switch. Default: false. */
+  enabled: boolean;
+  /**
+   * Model override for summarisation. Unset routes through the model-tier
+   * layer at the cheapest configured level, which is what you want here.
+   */
+  model?: string | undefined;
+  /** Files summarised in parallel. Default: 5. */
+  concurrency?: number | undefined;
+  /** Ceiling on files per pass — the way to sample the cost before committing. */
+  maxFiles?: number | undefined;
+  /** Also derive the per-package subsystem layer. Default: true. */
+  subsystems?: boolean | undefined;
+}
+
+/**
+ * Semantic embeddings for the codebase index — one vector per file, over the
+ * concept layer's description of what that file is FOR.
+ *
+ * Off by default because it needs the optional `@huggingface/transformers`
+ * runtime and downloads a model on first use. Without it, retrieval stays
+ * lexical, which is what shipped before.
+ */
+export interface IndexingEmbeddingsConfig {
+  /** Master switch. Default: false. */
+  enabled: boolean;
+  /**
+   * Model id. Must emit 384-dimensional vectors, the width `file_vectors`
+   * stores. Unset uses the provider's default (`Xenova/all-MiniLM-L6-v2`).
+   */
+  model?: string | undefined;
+  /** Texts per inference call. Default: 16. */
+  batchSize?: number | undefined;
+}
+
+/**
+ * The Atlas: a deterministic, committable projection of the index, and the
+ * short brief injected at session start so an agent starts oriented instead
+ * of discovering the repository's shape by search every time.
+ */
+export interface IndexingAtlasConfig {
+  /**
+   * Put the Atlas brief in the system prompt at session start. Default: true.
+   *
+   * Costs a few hundred tokens and rides the live-context tail, so it does not
+   * invalidate the prompt cache prefix. Silently contributes nothing when the
+   * index has not been built.
+   */
+  injectOnSessionStart?: boolean | undefined;
+  /** Hard token ceiling for that brief. Default: 800. */
+  briefMaxTokens?: number | undefined;
 }
 
 /**

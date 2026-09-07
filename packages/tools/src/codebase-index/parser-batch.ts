@@ -23,6 +23,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { resolveWin32Command } from '../_win32-resolve.js';
 import { parseParserBatchOutput } from './parser-output.js';
+import { recordParserSubprocess } from './perf-metrics.js';
 import type { FileSymbols, SymbolLang } from './schema.js';
 import { withSpawnGate } from './spawn-gate.js';
 
@@ -603,6 +604,7 @@ function runToolchainChild(
     let stdout = '';
     let proc: ChildProcess;
     try {
+      recordParserSubprocess();
       proc = spawn(binary, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
     } catch {
       resolve(null);

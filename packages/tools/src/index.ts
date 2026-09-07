@@ -1,9 +1,17 @@
+export { mapWithConcurrency } from './_concurrency.js';
 export {
   type DangerAssessment,
   type DangerLevel,
   type DangerRule,
   detectDanger,
 } from './_danger-detect.js';
+export {
+  type CompileFail,
+  type CompileResult,
+  capSubject,
+  compileUserRegex,
+  MAX_SUBJECT_LEN,
+} from './_regex.js';
 export {
   type EnsureSessionShellOptions,
   ensureSessionShell,
@@ -13,11 +21,15 @@ export {
 } from './_session-shell.js';
 export type { BashShell } from './_shell-pick.js';
 export {
-  auditTool,
+  checkSyntax,
+  type SyntaxCheckResult,
+} from './_syntax-check.js';
+export {
   type AuditContext,
   type AuditInput,
   type AuditOutput,
   type AuditVulnerability,
+  auditTool,
 } from './audit.js';
 export {
   type AutoProceedLoopGuard,
@@ -30,9 +42,9 @@ export {
   type RepetitionSignal,
 } from './auto-proceed-loop-guard.js';
 export {
-  bashTool,
   type BashInput,
   type BashOutput,
+  bashTool,
 } from './bash.js';
 export {
   checkAndBlockKillCommand,
@@ -40,9 +52,9 @@ export {
   type KillCommand,
 } from './bash-kill-guard.js';
 export {
-  batchToolUseTool,
   type BatchToolUseInput,
   type BatchToolUseOutput,
+  batchToolUseTool,
 } from './batch-tool-use.js';
 export * from './browser/index.js';
 // builtinTools moved to './builtin.ts' so consumers that only need a subset of
@@ -61,10 +73,15 @@ export {
   type CircuitBreakerConfig,
   type CircuitBreakerSnapshot,
 } from './circuit-breaker.js';
+export {
+  type ClarifyInput,
+  type ClarifyOutput,
+  type ClarifyQuestionInput,
+  clarifyTool,
+} from './clarify.js';
 export type {
   CircuitSnapshot,
   CircuitState,
-  CodeMapGraph,
   CodebaseAstReplaceInput,
   CodebaseAstReplaceOutput,
   CodebaseImpactAnalysisInput,
@@ -87,6 +104,7 @@ export type {
   CodebaseStatsOutput,
   CodebaseTargetedTestInput,
   CodebaseTargetedTestOutput,
+  CodeMapGraph,
   DeadCodeScanInput,
   DeadCodeScanOutput,
   DeadFile,
@@ -111,16 +129,23 @@ export type {
   TargetedTestOutput,
 } from './codebase-index/index.js';
 export {
-  clarifyTool,
-  type ClarifyInput,
-  type ClarifyQuestionInput,
-  type ClarifyOutput,
-} from './clarify.js';
-export {
+  ATLAS_DIR,
+  // Codebase Atlas: the centrality, retrieval, projection, concept and
+  // embedding layers over the structural index.
+  type AtlasBrief,
+  type AtlasBriefIndexMissing,
+  type AtlasFreshness,
+  type AtlasIndexMissing,
+  buildProjectAtlasBrief,
   CircuitOpenError,
+  CONCEPT_RELATIONS,
+  type ConceptIndexMissing,
+  type ContextResult,
   cancelPendingReindexes,
   checkCodebaseIndexServerHealth,
+  checkProjectAtlasFreshness,
   codebaseAstReplaceTool,
+  codebaseContextTool,
   codebaseImpactAnalysisTool,
   codebaseIncomingCallsTool,
   codebaseIndexStats,
@@ -133,20 +158,20 @@ export {
   codebaseStatsTool,
   codebaseTargetedTestTool,
   deadCodeScanTool,
+  type EmbeddingPort,
+  type EmbedIndexMissing,
+  type EmbedResult,
+  type EnrichResult,
+  embedProjectFiles,
   enqueueReindex,
+  enrichProjectConcepts,
   ensureCodebaseIndexServer,
+  exportProjectAtlasHtml,
   extractDirectorySkeleton,
   extractFileSkeleton,
-  generateRepoMap,
-  replaceSymbolInFile,
   type FileSkeletonResult,
-  type MutateSymbolOptions,
-  type MutateSymbolResult,
-  type RepoMapOptions,
-  type RepoMapResult,
-  type SkeletonOptions,
-  type SkeletonSymbolRange,
   fileGraphService,
+  generateRepoMap,
   getIndexState,
   IndexCircuitBreaker,
   IndexTimeoutError,
@@ -154,33 +179,49 @@ export {
   isIndexableFile,
   isIndexing,
   isIndexReady,
+  MAX_CRUX_LINES,
+  MAX_REPORTED_DRIFT,
+  type MutateSymbolOptions,
+  type MutateSymbolResult,
   onIndexStateChange,
   packageGraphService,
+  type RepoMapOptions,
+  type RepoMapResult,
+  replaceSymbolInFile,
   resetIndexCircuitBreaker,
   resolveProjectIndexDaemonAvailability,
   runDeadCodeScan,
   runStartupIndex,
+  type SkeletonOptions,
+  type SkeletonSymbolRange,
+  type SummarizeFileInput,
+  type SummarizeFileResult,
+  type SummarizerPort,
+  type SummarizeSubsystemInput,
+  type SummarizeSubsystemResult,
   searchCodebaseIndex,
+  setContextQueryEmbedder,
   shutdownCodebaseIndexHost,
   shutdownCodebaseIndexServer,
   symbolGraphService,
+  writeProjectAtlas,
 } from './codebase-index/index.js';
 export {
-  designTool,
   type DesignInput,
   type DesignOutput,
+  designTool,
 } from './design.js';
 export {
-  diffTool,
   type DiffInput,
   type DiffMode,
   type DiffOutput,
+  diffTool,
 } from './diff.js';
 export {
-  documentTool,
+  type DocumentedItem,
   type DocumentInput,
   type DocumentOutput,
-  type DocumentedItem,
+  documentTool,
 } from './document.js';
 export {
   discoverE2EProjects,
@@ -194,17 +235,17 @@ export {
   e2ePlanTool,
 } from './e2e.js';
 export {
-  editTool,
   type EditInput,
   type EditOutput,
+  editTool,
   type MatchTier,
 } from './edit.js';
 export {
   configureDangerBypass,
   configureExecPolicy,
-  execTool,
   type ExecInput,
   type ExecOutput,
+  execTool,
   getDangerBypass,
   getExecAllowlist,
   isExecCommandAllowed,
@@ -216,56 +257,56 @@ export {
   type ExecKillCheckResult,
 } from './exec-kill-guard.js';
 export {
-  fetchTool,
   type FetchFormat,
   type FetchInput,
   type FetchOutput,
+  fetchTool,
 } from './fetch.js';
 export {
-  formatTool,
   type FormatContext,
   type FormatFixer,
   type FormatInput,
   type FormatOutput,
+  formatTool,
 } from './format.js';
 export {
-  gitTool,
   type GitInput,
   type GitOutput,
   type GitSubcommand,
+  gitTool,
 } from './git.js';
 export {
-  globTool,
   type GlobInput,
   type GlobOutput,
+  globTool,
 } from './glob.js';
 export {
-  grepTool,
   type GrepBackend,
   type GrepEngine,
   type GrepInput,
   type GrepOutput,
   type GrepOutputMode,
+  grepTool,
 } from './grep.js';
 export {
-  installTool,
   type InstallContext,
   type InstallInput,
   type InstallOutput,
   type InstallSaveType,
+  installTool,
 } from './install.js';
 export {
-  jsonTool,
   type JsonAction,
   type JsonInput,
   type JsonOutput,
+  jsonTool,
 } from './json.js';
 export {
-  kanbanTool,
   type KanbanAction,
   type KanbanContext,
   type KanbanToolInput,
   type KanbanToolOutput,
+  kanbanTool,
 } from './kanban.js';
 export {
   kanbanEvidenceKey,
@@ -274,30 +315,30 @@ export {
 } from './kanban-evidence-bridge.js';
 export * from './languages/index.js';
 export {
-  lintTool,
   type LintContext,
   type LinterName,
   type LintInput,
   type LintOutput,
+  lintTool,
 } from './lint.js';
 export {
-  logsTool,
   type LogEntry,
   type LogsInput,
   type LogsOutput,
+  logsTool,
 } from './logs.js';
 export {
-  forgetTool,
   type ForgetInput,
   type ForgetOutput,
-  relatedMemoryTool,
+  forgetTool,
   type RelatedMemoryInput,
-  rememberTool,
   type RememberInput,
   type RememberOutput,
-  searchMemoryTool,
+  relatedMemoryTool,
+  rememberTool,
   type SearchMemoryInput,
   type SearchMemoryOutput,
+  searchMemoryTool,
 } from './memory.js';
 export {
   createModeTool,
@@ -306,35 +347,35 @@ export {
   type ModeOutput,
 } from './mode.js';
 export {
-  nextStepsTool,
-  type NextStepsInput,
-  type NextStepsOutput,
-} from './next-steps-tool.js';
-export {
+  type ParsedNextStep,
   type ParseNextStepsOptions,
   type ParseNextStepsResult,
-  type ParsedNextStep,
   parseNextSteps,
   stripNextSteps,
 } from './next-steps.js';
 export {
-  outdatedTool,
+  type NextStepsInput,
+  type NextStepsOutput,
+  nextStepsTool,
+} from './next-steps-tool.js';
+export {
   type OutdatedContext,
   type OutdatedInput,
   type OutdatedOutput,
   type OutdatedPackage,
+  outdatedTool,
 } from './outdated.js';
 export { builtinToolsPack } from './pack.js';
 export {
-  patchTool,
   type PatchInput,
   type PatchOutput,
+  patchTool,
 } from './patch.js';
 export {
-  planTool,
   type PlanAction,
   type PlanInput,
   type PlanOutput,
+  planTool,
 } from './plan.js';
 export {
   getProcessGuardian,
@@ -369,44 +410,44 @@ export {
   listInstances,
 } from './ps-slash.js';
 export {
-  pwshTool,
   PWSH_TOOL_DESCRIPTION,
   PWSH_TOOL_USAGE_HINT,
   type PwshInput,
   type PwshOutput,
+  pwshTool,
 } from './pwsh.js';
 export {
-  readTool,
   type ReadInput,
   type ReadMode,
   type ReadOutput,
+  readTool,
   type SymbolEntry,
 } from './read.js';
 export {
-  replaceTool,
   type ReplaceInput,
   type ReplaceOutput,
+  replaceTool,
 } from './replace.js';
 export {
   BUILT_IN_TEMPLATES,
-  scaffoldTool,
   type ScaffoldInput,
   type ScaffoldOutput,
   type ScaffoldTemplate,
+  scaffoldTool,
 } from './scaffold.js';
 export {
-  searchTool,
   type CacheEntry as SearchCacheEntry,
   type SearchInput,
   type SearchOutput,
   type SearchResult,
+  searchTool,
 } from './search.js';
 export {
   analyzeSecurityAndPerformance,
-  securityAstScanTool,
   type SecurityFinding,
   type SecurityScanInput,
   type SecurityScanOutput,
+  securityAstScanTool,
 } from './security-ast-scan-tool.js';
 export {
   applySessionKanbanBoardToTodos,
@@ -424,42 +465,50 @@ export {
   SESSION_KANBAN_COLUMNS,
 } from './session-kanban.js';
 export {
-  makeSkillTool,
+  type SetWorkingDirInput,
+  type SetWorkingDirOutput,
+  setWorkingDirTool,
+} from './set-working-dir.js';
+export {
   type LoadedResource,
+  makeSkillTool,
   type SkillResource,
   type SkillToolInput,
   type SkillToolOutput,
 } from './skill.js';
 export {
-  setWorkingDirTool,
-  type SetWorkingDirInput,
-  type SetWorkingDirOutput,
-} from './set-working-dir.js';
-export {
-  taskTool,
   type TaskAction,
   type TaskAdditionItem,
   type TaskInput,
   type TaskOutput,
   type TaskReplacementItem,
+  taskTool,
 } from './task.js';
 export {
-  testTool,
   type TestContext,
   type TestInput,
   type TestOutput,
   type TestRunnerName,
+  testTool,
 } from './test.js';
 export {
-  todoTool,
   type TodoInput,
   type TodoKanbanBinding,
   type TodoOutput,
+  todoTool,
 } from './todo.js';
 export {
-  toolHelpTool,
+  computeLineDiff,
+  DIFF_MAX_LINES,
+  type DiffRow,
+  type DiffRowKind,
+  diffFromToolInput,
+  type ToolDiff,
+} from './tool-diff.js';
+export {
   type ToolHelpInput,
   type ToolHelpOutput,
+  toolHelpTool,
 } from './tool-help.js';
 // Tool icon mapping — shared across all UIs (WebUI, TUI, REPL)
 export {
@@ -471,64 +520,41 @@ export {
   type ToolIconId,
 } from './tool-icon-map.js';
 export {
-  computeLineDiff,
-  DIFF_MAX_LINES,
-  diffFromToolInput,
-  type DiffRow,
-  type DiffRowKind,
-  type ToolDiff,
-} from './tool-diff.js';
+  type ToolSearchInput,
+  type ToolSearchOutput,
+  toolSearchTool,
+} from './tool-search.js';
 export {
   FALLBACK_HEAD_FIELDS,
   SUMMARIZE_TOOL_INPUT_BROWSER_SRC,
   summarizeToolInput,
 } from './tool-summary.js';
 export {
-  toolSearchTool,
-  type ToolSearchInput,
-  type ToolSearchOutput,
-} from './tool-search.js';
-export {
   type RegisterBuiltinToolTierOptions,
   registerBuiltinToolTier,
   selectBuiltinToolsForTier,
 } from './tool-tier.js';
 export {
-  toolUseTool,
   type ToolUseInput,
   type ToolUseOutput,
+  toolUseTool,
 } from './tool-use.js';
 export {
   DEFAULT_MAX_TREE_ENTRIES,
   MAX_TREE_OUTPUT_BYTES,
-  treeTool,
   type TreeContext,
   type TreeInput,
   type TreeOutput,
+  treeTool,
 } from './tree.js';
 export {
-  typecheckTool,
   type TypecheckContext,
   type TypecheckInput,
   type TypecheckOutput,
+  typecheckTool,
 } from './typecheck.js';
 export {
-  writeTool,
   type WriteInput,
   type WriteOutput,
+  writeTool,
 } from './write.js';
-export {
-  checkSyntax,
-  type SyntaxCheckResult,
-} from './_syntax-check.js';
-export {
-  mapWithConcurrency,
-} from './_concurrency.js';
-export {
-  capSubject,
-  compileUserRegex,
-  MAX_SUBJECT_LEN,
-  type CompileFail,
-  type CompileResult,
-} from './_regex.js';
-

@@ -15,6 +15,7 @@
 
 import { parentPort } from 'node:worker_threads';
 import {
+  contextService,
   fileGraphService,
   incomingCallsService,
   indexService,
@@ -23,15 +24,18 @@ import {
   searchService,
   statsService,
   symbolGraphService,
+  vectorSearchService,
 } from './index-service.js';
 import type {
   CallRefsOpArgs,
+  ContextOpArgs,
   FileGraphOpArgs,
   HostToWorker,
   IndexOpArgs,
   SearchOpArgs,
   StatsOpArgs,
   SymbolGraphOpArgs,
+  VectorSearchOpArgs,
   WorkerToHost,
 } from './worker-protocol.js';
 
@@ -71,6 +75,10 @@ async function dispatch(msg: Extract<HostToWorker, { type: 'request' }>): Promis
     }
     case 'search':
       return searchService(msg.args as SearchOpArgs);
+    case 'context':
+      return contextService(msg.args as ContextOpArgs);
+    case 'vectorSearch':
+      return vectorSearchService(msg.args as VectorSearchOpArgs);
     case 'stats':
       return statsService(msg.args as StatsOpArgs);
     case 'packageGraph':

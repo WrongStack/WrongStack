@@ -49,7 +49,10 @@ export type {
   FleetSupervisorConfig,
   GitBehaviorConfig,
   HqClientConfig,
+  IndexingAtlasConfig,
+  IndexingConceptsConfig,
   IndexingConfig,
+  IndexingEmbeddingsConfig,
   InputHistoryConfig,
   LaunchConfig,
   LaunchMenuChoice,
@@ -63,6 +66,12 @@ export type {
   ModelRuntimeConfig,
   ModelRuntimeParametersConfig,
   ModelRuntimeReasoningConfig,
+  ModelTierId,
+  ModelTierLeaderConfig,
+  ModelTierLeaderMode,
+  ModelTierLevel,
+  ModelTierRouting,
+  ModelTiersConfig,
   NextStepsToolConfig,
   PluginConfig,
   PluginManagerConfig,
@@ -72,12 +81,6 @@ export type {
   SessionLoggingConfig,
   SkillsConfig,
   SyncCategory,
-  ModelTierId,
-  ModelTierLeaderConfig,
-  ModelTierLeaderMode,
-  ModelTierLevel,
-  ModelTierRouting,
-  ModelTiersConfig,
   SyncConfig,
   ThemePresetId,
   TokenSavingTier,
@@ -446,22 +449,6 @@ export {
   SYSTEM_INJECTION_PREFIXES,
   sessionEventToMarker,
 } from './session-markers.js';
-// ── session-timeline (10 symbols) ──
-export type {
-  ProjectSessionTimelineInput,
-  SessionTimelineAssistantEntry,
-  SessionTimelineEntry,
-  SessionTimelineImage,
-  SessionTimelineMarkerEntry,
-  SessionTimelineSystemEntry,
-  SessionTimelineThinkingEntry,
-  SessionTimelineToolEntry,
-  SessionTimelineUserEntry,
-  SessionToolMeta,
-  TextBlockMode,
-  ThinkingPlacement,
-} from './session-timeline.js';
-export { projectSessionTimeline, projectSessionToolMeta } from './session-timeline.js';
 // ── session-reader (8 symbols) ──
 export type {
   DefaultSessionReaderOptions,
@@ -480,6 +467,22 @@ export type {
   RewindResultExtended,
   SessionRewinder,
 } from './session-rewinder.js';
+// ── session-timeline (10 symbols) ──
+export type {
+  ProjectSessionTimelineInput,
+  SessionTimelineAssistantEntry,
+  SessionTimelineEntry,
+  SessionTimelineImage,
+  SessionTimelineMarkerEntry,
+  SessionTimelineSystemEntry,
+  SessionTimelineThinkingEntry,
+  SessionTimelineToolEntry,
+  SessionTimelineUserEntry,
+  SessionToolMeta,
+  TextBlockMode,
+  ThinkingPlacement,
+} from './session-timeline.js';
+export { projectSessionTimeline, projectSessionToolMeta } from './session-timeline.js';
 // ── side-effect (2 symbols) ──
 export type { SideEffect } from './side-effect.js';
 // ── skill (3 symbols) ──

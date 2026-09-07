@@ -1,8 +1,8 @@
 import { Activity as ActivityIcon, ExternalLink } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { type GraphNodeData, relativeFilePath } from './codemap-model';
-import { NODE_STYLE } from './CodeMapVisuals';
 import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { NODE_STYLE } from './CodeMapVisuals';
+import { type GraphNodeData, relativeFilePath } from './codemap-model';
 
 type CodeMapSelectedNodeSummaryProps = {
   node: GraphNodeData;
@@ -45,6 +45,21 @@ export function CodeMapSelectedNodeSummary({
       <div className="break-all font-mono text-[9px] leading-relaxed text-muted-foreground">
         {node.file ? relativeFilePath(node) : node.package}
       </div>
+      {node.subsystem && (
+        <div className="mt-2 inline-flex items-center gap-1 border border-border px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-muted-foreground">
+          {node.subsystem}
+        </div>
+      )}
+      {node.concept && (
+        <p className="mt-2 text-[11px] leading-relaxed text-foreground">{node.concept}</p>
+      )}
+      {node.crux && (
+        // The summary is a model's paraphrase and can drift from the code; the
+        // span it was drawn from cannot. Naming the lines lets the reader check.
+        <div className="mt-1 font-mono text-[9px] text-muted-foreground">
+          {t('activity:codeMap.crux')} L{node.crux.start}–L{node.crux.end}
+        </div>
+      )}
       {node.signature && (
         <pre className="mt-3 overflow-x-auto border bg-background p-2 font-mono text-[9px] leading-relaxed text-foreground">
           {node.signature}
@@ -64,6 +79,12 @@ export function CodeMapSelectedNodeSummary({
         <Metric
           value={node.symbolCount ?? node.fileCount ?? node.line ?? '—'}
           label={node.kind === 'package' ? 'files' : node.kind === 'file' ? 'symbols' : 'line'}
+        />
+      </div>
+      <div className="mt-2 grid grid-cols-1 border">
+        <Metric
+          value={node.rank === undefined ? '—' : `${Math.round(node.rank * 100)}%`}
+          label={t('activity:codeMap.centralityLabel')}
         />
       </div>
       <div className="mt-2 flex gap-2">

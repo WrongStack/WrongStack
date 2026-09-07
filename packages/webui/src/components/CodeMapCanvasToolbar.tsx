@@ -1,7 +1,7 @@
-import { Layers, Orbit } from 'lucide-react';
+import { Boxes, Layers, Orbit } from 'lucide-react';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { CodeMapLayout, GraphRefType } from './codemap-model';
-import { useAppTranslation } from '@/i18n';
 
 export function CodeMapCanvasToolbar({
   layout,
@@ -41,7 +41,7 @@ export function CodeMapCanvasToolbar({
         <button
           type="button"
           className={cn(
-            'flex h-8 items-center gap-1.5 px-2.5 text-[9px] font-semibold uppercase tracking-wider',
+            'flex h-8 items-center gap-1.5 border-r px-2.5 text-[9px] font-semibold uppercase tracking-wider',
             layout === 'orbit'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted',
@@ -49,6 +49,19 @@ export function CodeMapCanvasToolbar({
           onClick={() => onLayoutChange('orbit')}
         >
           <Orbit className="h-3 w-3" /> {t('activity:codeMap.relations')}
+        </button>
+        <button
+          type="button"
+          className={cn(
+            'flex h-8 items-center gap-1.5 px-2.5 text-[9px] font-semibold uppercase tracking-wider',
+            layout === 'subsystems'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-muted',
+          )}
+          onClick={() => onLayoutChange('subsystems')}
+          title={t('activity:codeMap.groupNodesByTheSubsystemTheyBelongTo')}
+        >
+          <Boxes className="h-3 w-3" /> {t('activity:codeMap.subsystems')}
         </button>
       </div>
       <div className="pointer-events-auto flex border bg-card/95 shadow-md backdrop-blur">

@@ -128,6 +128,7 @@ const INDEX_READ = [
   'codebase-stats',
   'codebase-search',
   'codebase-skeleton',
+  'codebase-context',
   'codebase-repo-map',
   'codebase-incoming-calls',
   'codebase-outgoing-calls',

@@ -1,6 +1,6 @@
 import type { SlashCommand } from '@wrongstack/core/types';
-import type { SlashCommandContext } from './command-context.js';
 import { loadStatuslineConfig, saveStatuslineConfig } from '../services/statusline-config.js';
+import type { SlashCommandContext } from './command-context.js';
 
 export type { ToolRegistry } from '@wrongstack/core/registry';
 export type { TokenCounter } from '@wrongstack/core/types';
@@ -18,6 +18,7 @@ import { buildAutonomyCommand } from './autonomy.js';
 import { buildBrainCommand } from './brain.js';
 import { buildBtwCommand } from './btw.js';
 import { buildClearCommand } from './clear.js';
+import { buildCodebaseMapCommand } from './codebase-map.js';
 import { buildCodebaseReindexCommand } from './codebase-reindex.js';
 import { buildCollabCommand } from './collab.js';
 import { buildCompactCommand } from './compact.js';
@@ -28,11 +29,11 @@ import { buildDesignCommand } from './design.js';
 import { buildDevCommand } from './dev.js';
 import { buildDiagCommand, buildStatsCommand } from './diag-stats.js';
 import { buildDoctorCommand } from './doctor.js';
+import { buildEffortCommand } from './effort.js';
 import { buildEnhanceCommand } from './enhance.js';
 import { buildEnsembleCommand } from './ensemble.js';
 import { buildFKeyAliasCommands, buildFKeysCommand } from './f-keys.js';
 import { buildFallbackCommand } from './fallback.js';
-import { buildTierCommand } from './tier.js';
 import { buildFixCommand } from './fix.js';
 import { buildFleetCommand } from './fleet.js';
 import {
@@ -68,10 +69,10 @@ import { buildRefinerCommand } from './refiner.js';
 import { buildSddCommand } from './sdd.js';
 import { buildExitCommand, buildLoadCommand, buildSaveCommand } from './session.js';
 import { buildSetModelCommand } from './setmodel.js';
-import { buildEffortCommand } from './effort.js';
 import { buildSuggestCommand } from './suggest.js';
 import { buildDesktopCommand, buildWebuiCommand } from './surfaces.js';
 import { buildThemeCommand } from './theme.js';
+import { buildTierCommand } from './tier.js';
 
 // modeldiag is now a CLI subcommand (wstack modeldiag), not a slash command.
 
@@ -118,6 +119,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildHealthCommand(opts),
     buildMetricsCommand(opts),
     buildTuneupCommand(opts),
+    buildCodebaseMapCommand(opts),
     buildCodebaseReindexCommand(opts),
     buildTechStackCommand(opts),
     buildToolCommand(opts),

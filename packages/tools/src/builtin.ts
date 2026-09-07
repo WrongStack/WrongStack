@@ -6,6 +6,7 @@ import { browserTools } from './browser/tools.js';
 import { clarifyTool } from './clarify.js';
 import {
   codebaseAstReplaceTool,
+  codebaseContextTool,
   codebaseImpactAnalysisTool,
   codebaseIncomingCallsTool,
   codebaseIndexTool,
@@ -116,8 +117,10 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
     'Search indexed symbols, signatures, and documentation with optional language, kind, path, or LSP-kind filters. Use it for semantic discovery before broad text search.',
   'codebase-skeleton':
     'Extract a compact structural skeleton from a source file or directory, preserving declarations while omitting implementation detail. Use it to understand unfamiliar code quickly.',
+  'codebase-context':
+    'Find the files and declarations a task touches from a plain-language description. Ranked symbol search seeds a personalised walk over the reference graph, so results include what the matches are structurally attached to, not just what matched by name. Start here for any task spanning more than one file.',
   'codebase-repo-map':
-    'Generate a reference-weighted, token-budgeted Repository Map of the codebase within ~1200 tokens by default. Use at the beginning of complex tasks or when navigating unfamiliar repositories to get a bird-eye view of the architecture.',
+    'Generate a centrality-ranked, token-budgeted Repository Map within ~1200 tokens by default: package clusters with their hub file, the repo-wide hotspots, then the signatures of the most central files. Use at the beginning of complex tasks or when navigating unfamiliar repositories to get a bird-eye view of the architecture.',
   'codebase-impact-analysis':
     'Find likely callers, dependents, related tests, and change risk for a named symbol. Use it before changing a public or widely used declaration.',
   'codebase-targeted-test':
@@ -253,6 +256,7 @@ export const TIER1_TOOLS: Tool[] = [
   codebaseSearchTool,
   codebaseSkeletonTool,
   codebaseRepoMapTool,
+  codebaseContextTool,
   codebaseImpactAnalysisTool,
   codebaseTargetedTestTool,
   securityAstScanTool,
@@ -335,6 +339,7 @@ const rawBuiltinTools: Tool[] = [
   codebaseSearchTool,
   codebaseSkeletonTool,
   codebaseRepoMapTool,
+  codebaseContextTool,
   codebaseImpactAnalysisTool,
   codebaseTargetedTestTool,
   securityAstScanTool,

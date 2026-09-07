@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
 
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type Action, reducer } from '../src/app-reducer.js';
 import { useBugHuntLoop } from '../src/hooks/use-bug-hunt-loop.js';
 import { createTestState } from './helpers/create-test-state.js';
 
 describe('useBugHuntLoop', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('keeps the original 25-round budget across re-submissions and never opens a 26th prompt', () => {
+    vi.useFakeTimers();
     const dispatch = vi.fn<(action: Action) => void>();
     const submit = vi.fn<(command: string) => void>();
     const command = '/bughunt --rounds 25 packages/tui';
@@ -21,16 +26,7 @@ describe('useBugHuntLoop', () => {
 
     for (let round = 1; round < 25; round++) {
       act(() => result.current.onRunFinished('done'));
-      const open = dispatch.mock.calls
-        .map(([action]) => action)
-        .filter((action) => action.type === 'bugHuntContinueOpen')
-        .at(-1);
-      expect(open).toMatchObject({
-        type: 'bugHuntContinueOpen',
-        info: { completedRounds: round, totalRounds: 25 },
-      });
-
-      act(() => open?.info.resolve('yes'));
+      act(() => vi.runOnlyPendingTimers());
       const continuation = `This is round ${round + 1}/25; we're continuing the bug hunt. Stay within the original scope: packages/tui.`;
       expect(submit).toHaveBeenLastCalledWith(continuation);
       expect(result.current.consumeReplay(continuation)).toBe(true);
@@ -59,7 +55,7 @@ describe('useBugHuntLoop', () => {
       dispatch.mock.calls
         .map(([action]) => action)
         .filter((action) => action.type === 'bugHuntContinueOpen'),
-    ).toHaveLength(24);
+    ).toHaveLength(0);
     expect(
       dispatch.mock.calls
         .map(([action]) => action)
@@ -73,17 +69,14 @@ describe('useBugHuntLoop', () => {
   });
 
   it('continues an unscoped multi-round hunt without repeating the slash command', () => {
+    vi.useFakeTimers();
     const dispatch = vi.fn<(action: Action) => void>();
     const submit = vi.fn<(command: string) => void>();
     const { result } = renderHook(() => useBugHuntLoop(dispatch, submit));
 
     act(() => result.current.onBugHuntStarted('/bughunt --rounds 3', 3));
     act(() => result.current.onRunFinished('done'));
-    const open = dispatch.mock.calls
-      .map(([action]) => action)
-      .find((action) => action.type === 'bugHuntContinueOpen');
-
-    act(() => open?.info.resolve('yes'));
+    act(() => vi.runOnlyPendingTimers());
 
     const continuation = "This is round 2/3; we're continuing the bug hunt.";
     expect(submit).toHaveBeenCalledWith(continuation);
@@ -99,6 +92,7 @@ describe('useBugHuntLoop', () => {
   // an armed replay marker could swallow the echo of the user's next
   // identical command. App passes state.historyGen; a bump resets both refs.
   it('resets the active hunt and pending replay when /clear bumps historyGen', () => {
+    vi.useFakeTimers();
     let state = createTestState();
     const dispatch = (action: Action): void => {
       state = reducer(state, action);
@@ -122,9 +116,9 @@ describe('useBugHuntLoop', () => {
     act(() => result.current.onBugHuntStarted(command, 3));
     expect(result.current.shouldSuppressNextSteps()).toBe(true);
 
-    // Round done → continue panel → user answers, arming the replay.
+    // Round done → automatic replay is scheduled without filling the composer.
     act(() => result.current.onRunFinished('done'));
-    act(() => state.bugHuntContinue?.resolve('yes'));
+    act(() => vi.runOnlyPendingTimers());
     expect(submitted).toEqual([
       "This is round 2/3; we're continuing the bug hunt. Stay within the original scope: packages/tui.",
     ]);

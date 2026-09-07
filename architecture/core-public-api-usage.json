@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 316,
-      "typeOnly": 251,
+      "files": 317,
+      "typeOnly": 252,
       "runtimeOrMixed": 82
     },
     "@wrongstack/core/agent-catalog": {
@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 60,
+      "files": 61,
       "typeOnly": 18,
-      "runtimeOrMixed": 57
+      "runtimeOrMixed": 58
     },
     "@wrongstack/core/extension": {
       "files": 7,
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1031,
-      "typeOnly": 952,
-      "runtimeOrMixed": 268
+      "files": 1036,
+      "typeOnly": 957,
+      "runtimeOrMixed": 270
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -199,9 +199,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 555,
+      "files": 558,
       "typeOnly": 55,
-      "runtimeOrMixed": 527
+      "runtimeOrMixed": 530
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -431,6 +431,12 @@
       "file": "packages/cli/src/slash-commands/btw.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/slash-commands/codebase-map.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3693,6 +3699,12 @@
     {
       "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/wiring/cli-execute-builder.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/src/wiring/concept-summarizer.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10706,6 +10718,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/slash-commands/codebase-map.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/codebase-reindex.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11300,6 +11318,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/atlas-prompt-contributor.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/brain-and-orchestration.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -11318,6 +11342,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/codebase-embeddings.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/codebase-index.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11327,6 +11357,12 @@
       "file": "packages/cli/src/wiring/command-host-state.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/concept-summarizer.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14294,6 +14330,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/codebase-context-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/codebase-index/codebase-impact-analysis-tool.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -17036,6 +17078,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/codebase-map.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/codebase-reindex.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -17697,6 +17745,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/webui-server/route-contexts.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/wiring/atlas-prompt-contributor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -18753,6 +18807,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/codebase-ast-replace-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/codebase-context-tool.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

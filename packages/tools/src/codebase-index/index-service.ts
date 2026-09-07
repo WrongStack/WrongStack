@@ -12,16 +12,23 @@
  * cheaper than re-running schema/FTS drift checks for every edited file.
  */
 
+import * as path from 'node:path';
+import type { ContextResult } from './context-retrieval.js';
+import { retrieveContext } from './context-retrieval.js';
 import { runIndexerWithStore } from './indexer.js';
 import type { CodeMapGraph, IndexResult, IndexStats, SymbolKind, SymbolLang } from './schema.js';
 import type {
   CallRefsOpArgs,
+  ContextOpArgs,
   IndexOpArgs,
   SearchOpArgs,
   SearchOpResult,
   StatsOpArgs,
+  VectorSearchOpArgs,
+  VectorSearchOpResult,
 } from './worker-protocol.js';
 import { indexStorePool } from './writer.js';
+import { posixIndexPath } from './writer-helpers.js';
 
 interface ServiceHooks {
   signal?: AbortSignal | undefined;
@@ -77,6 +84,56 @@ export function searchService(args: SearchOpArgs): SearchOpResult {
   }
 }
 
+/**
+ * Personalised retrieval: lexical seeds walked through the wiring graph.
+ *
+ * Path relativisation happens here rather than in the retriever so the pure
+ * algorithm stays free of `node:path`, and so the daemon — which knows the
+ * project root it was started for — is the one that decides what "relative"
+ * means.
+ */
+export function contextService(args: ContextOpArgs): ContextResult {
+  const store = indexStorePool.acquire(args.projectRoot, { indexDir: args.indexDir });
+  try {
+    return retrieveContext(
+      store,
+      args.projectRoot,
+      args.indexDir,
+      {
+        query: args.query,
+        vectorFiles: args.vectorFiles,
+        limit: args.limit,
+        symbolsPerFile: args.symbolsPerFile,
+        pathPrefix: args.pathPrefix,
+      },
+      (file) => {
+        const relative = path.relative(args.projectRoot, file);
+        if (!relative || relative.startsWith('..')) return posixIndexPath(file);
+        return posixIndexPath(relative);
+      },
+    );
+  } finally {
+    indexStorePool.release(store);
+  }
+}
+
+/**
+ * Nearest files to a query vector. The caller embeds; this only compares.
+ */
+export function vectorSearchService(args: VectorSearchOpArgs): VectorSearchOpResult {
+  const store = indexStorePool.acquire(args.projectRoot, { indexDir: args.indexDir });
+  try {
+    const total = store.countFileVectors();
+    if (total === 0) return { hits: [], total };
+    return {
+      hits: store.searchFileVectors(Float32Array.from(args.vector), args.limit, args.minScore ?? 0),
+      total,
+    };
+  } finally {
+    indexStorePool.release(store);
+  }
+}
+
 /** Index health and statistics. */
 export function statsService(args: StatsOpArgs): IndexStats {
   const store = indexStorePool.acquire(args.projectRoot, { indexDir: args.indexDir });
@@ -120,6 +177,7 @@ export function symbolGraphService(args: StatsOpArgs & { fileFilter: string }): 
 }
 
 import type { IncomingCallsResult, OutgoingCallsResult } from './worker-protocol/contracts.js';
+
 export type { IncomingCallsResult, OutgoingCallsResult };
 
 /** Incoming call sites for a named symbol (who calls/uses this symbol?). */

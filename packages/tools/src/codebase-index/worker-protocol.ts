@@ -5,8 +5,10 @@
  * Errors cross the boundary as strings and are re-wrapped by the host.
  */
 
-import type { IncomingCallsResult, OutgoingCallsResult } from './worker-protocol/contracts.js';
+import type { ContextResult } from './context-retrieval.js';
 import type { CodeMapGraph, IndexResult, IndexStats, SearchResult } from './schema.js';
+import type { IncomingCallsResult, OutgoingCallsResult } from './worker-protocol/contracts.js';
+import type { VectorHit } from './writer-vectors.js';
 
 // ─── Operation arguments ─────────────────────────────────────────────────────
 
@@ -69,6 +71,42 @@ export interface SearchOpResult {
   stale?: boolean | undefined;
 }
 
+/**
+ * Personalised retrieval arguments.
+ *
+ * `vectorFiles` arrives already scored because the embedding model lives on
+ * the host: a function cannot cross this boundary, so the host embeds the
+ * query and only the resulting file scores travel as numbers.
+ */
+export interface ContextOpArgs extends StatsOpArgs {
+  query: string;
+  vectorFiles?: ReadonlyArray<{ file: string; score: number }> | undefined;
+  limit?: number | undefined;
+  symbolsPerFile?: number | undefined;
+  pathPrefix?: string | undefined;
+}
+
+/**
+ * Nearest-vector search arguments.
+ *
+ * The vector is a plain number array rather than a `Float32Array` because
+ * only structured-cloneable plain shapes cross this protocol; the service
+ * re-wraps it before comparing.
+ */
+export interface VectorSearchOpArgs extends StatsOpArgs {
+  vector: number[];
+  limit: number;
+  minScore?: number | undefined;
+}
+
+export interface VectorSearchOpResult {
+  hits: VectorHit[];
+  /** Vectors currently stored — zero means the embedding pass has not run. */
+  total: number;
+  /** Set when the project server served a previous generation's cached answer. */
+  stale?: boolean | undefined;
+}
+
 /** Map of op name → { args, result } so host and worker stay in lockstep. */
 export interface OpShapes {
   index: { args: IndexOpArgs; result: IndexResult };
@@ -79,6 +117,8 @@ export interface OpShapes {
   symbolGraph: { args: SymbolGraphOpArgs; result: CodeMapGraph };
   incomingCalls: { args: CallRefsOpArgs; result: IncomingCallsResult };
   outgoingCalls: { args: CallRefsOpArgs; result: OutgoingCallsResult };
+  context: { args: ContextOpArgs; result: ContextResult };
+  vectorSearch: { args: VectorSearchOpArgs; result: VectorSearchOpResult };
 }
 
 export type OpName = keyof OpShapes;

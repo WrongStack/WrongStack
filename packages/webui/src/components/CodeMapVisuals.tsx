@@ -1,11 +1,11 @@
 import { Handle, type NodeTypes, Position } from '@xyflow/react';
 import { Box, ExternalLink, FileCode, Package, Radio } from 'lucide-react';
 import { memo } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { ActivityType, FileActivity } from '@/stores/codemap-activity-store';
 import type { GraphNodeData, GraphRefType } from './codemap-model';
 import { relativeFilePath } from './codemap-model';
-import { useAppTranslation } from '@/i18n';
 
 export const NODE_STYLE: Record<
   GraphNodeData['kind'],
@@ -15,6 +15,24 @@ export const NODE_STYLE: Record<
   file: { icon: FileCode, accent: 'border-l-info', iconStyle: 'bg-info/12 text-info' },
   symbol: { icon: Box, accent: 'border-l-success', iconStyle: 'bg-success/12 text-success' },
 };
+
+/**
+ * Centrality tiers.
+ *
+ * Node width is fixed at 236px because every layout positions on that grid, so
+ * rank is encoded in the parts of the card that can vary: the thickness of the
+ * accent border, a meter across the bottom, and a badge on the hubs. That
+ * reads at a glance without moving anything the layout depends on.
+ */
+export const HUB_RANK = 0.6;
+const STRONG_RANK = 0.25;
+
+export function rankAccentWidth(rank: number | undefined): string {
+  if (rank === undefined) return 'border-l-[3px]';
+  if (rank >= HUB_RANK) return 'border-l-[7px]';
+  if (rank >= STRONG_RANK) return 'border-l-[5px]';
+  return 'border-l-[3px]';
+}
 
 export const EDGE_COLOR: Record<GraphRefType, string> = {
   call: 'hsl(var(--primary))',
@@ -128,8 +146,9 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
   return (
     <div
       className={cn(
-        'group relative w-[236px] border border-l-[3px] bg-card text-card-foreground shadow-[0_8px_24px_hsl(var(--shadow-color)/0.08)] transition-[opacity,box-shadow,border-color,background-color]',
+        'group relative w-[236px] border bg-card text-card-foreground shadow-[0_8px_24px_hsl(var(--shadow-color)/0.08)] transition-[opacity,box-shadow,border-color,background-color]',
         style.accent,
+        rankAccentWidth(graphNode.rank),
         selected &&
           'border-primary bg-primary/5 shadow-[0_0_0_2px_hsl(var(--primary)/0.18),0_16px_36px_hsl(var(--shadow-color)/0.18)]',
         graphNode.external && 'border-dashed bg-muted/75',
@@ -201,6 +220,11 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
                   external
                 </span>
               )}
+              {graphNode.rank !== undefined && graphNode.rank >= HUB_RANK && (
+                <span className="border border-primary/40 bg-primary/10 px-1 py-0.5 text-[8px] text-primary">
+                  {t('activity:codeMap.hub')}
+                </span>
+              )}
               {graphNode.lang && (
                 <span className="ml-auto font-mono normal-case tracking-normal">
                   {graphNode.lang}
@@ -213,8 +237,27 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
             <div className="mt-1 truncate text-[10px] text-muted-foreground" title={subtitle}>
               {subtitle}
             </div>
+            {graphNode.concept && (
+              <div
+                className="mt-1 line-clamp-2 text-[9px] leading-snug text-muted-foreground/80"
+                title={graphNode.concept}
+              >
+                {graphNode.concept}
+              </div>
+            )}
           </div>
         </div>
+        {graphNode.rank !== undefined && (
+          <div
+            className="h-[3px] w-full bg-muted"
+            title={t('activity:codeMap.centrality', { value: Math.round(graphNode.rank * 100) })}
+          >
+            <div
+              className="h-full bg-primary/70"
+              style={{ width: `${Math.max(2, Math.round(graphNode.rank * 100))}%` }}
+            />
+          </div>
+        )}
         <div className="flex items-center gap-3 border-t bg-muted/30 px-3 py-1.5 font-mono text-[9px] text-muted-foreground">
           <span title={t('activity:codeMapVisuals.incomingRelationships')}>← {incoming}</span>
           <span title={t('activity:codeMapVisuals.outgoingRelationships')}>→ {outgoing}</span>

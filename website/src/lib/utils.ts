@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '1.0.1',
+  version: '1.0.2',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -77,7 +77,7 @@ export const skills = [
   },
 ] as const;
 
-/** The 70 built-in tools from packages/tools/src/builtin.ts, grouped. */
+/** The 71 built-in tools from packages/tools/src/builtin.ts, grouped. */
 export const toolGroups = [
   {
     label: 'Browser & E2E',

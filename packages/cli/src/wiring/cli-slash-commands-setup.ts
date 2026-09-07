@@ -6,6 +6,7 @@ import { createEternalCommandHandlers } from './eternal-command-handlers.js';
 import { createFleetCommandHandlers } from './fleet-command-handlers.js';
 import { createSddHandlers } from './sdd-handlers.js';
 import { createSessionCommandHandlers } from './session-command-handlers.js';
+import { createConceptSummarizer } from './concept-summarizer.js';
 import { buildCommandHostSlashCommands } from './slash-commands.js';
 
 // Bag params are typed by their CONSUMERS: every field below flows into
@@ -200,6 +201,28 @@ export function setupCliSlashCommands(params: {
     setConfig,
   } = params;
 
+  // The concept layer is the one part of indexing that spends money, so the
+  // port exists only when the user has switched it on. `/codebase-map --enrich`
+  // reports its absence rather than quietly doing nothing.
+  //
+  // The embedding port is deliberately NOT built here: it is an async dynamic
+  // import of an optional model runtime, this setup is synchronous, and
+  // `--embed` is a rare explicit command that can afford to load it on demand.
+  const conceptSummarizer =
+    config.indexing?.concepts?.enabled === true
+      ? createConceptSummarizer({
+          // OneShotOrchestrator wants a builder that throws on an unknown
+          // provider id; the host's returns `undefined`, so it is wrapped.
+          buildProvider: (pid: string) => {
+            const built = buildProviderForId(pid);
+            if (built === undefined) throw new Error(`unknown provider: ${pid}`);
+            return built;
+          },
+          getConfig: () => config,
+          fallbackProfileManager: container.resolve(TOKENS.FallbackProfileManager),
+        })
+      : undefined;
+
   const slashCmds = buildCommandHostSlashCommands({
     registry: slashRegistry,
     toolRegistry,
@@ -216,6 +239,7 @@ export function setupCliSlashCommands(params: {
     context,
     cwd,
     projectRoot,
+    ...(conceptSummarizer ? { codebaseConceptSummarizer: conceptSummarizer } : {}),
     metricsSink,
     healthRegistry,
     metricsStatus,

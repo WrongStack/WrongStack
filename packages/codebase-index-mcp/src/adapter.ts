@@ -7,6 +7,7 @@ import {
   type MCPServerToolHost,
 } from '@wrongstack/mcp';
 import {
+  codebaseContextTool,
   codebaseIndexTool,
   codebaseSearchTool,
   codebaseStatsTool,
@@ -83,6 +84,8 @@ const GRAPH_SCHEMAS = {
 } as const satisfies Partial<Record<CodebaseIndexMcpToolName, Record<string, unknown>>>;
 
 const TOOL_DESCRIPTIONS: Record<CodebaseIndexMcpToolName, string> = {
+  codebase_context:
+    'Find files and declarations relevant to a task using ranked symbol search and a reference-graph walk.',
   codebase_search:
     'Search the project symbol index with SQLite FTS5 and BM25 ranking. Use this before broad filesystem exploration.',
   codebase_stats:
@@ -96,6 +99,7 @@ const TOOL_DESCRIPTIONS: Record<CodebaseIndexMcpToolName, string> = {
 };
 
 const BUILTIN_TOOLS: Partial<Record<CodebaseIndexMcpToolName, Tool>> = {
+  codebase_context: codebaseContextTool,
   codebase_search: codebaseSearchTool,
   codebase_stats: codebaseStatsTool,
   codebase_index: codebaseIndexTool,

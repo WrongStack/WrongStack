@@ -51,6 +51,7 @@ import {
   type ProjectIndexServerInfo,
   type ProjectServerMessage,
 } from './project-server-protocol.js';
+import { recordIpcPending } from './perf-metrics.js';
 import type { OpName, OpShapes } from './worker-protocol.js';
 
 export {
@@ -358,6 +359,7 @@ class ProjectServerConnection {
         onAbort,
         onProgress: options.onProgress,
       });
+      recordIpcPending(this.pending.size);
       if (signal && onAbort) {
         signal.addEventListener('abort', onAbort, { once: true });
         // AbortSignal does not replay an abort event to listeners attached

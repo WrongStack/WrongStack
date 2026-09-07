@@ -24,9 +24,11 @@
  *   cleared.
  */
 
+import type { ContextResult } from './context-retrieval.js';
 import type { IncomingCallsResult, OutgoingCallsResult } from './index-service.js';
 import { GenerationLruCache } from './project-server-cache.js';
 import type { CodeMapGraph, IndexStats, SearchResult } from './schema.js';
+import type { VectorSearchOpResult } from './worker-protocol.js';
 
 /** The error the server answers a read it cannot serve with. */
 export function indexRefreshInProgressError(currentFile: number, totalFiles: number): Error {
@@ -101,6 +103,9 @@ export class ServerQueryCaches {
    */
   readonly searchCache = new GenerationLruCache<{ results: SearchResult[]; total: number }>(128);
   readonly statsCache = new GenerationLruCache<IndexStats>(1);
+  // Retrieval answers are query-shaped like search, so they cache the same way.
+  readonly contextCache = new GenerationLruCache<ContextResult>(64);
+  readonly vectorSearchCache = new GenerationLruCache<VectorSearchOpResult>(64);
   readonly packageGraphCache = new GenerationLruCache<CodeMapGraph>(1);
   readonly fileGraphCache = new GenerationLruCache<CodeMapGraph>(32);
   readonly symbolGraphCache = new GenerationLruCache<CodeMapGraph>(64);
@@ -110,6 +115,8 @@ export class ServerQueryCaches {
   clear(): void {
     this.searchCache.clear();
     this.statsCache.clear();
+    this.contextCache.clear();
+    this.vectorSearchCache.clear();
     this.packageGraphCache.clear();
     this.fileGraphCache.clear();
     this.symbolGraphCache.clear();
@@ -122,6 +129,8 @@ export class ServerQueryCaches {
     return {
       searchCache: this.searchCache.size,
       statsCache: this.statsCache.size,
+      contextCache: this.contextCache.size,
+      vectorSearchCache: this.vectorSearchCache.size,
       packageGraphCache: this.packageGraphCache.size,
       fileGraphCache: this.fileGraphCache.size,
       symbolGraphCache: this.symbolGraphCache.size,

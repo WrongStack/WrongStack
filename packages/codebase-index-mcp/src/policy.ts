@@ -1,4 +1,5 @@
 export const CODEBASE_INDEX_READ_TOOLS = [
+  'codebase_context',
   'codebase_search',
   'codebase_stats',
   'codebase_package_graph',

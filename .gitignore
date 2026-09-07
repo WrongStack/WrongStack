@@ -77,6 +77,12 @@ security-report/*
 !/.wrongstack/
 /.wrongstack/*
 !/.wrongstack/project.json
+# The Atlas is a deterministic projection of the codebase index, meant to be
+# reviewed in a pull request and read on a fresh clone. Re-including the
+# directory is not enough on its own: git will not descend into a directory
+# excluded by a parent pattern, so the contents need their own rule.
+!/.wrongstack/atlas/
+!/.wrongstack/atlas/**
 # Design Studio project-local decisions/rules (also self-ignored via .design/.gitignore)
 .design/
 CLAUDE.md

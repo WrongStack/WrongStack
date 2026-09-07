@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { detectLang } from './languages.js';
 import type { CallSite, CodeMapGraph, Ref, SymbolKind, SymbolLang } from './schema.js';
+import { decorateGraphNodes } from './writer-graph-decorate.js';
 import {
   addWeightedEdge,
   buildFileGraphNodeState,
@@ -56,6 +57,49 @@ function chunkedIdQuery(
     results.push(...(stmt(sql).all(...chunk, ...extraArgs) as unknown[]));
   }
   return results;
+}
+
+/**
+ * Hydrate symbol rows for an arbitrary id list.
+ *
+ * The personalised retrieval walk scores dense graph indices and then needs
+ * the declarations behind the winners; this is that lookup. Chunked because
+ * the id list is unbounded — the caller decides how many nodes to hydrate.
+ */
+export function getSymbolsByIdsWithStatement(
+  stmt: PrepareStatement,
+  ids: readonly number[],
+): WriterSymbolGraphRow[] {
+  if (ids.length === 0) return [];
+  return chunkedIdQuery(
+    stmt,
+    ids,
+    (ph) =>
+      `SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE id IN (${ph})`,
+  ) as WriterSymbolGraphRow[];
+}
+
+/**
+ * Declarations in one file, in source order.
+ *
+ * Ordered by line rather than by any score so the list reads the way the file
+ * does — the atlas uses it to describe a file, not to rank within it.
+ */
+export function getFileSymbolsWithStatement(
+  stmt: PrepareStatement,
+  file: string,
+  limit: number,
+): Array<{ id: number; name: string; kind: string; line: number; signature: string }> {
+  if (limit <= 0) return [];
+  return stmt(
+    'SELECT id, name, kind, line, signature FROM symbols WHERE file = ? ORDER BY line ASC, name ASC LIMIT ?',
+  ).all(file, limit) as unknown as Array<{
+    id: number;
+    name: string;
+    kind: string;
+    line: number;
+    signature: string;
+  }>;
 }
 
 /** Like chunkedIdQuery but returns a single scalar (COUNT, SUM, …). */
@@ -643,7 +687,9 @@ export function getPackageGraphWithStatement(stmt: PrepareStatement): CodeMapGra
   }
 
   const edges = materializeWeightedEdges(edgeMap, 'pkg');
-  return { nodes: [...pkgNodes.values()], edges };
+  const nodes = [...pkgNodes.values()];
+  decorateGraphNodes(stmt, nodes, packageOf);
+  return { nodes, edges };
 }
 
 /**
@@ -758,73 +804,80 @@ export function getFileGraphWithStatement(
   }
 
   const edges = materializeWeightedEdges(edgeMap, 'file');
-  return { nodes: [...fileNodes.values()], edges };
+  const nodes = [...fileNodes.values()];
+  decorateGraphNodes(stmt, nodes, packageOf);
+  return { nodes, edges };
 }
 
 export function getSymbolGraphWithStatement(
   stmt: PrepareStatement,
   fileFilter: string,
 ): CodeMapGraph {
-  const indexedFiles = resolveIndexedFiles(stmt, fileFilter);
-  if (indexedFiles.length === 0) return { nodes: [], edges: [] };
-  const filePlaceholders = indexedFiles.map(() => '?').join(',');
-
-  const syms = stmt(
-    `SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE file IN (${filePlaceholders}) ORDER BY line, id`,
-  ).all(...indexedFiles) as WriterSymbolGraphRow[];
-
-  if (syms.length === 0) return { nodes: [], edges: [] };
-
-  const symById = new Map(syms.map((symbol) => [symbol.id, symbol]));
-  const relatedIds = new Set(syms.map((symbol) => symbol.id));
-
-  const refRows = stmt(
-    `SELECT from_id, to_id, call_type, COUNT(*) AS n
-       FROM (
-         SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
-         FROM refs r
-         JOIN symbols s ON s.id = r.from_id
-         WHERE s.file IN (${filePlaceholders})
-         UNION
-         SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
-         FROM refs r
-         JOIN symbols s ON s.id = r.to_id
-         WHERE s.file IN (${filePlaceholders})
-       )
-       WHERE to_id IS NOT NULL
-       GROUP BY from_id, to_id, call_type`,
-  ).all(...indexedFiles, ...indexedFiles) as {
-    from_id: number;
-    to_id: number;
-    call_type: string;
-    n: number;
-  }[];
-
-  const edgeMap = new Map<string, WeightedEdgeAccumulator>();
-  for (const r of refRows) {
-    if (r.to_id == null) continue;
-    relatedIds.add(r.from_id);
-    relatedIds.add(r.to_id);
-    const n = Number(r.n) || 0;
-    addWeightedEdge(edgeMap, r.from_id, r.to_id, r.call_type, n);
+    const indexedFiles = resolveIndexedFiles(stmt, fileFilter);
+    if (indexedFiles.length === 0) return { nodes: [], edges: [] };
+    const filePlaceholders = indexedFiles.map(() => '?').join(',');
+  
+    const syms = stmt(
+      `SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE file IN (${filePlaceholders}) ORDER BY line, id`,
+    ).all(...indexedFiles) as WriterSymbolGraphRow[];
+  
+    if (syms.length === 0) return { nodes: [], edges: [] };
+  
+    const symById = new Map(syms.map((symbol) => [symbol.id, symbol]));
+    const relatedIds = new Set<number>(syms.map((symbol) => symbol.id));
+  
+    // P5: Single UNION ALL replaces two separate UNION queries, halving round-trips
+    // and parameter bindings. The outer WHERE runs after the subquery is fully
+    // materialized — same semantics as the original two-query form.
+    const refRows = stmt(
+      `SELECT from_id, to_id, call_type, COUNT(*) AS n
+         FROM (
+           SELECT r.from_id, r.to_id, r.call_type
+             FROM refs r
+             JOIN symbols s ON s.id = r.from_id
+            WHERE s.file IN (${filePlaceholders})
+            UNION ALL
+           SELECT r.from_id, r.to_id, r.call_type
+             FROM refs r
+             JOIN symbols s ON s.id = r.to_id
+            WHERE s.file IN (${filePlaceholders})
+         )
+         WHERE to_id IS NOT NULL
+         GROUP BY from_id, to_id, call_type`,
+    ).all(...indexedFiles, ...indexedFiles) as {
+      from_id: number;
+      to_id: number;
+      call_type: string;
+      n: number;
+    }[];
+  
+    const edgeMap = new Map<string, WeightedEdgeAccumulator>();
+    for (const r of refRows) {
+      if (r.to_id == null) continue;
+      relatedIds.add(r.from_id);
+      relatedIds.add(r.to_id);
+      const n = Number(r.n) || 0;
+      addWeightedEdge(edgeMap, r.from_id, r.to_id, r.call_type, n);
+    }
+    const edges = materializeWeightedEdges(edgeMap, 'sym');
+  
+    const loadedIds = new Set(syms.map((s) => s.id));
+    const missingIds = [...relatedIds].filter((id) => !loadedIds.has(id));
+    if (missingIds.length > 0) {
+      const placeholders = missingIds.map(() => '?').join(',');
+      const extras = stmt(
+        `SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE id IN (${placeholders})`,
+      ).all(...missingIds) as WriterSymbolGraphRow[];
+      for (const s of extras) symById.set(s.id, s);
+    }
+  
+    const packageOf = readPackageLabeller(stmt);
+    const nodes = buildSymbolGraphNodes(
+      symById,
+      relatedIds,
+      new Set(syms.map((symbol) => symbol.file)),
+      packageOf,
+    );
+    decorateGraphNodes(stmt, nodes, packageOf);
+    return { nodes, edges };
   }
-  const edges = materializeWeightedEdges(edgeMap, 'sym');
-
-  const loadedIds = new Set(syms.map((s) => s.id));
-  const missingIds = [...relatedIds].filter((id) => !loadedIds.has(id));
-  if (missingIds.length > 0) {
-    const placeholders = missingIds.map(() => '?').join(',');
-    const extras = stmt(
-      `SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE id IN (${placeholders})`,
-    ).all(...missingIds) as WriterSymbolGraphRow[];
-    for (const s of extras) symById.set(s.id, s);
-  }
-
-  const nodes = buildSymbolGraphNodes(
-    symById,
-    relatedIds,
-    new Set(syms.map((symbol) => symbol.file)),
-    readPackageLabeller(stmt),
-  );
-  return { nodes, edges };
-}

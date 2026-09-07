@@ -100,6 +100,115 @@ export const SYMBOLS_FTS_SQL =
   "CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(text, tokenize = 'trigram')";
 
 /**
+ * Graph centrality, computed at index time by `graph-rank.ts` once every ref
+ * has its final `to_id` / `to_file`. Two tables rather than columns on
+ * `symbols` / `files` so the whole layer is additive: an index written by an
+ * older build simply has empty rank tables, and `SCHEMA_VERSION` stays put
+ * (a bump drops and rebuilds the entire index — see `initIndexSchema`).
+ *
+ * `rank` is max-normalised to 1.0 across the run, so scores are comparable
+ * within one index but never across two.
+ */
+export const RANK_TABLES_SQL = `
+  CREATE TABLE IF NOT EXISTS symbol_rank (
+    symbol_id INTEGER PRIMARY KEY,
+    rank REAL NOT NULL,
+    in_deg INTEGER NOT NULL DEFAULT 0,
+    out_deg INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS file_rank (
+    file TEXT PRIMARY KEY,
+    rank REAL NOT NULL,
+    in_deg INTEGER NOT NULL DEFAULT 0,
+    out_deg INTEGER NOT NULL DEFAULT 0
+  );
+`;
+
+export const RANK_INDEX_SQL = [
+  // Both tables are read "top N by rank" far more often than by key.
+  'CREATE INDEX IF NOT EXISTS idx_sr_rank ON symbol_rank(rank DESC)',
+  'CREATE INDEX IF NOT EXISTS idx_fr_rank ON file_rank(rank DESC)',
+] as const;
+
+/**
+ * Concept layer — plain-English descriptions of what code is *for*, which the
+ * structural index cannot express. Symbol names and signatures answer "what is
+ * declared"; they cannot answer "where do we back off after a 429".
+ *
+ * Populated by an optional, explicitly enabled LLM pass. Additive like the rank
+ * tables: an index without the pass simply has empty concept tables, and every
+ * consumer treats a missing summary as "not described yet" rather than an error.
+ *
+ * `content_hash` mirrors `files.content_hash`, and is the cache key that keeps
+ * the pass affordable — a file whose bytes have not changed is never re-sent to
+ * a model. `state` distinguishes a summary that matches the current bytes
+ * (`ready`) from one describing an older version (`stale`, still useful as a
+ * hint) and one not yet produced (`pending`).
+ *
+ * `crux_start`/`crux_end` point at the few lines that actually carry the file's
+ * meaning. A summary can drift from the truth; a pointer into the source cannot.
+ */
+export const CONCEPT_TABLES_SQL = `
+  CREATE TABLE IF NOT EXISTS file_concepts (
+    file TEXT PRIMARY KEY,
+    content_hash TEXT NOT NULL DEFAULT '',
+    summary TEXT NOT NULL DEFAULT '',
+    crux_start INTEGER,
+    crux_end INTEGER,
+    state TEXT NOT NULL DEFAULT 'pending',
+    model TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS subsystems (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    member_files TEXT NOT NULL DEFAULT '[]',
+    model TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS concept_edges (
+    from_id TEXT NOT NULL,
+    to_id TEXT NOT NULL,
+    relation TEXT NOT NULL,
+    PRIMARY KEY (from_id, to_id, relation)
+  );
+`;
+
+/**
+ * Semantic embeddings, one per file.
+ *
+ * **Per file, not per symbol.** Embedding a bare signature — `function
+ * resolve(id: string): Widget` — captures almost nothing a lexical index does
+ * not already have. What carries meaning is the concept layer's description of
+ * what the file is *for*, so that is what gets embedded. It is also eight
+ * times cheaper on this repository: 8k files against 66k symbols.
+ *
+ * `source_hash` is a hash of the exact text that was embedded, so a changed
+ * summary re-embeds and an unchanged one never does. `provider` records which
+ * model produced the vector; vectors from a different model are not comparable,
+ * so a provider change invalidates the whole table rather than silently mixing
+ * two vector spaces.
+ *
+ * Separate from `symbol_vectors`, which stores the older synchronous
+ * char-trigram vectors and stays behind its own gate.
+ */
+export const FILE_VECTORS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS file_vectors (
+    file TEXT PRIMARY KEY,
+    vector BLOB NOT NULL,
+    source_hash TEXT NOT NULL DEFAULT '',
+    provider TEXT NOT NULL DEFAULT ''
+  );
+`;
+
+export const CONCEPT_INDEX_SQL = [
+  // The enrichment runner's hot query is "which files still need work".
+  'CREATE INDEX IF NOT EXISTS idx_fc_state ON file_concepts(state)',
+  'CREATE INDEX IF NOT EXISTS idx_ce_from ON concept_edges(from_id)',
+] as const;
+
+/**
  * Phase 3: stores 384-dimensional float32 embedding vectors for each symbol.
  * Vectors are computed from the symbol's indexable text (name + signature +
  * doc_comment) via the character n-gram hashing embedding in vector-search.ts.

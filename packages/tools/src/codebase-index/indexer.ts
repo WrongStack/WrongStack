@@ -24,11 +24,13 @@ import {
 } from '@wrongstack/core/utils';
 import { xxhash64String as contentHashHex } from './content-hash.js';
 import { type IgnoreMatcher, loadGitignoreMatcher } from './gitignore.js';
+import { runGraphRankPass, shouldRefreshRanks } from './graph-rank-pass.js';
 import { detectLang, INDEXABLE_EXTENSIONS } from './languages.js';
 import { ModuleResolver } from './module-resolver.js';
 import { assignPackageLabels, detectModuleRoots } from './module-roots.js';
 import { type parseFileContent, parseFilesContent } from './parser-dispatch.js';
 import { getParserPool, resolveWorkerPoolThreshold } from './parser-worker-pool.js';
+import { recordFilesystemRead } from './perf-metrics.js';
 import type { FileMeta, IndexResult, Symbol as IndexSymbol, Ref, SymbolLang } from './schema.js';
 import { IndexStore } from './writer.js';
 
@@ -94,6 +96,21 @@ function isAbortError(err: unknown): boolean {
 
 const DEFAULT_IGNORE = DEFAULT_WALK_IGNORE_DIRS;
 const DEFAULT_IGNORE_FILES = new Set(['package-lock.json', 'pnpm-lock.yaml', 'pnpm-lock.yml']);
+
+/**
+ * The atlas projection, which is derived FROM this index.
+ *
+ * Indexing it makes the index describe its own output: every `--write` changes
+ * three files, the next index run picks them up, and the freshness check then
+ * reports drift caused by nothing but writing the atlas. It is a committed
+ * artifact rather than source, and it carries no symbols worth searching.
+ */
+const ATLAS_PROJECTION_PREFIX = '.wrongstack/atlas/';
+
+/** True for a project-relative posix path inside the atlas projection. */
+function isAtlasProjection(relativePosixPath: string): boolean {
+  return relativePosixPath.startsWith(ATLAS_PROJECTION_PREFIX);
+}
 const INDEXABLE_EXTENSION_SET = new Set(INDEXABLE_EXTENSIONS);
 const MAX_INDEX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_GIT_FILE_LIST_BYTES = 64 * 1024 * 1024;
@@ -188,7 +205,8 @@ async function findGitSourceFiles(
       const portable = relative.replace(/\\/g, '/');
       if (
         portable.split('/').some((segment) => ignoreSet.has(segment)) ||
-        DEFAULT_IGNORE_FILES.has(path.posix.basename(portable))
+        DEFAULT_IGNORE_FILES.has(path.posix.basename(portable)) ||
+        isAtlasProjection(portable)
       ) {
         continue;
       }
@@ -303,6 +321,7 @@ async function findSourceFiles(
         await walk(full);
       } else if (e.isFile()) {
         if (DEFAULT_IGNORE_FILES.has(e.name) || isGitIgnored(rel, false)) continue;
+        if (isAtlasProjection(rel)) continue;
         const ext = path.extname(e.name).toLowerCase();
         // Fast path: known extension. Slow path: special basenames (Makefile…).
         if (indexableExts.has(ext) || detectLang(full) !== null) {
@@ -482,6 +501,7 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
         return (
           !rel.split('/').some((seg) => DEFAULT_IGNORE.includes(seg)) &&
           !DEFAULT_IGNORE_FILES.has(path.basename(f)) &&
+          !isAtlasProjection(rel) &&
           !isGitIgnored(rel, false)
         );
       });
@@ -626,6 +646,7 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
           let content: string;
           try {
             content = await fs.readFile(file, { encoding: 'utf8', signal });
+            recordFilesystemRead(Buffer.byteLength(content, 'utf8'));
           } catch (e) {
             if (isAbortError(e)) throw e;
             return {
@@ -949,6 +970,12 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
   });
   store.setMetadata('ref_resolution_version', refResolutionVersion);
   store.setMetadata('relation_graph_version', relationGraphVersion);
+  // Centrality last: every ref now has its final to_id/to_file, so this is the
+  // first point at which the wiring graph is the graph the generation will
+  // publish. Failure is recorded in `errors` and never fails the run.
+  if (shouldRefreshRanks(store, { files: opts.files, force })) {
+    runGraphRankPass(store, errors);
+  }
   const completeProjectScope =
     !opts.files && (!langs || langs.length === 0) && (!opts.ignore || opts.ignore.length === 0);
   if (completeProjectScope && discoverySnapshotKey !== undefined) {

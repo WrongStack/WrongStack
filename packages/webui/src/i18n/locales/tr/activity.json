@@ -2928,7 +2928,13 @@
     "noRelationshipsInThisView": "Bu görünümde ilişki yok.",
     "activity": "Etkinlik",
     "whoDependsOnThis": "Buna kim bağımlı",
-    "whatThisDependsOn": "Bunun bağımlı olduğu şeyler"
+    "whatThisDependsOn": "Bunun bağımlı olduğu şeyler",
+    "subsystems": "Alt sistemler",
+    "groupNodesByTheSubsystemTheyBelongTo": "Düğümleri ait oldukları alt sisteme göre grupla",
+    "hub": "merkez",
+    "centrality": "Merkezilik %{{value}}",
+    "centralityLabel": "merkezilik",
+    "crux": "çekirdek"
   },
   "chronicle": {
     "codingIntelligence": "Kodlama Zekâsı",

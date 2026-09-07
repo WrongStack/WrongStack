@@ -266,6 +266,26 @@ export interface GraphNode {
   scope?: string | undefined;
   /** True when this is a direct relation outside the current drill-down scope. */
   external?: boolean | undefined;
+  // ── Atlas enrichment ────────────────────────────────────────────────────────
+  // Every field below is optional and absent unless the corresponding pass has
+  // run, so a graph read against an index that predates them is unchanged.
+  /**
+   * Global PageRank centrality, max-normalised to 1.0 across the whole index —
+   * so it is comparable between nodes of the same kind, not across kinds.
+   * Package nodes carry the sum of their files' ranks.
+   */
+  rank?: number | undefined;
+  /** Plain-language description of the node, from the concept layer. */
+  concept?: string | undefined;
+  /**
+   * The load-bearing source span the summary was drawn from, 1-based and
+   * inclusive. A summary can drift from the code; this cannot.
+   */
+  crux?: { start: number; end: number } | undefined;
+  /** Name of the subsystem this node's file belongs to, when one was derived. */
+  subsystem?: string | undefined;
+  /** `files.mtime_ms` — last modification, for recency shading. */
+  lastModifiedMs?: number | undefined;
 }
 
 /** A directed edge: source references / depends-on target. */

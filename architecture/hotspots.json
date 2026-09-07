@@ -279,16 +279,16 @@
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {
-      "lines": 932,
+      "lines": 965,
       "relativeImports": 8
     },
     "packages/tools/src/codebase-index/indexer.ts": {
-      "lines": 1011,
-      "relativeImports": 10
+      "lines": 1013,
+      "relativeImports": 11
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
-      "lines": 823,
-      "relativeImports": 6
+      "lines": 825,
+      "relativeImports": 7
     },
     "packages/tools/src/codebase-index/tree-sitter/queries.ts": {
       "lines": 867,

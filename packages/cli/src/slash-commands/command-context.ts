@@ -14,6 +14,7 @@ import type {
   TokenCounter,
 } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import type { SummarizerPort } from '@wrongstack/tools';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 
 /** Host capabilities supplied to command adapters. */
@@ -51,6 +52,12 @@ export interface SlashCommandContext {
   cwd: string;
   /** Project root (typically resolved from cwd). */
   projectRoot: string;
+  /**
+   * Model port for the codebase index's concept layer. Present only when
+   * `indexing.concepts.enabled` is true — its absence is what `/codebase-map
+   * --enrich` reports instead of silently doing nothing.
+   */
+  codebaseConceptSummarizer?: SummarizerPort | undefined;
   metricsSink?: MetricsSink | undefined;
   healthRegistry?: HealthRegistry | undefined;
   metricsStatus?: MetricsRuntimeStatus | undefined;

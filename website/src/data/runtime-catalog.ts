@@ -450,6 +450,14 @@ export const toolCatalog = [
     category: 'Discovery & index',
   },
   {
+    name: 'codebase-context',
+    summary:
+      'Find files and declarations relevant to a task using ranked symbol search and a reference-graph walk.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Discovery & index',
+  },
+  {
     name: 'codebase-ast-replace',
     summary:
       'Replace a symbol body or definition through AST parsing with compatibility-invariant checks.',

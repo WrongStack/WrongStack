@@ -121,6 +121,15 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     onEdit: true,
     watchExternal: true,
     debounceMs: 400,
+    // The concept layer is the only part of indexing that spends money, so it
+    // stays opt-in: `/codebase-map --enrich` after turning this on.
+    concepts: { enabled: false, concurrency: 5, subsystems: true },
+    // Needs the optional transformers runtime and a model download.
+    embeddings: { enabled: false, batchSize: 16 },
+    // On by default: it costs a few hundred tokens once per session, rides
+    // the live-context tail so it does not disturb the prompt cache, and
+    // contributes nothing at all when the index has not been built.
+    atlas: { injectOnSessionStart: true, briefMaxTokens: 800 },
   },
   session: { ...DEFAULT_SESSION_LOGGING_CONFIG },
   autonomy: {

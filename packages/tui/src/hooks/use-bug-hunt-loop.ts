@@ -22,6 +22,16 @@ function buildContinuationMessage(active: ActiveBugHunt): string {
   return `This is ${roundLabel}; we're continuing the bug hunt.${scope}`;
 }
 
+/**
+ * Let the just-finished run complete its `finally` cleanup before its successor
+ * enters the normal submit path. In particular, `runBlocks` clears its active
+ * controller only after it notifies this hook; submitting synchronously here
+ * makes the next round look like mid-run input and can leave it queued.
+ */
+function submitAfterCurrentRun(submit: (command: string) => void, command: string): void {
+  setTimeout(() => submit(command), 0);
+}
+
 /** Coordinates bounded or user-stopped `/bughunt` rounds in the TUI. */
 export function useBugHuntLoop(
   dispatch: (action: Action) => void,
@@ -103,6 +113,29 @@ export function useBugHuntLoop(
         return;
       }
       const snapshot = { ...active };
+      const continueWithNextRound = () => {
+        // Round 1 is the slash command that expands the full prompt. Later
+        // rounds submit only a compact reminder, directly through the normal
+        // submit path. It must not be placed in the composer for the user to
+        // press Enter again.
+        const continuation = buildContinuationMessage(snapshot);
+        replayCommandRef.current = continuation;
+        dispatch({
+          type: 'bugHuntRunningOpen',
+          info: {
+            currentRound: snapshot.completedRounds + 1,
+            totalRounds: snapshot.totalRounds,
+          },
+        });
+        submitAfterCurrentRun(submit, continuation);
+      };
+
+      // A bounded hunt is explicitly autonomous: proceed as soon as the
+      // previous round succeeds instead of opening a confirmation panel.
+      if (snapshot.totalRounds !== undefined) {
+        continueWithNextRound();
+        return;
+      }
       dispatch({
         type: 'bugHuntContinueOpen',
         info: {
@@ -118,19 +151,7 @@ export function useBugHuntLoop(
               });
               return;
             }
-            // Round 1 is the slash command that expands the full prompt. Later
-            // rounds only need a compact reminder; keep it out of the transcript
-            // while preserving the running indicator normally opened by slash setup.
-            const continuation = buildContinuationMessage(snapshot);
-            replayCommandRef.current = continuation;
-            dispatch({
-              type: 'bugHuntRunningOpen',
-              info: {
-                currentRound: snapshot.completedRounds + 1,
-                totalRounds: snapshot.totalRounds,
-              },
-            });
-            submit(continuation);
+            continueWithNextRound();
           },
         },
       });

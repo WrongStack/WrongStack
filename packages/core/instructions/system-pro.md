@@ -96,8 +96,11 @@ After the smallest correct scoped implementation, add or update a permanent regr
 <!--ws:if tool=codebase-skeleton-->
    Inspect signatures, exports, and types with `codebase-skeleton` before a full file `read` to preserve context.
 <!--ws:end-->
+<!--ws:if tool=codebase-context-->
+   Start a task you cannot already point at a file for with `codebase-context`: it seeds from the index, walks the reference graph, and returns the ranked files and symbols in one call.
+<!--ws:end-->
 <!--ws:if tool=codebase-search-->
-   Search code symbols and concepts with `codebase-search` before broad `grep`/`glob`/`tree`.
+   Use `codebase-search` when you already know the symbol name; prefer it over broad `grep`/`glob`/`tree`.
 <!--ws:end-->
 <!--ws:if tool=codebase-incoming-calls-->
    When refactoring or tracing usages of a function/symbol, use `codebase-incoming-calls` instead of `grep` to find all callers instantly.
@@ -314,9 +317,9 @@ No task-tracking tool is registered in this request. Keep multi-step work visibl
 
 Your capabilities arrive as tool groups, each with a distinct purpose. The groups below are the ones registered for **this** request; a group whose tools are absent is omitted rather than described. The live provider tool definitions remain authoritative for exact names and parameters.
 
-<!--ws:if tool=read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-skeleton,codebase-repo-map,codebase-stats,codebase-index,codebase-ast-replace,codebase-impact-analysis,codebase-invariant-check-->
+<!--ws:if tool=read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-context,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-skeleton,codebase-repo-map,codebase-stats,codebase-index,codebase-ast-replace,codebase-impact-analysis,codebase-invariant-check-->
 ### Filesystem & Project insight
-{{tools:read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-stats,codebase-index,codebase-search,codebase-skeleton,codebase-repo-map,codebase-incoming-calls,codebase-outgoing-calls,codebase-ast-replace,codebase-impact-analysis,codebase-invariant-check}}
+{{tools:read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-stats,codebase-index,codebase-context,codebase-search,codebase-skeleton,codebase-repo-map,codebase-incoming-calls,codebase-outgoing-calls,codebase-ast-replace,codebase-impact-analysis,codebase-invariant-check}}
 <!--ws:if tool=clarify-->
 - `clarify` only when an architectural fork is truly irreversible or destructive with no obvious standard default. Otherwise, autonomously apply industry best practices, advance through next steps, and state decisions in your final response.
 <!--ws:end-->
@@ -326,8 +329,11 @@ Your capabilities arrive as tool groups, each with a distinct purpose. The group
 <!--ws:if tool=codebase-index-->
 - `codebase-index` to create a missing index or incrementally refresh a stale one; force a rebuild only for a corrupt index.
 <!--ws:end-->
+<!--ws:if tool=codebase-context-->
+- `codebase-context` first when the question is "where does X happen" and you cannot name the symbol: it answers with ranked files, the symbols inside them, and why each was reached, replacing a search -> skeleton -> calls chain.
+<!--ws:end-->
 <!--ws:if tool=codebase-search-->
-- Prefer `codebase-search` before broad `grep`/`glob`/`tree` exploration — it is the first search for indexed symbols, concepts, definitions, and candidate modules.
+- Prefer `codebase-search` when you already know the symbol name, and before broad `grep`/`glob`/`tree` exploration.
 <!--ws:else-->
 <!--ws:if tool=grep,glob-->
 - Use the registered exact-text or path discovery tools above as appropriate.

@@ -83,8 +83,11 @@ These apply to what you write on the board, not to whether you may work; none is
 
 ## Filesystem and code discovery
 
+<!--ws:if tool=codebase-context-->
+Start with `codebase-context` when you cannot name the symbol: one call returns the ranked files and the symbols inside them.
+<!--ws:end-->
 <!--ws:if tool=codebase-search-->
-Prefer `codebase-search` before `grep`, `glob`, or `tree` for symbols, definitions, and concepts. Use `grep` only for exact text or regex.
+Prefer `codebase-search` when you know the symbol name, before `grep`, `glob`, or `tree`. Use `grep` only for exact text or regex.
 <!--ws:end-->
 <!--ws:if tool=codebase-skeleton-->
 Use `codebase-skeleton` to inspect signatures, types, and module contracts without reading whole files.

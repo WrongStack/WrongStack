@@ -5,11 +5,16 @@ import { SCHEMA_VERSION } from './schema.js';
 import { vectorEmbeddingEnabled } from './vector-search.js';
 import { bulkInsertFtsWithStatement } from './writer-bulk-insert.js';
 import {
+  CONCEPT_INDEX_SQL,
+  CONCEPT_TABLES_SQL,
   CORE_TABLES_SQL,
   FILE_INDEX_SQL,
+  FILE_VECTORS_TABLE_SQL,
   LANG_FAMILY_TABLE_SQL,
   LANG_FAMILY_WILDCARD,
   METADATA_TABLE_SQL,
+  RANK_INDEX_SQL,
+  RANK_TABLES_SQL,
   REFS_INDEX_SQL,
   REFS_TABLE_SQL,
   SYMBOL_INDEX_SQL,
@@ -105,6 +110,12 @@ export function initIndexSchema(
       DROP TABLE IF EXISTS files;
       DROP TABLE IF EXISTS refs;
       DROP TABLE IF EXISTS symbol_vectors;
+      DROP TABLE IF EXISTS symbol_rank;
+      DROP TABLE IF EXISTS file_rank;
+      DROP TABLE IF EXISTS file_concepts;
+      DROP TABLE IF EXISTS subsystems;
+      DROP TABLE IF EXISTS concept_edges;
+      DROP TABLE IF EXISTS file_vectors;
     `);
     db.exec('DROP TABLE IF EXISTS symbols_fts');
     stmt('UPDATE metadata SET value = ? WHERE key = ?').run(String(SCHEMA_VERSION), 'version');
@@ -121,6 +132,13 @@ export function initIndexSchema(
   for (const sql of REFS_INDEX_SQL) db.exec(sql);
   db.exec(LANG_FAMILY_TABLE_SQL);
   seedLangFamilies(stmt);
+  // Additive: an index written before the rank layer existed simply gains two
+  // empty tables here and fills them on its next full run.
+  db.exec(RANK_TABLES_SQL);
+  for (const sql of RANK_INDEX_SQL) db.exec(sql);
+  db.exec(CONCEPT_TABLES_SQL);
+  for (const sql of CONCEPT_INDEX_SQL) db.exec(sql);
+  db.exec(FILE_VECTORS_TABLE_SQL);
 
   let ftsAvailable = false;
   try {

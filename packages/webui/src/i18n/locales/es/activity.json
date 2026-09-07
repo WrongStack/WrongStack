@@ -2928,7 +2928,13 @@
     "noRelationshipsInThisView": "No hay relaciones en esta vista.",
     "activity": "Actividad",
     "whoDependsOnThis": "Quién depende de esto",
-    "whatThisDependsOn": "De qué depende esto"
+    "whatThisDependsOn": "De qué depende esto",
+    "subsystems": "Subsistemas",
+    "groupNodesByTheSubsystemTheyBelongTo": "Agrupar nodos por el subsistema al que pertenecen",
+    "hub": "eje",
+    "centrality": "Centralidad {{value}}%",
+    "centralityLabel": "centralidad",
+    "crux": "núcleo"
   },
   "chronicle": {
     "codingIntelligence": "Inteligencia de programación",

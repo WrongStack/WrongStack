@@ -36,6 +36,7 @@ import {
   indexCircuitBreaker,
   LockError,
 } from './circuit-breaker.js';
+import type { ContextResult } from './context-retrieval.js';
 import {
   fileGraphService as fileGraphServiceInline,
   type IncomingCallsResult,
@@ -66,6 +67,7 @@ import {
 import type { CodeMapGraph, IndexResult, IndexStats } from './schema.js';
 import type {
   CallRefsOpArgs,
+  ContextOpArgs,
   FileGraphOpArgs,
   HostToWorker,
   IndexOpArgs,
@@ -75,6 +77,8 @@ import type {
   SearchOpResult,
   StatsOpArgs,
   SymbolGraphOpArgs,
+  VectorSearchOpArgs,
+  VectorSearchOpResult,
   WorkerToHost,
 } from './worker-protocol.js';
 import { indexStorePool } from './writer.js';
@@ -497,6 +501,7 @@ async function callInline<O extends OpName>(
 let chain: Promise<unknown> = Promise.resolve();
 
 function withMutex<T>(job: () => Promise<T>): Promise<T> {
+  if (process.env['WRONGSTACK_INDEX_BENCH_NO_HOST_MUTEX'] === '1') return job();
   const run = chain.then(job, job);
   // Keep the chain alive regardless of this job's outcome.
   chain = run.then(
@@ -534,12 +539,15 @@ const DEFAULT_DEBOUNCE_MS = 400;
  */
 const DEFAULT_COALESCE_WINDOW_MS = 50;
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+type ReindexCompletion = { resolve: () => void; reject: (err: unknown) => void };
+const pendingReindexCompletions = new Map<string, Set<ReindexCompletion>>();
 interface ReadyReindexBatch {
   projectRoot: string;
   indexDir?: string | undefined;
   files: Set<string>;
   timeoutMs: number;
   onErrors: Set<(err: unknown) => void>;
+  completions: Set<{ resolve: () => void; reject: (err: unknown) => void }>;
   flush?: ReturnType<typeof setTimeout> | undefined;
 }
 const readyReindexBatches = new Map<string, ReadyReindexBatch>();
@@ -552,6 +560,16 @@ function reindexBatchKey(projectRoot: string, indexDir: string | undefined): str
   return JSON.stringify([projectRoot, indexDir ?? '']);
 }
 
+function settleReindexCompletions(
+  completions: Set<{ resolve: () => void; reject: (err: unknown) => void }>,
+  error?: unknown,
+): void {
+  for (const completion of completions) {
+    if (error === undefined) completion.resolve();
+    else completion.reject(error);
+  }
+}
+
 function flushReadyReindexBatch(key: string): void {
   const batch = readyReindexBatches.get(key);
   if (!batch) return;
@@ -560,6 +578,7 @@ function flushReadyReindexBatch(key: string): void {
   if (!indexCircuitBreaker.allowRequest()) {
     const error = circuitOpenError();
     for (const onError of batch.onErrors) onError(error);
+    settleReindexCompletions(batch.completions, error);
     return;
   }
 
@@ -574,10 +593,14 @@ function flushReadyReindexBatch(key: string): void {
       { timeoutMs: batch.timeoutMs },
     ),
   ).then(
-    () => indexCircuitBreaker.recordSuccess(),
+    () => {
+      indexCircuitBreaker.recordSuccess();
+      settleReindexCompletions(batch.completions);
+    },
     (err) => {
       indexCircuitBreaker.recordFailure(err);
       for (const onError of batch.onErrors) onError(err);
+      settleReindexCompletions(batch.completions, err);
     },
   );
 }
@@ -592,11 +615,14 @@ function addReadyReindex(opts: {
 }): void {
   const key = reindexBatchKey(opts.projectRoot, opts.indexDir);
   const windowMs = opts.coalesceWindowMs ?? DEFAULT_COALESCE_WINDOW_MS;
+  const pending = pendingReindexCompletions.get(key);
+  pendingReindexCompletions.delete(key);
   const existing = readyReindexBatches.get(key);
   if (existing) {
     existing.files.add(opts.file);
     existing.timeoutMs = Math.max(existing.timeoutMs, opts.timeoutMs);
     if (opts.onError) existing.onErrors.add(opts.onError);
+    if (pending) for (const completion of pending) existing.completions.add(completion);
     // Sliding window: each file that joins resets the flush timer so a
     // staggered burst stays open until the gap between arrivals exceeds
     // the window. Only schedule a new timer when a window is configured.
@@ -614,6 +640,7 @@ function addReadyReindex(opts: {
     files: new Set([opts.file]),
     timeoutMs: opts.timeoutMs,
     onErrors: new Set(opts.onError ? [opts.onError] : []),
+    completions: pending ?? new Set(),
   };
   // setTimeout(fn, 0) is equivalent to setImmediate but keeps the timer type
   // uniform so clearTimeout works on both branches without casts.
@@ -736,16 +763,21 @@ export function enqueueReindex(opts: {
    * Per-project trailing coalescing window. After a file's debounce timer
    * fires, the ready batch stays open for this long before flushing. Any file
    * whose timer fires within the window joins the same batch and resets the
-   * timer (sliding). Default: 50ms. Set to 0 to flush immediately after each
-   * debounce timer fires (legacy behavior — staggered bursts don't coalesce).
+   * timer (sliding). Default: 50ms; set to 0 for immediate flush.
    */
   coalesceWindowMs?: number | undefined;
   /** Watchdog timeout per file. Default: 30s. */
   timeoutMs?: number | undefined;
   onError?: ((err: unknown) => void) | undefined;
-}): void {
+}): Promise<void> {
   const files = opts.files.filter(isIndexableFile);
-  if (files.length === 0) return;
+  if (files.length === 0) return Promise.resolve();
+  const completion = new Promise<void>((resolve, reject) => {
+    const key = reindexBatchKey(opts.projectRoot, opts.indexDir);
+    const pending = pendingReindexCompletions.get(key) ?? new Set<ReindexCompletion>();
+    pending.add({ resolve, reject });
+    pendingReindexCompletions.set(key, pending);
+  });
   const ms = opts.debounceMs ?? DEFAULT_DEBOUNCE_MS;
 
   for (const file of files) {
@@ -754,9 +786,6 @@ export function enqueueReindex(opts: {
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
       debounceTimers.delete(key);
-      // After per-file debounce: add to the per-project ready batch, which
-      // stays open for `coalesceWindowMs` so staggered bursts coalesce into
-      // one worker/SQLite operation instead of N separate index runs.
       addReadyReindex({
         projectRoot: opts.projectRoot,
         file,
@@ -766,10 +795,10 @@ export function enqueueReindex(opts: {
         coalesceWindowMs: opts.coalesceWindowMs,
       });
     }, ms);
-    // Don't keep the event loop alive solely for a pending reindex.
     timer.unref?.();
     debounceTimers.set(key, timer);
   }
+  return completion;
 }
 
 /** Cancel all pending debounced reindexes. For teardown / tests. */
@@ -779,7 +808,15 @@ export function cancelPendingReindexes(): void {
   for (const batch of readyReindexBatches.values()) {
     if (batch.flush) clearTimeout(batch.flush);
   }
+  const cancelled = new Error('pending reindex cancelled');
+  for (const batch of readyReindexBatches.values()) {
+    settleReindexCompletions(batch.completions, cancelled);
+  }
   readyReindexBatches.clear();
+  for (const completions of pendingReindexCompletions.values()) {
+    settleReindexCompletions(completions, cancelled);
+  }
+  pendingReindexCompletions.clear();
 }
 
 /**
@@ -808,6 +845,25 @@ export async function codebaseIndexStats(
     timeoutMs: opts.timeoutMs ?? DEFAULT_QUERY_TIMEOUT_MS,
     signal: opts.signal,
   });
+}
+
+/**
+ * Personalised retrieval — the single call that answers "which files does this
+ * task touch?", served by the same per-project index process so the wiring
+ * graph is built once per generation rather than once per query.
+ */
+export async function codebaseContext(args: ContextOpArgs): Promise<ContextResult> {
+  return callIndexOp('context', args, { timeoutMs: DEFAULT_QUERY_TIMEOUT_MS });
+}
+
+/**
+ * Nearest files to an already-embedded query vector. The model stays in the
+ * caller's process; only numbers cross IPC.
+ */
+export async function codebaseVectorSearch(
+  args: VectorSearchOpArgs,
+): Promise<VectorSearchOpResult> {
+  return callIndexOp('vectorSearch', args, { timeoutMs: DEFAULT_QUERY_TIMEOUT_MS });
 }
 
 /** Package dependency graph, served by the same per-project index process. */

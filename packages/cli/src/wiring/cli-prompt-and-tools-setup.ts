@@ -71,6 +71,8 @@ export async function setupCliPromptAndTools(params: {
       globalInstructions: wpaths.globalInstructions,
       inProjectInstructions: wpaths.inProjectInstructions,
     },
+    projectRoot,
+    atlas: config.indexing?.atlas,
     pathJoiner: { join: (a, b) => path.join(a, b) },
     systemPromptBuilderToken: TOKENS.SystemPromptBuilder,
   });

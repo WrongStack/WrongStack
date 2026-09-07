@@ -105,7 +105,15 @@ const CORE_RUNTIME_TREE: ContractNode = {
     developerMode: true,
   },
   session: { auditLevel: true, sampling: { toolProgress: { sampleRate: true } } },
-  indexing: { onSessionStart: true, onEdit: true, watchExternal: true, debounceMs: true },
+  indexing: {
+    onSessionStart: true,
+    onEdit: true,
+    watchExternal: true,
+    debounceMs: true,
+    concepts: { enabled: true, model: true, concurrency: true, maxFiles: true, subsystems: true },
+    embeddings: { enabled: true, model: true, batchSize: true },
+    atlas: { injectOnSessionStart: true, briefMaxTokens: true },
+  },
   circuitBreaker: { enabled: true, autoKillResetMs: true },
   modelRuntime: {
     reasoning: { mode: true, effort: true, preserve: true },

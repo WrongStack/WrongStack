@@ -57,6 +57,7 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
       'codebase-outgoing-calls',
       'codebase-index',
       'codebase-skeleton',
+      'codebase-context',
       'codebase-repo-map',
       'codebase-impact-analysis',
       'codebase-invariant-check',

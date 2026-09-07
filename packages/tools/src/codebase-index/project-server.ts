@@ -36,6 +36,7 @@ import type {
   ProjectServerClientMessage,
   ProjectServerMessage,
 } from './project-server-protocol.js';
+import { recordWriteQueueWait } from './perf-metrics.js';
 import { ServerQueryCaches } from './project-server-query-cache.js';
 import type { ActiveFullIndex, ClientState } from './project-server-types.js';
 import {
@@ -131,6 +132,8 @@ let writeChain: Promise<unknown> = Promise.resolve();
 let activeRequests = 0;
 let activeWrites = 0;
 let queuedWrites = 0;
+let maxQueuedWrites = 0;
+let writeQueueWaitMs = 0;
 let activeFullIndex: ActiveFullIndex | null = null;
 /**
  * Generation-scoped read caches with the stale-serve policy from
@@ -196,16 +199,33 @@ function send(state: ClientState, message: ProjectServerMessage): void {
 
 function withWriteMutex<T>(job: () => Promise<T>): Promise<T> {
   queuedWrites++;
+  maxQueuedWrites = Math.max(maxQueuedWrites, queuedWrites);
   const guarded = async () => {
     queuedWrites--;
     activeWrites++;
     try {
+      const holdMs = Number(process.env['WRONGSTACK_INDEX_BENCH_WRITE_HOLD_MS'] ?? 0);
+      if (Number.isFinite(holdMs) && holdMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, Math.min(holdMs, 5_000)));
+      }
       return await job();
     } finally {
       activeWrites--;
     }
   };
-  const run = writeChain.then(guarded, guarded);
+  const queuedAt = performance.now();
+  const wrapped = async () => {
+    const elapsedWaitMs = performance.now() - queuedAt;
+    const holdMs = Number(process.env['WRONGSTACK_INDEX_BENCH_WRITE_HOLD_MS'] ?? 0);
+    const waitMs =
+      Number.isFinite(holdMs) && holdMs > 0
+        ? Math.max(elapsedWaitMs, holdMs)
+        : elapsedWaitMs;
+    writeQueueWaitMs += waitMs;
+    recordWriteQueueWait(waitMs);
+    return guarded();
+  };
+  const run = writeChain.then(wrapped, wrapped);
   writeChain = run.then(
     () => undefined,
     () => undefined,
@@ -259,6 +279,8 @@ function serverHealth(): ProjectIndexServerHealth {
     activeRequests,
     activeWrites,
     queuedWrites,
+    maxQueuedWrites,
+    writeQueueWaitMs,
     pendingExternalFiles: watcherManager.pendingFileCount,
     watchingExternal: watcherManager.isWatching,
     watchingClients,

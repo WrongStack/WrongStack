@@ -22,6 +22,11 @@
  * Specifiers that resolve nowhere at all (test-fixture strings, template
  * placeholders, type-only imports in untypechecked tests) are ignored:
  * they either aren't real imports or already fail loudly in local builds.
+ *
+ * Targets that git itself ignores (dist/, build/ — compiler output produced
+ * by `pnpm build`) are ignored too. They are absent from the index BY DESIGN,
+ * not by forgetfulness, so flagging them only trains people to --no-verify,
+ * which skips every other pre-commit guard as collateral.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -34,8 +39,27 @@ function log(...args) {
   if (VERBOSE) console.error('[guard-imports]', ...args);
 }
 
-function git(args) {
-  return execFileSync('git', args, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+function git(args, input) {
+  return execFileSync('git', args, {
+    encoding: 'utf-8',
+    input,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+}
+
+/**
+ * Subset of `paths` that git ignores — build output, not forgotten sources.
+ * One batched call; check-ignore exits 1 when nothing matches, which is a
+ * normal answer here, not a failure.
+ */
+function ignoredPaths(paths) {
+  if (paths.length === 0) return new Set();
+  try {
+    const out = git(['check-ignore', '-z', '--stdin'], paths.join('\0'));
+    return new Set(out.split('\0').filter(Boolean));
+  } catch {
+    return new Set();
+  }
 }
 
 function getStagedTsFiles() {
@@ -114,7 +138,11 @@ function main() {
     }
   }
 
-  if (findings.length > 0) {
+  const ignored = ignoredPaths([...new Set(findings.map((f) => f.onDisk))]);
+  const flagged = findings.filter((f) => !ignored.has(f.onDisk));
+  if (ignored.size > 0) log('Skipped ' + ignored.size + ' git-ignored build-output target(s).');
+
+  if (flagged.length > 0) {
     console.error('');
     console.error('============================================================');
     console.error('  BLOCKED  --  UNRESOLVED RELATIVE IMPORT IN STAGED FILE');
@@ -123,14 +151,15 @@ function main() {
     console.error('  NOT tracked/staged. The commit builds locally but breaks CI');
     console.error('  (esbuild "Could not resolve"). Stage the missing file too:');
     console.error('');
-    for (const { file, spec, onDisk } of findings.slice(0, 20)) {
+    for (const { file, spec, onDisk } of flagged.slice(0, 20)) {
       console.error('  ' + file);
       console.error("    -> imports '" + spec + "'  (git add " + onDisk + ')');
     }
-    if (findings.length > 20) console.error('  ... and ' + (findings.length - 20) + ' more.');
+    if (flagged.length > 20) console.error('  ... and ' + (flagged.length - 20) + ' more.');
     console.error('');
-    console.error('  If the target genuinely ships outside git (generated at');
-    console.error('  build time), bypass once with: git commit --no-verify');
+    console.error('  If the target genuinely ships outside git, add it to');
+    console.error('  .gitignore (git-ignored targets are skipped), or bypass');
+    console.error('  once with: git commit --no-verify');
     console.error('============================================================');
     return 1;
   }

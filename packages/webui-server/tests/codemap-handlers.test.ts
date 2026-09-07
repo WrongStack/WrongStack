@@ -97,3 +97,51 @@ describe('Code Atlas graph handlers', () => {
     expect(symbolGraphService).not.toHaveBeenCalled();
   });
 });
+
+describe('atlas enrichment on the wire', () => {
+  it('passes rank, concept, crux and subsystem through untouched', async () => {
+    // The handler serialises the graph wholesale rather than mapping fields,
+    // and this pins that: a field added by the index decorator must reach the
+    // browser without a matching edit here.
+    fileGraphService.mockResolvedValueOnce({
+      nodes: [
+        {
+          id: 'file:/repo/src/kernel.ts',
+          label: 'kernel.ts',
+          kind: 'file',
+          file: '/repo/src/kernel.ts',
+          rank: 0.87,
+          concept: 'Builds widgets from an id.',
+          crux: { start: 12, end: 20 },
+          subsystem: 'Core',
+          lastModifiedMs: 1_700_000_000_000,
+        },
+      ],
+      edges: [],
+    } as never);
+
+    const capture = responseCapture();
+    await handleCodemapFiles(capture.response, { projectRoot: '/repo' }, 'core');
+
+    const node = (capture.body() as { nodes: Record<string, unknown>[] }).nodes[0];
+    expect(node?.rank).toBe(0.87);
+    expect(node?.concept).toBe('Builds widgets from an id.');
+    expect(node?.crux).toEqual({ start: 12, end: 20 });
+    expect(node?.subsystem).toBe('Core');
+    expect(node?.lastModifiedMs).toBe(1_700_000_000_000);
+  });
+
+  it('serves an un-enriched graph without inventing the fields', async () => {
+    fileGraphService.mockResolvedValueOnce({
+      nodes: [{ id: 'file:/repo/src/kernel.ts', label: 'kernel.ts', kind: 'file' }],
+      edges: [],
+    } as never);
+
+    const capture = responseCapture();
+    await handleCodemapFiles(capture.response, { projectRoot: '/repo' }, 'core');
+
+    const node = (capture.body() as { nodes: Record<string, unknown>[] }).nodes[0];
+    expect(node && 'rank' in node).toBe(false);
+    expect(node && 'concept' in node).toBe(false);
+  });
+});

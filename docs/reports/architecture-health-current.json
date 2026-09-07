@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-07T09:50:25.365Z",
+  "generatedAt": "2026-09-07T15:39:43.805Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,21 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3646,
-    "testFiles": 3084,
-    "sourceLines": 874462,
+    "sourceFiles": 3671,
+    "testFiles": 3108,
+    "sourceLines": 881242,
     "workspaceEdges": 127,
-    "moduleEdges": 11469,
+    "moduleEdges": 11568,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 8,
+    "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 841
+    "testOnlyExports": 845
   },
-  "errors": [],
+  "errors": [
+    "1 unexcepted module cycle(s)"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -142,8 +144,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 477,
-      "testFiles": 457,
+      "sourceFiles": 481,
+      "testFiles": 459,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -182,7 +184,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 457
+          "testFiles": 459
         }
       ]
     },
@@ -213,7 +215,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 838,
-      "testFiles": 710,
+      "testFiles": 711,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -228,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 710
+          "testFiles": 711
         }
       ]
     },
@@ -390,7 +392,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 42,
-      "testFiles": 28,
+      "testFiles": 29,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/tools"
@@ -404,7 +406,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 28
+          "testFiles": 29
         }
       ]
     },
@@ -568,7 +570,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 104,
-      "testFiles": 83,
+      "testFiles": 84,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -583,7 +585,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 83
+          "testFiles": 84
         }
       ]
     },
@@ -658,8 +660,8 @@
     {
       "name": "@wrongstack/simpleui",
       "dir": "packages/simpleui",
-      "sourceFiles": 93,
-      "testFiles": 63,
+      "sourceFiles": 95,
+      "testFiles": 67,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/tools",
@@ -680,7 +682,7 @@
         {
           "path": "packages/simpleui/tsconfig.test.json",
           "error": null,
-          "testFiles": 63
+          "testFiles": 67
         }
       ]
     },
@@ -731,8 +733,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 197,
-      "testFiles": 202,
+      "sourceFiles": 215,
+      "testFiles": 214,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -748,7 +750,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 202
+          "testFiles": 214
         }
       ]
     },
@@ -809,8 +811,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 536,
-      "testFiles": 356,
+      "sourceFiles": 537,
+      "testFiles": 359,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -833,7 +835,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 356
+          "testFiles": 359
         }
       ]
     },
@@ -1069,6 +1071,13 @@
           "packages/core/src/types/token-counter.ts",
           "packages/core/src/types/tool.ts"
         ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/tools/src/codebase-index/atlas-export.ts",
+          "packages/tools/src/codebase-index/atlas-projection.ts"
+        ]
       }
     ],
     "matchedExceptions": [
@@ -1081,7 +1090,15 @@
       "ARCH-CYCLE-TYPE-29",
       "ARCH-CYCLE-TYPE-30"
     ],
-    "unexcepted": []
+    "unexcepted": [
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/tools/src/codebase-index/atlas-export.ts",
+          "packages/tools/src/codebase-index/atlas-projection.ts"
+        ]
+      }
+    ]
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -1795,6 +1812,12 @@
       },
       {
         "file": "packages/cli/tests/arg-parser.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/atlas-prompt-contributor.test.ts",
         "projects": [
           "root-node"
         ]
@@ -3493,6 +3516,12 @@
       },
       {
         "file": "packages/cli/tests/slash-btw.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/slash-codebase-map.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5455,6 +5484,12 @@
       },
       {
         "file": "packages/core/tests/coordination/mailbox-project-server-auth-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/mailbox-project-server-client-respawn.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9648,6 +9683,12 @@
         ]
       },
       {
+        "file": "packages/plug-lsp/tests/architecture/vitest-config-excludes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
         "projects": [
           "root-node"
@@ -11280,6 +11321,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/project-server-client-respawn.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/project-server-coverage.test.ts",
         "projects": [
           "root-node"
@@ -11982,6 +12029,12 @@
         ]
       },
       {
+        "file": "packages/simpleui/tests/chat-message-display.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/simpleui/tests/chat-model.test.ts",
         "projects": [
           "root-node"
@@ -12001,6 +12054,12 @@
       },
       {
         "file": "packages/simpleui/tests/command-palette.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/simpleui/tests/composer-permission-bar.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -12204,6 +12263,12 @@
         ]
       },
       {
+        "file": "packages/simpleui/tests/transcript-export.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/simpleui/tests/update-banner.test.tsx",
         "projects": [
           "root-node"
@@ -12289,6 +12354,12 @@
       },
       {
         "file": "packages/simpleui/tests/use-sticky-scroll.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/simpleui/tests/use-tab-title.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -12960,6 +13031,48 @@
         ]
       },
       {
+        "file": "packages/tools/tests/codebase-atlas-brief.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-atlas-visual.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-atlas.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-concepts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-context.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-embeddings.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-graph-enrichment.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/codebase-impact-and-targeted-test.test.ts",
         "projects": [
           "root-node"
@@ -12990,6 +13103,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/codebase-index-daemon-perf.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/codebase-index-dead-code.test.ts",
         "projects": [
           "root-node"
@@ -13009,6 +13128,12 @@
       },
       {
         "file": "packages/tools/tests/codebase-index-indexer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-index-io-perf.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13039,6 +13164,18 @@
       },
       {
         "file": "packages/tools/tests/codebase-index-py-parser.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-index-rank-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-index-rank.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13129,6 +13266,12 @@
       },
       {
         "file": "packages/tools/tests/codebase-invariant-check-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-repo-map-ranked.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17550,6 +17693,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/chat-input-submit-clear.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/chat-keep-alive.test.ts",
         "projects": [
           "webui-jsdom"
@@ -17611,6 +17760,12 @@
       },
       {
         "file": "packages/webui/tests/components/code-editor-lazy-load.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/codemap-atlas-visuals.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -19242,6 +19397,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/stores/bug-hunt-run-store.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/stores/chat-store-queue-persist.test.ts",
         "projects": [
           "webui-jsdom"
@@ -19968,7 +20129,7 @@
     },
     {
       "file": "packages/primitives/src/regex-ambiguity.ts",
-      "lines": 834,
+      "lines": 843,
       "relativeImports": 0
     },
     {
@@ -20023,8 +20184,8 @@
     },
     {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
-      "lines": 1025,
-      "relativeImports": 48
+      "lines": 1058,
+      "relativeImports": 50
     },
     {
       "file": "packages/tools/src/bash.ts",
@@ -20033,18 +20194,18 @@
     },
     {
       "file": "packages/tools/src/codebase-index/background-indexer.ts",
-      "lines": 909,
-      "relativeImports": 7
+      "lines": 965,
+      "relativeImports": 8
     },
     {
       "file": "packages/tools/src/codebase-index/indexer.ts",
-      "lines": 986,
-      "relativeImports": 9
+      "lines": 1013,
+      "relativeImports": 11
     },
     {
       "file": "packages/tools/src/codebase-index/project-server-client.ts",
-      "lines": 823,
-      "relativeImports": 6
+      "lines": 825,
+      "relativeImports": 7
     },
     {
       "file": "packages/tools/src/codebase-index/tree-sitter/queries.ts",
@@ -20053,8 +20214,13 @@
     },
     {
       "file": "packages/tools/src/codebase-index/writer-graph-reader.ts",
-      "lines": 831,
-      "relativeImports": 5
+      "lines": 884,
+      "relativeImports": 6
+    },
+    {
+      "file": "packages/tools/src/codebase-index/writer.ts",
+      "lines": 991,
+      "relativeImports": 24
     },
     {
       "file": "packages/tools/src/json.ts",
@@ -20319,6 +20485,11 @@
   ],
   "hotspots": [
     {
+      "file": "packages/simpleui/src/simple-ui-session.tsx",
+      "lines": 1058,
+      "relativeImports": 50
+    },
+    {
       "file": "packages/tui/src/app.tsx",
       "lines": 1057,
       "relativeImports": 74
@@ -20409,11 +20580,6 @@
       "relativeImports": 17
     },
     {
-      "file": "packages/simpleui/src/simple-ui-session.tsx",
-      "lines": 1025,
-      "relativeImports": 48
-    },
-    {
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
       "lines": 1019,
       "relativeImports": 2
@@ -20437,6 +20603,11 @@
       "file": "packages/tui/src/components/context-panel.tsx",
       "lines": 1014,
       "relativeImports": 6
+    },
+    {
+      "file": "packages/tools/src/codebase-index/indexer.ts",
+      "lines": 1013,
+      "relativeImports": 11
     },
     {
       "file": "packages/core/src/execution/brain-runtime.ts",
@@ -20479,14 +20650,14 @@
       "relativeImports": 13
     },
     {
+      "file": "packages/tools/src/codebase-index/writer.ts",
+      "lines": 991,
+      "relativeImports": 24
+    },
+    {
       "file": "packages/tui/src/input-validation.ts",
       "lines": 987,
       "relativeImports": 13
-    },
-    {
-      "file": "packages/tools/src/codebase-index/indexer.ts",
-      "lines": 986,
-      "relativeImports": 9
     },
     {
       "file": "packages/tui/src/components/agents-monitor.tsx",
@@ -20539,6 +20710,11 @@
       "relativeImports": 41
     },
     {
+      "file": "packages/tools/src/codebase-index/background-indexer.ts",
+      "lines": 965,
+      "relativeImports": 8
+    },
+    {
       "file": "packages/webui/src/components/SidePanel/SessionList.tsx",
       "lines": 965,
       "relativeImports": 0
@@ -20556,16 +20732,6 @@
     {
       "file": "packages/webui-server/src/server/backend-services.ts",
       "lines": 950,
-      "relativeImports": 13
-    },
-    {
-      "file": "packages/plugins/src/semantic-search-indexer/index.ts",
-      "lines": 948,
-      "relativeImports": 0
-    },
-    {
-      "file": "packages/core/src/hq/protocol/core.ts",
-      "lines": 945,
       "relativeImports": 13
     }
   ],
@@ -21177,6 +21343,14 @@
     {
       "file": "packages/cli/src/update-check.ts",
       "name": "isNewer"
+    },
+    {
+      "file": "packages/cli/src/wiring/atlas-prompt-contributor.ts",
+      "name": "DEFAULT_BRIEF_MAX_TOKENS"
+    },
+    {
+      "file": "packages/cli/src/wiring/atlas-prompt-contributor.ts",
+      "name": "renderAtlasBrief"
     },
     {
       "file": "packages/cli/src/wiring/external-plugins.ts",
@@ -22335,6 +22509,14 @@
       "name": "agentConversationEntries"
     },
     {
+      "file": "packages/simpleui/src/chat-message-list.tsx",
+      "name": "applyScrollAnchoring"
+    },
+    {
+      "file": "packages/simpleui/src/chat-message-list.tsx",
+      "name": "CHAT_WINDOW_SIZE"
+    },
+    {
       "file": "packages/simpleui/src/context-breakdown-modal.tsx",
       "name": "parseContextDebugPayload"
     },
@@ -22625,10 +22807,6 @@
     {
       "file": "packages/tools/src/codebase-index/vector-search.ts",
       "name": "VECTOR_DIMENSIONS"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/writer-helpers.ts",
-      "name": "posixIndexPath"
     },
     {
       "file": "packages/tools/src/codebase-index/writer-refs.ts",
@@ -23275,10 +23453,6 @@
       "name": "buildLiveFeed"
     },
     {
-      "file": "packages/webui-hq/src/domain/transcript-store.ts",
-      "name": "entryKey"
-    },
-    {
       "file": "packages/webui-hq/src/domain/use-session-transcript.ts",
       "name": "coalesceStreamedText"
     },
@@ -23405,6 +23579,14 @@
     {
       "file": "packages/webui/src/components/codemap-model.ts",
       "name": "SMART_CANVAS_NODE_LIMIT"
+    },
+    {
+      "file": "packages/webui/src/components/CodeMapVisuals.tsx",
+      "name": "HUB_RANK"
+    },
+    {
+      "file": "packages/webui/src/components/CodeMapVisuals.tsx",
+      "name": "rankAccentWidth"
     },
     {
       "file": "packages/webui/src/components/KanbanBoundaryEditor.tsx",
