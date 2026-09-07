@@ -39,15 +39,10 @@ export function formatClock(timestamp: string | number | Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
-/** "820ms" / "4.2s" / "3m 05s". */
-export function formatDuration(ms: number): string {
-  if (!Number.isFinite(ms) || ms < 0) return '';
-  if (ms < 1_000) return `${Math.round(ms)}ms`;
-  if (ms < 60_000) return `${(ms / 1_000).toFixed(1)}s`;
-  const minutes = Math.floor(ms / 60_000);
-  const seconds = Math.round((ms % 60_000) / 1_000);
-  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
-}
+// Durations are formatted by the canonical `formatDuration` in
+// src/domain/transcript-format.ts. A duplicate lived here, drifted out of
+// sync (rendered "1m 60s" in the last 500 ms of each minute), and was
+// removed in proof-driven bug-hunter round 20260907-r1 — do not reintroduce it.
 
 /** Shorten an opaque id for display while keeping both ends recognisable. */
 export function shortenId(id: string, head = 8, tail = 4): string {

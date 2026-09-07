@@ -4,6 +4,7 @@
  * views for their token badges.
  */
 import { describe, expect, it } from 'vitest';
+import * as formatModule from '../src/lib/format.js';
 import { formatCount } from '../src/lib/format.js';
 
 describe('formatCount', () => {
@@ -61,5 +62,17 @@ describe('formatCount', () => {
     expect(formatCount(999_949)).toBe('999.9k');
     expect(formatCount(-999_949)).toBe('-999.9k');
     expect(formatCount(-12_345)).toBe('-12.3k');
+  });
+});
+
+describe('module surface', () => {
+  // Regression (proof-driven bug-hunter round 20260907-r1): a second
+  // formatDuration lived in lib/format.ts and drifted from the canonical
+  // formatter in src/domain/transcript-format.ts — it rendered "1m 60s" for
+  // durations in the last 500 ms of a minute and "60.0s" just below it, and
+  // had no importers. The deletion is pinned so the duplicate cannot
+  // quietly return.
+  it('exports no duplicate duration formatter', () => {
+    expect(Object.hasOwn(formatModule, 'formatDuration')).toBe(false);
   });
 });
