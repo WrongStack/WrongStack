@@ -113,11 +113,15 @@ describe('release workflow (WS-040)', () => {
 
   it('gives the npm publish job OIDC and no repository write access', () => {
     const text = release();
-    const publishJob = text.slice(text.indexOf('  publish:'), text.indexOf('  portable-windows:'));
+    const publishStart = text.indexOf('  publish:');
+    const nextJobIndex = text.indexOf('  github-release:');
+    const publishJob = text.slice(
+      publishStart,
+      nextJobIndex !== -1 ? nextJobIndex : undefined,
+    );
     expect(publishJob).toMatch(/id-token:\s*write/);
     // npm trusted publishing needs OIDC only. Repository write access belongs
-    // exclusively to the separate job that attaches the portable executable
-    // to the GitHub release.
+    // exclusively to the separate job that creates the GitHub release.
     expect(publishJob).not.toMatch(/contents:\s*write/);
   });
 
