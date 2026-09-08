@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 319,
-      "typeOnly": 253,
+      "files": 318,
+      "typeOnly": 252,
       "runtimeOrMixed": 83
     },
     "@wrongstack/core/agent-catalog": {
@@ -1021,12 +1021,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/kanban-mcp/src/adapter.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/plug-lsp/src/tools/shared.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

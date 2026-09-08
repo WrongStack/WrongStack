@@ -1,6 +1,5 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Context } from '@wrongstack/core/agent';
 import type { Logger } from '@wrongstack/core/types';
 import type { DocumentTracker } from '../document-tracker.js';
 import type { LSPRegistry } from '../registry.js';
@@ -16,7 +15,15 @@ export interface ToolDeps {
   log: Logger;
 }
 
-export function resolveInputPath(inputPath: string, ctx: Context): string {
+/**
+ * The plugin's single path resolver. Every LSP entry point — tools and the
+ * post-edit diagnostics listener in `index.ts` — routes through here so the
+ * absolute/relative branch lives in one reviewed place instead of being
+ * re-derived per call site (see the path-resolution-convention arch gate).
+ * No project-root containment: LSP legitimately navigates outside the session
+ * cwd (dependency sources, SDK/stdlib files a definition jumps into).
+ */
+export function resolveInputPath(inputPath: string, ctx: { cwd: string }): string {
   return path.isAbsolute(inputPath) ? path.normalize(inputPath) : path.resolve(ctx.cwd, inputPath);
 }
 

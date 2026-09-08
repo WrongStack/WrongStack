@@ -1,4 +1,3 @@
-import * as path from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { autoDiscoverServers } from './auto-discover.js';
@@ -8,6 +7,7 @@ import { LSPRegistry } from './registry.js';
 import { supportsPullDiagnostics } from './server/capabilities.js';
 import { registerSlashCommands } from './slash-commands/index.js';
 import { makeLSPTools } from './tools/index.js';
+import { resolveInputPath } from './tools/shared.js';
 import { pathToUri } from './utils/uri.js';
 
 export type {
@@ -109,9 +109,7 @@ const plugin: Plugin = {
             const input = event.input as { path?: unknown | undefined } | undefined;
             if (typeof input?.path !== 'string') return;
             const activeCwd = api.config.cwd ?? process.cwd();
-            const file = path.isAbsolute(input.path)
-              ? path.normalize(input.path)
-              : path.resolve(activeCwd, input.path);
+            const file = resolveInputPath(input.path, { cwd: activeCwd });
             // findForPath starts the matching server in lazy mode. The tracker
             // has already captured the edited file, so startup reopens it and
             // lets the server publish diagnostics into the shared buffer.
