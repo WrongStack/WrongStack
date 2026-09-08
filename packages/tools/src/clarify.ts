@@ -3,34 +3,51 @@
  *
  * Prompts the user with structured, multiple-choice questions when architectural,
  * database schema, API contract, or domain logic assumptions are underspecified.
- * Prevents silent misaligned migrations, breaking changes, and refactoring re-work.
+ * Bridges clarify + ask_question into a single unified interactive tool
+ * functioning consistently across CLI, TUI, and WebUI.
  */
 
 import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
-export interface ClarifyQuestionInput {
+export interface ClarifyQuestionItem {
   /** The core decision or question to clarify with the user. */
   question: string;
   /** Context or explanation of why this decision matters (e.g. index performance, validation). */
   context?: string | undefined;
-  /** 2 to 4 structured, distinct choices for the user to select. */
+  /** 2 to 6 structured, distinct choices for the user to select. */
   options: string[];
   /** The option recommended by the assistant based on best practices. */
   recommendedOption?: string | undefined;
   /** Whether the user can select multiple options simultaneously. */
   isMultiSelect?: boolean | undefined;
+  /** Snake-case alias for isMultiSelect (Antigravity compatibility). */
+  is_multi_select?: boolean | undefined;
   /** Allow write-in custom responses in addition to options (default: true). */
   allowCustomResponse?: boolean | undefined;
 }
 
+export interface ClarifyQuestionInput extends Partial<ClarifyQuestionItem> {
+  /** Batch questions list (Antigravity ask_question parity). */
+  questions?: ClarifyQuestionItem[] | undefined;
+}
+
 export type ClarifyInput = ClarifyQuestionInput;
 
-export interface ClarifyOutput {
-  status: 'answered' | 'auto_decided' | 'skipped';
+export interface ClarifyAnswerItem {
   question: string;
   selectedOptions: string[];
   customResponse?: string | undefined;
+}
+
+export interface ClarifyOutput {
+  status: 'answered' | 'auto_decided' | 'skipped';
+  /** Primary / single question (for backward compatibility). */
+  question: string;
+  selectedOptions: string[];
+  customResponse?: string | undefined;
+  /** Complete list of answers when clarifying one or more questions. */
+  answers?: ClarifyAnswerItem[] | undefined;
   decisionSummary: string;
   error?: string | undefined;
 }
@@ -42,13 +59,15 @@ export const clarifyTool: Tool<ClarifyQuestionInput, ClarifyOutput> = {
   permission: 'auto',
   mutating: false,
   description:
-    'Ask the user for proactive clarification with structured multiple-choice options ONLY when an architectural, ' +
-    'database schema, or API decision is truly irreversible and has mutually exclusive trade-offs.',
+    'Ask the user structured multiple-choice clarification question(s) when an architectural, ' +
+    'database schema, API, or domain decision has mutually exclusive trade-offs. Supports single or batch questions, ' +
+    'recommended defaults, multi-select, and custom write-in responses across TUI, CLI, and WebUI.',
   usageHint:
-    'AUTONOMOUS EXECUTION PRINCIPLE (BIAS FOR ACTION):\n\n' +
-    '- DO NOT overuse or interrupt the user for routine implementation choices. For 95%+ of tasks, autonomously pick the standard best practice and continue executing.\n' +
-    '- Use ONLY when facing an irreversible fork (e.g. data destruction, fundamentally conflicting domain rules) where guessing would be catastrophic.\n' +
-    '- If a solid industry standard exists (e.g. E.164 phone format, indexed foreign keys, ISO dates), adopt it autonomously, execute the next steps, and document the decision in the final reply.',
+    'Use when requirements are ambiguous or have critical trade-offs.\n' +
+    '- Single question: pass `question` and `options` (min 2).\n' +
+    '- Multiple questions: pass `questions: [{ question, options, recommendedOption? }]`.\n' +
+    '- Format options as clear user decisions. Prefix best practice choices with "(Recommended)".\n' +
+    '- Autonomous fallback: if running headless without an interactive UI, the recommended option is automatically selected.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -63,9 +82,9 @@ export const clarifyTool: Tool<ClarifyQuestionInput, ClarifyOutput> = {
       options: {
         type: 'array',
         items: { type: 'string' },
-        description: '2 to 4 distinct options formatted as clear user decisions.',
+        description: '2 to 6 distinct options formatted as clear user decisions.',
         minItems: 2,
-        maxItems: 5,
+        maxItems: 6,
       },
       recommendedOption: {
         type: 'string',
@@ -75,12 +94,37 @@ export const clarifyTool: Tool<ClarifyQuestionInput, ClarifyOutput> = {
         type: 'boolean',
         description: 'Whether multiple options can be chosen simultaneously.',
       },
+      is_multi_select: {
+        type: 'boolean',
+        description: 'Snake-case alias for isMultiSelect.',
+      },
       allowCustomResponse: {
         type: 'boolean',
-        description: 'Whether to allow the user to type a custom response (default: true).',
+        description: 'Whether to allow the user to type a custom write-in response (default: true).',
+      },
+      questions: {
+        type: 'array',
+        description: 'List of questions for batch clarification (Antigravity ask_question parity).',
+        items: {
+          type: 'object',
+          properties: {
+            question: { type: 'string' },
+            context: { type: 'string' },
+            options: {
+              type: 'array',
+              items: { type: 'string' },
+              minItems: 2,
+              maxItems: 6,
+            },
+            recommendedOption: { type: 'string' },
+            isMultiSelect: { type: 'boolean' },
+            is_multi_select: { type: 'boolean' },
+            allowCustomResponse: { type: 'boolean' },
+          },
+          required: ['question', 'options'],
+        },
       },
     },
-    required: ['question', 'options'],
     additionalProperties: false,
   },
   async execute(input, ctx, opts) {
@@ -88,46 +132,103 @@ export const clarifyTool: Tool<ClarifyQuestionInput, ClarifyOutput> = {
       const signal = opts?.signal ?? ctx?.signal;
       signal?.throwIfAborted();
 
-      const options = input.options;
-      if (!options || options.length < 2) {
-        throw new Error('clarify requires at least 2 distinct options.');
-      }
-
-      // Check if host context has interactive user question handler
-      const hostAsk = (
-        ctx as unknown as {
-          askUserChoices?: (
-            q: string,
-            opts: string[],
-            multi?: boolean,
-          ) => Promise<{ selected: string[]; custom?: string }>;
-        }
-      ).askUserChoices;
-
-      if (typeof hostAsk === 'function') {
-        const res = await hostAsk(input.question, options, input.isMultiSelect);
-        const selected = Array.isArray(res?.selected) ? res.selected : [];
-        return {
-          status: 'answered',
+      // Normalize items: either batch `questions` or single question fields
+      const items: ClarifyQuestionItem[] = [];
+      if (Array.isArray(input.questions) && input.questions.length > 0) {
+        items.push(...input.questions);
+      } else if (input.question && Array.isArray(input.options)) {
+        items.push({
           question: input.question,
-          selectedOptions: selected,
-          customResponse: res?.custom,
-          decisionSummary: `User selected: ${selected.join(', ')}${res?.custom ? ` (Custom: ${res.custom})` : ''}`,
-        };
+          context: input.context,
+          options: input.options,
+          recommendedOption: input.recommendedOption,
+          isMultiSelect: input.isMultiSelect ?? input.is_multi_select,
+          allowCustomResponse: input.allowCustomResponse,
+        });
       }
 
-      // In autonomous or non-interactive headless mode: pick the recommended or first option
-      const defaultChoice = input.recommendedOption ?? options[0] ?? 'Default';
+      if (items.length === 0) {
+        throw new Error('clarify requires either `question` with `options`, or a `questions` array with at least 1 item.');
+      }
+
+      for (const item of items) {
+        if (!item.options || item.options.length < 2) {
+          throw new Error(`clarify question "${item.question}" requires at least 2 distinct options.`);
+        }
+      }
+
+      // Host interactive question handler check
+      type HostAskFn = (
+        q: string,
+        opts: string[],
+        multiOrConfig?: boolean | {
+          isMultiSelect?: boolean;
+          context?: string;
+          recommendedOption?: string;
+          allowCustomResponse?: boolean;
+        },
+      ) => Promise<{ selected: string[]; custom?: string }>;
+
+      const hostAsk = (ctx as unknown as { askUserChoices?: HostAskFn })?.askUserChoices;
+
+      const answers: ClarifyAnswerItem[] = [];
+      let isAutoDecided = false;
+
+      for (const item of items) {
+        const multi = item.isMultiSelect ?? item.is_multi_select ?? false;
+        const options = item.options;
+
+        if (typeof hostAsk === 'function') {
+          const res = await hostAsk(item.question, options, {
+            isMultiSelect: multi,
+            context: item.context,
+            recommendedOption: item.recommendedOption,
+            allowCustomResponse: item.allowCustomResponse ?? true,
+          });
+          const selected = Array.isArray(res?.selected) ? res.selected : [];
+          answers.push({
+            question: item.question,
+            selectedOptions: selected,
+            customResponse: res?.custom,
+          });
+        } else {
+          // Autonomous or non-interactive headless mode: pick recommended or first option
+          isAutoDecided = true;
+          const rec = item.recommendedOption ??
+            options.find((opt) => /^\(?recommended\)?/i.test(opt)) ??
+            options[0] ??
+            'Default';
+          answers.push({
+            question: item.question,
+            selectedOptions: [rec],
+            customResponse: undefined,
+          });
+        }
+      }
+
+      const primary = answers[0]!;
+      const summaries = answers.map((ans) => {
+        const customPart = ans.customResponse ? ` (Custom: "${ans.customResponse}")` : '';
+        return `"${ans.question}": ${ans.selectedOptions.join(', ')}${customPart}`;
+      });
+
+      const decisionSummary = isAutoDecided
+        ? `Auto-selected recommended option(s) in non-interactive mode: ${summaries.join('; ')}`
+        : `User clarified: ${summaries.join('; ')}`;
+
       return {
-        status: 'auto_decided',
-        question: input.question,
-        selectedOptions: [defaultChoice],
-        decisionSummary: `Auto-selected recommended option: "${defaultChoice}" (Non-interactive mode)`,
+        status: isAutoDecided ? 'auto_decided' : 'answered',
+        question: primary.question,
+        selectedOptions: primary.selectedOptions,
+        customResponse: primary.customResponse,
+        answers,
+        decisionSummary,
       };
     } catch (err) {
+      const fallbackQuestion = input.question ?? input.questions?.[0]?.question ?? '';
       return {
         status: 'skipped',
-        question: input.question ?? '',
+        question: fallbackQuestion,
         selectedOptions: [],
         decisionSummary: '',
         error: toErrorMessage(err),

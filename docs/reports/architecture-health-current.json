@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-08T19:45:11.467Z",
+  "generatedAt": "2026-09-08T20:10:36.783Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3699,
-    "testFiles": 3181,
-    "sourceLines": 889568,
+    "sourceFiles": 3701,
+    "testFiles": 3183,
+    "sourceLines": 890038,
     "workspaceEdges": 127,
-    "moduleEdges": 11656,
+    "moduleEdges": 11665,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -214,8 +214,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 844,
-      "testFiles": 721,
+      "sourceFiles": 845,
+      "testFiles": 722,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -230,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 721
+          "testFiles": 722
         }
       ]
     },
@@ -733,8 +733,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 216,
-      "testFiles": 218,
+      "sourceFiles": 217,
+      "testFiles": 219,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -750,7 +750,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 218
+          "testFiles": 219
         }
       ]
     },
@@ -5187,6 +5187,12 @@
       },
       {
         "file": "packages/core/tests/coordination/coordinator-session-ownership.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/define-subagent-tool.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14102,6 +14108,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/read-url-content.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/read.test.ts",
         "projects": [
           "root-node"
@@ -20372,7 +20384,7 @@
     },
     {
       "file": "packages/core/src/coordination/director-tools.ts",
-      "lines": 905,
+      "lines": 937,
       "relativeImports": 18
     },
     {

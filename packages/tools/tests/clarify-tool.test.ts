@@ -52,6 +52,73 @@ describe('clarify tool', () => {
     expect(output.customResponse).toBe('Must support landlines');
   });
 
+  it('supports multi-question batching with ask_question parity', async () => {
+    const mockHostAsk = vi.fn()
+      .mockResolvedValueOnce({
+        selected: ['PostgreSQL'],
+      })
+      .mockResolvedValueOnce({
+        selected: ['JWT Bearer tokens', 'API Keys'],
+        custom: 'OAuth2 in phase 2',
+      });
+
+    const ctx = {
+      askUserChoices: mockHostAsk,
+    };
+
+    const output = await clarifyTool.execute(
+      {
+        questions: [
+          {
+            question: 'Which primary database engine to use?',
+            options: ['(Recommended) PostgreSQL', 'MySQL', 'SQLite'],
+          },
+          {
+            question: 'What auth strategies to enable?',
+            options: ['JWT Bearer tokens', 'Session cookies', 'API Keys'],
+            is_multi_select: true,
+          },
+        ],
+      },
+      ctx as never,
+      makeOpts(),
+    );
+
+    expect(mockHostAsk).toHaveBeenCalledTimes(2);
+    expect(output.status).toBe('answered');
+    expect(output.answers).toHaveLength(2);
+    expect(output.answers?.[0]?.selectedOptions).toEqual(['PostgreSQL']);
+    expect(output.answers?.[1]?.selectedOptions).toEqual(['JWT Bearer tokens', 'API Keys']);
+    expect(output.answers?.[1]?.customResponse).toBe('OAuth2 in phase 2');
+    expect(output.decisionSummary).toContain('Which primary database engine to use?');
+    expect(output.decisionSummary).toContain('What auth strategies to enable?');
+  });
+
+  it('auto-decides multi-question batches in non-interactive mode', async () => {
+    const output = await clarifyTool.execute(
+      {
+        questions: [
+          {
+            question: 'ORM selection?',
+            options: ['(Recommended) Prisma', 'Drizzle', 'Kysely'],
+          },
+          {
+            question: 'Deployment target?',
+            options: ['Fly.io', 'Render', 'AWS ECS'],
+            recommendedOption: 'AWS ECS',
+          },
+        ],
+      },
+      {} as never,
+      makeOpts(),
+    );
+
+    expect(output.status).toBe('auto_decided');
+    expect(output.answers).toHaveLength(2);
+    expect(output.answers?.[0]?.selectedOptions).toEqual(['(Recommended) Prisma']);
+    expect(output.answers?.[1]?.selectedOptions).toEqual(['AWS ECS']);
+  });
+
   it('handles invalid option count defensively', async () => {
     const output = await clarifyTool.execute(
       {

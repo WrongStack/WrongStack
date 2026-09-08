@@ -27,15 +27,20 @@ describe('xargs option scanning is not exponential', () => {
   // fails loudly if the ambiguity is ever reintroduced.
   it.each([40, 42, 48, 64])('stays fast for %i repeated option tokens', (n) => {
     expect(timed(`xargs${' -I'.repeat(n)} rm`)).toBeLessThan(BUDGET_MS);
-  });
+  }, 20_000);
 
+  // Wall-clock-sensitive sweep: the vitest default timeout (5s) breached under
+  // 16-worker suite contention (flake hunt 2026-09-08, concurrent-run-4). The
+  // explicit 20s here and below is contention headroom only — the internal
+  // CPU budgets (BUDGET_MS / COMPILE_BUDGET_MS / SWEEP_BUDGET_MS) still fail
+  // fast on any real catastrophic-backtracking regression.
   it('stays fast for a pathologically long option run', () => {
     expect(timed(`xargs${' -I'.repeat(20_000)} rm`)).toBeLessThan(BUDGET_MS);
-  });
+  }, 20_000);
 
   it('stays fast when the run never reaches a writer', () => {
     expect(timed(`xargs${' -n'.repeat(64)}`)).toBeLessThan(BUDGET_MS);
-  });
+  }, 20_000);
 });
 
 describe('the fix did not weaken xargs writer detection', () => {
@@ -117,7 +122,7 @@ describe('compilePathGlob adversarial-input timing (audit T-02)', () => {
     });
     // Measured: 0.2ms CPU for the whole set.
     expect(ms).toBeLessThan(COMPILE_BUDGET_MS);
-  });
+  }, 20_000);
 
   it('benign protect globs match hostile paths without catastrophic backtracking', () => {
     const patterns = [
@@ -140,7 +145,7 @@ describe('compilePathGlob adversarial-input timing (audit T-02)', () => {
       for (const re of patterns) for (const p of hostile) re.test(p);
     });
     expect(ms).toBeLessThan(SWEEP_BUDGET_MS);
-  });
+  }, 20_000);
 
   it('matchesAnyGuarded contains a hostile-config worst case and fails CLOSED', async () => {
     // A pathological CONFIG glob (operator-supplied, outside the threat
@@ -154,5 +159,5 @@ describe('compilePathGlob adversarial-input timing (audit T-02)', () => {
     // Measured: ~256ms (250ms budget + worker overhead). Generous outer bound.
     expect(ms).toBeLessThan(5_000);
     expect(hit).toBe(true);
-  }, 10_000);
+  }, 20_000);
 });

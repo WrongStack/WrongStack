@@ -20,8 +20,6 @@ import {
 } from '@wrongstack/tools/memory';
 import {
   BROWSER_TOOL_NAMES,
-  disableBrowserSuite,
-  enableBrowserSuite,
 } from '@wrongstack/tools';
 import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
 import { createVectorMemoryTools, type VectorMemoryStore } from '@wrongstack/vector-memory';

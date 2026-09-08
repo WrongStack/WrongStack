@@ -5,6 +5,7 @@ import {
   type BrainEscalationMode,
   BrainMonitor,
   BrainTraceRecorder,
+  createDefineSubagentTool,
   createDelegateTool,
   EscalationRoutingBrainArbiter,
   ObservableBrainArbiter,
@@ -483,6 +484,16 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
     }),
   );
   toolRegistry.exposeToProvider('delegate');
+
+  // Define subagent tool — dynamic/ad-hoc subagent definition
+  toolRegistry.register(
+    createDefineSubagentTool({
+      roster: multiAgentHost.getRoster(),
+      projectRoot: deps.projectRoot,
+      events,
+    }),
+  );
+  toolRegistry.exposeToProvider('define_subagent');
 
   // mcp_control tool
   toolRegistry.register(

@@ -142,6 +142,23 @@ export function makeSpawnTool(
         description:
           'Git-worktree isolation override. true/"required" requires an isolated worktree; false/"off" disables it; "auto" follows fleet policy.',
       },
+      system_prompt: {
+        type: 'string',
+        description: 'Complete custom system prompt for an ad-hoc subagent.',
+      },
+      tools: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Explicit list of tools granted to this subagent.',
+      },
+      enable_write_tools: {
+        type: 'boolean',
+        description: 'Set true to equip the subagent with file write and edit capabilities.',
+      },
+      enable_mcp_tools: {
+        type: 'boolean',
+        description: 'Set true to equip the subagent with MCP capabilities.',
+      },
     },
     required: [],
   };
@@ -219,8 +236,23 @@ export function makeSpawnTool(
       if (typeof i.name === 'string') cfg.name = i.name;
       if (typeof i.provider === 'string') cfg.provider = i.provider;
       if (typeof i.model === 'string') cfg.model = i.model;
+      if (typeof i.system_prompt === 'string') cfg.prompt = i.system_prompt;
+      if (typeof i.systemPrompt === 'string') cfg.prompt = i.systemPrompt;
       if (typeof i.systemPromptOverride === 'string')
         cfg.systemPromptOverride = i.systemPromptOverride;
+      if (Array.isArray(i.tools) && i.tools.every((t) => typeof t === 'string')) {
+        cfg.tools = i.tools as string[];
+      }
+      if (i.enable_write_tools === true) {
+        cfg.allowedCapabilities = [
+          ...new Set([...(cfg.allowedCapabilities ?? ['fs.read', 'net.outbound']), 'fs.write']),
+        ];
+      }
+      if (i.enable_mcp_tools === true) {
+        cfg.allowedCapabilities = [
+          ...new Set([...(cfg.allowedCapabilities ?? ['fs.read', 'net.outbound']), 'mcp.proxy']),
+        ];
+      }
       if (typeof i.maxIterations === 'number') cfg.maxIterations = i.maxIterations;
       if (typeof i.maxToolCalls === 'number') cfg.maxToolCalls = i.maxToolCalls;
       if (typeof i.maxCostUsd === 'number') cfg.maxCostUsd = i.maxCostUsd;

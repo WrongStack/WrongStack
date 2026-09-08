@@ -69,9 +69,11 @@ export {
   type CircuitBreakerSnapshot,
 } from './circuit-breaker.js';
 export {
+  type ClarifyAnswerItem,
   type ClarifyInput,
   type ClarifyOutput,
   type ClarifyQuestionInput,
+  type ClarifyQuestionItem,
   clarifyTool,
 } from './clarify.js';
 export type {
@@ -412,6 +414,11 @@ export {
   readTool,
   type SymbolEntry,
 } from './read.js';
+export {
+  type ReadUrlContentInput,
+  type ReadUrlContentOutput,
+  readUrlContentTool,
+} from './read-url-content.js';
 export {
   type ReplaceInput,
   type ReplaceOutput,

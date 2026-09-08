@@ -83,7 +83,7 @@
       "relativeImports": 10
     },
     "packages/core/src/coordination/director-tools.ts": {
-      "lines": 905,
+      "lines": 937,
       "relativeImports": 18
     },
     "packages/core/src/coordination/director.ts": {

@@ -41,6 +41,7 @@ import { patchTool } from './patch.js';
 import { planTool } from './plan.js';
 import { pwshTool } from './pwsh.js';
 import { readTool } from './read.js';
+import { readUrlContentTool } from './read-url-content.js';
 import { replaceTool } from './replace.js';
 import { searchTool } from './search.js';
 import { securityAstScanTool } from './security-ast-scan-tool.js';
@@ -95,6 +96,8 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
   e2e_plan:
     'Create an end-to-end test plan from a feature or user flow. Use it to identify scenarios and acceptance coverage; it plans tests rather than executing them.',
   read: 'Read a project file safely, with optional line ranges and binary-aware output. Use it to inspect source before editing; paths must stay within the project.',
+  read_url_content:
+    'Fetch content from a URL via HTTP request and convert HTML directly to clean markdown. Use for public docs and web pages without browser overhead.',
   write:
     'Create or replace one project file with the complete supplied content. Use for new files or intentional full rewrites, after reading existing content when applicable.',
   edit: 'Make a precise, guarded text edit by replacing an expected block in a project file. Prefer it for small source changes so mismatches prevent accidental overwrites.',
@@ -258,6 +261,7 @@ export const TIER2_TOOLS: Tool[] = [
   execTool,
   pwshTool,
   fetchTool,
+  readUrlContentTool,
   gitTool,
   treeTool,
   lintTool,
@@ -295,6 +299,7 @@ const rawBuiltinTools: Tool[] = [
   ...browserTools,
   e2ePlanTool,
   readTool,
+  readUrlContentTool,
   writeTool,
   editTool,
   clarifyTool,

@@ -201,6 +201,12 @@ export {
   type CommitSafetyReport,
 } from './commit-safety.js';
 export {
+  type CreateDefineSubagentToolOptions,
+  createDefineSubagentTool,
+  type DefineSubagentInput,
+  type DefineSubagentOutput,
+} from './define-subagent-tool.js';
+export {
   type CreateDelegateToolOptions,
   createDelegateTool,
   type DelegateHost,

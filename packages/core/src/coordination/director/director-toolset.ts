@@ -17,6 +17,7 @@ import {
   makeTerminateTool,
   makeWorkCompleteTool,
 } from '../director-tools.js';
+import { createDefineSubagentTool } from '../define-subagent-tool.js';
 
 type DirectorToolsetHost = Parameters<typeof makeSpawnTool>[0] &
   Parameters<typeof makeAssignTool>[0] &
@@ -54,5 +55,6 @@ export function buildDirectorToolset(
     makeCollabDebugTool(director),
     makeFleetEmitTool(director),
     makeWorkCompleteTool(director),
+    createDefineSubagentTool({ roster }),
   ];
 }

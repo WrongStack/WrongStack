@@ -101,13 +101,13 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     id: 'documentation.author',
     pack: 'development',
     exposure: 'on-demand',
-    tools: ['document', 'design', 'scaffold'],
+    tools: ['design'],
   },
   {
     id: 'web.research',
     pack: 'core',
     exposure: 'direct',
-    tools: ['search', 'fetch'],
+    tools: ['search', 'fetch', 'read_url_content'],
   },
   {
     id: 'work.plan',
@@ -143,6 +143,7 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
       'terminate_subagent',
       'terminate_all',
       'work_complete',
+      'define_subagent',
       'collab_debug',
       'fleet_emit',
       'fleet',

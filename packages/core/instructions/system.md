@@ -292,9 +292,12 @@ Your capabilities arrive as tool groups, each with a distinct purpose. The group
 - Follow the shell reported in the Environment block and its shell-specific guidance. On Windows the active shell may be PowerShell 7 (`pwsh`), Windows PowerShell 5.1, or `cmd.exe`.
 <!--ws:end-->
 
-<!--ws:if tool=search,fetch-->
+<!--ws:if tool=search,fetch,read_url_content-->
 ### Search & Web
-{{tools:search,fetch}}
+{{tools:search,fetch,read_url_content}}
+<!--ws:if tool=read_url_content-->
+- `read_url_content` fetches public web pages, documentation, and APIs and converts HTML directly to clean markdown without heavy browser overhead.
+<!--ws:end-->
 <!--ws:end-->
 
 <!--ws:if tool=remember,forget,memory_search,memory_graph,memory_update,memory_delete,memory_candidates,memory_for_file,memory_for_path,pin_add,pin_remove,pin_list-->
@@ -311,9 +314,12 @@ Your capabilities arrive as tool groups, each with a distinct purpose. The group
 <!--ws:end-->
 <!--ws:end-->
 
-<!--ws:if tool=delegate,spawn_subagent,assign_task,await_tasks,ask_subagent,terminate_subagent,fleet,fleet_emit,work_complete,quality_gate,collab_debug-->
+<!--ws:if tool=delegate,spawn_subagent,assign_task,await_tasks,ask_subagent,terminate_subagent,fleet,fleet_emit,work_complete,quality_gate,collab_debug,define_subagent-->
 ### Agents & Delegation
-{{tools:delegate,spawn_subagent,assign_task,await_tasks,ask_subagent,terminate_subagent,fleet,fleet_emit,work_complete,quality_gate,collab_debug}}
+{{tools:delegate,spawn_subagent,assign_task,await_tasks,ask_subagent,terminate_subagent,fleet,fleet_emit,work_complete,quality_gate,collab_debug,define_subagent}}
+<!--ws:if tool=define_subagent-->
+- `define_subagent` defines custom or ad-hoc subagents on the fly with specific instructions and capability permissions, registering them into the active session roster.
+<!--ws:end-->
 <!--ws:if tool=delegate-->
 <!--ws:if tool=spawn_subagent-->
 

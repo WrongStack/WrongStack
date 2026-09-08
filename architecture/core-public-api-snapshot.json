@@ -716,6 +716,7 @@
         "export { type BrainInterventionInput, BrainMonitor, type BrainMonitorOptions, } from './brain-monitor.js';",
         "export { type BugFinding, type CollabBudgetConfig, type CollabBudgetOverrides, type CollabBudgetWarningPayload, type CollabDebugReport, CollabSession, type CollabSessionOptions, type CriticConcern, type CriticEvaluation, type DirectorAlert, DirectorAlertLevel, type DirectorCancelCollabPayload, type RefactorPhase, type RefactorPlan, type SharedFileEntry, type SharedFileSnapshot, } from './collab-debug.js';",
         "export { type CollabBusState, CollaborationBus, type ConsumedInjectionInfo, } from './collab-bus.js';",
+        "export { type CreateDefineSubagentToolOptions, createDefineSubagentTool, type DefineSubagentInput, type DefineSubagentOutput, } from './define-subagent-tool.js';",
         "export { type CreateDelegateToolOptions, createDelegateTool, type DelegateHost, } from './delegate-tool.js';",
         "export { type DirectorSessionFactory, type DirectorSessionFactoryOptions, makeDirectorSessionFactory, } from './director-session.js';",
         "export { type ErrorHistoryEntry, type ProviderModelState, type ProviderModelStatus, ProviderModelStatusTracker, type ProviderStatusSnapshot, type ProviderStatusTrackerConfig, } from './provider-status-tracker.js';",
@@ -1427,8 +1428,8 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 186,
-      "sourceLines": 52704
+      "sourceFiles": 187,
+      "sourceLines": 52930
     },
     {
       "directory": "core",
@@ -1617,7 +1618,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 72,
-      "sourceLines": 13473
+      "sourceLines": 13474
     },
     {
       "directory": "utils",
