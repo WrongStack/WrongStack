@@ -78,14 +78,12 @@ export const readUrlContentTool: Tool<ReadUrlContentInput, ReadUrlContentOutput>
     }
 
     const maxBytes = input.maxBytes ?? DEFAULT_MAX_BYTES;
-    const signal = opts?.signal ?? ctx?.signal;
+    const signal = opts?.signal ?? ctx?.signal ?? new AbortController().signal;
 
-    const res = await guardedFetch(rawUrl, {
-      signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; WrongStackReader/1.0; +https://wrongstack.dev)',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,application/json;q=0.5,*/*;q=0.1',
-      },
+    const res = await guardedFetch(rawUrl, 5, signal, {
+      'user-agent': 'Mozilla/5.0 (compatible; WrongStackReader/1.0; +https://wrongstack.dev)',
+      accept:
+        'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,application/json;q=0.5,*/*;q=0.1',
     });
 
     const contentType = res.headers.get('content-type') ?? 'text/plain';
