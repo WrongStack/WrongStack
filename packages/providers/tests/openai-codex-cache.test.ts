@@ -1,11 +1,11 @@
 /**
  * Cache-affinity behaviour of the ChatGPT-login (Codex) transport.
  *
- * Two mechanisms, both of which only pay off if they survive round trips:
+ * Cache continuity has two independent mechanisms:
  *
- *  - `x-codex-turn-state`: the backend's sticky routing token. Captured from a
- *    response and echoed on the next request of the SAME session, never
- *    another's.
+ *  - Stable session/thread/cache metadata routes related prompt prefixes. The
+ *    backend's `x-codex-turn-state` is turn-scoped and must not leak into the
+ *    next user turn.
  *  - reasoning replay: `include: ['reasoning.encrypted_content']` asks the
  *    backend to hand its reasoning back; replaying it keeps the cached prefix
  *    intact and stops a reasoning model re-deriving (and re-billing) what it
@@ -76,7 +76,7 @@ function request(sessionId: string): Request {
 }
 
 describe('response.metadata cache affinity', () => {
-  it('captures turn state from metadata and forwards it on the next request', async () => {
+  it('does not replay metadata turn state into the next user turn', async () => {
     const calls: Call[] = [];
     const metadataEvent =
       'data: {"type":"response.metadata","metadata":{"headers":{"x-codex-turn-state":"state-meta"}}}\n\n';
@@ -87,7 +87,9 @@ describe('response.metadata cache affinity', () => {
     const signal = new AbortController().signal;
     await collect(provider.stream(request('sess-meta'), { signal }));
     await collect(provider.stream(request('sess-meta'), { signal }));
-    expect(calls[1]?.headers['x-codex-turn-state']).toBe('state-meta');
+    expect(calls[1]?.headers['x-codex-turn-state']).toBeUndefined();
+    expect(calls[1]?.headers['x-client-request-id']).toBe(calls[0]?.headers['x-client-request-id']);
+    expect(calls[1]?.headers['thread-id']).toBe(calls[0]?.headers['thread-id']);
   });
 
   it('surfaces response metadata to the host observer', async () => {
@@ -102,7 +104,9 @@ describe('response.metadata cache affinity', () => {
           DONE,
       })),
     });
-    await collect(provider.stream(request('sess-observe'), { signal: new AbortController().signal }));
+    await collect(
+      provider.stream(request('sess-observe'), { signal: new AbortController().signal }),
+    );
     expect(observed).toEqual([
       {
         headers: { 'x-models-etag': 'etag-meta' },
@@ -113,7 +117,7 @@ describe('response.metadata cache affinity', () => {
 });
 
 describe('x-codex-turn-state', () => {
-  it('is echoed on the next request of the same session', async () => {
+  it('is never echoed across HTTP user turns, even in the same session', async () => {
     const calls: Call[] = [];
     const provider = new OpenAICodexProvider({
       credentials: { accessToken: 'tok' },
@@ -125,7 +129,7 @@ describe('x-codex-turn-state', () => {
     await collect(provider.stream(request('sess-1'), { signal }));
     await collect(provider.stream(request('sess-1'), { signal }));
     expect(calls[0]?.headers['x-codex-turn-state']).toBeUndefined();
-    expect(calls[1]?.headers['x-codex-turn-state']).toBe('state-abc');
+    expect(calls[1]?.headers['x-codex-turn-state']).toBeUndefined();
   });
 
   it('never leaks one session’s routing token into another', async () => {

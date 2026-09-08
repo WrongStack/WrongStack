@@ -1,5 +1,5 @@
 import { ProviderError, type Request, type StreamEvent } from '@wrongstack/core/types';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type CodexOAuthTokens,
   codexCacheSessionId,
@@ -65,6 +65,8 @@ const COMPLETED_SSE = [
   'data: {"type":"response.completed","response":{"id":"r1","status":"completed","usage":{"input_tokens":5,"output_tokens":1}}}',
   '',
 ].join('\n');
+
+afterEach(() => vi.useRealTimers());
 
 describe('extractAccountId', () => {
   it('pulls chatgpt_account_id from the JWT', () => {
@@ -167,7 +169,9 @@ describe('OpenAICodexProvider live context limit', () => {
     ).resolves.toEqual({ maxContext: expected, source: 'provider' });
   });
 
-  it('reads context_window and conditionally re-checks the provider catalog', async () => {
+  it('caches context_window for five minutes, then conditionally revalidates', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T00:00:00Z'));
     const calls: Array<{ url: string; headers: RequestInit['headers'] }> = [];
     const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(input), headers: init?.headers });
@@ -192,11 +196,20 @@ describe('OpenAICodexProvider live context limit', () => {
     await expect(
       provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
     ).resolves.toEqual({ maxContext: 255_616, source: 'provider' });
+    expect(calls).toHaveLength(1);
+
+    vi.advanceTimersByTime(5 * 60_000 + 1);
+    await expect(
+      provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
+    ).resolves.toEqual({ maxContext: 255_616, source: 'provider' });
 
     // The backend rejects non-semver values with "Invalid client_version
     // format" — the param must always carry a real package version.
     expect(calls[0]?.url).toMatch(/\/codex\/models\?client_version=\d+\.\d+\.\d+$/);
+    expect(new Headers(calls[0]?.headers).get('accept')).toBe('application/json');
+    expect(new Headers(calls[0]?.headers).has('content-type')).toBe(false);
     expect(new Headers(calls[1]?.headers).get('if-none-match')).toBe('"ctx-v1"');
+    vi.useRealTimers();
   });
 
   it('validates catalog limits and maps each slug to its usable integer ceiling', async () => {
@@ -231,6 +244,8 @@ describe('OpenAICodexProvider live context limit', () => {
   });
 
   it('keeps the last verified limit and backs off after a catalog check fails', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T00:00:00Z'));
     let requestNo = 0;
     const fetchImpl = (async () => {
       requestNo += 1;
@@ -249,6 +264,7 @@ describe('OpenAICodexProvider live context limit', () => {
     const signal = new AbortController().signal;
 
     await provider.refreshContextLimit('gpt-5.6-sol', { signal });
+    vi.advanceTimersByTime(5 * 60_000 + 1);
     await expect(provider.refreshContextLimit('gpt-5.6-sol', { signal })).resolves.toEqual({
       maxContext: 255_616,
       source: 'provider',
@@ -314,7 +330,6 @@ describe('OpenAICodexProvider request shape', () => {
     expect(h['authorization']).toBe(`Bearer ${token}`);
     expect(h['chatgpt-account-id']).toBe('acc_99');
     expect(h['originator']).toBe('wrongstack');
-    expect(h['OpenAI-Beta']).toBe('responses=experimental');
     expect(h['x-client-request-id']).toMatch(/^[0-9a-f-]{36}$/i);
 
     const body = JSON.parse(captured.init?.body ?? '{}');
@@ -335,6 +350,10 @@ describe('OpenAICodexProvider request shape', () => {
       { signal: new AbortController().signal },
     );
     expect(captured.init?.headers?.['session-id']).toBe('sess_one_two');
+    expect(captured.init?.headers?.['thread-id']).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(captured.init?.headers?.['x-client-request-id']).toBe(
+      captured.init?.headers?.['thread-id'],
+    );
   });
 
   it('emits prompt_cache_key from req.cache.key (Responses cache routing)', async () => {
@@ -384,6 +403,24 @@ describe('OpenAICodexProvider request shape', () => {
 
     const body = JSON.parse(captured.init?.body ?? '{}');
     expect(body).not.toHaveProperty('reasoning');
+  });
+
+  it('omits empty instructions and unsupported generic sampling fields', async () => {
+    const captured: Captured = {};
+    const p = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: capturingFetch(COMPLETED_SSE, captured),
+    });
+
+    await p.complete(
+      { model: 'gpt-5.6-sol', messages: baseReq.messages, temperature: 0.2, topP: 0.9 },
+      { signal: new AbortController().signal },
+    );
+
+    const body = JSON.parse(captured.init?.body ?? '{}');
+    expect(body).not.toHaveProperty('instructions');
+    expect(body).not.toHaveProperty('temperature');
+    expect(body).not.toHaveProperty('top_p');
   });
 });
 
@@ -798,7 +835,7 @@ describe('OpenAICodexProvider token refresh', () => {
       credentials: {
         accessToken: fakeJwt('acc_old'),
         refreshToken: 'r1',
-        expiresAt: Date.now() - 1000, // already expired
+        expiresAt: Date.now() + 4 * 60_000, // inside Codex's five-minute refresh window
       },
       refreshFn,
       onRefresh,

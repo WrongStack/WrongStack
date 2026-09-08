@@ -235,7 +235,7 @@
       "relativeImports": 1
     },
     "packages/providers/src/openai-codex.ts": {
-      "lines": 1167,
+      "lines": 1178,
       "relativeImports": 16
     },
     "packages/sage/src/domain-term-extractor.ts": {

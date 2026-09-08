@@ -67,7 +67,7 @@ wstack auth login copilot     # Sign in with Copilot  → provider github-copilo
 After login, select the provider/model like any other:
 
 ```bash
-wstack --provider openai-codex   --model gpt-5.5          "explain this repo"
+wstack --provider openai-codex   --model gpt-6-astra      "explain this repo"
 wstack --provider anthropic-oauth --model claude-opus-4-8 "find the bug in src/auth.ts"
 wstack --provider github-copilot  --model gpt-4o          "write tests for utils.ts"
 ```
@@ -86,11 +86,11 @@ wstack auth login chatgpt
 
 - **Flow:** PKCE loopback (`localhost:1455/auth/callback`) against
   `auth.openai.com`, mirroring the real Codex CLI's "Sign in with ChatGPT".
-- **Provider id:** `openai-codex` · **Endpoint:** `https://chatgpt.com/backend-api`
+- **Provider id:** `openai-codex` · **Endpoint:** `https://chatgpt.com/backend-api/codex`
   (the Responses API, not `chat/completions`).
-- **Models** (seeded; the picker shows them): `gpt-5.5`, `gpt-5.4`,
-  `gpt-5.4-mini`, `gpt-5.3-codex-spark`.
-- **Use:** `wstack --provider openai-codex --model gpt-5.5 "<task>"`
+- **Models:** fetched from the authenticated account's `/codex/models`
+  endpoint; the bundled catalog is only an offline fallback.
+- **Use:** `wstack --provider openai-codex --model gpt-6-astra "<task>"`
 - **Requires** a ChatGPT **Plus / Pro / Team** plan with Codex access. A plain
   free account will authenticate but be rejected at request time.
 
@@ -111,13 +111,16 @@ and never costs a request of its own. When a `429` does arrive, its
 `-reset-at` becomes the exact retry time, so an exhausted plan parks until the
 window reopens instead of being re-probed on a backoff schedule.
 
-Three things keep the ChatGPT-side prompt cache hitting, and all three matter
+Four things keep the ChatGPT-side prompt cache hitting, and all four matter
 because everything they save is quota that is not spent twice:
 
 - `prompt_cache_key` routes prefix-sharing requests to one cache partition.
-- `x-codex-turn-state`, the backend's sticky routing token, is echoed on the
-  follow-up requests of the same session so they land where the prefix is
-  already cached.
+- Stable `session-id`, `thread-id`, and `x-client-request-id` values preserve
+  conversation affinity without leaking turn-scoped state.
+- WebSocket continuations use `previous_response_id` only after proving that
+  the new input is an exact extension of the prior request and server output.
+- `x-codex-turn-state` is reused only inside that same turn (for example after
+  WebSocket prewarm), never on a later user turn.
 - Reasoning is replayed. The transport asks for
   `include: ['reasoning.encrypted_content']` and sends the encrypted items back
   on the next turn; because `store: false` leaves no server-side state, a

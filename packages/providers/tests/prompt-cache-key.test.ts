@@ -1,9 +1,9 @@
 import type { Capabilities, Request } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
-import { applyPromptCacheKey } from '../src/prompt-cache-key.js';
-import { openaiWireFormat } from '../src/presets/openai.js';
 import { anthropicWireFormat } from '../src/presets/anthropic.js';
 import { googleWireFormat } from '../src/presets/google.js';
+import { openaiWireFormat } from '../src/presets/openai.js';
+import { applyPromptCacheKey } from '../src/prompt-cache-key.js';
 
 const caps = (cacheControl: 'native' | 'auto' | 'none'): Capabilities =>
   ({ cacheControl, promptCache: cacheControl !== 'none', maxOutput: 4096 }) as Capabilities;
@@ -16,6 +16,16 @@ describe('applyPromptCacheKey helper', () => {
     const body: Record<string, unknown> = {};
     applyPromptCacheKey(body, baseReq({ key: 'ws-abc' }), caps('auto'));
     expect(body['prompt_cache_key']).toBe('ws-abc');
+  });
+
+  it('hashes overlong keys into a stable API-safe 64 character key', () => {
+    const bodyA: Record<string, unknown> = {};
+    const bodyB: Record<string, unknown> = {};
+    const longKey = `tenant-workflow-${'x'.repeat(100)}`;
+    applyPromptCacheKey(bodyA, baseReq({ key: longKey }), caps('auto'));
+    applyPromptCacheKey(bodyB, baseReq({ key: longKey }), caps('auto'));
+    expect(bodyA['prompt_cache_key']).toBe(bodyB['prompt_cache_key']);
+    expect(String(bodyA['prompt_cache_key'])).toHaveLength(64);
   });
 
   it('skips native (Anthropic) and none (Google) providers', () => {

@@ -44,11 +44,30 @@ export const CODEX_SCOPE =
 export const CODEX_ORIGINATOR = 'wrongstack';
 /** Canonical provider id under which ChatGPT-login credentials are stored. */
 export const CODEX_PROVIDER_ID = 'openai-codex';
-/** Default ChatGPT backend base. The wire family appends `/codex/responses`. */
-export const CODEX_BASE_URL = 'https://chatgpt.com/backend-api';
+/** Default ChatGPT Codex backend base, matching the official client's provider URL. */
+export const CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex';
 
 /** Request timeout for the token endpoint, in milliseconds. */
 const TOKEN_TIMEOUT_MS = 30_000;
+/** Conservative fallback when an otherwise valid OAuth response omits expiry metadata. */
+const FALLBACK_ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+/** Normalize legacy/root overrides to the ChatGPT Codex backend root. */
+export function codexBackendBaseUrl(baseUrl?: string): string {
+  const raw = (baseUrl?.trim() || CODEX_BASE_URL).replace(/\/+$/, '');
+  if (raw.endsWith('/codex/responses')) return raw.slice(0, -'/responses'.length);
+  if (raw.endsWith('/codex/models')) return raw.slice(0, -'/models'.length);
+  if (raw.endsWith('/codex')) return raw;
+  return `${raw}/codex`;
+}
+
+export function codexResponsesUrl(baseUrl?: string): string {
+  return `${codexBackendBaseUrl(baseUrl)}/responses`;
+}
+
+export function codexModelsUrl(baseUrl?: string): string {
+  return `${codexBackendBaseUrl(baseUrl)}/models`;
+}
 
 // ── Authorize URL ───────────────────────────────────────────────────────────
 
@@ -93,6 +112,21 @@ interface TokenEndpointResponse {
   id_token?: string;
 }
 
+function jwtExpiryMs(token: string): number | undefined {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return undefined;
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+      exp?: unknown;
+    };
+    return typeof decoded.exp === 'number' && Number.isFinite(decoded.exp) && decoded.exp > 0
+      ? decoded.exp * 1000
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function withTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal {
   return signal ? AbortSignal.any([signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms);
 }
@@ -106,7 +140,11 @@ function withTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal {
  * retrying. The provider's own copy of this had already learned that; the
  * shared version keeps the lesson.
  */
-export async function readCodexTokenResponse(res: Response, op: string): Promise<CodexTokens> {
+export async function readCodexTokenResponse(
+  res: Response,
+  op: string,
+  currentRefreshToken?: string,
+): Promise<CodexTokens> {
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new FetchError({
@@ -115,24 +153,36 @@ export async function readCodexTokenResponse(res: Response, op: string): Promise
       context: { provider: CODEX_PROVIDER_ID, op, url: CODEX_TOKEN_URL },
     });
   }
-  const json = (await res.json()) as TokenEndpointResponse | null;
-  if (
-    !json?.access_token ||
-    !json.refresh_token ||
-    typeof json.expires_in !== 'number' ||
-    !Number.isFinite(json.expires_in) ||
-    json.expires_in <= 0
-  ) {
+  let json: TokenEndpointResponse | null;
+  try {
+    json = (await res.json()) as TokenEndpointResponse | null;
+  } catch (cause) {
+    throw new ParseError({
+      message: `Codex token ${op} response was not valid JSON`,
+      source: 'openai-codex-token-response',
+      context: { op },
+      cause,
+    });
+  }
+  const refresh = json?.refresh_token ?? currentRefreshToken;
+  if (!json?.access_token || !refresh) {
     throw new ParseError({
       message: `Codex token ${op} response missing fields`,
       source: 'openai-codex-token-response',
       context: { op },
     });
   }
+  const expiresFromDuration =
+    typeof json.expires_in === 'number' && Number.isFinite(json.expires_in) && json.expires_in > 0
+      ? Date.now() + json.expires_in * 1000
+      : undefined;
   return {
     access: json.access_token,
-    refresh: json.refresh_token,
-    expires: Date.now() + json.expires_in * 1000,
+    refresh,
+    expires:
+      expiresFromDuration ??
+      jwtExpiryMs(json.access_token) ??
+      Date.now() + FALLBACK_ACCESS_TOKEN_TTL_MS,
     idToken: json.id_token,
   };
 }
@@ -170,13 +220,16 @@ export async function refreshCodexTokens(
 ): Promise<CodexTokens> {
   const res = await fetch(CODEX_TOKEN_URL, {
     method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
+    // The official Codex client uses JSON for refresh (authorization-code
+    // exchange remains form encoded). The refresh response may omit both
+    // `expires_in` and a replacement refresh token.
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
       grant_type: 'refresh_token',
       client_id: CODEX_CLIENT_ID,
       refresh_token: refreshToken,
-    }).toString(),
+    }),
     signal: withTimeout(signal, TOKEN_TIMEOUT_MS),
   });
-  return readCodexTokenResponse(res, 'refresh');
+  return readCodexTokenResponse(res, 'refresh', refreshToken);
 }

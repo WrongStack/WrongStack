@@ -48,11 +48,11 @@ export const codingConnections: readonly CodingConnection[] = [
       'WrongStack opens the browser-based ChatGPT sign-in flow, stores the refreshed credential in the encrypted local vault and adds openai-codex as a selectable provider.',
     bestFor: 'The quickest route for an existing ChatGPT account with Codex access.',
     providerId: 'openai-codex',
-    endpoint: 'https://chatgpt.com/backend-api',
+    endpoint: 'https://chatgpt.com/backend-api/codex',
     keySource: 'No API key — browser OAuth',
     modelHint: 'Current Codex models from the authenticated account',
     authCommand: 'wstack auth login chatgpt',
-    runCommand: 'wstack --provider openai-codex --model gpt-5.5',
+    runCommand: 'wstack --provider openai-codex --model gpt-6-astra',
     steps: [
       'Run the login command from any terminal.',
       'Finish the ChatGPT sign-in and account selection in your browser.',

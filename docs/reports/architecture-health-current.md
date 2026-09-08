@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-07T23:22:34.188Z
+**Generated:** 2026-09-08T05:02:58.677Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3681 |
-| Production source lines | 884785 |
+| Production source lines | 885050 |
 | Test files | 3170 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11593 |
+| Relative module edges | 11594 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -85,7 +85,7 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1167 | `packages/providers/src/openai-codex.ts` |
+| 1178 | `packages/providers/src/openai-codex.ts` |
 | 1067 | `packages/core/src/coordination/delegate-tool.ts` |
 | 1058 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1057 | `packages/tui/src/app.tsx` |

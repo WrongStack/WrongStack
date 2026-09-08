@@ -1,15 +1,15 @@
 import type { Request, StreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import {
-  defaultCodexWebSocketFactory,
   type CodexWebSocketLike,
   type CodexWebSocketOptions,
+  defaultCodexWebSocketFactory,
 } from '../src/codex-websocket.js';
-import { OpenAICodexProvider, type CodexResponseMetadata } from '../src/openai-codex.js';
+import { type CodexResponseMetadata, OpenAICodexProvider } from '../src/openai-codex.js';
 
 const enabled = process.env.WRONGSTACK_CODEX_LIVE === '1';
 const accessToken = process.env.WRONGSTACK_CODEX_ACCESS_TOKEN?.trim();
-const model = process.env.WRONGSTACK_CODEX_MODEL?.trim() || 'gpt-5-codex';
+const model = process.env.WRONGSTACK_CODEX_MODEL?.trim() || 'gpt-6-astra';
 
 type Frame = Record<string, unknown>;
 
@@ -35,15 +35,17 @@ function observingFactory(
       close(): void {
         socket.close();
       },
-      on(event: string, listener: (...args: any[]) => void): CodexWebSocketLike {
+      on(...[event, listener]: Parameters<CodexWebSocketLike['on']>): CodexWebSocketLike {
         socket.on(event, listener);
         return this;
       },
-      once(event: string, listener: (...args: any[]) => void): CodexWebSocketLike {
+      once(...[event, listener]: Parameters<CodexWebSocketLike['once']>): CodexWebSocketLike {
         socket.once(event, listener);
         return this;
       },
-      removeListener(event: string, listener: (...args: any[]) => void): CodexWebSocketLike {
+      removeListener(
+        ...[event, listener]: Parameters<CodexWebSocketLike['removeListener']>
+      ): CodexWebSocketLike {
         socket.removeListener(event, listener);
         return this;
       },
@@ -66,7 +68,7 @@ function request(sessionId: string, text: string): Request {
 }
 
 describe.skipIf(!enabled || !accessToken)('Codex live WebSocket integration (opt-in)', () => {
-  it('prewarms, chains response ids, and captures turn-state metadata', async () => {
+  it('prewarms the connection, chains real response ids, and captures turn-state metadata', async () => {
     const frames: Frame[] = [];
     const connectionHeaders: Array<Record<string, string>> = [];
     const metadata: CodexResponseMetadata[] = [];
@@ -85,15 +87,11 @@ describe.skipIf(!enabled || !accessToken)('Codex live WebSocket integration (opt
 
     const prewarm = frames.find((frame) => frame['generate'] === false);
     const turns = frames.filter((frame) => frame['generate'] !== false);
-    expect(prewarm).toMatchObject({
-      type: 'response.create',
-      input: [],
-      generate: false,
-      stream: true,
-      store: false,
-    });
+    expect(prewarm).toMatchObject({ type: 'response.create', generate: false });
+    expect(Array.isArray(prewarm?.['input']) && prewarm['input'].length > 0).toBe(true);
     expect(turns.length).toBeGreaterThanOrEqual(2);
-    expect(typeof turns[1]?.['previous_response_id']).toBe('string');
+    expect(typeof turns[0]?.['previous_response_id']).toBe('string');
+    expect(turns[0]?.['input']).toEqual([]);
     expect(connectionHeaders[0]?.authorization?.startsWith('Bearer ')).toBe(true);
     expect(connectionHeaders[0]?.authorization).not.toBe(accessToken);
     expect(metadata.some((entry) => Boolean(entry.headers['x-codex-turn-state']))).toBe(true);

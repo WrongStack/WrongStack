@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { isParseError, type ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -12,7 +13,6 @@ import {
   resolveCodexModels,
   startLoopbackServer,
 } from '../src/auth-menu/openai-codex-oauth.js';
-import { readFile } from 'node:fs/promises';
 import { expectFetchError } from './helpers/fetch-error.js';
 
 /** providers package.json version — the value fetchCodexModels must send as client_version. */
@@ -287,21 +287,27 @@ describe('fetchCodexModels', () => {
     expect(ids).toEqual([]);
   });
 
-  it('uses custom baseUrl when provided', async () => {
+  it('normalizes the Codex models URL and sends account-aware auth headers', async () => {
     let capturedUrl = '';
+    let capturedHeaders: Headers | undefined;
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string) => {
+      vi.fn(async (url: string, init?: RequestInit) => {
         capturedUrl = url;
+        capturedHeaders = new Headers(init?.headers);
         return Response.json({ data: [{ id: 'gpt-5.5' }] });
       }),
     );
-    await fetchCodexModels('tok', 'https://my-proxy.example.com');
+    const token = fakeJwt('workspace-123');
+    await fetchCodexModels(token, 'https://my-proxy.example.com');
     const url = new URL(capturedUrl);
-    expect(url.origin + url.pathname).toBe('https://my-proxy.example.com/models');
+    expect(url.origin + url.pathname).toBe('https://my-proxy.example.com/codex/models');
     // The backend rejects /models without a semver client_version (400),
     // so the live fetch must always carry the providers package version.
     expect(url.searchParams.get('client_version')).toBe(await expectedClientVersion());
+    expect(capturedHeaders?.get('authorization')).toBe(`Bearer ${token}`);
+    expect(capturedHeaders?.get('chatgpt-account-id')).toBe('workspace-123');
+    expect(capturedHeaders?.get('session-id')).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
   it('strips trailing slashes from baseUrl before appending /models', async () => {
@@ -315,7 +321,7 @@ describe('fetchCodexModels', () => {
     );
     await fetchCodexModels('tok', 'https://chatgpt.com/backend-api/');
     const url = new URL(capturedUrl);
-    expect(url.origin + url.pathname).toBe('https://chatgpt.com/backend-api/models');
+    expect(url.origin + url.pathname).toBe('https://chatgpt.com/backend-api/codex/models');
     expect(url.searchParams.get('client_version')).toBe(await expectedClientVersion());
   });
 
@@ -334,20 +340,15 @@ describe('fetchCodexModels', () => {
 });
 
 describe('resolveCodexModels', () => {
-  it('filters live discovery to current Codex models before saving', async () => {
+  it('uses the account-aware live catalog without hiding newly rolled out models', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
         Response.json({
           data: [
-            { id: 'gpt-5.2' },
+            { id: 'gpt-new-codex', visibility: 'list' },
             { id: 'gpt-6-astra' },
-            { id: 'gpt-5.4-mini' },
-            { id: 'gpt-5.3-codex' },
-            { id: 'gpt-5.5' },
-            { id: 'gpt-5.6-sol' },
-            { id: 'gpt-5.6-terra' },
-            { id: 'gpt-5.6-luna' },
+            { id: 'hidden-model', visibility: 'hide' },
           ],
         }),
       ),
@@ -359,11 +360,8 @@ describe('resolveCodexModels', () => {
     } as never as ModelsRegistry;
 
     await expect(resolveCodexModels(registry, 'test-token')).resolves.toEqual([
+      'gpt-new-codex',
       'gpt-6-astra',
-      'gpt-5.6-sol',
-      'gpt-5.6-terra',
-      'gpt-5.6-luna',
-      'gpt-5.4-mini',
     ]);
   });
 
@@ -426,12 +424,14 @@ describe('resolveCodexModels', () => {
 });
 
 describe('refreshCodexToken', () => {
-  it('POSTs the refresh_token grant', async () => {
+  it('POSTs the official JSON refresh_token grant', async () => {
     let body = '';
+    let contentType = '';
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (_url: string, init: { body?: string }) => {
+      vi.fn(async (_url: string, init: { body?: string; headers?: Record<string, string> }) => {
         body = init.body ?? '';
+        contentType = init.headers?.['content-type'] ?? '';
         return new Response(
           JSON.stringify({ access_token: 'AT2', refresh_token: 'RT2', expires_in: 60 }),
           { status: 200 },
@@ -439,11 +439,27 @@ describe('refreshCodexToken', () => {
       }),
     );
     const tokens = await refreshCodexToken('OLD_RT');
-    const params = new URLSearchParams(body);
-    expect(params.get('grant_type')).toBe('refresh_token');
-    expect(params.get('refresh_token')).toBe('OLD_RT');
+    expect(contentType).toBe('application/json');
+    expect(JSON.parse(body)).toEqual({
+      client_id: 'app_EMoamEEZ73f0CkXaXp7hrann',
+      grant_type: 'refresh_token',
+      refresh_token: 'OLD_RT',
+    });
     expect(tokens.access).toBe('AT2');
     expect(tokens.refresh).toBe('RT2');
+  });
+
+  it('accepts the official expiry-less response and preserves an unrotated refresh token', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ access_token: 'AT2' }), { status: 200 })),
+    );
+
+    const before = Date.now();
+    const tokens = await refreshCodexToken('OLD_RT');
+    expect(tokens.access).toBe('AT2');
+    expect(tokens.refresh).toBe('OLD_RT');
+    expect(tokens.expires).toBeGreaterThanOrEqual(before + 59 * 60_000);
   });
 
   it('non-2xx refresh response throws a structured FetchError (openai-codex refresh context)', async () => {

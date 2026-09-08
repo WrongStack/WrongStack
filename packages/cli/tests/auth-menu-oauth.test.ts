@@ -434,16 +434,16 @@ describe('openai-codex-oauth.ts — pure helpers', () => {
   });
 
   it('fetchCodexModels parses data/models shapes and fails soft', async () => {
-    route('backend-api/models', () => jsonResponse({ data: [{ id: 'gpt-x' }, { id: '' }] }));
+    route('backend-api/codex/models', () => jsonResponse({ data: [{ id: 'gpt-x' }, { id: '' }] }));
     await expect(fetchCodexModels('t')).resolves.toEqual(['gpt-x']);
     routes = [];
-    route('backend-api/models', () => jsonResponse({ models: [{ id: 'gpt-y' }] }));
+    route('backend-api/codex/models', () => jsonResponse({ models: [{ id: 'gpt-y' }] }));
     await expect(fetchCodexModels('t')).resolves.toEqual(['gpt-y']);
     routes = [];
-    route('backend-api/models', () => jsonResponse({ nope: true }));
+    route('backend-api/codex/models', () => jsonResponse({ nope: true }));
     await expect(fetchCodexModels('t')).resolves.toEqual([]);
     routes = [];
-    route('backend-api/models', () => new Response(null, { status: 500 }));
+    route('backend-api/codex/models', () => new Response(null, { status: 500 }));
     await expect(fetchCodexModels('t')).resolves.toEqual([]);
   });
 
@@ -453,11 +453,11 @@ describe('openai-codex-oauth.ts — pure helpers', () => {
       getProvider: vi.fn(async () => undefined),
     } as never as ModelsRegistry;
 
-    route('backend-api/models', () => jsonResponse({ data: [{ id: current }] }));
+    route('backend-api/codex/models', () => jsonResponse({ data: [{ id: current }] }));
     await expect(resolveCodexModels(registry, 'tok')).resolves.toEqual([current]);
 
     routes = [];
-    route('backend-api/models', () => jsonResponse({ data: [] }));
+    route('backend-api/codex/models', () => jsonResponse({ data: [] }));
     const withCatalog = {
       getProvider: vi.fn(async () => ({
         models: [
@@ -471,7 +471,7 @@ describe('openai-codex-oauth.ts — pure helpers', () => {
     ]);
 
     routes = [];
-    route('backend-api/models', () => new Response(null, { status: 500 }));
+    route('backend-api/codex/models', () => new Response(null, { status: 500 }));
     await expect(resolveCodexModels(registry, 'tok')).resolves.toEqual(fallbackCodexModelIds());
   });
 
@@ -500,7 +500,7 @@ describe('openai-codex-oauth.ts — pure helpers', () => {
 describe('openai-codex-oauth.ts — runCodexOAuthLogin flow', () => {
   function codexRoutes(over: Record<string, unknown> = {}): void {
     route('auth.openai.com/oauth/token', () => jsonResponse(tokenBody(over)));
-    route('backend-api/models', () =>
+    route('backend-api/codex/models', () =>
       jsonResponse({ data: fallbackCodexModelIds().map((id) => ({ id })) }),
     );
   }
@@ -517,7 +517,7 @@ describe('openai-codex-oauth.ts — runCodexOAuthLogin flow', () => {
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     const p = (raw.providers as Record<string, Record<string, unknown>>)['codex-test']!;
     expect(p.family).toBe('openai-codex');
-    expect(p.baseUrl).toBe('https://chatgpt.com/backend-api');
+    expect(p.baseUrl).toBe('https://chatgpt.com/backend-api/codex');
     expect((p.models as string[]).length).toBeGreaterThan(0);
     expect((p.apiKeys as Array<{ label: string; authMethod: string }>)[0]).toMatchObject({
       label: 'oauth-default',
@@ -604,7 +604,7 @@ describe('openai-codex-oauth.ts — runCodexOAuthLogin flow', () => {
 
   it('surfaces a token-exchange failure', async () => {
     route('auth.openai.com/oauth/token', () => jsonResponse({ error: 'denied' }, 400));
-    route('backend-api/models', () => jsonResponse({ data: [] }));
+    route('backend-api/codex/models', () => jsonResponse({ data: [] }));
     const { configPath, vault, registry } = await setup();
     const { deps, logs } = depsFor(configPath, vault, registry);
     const ac = new AbortController();

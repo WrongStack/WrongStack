@@ -65,7 +65,7 @@ describe('Codex OAuth wire constants are defined once', () => {
     // The endpoints are composed from this base, so the base is the thing that
     // must not be re-typed; `/oauth/token` alone would never match a literal.
     ['the OAuth host', "'https://auth.openai.com'"],
-    ['the ChatGPT backend base', "'https://chatgpt.com/backend-api'"],
+    ['the ChatGPT backend base', "'https://chatgpt.com/backend-api/codex'"],
   ])('%s appears in exactly one source file', (_label, needle) => {
     const hits = filesContaining(needle).map((f) => path.relative(repoRoot, f).replace(/\\/g, '/'));
     expect(hits).toEqual(['packages/providers/src/oauth/codex-protocol.ts']);
@@ -128,8 +128,11 @@ describe('every surface resolves to the same implementation', () => {
     }
     expect(calls).toHaveLength(1);
     expect(calls[0]!.url).toBe(protocol.CODEX_TOKEN_URL);
-    expect(calls[0]!.body).toContain(`client_id=${protocol.CODEX_CLIENT_ID}`);
-    expect(calls[0]!.body).toContain('grant_type=refresh_token');
+    expect(JSON.parse(calls[0]!.body)).toEqual({
+      client_id: protocol.CODEX_CLIENT_ID,
+      grant_type: 'refresh_token',
+      refresh_token: 'the-refresh-token',
+    });
   });
 
   it('the authorize URL is identical whichever entry point builds it', () => {

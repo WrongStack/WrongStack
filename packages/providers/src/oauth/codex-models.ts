@@ -9,8 +9,8 @@
  * Resolution order — the live backend is authoritative, the catalog is the
  * offline answer, and the inline list is the never-happens floor:
  *
- *  1. **Live backend** — `GET <baseUrl>/models`, filtered to ids that are
- *     still current for ChatGPT sign-in.
+ *  1. **Live backend** — `GET <baseUrl>/codex/models`; account-aware and
+ *     authoritative, retaining every picker-visible id returned to that user.
  *  2. **models.dev catalog** — the `openai` provider's models whose `family`
  *     is `gpt-codex` / `gpt-codex-spark`, filtered the same way.
  *  3. **Inline fallback** — {@link FALLBACK_CODEX_MODELS}, derived from core's
@@ -24,7 +24,8 @@ import { createRequire } from 'node:module';
 import { release as osRelease, type as osType } from 'node:os';
 import { CODEX_MODELS } from '@wrongstack/core/models';
 import type { ModelsRegistry } from '@wrongstack/core/types';
-import { CODEX_BASE_URL, CODEX_ORIGINATOR } from './codex-protocol.js';
+import { extractAccountId } from '../openai-codex-account.js';
+import { CODEX_ORIGINATOR, codexModelsUrl } from './codex-protocol.js';
 
 /**
  * The backend requires a semver `client_version` on /models — missing or
@@ -69,9 +70,9 @@ export function fallbackCodexProviderModels(): Array<{ id: string; name: string 
 }
 
 /**
- * Narrow a list of available model ids to the ones still current for ChatGPT
- * sign-in. Used to drop deprecated ids from a live `/models` response and to
- * pick current ids out of the models.dev catalog.
+ * Narrow a generic/offline catalog to the bundled current fallback ids. The
+ * authenticated live `/codex/models` response deliberately bypasses this
+ * filter so newly rolled-out account models appear without a WrongStack release.
  */
 export function filterCurrentCodexModelIds(ids: Iterable<string>): string[] {
   const available = new Set(ids);
@@ -92,7 +93,7 @@ export async function fetchCodexModels(
   baseUrl?: string | undefined,
   signal?: AbortSignal,
 ): Promise<string[]> {
-  const url = `${(baseUrl ?? CODEX_BASE_URL).replace(/\/+$/, '')}/models?client_version=${encodeURIComponent(
+  const url = `${codexModelsUrl(baseUrl)}?client_version=${encodeURIComponent(
     CODEX_MODELS_CLIENT_VERSION,
   )}`;
   try {
@@ -100,23 +101,25 @@ export async function fetchCodexModels(
     // endpoint sits behind a header-level challenge that Node's default UA
     // fails; the full official set verified 200 live (client_version=0.309.1).
     const platformTag = process.platform === 'win32' ? 'Windows 11' : `${osType} ${osRelease}`;
+    const accountId = extractAccountId(accessToken);
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+      authorization: `Bearer ${accessToken}`,
+      originator: CODEX_ORIGINATOR,
+      'user-agent': `codex_cli_rs/${CODEX_MODELS_CLIENT_VERSION} (${platformTag}; ${process.arch}) unknown`,
+      'session-id': randomUUID(),
+    };
+    if (accountId) headers['chatgpt-account-id'] = accountId;
     const res = await fetch(url, {
-      headers: {
-        accept: 'application/json',
-        authorization: `Bearer ${accessToken}`,
-        originator: CODEX_ORIGINATOR,
-        'user-agent': `codex_cli_rs/${CODEX_MODELS_CLIENT_VERSION} (${platformTag}; ${process.arch}) unknown`,
-        session_id: randomUUID(),
-        'OpenAI-Beta': 'responses=experimental',
-      },
+      headers,
       signal: signal
         ? AbortSignal.any([signal, AbortSignal.timeout(MODELS_TIMEOUT_MS)])
         : AbortSignal.timeout(MODELS_TIMEOUT_MS),
     });
     if (!res.ok) return [];
     const json = (await res.json()) as
-      | { data?: Array<{ id?: string; slug?: string }> }
-      | { models?: Array<{ id?: string; slug?: string }> }
+      | { data?: Array<{ id?: string; slug?: string; visibility?: string }> }
+      | { models?: Array<{ id?: string; slug?: string; visibility?: string }> }
       | null;
     if (!json) return [];
     // Standard OpenAI-compatible is `{ data: [...] }`; some deployments answer
@@ -134,7 +137,8 @@ export async function fetchCodexModels(
       // accept either so the identifier survives both response dialects.
       const rec = entry as Record<string, unknown>;
       const id = rec.id ?? rec.slug;
-      if (typeof id === 'string' && id.length > 0) ids.push(id);
+      if (rec.visibility !== undefined && rec.visibility !== 'list') continue;
+      if (typeof id === 'string' && id.length > 0 && !ids.includes(id)) ids.push(id);
     }
     return ids;
   } catch {
@@ -158,7 +162,10 @@ export async function resolveCodexModels(
 ): Promise<string[]> {
   // Tier 1 — live backend
   const token = typeof accessToken === 'string' ? accessToken : await accessToken;
-  const live = filterCurrentCodexModelIds(await fetchCodexModels(token, baseUrl, signal));
+  // The authenticated backend is account- and rollout-aware. Do not intersect
+  // its answer with the bundled fallback: doing that hid every newly rolled
+  // out model until WrongStack itself shipped a new hardcoded catalog.
+  const live = await fetchCodexModels(token, baseUrl, signal);
   if (live.length > 0) return live;
 
   // Tier 2 — models.dev catalog (best-effort; registry is optional)

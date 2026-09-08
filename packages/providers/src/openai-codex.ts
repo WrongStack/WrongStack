@@ -20,6 +20,7 @@
  * path share one definition instead of three that had to be kept in step by hand.
  */
 
+import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import {
   type ProviderQuotaSnapshot,
@@ -41,6 +42,13 @@ import {
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from './_tool-input.js';
 import {
+  type CodexResponseMetadata,
+  type CodexWebSocketFactory,
+  CodexWebSocketFallbackError,
+  CodexWebSocketPool,
+  defaultCodexWebSocketFactory,
+} from './codex-websocket.js';
+import {
   type HeadersLike,
   parseProviderErrorBody,
   parseProviderHttpError,
@@ -48,23 +56,25 @@ import {
 } from './error-parse.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import type { BuildBodyContext } from './model-output-limits.js';
-import { CODEX_BASE_URL, type CodexTokens, refreshCodexTokens } from './oauth/codex-protocol.js';
+import {
+  CODEX_BASE_URL,
+  CODEX_ORIGINATOR,
+  type CodexTokens,
+  codexModelsUrl,
+  codexResponsesUrl,
+  refreshCodexTokens,
+} from './oauth/codex-protocol.js';
 import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
 import { extractAccountId, extractPlanType } from './openai-codex-account.js';
 import {
   parseCodexRateLimitEvent,
   parseCodexRateLimitHeaders,
 } from './openai-codex-rate-limits.js';
-import {
-  CodexWebSocketFallbackError,
-  CodexWebSocketPool,
-  defaultCodexWebSocketFactory,
-  type CodexResponseMetadata,
-  type CodexWebSocketFactory,
-} from './codex-websocket.js';
+
 // Owned by `codex-websocket.ts` (both transports carry it); re-exported here
 // so the long-standing public name keeps resolving from the provider module.
 export type { CodexResponseMetadata };
+
 import { applyPromptCacheKey } from './prompt-cache-key.js';
 import { redirectSafeFetch } from './redirect-safe-fetch.js';
 import { createSseLineFoldingTransform, parseSSE } from './sse.js';
@@ -106,14 +116,6 @@ function readOwnVersion(): string {
 }
 
 /**
- * How many conversations' sticky routing tokens (`x-codex-turn-state`) one
- * provider instance keeps. A project daemon can serve many sessions over its
- * lifetime; the tokens are small, but unbounded growth is not a thing to leave
- * to chance. Least-recently-refreshed entries are evicted first.
- */
-const MAX_TRACKED_TURN_STATES = 64;
-
-/**
  * Does this 400 blame a replayed reasoning item?
  *
  * The Responses API's reasoning validation errors all name the item type or a
@@ -153,6 +155,10 @@ function codexResetHintMs(snapshots: readonly ProviderQuotaSnapshot[]): number |
 
 const CODEX_MODELS_FAILURE_COOLDOWN_MS = 5_000;
 const CODEX_MODELS_TIMEOUT_MS = 3_000;
+/** Match the official client's in-memory/file model catalog freshness window. */
+const CODEX_MODELS_CACHE_TTL_MS = 5 * 60_000;
+/** The official client proactively refreshes ChatGPT access tokens five minutes early. */
+const CODEX_TOKEN_REFRESH_SKEW_MS = 5 * 60_000;
 /**
  * Output-token budget the ChatGPT Codex backend reserves inside the catalog's
  * `context_window`. The official Codex client budgets requests the same way
@@ -298,21 +304,12 @@ export class OpenAICodexProvider extends WireAdapter {
     NonNullable<OpenAICodexProviderOptions['onRefresh']> extends (p: infer P) => void ? P : never
   >;
   private readonly reasoningEffort: ReasoningEffort;
-  private readonly onResponseMetadata?:
-    | ((metadata: CodexResponseMetadata) => void)
-    | undefined;
+  private readonly onResponseMetadata?: ((metadata: CodexResponseMetadata) => void) | undefined;
   private readonly useWebSocket: boolean;
   private readonly webSocketPrewarm: boolean;
   private readonly webSocketPool: CodexWebSocketPool | undefined;
+  private webSocketDisabled = false;
   private contextLimits = new Map<string, number>();
-  /**
-   * Sticky routing token the backend hands out per turn (`x-codex-turn-state`).
-   * Echoing it back keeps the follow-up requests of one conversation on the
-   * machine that already holds its cached prefix — on a load-balanced backend
-   * `prompt_cache_key` alone is a hint, this is the confirmation. Keyed by the
-   * session affinity id so two conversations never trade each other's token.
-   */
-  private turnState = new Map<string, string>();
   /**
    * Reasoning replay is disabled for the rest of the process once the backend
    * rejects it. See `stream()` — a 400 on a reasoning item must degrade to the
@@ -321,6 +318,7 @@ export class OpenAICodexProvider extends WireAdapter {
   private reasoningReplayDisabled = false;
   private contextLimitsEtag: string | undefined;
   private contextLimitsRefresh: Promise<void> | undefined;
+  private contextLimitsFreshUntil = 0;
   private contextLimitsRetryAfter = 0;
 
   constructor(opts: OpenAICodexProviderOptions) {
@@ -346,6 +344,7 @@ export class OpenAICodexProvider extends WireAdapter {
     >({
       initialRefreshKey: opts.credentials.refreshToken,
       initialExpiresAt: opts.credentials.expiresAt,
+      refreshSkewMs: CODEX_TOKEN_REFRESH_SKEW_MS,
       label: 'Codex OAuth',
       hooks: {
         refreshFn: (key, signal) => this.refreshFn(key, signal),
@@ -370,6 +369,9 @@ export class OpenAICodexProvider extends WireAdapter {
           // Re-derive the ChatGPT account id from the new access token, falling
           // back to the cached value if the new JWT lacks the claim.
           this.accountId = extractAccountId(derived.accessToken) ?? this.accountId;
+          // A pooled WebSocket captured the old bearer/account headers at
+          // handshake time. Never reuse it after token rotation.
+          this.webSocketPool?.close();
         },
       },
     });
@@ -400,7 +402,12 @@ export class OpenAICodexProvider extends WireAdapter {
     opts: { signal: AbortSignal },
   ): Promise<{ maxContext: number; source: 'provider' } | undefined> {
     await this.ensureFreshToken(opts.signal);
-    if (Date.now() < this.contextLimitsRetryAfter) {
+    const now = Date.now();
+    if (now < this.contextLimitsFreshUntil) {
+      const cached = this.contextLimits.get(model);
+      return cached ? { maxContext: cached, source: 'provider' } : undefined;
+    }
+    if (now < this.contextLimitsRetryAfter) {
       const cached = this.contextLimits.get(model);
       return cached ? { maxContext: cached, source: 'provider' } : undefined;
     }
@@ -418,6 +425,8 @@ export class OpenAICodexProvider extends WireAdapter {
     const probeSignal = AbortSignal.any([signal, timeout]);
     try {
       const headers = this.buildHeaders({ model: '', messages: [] });
+      headers.accept = 'application/json';
+      delete headers['content-type'];
       if (this.contextLimitsEtag) headers['if-none-match'] = this.contextLimitsEtag;
       const response = await redirectSafeFetch(this.fetchImpl, url, {
         method: 'GET',
@@ -425,6 +434,7 @@ export class OpenAICodexProvider extends WireAdapter {
         signal: probeSignal,
       });
       if (response.status === 304) {
+        this.contextLimitsFreshUntil = Date.now() + CODEX_MODELS_CACHE_TTL_MS;
         this.contextLimitsRetryAfter = 0;
         return;
       }
@@ -453,6 +463,7 @@ export class OpenAICodexProvider extends WireAdapter {
       }
       this.contextLimits = next;
       this.contextLimitsEtag = response.headers?.get?.('etag') ?? undefined;
+      this.contextLimitsFreshUntil = Date.now() + CODEX_MODELS_CACHE_TTL_MS;
       this.contextLimitsRetryAfter = 0;
     } catch {
       // Keep the last verified catalog. The awaited probe is deliberately
@@ -463,64 +474,69 @@ export class OpenAICodexProvider extends WireAdapter {
   }
 
   override async *stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
-  await this.ensureFreshToken(opts.signal);
-  let emitted = false;
-  const track = async function* (source: AsyncIterable<StreamEvent>): AsyncIterable<StreamEvent> {
-    for await (const event of source) {
-      emitted = true;
-      yield event;
-    }
-  };
-  let transportError: unknown;
-  try {
-    if (this.useWebSocket && this.webSocketPool) {
-      yield* track(this.streamWebSocket(req, opts));
-    } else {
-      yield* track(super.stream(req, opts));
-    }
-    return;
-  } catch (err) {
-    transportError = err;
-    if (err instanceof CodexWebSocketFallbackError && !emitted) {
-      try {
+    await this.ensureFreshToken(opts.signal);
+    let emitted = false;
+    const track = async function* (source: AsyncIterable<StreamEvent>): AsyncIterable<StreamEvent> {
+      for await (const event of source) {
+        // `message_start` carries no user-visible content. A backend can emit
+        // it before a response.failed envelope, and retrying at that point is
+        // still safe. Every other streamed event is treated as an output
+        // boundary to prevent duplicate text/tool/reasoning delivery.
+        if (event.type !== 'message_start') emitted = true;
+        yield event;
+      }
+    };
+    let transportError: unknown;
+    try {
+      if (this.useWebSocket && !this.webSocketDisabled && this.webSocketPool) {
+        yield* track(this.streamWebSocket(req, opts));
+      } else {
         yield* track(super.stream(req, opts));
-        return;
-      } catch (sseError) {
-        transportError = sseError;
+      }
+      return;
+    } catch (err) {
+      transportError = err;
+      if (err instanceof CodexWebSocketFallbackError && !emitted) {
+        // Match the official client: once this session proves WebSocket
+        // incompatible, keep using HTTP instead of paying for a failed upgrade
+        // before every turn.
+        this.webSocketDisabled = true;
+        try {
+          yield* track(super.stream(req, opts));
+          return;
+        } catch (sseError) {
+          transportError = sseError;
+        }
       }
     }
+
+    const err = transportError;
+    // A 401 means the token went stale between the pre-flight check and the
+    // request (or we had no expiry to check). Refresh once and retry only before
+    // any output has been emitted, so a mid-stream auth failure cannot duplicate it.
+    if (!emitted && err instanceof ProviderError && err.status === 401 && this.refresh) {
+      await this.doRefresh(opts.signal);
+      yield* track(super.stream(req, opts));
+      return;
+    }
+    // Reasoning replay is a token-and-quota optimisation, never a requirement.
+    // If the backend rejects a replayed reasoning item before output starts, retry
+    // over SSE without replay rather than stranding the session.
+    if (
+      !emitted &&
+      !this.reasoningReplayDisabled &&
+      err instanceof ProviderError &&
+      err.status === 400 &&
+      isReasoningReplayRejection(err)
+    ) {
+      this.reasoningReplayDisabled = true;
+      yield* track(super.stream(req, opts));
+      return;
+    }
+    throw err;
   }
 
-  const err = transportError;
-  // A 401 means the token went stale between the pre-flight check and the
-  // request (or we had no expiry to check). Refresh once and retry only before
-  // any output has been emitted, so a mid-stream auth failure cannot duplicate it.
-  if (!emitted && err instanceof ProviderError && err.status === 401 && this.refresh) {
-    await this.doRefresh(opts.signal);
-    yield* track(super.stream(req, opts));
-    return;
-  }
-  // Reasoning replay is a token-and-quota optimisation, never a requirement.
-  // If the backend rejects a replayed reasoning item before output starts, retry
-  // over SSE without replay rather than stranding the session.
-  if (
-    !emitted &&
-    !this.reasoningReplayDisabled &&
-    err instanceof ProviderError &&
-    err.status === 400 &&
-    isReasoningReplayRejection(err)
-  ) {
-    this.reasoningReplayDisabled = true;
-    yield* track(super.stream(req, opts));
-    return;
-  }
-  throw err;
-}
-
-  private streamWebSocket(
-    req: Request,
-    opts: { signal: AbortSignal },
-  ): AsyncIterable<StreamEvent> {
+  private streamWebSocket(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
     const effectiveReq = this.applyMaxToolsFilter(req);
     const body = this.buildBody(effectiveReq, {
       capabilities: this.capabilities,
@@ -545,12 +561,12 @@ export class OpenAICodexProvider extends WireAdapter {
     );
   }
 
-  private handleResponseMetadata(req: Request, metadata: CodexResponseMetadata): void {
-    const key = codexCacheSessionId(req.cache?.sessionId);
-    const state = metadata.headers['x-codex-turn-state'];
-    if (state && key) this.rememberTurnState(key, state);
+  private handleResponseMetadata(_req: Request, metadata: CodexResponseMetadata): void {
     const etag = metadata.headers['x-models-etag'];
-    if (etag) this.contextLimitsEtag = etag;
+    if (etag && etag !== this.contextLimitsEtag) {
+      this.contextLimitsEtag = etag;
+      this.contextLimitsFreshUntil = 0;
+    }
     this.onResponseMetadata?.(metadata);
   }
 
@@ -575,12 +591,11 @@ export class OpenAICodexProvider extends WireAdapter {
    * reported. Without reading it the first sign of an exhausted plan is a 429
    * mid-turn; with it, surfaces can show the burn rate before it bites.
    *
-   * `x-codex-turn-state` is a sticky routing token. Sending it back on the
-   * follow-up requests of the same conversation keeps them on the backend that
-   * already holds the cached prefix, which is what turns `prompt_cache_key`
-   * from a hint into a hit.
+   * `x-codex-turn-state` is deliberately not retained here: upstream scopes it
+   * to retry/continuation requests inside one turn, not to later user turns.
+   * The WebSocket transport handles its own prewarm continuation locally.
    */
-  protected override onResponseHeaders(headers: HeadersLike | undefined, request: Request): void {
+  protected override onResponseHeaders(headers: HeadersLike | undefined, _request: Request): void {
     if (!headers) return;
     const planLabel = extractPlanType(this.access) ?? undefined;
     const snapshots = parseCodexRateLimitHeaders(headers).map((snapshot) =>
@@ -589,23 +604,10 @@ export class OpenAICodexProvider extends WireAdapter {
         : snapshot,
     );
     if (snapshots.length > 0) recordProviderQuota(this.id, snapshots);
-    const state = headers.get('x-codex-turn-state');
-    const key = codexCacheSessionId(request.cache?.sessionId);
-    if (state && key) this.rememberTurnState(key, state);
-  }
-
-  /**
-   * Store a session's routing token, bounding the map so a long-lived daemon
-   * serving many sessions cannot grow it without limit.
-   */
-  private rememberTurnState(sessionKey: string, state: string): void {
-    if (this.turnState.get(sessionKey) === state) return;
-    this.turnState.delete(sessionKey);
-    this.turnState.set(sessionKey, state);
-    while (this.turnState.size > MAX_TRACKED_TURN_STATES) {
-      const oldest = this.turnState.keys().next();
-      if (oldest.done) break;
-      this.turnState.delete(oldest.value);
+    const etag = headers.get('x-models-etag');
+    if (etag && etag !== this.contextLimitsEtag) {
+      this.contextLimitsEtag = etag;
+      this.contextLimitsFreshUntil = 0;
     }
   }
 
@@ -613,25 +615,25 @@ export class OpenAICodexProvider extends WireAdapter {
     const headers: Record<string, string> = {
       ...super.buildHeaders(_req),
       authorization: `Bearer ${this.access}`,
-      originator: 'wrongstack',
-      'OpenAI-Beta': 'responses=experimental',
+      originator: CODEX_ORIGINATOR,
+      'user-agent': `wrongstack/${CODEX_MODELS_CLIENT_VERSION}`,
     };
     if (this.accountId) headers['chatgpt-account-id'] = this.accountId;
     const cacheSessionId = codexCacheSessionId(_req.cache?.sessionId);
     if (cacheSessionId) {
       headers['session-id'] = cacheSessionId;
-      const state = this.turnState.get(cacheSessionId);
-      if (state) headers['x-codex-turn-state'] = state;
+      const clientRequestId = codexClientRequestId(cacheSessionId);
+      headers['thread-id'] = clientRequestId;
+      headers['x-client-request-id'] = clientRequestId;
+    } else {
+      headers['x-client-request-id'] = randomUUID();
     }
-    headers['x-client-request-id'] = crypto.randomUUID();
     return headers;
   }
 
   protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
     const instructions =
-      req.system && req.system.length > 0
-        ? req.system.map((b) => b.text).join('\n\n')
-        : 'You are a helpful assistant.';
+      req.system && req.system.length > 0 ? req.system.map((b) => b.text).join('\n\n') : undefined;
 
     const body: Record<string, unknown> = {
       model: req.model,
@@ -639,7 +641,7 @@ export class OpenAICodexProvider extends WireAdapter {
       // false"). We send the full conversation as `input` each turn.
       store: false,
       stream: true,
-      instructions,
+      ...(instructions ? { instructions } : {}),
       // `include: reasoning.encrypted_content` below asks the backend to hand
       // back the reasoning it produced; replaying it here is the half that
       // makes asking for it worth anything. Skipped once the backend has
@@ -657,8 +659,9 @@ export class OpenAICodexProvider extends WireAdapter {
     }
     // The ChatGPT Codex backend rejects max_output_tokens. This differs from
     // API-key Responses transports, which can forward the caller's cap.
-    if (req.temperature !== undefined) body['temperature'] = req.temperature;
-    if (req.topP !== undefined) body['top_p'] = req.topP;
+    // The ChatGPT Codex request schema used by the official client has no
+    // temperature/top_p fields. Do not forward generic runtime sampling knobs
+    // that this subscription endpoint may reject.
     const reasoningEffort = req.reasoning?.effort ?? this.reasoningEffort;
     if (req.reasoning?.enabled !== false && reasoningEffort !== 'none') {
       body['reasoning'] = { effort: reasoningEffort, summary: 'auto' };
@@ -715,15 +718,21 @@ export function codexCacheSessionId(sessionId: string | undefined): string | und
   return normalized || undefined;
 }
 
+/** Stable UUID-shaped thread/request id derived from WrongStack's opaque session id. */
+function codexClientRequestId(sessionId: string | undefined): string {
+  if (!sessionId) return randomUUID();
+  const hex = createHash('sha256').update(sessionId).digest('hex').slice(0, 32).split('');
+  hex[12] = '5';
+  hex[16] = ((Number.parseInt(hex[16] ?? '0', 16) & 0x3) | 0x8).toString(16);
+  const value = hex.join('');
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
+}
+
 // ── URL + tool-choice helpers ────────────────────────────────────────────────
 
 /** Normalize a base URL to the `/codex/responses` endpoint. */
 export function resolveCodexUrl(baseUrl: string | undefined): string {
-  const raw = baseUrl && baseUrl.trim().length > 0 ? baseUrl : DEFAULT_CODEX_BASE;
-  const normalized = raw.replace(/\/+$/, '');
-  if (normalized.endsWith('/codex/responses')) return normalized;
-  if (normalized.endsWith('/codex')) return `${normalized}/responses`;
-  return `${normalized}/codex/responses`;
+  return codexResponsesUrl(baseUrl ?? DEFAULT_CODEX_BASE);
 }
 
 /** Convert the HTTP Responses endpoint to the Codex WebSocket endpoint. */
@@ -734,7 +743,7 @@ export function resolveCodexWebSocketUrl(baseUrl: string | undefined): string {
 
 /** Resolve the authenticated Codex model-catalog endpoint beside `/responses`. */
 export function resolveCodexModelsUrl(baseUrl: string | undefined): string {
-  return resolveCodexUrl(baseUrl).replace(/\/responses$/, '/models');
+  return codexModelsUrl(baseUrl ?? DEFAULT_CODEX_BASE);
 }
 
 function positiveContextLimit(value: unknown): number | undefined {
@@ -796,7 +805,9 @@ function extractOutputText(content: unknown): string {
   return out;
 }
 
-function responseMetadataFromEvent(evt: Record<string, unknown>): CodexResponseMetadata | undefined {
+function responseMetadataFromEvent(
+  evt: Record<string, unknown>,
+): CodexResponseMetadata | undefined {
   const raw =
     (evt['metadata'] as Record<string, unknown> | undefined) ??
     ((evt['response'] as Record<string, unknown> | undefined)?.['metadata'] as
