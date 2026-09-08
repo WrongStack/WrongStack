@@ -348,6 +348,33 @@ describe('Codex WebSocket Responses transport', () => {
     expect(sockets).toHaveLength(3);
   });
 
+  it('does not share a connection between sibling threads in one root session', async () => {
+    const sockets: FakeSocket[] = [];
+    const pool = new CodexWebSocketPool((_url, _options) => {
+      const socket = new FakeSocket((current) => {
+        current.message({ type: 'response.created', response: { model: 'gpt-5-codex' } });
+        current.message({ type: 'response.completed', response: { status: 'completed' } });
+      });
+      sockets.push(socket);
+      return socket;
+    });
+    const root = options('shared-session');
+    root.request = {
+      ...root.request,
+      cache: { sessionId: 'shared-session', threadId: 'root-thread' },
+    };
+    const child = options('shared-session');
+    child.request = {
+      ...child.request,
+      cache: { sessionId: 'shared-session', threadId: 'child-thread' },
+    };
+
+    await collect(pool.stream(root, parseOpenAIResponsesStream));
+    await collect(pool.stream(child, parseOpenAIResponsesStream));
+
+    expect(sockets).toHaveLength(2);
+  });
+
   it('marks a pre-output socket failure as safe for SSE fallback', async () => {
     const pool = new CodexWebSocketPool((_url, _options) => {
       return new FakeSocket((socket) => queueMicrotask(() => socket.fail()));
@@ -538,7 +565,9 @@ describe('Codex WebSocket Responses transport', () => {
       return socket;
     });
 
-    await collect(pool.stream({ ...options('abort'), stallTimeoutMs: 0 }, parseOpenAIResponsesStream));
+    await collect(
+      pool.stream({ ...options('abort'), stallTimeoutMs: 0 }, parseOpenAIResponsesStream),
+    );
 
     const streamPromise = collect(
       pool.stream(

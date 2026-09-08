@@ -458,7 +458,12 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     // call is pending; this request must still finish under the identity it
     // started with.
     const provider = a.ctx.provider;
-    const conversationSessionId = a.ctx.activeRunSessionId ?? a.ctx.session?.id;
+    const conversationThreadId = a.ctx.activeRunSessionId ?? a.ctx.session?.id;
+    const owningSessionId = a.ctx.meta?.['sessionId'];
+    const conversationSessionId =
+      typeof owningSessionId === 'string' && owningSessionId.length > 0
+        ? owningSessionId
+        : conversationThreadId;
     const baseReq: Request = {
       model: opts.model ?? a.ctx.model,
       system,
@@ -483,6 +488,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       cache: {
         key: deriveCachePrefixKey(stableSystem, a.tools.listForProvider()),
         sessionId: conversationSessionId,
+        threadId: conversationThreadId,
       },
     };
     // Bind BEFORE the pipeline runs: the request pipeline is shared by every

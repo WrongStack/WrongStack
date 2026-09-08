@@ -80,7 +80,8 @@ export function toolsToResponses(tools: Tool[]): ResponsesTool[] {
 }
 
 function normalizeContent(content: string | ContentBlock[]): ContentBlock[] {
-  return typeof content === 'string' ? [{ type: 'text', text: content }] : content;
+  if (typeof content === 'string') return [{ type: 'text', text: content }];
+  return Array.isArray(content) ? content : [];
 }
 
 function imageUrl(b: ImageBlock): string {

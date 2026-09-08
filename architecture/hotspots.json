@@ -147,7 +147,7 @@
       "relativeImports": 9
     },
     "packages/core/src/types/provider.ts": {
-      "lines": 899,
+      "lines": 906,
       "relativeImports": 7
     },
     "packages/core/src/types/session.ts": {
@@ -235,7 +235,7 @@
       "relativeImports": 1
     },
     "packages/providers/src/openai-codex.ts": {
-      "lines": 1576,
+      "lines": 1581,
       "relativeImports": 17
     },
     "packages/sage/src/domain-term-extractor.ts": {

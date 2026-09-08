@@ -110,7 +110,7 @@ function fakeTool(name: string, output: string) {
   };
 }
 
-async function runSession(tmp: string): Promise<Request[]> {
+async function runSession(tmp: string, owningSessionId?: string): Promise<Request[]> {
   const container = new Container();
   container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
   container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());
@@ -157,6 +157,7 @@ async function runSession(tmp: string): Promise<Request[]> {
     projectRoot: tmp,
     model: 'gpt-5.4',
   } as never);
+  if (owningSessionId) ctx.meta['sessionId'] = owningSessionId;
 
   const agent = new Agent({
     container,
@@ -240,6 +241,20 @@ describe('openai-codex prompt prefix stability', () => {
     expect(tools.size).toBe(1);
     expect(keys.size).toBe(1);
     expect([...instructions][0]?.length).toBeGreaterThan(1_000);
+  });
+
+  it('keeps the owning cache session separate from the agent thread', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-codex-prefix-'));
+    const requests = await runSession(tmp, 'root-session');
+
+    expect(requests.length).toBe(TURNS * 3);
+    expect(new Set(requests.map((request) => request.cache?.sessionId))).toEqual(
+      new Set(['root-session']),
+    );
+    const threadIds = new Set(requests.map((request) => request.cache?.threadId));
+    expect(threadIds.size).toBe(1);
+    expect([...threadIds][0]).toBeTruthy();
+    expect([...threadIds][0]).not.toBe('root-session');
   });
 
   it('grows the input array by appending, never by rewriting history', async () => {

@@ -119,6 +119,26 @@ describe('codexCacheSessionId', () => {
   });
 });
 
+describe('OpenAICodexProvider malformed messages', () => {
+  it('does not crash when a user message has missing content', async () => {
+    const captured: Captured = {};
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'token' },
+      fetchImpl: capturingFetch(COMPLETED_SSE, captured),
+      webSocket: false,
+    });
+    const request = {
+      ...baseReq,
+      messages: [{ role: 'user', content: undefined }],
+    } as never as Request;
+    const stream = provider.stream(request, { signal: new AbortController().signal });
+    for await (const _ of stream) {
+      // Drain the stream to exercise request construction and transport.
+    }
+    expect(captured.init?.body).toBeDefined();
+  });
+});
+
 describe('Responses response.metadata', () => {
   it('captures normalized headers and request metadata', async () => {
     const metadata: unknown[] = [];

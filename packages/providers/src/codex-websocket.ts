@@ -600,7 +600,7 @@ export class CodexWebSocketPool {
     opts: CodexWebSocketStreamOptions,
     parse: CodexResponsesParser,
   ): AsyncIterable<StreamEvent> {
-    const key = opts.request.cache?.sessionId ?? '__default__';
+    const key = opts.request.cache?.threadId ?? opts.request.cache?.sessionId ?? '__default__';
     const previous = this.locks.get(key) ?? Promise.resolve();
     let release!: () => void;
     const current = new Promise<void>((resolve) => {

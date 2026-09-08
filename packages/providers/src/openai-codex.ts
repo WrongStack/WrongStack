@@ -128,7 +128,7 @@ const CODEX_TURN_STATE_MAX_SESSIONS = 64;
  */
 function isTurnContinuation(req: Request): boolean {
   const last = req.messages[req.messages.length - 1];
-  if (last?.role !== 'user' || typeof last.content === 'string') return false;
+  if (last?.role !== 'user' || !Array.isArray(last.content)) return false;
   return last.content.some((block) => block.type === 'tool_result');
 }
 
@@ -872,9 +872,10 @@ export class OpenAICodexProvider extends WireAdapter {
     };
     if (this.accountId) headers['chatgpt-account-id'] = this.accountId;
     const cacheSessionId = codexCacheSessionId(_req.cache?.sessionId);
-    if (cacheSessionId) {
-      headers['session-id'] = cacheSessionId;
-      const clientRequestId = codexClientRequestId(cacheSessionId);
+    const cacheThreadId = codexCacheSessionId(_req.cache?.threadId) ?? cacheSessionId;
+    if (cacheSessionId) headers['session-id'] = cacheSessionId;
+    if (cacheThreadId) {
+      const clientRequestId = codexClientRequestId(cacheThreadId);
       headers['thread-id'] = clientRequestId;
       headers['x-client-request-id'] = clientRequestId;
     } else {
@@ -887,7 +888,11 @@ export class OpenAICodexProvider extends WireAdapter {
 
   /** Key under which this request's turn state is remembered. */
   private turnStateKey(req: Request): string {
-    return codexCacheSessionId(req.cache?.sessionId) ?? '__default__';
+    return (
+      codexCacheSessionId(req.cache?.threadId) ??
+      codexCacheSessionId(req.cache?.sessionId) ??
+      '__default__'
+    );
   }
 
   /**

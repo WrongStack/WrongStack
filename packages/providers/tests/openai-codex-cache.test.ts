@@ -185,6 +185,36 @@ describe('x-codex-turn-state', () => {
     expect(calls[1]?.headers['x-codex-turn-state']).toBeUndefined();
   });
 
+  it('never leaks one thread’s routing token into a sibling thread', async () => {
+    const calls: Call[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      fetchImpl: recordingFetch(calls, (i) =>
+        i === 0 ? { headers: { 'x-codex-turn-state': 'state-root' } } : {},
+      ),
+    });
+    const signal = new AbortController().signal;
+    await collect(
+      provider.stream(
+        {
+          ...request('root-session'),
+          cache: { sessionId: 'root-session', threadId: 'root-thread' },
+        },
+        { signal },
+      ),
+    );
+    await collect(
+      provider.stream(
+        {
+          ...continuation('root-session'),
+          cache: { sessionId: 'root-session', threadId: 'child-thread' },
+        },
+        { signal },
+      ),
+    );
+    expect(calls[1]?.headers['x-codex-turn-state']).toBeUndefined();
+  });
+
   it('is carried by the metadata frame when there are no response headers', async () => {
     // The WebSocket transport has no HTTP headers after the handshake, so
     // `response.metadata` is the only delivery of the token for every turn
@@ -223,6 +253,41 @@ describe('prompt_cache_key', () => {
     );
     expect(calls[0]?.body['prompt_cache_key']).toBe('sess-cache');
     expect(calls[0]?.headers['session-id']).toBe('sess-cache');
+  });
+
+  it('shares the root cache partition while isolating child thread identity', async () => {
+    const calls: Call[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      fetchImpl: recordingFetch(calls, () => ({})),
+    });
+    const signal = new AbortController().signal;
+    await collect(
+      provider.stream(
+        {
+          ...request('root-session'),
+          cache: { sessionId: 'root-session', threadId: 'root-thread' },
+        },
+        { signal },
+      ),
+    );
+    await collect(
+      provider.stream(
+        {
+          ...request('root-session'),
+          cache: { sessionId: 'root-session', threadId: 'child-thread' },
+        },
+        { signal },
+      ),
+    );
+
+    expect(calls[0]?.body['prompt_cache_key']).toBe('root-session');
+    expect(calls[1]?.body['prompt_cache_key']).toBe('root-session');
+    expect(calls[0]?.headers['session-id']).toBe('root-session');
+    expect(calls[1]?.headers['session-id']).toBe('root-session');
+    expect(calls[0]?.headers['thread-id']).not.toBe(calls[1]?.headers['thread-id']);
+    expect(calls[0]?.headers['x-client-request-id']).toBe(calls[0]?.headers['thread-id']);
+    expect(calls[1]?.headers['x-client-request-id']).toBe(calls[1]?.headers['thread-id']);
   });
 
   it('falls back to the prefix key for a request with no conversation', async () => {

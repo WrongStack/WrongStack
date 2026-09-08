@@ -185,6 +185,13 @@ export interface RequestCacheControl {
    */
   sessionId?: string | undefined;
   /**
+   * Thread-local transport identity. A root conversation normally uses the
+   * same value as `sessionId`; child agents keep the root `sessionId` for the
+   * shared prompt-cache partition while using their own thread id for sticky
+   * routing and request identity.
+   */
+  threadId?: string | undefined;
+  /**
    * Opt-in flag (from `ModelRuntimeCacheConfig.geminiExplicit`) telling the
    * Google provider to use explicit `cachedContents` for this request. Ignored
    * by other providers.
