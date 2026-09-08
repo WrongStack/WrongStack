@@ -187,8 +187,8 @@
       "relativeImports": 0
     },
     "packages/mcp/src/client.ts": {
-      "lines": 1046,
-      "relativeImports": 11
+      "lines": 1048,
+      "relativeImports": 12
     },
     "packages/mcp/src/server.ts": {
       "lines": 834,

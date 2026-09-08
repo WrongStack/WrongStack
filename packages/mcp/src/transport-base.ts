@@ -91,6 +91,11 @@ export function makeAbortError(method: string): Error {
   return err;
 }
 
+/** Advance a JSON-RPC number id without leaving JavaScript's safe-integer range. */
+export function nextJsonRpcId(id: number): number {
+  return id >= Number.MAX_SAFE_INTEGER ? 1 : id + 1;
+}
+
 export function createTimeoutSignal(
   parent: AbortSignal | undefined,
   timeoutMs: number,

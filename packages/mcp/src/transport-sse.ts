@@ -11,6 +11,7 @@ import {
   createTimeoutSignal,
   type HttpTransportOptions,
   makeAbortError,
+  nextJsonRpcId,
 } from './transport-base.js';
 import { assertMatchingJsonRpcResult, type JsonRpcResult } from './transport-jsonrpc.js';
 
@@ -35,7 +36,9 @@ export class SSETransport extends BaseHTTPTransport {
   }
 
   protected override genId(): number {
-    return this._nextId++;
+    const id = this._nextId;
+    this._nextId = nextJsonRpcId(id);
+    return id;
   }
 
   /** Refresh tool list when server sends notifications/tools/list_changed. */

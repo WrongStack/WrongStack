@@ -8,6 +8,7 @@ import {
   createTimeoutSignal,
   type HttpTransportOptions,
   makeAbortError,
+  nextJsonRpcId,
 } from './transport-base.js';
 import {
   assertMatchingJsonRpcResult,
@@ -35,7 +36,9 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
   }
 
   protected override genId(): number {
-    return this._nextId++;
+    const id = this._nextId;
+    this._nextId = nextJsonRpcId(id);
+    return id;
   }
 
   private consumeResponseText(text: string, requestId: number): JsonRpcResult | undefined {
@@ -87,6 +90,7 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
     const startupTimer = setTimeout(() => this.abortController?.abort(), this.timeout);
 
     try {
+      const initializeId = this.genId();
       const initFetchOpts: RequestInit = {
         method: 'POST',
         headers: {
@@ -96,7 +100,7 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
         },
         body: JSON.stringify({
           jsonrpc: '2.0',
-          id: this.genId(),
+          id: initializeId,
           method: 'initialize',
           params: {
             protocolVersion: MCP_CONSTANTS.PROTOCOL_VERSION,
@@ -129,7 +133,7 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
       if (!data) {
         throw new Error('Could not parse initialize response');
       }
-      data = assertMatchingJsonRpcResult(data, this._nextId - 1, 'initialize');
+      data = assertMatchingJsonRpcResult(data, initializeId, 'initialize');
 
       if (data.error) {
         throw new Error(`initialize failed: ${data.error.message}`);

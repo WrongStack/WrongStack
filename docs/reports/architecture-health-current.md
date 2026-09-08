@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-08T13:04:17.867Z
+**Generated:** 2026-09-08T13:43:11.748Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3689 |
-| Production source lines | 887194 |
-| Test files | 3176 |
+| Production source lines | 887208 |
+| Test files | 3177 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11612 |
+| Relative module edges | 11613 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -37,7 +37,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 5 | 5 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 5 | 7 | @wrongstack/core, @wrongstack/mcp |
-| @wrongstack/mcp | 37 | 35 | @wrongstack/core |
+| @wrongstack/mcp | 37 | 36 | @wrongstack/core |
 | @wrongstack/persistence | 6 | 9 | — |
 | @wrongstack/plug-lsp | 44 | 35 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 11 | 1 | @wrongstack/core, @wrongstack/tools |
@@ -93,8 +93,8 @@ None.
 | 1051 | `packages/webui/src/components/SkillDetailView.tsx` |
 | 1049 | `packages/core/src/index.ts` |
 | 1049 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
+| 1048 | `packages/mcp/src/client.ts` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
-| 1046 | `packages/mcp/src/client.ts` |
 | 1045 | `packages/cli/src/slash-commands/settings-mutations.ts` |
 | 1044 | `packages/webui/src/components/ContextDashboard.tsx` |
 | 1041 | `packages/tui/src/components/sidebar-content.tsx` |

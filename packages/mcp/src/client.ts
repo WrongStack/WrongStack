@@ -20,6 +20,7 @@ import {
 } from './protocol.js';
 import { normalizeMCPTools } from './tool-schema.js';
 import { type HttpTransportOptions, SSETransport, StreamableHTTPTransport } from './transport.js';
+import { nextJsonRpcId } from './transport-base.js';
 import { isJsonRpcResult } from './transport-jsonrpc.js';
 
 export { forceKillTree } from './client-process.js';
@@ -698,7 +699,8 @@ export class MCPClient {
       err.name = 'AbortError';
       return Promise.reject(err);
     }
-    const id = this.nextId++;
+    const id = this.nextId;
+    this.nextId = nextJsonRpcId(id);
     const req: JsonRpcRequest = { jsonrpc: '2.0', id, method, params };
     return new Promise((resolve, reject) => {
       // Abort support: drop the pending entry, notify the server per the MCP

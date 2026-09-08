@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-08T13:04:17.867Z",
+  "generatedAt": "2026-09-08T13:43:11.748Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3689,
-    "testFiles": 3176,
-    "sourceLines": 887194,
+    "testFiles": 3177,
+    "sourceLines": 887208,
     "workspaceEdges": 127,
-    "moduleEdges": 11612,
+    "moduleEdges": 11613,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -352,7 +352,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 37,
-      "testFiles": 35,
+      "testFiles": 36,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -365,7 +365,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 35
+          "testFiles": 36
         }
       ]
     },
@@ -9603,6 +9603,12 @@
       },
       {
         "file": "packages/mcp/tests/registry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/request-id-wrap.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20472,8 +20478,8 @@
     },
     {
       "file": "packages/mcp/src/client.ts",
-      "lines": 1046,
-      "relativeImports": 11
+      "lines": 1048,
+      "relativeImports": 12
     },
     {
       "file": "packages/mcp/src/server.ts",
@@ -20918,14 +20924,14 @@
       "relativeImports": 9
     },
     {
+      "file": "packages/mcp/src/client.ts",
+      "lines": 1048,
+      "relativeImports": 12
+    },
+    {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
       "lines": 1048,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/mcp/src/client.ts",
-      "lines": 1046,
-      "relativeImports": 11
     },
     {
       "file": "packages/cli/src/slash-commands/settings-mutations.ts",

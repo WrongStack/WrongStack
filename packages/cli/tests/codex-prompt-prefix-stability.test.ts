@@ -51,6 +51,7 @@ class RecordingProvider implements Provider {
     promptCache: true,
     systemPrompt: true,
     jsonMode: false,
+    reasoning: true,
     maxContext: 272_000,
     cacheControl: 'auto',
   };
