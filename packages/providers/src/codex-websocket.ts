@@ -1,4 +1,3 @@
-import type { EventEmitter } from 'node:events';
 import { isDeepStrictEqual } from 'node:util';
 import type { Request, StreamEvent } from '@wrongstack/core/types';
 import { ProviderError } from '@wrongstack/core/types';
@@ -28,13 +27,17 @@ export interface CodexWebSocketOptions {
   followRedirects?: boolean | undefined;
 }
 
+type CodexWebSocketListener = {
+  bivarianceHack(...args: unknown[]): void;
+}['bivarianceHack'];
+
 export interface CodexWebSocketLike {
   readonly readyState: number;
   send(data: string): void;
   close(): void;
-  on: EventEmitter['on'];
-  once: EventEmitter['once'];
-  removeListener: EventEmitter['removeListener'];
+  on(event: string, listener: CodexWebSocketListener): CodexWebSocketLike;
+  once(event: string, listener: CodexWebSocketListener): CodexWebSocketLike;
+  removeListener(event: string, listener: CodexWebSocketListener): CodexWebSocketLike;
 }
 
 function decodeWebSocketMessage(data: unknown): string {
@@ -624,5 +627,5 @@ export function defaultCodexWebSocketFactory(
     // `ws` accepts an AbortSignal: hand the caller's signal to the transport so
     // a handshake-time abort also tears down the underlying request.
     signal: options.signal,
-  });
+  }) as CodexWebSocketLike;
 }
