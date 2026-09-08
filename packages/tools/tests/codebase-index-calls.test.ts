@@ -212,11 +212,11 @@ describe('codebase-incoming-calls tool', () => {
 
   it('rejects missing or empty symbol with ToolValidationError', async () => {
     await expect(
-      codebaseIncomingCallsTool.execute({} as any, ctx),
+      codebaseIncomingCallsTool.execute({} as any, ctx, { signal: newSignal() }),
     ).rejects.toThrow(/symbol is required and cannot be empty/);
 
     await expect(
-      codebaseIncomingCallsTool.execute({ symbol: '   ' }, ctx),
+      codebaseIncomingCallsTool.execute({ symbol: '   ' }, ctx, { signal: newSignal() }),
     ).rejects.toThrow(/symbol is required and cannot be empty/);
   });
 });
@@ -304,11 +304,11 @@ describe('codebase-outgoing-calls tool', () => {
 
   it('rejects missing or empty symbol with ToolValidationError', async () => {
     await expect(
-      codebaseOutgoingCallsTool.execute({} as any, ctx),
+      codebaseOutgoingCallsTool.execute({} as any, ctx, { signal: newSignal() }),
     ).rejects.toThrow(/symbol is required and cannot be empty/);
 
     await expect(
-      codebaseOutgoingCallsTool.execute({ symbol: '   ' }, ctx),
+      codebaseOutgoingCallsTool.execute({ symbol: '   ' }, ctx, { signal: newSignal() }),
     ).rejects.toThrow(/symbol is required and cannot be empty/);
   });
 });

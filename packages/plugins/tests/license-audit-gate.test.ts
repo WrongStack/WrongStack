@@ -50,7 +50,7 @@ function normalizePath(p: string): string {
 }
 
 function mockPackage(name: string, pkg: Record<string, unknown>) {
-  vi.mocked(readFileSync).mockImplementation((path: string | Buffer | URL) => {
+  vi.mocked(readFileSync).mockImplementation((path: unknown) => {
     if (
       typeof path === 'string' &&
       normalizePath(path).endsWith(`node_modules/${name}/package.json`)
@@ -150,7 +150,7 @@ describe('license-audit-gate plugin', () => {
   });
 
   it('reads license object and licenses array forms', () => {
-    vi.mocked(readFileSync).mockImplementation((path: string | Buffer | URL) => {
+    vi.mocked(readFileSync).mockImplementation((path: unknown) => {
       const p = normalizePath(String(path));
       if (p.endsWith('node_modules/obj-pkg/package.json')) {
         return JSON.stringify({
@@ -178,7 +178,7 @@ describe('license-audit-gate plugin', () => {
   });
 
   it('blocks when one of multiple licenses is disallowed', () => {
-    vi.mocked(readFileSync).mockImplementation((path: string | Buffer | URL) => {
+    vi.mocked(readFileSync).mockImplementation((path: unknown) => {
       const p = normalizePath(String(path));
       if (p.endsWith('node_modules/mixed-pkg/package.json')) {
         return JSON.stringify({

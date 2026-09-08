@@ -256,7 +256,7 @@ describe('api-compatibility-gate plugin', () => {
     vi.mocked(existsSync).mockImplementation((p: string) => {
       return normalizePath(String(p)) === 'fake-root/package.json';
     });
-    vi.mocked(readFileSync).mockImplementation((p: string) => {
+    vi.mocked(readFileSync).mockImplementation((p: unknown) => {
       if (normalizePath(String(p)) === 'fake-root/package.json') {
         return JSON.stringify({ main: 'src/index.ts' });
       }

@@ -242,9 +242,7 @@ export async function executeEnsureHot(
   const located = await locateTranscript(host.dir, id);
   if (!located) throw new Error(`Session not found: ${id}`);
   if (located.state === 'hot') {
-    await rehydrateSessionTranscript(host.dir, id, host.storagePolicy.includeSubagents).catch(
-      () => undefined,
-    );
+    await rehydrateSessionTranscript(host.dir, id, host.storagePolicy.includeSubagents);
     return { id, action: 'already-hot', uncompressedBytes: located.size };
   }
   let lease: MaintenanceLease | undefined;

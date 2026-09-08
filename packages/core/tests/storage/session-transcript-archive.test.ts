@@ -99,6 +99,16 @@ describe('session transcript archive', () => {
     expect(data.events.some((event) => event.type === 'session_resumed')).toBe(true);
   });
 
+  it('reports corrupt companion transcripts when a hot session is rehydrated', async () => {
+    const id = 'hot-corrupt-companion';
+    await writeClosedSession(id, new Date().toISOString(), 'hot session');
+    const companionDir = path.join(tmp, id);
+    await fs.mkdir(companionDir, { recursive: true });
+    await fs.writeFile(path.join(companionDir, 'child.jsonl.gz'), 'not gzip');
+
+    await expect(store.rehydrate(id)).rejects.toThrow();
+  });
+
   it('keeps list() storage state in sync across archive and rehydrate', async () => {
     const id = '2020-01-01/storage-state-sync';
     await writeClosedSession(id, '2020-01-01T00:00:00.000Z', 'state sync');

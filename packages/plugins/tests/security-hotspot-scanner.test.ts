@@ -237,7 +237,7 @@ describe('security-hotspot-scanner plugin', () => {
     vi.mocked(readdirSync).mockReturnValue(['a.js', 'b.ts'] as unknown[] as ReturnType<
       typeof readdirSync
     >);
-    vi.mocked(readFileSync).mockImplementation((p: string | Buffer | URL) => {
+    vi.mocked(readFileSync).mockImplementation((p: unknown) => {
       const path = String(p);
       if (path.endsWith('a.js')) return 'eval(x);';
       if (path.endsWith('b.ts')) return 'const url = "http://bad.com";';
