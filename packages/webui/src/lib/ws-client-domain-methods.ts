@@ -179,22 +179,22 @@ const domainMethods = {
     this.send({ type: 'provider.remove', payload: { providerId } });
   },
 
-  startOAuth(
-    this: WsClientDomainHost,
-    kind: 'chatgpt' | 'claude' | 'copilot',
-    providerId?: string,
-  ) {
+  listOAuthProviders(this: WsClientDomainHost) {
+    this.send({ type: 'auth.oauth.list' });
+  },
+
+  startOAuth(this: WsClientDomainHost, kind: string, providerId?: string) {
     this.send({
       type: 'auth.oauth.start',
       payload: providerId ? { kind, providerId } : { kind },
     });
   },
 
-  submitOAuthCode(this: WsClientDomainHost, kind: 'chatgpt' | 'claude' | 'copilot', input: string) {
+  submitOAuthCode(this: WsClientDomainHost, kind: string, input: string) {
     this.send({ type: 'auth.oauth.code', payload: { kind, input } });
   },
 
-  cancelOAuth(this: WsClientDomainHost, kind: 'chatgpt' | 'claude' | 'copilot') {
+  cancelOAuth(this: WsClientDomainHost, kind: string) {
     this.send({ type: 'auth.oauth.cancel', payload: { kind } });
   },
 

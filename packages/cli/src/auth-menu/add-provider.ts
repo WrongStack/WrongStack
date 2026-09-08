@@ -70,11 +70,11 @@ export async function addFromCatalog(deps: AuthMenuDeps): Promise<boolean> {
   if (!chosen) {
     // User cancelled — offer OAuth as an alternative.
     deps.renderer.write(
-      `\n  ${color.dim('OAuth login options:')} ${color.dim('chatgpt')}, ${color.dim('claude')}, or ${color.dim('copilot')}?\n`,
+      `\n  ${color.dim('OAuth login options: enter a registered strategy name, or q to quit.')}\n`,
     );
     const answer = (
       await deps.reader.readLine(
-        `  ${color.amber('?')} OAuth or q to quit ${color.dim('[chatgpt/claude/copilot]')}: `,
+        `  ${color.amber('?')} OAuth strategy ${color.dim('(or q)')}: `,
       )
     ).trim();
     if (answer && (await runOAuthLoginChoice(deps, answer, { allowNumeric: false }))) {

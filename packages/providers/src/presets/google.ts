@@ -339,8 +339,7 @@ function deriveGeminiThinkingBudget(maxOutput: number, effort: ReasoningEffort):
 }
 
 export function toolsToGemini(tools: Tool[]): Array<Record<string, unknown>> {
-  const sorted =
-    tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
+  const sorted = tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
   return sorted.map((t) => {
     const compact = compactToolDefinitionForWire(t);
     return {

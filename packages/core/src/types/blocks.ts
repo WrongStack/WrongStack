@@ -4,6 +4,39 @@ export interface TextBlock {
   cache_control?: { type: 'ephemeral' | undefined };
 }
 
+/**
+ * System-prompt blocks whose text is rebuilt every turn (a live peer roster, a
+ * recalled-memory block, a plugin's per-turn context).
+ *
+ * A WeakSet keyed on block identity, not a field on {@link TextBlock}: the
+ * Anthropic adapter spreads system blocks verbatim onto the wire, so any extra
+ * property would leak into the request body.
+ *
+ * Why the wire needs to know: Anthropic marks explicit cache breakpoints, so a
+ * volatile block placed after the last breakpoint costs nothing. The OpenAI
+ * **Responses** wire has no breakpoints — it joins every system block into one
+ * `instructions` string at the head of the cached prefix, so a block that
+ * changes each turn invalidates the prefix from that point on, taking the
+ * ENTIRE conversation with it. Measured live against the ChatGPT Codex
+ * backend: 95% cache hits with a stable prompt, 85% with one such block
+ * appended to `system`, 91% with the same bytes moved after the conversation.
+ * The gap grows with the conversation, because everything after the volatile
+ * block is what stops being cacheable.
+ *
+ * Producers mark; wire adapters that cannot express a breakpoint relocate.
+ */
+export const VOLATILE_SYSTEM_BLOCKS = new WeakSet<TextBlock>();
+
+/** Mark a system block as rebuilt-every-turn. Returns the same reference. */
+export function markVolatileSystemBlock(block: TextBlock): TextBlock {
+  VOLATILE_SYSTEM_BLOCKS.add(block);
+  return block;
+}
+
+export function isVolatileSystemBlock(block: TextBlock): boolean {
+  return VOLATILE_SYSTEM_BLOCKS.has(block);
+}
+
 export interface ToolUseBlock {
   type: 'tool_use';
   id: string;

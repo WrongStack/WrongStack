@@ -33,6 +33,12 @@ describe('parsePredictions', () => {
     expect(parsePredictions('No further steps needed.')).toEqual([]);
   });
 
+  it('keeps a valid prediction that begins with the sentinel words', () => {
+    expect(parsePredictions('No further steps are needed from you; run the focused test suite.')).toEqual([
+      'No further steps are needed from you; run the focused test suite.',
+    ]);
+  });
+
   it('returns [] for empty input', () => {
     expect(parsePredictions('   ')).toEqual([]);
   });

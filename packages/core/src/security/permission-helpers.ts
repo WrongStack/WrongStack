@@ -7,6 +7,7 @@
  * containment); everything else is pure string work.
  */
 import { realpathSync } from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Tool } from '../types/tool.js';
 import { matchAny, matchAnyCommand } from '../utils/glob-match.js';
@@ -324,9 +325,15 @@ function stripAdsSuffix(forwardSlashPath: string): string {
   return dir + base.slice(0, colon);
 }
 
+function expandHome(p: string): string {
+  if (p === '~') return os.homedir();
+  return p.replace(/^~([\\/])/, (_, sep) => `${os.homedir()}${sep}`);
+}
+
 function normalizeForCompare(value: string): string {
+  const expanded = expandHome(unescapeGlobSubject(value));
   const forward = stripAdsSuffix(
-    unescapeGlobSubject(value).replace(/\\/g, '/').replace(/\/+$/, ''),
+    expanded.replace(/\\/g, '/').replace(/\/+$/, ''),
   );
   return process.platform === 'win32' ? forward.toLowerCase() : forward;
 }
@@ -337,14 +344,14 @@ function normalizeForCompare(value: string): string {
  * resolves (e.g. the root does not exist yet on first boot).
  */
 function realpathOfNearestExisting(p: string): string {
-  let probe = p;
+  let probe = expandHome(p);
   const tail: string[] = [];
   for (;;) {
     try {
       return tail.length === 0 ? realpathSync(probe) : path.join(realpathSync(probe), ...tail);
     } catch {
       const parent = path.dirname(probe);
-      if (parent === probe) return p;
+      if (parent === probe) return expandHome(p);
       tail.unshift(path.basename(probe));
       probe = parent;
     }
@@ -403,7 +410,8 @@ export function isProtectedAgentStatePath(absPath: string): boolean {
 function pathLooksSensitive(rawPath: string): boolean {
   // ADS strip before matching — see stripAdsSuffix. `.env::$DATA` reads `.env`,
   // but every pattern below is `$`-anchored and would miss it.
-  const normalized = stripAdsSuffix(stripShellQuotes(rawPath).replace(/\\/g, '/'));
+  const unquoted = expandHome(stripShellQuotes(rawPath));
+  const normalized = stripAdsSuffix(unquoted.replace(/\\/g, '/'));
   if (SENSITIVE_READ_PATHS.some((pattern) => pattern.test(normalized))) return true;
   // `config.json` alone is far too common to put in SENSITIVE_READ_PATHS — it
   // would fire on nearly every project. Anchoring it to the global root keeps

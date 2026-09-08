@@ -40,8 +40,7 @@ function stringifyToolInputOnce(input: Record<string, unknown>): string {
 export function toolsToOpenAI(tools: Tool[]): OpenAIToolSchema[] {
   const hit = _cache.get(tools);
   if (hit) return hit;
-  const sorted =
-    tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
+  const sorted = tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
   const result = sorted.map((t) => {
     const compact = compactToolDefinitionForWire(t);
     return {

@@ -133,6 +133,7 @@ import type {
   WSSkillsUpdated,
 } from './skills-design.js';
 import type {
+  WSAuthOAuthProviders,
   WSAuthOAuthStatus,
   WSCatalogModelSearchResult,
   WSCompletionResult,
@@ -267,6 +268,7 @@ export type WSServerMessage =
   | WSKeyOperationResult
   | WSModelSwitchResult
   | WSAuthOAuthStatus
+  | WSAuthOAuthProviders
   | WSFilesList
   | WSFilesGitServerMessage
   | WSCompletionResult

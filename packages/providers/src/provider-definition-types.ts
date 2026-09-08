@@ -56,6 +56,10 @@ export interface ProviderDefinition {
   customModels?: Readonly<Record<string, CustomModelDefinition>>;
   quirks?: CompatibilityQuirks;
   autoDiscover?: boolean;
+  /** Provider-specific path below baseUrl used for authenticated model discovery. */
+  modelDiscoveryPath?: string;
+  /** Treat discovery as the account's authoritative visible-model list. */
+  modelDiscoveryAuthoritative?: boolean;
   requestPolicy?: OpenAICompatiblePolicyId;
   catalog?: ProviderCatalogMetadata;
   local?: {

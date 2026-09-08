@@ -35,6 +35,7 @@ wstack auth rm <provider-id>
 wstack auth login chatgpt
 wstack auth login claude
 wstack auth login copilot
+wstack auth login openrouter
 ```
 
 Accepted login aliases are:
@@ -42,6 +43,7 @@ Accepted login aliases are:
 - ChatGPT/Codex: `chatgpt`, `openai`, `codex`, `codex-cli`, `openai-codex`, `chatgpt-plus`, `plus`, `pro`.
 - Claude: `claude`, `anthropic`, `claude-pro`, `claude-max`, `anthropic-oauth`, `max`.
 - GitHub Copilot: `copilot`, `github`, `github-copilot`, `gh`.
+- OpenRouter: `openrouter`, `openrouter-login`, `openrouter-oauth`.
 
 ### Direct (flag-based)
 ```

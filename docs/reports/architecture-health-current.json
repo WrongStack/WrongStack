@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-08T07:13:05.835Z",
+  "generatedAt": "2026-09-08T13:04:17.867Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3681,
-    "testFiles": 3170,
-    "sourceLines": 885053,
+    "sourceFiles": 3689,
+    "testFiles": 3176,
+    "sourceLines": 887194,
     "workspaceEdges": 127,
-    "moduleEdges": 11594,
+    "moduleEdges": 11612,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 873
+    "testOnlyExports": 874
   },
   "errors": [],
   "packageCycles": [],
@@ -144,8 +144,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 482,
-      "testFiles": 461,
+      "sourceFiles": 483,
+      "testFiles": 463,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -184,7 +184,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 461
+          "testFiles": 463
         }
       ]
     },
@@ -214,8 +214,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 839,
-      "testFiles": 716,
+      "sourceFiles": 841,
+      "testFiles": 717,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -230,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 716
+          "testFiles": 717
         }
       ]
     },
@@ -478,8 +478,8 @@
     {
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
-      "sourceFiles": 61,
-      "testFiles": 58,
+      "sourceFiles": 66,
+      "testFiles": 61,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -492,7 +492,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 58
+          "testFiles": 61
         }
       ]
     },
@@ -2174,6 +2174,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/codex-prompt-prefix-stability.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/command-host-adapters.test.ts",
         "projects": [
           "root-node"
@@ -3225,6 +3231,12 @@
       },
       {
         "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/provider-auth-login.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7358,6 +7370,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/registry/provider-auth-registry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/registry/provider-registry.test.ts",
         "projects": [
           "root-node"
@@ -10952,6 +10970,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/openrouter-oauth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/overlay-invalidation.test.ts",
         "projects": [
           "root-node"
@@ -10965,6 +10989,18 @@
       },
       {
         "file": "packages/providers/tests/prompt-cache-key.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/prompt-cache-probe.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/provider-auth-registry.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20206,8 +20242,8 @@
   "hotspotCandidates": [
     {
       "file": "packages/cli/src/auth-menu/panel-service.ts",
-      "lines": 1044,
-      "relativeImports": 9
+      "lines": 1039,
+      "relativeImports": 7
     },
     {
       "file": "packages/cli/src/boot/tui-session-resume.ts",
@@ -20221,12 +20257,12 @@
     },
     {
       "file": "packages/cli/src/cli-main.ts",
-      "lines": 859,
+      "lines": 862,
       "relativeImports": 34
     },
     {
       "file": "packages/cli/src/execution.ts",
-      "lines": 888,
+      "lines": 890,
       "relativeImports": 41
     },
     {
@@ -20276,7 +20312,7 @@
     },
     {
       "file": "packages/cli/src/webui-server.ts",
-      "lines": 1007,
+      "lines": 1008,
       "relativeImports": 21
     },
     {
@@ -20336,7 +20372,7 @@
     },
     {
       "file": "packages/core/src/core/system-prompt-builder.ts",
-      "lines": 923,
+      "lines": 957,
       "relativeImports": 24
     },
     {
@@ -20371,13 +20407,13 @@
     },
     {
       "file": "packages/core/src/index.ts",
-      "lines": 1048,
-      "relativeImports": 163
+      "lines": 1049,
+      "relativeImports": 164
     },
     {
       "file": "packages/core/src/plugin/api.ts",
-      "lines": 887,
-      "relativeImports": 21
+      "lines": 919,
+      "relativeImports": 22
     },
     {
       "file": "packages/core/src/security/secret-vault.ts",
@@ -20496,8 +20532,8 @@
     },
     {
       "file": "packages/providers/src/openai-codex.ts",
-      "lines": 1178,
-      "relativeImports": 16
+      "lines": 1576,
+      "relativeImports": 17
     },
     {
       "file": "packages/sage/src/domain-term-extractor.ts",
@@ -20676,7 +20712,7 @@
     },
     {
       "file": "packages/tui/src/submit-controller.ts",
-      "lines": 905,
+      "lines": 914,
       "relativeImports": 13
     },
     {
@@ -20736,7 +20772,7 @@
     },
     {
       "file": "packages/webui/src/components/SettingsPanel/ProviderSection.tsx",
-      "lines": 893,
+      "lines": 886,
       "relativeImports": 7
     },
     {
@@ -20791,7 +20827,7 @@
     },
     {
       "file": "packages/webui/src/types/client-message.ts",
-      "lines": 870,
+      "lines": 871,
       "relativeImports": 7
     },
     {
@@ -20806,7 +20842,7 @@
     },
     {
       "file": "packages/webui-server/src/server/embedded-message-router.ts",
-      "lines": 831,
+      "lines": 832,
       "relativeImports": 52
     },
     {
@@ -20843,8 +20879,8 @@
   "hotspots": [
     {
       "file": "packages/providers/src/openai-codex.ts",
-      "lines": 1178,
-      "relativeImports": 16
+      "lines": 1576,
+      "relativeImports": 17
     },
     {
       "file": "packages/core/src/coordination/delegate-tool.ts",
@@ -20872,14 +20908,14 @@
       "relativeImports": 3
     },
     {
+      "file": "packages/core/src/index.ts",
+      "lines": 1049,
+      "relativeImports": 164
+    },
+    {
       "file": "packages/webui/src/components/OfficeMapCanvas.tsx",
       "lines": 1049,
       "relativeImports": 9
-    },
-    {
-      "file": "packages/core/src/index.ts",
-      "lines": 1048,
-      "relativeImports": 163
     },
     {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
@@ -20897,11 +20933,6 @@
       "relativeImports": 5
     },
     {
-      "file": "packages/cli/src/auth-menu/panel-service.ts",
-      "lines": 1044,
-      "relativeImports": 9
-    },
-    {
       "file": "packages/webui/src/components/ContextDashboard.tsx",
       "lines": 1044,
       "relativeImports": 2
@@ -20910,6 +20941,11 @@
       "file": "packages/tui/src/components/sidebar-content.tsx",
       "lines": 1041,
       "relativeImports": 13
+    },
+    {
+      "file": "packages/cli/src/auth-menu/panel-service.ts",
+      "lines": 1039,
+      "relativeImports": 7
     },
     {
       "file": "packages/webui-server/src/server/context-editor.ts",
@@ -20978,7 +21014,7 @@
     },
     {
       "file": "packages/cli/src/webui-server.ts",
-      "lines": 1007,
+      "lines": 1008,
       "relativeImports": 21
     },
     {
@@ -21087,9 +21123,9 @@
       "relativeImports": 8
     },
     {
-      "file": "packages/plugins/src/prompt-firewall/index.ts",
-      "lines": 955,
-      "relativeImports": 2
+      "file": "packages/core/src/core/system-prompt-builder.ts",
+      "lines": 957,
+      "relativeImports": 24
     }
   ],
   "testOnlyExports": [
@@ -21500,6 +21536,10 @@
     {
       "file": "packages/cli/src/simpleui-dist.ts",
       "name": "resolveSimpleUiDistDir"
+    },
+    {
+      "file": "packages/cli/src/slash-commands/context.ts",
+      "name": "cacheTrendVerdict"
     },
     {
       "file": "packages/cli/src/slash-commands/goal-refiner.ts",
@@ -22048,6 +22088,10 @@
     {
       "file": "packages/core/src/infrastructure/mcp-servers.ts",
       "name": "requirementIntakeServer"
+    },
+    {
+      "file": "packages/core/src/infrastructure/provider-cache-ledger.ts",
+      "name": "RECENT_HIT_RATIO_WINDOW"
     },
     {
       "file": "packages/core/src/mailbox-attach.ts",
@@ -22784,10 +22828,6 @@
     {
       "file": "packages/providers/src/error-parse.ts",
       "name": "retryAfterMsFromBody"
-    },
-    {
-      "file": "packages/providers/src/oauth/index.ts",
-      "name": "OAUTH_PROVIDER_IDS"
     },
     {
       "file": "packages/providers/src/openai-codex.ts",

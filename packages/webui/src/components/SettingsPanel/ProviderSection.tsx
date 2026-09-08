@@ -324,7 +324,7 @@ export function ProviderSection({
 
   return (
     <div className="space-y-4">
-      {/* Subscription sign-in (ChatGPT / Claude / Copilot) */}
+      {/* Registry-driven provider sign-in */}
       <div className="space-y-2">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <Key className="h-4 w-4 text-muted-foreground" />
@@ -332,17 +332,10 @@ export function ProviderSection({
         </h3>
         <OAuthLoginSection
           ws={ws}
-          savedByKind={{
-            chatgpt: savedProviders
-              .filter((sp) => sp.id === 'openai-codex' || sp.id.startsWith('openai-codex-'))
-              .map((sp) => ({ id: sp.id, hasActiveKey: sp.apiKeys.some((k) => k.isActive) })),
-            claude: savedProviders
-              .filter((sp) => sp.id === 'anthropic-oauth' || sp.id.startsWith('anthropic-oauth-'))
-              .map((sp) => ({ id: sp.id, hasActiveKey: sp.apiKeys.some((k) => k.isActive) })),
-            copilot: savedProviders
-              .filter((sp) => sp.id === 'github-copilot')
-              .map((sp) => ({ id: sp.id, hasActiveKey: sp.apiKeys.some((k) => k.isActive) })),
-          }}
+          savedProviders={savedProviders.map((sp) => ({
+            id: sp.id,
+            hasActiveKey: sp.apiKeys.some((key) => key.isActive),
+          }))}
         />
       </div>
 

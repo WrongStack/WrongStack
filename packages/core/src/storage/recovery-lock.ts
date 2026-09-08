@@ -98,6 +98,14 @@ export class RecoveryLock {
     const lock = await this.readLock();
     if (!lock) return null;
 
+    // PID liveness only meaningful on the same host. Check this BEFORE
+    // clearing stale or skew locks: an active process on the local box
+    // must NEVER have its lock unlinked from disk while still running.
+    if (lock.hostname === this.hostname && this.probe(lock.pid)) {
+      // Another wstack on this box is actively writing here.
+      return null;
+    }
+
     const ageMs = Date.now() - new Date(lock.startedAt).getTime();
     if (Number.isNaN(ageMs) || ageMs < 0) {
       // Clock skew or corrupted timestamp — treat as orphan. Clean up the
@@ -110,16 +118,6 @@ export class RecoveryLock {
       // guaranteed dead (disk wipe, OS reinstall, 24h+ uptime since crash).
       // Clean up the stale file so a subsequent write() doesn't hit EEXIST.
       await this.clear().catch(() => undefined);
-      return null;
-    }
-
-    // PID liveness only meaningful on the same host. Different host
-    // means we can't probe — assume abandoned (the other machine's
-    // wstack can't be holding *our* sessions dir unless it was
-    // shared via network mount, in which case the user is on their
-    // own).
-    if (lock.hostname === this.hostname && this.probe(lock.pid)) {
-      // Another wstack on this box is actively writing here.
       return null;
     }
 

@@ -1,4 +1,11 @@
-import { ProviderError, type Request, type StreamEvent } from '@wrongstack/core/types';
+import { readFile } from 'node:fs/promises';
+import {
+  markVolatileSystemBlock,
+  ProviderError,
+  type Request,
+  type StreamEvent,
+  type TextBlock,
+} from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type CodexOAuthTokens,
@@ -140,11 +147,17 @@ data: {"type":"response.completed","response":{"status":"completed"}}
 
 describe('OpenAICodexProvider live context limit', () => {
   it.each([
-    [1_050_000, 1_033_616],
-    [128_000, 111_616],
-    [0, 255_616],
-    ['1050000', 255_616],
-  ])('uses the catalog maximum %s rather than the default window', async (maximum, expected) => {
+    // `max_context_window` is the largest window the model supports — the
+    // ceiling a configured client may ask for (`configured.min(max)` in the
+    // official client) — while `context_window` is only the default. On
+    // gpt-6-astra and the gpt-5.6 family that is 872K against a 272K default,
+    // so reporting the default would throw away two thirds of the window.
+    // The default is the fallback for a catalog too old to publish a maximum.
+    [872_000, 828_400],
+    [1_050_000, 997_500],
+    [0, 258_400],
+    ['872000', 258_400],
+  ])('reports the model maximum %s, falling back to context_window', async (maximum, expected) => {
     const fetchImpl = (async () =>
       new Response(
         JSON.stringify({
@@ -167,6 +180,42 @@ describe('OpenAICodexProvider live context limit', () => {
         signal: new AbortController().signal,
       }),
     ).resolves.toEqual({ maxContext: expected, source: 'provider' });
+  });
+
+  it('honours the catalog effective_context_window_percent over the 95% default', async () => {
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          models: [
+            { slug: 'default-percent', context_window: 272_000 },
+            {
+              slug: 'explicit-percent',
+              context_window: 272_000,
+              effective_context_window_percent: 80,
+            },
+            { slug: 'bad-percent', context_window: 272_000, effective_context_window_percent: 0 },
+          ],
+        }),
+        { status: 200 },
+      )) as typeof fetch;
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl,
+    });
+    const signal = new AbortController().signal;
+
+    await expect(provider.refreshContextLimit('default-percent', { signal })).resolves.toEqual({
+      maxContext: 258_400, // 272_000 * 95%
+      source: 'provider',
+    });
+    await expect(provider.refreshContextLimit('explicit-percent', { signal })).resolves.toEqual({
+      maxContext: 217_600, // 272_000 * 80%
+      source: 'provider',
+    });
+    await expect(provider.refreshContextLimit('bad-percent', { signal })).resolves.toEqual({
+      maxContext: 258_400, // out-of-range percent falls back to the 95% default
+      source: 'provider',
+    });
   });
 
   it('caches context_window for five minutes, then conditionally revalidates', async () => {
@@ -192,16 +241,16 @@ describe('OpenAICodexProvider live context limit', () => {
 
     await expect(
       provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
-    ).resolves.toEqual({ maxContext: 255_616, source: 'provider' });
+    ).resolves.toEqual({ maxContext: 258_400, source: 'provider' });
     await expect(
       provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
-    ).resolves.toEqual({ maxContext: 255_616, source: 'provider' });
+    ).resolves.toEqual({ maxContext: 258_400, source: 'provider' });
     expect(calls).toHaveLength(1);
 
     vi.advanceTimersByTime(5 * 60_000 + 1);
     await expect(
       provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
-    ).resolves.toEqual({ maxContext: 255_616, source: 'provider' });
+    ).resolves.toEqual({ maxContext: 258_400, source: 'provider' });
 
     // The backend rejects non-semver values with "Invalid client_version
     // format" — the param must always carry a real package version.
@@ -218,7 +267,8 @@ describe('OpenAICodexProvider live context limit', () => {
         JSON.stringify({
           models: [
             { slug: 'fractional', context_window: 272_000.75 },
-            { slug: 'fallback', context_window: 0, max_context_window: 128_000 },
+            // A maximum with no default window is still a usable ceiling.
+            { slug: 'max-only', context_window: 0, max_context_window: 128_000 },
             { slug: 'string-limit', context_window: '272000' },
             { slug: 'zero-limit', context_window: 0 },
           ],
@@ -232,11 +282,11 @@ describe('OpenAICodexProvider live context limit', () => {
     const signal = new AbortController().signal;
 
     await expect(provider.refreshContextLimit('fractional', { signal })).resolves.toEqual({
-      maxContext: 255_616,
+      maxContext: 258_400,
       source: 'provider',
     });
-    await expect(provider.refreshContextLimit('fallback', { signal })).resolves.toEqual({
-      maxContext: 111_616,
+    await expect(provider.refreshContextLimit('max-only', { signal })).resolves.toEqual({
+      maxContext: 121_600, // 128_000 * 95%
       source: 'provider',
     });
     await expect(provider.refreshContextLimit('string-limit', { signal })).resolves.toBeUndefined();
@@ -251,7 +301,7 @@ describe('OpenAICodexProvider live context limit', () => {
       requestNo += 1;
       if (requestNo === 1) {
         return new Response(
-          JSON.stringify({ models: [{ slug: 'gpt-5.6-sol', max_context_window: 272_000 }] }),
+          JSON.stringify({ models: [{ slug: 'gpt-5.6-sol', context_window: 272_000 }] }),
           { status: 200 },
         );
       }
@@ -266,11 +316,11 @@ describe('OpenAICodexProvider live context limit', () => {
     await provider.refreshContextLimit('gpt-5.6-sol', { signal });
     vi.advanceTimersByTime(5 * 60_000 + 1);
     await expect(provider.refreshContextLimit('gpt-5.6-sol', { signal })).resolves.toEqual({
-      maxContext: 255_616,
+      maxContext: 258_400,
       source: 'provider',
     });
     await expect(provider.refreshContextLimit('gpt-5.6-sol', { signal })).resolves.toEqual({
-      maxContext: 255_616,
+      maxContext: 258_400,
       source: 'provider',
     });
     expect(requestNo).toBe(2);
@@ -278,9 +328,9 @@ describe('OpenAICodexProvider live context limit', () => {
 
   it('adopts the send ceiling, not the raw total window, on a throttled drop', async () => {
     // A throttled route publishes the TOTAL window (272000) while the backend
-    // enforces sends around `context_window - max_output_tokens` (~258K).
-    // The probe must return the discounted send ceiling so preflight
-    // compaction triggers before the backend rejects the request.
+    // enforces sends around 255K-260K. `effective_context_window_percent` (95,
+    // the catalog default) is that discount, so preflight compaction triggers
+    // before the backend rejects the request.
     const fetchImpl = (async () =>
       new Response(JSON.stringify({ models: [{ slug: 'gpt-5.6-sol', context_window: 272_000 }] }), {
         status: 200,
@@ -292,12 +342,12 @@ describe('OpenAICodexProvider live context limit', () => {
     const signal = new AbortController().signal;
 
     await expect(provider.refreshContextLimit('gpt-5.6-sol', { signal })).resolves.toEqual({
-      maxContext: 255_616, // 272_000 - 16_384 (Codex output budget)
+      maxContext: 258_400, // 272_000 * 95%
       source: 'provider',
     });
   });
 
-  it('caps the output reserve at half of a small window so tiny routes stay usable', async () => {
+  it('keeps a small window usable rather than discounting it to nothing', async () => {
     const fetchImpl = (async () =>
       new Response(JSON.stringify({ models: [{ slug: 'tiny', context_window: 20_000 }] }), {
         status: 200,
@@ -309,9 +359,446 @@ describe('OpenAICodexProvider live context limit', () => {
     const signal = new AbortController().signal;
 
     await expect(provider.refreshContextLimit('tiny', { signal })).resolves.toEqual({
-      maxContext: 10_000, // min(16_384, 20_000 / 2) reserve
+      maxContext: 19_000, // 20_000 * 95% — a proportional reserve, not a flat one
       source: 'provider',
     });
+  });
+});
+
+describe('OpenAICodexProvider reasoning effort', () => {
+  /** Fetch that answers the catalog probe, then records the responses call. */
+  function catalogThenStream(
+    calls: Array<Record<string, unknown>>,
+    defaultReasoningLevel: string,
+  ): typeof fetch {
+    return (async (url: string, init?: { body?: string }) => {
+      if (String(url).includes('/codex/models')) {
+        return new Response(
+          JSON.stringify({
+            models: [
+              {
+                slug: 'gpt-5.6-sol',
+                context_window: 272_000,
+                default_reasoning_level: defaultReasoningLevel,
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      calls.push(JSON.parse(init?.body ?? '{}') as Record<string, unknown>);
+      return new Response('data: {"type":"response.completed","response":{}}\n\n', {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      });
+    }) as unknown as typeof fetch;
+  }
+
+  async function drain(stream: AsyncIterable<StreamEvent>): Promise<void> {
+    for await (const _ of stream) {
+      // consume
+    }
+  }
+
+  it('adopts the model’s own catalog default rather than a blanket medium', async () => {
+    // The picker recommends `low` for gpt-5.6-sol and `high` for
+    // gpt-5.3-codex-spark; a single hardcoded 'medium' overrode both.
+    const bodies: Array<Record<string, unknown>> = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: catalogThenStream(bodies, 'low'),
+    });
+    const signal = new AbortController().signal;
+    await provider.refreshContextLimit('gpt-5.6-sol', { signal });
+    await drain(
+      provider.stream(
+        { model: 'gpt-5.6-sol', messages: [{ role: 'user', content: 'hi' }] },
+        { signal },
+      ),
+    );
+    expect(bodies[0]?.['reasoning']).toEqual({ effort: 'low', summary: 'auto' });
+  });
+
+  it('lets a configured provider default beat the catalog', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      reasoningEffort: 'high',
+      fetchImpl: catalogThenStream(bodies, 'low'),
+    });
+    const signal = new AbortController().signal;
+    await provider.refreshContextLimit('gpt-5.6-sol', { signal });
+    await drain(
+      provider.stream(
+        { model: 'gpt-5.6-sol', messages: [{ role: 'user', content: 'hi' }] },
+        { signal },
+      ),
+    );
+    expect(bodies[0]?.['reasoning']).toEqual({ effort: 'high', summary: 'auto' });
+  });
+
+  it('lets the request beat everything', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      reasoningEffort: 'high',
+      fetchImpl: catalogThenStream(bodies, 'low'),
+    });
+    const signal = new AbortController().signal;
+    await provider.refreshContextLimit('gpt-5.6-sol', { signal });
+    await drain(
+      provider.stream(
+        {
+          model: 'gpt-5.6-sol',
+          messages: [{ role: 'user', content: 'hi' }],
+          reasoning: { effort: 'xhigh' },
+        },
+        { signal },
+      ),
+    );
+    expect(bodies[0]?.['reasoning']).toEqual({ effort: 'xhigh', summary: 'auto' });
+  });
+
+  it('falls back to medium for a model the catalog does not describe', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: catalogThenStream(bodies, 'low'),
+    });
+    await drain(
+      provider.stream(
+        { model: 'unknown-model', messages: [{ role: 'user', content: 'hi' }] },
+        { signal: new AbortController().signal },
+      ),
+    );
+    expect(bodies[0]?.['reasoning']).toEqual({ effort: 'medium', summary: 'auto' });
+  });
+});
+
+describe('CODEX_CLIENT_VERSION pin', () => {
+  it('is a semver in the Codex CLI version space, decoupled from our own', async () => {
+    const { CODEX_CLIENT_VERSION } = await import('../src/oauth/codex-protocol.js');
+    const ours = (
+      JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
+        version: string;
+      }
+    ).version;
+
+    // Non-semver is rejected by the backend with "Invalid client_version format".
+    expect(CODEX_CLIENT_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+    // The pin must never be wired back to WrongStack's release number. The
+    // backend reads it as an official-Codex version and gates models on
+    // `minimal_client_version`; tying it to our version made the catalog we
+    // receive depend on an unrelated bump in either direction.
+    expect(CODEX_CLIENT_VERSION).not.toBe(ours);
+  });
+
+  it('is the only client_version definition — both call sites share it', async () => {
+    const [provider, models] = await Promise.all([
+      readFile(new URL('../src/openai-codex.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../src/oauth/codex-models.ts', import.meta.url), 'utf8'),
+    ]);
+    // Each used to derive its own value from package.json, and they disagreed
+    // (one fell back to an invented '0.309.1'), so the login flow and the
+    // running transport could be shown different catalogs.
+    for (const source of [provider, models]) {
+      expect(source).toContain('CODEX_CLIENT_VERSION');
+      expect(source).not.toMatch(/package\.json/);
+    }
+  });
+});
+
+describe('OpenAICodexProvider per-model catalog policy', () => {
+  interface CatalogEntry {
+    slug: string;
+    context_window?: number;
+    default_reasoning_level?: string;
+    supported_reasoning_levels?: Array<{ effort: string }>;
+    input_modalities?: string[];
+  }
+
+  /** Fetch that answers the catalog probe, then records the responses body. */
+  function catalogThenStream(
+    bodies: Array<Record<string, unknown>>,
+    models: CatalogEntry[],
+  ): typeof fetch {
+    return (async (url: string, init?: { body?: string }) => {
+      if (String(url).includes('/codex/models')) {
+        return new Response(
+          JSON.stringify({
+            models: models.map((m) => ({ context_window: 272_000, ...m })),
+          }),
+          { status: 200 },
+        );
+      }
+      bodies.push(JSON.parse(init?.body ?? '{}') as Record<string, unknown>);
+      return new Response('data: {"type":"response.completed","response":{}}\n\n', {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      });
+    }) as unknown as typeof fetch;
+  }
+
+  async function drain(stream: AsyncIterable<StreamEvent>): Promise<void> {
+    for await (const _ of stream) {
+      // consume
+    }
+  }
+
+  function levels(...efforts: string[]): Array<{ effort: string }> {
+    return efforts.map((effort) => ({ effort }));
+  }
+
+  async function sendWith(
+    models: CatalogEntry[],
+    req: Omit<Request, 'model'> & { model: string },
+  ): Promise<Record<string, unknown>> {
+    const bodies: Array<Record<string, unknown>> = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: catalogThenStream(bodies, models),
+    });
+    const signal = new AbortController().signal;
+    await provider.refreshContextLimit(req.model, { signal });
+    await drain(provider.stream(req, { signal }));
+    return bodies[0] ?? {};
+  }
+
+  it('degrades an unsupported effort to the nearest supported one below it', async () => {
+    // `max` exists on gpt-6-astra and the 5.6 family but NOT on gpt-5.5,
+    // gpt-5.4-mini or gpt-5.3-codex-spark. Forwarding it spends a request to
+    // earn a 400 and another on the retry.
+    const body = await sendWith(
+      [
+        {
+          slug: 'gpt-5.4-mini',
+          supported_reasoning_levels: levels('low', 'medium', 'high', 'xhigh'),
+        },
+      ],
+      {
+        model: 'gpt-5.4-mini',
+        messages: [{ role: 'user', content: 'hi' }],
+        reasoning: { effort: 'max' },
+      },
+    );
+    expect(body['reasoning']).toEqual({ effort: 'xhigh', summary: 'auto' });
+  });
+
+  it('passes a supported effort through untouched', async () => {
+    const body = await sendWith(
+      [
+        {
+          slug: 'gpt-6-astra',
+          supported_reasoning_levels: levels('low', 'medium', 'high', 'xhigh', 'max'),
+        },
+      ],
+      {
+        model: 'gpt-6-astra',
+        messages: [{ role: 'user', content: 'hi' }],
+        reasoning: { effort: 'max' },
+      },
+    );
+    expect(body['reasoning']).toEqual({ effort: 'max', summary: 'auto' });
+  });
+
+  it('takes the weakest offered level when every one is stronger than asked', async () => {
+    const body = await sendWith(
+      [{ slug: 'strong', supported_reasoning_levels: levels('high', 'max') }],
+      {
+        model: 'strong',
+        messages: [{ role: 'user', content: 'hi' }],
+        reasoning: { effort: 'low' },
+      },
+    );
+    expect(body['reasoning']).toEqual({ effort: 'high', summary: 'auto' });
+  });
+
+  it('sends the requested effort when the catalog lists no levels', async () => {
+    const body = await sendWith([{ slug: 'quiet-catalog' }], {
+      model: 'quiet-catalog',
+      messages: [{ role: 'user', content: 'hi' }],
+      reasoning: { effort: 'xhigh' },
+    });
+    expect(body['reasoning']).toEqual({ effort: 'xhigh', summary: 'auto' });
+  });
+
+  it('omits images for a text-only model instead of earning a 400', async () => {
+    const body = await sendWith([{ slug: 'gpt-5.3-codex-spark', input_modalities: ['text'] }], {
+      model: 'gpt-5.3-codex-spark',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'what is this?' },
+            { type: 'image', source: { type: 'url', url: 'https://example.test/a.png' } },
+          ],
+        },
+      ],
+    });
+    const input = body['input'] as Array<{ content?: Array<{ type: string; text?: string }> }>;
+    const parts = input[0]?.content ?? [];
+    expect(parts.map((p) => p.type)).toEqual(['input_text', 'input_text']);
+    // The model is told a picture existed rather than being asked about one it
+    // was never shown.
+    expect(parts[1]?.text).toContain('image omitted');
+  });
+
+  it('keeps images for a model that lists the image modality', async () => {
+    const body = await sendWith([{ slug: 'gpt-6-astra', input_modalities: ['text', 'image'] }], {
+      model: 'gpt-6-astra',
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'image', source: { type: 'url', url: 'https://example.test/a.png' } }],
+        },
+      ],
+    });
+    const input = body['input'] as Array<{ content?: Array<{ type: string }> }>;
+    expect(input[0]?.content?.[0]?.type).toBe('input_image');
+  });
+});
+
+describe('live model list', () => {
+  function catalogFetch(body: unknown, onCall?: () => void): typeof fetch {
+    return (async (url: string) => {
+      if (String(url).includes('/codex/models')) {
+        onCall?.();
+        return new Response(JSON.stringify(body), { status: 200 });
+      }
+      return new Response('data: {"type":"response.completed","response":{}}\n\n', {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      });
+    }) as unknown as typeof fetch;
+  }
+
+  const CATALOG = {
+    models: [
+      {
+        slug: 'gpt-6-astra',
+        display_name: 'GPT-6-Astra',
+        description: 'Our most capable model.',
+        visibility: 'list',
+        context_window: 272_000,
+        max_context_window: 872_000,
+      },
+      {
+        slug: 'gpt-reserve',
+        display_name: 'Reserve',
+        visibility: 'hide',
+        context_window: 272_000,
+        max_context_window: 872_000,
+      },
+      {
+        slug: 'gpt-5.3-codex-spark',
+        display_name: 'GPT-5.3-Codex-Spark',
+        visibility: 'list',
+        context_window: 128_000,
+        max_context_window: 128_000,
+      },
+    ],
+  };
+
+  it('publishes the account’s picker-visible models off the catalog probe', async () => {
+    // The stored list used to be written once at login and never revisited, so
+    // a model that rolled out to the account later stayed invisible.
+    const published: Array<Array<{ id: string; name: string; maxContext?: number | undefined }>> =
+      [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: catalogFetch(CATALOG),
+      onModels: (models) => published.push(models),
+    });
+    await provider.refreshContextLimit('gpt-6-astra', { signal: new AbortController().signal });
+
+    expect(published).toHaveLength(1);
+    // `visibility: 'hide'` marks internal routes the official picker never
+    // offers (gpt-reserve, codex-auto-review).
+    expect(published[0]?.map((m) => m.id)).toEqual(['gpt-6-astra', 'gpt-5.3-codex-spark']);
+    expect(published[0]?.[0]).toEqual({
+      id: 'gpt-6-astra',
+      name: 'GPT-6-Astra',
+      description: 'Our most capable model.',
+      maxContext: 872_000,
+    });
+  });
+
+  it('still records a ceiling for a hidden model the caller names explicitly', async () => {
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: catalogFetch(CATALOG),
+    });
+    await expect(
+      provider.refreshContextLimit('gpt-reserve', { signal: new AbortController().signal }),
+    ).resolves.toEqual({ maxContext: 828_400, source: 'provider' });
+  });
+
+  it('does not re-notify while the catalog is unchanged', async () => {
+    // The catalog is re-read on a five-minute cadence; a host that persists the
+    // list must not be made to rewrite config on a timer.
+    let calls = 0;
+    const published: unknown[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: catalogFetch(CATALOG, () => {
+        calls += 1;
+      }),
+      onModels: (models) => published.push(models),
+    });
+    const signal = new AbortController().signal;
+    await provider.refreshContextLimit('gpt-6-astra', { signal });
+    await provider.refreshContextLimit('gpt-5.3-codex-spark', { signal });
+    expect(calls).toBe(1);
+    expect(published).toHaveLength(1);
+  });
+});
+
+describe('volatile system blocks', () => {
+  async function capture(system: TextBlock[]): Promise<Record<string, unknown>> {
+    const bodies: Array<Record<string, unknown>> = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: (async (_url: string, init?: { body?: string }) => {
+        bodies.push(JSON.parse(init?.body ?? '{}') as Record<string, unknown>);
+        return new Response('data: {"type":"response.completed","response":{}}\n\n', {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        });
+      }) as unknown as typeof fetch,
+    });
+    for await (const _ of provider.stream(
+      { model: 'gpt-5.4-mini', system, messages: [{ role: 'user', content: 'hi' }] },
+      { signal: new AbortController().signal },
+    )) {
+      // drain
+    }
+    return bodies[0] ?? {};
+  }
+
+  it('keeps a volatile block out of instructions and puts it after the conversation', async () => {
+    // The Responses wire joins every system block into one `instructions`
+    // string at the head of the cached prefix. A block rebuilt each turn there
+    // invalidates everything after it — which is the entire conversation.
+    const body = await capture([
+      { type: 'text', text: 'STABLE PROMPT' },
+      markVolatileSystemBlock({ type: 'text', text: 'RECALLED THIS TURN' }),
+    ]);
+    expect(body['instructions']).toBe('STABLE PROMPT');
+    const input = body['input'] as Array<{ role?: string; content?: Array<{ text?: string }> }>;
+    // Still present, still read by the model — just last.
+    expect(input[input.length - 1]).toEqual({
+      role: 'user',
+      content: [{ type: 'input_text', text: 'RECALLED THIS TURN' }],
+    });
+  });
+
+  it('leaves an ordinary system prompt exactly where it was', async () => {
+    const body = await capture([
+      { type: 'text', text: 'ONE' },
+      { type: 'text', text: 'TWO' },
+    ]);
+    expect(body['instructions']).toBe('ONE\n\nTWO');
+    expect((body['input'] as unknown[]).length).toBe(1);
   });
 });
 

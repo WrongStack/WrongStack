@@ -54,6 +54,23 @@ function activeBoardId(items: readonly TodoItem[], ctx: Context): string {
   );
 }
 
+/**
+ * A managed Kanban card is the canonical identity for a session todo. If a
+ * stale unbound projection survives alongside that card, preserve the bound
+ * row so the stale one cannot create a second card for the same todo id.
+ */
+function deduplicateManagedTodoRows(items: readonly TodoItem[], boardId: string): TodoItem[] {
+  const rowsById = new Map<string, TodoItem>();
+  for (const item of items) {
+    const existing = rowsById.get(item.id);
+    const itemIsBound = item.kanbanBoardId === boardId && Boolean(item.kanbanTaskId);
+    const existingIsBound =
+      existing?.kanbanBoardId === boardId && Boolean(existing.kanbanTaskId);
+    if (!existing || (itemIsBound && !existingIsBound)) rowsById.set(item.id, item);
+  }
+  return [...rowsById.values()];
+}
+
 function bindTodosToBoard(
   items: readonly TodoItem[],
   previous: readonly TodoItem[],
@@ -517,7 +534,8 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     const boardId = activeBoardId(items, ctx);
     let board = boardId ? await getBoard(ctx.projectRoot, boardId) : null;
     const managed = board?.lifecycle?.mode === 'managed';
-    let boundItems = managed && board ? bindTodosToBoard(items, ctx.todos ?? [], board) : items;
+    const managedItems = managed && board ? deduplicateManagedTodoRows(items, board.id) : items;
+    let boundItems = managed && board ? bindTodosToBoard(managedItems, ctx.todos ?? [], board) : managedItems;
 
     // Rows that still resolve to no card are new work, not noise. Open cards
     // for them and bind directly to the returned ids — never by re-running the

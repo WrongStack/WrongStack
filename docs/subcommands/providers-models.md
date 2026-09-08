@@ -26,6 +26,31 @@ wstack models refresh
 
 Listing resolves configured provider aliases, applies the user's visibility list, and shows context, pricing, and capability hints. `refresh` fetches and rewrites the models.dev cache.
 
+The `xai` preset additionally performs authenticated account discovery against
+xAI's `/v1/language-models` endpoint at boot. An explicit user visibility list
+still wins; otherwise the models available to that API key become the session
+list, with a cached result used during temporary network failures.
+
+### Catalog composition and provenance
+
+WrongStack exposes one in-memory catalog assembled in precedence order:
+
+1. models.dev base catalog
+2. WrongStack's curated `packages/cli/data/providers.json` overlay
+3. runtime provider discovery
+4. user `models` / `customModels` configuration
+
+Each effective model carries provenance (`primary`, contributing `sources`, and
+for live discovery `observedAt`). Provider discovery can declare its snapshot
+authoritative; in that case models absent from the snapshot are removed from
+that provider's effective catalog, and the constraint survives models.dev
+refreshes. Explicit user model ids remain additive so a deliberate custom or
+forward-compatible model can still be selected.
+
+Custom providers can opt into the same behavior with
+`autoDiscoverModels: true`, optionally setting `modelDiscoveryPath` (default
+`models`) and `modelDiscoveryAuthoritative: true`.
+
 ### Visibility controls
 
 | Command | Effect |

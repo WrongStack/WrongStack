@@ -118,6 +118,7 @@ function sessionShim(): SessionWriter {
     flush: () => {},
     close: async () => {},
     recordFileChange: () => {},
+    recordFileObservation: () => {},
     recordSideEffect: () => {},
     writeCheckpoint: async () => {},
     writeFileSnapshot: async () => {},
@@ -346,6 +347,16 @@ describe('makeLightSubagentFactory', () => {
     await child.clearSession();
     await child.writeInFlightMarker('coverage');
     await child.clearInFlightMarker('clean');
+
+    const observationInput = {
+      path: '/tmp/a',
+      hash: 'b'.repeat(64),
+      mtimeMs: 123456,
+      source: 'user' as const,
+    };
+    parent.recordFileObservation = vi.fn();
+    child.recordFileObservation?.(observationInput);
+    expect(parent.recordFileObservation).toHaveBeenCalledWith(observationInput);
 
     expect(parent.append).toHaveBeenCalledWith(event);
     expect(parent.appendBatch).toHaveBeenCalledWith([event]);

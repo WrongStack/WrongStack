@@ -2,13 +2,9 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
+import type { MemoryPort } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  type MemoryPort,
-  SAGE_SURFACE_CAPABILITY,
-  type Sage,
-  type SageSurface,
-} from '../../src/index.js';
+import { SAGE_SURFACE_CAPABILITY, type Sage, type SageSurface } from '../../src/index.js';
 import { createSageDomainTermExtractorMiddleware } from '../../src/middleware/domain-term-extractor-middleware.js';
 import { createSageOutcomeCaptureMiddleware } from '../../src/middleware/outcome-capture.js';
 import { createSagePathRemapMiddleware } from '../../src/middleware/path-remap.js';
@@ -78,6 +74,7 @@ describe('sage middleware 100% coverage suite', () => {
 
       const payload: ToolCallPipelinePayload = {
         toolUse: {
+          type: 'tool_use',
           id: 'call_1',
           name: 'bash',
           input: { command: 'mv old/file.ts new/file.ts' },
@@ -87,6 +84,8 @@ describe('sage middleware 100% coverage suite', () => {
           cwd: '/project',
         } as unknown as ToolCallPipelinePayload['ctx'],
         result: {
+          type: 'tool_result',
+          tool_use_id: 'call_1',
           content: 'success',
           is_error: false,
         },
@@ -122,6 +121,7 @@ describe('sage middleware 100% coverage suite', () => {
 
       const payload: ToolCallPipelinePayload = {
         toolUse: {
+          type: 'tool_use',
           id: 'call_lsp',
           name: 'lsp_rename',
           input: {
@@ -136,6 +136,8 @@ describe('sage middleware 100% coverage suite', () => {
           cwd: tmpDir,
         } as unknown as ToolCallPipelinePayload['ctx'],
         result: {
+          type: 'tool_result',
+          tool_use_id: 'call_lsp',
           content: 'renamed',
           is_error: false,
         },
@@ -154,9 +156,9 @@ describe('sage middleware 100% coverage suite', () => {
     it('respects allow rate-limiter and skips when result is_error or surface missing', async () => {
       const mwNoSurface = createSagePathRemapMiddleware({ memory: makePort({}) });
       const payloadErr: ToolCallPipelinePayload = {
-        toolUse: { id: 'c', name: 'bash', input: { command: 'mv a b' } },
+        toolUse: { type: 'tool_use', id: 'c', name: 'bash', input: { command: 'mv a b' } },
         ctx: { projectRoot: '/p', cwd: '/p' } as any,
-        result: { content: 'err', is_error: true },
+        result: { type: 'tool_result', tool_use_id: 'c', content: 'err', is_error: true },
       };
       await mwNoSurface.handler(payloadErr, async (p) => p);
 
@@ -165,9 +167,14 @@ describe('sage middleware 100% coverage suite', () => {
         maxPerHour: 0, // blocks all
       });
       const payloadOk: ToolCallPipelinePayload = {
-        toolUse: { id: 'c2', name: 'bash', input: { command: 'mv a.ts b.ts' } },
+        toolUse: {
+          type: 'tool_use',
+          id: 'c2',
+          name: 'bash',
+          input: { command: 'mv a.ts b.ts' },
+        },
         ctx: { projectRoot: '/p', cwd: '/p' } as any,
-        result: { content: 'ok', is_error: false },
+        result: { type: 'tool_result', tool_use_id: 'c2', content: 'ok', is_error: false },
       };
       await mwLimited.handler(payloadOk, async (p) => p);
     });
@@ -190,12 +197,15 @@ describe('sage middleware 100% coverage suite', () => {
 
       const payload: ToolCallPipelinePayload = {
         toolUse: {
+          type: 'tool_use',
           id: 'c',
           name: 'bash',
           input: { command: 'npm test' },
         },
         ctx: {} as any,
         result: {
+          type: 'tool_result',
+          tool_use_id: 'c',
           content: 'Error: Cannot find module foo',
           is_error: true,
         },
@@ -214,9 +224,9 @@ describe('sage middleware 100% coverage suite', () => {
         errorPatterns: false,
       });
       const payload: ToolCallPipelinePayload = {
-        toolUse: { id: 'c', name: 'bash', input: {} },
+        toolUse: { type: 'tool_use', id: 'c', name: 'bash', input: {} },
         ctx: {} as any,
-        result: { content: 'ok', is_error: false },
+        result: { type: 'tool_result', tool_use_id: 'c', content: 'ok', is_error: false },
       };
       const res = await mw.handler(payload, async (p) => p);
       expect(res).toBe(payload);
@@ -403,11 +413,13 @@ describe('sage middleware 100% coverage suite', () => {
 
     it('visibleContextText extracts text from result and prompt blocks', () => {
       const payload: ToolCallPipelinePayload = {
-        toolUse: { id: 'c', name: 'read', input: {} },
+        toolUse: { type: 'tool_use', id: 'c', name: 'read', input: {} },
         ctx: {
           systemPrompt: [{ text: 'System prompt instruction' }, { text: 'Another block' }],
         } as any,
         result: {
+          type: 'tool_result',
+          tool_use_id: 'c',
           content: 'Result content text',
           is_error: false,
         },
@@ -430,17 +442,22 @@ describe('sage middleware 100% coverage suite', () => {
 
     it('availableHintChars respects tool.maxOutputBytes', () => {
       const payloadWithoutLimit: ToolCallPipelinePayload = {
-        toolUse: { id: 'c', name: 'read', input: {} },
+        toolUse: { type: 'tool_use', id: 'c', name: 'read', input: {} },
         ctx: {} as any,
-        result: { content: 'hello', is_error: false },
+        result: { type: 'tool_result', tool_use_id: 'c', content: 'hello', is_error: false },
       };
       expect(availableHintChars(payloadWithoutLimit, 500)).toBe(500);
 
       const payloadWithLimit: ToolCallPipelinePayload = {
-        toolUse: { id: 'c', name: 'read', input: {} },
+        toolUse: { type: 'tool_use', id: 'c', name: 'read', input: {} },
         tool: { maxOutputBytes: 20 } as any,
         ctx: {} as any,
-        result: { content: '1234567890', is_error: false }, // 10 bytes
+        result: {
+          type: 'tool_result',
+          tool_use_id: 'c',
+          content: '1234567890',
+          is_error: false,
+        }, // 10 bytes
       };
       // remaining = 20 - 10 - 2 = 8. 8 / 3 = 2 chars
       expect(availableHintChars(payloadWithLimit, 500)).toBe(2);

@@ -1,13 +1,10 @@
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderAuthSession } from '@wrongstack/core/types';
 import {
-  beginOAuthLogin,
-  type OAuthKind,
-  type OAuthLoginOutcome,
-  type OAuthSession,
+  applyProviderAuthOutcome,
+  createBuiltinProviderAuthRegistry,
 } from '@wrongstack/providers/oauth';
 import type { WebSocket } from 'ws';
 import { errMessage } from '../ws-utils.js';
-import { normalizeKeys, writeKeysBack } from './keys-records.js';
 import type { ProviderServiceContext } from './mutations.js';
 
 /**
@@ -19,12 +16,13 @@ import type { ProviderServiceContext } from './mutations.js';
  * (@wrongstack/providers/oauth) is IO-free — persistence is local below.
  */
 export function createOauthHandlers(ctx: ProviderServiceContext) {
-  const oauthSessions = new Map<OAuthKind, OAuthSession>();
-  const customProviderIds = new Map<OAuthKind, string>();
+  const registry = ctx.deps.providerAuthRegistry ?? createBuiltinProviderAuthRegistry();
+  const oauthSessions = new Map<string, ProviderAuthSession>();
+  const customProviderIds = new Map<string, string>();
 
   function sendOAuthStatus(
     ws: WebSocket,
-    kind: OAuthKind,
+    kind: string,
     phase:
       | 'awaiting_browser'
       | 'awaiting_code'
@@ -39,31 +37,21 @@ export function createOauthHandlers(ctx: ProviderServiceContext) {
 
   /** Persist a successful login by upserting the OAuth credential. */
   async function persistOAuthOutcome(
-    outcome: OAuthLoginOutcome,
+    outcome: import('@wrongstack/core/types').ProviderAuthOutcome,
     customProviderId?: string,
   ): Promise<void> {
     const providers = await ctx.loadConfigProviders();
-    const providerId = customProviderId ?? outcome.providerId;
-    const existing = providers[providerId];
-    const p: ProviderConfig = existing ? { ...existing } : { type: providerId };
-    p.family = outcome.family as ProviderConfig['family'];
-    if (!p.baseUrl) p.baseUrl = outcome.baseUrl;
-    // OAuth replaces the allowlist only when it actually resolved one —
-    // an empty list keeps whatever the user curated (memory-pinned).
-    if (outcome.models.length > 0) p.models = [...outcome.models];
-    const keys = normalizeKeys(p).filter((k) => k.label !== outcome.apiKey.label);
-    keys.push(outcome.apiKey);
-    writeKeysBack(p, keys);
-    p.activeKey = outcome.apiKey.label;
-    providers[providerId] = p;
+    applyProviderAuthOutcome(providers, outcome, {
+      targetProviderId: customProviderId,
+    });
     await ctx.saveConfigProviders(providers);
     ctx.broadcastSaved(providers);
   }
 
   async function finishOAuth(
     ws: WebSocket,
-    kind: OAuthKind,
-    outcome: OAuthLoginOutcome | null,
+    kind: string,
+    outcome: import('@wrongstack/core/types').ProviderAuthOutcome | null,
     customProviderId?: string,
   ): Promise<void> {
     if (!outcome) {
@@ -81,7 +69,7 @@ export function createOauthHandlers(ctx: ProviderServiceContext) {
 
   async function handleOAuthStart(
     ws: WebSocket,
-    kind: OAuthKind,
+    kind: string,
     customProviderId?: string,
   ): Promise<void> {
     try {
@@ -90,31 +78,31 @@ export function createOauthHandlers(ctx: ProviderServiceContext) {
 
       // The modelsRegistry is passed through verbatim (undefined keeps the
       // engine's registry-free mode; memory-pinned).
-      const session = await beginOAuthLogin(kind, { modelsRegistry: ctx.deps.modelsRegistry });
+      const session = await registry.begin(kind, { modelsRegistry: ctx.deps.modelsRegistry });
       if (customProviderId) customProviderIds.set(kind, customProviderId);
       else customProviderIds.delete(kind);
       oauthSessions.set(kind, session);
       const providerId = customProviderId ?? session.providerId;
 
-      if (kind === 'copilot') {
+      if (session.interaction.type === 'device_code') {
         sendOAuthStatus(ws, kind, 'awaiting_code', {
           providerId,
-          verificationUri: session.verificationUri,
-          userCode: session.userCode,
+          verificationUri: session.interaction.verificationUri,
+          userCode: session.interaction.userCode,
           bound: false,
         });
       } else {
         sendOAuthStatus(ws, kind, 'awaiting_browser', {
           providerId,
-          authorizeUrl: session.authorizeUrl,
-          bound: session.bound,
+          authorizeUrl: session.interaction.authorizeUrl,
+          bound: session.interaction.bound,
         });
       }
 
       // Drive to completion in the background when there is something to wait
       // for: the copilot device poll, or a bound loopback callback. When the
       // loopback could not bind, we wait for a manual `auth.oauth.code` paste.
-      const drive = kind === 'copilot' || session.bound;
+      const drive = session.interaction.type === 'device_code' || session.interaction.bound;
       if (drive) {
         void (async () => {
           try {
@@ -135,7 +123,7 @@ export function createOauthHandlers(ctx: ProviderServiceContext) {
     }
   }
 
-  async function handleOAuthCode(ws: WebSocket, kind: OAuthKind, input: string): Promise<void> {
+  async function handleOAuthCode(ws: WebSocket, kind: string, input: string): Promise<void> {
     const session = oauthSessions.get(kind);
     if (!session) {
       sendOAuthStatus(ws, kind, 'error', {
@@ -160,12 +148,22 @@ export function createOauthHandlers(ctx: ProviderServiceContext) {
     }
   }
 
-  function handleOAuthCancel(ws: WebSocket, kind: OAuthKind): void {
+  function handleOAuthCancel(ws: WebSocket, kind: string): void {
     oauthSessions.get(kind)?.close();
     oauthSessions.delete(kind);
     customProviderIds.delete(kind);
     sendOAuthStatus(ws, kind, 'error', { message: 'Sign-in cancelled.' });
   }
 
-  return { handleOAuthStart, handleOAuthCode, handleOAuthCancel };
+  function handleOAuthList(ws: WebSocket): void {
+    ctx.sendMessage(ws, { type: 'auth.oauth.providers', payload: { providers: registry.list() } });
+  }
+
+  return {
+    handleOAuthStart,
+    handleOAuthCode,
+    handleOAuthCancel,
+    handleOAuthList,
+    resolveOAuthStrategyId: (input: string) => registry.resolveId(input),
+  };
 }

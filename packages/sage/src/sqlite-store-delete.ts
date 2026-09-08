@@ -48,6 +48,9 @@ export function deleteSqliteSage(
     revision: fresh.revision + 1,
     updatedAt: ctx.nowIso(),
     ...(options.neverInject === true ? { contextPolicy: 'never' as const } : {}),
+    supersedes: undefined,
+    contradicts: undefined,
+    supersededBy: undefined,
   });
   const removedEdges = ctx
     .stmt(

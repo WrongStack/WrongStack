@@ -10,7 +10,7 @@ import {
   User,
   XCircle,
 } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from '@/components/Toaster';
 import { i18n, useAppTranslation } from '@/i18n';
 import type { WrongStackWebSocketClient } from '@/lib/ws-client';
@@ -18,7 +18,7 @@ import type { WSServerMessage } from '@/types';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
-type OAuthKind = 'chatgpt' | 'claude' | 'copilot';
+type OAuthKind = string;
 
 type OAuthPhase =
   | 'idle'
@@ -40,32 +40,18 @@ interface OAuthState {
 }
 
 interface ProviderMeta {
-  kind: OAuthKind;
+  id: OAuthKind;
+  providerId: string;
   label: string;
-  subtitle: string;
-  icon: ReactNode;
+  description?: string | undefined;
 }
 
-const PROVIDERS: ProviderMeta[] = [
-  {
-    kind: 'chatgpt',
-    label: 'ChatGPT',
-    subtitle: 'Plus / Pro / Team → openai-codex',
-    icon: <Sparkles className="h-5 w-5" />,
-  },
-  {
-    kind: 'claude',
-    label: 'Claude',
-    subtitle: 'Pro / Max → anthropic-oauth',
-    icon: <Bot className="h-5 w-5" />,
-  },
-  {
-    kind: 'copilot',
-    label: 'GitHub Copilot',
-    subtitle: 'Copilot → github-copilot',
-    icon: <Code2 className="h-5 w-5" />,
-  },
-];
+function providerIcon(id: string) {
+  if (id === 'chatgpt') return <Sparkles className="h-5 w-5" />;
+  if (id === 'claude') return <Bot className="h-5 w-5" />;
+  if (id === 'copilot') return <Code2 className="h-5 w-5" />;
+  return <User className="h-5 w-5" />;
+}
 
 const ACTIVE_PHASES: OAuthPhase[] = [
   'awaiting_browser',
@@ -82,22 +68,19 @@ interface SavedProfileInfo {
 
 interface OAuthLoginSectionProps {
   ws: WrongStackWebSocketClient;
-  /** Existing saved provider profiles grouped by OAuth kind. */
-  savedByKind?: Partial<Record<OAuthKind, SavedProfileInfo[]>>;
+  /** Existing saved provider profiles; strategy metadata determines the grouping. */
+  savedProviders?: SavedProfileInfo[] | undefined;
 }
 
 /**
- * Subscription sign-in (ChatGPT / Claude / Copilot) — shows existing accounts
+ * Registry-driven provider sign-in — shows existing accounts
  * and offers "Retry" (re-authenticate an existing profile) and "New account"
  * (log in with a different ChatGPT/Claude/Copilot account) actions per provider.
  */
-export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
+export function OAuthLoginSection({ ws, savedProviders = [] }: OAuthLoginSectionProps) {
   const { t } = useAppTranslation();
-  const [states, setStates] = useState<Record<OAuthKind, OAuthState>>({
-    chatgpt: { phase: 'idle' },
-    claude: { phase: 'idle' },
-    copilot: { phase: 'idle' },
-  });
+  const [states, setStates] = useState<Record<OAuthKind, OAuthState>>({});
+  const [providers, setProviders] = useState<ProviderMeta[]>([]);
   const [pasteValue, setPasteValue] = useState('');
   const [showPaste, setShowPaste] = useState<OAuthKind | null>(null);
   // "New account" alias input state
@@ -107,6 +90,17 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
   const [expandedKind, setExpandedKind] = useState<OAuthKind | null>(null);
 
   useEffect(() => {
+    const offProviders = ws.on('auth.oauth.providers', (msg: WSServerMessage) => {
+      if (msg.type !== 'auth.oauth.providers') return;
+      setProviders(
+        msg.payload.providers.map(({ id, providerId, label, description }) => ({
+          id,
+          providerId,
+          label,
+          ...(description ? { description } : {}),
+        })),
+      );
+    });
     const off = ws.on('auth.oauth.status', (msg: WSServerMessage) => {
       if (msg.type !== 'auth.oauth.status') return;
       const p = msg.payload as { kind: OAuthKind; phase: OAuthPhase } & OAuthState;
@@ -123,7 +117,11 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
         toast.error(p.message ?? i18n.t('settings:oauth.signInFailed'));
       }
     });
-    return () => off?.();
+    ws.listOAuthProviders();
+    return () => {
+      off?.();
+      offProviders?.();
+    };
   }, [ws]);
 
   /** Start a standard sign-in (creates/overwrites the default profile). */
@@ -131,7 +129,7 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
     (kind: OAuthKind) => {
       setStates((prev) => ({
         ...prev,
-        [kind]: { phase: kind === 'copilot' ? 'awaiting_code' : 'awaiting_browser' },
+        [kind]: { phase: 'exchanging' },
       }));
       ws.startOAuth(kind);
     },
@@ -143,7 +141,7 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
     (kind: OAuthKind, providerId: string) => {
       setStates((prev) => ({
         ...prev,
-        [kind]: { phase: kind === 'copilot' ? 'awaiting_code' : 'awaiting_browser' },
+        [kind]: { phase: 'exchanging' },
       }));
       ws.startOAuth(kind, providerId);
     },
@@ -157,7 +155,7 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
       if (!alias) return;
       setStates((prev) => ({
         ...prev,
-        [kind]: { phase: kind === 'copilot' ? 'awaiting_code' : 'awaiting_browser' },
+        [kind]: { phase: 'exchanging' },
       }));
       ws.startOAuth(kind, alias);
       setNewAccountFor(null);
@@ -185,8 +183,6 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
     [pasteValue, ws],
   );
 
-  const profiles = savedByKind ?? {};
-
   return (
     <div className="space-y-3">
       <div className="rounded-md border border-warning/30 bg-warning/5 p-3">
@@ -194,32 +190,37 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
-        {PROVIDERS.map((meta) => {
-          const st = states[meta.kind];
+        {providers.map((meta) => {
+          const st = states[meta.id] ?? { phase: 'idle' };
           const busy = ACTIVE_PHASES.includes(st.phase);
-          const kindProfiles = profiles[meta.kind];
+          const kindProfiles = savedProviders.filter(
+            (profile) =>
+              profile.id === meta.providerId || profile.id.startsWith(`${meta.providerId}-`),
+          );
           const accountCount = kindProfiles?.length ?? 0;
-          const expanded = expandedKind === meta.kind;
+          const expanded = expandedKind === meta.id;
 
           return (
-            <div key={meta.kind} className="rounded-lg border border-border bg-background/70 p-3">
+            <div key={meta.id} className="rounded-lg border border-border bg-background/70 p-3">
               <div className="flex items-center justify-between gap-3 lg:flex-col lg:items-stretch">
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="text-muted-foreground">{meta.icon}</span>
+                  <span className="text-muted-foreground">{providerIcon(meta.id)}</span>
                   <div className="min-w-0">
                     <div className="font-medium">{meta.label}</div>
-                    <div className="truncate text-xs text-muted-foreground">{meta.subtitle}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {meta.description ?? `→ ${meta.providerId}`}
+                    </div>
                   </div>
                 </div>
                 {!busy ? (
-                  <Button size="sm" onClick={() => start(meta.kind)} className="shrink-0 lg:w-full">
+                  <Button size="sm" onClick={() => start(meta.id)} className="shrink-0 lg:w-full">
                     {t('settings:oauth.signIn')}
                   </Button>
                 ) : (
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => cancel(meta.kind)}
+                    onClick={() => cancel(meta.id)}
                     className="shrink-0 lg:w-full"
                   >
                     {t('common:action.cancel')}
@@ -248,13 +249,13 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
                     <button
                       type="button"
                       className="text-xs text-muted-foreground underline"
-                      onClick={() => setShowPaste(showPaste === meta.kind ? null : meta.kind)}
+                      onClick={() => setShowPaste(showPaste === meta.id ? null : meta.id)}
                     >
                       {st.bound === false
                         ? t('settings:oauth.pasteLoopbackBusy')
                         : t('settings:oauth.pasteCantReach')}
                     </button>
-                    {showPaste === meta.kind && (
+                    {showPaste === meta.id && (
                       <div className="mt-2 flex gap-2">
                         <Input
                           placeholder={t('activity:oauth.httpLocalhostCallbackCode')}
@@ -262,12 +263,12 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
                           onChange={(e) => setPasteValue(e.target.value)}
                           className="font-mono text-xs"
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') submitPaste(meta.kind);
+                            if (e.key === 'Enter') submitPaste(meta.id);
                           }}
                         />
                         <Button
                           size="sm"
-                          onClick={() => submitPaste(meta.kind)}
+                          onClick={() => submitPaste(meta.id)}
                           disabled={!pasteValue.trim()}
                         >
                           {t('settings:oauth.submit')}
@@ -333,7 +334,7 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
                 <div className="mt-3 border-t pt-3">
                   <button
                     type="button"
-                    onClick={() => setExpandedKind(expanded ? null : meta.kind)}
+                    onClick={() => setExpandedKind(expanded ? null : meta.id)}
                     className="flex w-full items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <span className="inline-flex items-center gap-1.5">
@@ -365,7 +366,7 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => retryLogin(meta.kind, profile.id)}
+                              onClick={() => retryLogin(meta.id, profile.id)}
                               className="h-6 px-1.5 text-[11px]"
                               title={t('settings:oauth.retryLogin')}
                             >
@@ -378,24 +379,23 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
 
                       {/* New account button */}
                       <div className="pt-1">
-                        {newAccountFor === meta.kind ? (
+                        {newAccountFor === meta.id ? (
                           <div className="flex gap-2">
                             <Input
                               autoFocus
                               placeholder={t('settings:oauth.aliasPlaceholder', {
-                                default:
-                                  meta.kind === 'chatgpt' ? 'openai-codex-1' : `${meta.kind}-2`,
+                                default: `${meta.providerId}-2`,
                               })}
                               value={newAccountAlias}
                               onChange={(e) => setNewAccountAlias(e.target.value)}
                               className="text-xs font-mono"
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') startNewAccount(meta.kind);
+                                if (e.key === 'Enter') startNewAccount(meta.id);
                               }}
                             />
                             <Button
                               size="sm"
-                              onClick={() => startNewAccount(meta.kind)}
+                              onClick={() => startNewAccount(meta.id)}
                               disabled={!newAccountAlias.trim()}
                             >
                               {t('settings:oauth.signIn')}
@@ -415,7 +415,7 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setNewAccountFor(meta.kind)}
+                            onClick={() => setNewAccountFor(meta.id)}
                             className="w-full text-xs"
                           >
                             <Plus className="h-3.5 w-3.5 mr-1" />
@@ -431,23 +431,23 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
               {/* When no accounts yet, show a single "New account" button */}
               {accountCount === 0 && !busy && (
                 <div className="mt-3 border-t pt-3">
-                  {newAccountFor === meta.kind ? (
+                  {newAccountFor === meta.id ? (
                     <div className="flex gap-2">
                       <Input
                         autoFocus
                         placeholder={t('settings:oauth.aliasPlaceholder', {
-                          default: meta.kind === 'chatgpt' ? 'openai-codex-1' : `${meta.kind}-2`,
+                          default: `${meta.providerId}-2`,
                         })}
                         value={newAccountAlias}
                         onChange={(e) => setNewAccountAlias(e.target.value)}
                         className="text-xs font-mono"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') startNewAccount(meta.kind);
+                          if (e.key === 'Enter') startNewAccount(meta.id);
                         }}
                       />
                       <Button
                         size="sm"
-                        onClick={() => startNewAccount(meta.kind)}
+                        onClick={() => startNewAccount(meta.id)}
                         disabled={!newAccountAlias.trim()}
                       >
                         {t('settings:oauth.signIn')}
@@ -467,7 +467,7 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setNewAccountFor(meta.kind)}
+                      onClick={() => setNewAccountFor(meta.id)}
                       className="w-full text-xs"
                     >
                       <Plus className="h-3.5 w-3.5 mr-1" />

@@ -19,7 +19,9 @@
  *
  *   x-codex-primary-used-percent      f64, 0..100
  *   x-codex-primary-window-minutes    i64, e.g. 300 (5h) or 10080 (7d)
- *   x-codex-primary-reset-at          i64, epoch SECONDS
+ *   x-codex-primary-reset-at          i64, epoch SECONDS (can be EMPTY)
+ *   x-codex-primary-reset-after-seconds  i64, relative fallback for reset-at
+ *   x-codex-plan-type                 string, live plan tier (`pro`, `plus`, …)
  *   x-codex-secondary-…               same triple for the second window
  *   x-codex-credits-has-credits       bool
  *   x-codex-credits-unlimited         bool
@@ -107,11 +109,22 @@ function parseWindow(
   headers: HeadersLike,
   prefix: string,
   id: string,
+  now: number,
 ): ProviderQuotaWindow | undefined {
   const usedPercent = headerNum(headers, `${prefix}-${id}-used-percent`);
   if (usedPercent === undefined) return undefined;
   const windowMinutes = headerInt(headers, `${prefix}-${id}-window-minutes`);
-  const resetsAt = headerInt(headers, `${prefix}-${id}-reset-at`);
+  // The backend sends the reset both ways and does not always fill in both:
+  // a live `pro` response carried `x-codex-secondary-reset-after-seconds` with
+  // an EMPTY `x-codex-secondary-reset-at`. The relative form is also immune to
+  // client clock skew, so it is the fallback rather than an alternative that
+  // gets ignored.
+  const resetAfterSeconds = headerInt(headers, `${prefix}-${id}-reset-after-seconds`);
+  const resetsAt =
+    headerInt(headers, `${prefix}-${id}-reset-at`) ??
+    (resetAfterSeconds !== undefined && resetAfterSeconds > 0
+      ? Math.floor(now / 1000) + resetAfterSeconds
+      : undefined);
   // A window reported as a flat zero with no other field carries no signal —
   // upstream treats that as "not metered" rather than "0% used", and showing a
   // fabricated 0%/no-reset bar in the UI would be worse than showing nothing.
@@ -149,16 +162,21 @@ export function parseCodexRateLimitForLimit(
   const prefix = limitHeaderPrefix(meterId);
   const windows: ProviderQuotaWindow[] = [];
   for (const id of ['primary', 'secondary']) {
-    const window = parseWindow(headers, prefix, id);
+    const window = parseWindow(headers, prefix, id, now);
     if (window) windows.push(window);
   }
   const credits = parseCredits(headers);
   const meterLabel = headerStr(headers, `${prefix}-limit-name`);
   const reachedWindowId = headerStr(headers, 'x-codex-rate-limit-reached-type')?.toLowerCase();
   const note = headerStr(headers, 'x-codex-promo-message');
+  // Authoritative plan tier as the backend sees it right now. The JWT claim
+  // that used to be the only source is a snapshot from when the token was
+  // minted, so it lags an upgrade until the next refresh.
+  const planLabel = headerStr(headers, 'x-codex-plan-type');
   return {
     providerId: CODEX_QUOTA_PROVIDER_ID,
     meterId,
+    ...(planLabel !== undefined ? { planLabel } : {}),
     ...(meterLabel !== undefined ? { meterLabel } : {}),
     windows,
     ...(credits !== undefined ? { credits } : {}),

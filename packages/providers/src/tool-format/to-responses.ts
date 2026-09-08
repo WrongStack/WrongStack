@@ -108,6 +108,13 @@ export interface ResponsesInputOptions {
    * encrypted payload, and replaying a half-formed reasoning item is a 400.
    */
   includeReasoning?: boolean | undefined;
+  /**
+   * Emit `input_image` parts. Defaults to true; the Codex transport sets it
+   * from the live catalog's `input_modalities`, which is text-only on some
+   * models (gpt-5.3-codex-spark). An image sent to one of those is a 400, so
+   * the choice is between losing the picture and losing the turn.
+   */
+  allowImages?: boolean | undefined;
 }
 
 /** The reasoning item for a thinking block, or null when it cannot be replayed. */
@@ -145,6 +152,12 @@ export function messagesToResponsesInput(
           .map((b): Record<string, unknown> | null => {
             if (b.type === 'text') return { type: 'input_text', text: b.text };
             if (b.type === 'image') {
+              if (opts.allowImages === false) {
+                // Leave a marker rather than dropping the block outright: the
+                // model would otherwise answer a question about a picture it
+                // was never told existed.
+                return { type: 'input_text', text: '[image omitted: model accepts text only]' };
+              }
               return { type: 'input_image', detail: 'auto', image_url: imageUrl(b) };
             }
             return null;

@@ -159,8 +159,10 @@ describe('AdaptiveConcurrencyController', () => {
     });
     c.decrease(4); // explicit
     expect(c.getState().current).toBe(4);
+    expect(setMax).toHaveBeenLastCalledWith(4);
     c.decrease(); // factor: floor(4*0.5)=2
     expect(c.getState().current).toBe(2);
+    expect(setMax).toHaveBeenLastCalledWith(2);
     c.decrease(100); // no drop (100 >= 2) -> noop
     expect(c.getState().current).toBe(2);
     logSpy.mockRestore();

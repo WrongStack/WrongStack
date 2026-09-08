@@ -21,7 +21,6 @@
  */
 
 import { createHash, randomUUID } from 'node:crypto';
-import { createRequire } from 'node:module';
 import {
   type ProviderQuotaSnapshot,
   quotaResetInMs,
@@ -32,6 +31,7 @@ import {
   type Capabilities,
   classifyProviderError,
   isRetryableKind,
+  isVolatileSystemBlock,
   ProviderError,
   type ReasoningEffort,
   type Request,
@@ -58,7 +58,9 @@ import { capabilitiesForFamily } from './family-capabilities.js';
 import type { BuildBodyContext } from './model-output-limits.js';
 import {
   CODEX_BASE_URL,
+  CODEX_CLIENT_VERSION,
   CODEX_ORIGINATOR,
+  CODEX_USER_AGENT,
   type CodexTokens,
   codexModelsUrl,
   codexResponsesUrl,
@@ -76,6 +78,11 @@ import {
 export type { CodexResponseMetadata };
 
 import { applyPromptCacheKey } from './prompt-cache-key.js';
+import {
+  isCacheProbeEnabled,
+  recordCacheProbeRequest,
+  recordCacheProbeUsage,
+} from './prompt-cache-probe.js';
 import { redirectSafeFetch } from './redirect-safe-fetch.js';
 import { createSseLineFoldingTransform, parseSSE } from './sse.js';
 import {
@@ -88,32 +95,7 @@ import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
 // ── OAuth refresh (shared protocol — see ./oauth/codex-protocol.ts) ──────────
 
-const req = createRequire(import.meta.url);
-
 const DEFAULT_CODEX_BASE = CODEX_BASE_URL;
-
-/**
- * Version advertised to the ChatGPT backend's `/codex/models` catalog via the
- * `client_version` query param. Unlike `CODEX_ORIGINATOR` (free-form), the
- * backend validates this as a semver string and rejects anything else with
- * `{"detail":"Invalid client_version format"}` — the official Codex client
- * sends its own crate version. It also gates models whose
- * `minimal_client_version` exceeds it, so it must track the real package
- * version, not a branding tag.
- */
-const CODEX_MODELS_CLIENT_VERSION = readOwnVersion();
-
-function readOwnVersion(): string {
-  for (const rel of ['../package.json', '../../package.json']) {
-    try {
-      const pkg = req(rel) as { version?: unknown | undefined };
-      if (typeof pkg.version === 'string' && pkg.version.length > 0) return pkg.version;
-    } catch {
-      // try next
-    }
-  }
-  return '0.0.0';
-}
 
 /**
  * Does this 400 blame a replayed reasoning item?
@@ -127,6 +109,27 @@ function readOwnVersion(): string {
 function isReasoningReplayRejection(err: ProviderError): boolean {
   const message = `${err.message} ${JSON.stringify(err.body ?? '')}`;
   return /reasoning item|item\s+['"]?rs_[\w-]+|required following item/i.test(message);
+}
+
+/** Sticky-routing token the ChatGPT backend hands back on every response. */
+const CODEX_TURN_STATE_HEADER = 'x-codex-turn-state';
+/** Bound on remembered turn-state entries so a long-lived process cannot grow. */
+const CODEX_TURN_STATE_MAX_SESSIONS = 64;
+
+/**
+ * Is this request a continuation of the turn already in flight, rather than a
+ * new user turn?
+ *
+ * `x-codex-turn-state` is scoped to ONE turn: the official client keeps it in a
+ * turn-scoped `OnceLock` and replays it on the requests that finish that turn
+ * (the tool-call round-trips), never on the next user turn. In the canonical
+ * message shape a tool-call round-trip is a user message carrying tool results,
+ * so that is the boundary this reproduces.
+ */
+function isTurnContinuation(req: Request): boolean {
+  const last = req.messages[req.messages.length - 1];
+  if (last?.role !== 'user' || typeof last.content === 'string') return false;
+  return last.content.some((block) => block.type === 'tool_result');
 }
 
 /**
@@ -160,33 +163,162 @@ const CODEX_MODELS_CACHE_TTL_MS = 5 * 60_000;
 /** The official client proactively refreshes ChatGPT access tokens five minutes early. */
 const CODEX_TOKEN_REFRESH_SKEW_MS = 5 * 60_000;
 /**
- * Output-token budget the ChatGPT Codex backend reserves inside the catalog's
- * `context_window`. The official Codex client budgets requests the same way
- * (`context_window - max_output_tokens`, default 16K) because the catalog
- * value is the TOTAL window (input + output), not the input ceiling. Adopting
- * the raw window as the send ceiling leaves a band where preflight passes but
- * the backend rejects with "Your input exceeds the context window of this
- * model" — the throttled-drop failure mode (e.g. catalog 272000 while the
- * route enforces around 255K-260K of input).
+ * Fraction of a model's catalog `context_window` the backend actually lets a
+ * request occupy, when the catalog does not say. The official Codex client
+ * computes its usable window as
+ * `resolved_context_window * effective_context_window_percent / 100`
+ * (codex-rs/core/src/session/context_window.rs) and the live ChatGPT catalog
+ * ships `effective_context_window_percent: 95` on every model, so 95 is the
+ * value the field defaults to rather than a guess.
  */
-const CODEX_SEND_OUTPUT_RESERVE_TOKENS = 16_384;
+const CODEX_DEFAULT_EFFECTIVE_CONTEXT_PERCENT = 95;
 
 /**
- * Derive the effective SEND ceiling from a catalog window. `context_window`
- * (and the `max_context_window` fallback) is the model's total context;
- * subtracting the transport's output budget yields the input budget preflight
- * compaction must target. Never discounts more than half of a small window so
- * genuinely tiny routes stay usable.
+ * Derive the effective SEND ceiling from a catalog entry.
+ *
+ * The catalog publishes TWO windows and they mean different things:
+ *
+ * - `context_window` is the model's DEFAULT window (272K across the current
+ *   lineup, 128K on spark).
+ * - `max_context_window` is the largest window the model supports — the
+ *   ceiling an explicit configured override may reach. The official client
+ *   resolves it as `configured.min(max_context_window)`
+ *   (codex-rs/models-manager/src/model_info.rs, `with_config_overrides`).
+ *
+ * So `max_context_window` IS a bigger window, just one a client has to ask
+ * for; on gpt-6-astra and the gpt-5.6 family it is 872K against a 272K
+ * default. Reporting the default as a hard cap throws away two thirds of the
+ * window these models actually have, which is why the maximum is preferred
+ * here and the default is only the fallback for older catalogs. The agent loop
+ * still clamps this against its own configured baseline and any learned
+ * overflow limit, so this is a ceiling, not a target.
+ *
+ * The effective percent is the output/overhead reserve the backend keeps
+ * inside whichever window applies; there is no separate fixed subtraction to
+ * make on top of it.
  */
-function codexSendCeiling(window: number): number {
-  const reserve = Math.min(CODEX_SEND_OUTPUT_RESERVE_TOKENS, Math.floor(window / 2));
-  return Math.max(1, window - reserve);
+function codexSendCeiling(contextWindow: number, effectivePercent: number): number {
+  const percent =
+    Number.isFinite(effectivePercent) && effectivePercent > 0 && effectivePercent <= 100
+      ? effectivePercent
+      : CODEX_DEFAULT_EFFECTIVE_CONTEXT_PERCENT;
+  return Math.max(1, Math.floor((contextWindow * percent) / 100));
 }
 
 interface CodexModelMetadata {
   slug?: unknown;
   context_window?: unknown;
   max_context_window?: unknown;
+  effective_context_window_percent?: unknown;
+  default_reasoning_level?: unknown;
+  supported_reasoning_levels?: unknown;
+  input_modalities?: unknown;
+  supports_parallel_tool_calls?: unknown;
+  visibility?: unknown;
+  display_name?: unknown;
+  description?: unknown;
+}
+
+/** One picker-visible model, as the ChatGPT backend describes it. */
+export interface CodexLiveModel {
+  id: string;
+  name: string;
+  description?: string | undefined;
+  /** Largest window the model supports, before the effective-window discount. */
+  maxContext?: number | undefined;
+}
+
+/** Per-model policy the catalog publishes and the transport honours. */
+interface CodexModelPolicy {
+  /** Input-token ceiling, already discounted by the effective-window percent. */
+  sendCeiling: number;
+  /** The model's own default reasoning effort, when the catalog names one. */
+  defaultReasoningEffort?: ReasoningEffort | undefined;
+  /**
+   * Efforts this model accepts, in the catalog's own ascending order. Empty
+   * when the catalog does not say, which means "send whatever was asked".
+   */
+  supportedReasoningEfforts: readonly ReasoningEffort[];
+  /** False when the catalog lists no `image` input modality. */
+  acceptsImages: boolean;
+  /** False only when the catalog explicitly says the model cannot parallelise. */
+  parallelToolCalls: boolean;
+}
+
+/**
+ * Reasoning efforts in ascending strength. Used only to answer "which
+ * supported level is nearest below the one asked for" — the catalog decides
+ * what a given model supports, this decides how to walk it.
+ */
+const CODEX_REASONING_LADDER = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const satisfies readonly ReasoningEffort[];
+
+const CODEX_REASONING_EFFORTS: ReadonlySet<string> = new Set(CODEX_REASONING_LADDER);
+
+function parseReasoningEffort(value: unknown): ReasoningEffort | undefined {
+  return typeof value === 'string' && CODEX_REASONING_EFFORTS.has(value)
+    ? (value as ReasoningEffort)
+    : undefined;
+}
+
+/**
+ * Read `supported_reasoning_levels`, an array of `{ effort, description }`.
+ *
+ * Kept in the catalog's order rather than sorted: that order is the backend's
+ * own ranking, which is what makes "the nearest supported effort" meaningful
+ * without this module hardcoding a ladder that the next model tier changes.
+ */
+function parseSupportedReasoningEfforts(value: unknown): ReasoningEffort[] {
+  if (!Array.isArray(value)) return [];
+  const out: ReasoningEffort[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const effort = parseReasoningEffort((raw as { effort?: unknown }).effort);
+    if (effort && !out.includes(effort)) out.push(effort);
+  }
+  return out;
+}
+
+/**
+ * Clamp a requested reasoning effort to something this model actually accepts.
+ *
+ * The catalog's levels differ by tier — `max` exists on gpt-6-astra and the
+ * gpt-5.6 family but NOT on gpt-5.5, gpt-5.4-mini or gpt-5.3-codex-spark, and
+ * `minimal` exists nowhere. Forwarding an unsupported effort spends a whole
+ * request to earn a 400, then spends another on the retry; degrading to the
+ * nearest supported level spends one request that works.
+ *
+ * "Nearest" walks DOWN the catalog's own ordering from the requested level, so
+ * `max` on a low/medium/high/xhigh model becomes `xhigh` rather than the
+ * timid `medium` a blind fallback would pick.
+ */
+function clampReasoningEffort(
+  effort: ReasoningEffort,
+  supported: readonly ReasoningEffort[],
+): ReasoningEffort {
+  if (supported.length === 0 || supported.includes(effort)) return effort;
+  const requestedRank = CODEX_REASONING_LADDER.indexOf(effort);
+  if (requestedRank < 0) return supported[supported.length - 1] ?? effort;
+  let best: ReasoningEffort | undefined;
+  let bestRank = -1;
+  for (const candidate of supported) {
+    const rank = CODEX_REASONING_LADDER.indexOf(candidate);
+    if (rank < 0 || rank > requestedRank) continue;
+    if (rank > bestRank) {
+      bestRank = rank;
+      best = candidate;
+    }
+  }
+  // Everything the model offers is stronger than what was asked for: take the
+  // weakest of those rather than silently escalating to the top.
+  return best ?? supported[0] ?? effort;
 }
 
 interface CodexModelsResponse {
@@ -268,6 +400,18 @@ export interface OpenAICodexProviderOptions {
     | undefined;
   /** Observe response metadata surfaced inside the Responses stream. */
   onResponseMetadata?: ((metadata: CodexResponseMetadata) => void) | undefined;
+  /**
+   * Receives the account's picker-visible model list every time the live
+   * `/codex/models` catalog is re-read, so a host can keep its stored list in
+   * step with the backend.
+   *
+   * The stored list used to be written once, at login, and never again: an
+   * account that gained `gpt-6-astra` a week later kept whatever the login
+   * happened to resolve. This rides the catalog probe the transport already
+   * performs at request boundaries, so keeping the list live costs no extra
+   * request.
+   */
+  onModels?: ((models: CodexLiveModel[]) => void) | undefined;
   /** Enable the Responses WebSocket transport; defaults on for the real fetch. */
   webSocket?: boolean | undefined;
   /** Injectable WebSocket factory for hosts and tests. */
@@ -304,12 +448,29 @@ export class OpenAICodexProvider extends WireAdapter {
     NonNullable<OpenAICodexProviderOptions['onRefresh']> extends (p: infer P) => void ? P : never
   >;
   private readonly reasoningEffort: ReasoningEffort;
+  /** Explicit caller override; absent means "defer to the model's catalog default". */
+  private readonly configuredReasoningEffort: ReasoningEffort | undefined;
   private readonly onResponseMetadata?: ((metadata: CodexResponseMetadata) => void) | undefined;
+  private readonly onModels?: ((models: CodexLiveModel[]) => void) | undefined;
+  /** Last live list, so an unchanged catalog does not re-notify the host. */
+  private lastModelsSignature: string | undefined;
   private readonly useWebSocket: boolean;
   private readonly webSocketPrewarm: boolean;
   private readonly webSocketPool: CodexWebSocketPool | undefined;
   private webSocketDisabled = false;
-  private contextLimits = new Map<string, number>();
+  private contextLimits = new Map<string, CodexModelPolicy>();
+  /**
+   * Per-conversation `x-codex-turn-state`, the backend's sticky-routing token.
+   *
+   * The backend returns it on every `/codex/responses` response and expects it
+   * back on the remaining requests of the SAME turn; that is what keeps a
+   * turn's tool-call round-trips pinned to the machine already holding the
+   * conversation's cached prefix. Dropping it (as this transport used to)
+   * re-rolls routing on every tool result — the requests with the longest
+   * shared prefix in the whole session, and so the ones a cache miss costs
+   * most.
+   */
+  private readonly turnState = new Map<string, string>();
   /**
    * Reasoning replay is disabled for the rest of the process once the backend
    * rejects it. See `stream()` — a 400 on a reasoning item must degrade to the
@@ -375,8 +536,10 @@ export class OpenAICodexProvider extends WireAdapter {
         },
       },
     });
+    this.configuredReasoningEffort = opts.reasoningEffort;
     this.reasoningEffort = opts.reasoningEffort ?? 'medium';
     this.onResponseMetadata = opts.onResponseMetadata;
+    this.onModels = opts.onModels;
     this.webSocketPrewarm = opts.webSocketPrewarm ?? false;
     this.useWebSocket = opts.webSocket ?? opts.fetchImpl === undefined;
     this.webSocketPool = this.useWebSocket
@@ -403,24 +566,20 @@ export class OpenAICodexProvider extends WireAdapter {
   ): Promise<{ maxContext: number; source: 'provider' } | undefined> {
     await this.ensureFreshToken(opts.signal);
     const now = Date.now();
-    if (now < this.contextLimitsFreshUntil) {
-      const cached = this.contextLimits.get(model);
-      return cached ? { maxContext: cached, source: 'provider' } : undefined;
-    }
-    if (now < this.contextLimitsRetryAfter) {
-      const cached = this.contextLimits.get(model);
+    if (now < this.contextLimitsFreshUntil || now < this.contextLimitsRetryAfter) {
+      const cached = this.contextLimits.get(model)?.sendCeiling;
       return cached ? { maxContext: cached, source: 'provider' } : undefined;
     }
     this.contextLimitsRefresh ??= this.fetchContextLimits(opts.signal).finally(() => {
       this.contextLimitsRefresh = undefined;
     });
     await this.contextLimitsRefresh;
-    const maxContext = this.contextLimits.get(model);
+    const maxContext = this.contextLimits.get(model)?.sendCeiling;
     return maxContext ? { maxContext, source: 'provider' } : undefined;
   }
 
   private async fetchContextLimits(signal: AbortSignal): Promise<void> {
-    const url = `${resolveCodexModelsUrl(this.baseUrl)}?client_version=${encodeURIComponent(CODEX_MODELS_CLIENT_VERSION)}`;
+    const url = `${resolveCodexModelsUrl(this.baseUrl)}?client_version=${encodeURIComponent(CODEX_CLIENT_VERSION)}`;
     const timeout = AbortSignal.timeout(CODEX_MODELS_TIMEOUT_MS);
     const probeSignal = AbortSignal.any([signal, timeout]);
     try {
@@ -447,21 +606,54 @@ export class OpenAICodexProvider extends WireAdapter {
         this.contextLimitsRetryAfter = Date.now() + CODEX_MODELS_FAILURE_COOLDOWN_MS;
         return;
       }
-      const next = new Map<string, number>();
+      const next = new Map<string, CodexModelPolicy>();
+      const live: CodexLiveModel[] = [];
       for (const raw of payload.value.models) {
         if (!raw || typeof raw !== 'object') continue;
         const entry = raw as CodexModelMetadata;
         if (typeof entry.slug !== 'string') continue;
-        const limit =
+        // Prefer the model's maximum; fall back to the default window for a
+        // catalog too old to publish one. See codexSendCeiling.
+        const window =
           positiveContextLimit(entry.max_context_window) ??
           positiveContextLimit(entry.context_window);
-        if (limit) next.set(entry.slug, codexSendCeiling(limit));
+        // `visibility: 'list'` is what the official picker shows; `hide` marks
+        // internal routes (`gpt-reserve`, `codex-auto-review`) that a user must
+        // not be offered. Policy is still recorded for them — a hidden model
+        // the caller names explicitly should still get the right ceiling.
+        if (entry.visibility === undefined || entry.visibility === 'list') {
+          live.push({
+            id: entry.slug,
+            name: typeof entry.display_name === 'string' ? entry.display_name : entry.slug,
+            ...(typeof entry.description === 'string' ? { description: entry.description } : {}),
+            ...(window ? { maxContext: window } : {}),
+          });
+        }
+        if (!window) continue;
+        const percent =
+          typeof entry.effective_context_window_percent === 'number'
+            ? entry.effective_context_window_percent
+            : CODEX_DEFAULT_EFFECTIVE_CONTEXT_PERCENT;
+        const defaultReasoningEffort = parseReasoningEffort(entry.default_reasoning_level);
+        // Absent `input_modalities` means an older catalog that predates the
+        // field, not a text-only model — assume images are fine there.
+        const modalities = entry.input_modalities;
+        next.set(entry.slug, {
+          sendCeiling: codexSendCeiling(window, percent),
+          ...(defaultReasoningEffort ? { defaultReasoningEffort } : {}),
+          supportedReasoningEfforts: parseSupportedReasoningEfforts(
+            entry.supported_reasoning_levels,
+          ),
+          acceptsImages: !Array.isArray(modalities) || modalities.includes('image'),
+          parallelToolCalls: entry.supports_parallel_tool_calls !== false,
+        });
       }
       if (next.size === 0) {
         this.contextLimitsRetryAfter = Date.now() + CODEX_MODELS_FAILURE_COOLDOWN_MS;
         return;
       }
       this.contextLimits = next;
+      this.publishLiveModels(live);
       this.contextLimitsEtag = response.headers?.get?.('etag') ?? undefined;
       this.contextLimitsFreshUntil = Date.now() + CODEX_MODELS_CACHE_TTL_MS;
       this.contextLimitsRetryAfter = 0;
@@ -473,9 +665,27 @@ export class OpenAICodexProvider extends WireAdapter {
     }
   }
 
+  /**
+   * Hand the host the account's live model list, but only when it changed.
+   *
+   * The catalog is re-read on a five-minute cadence and revalidated with an
+   * ETag, so most reads return the same list; notifying every time would make
+   * a host that persists the list rewrite its config on a timer.
+   */
+  private publishLiveModels(models: CodexLiveModel[]): void {
+    if (!this.onModels || models.length === 0) return;
+    const signature = models.map((m) => `${m.id}:${m.maxContext ?? ''}`).join(',');
+    if (signature === this.lastModelsSignature) return;
+    this.lastModelsSignature = signature;
+    this.onModels(models);
+  }
+
   override async *stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
     await this.ensureFreshToken(opts.signal);
     let emitted = false;
+    // `track` is a plain generator expression, so it has no `this`; the probe
+    // below needs the provider id from the enclosing scope.
+    const providerId = this.id;
     const track = async function* (source: AsyncIterable<StreamEvent>): AsyncIterable<StreamEvent> {
       for await (const event of source) {
         // `message_start` carries no user-visible content. A backend can emit
@@ -483,6 +693,16 @@ export class OpenAICodexProvider extends WireAdapter {
         // still safe. Every other streamed event is treated as an output
         // boundary to prevent duplicate text/tool/reasoning delivery.
         if (event.type !== 'message_start') emitted = true;
+        // The charge for the request whose prefix the probe just fingerprinted.
+        // Recorded here rather than in `parseStream` because the WebSocket
+        // transport parses the stream itself and never calls that override.
+        if (event.type === 'message_stop' && isCacheProbeEnabled()) {
+          recordCacheProbeUsage({
+            provider: providerId,
+            sessionKey: codexCacheSessionId(req.cache?.sessionId) ?? 'no-session',
+            usage: event.usage,
+          });
+        }
         yield event;
       }
     };
@@ -544,6 +764,12 @@ export class OpenAICodexProvider extends WireAdapter {
     });
     const headers = this.buildHeaders(effectiveReq);
     headers['OpenAI-Beta'] = 'responses_websockets=2026-02-06';
+    // Handshake headers are captured once per pooled connection, so a value
+    // that changes per request cannot ride on them. The WebSocket protocol
+    // carries turn state in the request's `client_metadata` instead, exactly
+    // as the official client does.
+    const turnState = headers[CODEX_TURN_STATE_HEADER];
+    delete headers[CODEX_TURN_STATE_HEADER];
     return this.webSocketPool!.stream(
       {
         url: resolveCodexWebSocketUrl(this.baseUrl),
@@ -554,6 +780,8 @@ export class OpenAICodexProvider extends WireAdapter {
         providerId: this.id,
         signal: opts.signal,
         prewarm: this.webSocketPrewarm,
+        ...(turnState ? { turnState } : {}),
+        onTurnState: (value) => this.rememberTurnState(effectiveReq, value),
         onMetadata: (metadata) => this.handleResponseMetadata(effectiveReq, metadata),
         onHeaders: (responseHeaders) => this.onResponseHeaders(responseHeaders, effectiveReq),
       },
@@ -561,12 +789,30 @@ export class OpenAICodexProvider extends WireAdapter {
     );
   }
 
+  /**
+   * Consume a `response.metadata` frame.
+   *
+   * On the WebSocket transport there are no HTTP response headers after the
+   * handshake, so this frame is the ONLY delivery of the quota windows, the
+   * catalog etag and the sticky-routing token for every turn after the first.
+   * Reading only the etag here left a WebSocket session's quota reporting
+   * frozen at whatever the handshake happened to return.
+   */
   private handleResponseMetadata(_req: Request, metadata: CodexResponseMetadata): void {
     const etag = metadata.headers['x-models-etag'];
     if (etag && etag !== this.contextLimitsEtag) {
       this.contextLimitsEtag = etag;
       this.contextLimitsFreshUntil = 0;
     }
+    this.rememberTurnState(_req, metadata.headers[CODEX_TURN_STATE_HEADER]);
+    const planLabel =
+      metadata.headers['x-codex-plan-type'] ?? extractPlanType(this.access) ?? undefined;
+    const snapshots = parseCodexRateLimitHeaders(new Headers(metadata.headers)).map((snapshot) =>
+      snapshot.planLabel === undefined && planLabel !== undefined
+        ? { ...snapshot, planLabel }
+        : snapshot,
+    );
+    if (snapshots.length > 0) recordProviderQuota(this.id, snapshots);
     this.onResponseMetadata?.(metadata);
   }
 
@@ -591,13 +837,19 @@ export class OpenAICodexProvider extends WireAdapter {
    * reported. Without reading it the first sign of an exhausted plan is a 429
    * mid-turn; with it, surfaces can show the burn rate before it bites.
    *
-   * `x-codex-turn-state` is deliberately not retained here: upstream scopes it
-   * to retry/continuation requests inside one turn, not to later user turns.
-   * The WebSocket transport handles its own prewarm continuation locally.
+   * `x-codex-turn-state` is retained here and replayed by `buildHeaders` on the
+   * remaining requests of the same turn — see `resolveTurnState`, which expires
+   * it as soon as a new user turn begins.
    */
   protected override onResponseHeaders(headers: HeadersLike | undefined, _request: Request): void {
     if (!headers) return;
-    const planLabel = extractPlanType(this.access) ?? undefined;
+    this.rememberTurnState(_request, headers.get(CODEX_TURN_STATE_HEADER) ?? undefined);
+    // `x-codex-plan-type` is the account's live tier as the backend sees it.
+    // The JWT claim is a snapshot taken when the token was minted, so it goes
+    // stale across an upgrade; prefer the header and keep the claim as the
+    // fallback for backends that omit it.
+    const planLabel =
+      headers.get('x-codex-plan-type')?.trim() || extractPlanType(this.access) || undefined;
     const snapshots = parseCodexRateLimitHeaders(headers).map((snapshot) =>
       snapshot.planLabel === undefined && planLabel !== undefined
         ? { ...snapshot, planLabel }
@@ -616,7 +868,7 @@ export class OpenAICodexProvider extends WireAdapter {
       ...super.buildHeaders(_req),
       authorization: `Bearer ${this.access}`,
       originator: CODEX_ORIGINATOR,
-      'user-agent': `wrongstack/${CODEX_MODELS_CLIENT_VERSION}`,
+      'user-agent': CODEX_USER_AGENT,
     };
     if (this.accountId) headers['chatgpt-account-id'] = this.accountId;
     const cacheSessionId = codexCacheSessionId(_req.cache?.sessionId);
@@ -628,12 +880,68 @@ export class OpenAICodexProvider extends WireAdapter {
     } else {
       headers['x-client-request-id'] = randomUUID();
     }
+    const turnState = this.resolveTurnState(_req);
+    if (turnState) headers[CODEX_TURN_STATE_HEADER] = turnState;
     return headers;
   }
 
+  /** Key under which this request's turn state is remembered. */
+  private turnStateKey(req: Request): string {
+    return codexCacheSessionId(req.cache?.sessionId) ?? '__default__';
+  }
+
+  /**
+   * The sticky-routing token to send with this request, expiring the stored one
+   * when the request opens a new turn.
+   *
+   * The catalog probe passes a synthetic empty request through `buildHeaders`;
+   * it must neither send nor invalidate a conversation's turn state.
+   */
+  private resolveTurnState(req: Request): string | undefined {
+    if (req.messages.length === 0) return undefined;
+    const key = this.turnStateKey(req);
+    if (!isTurnContinuation(req)) {
+      this.turnState.delete(key);
+      return undefined;
+    }
+    return this.turnState.get(key);
+  }
+
+  private rememberTurnState(req: Request, value: string | undefined): void {
+    if (!value || req.messages.length === 0) return;
+    const key = this.turnStateKey(req);
+    // Re-insert so the map stays in least-recently-used order for the eviction
+    // below; a Map preserves insertion order and delete+set moves the entry.
+    this.turnState.delete(key);
+    this.turnState.set(key, value);
+    while (this.turnState.size > CODEX_TURN_STATE_MAX_SESSIONS) {
+      const oldest = this.turnState.keys().next().value;
+      if (oldest === undefined) break;
+      this.turnState.delete(oldest);
+    }
+  }
+
   protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
-    const instructions =
-      req.system && req.system.length > 0 ? req.system.map((b) => b.text).join('\n\n') : undefined;
+    // Split the system prompt by cache stability. The Responses wire has no
+    // cache breakpoints: every system block is joined into ONE `instructions`
+    // string at the head of the cached prefix, so a block rebuilt each turn
+    // (recalled memories, a live peer roster, a plugin's per-turn context)
+    // invalidates the prefix from that point on — and everything after it is
+    // the whole conversation. Measured live: 95% hits with a stable prompt,
+    // 85% with one volatile block in `instructions`, 91% with the same bytes
+    // after the conversation. Anthropic can leave these in place because a
+    // breakpoint absorbs them; here they have to move.
+    const stableSystem: string[] = [];
+    const volatileSystem: string[] = [];
+    for (const block of req.system ?? []) {
+      (isVolatileSystemBlock(block) ? volatileSystem : stableSystem).push(block.text);
+    }
+    const instructions = stableSystem.length > 0 ? stableSystem.join('\n\n') : undefined;
+
+    // The live catalog, when this session has already probed it. Absent on the
+    // very first request of a process, which is why every use below falls back
+    // to the previous unconditional behaviour rather than to a guess.
+    const policy = this.contextLimits.get(req.model);
 
     const body: Record<string, unknown> = {
       model: req.model,
@@ -646,12 +954,28 @@ export class OpenAICodexProvider extends WireAdapter {
       // back the reasoning it produced; replaying it here is the half that
       // makes asking for it worth anything. Skipped once the backend has
       // rejected a replay (see `stream`).
-      input: messagesToResponsesInput(req.messages, {
-        includeReasoning: !this.reasoningReplayDisabled,
-      }),
+      input: appendVolatileSystem(
+        messagesToResponsesInput(req.messages, {
+          includeReasoning: !this.reasoningReplayDisabled,
+          // gpt-5.3-codex-spark lists `input_modalities: ["text"]`. Sending
+          // it an `input_image` part buys a 400 and a retry; dropping the
+          // image costs the picture but keeps the turn, which is the better
+          // half of a choice the caller already made by picking a text model.
+          allowImages: policy?.acceptsImages ?? true,
+        }),
+        volatileSystem,
+      ),
       include: ['reasoning.encrypted_content'],
-      parallel_tool_calls: true,
+      parallel_tool_calls: policy?.parallelToolCalls ?? true,
     };
+    // Responses Lite (`use_responses_lite`, true for gpt-6-astra and the 5.6
+    // family) is deliberately NOT opted into. The official client's lite mode
+    // is a package deal — the internal
+    // `x-openai-internal-codex-responses-lite` header, `parallel_tool_calls:
+    // false`, `reasoning.context: 'all_turns'`, and a different input
+    // formatting — and taking only the parts that are easy to send would ask
+    // the backend for a pipeline this transport does not actually speak. Not
+    // opting in is a supported configuration; half-opting in is not.
 
     if (req.tools && req.tools.length > 0) {
       body['tools'] = toolsToResponses(req.tools);
@@ -662,14 +986,54 @@ export class OpenAICodexProvider extends WireAdapter {
     // The ChatGPT Codex request schema used by the official client has no
     // temperature/top_p fields. Do not forward generic runtime sampling knobs
     // that this subscription endpoint may reject.
-    const reasoningEffort = req.reasoning?.effort ?? this.reasoningEffort;
+    // Precedence: an explicit per-request effort, then a configured provider
+    // default, then the model's OWN default from the catalog
+    // (`default_reasoning_level` — `low` for gpt-5.6-sol, `high` for
+    // gpt-5.3-codex-spark, `medium` for the rest), then the generic floor.
+    // A single hardcoded 'medium' silently overrode the picker's per-model
+    // recommendation in both directions.
+    const requestedEffort =
+      req.reasoning?.effort ??
+      this.configuredReasoningEffort ??
+      policy?.defaultReasoningEffort ??
+      this.reasoningEffort;
+    const reasoningEffort = clampReasoningEffort(
+      requestedEffort,
+      policy?.supportedReasoningEfforts ?? [],
+    );
     if (req.reasoning?.enabled !== false && reasoningEffort !== 'none') {
       body['reasoning'] = { effort: reasoningEffort, summary: 'auto' };
     }
-    // OpenAI's official Codex client sends prompt_cache_key for server-side
-    // cache routing (codex caps are cacheControl:'auto'). The key is a routing
-    // hint, not a guarantee of a cache hit.
-    applyPromptCacheKey(body, req, ctx?.capabilities);
+    // `prompt_cache_key` routes requests that share a prefix to the same cache
+    // partition. The official Codex client keys it on the CONVERSATION
+    // (codex-rs/core/src/client.rs `prompt_cache_key` → `session_id`), and that
+    // is the right granularity here: within a conversation the shared prefix is
+    // the entire growing history, while the shared-system-prompt key this used
+    // to send groups every concurrent session of the same agent onto one
+    // partition, where they evict each other over a prefix worth only the
+    // system prompt and tool defs. Fall back to the generic prefix key when a
+    // request carries no conversation (one-shot helpers, embedders).
+    const cacheSessionId = codexCacheSessionId(req.cache?.sessionId);
+    if (cacheSessionId && ctx?.capabilities?.cacheControl === 'auto') {
+      body['prompt_cache_key'] = cacheSessionId;
+    } else {
+      applyPromptCacheKey(body, req, ctx?.capabilities);
+    }
+    // Diagnostic only, and only when explicitly switched on: fingerprint the
+    // segments the backend matches as a prefix, so a low hit ratio can be
+    // attributed to a specific byte that moved rather than guessed at. Keyed
+    // on the same partition key the body carries, so the comparison the probe
+    // makes is the comparison the backend makes.
+    if (isCacheProbeEnabled()) {
+      recordCacheProbeRequest({
+        provider: this.id,
+        sessionKey: String(body['prompt_cache_key'] ?? cacheSessionId ?? 'no-session'),
+        model: req.model,
+        instructions: instructions ?? '',
+        tools: body['tools'] as readonly unknown[] | undefined,
+        items: body['input'] as readonly unknown[],
+      });
+    }
     return body;
   }
 
@@ -709,6 +1073,23 @@ export class OpenAICodexProvider extends WireAdapter {
     if (resetIn !== undefined) error.body.retryAfterMs = resetIn;
     return error;
   }
+}
+
+/**
+ * Put the volatile system blocks after the conversation.
+ *
+ * They still reach the model, and being last they are also the most recent
+ * thing it read — but nothing cacheable sits behind them any more.
+ */
+function appendVolatileSystem(
+  input: Record<string, unknown>[],
+  volatileSystem: readonly string[],
+): Record<string, unknown>[] {
+  if (volatileSystem.length === 0) return input;
+  return [
+    ...input,
+    { role: 'user', content: [{ type: 'input_text', text: volatileSystem.join('\n\n') }] },
+  ];
 }
 
 /** Header-safe, session-stable affinity key used by the Codex backend. */
@@ -805,6 +1186,21 @@ function extractOutputText(content: unknown): string {
   return out;
 }
 
+/**
+ * Read a response-metadata event, whichever dialect the backend used.
+ *
+ * The live ChatGPT WebSocket sends `{ type: 'codex.response.metadata',
+ * headers: {...} }` — the headers sit at the TOP LEVEL, not under a `metadata`
+ * envelope. Upstream documents the same two shapes ("`response.headers` for
+ * standard Responses stream events; top-level `headers` for websocket metadata
+ * events") and accepts both event names.
+ *
+ * This mattered more than a parsing nicety: after the handshake a WebSocket has
+ * no HTTP response headers, so this frame is the only delivery of
+ * `x-codex-turn-state` and `x-models-etag` for every turn of a WebSocket
+ * session — which is the default transport. Matching only the envelope dialect
+ * left both silently unread there.
+ */
 function responseMetadataFromEvent(
   evt: Record<string, unknown>,
 ): CodexResponseMetadata | undefined {
@@ -812,7 +1208,8 @@ function responseMetadataFromEvent(
     (evt['metadata'] as Record<string, unknown> | undefined) ??
     ((evt['response'] as Record<string, unknown> | undefined)?.['metadata'] as
       | Record<string, unknown>
-      | undefined);
+      | undefined) ??
+    evt;
   if (!raw || typeof raw !== 'object') return undefined;
   const rawHeaders = raw['headers'];
   if (!rawHeaders || typeof rawHeaders !== 'object') return undefined;
@@ -901,7 +1298,8 @@ export async function* parseOpenAIResponsesStream(
     const type = typeof evt['type'] === 'string' ? (evt['type'] as string) : '';
 
     switch (type) {
-      case 'response.metadata': {
+      case 'response.metadata':
+      case 'codex.response.metadata': {
         const metadata = responseMetadataFromEvent(evt);
         if (metadata) onResponseMetadata?.(metadata);
         break;

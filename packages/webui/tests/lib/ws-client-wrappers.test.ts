@@ -185,6 +185,11 @@ describe('provider and key management', () => {
 // ── OAuth ───────────────────────────────────────────────────────────────────
 
 describe('subscription OAuth', () => {
+  it('requests the runtime authentication strategy catalog', () => {
+    client.listOAuthProviders();
+    expect(frame()).toEqual({ type: 'auth.oauth.list' });
+  });
+
   it.each(['chatgpt', 'claude', 'copilot'] as const)('startOAuth for %s', (kind) => {
     client.startOAuth(kind);
     expect(frame()).toEqual({ type: 'auth.oauth.start', payload: { kind } });
@@ -214,6 +219,11 @@ describe('subscription OAuth', () => {
   it('cancelOAuth keys by kind', () => {
     client.cancelOAuth('copilot');
     expect(frame()).toEqual({ type: 'auth.oauth.cancel', payload: { kind: 'copilot' } });
+  });
+
+  it('accepts a plugin-defined strategy id without a client-side union edit', () => {
+    client.startOAuth('company-sso');
+    expect(frame()).toEqual({ type: 'auth.oauth.start', payload: { kind: 'company-sso' } });
   });
 });
 

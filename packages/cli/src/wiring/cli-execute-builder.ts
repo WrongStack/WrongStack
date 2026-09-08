@@ -80,6 +80,7 @@ export async function runCliExecution(params: {
   agentMonitor?: X['fleet']['agentTranscripts'];
   vault: AUP['vault'];
   profileConfigPath: string;
+  providerAuthRegistry: NonNullable<AUP['providerAuthRegistry']>;
   onPanelOpen: X['fleet']['onPanelOpen'];
   interruptController: RC['interruptController'];
   enhanceController: RC['enhanceController'];
@@ -176,6 +177,7 @@ export async function runCliExecution(params: {
     agentMonitor,
     vault,
     profileConfigPath,
+    providerAuthRegistry,
     onPanelOpen,
     interruptController,
     enhanceController,
@@ -261,6 +263,7 @@ export async function runCliExecution(params: {
       },
       provider: {
         statusTracker,
+        providerAuthRegistry,
         sddSubagentFactory: multiAgentHost.makeSubagentFactory(config),
         modelsRegistry,
         savedProviderCfg: savedProviderCfg as
@@ -300,6 +303,7 @@ export async function runCliExecution(params: {
           vault,
           modelsRegistry,
           profileConfigPath,
+          providerAuthRegistry,
           onProvidersChanged: reloadProviderConfig,
         }),
         onPanelOpen,

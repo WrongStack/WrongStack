@@ -221,12 +221,23 @@ export function buildContextCommand(opts: SlashCommandContext): SlashCommand {
         lines.push(
           `  cache-hit: ${(cache.hitRatio * 100).toFixed(1)}%  ·  read ${cache.readTokens.toLocaleString('en-US')}, write ${cache.writeTokens.toLocaleString('en-US')}${saved} (session cumulative)`,
         );
-        // Per-provider split — only meaningful once the session spanned >1 provider.
+        // The cumulative figure above permanently carries the first turn, which
+        // can never hit — so it reads low early and climbs for a long time.
+        // The last turn answers the question people are actually asking.
         const perProvider = readProviderCacheLedger(ctx);
+        const active = perProvider.find((p) => p.lastHitRatio !== undefined);
+        if (active?.lastHitRatio !== undefined) {
+          lines.push(
+            `  last turn: ${(active.lastHitRatio * 100).toFixed(1)}%  ·  ${(active.lastPromptTokens ?? 0).toLocaleString('en-US')} prompt tokens`,
+          );
+        }
+        // Per-provider split — only meaningful once the session spanned >1 provider.
         if (perProvider.length > 1) {
           for (const p of perProvider) {
+            const last =
+              p.lastHitRatio !== undefined ? `, last ${(p.lastHitRatio * 100).toFixed(1)}%` : '';
             lines.push(
-              `    ${p.provider.padEnd(16)} ${(p.hitRatio * 100).toFixed(1)}% hit  ·  read ${p.cacheRead.toLocaleString('en-US')}, write ${p.cacheWrite.toLocaleString('en-US')}`,
+              `    ${p.provider.padEnd(16)} ${(p.hitRatio * 100).toFixed(1)}% hit${last}  ·  read ${p.cacheRead.toLocaleString('en-US')}, write ${p.cacheWrite.toLocaleString('en-US')}`,
             );
           }
         }
@@ -257,7 +268,13 @@ interface ProviderCacheRow {
   provider: string;
   cacheRead: number;
   cacheWrite: number;
+  /** Session-cumulative ratio — always includes the un-hittable first turn. */
   hitRatio: number;
+  /** Most recent request only. Absent until one request has been accounted. */
+  lastHitRatio?: number | undefined;
+  lastPromptTokens?: number | undefined;
+  /** Recent per-request ratios, oldest first — the trend, not a point. */
+  recentHitRatios?: number[] | undefined;
 }
 
 /** Read the per-provider cache ledger attached to ctx.meta by session wiring. */
@@ -313,15 +330,60 @@ function renderCacheReport(ctx: Context): string {
   );
 
   const perProvider = readProviderCacheLedger(ctx);
+  // The trend, ahead of the per-provider split: on a prefix-cached wire the
+  // shape of the last few requests is the diagnosis, and the cumulative number
+  // above cannot show it (it carries the unavoidable first-turn miss forever).
+  const trendOf = perProvider.find((p) => (p.recentHitRatios?.length ?? 0) > 0);
+  if (trendOf?.recentHitRatios) {
+    const recent = trendOf.recentHitRatios;
+    lines.push(
+      `  recent:    ${recent.map((r) => `${(r * 100).toFixed(0)}%`).join(' → ')} ${color.dim('(oldest → newest, per request)')}`,
+      `  ${color.dim('verdict:')}   ${cacheTrendVerdict(recent)}`,
+    );
+  }
   if (perProvider.length > 0) {
     lines.push(`  ${color.dim('by provider:')}`);
     for (const p of perProvider) {
+      const last =
+        p.lastHitRatio !== undefined ? `, last ${(p.lastHitRatio * 100).toFixed(1)}%` : '';
       lines.push(
-        `    ${p.provider.padEnd(16)} ${(p.hitRatio * 100).toFixed(1)}% hit  ·  read ${K(p.cacheRead)}, write ${K(p.cacheWrite)}`,
+        `    ${p.provider.padEnd(16)} ${(p.hitRatio * 100).toFixed(1)}% hit${last}  ·  read ${K(p.cacheRead)}, write ${K(p.cacheWrite)}`,
       );
     }
   }
   return lines.join('\n');
+}
+
+/**
+ * One line naming what the recent per-request ratios mean.
+ *
+ * Deliberately reports a SHAPE, not a threshold. "40%" is a healthy young
+ * session and a broken old one; what separates them is whether the number is
+ * climbing as the conversation grows. The first request of a session can never
+ * hit, so it is excluded from the judgement rather than allowed to drag the
+ * verdict down.
+ */
+export function cacheTrendVerdict(recent: readonly number[]): string {
+  const judged = recent.length > 1 ? recent.slice(1) : recent;
+  if (judged.length === 0) return 'not enough requests yet';
+  const latest = judged[judged.length - 1] ?? 0;
+  if (judged.length === 1) {
+    return latest >= 0.5
+      ? 'caching; one more turn will show the trend'
+      : 'one request so far — not yet a signal';
+  }
+  const first = judged[0] ?? 0;
+  const rising = latest > first + 0.05;
+  const falling = latest < first - 0.05;
+  if (latest >= 0.8 && !falling) return 'healthy — the prefix is being reused';
+  if (rising) return 'climbing — normal as the cached prefix grows';
+  if (latest < 0.2) {
+    return 'missing on every request — either the prefix changes each turn or the entry expires between turns (WRONGSTACK_CACHE_PROBE=1 says which)';
+  }
+  if (falling) {
+    return 'falling — something near the front of the prompt is changing each turn (WRONGSTACK_CACHE_PROBE=1 names it)';
+  }
+  return 'flat — expected to climb as history grows; see WRONGSTACK_CACHE_PROBE=1';
 }
 
 function safeBreakdown(ctx: Context): ContextBreakdown | null {

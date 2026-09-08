@@ -4,21 +4,26 @@ import type {
   ResolvedProvider,
   SecretVault,
 } from '@wrongstack/core/types';
-import type { WebSocket } from 'ws';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 import { createProviderHandlers } from '../src/server/provider-handlers.js';
 
 const mockLoadSavedProviders = vi.hoisted(() => vi.fn());
 const mockSaveProviders = vi.hoisted(() => vi.fn());
-const mockBeginOAuthLogin = vi.hoisted(() => vi.fn());
+const mockBeginProviderAuth = vi.hoisted(() => vi.fn());
 
 vi.mock('../src/server/provider-config-io.js', () => ({
   loadSavedProviders: mockLoadSavedProviders,
   saveProviders: mockSaveProviders,
 }));
 
-vi.mock('@wrongstack/providers/oauth', () => ({
-  beginOAuthLogin: mockBeginOAuthLogin,
+vi.mock('@wrongstack/providers/oauth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/providers/oauth')>()),
+  createBuiltinProviderAuthRegistry: () => ({
+    begin: mockBeginProviderAuth,
+    list: () => [],
+    resolveId: (id: string) => id,
+  }),
 }));
 
 function cloneProviders(input: Record<string, ProviderConfig>): Record<string, ProviderConfig> {
@@ -334,13 +339,16 @@ describe('createProviderHandlers saved-provider broadcasts', () => {
       family: 'openai-codex',
       baseUrl: 'https://chatgpt.com/backend-api',
       models: [],
-      apiKey: { label: 'chatgpt', apiKey: 'new-key', createdAt: '2026-08-03T00:00:00.000Z' },
+      credential: {
+        label: 'chatgpt',
+        apiKey: 'new-key',
+        createdAt: '2026-08-03T00:00:00.000Z',
+      },
     };
     const close = vi.fn();
-    mockBeginOAuthLogin.mockResolvedValueOnce({
+    mockBeginProviderAuth.mockResolvedValueOnce({
       providerId: 'openai-codex',
-      authorizeUrl: 'https://example.test',
-      bound: false,
+      interaction: { type: 'browser', authorizeUrl: 'https://example.test', bound: false },
       completeWithCode: vi.fn(async () => outcome),
       close,
     });
@@ -352,7 +360,7 @@ describe('createProviderHandlers saved-provider broadcasts', () => {
     await handlers.handleOAuthStart(ws, 'chatgpt', 'custom-codex');
     await handlers.handleOAuthCode(ws, 'chatgpt', 'callback-code');
 
-    expect(mockBeginOAuthLogin).toHaveBeenCalledWith('chatgpt', { modelsRegistry });
+    expect(mockBeginProviderAuth).toHaveBeenCalledWith('chatgpt', { modelsRegistry });
     expect(getProvider).not.toHaveBeenCalled();
     expect(mockSaveProviders).toHaveBeenCalledOnce();
     const saved = mockSaveProviders.mock.calls[0]?.[2] as Record<string, ProviderConfig>;

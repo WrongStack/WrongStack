@@ -13,23 +13,13 @@ import type { AuthFlowIo } from '@wrongstack/tui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const flowMocks = vi.hoisted(() => ({
-  runCodexOAuthLogin: vi.fn(async () => 0),
-  runClaudeOAuthLogin: vi.fn(async () => 1),
-  runCopilotOAuthLogin: vi.fn(async () => 0),
+  runProviderAuthLogin: vi.fn(async (_deps: unknown, kind: string) => (kind === 'claude' ? 1 : 0)),
   runAuthLocal: vi.fn(async () => 0),
 }));
 
-vi.mock('../src/auth-menu/openai-codex-oauth.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/auth-menu/openai-codex-oauth.js')>()),
-  runCodexOAuthLogin: flowMocks.runCodexOAuthLogin,
-}));
-vi.mock('../src/auth-menu/anthropic-oauth.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/auth-menu/anthropic-oauth.js')>()),
-  runClaudeOAuthLogin: flowMocks.runClaudeOAuthLogin,
-}));
-vi.mock('../src/auth-menu/github-copilot-oauth.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/auth-menu/github-copilot-oauth.js')>()),
-  runCopilotOAuthLogin: flowMocks.runCopilotOAuthLogin,
+vi.mock('../src/auth-menu/provider-auth-login.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/auth-menu/provider-auth-login.js')>()),
+  runProviderAuthLogin: flowMocks.runProviderAuthLogin,
 }));
 vi.mock('../src/auth-menu/local.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/auth-menu/local.js')>()),
@@ -520,15 +510,22 @@ describe('flow delegation', () => {
     const { host } = await setup();
     const { io } = makeIo();
     expect((await host.oauthLogin('chatgpt', io)).ok).toBe(true);
-    expect(flowMocks.runCodexOAuthLogin).toHaveBeenCalledTimes(1);
-    const [, opts] = flowMocks.runCodexOAuthLogin.mock.calls[0] as unknown as [
+    expect(flowMocks.runProviderAuthLogin).toHaveBeenCalledTimes(1);
+    const [, kind, opts] = flowMocks.runProviderAuthLogin.mock.calls[0] as unknown as [
       unknown,
+      string,
       { signal?: AbortSignal },
     ];
+    expect(kind).toBe('chatgpt');
     expect(opts.signal).toBe(io.signal);
 
     expect((await host.oauthLogin('claude', io)).ok).toBe(false); // mock exit code 1
     expect((await host.oauthLogin('copilot', io)).ok).toBe(true);
+    expect(flowMocks.runProviderAuthLogin.mock.calls.map((call) => call[1])).toEqual([
+      'chatgpt',
+      'claude',
+      'copilot',
+    ]);
   });
 
   it('addLocal prompts for the base URL and forwards preset + models capture', async () => {

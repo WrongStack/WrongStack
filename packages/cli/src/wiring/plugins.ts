@@ -5,6 +5,7 @@ import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { PluginAPIInit, PluginHostHandle } from '@wrongstack/core/plugin';
 import { loadPlugins, resolvePluginConfig, resolvePluginEnablement } from '@wrongstack/core/plugin';
 import type {
+  ProviderAuthRegistry,
   ProviderRegistry,
   SlashCommandRegistry,
   ToolRegistry,
@@ -122,6 +123,7 @@ export interface PluginsWiringDeps {
   pipelines: AgentPipelines;
   toolRegistry: ToolRegistry;
   providerRegistry: ProviderRegistry;
+  providerAuthRegistry?: ProviderAuthRegistry | undefined;
   slashCommandRegistry: SlashCommandRegistry;
   mcpRegistry: MCPRegistry;
   log: Logger;
@@ -247,6 +249,7 @@ export async function setupPlugins(
     events,
     toolRegistry,
     providerRegistry,
+    providerAuthRegistry,
     slashCommandRegistry,
     mcpRegistry,
     log,
@@ -405,6 +408,7 @@ export async function setupPlugins(
         pipelines: pipelines as never as Parameters<typeof createApi>[1]['pipelines'],
         toolRegistry,
         providerRegistry,
+        providerAuthRegistry,
         slashCommandRegistry,
         mcpRegistry,
         config: pluginConfig,

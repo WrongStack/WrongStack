@@ -2,6 +2,7 @@
 
 import { act, renderHook } from '@testing-library/react';
 import { EventBus } from '@wrongstack/core/kernel';
+import type { ContentBlock } from '@wrongstack/core/types';
 import { useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { useProviderEventBridge } from '../src/hooks/use-provider-event-bridge.js';
@@ -231,6 +232,74 @@ describe('useProviderEventBridge', () => {
       .find((action) => action.type === 'addEntry' && action.entry.kind === 'tool');
     expect(toolAction.entry.output).toBe(fullOutput);
     expect(toolAction.entry.output).not.toContain('…');
+    unmount();
+  });
+
+  it('waits for the real message_appended boundary instead of racing it with a microtask', async () => {
+    const events = new EventBus();
+    const dispatch = vi.fn();
+    const listeners = new Set<(change: { kind: string }) => void>();
+    const messages: Array<{ role: string; content: ContentBlock[] }> = [];
+    const state = {
+      messages,
+      onChange: (listener: (change: { kind: string }) => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    const agent = { ctx: { session: { id: 'session-1' }, todos: [], state } };
+    const fullOutput = `${'tree node\n'.repeat(100)}tail-marker`;
+
+    const { unmount } = renderHook(() => {
+      const streamingTextRef = useRef('');
+      const streamSegmentsRef = useRef<Array<{ kind: 'assistant' | 'thinking'; text: string }>>([]);
+      const pendingDeltaRef = useRef('');
+      const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+      const sessionGenerationRef = useRef(1);
+      const activeRunGenerationRef = useRef(1);
+      const assistantCommittedThisRunRef = useRef(false);
+      useProviderEventBridge({
+        events,
+        agent: agent as never,
+        dispatch,
+        streamingTextRef,
+        streamSegmentsRef,
+        pendingDeltaRef,
+        flushTimerRef,
+        sessionGenerationRef,
+        activeRunGenerationRef,
+        assistantCommittedThisRunRef,
+        setMemoryContextMonitor: vi.fn(),
+      });
+    });
+
+    await act(async () => {
+      events.emit('tool.executed', {
+        id: 'tool-tree',
+        name: 'tree',
+        durationMs: 12,
+        ok: true,
+        output: fullOutput.slice(0, 400),
+      });
+      await Promise.resolve();
+    });
+    expect(dispatch.mock.calls.some(([action]) => action.type === 'addEntry')).toBe(false);
+
+    act(() => {
+      const message = {
+        role: 'user',
+        content: [
+          { type: 'tool_result', tool_use_id: 'tool-tree', content: fullOutput } as ContentBlock,
+        ],
+      };
+      messages.push(message);
+      for (const listener of listeners) listener({ kind: 'message_appended' });
+    });
+
+    const toolAction = dispatch.mock.calls
+      .map(([action]) => action)
+      .find((action) => action.type === 'addEntry' && action.entry.kind === 'tool');
+    expect(toolAction.entry.output).toBe(fullOutput);
     unmount();
   });
 

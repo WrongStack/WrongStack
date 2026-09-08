@@ -143,7 +143,7 @@ describe('TechStackEngine.generateReport', () => {
         },
       ],
     };
-    const report = engine.generateReport(snap, 'markdown');
+    const report = engine.generateReport(snap, 'md');
     expect(report).toContain('**unknown-dep-id** — vulnerability — Missing dep test');
     store.close();
   });

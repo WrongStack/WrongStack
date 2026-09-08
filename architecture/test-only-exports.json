@@ -213,6 +213,9 @@
     "packages/cli/src/simpleui-dist.ts": [
       "resolveSimpleUiDistDir"
     ],
+    "packages/cli/src/slash-commands/context.ts": [
+      "cacheTrendVerdict"
+    ],
     "packages/cli/src/slash-commands/goal-refiner.ts": [
       "refineGoal",
       "refineGoalHeuristic",
@@ -473,6 +476,9 @@
       "kanbanServer",
       "mailboxServer",
       "requirementIntakeServer"
+    ],
+    "packages/core/src/infrastructure/provider-cache-ledger.ts": [
+      "RECENT_HIT_RATIO_WINDOW"
     ],
     "packages/core/src/mailbox-attach.ts": [
       "applySessionAffinityFilter",
@@ -857,9 +863,6 @@
     ],
     "packages/providers/src/error-parse.ts": [
       "retryAfterMsFromBody"
-    ],
-    "packages/providers/src/oauth/index.ts": [
-      "OAUTH_PROVIDER_IDS"
     ],
     "packages/providers/src/openai-codex.ts": [
       "codexCacheSessionId"

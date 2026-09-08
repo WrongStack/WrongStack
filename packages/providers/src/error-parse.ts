@@ -119,18 +119,18 @@ export function parseProviderErrorBody(rawText: string): ProviderErrorBody {
   // Anthropic / MiniMax / Kimi: { type: "error", error: { type, message }, request_id }
   // OpenAI / OpenAI-compatible: { error: { message, type, code, param } }
   // Google: { error: { code, message, status } }
-function extractDetail(val: unknown): string | undefined {
-  const str = stringOf(val);
-  if (str) return str;
-  if (Array.isArray(val) && val.length > 0) {
-    const first = val[0];
-    if (isPlainObject(first) && typeof first['msg'] === 'string') {
-      return stringOf(first['msg']);
+  function extractDetail(val: unknown): string | undefined {
+    const str = stringOf(val);
+    if (str) return str;
+    if (Array.isArray(val) && val.length > 0) {
+      const first = val[0];
+      if (isPlainObject(first) && typeof first['msg'] === 'string') {
+        return stringOf(first['msg']);
+      }
+      if (typeof first === 'string') return stringOf(first);
     }
-    if (typeof first === 'string') return stringOf(first);
+    return undefined;
   }
-  return undefined;
-}
 
   const responseField = parsed['response'];
   const responseError = isPlainObject(responseField) ? responseField['error'] : undefined;

@@ -23,7 +23,14 @@ describe('ProviderWaitingRoom', () => {
     vi.clearAllMocks();
     useProviderStatusStore.setState({
       entries: {},
-      summary: { total: 0, healthy: 0, degraded: 0, blocked: 0 },
+      summary: {
+        totalPairs: 0,
+        healthy: 0,
+        degraded: 0,
+        blocked: 0,
+        totalFailures: 0,
+        totalRateLimits: 0,
+      },
       audit: [],
     });
     useLocalPrefs.setState({

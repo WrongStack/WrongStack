@@ -57,15 +57,35 @@ describe('openai-codex overlay ↔ core floor parity', () => {
     }
   });
 
-  it('declares the 1M context and 128k output limits for EVERY codex model', () => {
-    // The whole Codex lineup (astra, sol/terra/luna, 5.5, 5.4, mini, spark) is treated
-    // as 1M-windowed — mirroring the published 1M-context configuration for
-    // these models (gpt-6-astra included; OpenAI publishes no separate
-    // window). The live /codex/models probe remains the runtime guard that
-    // caps sessions to the window the backend actually enforces.
+  it('declares each model’s real MAXIMUM window, per the live catalog', () => {
+    // The ChatGPT `/codex/models` catalog publishes two windows per model and
+    // they are not interchangeable: `context_window` is the DEFAULT (272,000
+    // across the current lineup) and `max_context_window` is the largest the
+    // model supports and the ceiling a configured client may ask for
+    // (`configured.min(max_context_window)` in the official client). These are
+    // the maximums, read off a live account.
+    //
+    // The overlay IS that configuration, so it declares the maximum: pinning
+    // it to the default would throw away two thirds of the window gpt-6-astra
+    // and the gpt-5.6 family actually have. The previous flat 1,050,000 was
+    // wrong in the other direction — no codex model reaches it.
+    //
+    // `output` is left alone: the catalog publishes no output limit, and the
+    // Codex wire omits `max_output_tokens` entirely because the ChatGPT
+    // backend rejects it.
+    const expected: Record<string, number> = {
+      'gpt-6-astra': 872_000,
+      'gpt-5.6-sol': 872_000,
+      'gpt-5.6-terra': 872_000,
+      'gpt-5.6-luna': 872_000,
+      'gpt-5.5': 272_000,
+      'gpt-5.4-mini': 272_000,
+      'gpt-5.3-codex-spark': 128_000,
+    };
     const models = OVERLAY['openai-codex']?.models ?? {};
+    expect(Object.keys(models).sort()).toEqual(Object.keys(expected).sort());
     for (const [id, model] of Object.entries(models)) {
-      expect(model.limit, id).toEqual({ context: 1_050_000, output: 128_000 });
+      expect(model.limit, id).toEqual({ context: expected[id], output: 128_000 });
     }
   });
 

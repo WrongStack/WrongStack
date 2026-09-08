@@ -7,9 +7,9 @@
  * declaration-bundler dependency on TypeScript's private compiler API.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, extname, join, relative } from 'node:path';
+import { dirname, extname, join, relative, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { cleanBuildOutput } from './lib/build-output-cleanup.mjs';
 
@@ -690,4 +690,20 @@ if (profile.declarations !== false) {
 }
 
 await profile.postBuild?.();
+
+// When root node_modules contains a physical copy (e.g. non-symlink clone on Windows),
+// keep root node_modules in sync so resolution of workspace packages reflects current build output.
+try {
+  const rootNodeModulesPkg = resolve(packageRoot, '..', '..', 'node_modules', packageJson.name);
+  if (existsSync(rootNodeModulesPkg)) {
+    const distPath = join(packageRoot, 'dist');
+    const targetDist = join(rootNodeModulesPkg, 'dist');
+    if (existsSync(distPath)) {
+      cpSync(distPath, targetDist, { recursive: true, force: true });
+    }
+  }
+} catch {
+  // Best effort: if root node_modules is read-only or held, build has still succeeded.
+}
+
 console.log(`Built ${packageJson.name} with esbuild + TypeScript declarations.`);

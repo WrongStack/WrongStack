@@ -55,6 +55,7 @@ export interface WebUIDispatchContext {
   profileConfigPath: string;
   projectSessionsDir: string;
   modelsRegistry: ModelsRegistry;
+  providerAuthRegistry: import('@wrongstack/core/registry').ProviderAuthRegistry;
   mcpRegistry: MCPRegistry;
   brain: BrainArbiter | undefined;
   brainSettings:
@@ -170,6 +171,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     globalConfigPath,
     projectSessionsDir,
     modelsRegistry,
+    providerAuthRegistry,
     mcpRegistry,
     brain,
     brainSettings,
@@ -338,6 +340,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     agentTranscripts,
     hqAllowExec: flagBoolean(['hq-allow-exec']) ?? false,
     modelsRegistry,
+    providerAuthRegistry,
     globalConfigPath,
     profileConfigPath: ctx.profileConfigPath,
     mcpRegistry,

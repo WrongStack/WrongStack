@@ -53,7 +53,16 @@ export interface AuthLocalPresetRow {
   hint: string;
 }
 
-export type AuthOAuthKind = 'chatgpt' | 'claude' | 'copilot';
+/** UI-safe interactive-login descriptor supplied by the CLI host. */
+export interface AuthOAuthStrategyRow {
+  id: string;
+  providerId: string;
+  label: string;
+  description?: string | undefined;
+}
+
+/** Strategy ids are runtime-extensible. */
+export type AuthOAuthKind = string;
 
 /**
  * Bridge the CLI flows use to talk to the panel while a flow runs.
@@ -142,6 +151,7 @@ export interface AuthPanelHost {
   listProviders(): Promise<AuthProviderRow[]>;
   listCatalog(): Promise<AuthCatalogRow[]>;
   localPresets(): AuthLocalPresetRow[];
+  oauthStrategies?: (() => AuthOAuthStrategyRow[]) | undefined;
   setActiveKey(providerId: string, label: string): Promise<string | null>;
   deleteKey(providerId: string, label: string): Promise<string | null>;
   removeProvider(providerId: string): Promise<string | null>;
@@ -232,6 +242,7 @@ export interface AuthPanelState {
   hint?: string | undefined;
   providers: AuthProviderRow[];
   presets: AuthLocalPresetRow[];
+  oauthStrategies?: AuthOAuthStrategyRow[] | undefined;
   catalog: AuthCatalogRow[];
   /** Cursor index into `authPanelRows(state)` for the current view. */
   selected: number;
@@ -317,6 +328,7 @@ export const AUTH_PANEL_INITIAL: AuthPanelState = {
   busy: false,
   providers: [],
   presets: [],
+  oauthStrategies: [],
   catalog: [],
   selected: 0,
   filter: '',
@@ -345,7 +357,7 @@ export type AuthPanelRow =
   | { kind: 'model-row'; providerId: string; modelId: string; name: string }
   | { kind: 'catalog-entry'; entry: AuthCatalogRow }
   | { kind: 'local-preset'; preset: AuthLocalPresetRow }
-  | { kind: 'oauth-option'; oauth: AuthOAuthKind }
+  | { kind: 'oauth-option'; oauth: AuthOAuthStrategyRow }
   | {
       kind: 'form-field';
       field: AuthFormFieldId;
@@ -443,7 +455,7 @@ export function authPanelRows(state: AuthPanelState): AuthPanelRow[] {
     case 'local':
       return state.presets.map((preset) => ({ kind: 'local-preset' as const, preset }));
     case 'oauth':
-      return (['chatgpt', 'claude', 'copilot'] as const).map((oauth) => ({
+      return (state.oauthStrategies ?? []).map((oauth) => ({
         kind: 'oauth-option' as const,
         oauth,
       }));

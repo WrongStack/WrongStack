@@ -151,7 +151,7 @@ describe('runBenchmark', () => {
     // Non-Error exception thrown during workspace preparation
     const nonErrorTask: BenchTask = {
       ...task,
-      get templateDir() {
+      get templateDir(): string {
         throw 'non-error copy failure';
       },
     };

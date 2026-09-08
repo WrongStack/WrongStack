@@ -1,3 +1,4 @@
+import type { ModelProvenance } from '@wrongstack/core/types';
 import type { SessionScopedPayload } from './protocol-core.js';
 
 export interface WSDiagGet {
@@ -149,6 +150,7 @@ export interface ProviderCatalogModelMatch {
   maxOutput?: number | undefined;
   inputCost?: number | undefined;
   outputCost?: number | undefined;
+  provenance?: ModelProvenance | undefined;
   capabilities: string[];
 }
 
@@ -172,6 +174,7 @@ export interface WSProviderModels {
       contextWindow?: number | undefined;
       inputCost?: number | undefined;
       outputCost?: number | undefined;
+      provenance?: ModelProvenance | undefined;
       capabilities: string[];
     }>;
   };
@@ -284,7 +287,21 @@ export interface WSModelSwitchResult {
 }
 
 /** Which subscription OAuth login a flow is running. */
-export type OAuthKind = 'chatgpt' | 'claude' | 'copilot';
+export type OAuthKind = string;
+
+export interface OAuthProviderMetadata {
+  id: string;
+  providerId: string;
+  label: string;
+  description?: string | undefined;
+  aliases?: readonly string[] | undefined;
+  interactionTypes: readonly ('browser' | 'device_code')[];
+}
+
+export interface WSAuthOAuthProviders {
+  type: 'auth.oauth.providers';
+  payload: { providers: OAuthProviderMetadata[] };
+}
 
 /**
  * Progress for an in-flight subscription OAuth login, broadcast in reply to

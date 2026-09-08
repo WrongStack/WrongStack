@@ -225,8 +225,10 @@ describe('releaseTaskClaim — managed boards', () => {
     // Lifecycle stage preserved — release does not move the card backward.
     expect(task.lifecycle?.currentStage).toBe('running');
     expect(task.columnId).toBe('in-progress');
-    // Assignment cleared.
+    // Assignment cleared, but required assignee on managed board preserved.
     expect(task.assignment).toBeUndefined();
+    expect(task.assignedAgent).toBeUndefined();
+    expect(task.assignee).toBe('worker');
     // Reason note recorded.
     expect(task.notes?.some((n) => n.content.includes('Test release'))).toBe(true);
   });

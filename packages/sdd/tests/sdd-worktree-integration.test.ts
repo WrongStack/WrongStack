@@ -74,7 +74,7 @@ describe('sdd-worktree-integration', () => {
       getNode: vi.fn((id: string) => (id === 't1' ? makeTask('t1') : undefined)),
     };
     await allocateTaskWorktrees(
-      { worktrees: mockWt as never, tracker: tracker as never } as SddParallelRunOptions,
+      { worktrees: mockWt as never, tracker: tracker as never } as unknown as SddParallelRunOptions,
       state,
       tasks,
     );
@@ -111,7 +111,7 @@ describe('sdd-worktree-integration', () => {
     };
 
     await resolveTaskWorktrees(
-      { worktrees: mockWt as never, tracker: tracker as never } as SddParallelRunOptions,
+      { worktrees: mockWt as never, tracker: tracker as never } as unknown as SddParallelRunOptions,
       state,
       [t1, t2, t3, t4],
     );

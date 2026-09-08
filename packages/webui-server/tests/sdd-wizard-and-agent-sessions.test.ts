@@ -113,7 +113,7 @@ describe('sdd-wizard-wiring', () => {
     expect(wizardDeps).toBeDefined();
 
     // ensureReady
-    await wizardDeps.ensureReady();
+    await wizardDeps.ensureReady?.();
 
     // makeDriver
     const driver = wizardDeps.makeDriver();
@@ -130,12 +130,12 @@ describe('sdd-wizard-wiring', () => {
     );
 
     // startRunFromGraphId with non-existent graph should throw ToolValidationError
-    await expect(wizardDeps.startRunFromGraphId('graph-nonexistent-xyz', {})).rejects.toThrow(
+    await expect(wizardDeps.startRunFromGraphId?.('graph-nonexistent-xyz', {})).rejects.toThrow(
       'Task graph not found: graph-nonexistent-xyz',
     );
 
     // resolveGraphIdForSpec
-    const graphId = await wizardDeps.resolveGraphIdForSpec('spec-missing');
+    const graphId = await wizardDeps.resolveGraphIdForSpec?.('spec-missing');
     expect(graphId).toBeNull();
   });
 });

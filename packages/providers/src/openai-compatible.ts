@@ -217,6 +217,7 @@ function applyGenericReasoningEffort(
 // on the table itself in openai-shared.ts. The import binds the name for
 // local use — `export … from` alone does not (the TUI typecheck taught us).
 import { GENERIC_EFFORT_FALLBACK } from './openai-shared.js';
+
 export { GENERIC_EFFORT_FALLBACK } from './openai-shared.js';
 
 /**

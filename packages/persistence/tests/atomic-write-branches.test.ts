@@ -506,6 +506,21 @@ describe('persistence primitive edge branches', () => {
     expect(doubles.fs.rename).toHaveBeenCalled();
   });
 
+  it('restores read-only attribute on target if Windows rename fails', async () => {
+    usePlatform('win32');
+    doubles.fs.stat.mockResolvedValue({ mode: 0o444, isDirectory: () => false });
+    doubles.fs.rename.mockRejectedValue(errorWithCode('EPERM'));
+    const primitives = createPersistencePrimitives();
+
+    await expect(
+      primitives.atomicWrite('C:\\tmp\\readonly.txt', 'value', { mode: 0o444 }),
+    ).rejects.toThrow();
+    expect(doubles.fs.chmod).toHaveBeenNthCalledWith(1, expect.stringContaining('.tmp'), 0o444);
+    expect(doubles.fs.chmod).toHaveBeenNthCalledWith(2, 'C:\\tmp\\readonly.txt', 0o666);
+    expect(doubles.fs.chmod).toHaveBeenNthCalledWith(3, 'C:\\tmp\\readonly.txt', 0o444);
+  });
+
+
   it('writes buffer content with custom mode', async () => {
     usePlatform('linux');
     const primitives = createPersistencePrimitives();

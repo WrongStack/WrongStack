@@ -284,12 +284,12 @@ export async function installCatalogModelOutputLimits(
   // fell through to the 8192 last resort. Index the overlay payload directly:
   // it is the exact delta, so this stays synchronous and needs no reload.
   const overlayHolder = registry as {
-    mergeOverlay?: (payload: ModelsDevPayload) => void;
+    mergeOverlay?: (payload: ModelsDevPayload, opts?: unknown) => void;
   };
   if (typeof overlayHolder.mergeOverlay === 'function' && !WRAPPED_OVERLAY.has(registry)) {
     const originalMerge = overlayHolder.mergeOverlay.bind(registry);
-    overlayHolder.mergeOverlay = (payload: ModelsDevPayload) => {
-      originalMerge(payload);
+    overlayHolder.mergeOverlay = (payload: ModelsDevPayload, opts?: unknown) => {
+      originalMerge(payload, opts);
       for (const [catalogId, models] of indexPayload(payload)) {
         const existing = state.index.get(catalogId);
         if (existing) for (const [id, limit] of models) existing.set(id, limit);

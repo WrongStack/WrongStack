@@ -153,10 +153,21 @@ function applyAlibaba(body: Record<string, unknown>, req: Request): void {
 function applyXai(body: Record<string, unknown>, req: Request): void {
   delete body['reasoning_effort'];
   const model = req.model.toLowerCase();
-  if (!model.includes('grok-4.5')) return;
+  const isGrok420 = model.includes('grok-4.20') || model.includes('grok-420');
+  const supportsReasoningEffort =
+    model.includes('grok-4.5') || model.includes('grok-4.6') || isGrok420;
+  if (!supportsReasoningEffort) return;
   const effort = req.reasoning?.effort;
-  if (req.reasoning?.enabled !== false && isOneOf(effort, ['low', 'medium', 'high'])) {
-    body['reasoning_effort'] = effort;
+  if (req.reasoning?.enabled !== false && effort && effort !== 'none') {
+    const supportsXhigh = model.includes('grok-4.6') || isGrok420;
+    body['reasoning_effort'] =
+      effort === 'minimal'
+        ? 'low'
+        : effort === 'xhigh' || effort === 'max'
+          ? supportsXhigh
+            ? 'xhigh'
+            : 'high'
+          : effort;
   }
   // xAI documents these as incompatible with reasoning models.
   delete body['presence_penalty'];

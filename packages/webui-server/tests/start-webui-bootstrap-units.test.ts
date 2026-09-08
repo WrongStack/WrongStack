@@ -1,3 +1,4 @@
+import type { SessionStore } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 
 // ── 1. start-webui-bind ──────────────────────────────────────────────────
@@ -86,7 +87,7 @@ describe('start-webui-payload: createStartWebuiSessionPayloadHelper', () => {
       peekAgent: (id) => ({ ctx: { session: { id } } }) as never,
     });
     expect(typeof helper).toBe('function');
-    const payload = await helper('s1');
+    const payload = await helper({ sessionId: 's1' });
     expect(payload).toBeDefined();
   });
 });
@@ -187,7 +188,8 @@ describe('start-webui-logging: setupWebuiTerminalLogging', () => {
         isRunActive: () => true,
       } as never,
       deps: {
-        peekAgent: (id) => ({ ctx: { model: 'm-peek', provider: { id: 'p-peek' } } }) as never,
+        peekAgent: (_id: string) =>
+          ({ ctx: { model: 'm-peek', provider: { id: 'p-peek' } } }) as never,
       } as never,
     });
   });
@@ -207,14 +209,14 @@ describe('start-webui-deps: createWebuiDeps and createWebuiCallbacks', () => {
     const deps = createWebuiDeps({
       clients,
       agent: { ctx: { session: { id: 's-agent' } } } as never,
-      peekAgent: (id) => (id === 's-peek' ? ({} as never) : undefined),
+      peekAgent: (id: string) => (id === 's-peek' ? ({} as never) : undefined),
       httpPort: 9000,
     } as never);
 
-    expect(deps.hasSession('s-agent')).toBe(true);
-    expect(deps.hasSession('s-peek')).toBe(true);
-    expect(deps.hasSession('s-client')).toBe(true);
-    expect(deps.hasSession('s-none')).toBe(false);
+    expect(deps.hasSession?.('s-agent')).toBe(true);
+    expect(deps.hasSession?.('s-peek')).toBe(true);
+    expect(deps.hasSession?.('s-client')).toBe(true);
+    expect(deps.hasSession?.('s-none')).toBe(false);
     expect(deps.wsPort).toBe(9000);
     expect(deps.wsHost).toBe('127.0.0.1');
   });
@@ -241,7 +243,7 @@ describe('start-webui-deps: createWebuiDeps and createWebuiCallbacks', () => {
     callbacks.claimSession('s1', {} as never);
     expect(sessionIdentity.claim).toHaveBeenCalledWith('s1', {});
 
-    callbacks.onBeforeSessionTodosReplaced({} as never);
+    await callbacks.onBeforeSessionTodosReplaced('s1', 'D:/sessions');
     expect(todosCheckpoint.rebind).toHaveBeenCalled();
 
     await callbacks.onSessionSwapped('s1', {} as never);
@@ -259,7 +261,7 @@ describe('start-webui-state: createWebuiMutableState', () => {
     let work = 'D:/work';
     let session = { id: 's1' };
     let started = 1000;
-    let store = {} as never;
+    let store = {} as unknown as SessionStore;
     let mode = 'code';
     const locks = new Map();
     locks.set('s1', new AbortController());

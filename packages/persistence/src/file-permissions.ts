@@ -202,6 +202,9 @@ function windowsAccountName(): string | undefined {
   }
   if (!username || username.includes('\0')) return undefined;
   const domain = process.env['USERDOMAIN'];
-  if (domain && !domain.includes('\0')) return `${domain}\\${username}`;
+  if (domain && !domain.includes('\0') && !username.includes('\\') && !username.includes('@')) {
+    return `${domain}\\${username}`;
+  }
   return username;
 }
+

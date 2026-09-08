@@ -170,6 +170,43 @@ describe('model-auto-discovery', () => {
     );
   });
 
+  it('passes xAI discovery metadata and applies account visibility', async () => {
+    const registry = { mergeOverlay: vi.fn() };
+    const cfg = { type: 'xai' };
+    mocks.resolveDiscoveryTargets.mockReturnValue([
+      {
+        id: 'xai',
+        cfg,
+        baseUrl: 'https://api.x.ai/v1',
+        apiKey: 'xai-key',
+        cacheKey: 'xai-key',
+        modelDiscoveryPath: 'language-models',
+        modelDiscoveryAuthoritative: true,
+      },
+    ]);
+    const provider = {
+      id: 'xai',
+      models: { 'grok-4.6': { id: 'grok-4.6' } },
+    };
+    mocks.discoverOpenAICompatibleModels.mockResolvedValue(provider);
+
+    await discoverAndMergeWebuiProviders({
+      config: { providers: { xai: cfg } } as never,
+      registry,
+      cacheDir: tmpDir,
+    });
+
+    expect(mocks.discoverOpenAICompatibleModels).toHaveBeenCalledWith(
+      'xai',
+      expect.objectContaining({ modelDiscoveryPath: 'language-models' }),
+    );
+    expect(cfg).not.toHaveProperty('models');
+    expect(registry.mergeOverlay).toHaveBeenCalledWith(
+      { xai: provider },
+      expect.objectContaining({ authoritativeProviderIds: ['xai'] }),
+    );
+  });
+
   it('logs warning when discovery fails and no cache is available', async () => {
     const registry = { mergeOverlay: vi.fn() };
     const logger = {

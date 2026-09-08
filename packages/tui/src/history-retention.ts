@@ -42,7 +42,15 @@ function entryBytes(entry: HistoryEntry): number {
   if (cached !== undefined) return cached;
   let bytes: number;
   try {
-    bytes = Buffer.byteLength(JSON.stringify(entry), 'utf8');
+    // `copyOutput` is not display history: it is the canonical clipboard
+    // payload. Do not let the visual cache's byte budget truncate it or evict
+    // its card. The string normally shares storage with `output` until the
+    // latter is shortened, so this does not duplicate the common case.
+    const budgetedEntry =
+      entry.kind === 'tool' && entry.copyOutput !== undefined
+        ? (({ copyOutput: _copyOutput, ...displayEntry }) => displayEntry)(entry)
+        : entry;
+    bytes = Buffer.byteLength(JSON.stringify(budgetedEntry), 'utf8');
   } catch {
     // A non-serializable tool payload must never disable retention.
     bytes = TUI_HISTORY_MAX_BYTES + 1;
@@ -94,6 +102,24 @@ function retainTuiHistoryEntry(
   maxBytes = TUI_HISTORY_MAX_ENTRY_BYTES,
 ): HistoryEntry {
   if (entryBytes(entry) <= maxBytes) return entry;
+  if (entry.kind === 'tool') {
+    // Tool output may be visually/budget-truncated, but a card that remains on
+    // screen must still copy the complete model-visible result.
+    const copyableEntry =
+      entry.output !== undefined && entry.copyOutput === undefined
+        ? { ...entry, copyOutput: entry.output }
+        : entry;
+    const name =
+      copyableEntry.name.length > 1024
+        ? `${copyableEntry.name.slice(0, 1024)}…`
+        : copyableEntry.name;
+    return retainTextWithinEntryBudget(
+      copyableEntry.output ?? '',
+      maxBytes,
+      (text) => ({ ...copyableEntry, name, input: undefined, output: text }),
+      copyableEntry,
+    );
+  }
 
   switch (entry.kind) {
     case 'user':
@@ -122,16 +148,6 @@ function retainTuiHistoryEntry(
         (text) => ({ ...entry, text, detail: undefined }),
         entry,
       );
-    case 'tool': {
-      const name = entry.name.length > 1024 ? `${entry.name.slice(0, 1024)}…` : entry.name;
-      const output = entry.output ?? '';
-      return retainTextWithinEntryBudget(
-        output,
-        maxBytes,
-        (text) => ({ ...entry, name, input: undefined, output: text }),
-        entry,
-      );
-    }
     case 'banner': {
       const truncate = (value: string): string =>
         value.length > 1024 ? `${value.slice(0, 1024)}…` : value;

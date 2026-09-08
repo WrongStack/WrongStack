@@ -447,4 +447,34 @@ describe('replace relative single-star globs (regression)', () => {
     expect(await fs.readFile(literal, 'utf8')).toBe('DONE');
     expect(await fs.readFile(globbed, 'utf8')).toBe('DONE');
   });
+
+  it('honors ctx.workingDir for relative glob files', async () => {
+    const subDir = path.join(tmpDir, 'sub');
+    await fs.mkdir(subDir, { recursive: true });
+    const rootFile = path.join(tmpDir, 'file.txt');
+    const subFile = path.join(subDir, 'file.txt');
+    await fs.writeFile(rootFile, 'ROOT_TARGET', 'utf8');
+    await fs.writeFile(subFile, 'SUB_TARGET', 'utf8');
+
+    const ctx = {
+      ...makeCtx(),
+      workingDir: subDir,
+    };
+
+    const result = await replaceTool.execute(
+      {
+        pattern: 'TARGET',
+        replacement: 'UPDATED',
+        files: '*.txt',
+        dry_run: false,
+      },
+      ctx,
+      makeOpts(),
+    );
+
+    expect(result.files_modified).toBe(1);
+    expect(await fs.readFile(rootFile, 'utf8')).toBe('ROOT_TARGET');
+    expect(await fs.readFile(subFile, 'utf8')).toBe('SUB_UPDATED');
+  });
 });
+

@@ -83,6 +83,32 @@ describe('useBugHuntLoop', () => {
     expect(result.current.consumeReplay(continuation)).toBe(true);
   });
 
+  it('finishes plain /bughunt after one round without opening or submitting a continuation', () => {
+    vi.useFakeTimers();
+    const dispatch = vi.fn<(action: Action) => void>();
+    const submit = vi.fn<(command: string) => void>();
+    const { result } = renderHook(() => useBugHuntLoop(dispatch, submit));
+
+    act(() => result.current.onBugHuntStarted('/bughunt'));
+    act(() => result.current.onRunFinished('done'));
+    act(() => vi.runOnlyPendingTimers());
+
+    expect(submit).not.toHaveBeenCalled();
+    expect(result.current.shouldSuppressNextSteps()).toBe(false);
+    expect(
+      dispatch.mock.calls
+        .map(([action]) => action)
+        .filter((action) => action.type === 'bugHuntContinueOpen'),
+    ).toHaveLength(0);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'addEntry',
+      entry: {
+        kind: 'info',
+        text: 'Proof-Driven Bug Hunter completed its single round.',
+      },
+    });
+  });
+
   // Regression: /clear must end the hunt. The reducer half (bugHuntRunning /
   // bugHuntContinue) is reset by 'clearHistory', but the hook's refs live
   // outside the reducer — and a mid-round /clear bumps sessionGeneration so

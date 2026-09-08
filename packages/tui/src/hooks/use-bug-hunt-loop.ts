@@ -32,7 +32,7 @@ function submitAfterCurrentRun(submit: (command: string) => void, command: strin
   setTimeout(() => submit(command), 0);
 }
 
-/** Coordinates bounded or user-stopped `/bughunt` rounds in the TUI. */
+/** Coordinates single-round or explicitly bounded `/bughunt` runs in the TUI. */
 export function useBugHuntLoop(
   dispatch: (action: Action) => void,
   submit: (command: string) => void,
@@ -101,13 +101,17 @@ export function useBugHuntLoop(
         return;
       }
       active.completedRounds++;
-      if (active.totalRounds !== undefined && active.completedRounds >= active.totalRounds) {
+      const requestedRounds = active.totalRounds ?? 1;
+      if (active.completedRounds >= requestedRounds) {
         activeRef.current = null;
         dispatch({
           type: 'addEntry',
           entry: {
             kind: 'info',
-            text: `Proof-Driven Bug Hunter completed ${active.completedRounds}/${active.totalRounds} requested rounds.`,
+            text:
+              active.totalRounds === undefined
+                ? 'Proof-Driven Bug Hunter completed its single round.'
+                : `Proof-Driven Bug Hunter completed ${active.completedRounds}/${active.totalRounds} requested rounds.`,
           },
         });
         return;
@@ -130,31 +134,9 @@ export function useBugHuntLoop(
         submitAfterCurrentRun(submit, continuation);
       };
 
-      // A bounded hunt is explicitly autonomous: proceed as soon as the
-      // previous round succeeds instead of opening a confirmation panel.
-      if (snapshot.totalRounds !== undefined) {
-        continueWithNextRound();
-        return;
-      }
-      dispatch({
-        type: 'bugHuntContinueOpen',
-        info: {
-          completedRounds: snapshot.completedRounds,
-          totalRounds: snapshot.totalRounds,
-          resolve: (decision) => {
-            dispatch({ type: 'bugHuntContinueClose' });
-            if (decision === 'stop') {
-              activeRef.current = null;
-              dispatch({
-                type: 'addEntry',
-                entry: { kind: 'info', text: 'Proof-Driven Bug Hunter loop stopped.' },
-              });
-              return;
-            }
-            continueWithNextRound();
-          },
-        },
-      });
+      // Only an explicit --rounds budget reaches this branch. Continue as
+      // soon as the previous round succeeds; plain /bughunt is single-shot.
+      continueWithNextRound();
     },
     [dispatch, submit],
   );

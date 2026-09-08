@@ -110,6 +110,7 @@ describe('requestWithRetry body cap', () => {
         end: vi.fn(),
         destroy: vi.fn(() => {
           destroyed = true;
+          return req as ClientRequest;
         }),
       };
       setTimeout(() => timeoutCb?.(), 0);

@@ -10,11 +10,11 @@
  * `buildWin32CmdShimInvocation` (or an explicit opt-out with a
  * `// S4-ALLOWED:` comment next to it).
  */
-import { describe, expect, it } from 'vitest';
-import * as fs from 'node:fs';
+
+import { execSync } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execSync } from 'node:child_process';
+import { describe, expect, it } from 'vitest';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../../../..');
@@ -29,23 +29,6 @@ const toPosix = (p: string): string => p.split(String.fromCharCode(92)).join('/'
  * message from re-triggering the rule against itself.
  */
 const SELF = toPosix(path.relative(REPO_ROOT, fileURLToPath(import.meta.url)));
-
-function listTsFiles(dir: string): string[] {
-  const out: string[] = [];
-  if (!fs.existsSync(dir)) return out;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const p = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === '.git') {
-        continue;
-      }
-      out.push(...listTsFiles(p));
-    } else if (entry.name.endsWith('.ts')) {
-      out.push(p);
-    }
-  }
-  return out;
-}
 
 describe('S4: every shell:true spawn site is paired with the cmd-shim helper', () => {
   it('has no new unpaired shell:true sites outside the S4 opt-out list', () => {
@@ -84,16 +67,10 @@ describe('S4: every shell:true spawn site is paired with the cmd-shim helper', (
     // hook — a one-shot failing build is the intended signal.
     let output = '';
     try {
-      output = execSync(
-        [
-          'git',
-          'grep',
-          '-nE',
-          '--',
-          'shell:\\s*true',
-        ].join(' '),
-        { cwd: REPO_ROOT, encoding: 'utf8' },
-      );
+      output = execSync(['git', 'grep', '-nE', '--', 'shell:\\s*true'].join(' '), {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      });
     } catch (err) {
       // git grep exits 1 when no matches — that is the success path
       // for "no new sites" once the allow-list is empty.
@@ -122,10 +99,10 @@ describe('S4: every shell:true spawn site is paired with the cmd-shim helper', (
       const trimmed = residue.trimStart();
       if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
       if (
-        trimmed.startsWith("it(") ||
-        trimmed.startsWith("it.`") ||
-        trimmed.startsWith("describe(") ||
-        trimmed.startsWith("describe.`")
+        trimmed.startsWith('it(') ||
+        trimmed.startsWith('it.`') ||
+        trimmed.startsWith('describe(') ||
+        trimmed.startsWith('describe.`')
       )
         continue;
       if (allowed.some((a) => normalised.endsWith(a))) continue;

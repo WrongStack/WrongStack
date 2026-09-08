@@ -140,13 +140,13 @@ function ensureOverlayInvalidatesCache(registry: ModelsRegistry): void {
   // so relying on that set would re-wrap on every call and build an unbounded
   // wrapper chain.
   if (WRAPPED_OVERLAY.has(registry)) return;
-  const holder = registry as { mergeOverlay?: (payload: unknown) => void };
+  const holder = registry as { mergeOverlay?: (payload: unknown, opts?: unknown) => void };
   if (typeof holder.mergeOverlay !== 'function') return;
   WRAPPED_OVERLAY.add(registry);
   const original = holder.mergeOverlay.bind(registry);
-  holder.mergeOverlay = (payload: unknown) => {
+  holder.mergeOverlay = (payload: unknown, opts?: unknown) => {
     REGISTRY_CAP_CACHE.delete(registry);
-    original(payload);
+    original(payload, opts);
   };
 }
 

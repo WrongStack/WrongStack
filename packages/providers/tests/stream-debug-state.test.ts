@@ -1,11 +1,11 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  isDebugStreamEnabled,
-  setDebugStreamEnabled,
-  setDebugStreamCallback,
-  pushDebugChunkStats,
-  defaultDebugStreamCallback,
   type DebugStreamStats,
+  defaultDebugStreamCallback,
+  isDebugStreamEnabled,
+  pushDebugChunkStats,
+  setDebugStreamCallback,
+  setDebugStreamEnabled,
 } from '../src/stream-debug-state';
 
 describe('stream-debug-state', () => {

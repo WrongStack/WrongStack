@@ -117,7 +117,8 @@ export interface LoopbackOptions {
   /** Expected callback path, e.g. `/auth/callback` or `/callback`. */
   path: string;
   /** Expected OAuth `state` — a mismatch aborts the wait (CSRF guard). */
-  expectedState: string;
+  /** Expected OAuth state. Omit only for providers whose protocol does not return state. */
+  expectedState?: string | undefined;
   /** Abort (e.g. user cancel) → unblock the pending wait and tear down. */
   signal?: AbortSignal | undefined;
 }
@@ -176,7 +177,7 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
     }
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
-    if (state !== expectedState) {
+    if (expectedState !== undefined && state !== expectedState) {
       res.statusCode = 400;
       res.end(callbackHtml(false, 'State mismatch — please restart the login.'));
       server.close(() => resolveCode(null));
@@ -189,7 +190,7 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
     }
     res.statusCode = 200;
     res.end(callbackHtml(true, 'You can close this window and return to WrongStack.'));
-    server.close(() => resolveCode({ code, state }));
+    server.close(() => resolveCode({ code, state: state ?? '' }));
   });
 
   const onAbort = (): void => {

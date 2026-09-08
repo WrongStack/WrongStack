@@ -3,8 +3,8 @@
   "thresholdLines": 800,
   "files": {
     "packages/cli/src/auth-menu/panel-service.ts": {
-      "lines": 1044,
-      "relativeImports": 9
+      "lines": 1039,
+      "relativeImports": 7
     },
     "packages/cli/src/boot/tui-session-resume.ts": {
       "lines": 824,
@@ -15,11 +15,11 @@
       "relativeImports": 18
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 859,
+      "lines": 862,
       "relativeImports": 34
     },
     "packages/cli/src/execution.ts": {
-      "lines": 888,
+      "lines": 890,
       "relativeImports": 41
     },
     "packages/cli/src/fleet/host.ts": {
@@ -59,7 +59,7 @@
       "relativeImports": 5
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1007,
+      "lines": 1008,
       "relativeImports": 21
     },
     "packages/core/src/boot.ts": {
@@ -107,7 +107,7 @@
       "relativeImports": 15
     },
     "packages/core/src/core/system-prompt-builder.ts": {
-      "lines": 923,
+      "lines": 957,
       "relativeImports": 24
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
@@ -135,12 +135,12 @@
       "relativeImports": 13
     },
     "packages/core/src/index.ts": {
-      "lines": 1048,
-      "relativeImports": 163
+      "lines": 1049,
+      "relativeImports": 164
     },
     "packages/core/src/plugin/api.ts": {
-      "lines": 887,
-      "relativeImports": 21
+      "lines": 919,
+      "relativeImports": 22
     },
     "packages/core/src/security/secret-vault.ts": {
       "lines": 865,
@@ -235,8 +235,8 @@
       "relativeImports": 1
     },
     "packages/providers/src/openai-codex.ts": {
-      "lines": 1178,
-      "relativeImports": 16
+      "lines": 1576,
+      "relativeImports": 17
     },
     "packages/sage/src/domain-term-extractor.ts": {
       "lines": 873,
@@ -379,7 +379,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/submit-controller.ts": {
-      "lines": 905,
+      "lines": 914,
       "relativeImports": 13
     },
     "packages/webui/src/components/AudienceMemoryPanel.tsx": {
@@ -427,7 +427,7 @@
       "relativeImports": 8
     },
     "packages/webui/src/components/SettingsPanel/ProviderSection.tsx": {
-      "lines": 893,
+      "lines": 886,
       "relativeImports": 7
     },
     "packages/webui/src/components/SidePanel/SessionList.tsx": {
@@ -471,7 +471,7 @@
       "relativeImports": 16
     },
     "packages/webui/src/types/client-message.ts": {
-      "lines": 870,
+      "lines": 871,
       "relativeImports": 7
     },
     "packages/webui-server/src/server/backend-services.ts": {
@@ -483,7 +483,7 @@
       "relativeImports": 1
     },
     "packages/webui-server/src/server/embedded-message-router.ts": {
-      "lines": 831,
+      "lines": 832,
       "relativeImports": 52
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {

@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { atomicWrite, restrictFilePermissions } from '@wrongstack/persistence';
 import type { GovernanceServiceCredential } from './capability-grant.js';
 import {
   canonicalGovernanceProjectRoot,
@@ -163,18 +164,36 @@ async function ensurePrivateDirectory(projectRoot: string): Promise<string> {
   return directory;
 }
 
+const TRANSIENT_READ_CODES = new Set(['EPERM', 'EBUSY']);
+const READ_RETRY_DELAYS_MS = [15, 40, 100, 250];
+
 async function readBounded(pathname: string): Promise<string | null> {
-  try {
-    const value = await fs.readFile(pathname);
-    if (value.byteLength > GOVERNANCE_DAEMON_METADATA_MAX_BYTES) {
-      throw new Error(
-        `Governance daemon metadata exceeds ${GOVERNANCE_DAEMON_METADATA_MAX_BYTES} bytes.`,
-      );
+  let attempt = 0;
+  for (;;) {
+    try {
+      const value = await fs.readFile(pathname);
+      if (value.byteLength > GOVERNANCE_DAEMON_METADATA_MAX_BYTES) {
+        throw new Error(
+          `Governance daemon metadata exceeds ${GOVERNANCE_DAEMON_METADATA_MAX_BYTES} bytes.`,
+        );
+      }
+      return value.toString('utf8');
+    } catch (error) {
+      const code = errorCode(error);
+      if (code === 'ENOENT') return null;
+      const delayMs = READ_RETRY_DELAYS_MS[attempt];
+      if (
+        process.platform === 'win32' &&
+        code !== undefined &&
+        TRANSIENT_READ_CODES.has(code) &&
+        delayMs !== undefined
+      ) {
+        await delay(delayMs);
+        attempt++;
+        continue;
+      }
+      throw error;
     }
-    return value.toString('utf8');
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return null;
-    throw error;
   }
 }
 
@@ -379,18 +398,8 @@ export async function writeGovernanceDaemonAttachmentBroker(
   const expected = validated.broker;
   await ensurePrivateDirectory(projectRoot);
   const pathname = governanceDaemonAttachmentBrokerPath(projectRoot);
-  const temporary = `${pathname}.${process.pid}.${expected.instanceId}.tmp`;
-  await fs.writeFile(temporary, `${JSON.stringify(expected, null, 2)}\n`, {
-    encoding: 'utf8',
-    mode: 0o600,
-  });
-  if (process.platform !== 'win32') await fs.chmod(temporary, 0o600);
-  try {
-    await fs.rename(temporary, pathname);
-  } catch (error) {
-    await fs.rm(temporary, { force: true }).catch(() => undefined);
-    throw error;
-  }
+  await atomicWrite(pathname, `${JSON.stringify(expected, null, 2)}\n`, { mode: 0o600 });
+  await restrictFilePermissions(pathname).catch(() => undefined);
 }
 
 export async function readGovernanceDaemonAttachmentBroker(
@@ -452,18 +461,8 @@ export async function writeGovernanceDaemonMetadata(
   const expected = createGovernanceDaemonMetadata(metadata);
   await ensurePrivateDirectory(projectRoot);
   const pathname = governanceDaemonMetadataPath(projectRoot);
-  const temporary = `${pathname}.${process.pid}.${expected.instanceId}.tmp`;
-  await fs.writeFile(temporary, `${JSON.stringify(expected, null, 2)}\n`, {
-    encoding: 'utf8',
-    mode: 0o600,
-  });
-  try {
-    await fs.rename(temporary, pathname);
-  } catch {
-    await fs.rm(pathname, { force: true });
-    await fs.rename(temporary, pathname);
-  }
-  if (process.platform !== 'win32') await fs.chmod(pathname, 0o600);
+  await atomicWrite(pathname, `${JSON.stringify(expected, null, 2)}\n`, { mode: 0o600 });
+  await restrictFilePermissions(pathname).catch(() => undefined);
 }
 
 export async function readGovernanceDaemonMetadata(

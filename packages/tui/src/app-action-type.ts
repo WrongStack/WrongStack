@@ -433,6 +433,7 @@ export type Action =
       view?: Extract<AuthPanelView, 'list' | 'oauth'> | undefined;
       providers?: AuthProviderRow[] | undefined;
       presets?: AuthLocalPresetRow[] | undefined;
+      oauthStrategies?: import('./auth-panel-model.js').AuthOAuthStrategyRow[] | undefined;
     }
   | { type: 'authClose' }
   | { type: 'authProviders'; providers: AuthProviderRow[] }

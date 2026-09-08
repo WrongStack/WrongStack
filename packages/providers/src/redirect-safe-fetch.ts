@@ -218,10 +218,7 @@ export async function redirectSafeFetch(
         cleanup = () => init.signal!.removeEventListener('abort', onAbort);
       });
       try {
-        await Promise.race([
-          res.text?.().catch(() => undefined),
-          abortPromise,
-        ]);
+        await Promise.race([res.text?.().catch(() => undefined), abortPromise]);
       } finally {
         cleanup?.();
       }

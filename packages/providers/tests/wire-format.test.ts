@@ -2,9 +2,9 @@ import type { Request, StreamEvent } from '@wrongstack/core/types';
 import { ProviderError } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import {
-  WireFormatProvider,
   createWireFormatFactory,
   defineWireFormat,
+  WireFormatProvider,
 } from '../src/wire-format.js';
 
 // --- Test helpers -----------------------------------------------------------

@@ -65,8 +65,18 @@ describe('resolveProviderModelList', () => {
     // github-copilot shape: no catalog entry, models come only from config.
     const list = resolveProviderModelList(['gpt-5-mini', 'claude-haiku-4.5'], undefined);
     expect(list).toEqual([
-      { id: 'gpt-5-mini', name: 'gpt-5-mini', capabilities: [] },
-      { id: 'claude-haiku-4.5', name: 'claude-haiku-4.5', capabilities: [] },
+      {
+        id: 'gpt-5-mini',
+        name: 'gpt-5-mini',
+        capabilities: [],
+        provenance: { primary: 'user-config', sources: ['user-config'] },
+      },
+      {
+        id: 'claude-haiku-4.5',
+        name: 'claude-haiku-4.5',
+        capabilities: [],
+        provenance: { primary: 'user-config', sources: ['user-config'] },
+      },
     ]);
   });
 
@@ -83,7 +93,12 @@ describe('resolveProviderModelList', () => {
       contextWindow: 128000,
       capabilities: ['tools'],
     });
-    expect(list[1]).toEqual({ id: 'unknown', name: 'unknown', capabilities: [] });
+    expect(list[1]).toEqual({
+      id: 'unknown',
+      name: 'unknown',
+      capabilities: [],
+      provenance: { primary: 'user-config', sources: ['user-config'] },
+    });
   });
 
   it('enriches openai-codex ids with canonical name + description (no catalog)', () => {
@@ -94,12 +109,14 @@ describe('resolveProviderModelList', () => {
         name: 'GPT-5.6 Sol',
         description: 'Latest frontier agentic coding model.',
         capabilities: [],
+        provenance: { primary: 'user-config', sources: ['user-config'] },
       },
       {
         id: 'gpt-5.4-mini',
         name: 'GPT-5.4 Mini',
         description: 'Small, fast, and cost-efficient model for simpler coding tasks.',
         capabilities: [],
+        provenance: { primary: 'user-config', sources: ['user-config'] },
       },
     ]);
   });
@@ -133,6 +150,7 @@ describe('resolveProviderModelList', () => {
       'gpt-5.6-sol',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
+      'gpt-5.5',
       'gpt-5.4-mini',
       'gpt-5.3-codex-spark',
     ]);
@@ -151,6 +169,7 @@ describe('resolveProviderModelList', () => {
       'gpt-5.6-sol',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
+      'gpt-5.5',
       'gpt-5.4-mini',
       'gpt-5.3-codex-spark',
     ]);

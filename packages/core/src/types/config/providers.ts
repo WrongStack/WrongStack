@@ -83,6 +83,10 @@ export interface ProviderConfig {
    * Discovery is best-effort: a down server or missing key is a no-op.
    */
   autoDiscoverModels?: boolean | undefined;
+  /** Provider-relative endpoint below baseUrl. Defaults to `models`. */
+  modelDiscoveryPath?: string | undefined;
+  /** Treat discovery as the complete model set available to this credential. */
+  modelDiscoveryAuthoritative?: boolean | undefined;
   /**
    * Provider-relative custom model definitions (maps modelId → definition).
    * Each entry adds/overrides a model for this provider with optional

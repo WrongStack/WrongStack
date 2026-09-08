@@ -512,7 +512,9 @@ async function* parseOpenAIStream(
       // DeepSeek returns `prompt_cache_hit_tokens`/`prompt_cache_miss_tokens`.
       const hasDeepSeekCacheFields =
         u.prompt_cache_hit_tokens !== undefined || u.prompt_cache_miss_tokens !== undefined;
-      const cached = nonNegative(u.prompt_tokens_details?.cached_tokens ?? u.prompt_cache_hit_tokens);
+      const cached = nonNegative(
+        u.prompt_tokens_details?.cached_tokens ?? u.prompt_cache_hit_tokens,
+      );
       const cacheWrite = nonNegative(u.prompt_tokens_details?.cache_write_tokens);
       const completion = nonNegative(u.completion_tokens, usage.output);
       // MiniMax's OpenAI-compatible API formally guarantees only `total_tokens`
@@ -526,7 +528,7 @@ async function* parseOpenAIStream(
       const hasFreshInputDelta = !hasPromptTotal && u.input_tokens !== undefined;
       const cacheMiss = optionalNonNegative(u.prompt_cache_miss_tokens);
       const reportedPromptTotal = hasPromptTotal
-          ? nonNegative(u.prompt_tokens)
+        ? nonNegative(u.prompt_tokens)
         : hasDeepSeekCacheFields
           ? nonNegative(u.prompt_cache_hit_tokens) + nonNegative(u.prompt_cache_miss_tokens)
           : u.total_tokens !== undefined

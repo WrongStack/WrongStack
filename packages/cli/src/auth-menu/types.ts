@@ -1,3 +1,4 @@
+import type { ProviderAuthRegistry } from '@wrongstack/core/registry';
 import type { ModelsRegistry, SecretScrubber, SecretVault } from '@wrongstack/core/types';
 
 /**
@@ -36,6 +37,8 @@ export interface AuthMenuDeps {
   vault: SecretVault;
   /** Active profile config path. Provider credentials never use the root bootstrap. */
   profileConfigPath: string;
+  /** Shared registry when the runtime is active; defaults to the built-in strategies. */
+  providerAuthRegistry?: ProviderAuthRegistry | undefined;
   /**
    * Optional scrubber used by `wstack auth local` to redact Bearer
    * tokens from probe logs before they reach the renderer. Falls back

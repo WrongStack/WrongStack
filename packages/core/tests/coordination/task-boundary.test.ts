@@ -42,8 +42,8 @@ describe('parseTaskBoundary', () => {
     });
   });
 
-  it('rejects a missing or too-short scope with a teaching error', () => {
-    for (const scope of [undefined, '', '   ', 'fix']) {
+  it('rejects a missing, too-short, or placeholder scope with a teaching error', () => {
+    for (const scope of [undefined, '', '   ', 'fix', 'unspecified', 'same as task']) {
       const out = parseTaskBoundary({ scope, outOfScope: ['No edits'] });
       expect(out.ok).toBe(false);
       if (!out.ok) {

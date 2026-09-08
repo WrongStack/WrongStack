@@ -20,32 +20,15 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { createRequire } from 'node:module';
-import { release as osRelease, type as osType } from 'node:os';
 import { CODEX_MODELS } from '@wrongstack/core/models';
 import type { ModelsRegistry } from '@wrongstack/core/types';
 import { extractAccountId } from '../openai-codex-account.js';
-import { CODEX_ORIGINATOR, codexModelsUrl } from './codex-protocol.js';
-
-/**
- * The backend requires a semver `client_version` on /models — missing or
- * invalid values are rejected with 400 "Invalid client_version format", and
- * models whose `minimal_client_version` exceeds it are gated away. This must
- * be the providers package's own version: the same value the production
- * `fetchContextLimits` probe in `../openai-codex.ts` sends.
- */
-const CODEX_MODELS_CLIENT_VERSION = ((): string => {
-  const req = createRequire(import.meta.url);
-  for (const rel of ['../../package.json', '../../../package.json']) {
-    try {
-      const pkg = req(rel) as { version?: unknown };
-      if (typeof pkg.version === 'string' && pkg.version.length > 0) return pkg.version;
-    } catch {
-      // try the next candidate
-    }
-  }
-  return '0.309.1';
-})();
+import {
+  CODEX_CLIENT_VERSION,
+  CODEX_ORIGINATOR,
+  CODEX_USER_AGENT,
+  codexModelsUrl,
+} from './codex-protocol.js';
 
 /** Model-listing request timeout. Short: this is best-effort enrichment. */
 const MODELS_TIMEOUT_MS = 8_000;
@@ -94,19 +77,20 @@ export async function fetchCodexModels(
   signal?: AbortSignal,
 ): Promise<string[]> {
   const url = `${codexModelsUrl(baseUrl)}?client_version=${encodeURIComponent(
-    CODEX_MODELS_CLIENT_VERSION,
+    CODEX_CLIENT_VERSION,
   )}`;
   try {
-    // Official Codex CLI client headers (user-agent + session_id): the /models
-    // endpoint sits behind a header-level challenge that Node's default UA
-    // fails; the full official set verified 200 live (client_version=0.309.1).
-    const platformTag = process.platform === 'win32' ? 'Windows 11' : `${osType} ${osRelease}`;
+    // Same header set the runtime probe in `../openai-codex.ts` sends, from the
+    // same constants. This used to impersonate `codex_cli_rs` on the theory
+    // that the endpoint challenged unknown User-Agents; it does not (verified
+    // live), and diverging from the runtime probe meant the login flow and the
+    // running transport could see different catalogs.
     const accountId = extractAccountId(accessToken);
     const headers: Record<string, string> = {
       accept: 'application/json',
       authorization: `Bearer ${accessToken}`,
       originator: CODEX_ORIGINATOR,
-      'user-agent': `codex_cli_rs/${CODEX_MODELS_CLIENT_VERSION} (${platformTag}; ${process.arch}) unknown`,
+      'user-agent': CODEX_USER_AGENT,
       'session-id': randomUUID(),
     };
     if (accountId) headers['chatgpt-account-id'] = accountId;

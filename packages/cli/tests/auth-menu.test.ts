@@ -8,26 +8,16 @@ import type { ReadlineInputReader } from '../src/input-reader.js';
 import type { TerminalRenderer } from '../src/renderer.js';
 
 const oauthMocks = vi.hoisted(() => ({
-  runCodexOAuthLogin: vi.fn(async () => 0),
-  runClaudeOAuthLogin: vi.fn(async () => 0),
-  runCopilotOAuthLogin: vi.fn(async () => 0),
+  runProviderAuthLogin: vi.fn(async () => 0),
 }));
 
 const mockRunLiveProviderPicker = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 );
 
-vi.mock('../src/auth-menu/openai-codex-oauth.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/auth-menu/openai-codex-oauth.js')>()),
-  runCodexOAuthLogin: oauthMocks.runCodexOAuthLogin,
-}));
-vi.mock('../src/auth-menu/anthropic-oauth.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/auth-menu/anthropic-oauth.js')>()),
-  runClaudeOAuthLogin: oauthMocks.runClaudeOAuthLogin,
-}));
-vi.mock('../src/auth-menu/github-copilot-oauth.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/auth-menu/github-copilot-oauth.js')>()),
-  runCopilotOAuthLogin: oauthMocks.runCopilotOAuthLogin,
+vi.mock('../src/auth-menu/provider-auth-login.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/auth-menu/provider-auth-login.js')>()),
+  runProviderAuthLogin: oauthMocks.runProviderAuthLogin,
 }));
 vi.mock('../src/picker.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/picker.js')>()),
@@ -244,9 +234,7 @@ describe('runAuthMenu', () => {
     const code = await runAuthMenu(deps);
 
     expect(code).toBe(0);
-    expect(oauthMocks.runCodexOAuthLogin).toHaveBeenCalledWith(deps);
-    expect(oauthMocks.runClaudeOAuthLogin).not.toHaveBeenCalled();
-    expect(oauthMocks.runCopilotOAuthLogin).not.toHaveBeenCalled();
+    expect(oauthMocks.runProviderAuthLogin).toHaveBeenCalledWith(deps, 'chatgpt');
   });
 
   it('shows OAuth login options in the add menu and starts provider-specific login', async () => {
@@ -270,7 +258,7 @@ describe('runAuthMenu', () => {
     expect(deps.renderer.write).toHaveBeenCalledWith(
       expect.stringContaining('OAuth login options'),
     );
-    expect(oauthMocks.runCopilotOAuthLogin).toHaveBeenCalledWith(deps);
+    expect(oauthMocks.runProviderAuthLogin).toHaveBeenCalledWith(deps, 'copilot');
   });
 
   it('writes a key after picking a catalog entry by number', async () => {

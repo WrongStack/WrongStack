@@ -103,6 +103,7 @@ export function reduceDialogs(state: State, action: DialogAction): State {
           view: action.view ?? 'list',
           providers: action.providers ?? state.authPanel.providers,
           presets: action.presets ?? state.authPanel.presets,
+          oauthStrategies: action.oauthStrategies ?? state.authPanel.oauthStrategies,
           catalog: state.authPanel.catalog,
           busy: action.providers === undefined,
         },

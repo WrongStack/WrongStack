@@ -26,22 +26,12 @@ vi.mock('../src/picker.js', async (orig) => ({
 // The OAuth offer after a cancelled pick routes into the real login modules;
 // stub them so the addFromCatalog branch is covered hermetically.
 const oauthMocks = vi.hoisted(() => ({
-  runCodexOAuthLogin: vi.fn(async () => 0),
-  runClaudeOAuthLogin: vi.fn(async () => 0),
-  runCopilotOAuthLogin: vi.fn(async () => 0),
+  runProviderAuthLogin: vi.fn(async () => 0),
 }));
 
-vi.mock('../src/auth-menu/openai-codex-oauth.js', async (orig) => ({
-  ...(await orig<typeof import('../src/auth-menu/openai-codex-oauth.js')>()),
-  runCodexOAuthLogin: oauthMocks.runCodexOAuthLogin,
-}));
-vi.mock('../src/auth-menu/anthropic-oauth.js', async (orig) => ({
-  ...(await orig<typeof import('../src/auth-menu/anthropic-oauth.js')>()),
-  runClaudeOAuthLogin: oauthMocks.runClaudeOAuthLogin,
-}));
-vi.mock('../src/auth-menu/github-copilot-oauth.js', async (orig) => ({
-  ...(await orig<typeof import('../src/auth-menu/github-copilot-oauth.js')>()),
-  runCopilotOAuthLogin: oauthMocks.runCopilotOAuthLogin,
+vi.mock('../src/auth-menu/provider-auth-login.js', async (orig) => ({
+  ...(await orig<typeof import('../src/auth-menu/provider-auth-login.js')>()),
+  runProviderAuthLogin: oauthMocks.runProviderAuthLogin,
 }));
 
 const CATALOG_ROW: ResolvedProvider = {
@@ -242,12 +232,7 @@ describe('addFromCatalog — interactive picker path', () => {
       pickerMock.runLiveProviderPicker.mockResolvedValue(null);
       answers.push(kind);
       expect(await addFromCatalog(deps)).toBe(true);
-      const calls: Record<string, unknown> = {
-        chatgpt: oauthMocks.runCodexOAuthLogin,
-        claude: oauthMocks.runClaudeOAuthLogin,
-        copilot: oauthMocks.runCopilotOAuthLogin,
-      };
-      expect(calls[kind]).toHaveBeenCalledTimes(1);
+      expect(oauthMocks.runProviderAuthLogin).toHaveBeenCalledWith(deps, kind);
     },
   );
 
@@ -256,7 +241,7 @@ describe('addFromCatalog — interactive picker path', () => {
     pickerMock.runLiveProviderPicker.mockResolvedValue(null);
     answers.push('bogus');
     expect(await addFromCatalog(deps)).toBe(false);
-    expect(oauthMocks.runCodexOAuthLogin).not.toHaveBeenCalled();
+    expect(oauthMocks.runProviderAuthLogin).not.toHaveBeenCalled();
   });
 
   it('treats an empty OAuth answer as cancel', async () => {

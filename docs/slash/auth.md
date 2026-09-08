@@ -4,7 +4,7 @@ In the TUI, `/auth` opens the **interactive auth panel** — the full
 `wstack auth` experience embedded in the session: browse saved providers,
 add/update/delete/activate keys, add providers from the models.dev catalog,
 configure local LLM servers (OmniRoute / Ollama / vLLM / LM Studio, with a
-health probe), and sign in with OAuth (ChatGPT / Claude / GitHub Copilot).
+health probe), and sign in with registered provider OAuth strategies.
 
 In the plain REPL (no TUI), `/auth` falls back to a read-only dashboard and
 points at `wstack auth`.
@@ -33,7 +33,7 @@ points at `wstack auth`.
 │   ＋ Add provider (models.dev catalog)                   │
 │   ＋ Add local server (OmniRoute / Ollama / vLLM / …)    │
 │   ＋ Add custom provider                                 │
-│   ⚡ Sign in with OAuth (ChatGPT / Claude / Copilot)     │
+│   ⚡ Sign in with provider OAuth                        │
 ╰──────────────────────────────────────────────────────────╯
 ```
 
@@ -49,7 +49,8 @@ Views and interactions:
 - **Local server add**: pick a preset, confirm the base URL, the health
   probe runs (`GET /v1/models`) and discovered model ids are saved so the
   model picker works immediately.
-- **OAuth sign-in**: pick ChatGPT / Claude / Copilot; the browser opens and
+- **OAuth sign-in**: pick a registry-provided strategy; the browser opens (or a
+  device code is shown) and
   the flow's progress streams into the panel. Esc cancels cleanly (the
   loopback listener is torn down). If the browser can't redirect back,
   paste the redirect URL into the panel prompt.

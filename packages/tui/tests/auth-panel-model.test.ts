@@ -96,12 +96,19 @@ describe('authPanelRows — other views', () => {
     ]);
   });
 
-  it('oauth view lists the three subscription options', () => {
-    const rows = authPanelRows(panel({ view: 'oauth' }));
-    expect(rows.map((r) => (r.kind === 'oauth-option' ? r.oauth : ''))).toEqual([
+  it('oauth view lists the strategies supplied by the host', () => {
+    const rows = authPanelRows(
+      panel({
+        view: 'oauth',
+        oauthStrategies: [
+          { id: 'chatgpt', providerId: 'openai-codex', label: 'ChatGPT' },
+          { id: 'company-sso', providerId: 'company', label: 'Company SSO' },
+        ],
+      }),
+    );
+    expect(rows.map((r) => (r.kind === 'oauth-option' ? r.oauth.id : ''))).toEqual([
       'chatgpt',
-      'claude',
-      'copilot',
+      'company-sso',
     ]);
   });
 

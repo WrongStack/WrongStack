@@ -46,7 +46,7 @@
 //     any retry policy belongs in `setupProvider` itself, not
 //     in this helper.
 
-import type { ProviderRegistry } from '@wrongstack/core/registry';
+import type { ProviderAuthRegistry, ProviderRegistry } from '@wrongstack/core/registry';
 import type { Config, Logger, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
 import { mergeCustomModelDefs } from '@wrongstack/core/utils';
 import { capabilitiesFor } from '@wrongstack/providers';
@@ -69,6 +69,7 @@ type ResolvedModeResult =
       kind: 'ok';
       resolvedProvider: ResolvedProvider;
       providerRegistry: ProviderRegistry;
+      providerAuthRegistry: ProviderAuthRegistry;
       provider: ReturnType<ProviderRegistry['create']>;
       modeId: ModeId;
       modePrompt: ModePrompt;
@@ -124,6 +125,7 @@ export async function resolveModeAndCapabilities(
 ): Promise<ResolvedModeResult> {
   let resolvedProvider: ResolvedProvider | undefined;
   let providerRegistry: ProviderRegistry;
+  let providerAuthRegistry: ProviderAuthRegistry;
   let provider: ReturnType<ProviderRegistry['create']>;
   try {
     // Seed the WrongProxy / WrongTrace singleton from the persisted
@@ -163,6 +165,7 @@ export async function resolveModeAndCapabilities(
     });
     resolvedProvider = result.resolvedProvider;
     providerRegistry = result.providerRegistry;
+    providerAuthRegistry = result.providerAuthRegistry;
     provider = result.provider;
   } catch (err) {
     return {
@@ -220,6 +223,7 @@ export async function resolveModeAndCapabilities(
     kind: 'ok',
     resolvedProvider,
     providerRegistry,
+    providerAuthRegistry,
     provider,
     modeId,
     modePrompt,

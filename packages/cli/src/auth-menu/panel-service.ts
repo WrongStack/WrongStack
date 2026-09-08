@@ -29,13 +29,13 @@ import type {
   AuthCatalogRow,
   AuthFlowIo,
   AuthFlowResult,
+  AuthKeyEdit,
   AuthKeyRow,
   AuthLocalPresetRow,
+  AuthModelEdit,
   AuthOAuthKind,
   AuthPanelHost,
   AuthProviderEdit,
-  AuthModelEdit,
-  AuthKeyEdit,
   AuthProviderRow,
   AuthProviderSetup,
 } from '@wrongstack/tui';
@@ -53,11 +53,9 @@ import {
   addKeyForProvider,
   ownDefinitionsAsCatalog,
 } from './add-provider.js';
-import { runClaudeOAuthLogin } from './anthropic-oauth.js';
-import { runCopilotOAuthLogin } from './github-copilot-oauth.js';
 import { runAuthLocal } from './local.js';
 import { LOCAL_LLM_PRESETS } from './local-presets.js';
-import { runCodexOAuthLogin } from './openai-codex-oauth.js';
+import { providerAuthStrategiesFor, runProviderAuthLogin } from './provider-auth-login.js';
 import { validateFamily } from './shared.js';
 import type { AuthMenuDeps } from './types.js';
 
@@ -67,6 +65,7 @@ export interface AuthPanelServiceDeps {
   /** The sole config file read or written by auth operations. */
   profileConfigPath: string;
   secretScrubber?: SecretScrubber | undefined;
+  providerAuthRegistry?: AuthMenuDeps['providerAuthRegistry'];
   /** Re-read the live provider snapshot after a successful auth mutation. */
   onProvidersChanged?: (() => Promise<void>) | undefined;
 }
@@ -114,6 +113,7 @@ function flowDeps(base: AuthPanelServiceDeps, io: AuthFlowIo): AuthMenuDeps {
     modelsRegistry: base.modelsRegistry,
     vault: base.vault,
     profileConfigPath: base.profileConfigPath,
+    providerAuthRegistry: base.providerAuthRegistry,
     secretScrubber: base.secretScrubber,
   };
 }
@@ -353,6 +353,7 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
   };
 
   return {
+    oauthStrategies: () => providerAuthStrategiesFor(deps),
     async listProviders(): Promise<AuthProviderRow[]> {
       const providers = await loadProviders();
       const rows: AuthProviderRow[] = [];
@@ -1029,13 +1030,7 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
     oauthLogin(kind: AuthOAuthKind, io: AuthFlowIo): Promise<AuthFlowResult> {
       return runFlow(async () => {
         const d = flowDeps(deps, io);
-        const opts = { signal: io.signal };
-        const code =
-          kind === 'chatgpt'
-            ? await runCodexOAuthLogin(d, opts)
-            : kind === 'claude'
-              ? await runClaudeOAuthLogin(d, opts)
-              : await runCopilotOAuthLogin(d, opts);
+        const code = await runProviderAuthLogin(d, kind, { signal: io.signal });
         return code === 0;
       }, deps.onProvidersChanged);
     },

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { deriveCachePrefixKey } from '../../src/utils/cache-key.js';
 import { applyModelRuntime } from '../../src/execution/model-runtime.js';
 import type { TextBlock } from '../../src/types/blocks.js';
 import type { Request } from '../../src/types/provider.js';
 import type { Tool } from '../../src/types/tool.js';
+import { deriveCachePrefixKey } from '../../src/utils/cache-key.js';
 
 const block = (text: string): TextBlock => ({ type: 'text', text });
 
@@ -51,6 +51,7 @@ describe('deriveCachePrefixKey', () => {
       inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
       permission: 'auto',
       mutating: false,
+      execute: async () => undefined,
     };
     const changedDescription = { ...base, description: 'Search project files' };
     const changedSchema = {
@@ -74,21 +75,26 @@ describe('deriveCachePrefixKey', () => {
     const first: Tool = {
       name: 'search',
       description: 'Search files',
-      inputSchema: { type: 'object', properties: { query: { type: 'string' }, path: { type: 'string' } } },
+      inputSchema: {
+        type: 'object',
+        properties: { query: { type: 'string' }, path: { type: 'string' } },
+      },
       permission: 'auto',
       mutating: false,
+      execute: async () => undefined,
     };
     const reordered: Tool = {
       ...first,
-      inputSchema: { properties: { path: { type: 'string' }, query: { type: 'string' } }, type: 'object' },
+      inputSchema: {
+        properties: { path: { type: 'string' }, query: { type: 'string' } },
+        type: 'object',
+      },
       permission: 'deny',
       mutating: true,
       _estDefTokens: 999,
     };
 
-    expect(deriveCachePrefixKey(system, [first])).toBe(
-      deriveCachePrefixKey(system, [reordered]),
-    );
+    expect(deriveCachePrefixKey(system, [first])).toBe(deriveCachePrefixKey(system, [reordered]));
   });
 });
 

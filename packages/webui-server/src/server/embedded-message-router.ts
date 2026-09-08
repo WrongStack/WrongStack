@@ -473,6 +473,7 @@ export function createEmbeddedMessageRouter(
     broadcast: deps.providerCtx.broadcast,
     send: deps.providerCtx.send,
     modelsRegistry: deps.providerCtx.modelsRegistry,
+    providerAuthRegistry: deps.providerCtx.providerAuthRegistry,
     log: deps.providerCtx.log,
     hasActiveModel: () => Boolean(deps.agentConfigCtx.agent.ctx.model),
     applyModelSwitch: (providerId, modelId) =>

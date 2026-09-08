@@ -84,6 +84,7 @@
         "export { MailboxEventEmitter } from './coordination/mailbox-events.js';",
         "export { NULL_FLEET_BUS } from './coordination/null-fleet-bus.js';",
         "export { OneShotOrchestrator } from './execution/one-shot-llm.js';",
+        "export { ProviderAuthRegistry } from './registry/provider-auth-registry.js';",
         "export { SelectiveCompactor, type SelectiveCompactorOptions, } from './execution/selective-compactor.js';",
         "export { TRUST_POLICY_JSON_SCHEMA, TRUST_POLICY_LIMITS, TRUST_POLICY_SCHEMA_VERSION, type TrustPolicyDiagnostic, type TrustPolicyDiagnosticCode, type TrustPolicyValidationResult, validateTrustPolicy, } from './security/permission-policy-schema.js';",
         "export { ToolRegistry } from './registry/tool-registry.js';",
@@ -317,13 +318,14 @@
         "export type { InstalledPromptEntry, PromptManifestData, PromptRegistryManifest, PromptRegistryRef, RegistryDiff, } from './prompt-registry.js';",
         "export type { JSONSchema, Permission, RiskTier, Tool, ToolCallContext, ToolErrorInfo, ToolFinalEvent, ToolIconId, ToolProgressEvent, ToolStreamEvent, } from './tool.js';",
         "export type { Logger, LogLevel } from './logger.js';",
-        "export type { MCPRegistryView, MetricsSinkView, Notifier, Plugin, PluginAPI, PluginCapabilities, PluginConfigFieldLifecycle, PluginConfigFieldMetadata, PluginConfigFields, PluginCouncilOptions, PluginDependency, PluginLLM, PluginLLMOptions, PluginLLMResult, PluginPipelines, PluginRuntime, ProviderFactory, ProviderRegistryView, SessionWriterView, SlashCommandRegistryView, ToolRegistryView, } from './plugin.js';",
+        "export type { MCPRegistryView, MetricsSinkView, Notifier, Plugin, PluginAPI, PluginCapabilities, PluginConfigFieldLifecycle, PluginConfigFieldMetadata, PluginConfigFields, PluginCouncilOptions, PluginDependency, PluginLLM, PluginLLMOptions, PluginLLMResult, PluginPipelines, PluginRuntime, ProviderAuthRegistryView, ProviderFactory, ProviderRegistryView, SessionWriterView, SlashCommandRegistryView, ToolRegistryView, } from './plugin.js';",
         "export type { MemoryCapability, MemoryClearedPayload, MemoryConsolidatedPayload, MemoryEntry, MemoryForgottenPayload, MemoryHealth, MemoryPort, MemoryPriority, MemoryRelevanceContext, MemoryRememberedPayload, MemoryScope, MemoryStore, MemoryType, ScoredEntry, } from './memory.js';",
         "export type { Message, MessageRole } from './messages.js';",
         "export type { Mode, ModeConfig, ModeManifest, ModeStore } from './mode.js';",
-        "export type { ModelsDevModel, ModelsDevPayload, ModelsDevProvider, ModelsDevReasoningOption, ModelsRegistry, ResolvedModel, ResolvedProvider, WireFamily, } from './models-registry.js';",
+        "export type { ModelCatalogSource, ModelProvenance, ModelsDevModel, ModelsDevPayload, ModelsDevProvider, ModelsDevReasoningOption, ModelsRegistry, ResolvedModel, ResolvedProvider, WireFamily, } from './models-registry.js';",
         "export type { OneShotLLMInput, OneShotLLMResult, OneShotModelPick, OneShotModelRouter, OneShotOrchestratorOptions, } from './one-shot-llm.js';",
         "export type { ProjectSessionTimelineInput, SessionTimelineAssistantEntry, SessionTimelineEntry, SessionTimelineImage, SessionTimelineMarkerEntry, SessionTimelineSystemEntry, SessionTimelineThinkingEntry, SessionTimelineToolEntry, SessionTimelineUserEntry, SessionToolMeta, TextBlockMode, ThinkingPlacement, } from './session-timeline.js';",
+        "export type { ProviderAuthBeginDeps, ProviderAuthInteraction, ProviderAuthInteractionType, ProviderAuthOutcome, ProviderAuthSession, ProviderAuthStrategy, ProviderAuthStrategyMetadata, } from './provider-auth.js';",
         "export type { ProviderRunner, RunProviderOptions } from './provider-runner.js';",
         "export type { Renderer } from './renderer.js';",
         "export type { RotatableSecretVault, SecretVault } from './secret-vault.js';",
@@ -350,7 +352,7 @@
         "export { defineMemoryCapability, MEMORY_TYPE_LABELS } from './memory.js';",
         "export { diffRegistry, validateRegistryManifest } from './prompt-registry.js';",
         "export { flattenSystemPromptRegions } from './system-prompt.js';",
-        "export { isImageBlock, isTextBlock, isToolResultBlock, isToolUseBlock } from './blocks.js';",
+        "export { isImageBlock, isTextBlock, isToolResultBlock, isToolUseBlock, isVolatileSystemBlock, markVolatileSystemBlock, VOLATILE_SYSTEM_BLOCKS, } from './blocks.js';",
         "export { projectSessionTimeline, projectSessionToolMeta } from './session-timeline.js';"
       ]
     },
@@ -731,6 +733,7 @@
       },
       "source": "packages/core/src/registry/index.ts",
       "declarations": [
+        "export { ProviderAuthRegistry } from './provider-auth-registry.js';",
         "export { ProviderRegistry, type ProviderFactory } from './provider-registry.js';",
         "export { SlashCommandRegistry } from './slash-command-registry.js';",
         "export { ToolRegistry, type ToolWrapper } from './tool-registry.js';"
@@ -1073,16 +1076,16 @@
       "source": "packages/core/src/models/index.ts",
       "declarations": [
         "export type { ModelBlackoutRule } from '../core/model-availability-calendar.js';",
-        "export { ALIBABA_TOKEN_PLAN_MODELS, alibabaTokenPlanModelMeta, type AlibabaTokenPlanModelMeta, } from './alibaba-token-plan-catalog.js';",
-        "export { CODEX_MODELS, codexModelMeta, type CodexModelMeta } from './codex-catalog.js';",
+        "export { ALIBABA_TOKEN_PLAN_MODELS, type AlibabaTokenPlanModelMeta, alibabaTokenPlanModelMeta, } from './alibaba-token-plan-catalog.js';",
+        "export { CODEX_MODELS, type CodexModelMeta, codexModelMeta } from './codex-catalog.js';",
         "export { DefaultModeStore, loadProjectModes, loadUserModes, type ModeLoaderOptions, } from './mode-store.js';",
-        "export { DefaultModelsRegistry, classifyFamily, type DefaultModelsRegistryOptions, } from './models-registry.js';",
         "export { LLMSelector, type LLMSelectorOptions } from './llm-selector.js';",
-        "export { MODELS_DEV_MODALITY_VALUES, modelsDevCostSchema, modelsDevLimitSchema, modelsDevModalitiesSchema, modelsDevModelSchema, modelsDevPayloadSchema, modelsDevProviderSchema, type ModelsDevModelParsed, type ModelsDevPayloadParsed, type ModelsDevProviderParsed, type ModelsDevSchemaSyncProof, } from './models-dev-schema.js';",
-        "export { MODEL_PROFILES, TASK_TO_ROLE, inferTaskType, findModelProfile, scoreModelForTask, type ModelProfile, type TaskType, } from './model-intelligence.js';",
-        "export { ModelRouter, type RouterConfig, type ModelPick, type RouterCosts, type ModelIntelligenceEntry, } from './model-router.js';",
+        "export { MODELS_DEV_MODALITY_VALUES, type ModelsDevModelParsed, type ModelsDevPayloadParsed, type ModelsDevProviderParsed, type ModelsDevSchemaSyncProof, modelsDevCostSchema, modelsDevLimitSchema, modelsDevModalitiesSchema, modelsDevModelSchema, modelsDevPayloadSchema, modelsDevProviderSchema, } from './models-dev-schema.js';",
+        "export { classifyFamily, DefaultModelsRegistry, type DefaultModelsRegistryOptions, type RuntimeModelsOverlayOptions, } from './models-registry.js';",
+        "export { describeCatalogModel, type ProviderModelDescriptor, resolveProviderModelList, } from './provider-model-resolve.js';",
+        "export { findModelProfile, inferTaskType, MODEL_PROFILES, type ModelProfile, scoreModelForTask, TASK_TO_ROLE, type TaskType, } from './model-intelligence.js';",
         "export { hasProviderCredential, hasProviderKeyInConfig, hasProviderKeyInEnv, type ProviderCredentialConfig, type ProviderCredentialSubject, } from './provider-credentials.js';",
-        "export { resolveProviderModelList, describeCatalogModel, type ProviderModelDescriptor, } from './provider-model-resolve.js';"
+        "export { type ModelIntelligenceEntry, type ModelPick, ModelRouter, type RouterConfig, type RouterCosts, } from './model-router.js';"
       ]
     },
     {
@@ -1423,14 +1426,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 185,
-      "sourceLines": 52202
+      "sourceLines": 52203
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 53,
-      "sourceLines": 12389
+      "sourceLines": 12439
     },
     {
       "directory": "design",
@@ -1479,7 +1482,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 1693
+      "sourceLines": 1753
     },
     {
       "directory": "kernel",
@@ -1493,7 +1496,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 11,
-      "sourceLines": 2456
+      "sourceLines": 2555
     },
     {
       "directory": "notifications",
@@ -1521,7 +1524,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 6,
-      "sourceLines": 2397
+      "sourceLines": 2448
     },
     {
       "directory": "plugins",
@@ -1548,8 +1551,8 @@
       "directory": "registry",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
-      "sourceFiles": 4,
-      "sourceLines": 823
+      "sourceFiles": 5,
+      "sourceLines": 957
     },
     {
       "directory": "replay",
@@ -1563,7 +1566,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 7141
+      "sourceLines": 7149
     },
     {
       "directory": "session-catalog",
@@ -1591,7 +1594,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 105,
-      "sourceLines": 23025
+      "sourceLines": 23030
     },
     {
       "directory": "tasking",
@@ -1611,15 +1614,15 @@
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
-      "sourceFiles": 71,
-      "sourceLines": 13307
+      "sourceFiles": 72,
+      "sourceLines": 13459
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10960
+      "sourceLines": 10997
     },
     {
       "directory": "wiring",

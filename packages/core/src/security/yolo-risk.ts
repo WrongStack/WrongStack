@@ -9,7 +9,7 @@ import { wstackGlobalRoot } from '../utils/wstack-paths.js';
  * Keep in sync with AGENT_STATE_SENSITIVE_BASENAMES.
  */
 const PROTECTED_STATE_BASENAMES =
-  /^(?:config\.json|config\.local\.json|trust\.json|auth\.json|\.key)$/i;
+  /^(?:config(?:\.local)?\.json(?:\..+)?|trust\.json|auth\.json|\.key)$/i;
 
 // Best-effort heuristic detection of destructive shell commands — NOT a
 // complete security boundary. Static analysis of shell strings is inherently defeatable

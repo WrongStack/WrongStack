@@ -56,7 +56,7 @@ export class AdaptiveConcurrencyController {
 
   constructor(
     fleetBus: FleetBus,
-    setMaxConcurrent: (n: number) => void,
+    private readonly setMaxConcurrent: (n: number) => void,
     config: Partial<AdaptiveConcurrencyConfig> = {},
     onStateChange?: (state: AdaptiveConcurrencyState) => void,
     // Writing to stdout from core corrupts TUI rendering; adjustments are
@@ -176,6 +176,7 @@ export class AdaptiveConcurrencyController {
       this.state.consecutiveSuccesses = 0;
       this.state.totalDecreases++;
 
+      this.setMaxConcurrent(this.state.current);
       this.notifyStateChange();
 
       this.logger?.warn('adaptive_concurrency.decreased', {

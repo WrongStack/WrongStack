@@ -1,5 +1,10 @@
 import type { Middleware } from '@wrongstack/core/kernel';
-import type { Message, Request, TextBlock } from '@wrongstack/core/types';
+import {
+  type Message,
+  markVolatileSystemBlock,
+  type Request,
+  type TextBlock,
+} from '@wrongstack/core/types';
 import { formatMemoryEvidenceBlock } from '@wrongstack/core/utils';
 import { formatMemoryHintsDetailed } from '../retrieval/format.js';
 import { memoryQueryRelevance, memorySemanticRelevance } from '../retrieval/relevance.js';
@@ -170,14 +175,21 @@ export function createSageTurnMiddleware(opts: SageTurnMiddlewareOptions): Middl
               ...request,
               system: [
                 ...(request.system ?? []),
-                {
+                // Marked volatile: this block is re-rendered from whatever
+                // recall returned THIS turn. `cache_control: 'ephemeral'` says
+                // that to Anthropic, which has explicit breakpoints; a wire
+                // without them (OpenAI Responses / Codex, which flattens every
+                // system block into one `instructions` string) needs the
+                // marker to know it must relocate the block instead of letting
+                // it invalidate the whole cached prefix.
+                markVolatileSystemBlock({
                   type: 'text',
                   // Shared fence builder: `rendered.text` is memory bodies
                   // verbatim, so the closing delimiter has to be neutralized
                   // there or the block ends wherever a memory says it does.
                   text: formatMemoryEvidenceBlock('sage.turn-memory', rendered.text),
                   cache_control: { type: 'ephemeral' },
-                },
+                }),
               ],
             };
           }

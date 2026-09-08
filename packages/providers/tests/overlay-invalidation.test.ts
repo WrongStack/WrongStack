@@ -2,12 +2,12 @@ import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import type { ModelsDevPayload } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { capabilitiesFor } from '../src/capabilities.js';
+import { capabilitiesForFamily } from '../src/family-capabilities.js';
 import {
   clearModelOutputLimitResolver,
   installCatalogModelOutputLimits,
   resolveMaxOutputTokens,
 } from '../src/model-output-limits.js';
-import { capabilitiesForFamily } from '../src/family-capabilities.js';
 
 /**
  * Runtime-discovered models reach the catalog through `mergeOverlay`. Two
@@ -80,5 +80,37 @@ describe('mergeOverlay invalidates caches built from the catalog', () => {
     // Without the overlay hook this stays undefined and the adapter falls
     // through to the 8192 last resort.
     expect(resolveMaxOutputTokens({ model: 'anthropic/claude-sonnet-5' }, ctx)).toBe(128_000);
+  });
+
+  it('preserves authoritative overlay options through both cache wrappers', async () => {
+    const registry = registryWith({
+      xai: {
+        id: 'xai',
+        name: 'xAI',
+        npm: '@ai-sdk/xai',
+        models: {
+          allowed: { id: 'allowed', name: 'Allowed' },
+          unavailable: { id: 'unavailable', name: 'Unavailable' },
+        },
+      },
+    });
+    await capabilitiesFor(registry, 'xai', 'allowed');
+    await installCatalogModelOutputLimits({ registry, getConfig: () => undefined as never });
+
+    registry.mergeOverlay(
+      {
+        xai: {
+          id: 'xai',
+          name: 'xAI',
+          npm: '@ai-sdk/xai',
+          models: { allowed: { id: 'allowed', name: 'Allowed live' } },
+        },
+      },
+      { authoritativeProviderIds: ['xai'] },
+    );
+
+    expect((await registry.getProvider('xai'))?.models.map((model) => model.id)).toEqual([
+      'allowed',
+    ]);
   });
 });

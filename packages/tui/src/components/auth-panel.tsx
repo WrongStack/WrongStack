@@ -32,7 +32,7 @@ const LIST_ACTION_LABEL: Record<string, string> = {
   catalog: '＋ Add provider (models.dev catalog)',
   local: '＋ Add local server (OmniRoute / Ollama / vLLM / LM Studio)',
   custom: '＋ Add custom provider',
-  oauth: '⚡ Sign in with OAuth (ChatGPT / Claude / Copilot)',
+  oauth: '⚡ Sign in with provider OAuth',
 };
 
 const PROVIDER_ACTION_LABEL: Record<string, string> = {
@@ -46,12 +46,6 @@ const PROVIDER_ACTION_LABEL: Record<string, string> = {
   'reset-model-to-catalog': '↺ Reset model to catalog',
   remove: '✕ Remove this provider',
   'back-to-list': '← Back to providers',
-};
-
-const OAUTH_LABEL: Record<string, { title: string; detail: string }> = {
-  chatgpt: { title: 'ChatGPT Plus/Pro', detail: '→ openai-codex' },
-  claude: { title: 'Claude Pro/Max', detail: '→ anthropic-oauth' },
-  copilot: { title: 'GitHub Copilot', detail: '→ github-copilot' },
 };
 
 export function formatExpiry(
@@ -172,15 +166,15 @@ function renderRow(row: AuthPanelRow, focused: boolean, i: number): React.ReactE
       );
     }
     case 'oauth-option': {
-      const o = OAUTH_LABEL[row.oauth] ?? { title: row.oauth, detail: '' };
-      const kindColor = OAUTH_KIND_COLORS[row.oauth] ?? UI_COLORS.focused;
+      const o = row.oauth;
+      const kindColor = OAUTH_KIND_COLORS[o.id] ?? UI_COLORS.focused;
       return (
-        <Text key={`o-${row.oauth}`} color={rowColor} wrap="truncate-end">
+        <Text key={`o-${o.id}`} color={rowColor} wrap="truncate-end">
           {marker}{' '}
           <Text bold color={focused ? undefined : kindColor}>
-            {o.title.padEnd(20)}
+            {o.label.padEnd(20)}
           </Text>{' '}
-          <Text dimColor>{o.detail}</Text>
+          <Text dimColor>{o.description ?? `→ ${o.providerId}`}</Text>
         </Text>
       );
     }

@@ -26,6 +26,8 @@
  * @module oauth/codex-protocol
  */
 
+import { createRequire } from 'node:module';
+import { arch as osArch, release as osRelease, type as osType } from 'node:os';
 import { FetchError, ParseError } from '@wrongstack/core/types';
 
 // ── Constants (verified against the real Codex CLI) ─────────────────────────
@@ -42,6 +44,63 @@ export const CODEX_SCOPE =
   'openid profile email offline_access api.connectors.read api.connectors.invoke';
 /** Telemetry/branding tag sent to authorize + as a request header. Free-form. */
 export const CODEX_ORIGINATOR = 'wrongstack';
+/**
+ * Codex **protocol** version advertised to the ChatGPT backend as
+ * `?client_version=` on `/codex/models`.
+ *
+ * This is deliberately NOT WrongStack's own package version. The value is read
+ * in the official Codex CLI's version space: the backend compares it as semver
+ * against each model's `minimal_client_version` and hides the models a client
+ * that old could not drive. Verified live against the ChatGPT backend —
+ * `0.152.9` hides `gpt-6-astra` (min 0.153.0) while `0.153.0` reveals it, and a
+ * non-semver value is rejected with `{"detail":"Invalid client_version format"}`.
+ *
+ * Sending WrongStack's version instead only ever worked by numeric accident
+ * (1.0.3 happens to sort above every current minimum) and fails in both
+ * directions: a WrongStack `0.9.x` would silently lose models, and any future
+ * minimum above our version would too — while claiming a Codex version whose
+ * wire this transport does not actually implement invites the backend to offer
+ * models it cannot drive.
+ *
+ * So: pin the real Codex release this transport has been verified against, and
+ * bump it deliberately after checking the wire, never automatically.
+ * The client's own identity travels separately, in `originator` and the
+ * User-Agent, which stay WrongStack's.
+ */
+export const CODEX_CLIENT_VERSION = '0.153.4';
+/**
+ * The client's own identity, sent as `User-Agent` on every ChatGPT-backend call.
+ *
+ * Shape mirrors the official client's
+ * (`{originator}/{version} ({os}; {arch}) {terminal}`) so the backend's parsing
+ * and telemetry see a familiar string, but the originator and the version are
+ * OURS. This is the counterpart to {@link CODEX_CLIENT_VERSION}: identity here,
+ * protocol capability there. Collapsing the two — sending WrongStack's package
+ * version as `client_version`, or Codex's as our User-Agent — is what made the
+ * catalog gate depend on an unrelated release number.
+ *
+ * Verified live: the backend does NOT gate on originator or User-Agent. Both
+ * `/codex/models` and `/codex/responses` answer 200 for `wrongstack/…`, so the
+ * long-standing comment claiming the endpoint required the official
+ * `codex_cli_rs` User-Agent was describing a gate that is not there.
+ */
+export const CODEX_USER_AGENT = `${CODEX_ORIGINATOR}/${readWrongStackVersion()} (${
+  process.platform === 'win32' ? 'Windows' : osType()
+} ${osRelease()}; ${osArch()}) unknown`;
+
+function readWrongStackVersion(): string {
+  const require_ = createRequire(import.meta.url);
+  for (const rel of ['../../package.json', '../../../package.json']) {
+    try {
+      const pkg = require_(rel) as { version?: unknown };
+      if (typeof pkg.version === 'string' && pkg.version.length > 0) return pkg.version;
+    } catch {
+      // try the next candidate
+    }
+  }
+  return '0.0.0';
+}
+
 /** Canonical provider id under which ChatGPT-login credentials are stored. */
 export const CODEX_PROVIDER_ID = 'openai-codex';
 /** Default ChatGPT Codex backend base, matching the official client's provider URL. */

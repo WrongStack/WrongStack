@@ -6,6 +6,11 @@ export {
 } from './anthropic-oauth.js';
 export { runAuthDirect } from './direct.js';
 export {
+  providerAuthRegistryFor,
+  providerAuthStrategiesFor,
+  runProviderAuthLogin,
+} from './provider-auth-login.js';
+export {
   COPILOT_PROVIDER_ID,
   type CopilotLoginOptions,
   runCopilotOAuthLogin,

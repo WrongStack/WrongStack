@@ -1,4 +1,3 @@
-import * as fs from 'node:fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const controls = vi.hoisted(() => ({
@@ -39,7 +38,7 @@ describe('polyglot mocked fs', () => {
       ]);
 
     const suite = createPolyglotSuite({ polyglotDir: '/fake/polyglot' });
-    const tasks = await suite.loadTasks({ languages: ['python'], limit: 1 });
+    const tasks = await suite.loadTasks({ limit: 1 });
     expect(tasks).toBeDefined();
   });
 });

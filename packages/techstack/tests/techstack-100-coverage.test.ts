@@ -66,6 +66,8 @@ function makeSnapshot(deps: DependencyObservation[] = []): Snapshot {
         ecosystem: 'npm',
         relativeRoot: '',
         manifests: ['package.json'],
+        lockfiles: [],
+        confidence: 1,
         coverage: 'full',
       },
     ],
@@ -102,8 +104,8 @@ describe('TechStack 100% Coverage Suite', () => {
             retrievedAt: new Date().toISOString(),
           };
         }
-        if (name === 'pkg-not-found') throw new RegistryNotFoundError('Not found');
-        if (name === 'pkg-auth-err') throw new RegistryAuthError('Auth error');
+        if (name === 'pkg-not-found') throw new RegistryNotFoundError(404, name);
+        if (name === 'pkg-auth-err') throw new RegistryAuthError(401, name);
         if (name === 'pkg-generic-err') throw new Error('Network timeout');
         return undefined; // pkg-no-entry
       });
@@ -208,16 +210,16 @@ describe('TechStack 100% Coverage Suite', () => {
       const res = await queryOsvBatch(['pkg:npm/test-osv-batch@1.0.0']);
       const advs = res.advisories.get('pkg:npm/test-osv-batch@1.0.0');
       expect(advs).toHaveLength(9);
-      expect(advs![0].severity).toBe('critical');
-      expect(advs![1].severity).toBe('high');
-      expect(advs![2].severity).toBe('medium');
-      expect(advs![3].severity).toBe('low');
-      expect(advs![4].severity).toBe('critical');
-      expect(advs![5].severity).toBe('high');
-      expect(advs![6].severity).toBe('medium');
-      expect(advs![7].severity).toBe('low');
-      expect(advs![8].severity).toBe('info');
-      expect(advs![8].summary).toBe('fallback details');
+      expect(advs?.[0]?.severity).toBe('critical');
+      expect(advs?.[1]?.severity).toBe('high');
+      expect(advs?.[2]?.severity).toBe('medium');
+      expect(advs?.[3]?.severity).toBe('low');
+      expect(advs?.[4]?.severity).toBe('critical');
+      expect(advs?.[5]?.severity).toBe('high');
+      expect(advs?.[6]?.severity).toBe('medium');
+      expect(advs?.[7]?.severity).toBe('low');
+      expect(advs?.[8]?.severity).toBe('info');
+      expect(advs?.[8]?.summary).toBe('fallback details');
 
       // Status != 200 throws Error
       vi.spyOn(httpFetch, 'requestWithRetry').mockResolvedValueOnce({
@@ -317,11 +319,11 @@ describe('TechStack 100% Coverage Suite', () => {
   describe('trend.ts', () => {
     it('covers vulnerability resolution when dep is removed, and renderTrendMarkdown', () => {
       const snap1 = makeSnapshot([makeDep('vuln-dep', { status: 'vulnerable' })]);
-      snap1.createdAt = '2026-01-01T00:00:00.000Z';
+      (snap1 as { createdAt: string }).createdAt = '2026-01-01T00:00:00.000Z';
 
       // In snap2, vuln-dep is removed (active doesn't have it)
       const snap2 = makeSnapshot([]);
-      snap2.createdAt = '2026-01-03T00:00:00.000Z';
+      (snap2 as { createdAt: string }).createdAt = '2026-01-03T00:00:00.000Z';
 
       const mockSource = {
         listSnapshots: () => [snap1, snap2],
@@ -348,12 +350,12 @@ describe('TechStack 100% Coverage Suite', () => {
       ]);
 
       const spdx = toSpdx(snap);
-      expect(spdx.packages[0].downloadLocation).toBe('NOASSERTION');
-      expect(spdx.packages[0].licenseConcluded).toBe('NOASSERTION');
+      expect(spdx.packages[0]?.downloadLocation).toBe('NOASSERTION');
+      expect(spdx.packages[0]?.licenseConcluded).toBe('NOASSERTION');
 
       const cdx = toCycloneDX(snap);
-      expect(cdx.components[0].purl).toBeUndefined();
-      expect(cdx.components[0].licenses).toBeUndefined();
+      expect(cdx.components[0]?.purl).toBeUndefined();
+      expect(cdx.components[0]?.licenses).toBeUndefined();
     });
   });
 
@@ -372,7 +374,7 @@ describe('TechStack 100% Coverage Suite', () => {
     it('covers un-claimable outbox and summary with critical findings', async () => {
       const store = new TechStackStore({ projectSlug: 'test-proj', dbPath: ':memory:' });
       const snap = makeSnapshot([makeDep('vuln-pkg')]);
-      snap.findings = [
+      (snap as unknown as { findings: Finding[] }).findings = [
         {
           id: 'f1',
           dependencyId: 'dep-vuln-pkg',
@@ -400,7 +402,9 @@ describe('TechStack 100% Coverage Suite', () => {
       vi.restoreAllMocks();
 
       // Now reset to pending and let attemptDelivery deliver with summary
-      store.stmt("UPDATE outbox SET status = 'pending' WHERE delivery_id = ?").run('del-1');
+      (store as any)
+        .stmt("UPDATE outbox SET status = 'pending' WHERE delivery_id = ?")
+        .run('del-1');
       let deliveredSummary = '';
       const res2 = await attemptDelivery('del-1', {
         store,
@@ -437,8 +441,13 @@ describe('TechStack 100% Coverage Suite', () => {
       const ac = new AbortController();
       const discoveryModule = await import('../src/discovery/workspace.js');
       vi.spyOn(discoveryModule, 'discoverWorkspaces').mockResolvedValueOnce([
-        { id: 'w1', ecosystem: 'npm', relativeRoot: '', manifests: ['package.json'] },
-        { id: 'w2', ecosystem: 'npm', relativeRoot: 'pkg2', manifests: ['package.json'] },
+        { id: 'w1', ecosystem: 'npm', relativeRoot: '', manifests: ['package.json'] } as never,
+        {
+          id: 'w2',
+          ecosystem: 'npm',
+          relativeRoot: 'pkg2',
+          manifests: ['package.json'],
+        } as never,
       ]);
       const npmModule = await import('../src/adapters/npm.js');
       vi.spyOn(npmModule.npmAdapter, 'inventory').mockImplementationOnce(async () => {
@@ -511,7 +520,7 @@ describe('TechStack 100% Coverage Suite', () => {
         online: true,
         researcher: {
           research: async (_c, opts) => {
-            opts.onProgress?.(1, 1);
+            opts?.onProgress?.(1, 1);
             progressCalled = true;
             return [];
           },
@@ -525,10 +534,10 @@ describe('TechStack 100% Coverage Suite', () => {
     it('covers schema version upgrade in applySchema', () => {
       const store = new TechStackStore({ projectSlug: 'test-proj', dbPath: ':memory:' });
       // Reset version to 0
-      store.stmt('UPDATE techstack_schema_version SET version = 0').run();
+      (store as any).stmt('UPDATE techstack_schema_version SET version = 0').run();
       // Re-run applySchema
       applySchema((store as any).db);
-      const row = store.stmt('SELECT version FROM techstack_schema_version').get() as {
+      const row = (store as any).stmt('SELECT version FROM techstack_schema_version').get() as {
         version: number;
       };
       expect(row.version).toBeGreaterThan(0);
@@ -536,7 +545,7 @@ describe('TechStack 100% Coverage Suite', () => {
 
     it('handles corrupted JSON in snapshots and research_cache', () => {
       const store = new TechStackStore({ projectSlug: 'test-proj', dbPath: ':memory:' });
-      store
+      (store as any)
         .stmt(
           'INSERT INTO snapshots (id, project_id, target_root, fingerprint, created_at, raw_json) VALUES (?, ?, ?, ?, ?, ?)',
         )
@@ -544,7 +553,7 @@ describe('TechStack 100% Coverage Suite', () => {
 
       expect(store.getSnapshotById('corrupt-snap')).toBeUndefined();
 
-      store
+      (store as any)
         .stmt(
           'INSERT INTO research_cache (cache_key, findings_json, created_at, expires_at) VALUES (?, ?, ?, ?)',
         )
@@ -597,7 +606,7 @@ describe('TechStack 100% Coverage Suite', () => {
       expect(
         satisfiesRange('1.0.0', { kind: 'comparator', op: '!=' as any, version: '1.0.0' }),
       ).toBe(false);
-      expect(satisfiesRange('1.0.0', { kind: 'unknown' as any })).toBe(false);
+      expect(satisfiesRange('1.0.0', { kind: 'unknown' as any } as never)).toBe(false);
     });
   });
 
@@ -647,13 +656,18 @@ describe('TechStack 100% Coverage Suite', () => {
       expect(detectWorkspaceMisalignments([], [])).toEqual([]);
 
       // 2. Dep without duplicate across workspaces
-      const ws1: Workspace = { id: 'ws-1', ecosystem: 'npm', relativeRoot: '', manifests: [] };
+      const ws1 = {
+        id: 'ws-1',
+        ecosystem: 'npm',
+        relativeRoot: '',
+        manifests: [],
+      } as unknown as Workspace;
       const ws2: Workspace = {
         id: 'ws-2',
         ecosystem: 'npm',
         relativeRoot: 'packages/sub',
         manifests: [],
-      };
+      } as unknown as Workspace;
       const deps = [
         makeDep('unique-pkg', { workspaceId: 'ws-1' }),
         makeDep('same-ver-pkg', { workspaceId: 'ws-1', locked: '1.0.0' }),
@@ -674,7 +688,7 @@ describe('TechStack 100% Coverage Suite', () => {
   describe('adapters/paths.ts and parse-utils.ts', () => {
     it('covers workspaceRoot with empty relativeRoot', () => {
       const root = workspaceRoot(
-        { id: 'w', ecosystem: 'npm', relativeRoot: '', manifests: [] },
+        { id: 'w', ecosystem: 'npm', relativeRoot: '', manifests: [] } as unknown as Workspace,
         {},
       );
       expect(root).toBeDefined();
@@ -813,11 +827,11 @@ describe('TechStack 100% Coverage Suite', () => {
         makeDep('dotnet-dep', { ecosystem: 'dotnet', latestStable: '2.0.0' }),
         makeDep('other-dep', { ecosystem: 'swift', latestStable: '2.0.0' }),
       ]);
-      snapWithFindings.findings = [
+      (snapWithFindings as unknown as { findings: Finding[] }).findings = [
         {
           id: 'f1',
           dependencyId: 'dep-npm-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'critical',
           action: 'remove',
           rationale: 'Remove npm',
@@ -827,7 +841,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f2',
           dependencyId: 'dep-py-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'high',
           action: 'remove',
           rationale: 'Remove py',
@@ -837,7 +851,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f3',
           dependencyId: 'dep-rust-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'medium',
           action: 'remove',
           rationale: 'Remove rust',
@@ -847,7 +861,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f4',
           dependencyId: 'dep-go-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'low',
           action: 'remove',
           rationale: 'Remove go',
@@ -857,7 +871,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f5',
           dependencyId: 'dep-php-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'info',
           action: 'remove',
           rationale: 'Remove php',
@@ -867,7 +881,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f6',
           dependencyId: 'dep-dotnet-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'low',
           action: 'remove',
           rationale: 'Remove dotnet',
@@ -877,7 +891,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f7',
           dependencyId: 'dep-other-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'low',
           action: 'remove',
           rationale: 'Remove other',
@@ -887,7 +901,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f8',
           dependencyId: 'dep-rust-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'medium',
           action: 'upgrade_minor',
           rationale: 'Add rust',
@@ -897,7 +911,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f9',
           dependencyId: 'dep-go-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'low',
           action: 'upgrade_minor',
           rationale: 'Add go',
@@ -907,7 +921,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f10',
           dependencyId: 'dep-php-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'info',
           action: 'upgrade_minor',
           rationale: 'Add php',
@@ -917,7 +931,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f11',
           dependencyId: 'dep-dotnet-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'low',
           action: 'upgrade_minor',
           rationale: 'Add dotnet',
@@ -927,7 +941,7 @@ describe('TechStack 100% Coverage Suite', () => {
         {
           id: 'f12',
           dependencyId: 'dep-other-dep',
-          type: 'update',
+          type: 'upgrade',
           severity: 'low',
           action: 'none', // should be skipped
           rationale: 'none',
@@ -985,14 +999,14 @@ describe('TechStack 100% Coverage Suite', () => {
           relativeRoot: 'cpp-ws',
           manifests: ['conanfile.txt'],
           coverage: 'unsupported',
-        },
+        } as never,
         {
           id: 'ws-throws',
           ecosystem: 'npm',
           relativeRoot: 'throws-ws',
           manifests: ['package.json'],
           coverage: 'full',
-        },
+        } as never,
       ]);
 
       const npmMod = await import('../src/adapters/npm.js');
@@ -1265,13 +1279,13 @@ describe('TechStack 100% Coverage Suite', () => {
 
     it('covers trend.ts median with even length array', async () => {
       const snap1 = makeSnapshot([makeDep('dep1', { status: 'vulnerable' })]);
-      snap1.createdAt = '2026-01-01T00:00:00.000Z';
+      (snap1 as { createdAt: string }).createdAt = '2026-01-01T00:00:00.000Z';
       const snap2 = makeSnapshot([makeDep('dep1', { status: 'current' })]);
-      snap2.createdAt = '2026-01-02T00:00:00.000Z';
+      (snap2 as { createdAt: string }).createdAt = '2026-01-02T00:00:00.000Z';
       const snap3 = makeSnapshot([makeDep('dep2', { status: 'vulnerable' })]);
-      snap3.createdAt = '2026-01-03T00:00:00.000Z';
+      (snap3 as { createdAt: string }).createdAt = '2026-01-03T00:00:00.000Z';
       const snap4 = makeSnapshot([makeDep('dep2', { status: 'current' })]);
-      snap4.createdAt = '2026-01-05T00:00:00.000Z';
+      (snap4 as { createdAt: string }).createdAt = '2026-01-05T00:00:00.000Z';
 
       const trend = new TrendStore({ listSnapshots: () => [snap1, snap2, snap3, snap4] });
       const report = trend.analyze('proj-1');
@@ -1289,7 +1303,7 @@ describe('TechStack 100% Coverage Suite', () => {
           ecosystem: 'go',
           relativeRoot: 'nonexistent-dir-12345',
           manifests: ['go.mod'],
-        },
+        } as never,
         {},
       );
       expect(emptyGo).toEqual([]);
@@ -1313,11 +1327,11 @@ describe('TechStack 100% Coverage Suite', () => {
           ].join('\n'),
         );
         const goDeps = await goAdapter.inventory(
-          { id: 'w-go2', ecosystem: 'go', relativeRoot: tmpDir, manifests: ['go.mod'] },
+          { id: 'w-go2', ecosystem: 'go', relativeRoot: tmpDir, manifests: ['go.mod'] } as never,
           { projectRoot: tmpDir },
         );
         expect(goDeps.length).toBeGreaterThan(0);
-        expect(goDeps[0].status).toBe('local_path');
+        expect(goDeps[0]?.status).toBe('local_path');
 
         // 2. gradle adapter: group + name version catalog
         const { GradleAdapter } = await import('../src/adapters/gradle.ts');
@@ -1342,11 +1356,11 @@ describe('TechStack 100% Coverage Suite', () => {
             ecosystem: 'gradle',
             relativeRoot: tmpDir,
             manifests: ['build.gradle'],
-          },
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(gradleDeps.length).toBe(1);
-        expect(gradleDeps[0].name).toBe('com.example:foo');
+        expect(gradleDeps[0]?.name).toBe('com.example:foo');
 
         // 3. maven adapter: scopes and read failure
         const { MavenAdapter } = await import('../src/adapters/maven.ts');
@@ -1363,7 +1377,12 @@ describe('TechStack 100% Coverage Suite', () => {
           </project>`,
         );
         const mavenDeps = await mavenAdapter.inventory(
-          { id: 'w-mvn', ecosystem: 'maven', relativeRoot: tmpDir, manifests: [pomFile] },
+          {
+            id: 'w-mvn',
+            ecosystem: 'maven',
+            relativeRoot: tmpDir,
+            manifests: [pomFile],
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(mavenDeps.find((d) => d.name === 'g1:a1')?.scope).toBe('optional');
@@ -1377,7 +1396,7 @@ describe('TechStack 100% Coverage Suite', () => {
               ecosystem: 'maven',
               relativeRoot: tmpDir,
               manifests: ['nonexistent/pom.xml'],
-            },
+            } as never,
             { projectRoot: tmpDir },
           ),
         ).toEqual([]);
@@ -1395,7 +1414,7 @@ describe('TechStack 100% Coverage Suite', () => {
             ecosystem: 'cpp',
             relativeRoot: tmpDir,
             manifests: [conanPath, cmakePath],
-          },
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(cppDeps.some((d) => d.name === 'zlib')).toBe(true);
@@ -1406,7 +1425,12 @@ describe('TechStack 100% Coverage Suite', () => {
         const csprojDir = path.join(tmpDir, 'test.csproj');
         fs.mkdirSync(csprojDir, { recursive: true });
         const emptyDotnet = await dotnetAdapter.inventory(
-          { id: 'w-dotnet', ecosystem: 'dotnet', relativeRoot: tmpDir, manifests: [csprojDir] },
+          {
+            id: 'w-dotnet',
+            ecosystem: 'dotnet',
+            relativeRoot: tmpDir,
+            manifests: [csprojDir],
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(emptyDotnet).toEqual([]);
@@ -1422,7 +1446,7 @@ describe('TechStack 100% Coverage Suite', () => {
               relativeRoot: tmpDir,
               manifests: ['nonexistent/mix.exs'],
               lockfiles: [],
-            },
+            } as never,
             { projectRoot: tmpDir },
           ),
         ).toEqual([]);
@@ -1438,7 +1462,7 @@ describe('TechStack 100% Coverage Suite', () => {
               relativeRoot: tmpDir,
               manifests: ['nonexistent/composer.json'],
               lockfiles: [],
-            },
+            } as never,
             { projectRoot: tmpDir },
           ),
         ).toEqual([]);
@@ -1452,7 +1476,7 @@ describe('TechStack 100% Coverage Suite', () => {
               relativeRoot: tmpDir,
               manifests: [badPhpComposer],
               lockfiles: [],
-            },
+            } as never,
             { projectRoot: tmpDir },
           ),
         ).toEqual([]);
@@ -1477,7 +1501,7 @@ describe('TechStack 100% Coverage Suite', () => {
             relativeRoot: tmpDir,
             manifests: [reqFile],
             lockfiles: [pipfileLock],
-          },
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(pyDeps.find((d) => d.name === 'requests')?.locked).toBe('2.31.0');
@@ -1496,7 +1520,7 @@ describe('TechStack 100% Coverage Suite', () => {
             relativeRoot: tmpDir,
             manifests: [pipfileOnly],
             lockfiles: [],
-          },
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(pipfileOnlyDeps.find((d) => d.name === 'flask')?.evidence[0]?.source).toContain(
@@ -1514,7 +1538,7 @@ describe('TechStack 100% Coverage Suite', () => {
               relativeRoot: tmpDir,
               manifests: ['nonexistent/Gemfile'],
               lockfiles: [],
-            },
+            } as never,
             { projectRoot: tmpDir },
           ),
         ).toEqual([]);
@@ -1532,7 +1556,7 @@ describe('TechStack 100% Coverage Suite', () => {
             relativeRoot: tmpDir,
             manifests: [gemfile],
             lockfiles: [gemlock],
-          },
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(rbDeps.find((d) => d.name === 'pg')?.locked).toBe('1.5.4');
@@ -1548,7 +1572,7 @@ describe('TechStack 100% Coverage Suite', () => {
               relativeRoot: tmpDir,
               manifests: ['nonexistent/Cargo.toml'],
               lockfiles: [],
-            },
+            } as never,
             { projectRoot: tmpDir },
           ),
         ).toEqual([]);
@@ -1561,7 +1585,7 @@ describe('TechStack 100% Coverage Suite', () => {
             relativeRoot: tmpDir,
             manifests: [cargoToml],
             lockfiles: [],
-          },
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(rustDeps.find((d) => d.name === 'cc')?.scope).toBe('build');
@@ -1592,7 +1616,7 @@ describe('TechStack 100% Coverage Suite', () => {
             relativeRoot: tmpDir,
             manifests: [pkgSwift],
             lockfiles: [pkgResolved],
-          },
+          } as never,
           { projectRoot: tmpDir, includeTransitive: true },
         );
         expect(
@@ -1621,7 +1645,12 @@ describe('TechStack 100% Coverage Suite', () => {
           }),
         );
         const npmDeps = await npmAdapter.inventory(
-          { id: 'w-npm', ecosystem: 'npm', relativeRoot: tmpDir, manifests: [npmPkgJson] },
+          {
+            id: 'w-npm',
+            ecosystem: 'npm',
+            relativeRoot: tmpDir,
+            manifests: [npmPkgJson],
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(npmDeps.find((d) => d.name === 'left-pad')?.locked).toBe('1.3.0');
@@ -1636,7 +1665,7 @@ describe('TechStack 100% Coverage Suite', () => {
               ecosystem: 'dart',
               relativeRoot: tmpDir,
               manifests: ['nonexistent/pubspec.yaml'],
-            },
+            } as never,
             { projectRoot: tmpDir },
           ),
         ).toEqual([]);
@@ -1653,7 +1682,12 @@ describe('TechStack 100% Coverage Suite', () => {
           ].join('\n'),
         );
         const dartDeps = await dartAdapter.inventory(
-          { id: 'w-dart', ecosystem: 'dart', relativeRoot: tmpDir, manifests: [dartPubspec] },
+          {
+            id: 'w-dart',
+            ecosystem: 'dart',
+            relativeRoot: tmpDir,
+            manifests: [dartPubspec],
+          } as never,
           { projectRoot: tmpDir },
         );
         expect(dartDeps.find((d) => d.name === 'local_pkg')?.status).toBe('local_path');
@@ -1854,15 +1888,25 @@ describe('TechStack 100% Coverage Suite', () => {
 
     it('covers misalignment.ts locked and requested undefined fallback', async () => {
       const { detectWorkspaceMisalignments } = await import('../src/policy/misalignment.js');
-      const ws1: Workspace = { id: 'ws-1', ecosystem: 'npm', relativeRoot: '', manifests: [] };
-      const ws2: Workspace = { id: 'ws-2', ecosystem: 'npm', relativeRoot: 'pkg2', manifests: [] };
+      const ws1 = {
+        id: 'ws-1',
+        ecosystem: 'npm',
+        relativeRoot: '',
+        manifests: [],
+      } as unknown as Workspace;
+      const ws2 = {
+        id: 'ws-2',
+        ecosystem: 'npm',
+        relativeRoot: 'pkg2',
+        manifests: [],
+      } as unknown as Workspace;
       const deps = [
         makeDep('pkg-none', { workspaceId: 'ws-1', locked: undefined, requested: undefined }),
         makeDep('pkg-none', { workspaceId: 'ws-2', locked: '1.0.0', requested: '^1.0.0' }),
       ];
       const findings = detectWorkspaceMisalignments(deps, [ws1, ws2]);
       expect(findings.length).toBe(2);
-      expect(findings[0].rationale).toContain('unknown');
+      expect(findings[0]?.rationale).toContain('unknown');
     });
 
     it('covers resolver.ts satisfiesRange <= and < comparator branches', async () => {
@@ -1911,9 +1955,9 @@ describe('TechStack 100% Coverage Suite', () => {
 
       const res = await queryOsvBatch(['pkg:npm/test-v2@1.0.0']);
       const advs = res.advisories.get('pkg:npm/test-v2@1.0.0');
-      expect(advs?.[0].severity).toBe('high');
-      expect(advs?.[1].severity).toBe('low');
-      expect(advs?.[2].severity).toBe('medium');
+      expect(advs?.[0]?.severity).toBe('high');
+      expect(advs?.[1]?.severity).toBe('low');
+      expect(advs?.[2]?.severity).toBe('medium');
       vi.restoreAllMocks();
     });
 

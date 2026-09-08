@@ -139,7 +139,7 @@ describe('connection-handler', () => {
 
     // Create a mock WebSocket
     const mockWs = new EventEmitter() as unknown as import('ws').WebSocket;
-    mockWs.readyState = 1; // OPEN
+    Object.defineProperty(mockWs, 'readyState', { value: 1 }); // OPEN
     mockWs.send = vi.fn();
     mockWs.close = vi.fn();
 

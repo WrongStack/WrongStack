@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSubmitController, type SubmitControllerHost } from '../src/submit-controller.js';
 import type { Action, State } from '../src/app-reducer.js';
+import { createSubmitController, type SubmitControllerHost } from '../src/submit-controller.js';
 
 type CapturedAction = Action & {
   type: string;
@@ -546,6 +546,24 @@ describe('createSubmitController — plain messages', () => {
     const user = h.actions.find((a) => a.entry?.kind === 'user');
     expect(user?.entry?.text).toBe('↯ go left instead');
     expect(findAction(h, 'steerConsume')).toBeDefined();
+  });
+
+  it('sends internal bug-hunt continuations verbatim without refinement or a user echo', async () => {
+    const complete = vi.fn(async () => {
+      throw new Error('internal continuation must not reach the refiner');
+    });
+    const h = makeHost({ enhanceEnabled: true });
+    (h.ctx.provider as typeof h.ctx.provider & { complete: typeof complete }).complete = complete;
+    (h.actionFns['consumeBugHuntReplay'] as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    const continuation = "This is round 2/3; we're continuing the bug hunt.";
+    await h.submit(continuation);
+
+    expect(complete).not.toHaveBeenCalled();
+    expect(h.builder.appendText).toHaveBeenCalledWith(continuation);
+    expect(findAction(h, 'historyPush')).toBeUndefined();
+    expect(h.actions.some((action) => action.entry?.kind === 'user')).toBe(false);
+    expect(h.actionFns['runBlocks']).toHaveBeenCalledTimes(1);
   });
 });
 

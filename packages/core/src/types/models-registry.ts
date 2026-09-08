@@ -5,6 +5,23 @@
 
 import type { ReasoningConfig, ReasoningEffort } from './provider.js';
 
+export type ModelCatalogSource =
+  | 'models-dev'
+  | 'wrongstack-overlay'
+  | 'provider-discovery'
+  | 'user-config';
+
+export interface ModelProvenance {
+  /** Highest-precedence source that supplied fields for the effective model. */
+  primary: ModelCatalogSource;
+  /** Every source that contributed to this model, lowest to highest precedence. */
+  sources: ModelCatalogSource[];
+  /** Time a live provider snapshot observed the model. */
+  observedAt?: string | undefined;
+  /** True when the source's provider snapshot defines the complete available set. */
+  authoritative?: boolean | undefined;
+}
+
 export type ModelsDevReasoningOption =
   | { type: 'toggle' }
   | { type: 'effort'; values?: ReasoningEffort[] | undefined }
@@ -13,6 +30,8 @@ export type ModelsDevReasoningOption =
 export interface ModelsDevModel {
   id: string;
   name: string;
+  /** WrongStack merge metadata; absent in raw upstream models.dev payloads. */
+  provenance?: ModelProvenance | undefined;
   family?: string | undefined;
   /**
    * One-line capability blurb. Not part of the upstream models.dev schema —
@@ -108,6 +127,7 @@ export interface ResolvedProvider {
 export interface ResolvedModel {
   providerId: string;
   modelId: string;
+  provenance?: ModelProvenance | undefined;
   capabilities: {
     tools: boolean;
     vision: boolean;

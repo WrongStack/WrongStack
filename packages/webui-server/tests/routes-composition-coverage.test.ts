@@ -157,10 +157,10 @@ describe('buildRoutes composition', () => {
 
     // shellGitRoutes validation error paths
     await routes.shellGitRoutes.gitDiff(ws, { payload: 'invalid' } as never);
-    await routes.shellGitRoutes.gitStage(ws, { payload: 'invalid' } as never);
-    await routes.shellGitRoutes.gitUnstage(ws, { payload: 'invalid' } as never);
-    await routes.shellGitRoutes.gitDiscard(ws, { payload: 'invalid' } as never);
-    await routes.shellGitRoutes.gitCommit(ws, { payload: 'invalid' } as never);
+    await routes.shellGitRoutes.gitStage?.(ws, { payload: 'invalid' } as never);
+    await routes.shellGitRoutes.gitUnstage?.(ws, { payload: 'invalid' } as never);
+    await routes.shellGitRoutes.gitDiscard?.(ws, { payload: 'invalid' } as never);
+    await routes.shellGitRoutes.gitCommit?.(ws, { payload: 'invalid' } as never);
     await routes.shellGitRoutes.shellOpen(ws, { payload: 'invalid' } as never);
   });
 

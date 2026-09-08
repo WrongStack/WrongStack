@@ -186,6 +186,8 @@ export interface DefaultSystemPromptBuilderOptions {
 }
 
 export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
+  /** Latched prompt shape — see the `tier` getter for why it must not drift. */
+  private tierLatch: { key: string; tier: ConcreteTokenSavingTier } | undefined;
   /**
    * Cached environment block, keyed by projectRoot. A single builder
    * instance is normally reused across turns of the same agent run, but
@@ -246,16 +248,47 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     return this.tier !== 'off';
   }
 
-  /** Exposes the effective (concrete) `TokenSavingTier` for tier-aware guidance
-   *  decisions. Invalid strings coerce to 'off'; the `'auto'` sentinel expands
-   *  from the model's context window (cache-safe — the window is stable per
-   *  session, so the resolved tier and therefore the prompt prefix stay stable).
-   *  See packages/core/src/types/config.ts. */
+  /**
+   * The effective (concrete) `TokenSavingTier` for tier-aware guidance.
+   *
+   * The tier decides the SHAPE of the whole prompt — which guidance sections
+   * appear, how far tool descriptions are trimmed, whether skill bodies are
+   * inlined. A tier change therefore rewrites the prefix from the top, which
+   * on a wire without cache breakpoints (OpenAI Responses / Codex) throws away
+   * the cached conversation with it.
+   *
+   * This used to be recomputed from `maxContextTokens` on every build, with a
+   * comment asserting that was cache-safe "because the window is stable per
+   * session". That stopped being true once providers implemented
+   * `refreshContextLimit`: the live probe moves the effective window mid-session,
+   * and the `'auto'` bands are thresholds, so a window that merely gets
+   * re-measured across one (128K) can flip the tier and reshape the prompt
+   * mid-conversation. gpt-5.3-codex-spark does exactly that — a 128,000 window
+   * reported as its usable 121,600 lands on the other side of the band.
+   *
+   * So the tier is latched: resolved once, and re-resolved only when the model
+   * (or the configured mode) actually changes — which is when a different
+   * prompt shape is genuinely wanted, and when the prefix is going to change
+   * anyway. See packages/core/src/types/config.ts.
+   */
   private get tier(): ConcreteTokenSavingTier {
-    return resolveTokenSavingTier(
-      this.opts.tokenSavingMode,
-      this.modelCapabilities()?.maxContextTokens,
+    return (
+      this.tierLatch?.tier ??
+      resolveTokenSavingTier(this.opts.tokenSavingMode, this.modelCapabilities()?.maxContextTokens)
     );
+  }
+
+  /** Re-latch the tier when the model or the configured mode changed. */
+  private latchTier(model: string | undefined): void {
+    const key = `${model ?? ''}|${String(this.opts.tokenSavingMode ?? '')}`;
+    if (this.tierLatch?.key === key) return;
+    this.tierLatch = {
+      key,
+      tier: resolveTokenSavingTier(
+        this.opts.tokenSavingMode,
+        this.modelCapabilities()?.maxContextTokens,
+      ),
+    };
   }
 
   /**
@@ -282,6 +315,8 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
   }
 
   async buildRegions(ctx: BuildContext): Promise<SystemPromptRegions> {
+    // Decide the prompt's shape before anything reads `this.tier`.
+    this.latchTier(ctx.model);
     this._lastBuildTools = ctx.tools;
     this._lastCatalogTools = ctx.catalogTools ?? ctx.tools;
     // Re-read skill entries on every build so newly created/edited skills
@@ -462,8 +497,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     // specs/plans. Lives outside layer1 so the host keeps it in EVERY mode while
     // no subagent ever receives it.
     if (!ctx.subagent) {
-      const leaderText =
-        instructions.system?.leaderAfterTask ?? LEADER_AFTER_TASK_PROMPT;
+      const leaderText = instructions.system?.leaderAfterTask ?? LEADER_AFTER_TASK_PROMPT;
       const leaderSource = instructions.system?.leaderAfterTaskSource;
       // H-8 (AT-01): when the override came from the project (or a
       // project-supplied file), fence it the same way `system.identity`

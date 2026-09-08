@@ -83,7 +83,8 @@ describe('SAGE host wiring', () => {
     const toolUse = vi.fn();
     const requestUse = vi.fn();
     const pipelines = { toolCall: { use: toolUse }, request: { use: requestUse } } as never;
-    const logger = { debug: vi.fn() } as never;
+    const debug = vi.fn();
+    const logger = { debug } as never;
 
     // features.memory === false
     const t1 = setupSage({
@@ -124,7 +125,7 @@ describe('SAGE host wiring', () => {
       events: {} as never,
     });
     await t4();
-    expect(logger.debug).toHaveBeenCalledWith(
+    expect(debug).toHaveBeenCalledWith(
       expect.stringContaining('memory store does not support retrieval'),
     );
     expect(toolUse).not.toHaveBeenCalled();

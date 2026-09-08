@@ -19,7 +19,15 @@ export type {
   ToolResultBlock,
   ToolUseBlock,
 } from './blocks.js';
-export { isImageBlock, isTextBlock, isToolResultBlock, isToolUseBlock } from './blocks.js';
+export {
+  isImageBlock,
+  isTextBlock,
+  isToolResultBlock,
+  isToolUseBlock,
+  isVolatileSystemBlock,
+  markVolatileSystemBlock,
+  VOLATILE_SYSTEM_BLOCKS,
+} from './blocks.js';
 export type { Compactor, CompactReport } from './compactor.js';
 export type {
   AdaptiveConcurrencyConfig,
@@ -258,6 +266,8 @@ export type { Mode, ModeConfig, ModeManifest, ModeStore } from './mode.js';
 export { DEFAULT_MODES } from './mode.js';
 // ── models-registry (8 symbols) ──
 export type {
+  ModelCatalogSource,
+  ModelProvenance,
   ModelsDevModel,
   ModelsDevPayload,
   ModelsDevProvider,
@@ -341,6 +351,7 @@ export type {
   PluginLLMResult,
   PluginPipelines,
   PluginRuntime,
+  ProviderAuthRegistryView,
   ProviderFactory,
   ProviderRegistryView,
   SessionWriterView,
@@ -405,6 +416,15 @@ export {
   StreamHangError,
   totalUsageTokens,
 } from './provider.js';
+export type {
+  ProviderAuthBeginDeps,
+  ProviderAuthInteraction,
+  ProviderAuthInteractionType,
+  ProviderAuthOutcome,
+  ProviderAuthSession,
+  ProviderAuthStrategy,
+  ProviderAuthStrategyMetadata,
+} from './provider-auth.js';
 // ── provider-runner (2 symbols) ──
 export type { ProviderRunner, RunProviderOptions } from './provider-runner.js';
 // ── renderer (1 symbols) ──

@@ -54,10 +54,10 @@ describe('registerSetupEventsStatusWatcher', () => {
     let watchCallback: (eventType: string, filename: string | null) => Promise<void> =
       async () => {};
     const closeWatcher = vi.fn();
-    vi.mocked(fsWatch).mockImplementation((_dir: unknown, _opts: unknown, cb: unknown) => {
+    vi.mocked(fsWatch).mockImplementation(((_dir: unknown, _opts: unknown, cb: unknown) => {
       watchCallback = cb as typeof watchCallback;
       return { close: closeWatcher } as never;
-    });
+    }) as never);
 
     const listeners: Record<string, (e: any) => void> = {};
     const on = vi.fn((event: string, listener: (e: any) => void) => {

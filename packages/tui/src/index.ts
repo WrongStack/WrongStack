@@ -9,6 +9,7 @@ export type {
   AuthLocalPresetRow,
   AuthModelEdit,
   AuthOAuthKind,
+  AuthOAuthStrategyRow,
   AuthPanelHost,
   AuthProviderEdit,
   AuthProviderRow,

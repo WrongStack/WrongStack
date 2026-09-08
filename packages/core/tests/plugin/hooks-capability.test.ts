@@ -30,13 +30,14 @@ function makeMockApi(registerHook: ReturnType<typeof vi.fn>): PluginAPI {
     events: {} as never,
     tools: { register: vi.fn(), unregister: vi.fn(), get: vi.fn(), list: vi.fn() } as never,
     providers: { register: vi.fn(), unregister: vi.fn(), create: vi.fn(), list: vi.fn() } as never,
+    providerAuth: { register: vi.fn(), unregister: vi.fn(), list: vi.fn() } as never,
     mcp: { start: vi.fn(), stop: vi.fn(), restart: vi.fn(), list: vi.fn() } as never,
     slashCommands: { register: vi.fn(), unregister: vi.fn(), get: vi.fn(), list: vi.fn() } as never,
     config: {} as never,
     log: baseLog,
     registerHook: registerHook as never,
     onEvent: vi.fn() as never,
-  };
+  } as unknown as PluginAPI;
 }
 
 function p(overrides: Partial<Plugin> & { name: string }): Plugin {

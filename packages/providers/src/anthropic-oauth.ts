@@ -23,13 +23,13 @@ import {
   type Request,
   type StreamEvent,
 } from '@wrongstack/core/types';
-import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
-import { anthropicWireFormat } from './presets/anthropic.js';
-import type { AnthropicStreamState } from './presets/anthropic.js';
-import { WireFormatProvider } from './wire-format.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
-import type { WireAdapterStreamOptions } from './wire-adapter.js';
 import type { BuildBodyContext } from './model-output-limits.js';
+import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
+import type { AnthropicStreamState } from './presets/anthropic.js';
+import { anthropicWireFormat } from './presets/anthropic.js';
+import type { WireAdapterStreamOptions } from './wire-adapter.js';
+import { WireFormatProvider } from './wire-format.js';
 
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';

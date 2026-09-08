@@ -24,12 +24,12 @@ import {
   copilotBaseUrlFromToken,
   refreshCopilotToken,
 } from './github-copilot-token.js';
-import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
-import { openaiWireFormat } from './presets/openai.js';
-import type { OpenAIStreamState } from './presets/openai.js';
-import { WireFormatProvider } from './wire-format.js';
-import type { WireAdapterStreamOptions } from './wire-adapter.js';
 import type { BuildBodyContext } from './model-output-limits.js';
+import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
+import type { OpenAIStreamState } from './presets/openai.js';
+import { openaiWireFormat } from './presets/openai.js';
+import type { WireAdapterStreamOptions } from './wire-adapter.js';
+import { WireFormatProvider } from './wire-format.js';
 
 const COPILOT_API_VERSION = '2026-06-01';
 

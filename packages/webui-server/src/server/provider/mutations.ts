@@ -1,3 +1,4 @@
+import type { ProviderAuthRegistry } from '@wrongstack/core/registry';
 import type { ModelsRegistry, ProviderConfig } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from '../types.js';
@@ -14,6 +15,7 @@ export interface ProviderOperationsDeps {
   broadcast: (message: WSServerMessage) => void;
   send?: ((ws: WebSocket, message: WSServerMessage) => void) | undefined;
   modelsRegistry?: ModelsRegistry | undefined;
+  providerAuthRegistry?: ProviderAuthRegistry | undefined;
   log?: ((message: string) => void) | undefined;
   hasActiveModel?: (() => boolean) | undefined;
   onProvidersLoaded?:

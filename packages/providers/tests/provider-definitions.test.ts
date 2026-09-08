@@ -61,6 +61,12 @@ describe('canonical ProviderDefinition projections', () => {
       defaultBaseUrl: 'https://openrouter.ai/api/v1',
       autoDiscover: true,
     });
+    expect(presets.xai).toEqual({
+      defaultBaseUrl: 'https://api.x.ai/v1',
+      autoDiscover: true,
+      modelDiscoveryPath: 'language-models',
+      modelDiscoveryAuthoritative: true,
+    });
     // The gateway's preset base URL is its MODEL-LIST endpoint; the AI SDK
     // reaches the wire on its own `/v4/ai` default.
     expect(presets['ai-gateway']).toEqual({

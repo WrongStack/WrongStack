@@ -549,6 +549,23 @@ function wrapApiForCapabilityCheck(
             return Reflect.get(target, prop, receiver);
           },
         });
+  const wrappedProviderAuth =
+    caps.providerAuth !== false
+      ? api.providerAuth
+      : new Proxy(api.providerAuth, {
+          get(target, prop, receiver) {
+            if (prop === 'register') {
+              return (strategy: unknown) => {
+                violate(
+                  'providerAuth',
+                  `register(${(strategy as { id?: string | undefined })?.id ?? '<unknown>'})`,
+                );
+                return (target.register as (value: unknown) => unknown)(strategy);
+              };
+            }
+            return Reflect.get(target, prop, receiver);
+          },
+        });
   // Wrap slashCommands.register
   const wrappedSlash =
     caps.slashCommands !== false
@@ -641,6 +658,8 @@ function wrapApiForCapabilityCheck(
           return wrappedTools;
         case 'providers':
           return wrappedProviders;
+        case 'providerAuth':
+          return wrappedProviderAuth;
         case 'slashCommands':
           return wrappedSlash;
         case 'mcp':

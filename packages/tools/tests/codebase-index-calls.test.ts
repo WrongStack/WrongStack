@@ -209,6 +209,16 @@ describe('codebase-incoming-calls tool', () => {
     expect(result.total).toBeGreaterThanOrEqual(1);
     expect(result.calls.some((c) => c.symbol.name === 'doCall')).toBe(true);
   });
+
+  it('rejects missing or empty symbol with ToolValidationError', async () => {
+    await expect(
+      codebaseIncomingCallsTool.execute({} as any, ctx),
+    ).rejects.toThrow(/symbol is required and cannot be empty/);
+
+    await expect(
+      codebaseIncomingCallsTool.execute({ symbol: '   ' }, ctx),
+    ).rejects.toThrow(/symbol is required and cannot be empty/);
+  });
 });
 
 describe('codebase-outgoing-calls tool', () => {
@@ -290,6 +300,16 @@ describe('codebase-outgoing-calls tool', () => {
     });
 
     expect(result.calls.length).toBeLessThanOrEqual(2);
+  });
+
+  it('rejects missing or empty symbol with ToolValidationError', async () => {
+    await expect(
+      codebaseOutgoingCallsTool.execute({} as any, ctx),
+    ).rejects.toThrow(/symbol is required and cannot be empty/);
+
+    await expect(
+      codebaseOutgoingCallsTool.execute({ symbol: '   ' }, ctx),
+    ).rejects.toThrow(/symbol is required and cannot be empty/);
   });
 });
 

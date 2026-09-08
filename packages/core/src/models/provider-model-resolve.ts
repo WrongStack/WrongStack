@@ -1,4 +1,8 @@
-import type { ModelsDevModel, ResolvedProvider } from '../types/models-registry.js';
+import type {
+  ModelProvenance,
+  ModelsDevModel,
+  ResolvedProvider,
+} from '../types/models-registry.js';
 import { CODEX_MODELS, codexModelMeta } from './codex-catalog.js';
 
 /**
@@ -17,6 +21,7 @@ export interface ProviderModelDescriptor {
   outputCost?: number | undefined;
   /** Declared output modalities, used by agent-model pickers to exclude image/video-only models. */
   outputModalities?: string[] | undefined;
+  provenance?: ModelProvenance | undefined;
   capabilities: string[];
 }
 
@@ -31,12 +36,22 @@ export function describeCatalogModel(m: ModelsDevModel): ProviderModelDescriptor
     inputCost: m.cost?.input,
     outputCost: m.cost?.output,
     ...(m.modalities?.output !== undefined ? { outputModalities: m.modalities.output } : {}),
+    ...(m.provenance ? { provenance: m.provenance } : {}),
     capabilities: [
       ...(m.tool_call ? ['tools'] : []),
       ...(m.reasoning ? ['reasoning'] : []),
       ...(m.modalities?.input?.includes('image') ? ['vision'] : []),
       ...(m.open_weights ? ['open_weights'] : []),
     ],
+  };
+}
+
+function withUserProvenance(model: ProviderModelDescriptor): ProviderModelDescriptor {
+  const sources = [...(model.provenance?.sources ?? [])];
+  if (!sources.includes('user-config')) sources.push('user-config');
+  return {
+    ...model,
+    provenance: { ...model.provenance, primary: 'user-config', sources },
   };
 }
 
@@ -107,11 +122,20 @@ export function resolveProviderModelList(
       const hit = byId.get(id);
       if (hit) {
         const described = describeCatalogModel(hit);
-        out.push(codex ? { ...described, description: codex.description } : described);
+        out.push(
+          withUserProvenance(codex ? { ...described, description: codex.description } : described),
+        );
       } else if (codex) {
-        out.push({ id, name: codex.name, description: codex.description, capabilities: [] });
+        out.push(
+          withUserProvenance({
+            id,
+            name: codex.name,
+            description: codex.description,
+            capabilities: [],
+          }),
+        );
       } else {
-        out.push({ id, name: id, capabilities: [] });
+        out.push(withUserProvenance({ id, name: id, capabilities: [] }));
       }
     }
   }

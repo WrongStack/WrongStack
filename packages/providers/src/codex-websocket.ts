@@ -81,6 +81,18 @@ export interface CodexWebSocketStreamOptions {
    * disables the watchdog.
    */
   stallTimeoutMs?: number | undefined;
+  /**
+   * Sticky-routing token for the turn this request belongs to, replayed as
+   * `client_metadata['x-codex-turn-state']`.
+   *
+   * Owned by the caller, not the connection: a turn spans several requests and
+   * the connection cannot tell which of them start a new one. This used to be
+   * connection-local state that `stream()` cleared on entry, so nothing but a
+   * prewarm could ever populate it and the token was never actually sent.
+   */
+  turnState?: string | undefined;
+  /** Receives the turn state the backend published in `response.metadata`. */
+  onTurnState?: ((turnState: string) => void) | undefined;
   onMetadata?: ((metadata: CodexResponseMetadata) => void) | undefined;
   onHeaders?: ((headers: Headers) => void) | undefined;
 }
@@ -212,13 +224,10 @@ class CodexWebSocketConnection {
   private pendingRequestBody: Record<string, unknown> | undefined;
   private lastResponseItems: Record<string, unknown>[] = [];
   private pendingResponseItems: Record<string, unknown>[] = [];
-  /** Sticky metadata is valid only inside the current logical turn. */
+  /** Turn state for the in-flight request, supplied per call by the caller. */
   private turnState: string | undefined;
+  private onTurnState: ((turnState: string) => void) | undefined;
   private prewarmed = false;
-  // Live abort wiring: kept for the whole turn, not just the handshake, so a
-  // mid-stream abort closes the socket and wakes the pending frame wait.
-  private abortSignal: AbortSignal | undefined;
-  private abortHandler: (() => void) | undefined;
 
   constructor(
     private readonly factory: CodexWebSocketFactory,
@@ -231,7 +240,14 @@ class CodexWebSocketConnection {
     body: Record<string, unknown>,
     opts: Pick<
       CodexWebSocketStreamOptions,
-      'fallbackModel' | 'providerId' | 'signal' | 'prewarm' | 'onMetadata' | 'stallTimeoutMs'
+      | 'fallbackModel'
+      | 'providerId'
+      | 'signal'
+      | 'prewarm'
+      | 'onMetadata'
+      | 'stallTimeoutMs'
+      | 'turnState'
+      | 'onTurnState'
     >,
     parse: (
       body: ReadableStream<Uint8Array>,
@@ -240,18 +256,28 @@ class CodexWebSocketConnection {
       onMetadata?: ((metadata: CodexResponseMetadata) => void) | undefined,
     ) => AsyncIterable<StreamEvent>,
   ): AsyncIterable<StreamEvent> {
-    // A new public stream call is a new Codex turn. Upstream explicitly
-    // forbids replaying x-codex-turn-state into later turns.
-    this.turnState = undefined;
+    // Turn scoping is the caller's call: it knows whether this request
+    // continues the turn in flight or opens a new one.
+    this.turnState = opts.turnState;
+    this.onTurnState = opts.onTurnState;
     await this.open(opts.signal);
     const socket = this.socket;
     if (!socket) throw new CodexWebSocketFallbackError('Codex WebSocket did not open');
-    if (opts.prewarm && !this.prewarmed) {
-      await this.tryPrewarm(body, opts.signal, socket);
-    }
     const queue = new AsyncQueue<string>();
     this.activeQueue = queue;
     this.emitted = false;
+    // The pool can reuse an already-open socket. Bind cancellation to this
+    // stream—not socket creation—so every request can terminate its own wait.
+    const abort = (): unknown => opts.signal.reason ?? new Error('Codex WebSocket request aborted');
+    const onAbort = () => {
+      queue.end(abort());
+      socket.close();
+    };
+    if (opts.signal.aborted) {
+      onAbort();
+      throw abort();
+    }
+    opts.signal.addEventListener('abort', onAbort, { once: true });
 
     // Frame-gap watchdog: a backend that goes silent without closing the socket
     // must fail the turn (falling back to SSE pre-output) instead of hanging
@@ -293,6 +319,10 @@ class CodexWebSocketConnection {
     });
 
     try {
+      if (opts.prewarm && !this.prewarmed) {
+        await this.tryPrewarm(body, opts.signal, socket);
+        this.activeQueue = queue;
+      }
       const requestBody = this.prepareRequestBody(body);
       this.beginResponse(body);
       socket.send(JSON.stringify({ type: 'response.create', ...requestBody }));
@@ -314,6 +344,7 @@ class CodexWebSocketConnection {
       }
       this.commitResponse();
     } catch (error) {
+      if (opts.signal.aborted) throw abort();
       if (
         error instanceof ProviderError &&
         !this.emitted &&
@@ -336,19 +367,15 @@ class CodexWebSocketConnection {
       }
       throw new CodexWebSocketFallbackError('Codex WebSocket request failed before output', error);
     } finally {
+      opts.signal.removeEventListener('abort', onAbort);
       disarmStall();
       this.activeQueue = undefined;
-      this.turnState = undefined;
+      this.onTurnState = undefined;
     }
   }
 
   close(): void {
     this.dead = true;
-    if (this.abortSignal && this.abortHandler) {
-      this.abortSignal.removeEventListener('abort', this.abortHandler);
-      this.abortSignal = undefined;
-      this.abortHandler = undefined;
-    }
     this.activeQueue?.end(new Error('Codex WebSocket connection closed'));
     this.socket?.close();
     this.socket = undefined;
@@ -363,43 +390,30 @@ class CodexWebSocketConnection {
     this.pendingRequestBody = undefined;
     this.lastResponseItems = [];
     this.pendingResponseItems = [];
-    this.turnState = undefined;
     this.prewarmed = false;
-    // Drop the previous turn's registration before (re)registering so listener
-    // wiring never accumulates across turns or sockets.
-    if (this.abortSignal && this.abortHandler) {
-      this.abortSignal.removeEventListener('abort', this.abortHandler);
-    }
     const socket = this.factory(this.url, { headers: this.headers, signal });
     this.socket = socket;
     await new Promise<void>((resolve, reject) => {
       let settled = false;
+      let clearAbortListener: () => void = () => undefined;
       const fail = (error: unknown) => {
         if (settled) return;
         settled = true;
+        clearAbortListener();
         this.dead = true;
         reject(error);
       };
       const onAbort = () => {
         socket.close();
-        const abortError = signal.reason ?? new Error('Codex WebSocket request aborted');
-        // Handshake phase: reject the open promise. Post-open: wake the pending
-        // frame wait so stream() fails immediately instead of hanging forever.
-        if (!settled) {
-          fail(abortError);
-          return;
-        }
-        this.activeQueue?.end(abortError);
+        fail(signal.reason ?? new Error('Codex WebSocket request aborted'));
       };
-      this.abortSignal = signal;
-      this.abortHandler = onAbort;
+      clearAbortListener = () => signal.removeEventListener('abort', onAbort);
       if (signal.aborted) return onAbort();
       signal.addEventListener('abort', onAbort, { once: true });
       socket.once('open', () => {
         if (settled) return;
         settled = true;
-        // The listener deliberately survives the handshake: an abort during the
-        // response must close the socket and fail the stream.
+        clearAbortListener();
         resolve();
       });
       socket.once('error', fail);
@@ -425,6 +439,7 @@ class CodexWebSocketConnection {
         const event = JSON.parse(text) as {
           type?: string;
           item?: unknown;
+          headers?: Record<string, unknown>;
           metadata?: { headers?: Record<string, unknown> };
           response?: { id?: unknown; output?: unknown };
         };
@@ -443,10 +458,20 @@ class CodexWebSocketConnection {
             if (replayable) this.pendingResponseItems.push(replayable);
           }
         }
-        if (event.type === 'response.metadata') {
-          for (const [name, value] of Object.entries(event.metadata?.headers ?? {})) {
+        // The live backend names this frame `codex.response.metadata` and puts
+        // the headers at the top level; the enveloped `response.metadata` shape
+        // is the other dialect upstream also accepts. Reading only the envelope
+        // meant a WebSocket session — the default transport, with no HTTP
+        // headers after the handshake — never saw its own turn state.
+        if (event.type === 'response.metadata' || event.type === 'codex.response.metadata') {
+          for (const [name, value] of Object.entries(
+            event.headers ?? event.metadata?.headers ?? {},
+          )) {
             if (name.toLowerCase() === 'x-codex-turn-state' && typeof value === 'string') {
+              // Usable both later in this turn (the next request the caller
+              // makes) and, via the sink, by whoever owns turn scoping.
               this.turnState = value;
+              this.onTurnState?.(value);
             }
           }
         }
@@ -488,21 +513,25 @@ class CodexWebSocketConnection {
    * Otherwise send the full request without a stale response id.
    */
   private prepareRequestBody(body: Record<string, unknown>): Record<string, unknown> {
-    if (!this.lastResponseId || !this.lastRequestBody) return body;
-    if (!requestPropertiesMatch(this.lastRequestBody, body)) return body;
+    // Turn state is sticky routing, not a continuation detail: it belongs on
+    // every request of the turn, including the ones that resend the full input.
+    const withTurnState = this.turnState
+      ? { ...body, client_metadata: { 'x-codex-turn-state': this.turnState } }
+      : body;
+    if (!this.lastResponseId || !this.lastRequestBody) return withTurnState;
+    if (!requestPropertiesMatch(this.lastRequestBody, body)) return withTurnState;
     const previousInput = this.lastRequestBody.input;
     const currentInput = body.input;
-    if (!Array.isArray(previousInput) || !Array.isArray(currentInput)) return body;
+    if (!Array.isArray(previousInput) || !Array.isArray(currentInput)) return withTurnState;
     const baseline = [...previousInput, ...this.lastResponseItems];
-    if (currentInput.length < baseline.length) return body;
+    if (currentInput.length < baseline.length) return withTurnState;
     for (let index = 0; index < baseline.length; index++) {
-      if (!isDeepStrictEqual(baseline[index], currentInput[index])) return body;
+      if (!isDeepStrictEqual(baseline[index], currentInput[index])) return withTurnState;
     }
     return {
-      ...body,
+      ...withTurnState,
       previous_response_id: this.lastResponseId,
       input: currentInput.slice(baseline.length),
-      ...(this.turnState ? { client_metadata: { 'x-codex-turn-state': this.turnState } } : {}),
     };
   }
 

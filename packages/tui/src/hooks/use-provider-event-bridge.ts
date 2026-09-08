@@ -5,6 +5,7 @@ import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
 import type { AppProps } from '../app-props.js';
+import { fmtRatioPct } from '../components/status-bar-format.js';
 import {
   applyMemoryContextSnapshot,
   applyMemoryInjectorRun,
@@ -19,7 +20,6 @@ import {
   retainStreamTail,
 } from '../reducers/helpers.js';
 import { contentBlocksText } from '../rehydrate-history.js';
-import { fmtRatioPct } from '../components/status-bar-format.js';
 import {
   recordProviderResponse,
   recordProviderTextDelta,
@@ -79,10 +79,10 @@ interface ProviderEventBridgeOptions {
 
 /**
  * `tool.executed.output` is deliberately a transport preview. The canonical
- * tool result is appended to the conversation immediately after the event is
- * emitted, so resolve it from the agent state before creating the copyable
- * history entry. Keeping this lookup here preserves the compact event wire
- * contract for every other subscriber.
+ * tool result is appended to the conversation after the event is emitted and
+ * after the session-event batch has been persisted. Resolve it from the agent
+ * state rather than copying the event preview. Keeping this lookup here
+ * preserves the compact event wire contract for every other subscriber.
  */
 function fullToolResultFromState(
   agent: AppProps['agent'],
@@ -136,6 +136,28 @@ export function useProviderEventBridge({
     // stash the numbers here and render them on the memory panel itself
     // instead of as a second, separate card saying the same thing.
     const pendingSageStats = new Map<string, string>();
+    const pendingToolEntries = new Map<string, { add: (output: string | undefined) => void }>();
+    const flushCanonicalToolResults = (): void => {
+      for (const [toolUseId, pending] of pendingToolEntries) {
+        const output = fullToolResultFromState(agent, toolUseId);
+        if (output === undefined) continue;
+        pending.add(output);
+        pendingToolEntries.delete(toolUseId);
+      }
+    };
+    const state = agent.ctx.state;
+    const offStateChange =
+      typeof state?.onChange === 'function'
+        ? state.onChange((change) => {
+            if (
+              change.kind === 'message_appended' ||
+              change.kind === 'message_updated' ||
+              change.kind === 'messages_replaced'
+            ) {
+              flushCanonicalToolResults();
+            }
+          })
+        : undefined;
     const appendStreamSegment = (kind: 'assistant' | 'thinking', text: string) => {
       const last = streamSegmentsRef.current.at(-1);
       if (last?.kind === kind) {
@@ -252,6 +274,7 @@ export function useProviderEventBridge({
       // delegate.started / delegate.completed events below — skip the
       // generic tool entry so history doesn't also show the big JSON blob.
       if (e.name !== 'delegate') {
+        const sageStats = pendingSageStats.get(e.name);
         const addToolEntry = (output: string | undefined): void => {
           dispatch({
             type: 'addEntry',
@@ -264,8 +287,8 @@ export function useProviderEventBridge({
               output,
               // SAGE-injected memory travels beside the output preview so it
               // always renders as a memory block, never as tool text.
-              sageLines: e.sage,
-              ...(pendingSageStats.has(e.name) ? { sageStats: pendingSageStats.get(e.name)! } : {}),
+              ...(e.sage !== undefined ? { sageLines: e.sage } : {}),
+              ...(sageStats !== undefined ? { sageStats } : {}),
               // Real model-visible sizes — forwarded so the size chip beside
               // the tool header can show what the model paid for instead of
               // the misleading preview-byte count we used to surface.
@@ -275,12 +298,17 @@ export function useProviderEventBridge({
             },
           });
         };
-        // The core appends the full tool_result after emitting tool.executed.
-        // A microtask runs after that synchronous append, while retaining a
-        // preview fallback for legacy/test hosts without conversation state.
-        if (agent.ctx.state?.messages) {
-          queueMicrotask(() => addToolEntry(fullToolResultFromState(agent, e.id) ?? e.output));
+        const canonicalOutput = fullToolResultFromState(agent, e.id);
+        if (canonicalOutput !== undefined) {
+          addToolEntry(canonicalOutput);
+        } else if (e.id !== undefined && typeof state?.onChange === 'function') {
+          // Core persists the session-event batch before appendMessage(), so a
+          // microtask is too early here. The state change above is the exact
+          // boundary at which the model-visible result becomes available.
+          pendingToolEntries.set(e.id, { add: addToolEntry });
         } else {
+          // Legacy/test hosts without observable conversation state only have
+          // the transport preview available.
           addToolEntry(e.output);
         }
       }
@@ -680,6 +708,8 @@ export function useProviderEventBridge({
       offMemoryContextSnapshot();
       offMemoryContextSession();
       offMemoryLifecycle();
+      offStateChange?.();
+      pendingToolEntries.clear();
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
     };
   }, [events, agent.ctx.session.id]);

@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { capabilitiesForFamily } from '../src/family-capabilities.js';
 import {
   clearModelOutputLimitResolver,
-  REQUIRED_FIELD_LAST_RESORT_MAX_OUTPUT,
   installCatalogModelOutputLimits,
+  REQUIRED_FIELD_LAST_RESORT_MAX_OUTPUT,
   resolveMaxOutputTokens,
   resolveRequiredMaxOutputTokens,
   setModelOutputLimitResolver,

@@ -95,6 +95,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   }
   const { resolvedProvider, providerRegistry, provider, modeId, modePrompt, modelCapabilities } =
     modeResult;
+  const { providerAuthRegistry } = modeResult;
   const modelCapabilitiesRef: { current: typeof modelCapabilities } = {
     current: modelCapabilities,
   };
@@ -322,6 +323,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     wpaths,
     toolRegistry,
     providerRegistry,
+    providerAuthRegistry,
     configStore,
     sessionBridge,
     eventWiring,
@@ -804,6 +806,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     agentTranscripts: agentMonitor,
     vault,
     profileConfigPath,
+    providerAuthRegistry,
     onPanelOpen,
     interruptController,
     enhanceController,

@@ -1,13 +1,15 @@
 # Sign in with a subscription (OAuth)
 
-WrongStack can authenticate against three vendor **subscriptions** instead of a
-metered API key:
+WrongStack ships four interactive provider-auth strategies. Three authenticate
+vendor **subscriptions**; OpenRouter uses OAuth to mint a user-controlled API
+key:
 
 | Sign-in | Subscription | Wire family (provider id) | Endpoint |
 |---|---|---|---|
 | **Sign in with ChatGPT** | ChatGPT Plus / Pro / Team (Codex) | `openai-codex` | `chatgpt.com/backend-api` (Responses API) |
 | **Sign in with Claude** | Claude Pro / Max | `anthropic-oauth` | `api.anthropic.com` (Messages API) |
 | **Sign in with GitHub Copilot** | GitHub Copilot | `github-copilot` | Copilot proxy (OpenAI Chat Completions) |
+| **Sign in with OpenRouter** | OpenRouter account | `openrouter` | `openrouter.ai/api/v1` (OpenAI-compatible) |
 
 This is an **orthogonal credential layer** — it sits *next to* the API-key
 provider system, it doesn't replace it. The ~110 API-key providers pulled from
@@ -25,7 +27,8 @@ select like any other.
 > sanctioned. The supported, sanctioned path for programmatic use is an **API
 > key**. Sign in with a subscription only if you accept that risk for your own
 > account. WrongStack ships this as a convenience, with no warranty — you are
-> responsible for your account.
+> responsible for your account. OpenRouter's API-key authorization flow is
+> documented by OpenRouter and is not one of these subscription-token flows.
 
 ---
 
@@ -35,11 +38,16 @@ select like any other.
   (`openai-codex`, `anthropic-oauth`, `github-copilot`) with its own request
   shape, headers, and auth. Nothing about the API-key `openai` / `anthropic`
   families changes.
-- **Browser-based login.** Codex and Claude use a **PKCE loopback** OAuth flow
-  (a local callback server receives the code); Copilot uses **GitHub's device
-  flow** (you paste a code at `github.com/login/device`). No API key is typed.
-- **Self-refreshing tokens.** Access tokens refresh automatically near expiry and
-  once on a `401`; rotated tokens are written back to config transparently.
+- **Browser/device login.** Codex, Claude, and OpenRouter use a **PKCE loopback**
+  flow (a local callback server receives the code); Copilot uses **GitHub's
+  device flow** (you enter a code at `github.com/login/device`). No API key is
+  typed.
+- **Runtime registry.** CLI, TUI, and WebUI read the same provider-auth registry.
+  Plugins with the `providerAuth` capability can add browser or device-code
+  strategies without adding provider-specific UI branches.
+- **Credential lifecycle.** Subscription access tokens refresh automatically
+  near expiry and once on a `401`; OpenRouter instead returns a normal API key,
+  so it has no refresh-token lifecycle.
 - **Encrypted at rest.** The access/refresh tokens are stored in
   the active profile config under `providers.<id>`, encrypted with your
   per-machine key (`~/.wrongstack/.key`, AES-256-GCM) like every other secret.
@@ -53,7 +61,7 @@ select like any other.
 Interactive menu:
 
 ```bash
-wstack auth          # → choose "s) Sign in with a subscription (ChatGPT / Claude / Copilot)"
+wstack auth          # → choose the interactive sign-in option
 ```
 
 Or go straight to one provider:
@@ -62,6 +70,7 @@ Or go straight to one provider:
 wstack auth login chatgpt     # Sign in with ChatGPT  → provider openai-codex
 wstack auth login claude      # Sign in with Claude   → provider anthropic-oauth
 wstack auth login copilot     # Sign in with Copilot  → provider github-copilot
+wstack auth login openrouter  # Sign in with OpenRouter → provider openrouter
 ```
 
 After login, select the provider/model like any other:
@@ -165,6 +174,22 @@ wstack auth login copilot
 - **Requires** an active **GitHub Copilot** subscription on the signed-in
   account.
 
+## Sign in with OpenRouter
+
+```bash
+wstack auth login openrouter
+# aliases: openrouter-login · openrouter-oauth
+```
+
+- **Flow:** ephemeral `127.0.0.1` callback with S256 PKCE, following
+  [OpenRouter's documented OAuth flow](https://openrouter.ai/docs/guides/overview/auth/oauth).
+- **Provider id:** `openrouter` · **Endpoint:** `https://openrouter.ai/api/v1`.
+- **Credential:** the authorization code is exchanged for a user-controlled
+  OpenRouter API key and stored through the same encrypted key-vault path as
+  manually entered keys.
+- **Models:** an existing curated allowlist is preserved; model discovery stays
+  in the normal OpenRouter/models.dev catalog path.
+
 ---
 
 ## Context windows
@@ -185,9 +210,11 @@ natively, and the legacy `context-1m-2025-08-07` beta was retired on
 - Tokens live under `providers.<id>` in the active profile config, encrypted.
   The entry records `authMethod: "oauth"`, the access token (as `apiKey`), the
   `refreshToken`, and `expiresAt`.
-- Refresh is automatic — near expiry before a request, and once on a `401`. The
-  rotated tokens are persisted in place; you won't be asked to log in again until
-  the refresh token itself is revoked or expires.
+- Subscription-token refresh is automatic — near expiry before a request, and
+  once on a `401`. The rotated tokens are persisted in place; you won't be asked
+  to log in again until the refresh token itself is revoked or expires.
+- OpenRouter OAuth produces an API key, not an access/refresh-token pair. Revoke
+  it from OpenRouter or remove the local provider key to sign out.
 - To sign out, remove the provider entry (`wstack auth` → manage keys) or delete
   it from `config.json`. Re-run `wstack auth login <provider>` to sign back in.
 

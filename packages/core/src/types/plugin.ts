@@ -4,7 +4,6 @@ import type { Notifier } from '../notifications/notifier.js';
 export type { Notifier };
 
 import type { ToolCallPipelinePayload } from '../core/agent-types.js';
-import type { AgentContext } from './context.js';
 import type { ExtensionRegistry } from '../extension/registry.js';
 import type { Container } from '../kernel/container.js';
 import type { EventBus, EventName, Listener } from '../kernel/events.js';
@@ -12,10 +11,12 @@ import type { ReadonlyPipeline } from '../kernel/pipeline.js';
 import type { ToolWrapper } from '../registry/tool-registry.js';
 import type { TextBlock } from './blocks.js';
 import type { Config } from './config.js';
+import type { AgentContext } from './context.js';
 import type { HookEvent, HookMatcher, HookRegistrationOptions, InProcessHook } from './hooks.js';
 import type { Logger } from './logger.js';
 import type { ModelsRegistry, WireFamily } from './models-registry.js';
 import type { Provider, Request, Response } from './provider.js';
+import type { ProviderAuthStrategy, ProviderAuthStrategyMetadata } from './provider-auth.js';
 import type { SlashCommand } from './slash-command.js';
 import type { SystemPromptContributor } from './system-prompt-contributor.js';
 import type { JSONSchema, Tool } from './tool.js';
@@ -40,6 +41,12 @@ export interface ProviderRegistryView {
   unregister(type: string): boolean;
   create(cfg: { type: string } & Record<string, unknown>): Provider;
   list(): string[];
+}
+
+export interface ProviderAuthRegistryView {
+  register(strategy: ProviderAuthStrategy): void;
+  unregister(id: string): boolean;
+  list(): ProviderAuthStrategyMetadata[];
 }
 
 export interface MCPRegistryView {
@@ -190,6 +197,8 @@ export interface PluginAPI {
   events: EventBus;
   tools: ToolRegistryView;
   providers: ProviderRegistryView;
+  /** Register interactive login strategies independently from runtime transports. */
+  providerAuth: ProviderAuthRegistryView;
   mcp: MCPRegistryView;
   slashCommands: SlashCommandRegistryView;
   /** Live session writer — plugins can append custom events here. */
@@ -293,6 +302,8 @@ export interface PluginCapabilities {
   tools?: boolean | undefined;
   /** Will register provider factories via `api.providers.register()`. */
   providers?: boolean | undefined;
+  /** Will register interactive provider authentication strategies. */
+  providerAuth?: boolean | undefined;
   /**
    * Pipelines the plugin hooks into. Use the standard names
    * (`request | response | toolCall | userInput | assistantOutput | contextWindow`)

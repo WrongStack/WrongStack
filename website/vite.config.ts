@@ -313,12 +313,16 @@ function validateProductCatalog() {
     'export const OFFICIAL_PLUGIN_AUDIT_ENTRIES',
     '\n] as const;',
   );
+  // Anchored to a line start (`^\s*`) because both audit lists are formatted
+  // with `name:` as the first property of each entry. Anchoring keeps a doc
+  // comment that quotes a config example (`// { name: 'lsp', enabled: false }`)
+  // from being mistaken for a real catalog entry.
   assertSameCatalog(
     'Managed plugin catalog',
-    captures(websitePluginBlock, /(?:"name"|name):\s*['"]([^'"]+)['"]/g),
+    captures(websitePluginBlock, /^\s*(?:"name"|name):\s*['"]([^'"]+)['"]/gm),
     [
-      ...captures(hostPluginBlock, /\bname:\s*'([^']+)'/g),
-      ...captures(officialPluginBlock, /\bname:\s*'([^']+)'/g),
+      ...captures(hostPluginBlock, /^\s*name:\s*'([^']+)'/gm),
+      ...captures(officialPluginBlock, /^\s*name:\s*'([^']+)'/gm),
     ],
   );
 

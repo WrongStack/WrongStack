@@ -376,7 +376,7 @@ async function resolveFiles(
   ctx: Context,
   extraGlob?: RegExp | null | undefined,
 ): Promise<string[]> {
-  const base = ctx.cwd;
+  const base = ctx.workingDir ?? ctx.cwd;
   // Glob routing is per-entry so a comma list can mix literal paths and
   // globs. Any `*` or `?` marks the entry as a glob — a mid-path single-star
   // pattern like `src/*.ts` previously fell through to the literal branch,

@@ -43,6 +43,7 @@ export interface EmbeddedProviderStore {
 export interface EmbeddedProviderContext extends EmbeddedHostTransport {
   providerStore: EmbeddedProviderStore;
   modelsRegistry: ModelsRegistry | undefined;
+  providerAuthRegistry?: import('@wrongstack/core/registry').ProviderAuthRegistry | undefined;
 }
 
 export interface EmbeddedAgentConfigContext extends EmbeddedHostTransport {
@@ -146,6 +147,7 @@ export function createEmbeddedProviderOperations(ctx: EmbeddedProviderContext) {
     broadcast: ctx.broadcast,
     send: ctx.send,
     modelsRegistry: ctx.modelsRegistry,
+    providerAuthRegistry: ctx.providerAuthRegistry,
     log: ctx.log,
   });
 }

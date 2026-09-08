@@ -1,4 +1,4 @@
-import { ProviderRegistry } from '@wrongstack/core/registry';
+import { ProviderAuthRegistry, ProviderRegistry } from '@wrongstack/core/registry';
 import type { ResolvedProvider } from '@wrongstack/core/types';
 import { type Config, ConfigError, type Logger, type ModelsRegistry } from '@wrongstack/core/types';
 import {
@@ -11,6 +11,7 @@ import {
   setupProviderResolved,
   withCatalogCapabilities,
 } from '@wrongstack/providers';
+import { registerBuiltinProviderAuthStrategies } from '@wrongstack/providers/oauth';
 import {
   fallbackCodexProviderModels,
   filterCurrentCodexModelIds,
@@ -22,6 +23,7 @@ interface ProviderSetupResult {
   resolvedProvider: ResolvedProvider | undefined;
   provider: ReturnType<ProviderRegistry['create']>;
   providerRegistry: ProviderRegistry;
+  providerAuthRegistry: ProviderAuthRegistry;
 }
 
 export async function setupProvider(params: {
@@ -30,6 +32,8 @@ export async function setupProvider(params: {
   logger: Logger;
 }): Promise<ProviderSetupResult> {
   const { config, modelsRegistry, logger } = params;
+  const providerAuthRegistry = new ProviderAuthRegistry();
+  registerBuiltinProviderAuthStrategies(providerAuthRegistry);
 
   // Setup mode short-circuits catalog resolution entirely. It is never
   // published through models.dev and never written into `config.providers`,
@@ -42,6 +46,7 @@ export async function setupProvider(params: {
       resolvedProvider: setupProviderResolved(),
       provider: providerRegistry.create({ type: config.provider }),
       providerRegistry,
+      providerAuthRegistry,
     };
   }
 
@@ -212,5 +217,5 @@ export async function setupProvider(params: {
     );
   }
 
-  return { resolvedProvider, provider, providerRegistry };
+  return { resolvedProvider, provider, providerRegistry, providerAuthRegistry };
 }

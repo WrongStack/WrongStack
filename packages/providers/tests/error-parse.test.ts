@@ -1,11 +1,11 @@
-import { ProviderError } from '@wrongstack/core/types';
 import type { ProviderErrorBody } from '@wrongstack/core/types';
+import { ProviderError } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type HeadersLike,
   parseProviderHttpError,
-  retryAfterMsFromHeaders,
   retryAfterMsFromBody,
+  retryAfterMsFromHeaders,
 } from '../src/error-parse.js';
 
 function fakeHeaders(entries: Record<string, string>): HeadersLike {
@@ -322,14 +322,20 @@ describe('retryAfterMsFromBody', () => {
 
   it('parses relative minutes from body text without mistaking them for seconds', () => {
     expect(retryAfterMsFromBody({ message: 'Please retry after 5 minutes' })).toBe(300_000);
-    expect(retryAfterMsFromBody({ message: 'Rate limit reached, retry in 10 minutes' })).toBe(600_000);
+    expect(retryAfterMsFromBody({ message: 'Rate limit reached, retry in 10 minutes' })).toBe(
+      600_000,
+    );
     expect(retryAfterMsFromBody({ message: 'Please retry in 2 mins' })).toBe(120_000);
-    expect(retryAfterMsFromBody({ message: 'Too many requests. Back in 3 minutes.' })).toBe(180_000);
+    expect(retryAfterMsFromBody({ message: 'Too many requests. Back in 3 minutes.' })).toBe(
+      180_000,
+    );
   });
 
   it('parses relative hours from retry messages', () => {
     expect(retryAfterMsFromBody({ message: 'Please retry after 1 hour' })).toBe(3_600_000);
-    expect(retryAfterMsFromBody({ message: 'Quota exceeded. Please retry in 2 hours.' })).toBe(7_200_000);
+    expect(retryAfterMsFromBody({ message: 'Quota exceeded. Please retry in 2 hours.' })).toBe(
+      7_200_000,
+    );
   });
 
   it('returns undefined for text with no recognizable pattern', () => {

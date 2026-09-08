@@ -12,9 +12,9 @@ import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';
 import { type BuildBodyContext, resolveMaxOutputTokens } from '../model-output-limits.js';
+import { stripCacheControl } from '../object-utils.js';
 import { messagesToOpenAI, toolsToOpenAI } from '../tool-format/to-openai.js';
 import { defineWireFormat } from '../wire-format.js';
-import { stripCacheControl } from '../object-utils.js';
 
 interface MistralStreamState {
   model: string;

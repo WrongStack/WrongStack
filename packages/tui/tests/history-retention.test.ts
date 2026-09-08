@@ -3,6 +3,7 @@ import { DEFAULT_MIN_IMPORTANCE, DEFAULT_MIN_SCORE, MIN_RELATION_STRENGTH } from
 import { describe, expect, it } from 'vitest';
 import { buildRestoredEntries, createInitialState } from '../src/app-initial-state.js';
 import { reducer } from '../src/app-reducer.js';
+import { copyableTextForEntry } from '../src/components/history/copy-icon.js';
 import type { HistoryEntry } from '../src/components/history/types.js';
 import {
   retainTuiHistory,
@@ -157,6 +158,18 @@ describe('bounded TUI display history', () => {
     expect(Buffer.byteLength(JSON.stringify(entry), 'utf8')).toBeLessThanOrEqual(
       TUI_HISTORY_MAX_ENTRY_BYTES,
     );
+  });
+
+  it('keeps a tool card bounded while preserving its full result for copying', () => {
+    const fullOutput = `${'tree/child\n'.repeat(TUI_HISTORY_MAX_ENTRY_BYTES)}tail-marker`;
+    const retained = retainTuiHistory([
+      { id: 9, kind: 'tool', name: 'tree', durationMs: 5, ok: true, output: fullOutput },
+    ]);
+
+    const entry = retained[0];
+    expect(entry).toMatchObject({ id: 9, kind: 'tool', copyOutput: fullOutput });
+    expect(entry?.kind === 'tool' ? entry.output : '').toContain('truncated for TUI history');
+    expect(copyableTextForEntry(entry!)).toBe(fullOutput);
   });
 
   it('drops oversized structured payloads to a bounded marker', () => {

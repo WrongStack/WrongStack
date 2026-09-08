@@ -4,9 +4,16 @@ import type { WebSocket } from 'ws';
 import { createProviderOperations } from '../src/server/provider-handlers.js';
 import type { WSServerMessage } from '../src/server/types.js';
 
-const beginOAuthLogin = vi.hoisted(() => vi.fn());
+const beginProviderAuth = vi.hoisted(() => vi.fn());
 
-vi.mock('@wrongstack/providers/oauth', () => ({ beginOAuthLogin }));
+vi.mock('@wrongstack/providers/oauth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/providers/oauth')>()),
+  createBuiltinProviderAuthRegistry: () => ({
+    begin: beginProviderAuth,
+    list: () => [],
+    resolveId: (id: string) => id,
+  }),
+}));
 
 describe('canonical provider operations', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -55,17 +62,20 @@ describe('canonical provider operations', () => {
 
   it('persists and reports a requested provider alias', async () => {
     const close = vi.fn();
-    beginOAuthLogin.mockResolvedValue({
+    beginProviderAuth.mockResolvedValue({
       providerId: 'openai-codex',
-      authorizeUrl: 'https://example.test/authorize',
-      bound: false,
+      interaction: {
+        type: 'browser',
+        authorizeUrl: 'https://example.test/authorize',
+        bound: false,
+      },
       close,
       completeWithCode: vi.fn(async () => ({
         providerId: 'openai-codex',
         family: 'openai-compatible',
         baseUrl: 'https://api.openai.com/v1',
         models: ['gpt-5'],
-        apiKey: {
+        credential: {
           label: 'oauth',
           apiKey: 'secret-token',
           createdAt: '2026-07-21T00:00:00.000Z',

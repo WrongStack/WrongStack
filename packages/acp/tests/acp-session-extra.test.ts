@@ -649,7 +649,7 @@ describe('ACPSession — focused coverage', () => {
     } as any;
     const session = await startSession(undefined, {
       trustBoundary: mockBoundary,
-      trustActor: 'actor-123',
+      trustActor: { kind: 'agent', id: 'actor-123' },
     });
     expect((session as any).permissionPolicy).toBeDefined();
     await session.close();

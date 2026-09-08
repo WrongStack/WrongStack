@@ -258,7 +258,9 @@ export const openaiWireFormat = defineWireFormat<OpenAIStreamState>({
       // calc / cache-hit-ratio from double-counting cached tokens.
       const hasDeepSeekCacheFields =
         u.prompt_cache_hit_tokens !== undefined || u.prompt_cache_miss_tokens !== undefined;
-      const cached = nonNegative(u.prompt_tokens_details?.cached_tokens ?? u.prompt_cache_hit_tokens);
+      const cached = nonNegative(
+        u.prompt_tokens_details?.cached_tokens ?? u.prompt_cache_hit_tokens,
+      );
       const cacheWrite = nonNegative(u.prompt_tokens_details?.cache_write_tokens);
       const completion = nonNegative(u.completion_tokens, state.usage.output);
       // MiniMax (and other lean OpenAI-compatible endpoints) may report only

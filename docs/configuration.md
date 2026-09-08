@@ -1731,6 +1731,7 @@ When unset, git's own configuration applies (default behavior). Manage at runtim
 | `WRONGSTACK_HQ_ENABLED` | Set `1` to force HQ publishing even when `WRONGSTACK_HQ_URL` is unset (defaults to `http://localhost:3499`). Set `0` to explicitly disable when `WRONGSTACK_HQ_URL` is set. |
 | `WRONGSTACK_HQ_RAW_CONTENT` | Raw prompt/tool/mailbox content publishing to HQ. **Defaults on for every HQ target** unless explicitly disabled. Set `0` to force raw-content redaction. |
 | `WRONGSTACK_HQ_PROJECT_ALIAS` | Optional HQ display name and legacy identity fallback (config equivalent: `hq.projectAlias`). A committed `.wrongstack/project.json` takes precedence for identity. |
+| `WRONGSTACK_CACHE_PROBE` | Prompt-cache prefix diagnostics for the `openai-codex` (Responses) wire. Set `1` to append one JSONL record per request to `~/.wrongstack/cache-probe.jsonl`, or give a path to write elsewhere. Each `req` line says whether `instructions`/`tools` changed and which input item first diverged from the previous request of the same session — i.e. **where** the cacheable prefix broke — and the following `usage` line carries the backend's own `cached_tokens`. A high expected-vs-actual gap means the prefix was intact but the server-side entry had expired; a changed segment means we invalidated it ourselves. Off by default and it does no work at all when unset. |
 | `METRICS_HOST` | Prometheus metrics bind address (default `127.0.0.1`). |
 | `NO_COLOR` | Disable ANSI color output. |
 

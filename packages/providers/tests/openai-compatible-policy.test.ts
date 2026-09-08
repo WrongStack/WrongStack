@@ -128,6 +128,40 @@ describe('OpenAI-compatible provider policy', () => {
     expect(body).toEqual({ reasoning_effort: 'medium' });
   });
 
+  it('maps current xAI reasoning vocabularies without model-name lock-in', () => {
+    const modern: Record<string, unknown> = { stop: ['END'] };
+    applyOpenAICompatiblePolicy(
+      modern,
+      request('grok-4.6', { reasoning: { effort: 'max' } }),
+      'xai',
+    );
+    expect(modern).toEqual({ reasoning_effort: 'xhigh' });
+
+    const multiAgent: Record<string, unknown> = { frequency_penalty: 1 };
+    applyOpenAICompatiblePolicy(
+      multiAgent,
+      request('grok-4.20-multi-agent', { reasoning: { effort: 'xhigh' } }),
+      'xai',
+    );
+    expect(multiAgent).toEqual({ reasoning_effort: 'xhigh' });
+
+    const canonical420: Record<string, unknown> = {};
+    applyOpenAICompatiblePolicy(
+      canonical420,
+      request('grok-420-reasoning', { reasoning: { effort: 'xhigh' } }),
+      'xai',
+    );
+    expect(canonical420).toEqual({ reasoning_effort: 'xhigh' });
+
+    const previous: Record<string, unknown> = {};
+    applyOpenAICompatiblePolicy(
+      previous,
+      request('grok-4.5', { reasoning: { effort: 'xhigh' } }),
+      'xai',
+    );
+    expect(previous).toEqual({ reasoning_effort: 'high' });
+  });
+
   it('uses Groq model-specific effort and parsed reasoning with tools', () => {
     const body: Record<string, unknown> = { reasoning_effort: 'high' };
     applyOpenAICompatiblePolicy(

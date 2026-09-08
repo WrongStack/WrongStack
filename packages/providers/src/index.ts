@@ -65,6 +65,16 @@ export {
   capabilitiesFor,
   catalogProviderIdFor,
 } from './capabilities.js';
+export {
+  type CodexResponsesParser,
+  type CodexWebSocketFactory,
+  CodexWebSocketFallbackError,
+  type CodexWebSocketLike,
+  type CodexWebSocketOptions,
+  CodexWebSocketPool,
+  type CodexWebSocketStreamOptions,
+  defaultCodexWebSocketFactory,
+} from './codex-websocket.js';
 export { parseProviderHttpError } from './error-parse.js';
 export { CAPABILITIES_BY_FAMILY, capabilitiesForFamily } from './family-capabilities.js';
 export {
@@ -105,16 +115,6 @@ export {
 } from './openai-codex.js';
 export { extractPlanType } from './openai-codex-account.js';
 export {
-  CodexWebSocketFallbackError,
-  CodexWebSocketPool,
-  defaultCodexWebSocketFactory,
-  type CodexResponsesParser,
-  type CodexWebSocketFactory,
-  type CodexWebSocketLike,
-  type CodexWebSocketOptions,
-  type CodexWebSocketStreamOptions,
-} from './codex-websocket.js';
-export {
   CODEX_QUOTA_PROVIDER_ID,
   parseCodexRateLimitEvent,
   parseCodexRateLimitForLimit,
@@ -131,6 +131,17 @@ export { googleWireFormat } from './presets/google.js';
 export { lmstudioWireFormat, ollamaWireFormat, vllmWireFormat } from './presets/local-llm.js';
 export { mistralWireFormat } from './presets/mistral.js';
 export { openaiWireFormat } from './presets/openai.js';
+// The probe's two pure functions are exported so a caller outside this package
+// can answer "did the prefix survive this turn" against captured wire bodies —
+// the recorder itself stays opt-in and internal.
+export {
+  type CacheProbeDiff,
+  type CacheProbeFingerprint,
+  diffCacheProbe,
+  fingerprintCacheProbe,
+  isCacheProbeEnabled,
+  resetCacheProbeState,
+} from './prompt-cache-probe.js';
 export {
   type CompatibleProviderProjection,
   LOCAL_PROVIDER_DEFINITIONS,
@@ -207,6 +218,10 @@ export interface CompatiblePreset {
   quirks?: CompatibilityQuirks | undefined;
   /** Fetch `{baseUrl}/models` at boot and inject the result into the catalog. */
   autoDiscover?: boolean | undefined;
+  /** Provider-specific model-list path below baseUrl. Defaults to `models`. */
+  modelDiscoveryPath?: string | undefined;
+  /** Discovery result is the account-scoped visible-model allowlist. */
+  modelDiscoveryAuthoritative?: boolean | undefined;
 }
 
 export const COMPATIBLE_PRESETS: Record<string, CompatiblePreset> =
@@ -241,6 +256,32 @@ export function setOAuthTokenPersister(
   fn: ((providerId: string, creds: OAuthRefreshedTokens) => void) | undefined,
 ): void {
   _oauthPersist = fn;
+}
+
+/**
+ * Persist a provider's live model list, the same way {@link _oauthPersist}
+ * persists rotated tokens.
+ *
+ * A subscription provider's model list is account state, not a WrongStack
+ * release artifact: it changes when a model rolls out to the account. It used
+ * to be captured once at login and never revisited, so a stored list went
+ * stale silently. The host installs this at boot; unset (tests, headless
+ * tools) simply means the refreshed list is used for the session only.
+ */
+let _modelsPersist: ((providerId: string, models: ProviderLiveModel[]) => void) | undefined;
+
+/** One picker-visible model as a provider's live catalog describes it. */
+export interface ProviderLiveModel {
+  id: string;
+  name: string;
+  description?: string | undefined;
+  maxContext?: number | undefined;
+}
+
+export function setProviderModelPersister(
+  fn: ((providerId: string, models: ProviderLiveModel[]) => void) | undefined,
+): void {
+  _modelsPersist = fn;
 }
 
 /**
@@ -557,6 +598,9 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
           accountId: entry?.accountId,
         },
         onRefresh: (creds) => _oauthPersist?.(p.id, creds),
+        // The list the ChatGPT backend reports for THIS account, refreshed on
+        // the catalog probe the transport already makes.
+        onModels: (models) => _modelsPersist?.(p.id, models),
       });
     }
     case 'anthropic-oauth': {

@@ -1,6 +1,6 @@
 # @wrongstack/providers
 
-LLM provider adapters for WrongStack: Anthropic, OpenAI, Google, OpenAI-compatible (Mistral, DeepSeek, xAI/Grok, Groq, Together, Fireworks, OpenRouter, …), plus OAuth-based variants (Claude Pro/Max via "Sign in with Claude", ChatGPT via "Sign in with ChatGPT", GitHub Copilot).
+LLM provider adapters for WrongStack: Anthropic, OpenAI, Google, OpenAI-compatible (Mistral, DeepSeek, xAI/Grok, Groq, Together, Fireworks, OpenRouter, …), plus interactive sign-in for Claude Pro/Max, ChatGPT, GitHub Copilot, and OpenRouter PKCE.
 
 All providers ride a single declarative `WireFormatConfig` adapter — even the majors (Anthropic / OpenAI / Google) are thin wrappers around their presets. Adding a new OpenAI-compatible provider is usually a 20-line preset, not a new file.
 
@@ -280,9 +280,27 @@ const ollama = new WireFormatProvider(ollamaWireFormat, {
 
 The `createLocalLlmPreset()` factory lets you create custom local presets with `bodyExtras` for provider-specific fields (e.g., Ollama's `keep_alive`, vLLM's `repetition_penalty`).
 
+## xAI account-aware models
+
+The `xai` preset authenticates with `XAI_API_KEY` and discovers the account's
+language models from `GET https://api.x.ai/v1/language-models` at boot. The
+result is cached and merged over models.dev metadata; context windows,
+modalities, and xAI's cents-per-100M-token prices are normalized into the shared
+model schema. When the user has not configured an explicit visibility list,
+the authenticated result becomes the session's visible-model allowlist.
+
+Grok 4.5, 4.6, and 4.20 reasoning requests use xAI's supported effort
+vocabulary. Internal `minimal`/`max` levels map to the nearest xAI values, and
+`xhigh` is retained only for models that support it.
+
 ## OAuth providers
 
-Three providers use OAuth token refresh patterns:
+Interactive provider authentication is registered independently from runtime
+transports through `ProviderAuthRegistry`. CLI, TUI, and WebUI consume the same
+UI-safe strategy metadata. Built-ins are ChatGPT, Claude, GitHub Copilot, and
+OpenRouter.
+
+Three runtime providers use OAuth token refresh patterns:
 
 - **AnthropicOAuthProvider** — Claude Pro/Max "Sign in with Claude". Same wire as the API-key Anthropic family but with `Authorization: Bearer` and Claude Code identity headers. Tokens self-refresh near-expiry and on 401.
 
@@ -291,6 +309,11 @@ Three providers use OAuth token refresh patterns:
 - **GitHubCopilotProvider** — GitHub Copilot subscription. Wraps the OpenAI-compatible chat endpoint with Copilot editor headers and token-based URL discovery.
 
 All three persist refreshed tokens through the `setOAuthTokenPersister` hook so new tokens survive session restarts.
+
+**OpenRouter OAuth** uses an ephemeral localhost callback plus S256 PKCE. Its
+authorization code is exchanged for a user-controlled OpenRouter API key, so
+there is no expiring access/refresh pair; the result is stored through the same
+vault-backed `ProviderApiKey` path as manually entered keys.
 
 ## License
 

@@ -60,6 +60,11 @@ export const CODEX_MODELS: ReadonlyArray<CodexModelMeta> = [
     description: 'Fast and affordable agentic coding model.',
   },
   {
+    id: 'gpt-5.5',
+    name: 'GPT-5.5',
+    description: 'Proven previous-generation model for coding and general work.',
+  },
+  {
     id: 'gpt-5.4-mini',
     name: 'GPT-5.4 Mini',
     description: 'Small, fast, and cost-efficient model for simpler coding tasks.',

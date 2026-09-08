@@ -80,7 +80,7 @@ export function parsePredictions(raw: string, max = 3): string[] {
   // be against the WHOLE response, not a bare substring — a real list whose
   // first item happens to start with "none" (e.g. "None — here's the plan:")
   // or mention "no further steps" was being discarded in full.
-  if (/^none\.?\s*$/i.test(text) || /^no further steps/i.test(text)) return [];
+  if (/^none\.?\s*$/i.test(text) || /^no further steps(?: needed)?\.?\s*$/i.test(text)) return [];
 
   const out: string[] = [];
   for (const lineRaw of text.split('\n')) {

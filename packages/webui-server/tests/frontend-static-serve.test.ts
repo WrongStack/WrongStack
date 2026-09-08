@@ -140,11 +140,12 @@ describe('frontend-static-serve', () => {
   describe('startStaticServe', () => {
     function makeMockServer(): Server {
       const emitter = new EventEmitter() as Server;
-      emitter.listen = vi.fn((_port, _host, cb) => {
+      emitter.listen = vi.fn((...args: unknown[]) => {
+        const cb = args.find((arg): arg is () => void => typeof arg === 'function');
         cb?.();
         process.nextTick(() => emitter.emit('listening'));
         return emitter;
-      });
+      }) as unknown as Server['listen'];
       emitter.close = vi.fn((cb) => {
         cb?.();
         return emitter;

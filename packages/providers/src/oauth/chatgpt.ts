@@ -35,8 +35,8 @@ import {
 } from './shared.js';
 import type { BeginOAuthDeps, OAuthLoginOutcome, OAuthSession } from './types.js';
 
-export { buildCodexAuthorizeUrl, CODEX_BASE_URL, CODEX_PROVIDER_ID } from './codex-protocol.js';
 export { filterCurrentCodexModelIds } from './codex-models.js';
+export { buildCodexAuthorizeUrl, CODEX_BASE_URL, CODEX_PROVIDER_ID } from './codex-protocol.js';
 
 // ── Outcome assembly ──────────────────────────────────────────────────────────
 

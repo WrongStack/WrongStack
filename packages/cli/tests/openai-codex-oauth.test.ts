@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { isParseError, type ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -15,12 +14,19 @@ import {
 } from '../src/auth-menu/openai-codex-oauth.js';
 import { expectFetchError } from './helpers/fetch-error.js';
 
-/** providers package.json version — the value fetchCodexModels must send as client_version. */
-async function expectedClientVersion(): Promise<string | undefined> {
-  const pkg = JSON.parse(
-    await readFile(new URL('../../providers/package.json', import.meta.url), 'utf8'),
-  ) as { version?: string };
-  return pkg.version;
+/**
+ * The pinned Codex protocol version `fetchCodexModels` must send as
+ * `client_version`.
+ *
+ * Read from the shared constant rather than from any package.json: the whole
+ * point of the pin is that this value lives in the official Codex CLI's
+ * version space, not WrongStack's. This assertion used to read
+ * `providers/package.json`, which is exactly the coupling that made the
+ * catalog gate depend on an unrelated release number.
+ */
+async function expectedClientVersion(): Promise<string> {
+  const { CODEX_CLIENT_VERSION } = await import('@wrongstack/providers/oauth');
+  return CODEX_CLIENT_VERSION;
 }
 
 function b64url(s: string): string {
@@ -302,8 +308,9 @@ describe('fetchCodexModels', () => {
     await fetchCodexModels(token, 'https://my-proxy.example.com');
     const url = new URL(capturedUrl);
     expect(url.origin + url.pathname).toBe('https://my-proxy.example.com/codex/models');
-    // The backend rejects /models without a semver client_version (400),
-    // so the live fetch must always carry the providers package version.
+    // The backend rejects /models without a semver client_version (400) and
+    // hides models whose `minimal_client_version` exceeds it, so the live fetch
+    // must carry the pinned Codex protocol version.
     expect(url.searchParams.get('client_version')).toBe(await expectedClientVersion());
     expect(capturedHeaders?.get('authorization')).toBe(`Bearer ${token}`);
     expect(capturedHeaders?.get('chatgpt-account-id')).toBe('workspace-123');
@@ -398,6 +405,7 @@ describe('resolveCodexModels', () => {
       'gpt-5.6-sol',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
+      'gpt-5.5',
       'gpt-5.4-mini',
       'gpt-5.3-codex-spark',
     ]);
@@ -417,6 +425,7 @@ describe('resolveCodexModels', () => {
       'gpt-5.6-sol',
       'gpt-5.6-terra',
       'gpt-5.6-luna',
+      'gpt-5.5',
       'gpt-5.4-mini',
       'gpt-5.3-codex-spark',
     ]);

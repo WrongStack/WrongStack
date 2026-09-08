@@ -219,7 +219,7 @@
     {
       "file": "packages/providers/tests/codex-websocket-live.test.ts",
       "kind": "skipIf",
-      "fingerprint": "dacfbee73d96ae66"
+      "fingerprint": "c2ed14c85c62574d"
     },
     {
       "file": "packages/sage/tests/agent-anchor.test.ts",

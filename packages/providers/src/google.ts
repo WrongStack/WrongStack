@@ -144,7 +144,8 @@ export class GoogleProvider extends WireFormatProvider<GoogleStreamState> {
       return undefined;
     }
     const json = (await res.json()) as { name?: unknown };
-    const name = typeof json.name === 'string' && json.name.trim().length > 0 ? json.name : undefined;
+    const name =
+      typeof json.name === 'string' && json.name.trim().length > 0 ? json.name : undefined;
     if (!name) {
       this.setCacheEntry(hash, null, Date.now() + 60_000);
       return undefined;

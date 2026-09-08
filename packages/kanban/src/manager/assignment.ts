@@ -674,7 +674,7 @@ export async function releaseTaskClaim(
     delete task.assignment;
     if (input.clearAssignee !== false) {
       delete task.assignedAgent;
-      delete task.assignee;
+      if (!isManaged) delete task.assignee;
     }
     // Managed boards: preserve lifecycle stage. The card stays in its
     // current column (e.g. 'running'). Lifecycle columns are authoritative —

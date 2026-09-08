@@ -5,7 +5,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { reducer, type State } from '../src/app-reducer.js';
-import { AUTH_PANEL_INITIAL, type AuthProviderRow } from '../src/components/auth-panel-model.js';
+import {
+  AUTH_PANEL_INITIAL,
+  type AuthProviderRow,
+  authPanelRows,
+} from '../src/components/auth-panel-model.js';
 
 function provider(id: string): AuthProviderRow {
   return { id, models: [], envVars: [], keys: [] };
@@ -53,6 +57,29 @@ describe('authOpen / authClose', () => {
     expect(s.authPanel.view).toBe('oauth');
     expect(s.authPanel.busy).toBe(false);
     expect(s.authPanel.providers).toHaveLength(1);
+  });
+
+  it('renders provider auth strategies supplied by the host without a fixed union', () => {
+    const s = reducer(initial(), {
+      type: 'authOpen',
+      view: 'oauth',
+      providers: [],
+      oauthStrategies: [
+        {
+          id: 'company-sso',
+          providerId: 'company',
+          label: 'Company SSO',
+          description: 'Corporate login',
+        },
+      ],
+    });
+
+    expect(authPanelRows(s.authPanel)).toEqual([
+      {
+        kind: 'oauth-option',
+        oauth: expect.objectContaining({ id: 'company-sso', providerId: 'company' }),
+      },
+    ]);
   });
 
   it('closes sibling panels on open, and is closed by sibling opens', () => {

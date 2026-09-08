@@ -10,9 +10,10 @@ import { sleepWithAbort } from '../src/llm-client.js';
 import { SecurityScannerOrchestrator } from '../src/orchestrator.js';
 import { PackageAuditRunner } from '../src/package-audit.js';
 import { ReportWriter } from '../src/report-writer.js';
+import type { ScanResult } from '../src/scanner.js';
 import { SecurityScanner } from '../src/scanner.js';
 import { generateSkillLLM, SkillGenerator } from '../src/skill-generator.js';
-import type { GeneratedSkill, ScanResult, SecurityPattern, TechStackInfo } from '../src/types.js';
+import type { GeneratedSkill, SecurityPattern, TechStackInfo } from '../src/types.js';
 
 describe('security-scanner 100% coverage edge cases', () => {
   let tmpDir: string;
@@ -38,6 +39,13 @@ describe('security-scanner 100% coverage edge cases', () => {
     projectPath: '',
   };
 
+  const response = (text: string): Response => ({
+    content: [{ type: 'text', text }],
+    stopReason: 'end_turn',
+    usage: { input: 0, output: 0 },
+    model: 'test-model',
+  });
+
   const dummySkill: GeneratedSkill = {
     name: 'sec-skill',
     description: 'test skill',
@@ -52,6 +60,9 @@ describe('security-scanner 100% coverage edge cases', () => {
         description: 'desc',
         category: 'secrets',
         patterns: [/secret/g],
+        fileExtensions: ['.ts'],
+        falsePositiveMarkers: [],
+        remediation: 'remove the test secret',
       },
     ],
     metadata: {
@@ -72,11 +83,7 @@ describe('security-scanner 100% coverage edge cases', () => {
         capabilities: {} as never,
         stream: (async function* () {})() as never,
         async complete() {
-          return {
-            content: [{ type: 'text', text: '[]' }],
-            stopReason: 'end_turn',
-            usage: { inputTokens: 0, outputTokens: 0 },
-          } as Response;
+          return response('[]');
         },
       };
 
@@ -84,9 +91,12 @@ describe('security-scanner 100% coverage edge cases', () => {
         projectRoot: tmpDir,
         skill: dummySkill,
         provider: mockProvider,
+        model: undefined,
+        techStack: dummyStack,
         depth: 'quick',
+        llmBatchSize: undefined,
+        fileConcurrency: undefined,
         abortController: new AbortController(),
-        targetFiles: ['Dockerfile', 'Makefile'],
       });
       expect(Array.isArray(resQuick.findings)).toBe(true);
 
@@ -94,9 +104,12 @@ describe('security-scanner 100% coverage edge cases', () => {
         projectRoot: tmpDir,
         skill: dummySkill,
         provider: mockProvider,
+        model: undefined,
+        techStack: dummyStack,
         depth: 'deep',
+        llmBatchSize: undefined,
+        fileConcurrency: undefined,
         abortController: new AbortController(),
-        targetFiles: ['**/*.ts'],
       });
       expect(Array.isArray(resDeep.findings)).toBe(true);
 
@@ -168,11 +181,7 @@ describe('security-scanner 100% coverage edge cases', () => {
         capabilities: {} as never,
         stream: (async function* () {})() as never,
         async complete() {
-          return {
-            content: [{ type: 'text', text: '[]' }],
-            stopReason: 'end_turn',
-            usage: { inputTokens: 0, outputTokens: 0 },
-          } as Response;
+          return response('[]');
         },
       };
 
@@ -197,11 +206,7 @@ describe('security-scanner 100% coverage edge cases', () => {
         capabilities: {} as never,
         stream: (async function* () {})() as never,
         async complete() {
-          return {
-            content: [{ type: 'text', text: '[]' }],
-            stopReason: 'end_turn',
-            usage: { inputTokens: 0, outputTokens: 0 },
-          } as Response;
+          return response('[]');
         },
       };
 
@@ -253,7 +258,9 @@ describe('security-scanner 100% coverage edge cases', () => {
 
   describe('report-writer.ts', () => {
     it('ReportWriter instance method generateBasicReport generates markdown', () => {
-      const writer = new ReportWriter();
+      const writer = new ReportWriter({
+        completeWithRetry: async () => response('report'),
+      });
       const scanResult: ScanResult = {
         findings: [],
         scannedFiles: 0,
@@ -281,6 +288,9 @@ describe('security-scanner 100% coverage edge cases', () => {
           category: 'secrets',
           fileExtensions: ['' as never, null as never, '.py'],
           patterns: undefined as never,
+          description: 'test pattern',
+          falsePositiveMarkers: [],
+          remediation: 'test remediation',
         },
       ];
 
@@ -306,6 +316,9 @@ describe('security-scanner 100% coverage edge cases', () => {
           category: 'secrets',
           fileExtensions: ['   '],
           patterns: [/abc/g],
+          description: 'test pattern',
+          falsePositiveMarkers: [],
+          remediation: 'test remediation',
         },
         {
           id: 'test-empty-ext',
@@ -314,6 +327,9 @@ describe('security-scanner 100% coverage edge cases', () => {
           category: 'secrets',
           fileExtensions: [],
           patterns: [/abc/g],
+          description: 'test pattern',
+          falsePositiveMarkers: [],
+          remediation: 'test remediation',
         },
       ];
 
@@ -352,7 +368,7 @@ describe('security-scanner 100% coverage edge cases', () => {
 
       const genUndefThreshold = new SkillGenerator({
         severityThreshold: undefined,
-      });
+      } as never);
       const resUndef = genUndefThreshold.generate(dummyStack);
       expect(resUndef).toBeDefined();
 
@@ -361,11 +377,7 @@ describe('security-scanner 100% coverage edge cases', () => {
         capabilities: {} as never,
         stream: (async function* () {})() as never,
         async complete() {
-          return {
-            content: [{ type: 'text', text: '{"name":"custom","patterns":[]}' }],
-            stopReason: 'end_turn',
-            usage: { inputTokens: 0, outputTokens: 0 },
-          } as Response;
+          return response('{"name":"custom","patterns":[]}');
         },
       };
 
@@ -383,7 +395,7 @@ describe('security-scanner 100% coverage edge cases', () => {
       const genWithProvider = new SkillGenerator({
         provider: mockProvider,
         completeWithRetry: undefined,
-      });
+      } as never);
       const skillFromGen = await genWithProvider.generateSkillLLM(
         mockProvider,
         'test-model',

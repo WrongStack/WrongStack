@@ -58,7 +58,7 @@ export function copyableTextForEntry(entry: HistoryEntry): string {
     case 'turn-summary':
       return textOrRaw(entry.text, entry);
     case 'tool':
-      return textOrRaw(entry.output ?? '', entry);
+      return textOrRaw(entry.copyOutput ?? entry.output ?? '', entry);
     case 'memory-lifecycle':
       return textOrRaw([entry.label, entry.detail].filter(Boolean).join('\n'), entry);
     case 'brain':
@@ -80,7 +80,13 @@ export function copyableTextForEntry(entry: HistoryEntry): string {
 
 /** Raw, ordered representation of every entry rendered inside one compact tool-group box. */
 export function copyableTextForEntries(entries: readonly HistoryEntry[]): string {
-  return stringifyRaw(entries);
+  return stringifyRaw(
+    entries.map((entry) => {
+      if (entry.kind !== 'tool' || entry.copyOutput === undefined) return entry;
+      const { copyOutput, ...displayEntry } = entry;
+      return { ...displayEntry, output: copyOutput };
+    }),
+  );
 }
 
 /** Every retained history entry has either natural text or a raw JSON fallback. */

@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ServerQueryCaches } from '../src/codebase-index/project-server-query-cache.js';
 import {
   dispatchOperation,
   isShareableFullIndex,
+  type OperationContext,
   preservesQueryCaches,
   runFullIndex,
-  type OperationContext,
 } from '../src/codebase-index/project-server-operations.js';
+import { ServerQueryCaches } from '../src/codebase-index/project-server-query-cache.js';
 import type { ClientState } from '../src/codebase-index/project-server-types.js';
 
 vi.mock('../src/codebase-index/index-service.js', () => ({
@@ -28,11 +28,14 @@ vi.mock('../src/codebase-index/index-service.js', () => ({
 function createClientState(): ClientState {
   return {
     socket: {} as never,
-    subscriptions: new Set(),
+    buffer: Buffer.alloc(0),
     cancel: new Map(),
     cancelled: new Set(),
-    closed: false,
-    version: 1,
+    watchExternal: false,
+    debounceMs: 0,
+    coalesceWindowMs: 0,
+    lastSeenAt: Date.now(),
+    binary: false,
   };
 }
 
@@ -57,6 +60,8 @@ function createMockContext(): {
       generation: 1,
       currentOp: 'idle',
       lastIndexedAt: 0,
+      updatedAt: null,
+      lastError: null,
     }),
     withIndexWrite: async (job, options) => {
       writes.push(options);
@@ -124,7 +129,7 @@ describe('runFullIndex and shared indexing', () => {
       jobStarted = resolve;
     });
 
-    ctx.withIndexWrite = (job) => {
+    ctx.withIndexWrite = (_job) => {
       jobStarted();
       return new Promise((_, reject) => {
         const check = setInterval(() => {
@@ -149,7 +154,7 @@ describe('runFullIndex and shared indexing', () => {
 
 describe('dispatchOperation', () => {
   it('handles targeted non-shareable index and cancellation', async () => {
-    const { ctx, sent, writes } = createMockContext();
+    const { ctx, writes } = createMockContext();
     const state = createClientState();
 
     const resPromise = dispatchOperation(ctx, state, {
@@ -196,6 +201,8 @@ describe('dispatchOperation', () => {
       generation: 2,
       currentOp: 'index',
       lastIndexedAt: 0,
+      updatedAt: Date.now(),
+      lastError: null,
     });
     const res = (await dispatchOperation(ctx, state, {
       type: 'request',
@@ -251,6 +258,8 @@ describe('dispatchOperation', () => {
       generation: 1,
       currentOp: 'index',
       lastIndexedAt: 0,
+      updatedAt: Date.now(),
+      lastError: null,
     });
 
     await expect(

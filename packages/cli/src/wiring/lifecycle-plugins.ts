@@ -7,6 +7,7 @@ import { TOKENS } from '@wrongstack/core/kernel';
 import { NotifierImpl } from '@wrongstack/core/notifications';
 import type { PluginHostHandle } from '@wrongstack/core/plugin';
 import {
+  type ProviderAuthRegistry,
   type ProviderRegistry,
   SlashCommandRegistry,
   type ToolRegistry,
@@ -91,6 +92,7 @@ interface LifecyclePluginsDeps {
   wpaths: WstackPaths;
   toolRegistry: ToolRegistry;
   providerRegistry: ProviderRegistry;
+  providerAuthRegistry: ProviderAuthRegistry;
   // biome-ignore lint/suspicious/noExplicitAny: config store
   configStore: any;
   eventWiring: EventWiring;
@@ -161,6 +163,7 @@ export async function setupLifecycleAndPlugins(
     wpaths,
     toolRegistry,
     providerRegistry,
+    providerAuthRegistry,
     configStore,
     sessionBridge,
     eventWiring,
@@ -469,6 +472,7 @@ export async function setupLifecycleAndPlugins(
     pipelines,
     toolRegistry,
     providerRegistry,
+    providerAuthRegistry,
     slashCommandRegistry: slashRegistry,
     mcpRegistry,
     log: logger,

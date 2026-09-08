@@ -136,6 +136,7 @@ distributes extensions from unknown third parties.
 | `api.events` | `EventBus` for subscribing or emitting |
 | `api.tools` | `register / registerAll / wrap / unregister / get / list` tools |
 | `api.providers` | Register provider factories |
+| `api.providerAuth` | Register interactive browser/device-code login strategies |
 | `api.mcp` | Start / stop / restart MCP servers |
 | `api.slashCommands` | Register `/cmd` handlers |
 | `api.config` | The loaded `Config` (read-only snapshot) |
@@ -338,6 +339,32 @@ api.providers.register({
 See [provider-author-guide.md](provider-author-guide.md) for writing the
 `myWireFormat` config and for cases that genuinely need a custom provider
 class.
+
+### Register an interactive provider login
+
+Runtime transport and interactive authentication are separate registrations.
+This lets an existing wire family gain a browser or device-code login without
+replacing its request adapter:
+
+```ts
+api.providerAuth.register({
+  id: 'company-sso',
+  providerId: 'company-ai',
+  label: 'Company SSO',
+  aliases: ['corp'],
+  interactionTypes: ['browser'],
+  async begin(_deps, signal) {
+    // Start PKCE/loopback here. Return UI-neutral session metadata and
+    // a ProviderAuthOutcome; the host owns SecretVault persistence.
+    return beginCompanyLogin(signal);
+  },
+});
+```
+
+Declare `capabilities: { providerAuth: true }` in the plugin. External plugins
+may introduce their own strategy IDs but cannot replace or remove built-in
+login strategies. Strategies never receive the vault or the full saved-provider
+record; they return one credential outcome which the host validates and saves.
 
 ### Add middleware to a pipeline
 

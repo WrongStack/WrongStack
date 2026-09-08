@@ -32,12 +32,13 @@ function makeMockApi(): PluginAPI {
     events: {} as never,
     tools: tools as never,
     providers: providers as never,
+    providerAuth: { register: vi.fn(), unregister: vi.fn(), list: vi.fn() } as never,
     mcp: mcp as never,
     slashCommands: slashCommands as never,
     config: {} as never,
     log,
     onEvent: vi.fn() as never,
-  };
+  } as unknown as PluginAPI;
 }
 
 function p(overrides: Partial<Plugin> & { name: string }): Plugin {

@@ -170,7 +170,7 @@ describe('Requirement Intake 100% Coverage Suite', () => {
       expect(emitter.listenerCount).toBe(200);
 
       // Disposing a real listener decreases count
-      disposers[0]();
+      disposers[0]?.();
       expect(emitter.listenerCount).toBe(199);
 
       // Re-fill to 200
@@ -233,11 +233,11 @@ describe('Requirement Intake 100% Coverage Suite', () => {
       mem.error('scope', 'error with fields', { err: 'test' });
 
       expect(mem.entries).toHaveLength(5);
-      expect(mem.entries[0].fields).toBeUndefined();
-      expect(mem.entries[1].fields).toEqual({ key: 'val' });
-      expect(mem.entries[2].fields).toBeUndefined();
-      expect(mem.entries[3].fields).toBeUndefined();
-      expect(mem.entries[4].fields).toEqual({ err: 'test' });
+      expect(mem.entries.at(0)?.fields).toBeUndefined();
+      expect(mem.entries.at(1)?.fields).toEqual({ key: 'val' });
+      expect(mem.entries.at(2)?.fields).toBeUndefined();
+      expect(mem.entries.at(3)?.fields).toBeUndefined();
+      expect(mem.entries.at(4)?.fields).toEqual({ err: 'test' });
     });
 
     it('covers NoopIntakeMetrics and InMemoryIntakeMetrics durationSum branches', () => {
@@ -294,7 +294,11 @@ describe('Requirement Intake 100% Coverage Suite', () => {
         ],
       } as RequirementIntakeRecord;
 
-      const added = upsertQuestion(record, { field: 'priority', question: 'New priority?' });
+      const added = upsertQuestion(record, {
+        field: 'priority',
+        question: 'New priority?',
+        required: true,
+      });
       expect(added).toBe(false);
       expect(record.questions).toHaveLength(1);
     });
@@ -527,28 +531,28 @@ describe('Requirement Intake 100% Coverage Suite', () => {
         fieldSources: {},
       } as unknown as RequirementIntakeRecord;
 
-      ANSWER_FIELD_MAPPING.expected_outcome.set(record, 'outcome 1');
+      ANSWER_FIELD_MAPPING.expected_outcome!.set(record, 'outcome 1');
       expect(record.expectedOutcome).toBe('outcome 1');
 
-      ANSWER_FIELD_MAPPING.constraints.set(record, 'c1, c2');
+      ANSWER_FIELD_MAPPING.constraints!.set(record, 'c1, c2');
       expect(record.constraints).toEqual(['c1', 'c2']);
 
-      ANSWER_FIELD_MAPPING.provided_context.set(record, 'p1, p2');
+      ANSWER_FIELD_MAPPING.provided_context!.set(record, 'p1, p2');
       expect(record.providedContext).toEqual(['p1', 'p2']);
 
-      ANSWER_FIELD_MAPPING.scope_notes.set(record, 'scope 1');
+      ANSWER_FIELD_MAPPING.scope_notes!.set(record, 'scope 1');
       expect(record.scopeNotes).toBe('scope 1');
 
-      ANSWER_FIELD_MAPPING.description_scope.set(record, 'scope 2');
+      ANSWER_FIELD_MAPPING.description_scope!.set(record, 'scope 2');
       expect(record.scopeNotes).toBe('scope 2');
 
-      ANSWER_FIELD_MAPPING.project_component.set(record, 'comp1, comp2');
+      ANSWER_FIELD_MAPPING.project_component!.set(record, 'comp1, comp2');
       expect(record.providedContext).toEqual(['p1', 'p2', 'comp1', 'comp2']);
 
-      ANSWER_FIELD_MAPPING.priority.set(record, 'invalid-prio');
+      ANSWER_FIELD_MAPPING.priority!.set(record, 'invalid-prio');
       expect(record.priority).toBeUndefined();
 
-      ANSWER_FIELD_MAPPING.priority.set(record, 'high');
+      ANSWER_FIELD_MAPPING.priority!.set(record, 'high');
       expect(record.priority).toBe('high');
       expect(record.fieldSources.priority).toBe('user');
     });
@@ -1007,7 +1011,7 @@ describe('Requirement Intake 100% Coverage Suite', () => {
         },
       });
 
-      const [proposal] = await suggService.generateSuggestions(created.record.id, ctx);
+      const proposal = (await suggService.generateSuggestions(created.record.id, ctx))[0]!;
       await suggService.acceptSuggestion(created.record.id, proposal.id, ctx);
 
       // Accepting again should fail
@@ -1021,7 +1025,7 @@ describe('Requirement Intake 100% Coverage Suite', () => {
       ).rejects.toThrow(IntakeValidationError);
 
       // Generate a fresh pending proposal
-      const [freshProposal] = await suggService.generateSuggestions(created.record.id, ctx);
+      const freshProposal = (await suggService.generateSuggestions(created.record.id, ctx))[0]!;
 
       // Simulate mutator target not found in acceptSuggestion
       vi.spyOn(store, 'update').mockImplementationOnce(async (_id, _opts, mutate) => {
@@ -1241,7 +1245,7 @@ describe('Requirement Intake 100% Coverage Suite', () => {
       } as unknown as RequirementIntakeRecord;
 
       applyAnswerUpdateToRecord(record, 'ans_orphan', 'new answer');
-      expect(record.answers[0].answer).toBe('new answer');
+      expect(record.answers.at(0)?.answer).toBe('new answer');
     });
 
     it('covers unknown field in assertAnswerField', async () => {

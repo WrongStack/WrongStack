@@ -264,7 +264,7 @@ describe('SageProjectServerConnection', () => {
     expect(connection.getState().status).toBe('error');
 
     // Close on a different socket is ignored
-    const _otherSocket = new FakeSocket();
+    new FakeSocket();
     socket.emit('close');
   });
 
@@ -288,7 +288,7 @@ describe('SageProjectServerConnection', () => {
     await expect(req1).rejects.toThrow('Custom failure');
 
     // UnauthorizedSageRequest error invalidates auth token
-    const _req2 = connection.call('ping', {}, { meta: { clientId: 'client-1' } });
+    void connection.call('ping', {}, { meta: { clientId: 'client-1' } });
     await Promise.resolve();
     const out2 = JSON.parse(String(socket.write.mock.calls.at(-1)?.[0]).trim());
     send(socket, {

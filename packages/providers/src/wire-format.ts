@@ -13,7 +13,7 @@ import {
   retryAfterMsFromHeaders,
 } from './error-parse.js';
 import type { BuildBodyContext } from './model-output-limits.js';
-import { type SSEMessage, parseSSE } from './sse.js';
+import { parseSSE, type SSEMessage } from './sse.js';
 import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
 /**

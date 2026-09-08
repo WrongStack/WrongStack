@@ -2,6 +2,7 @@ import { color } from '@wrongstack/core/utils';
 import { parseAuthFlags } from '../../arg-parser.js';
 import {
   type AuthMenuDeps,
+  providerAuthStrategiesFor,
   resolveOAuthKind,
   runAuthDirect,
   runAuthLocal,
@@ -117,35 +118,26 @@ export const authCmd: SubcommandHandler = async (args, deps) => {
     return runAuthRemove(menuDeps, pid);
   }
 
-  // `wstack auth login <chatgpt|claude>` — subscription OAuth login.
-  //   chatgpt/openai/codex → "Sign in with ChatGPT"  (provider openai-codex)
-  //   claude/anthropic     → "Sign in with Claude"   (provider anthropic-oauth)
-  // Both store under a canonical provider id so they never clobber a separately
-  // configured API-key `openai`/`anthropic` provider.
+  // `wstack auth login <strategy>` — registry-backed interactive provider auth.
   if (first === 'login') {
     const pid = (flags.positional[1] ?? '').toLowerCase();
     // Bare `wstack auth login` keeps its historical default: ChatGPT.
     if (!pid) return runOAuthLoginKind(menuDeps, 'chatgpt');
     // Numeric picks are a menu affordance, not a CLI one — `auth login 2`
     // is a typo, not a request to sign into Claude.
-    const kind = resolveOAuthKind(pid, { allowNumeric: false });
+    const kind = resolveOAuthKind(pid, { allowNumeric: false, deps: menuDeps });
     if (kind) return runOAuthLoginKind(menuDeps, kind);
-    deps.renderer.writeError(
-      'OAuth login is only supported for ChatGPT, Claude, and GitHub Copilot.',
-    );
+    const available = providerAuthStrategiesFor(menuDeps);
+    deps.renderer.writeError(`Unknown OAuth login strategy "${pid}".`);
+    for (const strategy of available) {
+      deps.renderer.write(
+        color.dim(`  Sign in with ${strategy.label}: `) +
+          color.bold(`wstack auth login ${strategy.id}`) +
+          '\n',
+      );
+    }
     deps.renderer.write(
-      color.dim('  Sign in with ChatGPT: ') +
-        color.bold('wstack auth login chatgpt') +
-        '\n' +
-        color.dim('  Sign in with Claude:  ') +
-        color.bold('wstack auth login claude') +
-        '\n' +
-        color.dim('  Sign in with Copilot: ') +
-        color.bold('wstack auth login copilot') +
-        '\n' +
-        color.dim('  For an API key instead: ') +
-        color.bold(`wstack auth ${pid}`) +
-        '\n',
+      color.dim('  For an API key instead: ') + color.bold(`wstack auth ${pid}`) + '\n',
     );
     return 1;
   }

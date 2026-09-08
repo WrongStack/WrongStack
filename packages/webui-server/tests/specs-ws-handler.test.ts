@@ -30,10 +30,11 @@ describe('SpecsWebSocketHandler', () => {
     const spec: import('@wrongstack/core/types').Specification = {
       id: 'spec-01',
       title: 'Auth Spec',
-      description: 'Authentication system',
+      overview: 'Authentication system',
       status: 'approved',
       version: '1.0.0',
-      phases: [],
+      sections: [],
+      requirements: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -43,7 +44,6 @@ describe('SpecsWebSocketHandler', () => {
       id: 'graph-01',
       specId: spec.id,
       title: 'Auth Tasks',
-      version: 1,
       nodes: new Map([
         [
           't1',
@@ -51,12 +51,9 @@ describe('SpecsWebSocketHandler', () => {
             id: 't1',
             title: 'Setup DB',
             description: 'Create tables',
-            type: 'schema',
+            type: 'chore',
             status: 'completed',
             priority: 'high',
-            dependencies: [],
-            estimatedDuration: 10,
-            assignedSubagents: [],
             createdAt: 1000,
             updatedAt: 1000,
           },
@@ -67,12 +64,9 @@ describe('SpecsWebSocketHandler', () => {
             id: 't2',
             title: 'Write API',
             description: 'Create routes',
-            type: 'code',
+            type: 'feature',
             status: 'pending',
             priority: 'medium',
-            dependencies: ['t1'],
-            estimatedDuration: 20,
-            assignedSubagents: [],
             createdAt: 2000,
             updatedAt: 2000,
           },
@@ -80,11 +74,13 @@ describe('SpecsWebSocketHandler', () => {
       ]),
       edges: [
         {
+          id: 'e1',
           from: 't1',
           to: 't2',
           type: 'depends_on',
         },
       ],
+      rootNodes: ['t1'],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -94,7 +90,7 @@ describe('SpecsWebSocketHandler', () => {
 
     const sentMessages: string[] = [];
     const mockWs = new EventEmitter() as unknown as import('ws').WebSocket;
-    mockWs.readyState = 1;
+    Object.defineProperty(mockWs, 'readyState', { value: 1 });
     mockWs.send = vi.fn((data: string) => {
       sentMessages.push(data);
     });

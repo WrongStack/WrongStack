@@ -6,14 +6,53 @@ export interface ProviderCacheEntry {
   input: number;
   cacheRead: number;
   cacheWrite: number;
-  /** cacheRead / total prompt context; clamped to [0, 1]. */
+  /** cacheRead / total prompt context, over the WHOLE session; clamped to [0, 1]. */
   hitRatio: number;
+  /**
+   * Same ratio for the MOST RECENT request only.
+   *
+   * The session figure permanently includes the first turn, which can never hit
+   * (nothing is cached yet), so a perfectly healthy session still reads low
+   * early on and climbs for a long time. That made the cumulative number
+   * useless for the question people actually ask — "is caching working *now*,
+   * as the context grows?" — and easy to misread as a cache failure. The
+   * per-request ratio answers it directly; the two together also show the
+   * trend, which is the real diagnosis: a healthy Responses-wire session
+   * climbs as the conversation grows, because the cacheable prefix is the
+   * conversation. Falling or flat means something is invalidating the prefix.
+   */
+  lastHitRatio?: number | undefined;
+  /** Prompt tokens in the most recent request, for context on `lastHitRatio`. */
+  lastPromptTokens?: number | undefined;
+  /**
+   * The most recent per-request ratios, oldest first (at most
+   * {@link RECENT_HIT_RATIO_WINDOW}).
+   *
+   * A single number cannot answer the question that actually diagnoses a cache
+   * — "is it climbing?". On wires whose cacheable prefix IS the conversation,
+   * a healthy session's per-request ratio rises as the history grows, because
+   * the constant part (the new turn plus the re-sent live-context tail) is
+   * amortised over more cached prefix. Flat or falling means something near the
+   * front of the prefix is changing every turn, or the backend's entry keeps
+   * expiring between turns. Neither is visible in the cumulative figure, which
+   * carries the unavoidable first-turn miss forever.
+   */
+  recentHitRatios?: number[] | undefined;
 }
+
+/** How many per-request ratios to retain for the trend. */
+export const RECENT_HIT_RATIO_WINDOW = 6;
 
 interface Accum {
   input: number;
   cacheRead: number;
   cacheWrite: number;
+}
+
+/** The most recent request's own contribution, kept for `lastHitRatio`. */
+interface LastRequest {
+  cacheRead: number;
+  prompt: number;
 }
 
 /**
@@ -36,6 +75,8 @@ interface Accum {
  */
 export class ProviderCacheLedger {
   private readonly byProvider = new Map<string, Accum>();
+  private readonly lastByProvider = new Map<string, LastRequest>();
+  private readonly recentByProvider = new Map<string, number[]>();
   private last: Accum = { input: 0, cacheRead: 0, cacheWrite: 0 };
   private readonly off: () => void;
 
@@ -76,6 +117,16 @@ export class ProviderCacheLedger {
     acc.cacheRead += delta.cacheRead;
     acc.cacheWrite += delta.cacheWrite;
     this.byProvider.set(key, acc);
+    // A zero-token delta is a duplicate or out-of-order settle, not a request:
+    // recording it would report a 0% "last turn" that never happened.
+    const prompt = delta.input + delta.cacheRead + delta.cacheWrite;
+    if (prompt > 0) {
+      this.lastByProvider.set(key, { cacheRead: delta.cacheRead, prompt });
+      const recent = this.recentByProvider.get(key) ?? [];
+      recent.push(Math.min(1, delta.cacheRead / prompt));
+      if (recent.length > RECENT_HIT_RATIO_WINDOW) recent.shift();
+      this.recentByProvider.set(key, recent);
+    }
   }
 
   /** Distinct providers seen this session. */
@@ -87,6 +138,8 @@ export class ProviderCacheLedger {
   perProvider(): ProviderCacheEntry[] {
     const out: ProviderCacheEntry[] = [];
     for (const [provider, a] of this.byProvider) {
+      const last = this.lastByProvider.get(provider);
+      const recent = this.recentByProvider.get(provider);
       out.push({
         provider,
         input: a.input,
@@ -98,6 +151,13 @@ export class ProviderCacheLedger {
           cacheRead: a.cacheRead,
           cacheWrite: a.cacheWrite,
         }),
+        ...(last
+          ? {
+              lastHitRatio: Math.min(1, last.cacheRead / last.prompt),
+              lastPromptTokens: last.prompt,
+            }
+          : {}),
+        ...(recent && recent.length > 0 ? { recentHitRatios: [...recent] } : {}),
       });
     }
     return out.sort((x, y) => y.cacheRead - x.cacheRead);

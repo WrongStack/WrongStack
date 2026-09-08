@@ -126,11 +126,20 @@ export function createPersistencePrimitives(
     // if the existing destination file has the read-only attribute set. Temporarily
     // clear the read-only attribute on targetPath so the atomic rename succeeds;
     // the chmod below then re-applies the final intended mode.
+    let clearedReadOnly = false;
     if (process.platform === 'win32' && existing !== undefined && (existing & 0o200) === 0) {
+      clearedReadOnly = true;
       await fs.chmod(targetPath, 0o666).catch(() => undefined);
     }
 
-    await renameWithRetry(tmp, targetPath);
+    try {
+      await renameWithRetry(tmp, targetPath);
+    } catch (error) {
+      if (clearedReadOnly && existing !== undefined) {
+        await fs.chmod(targetPath, existing).catch(() => undefined);
+      }
+      throw error;
+    }
     if (mode !== undefined && process.platform === 'win32') {
       await fs.chmod(targetPath, mode).catch(() => undefined);
     }

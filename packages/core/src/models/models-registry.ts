@@ -1,27 +1,63 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { noOpLogger } from '../infrastructure/logger.js';
+import { FetchError } from '../types/errors.js';
+import type { Logger } from '../types/logger.js';
 import type {
-  ModelsDevPayload,
+  ModelCatalogSource,
+  ModelProvenance,
   ModelsDevModel,
+  ModelsDevPayload,
   ModelsDevProvider,
   ModelsRegistry,
   ResolvedModel,
   ResolvedProvider,
   WireFamily,
 } from '../types/models-registry.js';
-import type { Logger } from '../types/logger.js';
-import { noOpLogger } from '../infrastructure/logger.js';
+import type { ReasoningConfig, ReasoningEffort } from '../types/provider.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { mergeModelsPayload } from '../utils/merge-models-payload.js';
-import { FetchError } from '../types/errors.js';
-import type { ReasoningConfig, ReasoningEffort } from '../types/provider.js';
 
 const DEFAULT_URL = 'https://models.dev/api.json';
 /** Env var to override the models.dev base URL (e.g. for self-hosted mirrors). */
 const ENV_URL_KEY = 'WRONGSTACK_MODELS_DEV_URL';
 const DEFAULT_TTL_SECONDS = 3 * 3600;
 const DEFAULT_REFRESH_TIMEOUT_MS = 15_000;
+
+export interface RuntimeModelsOverlayOptions {
+  /** Source attached to every incoming model. Defaults to provider discovery. */
+  source?: ModelCatalogSource | undefined;
+  /** Provider ids whose incoming model keys replace, rather than extend, the catalog set. */
+  authoritativeProviderIds?: readonly string[] | undefined;
+  /** Observation time for live/cache-backed provider snapshots. */
+  observedAt?: string | undefined;
+}
+
+function annotatePayload(
+  payload: ModelsDevPayload,
+  source: ModelCatalogSource,
+  opts: { observedAt?: string | undefined; authoritative?: boolean | undefined } = {},
+): ModelsDevPayload {
+  const out: ModelsDevPayload = {};
+  for (const [providerId, provider] of Object.entries(payload)) {
+    const models: ModelsDevProvider['models'] = {};
+    for (const [modelId, model] of Object.entries(provider.models ?? {})) {
+      const existing = model.provenance;
+      const sources = [...(existing?.sources ?? [])];
+      if (!sources.includes(source)) sources.push(source);
+      const provenance: ModelProvenance = {
+        primary: source,
+        sources,
+        ...(opts.observedAt ? { observedAt: opts.observedAt } : {}),
+        ...(opts.authoritative !== undefined ? { authoritative: opts.authoritative } : {}),
+      };
+      models[modelId] = { ...model, provenance };
+    }
+    out[providerId] = { ...provider, models };
+  }
+  return out;
+}
 
 interface CacheEnvelope {
   fetchedAt: string;
@@ -118,6 +154,8 @@ function classifyProviderFamily(p: ModelsDevProvider): WireFamily {
 export class DefaultModelsRegistry implements ModelsRegistry {
   /** Merged (base + overlay) payload — what every reader sees. */
   private payload?: ModelsDevPayload | undefined;
+  /** Base + curated overlay, before runtime discovery is applied. */
+  private catalogPayload?: ModelsDevPayload | undefined;
   /** Memoised overlay payload (in-memory / fetched / file). */
   private overlayPayload?: ModelsDevPayload | undefined;
   /**
@@ -128,6 +166,7 @@ export class DefaultModelsRegistry implements ModelsRegistry {
    * survives a models.dev refetch.
    */
   private extraOverlay?: ModelsDevPayload | undefined;
+  private readonly authoritativeModelIds = new Map<string, Set<string>>();
   private fetchedAt?: Date | undefined;
   private readonly cacheFile: string;
   private readonly url: string;
@@ -172,7 +211,8 @@ export class DefaultModelsRegistry implements ModelsRegistry {
     // lost every auto-discovered model whenever `mergeOverlay` ran before the
     // first `load()` — the exact ordering a local gateway hits offline.
     if (this.seed) {
-      this.payload = this.withExtraOverlay(this.seed);
+      this.catalogPayload = annotatePayload(this.seed, 'models-dev');
+      this.payload = this.withExtraOverlay(this.catalogPayload);
       this.fetchedAt = new Date();
       return this.payload;
     }
@@ -180,7 +220,11 @@ export class DefaultModelsRegistry implements ModelsRegistry {
     // actually curated data to serve when models.dev is unreachable.
     const overlay = await this.loadOverlay(opts);
     const base = await this.loadBase(opts, Object.keys(overlay).length > 0);
-    this.payload = this.withExtraOverlay(mergeModelsPayload(base, overlay));
+    this.catalogPayload = mergeModelsPayload(
+      annotatePayload(base, 'models-dev'),
+      annotatePayload(overlay, 'wrongstack-overlay'),
+    );
+    this.payload = this.withExtraOverlay(this.catalogPayload);
     return this.payload;
   }
 
@@ -189,16 +233,37 @@ export class DefaultModelsRegistry implements ModelsRegistry {
    * for runtime-discovered openai-compatible providers. Remembered so it is
    * re-applied across `refresh()`. A no-op for an empty payload.
    */
-  mergeOverlay(payload: ModelsDevPayload): void {
+  mergeOverlay(payload: ModelsDevPayload, opts: RuntimeModelsOverlayOptions = {}): void {
     if (!hasEntries(payload)) return;
+    const source = opts.source ?? 'provider-discovery';
+    const authoritative = new Set(opts.authoritativeProviderIds ?? []);
+    const annotated = annotatePayload(payload, source, {
+      observedAt: opts.observedAt ?? new Date().toISOString(),
+      authoritative: authoritative.size > 0 ? true : undefined,
+    });
     this.extraOverlay = this.extraOverlay
-      ? mergeModelsPayload(this.extraOverlay, payload)
-      : payload;
-    if (this.payload) this.payload = mergeModelsPayload(this.payload, this.extraOverlay);
+      ? mergeModelsPayload(this.extraOverlay, annotated)
+      : annotated;
+    for (const providerId of authoritative) {
+      const incoming = annotated[providerId];
+      if (!incoming) continue;
+      this.authoritativeModelIds.set(providerId, new Set(Object.keys(incoming.models)));
+      const cloned = mergeModelsPayload({}, { [providerId]: incoming })[providerId];
+      if (cloned) this.extraOverlay[providerId] = cloned;
+    }
+    if (this.catalogPayload) this.payload = this.withExtraOverlay(this.catalogPayload);
   }
 
   private withExtraOverlay(payload: ModelsDevPayload): ModelsDevPayload {
-    return this.extraOverlay ? mergeModelsPayload(payload, this.extraOverlay) : payload;
+    const merged = this.extraOverlay ? mergeModelsPayload(payload, this.extraOverlay) : payload;
+    for (const [providerId, allowed] of this.authoritativeModelIds) {
+      const provider = merged[providerId];
+      if (!provider) continue;
+      provider.models = Object.fromEntries(
+        Object.entries(provider.models).filter(([modelId]) => allowed.has(modelId)),
+      );
+    }
+    return merged;
   }
 
   /**
@@ -396,7 +461,11 @@ export class DefaultModelsRegistry implements ModelsRegistry {
     // can report it), then recompute the merged payload with a fresh overlay.
     const base = await this.refreshBase();
     const overlay = await this.loadOverlay({ force: true });
-    this.payload = this.withExtraOverlay(mergeModelsPayload(base, overlay));
+    this.catalogPayload = mergeModelsPayload(
+      annotatePayload(base, 'models-dev'),
+      annotatePayload(overlay, 'wrongstack-overlay'),
+    );
+    this.payload = this.withExtraOverlay(this.catalogPayload);
     return this.payload;
   }
 
@@ -427,6 +496,7 @@ export class DefaultModelsRegistry implements ModelsRegistry {
     return {
       providerId,
       modelId,
+      provenance: model.provenance,
       capabilities: {
         tools: model.tool_call ?? false,
         vision: Boolean(model.modalities?.input?.includes('image')),

@@ -519,18 +519,26 @@ describe('Codex WebSocket Responses transport', () => {
     ).rejects.toMatchObject({ providerId: 'openai-codex', retryable: true });
   });
 
-  it('keeps the abort listener alive after the handshake and closes the socket', async () => {
+  it('aborts a second request that reuses an open socket', async () => {
     const controller = new AbortController();
     const sockets: FakeSocket[] = [];
+    let requests = 0;
     const pool = new CodexWebSocketPool((_url, _options) => {
       const socket = new FakeSocket((current) => {
+        requests++;
         current.message({ type: 'response.created', response: { model: 'gpt-5-codex' } });
+        if (requests === 1) {
+          current.message({ type: 'response.completed', response: { id: 'first' } });
+          return;
+        }
         current.message({ type: 'response.output_text.delta', delta: 'partial' });
-        // Silence: only the mid-stream abort below can end this turn.
+        // The second request stays silent; cancellation must end its own wait.
       });
       sockets.push(socket);
       return socket;
     });
+
+    await collect(pool.stream({ ...options('abort'), stallTimeoutMs: 0 }, parseOpenAIResponsesStream));
 
     const streamPromise = collect(
       pool.stream(
@@ -538,7 +546,7 @@ describe('Codex WebSocket Responses transport', () => {
         parseOpenAIResponsesStream,
       ),
     );
-    while (sockets[0]?.sent.length === 0) {
+    while (requests < 2) {
       await new Promise((resolve) => setTimeout(resolve, 1));
     }
     controller.abort();
@@ -546,6 +554,7 @@ describe('Codex WebSocket Responses transport', () => {
     // An abort must surface fast and raw (AbortError), never masquerading as a
     // retryable transport error — the caller explicitly cancelled the turn.
     await expect(streamPromise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(sockets).toHaveLength(1);
     // The abort itself closes the socket; the pool's error-path cleanup then
     // closes it again (idempotent), so assert "closed", not "exactly once".
     expect(sockets[0]?.closeCount).toBeGreaterThanOrEqual(1);

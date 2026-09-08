@@ -56,6 +56,11 @@ function createMockContext(initialProviders: Record<string, ProviderConfig> = {}
       sentMessages.push(msg);
     }),
     deps: {
+      providerStore: {
+        load: vi.fn(async () => providers),
+        save: vi.fn(async () => {}),
+      },
+      broadcast: vi.fn(),
       log: vi.fn(),
     },
   };
@@ -69,6 +74,7 @@ describe('Provider Key Handlers', () => {
   it('handles key upsert successfully and on failure', async () => {
     const { ctx, operationResults } = createMockContext({
       openai: {
+        type: 'openai',
         family: 'openai',
         apiKey: 'old-key',
       },
@@ -90,6 +96,7 @@ describe('Provider Key Handlers', () => {
   it('handles key delete', async () => {
     const { ctx, operationResults } = createMockContext({
       anthropic: {
+        type: 'anthropic',
         family: 'anthropic',
         apiKeys: [{ label: 'default', apiKey: 'sk-ant-12345', createdAt: '2026-01-01' }],
       },
@@ -109,6 +116,7 @@ describe('Provider Key Handlers', () => {
   it('handles key set active', async () => {
     const { ctx, operationResults } = createMockContext({
       anthropic: {
+        type: 'anthropic',
         family: 'anthropic',
         apiKeys: [
           { label: 'k1', apiKey: 'key-1', createdAt: '2026-01-01' },
@@ -177,7 +185,7 @@ describe('Provider CRUD Handlers', () => {
 
   it('removes provider successfully or errors gracefully', async () => {
     const { ctx, operationResults } = createMockContext({
-      prov1: { family: 'openai' },
+      prov1: { type: 'openai', family: 'openai' },
     });
     const crud = createProviderCrudHandlers(ctx);
 
@@ -191,7 +199,7 @@ describe('Provider CRUD Handlers', () => {
 
   it('clears models and restores models', async () => {
     const { ctx, operationResults, providers } = createMockContext({
-      prov1: { family: 'openai', models: ['gpt-4', 'gpt-3.5'] },
+      prov1: { type: 'openai', family: 'openai', models: ['gpt-4', 'gpt-3.5'] },
     });
     const crud = createProviderCrudHandlers(ctx);
 
@@ -221,7 +229,7 @@ describe('Provider CRUD Handlers', () => {
 
   it('updates provider config with base URL validation', async () => {
     const { ctx, operationResults, providers } = createMockContext({
-      prov1: { family: 'openai', baseUrl: 'http://localhost:11434' },
+      prov1: { type: 'openai', family: 'openai', baseUrl: 'http://localhost:11434' },
     });
     const crud = createProviderCrudHandlers(ctx);
 
@@ -240,7 +248,7 @@ describe('Provider CRUD Handlers', () => {
       baseUrl: 'http://127.0.0.1:5000',
       envVars: ['FOO_VAR'],
       models: ['m1'],
-      customModels: { m1: { displayName: 'M1' } },
+      customModels: { m1: { name: 'M1' } },
     });
     expect(operationResults[2]).toEqual({ ok: true, message: 'Updated prov1' });
     expect(providers.prov1?.family).toBe('custom');
@@ -259,9 +267,18 @@ describe('Provider Probe Handlers & Projection', () => {
 
   it('probes provider with various config states', async () => {
     const { ctx, sentMessages } = createMockContext({
-      noUrl: { family: 'openai' },
-      localOk: { family: 'custom', baseUrl: 'http://127.0.0.1:11434', apiKey: 'key1' },
-      localUnreachable: { family: 'custom', baseUrl: 'http://unreachable:11434' },
+      noUrl: { type: 'openai', family: 'openai' },
+      localOk: {
+        type: 'custom',
+        family: 'openai-compatible',
+        baseUrl: 'http://127.0.0.1:11434',
+        apiKey: 'key1',
+      },
+      localUnreachable: {
+        type: 'custom',
+        family: 'openai-compatible',
+        baseUrl: 'http://unreachable:11434',
+      },
     });
     const probeHandlers = createProbeHandlers(ctx);
 
@@ -320,35 +337,43 @@ describe('Provider Probe Handlers & Projection', () => {
   it('projects saved providers safely redacting keys', () => {
     const views = projectSavedProviders({
       p1: {
+        type: 'openai',
         family: 'openai',
         baseUrl: 'https://api.openai.com/v1',
         apiKey: 'sk-1234567890abcdef',
         models: ['gpt-4', 'gpt-3.5-turbo'],
       },
       p2: {
+        type: 'p2',
         apiKeys: [{ label: 'test', apiKey: 'short', createdAt: '2026-01-01' }],
       },
     });
 
     expect(views).toHaveLength(2);
-    expect(views[0].id).toBe('p1');
-    expect(views[0].pickedModelId).toBe('gpt-4');
-    expect(views[0].apiKeys[0].maskedKey).not.toBe('sk-1234567890abcdef');
-    expect(views[0].apiKeys[0].maskedKey).toBe('sk-1…cdef');
+    const firstView = views[0]!;
+    const secondView = views[1]!;
+    expect(firstView.id).toBe('p1');
+    expect(firstView.pickedModelId).toBe('gpt-4');
+    expect(firstView.apiKeys[0]?.maskedKey).not.toBe('sk-1234567890abcdef');
+    expect(firstView.apiKeys[0]?.maskedKey).toBe('sk-1…cdef');
 
-    expect(views[1].id).toBe('p2');
-    expect(views[1].family).toBe('p2');
-    expect(views[1].pickedModelId).toBeUndefined();
+    expect(secondView.id).toBe('p2');
+    expect(secondView.family).toBe('p2');
+    expect(secondView.pickedModelId).toBeUndefined();
   });
 
   it('probeModelDescriptors returns empty array or model descriptors', async () => {
     // Missing baseUrl
-    const emptyResult = await probeModelDescriptors({ family: 'custom' });
+    const emptyResult = await probeModelDescriptors({
+      type: 'custom',
+      family: 'openai-compatible',
+    });
     expect(emptyResult).toEqual([]);
 
     // Successful probe
     const descriptors = await probeModelDescriptors({
-      family: 'custom',
+      type: 'custom',
+      family: 'openai-compatible',
       baseUrl: 'http://127.0.0.1:11434',
     });
     expect(descriptors).toEqual([
@@ -358,7 +383,8 @@ describe('Provider Probe Handlers & Projection', () => {
 
     // Unreachable probe returns empty array
     const unreachableResult = await probeModelDescriptors({
-      family: 'custom',
+      type: 'custom',
+      family: 'openai-compatible',
       baseUrl: 'http://unreachable:11434',
     });
     expect(unreachableResult).toEqual([]);

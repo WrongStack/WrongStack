@@ -106,6 +106,11 @@ export function updateSqliteSage(
     ...(input.audience !== undefined && { audience: normalizeAudience(input.audience) }),
     ...(input.supersedes !== undefined && { supersedes: input.supersedes }),
     ...(input.contradicts !== undefined && { contradicts: input.contradicts }),
+    ...(input.status === 'deleted' && {
+      supersedes: undefined,
+      contradicts: undefined,
+      supersededBy: undefined,
+    }),
     revision: existing.revision + 1,
     updatedAt: ctx.nowIso(),
   };

@@ -144,7 +144,7 @@ export function renderTopMenu(
   );
   renderer.write(`    ${color.bold('c')}  Add a custom provider\n`);
   renderer.write(
-    `    ${color.bold('s')}  Login with OAuth ${color.dim('(ChatGPT / Claude / Copilot)')}\n`,
+    `    ${color.bold('s')}  Login with provider OAuth\n`,
   );
   if (ids.length > 0) {
     renderer.write(

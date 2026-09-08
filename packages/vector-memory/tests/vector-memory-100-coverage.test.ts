@@ -1,12 +1,8 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import {
-  type MemoryPort,
-  SAGE_SURFACE_CAPABILITY,
-  type Sage,
-  type SageSurface,
-} from '@wrongstack/sage';
+import type { MemoryPort } from '@wrongstack/core/types';
+import { SAGE_SURFACE_CAPABILITY, type Sage, type SageSurface } from '@wrongstack/sage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createSageSurfaceSyncSource,
@@ -47,6 +43,26 @@ function makeMemoryPort(surface?: Partial<SageSurface>): MemoryPort {
   } as unknown as MemoryPort;
 }
 
+function makeSage(id: string, text: string): Sage {
+  const now = new Date().toISOString();
+  return {
+    id,
+    revision: 1,
+    text,
+    kind: 'fact',
+    scope: 'project',
+    importance: 1,
+    confidence: 1,
+    freshness: 1,
+    status: 'active',
+    tags: [],
+    anchors: [],
+    sources: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 describe('vector-memory 100% coverage suite', () => {
   let tmpDir: string;
 
@@ -74,23 +90,10 @@ describe('vector-memory 100% coverage suite', () => {
       const longText = 'A'.repeat(200);
       await store.remember({
         text: longText,
-        vector: new Float32Array([1, 0, 0, 0]),
         metadata: { sageId: 's1' },
       });
 
-      const lexicalHits: Sage[] = [
-        {
-          id: 's1',
-          text: longText,
-          kind: 'fact',
-          scope: 'project',
-          importance: 1,
-          confidence: 1,
-          status: 'active',
-          provenance: { source: 'test' },
-          audit: { createdAt: new Date().toISOString(), accessCount: 1 },
-        },
-      ];
+      const lexicalHits: Sage[] = [makeSage('s1', longText)];
 
       const race = await runSearchRace('A', lexicalHits, store, {
         limit: 5,
@@ -111,6 +114,7 @@ describe('vector-memory 100% coverage suite', () => {
             memories: [],
             nextCursor: `cursor-${calls}`,
             total: 10,
+            statusCounts: {},
           };
         }),
       };
@@ -127,27 +131,23 @@ describe('vector-memory 100% coverage suite', () => {
 
   describe('sage-fusion.ts ranking and clamp01', () => {
     it('boosts a vector hit that maps to a SAGE memory present in lexical', async () => {
-      const mem1: Sage = {
-        id: 's1',
-        text: 'Lexical and vector match',
-        kind: 'fact',
-        scope: 'project',
-        importance: 1,
-        confidence: 1,
-        status: 'active',
-        provenance: { source: 'test' },
-        audit: { createdAt: new Date().toISOString(), accessCount: 1 },
-      };
+      const mem1 = makeSage('s1', 'Lexical and vector match');
 
       const hits = await fuseWithVectorMemory('query', [mem1], {
         vectorHits: [
           {
-            id: 'v1',
             score: 0.8,
+            providerId: 'fake',
             entry: {
               id: 'v1',
               text: mem1.text,
               metadata: { sageId: 's1' },
+              tags: [],
+              scope: 'project',
+              kind: 'fact',
+              contentHash: 'hash-v1',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
             },
           },
         ],
@@ -202,7 +202,10 @@ describe('vector-memory 100% coverage suite', () => {
       await expect(store.evictCache(-1)).rejects.toThrow(/keepMostRecent must be >= 0/);
 
       // Test reindexAll when provider returns empty array
-      vi.spyOn(store.provider, 'embed').mockResolvedValueOnce([]);
+      vi.spyOn(
+        (store as unknown as { provider: FakeEmbeddingProvider }).provider,
+        'embed',
+      ).mockResolvedValueOnce([]);
       const reindexReport = await store.reindexAll();
       expect(reindexReport.errors).toBeGreaterThanOrEqual(1);
 
@@ -216,22 +219,18 @@ describe('vector-memory 100% coverage suite', () => {
 
       await store.remember({
         text: 'Valid active',
-        vector: new Float32Array([1, 0, 0, 0]),
         metadata: { sageId: 'active-1' },
       });
       await store.remember({
         text: 'Deleted tombstone',
-        vector: new Float32Array([0, 1, 0, 0]),
         metadata: { sageId: 'deleted-1' },
       });
       await store.remember({
         text: 'Throws error',
-        vector: new Float32Array([0, 0, 1, 0]),
         metadata: { sageId: 'throws-1' },
       });
       await store.remember({
         text: 'Missing sageId',
-        vector: new Float32Array([0, 0, 0, 1]),
         metadata: { sageId: 123 as unknown as string },
       });
 
@@ -349,7 +348,11 @@ describe('vector-memory 100% coverage suite', () => {
       const res = await sweepStaleSageMirrors({
         store,
         memoryStore: memoryPort,
-        logger: { warn: (msg: string) => warnCalls.push(msg) },
+        logger: {
+          warn: (msg: string) => {
+            warnCalls.push(msg);
+          },
+        },
       });
       expect(res.swept).toBe(false);
       expect(res.reason).toContain('Store list failed');
@@ -371,8 +374,12 @@ describe('vector-memory 100% coverage suite', () => {
       const debugCalls: string[] = [];
       const warnCalls: string[] = [];
       const logger = {
-        debug: (msg: string) => debugCalls.push(msg),
-        warn: (msg: string) => warnCalls.push(msg),
+        debug: (msg: string) => {
+          debugCalls.push(msg);
+        },
+        warn: (msg: string) => {
+          warnCalls.push(msg);
+        },
       };
 
       // 1. Missing events bus
@@ -425,26 +432,10 @@ describe('vector-memory 100% coverage suite', () => {
 
       const surface: Partial<SageSurface> = {
         listSagePage: vi.fn(async () => ({
-          memories: [
-            {
-              id: 'm1',
-              revision: 1,
-              scope: 'project',
-              kind: 'fact',
-              status: 'active',
-              text: 'test mem',
-              importance: 1,
-              confidence: 1,
-              freshness: 1,
-              tags: [],
-              anchors: [],
-              sources: [],
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          ],
+          memories: [makeSage('m1', 'test mem')],
           nextCursor: null,
           total: 1,
+          statusCounts: { active: 1 },
         })),
       };
       const memoryPort = makeMemoryPort(surface);
@@ -462,7 +453,11 @@ describe('vector-memory 100% coverage suite', () => {
       const res = await startFirstBootSageSync({
         store,
         memoryStore: memoryPort,
-        logger: { warn: (msg: string) => warnCalls.push(msg) },
+        logger: {
+          warn: (msg: string) => {
+            warnCalls.push(msg);
+          },
+        },
       });
       expect(res.synced).toBe(false);
       expect(res.reason).toBe('partial-failure');
@@ -650,7 +645,12 @@ describe('vector-memory 100% coverage suite', () => {
     it('handles startFirstBootSageSync when sync throws', async () => {
       const store = makeStore(tmpDir);
       const surface: Partial<SageSurface> = {
-        listSagePage: vi.fn(async () => ({ items: [], nextCursor: null })),
+        listSagePage: vi.fn(async () => ({
+          memories: [],
+          nextCursor: null,
+          total: 0,
+          statusCounts: {},
+        })),
       };
       const port = makeMemoryPort(surface);
       vi.spyOn(store, 'syncFromSage').mockRejectedValueOnce(new Error('sync crash'));
@@ -658,7 +658,11 @@ describe('vector-memory 100% coverage suite', () => {
       const res = await startFirstBootSageSync({
         store,
         memoryStore: port,
-        logger: { warn: (msg) => warns.push(msg) },
+        logger: {
+          warn: (msg) => {
+            warns.push(msg);
+          },
+        },
       });
       expect(res.synced).toBe(false);
       expect(res.reason).toBe('error');
@@ -704,14 +708,14 @@ describe('vector-memory 100% coverage suite', () => {
       const e2 = await store.remember({
         text: 'rule text',
         scope: 'session',
-        kind: 'rule',
+        kind: 'fact',
       });
 
       const projectNotes = store.list({ scope: 'project', kind: 'note' });
       expect(projectNotes.some((e) => e.id === e1.id)).toBe(true);
       expect(projectNotes.some((e) => e.id === e2.id)).toBe(false);
 
-      const sessionRules = store.list({ scope: 'session', kind: 'rule' });
+      const sessionRules = store.list({ scope: 'session', kind: 'fact' });
       expect(sessionRules.some((e) => e.id === e2.id)).toBe(true);
 
       // Also exercise search with scope and kind filters
@@ -742,24 +746,24 @@ describe('vector-memory 100% coverage suite', () => {
       const origPrepare = db.prepare.bind(db);
 
       // 1. Error in rememberUnlocked during INSERT INTO vectors
-      vi.spyOn(db, 'prepare').mockImplementation((sql: string) => {
+      vi.spyOn(db, 'prepare').mockImplementation(((sql: string) => {
         if (typeof sql === 'string' && sql.includes('INSERT INTO vectors')) {
           throw new Error('mock vectors insert error');
         }
         return origPrepare(sql);
-      });
+      }) as never);
 
       await expect(store.remember({ text: 'text causing rollback' })).rejects.toThrow(
         'mock vectors insert error',
       );
 
       // 2. Error in forget during DELETE FROM entries
-      vi.spyOn(db, 'prepare').mockImplementation((sql: string) => {
+      vi.spyOn(db, 'prepare').mockImplementation(((sql: string) => {
         if (typeof sql === 'string' && sql.includes('DELETE FROM entries')) {
           throw new Error('mock delete error');
         }
         return origPrepare(sql);
-      });
+      }) as never);
 
       await expect(store.forget('some-id')).rejects.toThrow('mock delete error');
     });

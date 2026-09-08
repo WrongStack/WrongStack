@@ -544,6 +544,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       () => (opts.appConfig?.providers as Record<string, ProviderConfig> | undefined) ?? {},
     ),
     modelsRegistry: opts.modelsRegistry,
+    providerAuthRegistry: opts.providerAuthRegistry,
     send,
     broadcast,
     log: (m) => console.log(m),

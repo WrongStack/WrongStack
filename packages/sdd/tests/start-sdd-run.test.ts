@@ -436,9 +436,9 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
   it('drains pre-existing control commands from legacy file storage on startup', async () => {
     const { tracker, graph } = await makeGraph(1);
     const boardStore = new SddBoardStore({ baseDir: tmp() });
-    const drainSpy = vi.spyOn(boardStore, 'drainControl').mockResolvedValueOnce([
-      { type: 'pause' },
-    ]);
+    const drainSpy = vi
+      .spyOn(boardStore, 'drainControl')
+      .mockResolvedValueOnce([{ ts: Date.now(), type: 'pause' }]);
     const events = new EventBus();
     const handle = startSddRun({
       tracker,

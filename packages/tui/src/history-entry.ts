@@ -135,6 +135,13 @@ export type HistoryEntry =
       input?: unknown | undefined;
       output?: string | undefined;
       /**
+       * Canonical result text used only for clipboard operations. `output`
+       * belongs to the bounded display cache and may be shortened by history
+       * retention or by the visual renderer; this field must keep the exact
+       * tool_result content that was sent back to the model.
+       */
+      copyOutput?: string | undefined;
+      /**
        * SAGE Memory Injector block for this call — `--- SAGE: … ---` header
        * plus one line per injected memory — carried beside `output` because
        * the event's ~400-char preview cap used to slice a memory line in half
@@ -153,8 +160,9 @@ export type HistoryEntry =
        */
       sageStats?: string | undefined;
       /** Full byte length of the result body the model actually received
-       *  (post-cap, post-scrub). Carried separately because `output` is a
-       *  ~400-char preview — `outputBytes` is what the model paid for. */
+       *  (post-cap, post-scrub). Carried separately because rendering and
+       *  display retention may shorten `output`; this is what the model paid
+       *  for. */
       outputBytes?: number | undefined;
       /** ~3.5 chars/token estimate over `outputBytes`. Cheap to render in
        *  the chip; the authoritative count lives in provider.response.usage. */

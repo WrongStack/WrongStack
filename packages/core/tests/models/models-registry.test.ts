@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DefaultModelsRegistry, classifyFamily } from '../../src/models/models-registry.js';
+import { classifyFamily, DefaultModelsRegistry } from '../../src/models/models-registry.js';
 import type { ModelsDevPayload } from '../../src/types/models-registry.js';
 
 const SAMPLE: ModelsDevPayload = {
@@ -294,6 +294,79 @@ describe('DefaultModelsRegistry', () => {
     expect(model?.capabilities.vision).toBe(true);
     expect(model?.capabilities.maxContext).toBe(1_000_000);
     expect(model?.capabilities.maxOutput).toBe(128_000);
+    expect(model?.provenance?.primary).toBe('provider-discovery');
+  });
+
+  it('lets an authoritative provider snapshot replace the catalog model set', async () => {
+    const reg = new DefaultModelsRegistry({
+      cacheFile,
+      seed: {
+        xai: {
+          id: 'xai',
+          name: 'xAI',
+          npm: '@ai-sdk/xai',
+          models: {
+            allowed: { id: 'allowed', name: 'Allowed', limit: { context: 1000 } },
+            unavailable: { id: 'unavailable', name: 'Unavailable' },
+          },
+        },
+      },
+    });
+    await reg.load();
+    reg.mergeOverlay(
+      {
+        xai: {
+          id: 'xai',
+          name: 'xAI',
+          npm: '@ai-sdk/xai',
+          models: { allowed: { id: 'allowed', name: 'Allowed live' } },
+        },
+      },
+      {
+        authoritativeProviderIds: ['xai'],
+        observedAt: '2026-09-08T00:00:00.000Z',
+      },
+    );
+
+    expect((await reg.getProvider('xai'))?.models.map((model) => model.id)).toEqual(['allowed']);
+    expect(await reg.getModel('xai', 'unavailable')).toBeUndefined();
+    expect((await reg.getModel('xai', 'allowed'))?.provenance).toEqual({
+      primary: 'provider-discovery',
+      sources: ['models-dev', 'provider-discovery'],
+      observedAt: '2026-09-08T00:00:00.000Z',
+      authoritative: true,
+    });
+  });
+
+  it('replaces a previous authoritative snapshot and keeps it across reload', async () => {
+    const reg = new DefaultModelsRegistry({
+      cacheFile,
+      seed: {
+        xai: {
+          id: 'xai',
+          name: 'xAI',
+          npm: '@ai-sdk/xai',
+          models: {
+            first: { id: 'first', name: 'First' },
+            second: { id: 'second', name: 'Second' },
+          },
+        },
+      },
+    });
+    const snapshot = (id: string) => ({
+      xai: {
+        id: 'xai',
+        name: 'xAI',
+        npm: '@ai-sdk/xai',
+        models: { [id]: { id, name: id } },
+      },
+    });
+    reg.mergeOverlay(snapshot('first'), { authoritativeProviderIds: ['xai'] });
+    reg.mergeOverlay(snapshot('second'), { authoritativeProviderIds: ['xai'] });
+
+    expect((await reg.getProvider('xai'))?.models.map((model) => model.id)).toEqual(['second']);
+    await reg.load({ force: true });
+    expect((await reg.getProvider('xai'))?.models.map((model) => model.id)).toEqual(['second']);
   });
 
   it('keeps a discovered provider when mergeOverlay runs before the first load()', async () => {

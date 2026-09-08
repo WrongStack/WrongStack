@@ -18,7 +18,7 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import { TOKENS } from '@wrongstack/core/kernel';
 import type { ConfigStore } from '@wrongstack/core/types';
 import { writeErr } from '@wrongstack/core/utils';
-import { setOAuthTokenPersister } from '@wrongstack/providers';
+import { setOAuthTokenPersister, setProviderModelPersister } from '@wrongstack/providers';
 import { parseArgs } from './arg-parser.js';
 import { wireContainer } from './boot/container-wiring.js';
 import {
@@ -281,6 +281,29 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
       writeKeysBack(p, keys);
     }).catch(() => {
       // Best-effort: failed persist leaves the in-memory token valid.
+    });
+  });
+
+  // Live model-list persistence. A subscription provider's model list is
+  // ACCOUNT state, not a WrongStack release artifact: it changes when a model
+  // rolls out to the account. It used to be captured once, at login, and never
+  // revisited — an account that gained `gpt-6-astra` a week later kept
+  // whatever the login happened to resolve. The provider now publishes the
+  // list off the `/codex/models` catalog probe it already makes at request
+  // boundaries, so this costs no extra request.
+  setProviderModelPersister((providerId, models) => {
+    if (models.length === 0) return;
+    void mutateConfigProviders(profileConfigPath, vault, (all) => {
+      const p = all[providerId];
+      if (!p) return;
+      const live = models.map((m) => m.id);
+      // Order matters — the picker shows this list in order, and the backend
+      // returns it newest-first. Skip the write when nothing moved so a
+      // five-minute catalog re-read does not rewrite config on a timer.
+      if (p.models?.length === live.length && p.models.every((id, i) => id === live[i])) return;
+      p.models = live;
+    }).catch(() => {
+      // Best-effort: the refreshed list still applies for this session.
     });
   });
 

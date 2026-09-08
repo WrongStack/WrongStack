@@ -3,9 +3,11 @@
  *
  * Cache continuity has two independent mechanisms:
  *
- *  - Stable session/thread/cache metadata routes related prompt prefixes. The
- *    backend's `x-codex-turn-state` is turn-scoped and must not leak into the
- *    next user turn.
+ *  - Stable session/thread/cache metadata routes related prompt prefixes, and
+ *    the backend's `x-codex-turn-state` pins the rest of ONE turn to the
+ *    machine already holding that conversation's cached prefix. It is replayed
+ *    on the turn's tool-call round-trips and must not leak into the next user
+ *    turn, or into another session.
  *  - reasoning replay: `include: ['reasoning.encrypted_content']` asks the
  *    backend to hand its reasoning back; replaying it keeps the cached prefix
  *    intact and stops a reasoning model re-deriving (and re-billing) what it
@@ -15,6 +17,7 @@
 
 import type { Message, Request, StreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
+import type { CodexResponseMetadata } from '../src/openai-codex.js';
 import { OpenAICodexProvider } from '../src/openai-codex.js';
 import {
   CODEX_REASONING_ENCRYPTED_META,
@@ -76,7 +79,7 @@ function request(sessionId: string): Request {
 }
 
 describe('response.metadata cache affinity', () => {
-  it('does not replay metadata turn state into the next user turn', async () => {
+  it('does not replay metadata turn state into the NEXT USER turn', async () => {
     const calls: Call[] = [];
     const metadataEvent =
       'data: {"type":"response.metadata","metadata":{"headers":{"x-codex-turn-state":"state-meta"}}}\n\n';
@@ -116,8 +119,41 @@ describe('response.metadata cache affinity', () => {
   });
 });
 
+/**
+ * A tool-call round-trip: the assistant called a tool and the caller is
+ * handing back its result. Same turn as the user message that started it.
+ */
+function continuation(sessionId: string): Request {
+  return {
+    model: 'gpt-5-codex',
+    messages: [
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 'call_1', name: 'ls', input: {} }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'call_1', content: 'ok' }] },
+    ],
+    cache: { sessionId },
+  };
+}
+
 describe('x-codex-turn-state', () => {
-  it('is never echoed across HTTP user turns, even in the same session', async () => {
+  it('replays the routing token onto the rest of the same turn', async () => {
+    // The tool-call round-trips share the longest prefix in the whole session,
+    // so they are exactly the requests a re-rolled route costs the most.
+    const calls: Call[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      fetchImpl: recordingFetch(calls, (i) =>
+        i === 0 ? { headers: { 'x-codex-turn-state': 'state-abc' } } : {},
+      ),
+    });
+    const signal = new AbortController().signal;
+    await collect(provider.stream(request('sess-1'), { signal }));
+    await collect(provider.stream(continuation('sess-1'), { signal }));
+    expect(calls[0]?.headers['x-codex-turn-state']).toBeUndefined();
+    expect(calls[1]?.headers['x-codex-turn-state']).toBe('state-abc');
+  });
+
+  it('expires the token when a new user turn begins', async () => {
     const calls: Call[] = [];
     const provider = new OpenAICodexProvider({
       credentials: { accessToken: 'tok' },
@@ -128,8 +164,11 @@ describe('x-codex-turn-state', () => {
     const signal = new AbortController().signal;
     await collect(provider.stream(request('sess-1'), { signal }));
     await collect(provider.stream(request('sess-1'), { signal }));
-    expect(calls[0]?.headers['x-codex-turn-state']).toBeUndefined();
+    // A fresh user turn must not carry the previous turn's token…
     expect(calls[1]?.headers['x-codex-turn-state']).toBeUndefined();
+    // …and must have dropped it, so a later continuation cannot resurrect it.
+    await collect(provider.stream(continuation('sess-1'), { signal }));
+    expect(calls[2]?.headers['x-codex-turn-state']).toBeUndefined();
   });
 
   it('never leaks one session’s routing token into another', async () => {
@@ -142,8 +181,129 @@ describe('x-codex-turn-state', () => {
     });
     const signal = new AbortController().signal;
     await collect(provider.stream(request('sess-1'), { signal }));
-    await collect(provider.stream(request('sess-2'), { signal }));
+    await collect(provider.stream(continuation('sess-2'), { signal }));
     expect(calls[1]?.headers['x-codex-turn-state']).toBeUndefined();
+  });
+
+  it('is carried by the metadata frame when there are no response headers', async () => {
+    // The WebSocket transport has no HTTP headers after the handshake, so
+    // `response.metadata` is the only delivery of the token for every turn
+    // after the first.
+    const calls: Call[] = [];
+    const metadataEvent =
+      'data: {"type":"response.metadata","metadata":{"headers":{"x-codex-turn-state":"state-meta"}}}\n\n';
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      fetchImpl: recordingFetch(calls, (i) => (i === 0 ? { body: metadataEvent + DONE } : {})),
+    });
+    const signal = new AbortController().signal;
+    await collect(provider.stream(request('sess-meta'), { signal }));
+    await collect(provider.stream(continuation('sess-meta'), { signal }));
+    expect(calls[1]?.headers['x-codex-turn-state']).toBe('state-meta');
+  });
+});
+
+describe('prompt_cache_key', () => {
+  it('keys the cache partition on the conversation, not the shared prompt prefix', async () => {
+    // The official client sends the session id. Within a conversation the
+    // shared prefix is the whole growing history; a system-prompt hash instead
+    // groups every concurrent session of the same agent onto one partition,
+    // where they evict each other over a prefix worth only the system prompt.
+    const calls: Call[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      fetchImpl: recordingFetch(calls, () => ({})),
+    });
+    const signal = new AbortController().signal;
+    await collect(
+      provider.stream(
+        { ...request('sess-cache'), cache: { sessionId: 'sess-cache', key: 'ws-prefix-hash' } },
+        { signal },
+      ),
+    );
+    expect(calls[0]?.body['prompt_cache_key']).toBe('sess-cache');
+    expect(calls[0]?.headers['session-id']).toBe('sess-cache');
+  });
+
+  it('falls back to the prefix key for a request with no conversation', async () => {
+    const calls: Call[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      fetchImpl: recordingFetch(calls, () => ({})),
+    });
+    await collect(
+      provider.stream(
+        {
+          model: 'gpt-5-codex',
+          messages: [{ role: 'user', content: 'hi' }],
+          cache: { key: 'ws-prefix-hash' },
+        },
+        { signal: new AbortController().signal },
+      ),
+    );
+    expect(calls[0]?.body['prompt_cache_key']).toBe('ws-prefix-hash');
+  });
+});
+
+describe('response-metadata dialects', () => {
+  // Verified against the live ChatGPT WebSocket: the frame is named
+  // `codex.response.metadata` and carries its headers at the TOP level, not
+  // under a `metadata` envelope. After the handshake a WebSocket has no HTTP
+  // response headers, so this frame is the only delivery of the turn state and
+  // the catalog etag for every turn of a WebSocket session.
+  const WS_DIALECT =
+    'data: {"type":"codex.response.metadata","headers":{"x-codex-turn-state":"state-ws","x-models-etag":"etag-ws"}}\n\n';
+  const ENVELOPE_DIALECT =
+    'data: {"type":"response.metadata","metadata":{"headers":{"x-codex-turn-state":"state-env"}}}\n\n';
+
+  it('reads the live top-level shape the WebSocket actually sends', async () => {
+    const observed: CodexResponseMetadata[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      onResponseMetadata: (metadata) => observed.push(metadata),
+      fetchImpl: recordingFetch([], () => ({ body: WS_DIALECT + DONE })),
+    });
+    await collect(provider.stream(request('sess-ws'), { signal: new AbortController().signal }));
+    expect(observed[0]?.headers).toEqual({
+      'x-codex-turn-state': 'state-ws',
+      'x-models-etag': 'etag-ws',
+    });
+  });
+
+  it('still reads the enveloped shape', async () => {
+    const observed: CodexResponseMetadata[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      onResponseMetadata: (metadata) => observed.push(metadata),
+      fetchImpl: recordingFetch([], () => ({ body: ENVELOPE_DIALECT + DONE })),
+    });
+    await collect(provider.stream(request('sess-env'), { signal: new AbortController().signal }));
+    expect(observed[0]?.headers).toEqual({ 'x-codex-turn-state': 'state-env' });
+  });
+
+  it('replays turn state captured from the live WebSocket frame', async () => {
+    const calls: Call[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      fetchImpl: recordingFetch(calls, (i) => (i === 0 ? { body: WS_DIALECT + DONE } : {})),
+    });
+    const signal = new AbortController().signal;
+    await collect(provider.stream(request('sess-ws2'), { signal }));
+    await collect(provider.stream(continuation('sess-ws2'), { signal }));
+    expect(calls[1]?.headers['x-codex-turn-state']).toBe('state-ws');
+  });
+
+  it('ignores a metadata frame that carries no headers at all', async () => {
+    const observed: CodexResponseMetadata[] = [];
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: 'tok' },
+      onResponseMetadata: (metadata) => observed.push(metadata),
+      fetchImpl: recordingFetch([], () => ({
+        body: 'data: {"type":"codex.response.metadata"}\n\n' + DONE,
+      })),
+    });
+    await collect(provider.stream(request('sess-bare'), { signal: new AbortController().signal }));
+    expect(observed).toEqual([]);
   });
 });
 

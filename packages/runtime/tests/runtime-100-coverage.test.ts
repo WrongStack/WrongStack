@@ -710,7 +710,10 @@ describe('runtime 100 coverage completion', () => {
       };
 
       const sink = {
-        recordWorkspaceSnapshot: vi.fn(async () => ({ recorded: true, snapshot: {} as any })),
+        recordWorkspaceSnapshot: vi.fn(async () => ({
+          recorded: true as const,
+          snapshot: {} as any,
+        })),
       };
       let shouldHold = true;
       const resolvers: Array<() => void> = [];
@@ -758,7 +761,7 @@ describe('runtime 100 coverage completion', () => {
         },
       };
       bridge.installToolBoundary(pipelines as never);
-      const handler = pipelines.toolCall.prepend.mock.calls[0][0].handler;
+      const handler = pipelines.toolCall.prepend.mock.calls[0]![0]!.handler;
 
       // Release hold and drain all pending
       shouldHold = false;
@@ -802,10 +805,20 @@ describe('runtime 100 coverage completion', () => {
 
   describe('local-llm-probe.ts edges', () => {
     it('handles empty baseUrl and invalid url gracefully', async () => {
-      const res1 = await probeLocalLlm({ baseUrl: '' });
+      const res1 = await probeLocalLlm({
+        baseUrl: '',
+        apiKey: undefined,
+        noAuth: true,
+        scrubber: new DefaultSecretScrubber(),
+      });
       expect(res1).toEqual({ ok: false, status: 'no_base_url', detail: 'baseUrl is empty' });
 
-      const res2 = await probeLocalLlm({ baseUrl: '   ' });
+      const res2 = await probeLocalLlm({
+        baseUrl: '   ',
+        apiKey: undefined,
+        noAuth: true,
+        scrubber: new DefaultSecretScrubber(),
+      });
       expect(res2).toEqual({ ok: false, status: 'no_base_url', detail: 'baseUrl is empty' });
     });
   });
@@ -841,14 +854,14 @@ describe('runtime 100 coverage completion', () => {
         providerRegistry: providerRegistry as never,
         config,
         container,
-      });
+      } as never);
 
       await expect(
         factory({
-          agentId: 'sub-1',
+          id: 'sub-1',
           name: 'Worker',
           role: 'Subagent',
-          task: 'Do task',
+          prompt: 'Do task',
           tools: ['non_existent_tool_xyz'],
         }),
       ).rejects.toThrow(/Subagent tool contract is not registered: non_existent_tool_xyz/);
@@ -1000,9 +1013,12 @@ describe('runtime 100 coverage completion', () => {
             snapshot: {} as any,
           })),
         },
-        captureWorkspaceCheckpoint: vi.fn(async () => ({
-          manifestHash: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-        })),
+        captureWorkspaceCheckpoint: vi.fn(
+          async () =>
+            ({
+              manifestHash: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+            }) as never,
+        ),
         logger: { warn: vi.fn() },
       });
 
@@ -1010,7 +1026,7 @@ describe('runtime 100 coverage completion', () => {
         toolCall: { prepend: vi.fn() },
       };
       bridge.installToolBoundary(pipelines as never);
-      const handler = pipelines.toolCall.prepend.mock.calls[0][0].handler;
+      const handler = pipelines.toolCall.prepend.mock.calls[0]![0]!.handler;
 
       // Call boundary > 512 times with distinct keys to trigger eviction of oldest
       for (let i = 0; i <= 515; i++) {
@@ -1039,11 +1055,13 @@ describe('runtime 100 coverage completion', () => {
         tier: 'off',
         memory: { enabled: false, store: null },
         events: mockEvents as never,
-        disabledToolMeta: { write: { reason: 'read only mode' } },
+        disabledToolMeta: { write: { reason: 'user', at: 1, caller: 'read only mode' } },
       });
 
       expect(setEventBusSpy).toHaveBeenCalledWith(mockEvents);
-      expect(applyDisabledMetaSpy).toHaveBeenCalledWith({ write: { reason: 'read only mode' } });
+      expect(applyDisabledMetaSpy).toHaveBeenCalledWith({
+        write: { reason: 'user', at: 1, caller: 'read only mode' },
+      });
     });
   });
 });

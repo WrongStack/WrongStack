@@ -1,10 +1,10 @@
-import { TRUSTED_PROVIDER_PRESETS } from './trusted-presets.js';
 import type { ProviderCatalogMetadata, ProviderDefinition } from './provider-definition-types.js';
+import { TRUSTED_PROVIDER_PRESETS } from './trusted-presets.js';
 
 export type {
+  OpenAICompatiblePolicyId,
   ProviderCatalogMetadata,
   ProviderDefinition,
-  OpenAICompatiblePolicyId,
   ProviderReferral,
   ProviderUsage,
 } from './provider-definition-types.js';
@@ -113,6 +113,9 @@ const CORE_PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     models: [],
     usage: 'metered-api',
     docsUrl: 'https://docs.x.ai/',
+    autoDiscover: true,
+    modelDiscoveryPath: 'language-models',
+    modelDiscoveryAuthoritative: true,
     requestPolicy: 'xai',
   },
   {
@@ -237,6 +240,8 @@ export interface CompatibleProviderProjection {
   defaultBaseUrl?: string;
   quirks?: ProviderDefinition['quirks'];
   autoDiscover?: boolean;
+  modelDiscoveryPath?: string;
+  modelDiscoveryAuthoritative?: boolean;
 }
 
 /** Builds the mutable host-facing shape without duplicating provider facts. */
@@ -293,6 +298,12 @@ export function projectCompatibleProviderPresets(): Record<string, CompatiblePro
           ...(definition.quirks ? { quirks: { ...definition.quirks } } : {}),
           ...(definition.autoDiscover !== undefined
             ? { autoDiscover: definition.autoDiscover }
+            : {}),
+          ...(definition.modelDiscoveryPath
+            ? { modelDiscoveryPath: definition.modelDiscoveryPath }
+            : {}),
+          ...(definition.modelDiscoveryAuthoritative !== undefined
+            ? { modelDiscoveryAuthoritative: definition.modelDiscoveryAuthoritative }
             : {}),
         },
       ]),

@@ -8,10 +8,19 @@ import { discoverAndMergeProviders } from '../../src/boot/auto-discover-provider
 /** Minimal registry double capturing mergeOverlay calls. */
 function fakeRegistry(): {
   merged: ModelsDevPayload[];
-  mergeOverlay: (p: ModelsDevPayload) => void;
+  mergeOptions: unknown[];
+  mergeOverlay: (p: ModelsDevPayload, opts?: unknown) => void;
 } {
   const merged: ModelsDevPayload[] = [];
-  return { merged, mergeOverlay: (p) => merged.push(p) };
+  const mergeOptions: unknown[] = [];
+  return {
+    merged,
+    mergeOptions,
+    mergeOverlay: (p, opts) => {
+      merged.push(p);
+      mergeOptions.push(opts);
+    },
+  };
 }
 
 function modelsResponse(ids: string[]): typeof fetch {
@@ -23,6 +32,14 @@ function modelsResponse(ids: string[]): typeof fetch {
       }),
       { status: 200, headers: { 'content-type': 'application/json' } },
     )) as never as typeof fetch;
+}
+
+function xaiModelsResponse(ids: string[]): typeof fetch {
+  return (async () =>
+    new Response(JSON.stringify({ models: ids.map((id) => ({ id })) }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })) as never as typeof fetch;
 }
 
 function cfgWith(providers: Config['providers']): Config {
@@ -106,5 +123,29 @@ describe('discoverAndMergeProviders', () => {
     });
     expect(reg.merged).toHaveLength(1);
     expect(reg.merged[0]?.mygw).toBeDefined();
+  });
+
+  it('marks xAI account discovery as an authoritative registry snapshot', async () => {
+    const reg = fakeRegistry();
+    const config = cfgWith({ xai: { type: 'xai', apiKey: 'xai-key' } });
+    await discoverAndMergeProviders({
+      config,
+      registry: reg as never,
+      cacheDir,
+      fetchImpl: xaiModelsResponse(['grok-4.6', 'grok-4.20']),
+    });
+    expect(config.providers?.xai?.models).toBeUndefined();
+    expect(reg.mergeOptions[0]).toMatchObject({ authoritativeProviderIds: ['xai'] });
+
+    const curated = cfgWith({
+      xai: { type: 'xai', apiKey: 'xai-key', models: ['grok-4.6'] },
+    });
+    await discoverAndMergeProviders({
+      config: curated,
+      registry: fakeRegistry() as never,
+      cacheDir,
+      fetchImpl: xaiModelsResponse(['grok-4.6', 'grok-4.20']),
+    });
+    expect(curated.providers?.xai?.models).toEqual(['grok-4.6']);
   });
 });

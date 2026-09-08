@@ -4,6 +4,7 @@ import type { HookRegistry } from '../hooks/registry.js';
 import type { Container } from '../kernel/container.js';
 import type { EventBus, EventName, Listener } from '../kernel/events.js';
 import type { Pipeline } from '../kernel/pipeline.js';
+import { ProviderAuthRegistry } from '../registry/provider-auth-registry.js';
 import type { ProviderRegistry } from '../registry/provider-registry.js';
 import type { SlashCommandRegistry } from '../registry/slash-command-registry.js';
 import type { ToolRegistry, ToolWrapper } from '../registry/tool-registry.js';
@@ -25,6 +26,7 @@ import type {
   PluginLLMOptions,
   PluginLLMResult,
   PluginPipelines,
+  ProviderAuthRegistryView,
   ProviderFactory,
   ProviderRegistryView,
   SessionWriterView,
@@ -48,6 +50,8 @@ export interface PluginAPIInit {
   pipelines: PluginPipelines;
   toolRegistry: ToolRegistry;
   providerRegistry: ProviderRegistry;
+  /** Shared interactive-auth registry. Production hosts pass one instance to every surface. */
+  providerAuthRegistry?: ProviderAuthRegistry | undefined;
   slashCommandRegistry?: SlashCommandRegistry | undefined;
   mcpRegistry?: MCPRegistryView | undefined;
   /**
@@ -148,6 +152,7 @@ export class DefaultPluginAPI implements PluginAPI {
   readonly pipelines: PluginPipelines;
   readonly tools: ToolRegistryView;
   readonly providers: ProviderRegistryView;
+  readonly providerAuth: ProviderAuthRegistryView;
   readonly mcp: MCPRegistryView;
   readonly slashCommands: SlashCommandRegistryView;
   readonly extensions: ExtensionRegistry;
@@ -314,6 +319,33 @@ export class DefaultPluginAPI implements PluginAPI {
       },
       create: (cfg) => pr.create(cfg as { type: string }),
       list: () => pr.list(),
+    };
+
+    const authRegistry = init.providerAuthRegistry ?? new ProviderAuthRegistry();
+    const authStrategiesIOwn = new Set<string>();
+    const assertCanMutateProviderAuth = (id: string, op: string): void => {
+      if (isOfficial) return;
+      const resolved = authRegistry.resolveId(id);
+      if (!resolved) return;
+      if (authStrategiesIOwn.has(resolved)) return;
+      throw new Error(
+        `Plugin "${owner}" may not ${op} provider auth strategy "${id}" — it was not registered by this plugin. ` +
+          'Replacing an existing login strategy could intercept provider credentials.',
+      );
+    };
+    this.providerAuth = {
+      register: (strategy) => {
+        assertCanMutateProviderAuth(strategy.id, 'replace');
+        authRegistry.register(strategy);
+        authStrategiesIOwn.add(strategy.id.trim().toLowerCase());
+      },
+      unregister: (id) => {
+        assertCanMutateProviderAuth(id, 'unregister');
+        const resolved = authRegistry.resolveId(id);
+        if (resolved) authStrategiesIOwn.delete(resolved);
+        return authRegistry.unregister(id);
+      },
+      list: () => authRegistry.list(),
     };
 
     // MCP servers this plugin started.

@@ -834,6 +834,7 @@ export {
   type RecordPromptOptions,
   recordPromptJournalEntry,
 } from './prompts/index.js';
+export { ProviderAuthRegistry } from './registry/provider-auth-registry.js';
 export { type ProviderFactory, ProviderRegistry } from './registry/provider-registry.js';
 export {
   type SlashCommand,

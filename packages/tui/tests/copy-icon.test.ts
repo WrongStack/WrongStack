@@ -172,6 +172,29 @@ describe('copyableTextForEntry', () => {
     };
     expect(JSON.parse(copyableTextForEntries([...entries, second]))).toEqual([...entries, second]);
   });
+
+  it('serializes compact tool groups with canonical output and no clipboard-only field', () => {
+    const entry: HistoryEntry = {
+      id: 43,
+      kind: 'tool',
+      name: 'tree',
+      durationMs: 3,
+      ok: true,
+      output: 'visible prefix… [truncated for TUI history; full session remains on disk]',
+      copyOutput: 'complete tree\n└── tail-marker',
+    };
+
+    expect(JSON.parse(copyableTextForEntries([entry]))).toEqual([
+      {
+        id: 43,
+        kind: 'tool',
+        name: 'tree',
+        durationMs: 3,
+        ok: true,
+        output: entry.copyOutput,
+      },
+    ]);
+  });
 });
 
 describe('COPY_ICON', () => {

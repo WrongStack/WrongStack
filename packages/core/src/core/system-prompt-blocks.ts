@@ -9,7 +9,7 @@
  * @module core/system-prompt-blocks
  */
 import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
-import type { TextBlock } from '../types/blocks.js';
+import { markVolatileSystemBlock, type TextBlock } from '../types/blocks.js';
 import type { Tool } from '../types/tool.js';
 import type { InstructionBundle } from './instruction-bundle.js';
 import { type InstructionTemplateContext, renderInstructionLayer } from './instruction-template.js';
@@ -43,9 +43,25 @@ export type SystemBlockSource =
  */
 export const SYSTEM_BLOCK_SOURCE = new WeakMap<TextBlock, SystemBlockSource>();
 
+/**
+ * Sources whose block text is rebuilt every turn. These are the ones already
+ * commented "volatile" in {@link SystemBlockSource} — this set just makes the
+ * comment executable, so a wire adapter can act on it.
+ */
+const VOLATILE_SOURCES: ReadonlySet<SystemBlockSource> = new Set([
+  'contributor',
+  'ledger',
+  'glossary',
+  'peers',
+  'nextsteps',
+]);
+
 /** Tag a freshly-built block with its origin, returning the same reference. */
 export function tagBlock(block: TextBlock, source: SystemBlockSource): TextBlock {
   SYSTEM_BLOCK_SOURCE.set(block, source);
+  // Wires without cache breakpoints relocate these rather than letting them
+  // invalidate the cached prefix — see VOLATILE_SYSTEM_BLOCKS.
+  if (VOLATILE_SOURCES.has(source)) markVolatileSystemBlock(block);
   return block;
 }
 

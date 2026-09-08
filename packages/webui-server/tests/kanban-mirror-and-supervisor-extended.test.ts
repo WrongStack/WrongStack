@@ -62,7 +62,12 @@ import {
   buildTaskGraphFromSddSnapshot,
   createKanbanRunMirror,
 } from '../src/server/kanban-run-mirror.js';
-import { createKanbanSupervisor } from '../src/server/kanban-supervisor.js';
+import {
+  createKanbanSupervisor,
+  type KanbanSupervisorDispatchOptions,
+} from '../src/server/kanban-supervisor.js';
+
+const now = new Date().toISOString();
 
 describe('KanbanRunMirror extended coverage', () => {
   it('buildTaskGraphFromSddSnapshot handles tasks with full metadata and dependencies', () => {
@@ -71,6 +76,23 @@ describe('KanbanRunMirror extended coverage', () => {
       graphId: 'g-1',
       specId: 'spec-1',
       title: 'SDD Run',
+      status: 'running',
+      startedAt: 1000,
+      updatedAt: 2000,
+      progress: {
+        total: 2,
+        pending: 0,
+        inProgress: 1,
+        blocked: 0,
+        failed: 0,
+        review: 0,
+        completed: 1,
+        percentComplete: 50,
+        estimatedHours: 0,
+        actualHours: 0,
+      },
+      wave: 0,
+      columns: [],
       tasks: [
         {
           id: 't1',
@@ -98,10 +120,12 @@ describe('KanbanRunMirror extended coverage', () => {
           id: 't2',
           shortId: 'T2',
           title: 'Task 2',
-          type: 'fix',
+          description: 'Desc 2',
+          type: 'bugfix',
           priority: 'low',
           status: 'in_progress',
           displayStatus: 'in_progress',
+          retries: 0,
           deps: ['T1'],
         },
       ],
@@ -110,8 +134,8 @@ describe('KanbanRunMirror extended coverage', () => {
     expect(graph.id).toBe('g-1');
     expect(graph.nodes).toHaveLength(2);
     expect(graph.edges).toHaveLength(1);
-    expect(graph.edges[0].from).toBe('t1');
-    expect(graph.edges[0].to).toBe('t2');
+    expect(graph.edges[0]!.from).toBe('t1');
+    expect(graph.edges[0]!.to).toBe('t2');
   });
 
   it('buildTaskGraphFromGoalPhase builds nodes with phase tags', () => {
@@ -133,8 +157,8 @@ describe('KanbanRunMirror extended coverage', () => {
     });
 
     expect(graph.id).toBe('goal-1');
-    expect(graph.nodes[0].tags).toEqual(['Phase One']);
-    expect(graph.nodes[0].assignee).toBe('Agent-X');
+    expect(graph.nodes[0]!.tags).toEqual(['Phase One']);
+    expect(graph.nodes[0]!.assignee).toBe('Agent-X');
   });
 
   it('projects multi-column SDD runs across wave boards', async () => {
@@ -150,13 +174,20 @@ describe('KanbanRunMirror extended coverage', () => {
       title: 'SDD Board',
       columns: [],
       tags: [],
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
       tasks: [
         {
           id: 'k-t1',
           title: 'Task 1',
           status: 'review',
           columnId: 'col-1',
-          origin: { taskId: 't1' },
+          order: 0,
+          priority: 'medium',
+          createdAt: now,
+          updatedAt: now,
+          origin: { system: 'sdd', taskId: 't1' },
           assignment: { status: 'running' },
         },
       ],
@@ -197,7 +228,9 @@ describe('KanbanSupervisor auditNow and agent execution', () => {
   it('audits boards, recovers stale assignments, and sweeps gate parked tasks', async () => {
     const broadcast = vi.fn();
     const log = vi.fn();
-    const dispatchTask = vi.fn(async () => 'Agent dispatched');
+    const dispatchTask = vi.fn(
+      async (_description: string, _opts?: KanbanSupervisorDispatchOptions) => 'Agent dispatched',
+    );
 
     const { getBoard, listBoards } = await import('@wrongstack/kanban');
     const board: KanbanBoard = {
@@ -205,6 +238,9 @@ describe('KanbanSupervisor auditNow and agent execution', () => {
       title: 'Supervised Board',
       columns: [],
       tags: [],
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
       supervisor: {
         enabled: true,
         mode: 'agentic',
@@ -217,12 +253,26 @@ describe('KanbanSupervisor auditNow and agent execution', () => {
           title: 'Parked Task',
           status: 'review',
           columnId: 'col-rev',
+          order: 0,
+          priority: 'medium',
+          createdAt: now,
+          updatedAt: now,
           assignment: { status: 'completed' },
         },
       ],
     };
     vi.mocked(getBoard).mockResolvedValue(board);
-    vi.mocked(listBoards).mockResolvedValue([{ id: 'b1', title: 'Supervised Board' }]);
+    vi.mocked(listBoards).mockResolvedValue([
+      {
+        id: 'b1',
+        title: 'Supervised Board',
+        createdAt: now,
+        updatedAt: now,
+        columnCount: 0,
+        taskCount: 1,
+        completedTaskCount: 0,
+      },
+    ]);
 
     const supervisor = createKanbanSupervisor({
       projectRoot: () => '/tmp/supervised-proj',
@@ -233,8 +283,8 @@ describe('KanbanSupervisor auditNow and agent execution', () => {
 
     const snapshots = await supervisor.auditNow('b1');
     expect(snapshots).toHaveLength(1);
-    expect(snapshots[0].boardId).toBe('b1');
-    expect(snapshots[0].status).toBe('running');
+    expect(snapshots[0]!.boardId).toBe('b1');
+    expect(snapshots[0]!.status).toBe('running');
     expect(dispatchTask).toHaveBeenCalled();
 
     // Verify stats
@@ -243,7 +293,7 @@ describe('KanbanSupervisor auditNow and agent execution', () => {
     expect(stats.runningAgents).toBe(1);
 
     // Call onDone callback passed to dispatchTask
-    const dispatchOptions = dispatchTask.mock.calls[0][1];
+    const dispatchOptions = dispatchTask.mock.calls[0]![1];
     expect(dispatchOptions?.onDone).toBeDefined();
     await dispatchOptions?.onDone?.({
       status: 'completed',
@@ -262,7 +312,10 @@ describe('KanbanSupervisor auditNow and agent execution', () => {
       title: 'Disabled Board',
       columns: [],
       tags: [],
-      supervisor: { enabled: false },
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+      supervisor: { enabled: false, mode: 'deterministic' },
       tasks: [],
     };
     vi.mocked(getBoard).mockResolvedValue(board);
@@ -274,7 +327,7 @@ describe('KanbanSupervisor auditNow and agent execution', () => {
 
     const snapshots = await supervisor.auditNow('b-disabled');
     expect(snapshots).toHaveLength(1);
-    expect(snapshots[0].status).toBe('disabled');
+    expect(snapshots[0]!.status).toBe('disabled');
     supervisor.dispose();
   });
 });

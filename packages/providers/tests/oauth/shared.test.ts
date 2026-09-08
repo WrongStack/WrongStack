@@ -9,10 +9,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  generatePkce,
-  createState,
-  parseAuthorizationInput,
   callbackHtml,
+  createState,
+  generatePkce,
+  parseAuthorizationInput,
 } from '../../src/oauth/shared.js';
 
 describe('generatePkce', () => {

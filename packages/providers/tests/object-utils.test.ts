@@ -1,8 +1,8 @@
 /**
  * Tests for object-utils — isPlainObject, isNodeReadable, stripCacheControl.
  */
-import { describe, it, expect } from 'vitest';
-import { isPlainObject, isNodeReadable, stripCacheControl } from '../src/object-utils.js';
+import { describe, expect, it } from 'vitest';
+import { isNodeReadable, isPlainObject, stripCacheControl } from '../src/object-utils.js';
 
 // ============================================================================
 // isPlainObject

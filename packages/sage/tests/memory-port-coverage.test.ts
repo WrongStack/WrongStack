@@ -158,25 +158,25 @@ describe('SqliteMemoryPort coverage', () => {
       const cand = await surface.createCandidate({
         text: 'candidate text',
         suggestedAction: 'archive',
-        reason: 'test candidate',
+        reviewReason: 'test candidate',
         targetMemoryId: memory.id,
       });
-      await expect(surface.findMemoriesForFile('src/example.ts')).resolves.toEqual(
+      await expect(surface.findMemoriesForFile!('src/example.ts')).resolves.toEqual(
         expect.objectContaining({ totalCount: expect.any(Number) }),
       );
-      await expect(surface.backfillRecoverable({ dryRun: true })).resolves.toBeDefined();
-      await expect(surface.recoverSage(memory.id)).resolves.toEqual(
+      await expect(surface.backfillRecoverable!({ dryRun: true })).resolves.toBeDefined();
+      await expect(surface.recoverSage!(memory.id)).resolves.toEqual(
         expect.objectContaining({ id: memory.id }),
       );
 
       // Test importLegacyFiles via surface.importLegacy
       const legacyFile = path.join(projectRoot, 'legacy-memories.md');
       await fs.writeFile(legacyFile, '# Memories\n- [project] A legacy memory\n', 'utf8');
-      const importResult = await surface.importLegacy([legacyFile]);
+      const importResult = await surface.importLegacy!([legacyFile]);
       expect(importResult).toEqual(expect.objectContaining({ files: 1, imported: 1 }));
 
       // Test remaining retrieval capability delegates
-      await expect(retrieval.searchSageWithBreakdown('Capability')).resolves.toEqual(
+      await expect(retrieval.searchSageWithBreakdown!('Capability')).resolves.toEqual(
         expect.any(Array),
       );
 
@@ -186,14 +186,14 @@ describe('SqliteMemoryPort coverage', () => {
       // Test complete service capability delegates
       const service = getSageService(sqlite)!;
       expect(service.withTraceId('service-trace')).toBe(service);
-      await expect(service.unifiedSearchService('Capability')).resolves.toBeDefined();
+      await expect(service.unifiedSearchService({ text: 'Capability' })).resolves.toBeDefined();
       await expect(service.readAll()).resolves.toBeDefined();
       await expect(service.read('project-memory')).resolves.toBeDefined();
       await expect(service.remember('Service text', 'project-memory')).resolves.toBeUndefined();
       await expect(service.search('Service', 'project-memory')).resolves.toBeDefined();
-      await expect(service.findRelated('Service', 'project-memory')).resolves.toBeDefined();
+      await expect(service.findRelated!('Service', 'project-memory')).resolves.toBeDefined();
       await expect(
-        service.scoreRelevant({ currentTask: 'Service' }, 'project-memory'),
+        service.scoreRelevant!({ currentTask: 'Service' }, 'project-memory'),
       ).resolves.toBeDefined();
       await expect(service.list('project-memory')).resolves.toBeDefined();
       await expect(service.forget('Service', 'project-memory')).resolves.toBeDefined();
@@ -202,18 +202,18 @@ describe('SqliteMemoryPort coverage', () => {
       await expect(service.hygiene()).resolves.toBeDefined();
       await expect(service.retrieveForPath({ path: 'src/example.ts' })).resolves.toBeDefined();
       await expect(service.searchSage('Capability')).resolves.toBeDefined();
-      await expect(service.searchSageWithBreakdown('Capability')).resolves.toBeDefined();
-      await expect(service.retrieveForAudience({})).resolves.toBeDefined();
+      await expect(service.searchSageWithBreakdown!('Capability')).resolves.toBeDefined();
+      await expect(service.retrieveForAudience!({})).resolves.toBeDefined();
       await expect(service.graphFor(memory.id, 1, 10)).resolves.toBeDefined();
       await expect(service.verify(memory.id)).resolves.toBeDefined();
       await expect(service.listCandidates(true)).resolves.toBeDefined();
       const cand2 = await service.createCandidate({
         text: 'service candidate text',
         suggestedAction: 'investigate',
-        reason: 'service candidate',
+        reviewReason: 'service candidate',
         targetMemoryId: memory.id,
       });
-      await expect(service.resolveCandidate(cand.id, 'rejected', 'test')).resolves.toBeDefined();
+      await expect(service.resolveCandidate(cand.id, 'archive', 'test')).resolves.toBeDefined();
       await expect(service.acceptCandidate(cand2.id)).resolves.toBeDefined();
       await expect(service.rejectCandidate(cand2.id, 'test reject')).resolves.toBe(false);
       const rem2 = await service.rememberSage({ text: 'service remember sage' });

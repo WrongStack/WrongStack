@@ -191,6 +191,26 @@ describe('mapCompatibleModel', () => {
     ]);
   });
 
+  it('maps a REAL xAI language-model entry and normalizes cent pricing', () => {
+    const m = mapCompatibleModel({
+      id: 'grok-4.6',
+      aliases: ['grok-4.6-latest'],
+      context_length: 1_000_000,
+      input_modalities: ['text', 'image'],
+      output_modalities: ['text'],
+      prompt_text_token_price: 20_000,
+      cached_prompt_text_token_price: 2_000,
+      completion_text_token_price: 60_000,
+    } as never);
+
+    expect(m).toMatchObject({
+      id: 'grok-4.6',
+      limit: { context: 1_000_000 },
+      modalities: { input: ['text', 'image'], output: ['text'] },
+      cost: { input: 2, cache_read: 0.2, output: 6 },
+    });
+  });
+
   it('drops gateway entries that are not language models', () => {
     // A gateway lists embeddings, image, speech and video alongside chat
     // models; offering `whisper-1` in a model picker is worse than omitting it.
@@ -273,6 +293,19 @@ describe('discoverOpenAICompatibleModels', () => {
     expect(provider).toBeUndefined();
   });
 
+  it('supports xAI /language-models envelopes and a provider-specific path', async () => {
+    const fetchImpl = (async (input: string | URL | Request) => {
+      expect(String(input)).toBe('https://api.x.ai/v1/language-models');
+      return new Response(JSON.stringify({ models: [{ id: 'grok-4.6' }] }));
+    }) as typeof fetch;
+    const provider = await discoverOpenAICompatibleModels('xai', {
+      baseUrl: 'https://api.x.ai/v1',
+      modelDiscoveryPath: 'language-models',
+      fetchImpl,
+    });
+    expect(Object.keys(provider?.models ?? {})).toEqual(['grok-4.6']);
+  });
+
   it('never throws on a network error', async () => {
     const provider = await discoverOpenAICompatibleModels('omniroute', {
       baseUrl: 'http://localhost:20128/v1',
@@ -318,6 +351,17 @@ describe('resolveDiscoveryTargets', () => {
     expect(target?.cacheKey).toContain('https://openrouter.ai/api/v1');
   });
 
+  it('opts xAI into account-authoritative language model discovery', () => {
+    const [target] = resolveDiscoveryTargets(cfg({ xai: { type: 'xai', apiKey: 'xai-key' } }));
+    expect(target).toMatchObject({
+      id: 'xai',
+      baseUrl: 'https://api.x.ai/v1',
+      modelDiscoveryPath: 'language-models',
+      modelDiscoveryAuthoritative: true,
+    });
+    expect(target?.cacheKey).toContain('language-models');
+  });
+
   it('skips providers that never opted in', () => {
     expect(resolveDiscoveryTargets(cfg({ anthropic: { type: 'anthropic' } }))).toEqual([]);
   });
@@ -328,5 +372,24 @@ describe('resolveDiscoveryTargets', () => {
         cfg({ 'ai-gateway': { type: 'ai-gateway', autoDiscoverModels: false } }),
       ),
     ).toEqual([]);
+  });
+
+  it('lets a custom provider configure its discovery path and authoritative semantics', () => {
+    const [target] = resolveDiscoveryTargets(
+      cfg({
+        custom: {
+          type: 'custom',
+          baseUrl: 'https://models.example/v1',
+          autoDiscoverModels: true,
+          modelDiscoveryPath: 'language-models',
+          modelDiscoveryAuthoritative: true,
+        },
+      }),
+    );
+    expect(target).toMatchObject({
+      id: 'custom',
+      modelDiscoveryPath: 'language-models',
+      modelDiscoveryAuthoritative: true,
+    });
   });
 });

@@ -132,6 +132,7 @@ export interface CliWebUIOptions {
     webuiInstanceRegistered: boolean;
   }) => void;
   modelsRegistry?: ModelsRegistry | undefined;
+  providerAuthRegistry?: import('@wrongstack/core/registry').ProviderAuthRegistry | undefined;
   globalConfigPath?: string | undefined;
   /** Resolved profile config path: ~/.wrongstack/profiles/<activeProfile>/config.json */
   profileConfigPath: string;

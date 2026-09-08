@@ -445,3 +445,76 @@ function expectedTierFor(
   const valid = new Set(['off', 'minimal', 'light', 'medium', 'aggressive']);
   return (valid.has(val) ? val : 'off') as 'off' | 'minimal' | 'light' | 'medium' | 'aggressive';
 }
+
+describe('F6 — the auto tier is latched so a re-measured window cannot reshape the prompt', () => {
+  let tmp2: string;
+  beforeEach(async () => {
+    tmp2 = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-tier-latch-'));
+  });
+  afterEach(async () => {
+    await fs.rm(tmp2, { recursive: true, force: true }).catch(() => undefined);
+  });
+
+  /** A capabilities getter whose window the test can move mid-session. */
+  function movableCaps(initial: number) {
+    const ref = { current: initial };
+    return {
+      ref,
+      get: () => ({
+        maxContextTokens: ref.current,
+        supportsTools: true,
+        supportsVision: false,
+        supportsReasoning: true,
+      }),
+    };
+  }
+
+  it('keeps the prompt shape when the live probe re-measures the SAME model', async () => {
+    // gpt-5.3-codex-spark publishes a 128,000 window whose usable ceiling is
+    // 121,600 — the two sit on opposite sides of the 'auto' band boundary.
+    // A provider that implements refreshContextLimit reports the usable value
+    // mid-session, and recomputing the tier there would rewrite the prompt
+    // from the top, discarding the cached conversation behind it.
+    const caps = movableCaps(128_000);
+    const b = new DefaultSystemPromptBuilder({
+      tokenSavingMode: 'auto',
+      modelCapabilities: caps.get,
+    });
+    const ctx = {
+      cwd: tmp2,
+      projectRoot: tmp2,
+      tools: FIXTURE_TOOLS,
+      model: 'gpt-5.3-codex-spark',
+    };
+
+    const before = (await b.build(ctx)).map((bl) => bl.text).join('\n');
+    caps.ref.current = 121_600; // what the live catalog probe reports
+    const after = (await b.build(ctx)).map((bl) => bl.text).join('\n');
+
+    expect(after).toBe(before);
+  });
+
+  it('re-resolves the shape when the model actually changes', async () => {
+    // A different model is a different prompt shape on purpose — and the
+    // prefix was going to change anyway.
+    const caps = movableCaps(128_000);
+    const b = new DefaultSystemPromptBuilder({
+      tokenSavingMode: 'auto',
+      modelCapabilities: caps.get,
+    });
+    const big = (
+      await b.build({ cwd: tmp2, projectRoot: tmp2, tools: FIXTURE_TOOLS, model: 'big-window' })
+    )
+      .map((bl) => bl.text)
+      .join('\n');
+
+    caps.ref.current = 16_000; // a genuinely small model
+    const small = (
+      await b.build({ cwd: tmp2, projectRoot: tmp2, tools: FIXTURE_TOOLS, model: 'small-window' })
+    )
+      .map((bl) => bl.text)
+      .join('\n');
+
+    expect(small).not.toBe(big);
+  });
+});

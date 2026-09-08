@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import type { Snapshot, TechStackEngine, TechStackStore } from '@wrongstack/techstack';
+import type { Snapshot } from '@wrongstack/techstack';
 import { describe, expect, it, vi } from 'vitest';
 import {
   handleTechStackAnalyze,
@@ -11,7 +11,6 @@ import {
   handleTechStackRemediationPlan,
   handleTechStackReport,
   handleTechStackSnapshot,
-  type TechStackHandlerDeps,
 } from '../src/server/techstack-handlers.js';
 
 function mockResponse() {
@@ -169,7 +168,9 @@ describe('TechStack HTTP handlers extended coverage', () => {
 
       expect(res.result.status).toBe(200);
       expect(res.result.headers['Content-Type']).toBe('text/markdown');
-      expect(res.result.headers['Content-Disposition']).toBe('attachment; filename="techstack-report.md"');
+      expect(res.result.headers['Content-Disposition']).toBe(
+        'attachment; filename="techstack-report.md"',
+      );
       expect(res.result.body).toBe('# Report');
     });
 
@@ -183,7 +184,9 @@ describe('TechStack HTTP handlers extended coverage', () => {
 
       expect(res.result.status).toBe(200);
       expect(res.result.headers['Content-Type']).toBe('application/json');
-      expect(res.result.headers['Content-Disposition']).toBe('attachment; filename="techstack-sbom-spdx.json"');
+      expect(res.result.headers['Content-Disposition']).toBe(
+        'attachment; filename="techstack-sbom-spdx.json"',
+      );
     });
 
     it('generates cyclonedx sbom report with engine', () => {
@@ -195,7 +198,9 @@ describe('TechStack HTTP handlers extended coverage', () => {
       handleTechStackReport(res.value, { projectId: 'p1', store, engine }, 'rep-1', 'cyclonedx');
 
       expect(res.result.status).toBe(200);
-      expect(res.result.headers['Content-Disposition']).toBe('attachment; filename="techstack-sbom-cyclonedx.json"');
+      expect(res.result.headers['Content-Disposition']).toBe(
+        'attachment; filename="techstack-sbom-cyclonedx.json"',
+      );
     });
   });
 
@@ -209,11 +214,7 @@ describe('TechStack HTTP handlers extended coverage', () => {
       const store = { updateJobStatus } as never;
       const emit = vi.fn();
 
-      handleTechStackCancel(
-        res.value,
-        { projectId: 'p1', store, runningJobs, emit },
-        'job-abc',
-      );
+      handleTechStackCancel(res.value, { projectId: 'p1', store, runningJobs, emit }, 'job-abc');
 
       expect(abortSpy).toHaveBeenCalled();
       expect(updateJobStatus).toHaveBeenCalledWith('job-abc', 'cancelled');
@@ -438,7 +439,9 @@ describe('TechStack HTTP handlers extended coverage', () => {
 
     it('returns 404 from remediation apply when snapshot is missing', async () => {
       const res = mockResponse();
-      const req = Readable.from([JSON.stringify({ approvedItems: ['ws-1:npm:react:upgrade'] })]) as never;
+      const req = Readable.from([
+        JSON.stringify({ approvedItems: ['ws-1:npm:react:upgrade'] }),
+      ]) as never;
       const store = { getSnapshot: vi.fn(() => null) } as never;
 
       await handleTechStackRemediationApply(req, res.value, {

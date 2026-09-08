@@ -62,7 +62,7 @@ export function buildAuthCommand(opts: SlashCommandContext): SlashCommand {
   const help = [
     'Usage:',
     '  /auth                      Open the interactive key manager (TUI) or show key status',
-    '  /auth login                Sign in with OAuth (ChatGPT / Claude / Copilot)',
+    '  /auth login                Sign in with a registered provider OAuth strategy',
     '  /auth status <provider>    Show detail for one provider',
     '  /auth open                 Open the interactive key manager',
     '',
@@ -106,6 +106,7 @@ export function buildAuthCommand(opts: SlashCommandContext): SlashCommand {
             `  Run ${color.cyan('wstack auth login chatgpt')} — ChatGPT Plus/Pro (→ openai-codex)`,
             `  Run ${color.cyan('wstack auth login claude')}  — Claude Pro/Max (→ anthropic-oauth)`,
             `  Run ${color.cyan('wstack auth login copilot')} — GitHub Copilot (→ github-copilot)`,
+            `  Run ${color.cyan('wstack auth login openrouter')} — OpenRouter API key (→ openrouter)`,
           ].join('\n'),
         };
       }

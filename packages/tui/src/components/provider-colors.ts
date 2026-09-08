@@ -73,7 +73,7 @@ export function badgeForKind(
   }
 }
 
-/** Colors for the three OAuth kinds shown in the auth panel. */
+/** Brand colors for known OAuth strategies; unknown plugin strategies use the fallback. */
 export const OAUTH_KIND_COLORS: Record<string, string> = {
   chatgpt: '#a6e3a1',
   claude: '#f38ba8',

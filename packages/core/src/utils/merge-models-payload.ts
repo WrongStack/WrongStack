@@ -1,7 +1,9 @@
 import type {
+  ModelCatalogSource,
+  ModelProvenance,
   ModelsDevModel,
-  ModelsDevProvider,
   ModelsDevPayload,
+  ModelsDevProvider,
 } from '../types/models-registry.js';
 
 // Magic keys in the overlay payload that signal deletions rather than additions.
@@ -89,11 +91,11 @@ export function mergeModelsPayload(
 function mergeProvider(base: ModelsDevProvider, overlay: ModelsDevProvider): ModelsDevProvider {
   const models: Record<string, ModelsDevModel> = {};
   for (const [mid, m] of Object.entries(base.models ?? {})) {
-    models[mid] = { ...m };
+    models[mid] = cloneModel(m);
   }
   for (const [mid, ovModel] of Object.entries(overlay.models ?? {})) {
     const existing = models[mid];
-    models[mid] = existing ? mergeModel(existing, ovModel) : { ...ovModel };
+    models[mid] = existing ? mergeModel(existing, ovModel) : cloneModel(ovModel);
   }
   return {
     ...base,
@@ -112,6 +114,8 @@ function mergeProvider(base: ModelsDevProvider, overlay: ModelsDevProvider): Mod
 
 function mergeModel(base: ModelsDevModel, overlay: ModelsDevModel): ModelsDevModel {
   const merged: ModelsDevModel = { ...base, ...overlay };
+  const provenance = mergeProvenance(base.provenance, overlay.provenance);
+  if (provenance) merged.provenance = provenance;
   // One level deeper for the structured fields so a partial overlay (e.g. only
   // `limit.context`) doesn't blow away the base's other sub-fields.
   if (base.limit || overlay.limit) {
@@ -126,12 +130,45 @@ function mergeModel(base: ModelsDevModel, overlay: ModelsDevModel): ModelsDevMod
   return merged;
 }
 
+function mergeProvenance(
+  base: ModelProvenance | undefined,
+  overlay: ModelProvenance | undefined,
+): ModelProvenance | undefined {
+  if (!base) return overlay ? cloneProvenance(overlay) : undefined;
+  if (!overlay) return cloneProvenance(base);
+  const sources: ModelCatalogSource[] = [];
+  for (const source of [...base.sources, ...overlay.sources]) {
+    if (!sources.includes(source)) sources.push(source);
+  }
+  return {
+    primary: overlay.primary,
+    sources,
+    ...(overlay.observedAt ? { observedAt: overlay.observedAt } : {}),
+    ...(overlay.authoritative !== undefined
+      ? { authoritative: overlay.authoritative }
+      : base.authoritative !== undefined
+        ? { authoritative: base.authoritative }
+        : {}),
+  };
+}
+
+function cloneProvenance(value: ModelProvenance): ModelProvenance {
+  return { ...value, sources: [...value.sources] };
+}
+
 function cloneProvider(p: ModelsDevProvider): ModelsDevProvider {
   const models: Record<string, ModelsDevModel> = {};
   for (const [mid, m] of Object.entries(p.models ?? {})) {
-    models[mid] = { ...m };
+    models[mid] = cloneModel(m);
   }
   return { ...p, models };
+}
+
+function cloneModel(model: ModelsDevModel): ModelsDevModel {
+  return {
+    ...model,
+    ...(model.provenance ? { provenance: cloneProvenance(model.provenance) } : {}),
+  };
 }
 
 /** Drop keys whose value is `undefined` so they don't clobber base fields. */

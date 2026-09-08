@@ -38,6 +38,7 @@ export const CLIENT_KNOWLEDGE_MESSAGE_TYPES = [
 export const CLIENT_EXTENSION_MESSAGE_TYPES = [
   'auth.oauth.cancel',
   'auth.oauth.code',
+  'auth.oauth.list',
   'auth.oauth.start',
   'chimera.finding.transition',
   'chimera.report.add_note',

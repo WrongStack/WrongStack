@@ -1,4 +1,4 @@
-import type { ModelsDevModel, ModelsRegistry } from '@wrongstack/core/types';
+import type { ModelProvenance, ModelsDevModel, ModelsRegistry } from '@wrongstack/core/types';
 
 interface CatalogModelMatch {
   providerId: string;
@@ -11,6 +11,7 @@ interface CatalogModelMatch {
   maxOutput?: number | undefined;
   inputCost?: number | undefined;
   outputCost?: number | undefined;
+  provenance?: ModelProvenance | undefined;
   capabilities: string[];
 }
 
@@ -53,6 +54,7 @@ function describeMatch(
     ...(model.limit?.output !== undefined ? { maxOutput: model.limit.output } : {}),
     ...(model.cost?.input !== undefined ? { inputCost: model.cost.input } : {}),
     ...(model.cost?.output !== undefined ? { outputCost: model.cost.output } : {}),
+    ...(model.provenance ? { provenance: model.provenance } : {}),
     capabilities: [
       ...(model.tool_call ? ['tools'] : []),
       ...(model.reasoning || model.reasoningConfig ? ['reasoning'] : []),

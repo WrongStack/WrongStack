@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ProviderCacheLedger } from '../../src/infrastructure/provider-cache-ledger.js';
+import {
+  ProviderCacheLedger,
+  RECENT_HIT_RATIO_WINDOW,
+} from '../../src/infrastructure/provider-cache-ledger.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { Usage } from '../../src/types/provider.js';
 
@@ -70,5 +73,86 @@ describe('ProviderCacheLedger', () => {
     ledger.dispose();
     emit(events, { input: 100, output: 0, cacheRead: 900 }, 'a');
     expect(ledger.perProvider()[0]!.cacheRead).toBe(90);
+  });
+});
+
+describe('last-request cache ratio', () => {
+  function ledgerWith(deltas: Array<{ input: number; cacheRead: number }>): ProviderCacheLedger {
+    const events = new EventBus();
+    const ledger = new ProviderCacheLedger(events);
+    for (const d of deltas) {
+      events.emit('token.accounted', {
+        usage: { input: d.input, output: 0, cacheRead: d.cacheRead },
+        deltaUsage: { input: d.input, output: 0, cacheRead: d.cacheRead },
+        cost: { input: 0, output: 0, total: 0 },
+        provider: 'openai-codex',
+      });
+    }
+    return ledger;
+  }
+
+  it('reports the newest request separately from the session total', () => {
+    // The session figure permanently carries the first turn, which can never
+    // hit — so a healthy session still reads low early and climbs. Turn 1 here
+    // is a total miss and turn 2 a 95% hit: cumulative lands near 48%, which is
+    // exactly the "stuck at 40-50%" a reader would misdiagnose as broken.
+    const ledger = ledgerWith([
+      { input: 1_000, cacheRead: 0 },
+      { input: 50, cacheRead: 950 },
+    ]);
+    const [row] = ledger.perProvider();
+    expect(row?.hitRatio).toBeCloseTo(0.475, 3);
+    expect(row?.lastHitRatio).toBeCloseTo(0.95, 3);
+    expect(row?.lastPromptTokens).toBe(1_000);
+    ledger.dispose();
+  });
+
+  it('has no last-request figure before anything was accounted', () => {
+    const events = new EventBus();
+    const ledger = new ProviderCacheLedger(events);
+    expect(ledger.perProvider()).toEqual([]);
+    ledger.dispose();
+  });
+
+  it('ignores a zero-token settle rather than reporting a 0% turn', () => {
+    // Out-of-order price settles re-emit with no new tokens; counting one as a
+    // request would report a turn that never happened.
+    const ledger = ledgerWith([
+      { input: 50, cacheRead: 950 },
+      { input: 0, cacheRead: 0 },
+    ]);
+    const [row] = ledger.perProvider();
+    expect(row?.lastHitRatio).toBeCloseTo(0.95, 3);
+    ledger.dispose();
+  });
+  it('keeps a bounded per-request trend, which is what actually diagnoses a cache', () => {
+    // A cumulative ratio cannot distinguish a healthy young session from a
+    // broken old one; the SHAPE of the recent requests can.
+    const ledger = ledgerWith([
+      { input: 1_000, cacheRead: 0 },
+      { input: 500, cacheRead: 500 },
+      { input: 200, cacheRead: 800 },
+      { input: 100, cacheRead: 900 },
+      { input: 80, cacheRead: 920 },
+      { input: 60, cacheRead: 940 },
+      { input: 50, cacheRead: 950 },
+      { input: 40, cacheRead: 960 },
+    ]);
+    const [row] = ledger.perProvider();
+    expect(row?.recentHitRatios).toHaveLength(RECENT_HIT_RATIO_WINDOW);
+    // Oldest first, and the window dropped the first two (total-miss) requests.
+    expect(row?.recentHitRatios?.[0]).toBeCloseTo(0.8, 3);
+    expect(row?.recentHitRatios?.at(-1)).toBeCloseTo(0.96, 3);
+    ledger.dispose();
+  });
+
+  it('does not record a trend point for a zero-token settle', () => {
+    const ledger = ledgerWith([
+      { input: 50, cacheRead: 950 },
+      { input: 0, cacheRead: 0 },
+    ]);
+    const [row] = ledger.perProvider();
+    expect(row?.recentHitRatios).toEqual([0.95]);
+    ledger.dispose();
   });
 });

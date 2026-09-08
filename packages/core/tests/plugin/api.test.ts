@@ -197,6 +197,28 @@ describe('DefaultPluginAPI', () => {
     expect(create).toHaveBeenCalled();
   });
 
+  it('providerAuth registers UI-safe interactive login metadata', () => {
+    const { api } = mkApi();
+    api.providerAuth.register({
+      id: 'company-sso',
+      providerId: 'company',
+      label: 'Company SSO',
+      aliases: ['corp'],
+      interactionTypes: ['browser'],
+      begin: async () => ({}) as never,
+    });
+
+    expect(api.providerAuth.list()).toEqual([
+      {
+        id: 'company-sso',
+        providerId: 'company',
+        label: 'Company SSO',
+        aliases: ['corp'],
+        interactionTypes: ['browser'],
+      },
+    ]);
+  });
+
   it('mcp falls back to noop when not provided', async () => {
     const { api } = mkApi();
     await expect(api.mcp.start({ name: 'x' } as never)).resolves.toBeUndefined();

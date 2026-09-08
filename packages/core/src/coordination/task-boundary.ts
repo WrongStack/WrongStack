@@ -77,7 +77,7 @@ export function parseTaskBoundary(raw: {
   outOfScope?: unknown;
 }): TaskBoundaryParseResult {
   const scope = typeof raw.scope === 'string' ? raw.scope.trim() : '';
-  if (scope.length < MIN_SCOPE_CHARS) {
+  if (scope.length < MIN_SCOPE_CHARS || isPlaceholder(scope)) {
     return {
       ok: false,
       error: `\`scope\` is missing or too vague — state in one concrete sentence what work this task covers (files, components, or commands in-bounds).`,

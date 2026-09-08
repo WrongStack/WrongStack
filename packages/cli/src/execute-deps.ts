@@ -185,6 +185,7 @@ interface SessionDeps {
 /** Provider/model registry, selection and switching. */
 interface ProviderDeps {
   statusTracker?: import('@wrongstack/core/coordination').ProviderModelStatusTracker | undefined;
+  providerAuthRegistry: import('@wrongstack/core/registry').ProviderAuthRegistry;
   modelsRegistry: ModelsRegistry;
   savedProviderCfg: ProviderConfig | undefined;
   resolvedProvider: ResolvedProvider | undefined;

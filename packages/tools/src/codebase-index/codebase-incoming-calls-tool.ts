@@ -15,6 +15,7 @@
  */
 
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { codebaseIndexStats, getIndexState, incomingCallsService } from './background-indexer.js';
 import type { CallSite } from './schema.js';
@@ -68,6 +69,13 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
     required: ['symbol'],
   },
   async execute(input, ctx) {
+    if (!input?.symbol || typeof input.symbol !== 'string' || !input.symbol.trim()) {
+      throw new ToolValidationError({
+        message: 'codebase-incoming-calls: symbol is required and cannot be empty',
+        field: 'symbol',
+      });
+    }
+
     const state = getIndexState();
     if (state.lastError) {
       const circuit = state.circuit;

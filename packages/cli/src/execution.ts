@@ -120,6 +120,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     },
     provider: {
       modelsRegistry,
+      providerAuthRegistry,
       savedProviderCfg,
       resolvedProvider,
       statusTracker,
@@ -731,6 +732,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         profileConfigPath: wpaths.profileConfig(profileName),
         projectSessionsDir: wpaths.projectSessions,
         modelsRegistry,
+        providerAuthRegistry,
         mcpRegistry,
         brain,
         brainSettings,

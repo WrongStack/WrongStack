@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
 import { describe, expect, it, vi } from 'vitest';
-import { buildContextCommand } from '../src/slash-commands/context.js';
+import { buildContextCommand, cacheTrendVerdict } from '../src/slash-commands/context.js';
 
 function fakeRenderer() {
   const writes: string[] = [];
@@ -125,6 +125,62 @@ describe('buildContextCommand', () => {
     expect(res?.message).toContain('prompt_cache_key routing');
     expect(res?.message).toContain('openai');
     expect(res?.message).toContain('anthropic');
+  });
+
+  it('"cache" shows the per-request trend and a verdict, not just the cumulative', async () => {
+    const renderer = fakeRenderer();
+    const cmd = buildContextCommand({ renderer } as never);
+    const ctx = fakeCtx({
+      provider: { id: 'openai-codex', capabilities: { cacheControl: 'auto' } },
+      tokenCounter: {
+        cacheStats: () => ({ readTokens: 20_000, writeTokens: 0, hitRatio: 0.47, savedUsd: 0 }),
+      },
+      meta: {
+        providerCacheLedger: {
+          perProvider: () => [
+            {
+              provider: 'openai-codex',
+              cacheRead: 20_000,
+              cacheWrite: 0,
+              hitRatio: 0.47,
+              lastHitRatio: 0.93,
+              lastPromptTokens: 60_000,
+              recentHitRatios: [0, 0.62, 0.81, 0.9, 0.93],
+            },
+          ],
+        },
+      },
+    });
+    const res = await cmd.run('cache', ctx);
+    // The cumulative 47% is the number that reads as "broken"; the trend beside
+    // it is the one that says the cache is working.
+    expect(res?.message).toContain('hit ratio: 47.0%');
+    expect(res?.message).toContain('0% → 62% → 81% → 90% → 93%');
+    expect(res?.message).toContain('healthy');
+  });
+
+  it('"cache" omits the trend before any request was accounted', async () => {
+    const renderer = fakeRenderer();
+    const cmd = buildContextCommand({ renderer } as never);
+    const ctx = fakeCtx({
+      provider: { id: 'openai-codex', capabilities: { cacheControl: 'auto' } },
+      tokenCounter: {
+        cacheStats: () => ({ readTokens: 10, writeTokens: 0, hitRatio: 0.1, savedUsd: 0 }),
+      },
+      meta: { providerCacheLedger: { perProvider: () => [] } },
+    });
+    const res = await cmd.run('cache', ctx);
+    expect(res?.message).not.toContain('recent:');
+  });
+
+  it('cacheTrendVerdict judges the shape, excluding the un-hittable first request', () => {
+    // Climbing from a cold start is the healthy shape, not a low average.
+    expect(cacheTrendVerdict([0, 0.6, 0.8, 0.92])).toContain('healthy');
+    expect(cacheTrendVerdict([0, 0.2, 0.35, 0.5])).toContain('climbing');
+    // Flat at zero is the shape that means the prefix never survives.
+    expect(cacheTrendVerdict([0, 0, 0, 0])).toContain('WRONGSTACK_CACHE_PROBE');
+    expect(cacheTrendVerdict([0, 0.9, 0.7, 0.45])).toContain('falling');
+    expect(cacheTrendVerdict([])).toContain('not enough');
   });
 
   it('"cache" reports the Gemini mechanism from the provider id', async () => {

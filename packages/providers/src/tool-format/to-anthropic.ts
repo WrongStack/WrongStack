@@ -20,8 +20,7 @@ const _cache = new WeakMap<Tool[], AnthropicToolSchema[]>();
 export function toolsToAnthropic(tools: Tool[]): AnthropicToolSchema[] {
   const hit = _cache.get(tools);
   if (hit) return hit;
-  const sorted =
-    tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
+  const sorted = tools.length > 1 ? [...tools].sort((a, b) => a.name.localeCompare(b.name)) : tools;
   const result = sorted.map((t) => {
     const compact = compactToolDefinitionForWire(t);
     return {

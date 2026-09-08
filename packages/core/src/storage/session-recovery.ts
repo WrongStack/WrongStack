@@ -261,7 +261,14 @@ export class SessionRecovery {
       // MAX_PENDING_EVENTS / MAX_PENDING_BYTES, evicting oldest-first. A
       // single oversized event is skipped outright — otherwise the eviction
       // loop below could never satisfy its budget condition.
-      const bytes = Buffer.byteLength(JSON.stringify(event), 'utf8');
+      let bytes: number;
+      try {
+        bytes = Buffer.byteLength(JSON.stringify(event), 'utf8');
+      } catch {
+        // Non-serializable event (e.g. BigInt, circular object) cannot be journaled
+        // or sized. Skip it safely without crashing the recovery plan.
+        continue;
+      }
       if (bytes > SessionRecovery.MAX_PENDING_BYTES) continue;
       while (
         pendingEvents.length >= SessionRecovery.MAX_PENDING_EVENTS ||

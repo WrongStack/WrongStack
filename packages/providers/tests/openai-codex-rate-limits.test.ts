@@ -110,6 +110,44 @@ describe('parseCodexRateLimitHeaders', () => {
     expect(windowOf(snapshot, 'primary')?.usedPercent).toBe(0);
   });
 
+  it('falls back to reset-after-seconds when reset-at comes back empty', () => {
+    // Observed live on a `pro` account: the backend filled in
+    // `x-codex-secondary-reset-after-seconds` and left
+    // `x-codex-secondary-reset-at` as an empty string.
+    const [snapshot] = parseCodexRateLimitHeaders(
+      headers({
+        'x-codex-primary-used-percent': '100',
+        'x-codex-primary-window-minutes': '300',
+        'x-codex-primary-reset-at': '',
+        'x-codex-primary-reset-after-seconds': '1800',
+      }),
+      1_000_000,
+    );
+    expect(windowOf(snapshot, 'primary')?.resetsAt).toBe(1_000 + 1_800);
+  });
+
+  it('prefers the absolute reset when the backend sends both', () => {
+    const [snapshot] = parseCodexRateLimitHeaders(
+      headers({
+        'x-codex-primary-used-percent': '100',
+        'x-codex-primary-reset-at': '1704069000',
+        'x-codex-primary-reset-after-seconds': '1800',
+      }),
+      1_000_000,
+    );
+    expect(windowOf(snapshot, 'primary')?.resetsAt).toBe(1704069000);
+  });
+
+  it('reads the live plan tier off the header rather than the token claim', () => {
+    const [snapshot] = parseCodexRateLimitHeaders(
+      headers({
+        'x-codex-primary-used-percent': '2',
+        'x-codex-plan-type': 'pro',
+      }),
+    );
+    expect(snapshot?.planLabel).toBe('pro');
+  });
+
   it('discovers additional metered families from their header prefix', () => {
     const snapshots = parseCodexRateLimitHeaders(
       headers({

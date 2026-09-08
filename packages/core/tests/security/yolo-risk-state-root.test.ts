@@ -1,4 +1,3 @@
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { isClearlyDestructiveBashCommand } from '../../src/security/yolo-risk.js';
@@ -85,12 +84,12 @@ describe('isClearlyDestructiveBashCommand — state-root write detection', () =>
   // are outside the wstack root AND not on any other catastrophic list, so
   // a clean false is unambiguous.
   describe('glued redirects to non-state-root paths are not flagged here', () => {
-    it.each([
-      ['echo x &>~/somewhere/else.json'],
-      ['echo x &>~/random-file.txt'],
-    ])('%j → destructive=false (state-root detector must not fire)', (cmd) => {
-      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(false);
-    });
+    it.each([['echo x &>~/somewhere/else.json'], ['echo x &>~/random-file.txt']])(
+      '%j → destructive=false (state-root detector must not fire)',
+      (cmd) => {
+        expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(false);
+      },
+    );
   });
 
   // Regression for H-4 (RCE-002): a bash write into the global plugin

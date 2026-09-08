@@ -67,7 +67,7 @@ describe('sage 100% coverage suite', () => {
 
   describe('tools/memory-tools.ts memory_search_explain', () => {
     it('executes memory_search_explain with and without searchSageWithBreakdown', async () => {
-      const toolWithBreakdown = createSageTools(store).find(
+      const toolWithBreakdown = createSageTools(store as any).find(
         (t) => t.name === 'memory_search_explain',
       )!;
       expect(toolWithBreakdown).toBeDefined();
@@ -111,7 +111,7 @@ describe('sage 100% coverage suite', () => {
         scope: 'project',
         kind: 'fact',
       });
-      const _m2 = await store.rememberSage({
+      await store.rememberSage({
         text: 'Lexical breakdown memory 2',
         scope: 'project',
         kind: 'decision',
@@ -163,7 +163,7 @@ describe('sage 100% coverage suite', () => {
       await store.deleteSage(m.id, 'test delete', { force: true });
 
       const report = await store.backfillRecoverable({
-        requireProvenance: true,
+        filter: { requireProvenance: true },
         dryRun: true,
       });
       expect(report.byReason['no_provenance']).toBeGreaterThan(0);
@@ -219,10 +219,10 @@ describe('sage 100% coverage suite', () => {
       // Search with a query that has multiple terms where primary FTS misses but terms exist in corpus
       // with scopes and importanceAtLeast
       const results = await store.searchSage('alpha gamma nonexistenttermxyz', {
-        scopes: ['project'],
+        scope: 'project',
         importanceAtLeast: 0.5,
         suggestions: 'always',
-      });
+      } as never);
       expect(Array.isArray(results)).toBe(true);
     });
   });
@@ -242,8 +242,8 @@ describe('sage 100% coverage suite', () => {
       });
 
       const report = await store.hygiene({
-        verifyAnchors: true,
-        deep: true,
+        verify: true,
+        verifyDepth: 'content',
       });
       expect(report).toBeDefined();
       expect(report.verified).toBeGreaterThan(0);
@@ -270,9 +270,7 @@ describe('sage 100% coverage suite', () => {
       } as any);
 
       // Trigger session retention pruning
-      const report = await store.hygiene({
-        maxSessionMemories: 1,
-      });
+      const report = await store.hygiene({ maxSessionMemories: 1 } as never);
       expect(report).toBeDefined();
     });
   });
@@ -358,7 +356,7 @@ describe('sage 100% coverage suite', () => {
       const m1 = await store.rememberSage({
         text: 'Deleted memory 1 to recover',
         anchors: [{ type: 'file', path: 'src/app.ts' }],
-        sources: [{ type: 'file', uri: 'file:///app.ts' }],
+        sources: [{ type: 'file', path: 'src/app.ts' }],
       });
       await store.deleteSage(m1.id, 'test del', { force: true });
       const m2Id = 'mem_empty_text';
@@ -366,7 +364,7 @@ describe('sage 100% coverage suite', () => {
         mem(m2Id, '   ', {
           status: 'deleted',
           anchors: [{ type: 'file', path: 'src/app.ts' }],
-          sources: [{ type: 'file', uri: 'file:///app.ts' }],
+          sources: [{ type: 'file', path: 'src/app.ts' }],
         }),
       );
 
@@ -385,8 +383,7 @@ describe('sage 100% coverage suite', () => {
       // 3. Apply backfill (!dryRun)
       const appliedReport = await store.backfillRecoverable({
         dryRun: false,
-        requireText: true,
-        filter: { ids: [m1.id] },
+        filter: { ids: [m1.id], requireText: true },
       });
       expect(appliedReport.recovered).toBe(1);
     });
@@ -893,6 +890,8 @@ describe('sage 100% coverage suite', () => {
         memory: m,
         evaluation: { action: 'keep', score: 4, actionReason: 'good memory' } as any,
         valueScore: { total: 80 } as any,
+        action: 'unknown' as never,
+        actionReason: 'exercise default branch',
       });
       expect(res.autoApply).toBeNull();
     });

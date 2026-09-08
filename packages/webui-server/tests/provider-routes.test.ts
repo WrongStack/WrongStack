@@ -1,11 +1,11 @@
 import type { ResolvedProvider } from '@wrongstack/core/types';
-import { handleProviderRoute, type ProviderRouteHandlers } from '../src/server/provider-routes.js';
+import { describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 import {
   resolveProviderCatalogForModels,
   resolveProviderModelMetadata,
 } from '../src/server/model-catalog.js';
-import { describe, expect, it, vi } from 'vitest';
-import type { WebSocket } from 'ws';
+import { handleProviderRoute, type ProviderRouteHandlers } from '../src/server/provider-routes.js';
 
 function mockWs() {
   return {
@@ -57,6 +57,10 @@ function routes(): ProviderRouteHandlers {
       handleOAuthStart: vi.fn(async () => undefined),
       handleOAuthCode: vi.fn(async () => undefined),
       handleOAuthCancel: vi.fn(),
+      handleOAuthList: vi.fn(),
+      resolveOAuthStrategyId: vi.fn((id: string) =>
+        ['chatgpt', 'claude', 'copilot'].includes(id) ? id : undefined,
+      ),
     } as never as ProviderRouteHandlers['providerHandlers'],
   };
 }
@@ -360,6 +364,14 @@ describe('handleProviderRoute malformed payload characterization', () => {
       'chatgpt',
       'custom-openai',
     );
+  });
+
+  it('dispatches the provider auth catalog request', async () => {
+    const ws = mockWs();
+    const deps = routes();
+
+    await expect(handleProviderRoute(ws, { type: 'auth.oauth.list' }, deps)).resolves.toBe(true);
+    expect(deps.providerHandlers.handleOAuthList).toHaveBeenCalledWith(ws);
   });
 
   it('dispatches model.fallback_choice to the fallbackChoice handler', async () => {

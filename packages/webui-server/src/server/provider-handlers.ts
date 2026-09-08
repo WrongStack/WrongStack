@@ -71,6 +71,7 @@ interface ProviderHandlerDeps {
   clients: Map<WebSocket, ConnectedClient>;
   /** Used by the ChatGPT OAuth flow's tier-2 model lookup (best-effort). */
   modelsRegistry?: ModelsRegistry | undefined;
+  providerAuthRegistry?: import('@wrongstack/core/registry').ProviderAuthRegistry | undefined;
   hasActiveModel?: (() => boolean) | undefined;
   onProvidersLoaded?:
     | ((providers: Record<string, ProviderConfig>) => void | Promise<void>)
@@ -109,6 +110,7 @@ export function createProviderHandlers(deps: ProviderHandlerDeps) {
     providerStore,
     broadcast: (message) => deps.broadcast(deps.clients, message),
     modelsRegistry: deps.modelsRegistry,
+    providerAuthRegistry: deps.providerAuthRegistry,
     log: (message) => console.log(message),
     hasActiveModel: deps.hasActiveModel,
     onProvidersLoaded: deps.onProvidersLoaded,

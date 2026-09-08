@@ -240,7 +240,10 @@ describe('AnthropicProvider', () => {
           { type: 'text', text: 'tail', cache_control: { type: 'ephemeral' } },
         ],
         messages: [
-          { role: 'user', content: [{ type: 'text', text: 'q', cache_control: { type: 'ephemeral' } }] },
+          {
+            role: 'user',
+            content: [{ type: 'text', text: 'q', cache_control: { type: 'ephemeral' } }],
+          },
           {
             role: 'user',
             content: [

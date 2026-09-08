@@ -44,7 +44,7 @@ function makeApi(extra: Record<string, unknown> = {}) {
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
     registerHook: vi.fn(
       (hookName: string, matcher: string | undefined, fn: (...args: unknown[]) => unknown) => {
-        registeredHooks.push({ hookName, matcher, fn });
+        registeredHooks.push({ hookName, ...(matcher === undefined ? {} : { matcher }), fn });
         return vi.fn();
       },
     ),

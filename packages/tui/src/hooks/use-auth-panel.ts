@@ -77,12 +77,6 @@ function toMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-const OAUTH_TITLE: Record<string, string> = {
-  chatgpt: 'Sign in with ChatGPT',
-  claude: 'Sign in with Claude',
-  copilot: 'Sign in with GitHub Copilot',
-};
-
 export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
   const { authHost, stateRef, dispatch, open } = opts;
 
@@ -141,7 +135,12 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
       // Re-opening while a previous flow is still running (e.g. `/auth`
       // typed mid-OAuth) — kill the old flow before resetting the panel.
       abortLiveFlow();
-      dispatch({ type: 'authOpen', view, presets: authHost.localPresets() });
+      dispatch({
+        type: 'authOpen',
+        view,
+        presets: authHost.localPresets(),
+        oauthStrategies: authHost.oauthStrategies?.() ?? [],
+      });
       void reloadProviders();
       return true;
     },
@@ -508,7 +507,7 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
         openLocalForm(row.preset);
         return;
       case 'oauth-option':
-        runFlow(OAUTH_TITLE[row.oauth] ?? 'Sign in', (io) => authHost.oauthLogin(row.oauth, io));
+        runFlow(`Sign in with ${row.oauth.label}`, (io) => authHost.oauthLogin(row.oauth.id, io));
         return;
       default:
         return;

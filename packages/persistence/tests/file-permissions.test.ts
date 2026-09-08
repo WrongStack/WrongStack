@@ -85,4 +85,39 @@ describe('file-permissions', () => {
       if (origUser !== undefined) process.env['USER'] = origUser;
     }
   });
+
+  it('does not duplicate domain prefix when USERNAME is already domain-qualified', async () => {
+    if (process.platform !== 'win32') return;
+    const origUsername = process.env['USERNAME'];
+    const origUser = process.env['USER'];
+    const origDomain = process.env['USERDOMAIN'];
+    const baseUser = origUsername ?? origUser ?? os.userInfo().username;
+    const domain = origDomain ?? 'LOCALDOMAIN';
+
+    process.env['USERDOMAIN'] = domain;
+    process.env['USERNAME'] = `${domain}\\${baseUser}`;
+    delete process.env['USER'];
+
+    try {
+      const testFile = path.join(dir, 'secret-domain.json');
+      await fs.writeFile(testFile, 'token');
+
+      let warned = false;
+      await restrictFilePermissions(testFile, {
+        warn: () => {
+          warned = true;
+        },
+      });
+
+      expect(warned).toBe(false);
+    } finally {
+      if (origUsername !== undefined) process.env['USERNAME'] = origUsername;
+      else delete process.env['USERNAME'];
+      if (origUser !== undefined) process.env['USER'] = origUser;
+      else delete process.env['USER'];
+      if (origDomain !== undefined) process.env['USERDOMAIN'] = origDomain;
+      else delete process.env['USERDOMAIN'];
+    }
+  });
 });
+

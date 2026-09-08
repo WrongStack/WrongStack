@@ -541,6 +541,38 @@ describe('todo tool', () => {
     const finished = await getBoard(sb.dir, board.id);
     expect(finished?.tasks.every((task) => task.status === 'completed')).toBe(true);
     expect(sb.ctx.todos.every((todo) => todo.status === 'completed')).toBe(true);
+
+    const duplicateResult = await todoTool.execute(
+      {
+        todos: [
+          {
+            id: 'ui-1',
+            content: 'First real task',
+            status: 'completed',
+            kanbanBoardId: board.id,
+            kanbanTaskId: firstTaskId,
+          },
+          {
+            id: 'ui-1',
+            content: 'Stale unbound projection',
+            status: 'in_progress',
+          },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const afterDuplicate = await getBoard(sb.dir, board.id);
+    expect(duplicateResult.count).toBe(2);
+    expect(afterDuplicate?.tasks).toHaveLength(2);
+    expect(sb.ctx.todos.filter((todo) => todo.kanbanTaskId === firstTaskId)).toEqual([
+      expect.objectContaining({
+        status: 'completed',
+        kanbanBoardId: board.id,
+      }),
+    ]);
+    expect(sb.ctx.todos.some((todo) => todo.content === 'Stale unbound projection')).toBe(false);
   });
 
   it('starts the next managed card while the previous card awaits acceptance', async () => {

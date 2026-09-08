@@ -1114,7 +1114,7 @@ describe('ACPProtocolHandler', () => {
 
     it('handles emit notification rejection in runTurn', async () => {
       const transport = fakeTransport();
-      const origSend = transport.send;
+      const origSend = transport.send as (msg: unknown) => Promise<void>;
       transport.send = vi.fn().mockImplementation(async (msg: any) => {
         if (
           msg.method === 'session/update' &&

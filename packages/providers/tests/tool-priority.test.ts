@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import type { Tool } from '@wrongstack/core/types';
-import { scoreTool, filterToolsByMaxCount } from '../src/tool-priority.js';
+import { describe, expect, it } from 'vitest';
+import { filterToolsByMaxCount, scoreTool } from '../src/tool-priority.js';
 
 function makeTool(name: string): Tool {
   return {

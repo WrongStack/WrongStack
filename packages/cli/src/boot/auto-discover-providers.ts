@@ -43,38 +43,64 @@ export async function discoverAndMergeProviders(opts: {
   let cacheDirty = false;
 
   await Promise.all(
-    targets.map(async ({ id, cfg, baseUrl, apiKey, cacheKey }) => {
-      const provider = await discoverOpenAICompatibleModels(id, {
+    targets.map(
+      async ({
+        id,
+        cfg,
         baseUrl,
         apiKey,
-        headers: cfg.headers,
-        providerName: id,
-        fetchImpl: opts.fetchImpl,
-      });
-      if (provider) {
-        cache[cacheKey] = { fetchedAt: new Date().toISOString(), provider };
-        cacheDirty = true;
-        opts.registry.mergeOverlay({ [id]: provider });
-        opts.logger?.info(
-          `auto-discovered ${Object.keys(provider.models).length} models for "${id}" from ${baseUrl}`,
-        );
-        return;
-      }
-      // Fetch failed — fall back to the last cached list, if any.
-      const cached = cache[cacheKey];
-      if (cached) {
-        opts.registry.mergeOverlay({ [id]: cached.provider });
-        opts.logger?.warn(
-          `auto-discovery for "${id}" failed; using ${
-            Object.keys(cached.provider.models).length
-          } cached models from ${cached.fetchedAt}`,
-        );
-      } else {
-        opts.logger?.warn(
-          `auto-discovery for "${id}" failed and no cache available (server at ${baseUrl} unreachable?)`,
-        );
-      }
-    }),
+        cacheKey,
+        modelDiscoveryPath,
+        modelDiscoveryAuthoritative,
+      }) => {
+        const provider = await discoverOpenAICompatibleModels(id, {
+          baseUrl,
+          apiKey,
+          headers: cfg.headers,
+          providerName: id,
+          modelDiscoveryPath,
+          fetchImpl: opts.fetchImpl,
+        });
+        if (provider) {
+          const fetchedAt = new Date().toISOString();
+          cache[cacheKey] = { fetchedAt, provider };
+          cacheDirty = true;
+          if (modelDiscoveryAuthoritative) {
+            opts.registry.mergeOverlay(
+              { [id]: provider },
+              { observedAt: fetchedAt, authoritativeProviderIds: [id] },
+            );
+          } else {
+            opts.registry.mergeOverlay({ [id]: provider });
+          }
+          opts.logger?.info(
+            `auto-discovered ${Object.keys(provider.models).length} models for "${id}" from ${baseUrl}`,
+          );
+          return;
+        }
+        // Fetch failed — fall back to the last cached list, if any.
+        const cached = cache[cacheKey];
+        if (cached) {
+          if (modelDiscoveryAuthoritative) {
+            opts.registry.mergeOverlay(
+              { [id]: cached.provider },
+              { observedAt: cached.fetchedAt, authoritativeProviderIds: [id] },
+            );
+          } else {
+            opts.registry.mergeOverlay({ [id]: cached.provider });
+          }
+          opts.logger?.warn(
+            `auto-discovery for "${id}" failed; using ${
+              Object.keys(cached.provider.models).length
+            } cached models from ${cached.fetchedAt}`,
+          );
+        } else {
+          opts.logger?.warn(
+            `auto-discovery for "${id}" failed and no cache available (server at ${baseUrl} unreachable?)`,
+          );
+        }
+      },
+    ),
   );
 
   if (cacheDirty) {
