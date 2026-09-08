@@ -57,7 +57,6 @@ describe('LSP tools with mock server', () => {
     const registry = new LSPRegistry(cfg, tracker, { cwd: root, log, events: new EventBus() });
     holder.registry = registry;
     await registry.bind(root, 'lazy');
-    await tracker.open(source);
 
     const tools = new Map(
       makeLSPTools({ registry, tracker, cfg, log }).map((tool) => [tool.name, tool]),
@@ -77,11 +76,48 @@ describe('LSP tools with mock server', () => {
       .execute({ path: source, line: 1, character: 7 }, ctx as never, { signal });
     expect(String(definition)).toContain('sample.ts:1:1');
 
+    const references = await tools
+      .get('lsp_references')!
+      .execute({ path: source, line: 1, character: 7 }, ctx as never, { signal });
+    expect(String(references)).toContain('sample.ts:2:1');
+
+    const hover = await tools
+      .get('lsp_hover')!
+      .execute({ path: source, line: 1, character: 7 }, ctx as never, { signal });
+    expect(String(hover)).toContain('const answer: number');
+
     const completion = await tools
       .get('lsp_completion')!
       .execute({ path: source, line: 1, character: 7, limit: 5 }, ctx as never, { signal });
     expect(String(completion)).toContain('answer [Variable]');
     expect(String(completion)).toContain('const answer: number');
+
+    const symbols = await tools
+      .get('lsp_symbols')!
+      .execute({ path: source }, ctx as never, { signal });
+    expect(String(symbols)).toContain('answer [13] line 1');
+
+    const actions = await tools
+      .get('lsp_code_actions')!
+      .execute({ path: source, line: 1, character: 7 }, ctx as never, { signal });
+    expect(String(actions)).toContain('Replace answer [quickfix]');
+
+    const command = await tools
+      .get('lsp_execute_command')!
+      .execute({ path: source, command: 'mock.command' }, ctx as never, { signal });
+    expect(String(command)).toBe('Command completed.');
+
+    const custom = await tools
+      .get('lsp_request')!
+      .execute({ path: source, method: 'custom/echo', params: { useful: true } }, ctx as never, {
+        signal,
+      });
+    expect(JSON.parse(String(custom))).toEqual({ useful: true });
+
+    const blocked = await tools
+      .get('lsp_request')!
+      .execute({ path: source, method: 'shutdown' }, ctx as never, { signal });
+    expect(String(blocked)).toContain('LSP_INVALID_REQUEST');
 
     const rename = await tools
       .get('lsp_rename')!

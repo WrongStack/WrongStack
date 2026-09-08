@@ -26,6 +26,9 @@ function makeRegistry(): ToolRegistry {
       },
     ],
     isDisabled: (name: string) => name === 'delete',
+    // `bash` stands in for a tool the token-saving tier holds back: registered
+    // and callable, but its schema is not sent with every request.
+    isExposedToProvider: (name: string) => name !== 'bash',
   } as never as ToolRegistry;
 }
 
@@ -50,7 +53,12 @@ describe('buildToolsCommand', () => {
     expect(res?.message).toContain('bash');
     expect(res?.message).toContain('delete');
     expect(res?.message).toContain('disabled');
-    expect(res?.message).toContain('active');
+    // Three states, not two: a tiered-out tool must not read as `direct`.
+    expect(res?.message).toContain('direct');
+    expect(res?.message).toContain('lazy');
+    expect(res?.message).not.toContain('active');
+    expect(res?.message).toMatch(/2 direct, 1 lazy, 1 disabled/);
+    expect(res?.message).toMatch(/held back from the provider by the token-saving tier/);
     expect(writeFn).toHaveBeenCalled();
   });
 
@@ -106,6 +114,6 @@ describe('buildToolsCommand', () => {
     const cmd = buildToolsCommand(makeOpts({ toolRegistry: emptyRegistry }));
     const res = await cmd.run('');
     expect(res?.message).toContain('Tools');
-    expect(res?.message).toMatch(/0 shown, 0 disabled/);
+    expect(res?.message).toMatch(/0 shown, 0 direct, 0 lazy, 0 disabled/);
   });
 });

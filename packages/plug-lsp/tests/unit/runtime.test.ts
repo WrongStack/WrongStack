@@ -165,6 +165,29 @@ describe('runtime helpers', () => {
     expect(tracker.list()).toEqual([]);
   });
 
+  it('tracks custom extensions supplied by the configured server', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-custom-doc-'));
+    const source = path.join(root, 'component.vue');
+    await fs.writeFile(source, '<template />');
+    const opened = vi.fn();
+    const server = {
+      name: 'vue',
+      state: 'ready',
+      config: { languages: ['vue'] },
+      notifyDidOpen: opened,
+    };
+    const registry = {
+      list: () => [server],
+      languageIdForPath: () => 'vue',
+    };
+    const tracker = new DocumentTracker(() => registry as never, log, root);
+
+    await tracker.open(source);
+
+    expect(tracker.get(source)?.languageId).toBe('vue');
+    expect(opened).toHaveBeenCalledOnce();
+  });
+
   it('rejects oversized inputs and evicts least-recently-used documents', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-budget-'));
     const closed = vi.fn();

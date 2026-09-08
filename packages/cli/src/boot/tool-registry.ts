@@ -12,6 +12,7 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import type {
   AutoThinConfig,
+  ConcreteTokenSavingTier,
   DisabledToolMeta,
   MemoryPort,
   TokenSavingTier,
@@ -52,6 +53,23 @@ interface RegisterBuiltinToolsDeps {
       | { identity?: { name?: string | undefined; email?: string | undefined } | undefined }
       | undefined;
   };
+  /**
+   * The concrete tier this session runs at, resolved ONCE by the caller.
+   *
+   * `features.tokenSavingMode` defaults to `'auto'`, and `'auto'` has two
+   * different expansions: `normalizeTokenSavingTier` (window-blind, always
+   * `'medium'`) and `resolveTokenSavingTier` (window-aware — `'minimal'` on a
+   * modern window). The prompt builder uses the second. Letting this function
+   * fall back to the first meant every default session shipped a `'minimal'`
+   * shaped prompt over a `'medium'` tool surface: the two halves of one tier
+   * disagreed on which tools exist.
+   *
+   * Hosts therefore resolve the tier once, from the model window they already
+   * know at boot, and hand the same concrete value to the registry AND to the
+   * prompt builder. The `normalizeTokenSavingTier` fallback below stays for
+   * embedders that have no window to resolve against.
+   */
+  tier?: ConcreteTokenSavingTier | undefined;
   memoryStore: MemoryPort | null | undefined;
   /**
    * Optional vector memory store. When provided, the four
@@ -66,7 +84,7 @@ interface RegisterBuiltinToolsDeps {
 
 /** Register the canonical tool surface, then apply CLI-only execution policies. */
 export function registerBuiltinTools(deps: RegisterBuiltinToolsDeps): void {
-  const tier = normalizeTokenSavingTier(deps.config.features.tokenSavingMode);
+  const tier = deps.tier ?? normalizeTokenSavingTier(deps.config.features.tokenSavingMode);
   registerCanonicalHostTools({
     registry: deps.toolRegistry,
     tier,

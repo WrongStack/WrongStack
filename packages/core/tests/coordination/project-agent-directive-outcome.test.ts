@@ -122,15 +122,31 @@ describe('attribution', () => {
     });
   });
 
-  it('leaves the buffer untouched when nothing was exercised', () => {
+  it('records the control arm when a directive was injected but not exercised', () => {
     capture('verifier', VITEST_DIRECTIVE);
-    const before = loadProjectAgentLearned('verifier', projectRoot);
     const outcome = recordDirectiveOutcomes(
       'verifier',
       'Wrote some documentation.',
       true,
       projectRoot,
     );
+    // Nothing is *credited* — that is still applied-side only.
+    expect(outcome.attributed).toBe(0);
+    // But the task is not discarded either. It ran for this role with the
+    // directive in its prompt and came back showing no sign of it, which is the
+    // closest observable thing to "the same work without this directive". Not
+    // recording it is what left every `skipped` at zero and made the applied
+    // rate unreadable: with a >90% baseline it sat near 1.0 for every entry.
+    const buffer = loadProjectAgentLearned('verifier', projectRoot);
+    expect(buffer).toContain('skipped=1');
+    expect(buffer).toContain('skippedWins=1');
+  });
+
+  it('does not touch the buffer when there is nothing on either arm', () => {
+    // No directives at all: neither arm has anything to record, so the write is
+    // skipped entirely rather than rewriting an unchanged document.
+    const before = loadProjectAgentLearned('verifier', projectRoot);
+    const outcome = recordDirectiveOutcomes('verifier', 'Wrote some docs.', true, projectRoot);
     expect(outcome.attributed).toBe(0);
     expect(loadProjectAgentLearned('verifier', projectRoot)).toBe(before);
   });

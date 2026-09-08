@@ -26,7 +26,7 @@ afterEach(async () => {
   }
 });
 
-function registry() {
+function registry(onAvailabilityChange?: (available: boolean) => void) {
   const tracker = { reopenForServer: vi.fn(async () => undefined) };
   const value = new LSPRegistry(
     {
@@ -41,7 +41,7 @@ function registry() {
       logServerOutput: false,
     },
     tracker as never,
-    { cwd: process.cwd(), log: log as never, events: new EventBus() },
+    { cwd: process.cwd(), log: log as never, events: new EventBus(), onAvailabilityChange },
   );
   return { value, tracker };
 }
@@ -76,6 +76,23 @@ describe('registry completion coverage', () => {
     expect(await registryCoverage.detectProjectLanguages(path.join(root, 'missing'))).toEqual(
       new Set(),
     );
+  });
+
+  it('detects custom file extensions declared by an arbitrary server', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-custom-language-'));
+    directories.push(root);
+    const file = path.join(root, 'component.vue');
+    await fs.writeFile(file, '<template />');
+    const servers = {
+      vue: {
+        command: 'vue-language-server',
+        languages: ['vue'],
+        fileExtensions: { '.vue': 'vue' },
+      },
+    };
+
+    expect(registryCoverage.configuredLanguageIdFor(file, servers)).toBe('vue');
+    expect(await registryCoverage.detectProjectLanguages(root, servers)).toEqual(new Set(['vue']));
   });
 
   it('starts, stops, restarts, shuts down, and handles stale indexes', async () => {
@@ -131,6 +148,39 @@ describe('registry completion coverage', () => {
     await expect(value.findForPath('a.ts')).resolves.toBeNull();
   });
 
+  it('starts only project-relevant servers for live workspace-symbol search', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-relevant-'));
+    directories.push(root);
+    await fs.writeFile(path.join(root, 'source.ts'), 'export const answer = 42;');
+    const { value, tracker } = registry();
+    await value.bind(root, 'lazy');
+    const state = value as unknown as { servers: Map<string, unknown> };
+    const typescript = {
+      name: 'typescript',
+      state: 'exited',
+      config: { languages: ['typescript'] },
+      start: vi.fn(async () => {
+        typescript.state = 'ready';
+      }),
+    };
+    const gopls = {
+      name: 'gopls',
+      state: 'exited',
+      config: { languages: ['go'] },
+      start: vi.fn(async () => {
+        gopls.state = 'ready';
+      }),
+    };
+    state.servers.set('typescript', typescript);
+    state.servers.set('gopls', gopls);
+
+    await value.ensureProjectServersReady();
+
+    expect(typescript.start).toHaveBeenCalledOnce();
+    expect(gopls.start).not.toHaveBeenCalled();
+    expect(tracker.reopenForServer).toHaveBeenCalledWith(typescript);
+  });
+
   it('schedules successful reconnects, deduplicates timers, and enforces the attempt cap', async () => {
     vi.useFakeTimers();
     const { value, tracker } = registry();
@@ -165,6 +215,23 @@ describe('runtime server mutation', () => {
     args: ['-e', 'setTimeout(() => {}, 60_000)'],
     languages: [name],
     enabled: true,
+  });
+
+  it('reports tool availability as enabled servers are added, disabled, and removed', async () => {
+    const availability = vi.fn();
+    const { value } = registry(availability);
+
+    await value.upsertServer('a', cfg('typescript'));
+    await value.setServerEnabled('a', false);
+    await value.setServerEnabled('a', true);
+    await value.removeServer('a');
+
+    expect(availability.mock.calls.map(([available]) => available)).toEqual([
+      true,
+      false,
+      true,
+      false,
+    ]);
   });
 
   it('adds a server without tearing down the ones already mounted', async () => {

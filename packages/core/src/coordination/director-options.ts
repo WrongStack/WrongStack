@@ -9,6 +9,7 @@ import type {
 } from '../types/multi-agent.js';
 import type { SessionWriter } from '../types/session.js';
 import type { WorktreeManager } from '../worktree/worktree-manager.js';
+import type { DispatchLogEntry } from './agents/dispatch-log.js';
 import type { BrainArbiter } from './brain.js';
 import type { DispatchClassifier } from './dispatcher.js';
 import type { FleetManager } from './fleet-manager.js';
@@ -100,6 +101,12 @@ export interface DirectorOptions {
   fleetManager?: FleetManager | undefined;
   /** Optional LLM classifier for the smart dispatcher. */
   dispatchClassifier?: DispatchClassifier | undefined;
+  /**
+   * Observation seam for spawn routing (see `DirectorAdmissionPort`). Wired by
+   * the host to persist the decision; unset in tests and embedded uses, where
+   * the whole path stays filesystem-free.
+   */
+  onSpawnRouted?: ((entry: DispatchLogEntry) => void) | undefined;
   /** Max leader context load before a new spawn is rejected. */
   maxLeaderContextLoad?: number | undefined;
   /** Provider's max context window in tokens. */

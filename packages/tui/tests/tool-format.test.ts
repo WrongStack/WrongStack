@@ -106,6 +106,19 @@ describe('formatToolArgs', () => {
     expect(formatToolArgs('search_web', { query: 'WrongStack' })).toBe('"WrongStack"');
   });
 
+  it('formats the complete LSP tool surface compactly', () => {
+    expect(formatToolArgs('lsp_references', { path: 'src/app.ts', line: 4, character: 7 })).toBe(
+      'src/app.ts · L4:7',
+    );
+    expect(formatToolArgs('lsp_symbols', { path: 'src/app.ts' })).toBe('src/app.ts');
+    expect(
+      formatToolArgs('lsp_execute_command', { path: 'src/app.ts', command: 'server.fix' }),
+    ).toBe('server.fix · src/app.ts');
+    expect(formatToolArgs('lsp_request', { path: 'src/app.ts', method: 'vendor/typeTree' })).toBe(
+      'vendor/typeTree · src/app.ts',
+    );
+  });
+
   it('unknown tool: picks the most identifying field', () => {
     expect(formatToolArgs('weird', { name: 'thing', misc: 'noise' })).toBe('thing');
   });

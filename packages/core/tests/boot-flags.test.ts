@@ -130,6 +130,28 @@ describe('flagsToConfigPatch', () => {
     expect(patch.features?.tokenSavingMode).not.toBe(true);
   });
 
+  // The flag used to run its value through `normalizeTokenSavingTier`, which
+  // collapsed the `'auto'` default to `'medium'` and mapped any typo to
+  // `'off'` - so the one flag whose job is shrinking the request could hand
+  // you the full prompt without saying anything.
+  it("passes 'auto' through instead of collapsing it to a concrete tier", () => {
+    const patch = flagsToConfigPatch({ 'token-saving-tier': 'auto' });
+    expect(patch.features?.tokenSavingMode).toBe('auto');
+  });
+
+  it('preserves every concrete tier verbatim', () => {
+    for (const tier of ['off', 'minimal', 'light', 'medium', 'aggressive'] as const) {
+      expect(flagsToConfigPatch({ 'token-saving-tier': tier }).features?.tokenSavingMode).toBe(
+        tier,
+      );
+    }
+  });
+
+  it('leaves the configured tier alone when the value is not a tier', () => {
+    const patch = flagsToConfigPatch({ 'token-saving-tier': 'agressive' });
+    expect(patch.features?.tokenSavingMode).toBeUndefined();
+  });
+
   it('maps multiple flags together', () => {
     const patch = flagsToConfigPatch({
       provider: 'openai',

@@ -27,7 +27,7 @@ afterAll(async () => {
 
 interface MockServer {
   name: string;
-  state: 'stopped' | 'starting' | 'initializing' | 'ready' | 'failed' | 'disabled';
+  state: 'stopped' | 'starting' | 'initializing' | 'ready' | 'failed' | 'disabled' | 'exited';
   config: {
     command: string;
     args?: string[];
@@ -150,6 +150,17 @@ describe('buildLspCommand — parseArgs dispatch', () => {
     expect(result.message).toContain('READY');
     expect(result.message).toContain('gopls');
     expect(result.message).toContain('FAILED');
+  });
+
+  it('shows a lazy, not-yet-started server as idle rather than crashed', async () => {
+    const ctx = makeCtx([srv('rust-analyzer', 'exited')]);
+    const list = await runCmd(ctx, 'list');
+    const status = await runCmd(ctx, 'status');
+
+    expect(list.message).toContain('IDLE');
+    expect(list.message).not.toContain('[EXITED]');
+    expect(list.message).toContain('Configured does not mean running');
+    expect(status.message).toContain('Idle:');
   });
 
   it('ls is an alias for list', async () => {
@@ -470,7 +481,7 @@ describe('buildLspCommand — install', () => {
 });
 
 describe('buildLspCommand — config mutations (add/remove/enable/disable)', () => {
-  it('add returns help (no add subcommand in parser — falls to help)', async () => {
+  it('add without a server definition returns help', async () => {
     const ctx = makeCtx([]);
     const result = await runCmd(ctx, 'add');
     expect(result.message).toContain('Usage:');

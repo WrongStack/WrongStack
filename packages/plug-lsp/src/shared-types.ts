@@ -21,4 +21,5 @@ export interface ReopenableTracker {
 /** Registry surface used by DocumentTracker: enumerate live servers. */
 export interface ServerLister {
   list(): readonly LSPServer[];
+  languageIdForPath?(filePath: string): string | null;
 }

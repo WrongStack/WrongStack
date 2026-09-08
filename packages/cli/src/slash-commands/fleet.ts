@@ -1,5 +1,5 @@
 import type { AgentPhase } from '@wrongstack/core/agent-catalog';
-import { AGENTS_BY_PHASE } from '@wrongstack/core/agent-catalog';
+import { AGENTS_BY_PHASE, summarizeDispatchLog } from '@wrongstack/core/agent-catalog';
 import { dispatchAgent } from '@wrongstack/core/coordination';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
@@ -45,6 +45,7 @@ export function buildFleetCommand(opts: SlashCommandContext): SlashCommand {
       '  /fleet status       Same as /fleet (verbose status)',
       '  /fleet list         List the agent roster grouped by phase',
       '  /fleet dispatch <task>  Route a task to the best agent and spawn it',
+      '  /fleet routing      How past spawns chose their role (roster coverage)',
       '  /fleet spawn <role> [count]  Spawn N subagents of a role (default 1)',
       '  /fleet terminate <subagentId>  Stop a specific subagent by id',
       '  /fleet kill         Stop all running subagents',
@@ -110,6 +111,11 @@ export function buildFleetCommand(opts: SlashCommandContext): SlashCommand {
         case 'route':
           return await handleDispatch(opts, subargs);
 
+        // ── /fleet routing ───────────────────────────────────────────────────
+        case 'routing':
+        case 'coverage':
+          return handleRouting(opts, subargs);
+
         // ── /fleet concurrency [n] ───────────────────────────────────────────
         case 'concurrency':
         case 'slots':
@@ -127,6 +133,7 @@ export function buildFleetCommand(opts: SlashCommandContext): SlashCommand {
             'status',
             'list',
             'dispatch',
+            'routing',
             'usage',
             'spawn',
             'terminate',
@@ -400,6 +407,72 @@ function handleList(): { message: string } {
     for (const def of defs) {
       const role = (def.config.role ?? '').padEnd(18);
       lines.push(`    ${color.bold(role)} ${color.dim(def.capability.summary)}`);
+    }
+  }
+  return { message: lines.join('\n') };
+}
+
+/**
+ * `/fleet routing` — what the roster is actually being used for.
+ *
+ * Reads `.wrongstack/agents/dispatch-log.jsonl`. The three numbers that matter
+ * are not the per-role counts (those were already visible from `learning.json`)
+ * but the totals: `explicit-role` versus `description` says whether the
+ * dispatcher is ever consulted, `fallback` says how often it gave up and
+ * shipped the generalist, and `runner-up` names the roles that keep losing ties
+ * they were scored for. A role with runner-up hits and no spawns needs sharper
+ * keywords; a role with neither is one nothing in this project ever asks for.
+ */
+function handleRouting(opts: SlashCommandContext, subargs: string[]): { message: string } {
+  const summary = summarizeDispatchLog(opts.projectRoot);
+  if (summary.entries === 0) {
+    const msg =
+      'No spawn routing recorded yet. Every `spawn_subagent` appends one line to ' +
+      '.wrongstack/agents/dispatch-log.jsonl; the log starts empty on a fresh checkout.';
+    opts.renderer.writeInfo?.(msg);
+    return { message: msg };
+  }
+
+  const { bySource, byMethod, rosterMisses } = summary.totals;
+  const window =
+    summary.since && summary.until
+      ? `${summary.since.slice(0, 10)} → ${summary.until.slice(0, 10)}`
+      : 'unknown window';
+  const lines: string[] = [
+    `${color.bold('Spawn routing')} ${color.dim(`(${summary.entries} spawns, ${window})`)}`,
+    '',
+    `  ${color.cyan('addressed by')}  description ${bySource.description}  ·  explicit role ${bySource['explicit-role']}  ·  name only ${bySource['name-only']}`,
+    `  ${color.cyan('decided by  ')}  heuristic ${byMethod.heuristic}  ·  classifier ${byMethod.llm}  ·  ${color.bold(`fallback ${byMethod.fallback}`)}`,
+    `  ${color.cyan('roster miss ')}  ${rosterMisses} ${color.dim('(dispatched to a catalog role with no roster entry)')}`,
+    '',
+  ];
+
+  const showAll = subargs.includes('--all');
+  const spawned = summary.roles.filter((row) => row.spawns > 0);
+  const shown = showAll ? spawned : spawned.slice(0, 15);
+  lines.push(color.cyan('  Roles spawned'));
+  for (const row of shown) {
+    const confidence = row.avgConfidence === null ? '   —' : row.avgConfidence.toFixed(2);
+    lines.push(
+      `    ${color.bold(row.role.padEnd(20))} ${String(row.spawns).padStart(5)}  ` +
+        `${color.dim(`conf ${confidence}  last ${row.lastAt?.slice(0, 10) ?? '—'}`)}`,
+    );
+  }
+  if (!showAll && spawned.length > shown.length) {
+    lines.push(color.dim(`    …and ${spawned.length - shown.length} more (/fleet routing --all)`));
+  }
+
+  // The interesting half: roles the dispatcher weighed and passed over.
+  const nearMisses = summary.roles
+    .filter((row) => row.spawns === 0 && row.runnerUp > 0)
+    .slice(0, 15);
+  if (nearMisses.length > 0) {
+    lines.push('');
+    lines.push(color.cyan('  Considered but never chosen'));
+    for (const row of nearMisses) {
+      lines.push(
+        `    ${color.bold(row.role.padEnd(20))} ${String(row.runnerUp).padStart(5)} ${color.dim('runner-up')}`,
+      );
     }
   }
   return { message: lines.join('\n') };

@@ -12,6 +12,7 @@ import type {
   TaskResult,
   TaskSpec,
 } from '../types/multi-agent.js';
+import type { DispatchLogEntry } from './agents/dispatch-log.js';
 import type { CollabDebugReport, CollabSessionOptions } from './collab-debug.js';
 import type { DispatchClassifier } from './dispatcher.js';
 import type { FleetBus, FleetUsage } from './fleet-bus.js';
@@ -24,6 +25,16 @@ interface DirectorSpawnPort {
 /** Admission includes optional smart-dispatch policy used before spawning. */
 export interface DirectorAdmissionPort extends DirectorSpawnPort {
   readonly dispatchClassifier?: DispatchClassifier | undefined;
+  /**
+   * Observation seam for how a spawn chose its role, called once per
+   * `spawn_subagent` regardless of which branch resolved the config — an
+   * explicit `role` that skipped dispatch is exactly as interesting as a
+   * dispatched description. Core stays free of the filesystem; the host wires
+   * this to `recordDispatch`. Must never throw: the caller does not guard it
+   * beyond the spawn's own error path, and a telemetry failure has no business
+   * failing a spawn.
+   */
+  readonly onSpawnRouted?: ((entry: DispatchLogEntry) => void) | undefined;
 }
 
 interface DirectorBudgetPort {

@@ -29,7 +29,7 @@ export const SETTINGS_HELP = [
   '  /settings context-mode balanced|frugal|deep   Context window policy',
   '  /settings context-strategy hybrid|intelligent|selective   Compactor strategy',
   '  /settings context-auto-compact on|off   Auto-compact context when thresholds crossed',
-  '  /settings token-saving off|minimal|light|medium|aggressive   Token-saving mode',
+  '  /settings token-saving auto|off|minimal|light|medium|aggressive   Token-saving tier (next session)',
   '  /settings nextsteps-tool on|off   Give the leader a `nextsteps` tool alongside the <nextsteps> block (next session)',
   '  /settings autothin on|off|status   Stats-driven tool auto-thinning (off by default)',
   '  /settings autothin-idle <days>     Tools idle for N days are candidates (default 30)',

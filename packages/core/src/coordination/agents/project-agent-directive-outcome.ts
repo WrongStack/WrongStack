@@ -28,8 +28,11 @@ import {
   readRawLearnedEntries,
 } from './project-agent-consolidation.js';
 import {
+  directiveControl,
+  directiveLift,
   directiveTrials,
   directiveUtility,
+  hasDirectiveLiftEvidence,
   renderLearnedInstructions,
   type StructuredLearnedEntry,
 } from './project-agent-learning-structured.js';
@@ -49,6 +52,35 @@ import {
 export const DIRECTIVE_QUARANTINE_MIN_APPLIED = 8;
 /** Utility below which a directive with enough trials is retired. */
 export const DIRECTIVE_QUARANTINE_MAX_UTILITY = 0.3;
+/**
+ * Lift below which a directive with evidence on both sides is retired.
+ *
+ * Negative, not zero: a directive that merely fails to help is noise in the
+ * prompt budget, while one that is measurably followed by *worse* outcomes than
+ * its own absence is actively wrong, and only the second is worth deleting on
+ * statistical evidence alone.
+ */
+export const DIRECTIVE_QUARANTINE_MAX_LIFT = -0.15;
+
+/**
+ * Whether a directive's record is bad enough to retire it.
+ *
+ * Two independent gates, because they catch different things:
+ *
+ *  - **Absolute.** A directive followed by outright failure most of the time is
+ *    retired whatever the baseline is. This is the original rule, kept as a
+ *    floor.
+ *  - **Relative.** A directive that correlates with worse outcomes than the
+ *    tasks that ignored it, with real evidence on both sides. This is the gate
+ *    that can actually fire in practice: task success in this project runs
+ *    above 90%, so the absolute rule had never retired anything in the whole
+ *    life of the feature.
+ */
+export function shouldRetireDirective(entry: StructuredLearnedEntry): boolean {
+  const enoughTrials = directiveTrials(entry).applied >= DIRECTIVE_QUARANTINE_MIN_APPLIED;
+  if (enoughTrials && directiveUtility(entry) < DIRECTIVE_QUARANTINE_MAX_UTILITY) return true;
+  return hasDirectiveLiftEvidence(entry) && directiveLift(entry) < DIRECTIVE_QUARANTINE_MAX_LIFT;
+}
 
 /**
  * Anchors shorter than this match too much prose to be evidence of anything.
@@ -158,10 +190,23 @@ export function recordDirectiveOutcomes(
   const updated: StructuredLearnedEntry[] = [];
   const retired: StructuredLearnedEntry[] = [];
   let attributed = 0;
+  // Entries this task landed in the control arm (injected, no sign of use).
+  let controlled = 0;
 
   for (const entry of entries) {
     if (!directiveWasApplied(entry, report)) {
-      updated.push(entry);
+      // The control arm. This task ran for the same role with this directive in
+      // its prompt and came back showing no sign of it, which is the closest
+      // thing to "the same work without this directive" the system can observe.
+      // Recording it is what makes the applied-side rate mean anything: see
+      // `directiveLift`.
+      const control = directiveControl(entry);
+      controlled++;
+      updated.push({
+        ...entry,
+        skipped: control.skipped + 1,
+        skippedWins: control.skippedWins + (succeeded ? 1 : 0),
+      });
       continue;
     }
     attributed++;
@@ -171,17 +216,18 @@ export function recordDirectiveOutcomes(
       applied: trials.applied + 1,
       wins: trials.wins + (succeeded ? 1 : 0),
     };
-    if (
-      directiveTrials(next).applied >= DIRECTIVE_QUARANTINE_MIN_APPLIED &&
-      directiveUtility(next) < DIRECTIVE_QUARANTINE_MAX_UTILITY
-    ) {
+    if (shouldRetireDirective(next)) {
       retired.push(next);
       continue;
     }
     updated.push(next);
   }
 
-  if (attributed === 0) return empty;
+  // A pass that only moved control counters still has to be written: the
+  // baseline is half the measurement, and dropping it here would leave every
+  // directive's `skipped` at zero — exactly the state that made the old score
+  // meaningless.
+  if (attributed === 0 && controlled === 0) return empty;
 
   const at = new Date().toISOString();
   // Render under the newest entry's own timestamp: the document footer reads

@@ -249,13 +249,13 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     id: 'tools.discover',
     pack: 'admin',
     exposure: 'direct',
-    tools: ['tool_search', 'tool_use', 'tool_help', 'batch_tool_use', 'clarify'],
+    tools: ['clarify'],
   },
   {
     id: 'runtime.admin',
     pack: 'admin',
     exposure: 'internal',
-    tools: ['set_working_dir', 'context_manager', 'mode', 'skill', 'mcp_control'],
+    tools: ['context_manager', 'mode', 'skill', 'mcp_control'],
   },
 ] as const satisfies readonly RuntimeCapabilityDefinition[];
 

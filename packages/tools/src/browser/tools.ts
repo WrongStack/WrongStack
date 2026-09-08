@@ -580,8 +580,34 @@ export const browserTools: Tool[] = [
 for (const tool of browserTools) tool.icon = 'web';
 for (const tool of browserTools) tool.timeoutMs ??= 60_000;
 
+export const BROWSER_TOOL_NAMES: readonly string[] = Object.freeze(browserTools.map((t) => t.name));
+
+/** Bulk enable all browser automation tools in a ToolRegistry. */
+export function enableBrowserSuite(registry: { enable(name: string): boolean }): number {
+  let count = 0;
+  for (const name of BROWSER_TOOL_NAMES) {
+    if (registry.enable(name)) count++;
+  }
+  return count;
+}
+
+/** Bulk disable all browser automation tools in a ToolRegistry so they do not enter context. */
+export function disableBrowserSuite(registry: { disable(name: string, reason?: any): boolean }): number {
+  let count = 0;
+  for (const name of BROWSER_TOOL_NAMES) {
+    if (registry.disable(name, 'user')) count++;
+  }
+  return count;
+}
+
+/** Check whether all browser tools are currently enabled in the registry. */
+export function isBrowserSuiteEnabled(registry: { isDisabled(name: string): boolean; get(name: string): unknown }): boolean {
+  return BROWSER_TOOL_NAMES.every((name) => !registry.isDisabled(name) && registry.get(name) !== undefined);
+}
+
 export async function shutdownBrowserTools(): Promise<void> {
   const active = [...managers.values()];
   managers.clear();
   await Promise.all(active.map((manager) => manager.dispose()));
 }
+

@@ -18,17 +18,23 @@ import {
   rememberTool,
   searchMemoryTool,
 } from '@wrongstack/tools/memory';
+import {
+  BROWSER_TOOL_NAMES,
+  disableBrowserSuite,
+  enableBrowserSuite,
+} from '@wrongstack/tools';
 import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
 import { createVectorMemoryTools, type VectorMemoryStore } from '@wrongstack/vector-memory';
 import { wireKanbanPorts } from './kanban-ports.js';
 
-const DIRECT_LAZY_GATEWAYS = ['tool_search', 'tool_use', 'tool_help'] as const;
+const DIRECT_LAZY_GATEWAYS: readonly string[] = [];
 
 export interface CanonicalHostToolRegistrationOptions {
   registry: ToolRegistry;
   tier: ConcreteTokenSavingTier;
   contextTool?: Tool | undefined;
   coordinationTools?: readonly Tool[] | undefined;
+  browser?: { enabled?: boolean } | undefined;
   memory?:
     | {
         enabled: boolean;
@@ -159,9 +165,19 @@ export function registerCanonicalHostTools(
         directNames.add(name);
       }
     }
+    if (options.browser?.enabled) {
+      for (const name of BROWSER_TOOL_NAMES) directNames.add(name);
+    }
     options.registry.setProviderToolNames([...directNames]);
   } else {
-    options.registry.setProviderToolNames(undefined);
+    if (options.browser?.enabled !== true) {
+      // Even under tier 'off', omit browser suite from provider surface unless explicitly enabled
+      const allNames = options.registry.list().map((tool) => tool.name);
+      const browserSet = new Set(BROWSER_TOOL_NAMES);
+      options.registry.setProviderToolNames(allNames.filter((name) => !browserSet.has(name)));
+    } else {
+      options.registry.setProviderToolNames(undefined);
+    }
   }
 
   applyToolDescriptionModes(options.registry, options.descriptionMode);

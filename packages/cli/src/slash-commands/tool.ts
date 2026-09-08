@@ -37,6 +37,25 @@ function formatResultRenderMode(mode: ToolResultRenderMode): string {
 
 type ModeAxis = 'desc' | 'result';
 
+/**
+ * Three states, not two: `disabled` (removed everywhere), `lazy` (registered
+ * and callable, but its schema is held out of provider requests by the
+ * token-saving tier) and `direct` (schema sent every turn).
+ *
+ * This table used to print `active` for both of the last two, so the tier
+ * removing over half the catalogue from the model's view looked identical to
+ * nothing having happened. Mirrors the TUI tools picker and the WebUI tools
+ * panel, which already split these three.
+ */
+function toolStatus(
+  reg: { isDisabled(name: string): boolean; isExposedToProvider?(name: string): boolean },
+  name: string,
+): string {
+  if (reg.isDisabled(name)) return color.red('disabled');
+  if (reg.isExposedToProvider?.(name) === false) return color.cyan('lazy');
+  return color.green('direct');
+}
+
 export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
   const help = [
     'Usage:',
@@ -228,6 +247,26 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
         '',
       );
     }
+    // The tier's half of the picture. Disabling a tool and tiering it out both
+    // remove it from the model's view; only the first was reported here, so a
+    // session running the default tier looked untouched.
+    const lazy = opts.toolRegistry
+      .listWithOwner()
+      .filter(({ tool }) => opts.toolRegistry.isExposedToProvider?.(tool.name) === false)
+      .map(({ tool }) => tool.name);
+    if (lazy.length > 0) {
+      lines.push(
+        `${color.bold('Held back by the token-saving tier')} ${color.dim(`(${lazy.length})`)}`,
+        '',
+        `  ${color.cyan('lazy')}: ${lazy.map((n) => color.dim(n)).join(', ')}`,
+        '',
+        color.dim(
+          '  Still callable via tool_search/tool_use; their schemas are not sent each turn.',
+        ),
+        color.dim('  Change the tier with /settings token-saving <tier>.'),
+        '',
+      );
+    }
     lines.push(
       color.dim(
         '  /tool <name> desc simple · /tool <name> result simple · /tool list · /tool disable|enable <name>',
@@ -247,9 +286,7 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
       const descMode = getToolDescriptionMode(opts.toolRegistry, tool.name);
       const resultMode = getToolResultRenderMode(opts.toolRegistry, tool.name);
       const owner = opts.toolRegistry.ownerOf(tool.name) ?? 'core';
-      const status = opts.toolRegistry.isDisabled(tool.name)
-        ? color.red('disabled')
-        : color.green('active');
+      const status = toolStatus(opts.toolRegistry, tool.name);
       return (
         `  ${fit(tool.name, 28)} ` +
         `${color.dim(fit(`[${owner}]`, 28))} ` +

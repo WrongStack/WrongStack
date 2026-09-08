@@ -14,8 +14,14 @@ function toolNameSet(tools: readonly (Tool | null | undefined)[]): Set<string> {
  *
  * Website (`website/src/pages/ToolsPage.tsx`) and any other consumer that
  * wants to render tier counts without actually loading the catalog should
- * mirror this map. When `TIER1_TOOLS` / `TIER2_TOOLS` / `TIER3_TOOLS` change,
- * regenerate these numbers from a smoke test (or update both together).
+ * mirror this map. When `TIER1_TOOLS` / `TIER2_TOOLS` change, regenerate these
+ * numbers from a smoke test (or update both together).
+ *
+ * `TIER3_TOOLS` deliberately appears in no tier below `off`: the specialized
+ * tools it names reach the model through `tool_search` / `tool_use` instead of
+ * costing a schema on every request. `aggressive` selects the same Tier-1 set
+ * as `minimal` - the two differ only in how far tool descriptions are trimmed
+ * by the prompt builder, not in which tools are exposed.
  */
 export const BUILTIN_TIER_COUNTS: Readonly<Record<ConcreteTokenSavingTier, number>> = {
   off: builtinToolsPack.tools?.length ?? 0,

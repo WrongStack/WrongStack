@@ -6,7 +6,21 @@ import { DefaultPathResolver } from './infrastructure/path-resolver.js';
 import type { EventBus } from './kernel/events.js';
 import { DefaultSecretVault, migratePlaintextSecrets } from './security/secret-vault.js';
 import { DefaultConfigLoader } from './storage/config-loader.js';
-import { type Config, normalizeTokenSavingTier } from './types/config.js';
+import type { Config, TokenSavingTier } from './types/config.js';
+
+/**
+ * Values `--token-saving-tier` accepts, including the `'auto'` default. Kept
+ * as a literal set so the flag rejects a typo instead of silently resolving it.
+ */
+const TOKEN_SAVING_TIER_FLAG_VALUES: ReadonlySet<string> = new Set<TokenSavingTier>([
+  'auto',
+  'off',
+  'minimal',
+  'light',
+  'medium',
+  'aggressive',
+]);
+
 import { atomicWrite } from './utils/atomic-write.js';
 import { toErrorMessage } from './utils/error.js';
 import {
@@ -360,12 +374,20 @@ export function flagsToConfigPatch(flags: Record<string, string | boolean>): Par
     patch.systemPrompt = { variant: 'default' };
   }
   // `--token-saving-tier <level>` takes precedence over `--token-saving-mode`.
-  // Supported values: off, minimal, light, medium, aggressive.
+  // Supported values: auto, off, minimal, light, medium, aggressive.
+  //
+  // The value is passed through verbatim rather than normalized. Normalizing
+  // collapsed `'auto'` — the shipped default — to `'medium'`, so asking for the
+  // default on the command line silently pinned a concrete tier; and it mapped
+  // any unrecognized value to `'off'`, so a typo in the one flag whose job is
+  // shrinking the prompt handed you the full one instead. An unrecognized
+  // value now leaves the configured tier alone.
   if (typeof flags['token-saving-tier'] === 'string') {
-    patch.features ??= {} as Config['features'];
-    patch.features.tokenSavingMode = normalizeTokenSavingTier(
-      flags['token-saving-tier'] as 'off' | 'minimal' | 'light' | 'medium' | 'aggressive',
-    );
+    const requested = flags['token-saving-tier'];
+    if (TOKEN_SAVING_TIER_FLAG_VALUES.has(requested)) {
+      patch.features ??= {} as Config['features'];
+      patch.features.tokenSavingMode = requested as TokenSavingTier;
+    }
   }
   return patch;
 }

@@ -259,7 +259,10 @@ export function formatToolArgs(toolName: string, input: unknown): string {
         .join(' · ');
     }
     case 'lsp_definition':
+    case 'lsp_references':
+    case 'lsp_hover':
     case 'lsp_completion':
+    case 'lsp_code_actions':
     case 'lsp_rename': {
       const path = stringOf(obj['path']) ?? stringOf(obj['file']);
       const line = numOf(obj['line']);
@@ -269,6 +272,17 @@ export function formatToolArgs(toolName: string, input: unknown): string {
       return [path ? shortenPath(path, 38) : '', position, rename ? `→ ${rename}` : '']
         .filter(Boolean)
         .join(' · ');
+    }
+    case 'lsp_symbols': {
+      const path = stringOf(obj['path']) ?? stringOf(obj['file']);
+      return path ? shortenPath(path, 40) : '';
+    }
+    case 'lsp_execute_command':
+    case 'lsp_request': {
+      const path = stringOf(obj['path']) ?? stringOf(obj['file']);
+      const operation =
+        toolName === 'lsp_request' ? stringOf(obj['method']) : stringOf(obj['command']);
+      return [operation, path ? shortenPath(path, 36) : ''].filter(Boolean).join(' · ');
     }
     case 'set_working_dir': {
       const p = stringOf(obj['path']);

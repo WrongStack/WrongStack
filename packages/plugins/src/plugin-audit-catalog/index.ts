@@ -71,6 +71,13 @@ export const HOST_PLUGIN_AUDIT_ENTRIES: readonly PluginAuditEntry[] = [
     canDisable: true,
   },
   {
+    name: 'wstack-specialist-triggers',
+    risk: 'medium',
+    summary: 'Spawns roster specialists when files matching their patterns change.',
+    defaultState: 'inactive',
+    canDisable: true,
+  },
+  {
     name: 'wstack-skills',
     risk: 'medium',
     summary: 'Skill library, authoring, install, update, and uninstall commands.',

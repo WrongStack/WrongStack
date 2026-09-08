@@ -1,13 +1,14 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  KnowledgeGraph,
+  type ChangeNode,
+  type DecisionNode,
   type FactNode,
   type GoalNode,
-  type ChangeNode,
+  KnowledgeGraph,
 } from '../../src/coordination/knowledge-graph.js';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import * as os from 'node:os';
 
 // ── Test setup ─────────────────────────────────────────────────────────────
 
@@ -912,5 +913,45 @@ describe('KnowledgeGraph', () => {
       const updated = reloaded.get(fact.id) as FactNode;
       expect(updated.category).toBe('security');
     });
+  });
+});
+
+describe('NodeFilter.since', () => {
+  it('getDecisions(since) returns only decisions made strictly after the timestamp', async () => {
+    const graph = new KnowledgeGraph(tempDir);
+    await graph.add({
+      type: 'decision',
+      decisionType: 'spawn',
+      question: 'Which model for the fleet?',
+      options: [{ id: 'a', label: 'A' }],
+      chosen: 'a',
+      rationale: 'cheapest capable option',
+      madeBy: 'test-agent',
+      madeAt: '2026-01-01T00:00:00.000Z',
+    } as Omit<DecisionNode, 'id'>);
+
+    expect(graph.getDecisions('2026-06-01T00:00:00.000Z')).toEqual([]);
+    // Exclusive boundary: a node is not "after" its own timestamp.
+    expect(graph.getDecisions('2026-01-01T00:00:00.000Z')).toEqual([]);
+    expect(graph.getDecisions('2000-01-01T00:00:00.000Z')).toHaveLength(1);
+    expect(graph.getDecisions()).toHaveLength(1);
+  });
+
+  it('applies since across node types (fact via getAll)', async () => {
+    const graph = new KnowledgeGraph(tempDir);
+    await graph.add({
+      type: 'fact',
+      category: 'bug',
+      subject: 's',
+      detail: 'd',
+      key: 'since-key',
+      discoveredBy: 'test-agent',
+      discoveredAt: '2026-03-01T00:00:00.000Z',
+      tags: [],
+      related: [],
+    } as Omit<FactNode, 'id'>);
+
+    expect(graph.getAll({ type: 'fact', since: '2026-06-01T00:00:00.000Z' })).toEqual([]);
+    expect(graph.getAll({ type: 'fact', since: '2026-01-01T00:00:00.000Z' })).toHaveLength(1);
   });
 });

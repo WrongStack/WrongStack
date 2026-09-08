@@ -269,6 +269,16 @@ export class LSPServer {
     return await this.request('workspace/executeCommand', params, timeoutMs, signal);
   }
 
+  /** Invoke a server-specific request that has no typed WrongStack tool. */
+  async customRequest(
+    method: string,
+    params: unknown,
+    timeoutMs: number,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    return await this.request(method, params, timeoutMs, signal);
+  }
+
   async pullDiagnostics(
     uri: string,
     timeoutMs: number,

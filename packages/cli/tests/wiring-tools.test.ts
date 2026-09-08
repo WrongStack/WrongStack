@@ -27,8 +27,13 @@ function fakeConfig(overrides: Partial<Config> = {}): Config {
   } as Config;
 }
 
-const surface = (config: Config) =>
-  buildCliToolSurface({ config, memoryStore: makeFakeMemoryStore(), tmp });
+const surface = (config: Config, modelCapabilities?: unknown) =>
+  buildCliToolSurface({
+    config,
+    memoryStore: makeFakeMemoryStore(),
+    tmp,
+    ...(modelCapabilities === undefined ? {} : { modelCapabilities }),
+  });
 
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wiring-tools-'));
@@ -75,6 +80,88 @@ describe('setupCliPromptAndTools', () => {
     const toolNames = toolRegistry.list().map((t) => t.name);
     expect(toolNames).not.toContain('remember');
     expect(toolNames).not.toContain('forget');
+  });
+
+  /**
+   * The two halves of a tier must agree on which tools exist.
+   *
+   * `features.tokenSavingMode` ships as `'auto'`, and `'auto'` has two
+   * expanders: `normalizeTokenSavingTier` (window-blind, always `'medium'`)
+   * and `resolveTokenSavingTier` (window-aware, `'minimal'` on a modern
+   * window). The tool registry used the first and the prompt builder used the
+   * second, so every default session on a >=128k model sent 47 tool schemas
+   * while composing the prompt as though only the Tier-1 surface existed.
+   *
+   * These lock the fix at the seam that shipped it: the wiring resolves the
+   * tier ONCE and both consumers get that value.
+   */
+  describe("the 'auto' tier resolves once for tools and prompt", () => {
+    const providerToolCount = async (maxContextTokens: number | undefined) => {
+      const { toolRegistry } = await surface(
+        fakeConfig({
+          features: {
+            mcp: true,
+            plugins: true,
+            memory: false,
+            modelsRegistry: true,
+            skills: true,
+            tokenSavingMode: 'auto',
+          } as never,
+        }),
+        maxContextTokens === undefined ? undefined : { maxContextTokens },
+      );
+      return toolRegistry.listForProvider().length;
+    };
+
+    it('narrows the direct tool surface on a modern window, not just the prompt', async () => {
+      const modern = await providerToolCount(200_000);
+      const tiny = await providerToolCount(16_000);
+      // 200k resolves to 'minimal', 16k to 'medium'. Before the fix BOTH
+      // registries were tiered 'medium' and these two counts were equal.
+      expect(modern).toBeLessThan(tiny);
+    });
+
+    it('keeps the whole catalog executable at every resolved tier', async () => {
+      const { toolRegistry } = await surface(
+        fakeConfig({
+          features: {
+            mcp: true,
+            plugins: true,
+            memory: false,
+            modelsRegistry: true,
+            skills: true,
+            tokenSavingMode: 'auto',
+          } as never,
+        }),
+        { maxContextTokens: 200_000 },
+      );
+      // Tiering bounds the provider surface; it must never shrink the
+      // executable catalog, or `tool_search`/`tool_use` would point at
+      // unregistered names.
+      expect(toolRegistry.list().length).toBeGreaterThan(toolRegistry.listForProvider().length);
+    });
+
+    it('reports tiered-out tools as not exposed to the provider', async () => {
+      const { toolRegistry } = await surface(
+        fakeConfig({
+          features: {
+            mcp: true,
+            plugins: true,
+            memory: false,
+            modelsRegistry: true,
+            skills: true,
+            tokenSavingMode: 'minimal',
+          } as never,
+        }),
+      );
+      const heldBack = toolRegistry
+        .list()
+        .filter((tool) => !toolRegistry.isExposedToProvider(tool.name));
+      // This is what `/tools`, the TUI picker and the WebUI panel render as
+      // `lazy`. An empty set here means those surfaces have nothing to show
+      // and the tier is invisible to the user.
+      expect(heldBack.length).toBeGreaterThan(0);
+    });
   });
 
   it('applies configured tool description modes', async () => {

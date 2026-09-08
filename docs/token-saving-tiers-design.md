@@ -1,11 +1,19 @@
 # Multi-Tier Token Saving Mode — Design Document
 
-> **Status (2026-08-24): implemented with deviations.** The shipped tiers
-> differ from the matrix below: TIER1 = 23 tools, TIER2 = 20, TIER3 = 10,
-> and `aggressive` selects **TIER1 only** — not "TIER1+TIER2+TIER3". See
-> `docs/configuration.md` (token-saving table) and `BUILTIN_TIER_COUNTS` in
-> `packages/tools/src/tool-tier.ts` for the live numbers; this document is
-> retained as the original design rationale.
+> **Status (2026-09-08): historical design rationale — do NOT read the tables
+> below as current behaviour.** They disagree with the shipped tiers on tool
+> counts, on which tools each tier selects, and on tool-description budgets.
+> As shipped: TIER1 = 24 tools, TIER2 = 20, TIER3 = 10; TIER3 is in no tier
+> below `off`; `aggressive` selects **TIER1 only** (identical to `minimal`,
+> differing only in description budget); the default is `auto`, which resolves
+> a concrete tier from the model window at startup and hands that one value to
+> both the tool registry and the prompt builder.
+>
+> **Live references:** the token-saving section of `docs/configuration.md` for
+> measured numbers, `BUILTIN_TIER_COUNTS` and `selectBuiltinToolsForTier` in
+> `packages/tools/src/tool-tier.ts` for the selection, and
+> `resolveTokenSavingTier` in `packages/core/src/types/config/runtime.ts` for
+> the `auto` bands.
 
 ## Problem Statement
 

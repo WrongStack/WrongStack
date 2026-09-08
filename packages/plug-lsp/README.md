@@ -49,6 +49,7 @@ The primary interface for all LSP operations:
 | `/lsp list` | Same as `/lsp` |
 | `/lsp status` | Detailed status with failed server errors and active file count |
 | `/lsp install <lang>` | Install the LSP server for a language |
+| `/lsp add <name> --command <binary> --languages <csv> ...` | Register/start any installed stdio server |
 | `/lsp start [name]` | Start all servers, or a specific one |
 | `/lsp stop [name]` | Stop all servers, or a specific one |
 | `/lsp restart [name]` | Restart all servers, or a specific one |
@@ -72,26 +73,29 @@ The primary interface for all LSP operations:
 | `go` | `gopls` | Go toolchain |
 | `rust` | `rust-analyzer` | Rust toolchain |
 | `ruby` | `ruby-lsp` | RubyGems |
+| `csharp` | `csharp-ls` | .NET toolchain |
+| `php` | `intelephense` | npm |
 
 ## Registered Tools
 
-The plugin registers 5 tools into WrongStack's tool system. These are kept because
-LSP provides genuinely unique data or capability the agent cannot replicate with
-basic tools (read, grep, edit) at comparable cost.
+The plugin registers these 11 tools only while at least one enabled LSP server
+is configured. With no server, the tools and their system-prompt guidance stay
+absent; `/lsp install` and `/lsp add` remain available and activate them live.
+Optional operations are capability-checked against the server's initialize response.
 
 | Tool | Permission | Description |
 |---|---|---|
 | `lsp_diagnostics` | `auto` | Get type/lint diagnostics for a file or whole workspace |
 | `lsp_definition` | `auto` | Jump to the definition of a symbol (more precise than grep) |
+| `lsp_references` | `auto` | Find semantic references |
+| `lsp_hover` | `auto` | Read inferred types, signatures, and documentation |
 | `lsp_completion` | `auto` | Semantic completions for a cursor location, including live editor content when provided |
+| `lsp_symbols` | `auto` | List the semantic symbol tree of a file |
+| `lsp_code_actions` | `auto` | List server quick fixes/refactors without applying them |
+| `lsp_execute_command` | `confirm` | Execute a command exposed by the active server |
+| `lsp_request` | `confirm` | Invoke a documented vendor/custom request; lifecycle methods are blocked |
 | `lsp_rename` | `confirm` | Safe semantic rename across the workspace |
 | `codebase-lsp-search` | `auto` | Fast symbol search via WrongStack's index, with LSP fallback |
-
-The following LSP tools are intentionally excluded: `lsp_references` (returns
-positions the agent still has to read), `lsp_hover` (usually confirms what
-reading the definition already showed), `lsp_symbols` (a symbol tree is less
-useful than reading the file), and `lsp_code_actions` (high noise-to-signal in
-well-maintained codebases).
 
 **Positions use 1-based line numbers and 1-based UTF-8 byte columns** — matching
 WrongStack's grep tool convention, not LSP's 0-based UTF-16 code units.
@@ -117,6 +121,7 @@ Full configuration options under `extensions["@wrongstack/plug-lsp"]`:
           "command": "typescript-language-server",
           "args": ["--stdio"],
           "languages": ["typescript", "typescriptreact"],
+          "fileExtensions": { ".custom-ts": "typescript" },
           "rootPatterns": ["tsconfig.json"],
           "initializationOptions": {},
           "settings": {},
@@ -186,6 +191,17 @@ This means a minimal config is often sufficient:
 If `typescript-language-server` is in your project's `node_modules/.bin`, it is
 automatically discovered and started on first file access.
 
+Installed `clangd`, `csharp-ls`, `jdtls`, `kotlin-language-server`,
+`sourcekit-lsp`, `lua-language-server`, `zls`, and `intelephense` binaries are
+also auto-discovered. For any other stdio server, use for example:
+
+```text
+/lsp add vue --command vue-language-server --languages vue --extension .vue=vue --arg --stdio
+```
+
+Repeat `--arg`, `--root`, and `--extension` as needed. Quoted command paths are
+supported on Windows.
+
 ## Server Lifecycle
 
 Each server runs as a separate child process communicating via JSON-RPC over stdio.
@@ -199,11 +215,14 @@ The plugin handles:
   URI string: a server may answer a `didOpen` for `file:///C:/dir/a.ts` with
   diagnostics for `file:///c%3A/dir/a.ts`
 
-States: `disabled` → `starting` → `initializing` → `ready` → `shutting_down` → `exited`
+States shown to users: `disabled`, `idle`, `starting`, `initializing`, `ready`,
+`failed`, and `reconnecting`. `idle` means configured but not running; it is not
+a successful handshake.
 
 ## Custom Server Configuration
 
-For languages not in the preset list, add manually to your config:
+For languages not in the preset list, prefer `/lsp add`. Direct config remains
+available when initialization options, settings, or environment variables are needed:
 
 ```json
 "servers": {

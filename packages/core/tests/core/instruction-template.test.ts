@@ -343,3 +343,19 @@ describe('bundled instruction tool-reference integrity', () => {
     }
   });
 });
+
+describe('renderInstructionLayer — marker detection is at least as wide as the parser', () => {
+  // The detection gate used to check only the `<!--ws:` / `<!-- ws:` literals
+  // while DIRECTIVE_RE accepts `<!--\s*ws:` — a layer whose markers used two
+  // spaces or a tab skipped rendering entirely, leaking the markers into the
+  // prompt with their content ungated.
+  it('gates a block whose markers use two spaces after <!--', () => {
+    const text = 'A\n<!--  ws:if tool=kanban-->\nB\n<!--  ws:end-->\nC';
+    expect(renderInstructionLayer(text, ctx([]))).toBe('A\nC');
+    expect(renderInstructionLayer(text, ctx(['kanban']))).toBe('A\nB\nC');
+  });
+
+  it('drops a stray tab-indented ws:end and keeps the surrounding text', () => {
+    expect(renderInstructionLayer('X\n<!--\tws:end-->\nY', ctx([]))).toBe('X\nY');
+  });
+});

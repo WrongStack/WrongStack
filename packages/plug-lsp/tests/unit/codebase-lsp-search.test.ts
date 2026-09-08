@@ -29,6 +29,7 @@ function makeMockServer(opts: {
 function makeDeps(servers: ReturnType<typeof makeMockServer>[] = []): ToolDeps {
   return {
     registry: {
+      ensureProjectServersReady: vi.fn(async () => {}),
       list: () => servers,
     },
   } as unknown as ToolDeps;
@@ -74,7 +75,8 @@ describe('createCodebaseLspSearchTool', () => {
       },
     ]);
     const server = makeMockServer({ name: 'ts', workspaceSymbol: wsSymbol });
-    const tool = createCodebaseLspSearchTool(makeDeps([server]));
+    const deps = makeDeps([server]);
+    const tool = createCodebaseLspSearchTool(deps);
 
     const result = await tool.execute(
       { query: 'myFunc', preferLsp: true },
@@ -82,6 +84,7 @@ describe('createCodebaseLspSearchTool', () => {
       { signal: new AbortController().signal } as never,
     );
     expect(wsSymbol).toHaveBeenCalled();
+    expect(deps.registry.ensureProjectServersReady).toHaveBeenCalled();
     expect(result).toContain('myFunc');
     expect(result).toContain('[lsp:ts]');
   });

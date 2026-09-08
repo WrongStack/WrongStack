@@ -139,6 +139,21 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
             lines.push(
               `  directives: ${stats.entryCount} buffered · ${hitRate} · ${stats.deadEntryCount} never used`,
             );
+            // The hit rate above is near the ceiling for every role, because
+            // most tasks succeed whatever is in the prompt. Lift is the number
+            // that separates a directive that helps from one that is merely
+            // present, so it is reported next to it rather than instead of it —
+            // seeing them together is what makes the first one readable.
+            if (stats.directiveLift === null) {
+              lines.push(
+                `  measured lift: none yet ${color.dim('(needs a directive with trials both with and without it)')}`,
+              );
+            } else {
+              const points = (stats.directiveLift * 100).toFixed(1);
+              lines.push(
+                `  measured lift: ${stats.directiveLift >= 0 ? '+' : ''}${points} pts over baseline, across ${stats.measuredEntryCount} directive(s)`,
+              );
+            }
           }
           if (cfg) lines.push(`  config: ${JSON.stringify(cfg)}`);
           if (kn)

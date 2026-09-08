@@ -547,10 +547,13 @@ export async function executeSettingsSubcommand(
 
     if (sub === 'token-saving') {
       const raw = (rest[0] ?? '').toLowerCase();
-      const tiers = ['off', 'minimal', 'light', 'medium', 'aggressive'];
+      // `auto` belongs in this list: it is the shipped DEFAULT
+      // (`config-loader/defaults.ts`), and omitting it meant a user who once
+      // typed a concrete tier had no way back to the default from this command.
+      const tiers = ['auto', 'off', 'minimal', 'light', 'medium', 'aggressive'];
       if (!tiers.includes(raw)) {
         return {
-          message: `${color.amber('Usage:')} /settings token-saving off|minimal|light|medium|aggressive`,
+          message: `${color.amber('Usage:')} /settings token-saving auto|off|minimal|light|medium|aggressive`,
         };
       }
       await persistConfigSetting(persistDeps, (cfg) => {
@@ -558,8 +561,15 @@ export async function executeSettingsSubcommand(
         feat.tokenSavingMode = raw;
         cfg.features = feat;
       });
+      // The tier is a session-start decision on purpose: the tool registry is
+      // tiered once at boot, and the prompt builder latches its shape from the
+      // same resolved value so the prefix stays byte-stable for the provider
+      // cache. Saying so is the honest part - this used to print a bare tick
+      // while nothing about the running session changed.
       return {
-        message: `${color.green('✓')} token-saving → ${color.cyan(raw)}   ${color.dim('token-saving mode')}`,
+        message:
+          `${color.green('✓')} token-saving → ${color.cyan(raw)}   ${color.dim('token-saving mode')}
+` + color.dim('  Applies to the next session - the tool registry is tiered at startup.'),
       };
     }
 

@@ -15,6 +15,7 @@ const NON_PACKAGE_AUDIT_NAMES = new Set([
   'wstack-cloud-config-sync',
   'wstack-chimera',
   'wstack-auto-review',
+  'wstack-specialist-triggers',
   'wstack-skills',
   '@wrongstack/plug-lsp',
   'telegram',

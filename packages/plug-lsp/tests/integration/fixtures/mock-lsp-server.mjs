@@ -189,5 +189,9 @@ function handle(msg) {
   }
   if (msg.method === 'workspace/executeCommand') {
     respond(msg.id, null);
+    return;
+  }
+  if (msg.method === 'custom/echo') {
+    respond(msg.id, msg.params);
   }
 }

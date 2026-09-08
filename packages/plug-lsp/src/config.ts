@@ -94,6 +94,7 @@ function normalizeServers(value: unknown): Record<string, ServerConfig> {
       args: stringArray(raw.args),
       env: stringRecord(raw.env),
       languages: raw.languages,
+      fileExtensions: stringRecord(raw.fileExtensions),
       rootPatterns: stringArray(raw.rootPatterns),
       initializationOptions: raw.initializationOptions,
       settings: raw.settings,

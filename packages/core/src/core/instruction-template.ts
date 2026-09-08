@@ -114,7 +114,11 @@ export function renderInstructionLayer(
   ctx?: InstructionTemplateContext | undefined,
 ): string {
   if (!text) return text;
-  const hasDirectives = text.includes('<!--ws:') || text.includes('<!-- ws:');
+  // Mirror DIRECTIVE_RE's `<!--\s*ws:` shape exactly. A narrower gate (e.g.
+  // the literal `<!--ws:` / `<!-- ws:` forms) lets valid markers written with
+  // other whitespace (two spaces, a tab) bypass rendering entirely, leaking
+  // the markers into the rendered prompt and leaving their content ungated.
+  const hasDirectives = /<!--\s*ws:/.test(text);
   const hasPlaceholders = text.includes('{{');
   if (!hasDirectives && !hasPlaceholders) return text;
 

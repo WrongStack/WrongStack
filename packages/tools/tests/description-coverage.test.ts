@@ -11,7 +11,6 @@ import { describe, expect, it } from 'vitest';
 // --- Static tools (no runtime injection required) ---
 import { auditTool } from '../src/audit.js';
 import { bashTool } from '../src/bash.js';
-import { batchToolUseTool } from '../src/batch-tool-use.js';
 import { browserOpenTool, browserCloseTool, browserStatusTool } from '../src/browser/tools.js';
 import { browserNavigateTool } from '../src/browser/tools.js';
 import { browserSnapshotTool } from '../src/browser/tools.js';
@@ -43,7 +42,6 @@ import {
 } from '../src/codebase-index/index.js';
 import { designTool } from '../src/design.js';
 import { diffTool } from '../src/diff.js';
-import { documentTool } from '../src/document.js';
 import { editTool } from '../src/edit.js';
 import { e2ePlanTool } from '../src/e2e.js';
 import { execTool } from '../src/exec.js';
@@ -66,16 +64,11 @@ import { planTool } from '../src/plan.js';
 import { pwshTool } from '../src/pwsh.js';
 import { readTool } from '../src/read.js';
 import { replaceTool } from '../src/replace.js';
-import { scaffoldTool } from '../src/scaffold.js';
 import { searchTool } from '../src/search.js';
 import { securityAstScanTool } from '../src/security-ast-scan-tool.js';
-import { setWorkingDirTool } from '../src/set-working-dir.js';
 import { taskTool } from '../src/task.js';
 import { testTool } from '../src/test.js';
 import { todoTool } from '../src/todo.js';
-import { toolHelpTool } from '../src/tool-help.js';
-import { toolSearchTool } from '../src/tool-search.js';
-import { toolUseTool } from '../src/tool-use.js';
 import { treeTool } from '../src/tree.js';
 import { typecheckTool } from '../src/typecheck.js';
 import { writeTool } from '../src/write.js';
@@ -88,7 +81,6 @@ import { nextStepsTool } from '../src/next-steps-tool.js';
 const STATIC_TOOLS: Array<{ name: string; tool: { name: string; description: string } }> = [
   { name: 'audit', tool: auditTool },
   { name: 'bash', tool: bashTool },
-  { name: 'batch_tool_use', tool: batchToolUseTool },
   { name: 'browser_open', tool: browserOpenTool },
   { name: 'browser_navigate', tool: browserNavigateTool },
   { name: 'browser_snapshot', tool: browserSnapshotTool },
@@ -120,7 +112,6 @@ const STATIC_TOOLS: Array<{ name: string; tool: { name: string; description: str
   { name: 'dead-code-scan', tool: deadCodeScanTool },
   { name: 'design', tool: designTool },
   { name: 'diff', tool: diffTool },
-  { name: 'document', tool: documentTool },
   { name: 'edit', tool: editTool },
   { name: 'e2e_plan', tool: e2ePlanTool },
   { name: 'exec', tool: execTool },
@@ -143,16 +134,11 @@ const STATIC_TOOLS: Array<{ name: string; tool: { name: string; description: str
   { name: 'pwsh', tool: pwshTool },
   { name: 'read', tool: readTool },
   { name: 'replace', tool: replaceTool },
-  { name: 'scaffold', tool: scaffoldTool },
   { name: 'search', tool: searchTool },
   { name: 'security-ast-scan', tool: securityAstScanTool },
-  { name: 'set_working_dir', tool: setWorkingDirTool },
   { name: 'task', tool: taskTool },
   { name: 'test', tool: testTool },
   { name: 'todo', tool: todoTool },
-  { name: 'tool_help', tool: toolHelpTool },
-  { name: 'tool_search', tool: toolSearchTool },
-  { name: 'tool_use', tool: toolUseTool },
   { name: 'tree', tool: treeTool },
   { name: 'typecheck', tool: typecheckTool },
   { name: 'write', tool: writeTool },
@@ -193,17 +179,6 @@ describe('Tool description coverage', () => {
     // jsonTool.execute calls read/query/validate/transform/merge — no file write path.
     expect(jsonTool.mutating).toBe(false);
     expect(jsonTool.description).toMatch(/read-only.*does not write files/i);
-  });
-
-  it('scaffold: mutating is true, description must reflect file creation', () => {
-    // scaffoldTool.execute calls atomicWrite when dry_run is false.
-    expect(scaffoldTool.mutating).toBe(true);
-    expect(scaffoldTool.description).toMatch(/write|file|generate|create/i);
-  });
-
-  it('document: description must not overclaim real JSDoc generation', () => {
-    // documentTool.execute is a placeholder stub — does not generate real docs.
-    expect(documentTool.description).not.toMatch(/^Generate or update project documentation/);
   });
 
   it('design: description must describe UI design kits, not implementation plans', () => {

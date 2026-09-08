@@ -71,8 +71,6 @@ execution remain separate permission-gated steps.
 | `install` | `confirm` | Package manager install |
 | `audit` | `confirm` | Dependency vulnerability audit |
 | `outdated` | `auto` | List outdated dependencies |
-| `scaffold` | `confirm` | Template-based scaffolding |
-| `document` | `auto` | Deprecated read-only documentation-candidate preview; use plugin tool `auto_doc` for generation |
 | `logs` | `auto` | Tail logs with rolling 100k-line window |
 
 ### Agent control
@@ -80,10 +78,6 @@ execution remain separate permission-gated steps.
 | Tool | Notes |
 |------|-------|
 | `todo` | TodoWrite / TodoRead for session task tracking |
-| `tool_search` | Lazy-load deferred tool schemas |
-| `tool_use` | Generic single-tool call |
-| `batch_tool_use` | Parallel multi-tool dispatch |
-| `tool_help` | Show tool usage hint |
 | `remember` / `forget` | Memory-store mutations |
 | `create_mode` | Author a new agent mode |
 

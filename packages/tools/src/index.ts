@@ -51,11 +51,6 @@ export {
   type KillCheckResult,
   type KillCommand,
 } from './bash-kill-guard.js';
-export {
-  type BatchToolUseInput,
-  type BatchToolUseOutput,
-  batchToolUseTool,
-} from './batch-tool-use.js';
 export * from './browser/index.js';
 // builtinTools moved to './builtin.ts' so consumers that only need a subset of
 // tools don't transitively import all 30. Use `@wrongstack/tools/builtin`.
@@ -217,12 +212,6 @@ export {
   type DiffOutput,
   diffTool,
 } from './diff.js';
-export {
-  type DocumentedItem,
-  type DocumentInput,
-  type DocumentOutput,
-  documentTool,
-} from './document.js';
 export {
   discoverE2EProjects,
   type E2EExecutionPlan,
@@ -429,13 +418,6 @@ export {
   replaceTool,
 } from './replace.js';
 export {
-  BUILT_IN_TEMPLATES,
-  type ScaffoldInput,
-  type ScaffoldOutput,
-  type ScaffoldTemplate,
-  scaffoldTool,
-} from './scaffold.js';
-export {
   type CacheEntry as SearchCacheEntry,
   type SearchInput,
   type SearchOutput,
@@ -464,11 +446,6 @@ export {
   rebindSessionKanbanTask,
   SESSION_KANBAN_COLUMNS,
 } from './session-kanban.js';
-export {
-  type SetWorkingDirInput,
-  type SetWorkingDirOutput,
-  setWorkingDirTool,
-} from './set-working-dir.js';
 export {
   type LoadedResource,
   makeSkillTool,
@@ -505,11 +482,6 @@ export {
   diffFromToolInput,
   type ToolDiff,
 } from './tool-diff.js';
-export {
-  type ToolHelpInput,
-  type ToolHelpOutput,
-  toolHelpTool,
-} from './tool-help.js';
 // Tool icon mapping — shared across all UIs (WebUI, TUI, REPL)
 export {
   FALLBACK_ICON,
@@ -520,11 +492,6 @@ export {
   type ToolIconId,
 } from './tool-icon-map.js';
 export {
-  type ToolSearchInput,
-  type ToolSearchOutput,
-  toolSearchTool,
-} from './tool-search.js';
-export {
   FALLBACK_HEAD_FIELDS,
   SUMMARIZE_TOOL_INPUT_BROWSER_SRC,
   summarizeToolInput,
@@ -534,11 +501,6 @@ export {
   registerBuiltinToolTier,
   selectBuiltinToolsForTier,
 } from './tool-tier.js';
-export {
-  type ToolUseInput,
-  type ToolUseOutput,
-  toolUseTool,
-} from './tool-use.js';
 export {
   DEFAULT_MAX_TREE_ENTRIES,
   MAX_TREE_OUTPUT_BYTES,

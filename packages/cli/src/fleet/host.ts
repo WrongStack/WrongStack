@@ -4,11 +4,11 @@ import { randomUUID } from 'node:crypto';
  * factory is created lazily on the first `/spawn` so users who never use
  * subagents don't pay the construction cost.
  */
-import { createProjectAgentRoster } from '@wrongstack/core/agent-catalog';
+import { createProjectAgentRoster, recordDispatch } from '@wrongstack/core/agent-catalog';
 import {
   AdaptiveConcurrencyController,
-  areSubagentsAllowedForSession,
   type AgentFactory,
+  areSubagentsAllowedForSession,
   DEFAULT_MAX_FLEET_SPAWNS,
   type DefaultMultiAgentCoordinator,
   Director,
@@ -47,11 +47,11 @@ import {
   createHostStatusBroadcaster,
   startDirectorAgentMonitor,
 } from './host-director-services.js';
+import { createHostExploreCompanion } from './host-explore-companion.js';
 import {
   createExploreCompanionRegistry,
   type ExploreCompanionRegistry,
 } from './host-explore-companion-registry.js';
-import { createHostExploreCompanion } from './host-explore-companion.js';
 import { makeFleetWorktreeConflictResolver, selectSubagentTools } from './host-helpers.js';
 import { HostLearningScheduler } from './host-learning-scheduler.js';
 import { HostLearningRoleTracker } from './host-learning-tracker.js';
@@ -270,6 +270,10 @@ export class MultiAgentHost {
       roster: this.roster,
       dispatchClassifier: (task, candidates) =>
         this.learningScheduler.classifyDispatch(task, candidates),
+      // Routing telemetry. Sibling of `dispatchClassifier` on purpose: both are
+      // seams the host fills so core keeps no provider and no filesystem
+      // dependency. See `.wrongstack/agents/dispatch-log.jsonl`.
+      onSpawnRouted: (entry) => recordDispatch(entry, this.deps.projectRoot),
       taskResultNotifier: (n) => this.reportTaskResultToLeader(n),
       subagentIdleTimeoutMs,
       ...(this.opts.statusTracker ? { statusTracker: this.opts.statusTracker } : {}),

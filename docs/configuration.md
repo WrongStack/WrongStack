@@ -931,7 +931,7 @@ gain new approval prompts. Plugins can register in-process hooks via
     "memory": true,
     "modelsRegistry": true,
     "skills": true,
-    "tokenSavingMode": "off"
+    "tokenSavingMode": "auto"
   }
 }
 ```
@@ -943,49 +943,93 @@ gain new approval prompts. Plugins can register in-process hooks via
 | `memory` | `boolean` | `true` | Register `remember`/`forget` tools backed by memory store. |
 | `modelsRegistry` | `boolean` | `true` | Fetch models.dev catalog at startup. Set `false` for offline use. |
 | `skills` | `boolean` | `true` | Discover and load skills from disk. |
-| `tokenSavingMode` | `TokenSavingTier` | `"off"` | Token-saving level for the system prompt. Controls tool count, description length, and guidance sections. |
+| `tokenSavingMode` | `TokenSavingTier` | `"auto"` | Token-saving tier. Controls the direct tool surface, tool-description length, and prompt guidance sections. `"auto"` picks a tier from the model's context window at startup. |
 
 ### Token-saving tiers
 
-`tokenSavingMode` replaces the old boolean `--token-saving-mode` flag with a multi-level system:
+`tokenSavingMode` replaces the old boolean `--token-saving-mode` flag with a
+multi-level system. A tier moves two things at once, and both are resolved from
+one value at startup:
 
-| Tier | Tools | Tool descriptions | Measured savings |
-|------|-------|-----------------|------------------|
-| `off` | All built-ins | 80 chars | 0 tokens (baseline) |
-| `minimal` | 23 (TIER1 only) | 40 chars | ~2.6k tokens |
-| `light` | 23 (TIER1 only) | 50 chars | ~2.1k tokens |
-| `medium` | 43 (TIER1 + TIER2) | 60 chars | ~1.0k tokens |
-| `aggressive` | 23 (TIER1 only) | 70 chars | ~1.1k tokens |
+1. **The direct tool surface** — how many tool schemas are serialized into every
+   provider request (`ToolRegistry.listForProvider()`).
+2. **The system prompt** — how far tool descriptions are trimmed and which
+   guidance sections are included.
 
-The five tiers optimize along two different axes; pick the one that matches
-your use case rather than reading "savings" as monotonic:
+Tiering never unregisters a tool. Everything stays executable through
+`tool_search` / `tool_use`; the tier only decides what is paid for on every
+turn. `/tools` shows the split as `direct` / `lazy` / `disabled`, as do the TUI
+tools picker and the WebUI tools panel.
 
-- **Fewer tools + lots of guidance trimmed** — `minimal` (~2.6k saved), `light` (~2.1k saved). TIER1 only (23 tools). Best for focused edits and quick fixes.
-- **Fewer tools + full guidance** — `medium` (~1.0k saved). TIER1+TIER2 (43 tools). Best for standard development where the model benefits from explicit delegation/mailbox guidance.
-- **Fewer tools + compact guidance** — `aggressive` (~1.1k saved). TIER1 only (23 tools). Best when prompt real estate is tight: the tool set matches `minimal`/`light` while guidance blocks are compacted hardest. Context Management and Commit Hygiene remain at full because they're most useful under context pressure.
+Measured by `packages/cli/tests/token-saving-measurement.test.ts`, which builds
+the prompt through the same wiring `cli-main.ts` runs (memory enabled, skills
+off, 200k model window, Standard identity variant). Re-run it after changing the
+tool catalogue rather than trusting these numbers:
 
-Every tier retains `codebase-stats`, `codebase-search`, and `codebase-index`, so token saving never forces broad `tree`/`grep`/`glob` exploration when a persisted index is available.
+| Tier | Direct tools | Tool-desc budget | Prompt tokens | Saved vs `off` |
+|------|-------------|------------------|---------------|----------------|
+| `off` | 81 | 70 chars | ~19.8k | baseline |
+| `medium` | 55 | 50 chars | ~18.0k | ~1.8k |
+| `light` | 35 | 40 chars | ~13.0k | ~6.8k |
+| `minimal` | 35 | 30 chars | ~12.0k | ~7.8k |
+| `aggressive` | 35 | 20 chars | ~12.0k | ~7.8k |
 
-The original design doc estimated "~4-5k tokens saved at `aggressive`", but
-that estimate assumed a much smaller tool set (~22 tools). The current
-implementation keeps the wider tool set on purpose — dropping more tools at
-`aggressive` would make it indistinguishable from a stricter version of
-`medium`. The savings estimates above are empirical, measured by
-`packages/cli/tests/token-saving-measurement.test.ts`.
+The prompt is only half the bill. Tool **schemas** travel in the request's
+`tools` array and are re-sent every turn; at `off` they cost more than the whole
+system prompt. Dropping from 81 direct tools to 35 more than halves that
+payload, which is why the tier has to move both surfaces together — trimming
+prose while leaving the schema list intact would look like it was working and
+change little on the wire.
+
+`minimal` and `aggressive` currently select the **same** tool set; they differ
+only in the tool-description budget, worth tens of characters across the whole
+prompt. Treat `aggressive` as an alias for `minimal` until it gains its own tool
+selection — see `selectBuiltinToolsForTier` in `packages/tools/src/tool-tier.ts`.
+
+#### `auto` (the default)
+
+`auto` resolves to a concrete tier from the model's context window, once, at
+startup:
+
+| Window | Resolved tier |
+|--------|---------------|
+| `< 32k` | `medium` |
+| `< 128k` | `light` |
+| `>= 128k` | `minimal` |
+| unknown | `off` |
+
+Resolving once matters. The host hands the **same** concrete tier to the tool
+registry and to the prompt builder, so the prompt never describes a tool surface
+the model does not have. It also keeps the prompt prefix byte-stable across
+turns, which is what lets the provider prompt cache hit.
+
+Explicit tiers (`off` … `aggressive`) are always honoured verbatim — only
+`auto` consults the window.
+
+#### Changing the tier
+
+The tier is a **session-start** decision: the tool registry is tiered during
+boot and is not re-tiered mid-session. Every surface that changes it therefore
+takes effect on the next session, and says so.
+
+- `/settings token-saving auto|off|minimal|light|medium|aggressive`
+- `/settings` TUI picker → **Token-saving mode** row (`←`/`→` cycles; shows
+  `↻ Takes effect next session`)
+- `--token-saving-tier <tier>` on the command line. An unrecognised value leaves
+  the configured tier untouched rather than silently falling back.
+- `--token-saving-mode` (legacy boolean) maps to `medium`.
+
+Every tier retains `codebase-stats`, `codebase-search`, and `codebase-index`, so
+token saving never forces broad `tree`/`grep`/`glob` exploration when a
+persisted index is available.
 
 Memory tools (`remember`, `forget`, `memory_search`, `memory_for_file`,
 `memory_for_path`, and the other `memory_*` tools) are gated on
-`features.memory`, not on the tier — they appear at every tier when memory is enabled
-and at no tier when it is disabled.
+`features.memory`, not on the tier — they appear at every tier when memory is
+enabled and at no tier when it is disabled.
 
-CLI flags:
-- `--token-saving-tier minimal` — set tier directly
-- `--token-saving-mode` — still works, maps to `medium` tier (backward compatible)
-- `--token-saving-tier off` — disable (same as omitting the flag)
-
-In the TUI, use `/settings` and navigate to the **Token Saving** row. Press `←`/`→` to cycle through tiers. A `↻ Takes effect next session` hint appears because the setting requires a restart.
-
-**Deprecated:** `true`/`false` boolean values for `tokenSavingMode` are still accepted and mapped: `true` → `"medium"`, `false` → `"off"`.
+**Deprecated:** `true`/`false` boolean values for `tokenSavingMode` are still
+accepted and mapped: `true` -> `"medium"`, `false` -> `"off"`.
 
 All flags are independent. `--no-features` sets all to `false`.
 

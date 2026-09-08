@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-08T15:04:58.004Z
+**Generated:** 2026-09-08T19:45:11.467Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3689 |
-| Production source lines | 887225 |
-| Test files | 3177 |
+| Production source files | 3699 |
+| Production source lines | 889568 |
+| Test files | 3181 |
 | Workspace dependency edges | 127 |
-| Relative module edges | 11613 |
+| Relative module edges | 11656 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 8 |
@@ -29,9 +29,9 @@ PASS — no blocking architecture-health errors.
 |---|---:|---:|---|
 | @wrongstack/acp | 42 | 36 | @wrongstack/core |
 | @wrongstack/bench | 26 | 52 | @wrongstack/core |
-| @wrongstack/cli | 483 | 463 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
+| @wrongstack/cli | 484 | 463 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 841 | 717 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 844 | 721 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 20 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 28 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 67 | @wrongstack/persistence, @wrongstack/primitives |
@@ -39,7 +39,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/mailbox-mcp | 5 | 7 | @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 37 | 36 | @wrongstack/core |
 | @wrongstack/persistence | 6 | 9 | — |
-| @wrongstack/plug-lsp | 44 | 35 | @wrongstack/core, @wrongstack/tools |
+| @wrongstack/plug-lsp | 50 | 35 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 11 | 1 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 83 | 123 | @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 5 | 4 | — |
@@ -90,12 +90,12 @@ None.
 | 1058 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1057 | `packages/tui/src/app.tsx` |
 | 1057 | `packages/webui-server/src/server/ws-payload-validation.ts` |
+| 1055 | `packages/cli/src/slash-commands/settings-mutations.ts` |
+| 1055 | `packages/mcp/src/client.ts` |
 | 1051 | `packages/webui/src/components/SkillDetailView.tsx` |
 | 1049 | `packages/core/src/index.ts` |
 | 1049 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
-| 1048 | `packages/mcp/src/client.ts` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
-| 1045 | `packages/cli/src/slash-commands/settings-mutations.ts` |
 | 1044 | `packages/webui/src/components/ContextDashboard.tsx` |
 | 1041 | `packages/tui/src/components/sidebar-content.tsx` |
 | 1039 | `packages/cli/src/auth-menu/panel-service.ts` |
@@ -130,15 +130,15 @@ None.
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 | 978 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 973 | `packages/core/src/execution/auto-compaction-middleware.ts` |
+| 970 | `packages/core/src/coordination/director.ts` |
 | 968 | `packages/tools/src/codebase-index/background-indexer.ts` |
-| 966 | `packages/core/src/coordination/director.ts` |
 | 965 | `packages/webui/src/components/SidePanel/SessionList.tsx` |
 | 961 | `apps/desktop/src/renderer/src/renderer.ts` |
 | 957 | `packages/core/src/core/system-prompt-builder.ts` |
 
 ## Exports only tests reference
 
-- 874 runtime exports are referenced by tests and by no other production file.
+- 880 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

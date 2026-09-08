@@ -1,3 +1,7 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { getSharedProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import {
@@ -80,5 +84,47 @@ describe('Mailbox Handlers Extended Unit Tests', () => {
       type: 'mailbox.sent',
       payload: { success: false, error: 'No project root available' },
     });
+  });
+});
+
+describe('Mailbox handlers — model-controlled limits (S10)', () => {
+  it('clamps the mailbox.messages limit before it reaches the store', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ws-mailbox-limit-'));
+    const mb = getSharedProjectMailbox(resolveProjectDir(root, root));
+    try {
+      for (let i = 0; i < 250; i++) {
+        await mb.send({ from: 'seeder', to: '*', type: 'note', subject: `m${i}`, body: 'x' });
+      }
+      // Harness guard: the store really holds the seed, so the clamp assertion
+      // below can only pass vacuously if the handler reads a different store.
+      expect((await mb.query({ limit: 250 })).length).toBe(250);
+
+      const ws = createMockWs();
+      await handleMailboxMessages(ws, { projectRoot: root, globalRoot: root }, { limit: 1e9 });
+      const payload = (ws.sent[0] as { payload: { messages: unknown[] } }).payload;
+      expect(payload.messages.length).toBeGreaterThan(0); // handler read the SAME store
+      expect(payload.messages.length).toBeLessThanOrEqual(200); // the S10 clamp
+
+      const wsDefault = createMockWs();
+      await handleMailboxMessages(wsDefault, { projectRoot: root, globalRoot: root }, undefined);
+      const payloadDefault = (wsDefault.sent[0] as { payload: { messages: unknown[] } }).payload;
+      expect(payloadDefault.messages.length).toBeLessThanOrEqual(30);
+    } finally {
+      // Cleanup must never mask the assertion result: close is async and the
+      // SQLite handle can lag, so retry the rm and swallow its final failure.
+      try {
+        await mb.close();
+      } catch {
+        /* best-effort */
+      }
+      for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+          await rm(root, { recursive: true, force: true });
+          break;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      }
+    }
   });
 });

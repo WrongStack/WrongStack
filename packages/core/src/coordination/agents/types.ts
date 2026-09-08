@@ -217,7 +217,6 @@ export const TOOLS = {
     ...INDEX_READ,
     'write',
     'edit',
-    'document',
     'mailbox',
   ],
   /** Web research. */

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-08T15:04:58.004Z",
+  "generatedAt": "2026-09-08T19:45:11.467Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3689,
-    "testFiles": 3177,
-    "sourceLines": 887225,
+    "sourceFiles": 3699,
+    "testFiles": 3181,
+    "sourceLines": 889568,
     "workspaceEdges": 127,
-    "moduleEdges": 11613,
+    "moduleEdges": 11656,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 874
+    "testOnlyExports": 880
   },
   "errors": [],
   "packageCycles": [],
@@ -144,7 +144,7 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 483,
+      "sourceFiles": 484,
       "testFiles": 463,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -214,8 +214,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 841,
-      "testFiles": 717,
+      "sourceFiles": 844,
+      "testFiles": 721,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -230,7 +230,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 717
+          "testFiles": 721
         }
       ]
     },
@@ -391,7 +391,7 @@
     {
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
-      "sourceFiles": 44,
+      "sourceFiles": 50,
       "testFiles": 35,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -5222,6 +5222,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/coordination/directive-lift.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/coordination/director-agent-lifecycle-events.test.ts",
         "projects": [
           "root-node"
@@ -5301,6 +5307,12 @@
       },
       {
         "file": "packages/core/tests/coordination/director.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/dispatch-log.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7323,6 +7335,18 @@
       },
       {
         "file": "packages/core/tests/plugins/skills-plugin.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/plugins/specialist-trigger-plugin.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/plugins/specialist-trigger-rules.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20268,12 +20292,12 @@
     },
     {
       "file": "packages/cli/src/execution.ts",
-      "lines": 890,
-      "relativeImports": 41
+      "lines": 901,
+      "relativeImports": 42
     },
     {
       "file": "packages/cli/src/fleet/host.ts",
-      "lines": 839,
+      "lines": 843,
       "relativeImports": 23
     },
     {
@@ -20303,12 +20327,12 @@
     },
     {
       "file": "packages/cli/src/slash-commands/settings-mutations.ts",
-      "lines": 1045,
+      "lines": 1055,
       "relativeImports": 5
     },
     {
       "file": "packages/cli/src/slash-commands/tool.ts",
-      "lines": 802,
+      "lines": 839,
       "relativeImports": 5
     },
     {
@@ -20323,7 +20347,7 @@
     },
     {
       "file": "packages/core/src/boot.ts",
-      "lines": 804,
+      "lines": 826,
       "relativeImports": 14
     },
     {
@@ -20348,13 +20372,13 @@
     },
     {
       "file": "packages/core/src/coordination/director-tools.ts",
-      "lines": 877,
-      "relativeImports": 17
+      "lines": 905,
+      "relativeImports": 18
     },
     {
       "file": "packages/core/src/coordination/director.ts",
-      "lines": 966,
-      "relativeImports": 41
+      "lines": 970,
+      "relativeImports": 42
     },
     {
       "file": "packages/core/src/coordination/fleet-supervisor.ts",
@@ -20478,7 +20502,7 @@
     },
     {
       "file": "packages/mcp/src/client.ts",
-      "lines": 1048,
+      "lines": 1055,
       "relativeImports": 12
     },
     {
@@ -20909,6 +20933,16 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/cli/src/slash-commands/settings-mutations.ts",
+      "lines": 1055,
+      "relativeImports": 5
+    },
+    {
+      "file": "packages/mcp/src/client.ts",
+      "lines": 1055,
+      "relativeImports": 12
+    },
+    {
       "file": "packages/webui/src/components/SkillDetailView.tsx",
       "lines": 1051,
       "relativeImports": 3
@@ -20924,19 +20958,9 @@
       "relativeImports": 9
     },
     {
-      "file": "packages/mcp/src/client.ts",
-      "lines": 1048,
-      "relativeImports": 12
-    },
-    {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
       "lines": 1048,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/cli/src/slash-commands/settings-mutations.ts",
-      "lines": 1045,
-      "relativeImports": 5
     },
     {
       "file": "packages/webui/src/components/ContextDashboard.tsx",
@@ -21109,14 +21133,14 @@
       "relativeImports": 12
     },
     {
+      "file": "packages/core/src/coordination/director.ts",
+      "lines": 970,
+      "relativeImports": 42
+    },
+    {
       "file": "packages/tools/src/codebase-index/background-indexer.ts",
       "lines": 968,
       "relativeImports": 8
-    },
-    {
-      "file": "packages/core/src/coordination/director.ts",
-      "lines": 966,
-      "relativeImports": 41
     },
     {
       "file": "packages/webui/src/components/SidePanel/SessionList.tsx",
@@ -21836,12 +21860,24 @@
       "name": "agentPromptCacheSize"
     },
     {
+      "file": "packages/core/src/coordination/agents/dispatch-log.ts",
+      "name": "dispatchLogPath"
+    },
+    {
       "file": "packages/core/src/coordination/agents/index.ts",
       "name": "ROLE_DISPATCH_RATIONALE"
     },
     {
       "file": "packages/core/src/coordination/agents/phase3-techstack.ts",
       "name": "TECHSTACK_AGENTS"
+    },
+    {
+      "file": "packages/core/src/coordination/agents/project-agent-directive-outcome.ts",
+      "name": "DIRECTIVE_QUARANTINE_MAX_LIFT"
+    },
+    {
+      "file": "packages/core/src/coordination/agents/project-agent-directive-outcome.ts",
+      "name": "shouldRetireDirective"
     },
     {
       "file": "packages/core/src/coordination/agents/role-skills.ts",
@@ -22190,6 +22226,10 @@
     {
       "file": "packages/core/src/plugins/skills-plugin.ts",
       "name": "resolveImportSourceDir"
+    },
+    {
+      "file": "packages/core/src/plugins/specialist-trigger-rules.ts",
+      "name": "toPosixPath"
     },
     {
       "file": "packages/core/src/quota/index.ts",
@@ -22589,23 +22629,7 @@
     },
     {
       "file": "packages/plug-lsp/src/server/capabilities.ts",
-      "name": "supportsCodeAction"
-    },
-    {
-      "file": "packages/plug-lsp/src/server/capabilities.ts",
-      "name": "supportsDocumentSymbol"
-    },
-    {
-      "file": "packages/plug-lsp/src/server/capabilities.ts",
-      "name": "supportsHover"
-    },
-    {
-      "file": "packages/plug-lsp/src/server/capabilities.ts",
       "name": "supportsPrepareRename"
-    },
-    {
-      "file": "packages/plug-lsp/src/server/capabilities.ts",
-      "name": "supportsReferences"
     },
     {
       "file": "packages/plug-lsp/src/server/lsp-server.ts",
@@ -23212,6 +23236,10 @@
       "name": "parseKillCommand"
     },
     {
+      "file": "packages/tools/src/batch-tool-use.ts",
+      "name": "batchToolUseTool"
+    },
+    {
       "file": "packages/tools/src/browser/artifacts.ts",
       "name": "_resetArtifactSweepForTests"
     },
@@ -23304,6 +23332,10 @@
       "name": "FAMILY_MATCH_SQL"
     },
     {
+      "file": "packages/tools/src/document.ts",
+      "name": "documentTool"
+    },
+    {
       "file": "packages/tools/src/kanban-task-inputs.ts",
       "name": "mergedDependsOn"
     },
@@ -23318,6 +23350,10 @@
     {
       "file": "packages/tools/src/ps-slash.ts",
       "name": "getGlobalProcessStatus"
+    },
+    {
+      "file": "packages/tools/src/scaffold.ts",
+      "name": "scaffoldTool"
     },
     {
       "file": "packages/tools/src/search.ts",
@@ -23336,12 +23372,28 @@
       "name": "cleanupSessionKanbanBoardIfEmpty"
     },
     {
+      "file": "packages/tools/src/set-working-dir.ts",
+      "name": "setWorkingDirTool"
+    },
+    {
       "file": "packages/tools/src/tool-diff.ts",
       "name": "DIFF_LINE_SAFETY_CAP"
     },
     {
       "file": "packages/tools/src/tool-diff.ts",
       "name": "TOOL_DIFF_BROWSER_SRC"
+    },
+    {
+      "file": "packages/tools/src/tool-help.ts",
+      "name": "toolHelpTool"
+    },
+    {
+      "file": "packages/tools/src/tool-search.ts",
+      "name": "toolSearchTool"
+    },
+    {
+      "file": "packages/tools/src/tool-use.ts",
+      "name": "toolUseTool"
     },
     {
       "file": "packages/tui/src/app-ui-state.ts",
@@ -24046,10 +24098,6 @@
     {
       "file": "packages/webui/src/components/AgentsPage.tsx",
       "name": "getLastEventAt"
-    },
-    {
-      "file": "packages/webui/src/components/ChatInput/code-detect.ts",
-      "name": "detectLanguage"
     },
     {
       "file": "packages/webui/src/components/ChatInput/code-detect.ts",

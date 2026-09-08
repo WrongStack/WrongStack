@@ -53,6 +53,7 @@ export type { LiveSettingsInput } from './live-settings-input.js';
 import { createChimeraWorkRegistry } from './chimera-work-registry.js';
 import { installChimeraCascadeHandler } from './execution-chimera-cascade.js';
 import { installChimeraReviewHandler } from './execution-chimera-review.js';
+import { installSpecialistTriggerHandler } from './execution-specialist-trigger.js';
 import { installStorageObservability } from './execution-storage-observability.js';
 import { createTuiNextStepCallbacks } from './execution-tui-next-step-callbacks.js';
 import { resolveActiveApiKey } from './provider-config-utils.js';
@@ -246,6 +247,16 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     // this, a 429-stricken model is re-spawned on every concurrent reviewer
     // turn and burns the whole chain instead of staying quarantined.
     statusTracker,
+    trackWork: (work) => {
+      chimeraWork.track(work);
+    },
+  });
+
+  installSpecialistTriggerHandler({
+    events,
+    director,
+    session,
+    teardownHandlers: chimeraTeardowns,
     trackWork: (work) => {
       chimeraWork.track(work);
     },

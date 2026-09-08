@@ -160,15 +160,6 @@ describe('builtin tools through ToolExecutor smoke', () => {
     await runTool('json', { data: '{"ok":true}', query: 'ok' }, ctx);
     await runTool('diff', { files: 'sample.txt' }, ctx);
     await runTool('tree', { path: '.', depth: 1 }, ctx);
-    await runTool('document', { target: 'function', path: 'doc.ts' }, ctx);
-    await runTool('tool_search', { query: 'read', limit: 5 }, ctx);
-    await runTool('tool_help', { tool: 'read' }, ctx);
-    await runTool('tool_use', { tool: 'json', input: { data: '{"nested":1}' } }, ctx);
-    await runTool(
-      'batch_tool_use',
-      { parallel: false, calls: [{ tool: 'read', input: { path: 'sample.txt' } }] },
-      ctx,
-    );
     await runTool('codebase-search', { query: 'demo', limit: 5 }, ctx);
     await runTool('codebase-stats', {}, ctx);
   });

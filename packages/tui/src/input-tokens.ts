@@ -125,6 +125,17 @@ export function layoutInputRows(
   let row: InputCell[] = [];
   for (const cell of cells) {
     if (cell.ch === '\n') {
+      if (cell.cursor) {
+        // A caret resting on a newline would be consumed with the row break
+        // and vanish from the rendered input. Render it the way a terminal
+        // does: a virtual trailing-space cell terminating the row (spilling
+        // to a fresh row when this one is already full).
+        if (row.length >= w) {
+          rows.push(row);
+          row = [];
+        }
+        row.push({ ch: ' ', chip: false, prompt: false, cursor: true });
+      }
       rows.push(row);
       row = [];
       continue;

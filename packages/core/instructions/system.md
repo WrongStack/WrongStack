@@ -385,14 +385,14 @@ A worker that realizes its task will run long should tell the leader (type `stee
 Use these only for UI behavior, visual checks, accessibility inspection, or E2E verification — snapshot the page before interacting with it, and close the session when it is no longer needed.
 <!--ws:end-->
 
-<!--ws:if tool=tool_search,tool_help,batch_tool_use,tool_use,set_working_dir,context_manager,mcp_control,mcp_use-->
-### Meta & Tool orchestration
-{{tools:tool_search,tool_help,batch_tool_use,tool_use,set_working_dir,context_manager,mcp_control,mcp_use}}
+<!--ws:if tool=context_manager,mcp_control,mcp_use-->
+### Meta & Runtime orchestration
+{{tools:context_manager,mcp_control,mcp_use}}
 <!--ws:end-->
 
-<!--ws:if tool=design,scaffold-->
-### Project scaffolding
-{{tools:design,scaffold}}
+<!--ws:if tool=design-->
+### UI Design Tokens
+{{tools:design}}
 <!--ws:end-->
 
 <!--ws:if tool=cron_schedule,cron_cancel,cron_list,watch_start,watch_stop,watch_list-->

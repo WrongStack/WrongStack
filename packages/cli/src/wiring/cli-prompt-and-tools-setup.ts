@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import { resolveTokenSavingTier } from '@wrongstack/core/types';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import { bindSystemPromptBuilder } from '../boot/system-prompt-builder.js';
 import { registerBuiltinTools } from '../boot/tool-registry.js';
@@ -49,6 +50,26 @@ export async function setupCliPromptAndTools(params: {
     vectorMemoryStore,
   } = params;
 
+  // One tier decision per session, shared by both halves of the tier.
+  //
+  // `'auto'` (the config default) expands two different ways: window-blind to
+  // `'medium'` via `normalizeTokenSavingTier`, window-aware to `'minimal'` on a
+  // modern context window via `resolveTokenSavingTier`. The registry used the
+  // first and the prompt builder the second, so a default session ran a
+  // minimal-shaped prompt over a medium tool surface. Resolving here — the
+  // model is already resolved by the time this runs — and passing the SAME
+  // concrete tier to both makes "the tier" one answer instead of two.
+  //
+  // Explicit tiers ('off' … 'aggressive') pass through verbatim, so a user who
+  // picks a tier at session start still gets exactly that tier. Freezing the
+  // decision at boot is also what makes it hold: the tool registry is never
+  // re-tiered mid-session, so a prompt that kept drifting with the live window
+  // would only drift away from the tools it describes.
+  const tier = resolveTokenSavingTier(
+    config.features.tokenSavingMode,
+    (modelCapabilitiesRef.current as { maxContextTokens?: number } | undefined)?.maxContextTokens,
+  );
+
   bindSystemPromptBuilder({
     container,
     modeStore,
@@ -63,7 +84,7 @@ export async function setupCliPromptAndTools(params: {
     skillsEnabled: config.features.skills,
     skillMode: config.skills?.mode,
     skillEagerMaxChars: config.skills?.eagerMaxChars,
-    tokenSavingMode: config.features.tokenSavingMode,
+    tokenSavingMode: tier,
     systemPromptVariant: config.systemPrompt?.variant,
     paths: {
       projectGoal: wpaths.projectGoal,
@@ -84,6 +105,7 @@ export async function setupCliPromptAndTools(params: {
     toolRegistry,
     compactor: container.resolve(TOKENS.Compactor),
     config,
+    tier,
     memoryStore,
     vectorMemoryStore,
     events,

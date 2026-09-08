@@ -52,6 +52,7 @@ export function createRenameTool(deps: ToolDeps): Tool<RenameInput, string> {
           );
         }
         const content = await readDocumentContent(file, deps.tracker);
+        await deps.tracker.open(file, content);
         const position = humanToLSP(content, { line: input.line, character: input.character });
         const edit = await server.rename(
           {

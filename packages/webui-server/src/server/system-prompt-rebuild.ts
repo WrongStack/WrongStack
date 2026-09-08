@@ -17,7 +17,13 @@ import {
 } from '@wrongstack/core/agent';
 import { type Container, TOKENS } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Config, MemoryPort, ModeStore, SkillLoader } from '@wrongstack/core/types';
+import {
+  type Config,
+  type MemoryPort,
+  type ModeStore,
+  resolveTokenSavingTier,
+  type SkillLoader,
+} from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 
 type ModelCapabilities = NonNullable<
@@ -89,7 +95,18 @@ export async function rebuildSystemPrompt(
     modeId,
     modePrompt,
     modelCapabilities: deps.modelCapabilities,
-    tokenSavingMode: config.features?.tokenSavingMode,
+    // Resolve `'auto'` here rather than handing the sentinel to the builder,
+    // for the same reason boot does: the tool registry was tiered once, at
+    // boot, from this same function and this same window. Passing the raw
+    // sentinel would let a rebuilt prompt land on a different tier than the
+    // tool surface it is describing. Concrete tiers pass through verbatim.
+    tokenSavingMode: resolveTokenSavingTier(
+      config.features?.tokenSavingMode,
+      (typeof deps.modelCapabilities === 'function'
+        ? deps.modelCapabilities()
+        : deps.modelCapabilities
+      )?.maxContextTokens,
+    ),
     instructionPaths: {
       globalDir: paths.globalInstructions,
       projectDir: paths.inProjectInstructions,

@@ -40,10 +40,10 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
   category: 'Project',
   icon: 'index',
   description:
-    'Search code symbols using a fast SQLite+BM25 index, with optional LSP fallback. ' +
+    'Search code symbols using a fast SQLite+BM25 index. ' +
     'Prefer this before broad `tree`, `glob`, or `grep` exploration when finding code by name or concept. ' +
     'Use `grep` instead for exact text, regexes, unsupported content, or concrete usage sites. ' +
-    'Set `preferLsp: true` for live precision when the LSP plugin is active (supersedes codebase-lsp-search).',
+    'When LSP tools are active, use `codebase-lsp-search` for live workspace-symbol results.',
   usageHint:
     'FIRST CHOICE FOR INDEXABLE CODE UNDERSTANDING:\n\n' +
     '- Call before broad `tree`, `glob`, or `grep` exploration when locating symbols, concepts, definitions, or candidate modules.\n' +
@@ -112,8 +112,7 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
       preferLsp: {
         type: 'boolean',
         description:
-          'Prefer live LSP results over the index. Ignored unless the LSP plugin is active; ' +
-          'when it is active and this is true, results come from live workspaceSymbol queries.',
+          'Deprecated compatibility hint. This built-in remains index-only; use codebase-lsp-search for live LSP results.',
       },
     },
     required: ['query'],
@@ -246,9 +245,8 @@ export interface CodebaseSearchInput {
   limit?: number | undefined;
   lspKind?: number | undefined;
   /**
-   * When true, hints that LSP-based search should be preferred over the index.
-   * The built-in tool ignores this (index-only), but when the LSP plugin is
-   * active it intercepts the tool and provides live LSP workspaceSymbol results.
+   * Deprecated compatibility hint. The built-in tool is index-only; the LSP
+   * plugin exposes live workspace-symbol search as `codebase-lsp-search`.
    */
   preferLsp?: boolean | undefined;
 }

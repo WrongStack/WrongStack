@@ -292,12 +292,6 @@ Give subagents exact files, goals, constraints, and expected output.
 <!--ws:if tool=quality_gate-->
 Use `quality_gate` when implementation needs independent review and verification.
 <!--ws:end-->
-<!--ws:if tool=tool_search,tool_help-->
-Use `tool_search` or `tool_help` when the right tool or schema is unclear.
-<!--ws:end-->
-<!--ws:if tool=batch_tool_use-->
-Use `batch_tool_use` for independent tool calls that can safely run in parallel.
-<!--ws:end-->
 <!--ws:if tool=context_manager-->
 Use `context_manager` when the context window is under pressure or needs repair.
 <!--ws:end-->

@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 203,
-      "typeOnly": 80,
-      "runtimeOrMixed": 179
+      "files": 205,
+      "typeOnly": 81,
+      "runtimeOrMixed": 180
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -79,8 +79,8 @@
       "runtimeOrMixed": 43
     },
     "@wrongstack/core/kernel": {
-      "files": 257,
-      "typeOnly": 136,
+      "files": 258,
+      "typeOnly": 137,
       "runtimeOrMixed": 134
     },
     "@wrongstack/core/kernel/events.js": {
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/plugin": {
-      "files": 30,
-      "typeOnly": 17,
-      "runtimeOrMixed": 25
+      "files": 31,
+      "typeOnly": 18,
+      "runtimeOrMixed": 26
     },
     "@wrongstack/core/prompts": {
       "files": 7,
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1059,
-      "typeOnly": 979,
-      "runtimeOrMixed": 276
+      "files": 1066,
+      "typeOnly": 985,
+      "runtimeOrMixed": 278
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -2460,6 +2460,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/execution-specialist-trigger.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/execution.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3535,6 +3541,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/webui-server/tests/http-server.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/tests/mailbox-handlers-extended.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5400,6 +5412,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/execution-specialist-trigger.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/execution-storage-observability.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7188,6 +7206,12 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/src/execution-specialist-trigger.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/execution.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7226,7 +7250,7 @@
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/wiring/plugins.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 7
+      "runtimeOrMixed": 8
     },
     {
       "specifier": "@wrongstack/core/plugin",
@@ -10560,6 +10584,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/execution-specialist-trigger.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/execution.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -11564,7 +11594,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/cli-prompt-and-tools-setup.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -12738,6 +12768,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/plug-lsp/src/tools/code-actions.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/plug-lsp/src/tools/codebase-lsp-search.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12762,7 +12798,25 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/plug-lsp/src/tools/execute-command.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/plug-lsp/src/tools/hover.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/plug-lsp/src/tools/index.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/plug-lsp/src/tools/references.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12774,7 +12828,19 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/plug-lsp/src/tools/request.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/plug-lsp/src/tools/shared.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/plug-lsp/src/tools/symbols.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -16297,8 +16363,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/system-prompt-rebuild.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

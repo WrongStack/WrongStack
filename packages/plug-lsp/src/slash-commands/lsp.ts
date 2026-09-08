@@ -5,7 +5,7 @@ import type { DocumentTracker } from '../document-tracker.js';
 import { formatDiagnostics } from '../formatters/diagnostics.js';
 import type { LSPRegistry } from '../registry.js';
 import type { PlugLSPConfig, ServerConfig } from '../types.js';
-import { LANGUAGE_SERVERS, SUPPORTED_LANGUAGES } from './install.js';
+import { languageServerForWorkspace, SUPPORTED_LANGUAGES } from './install.js';
 
 // Re-export for use from the plugin entry
 export { installLang, LANGUAGE_SERVERS, SUPPORTED_LANGUAGES } from './install.js';
@@ -21,6 +21,7 @@ type LspSubcommand =
   | { type: 'list' }
   | { type: 'status' }
   | { type: 'install'; language: string }
+  | { type: 'add'; name: string; config: ServerConfig }
   | { type: 'start'; name?: string | undefined }
   | { type: 'stop'; name?: string | undefined }
   | { type: 'restart'; name?: string | undefined }
@@ -31,7 +32,7 @@ type LspSubcommand =
   | { type: 'help' };
 
 function parseArgs(args: string): LspSubcommand {
-  const parts = args.trim().split(/\s+/).filter(Boolean);
+  const parts = tokenizeArgs(args);
   if (parts.length === 0) return { type: 'list' };
 
   const sub = parts[0]!.toLowerCase();
@@ -40,10 +41,40 @@ function parseArgs(args: string): LspSubcommand {
   if (sub === 'status' || sub === 'stat') return { type: 'status' };
   if (sub === 'help' || sub === 'h' || sub === '--help') return { type: 'help' };
 
-  if (sub === 'install' || sub === 'add') {
+  if (sub === 'install') {
     const lang = parts[1];
     if (!lang) return { type: 'help' };
     return { type: 'install', language: lang };
+  }
+
+  if (sub === 'add') {
+    const name = parts[1];
+    if (!name) return { type: 'help' };
+    if (parts.length === 2 && SUPPORTED_LANGUAGES.includes(name.toLowerCase())) {
+      return { type: 'install', language: name };
+    }
+    const values = optionValues(parts.slice(2));
+    const command = values.single.get('command');
+    const languages = splitCsv(values.single.get('languages'));
+    if (!command || languages.length === 0 || values.invalid) return { type: 'help' };
+    const timeout = Number.parseInt(values.single.get('timeout') ?? '15000', 10);
+    if (!Number.isInteger(timeout) || timeout <= 0) return { type: 'help' };
+    const extensions = values.multi.get('extension') ?? [];
+    const fileExtensions = extensionMappings(extensions);
+    if (extensions.length > 0 && !fileExtensions) return { type: 'help' };
+    return {
+      type: 'add',
+      name,
+      config: {
+        command,
+        args: values.multi.get('arg') ?? [],
+        languages,
+        ...(fileExtensions ? { fileExtensions } : {}),
+        rootPatterns: values.multi.get('root') ?? [],
+        startupTimeoutMs: timeout,
+        enabled: true,
+      },
+    };
   }
 
   if (sub === 'start') return { type: 'start', name: parts[1] };
@@ -75,6 +106,58 @@ function parseArgs(args: string): LspSubcommand {
   return { type: 'help' };
 }
 
+function tokenizeArgs(input: string): string[] {
+  return [...input.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map(
+    (match) => match[1] ?? match[2] ?? match[3]!,
+  );
+}
+
+function optionValues(parts: string[]): {
+  single: Map<string, string>;
+  multi: Map<string, string[]>;
+  invalid: boolean;
+} {
+  const single = new Map<string, string>();
+  const multi = new Map<string, string[]>();
+  let invalid = false;
+  for (let index = 0; index < parts.length; index += 2) {
+    const flag = parts[index];
+    const value = parts[index + 1];
+    if (!flag?.startsWith('--') || value === undefined) {
+      invalid = true;
+      break;
+    }
+    const key = flag.slice(2);
+    if (key === 'arg' || key === 'root' || key === 'extension') {
+      multi.set(key, [...(multi.get(key) ?? []), value]);
+    } else if (key === 'command' || key === 'languages' || key === 'timeout') {
+      single.set(key, value);
+    } else {
+      invalid = true;
+    }
+  }
+  return { single, multi, invalid };
+}
+
+function splitCsv(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function extensionMappings(values: string[]): Record<string, string> | undefined {
+  if (values.length === 0) return undefined;
+  const out: Record<string, string> = {};
+  for (const value of values) {
+    const separator = value.indexOf('=');
+    if (separator <= 0 || separator === value.length - 1) return undefined;
+    const key = value.slice(0, separator).toLowerCase();
+    out[key.startsWith('.') || !key.includes('.') ? key : `.${key}`] = value.slice(separator + 1);
+  }
+  return out;
+}
+
 function colorize(text: string, code: string): string {
   const colors: Record<string, string> = {
     green: '\x1b[32m',
@@ -104,6 +187,9 @@ export function buildLspCommand(ctx: LspContext): SlashCommand {
       '  /lsp status                   Detailed status report for all servers',
       '  /lsp install <language>      Install the language server for a given language',
       '                                Supported: ' + SUPPORTED_LANGUAGES.join(', '),
+      '  /lsp add <name> --command <binary> --languages <csv> [--arg <arg>] [--root <file>]',
+      '           [--extension <.ext=languageId>] Register custom file types as needed',
+      '                                Register and start any installed stdio LSP server',
       '  /lsp start [name]             Start all servers, or a specific one by name',
       '  /lsp stop [name]              Stop all servers, or a specific one by name',
       '  /lsp restart [name]           Restart all servers, or a specific one by name',
@@ -117,6 +203,8 @@ export function buildLspCommand(ctx: LspContext): SlashCommand {
       '  /lsp install typescript',
       '  /lsp install python',
       '  /lsp install go',
+      '  /lsp add clangd --command clangd --languages c,cpp --root compile_commands.json',
+      '  /lsp add vue --command vue-language-server --languages vue --extension .vue=vue --arg --stdio',
       '  /lsp start                    (start all enabled servers)',
       '  /lsp start gopls              (start a specific server)',
       '  /lsp diagnostics src/index.ts',
@@ -136,6 +224,8 @@ export function buildLspCommand(ctx: LspContext): SlashCommand {
           return runStatusCommand(ctx);
         case 'install':
           return runInstallCommand(ctx, sub.language);
+        case 'add':
+          return runAddCommand(ctx, sub.name, sub.config);
         case 'start':
           return runStartCommand(ctx, sub.name);
         case 'stop':
@@ -154,6 +244,22 @@ export function buildLspCommand(ctx: LspContext): SlashCommand {
           return { message: this.help ?? this.description };
       }
     },
+  };
+}
+
+async function runAddCommand(
+  ctx: LspContext,
+  name: string,
+  config: ServerConfig,
+): Promise<{ message: string }> {
+  const activation = await activateServer(ctx, name, config);
+  return {
+    message: [
+      `${colorize('Registered:', 'green')} ${name}`,
+      `  Command: ${colorize(config.command, 'cyan')} ${(config.args ?? []).join(' ')}`.trimEnd(),
+      `  Languages: ${config.languages.join(', ')}`,
+      ...activation.lines,
+    ].join('\n'),
   };
 }
 
@@ -186,10 +292,12 @@ function runListCommand(ctx: LspContext): { message: string } {
         ? 'green'
         : state === 'failed'
           ? 'red'
-          : state === 'disabled'
+          : state === 'disabled' || state === 'exited'
             ? 'dim'
             : 'yellow';
-    const stateLabel = `[${state.toUpperCase()}]`;
+    // `exited` is also the initial lazy-start state. Calling an untouched
+    // server EXITED makes a healthy, waiting server look like it crashed.
+    const stateLabel = state === 'exited' ? '[IDLE]' : `[${state.toUpperCase()}]`;
     const enabledLabel = enabled ? '' : colorize(' (disabled)', 'dim');
 
     const langs = srv.config.languages?.join(', ') ?? '';
@@ -204,6 +312,9 @@ function runListCommand(ctx: LspContext): { message: string } {
   }
 
   lines.push('─'.repeat(60));
+  lines.push(
+    'Configured does not mean running: IDLE servers start when an LSP tool targets their language.',
+  );
   lines.push('Run `/lsp help` for usage, or `/lsp install <language>` to install a server.');
 
   return { message: lines.join('\n') };
@@ -213,6 +324,7 @@ function runStatusCommand(ctx: LspContext): { message: string } {
   const servers = ctx.registry.list();
   const ready = servers.filter((s) => s.state === 'ready').length;
   const failed = servers.filter((s) => s.state === 'failed').length;
+  const idle = servers.filter((s) => s.state === 'exited').length;
   const starting = servers.filter(
     (s) => s.state === 'starting' || s.state === 'initializing',
   ).length;
@@ -222,6 +334,7 @@ function runStatusCommand(ctx: LspContext): { message: string } {
     '─'.repeat(60),
     `  ${colorize('Total servers:', 'dim')}  ${servers.length}`,
     `  ${colorize('Ready:', 'dim')}          ${colorize(String(ready), 'green')}`,
+    `  ${colorize('Idle:', 'dim')}           ${colorize(String(idle), 'dim')}`,
     `  ${colorize('Starting:', 'dim')}       ${colorize(String(starting), 'yellow')}`,
     `  ${colorize('Failed:', 'dim')}         ${colorize(String(failed), 'red')}`,
     '',
@@ -263,7 +376,7 @@ async function runInstallCommand(ctx: LspContext, language: string): Promise<{ m
     };
   }
 
-  const server = LANGUAGE_SERVERS[lang]!;
+  const server = (await languageServerForWorkspace(lang, ctx.cwd))!;
 
   try {
     const { installLang } = await import('./install.js');
@@ -558,7 +671,15 @@ function collectServerDiagnostics(
 }
 
 /** Direct-module test seam; not re-exported by the package barrel. */
-export const lspCommandCoverage = { colorize, collectServerDiagnostics, parseArgs };
+export const lspCommandCoverage = {
+  colorize,
+  collectServerDiagnostics,
+  extensionMappings,
+  optionValues,
+  parseArgs,
+  splitCsv,
+  tokenizeArgs,
+};
 
 async function runRemoveCommand(ctx: LspContext, name: string): Promise<{ message: string }> {
   if (!ctx.cfg.servers[name]) {

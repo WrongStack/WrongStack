@@ -99,4 +99,36 @@ describe('first-party browser tool contract', () => {
     const result = await browserListTool.execute({}, ctx as never);
     expect(typeof result).toBe('string');
   });
+
+  it('supports bulk enabling and disabling of the browser suite', async () => {
+    const { BROWSER_TOOL_NAMES, enableBrowserSuite, disableBrowserSuite, isBrowserSuiteEnabled } =
+      await import('../src/browser/tools.js');
+    expect(BROWSER_TOOL_NAMES).toHaveLength(16);
+
+    const disabledSet = new Set<string>();
+    const registeredTools = new Map(BROWSER_TOOL_NAMES.map((name) => [name, true]));
+
+    const mockRegistry = {
+      enable: vi.fn((name: string) => {
+        disabledSet.delete(name);
+        return true;
+      }),
+      disable: vi.fn((name: string) => {
+        disabledSet.add(name);
+        return true;
+      }),
+      isDisabled: vi.fn((name: string) => disabledSet.has(name)),
+      get: vi.fn((name: string) => registeredTools.get(name)),
+    };
+
+    expect(isBrowserSuiteEnabled(mockRegistry)).toBe(true);
+
+    const disabledCount = disableBrowserSuite(mockRegistry);
+    expect(disabledCount).toBe(16);
+    expect(isBrowserSuiteEnabled(mockRegistry)).toBe(false);
+
+    const enabledCount = enableBrowserSuite(mockRegistry);
+    expect(enabledCount).toBe(16);
+    expect(isBrowserSuiteEnabled(mockRegistry)).toBe(true);
+  });
 });

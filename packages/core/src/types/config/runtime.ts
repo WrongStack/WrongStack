@@ -119,11 +119,18 @@ export interface CloudSyncConfig {
  * Token-saving mode tier levels. Controls how aggressively the system prompt
  * is compacted to reduce per-request token consumption.
  *
- * - 'off'        — Full prompt, all tools, complete guidance (no reduction)
- * - 'minimal'    — TIER1 tools (13, including codebase index lifecycle), stripped guidance
- * - 'light'      — Same Tier 1 tool surface, common patterns, minimal guidance
- * - 'medium'     — TIER1 + TIER2 development tools, some guidance (default when `true`)
- * - 'aggressive' — Maximum savings before tools become unusable (~4-5k tokens saved)
+ * Counts below are the DIRECT provider surface measured against the current
+ * built-in catalogue (71 tools): the tier never removes a tool from the
+ * registry, only from the schemas sent on each request, so anything held back
+ * stays callable through `tool_search` / `tool_use`.
+ *
+ * - 'off'        — all 71 tools sent directly, full prompt (no reduction)
+ * - 'minimal'    — TIER1 + the 3 lazy gateways (27), most compact guidance
+ * - 'light'      — same 27-tool surface, retains common workflow guidance
+ * - 'medium'     — TIER1 + TIER2 (47), some guidance (what `true` maps to)
+ * - 'aggressive' — same 27-tool surface as 'minimal'; only the tool-description
+ *                  budget is tighter (20 chars vs 30). It is NOT currently a
+ *                  smaller tool set than 'minimal' - see `selectBuiltinToolsForTier`.
  */
 /**
  * Prompt token-saving tiers. `'auto'` is an INPUT-only sentinel meaning "pick a

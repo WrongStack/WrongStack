@@ -75,7 +75,7 @@ export class DocumentTracker {
 
   async fileWritten(filePath: string): Promise<void> {
     const absPath = this.resolve(filePath);
-    const languageId = languageIdFor(absPath);
+    const languageId = this.detectLanguage(absPath);
     if (!languageId) return;
     const text = await this.readTrackable(absPath, 'changed file');
     if (text === null) return;
@@ -99,7 +99,7 @@ export class DocumentTracker {
 
   async open(filePath: string, knownText?: string): Promise<void> {
     const absPath = this.resolve(filePath);
-    const languageId = languageIdFor(absPath);
+    const languageId = this.detectLanguage(absPath);
     if (!languageId) return;
     let text: string;
     if (knownText !== undefined) {
@@ -170,6 +170,11 @@ export class DocumentTracker {
     this.docs.clear();
     this.lastUsed.clear();
     this.trackedBytes = 0;
+  }
+
+  private detectLanguage(filePath: string): string | null {
+    const registry = this.registry();
+    return registry.languageIdForPath?.(filePath) ?? languageIdFor(filePath);
   }
 
   /** Record a document as most-recently-used. */

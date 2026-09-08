@@ -31,6 +31,7 @@ export function createDiagnosticsTool(deps: ToolDeps): Tool<DiagnosticsInput, st
         if (input.path) {
           const file = resolveInputPath(input.path, ctx);
           const server = await requireServer(deps.registry, file, signal);
+          await deps.tracker.open(file);
           const uri = pathToUri(file);
           const diagnostics =
             server.capabilities && supportsPullDiagnostics(server.capabilities)

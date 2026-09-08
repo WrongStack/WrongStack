@@ -45,6 +45,19 @@ export interface StructuredLearnedEntry {
   applied?: number | undefined;
   /** Of those, the ones that ended in a successful task. */
   wins?: number | undefined;
+  /**
+   * Completed tasks for this role where the directive was injected but the
+   * report showed no sign of it — the control group.
+   *
+   * Without this, `wins / applied` is not a measure of the directive at all.
+   * Task success in this system runs above 90%, so every directive scored 0.98
+   * or better and the whole ranking was a constant: the quarantine gate had
+   * never once fired, and everything with five trials was "proven". A rate only
+   * says something when there is a baseline to say it against.
+   */
+  skipped?: number | undefined;
+  /** Of those, the ones that ended in a successful task. */
+  skippedWins?: number | undefined;
 }
 
 /** Normalized track record. A missing counter reads as 0, never as NaN. */
@@ -74,6 +87,57 @@ export function directiveUtility(entry: Pick<StructuredLearnedEntry, 'applied' |
   return (wins + 1) / (applied + 2);
 }
 
+/** Normalized control-group record: tasks that ran WITHOUT this directive. */
+export function directiveControl(entry: Pick<StructuredLearnedEntry, 'skipped' | 'skippedWins'>): {
+  skipped: number;
+  skippedWins: number;
+} {
+  const count = (n: unknown): number =>
+    typeof n === 'number' && Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  const skipped = count(entry.skipped);
+  return { skipped, skippedWins: Math.min(skipped, count(entry.skippedWins)) };
+}
+
+/**
+ * How much better tasks go WITH this directive than without it, for the same
+ * role: smoothed success rate when applied, minus smoothed success rate when
+ * not. Ranges roughly −1..+1; 0 means indistinguishable from the baseline.
+ *
+ * This is the number {@link directiveUtility} was being asked to be and cannot
+ * be. A raw success rate in a system where 91% of tasks succeed says almost
+ * nothing about the directive — every entry scores near the ceiling, which is
+ * exactly what the recorded data showed. Lift is measured against the role's
+ * own baseline, so a directive only looks good by being better than its absence.
+ *
+ * Both sides use the same Laplace prior, so an entry with no evidence on either
+ * side scores exactly 0 — neutral, never a penalty. That property matters
+ * wherever this is a ranking key: "no evidence" must not sort below "evidence
+ * of harm".
+ */
+export function directiveLift(
+  entry: Pick<StructuredLearnedEntry, 'applied' | 'wins' | 'skipped' | 'skippedWins'>,
+): number {
+  const { applied, wins } = directiveTrials(entry);
+  const { skipped, skippedWins } = directiveControl(entry);
+  return (wins + 1) / (applied + 2) - (skippedWins + 1) / (skipped + 2);
+}
+
+/**
+ * Trials each side needs before a lift is worth acting on. Below this the
+ * smoothing dominates and the number is mostly prior, not evidence.
+ */
+export const DIRECTIVE_LIFT_MIN_TRIALS = 5;
+
+/** Whether this entry has enough evidence on both sides for {@link directiveLift}. */
+export function hasDirectiveLiftEvidence(
+  entry: Pick<StructuredLearnedEntry, 'applied' | 'wins' | 'skipped' | 'skippedWins'>,
+): boolean {
+  return (
+    directiveTrials(entry).applied >= DIRECTIVE_LIFT_MIN_TRIALS &&
+    directiveControl(entry).skipped >= DIRECTIVE_LIFT_MIN_TRIALS
+  );
+}
+
 /** Trials before a directive's record is trusted enough to protect or retire it. */
 export const DIRECTIVE_PROVEN_MIN_APPLIED = 5;
 /** Utility at or above which a directive is treated as proven. */
@@ -81,13 +145,24 @@ export const DIRECTIVE_PROVEN_MIN_UTILITY = 0.7;
 
 /**
  * A directive that has earned the right not to be overwritten by a near
- * duplicate: exercised enough times, and correlated with success when it was.
+ * duplicate: exercised enough times, correlated with success when it was, and —
+ * where there is a control group to compare against — not measurably worse than
+ * its own absence.
+ *
+ * The lift clause is what stops this from being unconditional. On a raw success
+ * rate alone every directive with five trials cleared 0.7, so "proven" protected
+ * everything, including a directive whose only track record was that tasks tend
+ * to succeed anyway. Entries without control evidence keep the old behaviour
+ * rather than losing protection they already had.
  */
 export function isProvenDirective(entry: StructuredLearnedEntry): boolean {
-  return (
-    directiveTrials(entry).applied >= DIRECTIVE_PROVEN_MIN_APPLIED &&
-    directiveUtility(entry) >= DIRECTIVE_PROVEN_MIN_UTILITY
-  );
+  if (
+    directiveTrials(entry).applied < DIRECTIVE_PROVEN_MIN_APPLIED ||
+    directiveUtility(entry) < DIRECTIVE_PROVEN_MIN_UTILITY
+  ) {
+    return false;
+  }
+  return !hasDirectiveLiftEvidence(entry) || directiveLift(entry) >= 0;
 }
 
 export function parseLearnedEntryStamp(entry: string): {
@@ -271,6 +346,10 @@ export function parseStructuredLearnedEntriesFromContent(
       applied: Number(attributes['applied']),
       wins: Number(attributes['wins']),
     });
+    const control = directiveControl({
+      skipped: Number(attributes['skipped']),
+      skippedWins: Number(attributes['skippedWins']),
+    });
     const start = (stamp.index ?? 0) + stamp[0].length;
     const end = stamps[index + 1]?.index ?? raw.length;
     const parsed = parseEntryBody(raw.slice(start, end));
@@ -284,6 +363,9 @@ export function parseStructuredLearnedEntriesFromContent(
       capturedAt,
       ...(skill ? { skill } : {}),
       ...(trials.applied > 0 ? { applied: trials.applied, wins: trials.wins } : {}),
+      ...(control.skipped > 0
+        ? { skipped: control.skipped, skippedWins: control.skippedWins }
+        : {}),
     });
   }
   if (structured.length === 0) {
@@ -420,6 +502,7 @@ export function renderLearnedInstructions(
     sections.push('');
     for (const entry of list) {
       const trials = directiveTrials(entry);
+      const control = directiveControl(entry);
       const attributes = [
         `category=${entry.category}`,
         `capturedAt=${entry.capturedAt}`,
@@ -428,6 +511,9 @@ export function renderLearnedInstructions(
         // exactly as it did before this field existed — the parse→render
         // fixed point holds for every pre-existing buffer on disk.
         ...(trials.applied > 0 ? [`applied=${trials.applied}`, `wins=${trials.wins}`] : []),
+        ...(control.skipped > 0
+          ? [`skipped=${control.skipped}`, `skippedWins=${control.skippedWins}`]
+          : []),
       ].join('; ');
       sections.push(`<!-- learned-stamp: ${attributes} -->`);
       sections.push(`- **${entry.what}**`);

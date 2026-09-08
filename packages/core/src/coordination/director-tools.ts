@@ -3,6 +3,7 @@ import { ToolCapabilities } from '../security/capabilities.js';
 import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
 import { toErrorMessage } from '../utils/error.js';
+import type { DispatchLogEntry } from './agents/dispatch-log.js';
 import { type AgentDefinition, getAgentDefinition } from './agents/index.js';
 import {
   FleetCostCapError,
@@ -162,11 +163,16 @@ export function makeSpawnTool(
       // Resolve base config from roster, explicit role, or dispatch-by-description
       let cfg: SubagentConfig | undefined;
 
+      // How this spawn chose its role, recorded once below. Filled in by
+      // whichever branch resolves — the branch that runs IS the finding.
+      let routing: DispatchLogEntry | undefined;
+
       if (role && roster) {
         const base = roster[role];
         if (!base)
           return { error: `unknown role "${role}". roster has: ${Object.keys(roster).join(', ')}` };
         cfg = instantiateRosterConfig(role, base);
+        routing = { at: new Date().toISOString(), role, source: 'explicit-role' };
       } else if (description && !role) {
         // Smart dispatch: route description to best catalog agent using dispatcher
         const dispatchResult = await dispatchAgent(description, {
@@ -174,6 +180,16 @@ export function makeSpawnTool(
           catalog: dispatchCatalog(),
         });
         const dispatchRole = dispatchResult.role;
+        routing = {
+          at: new Date().toISOString(),
+          role: dispatchRole,
+          source: 'description',
+          method: dispatchResult.method,
+          confidence: dispatchResult.confidence,
+          alternatives: (dispatchResult.alternatives ?? []).map((candidate) => candidate.role),
+          matched: dispatchResult.matched ?? [],
+          rosterMiss: !roster?.[dispatchRole],
+        };
         // If we have a matching roster entry for the dispatched role, use it
         if (roster?.[dispatchRole]) {
           cfg = instantiateRosterConfig(dispatchRole, roster[dispatchRole] ?? {});
@@ -192,7 +208,13 @@ export function makeSpawnTool(
       }
 
       // Fall back to name-only config when neither role nor description dispatch resolved
-      cfg ??= { name: (i.name as string) ?? 'subagent' };
+      if (!cfg) {
+        cfg = { name: (i.name as string) ?? 'subagent' };
+        // No role at all: the roster contributed nothing to this spawn. Worth
+        // counting on its own — it is the shape a leader produces when it is
+        // hand-rolling a worker instead of reaching for a specialist.
+        routing = { at: new Date().toISOString(), role: cfg.name, source: 'name-only' };
+      }
 
       if (typeof i.name === 'string') cfg.name = i.name;
       if (typeof i.provider === 'string') cfg.provider = i.provider;
@@ -231,6 +253,12 @@ export function makeSpawnTool(
         // `SubagentConfig.originSessionId`.
         const origin = callerSessionId(ctx);
         const subagentId = await director.spawn(origin ? { ...cfg, originSessionId: origin } : cfg);
+        // Recorded only once the spawn is admitted: a worker rejected by a
+        // budget cap never ran, and counting it would overstate exactly the
+        // routing volume this telemetry exists to measure.
+        if (routing && director.onSpawnRouted) {
+          director.onSpawnRouted(origin ? { ...routing, sessionId: origin } : routing);
+        }
         return {
           subagentId,
           provider: cfg.provider,

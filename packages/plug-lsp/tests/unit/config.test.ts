@@ -24,6 +24,7 @@ describe('plug-lsp config', () => {
           args: ['--stdio'],
           env: { A: '1', B: 2 },
           languages: ['typescript'],
+          fileExtensions: { '.custom-ts': 'typescript', bad: 2 },
           rootPatterns: ['package.json'],
           initializationOptions: { a: true },
           settings: { b: true },
@@ -46,6 +47,7 @@ describe('plug-lsp config', () => {
       args: ['--stdio'],
       env: { A: '1' },
       languages: ['typescript'],
+      fileExtensions: { '.custom-ts': 'typescript' },
       startupTimeoutMs: 42,
       enabled: false,
     });

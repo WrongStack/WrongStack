@@ -229,6 +229,10 @@ export const BUILTIN_PLUGIN_FACTORIES: (() => Promise<Plugin>)[] = [
     return createAutoReviewPlugin();
   },
   async () => {
+    const { createSpecialistTriggerPlugin } = await import('@wrongstack/core/plugin');
+    return createSpecialistTriggerPlugin();
+  },
+  async () => {
     const { createSkillsPlugin } = await import('@wrongstack/core/plugin');
     return createSkillsPlugin();
   },

@@ -96,6 +96,52 @@ describe('unified LSP install command coverage', () => {
     else LANGUAGE_SERVERS.go!.rootPatterns = rootPatterns;
   });
 
+  it('activates the native TypeScript server in a TypeScript 7 workspace', async () => {
+    installLang.mockResolvedValueOnce({ alreadyInstalled: true });
+    const ctx = context() as unknown as {
+      registry: { upsertServer: ReturnType<typeof vi.fn>; start: ReturnType<typeof vi.fn> };
+      cfg: { servers: Record<string, { command: string; args?: string[] }> };
+    };
+
+    const result = await buildLspCommand(ctx as never).run!('install typescript');
+
+    expect(result?.message).toContain('Binary:  \x1b[36mtsc');
+    expect(installLang).toHaveBeenCalledWith(
+      'typescript',
+      expect.objectContaining({ binary: 'tsc', args: ['--lsp', '--stdio'] }),
+      process.cwd(),
+    );
+    expect(ctx.registry.upsertServer).toHaveBeenCalledWith(
+      'typescript',
+      expect.objectContaining({ args: ['--lsp', '--stdio'] }),
+    );
+    expect(ctx.registry.start).toHaveBeenCalledWith('typescript');
+  });
+
+  it('registers any installed stdio server without hand-editing JSON', async () => {
+    const ctx = context() as unknown as {
+      registry: { upsertServer: ReturnType<typeof vi.fn>; start: ReturnType<typeof vi.fn> };
+      cfg: { servers: Record<string, { command: string; args?: string[]; languages: string[] }> };
+    };
+
+    const result = await buildLspCommand(ctx as never).run!(
+      'add clangd --command "C:\\Program Files\\LLVM\\bin\\clangd.exe" --languages c,cpp --arg --background-index --root compile_commands.json --extension .ixx=cpp',
+    );
+
+    expect(result?.message).toContain('Registered:');
+    expect(ctx.registry.upsertServer).toHaveBeenCalledWith(
+      'clangd',
+      expect.objectContaining({
+        command: 'C:\\Program Files\\LLVM\\bin\\clangd.exe',
+        args: ['--background-index'],
+        languages: ['c', 'cpp'],
+        fileExtensions: { '.ixx': 'cpp' },
+        rootPatterns: ['compile_commands.json'],
+      }),
+    );
+    expect(ctx.registry.start).toHaveBeenCalledWith('clangd');
+  });
+
   it('formats Error and non-Error install failures', async () => {
     installLang.mockRejectedValueOnce(new Error('install exploded'));
     expect((await run('install python')).message).toContain('install exploded');

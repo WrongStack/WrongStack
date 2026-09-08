@@ -12,6 +12,7 @@ and configure servers — all from the REPL.
 | `/lsp list` | Same as `/lsp` |
 | `/lsp status` | Detailed status report including failed servers and active file count |
 | `/lsp install <language>` | Install the language server binary for a given language |
+| `/lsp add <name> --command <binary> --languages <csv> ...` | Register and start any installed stdio LSP server |
 | `/lsp start [name]` | Start all enabled servers, or a specific one by name |
 | `/lsp stop [name]` | Stop all running servers, or a specific one by name |
 | `/lsp restart [name]` | Restart all enabled servers, or a specific one by name |
@@ -30,6 +31,8 @@ and configure servers — all from the REPL.
 /lsp install python             # Install Pyright
 /lsp install go                # Install gopls
 /lsp install rust              # Install rust-analyzer
+/lsp add clangd --command clangd --languages c,cpp --root compile_commands.json
+/lsp add vue --command vue-language-server --languages vue --extension .vue=vue --arg --stdio
 /lsp start                     # Start all enabled servers
 /lsp start gopls               # Start a specific server
 /lsp stop                      # Stop all servers
@@ -64,10 +67,23 @@ The `/lsp install` command can automatically install these language servers:
 | `go` | `gopls` | Go toolchain (`go install`) |
 | `rust` | `rust-analyzer` | Rust toolchain (`rustup`) |
 | `ruby` | `ruby-lsp` | RubyGems (`gem install`) |
+| `csharp` | `csharp-ls` | .NET toolchain (`dotnet tool install --global`) |
+| `php` | `intelephense` | npm |
 
 `/lsp install` writes the server into your project-private config and starts it
 immediately — no hand-edited JSON and no session restart. `/lsp status` prints
 the exact file it wrote to.
+
+Servers without a portable installer are still first-class. Install their
+binary using the platform/vendor instructions, then register them with `/lsp
+add`. Repeat `--arg` and `--root` for multiple values. Repeat `--extension
+.ext=languageId` for file types not built into WrongStack. The command resolves
+Windows `.cmd` shims and PATH binaries, persists the project-local definition,
+mounts it in the live registry, and attempts an immediate initialize handshake.
+
+Auto-discovery also recognizes installed `clangd`, `csharp-ls`, `jdtls`,
+`kotlin-language-server`, `sourcekit-lsp`, `lua-language-server`, `zls`, and
+`intelephense` binaries.
 
 The entry goes to `~/.wrongstack/projects/<slug>/config.local.json`, never to the
 repo-committed `.wrongstack/config.json`: the in-project config layer denies
@@ -126,21 +142,30 @@ With `autoDiscover: true` (the default), servers found on `PATH` or in
 
 ## Registered LSP Tools
 
-When the plugin is active, these tools are available to the agent:
+When the plugin has at least one enabled server, these tools are available to the agent:
+
+The tools are registered only while at least one enabled server exists. Removing
+or disabling the final server unregisters them and removes LSP guidance from the
+agent prompt. `/lsp install`, `/lsp add`, and `/lsp enable` restore them live.
 
 | Tool | Permission | Purpose |
 |---|---|---|
 | `lsp_diagnostics` | `auto` | Get type/lint diagnostics for a file or workspace |
 | `lsp_definition` | `auto` | Go to definition of a symbol (more precise than grep) |
+| `lsp_references` | `auto` | Find semantic references, including aliases/imports |
+| `lsp_hover` | `auto` | Read inferred types, signatures, and API documentation |
 | `lsp_rename` | `confirm` | Semantic rename across the workspace |
 | `lsp_completion` | `auto` | Semantic completions for editor/agent cursor context |
+| `lsp_symbols` | `auto` | List a file's semantic symbol tree |
+| `lsp_code_actions` | `auto` | List quick fixes/refactors without applying them |
+| `lsp_execute_command` | `confirm` | Execute a command explicitly exposed by the active server |
+| `lsp_request` | `confirm` | Invoke a documented vendor/custom request; lifecycle methods are blocked |
 | `codebase-lsp-search` | `auto` | Fast symbol search via WrongStack's index, with LSP fallback |
 
-> **Why only 5 tools?** `lsp_references`, `lsp_hover`, `lsp_symbols`, and `lsp_code_actions`
-> are intentionally excluded. They are marginal over basic read/grep — they return data the agent
-> would have to read anyway, or surface cosmetic fixes in well-maintained code.
-> `lsp_diagnostics`, `lsp_definition`, `lsp_completion`, and `lsp_rename` are kept because
-> they provide genuinely unique data or capability the agent cannot replicate at comparable cost.
+WrongStack checks the capability map returned by each server during initialize.
+Calling an unsupported operation returns `CAPABILITY_MISSING`; it never pretends
+that every server implements every optional LSP method. `lsp_code_actions` is
+read-only, while `lsp_execute_command` and `lsp_rename` require confirmation.
 
 All tools use **1-based line numbers** and **1-based UTF-8 byte columns** as input
 — matching the convention used by grep and other WrongStack tools.
@@ -178,8 +203,8 @@ gem install ruby-lsp
 ### Step 2: Register it
 
 For a preset language, `/lsp install <language>` already did this. For anything
-else, add the entry to `~/.wrongstack/projects/<slug>/config.local.json`
-(`/lsp status` prints the path) and run `/lsp restart`:
+else, prefer `/lsp add`; direct JSON remains available for advanced initialization
+options and settings:
 
 ```json
 {

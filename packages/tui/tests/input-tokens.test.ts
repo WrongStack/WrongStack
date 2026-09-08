@@ -209,3 +209,31 @@ describe('inputIndexAtRowCol (click → cursor index)', () => {
     expect(inputIndexAtRowCol(PROMPT, 'abcdefgh', 6, 1, 99)).toBe(8); // end
   });
 });
+
+describe('layoutInputRows — caret resting on a newline', () => {
+  const PROMPT = '› ';
+  const caretCount = (rows: { cursor: boolean }[][]) => rows.flat().filter((c) => c.cursor).length;
+
+  it('renders the caret as a virtual trailing cell instead of vanishing', () => {
+    // "a\nb" with the cursor on the '\n' (index 1): wrapping used to consume
+    // the marked caret cell, leaving the rendered input with no caret at all.
+    const rows = layoutInputRows(PROMPT, 'a\nb', 1, 10);
+    expect(caretCount(rows)).toBe(1);
+    expect(rowText(rows[0] as { ch: string }[])).toBe('› a ');
+    expect(rowText(rows[1] as { ch: string }[])).toBe('b');
+    // Clicking the virtual cell maps back to the newline index (round trip).
+    expect(inputIndexAtRowCol(PROMPT, 'a\nb', 10, 0, 3)).toBe(1);
+  });
+
+  it('spills the virtual caret cell to a fresh row when the row is full', () => {
+    // width 2: row0 = "› ", row1 = "ab", row2 = the spilled caret, row3 = "cd".
+    const rows = layoutInputRows(PROMPT, 'ab\ncd', 2, 2);
+    expect(caretCount(rows)).toBe(1);
+    for (const row of rows) expect(row.length).toBeLessThanOrEqual(2);
+  });
+
+  it('still renders exactly one caret mid-text and at end of buffer', () => {
+    expect(caretCount(layoutInputRows(PROMPT, 'a\nb', 0, 10))).toBe(1);
+    expect(caretCount(layoutInputRows(PROMPT, 'a\nb', 3, 10))).toBe(1);
+  });
+});

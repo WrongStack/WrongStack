@@ -57,13 +57,7 @@ const TIER2_NAMES = [
 const TIER3_NAMES = [
   'outdated',
   'logs',
-  'document',
-  'scaffold',
-  'tool_search',
-  'tool_use',
-  'batch_tool_use',
-  'tool_help',
-  'set_working_dir',
+  'dead-code-scan',
 ];
 
 const makeTool = (name: string): Tool =>

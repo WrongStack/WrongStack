@@ -18,6 +18,7 @@ import {
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { WebSocket } from 'ws';
 import type { MailboxActionPayload, MailboxSendPayload } from './ws-payload-validation.js';
+import { clampLimit } from './ws-payload-validation.js';
 import { errMessage, send } from './ws-utils.js';
 
 export interface MailboxHandlerDeps {
@@ -189,7 +190,10 @@ export async function handleMailboxMessages(
     return;
   }
   try {
-    const limit = payload?.limit ?? 30;
+    // S10: `limit` is model-controlled (a browser frame). Clamp before it
+    // reaches the store — the unread branch below multiplies it, and
+    // SqliteMailbox.query binds it as a raw SQL LIMIT.
+    const limit = clampLimit(payload?.limit, 30, 200);
     const unreadForAgent = payload?.unreadOnly === true && payload.agentId !== undefined;
     const readerRole =
       payload?.agentId !== undefined

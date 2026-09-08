@@ -187,6 +187,15 @@ const DEFAULT_MAX_NODES = 2_000;
 const MAX_SUBSCRIPTIONS = 1_000;
 const MAX_PENDING_DELIVERIES_PER_SUBSCRIPTION = 1_000;
 
+/** Per-type creation-timestamp field backing the `NodeFilter.since` cursor. */
+const TYPE_CREATED_AT: Record<NodeType, string> = {
+  fact: 'discoveredAt',
+  goal: 'createdAt',
+  decision: 'madeAt',
+  change: 'proposedAt',
+  vote: 'votedAt',
+};
+
 export class KnowledgeGraph {
   private readonly nodes = new Map<string, GraphNode>();
   private readonly index = new Map<string, Set<string>>(); // tag/field → node ids
@@ -524,8 +533,15 @@ export class KnowledgeGraph {
       const nodeTags = (node as FactNode).tags ?? (node as GoalNode).tags ?? [];
       if (!f.tags.some((t) => nodeTags.includes(t))) return false;
     }
-    if (f.since && node.id > f.since) {
-      // Rough ordering: higher ids are newer (randomUUID v7-like sort)
+    // `since` — "Only nodes added after this timestamp" (NodeFilter) — compares
+    // the node's own creation timestamp byte-for-byte (ISO-8601 ASCII sorts
+    // lexicographically). randomUUID() is v4: ids are NOT time-ordered, so an
+    // id comparison can never implement this filter.
+    if (f.since !== undefined) {
+      const created: unknown = (node as unknown as Record<string, unknown>)[
+        TYPE_CREATED_AT[node.type]
+      ];
+      if (typeof created !== 'string' || created <= f.since) return false;
     }
     return true;
   }

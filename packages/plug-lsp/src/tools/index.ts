@@ -1,27 +1,28 @@
 import type { Tool } from '@wrongstack/core/types';
+import { createCodeActionsTool } from './code-actions.js';
 import { createCodebaseLspSearchTool } from './codebase-lsp-search.js';
 import { createCompletionTool } from './completion.js';
 import { createDefinitionTool } from './definition.js';
 import { createDiagnosticsTool } from './diagnostics.js';
+import { createExecuteCommandTool } from './execute-command.js';
+import { createHoverTool } from './hover.js';
+import { createReferencesTool } from './references.js';
 import { createRenameTool } from './rename.js';
+import { createRequestTool } from './request.js';
 import type { ToolDeps } from './shared.js';
-
-// NOTE: The following LSP tools are intentionally excluded from the registered set:
-//
-//   lsp_references   — marginal over read/grep; returns positions the agent still has to read
-//   lsp_hover        — usually confirms what reading the definition already showed
-//   lsp_symbols      — a symbol tree is less useful than reading the file; codebase-lsp-search covers the search case
-//   lsp_code_actions — high noise-to-signal in well-maintained codebases; mostly cosmetic
-//
-// The kept tools (lsp_diagnostics, lsp_definition, lsp_completion, lsp_rename, codebase-lsp-search)
-// are those where LSP provides genuinely unique data or capability the agent cannot
-// replicate with basic tools (read, grep, edit) at comparable cost.
+import { createSymbolsTool } from './symbols.js';
 
 export function makeLSPTools(deps: ToolDeps): Tool[] {
   return [
     createDiagnosticsTool(deps),
     createDefinitionTool(deps),
+    createReferencesTool(deps),
+    createHoverTool(deps),
     createCompletionTool(deps),
+    createSymbolsTool(deps),
+    createCodeActionsTool(deps),
+    createExecuteCommandTool(deps),
+    createRequestTool(deps),
     createCodebaseLspSearchTool(deps),
     createRenameTool(deps),
   ];

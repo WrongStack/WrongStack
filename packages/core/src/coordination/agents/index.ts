@@ -27,20 +27,21 @@ import { assignSkillsToAgents, ROLE_SKILL_SETS, SHADOW_AGENT_SKILLS } from './ro
 import type { AgentCapability, AgentDefinition, AgentPhase } from './types.js';
 
 export * from './capability-manifest.js';
+export * from './dispatch-log.js';
 export * from './phase3-wave1-platform.js';
 export * from './phase3-wave2-meta.js';
 export * from './phase8-wave3-products.js';
 export * from './phase9-wave4-platform-meta.js';
 export * from './project-agent-auto-optimize.js';
-export * from './project-agent-capture-window.js';
 export * from './project-agent-capture.js';
+export * from './project-agent-capture-window.js';
 export * from './project-agent-config-io.js';
 export * from './project-agent-config-validation.js';
 export * from './project-agent-consolidation.js';
 export * from './project-agent-directive-outcome.js';
 export * from './project-agent-files.js';
-export * from './project-agent-identity-types.js';
 export * from './project-agent-identity.js';
+export * from './project-agent-identity-types.js';
 export * from './project-agent-knowledge-manifests.js';
 export * from './project-agent-learning-entries.js';
 export * from './project-agent-learning-normalize.js';

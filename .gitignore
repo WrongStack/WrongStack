@@ -225,6 +225,7 @@ AGENTS.md
 !.wrongstack/agents/**
 
 .wrongstack/agents/**/archive/
+.wrongstack/agents/dispatch-log.jsonl
 .wrongstack/agents/**/skills/affinity.json
 .wrongstack/agents/**/learned.md
 .wrongstack/agents/**/quarantine.md

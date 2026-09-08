@@ -643,3 +643,45 @@ hypothesis-to-log: tui-barrel-r2 — switching barrel imports to subpath does no
           the full module graph; a win would require splitting the barrel itself
           or lazy-importing more broadly at the barrel level.
 artifacts: .temp_files/perf-ratchet/tui-barrel-r2/ deleted after this entry.
+
+## 2026-09-08 — plugins boot & hook baseline after the worker pool (round plugins-r2, scope packages/plugins)
+commit:   9c1e4da07 (worktree clean; NO source change landed this round — dist rebuilt only)
+machine:  AMD Ryzen 9 9950X3D 16-Core / 32c / 126GB / win32 10.0.26200 / node 24.13.0
+          (shared box: ~59 ambient node processes; a foreign 31-fork vitest ran 20:30-20:33)
+metric:   (A) cold sequential import of the 13 default-active official plugin entries, exactly
+          what the CLI's lazy factories do at boot - paid on every host start.
+          (B) steady-state Pre/PostToolUse hook latency of the two always-on security plugins
+          (secret-scanner, path-guard), driven through their real setup() + registered hooks -
+          paid on every tool call.
+commands: node .temp_files/perf-ratchet/plugins-r2/run-bench.mjs
+          (5 outer runs per panel; Panel B = medians of 30 post-warmup samples per scenario)
+          WRONGSTACK_VITEST_MAX_WORKERS=8 pnpm -C packages/plugins test
+baseline: (A) boot-load median 58.85ms (min 53.30 / max 219.73 - one noisy run) for 13 entries;
+          consistent with the known barrel cost (~41ms via dist) paid once + 13 small graphs.
+          (B) medians of medians: ss-pre-write-5kb 0.050 / ss-post-output-20kb 0.082 /
+          pg-pre-write-benign 0.290 / pg-pre-write-protected 0.345 / pg-pre-bash-rm50 7.547 ms.
+verdict:  NO-KEEP - no change attempted; both candidate levers died on evidence before mutation.
+          (1) Steady-state hooks are already harvested by sdk-redos-r2: sub-millisecond typical;
+          a 50-target destructive bash command costs 7.5ms wall against the ~1s the same path
+          would cost with pre-pool spawn-per-call. The only variant (sequential guarded checks
+          to keep the single warm slot instead of ~49 overlap-fallback spawns) predicts roughly
+          3ms saved on a rare, non-hot path - below the 10% bar; rejected without writing it.
+          (2) Boot de-barreling is structurally capped INSIDE packages/plugins: of the 13
+          default-active plugins, config-validator imports `withinProject` and diff-summary
+          imports `withinProject` + `BoundedMap` - both barrel-only symbols (they live in the
+          plugin-sdk barrel module, no granular subpath). The barrel loads at boot regardless,
+          so rewiring the other 11 active plugins to leaf shims (e.g. secret-scanner's
+          releaseHandle) buys 0 measured ms. Do not retry plugin-side.
+unlock:   unchanged from sdk-runner-r1's record - granular subpath exports in
+          @wrongstack/plugin-sdk/runtime for withinProject / collectSourceFiles(Async) /
+          matchesExtension / BoundedMap / BoundedSet / safeJsonStringify, then finish the
+          plugin-side rewiring of the remaining barrel importers (est. ~35ms of boot; unmeasured
+          until the sdk-side entries exist).
+tests:    baseline gate green BEFORE any change: 123 files / 2706 passed / 2 skipped / exit 0
+          in 23.2s with WRONGSTACK_VITEST_MAX_WORKERS=8. First attempt at the default 4-worker
+          cap exceeded ~100 minutes on the loaded box and the runner died silently (log frozen
+          at the header, no result). Full-package gates on this box should use the override,
+          identical command before and after for parity.
+noise:    Panel A max run 219.73ms vs 53.30ms min - repeat-run spread on the shared box exceeds
+          the win any in-scope change could deliver; measurements at this granularity need a
+          quiet box.

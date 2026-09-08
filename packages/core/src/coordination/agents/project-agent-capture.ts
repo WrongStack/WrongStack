@@ -26,8 +26,10 @@ import {
   updateProjectAgentLearningPolicy,
 } from './project-agent-learning-policy.js';
 import {
+  directiveLift,
   directiveTrials,
   enforceLearnedBudget,
+  hasDirectiveLiftEvidence,
   mergeStructuredEntries,
   parseStructuredLearnedEntriesFromContent,
   renderLearnedInstructions,
@@ -114,7 +116,22 @@ export interface ProjectAgentLearnStats {
   skilledEntryCount: number;
   appliedEntryCount: number;
   deadEntryCount: number;
+  /**
+   * Raw success rate across exercised directives. Kept because it is cheap and
+   * legible, but it is NOT a measure of the directives: task success in this
+   * system runs above 90%, so this number sits near the ceiling regardless.
+   * Read {@link ProjectAgentLearnStats.directiveLift} for the one that
+   * discriminates.
+   */
   directiveHitRate: number | null;
+  /**
+   * Mean lift over the role's own baseline across directives that have control
+   * evidence — how much better tasks go with a directive than without it.
+   * `null` until at least one directive has trials on both sides.
+   */
+  directiveLift: number | null;
+  /** Directives with enough evidence on both arms to have a meaningful lift. */
+  measuredEntryCount: number;
 }
 
 export function getProjectAgentLearnStats(
@@ -147,6 +164,8 @@ export function getProjectAgentLearnStats(
   const trials = entries.map((entry) => directiveTrials(entry));
   const totalApplied = trials.reduce((sum, trial) => sum + trial.applied, 0);
   const totalWins = trials.reduce((sum, trial) => sum + trial.wins, 0);
+  const measured = entries.filter((entry) => hasDirectiveLiftEvidence(entry));
+  const liftSum = measured.reduce((sum, entry) => sum + directiveLift(entry), 0);
 
   return {
     role,
@@ -157,6 +176,8 @@ export function getProjectAgentLearnStats(
     appliedEntryCount: trials.filter((trial) => trial.applied > 0).length,
     deadEntryCount: trials.filter((trial) => trial.applied === 0).length,
     directiveHitRate: totalApplied > 0 ? totalWins / totalApplied : null,
+    directiveLift: measured.length > 0 ? liftSum / measured.length : null,
+    measuredEntryCount: measured.length,
     totalBytes: Buffer.byteLength(learnedText, 'utf8'),
     lastCapture: lastTs ? new Date(lastTs).toISOString() : null,
     lastCaptureTimestamp: lastTs,

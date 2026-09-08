@@ -23,6 +23,7 @@
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { Context, DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
+import type { AgentStatusTracker } from '@wrongstack/core/coordination';
 import {
   getSharedProjectMailbox,
   makeFleetStatusTool,
@@ -43,7 +44,6 @@ import {
   getSessionRegistry,
   PromptUsageStore,
 } from '@wrongstack/core/storage';
-import type { AgentStatusTracker } from '@wrongstack/core/coordination';
 import {
   type Config,
   type ConfigStore,
@@ -51,9 +51,9 @@ import {
   type Logger,
   type MemoryPort,
   type ModelsRegistry,
-  normalizeTokenSavingTier,
   type Provider,
   resolveContextWindowPolicy,
+  resolveTokenSavingTier,
   type SecretVault,
   type SessionStore,
 } from '@wrongstack/core/types';
@@ -219,6 +219,37 @@ export async function createPreContextServices(
     );
   }
 
+  // ── Model capabilities ref ──
+  const resolvedModel = await resolveProviderModelMetadata(
+    modelsRegistry,
+    config.provider,
+    config.model,
+    config.providers?.[config.provider],
+  );
+  const modelCapabilities = resolvedModel?.capabilities
+    ? {
+        maxContextTokens: resolvedModel.capabilities.maxContext,
+        supportsTools: resolvedModel.capabilities.tools,
+        supportsVision: resolvedModel.capabilities.vision,
+        supportsReasoning: resolvedModel.capabilities.reasoning,
+      }
+    : undefined;
+  const modelCapabilitiesRef: { current: typeof modelCapabilities } = {
+    current: modelCapabilities,
+  };
+
+  // One tier decision per session, shared by the tool registry AND the prompt
+  // builder below. `'auto'` (the config default) expands two different ways —
+  // window-blind to `'medium'` via `normalizeTokenSavingTier`, window-aware to
+  // `'minimal'` via `resolveTokenSavingTier` — and the registry used the first
+  // while the builder used the second, so a default session described a
+  // `'minimal'` tool surface it did not actually have. The model capabilities
+  // above are resolved BEFORE the registry for exactly this reason.
+  const tokenSavingTier = resolveTokenSavingTier(
+    config.features.tokenSavingMode,
+    modelCapabilities?.maxContextTokens,
+  );
+
   // ── Tool registry (+ memory + mailbox tools) ──
   const toolRegistry = opts.services?.toolRegistry ?? new ToolRegistry();
   const memoryStore = container.resolve(TOKENS.MemoryStore);
@@ -226,7 +257,7 @@ export async function createPreContextServices(
   if (!opts.services?.toolRegistry) {
     registerCanonicalHostTools({
       registry: toolRegistry,
-      tier: normalizeTokenSavingTier(config.features.tokenSavingMode),
+      tier: tokenSavingTier,
       memory: { enabled: config.features.memory, store: memoryStore },
       nextSteps: { enabled: config.tools?.nextsteps?.enabled === true },
       coordinationTools: [
@@ -356,25 +387,6 @@ export async function createPreContextServices(
     'custom',
   );
 
-  // ── Model capabilities ref ──
-  const resolvedModel = await resolveProviderModelMetadata(
-    modelsRegistry,
-    config.provider,
-    config.model,
-    config.providers?.[config.provider],
-  );
-  const modelCapabilities = resolvedModel?.capabilities
-    ? {
-        maxContextTokens: resolvedModel.capabilities.maxContext,
-        supportsTools: resolvedModel.capabilities.tools,
-        supportsVision: resolvedModel.capabilities.vision,
-        supportsReasoning: resolvedModel.capabilities.reasoning,
-      }
-    : undefined;
-  const modelCapabilitiesRef: { current: typeof modelCapabilities } = {
-    current: modelCapabilities,
-  };
-
   // ── Skill loader/installer ──
   const skillLoader = config.features.skills
     ? new DefaultSkillLoader({ paths: wpaths })
@@ -422,7 +434,7 @@ export async function createPreContextServices(
     modeId,
     modePrompt,
     modelCapabilities: () => modelCapabilitiesRef.current,
-    tokenSavingMode: config.features.tokenSavingMode,
+    tokenSavingMode: tokenSavingTier,
     instructionPaths: {
       globalDir: wpaths.globalInstructions,
       projectDir: wpaths.inProjectInstructions,

@@ -1,3 +1,6 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { MCPClient, type MCPTool, quoteWindowsArg } from '../src/client.js';
 
@@ -890,4 +893,68 @@ describe('MCPClient', () => {
       await expect(inflight).rejects.toThrow(/child error: boom/);
     });
   });
+});
+
+describe('MCPClient connect re-entrancy', () => {
+  it('does not spawn a second server when already connected', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mcp-reconnect-'));
+    const script = path.join(root, 'server.cjs');
+    await fs.writeFile(
+      script,
+      [
+        "const readline = require('node:readline');",
+        "const send = (v) => process.stdout.write(JSON.stringify(v) + '\\n');",
+        'const lines = readline.createInterface({ input: process.stdin, terminal: false });',
+        "lines.on('line', (line) => {",
+        '  const req = JSON.parse(line);',
+        "  if (req.method === 'initialize') {",
+        "    send({ jsonrpc: '2.0', id: req.id, result: { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'reconnect-fixture', version: '1.0.0' } } });",
+        "  } else if (req.method === 'tools/list') {",
+        "    send({ jsonrpc: '2.0', id: req.id, result: { tools: [] } });",
+        '  }',
+        '});',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const client = new MCPClient({
+      name: 'reconnect-fixture',
+      transport: 'stdio',
+      command: process.execPath,
+      args: [script],
+      startupTimeoutMs: 10_000,
+    });
+    const childOf = (c: MCPClient): number | undefined =>
+      (c as unknown as { child?: { pid: number } | undefined }).child?.pid;
+    const pids: Array<number | undefined> = [];
+
+    try {
+      await client.connect();
+      pids.push(childOf(client));
+      expect(typeof pids[0]).toBe('number');
+
+      // A second connect() on the same instance must reuse the existing
+      // connection: close() tears down only the latest child, so spawning
+      // a second server here would orphan the first — and the orphan's
+      // exit handler would later flip state to 'disconnected' under the
+      // healthy replacement connection.
+      await client.connect();
+      pids.push(childOf(client));
+      expect(pids[1]).toBe(pids[0]);
+      expect(client.getState()).toBe('connected');
+    } finally {
+      await client.close().catch(() => {});
+      // Defense against leaking a stub server from a failing run: force-kill
+      // every spawned pid the test observed.
+      for (const pid of pids) {
+        if (typeof pid === 'number') {
+          try {
+            process.kill(pid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }
+      }
+    }
+  }, 15_000);
 });

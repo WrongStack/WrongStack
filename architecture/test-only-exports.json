@@ -352,11 +352,18 @@
     "packages/core/src/coordination/agents/agent-prompts.ts": [
       "agentPromptCacheSize"
     ],
+    "packages/core/src/coordination/agents/dispatch-log.ts": [
+      "dispatchLogPath"
+    ],
     "packages/core/src/coordination/agents/index.ts": [
       "ROLE_DISPATCH_RATIONALE"
     ],
     "packages/core/src/coordination/agents/phase3-techstack.ts": [
       "TECHSTACK_AGENTS"
+    ],
+    "packages/core/src/coordination/agents/project-agent-directive-outcome.ts": [
+      "DIRECTIVE_QUARANTINE_MAX_LIFT",
+      "shouldRetireDirective"
     ],
     "packages/core/src/coordination/agents/role-skills.ts": [
       "BUNDLED_AGENT_SKILLS"
@@ -522,6 +529,9 @@
       "buildSkillUninstallCommand",
       "buildSkillUpdateCommand",
       "resolveImportSourceDir"
+    ],
+    "packages/core/src/plugins/specialist-trigger-rules.ts": [
+      "toPosixPath"
     ],
     "packages/core/src/quota/index.ts": [
       "listQuotaProviders",
@@ -733,11 +743,7 @@
       "registryCoverage"
     ],
     "packages/plug-lsp/src/server/capabilities.ts": [
-      "supportsCodeAction",
-      "supportsDocumentSymbol",
-      "supportsHover",
-      "supportsPrepareRename",
-      "supportsReferences"
+      "supportsPrepareRename"
     ],
     "packages/plug-lsp/src/server/lsp-server.ts": [
       "lspServerCoverage"
@@ -1064,6 +1070,9 @@
     "packages/tools/src/bash-kill-guard.ts": [
       "parseKillCommand"
     ],
+    "packages/tools/src/batch-tool-use.ts": [
+      "batchToolUseTool"
+    ],
     "packages/tools/src/browser/artifacts.ts": [
       "_resetArtifactSweepForTests"
     ],
@@ -1117,6 +1126,9 @@
     "packages/tools/src/codebase-index/writer-refs.ts": [
       "FAMILY_MATCH_SQL"
     ],
+    "packages/tools/src/document.ts": [
+      "documentTool"
+    ],
     "packages/tools/src/kanban-task-inputs.ts": [
       "mergedDependsOn"
     ],
@@ -1129,6 +1141,9 @@
     "packages/tools/src/ps-slash.ts": [
       "getGlobalProcessStatus"
     ],
+    "packages/tools/src/scaffold.ts": [
+      "scaffoldTool"
+    ],
     "packages/tools/src/search.ts": [
       "__clearSearchCache"
     ],
@@ -1137,9 +1152,21 @@
       "cleanupSessionKanbanBoard",
       "cleanupSessionKanbanBoardIfEmpty"
     ],
+    "packages/tools/src/set-working-dir.ts": [
+      "setWorkingDirTool"
+    ],
     "packages/tools/src/tool-diff.ts": [
       "DIFF_LINE_SAFETY_CAP",
       "TOOL_DIFF_BROWSER_SRC"
+    ],
+    "packages/tools/src/tool-help.ts": [
+      "toolHelpTool"
+    ],
+    "packages/tools/src/tool-search.ts": [
+      "toolSearchTool"
+    ],
+    "packages/tools/src/tool-use.ts": [
+      "toolUseTool"
     ],
     "packages/tui/src/app-ui-state.ts": [
       "effectiveShowSidebar",
@@ -1510,7 +1537,6 @@
       "getLastEventAt"
     ],
     "packages/webui/src/components/ChatInput/code-detect.ts": [
-      "detectLanguage",
       "unfenceCode"
     ],
     "packages/webui/src/components/ChatInput/image-attachments.ts": [

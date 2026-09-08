@@ -53,6 +53,12 @@ export interface DispatchResult {
   method: DispatchMethod;
   /** Human-readable explanation of why this agent was chosen. */
   reason: string;
+  /**
+   * Capability keywords the WINNING role matched. Empty when the LLM stage or
+   * the generalist fallback decided, which is itself the signal: a role chosen
+   * with no keyword behind it is one the heuristic could not see.
+   */
+  matched: string[];
   /** Runner-up candidates (top heuristic scorers), best-first. */
   alternatives: DispatchCandidate[];
 }
@@ -169,6 +175,7 @@ export async function dispatchAgent(
       confidence,
       method: 'heuristic',
       reason: `Matched keywords: ${top.matched.slice(0, 4).join(', ')}`,
+      matched: top.matched,
       alternatives: candidates.slice(1, maxCandidates),
     };
   }
@@ -198,6 +205,7 @@ export async function dispatchAgent(
           confidence: 1,
           method: 'llm',
           reason: choice.reason ?? 'Selected by LLM classifier',
+          matched: candidates.find((c) => c.role === choice.role)?.matched ?? [],
           alternatives: candidates.slice(0, maxCandidates).filter((c) => c.role !== choice.role),
         };
       }
@@ -214,6 +222,7 @@ export async function dispatchAgent(
       confidence,
       method: 'heuristic',
       reason: `Weak match (${top.matched.slice(0, 3).join(', ') || 'low signal'})`,
+      matched: top.matched,
       alternatives: candidates.slice(1, maxCandidates),
     };
   }
@@ -226,6 +235,7 @@ export async function dispatchAgent(
     confidence: 0,
     method: 'fallback',
     reason: 'No keyword signal; defaulting to the generalist Executor',
+    matched: [],
     alternatives: [],
   };
 }

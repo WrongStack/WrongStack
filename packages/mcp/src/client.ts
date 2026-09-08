@@ -185,6 +185,13 @@ export class MCPClient {
   }
 
   async connect(): Promise<void> {
+    // Idempotent: a second connect() on an already-connected or connecting
+    // client must not spawn a second server process. close() tears down only
+    // the latest child, so the overwritten one would be orphaned — and when
+    // it later exits, its handler flips `state` to 'disconnected' under the
+    // healthy replacement connection, tripping spurious reconnects. Callers
+    // that want a fresh connection call close() first.
+    if (this.state === 'connected' || this.state === 'connecting') return;
     this.state = 'connecting';
     this._serverMetadata = undefined;
 

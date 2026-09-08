@@ -14,6 +14,7 @@ interface RegistryContext {
   cwd: string;
   log: Logger;
   events: EventBus;
+  onAvailabilityChange?: ((available: boolean) => void) | undefined;
 }
 
 export class LSPRegistry {
@@ -38,8 +39,9 @@ export class LSPRegistry {
     this.cwd = cwd;
     this.autoStart = autoStart;
     this.rebuildServers();
+    this.notifyAvailability();
     if (autoStart === 'eager') {
-      const languages = await detectProjectLanguages(cwd);
+      const languages = await detectProjectLanguages(cwd, this.cfg.servers);
       await Promise.all(
         this.list()
           .filter((s) => s.config.languages.some((lang) => languages.has(lang)))
@@ -60,7 +62,7 @@ export class LSPRegistry {
 
   async findForPath(filePath: string, signal?: AbortSignal): Promise<LSPServer | null> {
     if (this.servers.size === 0) this.rebuildServers();
-    const language = languageIdFor(filePath);
+    const language = configuredLanguageIdFor(filePath, this.cfg.servers);
     if (!language) return null;
     const name = this.languageIndex.get(language);
     if (!name) return null;
@@ -71,6 +73,32 @@ export class LSPRegistry {
       await this.tracker.reopenForServer(server);
     }
     return server.state === 'ready' ? server : null;
+  }
+
+  languageIdForPath(filePath: string): string | null {
+    return configuredLanguageIdFor(filePath, this.cfg.servers);
+  }
+
+  /** Start only servers whose languages actually exist in this project. */
+  async ensureProjectServersReady(signal?: AbortSignal): Promise<void> {
+    if (this.autoStart !== 'lazy') return;
+    const languages = await detectProjectLanguages(this.cwd, this.cfg.servers);
+    await Promise.all(
+      this.list()
+        .filter(
+          (server) =>
+            server.state !== 'ready' &&
+            server.config.languages.some((language) => languages.has(language)),
+        )
+        .map(async (server) => {
+          try {
+            await server.start(signal);
+            await this.tracker.reopenForServer(server);
+          } catch (err) {
+            this.ctx.log.warn(`LSP ${server.name} failed to start`, err);
+          }
+        }),
+    );
   }
 
   get(name: string): LSPServer | null {
@@ -116,8 +144,8 @@ export class LSPRegistry {
     if (this.servers.size === 0) this.rebuildServers();
     await this.dropServer(name);
     this.cfg.servers[name] = cfg;
-    if (cfg.enabled === false) return;
-    this.mountServer(name, cfg);
+    if (cfg.enabled !== false) this.mountServer(name, cfg);
+    this.notifyAvailability();
   }
 
   /** Stop the server and forget its config entry. */
@@ -125,6 +153,7 @@ export class LSPRegistry {
     if (this.servers.size === 0) this.rebuildServers();
     await this.dropServer(name);
     delete this.cfg.servers[name];
+    this.notifyAvailability();
   }
 
   /**
@@ -141,6 +170,7 @@ export class LSPRegistry {
     this.cfg.servers[name] = next;
     await this.dropServer(name);
     if (enabled) this.mountServer(name, next);
+    this.notifyAvailability();
     return next;
   }
 
@@ -200,6 +230,12 @@ export class LSPRegistry {
     }
   }
 
+  private notifyAvailability(): void {
+    this.ctx.onAvailabilityChange?.(
+      Object.values(this.cfg.servers).some((config) => config.enabled !== false),
+    );
+  }
+
   private getOrThrow(name: string): LSPServer {
     const server = this.get(name);
     if (!server) throw new LSPError(LSPErrorCode.ServerNotFound, `No LSP server named "${name}"`);
@@ -235,7 +271,10 @@ export class LSPRegistry {
   }
 }
 
-async function detectProjectLanguages(root: string): Promise<Set<string>> {
+async function detectProjectLanguages(
+  root: string,
+  servers: Record<string, ServerConfig> = {},
+): Promise<Set<string>> {
   const found = new Set<string>();
   const visit = async (dir: string, depth: number): Promise<void> => {
     if (depth > 3) return;
@@ -251,7 +290,7 @@ async function detectProjectLanguages(root: string): Promise<Set<string>> {
       const p = path.join(dir, entry.name);
       if (entry.isDirectory()) await visit(p, depth + 1);
       else {
-        const lang = languageIdFor(p);
+        const lang = configuredLanguageIdFor(p, servers);
         if (lang) found.add(lang);
       }
     }
@@ -260,9 +299,30 @@ async function detectProjectLanguages(root: string): Promise<Set<string>> {
   return found;
 }
 
+function configuredLanguageIdFor(
+  filePath: string,
+  servers: Record<string, ServerConfig>,
+): string | null {
+  const builtIn = languageIdFor(filePath);
+  if (builtIn) return builtIn;
+  const base = path.basename(filePath).toLowerCase();
+  const extension = path.extname(base);
+  for (const config of Object.values(servers)) {
+    const mappings = config.fileExtensions;
+    if (!mappings) continue;
+    const language = mappings[base] ?? mappings[extension];
+    if (language && config.languages.includes(language)) return language;
+  }
+  return null;
+}
+
 async function startServerSafely(server: LSPServer, log: Logger): Promise<void> {
   await server.start().catch((err) => log.warn(`LSP ${server.name} failed to start`, err));
 }
 
 /** Direct-module test seam; not re-exported by the package barrel. */
-export const registryCoverage = { detectProjectLanguages, startServerSafely };
+export const registryCoverage = {
+  configuredLanguageIdFor,
+  detectProjectLanguages,
+  startServerSafely,
+};

@@ -159,6 +159,61 @@ describe('makeSpawnTool', () => {
     expect(director.spawn).toHaveBeenCalledWith(expect.objectContaining({ name: 'bare' }));
   });
 
+  it('reports how each spawn chose its role, including the branch that skips dispatch', async () => {
+    const routed = vi.fn();
+    director.onSpawnRouted = routed;
+
+    const rosterTool = makeSpawnTool(asDir(), { planner: { name: 'Planner', role: 'planner' } });
+    await rosterTool.execute({ role: 'planner' }, {} as never, {} as never);
+    // An explicit role is the branch that bypasses the dispatcher entirely —
+    // invisible to any telemetry hung off `dispatchAgent`, and the whole reason
+    // this seam sits in the tool rather than in the dispatcher.
+    expect(routed).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'planner', source: 'explicit-role' }),
+    );
+    expect(routed.mock.calls[0]?.[0]).not.toHaveProperty('method');
+
+    routed.mockClear();
+    dispatchAgentMock.mockResolvedValue({
+      role: 'coder',
+      definition: { config: {} },
+      method: 'fallback',
+      confidence: 0,
+      matched: [],
+      alternatives: [{ role: 'debugger' }, { role: 'test' }],
+    });
+    const dispatchTool = makeSpawnTool(asDir(), { coder: { name: 'Coder', role: 'coder' } });
+    await dispatchTool.execute({ description: 'do a thing' }, {} as never, {} as never);
+    expect(routed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'coder',
+        source: 'description',
+        method: 'fallback',
+        confidence: 0,
+        alternatives: ['debugger', 'test'],
+        rosterMiss: false,
+      }),
+    );
+
+    routed.mockClear();
+    const bareTool = makeSpawnTool(asDir());
+    await bareTool.execute({ name: 'bare' }, {} as never, {} as never);
+    expect(routed).toHaveBeenCalledWith(expect.objectContaining({ source: 'name-only' }));
+  });
+
+  it('does not report a spawn the fleet refused', async () => {
+    const routed = vi.fn();
+    director.onSpawnRouted = routed;
+    (director.spawn as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new FleetSpawnBudgetError('max_spawns', 3, 4),
+    );
+    const tool = makeSpawnTool(asDir(), { planner: { name: 'Planner', role: 'planner' } });
+    await tool.execute({ role: 'planner' }, {} as never, {} as never);
+    // A worker rejected by a budget cap never ran; counting it would overstate
+    // the routing volume this telemetry exists to measure.
+    expect(routed).not.toHaveBeenCalled();
+  });
+
   it('surfaces spawn, cost, token, and generic errors', async () => {
     const tool = makeSpawnTool(asDir());
     (director.spawn as ReturnType<typeof vi.fn>).mockRejectedValueOnce(

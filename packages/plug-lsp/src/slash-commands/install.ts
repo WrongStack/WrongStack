@@ -2,9 +2,10 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { buildChildEnv } from '@wrongstack/core/utils';
+import { detectTypeScriptFlavor } from '../typescript-flavor.js';
 import { commandExistsOnPath, resolveServerCommand } from '../utils/command-resolver.js';
 
-interface LanguageServerConfig {
+export interface LanguageServerConfig {
   binary: string;
   npmPackages?: string[];
   args?: string[];
@@ -107,9 +108,47 @@ export const LANGUAGE_SERVERS: Record<string, LanguageServerConfig> = {
     languages: ['ruby'],
     rootPatterns: ['Gemfile', '.ruby-version'],
   },
+  csharp: {
+    binary: 'csharp-ls',
+    toolchain: {
+      command: 'dotnet',
+      args: ['tool', 'install', '--global', 'csharp-ls'],
+      label: '.NET toolchain',
+    },
+    languages: ['csharp'],
+    rootPatterns: ['*.sln', '*.csproj', 'global.json', '.git'],
+  },
+  php: {
+    binary: 'intelephense',
+    npmPackages: ['intelephense'],
+    args: ['--stdio'],
+    languages: ['php'],
+    rootPatterns: ['composer.json', '.git'],
+  },
 };
 
 export const SUPPORTED_LANGUAGES = Object.keys(LANGUAGE_SERVERS);
+
+/**
+ * Resolve version-sensitive install presets against the current workspace.
+ * TypeScript 7 is itself an LSP server and cannot be driven by
+ * typescript-language-server because it no longer ships tsserver.js.
+ */
+export async function languageServerForWorkspace(
+  language: string,
+  cwd: string,
+): Promise<LanguageServerConfig | undefined> {
+  const server = LANGUAGE_SERVERS[language];
+  if (!server || language !== 'typescript') return server;
+  if ((await detectTypeScriptFlavor(cwd)) !== 'native') return server;
+
+  return {
+    ...server,
+    binary: 'tsc',
+    npmPackages: ['typescript'],
+    args: ['--lsp', '--stdio'],
+  };
+}
 
 /**
  * Install a language server for the given language.

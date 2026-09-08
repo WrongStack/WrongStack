@@ -98,6 +98,10 @@ vi.mock('@wrongstack/core/storage', () => ({
 vi.mock('@wrongstack/core/types', () => ({
   DEFAULT_SESSION_PRUNE_DAYS: 30,
   normalizeTokenSavingTier: vi.fn((value) => value),
+  // The tier is resolved ONCE here and handed to both the tool registry and
+  // the prompt builder, so the mock has to expose the resolver the module
+  // actually calls.
+  resolveTokenSavingTier: vi.fn((value) => value),
   resolveContextWindowPolicy: vi.fn(() => ({ id: 'balanced', maxMessages: 100 })),
 }));
 vi.mock('@wrongstack/core/utils', () => ({

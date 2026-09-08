@@ -22,6 +22,8 @@ export interface ServerConfig {
   args?: string[] | undefined;
   env?: Record<string, string> | undefined;
   languages: string[];
+  /** Custom filename/extension to LSP language-id mappings (for example `.vue`: `vue`). */
+  fileExtensions?: Record<string, string> | undefined;
   rootPatterns?: string[] | undefined;
   initializationOptions?: unknown | undefined;
   settings?: unknown | undefined;
@@ -67,6 +69,7 @@ export enum LSPErrorCode {
   CapabilityMissing = 'LSP_CAPABILITY_MISSING',
   RequestTimeout = 'LSP_REQUEST_TIMEOUT',
   InvalidPosition = 'LSP_INVALID_POSITION',
+  InvalidRequest = 'LSP_INVALID_REQUEST',
   ProtocolError = 'LSP_PROTOCOL_ERROR',
   ApplyEditFailed = 'LSP_APPLY_EDIT_FAILED',
 }

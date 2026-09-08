@@ -83,6 +83,20 @@ describe('wrongstack-lsp-setup', () => {
     );
   });
 
+  it('uses the native compiler instead of installing tsserver tooling for TypeScript 7', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-setup-ts7-'));
+    const typescript = path.join(root, 'node_modules', 'typescript');
+    await fs.mkdir(typescript, { recursive: true });
+    await fs.writeFile(path.join(typescript, 'package.json'), '{"version":"7.0.2"}');
+    const d = deps(root);
+    d.resolveServerCommand = vi.fn(async (binary) => (binary === 'tsc' ? '/bin/tsc' : null));
+
+    await runSetup(['--cwd', root, '--languages', 'typescript'], d);
+
+    expect(d.log).toHaveBeenCalledWith('Already available: typescript');
+    expect(d.run).not.toHaveBeenCalled();
+  });
+
   it('runs child commands and rejects failing exits', async () => {
     await expect(
       runCommand(process.execPath, ['-e', 'process.exit(0)'], process.cwd()),

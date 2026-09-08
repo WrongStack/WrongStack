@@ -1,7 +1,6 @@
 import type { Tool } from '@wrongstack/core/types';
 import { auditTool } from './audit.js';
 import { bashTool } from './bash.js';
-import { batchToolUseTool } from './batch-tool-use.js';
 import { browserTools } from './browser/tools.js';
 import { clarifyTool } from './clarify.js';
 import {
@@ -21,7 +20,6 @@ import {
 } from './codebase-index/index.js';
 import { designTool } from './design.js';
 import { diffTool } from './diff.js';
-import { documentTool } from './document.js';
 import { e2ePlanTool } from './e2e.js';
 import { editTool } from './edit.js';
 import { execTool } from './exec.js';
@@ -44,16 +42,11 @@ import { planTool } from './plan.js';
 import { pwshTool } from './pwsh.js';
 import { readTool } from './read.js';
 import { replaceTool } from './replace.js';
-import { scaffoldTool } from './scaffold.js';
 import { searchTool } from './search.js';
 import { securityAstScanTool } from './security-ast-scan-tool.js';
-import { setWorkingDirTool } from './set-working-dir.js';
 import { taskTool } from './task.js';
 import { testTool } from './test.js';
 import { todoTool } from './todo.js';
-import { toolHelpTool } from './tool-help.js';
-import { toolSearchTool } from './tool-search.js';
-import { toolUseTool } from './tool-use.js';
 import { treeTool } from './tree.js';
 import { typecheckTool } from './typecheck.js';
 import { writeTool } from './write.js';
@@ -176,22 +169,8 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
   outdated:
     'List outdated project dependencies and available versions without changing manifests or lockfiles. Use it to plan dependency maintenance.',
   logs: 'Read or tail configured local, container, or process logs with bounded output. Use it to investigate a known runtime failure or service behavior.',
-  document:
-    'List undocumented symbols as read-only candidates; this deprecated preview stub does not generate docstrings or write files. Use the auto-doc plugin when it is enabled.',
-  scaffold:
-    'Preview or generate files from a built-in or custom scaffold template. Writes files to disk unless dry_run is set. Use dry_run first to inspect paths and content before creating project files.',
   design:
     'Choose, preview, or materialize a UI design kit (e.g. minimal-clarity, neo-brutalist) for the active stack. Lists available kits, previews tokens, or writes a design-token source file to the project.',
-  tool_search:
-    'Discover registered tools by name, description, tag, permission, or mutating status. Use it to find a lazy capability before calling it through tool-use.',
-  tool_use:
-    'Invoke a registered tool by name with its input object, including a tool discovered lazily. Use it only after confirming the target tool’s schema and side effects.',
-  batch_tool_use:
-    'Invoke several independent registered tools as a batch and return each result. Use it for parallel read-only discovery; avoid batching dependent or destructive operations.',
-  tool_help:
-    'Show a tool’s purpose, input schema, permission, and examples, or summarize the catalog. Use it before invoking an unfamiliar or lazily discovered tool.',
-  set_working_dir:
-    'Show or change the session working directory within the permitted project scope. Use it when subsequent commands must target another project subdirectory.',
 };
 
 /**
@@ -211,13 +190,6 @@ export const OPTIONAL_TOOLS: Tool[] = [
   auditTool,
   outdatedTool,
   logsTool,
-  documentTool,
-  scaffoldTool,
-  toolSearchTool,
-  toolUseTool,
-  batchToolUseTool,
-  toolHelpTool,
-  setWorkingDirTool,
 ];
 
 /**
@@ -316,14 +288,7 @@ export const TIER2_TOOLS: Tool[] = [
 export const TIER3_TOOLS: Tool[] = [
   outdatedTool,
   logsTool,
-  documentTool,
-  scaffoldTool,
   deadCodeScanTool,
-  toolSearchTool,
-  toolUseTool,
-  batchToolUseTool,
-  toolHelpTool,
-  setWorkingDirTool,
 ];
 
 const rawBuiltinTools: Tool[] = [
@@ -375,14 +340,7 @@ const rawBuiltinTools: Tool[] = [
   auditTool,
   outdatedTool,
   logsTool,
-  documentTool,
-  scaffoldTool,
   designTool,
-  toolSearchTool,
-  toolUseTool,
-  batchToolUseTool,
-  toolHelpTool,
-  setWorkingDirTool,
 ];
 
 /** The executable catalog always exposes the reviewed description above. */

@@ -181,6 +181,90 @@ describe('token-saving measurement (empirical)', () => {
     );
   });
 
+  /**
+   * The other half of the bill, and the bigger one.
+   *
+   * The table above measures the system prompt only. Tool SCHEMAS travel in the
+   * request's `tools` array, are re-sent every turn, and at `off` cost more
+   * than the whole prompt. A tier that trimmed prose while leaving the schema
+   * list untouched would look like it was working here and change almost
+   * nothing on the wire, so measure both axes together.
+   */
+  it('shrinks the tool-schema payload, not just the prompt', async () => {
+    const schemaChars = async (tier: string) => {
+      const { toolRegistry } = await buildCliToolSurface({
+        config: fakeConfig(tier),
+        memoryStore: makeMemoryStore(),
+        tmp,
+        modelCapabilities: {
+          maxContextTokens: 200_000,
+          supportsTools: true,
+          supportsVision: false,
+          supportsReasoning: true,
+        },
+      });
+      return toolRegistry
+        .listForProvider()
+        .reduce(
+          (total, tool) =>
+            total +
+            tool.name.length +
+            (tool.description ?? '').length +
+            JSON.stringify(tool.inputSchema ?? {}).length,
+          0,
+        );
+    };
+    const off = await schemaChars('off');
+    const medium = await schemaChars('medium');
+    const minimal = await schemaChars('minimal');
+    expect(medium).toBeLessThan(off);
+    expect(minimal).toBeLessThan(medium);
+    // The schema saving dwarfs the prose saving; guard the order of magnitude
+    // so a regression that silently restored the full tool list is visible.
+    expect(minimal).toBeLessThan(off / 2);
+  });
+
+  /**
+   * `'auto'` is the shipped default, so it is the tier almost every session
+   * actually runs - and it used to be the one tier whose two halves disagreed.
+   * `normalizeTokenSavingTier('auto')` is window-blind `'medium'`;
+   * `resolveTokenSavingTier('auto', >=128k)` is `'minimal'`. The registry used
+   * the first and the prompt builder the second, so a default session on a
+   * modern model sent 47 tool schemas while composing the prompt as though only
+   * the Tier-1 surface existed. Both now come from one resolution at boot.
+   */
+  it("resolves 'auto' to the same tier for tools and prompt", async () => {
+    const measure = async (maxContextTokens: number) => {
+      const { toolRegistry, buildSystemPrompt } = await buildCliToolSurface({
+        config: fakeConfig('auto'),
+        memoryStore: makeMemoryStore(),
+        tmp,
+        modelCapabilities: {
+          maxContextTokens,
+          supportsTools: true,
+          supportsVision: false,
+          supportsReasoning: true,
+        },
+      });
+      const blocks = await buildSystemPrompt();
+      return {
+        tools: toolRegistry.listForProvider().length,
+        chars: blocks.map((b) => b.text).join('\n').length,
+      };
+    };
+    // 200k resolves to 'minimal', 16k to 'medium'.
+    const modern = await measure(200_000);
+    const tiny = await measure(16_000);
+    expect(modern.tools).toBeLessThan(tiny.tools);
+    expect(modern.chars).toBeLessThan(tiny.chars);
+
+    // And the resolved tier must match an explicit request for the same tier -
+    // 'auto' is a shorthand for picking one, not a fourth behaviour.
+    const explicitMinimal = await measureTier('minimal');
+    expect(modern.tools).toBe(explicitMinimal.toolCount);
+    expect(modern.chars).toBe(explicitMinimal.promptChars);
+  });
+
   it('cross-checks canonical tier counts against the real builtinTools array', () => {
     const allTools = builtinToolsPack.tools ?? [];
     const allNames = allTools.map((t) => t.name).sort();

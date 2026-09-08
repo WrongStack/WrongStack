@@ -75,8 +75,6 @@ const MUTATING_WITHOUT_FS_CAPABILITY: Record<string, string> = {
   browser_drag: 'drives a live browser page, not the filesystem',
   browser_upload: 'reads a local file and posts it to a live page; no local write',
   outdated: 'queries the registry for newer versions; writes nothing',
-  batch_tool_use: 'meta-tool — the mutation belongs to whatever it batches',
-  set_working_dir: 'mutates process state (cwd), not the filesystem',
 };
 
 describe('read-only mode blocks every mutating builtin tool', () => {

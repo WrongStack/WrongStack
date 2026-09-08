@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildChildEnv, expectDefined } from '@wrongstack/core/utils';
+import { languageServerForWorkspace } from './slash-commands/install.js';
 import { commandExistsOnPath, resolveServerCommand } from './utils/command-resolver.js';
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun';
@@ -73,6 +74,18 @@ const INSTALLS: Record<string, LanguageInstall> = {
       label: 'RubyGems',
     },
   },
+  csharp: {
+    binary: 'csharp-ls',
+    toolchain: {
+      command: 'dotnet',
+      args: ['tool', 'install', '--global', 'csharp-ls'],
+      label: '.NET toolchain',
+    },
+  },
+  php: {
+    binary: 'intelephense',
+    npmPackages: ['intelephense'],
+  },
 };
 
 interface SetupOptions {
@@ -114,7 +127,10 @@ export async function runSetup(args: string[], deps: SetupDeps = DEFAULT_DEPS): 
   const toolchainInstalls: Array<NonNullable<LanguageInstall['toolchain']>> = [];
 
   for (const lang of opts.languages) {
-    const install = expectDefined(INSTALLS[lang]);
+    const install =
+      lang === 'typescript'
+        ? expectDefined(await languageServerForWorkspace(lang, opts.cwd))
+        : expectDefined(INSTALLS[lang]);
     if (await deps.resolveServerCommand(install.binary, opts.cwd)) {
       alreadyInstalled.push(lang);
       continue;

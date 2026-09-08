@@ -94,8 +94,18 @@ export const TOKEN_SAVING_TIERS = [
 ] as const;
 export type TokenSavingTierTui = (typeof TOKEN_SAVING_TIERS)[number];
 
+/**
+ * Tier descriptions. Every tier moves BOTH halves together - the direct tool
+ * surface and the prompt shape - because the host resolves the tier once at
+ * boot and hands the same concrete value to the registry and to the prompt
+ * builder. `auto` used to be the exception (medium surface, window-resolved
+ * prompt); it no longer is.
+ *
+ * `minimal` and `aggressive` currently select the same Tier-1 tool set; the
+ * difference is how hard tool descriptions are trimmed.
+ */
 export const TOKEN_SAVING_TIER_DESCS: Record<TokenSavingTierTui, string> = {
-  auto: 'Medium direct surface; prompt adapts to the model window',
+  auto: 'Picks a tier from the model window at startup (default)',
   off: 'Every enabled catalog tool is sent directly; full prompt',
   minimal: 'Essential direct tools; compact prompt and guidance',
   light: 'Essential direct tools; retains common workflow guidance',

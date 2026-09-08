@@ -57,8 +57,7 @@ export function createCodebaseLspSearchTool(deps: ToolDeps): Tool<CodebaseLspSea
   return {
     name: 'codebase-lsp-search',
     description:
-      'DEPRECATED — use `codebase-search` with `preferLsp: true` instead. ' +
-      'This tool remains for backward compatibility but is superseded by the built-in codebase-search tool.',
+      'Search code symbols through the index with a live LSP workspace-symbol fallback. Use preferLsp=true when current language-server state matters more than the persisted index.',
     usageHint:
       'Pass `query` to search. Use `limit` (default 20) to cap results. Set `preferLsp=true` to skip the index and query LSP servers directly for live precision.',
     inputSchema: {
@@ -178,6 +177,7 @@ async function searchLsp(
 ): Promise<{ results: CodebaseLspResult[]; total: number }> {
   const merged: SymbolInformation[] = [];
 
+  await deps.registry.ensureProjectServersReady(signal);
   const servers = deps.registry.list();
   const promises: Array<Promise<void>> = [];
 

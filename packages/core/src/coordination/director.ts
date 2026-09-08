@@ -55,12 +55,12 @@ import { LargeAnswerStore } from './large-answer-store.js';
 import type { ModelMatrixSource } from './model-matrix.js';
 import { DefaultMultiAgentCoordinator } from './multi-agent-coordinator.js';
 import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
-import { resolveMaxSpawnDepth } from './spawn-budget.js';
-import { nicknameKeyFromDisplay } from './subagent-nicknames.js';
 import {
   areSubagentsAllowedForSession,
   lockSessionSubagentPolicyForSession,
 } from './session-subagent-policy.js';
+import { resolveMaxSpawnDepth } from './spawn-budget.js';
+import { nicknameKeyFromDisplay } from './subagent-nicknames.js';
 import {
   type WorktreeTaskStateUpdate,
   wrapSubagentRunnerWithWorktrees,
@@ -197,6 +197,9 @@ export class Director implements DirectorFleetHost, ICoordinator {
   readonly dispatchClassifier?:
     | import('../coordination/dispatcher.js').DispatchClassifier
     | undefined;
+  readonly onSpawnRouted?:
+    | ((entry: import('./agents/dispatch-log.js').DispatchLogEntry) => void)
+    | undefined;
   leaderContextPressure = 0;
   readonly maxLeaderContextLoad: number;
   private readonly maxContext: number | (() => number | undefined);
@@ -233,6 +236,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
     this.sessionIdSource = opts.sessionId ?? (() => opts.sessionWriter?.id);
     this.manifestDebounceMs = opts.manifestDebounceMs ?? 2000;
     this.dispatchClassifier = opts.dispatchClassifier;
+    this.onSpawnRouted = opts.onSpawnRouted;
     this.maxFleetCostUsd = opts.directorBudget?.maxCostUsd ?? Number.POSITIVE_INFINITY;
     this.maxFleetTokens = opts.directorBudget?.maxTokens ?? Number.POSITIVE_INFINITY;
     this.maxLeaderContextLoad = opts.maxLeaderContextLoad ?? 0.85;

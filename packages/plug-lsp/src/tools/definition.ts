@@ -49,6 +49,7 @@ export function createDefinitionTool(deps: ToolDeps): Tool<PositionInput, string
           );
         }
         const content = await readDocumentContent(file, deps.tracker);
+        await deps.tracker.open(file, content);
         const position = humanToLSP(content, { line: input.line, character: input.character });
         const locs = await server.definition(
           { textDocument: { uri: pathToUri(file) }, position },
