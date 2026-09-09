@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text, useAnimation } from '../../ink.js';
-import { theme } from '../../theme.js';
 import { sanitizeTerminalText, truncateDisplay } from '../../terminal-width.js';
+import { theme } from '../../theme.js';
 import { getToolVisual } from '../../tool-glyph.js';
 import { fmtDuration } from './basic-format.js';
 
@@ -25,6 +25,34 @@ export function toolStreamBoxHeight(name: string): number {
   const contentRows = name === 'write' ? WRITE_CREATE_STREAM_LINES : MAX_STREAM_LINES;
   return TOOL_STREAM_MARGIN_ROWS + TOOL_STREAM_HEADER_ROWS + contentRows;
 }
+
+/** A started tool without partial output occupies one stable live-tail row. */
+export function toolPendingLineHeight(): number {
+  return 1;
+}
+
+export const ToolPendingLine = React.memo(function ToolPendingLine({
+  name,
+  startedAt,
+  termWidth,
+}: {
+  name: string;
+  startedAt: number;
+  termWidth: number;
+}): React.ReactElement {
+  const { frame } = useAnimation({ interval: 180 });
+  const { glyph, color } = getToolVisual(name);
+  const spinner = ['◐', '◓', '◑', '◒'][frame % 4] ?? '◐';
+  return (
+    <Text>
+      <Text color={color}>{`${spinner} ${glyph} `}</Text>
+      <Text bold color={color}>
+        {truncateDisplay(sanitizeTerminalText(name), Math.max(1, termWidth - 24))}
+      </Text>
+      <Text dimColor>{` · running · ${fmtDuration(Date.now() - startedAt)}`}</Text>
+    </Text>
+  );
+});
 
 /**
  * Build the CONSTANT-height content block for the live tool-stream box: always

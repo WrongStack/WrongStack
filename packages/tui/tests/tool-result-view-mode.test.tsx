@@ -20,6 +20,7 @@ describe('tool result view modes', () => {
   it('renders header-only minimal, semantic normal, and canonical bounded full', () => {
     const minimal = render(<Entry entry={tool} termWidth={90} toolResultViewMode="minimal" />);
     expect(minimal.lastFrame()).toContain('extension_tool');
+    expect(minimal.lastFrame()).toContain('▲  ▼');
     expect(minimal.lastFrame()).not.toContain('first line');
     minimal.unmount();
 
@@ -49,7 +50,7 @@ describe('tool result view modes', () => {
     view.unmount();
   });
 
-  it('maps the two cells beside copy to less/more actions', () => {
+  it('maps the spaced tool-header cells to less/more actions', () => {
     const hit: CopyHit = {
       entryId: 7,
       startRow: 3,
@@ -57,10 +58,12 @@ describe('tool result view modes', () => {
       iconCol: 80,
       toolEntryIds: [7],
       toolViewMode: 'normal',
+      lessCol: 3,
+      moreCol: 6,
     };
-    expect(findToolViewControl([hit], 3, 81)?.delta).toBe(-1);
-    expect(findToolViewControl([hit], 3, 82)?.delta).toBe(1);
-    expect(findToolViewControl([hit], 4, 82)).toBeNull();
+    expect(findToolViewControl([hit], 3, 3)?.delta).toBe(-1);
+    expect(findToolViewControl([hit], 3, 6)?.delta).toBe(1);
+    expect(findToolViewControl([hit], 4, 6)).toBeNull();
   });
 
   it('keeps overrides independent and clears them on a global change', () => {

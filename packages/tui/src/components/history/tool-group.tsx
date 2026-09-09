@@ -281,19 +281,22 @@ function ToolGroupHeader({
   failCount,
   totalCount,
   termWidth,
+  viewMode,
 }: {
   name: string;
   totalDurationMs: number;
   failCount: number;
   totalCount: number;
   termWidth: number;
+  viewMode: ToolResultViewMode;
 }): React.ReactElement {
   const { glyph, color } = getToolVisual(name);
   const allOk = failCount === 0;
   const meta = `${totalDurationMs}ms`;
   const safeName = sanitizeTerminalText(name);
-  const visibleName = truncateDisplay(safeName, Math.max(1, termWidth - 16));
-  const fixedHeader = `${glyph} ${visibleName}`;
+  const controlPrefix = '▲  ▼  ';
+  const visibleName = truncateDisplay(safeName, Math.max(1, termWidth - 16 - controlPrefix.length));
+  const fixedHeader = `${controlPrefix}${glyph} ${visibleName}`;
   const tailBudget = Math.max(0, termWidth - displayWidth(fixedHeader) - 10);
   const metaBudget = meta ? Math.min(displayWidth(meta), Math.floor(tailBudget * 0.36)) : 0;
   const railColor = allOk ? theme.borderSubtle : theme.error;
@@ -303,6 +306,8 @@ function ToolGroupHeader({
     <Box flexDirection="column" marginY={0}>
       <Text>
         <Text color={railColor}>╭─ </Text>
+        <Text color={viewMode === 'minimal' ? theme.borderSubtle : theme.textMuted}>{'▲  '}</Text>
+        <Text color={viewMode === 'full' ? theme.borderSubtle : theme.textMuted}>{'▼  '}</Text>
         <Text color={color}>{glyph}</Text>
         <Text> </Text>
         <Text bold color={theme.textPrimary}>
@@ -354,6 +359,7 @@ function ToolGroupImpl({
         failCount={failCount}
         totalCount={entries.length}
         termWidth={termWidth}
+        viewMode={viewMode}
       />
       {viewMode === 'minimal' ? null : (
         <>

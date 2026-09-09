@@ -164,6 +164,11 @@ describe('useProviderEventBridge', () => {
       },
     ]);
     expect(historyActions.some((action) => action.entry.kind === 'info')).toBe(false);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'toolStreamClear',
+      toolUseId: 'tool-1',
+      name: 'todo',
+    });
 
     unmount();
   });

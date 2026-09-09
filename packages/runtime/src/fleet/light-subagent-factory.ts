@@ -270,6 +270,15 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
       permissionPolicy,
       toolExecutor,
       loopDetection: config.tools?.loopDetection,
+      // See the sibling CLI subagent factory: only a POSITIVE configured budget
+      // is forwarded, because the shipped default is `0` ("no hard limit") and
+      // handing that down would replace a missing setting with a missing
+      // safety net.
+      ...(typeof config.tools?.maxIterations === 'number' &&
+      Number.isFinite(config.tools.maxIterations) &&
+      config.tools.maxIterations > 0
+        ? { maxIterations: config.tools.maxIterations }
+        : {}),
     });
 
     // Fallback chain for THIS worker. Explicit task fallbacks stay pinned, while

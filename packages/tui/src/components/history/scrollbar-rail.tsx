@@ -1,6 +1,6 @@
 /**
- * Right-edge rail for the managed viewport: copy, less, more, selection band,
- * and scrollbar track. All five columns are always reserved, so affordances
+ * Right-edge rail for the managed viewport: copy, selection band, and
+ * scrollbar track. All three columns are always reserved, so affordances
  * never reflow chat content.
  *
  * The gap column doubles as the drag-selection highlight band: while a drag is
@@ -53,19 +53,12 @@ export function Scrollbar({
         const copyHit = copyByRow.get(row);
         const inBand = band !== null && row >= band.topRow && row <= band.bottomRow && row < rows;
         const isHead = band !== null && row === band.headRow && row < rows;
-        const viewMode = copyHit?.toolViewMode;
         return (
           <Box key={row} flexDirection="row">
             <Text
               color={copyHit && copiedEntryId === copyHit.entryId ? theme.success : theme.textMuted}
             >
               {copyHit ? COPY_ICON : ' '}
-            </Text>
-            <Text color={viewMode === 'minimal' ? theme.borderSubtle : theme.textMuted}>
-              {viewMode ? '−' : ' '}
-            </Text>
-            <Text color={viewMode === 'full' ? theme.borderSubtle : theme.textMuted}>
-              {viewMode ? '+' : ' '}
             </Text>
             <Text {...(inBand ? { color: theme.accent } : {})}>
               {isHead ? '█' : inBand ? '▌' : ' '}

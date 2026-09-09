@@ -19,7 +19,6 @@
 import type { McpServer, RunTurnApi } from '@wrongstack/acp/agent';
 import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
 import { ToolExecutor } from '@wrongstack/core/execution';
-import { wireKanbanPorts } from '@wrongstack/runtime';
 import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
@@ -32,8 +31,8 @@ import {
   ToolValidationError,
 } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import { createDefaultContainer } from '@wrongstack/runtime';
 import type { MCPRegistry } from '@wrongstack/mcp';
+import { createDefaultContainer, wireKanbanPorts } from '@wrongstack/runtime';
 import { connectAcpSessionMcpServers } from './acp-mcp-servers.js';
 import type { SubcommandDeps } from './subcommands/contracts.js';
 import { setupProvider } from './wiring/provider.js';
@@ -423,6 +422,17 @@ export function buildAcpServerAgentFactory(
       permissionPolicy,
       toolExecutor,
       loopDetection: config.tools?.loopDetection,
+      // `tools.maxIterations` was never read on this host, so an operator who
+      // set a turn budget got it honoured on the CLI and WebUI hosts and
+      // silently ignored here. Only a POSITIVE value is forwarded: the shipped
+      // default is `0` ("no hard limit"), and handing that to the agent loop
+      // would trade a missing setting for a missing safety net. Absent an
+      // explicit budget the Agent keeps its own DEFAULT_MAX_ITERATIONS.
+      ...(typeof config.tools?.maxIterations === 'number' &&
+      Number.isFinite(config.tools.maxIterations) &&
+      config.tools.maxIterations > 0
+        ? { maxIterations: config.tools.maxIterations }
+        : {}),
     });
   } as AcpServerAgentFactory;
 

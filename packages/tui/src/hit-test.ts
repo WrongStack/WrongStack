@@ -37,8 +37,8 @@ type HitRegion =
  * rail. Copy icons use the first column, a blank gap separates them from the
  * scrollbar track in the last column.
  */
-/** copy + less + more + selection band + scrollbar track */
-export const SCROLLBAR_HIT_WIDTH = 5;
+/** copy + selection band + scrollbar track */
+export const SCROLLBAR_HIT_WIDTH = 3;
 
 /** Rows available to managed history after reserving the measured bottom UI. */
 export function historyViewportRows(termRows: number, bottomHeight: number): number {

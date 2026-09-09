@@ -755,6 +755,7 @@ describe('TUI reducer', () => {
     s = reducer(s, { type: 'toolStarted', id: 't1', name: 'read' });
     s = reducer(s, { type: 'toolStarted', id: 't2', name: 'bash' });
     expect(s.runningTools.size).toBe(2);
+    expect(s.toolStream).toMatchObject({ toolUseId: 't2', name: 'bash', text: '' });
     s = reducer(s, { type: 'toolEnded', id: 't1' });
     expect(s.runningTools.size).toBe(1);
     expect(s.runningTools.has('t2')).toBe(true);

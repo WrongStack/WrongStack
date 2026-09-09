@@ -1,9 +1,9 @@
 export {
   AssistantBody,
   AssistantStreamBox,
-  assistantStreamBoxHeight,
   type AutonomyAgentStatus,
   assistantContentWidth,
+  assistantStreamBoxHeight,
   Banner,
   type BodySegment,
   CodeBlock,

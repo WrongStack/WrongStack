@@ -249,11 +249,7 @@ describe('<ScrollableHistory /> content navigation', () => {
     const history = (toolText: string) => (
       <ScrollableHistory
         entries={entries}
-        toolStream={
-          toolText
-            ? { toolUseId: 'read-1', name: 'read', text: toolText, startedAt: Date.now() }
-            : null
-        }
+        toolStream={{ toolUseId: 'read-1', name: 'read', text: toolText, startedAt: Date.now() }}
         viewportRows={20}
         controllerRef={controllerRef}
       />
@@ -261,6 +257,7 @@ describe('<ScrollableHistory /> content navigation', () => {
 
     const view = renderRealTty(history(''), { columns: 60, rows: 22 });
     await settle();
+    expect(view.lastFrame()).toContain('read · running');
     view.rerender(history('live read output'));
     await settle();
 
@@ -276,6 +273,23 @@ describe('<ScrollableHistory /> content navigation', () => {
     const scrolled = view.lastFrame();
     expect(scrolled).toContain('history-entry-01');
     expect(scrolled).not.toContain('live read output');
+    view.unmount();
+  });
+
+  it('shows assistant streaming and a result-less running tool together', async () => {
+    const view = renderRealTty(
+      <ScrollableHistory
+        entries={[]}
+        toolStream={{ toolUseId: 'read-1', name: 'read', text: '', startedAt: Date.now() }}
+        streamingText="I am checking the repository"
+        viewportRows={14}
+      />,
+      { columns: 70, rows: 16 },
+    );
+    await settle();
+    expect(view.lastFrame()).toContain('assistant · streaming');
+    expect(view.lastFrame()).toContain('I am checking the repository');
+    expect(view.lastFrame()).toContain('read · running');
     view.unmount();
   });
 

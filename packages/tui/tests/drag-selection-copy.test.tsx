@@ -311,8 +311,8 @@ function textEntry(id: number, text: string): HistoryEntry {
 const tick = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 describe('Selection highlight band (external-store rail feedback)', () => {
-  // The rail occupies the last SCROLLBAR_HIT_WIDTH (5) columns of the history
-  // row: [copy][less][more][band/gap][track]. We assert on the last two columns —
+  // The rail occupies the last SCROLLBAR_HIT_WIDTH (3) columns of the history
+  // row: [copy][band/gap][track]. We assert on the last two columns —
   // the band glyph and the untouched track cell — so the test stays robust to
   // the icon glyph and the thumb-vs-track rendering of the third column.
   // The rail row is located BY THE CARD TEXT, not by output-line index: the
@@ -445,14 +445,14 @@ describe('HistoryScrollController: beginSelection / extendSelection / commitSele
 
   it('copies the full source text even when the card wraps on screen', async () => {
     writeClipboardTextMock.mockClear();
-    // maxWidth=16 → banded termWidth 11 → gutter leaves content width 9, so
+    // maxWidth=16 → banded termWidth 13 → gutter leaves content width 11, so
     // 'aaaa bbbb cccc' WRAPS into two visual rows on screen. Block-based copy
     // is geometry-blind: the payload is the card's whole source text, never
     // the dragged visual rows (the old wrap-map translation is gone).
     const h = mountHistory([textEntry(1, 'aaaa bbbb cccc')], 16);
     try {
       h.controller.beginSelection(0, 2);
-      h.controller.extendSelection(0, 10);
+      h.controller.extendSelection(0, 12);
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);

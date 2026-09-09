@@ -82,6 +82,8 @@ export function buildCopyRegistry(opts: {
         ? {
             toolEntryIds,
             toolViewMode: opts.viewModeForEntry?.(toolEntryIds[0]!) ?? 'normal',
+            lessCol: 3,
+            moreCol: 6,
           }
         : {}),
     });

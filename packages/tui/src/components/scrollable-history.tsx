@@ -20,6 +20,7 @@ import {
   createSelectionBandStore,
   type SelectionBandStore,
 } from './history/selection-band-store.js';
+import { ToolPendingLine, toolPendingLineHeight } from './history/stream-box.js';
 import {
   estimateRenderGroupRows,
   groupEntries,
@@ -124,7 +125,11 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   const toolTail = toolStream?.text
     ? tailForDisplay(toolStream.text, MAX_STREAM_DISPLAY_CHARS)
     : '';
-  const toolTailHeight = toolTail && toolStream ? toolStreamBoxHeight(toolStream.name) : 0;
+  const toolTailHeight = toolStream
+    ? toolTail
+      ? toolStreamBoxHeight(toolStream.name)
+      : toolPendingLineHeight()
+    : 0;
   const assistantTail = streamingText
     ? tailForDisplay(streamingText, MAX_STREAM_DISPLAY_CHARS)
     : '';
@@ -579,13 +584,21 @@ export const ScrollableHistory = memo(function ScrollableHistory({
             );
           })}
 
-          {plan.mountTail && toolTail && toolStream ? (
-            <ToolStreamBox
-              name={toolStream.name}
-              text={toolTail}
-              startedAt={toolStream.startedAt}
-              termWidth={termWidth}
-            />
+          {plan.mountTail && toolStream ? (
+            toolTail ? (
+              <ToolStreamBox
+                name={toolStream.name}
+                text={toolTail}
+                startedAt={toolStream.startedAt}
+                termWidth={termWidth}
+              />
+            ) : (
+              <ToolPendingLine
+                name={toolStream.name}
+                startedAt={toolStream.startedAt}
+                termWidth={termWidth}
+              />
+            )
           ) : null}
 
           {plan.mountTail && assistantTail ? (

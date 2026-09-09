@@ -21,8 +21,8 @@ export {
   tailForDisplay,
   toolStreamBoxHeight,
 } from './stream-box.js';
-export { ToolOutputLines } from './visual-lines.js';
 export type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
+export { ToolOutputLines } from './visual-lines.js';
 
 import {
   countLines,
@@ -37,15 +37,8 @@ import {
   truncMid,
   tryParseJson,
 } from './basic-format.js';
+import { formatToolOutputSageWith } from './sage-output-format.js';
 import { GENERIC_BUDGET, OUT_BUDGET, summarizeJsonObject } from './tool-output-summary.js';
-import {
-  appendOutputPreview,
-  bodyLines,
-  numberFromParsedField,
-  parseHeaderLine,
-  parseKeyValueLines,
-  parseNamedSections,
-} from './tool-visual-format.js';
 import { visualCommand } from './tool-visual-command.js';
 import {
   visualCodebase,
@@ -55,6 +48,14 @@ import {
   visualToolCatalog,
   visualWorkBoard,
 } from './tool-visual-domain.js';
+import {
+  appendOutputPreview,
+  bodyLines,
+  numberFromParsedField,
+  parseHeaderLine,
+  parseKeyValueLines,
+  parseNamedSections,
+} from './tool-visual-format.js';
 import { visualLsp } from './tool-visual-lsp.js';
 import {
   visualAudit,
@@ -64,18 +65,17 @@ import {
   visualScaffold,
 } from './tool-visual-misc.js';
 import { visualMode, visualWorkingDir } from './tool-visual-mode-workdir.js';
-import { visualLogs, visualMemory } from './visual-memory-logs.js';
-import { formatToolOutputSageWith } from './sage-output-format.js';
 import type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
+import { visualLogs, visualMemory } from './visual-memory-logs.js';
 
-export { formatToolArgs } from './tool-arg-format.js';
 export {
   extractSageBlock,
+  type ParsedSageMemoryLine,
+  parseSageMemoryLine,
   resolveEntrySage,
   type SageSplit,
-  parseSageMemoryLine,
-  type ParsedSageMemoryLine,
 } from './sage-output-format.js';
+export { formatToolArgs } from './tool-arg-format.js';
 
 /**
  * Like `formatToolOutput` but strips SAGE-injected memory lines first.
@@ -817,8 +817,8 @@ function visualSearch(toolName: string, text: string): ToolVisualLine[] | undefi
       consumed++;
       continue;
     }
-    const direct = line.match(/^((?:[A-Za-z]:)?[^:]+):(\d+)[:\-](.*)$/);
-    const grouped = line.match(/^(\d+)[:\-](.*)$/);
+    const direct = line.match(/^((?:[A-Za-z]:)?[^:]+):(\d+)[:-](.*)$/);
+    const grouped = line.match(/^(\d+)[:-](.*)$/);
     if (direct?.[1] && direct[2]) {
       rows.push({ kind: 'match', path: direct[1], lineNo: direct[2], text: direct[3] ?? '' });
       consumed++;
@@ -855,7 +855,7 @@ function parseMatchHit(
   hit: unknown,
 ): { path?: string | undefined; line?: string | undefined; text: string } | undefined {
   if (typeof hit === 'string') {
-    const m = hit.match(/^((?:[A-Za-z]:)?[^:]+):(\d+)[:\-](.*)$/);
+    const m = hit.match(/^((?:[A-Za-z]:)?[^:]+):(\d+)[:-](.*)$/);
     return m?.[1] && m[2] ? { path: m[1], line: m[2], text: m[3] ?? '' } : { text: hit };
   }
   if (hit && typeof hit === 'object') {

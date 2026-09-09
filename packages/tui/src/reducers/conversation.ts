@@ -240,6 +240,7 @@ export function reduceConversation(state: State, action: ConversationAction): St
           status: 'idle',
           debugStreamStats: null,
           ...(state.runningTools.size > 0 ? { runningTools: new Map() } : {}),
+          ...(state.toolStream !== null ? { toolStream: null } : {}),
         };
       }
       return { ...state, status: action.status };

@@ -19,10 +19,17 @@ export const DEFAULT_TOOLS_CONFIG = Object.freeze({
   // Owner-set factory defaults (2026-09-06, profiles/default): extension is
   // allowed and the confinement guard is off. Users can re-enable either via
   // /settings; see ToolsConfig.restrictToProjectRoot for the boundary.
-  autoExtendLimit: true,
-  // Ceiling on those auto-grants. `autoExtendLimit` on its own grants +100
-  // iterations on EVERY overrun and no shipped listener ever denies it, so
-  // without this a configured `maxIterations` could never end a run.
+  // OFF, matching what every host actually did: no Agent-constructing host
+  // read this key, so the Agent's own `?? false` decided it everywhere and the
+  // documented `true` was never observable. Wiring the key up (so the setting
+  // means something) without correcting the default would have quietly turned
+  // auto-extension ON for every existing install — the exact behaviour
+  // operators report as "the iteration budget is ignored". A configured
+  // `maxIterations` is therefore a hard stop unless the operator opts in.
+  autoExtendLimit: false,
+  // Ceiling on those auto-grants once opted in. `autoExtendLimit` on its own
+  // grants +100 iterations on EVERY overrun and no shipped listener ever denies
+  // it, so without this a configured `maxIterations` could never end a run.
   maxAutoExtensions: 3,
   restrictToProjectRoot: false,
   // Off by default: the board is a record of the work, not a permit for it.

@@ -297,6 +297,11 @@ export function useProviderEventBridge({
               outputLines: e.outputLines,
             },
           });
+          dispatch({
+            type: 'toolStreamClear',
+            ...(e.id !== undefined ? { toolUseId: e.id } : {}),
+            name: e.name,
+          });
         };
         const canonicalOutput = fullToolResultFromState(agent, e.id);
         if (canonicalOutput !== undefined) {
@@ -311,15 +316,18 @@ export function useProviderEventBridge({
           // the transport preview available.
           addToolEntry(e.output);
         }
+      } else {
+        dispatch({
+          type: 'toolStreamClear',
+          ...(e.id !== undefined ? { toolUseId: e.id } : {}),
+          name: e.name,
+        });
       }
       pendingSageStats.delete(e.name);
       // Prefer the tool_use id (paired with `tool.started.id`) so parallel
       // same-name calls clear their own entry; the reducer still falls back
       // to the oldest matching name for legacy emit sites without an id.
       dispatch({ type: 'toolEnded', ...(e.id !== undefined ? { id: e.id } : {}), name: e.name });
-      // Clear the live tail for this tool — the final entry is now in
-      // retained history, so there is no need to keep mirroring it below.
-      dispatch({ type: 'toolStreamClear', name: e.name });
       // Mirror into the leader-only counter so the AgentsMonitor's LEADER
       // row stays live even when no subagents exist.
       dispatch({ type: 'leaderToolEnd', name: e.name, ok: e.ok, durationMs: e.durationMs });

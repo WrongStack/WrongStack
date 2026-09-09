@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T13:25:13.806Z",
+  "generatedAt": "2026-09-09T13:37:43.261Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3705,
-    "testFiles": 3201,
-    "sourceLines": 893134,
+    "testFiles": 3202,
+    "sourceLines": 893256,
     "workspaceEdges": 127,
-    "moduleEdges": 11702,
+    "moduleEdges": 11704,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 8,
@@ -145,7 +145,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 487,
-      "testFiles": 468,
+      "testFiles": 469,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -184,7 +184,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 468
+          "testFiles": 469
         }
       ]
     },
@@ -1845,6 +1845,12 @@
       },
       {
         "file": "packages/cli/tests/anthropic-oauth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/architecture/agent-loop-safety-hosts.test.ts",
         "projects": [
           "root-node"
         ]

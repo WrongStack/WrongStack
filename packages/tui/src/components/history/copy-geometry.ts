@@ -26,6 +26,9 @@ export interface CopyHit {
   /** Present only for committed tool cards/groups that expose −/+ controls. */
   toolEntryIds?: readonly number[] | undefined;
   toolViewMode?: ToolResultViewMode | undefined;
+  /** Header-local columns for the spaced `▲  ▼` controls. */
+  lessCol?: number | undefined;
+  moreCol?: number | undefined;
 }
 
 export function findToolViewControl(
@@ -36,8 +39,8 @@ export function findToolViewControl(
   for (let i = hits.length - 1; i >= 0; i--) {
     const hit = hits[i];
     if (!hit?.toolEntryIds || !hit.toolViewMode || row !== hit.startRow) continue;
-    if (col === hit.iconCol + 1) return { hit, delta: -1 };
-    if (col === hit.iconCol + 2) return { hit, delta: 1 };
+    if (col === hit.lessCol) return { hit, delta: -1 };
+    if (col === hit.moreCol) return { hit, delta: 1 };
   }
   return null;
 }

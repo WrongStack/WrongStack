@@ -232,6 +232,7 @@ export function ToolEntry({
           ok={entry.ok}
           termWidth={termWidth}
           hasBody={!minimal}
+          viewMode={viewMode}
         >
           {!minimal ? (
             <Text>
@@ -305,6 +306,7 @@ export function ToolEntry({
         ok={entry.ok}
         termWidth={termWidth}
         hasBody={hasToolBody}
+        viewMode={viewMode}
       >
         {full ? (
           <>

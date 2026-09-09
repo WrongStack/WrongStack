@@ -2,6 +2,7 @@ import type React from 'react';
 import { Box, Text } from '../../ink.js';
 import { displayWidth, sanitizeTerminalText, truncateDisplay } from '../../terminal-width.js';
 import { theme } from '../../theme.js';
+import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import { glyphs } from '../../ui-glyphs.js';
 
 interface ToolCardProps {
@@ -14,6 +15,7 @@ interface ToolCardProps {
   termWidth: number;
   hasBody: boolean;
   children?: React.ReactNode;
+  viewMode?: ToolResultViewMode | undefined;
 }
 
 /**
@@ -32,15 +34,20 @@ export function ToolCard({
   termWidth,
   hasBody,
   children,
+  viewMode,
 }: ToolCardProps): React.ReactElement {
   const safeTitle = sanitizeTerminalText(title);
   const safeDetail = detail ? sanitizeTerminalText(detail) : undefined;
   const safeMeta = meta ? sanitizeTerminalText(meta) : undefined;
   const status = ok ? glyphs.success : glyphs.failure;
   const statusColor = ok ? theme.success : theme.error;
-  const titleBudget = Math.max(1, termWidth - displayWidth(`╭─ ${status} ${glyph} `));
+  const controlPrefix = viewMode ? '▲  ▼  ' : '';
+  const titleBudget = Math.max(
+    1,
+    termWidth - displayWidth(`╭─ ${controlPrefix}${status} ${glyph} `),
+  );
   const visibleTitle = truncateDisplay(safeTitle, titleBudget);
-  const fixedHeader = `${status} ${glyph} ${visibleTitle}`;
+  const fixedHeader = `${controlPrefix}${status} ${glyph} ${visibleTitle}`;
   const tailBudget = Math.max(0, termWidth - displayWidth(fixedHeader) - 10);
   const metaBudget = safeMeta ? Math.min(displayWidth(safeMeta), Math.floor(tailBudget * 0.36)) : 0;
   const visibleMeta =
@@ -54,6 +61,14 @@ export function ToolCard({
     <Box flexDirection="column" marginY={0}>
       <Text>
         <Text color={railColor}>╭─ </Text>
+        {viewMode ? (
+          <>
+            <Text color={viewMode === 'minimal' ? theme.borderSubtle : theme.textMuted}>
+              {'▲  '}
+            </Text>
+            <Text color={viewMode === 'full' ? theme.borderSubtle : theme.textMuted}>{'▼  '}</Text>
+          </>
+        ) : null}
         <Text bold color={statusColor}>
           {status}
         </Text>

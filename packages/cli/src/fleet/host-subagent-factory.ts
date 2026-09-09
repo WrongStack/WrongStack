@@ -417,6 +417,17 @@ export function createHostSubagentFactory(
       permissionPolicy: new AutoApprovePermissionPolicy(subAllowedCaps),
       toolExecutor,
       loopDetection: config.tools?.loopDetection,
+      // `tools.maxIterations` was never read on this host, so an operator who
+      // set a turn budget got it honoured on the CLI and WebUI hosts and
+      // silently ignored here. Only a POSITIVE value is forwarded: the shipped
+      // default is `0` ("no hard limit"), and handing that to the agent loop
+      // would trade a missing setting for a missing safety net. Absent an
+      // explicit budget the Agent keeps its own DEFAULT_MAX_ITERATIONS.
+      ...(typeof config.tools?.maxIterations === 'number' &&
+      Number.isFinite(config.tools.maxIterations) &&
+      config.tools.maxIterations > 0
+        ? { maxIterations: config.tools.maxIterations }
+        : {}),
     });
 
     agent.extensions.register(

@@ -52,12 +52,14 @@ export interface ToolsConfig {
    */
   autoThin?: AutoThinConfig | undefined;
   /**
-   * When true (default), the agent automatically extends its iteration
-   * limit by 100 when hit. Set to false to require user confirmation.
+   * When true, the agent automatically extends its iteration limit by 100 each
+   * time it is hit, up to `maxAutoExtensions` times. Default **false**: a
+   * configured `maxIterations` is a hard stop.
    *
-   * The grant is bounded by `maxAutoExtensions` — on its own this flag would
-   * make `maxIterations` unenforceable, since nothing in the shipped stack
-   * denies the grant.
+   * Turning this on trades budget enforcement for reach on long tasks. Nothing
+   * in the shipped stack denies the grant (the only `iteration.limit_reached`
+   * subscribers are a metrics counter and two UI forwarders), so
+   * `maxAutoExtensions` is the only thing that ends such a run.
    */
   autoExtendLimit?: boolean | undefined;
   /**

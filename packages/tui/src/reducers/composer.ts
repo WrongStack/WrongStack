@@ -6,7 +6,7 @@ import { filterResourceMenuItems } from '../components/resource-menu.js';
 import { retainTuiHistory, TUI_RESUME_HISTORY_BUDGET } from '../history-retention.js';
 import { appendResumeLog, type ResumeLoadState, renderResumeLoadBlock } from '../resume-load.js';
 import { getActiveThemeName, THEME_OPTIONS } from '../theme.js';
-import { closePanels, MAX_TOOL_STREAM_RETAINED_CHARS, retainStreamTail } from './helpers.js';
+import * as h from './helpers.js';
 
 const composerActionTypes = [
   'brainPromptSet',
@@ -136,11 +136,11 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       return state.bashMode
         ? { ...state, bashMode: false, historyIndex: 0, historyDraft: '' }
         : state;
-    case 'toolStarted': {
-      const next = new Map(state.runningTools);
-      next.set(action.id, { name: action.name, startedAt: Date.now() });
-      return { ...state, runningTools: next };
-    }
+    case 'toolStarted':
+      // Surface the call immediately; partial output may never be emitted.
+      // The pending row is replaced only after the committed result lands.
+      // Keeping this transition atomic also gives runningTools the same clock.
+      return h.startToolStream(state, action.id, action.name);
     case 'toolEnded': {
       const next = new Map(state.runningTools);
       if (action.id !== undefined && next.has(action.id)) {
@@ -175,7 +175,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
           ...state,
           toolStream: {
             ...cur,
-            text: retainStreamTail(cur.text, action.text, MAX_TOOL_STREAM_RETAINED_CHARS),
+            text: h.retainStreamTail(cur.text, action.text, h.MAX_TOOL_STREAM_RETAINED_CHARS),
           },
         };
       }
@@ -186,7 +186,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
           name: action.name,
           // The first partial-output event can itself be an oversized chunk,
           // so apply the same cap used for later appends at initialization.
-          text: retainStreamTail('', action.text, MAX_TOOL_STREAM_RETAINED_CHARS),
+          text: h.retainStreamTail('', action.text, h.MAX_TOOL_STREAM_RETAINED_CHARS),
           startedAt: action.startedAt,
         },
       };
@@ -332,7 +332,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
         // Generic 'pick' invocations are transient overlays ON TOP of the
         // calling panel (e.g. the Brain panel) — leave other panels open so
         // the caller is still there when the promise resolves.
-        ...(purpose === 'pick' ? {} : closePanels(state)),
+        ...(purpose === 'pick' ? {} : h.closePanels(state)),
         modelPicker: {
           open: true,
           step: 'provider',
@@ -431,7 +431,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
     case 'autonomyPickerOpen':
       return {
         ...state,
-        ...closePanels(state),
+        ...h.closePanels(state),
         autonomyPicker: { open: true, options: action.options, selected: 0, hint: undefined },
       };
     case 'autonomyPickerClose':
@@ -466,7 +466,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       const selected = action.selected ?? fallback;
       return {
         ...state,
-        ...closePanels(state),
+        ...h.closePanels(state),
         themePicker: { open: true, selected, hint: undefined },
       };
     }
@@ -492,7 +492,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
     case 'modePickerOpen':
       return {
         ...state,
-        ...closePanels(state),
+        ...h.closePanels(state),
         modePicker: { open: true, modes: action.modes, selected: 0, hint: undefined },
       };
     case 'modePickerClose':
@@ -517,7 +517,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
     case 'skillPickerOpen':
       return {
         ...state,
-        ...closePanels(state),
+        ...h.closePanels(state),
         skillPicker: {
           open: true,
           entries: action.entries,
@@ -552,7 +552,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
     case 'resourceMenuOpen':
       return {
         ...state,
-        ...closePanels(state),
+        ...h.closePanels(state),
         resourceMenu: {
           open: true,
           snapshot: action.snapshot,
@@ -613,7 +613,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
     case 'designPickerOpen':
       return {
         ...state,
-        ...closePanels(state),
+        ...h.closePanels(state),
         designPicker: {
           open: true,
           kits: action.kits,
@@ -643,7 +643,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
     case 'promptPickerOpen':
       return {
         ...state,
-        ...closePanels(state),
+        ...h.closePanels(state),
         promptPicker: {
           open: true,
           all: action.all,
@@ -679,7 +679,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
     case 'resumePickerOpen':
       return {
         ...state,
-        ...closePanels(state),
+        ...h.closePanels(state),
         resumePicker: {
           open: true,
           sessions: action.sessions,
