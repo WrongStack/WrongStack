@@ -34,14 +34,19 @@ auditConfig:
   ignoreGhsas:
     - GHSA-gv7w-rqvm-qjhr
 allowBuilds:
-  # electron-winstaller: transitive dependency of electron-builder (desktop
+  # electron-winstaller: arrives transitively with electron-builder (desktop
   # packaging). Its `install` script (`script/select-7z-arch.js`) copies the
   # 7-Zip executable and DLL for the HOST architecture out of the package's own
   # bundled `vendor/` directory — `vendor/7z-x64.exe` -> `vendor/7z.exe`. It
-  # downloads nothing and executes nothing remote; the binaries it selects
-  # between are already inside the tarball. Reviewed 2026-09-09 against 5.4.0.
-  # Only the Squirrel.Windows target uses them; our NSIS/portable targets do
-  # not, but the entry keeps that target from failing obscurely later.
+  # downloads nothing and executes nothing remote; both candidates ship inside
+  # the tarball. Reviewed 2026-09-09 against 5.4.0.
+  #
+  # Only the Squirrel.Windows target consumes those binaries and we build NSIS
+  # and portable, so this authorises a script whose OUTPUT we do not use. It is
+  # here because pnpm 12 does not warn about an unapproved lifecycle script —
+  # it fails `install` outright with ERR_PNPM_IGNORED_BUILDS, so the repo
+  # cannot be installed at all while electron-builder is a dependency and this
+  # entry is absent. Measured, not assumed: removing it breaks `pnpm install`.
   electron-winstaller: true
   esbuild: true
   # node-pty is an optional WebUI terminal dependency (used by the

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -66,6 +66,37 @@ function inLockfile(name: string): boolean {
   return new RegExp(`(^|[/\\s'"])${escaped}@`, 'm').test(lockfile);
 }
 
+/**
+ * The installed `package.json` for a dependency, wherever pnpm put it.
+ *
+ * A DIRECT dependency is hoisted to `node_modules/<name>`, but a transitive
+ * one — `electron-winstaller`, which arrives under `electron-builder` — only
+ * ever exists inside the content-addressed store at
+ * `node_modules/.pnpm/<name>@<version>[_<peerhash>]/node_modules/<name>`.
+ * Looking only at the top level reported every transitive entry as "not
+ * installed", which is the opposite of the truth and would have pushed a
+ * maintainer to delete a genuinely required authorisation.
+ *
+ * Scoped names are stored with `/` replaced by `+` in the store directory
+ * name (`@scope/pkg` -> `@scope+pkg@1.0.0`) but keep the real nested path.
+ */
+function resolveInstalledPackage(name: string): string | null {
+  const direct = resolve(repoRoot, 'node_modules', name, 'package.json');
+  if (existsSync(direct)) return direct;
+
+  const store = resolve(repoRoot, 'node_modules', '.pnpm');
+  if (!existsSync(store)) return null;
+  const prefix = `${name.replace('/', '+')}@`;
+  for (const entry of readdirSync(store)) {
+    if (!entry.startsWith(prefix)) continue;
+    const nested = resolve(store, entry, 'node_modules', name, 'package.json');
+    if (existsSync(nested)) return nested;
+  }
+  return null;
+}
+
+const PHRASE = 'allows lifecycle builds for';
+
 describe('build-script allowlists stay in sync with the tree (WS-072)', () => {
   const allowBuilds = blockEntries('allowBuilds');
   const onlyBuilt = blockEntries('onlyBuiltDependencies');
@@ -102,7 +133,11 @@ describe('build-script allowlists stay in sync with the tree (WS-072)', () => {
     const missing: string[] = [];
     const deadEntries: string[] = [];
     for (const name of allowBuilds) {
-      const pkgPath = resolve(repoRoot, 'node_modules', name, 'package.json');
+      const pkgPath = resolveInstalledPackage(name);
+      if (!pkgPath) {
+        missing.push(name);
+        continue;
+      }
       let pkg: { scripts?: Record<string, string> };
       try {
         pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { scripts?: Record<string, string> };
@@ -141,9 +176,22 @@ describe('build-script allowlists stay in sync with the tree (WS-072)', () => {
       .split(/\r?\n/)
       .find((line) => line.includes('allows lifecycle builds for'));
     expect(claim, 'SECURITY.md must state which packages may run build scripts').toBeDefined();
-    for (const name of onlyBuilt) {
-      expect(claim, name).toContain(name);
-    }
+
+    // Both directions. Containment alone let the claim name FIVE packages that
+    // were no longer authorised (`@biomejs/biome`, `electron`,
+    // `onnxruntime-node`, `protobufjs`, `sharp`) while still passing, because
+    // a superset contains every real entry. An over-broad claim is the more
+    // dangerous drift of the two: it documents a wider install-script
+    // authorisation than the repo actually grants. So the sentence is parsed
+    // as a set and compared for equality.
+    //
+    // Only the leading clause is the list; the prose after the first sentence
+    // explains individual entries and legitimately names other packages.
+    const listClause = claim!.slice(claim!.indexOf(PHRASE) + PHRASE.length).split('.')[0] ?? '';
+    const claimed = [...listClause.matchAll(/`([^`]+)`/g)].map((m) => m[1]!).sort();
+    expect(claimed, 'the packages SECURITY.md claims may run build scripts').toEqual(
+      [...onlyBuilt].sort(),
+    );
     expect(claim).not.toContain('better-sqlite3');
   });
 });
