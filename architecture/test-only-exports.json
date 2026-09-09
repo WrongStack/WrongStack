@@ -1115,6 +1115,7 @@
       "ParserWorkerPool"
     ],
     "packages/tools/src/codebase-index/project-server-endpoint.ts": [
+      "PROJECT_INDEX_SERVER_CLOSED_MESSAGE",
       "projectIndexServerKey"
     ],
     "packages/tools/src/codebase-index/project-server-operations.ts": [

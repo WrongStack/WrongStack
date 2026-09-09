@@ -7,6 +7,9 @@ import { resolveIndexDir } from './writer.js';
 
 export const PROJECT_INDEX_SERVER_PROTOCOL_VERSION = 1;
 const PROJECT_INDEX_SERVER_METADATA_FILE = 'server.json';
+const PROJECT_INDEX_SERVER_STDERR_FILE = 'server.err.log';
+/** Keep only the tail; a daemon that crash-loops must not fill the disk. */
+export const PROJECT_INDEX_SERVER_STDERR_MAX_BYTES = 64 * 1024;
 /**
  * Short directory name that owns the per-project Unix socket on Linux.
  *
@@ -115,4 +118,75 @@ export function projectIndexServerMetadataPath(projectRoot: string, indexDir?: s
     path.resolve(resolveIndexDir(projectRoot, indexDir)),
     PROJECT_INDEX_SERVER_METADATA_FILE,
   );
+}
+
+/**
+ * Where a detached daemon's stderr is kept.
+ *
+ * The daemon used to be spawned with `stdio: 'ignore'`, so when it died the
+ * only trace was the client's `codebase-index server connection closed` —
+ * a message that names the symptom and no cause. Node writes an uncaught
+ * exception's stack to stderr before exiting, and V8 writes its fatal
+ * out-of-memory message there too (which no JS handler can intercept), so
+ * keeping the stream is what makes a dead daemon explain itself.
+ */
+export function projectIndexServerStderrPath(projectRoot: string, indexDir?: string): string {
+  return path.join(
+    path.resolve(resolveIndexDir(projectRoot, indexDir)),
+    PROJECT_INDEX_SERVER_STDERR_FILE,
+  );
+}
+
+/**
+ * The tail of a daemon's stderr, condensed to one line for an error message.
+ *
+ * Returns null when there is nothing useful: no file, an empty one, or only
+ * whitespace. Reads at most the last `PROJECT_INDEX_SERVER_STDERR_MAX_BYTES`
+ * so a large file cannot be pulled into memory here.
+ */
+export function readProjectIndexServerStderrTail(
+  path_: string,
+  maxLines = 4,
+): string | null {
+  let raw: string;
+  try {
+    const { size } = fs.statSync(path_);
+    const start = Math.max(0, size - PROJECT_INDEX_SERVER_STDERR_MAX_BYTES);
+    const fd = fs.openSync(path_, 'r');
+    try {
+      const length = size - start;
+      if (length <= 0) return null;
+      const buffer = Buffer.alloc(length);
+      fs.readSync(fd, buffer, 0, length, start);
+      raw = buffer.toString('utf8');
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return null;
+  }
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) return null;
+  return lines.slice(-maxLines).join(' | ');
+}
+
+/** The base close message. Kept as a PREFIX so existing substring matchers
+ * (and anyone grepping logs for it) keep working when a reason is appended. */
+export const PROJECT_INDEX_SERVER_CLOSED_MESSAGE = 'codebase-index server connection closed';
+
+/**
+ * Compose the error a closed connection rejects with.
+ *
+ * A closed socket has two very different causes — an orderly shutdown and the
+ * daemon dying — and they used to be reported identically. When the daemon
+ * left something on stderr, that text is the whole difference between a
+ * failure someone can act on and one that reads as a flake.
+ */
+export function formatProjectIndexServerCloseError(tail: string | null): string {
+  return tail
+    ? `${PROJECT_INDEX_SERVER_CLOSED_MESSAGE} (server stderr: ${tail})`
+    : PROJECT_INDEX_SERVER_CLOSED_MESSAGE;
 }

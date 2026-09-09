@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T10:27:43.715Z",
+  "generatedAt": "2026-09-09T10:50:58.872Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3704,
-    "testFiles": 3196,
-    "sourceLines": 891915,
+    "testFiles": 3197,
+    "sourceLines": 892044,
     "workspaceEdges": 127,
     "moduleEdges": 11686,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 8,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 881
+    "testOnlyExports": 882
   },
   "errors": [],
   "packageCycles": [],
@@ -734,7 +734,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 212,
-      "testFiles": 212,
+      "testFiles": 213,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -750,7 +750,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 212
+          "testFiles": 213
         }
       ]
     },
@@ -14192,6 +14192,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/project-server-stderr-diagnosis.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/ps-slash.test.ts",
         "projects": [
           "root-node"
@@ -20722,7 +20728,7 @@
     },
     {
       "file": "packages/tools/src/codebase-index/project-server-client.ts",
-      "lines": 825,
+      "lines": 880,
       "relativeImports": 7
     },
     {
@@ -23409,6 +23415,10 @@
     {
       "file": "packages/tools/src/codebase-index/parser-worker-pool.ts",
       "name": "ParserWorkerPool"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/project-server-endpoint.ts",
+      "name": "PROJECT_INDEX_SERVER_CLOSED_MESSAGE"
     },
     {
       "file": "packages/tools/src/codebase-index/project-server-endpoint.ts",

@@ -291,7 +291,7 @@
       "relativeImports": 11
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
-      "lines": 825,
+      "lines": 880,
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/tree-sitter/queries.ts": {

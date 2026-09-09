@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
+import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   decodeBinaryFrame,
@@ -39,9 +40,13 @@ import {
   setLatestConnectionState,
 } from './project-server-client-state.js';
 import {
+  formatProjectIndexServerCloseError,
   PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+  PROJECT_INDEX_SERVER_STDERR_MAX_BYTES,
   projectIndexServerEndpoint,
   projectIndexServerMetadataPath,
+  projectIndexServerStderrPath,
+  readProjectIndexServerStderrTail,
 } from './project-server-endpoint.js';
 import {
   encodeProjectServerMessage,
@@ -588,6 +593,22 @@ class ProjectServerConnection {
     else entry.reject(remoteError(message.error, message.errorName));
   }
 
+  /**
+   * Why the connection closed, as far as the daemon left evidence.
+   *
+   * A closed socket has two very different causes — an orderly shutdown, and
+   * the daemon dying — and they were reported identically. If the daemon
+   * wrote anything to stderr, that text is the difference between a failure
+   * someone can act on and one that reads as a flake.
+   */
+  private closeReason(): string {
+    return formatProjectIndexServerCloseError(
+      readProjectIndexServerStderrTail(
+        projectIndexServerStderrPath(this.projectRoot, this.indexDir),
+      ),
+    );
+  }
+
   private onClose(socket: net.Socket): void {
     if (socket !== this.socket) return;
     const wasConnected = this.info !== null;
@@ -595,7 +616,7 @@ class ProjectServerConnection {
     this.info = null;
     this.activity = null;
     this.health = null;
-    const error = new Error('codebase-index server connection closed');
+    const error = new Error(this.closeReason());
     this.connectReject?.(error);
     this.connectResolve = null;
     this.connectReject = null;
@@ -661,12 +682,46 @@ class ProjectServerConnection {
     }
     const args = [fileURLToPath(url), '--project-root', this.projectRoot];
     if (this.indexDir) args.push('--index-dir', this.indexDir);
+    // Keep stderr. With `stdio: 'ignore'` a daemon that died took its reason
+    // with it, and the only thing left was the client's
+    // "connection closed" — the symptom, never the cause. Node prints an
+    // uncaught exception's stack here before exiting, and V8 prints its fatal
+    // heap message here too, which no in-process handler can catch.
+    let stderrTarget: number | 'ignore' = 'ignore';
+    try {
+      const logPath = projectIndexServerStderrPath(this.projectRoot, this.indexDir);
+      fs.mkdirSync(path.dirname(logPath), { recursive: true });
+      // Truncate a log that has already grown past the cap rather than
+      // appending forever: a crash-looping daemon must not fill the disk, and
+      // only the most recent death is diagnostically useful.
+      try {
+        if (fs.statSync(logPath).size > PROJECT_INDEX_SERVER_STDERR_MAX_BYTES) {
+          fs.truncateSync(logPath, 0);
+        }
+      } catch {
+        /* absent is the normal case */
+      }
+      stderrTarget = fs.openSync(logPath, 'a');
+    } catch {
+      // A read-only or missing index dir must not stop the daemon starting;
+      // losing the log is worse than today, not fatal.
+      stderrTarget = 'ignore';
+    }
     const child = spawn(process.execPath, args, {
       detached: true,
-      stdio: 'ignore',
+      stdio: ['ignore', 'ignore', stderrTarget],
       windowsHide: true,
       env: process.env,
     });
+    if (typeof stderrTarget === 'number') {
+      // The child holds its own duplicate of the descriptor; ours would keep
+      // the file open for the life of this process.
+      try {
+        fs.closeSync(stderrTarget);
+      } catch {
+        /* already closed */
+      }
+    }
     child.unref();
   }
 
