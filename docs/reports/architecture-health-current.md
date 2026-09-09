@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-09T21:20:26.207Z
+**Generated:** 2026-09-09T22:10:27.255Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3716 |
-| Production source lines | 897689 |
-| Test files | 3221 |
+| Production source lines | 897693 |
+| Test files | 3222 |
 | Workspace dependency edges | 127 |
 | Relative module edges | 11785 |
 | Non-command slash imports | 0 |
@@ -39,7 +39,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/mailbox-mcp | 5 | 7 | @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 37 | 37 | @wrongstack/core |
 | @wrongstack/persistence | 6 | 9 | — |
-| @wrongstack/plug-lsp | 50 | 35 | @wrongstack/core, @wrongstack/tools |
+| @wrongstack/plug-lsp | 50 | 36 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 11 | 3 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 83 | 123 | @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 5 | 4 | — |
@@ -138,7 +138,7 @@ None.
 
 ## Exports only tests reference
 
-- 897 runtime exports are referenced by tests and by no other production file.
+- 900 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

@@ -256,7 +256,11 @@ async function runAddCommand(
   return {
     message: [
       `${colorize('Registered:', 'green')} ${name}`,
+      // `args` is optional on ServerConfig, but parseArgs always supplies an
+      // array, so the `?? []` leg is unreachable from this caller.
+      /* v8 ignore start */
       `  Command: ${colorize(config.command, 'cyan')} ${(config.args ?? []).join(' ')}`.trimEnd(),
+      /* v8 ignore stop */
       `  Languages: ${config.languages.join(', ')}`,
       ...activation.lines,
     ].join('\n'),

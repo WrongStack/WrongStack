@@ -768,11 +768,20 @@
     "packages/plug-lsp/src/slash-commands/lsp.ts": [
       "lspCommandCoverage"
     ],
+    "packages/plug-lsp/src/tools/code-actions.ts": [
+      "codeActionsCoverage"
+    ],
     "packages/plug-lsp/src/tools/completion.ts": [
       "completionCoverage"
     ],
+    "packages/plug-lsp/src/tools/hover.ts": [
+      "hoverCoverage"
+    ],
     "packages/plug-lsp/src/tools/shared.ts": [
       "textDocumentPosition"
+    ],
+    "packages/plug-lsp/src/tools/symbols.ts": [
+      "symbolsCoverage"
     ],
     "packages/plug-lsp/src/tools/workspace-edit.ts": [
       "applyTextEdits"

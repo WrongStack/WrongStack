@@ -61,6 +61,45 @@ describe('registry completion coverage', () => {
     );
   });
 
+  it('logs a lazy start failure and still settles ensureProjectServersReady', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-ensure-'));
+    directories.push(root);
+    await fs.writeFile(path.join(root, 'a.ts'), 'const a = 1;');
+
+    const { value, tracker } = registry();
+    await value.bind(root);
+    const broken = {
+      name: 'broken',
+      state: 'stopped',
+      config: { languages: ['typescript'] },
+      start: vi.fn(async () => {
+        throw new Error('cannot start');
+      }),
+    };
+    vi.spyOn(value, 'list').mockReturnValue([broken] as never);
+
+    // One server failing to start must not reject the whole readiness sweep —
+    // the other servers in the Promise.all still need to come up.
+    await expect(value.ensureProjectServersReady()).resolves.toBeUndefined();
+    expect(log.warn).toHaveBeenCalledWith(
+      'LSP broken failed to start',
+      expect.objectContaining({ message: 'cannot start' }),
+    );
+    expect(tracker.reopenForServer).not.toHaveBeenCalled();
+  });
+
+  it('skips the readiness sweep when servers are not started lazily', async () => {
+    const { value } = registry();
+    await value.bind(process.cwd(), 'eager');
+    const list = vi.spyOn(value, 'list');
+
+    await value.ensureProjectServersReady();
+
+    // Eager mode already started what it needs during bind(); sweeping again
+    // would walk the project tree for nothing.
+    expect(list).not.toHaveBeenCalled();
+  });
+
   it('detects project languages through nested and ignored directories', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-languages-'));
     directories.push(root);

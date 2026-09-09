@@ -223,6 +223,37 @@ describe('buildLspCommand — parseArgs dispatch', () => {
     expect((await runCmd(ctx, '--help')).message).toContain('Usage:');
   });
 
+  it('marks malformed option lists invalid instead of half-parsing them', () => {
+    const { optionValues } = lspCommandCoverage;
+
+    // A flag with no value: stop reading rather than pair it with the next flag.
+    const dangling = optionValues(['--command', 'tsserver', '--languages']);
+    expect(dangling.invalid).toBe(true);
+    expect(dangling.single.get('command')).toBe('tsserver');
+
+    // A bare word where a flag belongs — the caller drifted out of flag syntax.
+    const positional = optionValues(['tsserver', '--languages', 'typescript']);
+    expect(positional.invalid).toBe(true);
+    expect(positional.single.size).toBe(0);
+
+    // An unknown flag is invalid but does not abort the scan: later known flags
+    // still land, so the help text can be shown with the parse intact.
+    const unknown = optionValues(['--bogus', 'x', '--command', 'tsserver', '--arg', '--stdio']);
+    expect(unknown.invalid).toBe(true);
+    expect(unknown.single.get('command')).toBe('tsserver');
+    expect(unknown.multi.get('arg')).toEqual(['--stdio']);
+  });
+
+  it('rejects an add whose options are malformed', async () => {
+    const ctx = makeCtx([]);
+    expect((await runCmd(ctx, 'add ts --command tsserver --languages')).message).toContain(
+      'Usage:',
+    );
+    expect(
+      (await runCmd(ctx, 'add ts --command tsserver --languages typescript --bogus v')).message,
+    ).toContain('Usage:');
+  });
+
   it('unknown subcommand falls back to help', async () => {
     const ctx = makeCtx([]);
     const result = await runCmd(ctx, 'xyz');
@@ -485,6 +516,66 @@ describe('buildLspCommand — config mutations (add/remove/enable/disable)', () 
     const ctx = makeCtx([]);
     const result = await runCmd(ctx, 'add');
     expect(result.message).toContain('Usage:');
+  });
+
+  it('registers a server from a full option list', async () => {
+    const ctx = makeCtx([]);
+    const result = await runCmd(
+      ctx,
+      'add vue --command vls --arg --stdio --languages vue,html --root package.json ' +
+        '--extension .vue=vue --extension mjs=javascript --extension d.ts=typescript ' +
+        '--timeout 30000',
+    );
+
+    expect(result.message).toContain('Registered:');
+    expect(String(result.message).replace(/\[[0-9;]*m/g, '')).toContain('Command: vls --stdio');
+    expect(ctx.registry.upsertServer).toHaveBeenCalledWith(
+      'vue',
+      expect.objectContaining({
+        command: 'vls',
+        args: ['--stdio'],
+        languages: ['vue', 'html'],
+        // A bare extension keeps its shape; one with an inner dot gets the
+        // leading dot the server config expects.
+        fileExtensions: { '.vue': 'vue', mjs: 'javascript', '.d.ts': 'typescript' },
+        rootPatterns: ['package.json'],
+        startupTimeoutMs: 30000,
+      }),
+    );
+  });
+
+  it('registers a server from the minimum option list', async () => {
+    const ctx = makeCtx([]);
+    expect(
+      (await runCmd(ctx, 'add ts --command tsserver --languages typescript')).message,
+    ).toContain('Registered:');
+    expect(ctx.registry.upsertServer).toHaveBeenCalledWith(
+      'ts',
+      expect.objectContaining({
+        args: [],
+        rootPatterns: [],
+        startupTimeoutMs: 15000,
+      }),
+    );
+    expect(ctx.registry.upsertServer).toHaveBeenCalledWith(
+      'ts',
+      expect.not.objectContaining({ fileExtensions: expect.anything() }),
+    );
+  });
+
+  it('rejects an add whose timeout or extension mapping is unusable', async () => {
+    const ctx = makeCtx([]);
+    const base = 'add ts --command tsserver --languages typescript';
+    for (const args of [
+      `${base} --timeout abc`,
+      `${base} --timeout 0`,
+      `${base} --extension novalue`,
+      `${base} --extension =vue`,
+      `${base} --extension vue=`,
+    ]) {
+      expect((await runCmd(ctx, args)).message).toContain('Usage:');
+    }
+    expect(ctx.registry.upsertServer).not.toHaveBeenCalled();
   });
 
   it('remove stops the server and deletes the config entry', async () => {
